@@ -10,12 +10,14 @@ import { stepstoneRequest } from "@/app/(app)/character/requestActions";
 
 // The Stepstone: break it and stand somewhere else.
 //
-// The list is what this character KNOWS — everywhere they have stood, plus
-// everywhere they have seen from a doorway — built server-side in
+// The list is everywhere this character has STOOD, built server-side in
 // character/page.js off db/lib/locationVisits.js and re-checked by
-// stepstoneRequest, which refuses a posted id for anywhere else. A picker
-// over every Location in Ravenheart would hand the reader the whole map,
-// which is the one thing the fog on /map exists to stop.
+// stepstoneRequest, which refuses a posted id for anywhere else.
+//
+// Deliberately not the `seen` half of the fog: a place seen from a doorway may
+// be behind a locked gate, and the stone must not be a key to it. And
+// deliberately not every Location either — that would hand the reader the
+// whole map, which is what the fog on /map exists to stop.
 export default function StepstoneDialog({ onDone, onClose }) {
   const pools = useActionPools();
   const places = pools.stepstoneTargets ?? [];
@@ -40,7 +42,7 @@ export default function StepstoneDialog({ onDone, onClose }) {
       submitLabel="Step"
       busy={busy}
       error={error}
-      empty={places.length === 0 ? "You know nowhere else to step to." : null}
+      empty={places.length === 0 ? "You have been nowhere else yet. ‡" : null}
       canSubmit={Boolean(locationId)}
       onClose={onClose}
       onSubmit={() =>
@@ -70,7 +72,6 @@ export default function StepstoneDialog({ onDone, onClose }) {
           {choices.map((l) => (
             <option key={l.id} value={l.id}>
               {l.zoneName ? `${l.name} — ${l.zoneName}` : l.name}
-              {l.stood ? "" : " (seen only)"}
             </option>
           ))}
         </Select>

@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { prisma, isDynastyHead, isDynastyMember, canOpenCrate } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { linkBetween, crossingCheck } from "@lifeweb/db/lib/locationGraph";
+import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
 import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
 import {
@@ -146,6 +147,7 @@ import {
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
+  WHISPER_MAX,
 } from "@lifeweb/db/lib/constants";
 import {
   resolveTorture,
@@ -5226,7 +5228,6 @@ export async function birdMessageRequest(input) {
 // Declared here rather than in db/lib for the reason MULLIGAN_SLUG gives: one
 // bespoke consumable, one place that names it.
 const RAVEN_DRAUGHT_SLUG = "raven-draught";
-const MAX_WHISPER_LENGTH = 400;
 
 // Bascinet's words, verbatim, so no dagger.
 function whisperDm(message) {
@@ -5239,9 +5240,9 @@ async function whisperRequestImpl({ recipientId, message: rawMessage }) {
   const held = character.tags.find(
     (ct) => ct.tag.slug === RAVEN_DRAUGHT_SLUG && ct.quantity > 0,
   );
-  if (!held) throw new UserError("You aren't carrying a Raven Draught.");
+  if (!held) throw new UserError("You aren't carrying a Raven Draught. ‡");
 
-  const message = String(rawMessage ?? "").trim().slice(0, MAX_WHISPER_LENGTH);
+  const message = String(rawMessage ?? "").trim().slice(0, WHISPER_MAX);
   if (!message) throw new UserError("Say something first.");
 
   const targetId = String(recipientId ?? "");
@@ -5270,12 +5271,12 @@ async function whisperRequestImpl({ recipientId, message: rawMessage }) {
   await prisma.$transaction(async (tx) => {
     // The bottle was read outside this transaction — lock before spending it,
     // or two submits in flight both see one draught and send two whispers.
-    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+    await lockCharacter(tx, character.id);
     const stillHeld = await tx.characterTag.findFirst({
       where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
       select: { id: true },
     });
-    if (!stillHeld) throw new UserError("You aren't carrying a Raven Draught.");
+    if (!stillHeld) throw new UserError("You aren't carrying a Raven Draught. ‡");
     await dropCharacterTag(tx, character.id, held.tagId, 1);
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
@@ -5320,7 +5321,14 @@ async function stepstoneRequestImpl({ locationId }) {
   const held = character.tags.find(
     (ct) => ct.tag.slug === STEPSTONE_SLUG && ct.quantity > 0,
   );
-  if (!held) throw new UserError("You aren't carrying a Stepstone.");
+  if (!held) throw new UserError("You aren't carrying a Stepstone. ‡");
+
+  // A hold stops a walk at locationTravel.js#performLocationMove, and it has to
+  // stop a step for the same reason: an ambush is a hand on your shoulder
+  // (docs/systemdocs/INTERCEPT.md). Without this the stone is the one way out
+  // of an intercept in the game.
+  const heldBy = heldReasonFor(character);
+  if (heldBy) throw new UserError(heldBy);
 
   const targetId = String(locationId ?? "");
   if (!targetId) throw new UserError("Pick somewhere.");
@@ -5332,14 +5340,19 @@ async function stepstoneRequestImpl({ locationId }) {
     where: { id: targetId },
     include: { zone: true },
   });
-  if (!location) throw new UserError("There's no such place. ‡");
+  if (!location) throw new UserError("There's no such place.");
 
   // Recomputed here rather than trusted from the dialog: the picker is a hint,
   // and a posted id for somewhere this character has never been must be
   // refused whatever the client drew.
-  const { stood, seen } = await knownLocations(prisma, character.id);
-  if (!stood.has(targetId) && !seen.has(targetId)) {
-    throw new UserError("You don't know that place well enough to step to it.");
+  // STOOD only, never `seen`. A `seen` row is written for every LISTED
+  // neighbour, and a locked gate or a shut portcullis is listed-but-not-
+  // passable by design (db/lib/locationGraph.js) — so accepting `seen` would
+  // let the stone step through every door in Ravenheart anybody had ever
+  // stood next to. Somewhere you have STOOD is somewhere you already got into.
+  const { stood } = await knownLocations(prisma, character.id);
+  if (!stood.has(targetId)) {
+    throw new UserError("You've never stood there. The stone only takes you back. ‡");
   }
 
   const fromLocationId = character.locationId;
@@ -5352,12 +5365,12 @@ async function stepstoneRequestImpl({ locationId }) {
   };
 
   await prisma.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+    await lockCharacter(tx, character.id);
     const stillHeld = await tx.characterTag.findFirst({
       where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
       select: { id: true },
     });
-    if (!stillHeld) throw new UserError("You aren't carrying a Stepstone.");
+    if (!stillHeld) throw new UserError("You aren't carrying a Stepstone. ‡");
     await dropCharacterTag(tx, character.id, held.tagId, 1);
     await tx.character.update({
       where: { id: character.id },
@@ -5371,6 +5384,15 @@ async function stepstoneRequestImpl({ locationId }) {
         travelTurnId: null,
         escortedById: null,
       },
+    });
+    // Nobody follows a stone. Cut the party loose here rather than leaving
+    // them pointed at somebody standing in another zone — the same tidy-up
+    // db/lib/characterDeath.js does when a leader leaves play. Left dangling,
+    // partyOf() still counts them and can cost a mounted leader the horse's
+    // extra crossing for followers who are nowhere near them.
+    await tx.character.updateMany({
+      where: { escortedById: character.id },
+      data: { escortedById: null },
     });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,

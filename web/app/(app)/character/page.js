@@ -934,19 +934,25 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // since a hidden button is a hint and not a lock.
   const hasDatacard = heldSlugs.has("nuclear-datacard");
   const hasDevice = heldSlugs.has("nuclear-device");
-  // The Stepstone. Where you may step is the fog behind /map — stood in, or
-  // seen from next door (db/lib/locationVisits.js) — and it is built ONLY for
-  // somebody carrying one. It is a per-character query, and there is no reason
-  // to run it for the whole roster; more to the point, a list of everywhere
-  // this character has been has no business in the page source of a sheet that
-  // has no stone to step with. stepstoneRequest recomputes all of it anyway.
+  // The Stepstone. Where you may step is where this character has actually
+  // STOOD (db/lib/locationVisits.js) — never the `seen` half of the fog.
+  //
+  // That is a security boundary, not a flavour choice. `seen` is written from
+  // travelOptions, which filters on `listed`, and a LOCKED gate or a shut
+  // portcullis is listed-but-not-passable on purpose (locationGraph.js §85-90)
+  // — you are meant to know the door is there and be unable to open it. Taking
+  // `seen` would have made the stone a skeleton key to every locked door and
+  // tag-gated crawl anybody had ever stood beside. A `stood` row, by contrast,
+  // is a place this character already reached legitimately.
+  //
+  // Built ONLY for somebody carrying a stone: it is a per-character query, and
+  // a list of everywhere they have been has no business in the page source of
+  // a sheet with no stone to step with. stepstoneRequest recomputes it anyway.
   const hasStepstone = heldSlugs.has("stepstone");
   const stepstoneTargets = hasStepstone
     ? await (async () => {
-        const { stood, seen } = await knownLocations(prisma, character.id);
-        const ids = [...new Set([...stood, ...seen])].filter(
-          (id) => id !== character.locationId,
-        );
+        const { stood } = await knownLocations(prisma, character.id);
+        const ids = [...stood].filter((id) => id !== character.locationId);
         if (ids.length === 0) return [];
         const rows = await prisma.location.findMany({
           where: { id: { in: ids } },
@@ -957,8 +963,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           id: l.id,
           name: l.name,
           zoneName: l.zone?.name ?? null,
-          // Somewhere only glimpsed from a doorway still draws, and says so.
-          stood: stood.has(l.id),
         }));
       })()
     : [];

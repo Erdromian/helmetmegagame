@@ -61,6 +61,11 @@ const PACKAGE_MAX_LBS = 150;
 // without a ceiling — and a crate's consumesInto repeats a slug per unit.
 const PACKAGE_MAX_UNITS = 200;
 const PACKAGE_LABEL_MAX = 120;
+
+// The Raven Draught carries one sentence (docs/systemdocs/BIRD.md §8a). Shared
+// so the textarea and the server's own clamp cannot drift into a player losing
+// the tail of what they typed with no error.
+const WHISPER_MAX = 400;
 const SURGICAL_EQUIPMENT_SLUG = "surgical-equipment";
 // The fourth standing kit: +1 on a torture roll for anyone working within
 // reach of it (db/lib/torture.js). One sits in the Order Chambers from turn
@@ -215,6 +220,7 @@ module.exports = {
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
+  WHISPER_MAX,
   SURGICAL_EQUIPMENT_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,

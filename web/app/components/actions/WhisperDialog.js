@@ -7,6 +7,7 @@ import useSubmit from "./useSubmit";
 import { useActionPools } from "./poolsContext";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { whisperRequest } from "@/app/(app)/character/requestActions";
+import { WHISPER_MAX } from "@lifeweb/db/lib/constants";
 
 // The Raven Draught: one sentence, one person, anywhere (docs/systemdocs/
 // BIRD.md §8).
@@ -20,8 +21,6 @@ import { whisperRequest } from "@/app/(app)/character/requestActions";
 // dialog says "Sent." whatever happened, because the alternative is a bottle
 // that answers "is this person still alive" — which is the exact question the
 // Bird was built to refuse.
-const MAX = 400;
-
 export default function WhisperDialog({ onDone, onClose }) {
   const pools = useActionPools();
   const targets = pools.birdTargets ?? [];
@@ -78,12 +77,12 @@ export default function WhisperDialog({ onDone, onClose }) {
         <span className="field-label">What do you say?</span>
         <textarea
           rows={3}
-          maxLength={MAX}
+          maxLength={WHISPER_MAX}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
         />
         <span className="text-xs text-muted mono">
-          {body.length} / {MAX}
+          {body.length} / {WHISPER_MAX}
         </span>
       </label>
     </ActionDialog>

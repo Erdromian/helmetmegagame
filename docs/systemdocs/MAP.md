@@ -516,12 +516,24 @@ plain to see. See [`INTERCEPT.md`](INTERCEPT.md).
 A `catalog: secret` item that a player spends to stand somewhere else. It is a
 **raw relocation**, the same shape the Dev Panel's Teleport uses: no ⬢, no Move,
 no adjacency check, no cooldown, and no Action filed. What it is not is
-unlimited — the picker offers only what that character **knows**, which is the
-fog behind `/map`: everywhere they have stood, plus everywhere they have seen
-from a doorway (`db/lib/locationVisits.js#knownLocations`). A picker over all 56
-Locations would hand the reader the entire map, which is the one thing the fog
-exists to prevent, so `stepstoneRequest` recomputes the set server-side and
-refuses a posted id for anywhere else.
+unlimited — the picker offers only Locations that character has actually
+**stood** in (`db/lib/locationVisits.js#knownLocations`), and
+`stepstoneRequest` recomputes that set server-side and refuses a posted id for
+anywhere else.
+
+**`stood`, never `seen`, and that is a security boundary rather than a
+flavour choice.** The `seen` half of the fog is written for every **listed**
+neighbour, and §2 above is explicit that `listed` is weaker than `passable`: a
+locked door or a shut portcullis is listed on purpose, so you know the door is
+there and cannot open it. A stone that accepted `seen` would therefore step
+through every locked gate and tag-gated crawl anybody had ever stood beside —
+a skeleton key to the whole map, granted by the very rows that exist to show
+players doors they have not earned. A `stood` row is a place the character
+already reached legitimately, so stepping back into it grants nothing they did
+not already have.
+
+**A hold stops it**, the same as it stops a walk (`INTERCEPT.md`): an ambush is
+a hand on your shoulder, and the stone is not the way out of one.
 
 It writes `locationId` **and** `zoneId`, clears `travelToLocationId` /
 `travelTurnId` / `escortedById`, and then calls `applyLocationMoveSideEffects`
@@ -530,11 +542,15 @@ It writes `locationId` **and** `zoneId`, clears `travelToLocationId` /
 the corpses it is carrying, for free. `rollCavingOnArrival` runs after, because
 stepping into the dark wakes it the same as walking in.
 
-**Two things it inherits from Teleport, both deliberate.** Anyone escorting the
-stepper is left behind — a party follows a walk, not a stone. And because a
-teleport crosses no graph link, `announceGateCrossing` has no edge to read and
-posts nothing: you arrive without the gate line a walker would set off, which is
-the closest thing the item has to stealth.
+**Anyone escorting the stepper is cut loose**, not merely left behind — the
+step clears their `escortedById` the way `db/lib/characterDeath.js` does when a
+leader leaves play. Left dangling, `partyOf()` would go on counting followers
+standing in another zone, which can cost a mounted leader the horse's extra
+crossing for a party that is not with them.
+
+And because a teleport crosses no graph link, `announceGateCrossing` has no
+edge to read and posts nothing: you arrive without the gate line a walker would
+set off, which is the closest thing the item has to stealth.
 
 ## 4. The Discord half
 
