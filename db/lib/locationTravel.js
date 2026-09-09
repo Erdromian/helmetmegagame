@@ -610,9 +610,9 @@ async function performLocationMove(prisma, character, targetLocation) {
     const fromLocationId = row.id === character.id ? currentLocation?.id ?? null : row.locationId;
     const fromZoneId = row.id === character.id ? currentLocation?.zoneId ?? null : row.zoneId;
     // The Caving Die, which is now the only thing arrival does. Null on a
-    // surface Location, on a SAFE one, and on a place this character already
-    // walked into this turn; kind, open turn and error swallowing all live in
-    // the helper.
+    // surface Location and on a SAFE one; kind, open turn and error swallowing
+    // all live in the helper. Walking back somewhere you already saw today
+    // rolls again — there is no per-Location cap any more (CAVING.md 2b).
     const cavingDm = await rollCavingOnArrival(prisma, row, targetLocation);
     if (ridden && row.id !== character.id && row.status === "ALIVE") {
       const carsick = row.tags?.some((ct) => ct.tag.slug === MOTION_SICKNESS_SLUG);

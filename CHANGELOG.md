@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The caves roll the die every time you walk in, not just the first
+
+✎ Walking back into a cave location you already saw today rolls the Caving Die again — retreating through the dark is still walking through the dark  
+− The one-roll-per-location-per-turn cap, which made backtracking out of the Depths silent and read as a broken die  
+✎ Nothing rations rolls now but the walk cooldown on /gm/dev, so expect more finds and more Trouble on the Caving lens — raise that cooldown if it gets loud
+
 ## 2026-09-09 · The street has no mouth, and the floor says what it is
 
 ✎ The chat box is gone from a Location: there is a line there now saying to step into a room, the summary or a conversation to speak  

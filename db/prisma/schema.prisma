@@ -3593,9 +3593,12 @@ model CavingRoll {
   characterId String
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
-  // Which trigger produced this roll. Load-bearing in the @@unique below.
+  // Which trigger produced this roll. Historic now: ARRIVAL is the only value
+  // anything writes, and TURN_START belongs to the retired turn-start sweep.
   // Defaulted to ARRIVAL rather than TURN_START: a default nothing can produce
-  // any more is a trap for the next writer. Every caller passes it explicitly.
+  // any more is a trap for the next writer. It used to be load-bearing in a
+  // @@unique that capped one roll per Location per turn; that cap is gone and
+  // every arrival rolls (CAVING.md 2b).
   trigger CavingTrigger @default(ARRIVAL)
 
   // The presence zone the character stood in when it rolled. Snapshot,
@@ -3604,8 +3607,9 @@ model CavingRoll {
   zone   Zone   @relation(fields: [zoneId], references: [id])
 
   // The Location they walked into. Nullable only because the rows written
-  // before the Die became arrival-only have none; every new row sets it, and
-  // it is load-bearing in the @@unique below.
+  // before the Die became arrival-only have none; every new row sets it. It
+  // gates nothing -- it is what lets the Caving lens say where -- so walking
+  // back into somewhere you already saw today rolls again.
   locationId String?
   location   Location? @relation(fields: [locationId], references: [id])
 
@@ -3636,7 +3640,12 @@ model CavingRoll {
   stagedMessages StagedMessage[]
   stagedEffects  StagedEffect[]
 
-  @@unique([characterId, turnId, trigger, locationId])
+  // No @@unique. There was one -- [characterId, turnId, trigger, locationId] --
+  // and it was the whole anti-pacing rule: a repeat write's P2002 was swallowed
+  // as "already rolled". Backtracking out of the Depths in silence read as a
+  // bug, so every arrival rolls now. @@index([characterId]) replaces the index
+  // that unique gave the cascade delete off Character.
+  @@index([characterId])
   @@index([turnId, resolvedAt])
 }
 
