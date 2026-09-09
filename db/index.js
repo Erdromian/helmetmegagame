@@ -12,6 +12,8 @@ function normalizedDatabaseUrl() {
 const databaseUrl = normalizedDatabaseUrl();
 
 const { PrismaClient, Prisma } = require("@prisma/client");
+// By path, off the barrel — the scripts that need it most are ad-hoc ones.
+const { assertRawSqlAllowed } = require("./lib/localDatabase");
 const { buildTurnAnnouncement } = require("./turnCalendar");
 const { nextTurnBanner } = require("./lib/turnBanner");
 // The turn's Discord half, and the ledger that lets a killed one be finished.
@@ -84,7 +86,30 @@ const prisma =
     // avatar route; omitting it globally stops it riding along on every
     // `include`. An explicit `select: { avatarData: true }` still overrides.
     omit: { character: { avatarData: true } },
-  });
+  })
+    // TRUNCATE and DROP cannot reach a database that is not local, from
+    // anywhere, through this client. On 2026-09-09 a throwaway regression
+    // harness truncated seven tables on the LIVE database and emptied the
+    // game. It had a .env naming a local Postgres sitting right beside it —
+    // but DATABASE_URL was already exported in the shell, and dotenv does not
+    // override a variable that is already set, so every "local" run was
+    // production and said nothing. .claude/hooks/db-guard.py could not have
+    // caught it either: that hook matches a fixed list of known scripts, and
+    // an ad-hoc file is on no list.
+    //
+    // So the check lives here, where nothing has to opt in. It costs nothing
+    // real — every TRUNCATE/DROP in the repo is migration SQL, which the
+    // Prisma CLI applies without this client — and it holds inside
+    // $transaction, which a hand-wrapped method would not.
+    // See db/lib/localDatabase.js.
+    .$extends({
+      query: {
+        $queryRaw: ({ args, query }) => (assertRawSqlAllowed(args, databaseUrl), query(args)),
+        $executeRaw: ({ args, query }) => (assertRawSqlAllowed(args, databaseUrl), query(args)),
+        $queryRawUnsafe: ({ args, query }) => (assertRawSqlAllowed(args, databaseUrl), query(args)),
+        $executeRawUnsafe: ({ args, query }) => (assertRawSqlAllowed(args, databaseUrl), query(args)),
+      },
+    });
 
 globalForPrisma.prisma = prisma;
 

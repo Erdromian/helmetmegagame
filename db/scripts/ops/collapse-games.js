@@ -45,7 +45,7 @@ async function main() {
   console.log(`  Renumber #${state.game.number} -> #1, and clear its ending:`);
   console.log(`    endedAt=${state.game.endedAt ?? "null"} closingNote=${state.game.closingNote ? "set" : "null"} epilogue=${state.game.epilogue ? "set" : "null"}`);
   console.log(`    nukeDetonatedTurn=${state.game.nukeDetonatedTurn ?? "null"} ascensionFiredTurn=${state.game.ascensionFiredTurn ?? "null"}`);
-  console.log(`  GameState: clear closingNote/endedAt${state.phase === "ENDED" ? ", and put the phase back to RUNNING" : ""}`);
+  console.log("  GameState: clear closingNote/endedAt and both countdowns; the phase is left alone");
 
   if (!apply) {
     console.log("\nDRY RUN. Nothing written. Re-run with -- --apply once a backup is in the bucket.");
@@ -71,7 +71,9 @@ async function main() {
       data: {
         closingNote: null,
         endedAt: null,
-        ...(state.phase === "ENDED" ? { phase: "RUNNING" } : {}),
+        // The phase is deliberately NOT touched. After a Restart Game it is
+        // CLOSED, which is where a fresh game starts from; forcing RUNNING
+        // here would drop everyone into a game with no lobby behind it.
         // The countdown goes with the ending. Leaving an armed bomb behind is
         // how a "fresh" game detonates on its first close.
         nukeArmedTurn: null,

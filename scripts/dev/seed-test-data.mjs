@@ -31,21 +31,6 @@ function loadDatabaseUrl() {
   return "";
 }
 
-function requireLocal(databaseUrl) {
-  let host = "";
-  try {
-    host = new URL(databaseUrl).hostname;
-  } catch {
-    throw new Error(`DATABASE_URL isn't a parseable URL: ${databaseUrl || "(unset)"}`);
-  }
-  if (!/^(localhost|127\.0\.0\.1|::1)$/.test(host)) {
-    throw new Error(
-      `DATABASE_URL's host is "${host}", not localhost. This script writes fake rows and must ` +
-        "never touch a real database — point DATABASE_URL at a local Postgres first (npm run dev:setup).",
-    );
-  }
-}
-
 async function cleanup(prisma) {
   const { count: logs } = await prisma.auditLog.deleteMany({
     where: { actorDiscordUserId: { startsWith: SEED_PREFIX } },
@@ -113,11 +98,19 @@ async function seed(prisma) {
 }
 
 async function main() {
-  const databaseUrl = loadDatabaseUrl();
-  requireLocal(databaseUrl);
-  if (!process.env.DATABASE_URL) process.env.DATABASE_URL = databaseUrl;
+  // Settle DATABASE_URL BEFORE asserting on it. The variable is what decides
+  // where a query lands, not the file — an exported DATABASE_URL beats every
+  // .env, silently, which is how a scratch script emptied the live database on
+  // 2026-09-09. So resolve it, publish it, then check the thing that is
+  // actually in force.
+  if (!process.env.DATABASE_URL) process.env.DATABASE_URL = loadDatabaseUrl();
 
   const require = createRequire(import.meta.url);
+  // The shared assertion (db/lib/localDatabase.js), which used to be a private
+  // copy in this file. Every throwaway harness that writes should call it.
+  const { requireLocalDatabase } = require("../../db/lib/localDatabase.js");
+  requireLocalDatabase("The dev seed script");
+
   const { prisma } = require("@lifeweb/db");
 
   try {
