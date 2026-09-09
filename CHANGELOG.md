@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The Smithing and Crafting paper is gone
+
+− The public Smithing and Crafting sheet, with the whole tier table and every recipe on it  
+✎ The Cerberon armory line no longer points at it
+
 ## 2026-09-09 · The Dev Panel stops scrolling off the bottom of the screen
 
 ✎ Flipping a config toggle no longer throws you to the bottom of a blank page  
