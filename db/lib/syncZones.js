@@ -586,12 +586,6 @@ function buildAnchorBody(location, rooms) {
         .join("\n"),
     );
   }
-  // Said once, on the pinned message, so nobody has to be told at the door
-  // every time (docs/systemdocs/CARRY.md §3). It rides the same content hash
-  // as the rest of the body, so it appears on the next sync and never again.
-  if (location.indoors) {
-    parts.push("-# Indoors: carts and horses cannot be equipped in here. ‡");
-  }
   const publicRooms = rooms
     .filter((r) => r.kind === "PUBLIC" && r.discordThreadId)
     .sort((a, b) => a.sortOrder - b.sortOrder);
