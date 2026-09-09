@@ -91,7 +91,9 @@ test("the reveal reads in Bascinet's format", () => {
 test("the pin beats the script; otherwise the game decides", async () => {
   const fakePrisma = {
     character: { findMany: async () => [{ id: "c1", status: "DEAD" }, { id: "c2", status: "ALIVE" }] },
-    gameState: { findUnique: async () => ({ gameId: "g", nukeDetonatedTurn: 7 }) },
+    // The detonation stamp hangs off the GAME now, not off GameState — a turn
+    // number on the global row could not say which game it belonged to.
+    gameState: { findUnique: async () => ({ gameId: "g", game: { nukeDetonatedTurn: 7 } }) },
   };
   const rows = [
     { id: "a", kind: "kill-character", targetCharacterId: "c1", pinned: null },

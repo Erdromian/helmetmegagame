@@ -105,14 +105,33 @@ function evalRequires(template, { heldTagIds, roleSlug, hiddenTagIds }) {
   const holdsGatingRole = Boolean(roleSlug) && anyRoles.some((r) => r.slug === roleSlug);
 
   // OR mode. An empty list must not satisfy the OR (that would open the
-  // Desire to everyone); the sync refuses `combine: or` unless both lists
-  // are populated.
+  // Desire to everyone), so an empty side still LOCKS — it just cannot be
+  // named in the reason.
+  //
+  // This used to read `anyTags[0].name` unguarded, on the strength of the
+  // sync refusing `combine: or` unless both lists are populated. That sync
+  // check is real and thorough (db/lib/syncDesires.js throws per unknown
+  // slug), and the database still managed to disagree with it: on 2026-09-09
+  // all thirteen `combine: or` templates in production had an EMPTY
+  // requiresAnyTags, and every page that evaluates the catalog died on
+  // "Cannot read properties of undefined (reading 'name')" — /character and
+  // /gm/dev with it.
+  //
+  // How they were emptied is not established. No normal sync run can do it,
+  // and re-running db:sync-desires either repairs the links or throws naming
+  // the missing tag, so it is self-diagnosing. What IS settled is that a gate
+  // is not worth a white screen: an empty side still locks the Desire, it
+  // just does not get named in the reason.
   if (template.requiresAnyOf) {
     if (holdsGatingTag || holdsGatingRole) return { ok: true };
     if (anyTags.some((t) => hiddenTagIds.has(t.id))) return { hidden: true };
+    const wants = [
+      anyTags[0] ? `the ${anyTags[0].name} tag` : null,
+      anyRoles[0] ? `the ${anyRoles[0].name} role` : null,
+    ].filter(Boolean);
     return {
       ok: false,
-      reason: `Requires the ${anyTags[0].name} tag or the ${anyRoles[0].name} role`,
+      reason: wants.length ? `Requires ${wants.join(" or ")}` : "Locked.",
     };
   }
 

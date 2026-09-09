@@ -181,7 +181,11 @@ export default async function DevPanelPage({ searchParams }) {
   // and the turn section derives day and phase from the same rows.
   const [config, state, openTurnRecord, lastTurn, depot, readyCount, livingCount] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: { game: { select: { number: true } } } }),
+    prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: {
+      game: {
+        select: { number: true, nukeDetonatedTurn: true, ascensionFiredTurn: true },
+      },
+    } }),
     getOpenTurn(),
     prisma.turn.findFirst({ orderBy: { number: "desc" } }),
     loadDepot(prisma),
@@ -961,12 +965,12 @@ export default async function DevPanelPage({ searchParams }) {
               {/* Only on screen when there is something to say. A permanent
                   "no nuke armed" panel would be furniture on every other day
                   of the game. */}
-              {(state.nukeArmedTurn != null || state.nukeDetonatedTurn != null) && (
+              {(state.nukeArmedTurn != null || state.game?.nukeDetonatedTurn != null) && (
                 <div className="ops-section-head">
                   <h2 className="section-title">The device</h2>
-                  {state.nukeDetonatedTurn != null ? (
+                  {state.game?.nukeDetonatedTurn != null ? (
                     <p className="ops-lede">
-                      It went off at the close of turn {state.nukeDetonatedTurn}. ‡
+                      It went off at the close of turn {state.game?.nukeDetonatedTurn}. ‡
                     </p>
                   ) : (
                     <>
@@ -986,12 +990,12 @@ export default async function DevPanelPage({ searchParams }) {
 
               {/* Same rule as the device: on screen only while there is
                   something to say about it. */}
-              {(state.ascensionArmedTurn != null || state.ascensionFiredTurn != null) && (
+              {(state.ascensionArmedTurn != null || state.game?.ascensionFiredTurn != null) && (
                 <div className="ops-section-head">
                   <h2 className="section-title">The cult&rsquo;s countdown</h2>
-                  {state.ascensionFiredTurn != null ? (
+                  {state.game?.ascensionFiredTurn != null ? (
                     <p className="ops-lede">
-                      Ravenheart burned at the close of turn {state.ascensionFiredTurn}. ‡
+                      Ravenheart burned at the close of turn {state.game?.ascensionFiredTurn}. ‡
                     </p>
                   ) : (
                     <>

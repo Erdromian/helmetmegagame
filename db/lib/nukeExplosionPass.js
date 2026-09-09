@@ -37,7 +37,10 @@ const DETONATION_LINE =
 const BLAST_DEATH_REASON = "the blast caught them above ground and left nothing behind.";
 
 async function runNukeExplosionPass(prisma, turn) {
-  const state = await prisma.gameState.findUnique({ where: { id: 1 } });
+  const state = await prisma.gameState.findUnique({
+    where: { id: 1 },
+    include: { game: { select: { id: true, number: true, nukeDetonatedTurn: true } } },
+  });
 
   // Not armed, or armed for a turn that has not come yet. Returning an object
   // rather than null matters: null means "did not run, retry forever" and
@@ -47,19 +50,36 @@ async function runNukeExplosionPass(prisma, turn) {
     return { turnNumber: turn.number, detonated: false, killed: 0, deaths: [], broadcast: null };
   }
 
-  // Already gone off. The stamp is never cleared, so this is what stops a
-  // resumed or re-run advance detonating a second time on a dead world.
-  if (state?.nukeDetonatedTurn != null) {
+  // An armed bomb says so in the log BEFORE it goes off, not only after. On
+  // 2026-09-09 a game one turn old detonated with nothing in the audit trail
+  // saying it had ever been armed, and there was no way to tell afterwards
+  // whether the arming belonged to that game at all.
+  console.log(
+    `Nuclear device: armed for turn ${armedTurn}, closing turn ${turn.number}, game ${state?.game?.number ?? "?"}.`,
+  );
+
+  // Already gone off IN THIS GAME. Read off the Game row, not GameState:
+  // turn numbers restart at 1 every game, so the old GameState stamp was
+  // meaningless across a restart — a fresh game read the last one's stamp as
+  // its own and inherited the fireball.
+  if (state?.game?.nukeDetonatedTurn != null) {
     return { turnNumber: turn.number, detonated: false, killed: 0, deaths: [], broadcast: null };
   }
 
   // Claim it first. Disarming clears nukeArmedTurn, so writing the detonation
   // stamp before the killing starts means a crash halfway through cannot
-  // leave a world that explodes again on the next close.
+  // leave a world that explodes again on the next close. GameState keeps its
+  // copy as a forensic record; the Game row is the one anything reads.
   await prisma.gameState.update({
     where: { id: 1 },
     data: { nukeDetonatedTurn: turn.number, nukeArmedTurn: null },
   });
+  if (state?.game?.id) {
+    await prisma.game.update({
+      where: { id: state.game.id },
+      data: { nukeDetonatedTurn: turn.number },
+    });
+  }
 
   const doomed = await prisma.character.findMany({
     where: { status: "ALIVE", zone: { kind: { not: "CAVE_LEVEL" } } },
@@ -100,6 +120,7 @@ async function runNukeExplosionPass(prisma, turn) {
 
   return {
     turnNumber: turn.number,
+    gameId: state?.game?.id ?? null,
     detonated: true,
     killed: deaths.length,
     deaths,

@@ -37,7 +37,10 @@ const ASCENSION_DEATH_REASON =
 const IDLE = Object.freeze({ fired: false, cancelled: false, deaths: [], broadcast: null });
 
 async function runAscensionPass(prisma, turn) {
-  const state = await prisma.gameState.findUnique({ where: { id: 1 } });
+  const state = await prisma.gameState.findUnique({
+    where: { id: 1 },
+    include: { game: { select: { id: true, ascensionFiredTurn: true } } },
+  });
 
   // Not armed, or armed for a turn that has not come yet. Returning an object
   // rather than null matters: null means "did not run, retry forever" and
@@ -45,9 +48,11 @@ async function runAscensionPass(prisma, turn) {
   const armedTurn = state?.ascensionArmedTurn ?? null;
   if (armedTurn == null || armedTurn > turn.number) return { turnNumber: turn.number, ...IDLE };
 
-  // Already happened. The stamp is never cleared, so this is what stops a
-  // resumed or re-run advance burning a dead world a second time.
-  if (state?.ascensionFiredTurn != null) return { turnNumber: turn.number, ...IDLE };
+  // Already happened IN THIS GAME. Read off the Game row rather than
+  // GameState, the reason db/lib/nukeExplosionPass.js gives: turn numbers
+  // restart every game, so the GameState stamp could not tell a fresh game
+  // from the one that burned.
+  if (state?.game?.ascensionFiredTurn != null) return { turnNumber: turn.number, ...IDLE };
 
   // "It stops ONLY if the cult leader is killed." A dangling id — the row
   // deleted by a Restart, or no leader recorded at all — reads as gone, which
@@ -74,6 +79,12 @@ async function runAscensionPass(prisma, turn) {
     where: { id: 1 },
     data: { ascensionFiredTurn: turn.number, ascensionArmedTurn: null },
   });
+  if (state?.game?.id) {
+    await prisma.game.update({
+      where: { id: state.game.id },
+      data: { ascensionFiredTurn: turn.number },
+    });
+  }
 
   const doomed = await prisma.character.findMany({
     where: { status: "ALIVE" },
@@ -114,6 +125,7 @@ async function runAscensionPass(prisma, turn) {
     fired: true,
     cancelled: false,
     leader: leader.name,
+    gameId: state?.game?.id ?? null,
     killed: deaths.length,
     deaths,
     broadcast: { content: ASCENSION_LINE },

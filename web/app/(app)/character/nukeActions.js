@@ -81,15 +81,29 @@ async function armNukeImpl() {
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open.");
 
-  const state = await prisma.gameState.findUnique({ where: { id: 1 } });
-  if (state?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
+  // The detonation stamp comes off the current Game, not GameState: the
+  // GameState copy survived its own game, so a new game's device refused to
+  // arm on the grounds that the LAST world had already ended.
+  const state = await prisma.gameState.findUnique({
+    where: { id: 1 },
+    include: { game: { select: { nukeDetonatedTurn: true } } },
+  });
+  if (state?.game?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
   if (state?.nukeArmedTurn != null) throw new UserError("It is already counting down. ‡");
 
   // The absolute turn it fires on. Two turns, counted the way every other
   // duration in the game counts: armed while turn T is open, it goes at the
   // close of T+1.
   const firesOn = openTurn.number + NUKE_FUSE_TURNS - 1;
-  const effect = { firesOn, armedOnTurn: openTurn.number, locationId: me.locationId };
+  // gameId, because a restart wipes the audit log and a turn number alone
+  // cannot say which game an arming belonged to. On 2026-09-09 a one-turn-old
+  // game detonated with nothing in the trail saying it had ever been armed.
+  const effect = {
+    firesOn,
+    armedOnTurn: openTurn.number,
+    gameId: state?.gameId ?? null,
+    locationId: me.locationId,
+  };
 
   await prisma.$transaction(async (tx) => {
     await tx.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: firesOn } });
@@ -115,13 +129,20 @@ async function disarmNukeImpl() {
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open.");
 
-  const state = await prisma.gameState.findUnique({ where: { id: 1 } });
-  if (state?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
+  const state = await prisma.gameState.findUnique({
+    where: { id: 1 },
+    include: { game: { select: { nukeDetonatedTurn: true } } },
+  });
+  if (state?.game?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
   if (state?.nukeArmedTurn == null) throw new UserError("It isn't armed.");
 
   // Snapshotted so an Undo can put the countdown back exactly where it was
   // rather than guessing at it.
-  const effect = { wasFiringOn: state.nukeArmedTurn, disarmedOnTurn: openTurn.number };
+  const effect = {
+    wasFiringOn: state.nukeArmedTurn,
+    disarmedOnTurn: openTurn.number,
+    gameId: state?.gameId ?? null,
+  };
 
   await prisma.$transaction(async (tx) => {
     await tx.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
