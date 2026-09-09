@@ -62,9 +62,16 @@ async function nextTurnBanner(prisma, phase) {
 // After the bomb there is no morning, only the sky. `state` (GameState) is
 // optional so every existing caller keeps working; pass it and a detonated game
 // pins the fireball on for good.
+//
+// THE STAMPS COME OFF `state.game`, NOT off GameState itself. Turn numbers
+// restart at 1 every game, so the GameState copies said nothing about WHICH
+// game had ended — and on 2026-09-09 a brand-new game posted the nuke plate
+// above every one of its turns because the column from the last game was still
+// sitting there. The Game row is created fresh by the wipe, so it cannot lie.
+// Callers select `{ game: { select: { nukeDetonatedTurn, ascensionFiredTurn } } }`.
 function turnBannerPath(turn, state = null) {
   if (!TURN_BANNER_DIR) return null;
-  if (state?.nukeDetonatedTurn != null) {
+  if (state?.game?.nukeDetonatedTurn != null) {
     const nuke = path.join(TURN_BANNER_DIR, "nuke.jpg");
     // Falls through to the ordinary plate if the asset is missing, rather than
     // leaving the announcement with no image at all.
@@ -74,7 +81,7 @@ function turnBannerPath(turn, state = null) {
   // And after the Rite of Ascension there is no sky at all, only the fire.
   // Same shape, same fall-through: a missing asset costs the guild its banner,
   // never its turn announcement.
-  if (state?.ascensionFiredTurn != null) {
+  if (state?.game?.ascensionFiredTurn != null) {
     const hellfire = path.join(TURN_BANNER_DIR, "hellfire.jpg");
     if (fs.existsSync(hellfire)) return hellfire;
     console.error(`Turn banner: hellfire plate missing from ${TURN_BANNER_DIR}`);

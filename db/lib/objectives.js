@@ -78,14 +78,23 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
     targetIds.size
       ? prisma.character.findMany({ where: { id: { in: [...targetIds] } }, select: { id: true, status: true } })
       : [],
-    mustLoadState ? prisma.gameState.findUnique({ where: { id: 1 } }) : state,
+    mustLoadState
+      ? prisma.gameState.findUnique({
+          where: { id: 1 },
+          include: { game: { select: { nukeDetonatedTurn: true } } },
+        })
+      : state,
   ]);
   const gameId = loadedState?.gameId ?? null;
+  // Off the Game row, not GameState — see db/lib/turnBanner.js. The GameState
+  // copy belongs to no game in particular, so after a restart the Tribunal
+  // scored a detonation that had happened in somebody else's game.
+  const nukeTurn = loadedState?.game?.nukeDetonatedTurn ?? null;
   const loadedDeaths = needDeaths && !deaths ? await loadDeaths(prisma, gameId) : deaths;
 
   const statusOf = new Map(targets.map((t) => [t.id, t.status]));
   const worstDay = needDeaths
-    ? maxDeathsInOneDay(loadedDeaths ?? [], { excludeTurn: loadedState?.nukeDetonatedTurn ?? null })
+    ? maxDeathsInOneDay(loadedDeaths ?? [], { excludeTurn: nukeTurn })
     : 0;
 
   for (const row of rows) {
@@ -105,7 +114,7 @@ async function evaluateObjectives(prisma, rows, { state = null, deaths = null } 
         done = row.value != null && worstDay >= row.value;
         break;
       case "nukeDetonated":
-        done = loadedState?.nukeDetonatedTurn != null;
+        done = nukeTurn != null;
         break;
       default:
         // A manual kind with no pin — should not exist, the actions refuse it —

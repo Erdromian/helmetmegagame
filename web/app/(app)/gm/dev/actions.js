@@ -648,8 +648,14 @@ export async function assignFactionMember(formData) {
 export async function defuseNukeAction() {
   const session = await requireDev();
 
+  // The fired stamp lives on the Game row, not GameState — otherwise Defuse
+  // stayed refused for every game after the one that detonated.
   const state = await getGameState(prisma);
-  if (state.nukeDetonatedTurn != null) {
+  const currentGame = await prisma.game.findUnique({
+    where: { id: state.gameId },
+    select: { nukeDetonatedTurn: true },
+  });
+  if (currentGame?.nukeDetonatedTurn != null) {
     return { ok: false, error: "It already went off." };
   }
   if (state.nukeArmedTurn == null) {
@@ -681,7 +687,11 @@ export async function cancelAscensionAction() {
   const session = await requireDev();
 
   const state = await getGameState(prisma);
-  if (state.ascensionFiredTurn != null) {
+  const currentGame = await prisma.game.findUnique({
+    where: { id: state.gameId },
+    select: { ascensionFiredTurn: true },
+  });
+  if (currentGame?.ascensionFiredTurn != null) {
     return { ok: false, error: "It already happened." };
   }
   if (state.ascensionArmedTurn == null) {

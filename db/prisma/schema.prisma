@@ -529,6 +529,20 @@ model Game {
   // db/lib/epilogue.js#buildEpilogue: { closingNote, facts, roster }. Written
   // when the game ends, or by the wipe if it never did.
   epilogue    Json?
+
+  // How this game ended, if it ended with a bang. Turn NUMBERS, and they live
+  // here rather than on GameState because turn numbers restart at 1 every game
+  // — which made the GameState copies meaningless the moment a new game began,
+  // and every reader treated a stale one as current. On 2026-09-09 a new game
+  // opened wearing the last one's fireball: the nuke plate above every turn
+  // announcement and an epilogue on a game that had only just started.
+  //
+  // A Game row is created fresh by the wipe, so these cannot cross a game
+  // boundary the way the GameState columns could. Set once, never cleared
+  // within a game — turnBannerPath pins the sky on the strength of that.
+  nukeDetonatedTurn  Int?
+  ascensionFiredTurn Int?
+
   createdAt   DateTime  @default(now())
 
   states GameState[]

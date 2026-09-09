@@ -206,7 +206,9 @@ leader killed this turn beats the clock. If that leader is not ALIVE the
 countdown is cleared and nothing more is said. Otherwise `ascensionFiredTurn`
 is stamped (never cleared), every `#summary` hears the hellfire line, the game
 ends through `endGameInDb`, and `turnBannerPath` pins `hellfire.jpg` on for
-good. A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
+good — for **this** game: the stamp is written to `Game.ascensionFiredTurn`,
+not to `GameState`, so the next game starts under a clean sky
+(`TURN-ENGINE.md` §banner). A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
 
 **The hellfire kills everyone**, gibbed, with no zone exemption — not even the
 caves. That is the whole difference between the two endings: the bomb leaves

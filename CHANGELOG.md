@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A new game starts under its own sky
+
+✎ A new game no longer inherits the last one's ending: no nuke banner, no epilogue, and the bomb can be armed again  
+✎ Resuming an ended game takes the reveal back down instead of leaving it hanging off a game that is being played  
+✎ Fixed the crash that was breaking the character sheet and the dev panel whenever a Desire gate was read
+
 ## 2026-09-09 · You can lay in wait, and travel arrives when you make it
 
 ✚ An Intercept button on the sheet: name who you are watching for, write them a line, and stop them when they walk in where you stand  

@@ -464,9 +464,29 @@ mid-turn. A null `banner` — a row from before the column existed, or a creatio
 path that forgot — is not "no picture": the resolver picks one on the spot, so a
 Turn 1 never posts bare.
 
-**After the bomb there is no morning, only the sky.** `GameState.nukeDetonatedTurn`
+**After the bomb there is no morning, only the sky.** `Game.nukeDetonatedTurn`
 pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate, and
-`ascensionFiredTurn` pins `hellfire.jpg` the same way.
+`Game.ascensionFiredTurn` pins `hellfire.jpg` the same way.
+
+**Both stamps live on the `Game` row, and that is load-bearing.** They used to
+sit on `GameState` — but they are turn NUMBERS, and turn numbers restart at 1
+every game, so the value said nothing about which game had ended and every
+reader took a stale one as its own. On 2026-09-09 a freshly restarted game
+opened wearing the last one's fireball: the nuke plate over every turn
+announcement, an epilogue on a game one turn old, and the Arm button refusing
+on the grounds that the bomb had already gone off. A `Game` row is created
+fresh by the wipe, so it cannot carry anything over. The `GameState` columns
+are still written as a forensic record and read by nothing — the readers are
+`turnBannerPath`, `turnAnnouncement.js`, `bot/src/lib/turnsConsole.js`,
+`objectives.js` (the Tribunal), `riteIngredients.js` (the Ascension's
+"already running" gate), the two nuke buttons and `/gm/dev`, and every one of
+them selects `{ game: { select: … } }`.
+
+**Resume withdraws the ending.** `resumeGameInDb` clears the Game row's
+`endedAt`, `closingNote` and `epilogue` as well as the phase. It used to leave
+the reveal in place "until the next ending overwrites it", which meant a
+resumed game went on being played with `/archive` still rendering how it
+ended.
 
 How it is posted (`db/lib/turnAnnouncement.js`): **`#turns` is ONE rolling
 message**, replaced each turn, carrying the announcement, the banner and the
