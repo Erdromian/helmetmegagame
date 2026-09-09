@@ -21,6 +21,7 @@ const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
+const { DM_ACTION, dmAction } = require("./dmActions");
 const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
 
 // What a confession needs to know about each side. hungerStreak feeds the
@@ -226,6 +227,7 @@ async function createConfessionOffer(
       discordUserId: chaplain.discordUserId,
       content,
       components: offerButtonRow(offer.id),
+      meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
   };
 }

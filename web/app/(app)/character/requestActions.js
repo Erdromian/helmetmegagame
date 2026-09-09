@@ -1962,6 +1962,7 @@ async function lessonOfferImpl({ teacherId, learnerId, tagId }) {
   after(() =>
     sendDm(offer.dm.discordUserId, offer.dm.content, {
       components: offer.dm.components,
+      meta: offer.dm.meta,
       source: "player_event",
     }).catch((err) =>
       console.error(`Lesson offer DM for ${offer.offer.id} failed:`, err),
@@ -2007,6 +2008,7 @@ async function confessRequestImpl({ chaplainId, tagId }) {
   after(() =>
     sendDm(offer.dm.discordUserId, offer.dm.content, {
       components: offer.dm.components,
+      meta: offer.dm.meta,
       source: "player_event",
     }).catch((err) =>
       console.error(`Confession offer DM for ${offer.offer.id} failed:`, err),
@@ -3172,6 +3174,7 @@ async function bindCharacterRequestImpl({
     after(() =>
       sendDm(offer.dm.discordUserId, offer.dm.content, {
         components: offer.dm.components,
+        meta: offer.dm.meta,
         source: "player_event",
       }).catch((err) =>
         console.error(`Bind offer DM to ${target.id} failed:`, err),

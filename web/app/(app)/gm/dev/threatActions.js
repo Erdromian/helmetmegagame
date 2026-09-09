@@ -12,6 +12,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { threatBySlug } from "@lifeweb/db/lib/threats";
+import { DM_ACTION, dmAction } from "@lifeweb/db/lib/dmActions";
 import { resolveAssignTags, spawnOfferComponents } from "@lifeweb/db/lib/threatSpawn";
 import { resolveSeatConflicts, describeSeatConflicts } from "@lifeweb/db/lib/seatConflicts";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
@@ -257,6 +258,7 @@ export async function offerThreatSpawn({ discordUserId, threatSlug, roleId, loca
     authorDiscordUserId: session.discordUserId,
     source: "threat_spawn_offer",
     components: spawnOfferComponents(spawn.id),
+    meta: dmAction(DM_ACTION.THREAT_SPAWN, spawn.id),
   }).catch((err) => {
     console.error("Threat spawn offer DM failed:", err);
     return null;

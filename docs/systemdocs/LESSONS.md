@@ -157,3 +157,7 @@ victim's DM never does still holds for Loot and Harm.
 | Menus and status line | `character/page.js`, `RequestActionsProvider.js`, `StatusPanel.js` |
 | Catalog | `docs/tags.yaml` (`teaching`, `teaching-lecturing`, `teaching-drill-instructor`; `teachable:` on skills) |
 | Player text | `docs/documents.yaml` `teachingskills`, `docs/handbook.md` "Teaching" |
+
+An offer's Accept / Decline is answerable on **either face** — the buttons are
+drawn in the Bascinet pane on `/play` as well as in the Discord DM
+(`CHAT.md` §2b).

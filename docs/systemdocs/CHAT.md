@@ -216,6 +216,36 @@ the per-game state (`web/app/(app)/gm/dev/actions.js`, the wipe transaction),
 so a new game opens with an empty thread — and a "my DM never showed up"
 report from before a restart has no row left to check.
 
+### The buttons work here too
+
+Some of what the game DMs a player *asks* something, and carries Discord
+buttons to answer with: an offer's Accept/Decline (a lesson, a confession, a
+bind, an escort), a threat spawn's, a lobby seat's Decline, the keyed way's
+Yes/No. Those used to be answerable on Discord alone. All three `sendDm` twins
+forward `opts.components` to Discord but log only `content`, so nothing on this
+side ever learned a button existed — and the people worst served by that were
+exactly the ones with no other face.
+
+The DM does not carry Discord's component JSON across. A button here is a
+**view of a pending row**: the DM records only which row it is about, in
+`meta.action` (`db/lib/dmActions.js`), and the web derives the rest. So a
+button cannot outlive the thing it answers — `web/lib/dmActions.js` asks which
+rows are still answerable by this reader and only those draw, where a Discord
+button stays clickable forever and merely refuses.
+
+`db/lib/dmAnswer.js` is the load, the ownership check and the order of the
+tail, shared so the two faces cannot drift; each keeps only what is its own
+(the bot edits the interaction's message, the web re-renders the row). The GM
+chair draws no buttons — `DmThread` gates them on `perspective === "player"`,
+because a GM answering somebody else's offer is not a thing.
+
+One trap worth knowing: an offer DM is `kind: NOTICE`, so without care it
+renders as a system line and a run of three or more collapses into "N automated
+messages". A row with live buttons is a question, not texture, so `isEffect`
+excludes it. Do **not** reach for `kind: CONVERSATION` to solve that — "Ada
+wants to bind you" sitting in the GM inbox as mail is the exact bug `kind` was
+built to end.
+
 ## 3. Realtime: server-sent events from the web process
 
 `web/lib/feedHub.js` keeps **one** `pg.Client` per web process (on

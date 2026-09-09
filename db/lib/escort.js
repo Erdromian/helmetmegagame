@@ -30,6 +30,7 @@ const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { isUnaffiliated } = require("./factionConstants");
 const { hereWhere } = require("./presence");
 const { escortButtonRow } = require("./offerRow");
+const { DM_ACTION, dmAction } = require("./dmActions");
 
 // How many turns an accepted escort keeps counting as consent. Two, so a
 // party that walks apart and regroups inside the same day is not asked twice.
@@ -221,6 +222,7 @@ async function createEscortOffer(prisma, { actor, target, turn }) {
       discordUserId: target.discordUserId,
       content: `*${actor.name}* wants to take you along. Accept, and you go where they go. ‡`,
       components: escortButtonRow(offer.id),
+      meta: dmAction(DM_ACTION.OFFER, offer.id, "ESCORT"),
     },
   };
 }

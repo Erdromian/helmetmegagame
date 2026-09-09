@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { getGameState } from "@lifeweb/db/lib/gameState";
+import { DM_ACTION, dmAction } from "@lifeweb/db/lib/dmActions";
 import {
   buildDraft,
   commitAssignment,
@@ -171,6 +172,7 @@ export async function startGame() {
         authorDiscordUserId: session.discordUserId,
         source: "lobby_assignment",
         components: declineComponents(a.entryId),
+        meta: dmAction(DM_ACTION.LOBBY_SEAT, a.entryId),
       })
         .then(() => markNotified(prisma, a.entryId))
         .catch((err) => console.error(`Assignment DM failed for ${a.discordUserId}:`, err));

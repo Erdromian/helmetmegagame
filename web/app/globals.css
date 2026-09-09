@@ -4552,6 +4552,24 @@ label.chip {
   opacity: 0.7;
 }
 
+/* The buttons under a DM that asks something — an offer's Accept/Decline, a
+   seat's Decline. On Discord these are message components; here they are drawn
+   from the pending row the DM names (db/lib/dmActions.js). */
+.dm-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+}
+
+/* What replaces them once answered, matching the outcome the bot writes under
+   the DM on Discord. */
+.dm-action-outcome {
+  margin-top: 0.4rem;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
 /* NavRail unread-conversation badge. */
 .rail-item-badge {
   display: inline-flex;

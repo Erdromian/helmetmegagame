@@ -13,6 +13,8 @@ import {
   BIRD_SOURCE,
 } from "@lifeweb/db/lib/dmKinds";
 import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib/dmTime";
+import { dmActionOf } from "@lifeweb/db/lib/dmActions";
+import DmActionRow from "./DmActionRow";
 
 // The one shared thread — the player desk's conversation pane and the
 // inspector's DMs tab both render this. It reads like a chat client rather
@@ -70,6 +72,13 @@ function isLetter(m) {
 // away the only thing worth looking at. Note isMention is NOT gated on the
 // perspective here: the GM chair never receives one (the query drops it), and
 // gating it would let the two chairs disagree about item keys.
+// A notice that still asks something — an offer's Accept/Decline, a seat's
+// Decline. `actionable` is stamped server-side by web/lib/dmActions.js, so a
+// row whose offer has since been answered is background texture again.
+function liveAction(m) {
+  return m.actionable ? dmActionOf(m) : null;
+}
+
 function isEffect(m) {
   return (
     m.kind === DM_KIND.NOTICE &&
@@ -80,7 +89,11 @@ function isEffect(m) {
     m.direction === "OUTBOUND" &&
     !isEmbed(m) &&
     !isLetter(m) &&
-    !isMention(m)
+    !isMention(m) &&
+    // The fourth exception, and the one that matters most: a row with live
+    // buttons is a question, not texture. Collapsed into "3 automated
+    // messages" it would be unanswerable without knowing to unfold it.
+    !liveAction(m)
   );
 }
 
@@ -331,6 +344,7 @@ function Row({ item, gmProfileById, character, now, perspective }) {
         ) : (
           <MarkdownContent content={message.content} />
         )}
+        {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
       </div>
     </div>
   );

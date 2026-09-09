@@ -6,13 +6,15 @@
 // the outcome is written under it, so a dead button can't be clicked twice and
 // the DM reads as a record afterwards. Same shape as bot/src/lib/offers.js —
 // this file only routes.
+//
+// The seat's brief, the audit row and the archive entry now live in
+// db/lib/dmAnswer.js, because the WEB answers these buttons too
+// (db/lib/dmActions.js). What is left here is gateway-only: editing the
+// interaction's own message, and fetching a GuildMember for the nickname sync.
 const { prisma } = require("@lifeweb/db");
-const {
-  acceptThreatSpawn,
-  declineThreatSpawn,
-  applySpawnSideEffects,
-} = require("@lifeweb/db/lib/threatSpawn");
-const { recordArchiveEvent } = require("@lifeweb/db/lib/archive");
+const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
+const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
+const { applySpawnSideEffects } = require("@lifeweb/db/lib/threatSpawn");
 const { syncMemberNickname } = require("./nickname");
 const { sendDm } = require("./dm");
 
@@ -25,62 +27,51 @@ async function settle(interaction, line) {
     .catch((err) => console.error("Threat spawn button update failed:", err));
 }
 
-async function handleThreatSpawnAccept(interaction, spawnId) {
-  const result = await acceptThreatSpawn(prisma, spawnId, interaction.user.id);
-  if (!result.ok) return void (await settle(interaction, result.reason));
+async function handleSpawn(interaction, spawnId, choice) {
+  const result = await answerDmAction(prisma, {
+    action: { kind: DM_ACTION.THREAT_SPAWN, id: spawnId },
+    choice,
+    discordUserId: interaction.user.id,
+  });
 
   // Answer first, then do the slow Discord work — the player is watching, and
   // none of what follows may cost a character that already exists.
   await settle(interaction, result.line);
+  if (!result.ok) return;
 
-  // A seat with a `brief` (the Thanati — db/lib/threats.js) says what it is
-  // only NOW, to somebody who has accepted. The offer carried the cover role's
-  // charter alone, so a decline never reads the cult's doctrine. Bascinet's
-  // words; one » at the top, as web's sendDm would put it.
-  if (result.threat.brief?.length) {
-    await sendDm(interaction.user, `» ${result.threat.brief.join("\n")}`).catch((err) =>
+  // Bascinet's words; one » at the top, as web's sendDm would put it.
+  for (const dm of result.dms ?? []) {
+    await sendDm(interaction.user, `» ${dm.content}`).catch((err) =>
       console.error("Threat spawn brief DM failed:", err),
     );
   }
 
-  await applySpawnSideEffects(prisma, result.sideEffects).catch((err) =>
-    console.error("Threat spawn side effects failed:", err),
-  );
+  if (result.sideEffects.spawn) {
+    await applySpawnSideEffects(prisma, result.sideEffects.spawn).catch((err) =>
+      console.error("Threat spawn side effects failed:", err),
+    );
+  }
 
   // The nickname sync wants a guild member, which a DM interaction has not
   // got — fetch it. buildNickname lives on each face separately, so this is
   // the bot's own copy rather than a third one in db/lib.
-  try {
-    const guild = await interaction.client.guilds.fetch(process.env.DISCORD_GUILD_ID);
-    const member = await guild.members.fetch(interaction.user.id);
-    await syncMemberNickname(member);
-  } catch (err) {
-    console.error("Threat spawn nickname sync failed:", err);
+  if (result.sideEffects.nicknameSyncDiscordUserId) {
+    try {
+      const guild = await interaction.client.guilds.fetch(process.env.DISCORD_GUILD_ID);
+      const member = await guild.members.fetch(result.sideEffects.nicknameSyncDiscordUserId);
+      await syncMemberNickname(member);
+    } catch (err) {
+      console.error("Threat spawn nickname sync failed:", err);
+    }
   }
+}
 
-  await prisma.auditLog
-    .create({
-      data: {
-        actorDiscordUserId: interaction.user.id,
-        actionType: "character_created",
-        targetCharacterId: result.character.id,
-        details: { threat: result.threat.name, spawn: true, role: result.character.roleTitle },
-      },
-    })
-    .catch((err) => console.error("Threat spawn audit failed:", err));
-
-  await recordArchiveEvent(prisma, {
-    kind: "CHARACTER_CREATED",
-    character: result.character,
-    zoneId: result.character.zoneId ?? null,
-    turn: result.turn,
-    content: `${result.character.name} arrived in Ravenheart as ${result.character.roleTitle}.`,
-  }).catch((err) => console.error("Threat spawn archive failed:", err));
+async function handleThreatSpawnAccept(interaction, spawnId) {
+  await handleSpawn(interaction, spawnId, DM_CHOICE.ACCEPT);
 }
 
 async function handleThreatSpawnDecline(interaction, spawnId) {
-  const result = await declineThreatSpawn(prisma, spawnId, interaction.user.id);
-  await settle(interaction, result.ok ? result.line : result.reason);
+  await handleSpawn(interaction, spawnId, DM_CHOICE.DECLINE);
 }
 
 module.exports = { handleThreatSpawnAccept, handleThreatSpawnDecline };
