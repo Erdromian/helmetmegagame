@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The edit refusal just says no
+
+✎ Trying to edit something older than five minutes now says "You can't edit that any more." instead of explaining itself
+
 ## 2026-09-09 · Mind reading is out of the game
 
 − Mindreading and the Succubus Draught are gone: the tags, the brewing recipe, the row on the player's recipe paper and the BREWING.md entry  
