@@ -87,6 +87,30 @@ filename as a good one, and you find out which it was on the worst possible day.
 server newer than itself, so **if Postgres is ever upgraded, that tag moves with
 it** or every backup starts failing.
 
+## 3. Archive packets — the one that is a single game
+
+Both layers above are all-or-nothing: they restore a whole database at a moment
+in time. Neither can answer "give me just game 4's transcript", and the dumps
+only reach back thirty nights anyway.
+
+So a finished game is also written out on its own, as one gzipped JSONL file
+under `archives/` in the same bucket — see
+[`ARCHIVE.md`](ARCHIVE.md) §6. That is a different KIND of copy, not a third
+backup of the same thing: it is one game, portable, readable without this repo
+or this schema, and it is what survives Restart Game now that the transcript
+leaves the database with everything else.
+
+```
+npm run archive:exports              # what packets exist; exits 1 if the
+                                     #   current game's nightly has gone quiet
+npm run archive:export -- --final    # the permanent packet for a game
+npm run archive:import -- --key …    # load one back
+```
+
+Because a packet can be the only copy of a game, nothing deletes rows on the
+strength of an exit code — the file is re-read and re-hashed first, the same
+posture `backup.sh` takes with `pg_restore --list`.
+
 ## Restoring a dump
 
 `ops/backup/restore.sh` ships in the same image as `backup.sh` — same

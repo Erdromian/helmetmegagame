@@ -36,6 +36,7 @@ import {
 } from "@/app/(app)/gm/dev/actions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
+import ArchiveGameButton from "@/app/(app)/gm/dev/ArchiveGameButton";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
@@ -181,7 +182,7 @@ export default async function DevPanelPage({ searchParams }) {
   // and the turn section derives day and phase from the same rows.
   const [config, state, openTurnRecord, lastTurn, depot, readyCount, livingCount] = await Promise.all([
     prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } }),
-    prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: { game: { select: { number: true } } } }),
+    prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: { game: { select: { number: true, exportKey: true, entryCount: true } } } }),
     getOpenTurn(),
     prisma.turn.findFirst({ orderBy: { number: "desc" } }),
     loadDepot(prisma),
@@ -1194,10 +1195,22 @@ export default async function DevPanelPage({ searchParams }) {
 
           {section === "danger" ? (
             <section className="ops-section">
+              <div className="desk-card flex flex-col gap-3">
+                <h2 className="section-title">Archive this game</h2>
+                <p className="ops-lede">
+                  Writes the whole transcript out as one file and checks it can be read back. Deletes nothing, and
+                  safe to press twice. Restart Game will not keep a game that has not been through here. ‡
+                </p>
+                <ArchiveGameButton
+                  exportKey={state?.game?.exportKey ?? null}
+                  entryCount={state?.game?.entryCount ?? null}
+                />
+              </div>
+
               <div className="desk-card panel-danger flex flex-col gap-3">
                 <h2 className="section-title">Restart Game</h2>
                 <p className="ops-lede">Wipes all game data and reopens Turn 1. Cannot be undone.</p>
-                <WipeGameButton />
+                <WipeGameButton hasPacket={Boolean(state?.game?.exportKey)} />
               </div>
             </section>
           ) : null}

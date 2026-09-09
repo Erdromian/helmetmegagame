@@ -16,8 +16,9 @@ import { wipeGameData } from "./actions";
 // "Wiping…" now flashes past in a second or two while channels keep clearing
 // for minutes afterwards. Without a word about that, a GM reasonably concludes
 // it did nothing.
-export default function WipeGameButton() {
+export default function WipeGameButton({ hasPacket = false }) {
   const [confirmText, setConfirmText] = useState("");
+  const [keep, setKeep] = useState(false);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -48,6 +49,21 @@ export default function WipeGameButton() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-2">
+      <label className="field">
+        <span className="field-label">This game&apos;s transcript</span>
+        <select name="archive" value={keep ? "keep" : "discard"} onChange={(e) => setKeep(e.target.value === "keep")}>
+          <option value="discard">Discard it — a playtest, keep nothing ‡</option>
+          <option value="keep">Keep it — read it later on /archive ‡</option>
+        </select>
+      </label>
+      <p className="ops-lede">
+        {keep
+          ? "The transcript leaves the database either way. Keeping it means the packet in the bucket becomes the copy that survives, so Restart Game will refuse until one has been written. ‡"
+          : "Nothing of this game is kept — not the transcript, not its entry in the archive picker. This is the right answer for a playtest. ‡"}
+      </p>
+      {keep && !hasPacket ? (
+        <p className="ops-lede">» <em>No packet yet. Press Archive this game above first. ‡</em></p>
+      ) : null}
       <div className="flex flex-wrap items-end gap-3">
         <label className="field">
           <span className="field-label">Type WIPE to confirm</span>

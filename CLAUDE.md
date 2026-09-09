@@ -260,7 +260,7 @@ you pick the right doc — they are never enough to change code with.
 | [`LESSONS.md`](docs/systemdocs/LESSONS.md) | You're touching Learn Skill / Teach Skill, the Teaching tags, the Offer handshake (Bind's consent too), or the lesson turn pass |
 | [`CONFESSION.md`](docs/systemdocs/CONFESSION.md) | You're touching Confess, the `psychological` tag flag, who may hear a confession, or the rule that a chaplain is never shown the sin |
 | [`CRAFTING.md`](docs/systemdocs/CRAFTING.md) | You're touching Craft, Destroy, the four tag capability flags (`craftable` / `removable` / `healable` / `teachable`), multi-turn projects, or who pays for a recipe |
-| [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript or `/archive` |
+| [`ARCHIVE.md`](docs/systemdocs/ARCHIVE.md) | You're touching the transcript, `/archive`, or **anything that exports, imports or deletes a game's transcript** — the archive packets and the archive-or-discard wipe |
 | [`CHAT.md`](docs/systemdocs/CHAT.md) | You're touching `/play`, the live feed (`/api/feed`, the SSE hub, the bot's outbox), `ArchiveEntry.seq` / `placeKey`, or the coming "web only" switch |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
@@ -332,6 +332,15 @@ npm run db:migrate:deploy            # prisma migrate deploy (production).
                                      #   backup first.
 npm run db:backup                    # one pg_dump into the backup bucket, now.
                                      #   ./migrate.sh runs it before migrating.
+npm run archive:export               # one game's transcript -> a packet in the
+                                     #   bucket. `-- --final` makes the
+                                     #   permanent one and stamps the Game row,
+                                     #   which Restart Game requires before it
+                                     #   will keep a game. See ARCHIVE.md.
+npm run archive:import -- --key K    # load a packet back. Prints every column
+                                     #   it dropped or defaulted.
+npm run archive:exports              # what packets exist. EXITS 1 if the
+                                     #   current game's newest is over 36h old.
 npm run db:backups                   # what is in the bucket. EXITS 1 if the
                                      #   newest dump is over 36h old, which is
                                      #   how a dead backup system announces
@@ -798,7 +807,9 @@ that database.
   A migration that drops a column, `db:sync-zones`, `db:sync-documents`,
   `db:prune-tags -- --apply`, `db:prune-orphan-roles -- --apply`,
   `db:prune-stale-channels -- --apply`, a `#info` rebuild, a Restart Game
-  wipe — none of these are "just do it" any more. Say exactly what you're
+  wipe — none of these are "just do it" any more. **Restart Game got sharper,
+  not softer:** it now takes the transcript out of the database too, and on
+  "discard" that is gone for good with no packet behind it (`ARCHIVE.md` §6). Say exactly what you're
   about to run and why, in chat, and wait for a real yes before running it.
   "The user asked me to fix X" is not the same as "the user approved
   wiping/pruning rows to do it" — a destructive step inside a bigger task

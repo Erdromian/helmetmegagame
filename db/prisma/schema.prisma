@@ -506,13 +506,22 @@ enum GamePhase {
 /// fresh one, which is what guarantees nothing here can leak into the next
 /// game — the old allowlist on GameConfig missed four columns and nobody
 /// noticed. Read through db/lib/gameState.js#getGameState.
-/// One row per game ever run, and the part of a game that outlives its wipe:
-/// when it ran, how it ended, and the reveal (docs/systemdocs/LOBBY.md §7).
+/// One row per game KEPT, and the part of a game that outlives its wipe: when
+/// it ran, how it ended, and the reveal (docs/systemdocs/LOBBY.md §7).
 /// ArchiveEntry rows carry a Game's id as a snapshot column, which is what
 /// lets /archive show a past game after Restart Game has cleared everything
 /// else.
+///
+/// "Kept", not "ever run": Restart Game asks whether the ending game is worth
+/// keeping, and a discarded playtest takes this row with it
+/// (docs/systemdocs/ARCHIVE.md). Thirteen throwaway test games in the picker
+/// before launch is what changed that.
 model Game {
   id          String    @id @default(cuid())
+  /// The creation ordinal. Internal only — nothing shows it to a player any
+  /// more, because it climbed to 13 before the game had launched once. It
+  /// still orders the /archive picker, and #turns still names it in the Game
+  /// Ended post. Discarding a game frees its number for the next one.
   number      Int       @unique
   startedAt   DateTime?
   endedAt     DateTime?
@@ -522,6 +531,31 @@ model Game {
   // when the game ends, or by the wipe if it never did.
   epilogue    Json?
   createdAt   DateTime  @default(now())
+
+  /// What a reader sees instead of a number, when it is worth naming.
+  label String?
+
+  /// The archive packet (docs/systemdocs/ARCHIVE.md). `exportKey` is the S3
+  /// object holding this game's transcript as gzipped JSONL, and `entryCount`
+  /// is how many ArchiveEntry rows went into it — both stamped by the Archive
+  /// button, before any delete.
+  ///
+  /// `archivedAt` is the one that changes how the game READS: it means the
+  /// rows have left the database and /archive must render the epilogue stub
+  /// rather than an empty transcript. A row with `exportKey` but no
+  /// `archivedAt` is exported and still fully present, which is the state the
+  /// Archive button leaves it in and the state Restart Game requires.
+  exportKey  String?
+  entryCount Int?
+  archivedAt DateTime?
+
+  /// The highest ArchiveEntry.seq the packet actually covers.
+  ///
+  /// This is what bounds the wipe's delete, and it is not optional: the bot
+  /// keeps writing between the moment the packet is made and the moment
+  /// Restart Game runs, and without the bound those rows would be destroyed
+  /// having never been in the file. It also makes the delete resumable.
+  exportMaxSeq BigInt?
 
   states GameState[]
 }
@@ -1712,7 +1746,7 @@ model Character {
   // a horse parked at an indoors door — can never reach back and take the
   // base crossing the rider still had. Reset by the same differing-turn-id
   // write as the counter above.
-  zoneMovesBonusUsed Int  @default(0)
+  zoneMovesBonusUsed Int @default(0)
 
   // The movement mood ration (db/lib/mood.js, MOVE_MOOD_TURN_CAP). Same claim-
   // token shape as zoneMovesTurnId above, and not a foreign key for the same

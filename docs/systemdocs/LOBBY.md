@@ -246,20 +246,37 @@ the phase and leaves the archive open.
 
 `Game` is one row per game (`number`, dates, note, epilogue). `GameState.gameId`
 points at the current one; every `ArchiveEntry` carries `gameId` as a snapshot,
-stamped by `db/lib/archive.js` from a thirty-second memo. **Restart Game keeps
-the transcript**: it snapshots an epilogue onto the old Game if it never got
-one, creates Game N+1, and recreates GameState pointing at it. `/archive` picks
-a game (`ARCHIVE.md`).
+stamped by `db/lib/archive.js` from a thirty-second memo. Restart Game
+snapshots an epilogue onto the old Game if it never got one, creates Game N+1,
+and recreates GameState pointing at it. `/archive` picks a game (`ARCHIVE.md`).
 
 ## 8. What Restart Game does and does not touch
 
-Keeps: `GameConfig` (every knob), `PlayerPreference`, `Game`, `ArchiveEntry`.
+Keeps: `GameConfig` (every knob), `PlayerPreference`.
 Wipes: `LobbyEntry`, and recreates `GameState` (phase CLOSED, new `gameId`).
 Everything else as before (`LAUNCH.md` §2, §4).
 
-`ArchiveEntry` is kept for `/archive` and shown nowhere else: Chat floors
-its feed at the highest seq belonging to a previous game, so `/play` is empty
-after a restart rather than full of the last game (`CHAT.md` §7).
+**The transcript now LEAVES the database**, which is the one thing here that
+changed. Restart Game asks first — keep this game or discard it — and either
+way its `ArchiveEntry` rows go:
+
+- **Discard** takes the rows and the `Game` row with them. Nothing survives,
+  and the game's number is freed for the next one. This is the answer for a
+  playtest, and it is the default: the number reached 13 before launch, and
+  every one of those games sat in the `/archive` picker.
+- **Keep** requires an archive packet to have been written first — the
+  **Archive this game** button, beside Restart Game on `/gm/dev`. The rows
+  still go; the packet in the bucket is what survives, and the `Game` row stays
+  behind as a stub so `/archive` can still show the epilogue and say where the
+  transcript went. Restart Game refuses to keep a game that has no packet.
+
+Read [`ARCHIVE.md`](ARCHIVE.md) before touching any of that. The delete is
+batched outside the main transaction and bounded by the seq the packet reaches
+to, and both of those are load-bearing.
+
+`/play` is unaffected either way: Chat floors its feed at the highest seq
+belonging to a previous game, so it is empty after a restart rather than full
+of the last game (`CHAT.md` §7).
 
 ## 9. Where the code lives
 

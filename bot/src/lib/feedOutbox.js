@@ -32,6 +32,7 @@ const {
   inEarshot,
 } = require("@lifeweb/db/lib/characterMentions");
 const { sendDm } = require("@lifeweb/db/lib/dm");
+const { currentGameId } = require("@lifeweb/db/lib/archive");
 
 // How far back the catch-up looks. A row older than this that never reached
 // Discord is not worth posting into a scene that moved on hours ago — the
@@ -342,8 +343,16 @@ async function syncBySeq(seq) {
 // deleted while the bot was down still lands.
 async function drainFeedOutbox() {
   try {
+    // Scoped to the current game, not just to the last day. A row belonging to
+    // a finished game must never be posted into today's channels, and `sentAt`
+    // alone does not say that: a game archived and imported back reintroduces
+    // rows whose timestamps are inside the window, and the drain would narrate
+    // a dead game into the live map. The window is the freshness rule; this is
+    // the identity one.
+    const gameId = await currentGameId(prisma);
     const rows = await prisma.archiveEntry.findMany({
       where: {
+        ...(gameId ? { gameId } : {}),
         sentAt: { gte: new Date(Date.now() - DRAIN_WINDOW_MS) },
         OR: [
           // Never posted: a web message written while the bot was down.

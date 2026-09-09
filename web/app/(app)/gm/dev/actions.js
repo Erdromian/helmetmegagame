@@ -1,5 +1,8 @@
 "use server";
 
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { isUnaffiliated, UNAFFILIATED_SLUG } from "@lifeweb/db/lib/factionConstants";
 import { GHOST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
@@ -10,6 +13,8 @@ import { getOpenTurn } from "@/lib/turn";
 import { buildEpilogue } from "@lifeweb/db/lib/epilogue";
 import { forgetGameId } from "@lifeweb/db/lib/archive";
 import { forgetGameFloor } from "@lifeweb/db/lib/feedWipe";
+import { exportGame, verifyPacket } from "@lifeweb/db/lib/archiveExport";
+import { bucketConfigured, putObject, finalKey } from "@lifeweb/db/lib/archiveBucket";
 import {
   prisma,
   advanceTurn as advanceTurnInDb,
@@ -246,12 +251,85 @@ export async function forceAdvanceTurn() {
 // GameConfig and PlayerPreference are deliberately NOT touched: the knobs a
 // GM tuned and the priorities a player set are meant to outlive the game
 // (docs/systemdocs/LOBBY.md §6).
+// Write the current game's transcript out to the bucket as one packet, and
+// stamp the Game row to say so. See docs/systemdocs/ARCHIVE.md.
+//
+// This is deliberately NOT part of Restart Game. It is minutes of read-only
+// work and network I/O, and the wipe's own button promises it "returns in a
+// second or two" and tells a GM "Nothing was changed" when it cannot reach the
+// server — a promise a long upload in front of it would turn into a lie the
+// first time a request timed out. Splitting them also means this can be run
+// early, run twice, and run while the game is still going: it deletes nothing.
+//
+// Restart Game then only ever CHECKS the stamp this leaves.
+export async function archiveCurrentGame() {
+  const session = await requireDev();
+
+  try {
+    if (!bucketConfigured()) {
+      return {
+        ok: false,
+        error: "This deployment has no bucket credentials, so it cannot upload a packet. Run `npm run archive:export -- --final` from a machine that has them. ‡",
+      };
+    }
+
+    const state = await prisma.gameState.findUnique({ where: { id: 1 }, include: { game: true } });
+    const game = state?.game;
+    if (!game) return { ok: false, error: "There is no current game to archive. ‡" };
+
+    const tmp = path.join(os.tmpdir(), `bascinet-archive-${game.id}.jsonl.gz`);
+    let manifest;
+    try {
+      manifest = await exportGame(prisma, { gameId: game.id, outPath: tmp });
+      // Read back what was actually written before anything is told it exists.
+      // A truncated packet is the same shape and roughly the same size as a
+      // good one, and this file is about to become the only copy.
+      await verifyPacket(tmp);
+      const key = finalKey(game.id);
+      await putObject(key, await fs.promises.readFile(tmp));
+      await prisma.game.update({
+        where: { id: game.id },
+        data: {
+          exportKey: key,
+          entryCount: manifest.entryCount,
+          exportMaxSeq: manifest.maxSeq === null ? null : BigInt(manifest.maxSeq),
+        },
+      });
+    } finally {
+      await fs.promises.unlink(tmp).catch(() => {});
+    }
+
+    await prisma.auditLog.create({
+      data: {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "superadmin_game_archived",
+        details: { gameId: game.id, entryCount: manifest.entryCount },
+      },
+    });
+
+    revalidatePath("/gm/dev");
+    return { ok: true, entryCount: manifest.entryCount };
+  } catch (err) {
+    console.error("Archive export failed:", err);
+    return { ok: false, error: err.message ?? "Could not write the packet. Check the server logs. ‡" };
+  }
+}
+
 export async function wipeGameData(formData) {
   const session = await requireDev();
 
   if (str(formData, "confirm").trim() !== "WIPE") {
     return { ok: false, error: 'Type "WIPE" (all caps) to confirm.' };
   }
+
+  // Keep this game's transcript, or throw it away with the rest? Either way
+  // the rows LEAVE the database — the difference is whether a packet is
+  // standing behind them (docs/systemdocs/ARCHIVE.md).
+  //
+  // Discard is the default because the ordinary use of this button is ending a
+  // playtest, and thirteen throwaway games accumulating in the /archive picker
+  // before launch is what prompted the whole change.
+  const keepArchive = str(formData, "archive") === "keep";
 
   try {
     // Snapshotted before the deletes — the only handle left on what to
@@ -268,6 +346,17 @@ export async function wipeGameData(formData) {
     // a reveal if it never got one, an end stamp, and its number. The next
     // game is a fresh row the new GameState points at.
     const oldGame = state?.game ?? null;
+
+    // The one check that has to happen before ANYTHING commits. Everything
+    // from here to the transaction writes as it goes, so a refusal further in
+    // leaves a stamped epilogue and an orphan next-Game row behind.
+    if (keepArchive && oldGame && !oldGame.exportKey) {
+      return {
+        ok: false,
+        error: "This game has no archive packet yet. Press Archive this game first — nothing has been changed. ‡",
+      };
+    }
+
     if (oldGame && !oldGame.epilogue) {
       const epilogue = await buildEpilogue(prisma, { game: oldGame, state: { ...state, endedAt: new Date() } }).catch((err) => {
         console.error("Epilogue snapshot failed:", err);
@@ -357,8 +446,9 @@ export async function wipeGameData(formData) {
       prisma.stagedEffect.deleteMany({}),
       prisma.turn.deleteMany({}),
       prisma.directMessage.deleteMany({}),
-      // The transcript is NOT wiped: it belongs to the old Game by its gameId
-      // and stays readable on /archive under that game's number.
+      // The transcript is not touched HERE. It leaves after this transaction
+      // commits, in batches — see the delete below for why it cannot be in
+      // this array.
       // The lobby is per game; the preferences behind it are not.
       prisma.lobbyEntry.deleteMany({}),
       // Delete and recreate rather than reset a list of columns: a fresh row
@@ -370,6 +460,58 @@ export async function wipeGameData(formData) {
     // Chat reads past a finished game by seq (db/lib/feedWipe.js); drop
     // the memo so it empties now rather than in half a minute.
     forgetGameFloor();
+
+    // The transcript leaves the database (docs/systemdocs/ARCHIVE.md). Three
+    // things about the shape of this, all learned the hard way:
+    //
+    // NOT in the transaction above. A month-long game is tens of thousands of
+    // rows, and deleting them means index maintenance across nine indexes plus
+    // the trigram GIN on `content`, inside a transaction already holding write
+    // locks on some twenty-five tables. It is the likeliest statement there to
+    // hit a timeout, and if it did the whole wipe would roll back — including
+    // the gameState.create above — while the epilogue stamp and the next Game
+    // row, written before it, stayed committed.
+    //
+    // BOUNDED BY exportMaxSeq when a packet is standing behind it. The bot
+    // keeps writing between the moment the packet was made and now, and those
+    // rows are not in the file. Without the bound they would be destroyed
+    // having never been anywhere else. Discarding has no such bound, because
+    // nothing is being preserved.
+    //
+    // BATCHED, so a timeout mid-way leaves a smaller job rather than no
+    // progress, and re-running the wipe finishes it.
+    let archivedRows = 0;
+    if (oldGame) {
+      const bound = keepArchive && oldGame.exportMaxSeq != null
+        ? { seq: { lte: oldGame.exportMaxSeq } }
+        : {};
+      for (;;) {
+        const doomed = await prisma.archiveEntry.findMany({
+          where: { gameId: oldGame.id, ...bound },
+          select: { id: true },
+          take: 5000,
+        });
+        if (doomed.length === 0) break;
+        const { count } = await prisma.archiveEntry.deleteMany({
+          where: { id: { in: doomed.map((r) => r.id) } },
+        });
+        archivedRows += count;
+        if (count === 0) break;
+      }
+      await prisma.game.update({
+        where: { id: oldGame.id },
+        data: { archivedAt: new Date() },
+      });
+      // Discarding takes the Game row too, which is why the schema says "one
+      // row per game KEPT". It has to happen after the transaction above:
+      // GameState.gameId is a required FK, so the old row is only unreferenced
+      // once gameState.deleteMany + create have committed.
+      if (!keepArchive) {
+        await prisma.game.delete({ where: { id: oldGame.id } }).catch((err) => {
+          console.error("Could not discard the old Game row:", err);
+        });
+      }
+    }
 
     // After the character sweep above, so the FK from Character.factionId is
     // already gone and the delete cannot be blocked by a member.
@@ -383,7 +525,13 @@ export async function wipeGameData(formData) {
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: "superadmin_game_wipe",
-        details: { characters: characters.length, ghostMembers: ghostMemberIds.length },
+        details: {
+          characters: characters.length,
+          ghostMembers: ghostMemberIds.length,
+          archived: keepArchive,
+          transcriptRows: archivedRows,
+          exportKey: keepArchive ? oldGame?.exportKey ?? null : null,
+        },
       },
     });
 
