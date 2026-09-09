@@ -59,6 +59,12 @@ const HIT_PX = 22;
 const ZOOM = { min: 1, max: 7 };
 const FIT_MAX = 2.1;
 
+// How often the board checks whether somebody else moved you. The same
+// interval CharacterPoller.js uses, for the same reason: a move is rare
+// enough that this never competes with anything, and frequent enough that
+// being dragged along does not read as the map having lost you.
+const POLL_MS = 10_000;
+
 // Whether Go is on offer for a node. THE one predicate: the card's confirm
 // strip, the second click and Enter all read it, so a place can never travel on
 // a gesture while its own card is showing a refusal.
@@ -170,6 +176,52 @@ export default function MapBoard({ onClose = null }) {
       cancelled = true;
     };
   }, [nonce]);
+
+  // Somebody else's feet can move YOU — a leader dragging a party along a
+  // crossing, an escort — and unlike travelTo() below, that write happens on
+  // a different browser entirely. This board has no other way to hear about
+  // it: it is not fed by page.js (it fetches its own data so the standalone
+  // /map route and the /play overlay can share one component), so it is
+  // outside the reach of the live feed's SSE "places" push that already
+  // fires for every moved character (db/lib/presenceNotify.js) and refreshes
+  // everything else on /play. Without this, a passenger's board kept
+  // describing the place they left until they closed and reopened it.
+  //
+  // /api/character-version, the same endpoint CharacterPoller.js polls for
+  // the same reason, so this is a second reader rather than a new one.
+  // Watches `locationId` alone, not the whole fingerprint: comparing the
+  // opaque `fp` would also bump `nonce` — and with it re-frame the board via
+  // the effect above — over something the map has nothing to do with, like a
+  // resource spent or the turn advancing.
+  const locationRef = useRef(undefined);
+  useEffect(() => {
+    let inFlight = false;
+    const id = setInterval(async () => {
+      if (inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        const res = await fetch("/api/character-version", {
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) return;
+        const { locationId } = await res.json();
+        if (locationRef.current === undefined) {
+          locationRef.current = locationId;
+          return;
+        }
+        if (locationId !== locationRef.current) {
+          locationRef.current = locationId;
+          setNonce((n) => n + 1);
+        }
+      } catch {
+        // A timeout or a flaky network is a skipped tick, not an error.
+      } finally {
+        inFlight = false;
+      }
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   // Before the framing effect below, which calls fit() -> applyView() and needs
   // the clamp to already know how big the world is. Effects run in declaration
@@ -677,7 +729,7 @@ export default function MapBoard({ onClose = null }) {
                 {/* The tag of theirs that opens it, where one does — the same
                     chip the Travel panel and the card below draw. */}
                 <ViaChip slug={n.openedBy} />
-                <span className="mono">{travelFoot(n, travel?.freeLeft ?? 0, travel?.mounted)}</span>
+                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted)}</span>
               </button>
             ))}
           </div>
@@ -746,7 +798,10 @@ function ViaChip({ slug }) {
 function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   const isHere = here && node.id === here.id;
   const reachable = canTravelTo(node, here);
-  const nextTurn = Boolean(node.crossesZone && (travel?.freeLeft ?? 0) <= 0);
+  // node's OWN count, not the header's ambient one — a boat's bonus is
+  // earned per crossing, so a water-eligible destination can still be free
+  // even when the header's pre-selection number already reads 0.
+  const nextTurn = Boolean(node.crossesZone && (node.freeLeft ?? 0) <= 0);
 
   return (
     <div className="map-card-body">

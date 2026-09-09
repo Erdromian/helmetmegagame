@@ -18,6 +18,30 @@ import {
 // you carry — the status strip above draws the ones that matter.
 const GROUPS = ["Items", "Assets"];
 
+// What one ROW puts on the weight cap, in pounds — quantity included, so the
+// number is what dropping the whole row would free rather than what one of
+// them weighs.
+//
+// This is db/lib/carry.js#rowWeight spelled a second time, for the reason
+// StatusStrip.js keeps its own copy of three slugs: carry.js reaches Prisma and
+// Discord through five requires, and this module is in the CLIENT bundle
+// (components/TagRail.js imports thingVerbs from it). Both spell the same rule
+// out of CARRY.md §1 — an untradeable row and an Asset weigh nothing, an Asset
+// because it carries itself or does not move at all. Keep the two in step.
+//
+// Rounded per row because this one is drawn; carry.js rounds the SUM instead,
+// which is why a column of these can be a tenth off the total in the chip
+// above. Nothing decides anything on this number — the cap is settled
+// server-side against carry.js.
+const WEIGHTLESS_CATEGORY = "Assets";
+
+function rowWeightLbs(ct) {
+  const tag = ct?.tag;
+  if (!tag?.tradeable) return 0;
+  if (tag.category === WEIGHTLESS_CATEGORY) return 0;
+  return Math.round((tag.weightLbs ?? 0) * (ct.quantity ?? 1) * 100) / 100;
+}
+
 // The four verbs for every pocket at once: { tagId -> { consumable, tradeable,
 // removable } }, so a page drawing many rows asks the predicates once rather
 // than once per row. The sheet's tag rail (web/app/components/RowVerbs.js) and
@@ -55,6 +79,12 @@ export function thingGroups(characterTags = []) {
       category: ct.tag.category,
       quantity: ct.quantity ?? 1,
       equipped: Boolean(ct.equipped),
+      // How many units are still free to equip — a slot holds one physical
+      // item, so a partly-equipped stack can offer BOTH "Equip" (there's
+      // more in reserve) and "Unequip" (some is already out) at once.
+      equippableRemaining: (ct.quantity ?? 1) - (ct.equippedQuantity ?? 0),
+      equippedQuantity: ct.equippedQuantity ?? 0,
+      weightLbs: rowWeightLbs(ct),
       ...thingVerbs(ct, sets),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));

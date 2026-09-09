@@ -76,7 +76,7 @@ export async function loadMap() {
 async function buildMap({ character, unfogged }) {
   const { width, height } = plateSize();
 
-  const [locations, links, config, openTurn] = await Promise.all([
+  const [locations, links, config, openTurn, currentZone] = await Promise.all([
     prisma.location.findMany({
       select: {
         id: true,
@@ -84,12 +84,13 @@ async function buildMap({ character, unfogged }) {
         name: true,
         description: true,
         indoors: true,
-        zone: { select: { name: true, kind: true } },
+        zone: { select: { slug: true, name: true, kind: true } },
       },
     }),
     prisma.locationLink.findMany(),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    character?.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
   ]);
 
   const known = character
@@ -159,6 +160,17 @@ async function buildMap({ character, unfogged }) {
       adjacent: Boolean(near),
       passable: Boolean(near?.passable),
       crossesZone: Boolean(near?.crossesZone),
+      // THIS crossing's own count, not a flat one shared by every node — a
+      // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing),
+      // so Forest<->Hills or Hills<->Marshes shows one more than a crossing
+      // the water does nothing for. Only worth asking for an adjacent node;
+      // a merely-known one has no crossing to weigh yet.
+      freeLeft: near
+        ? freeMovesLeft(character, config, openTurn, party.length, {
+            fromZoneSlug: currentZone?.slug ?? null,
+            toZoneSlug: location.zone?.slug ?? null,
+          })
+        : null,
       dismounts: Boolean(near?.dismounts),
       reason: near?.refusal ?? null,
       // The tag of theirs that opens the way here, if one does. Same field the

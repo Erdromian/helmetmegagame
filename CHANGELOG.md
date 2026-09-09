@@ -6,6 +6,54 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A room says what it looks like
+
+✎ Every place on the web now shows its own description under its name, opened with a click. A room's words used to have nowhere to appear at all  
+✚ The little result popups render italics and bold instead of printing the asterisks  
+✎ The Mood box's heading sits level with the boxes beside it again
+
+## 2026-09-09 · A turn finishes saying what it has to say
+
+✎ The turn's Discord half is now recorded as it goes out, so a deploy that kills the app mid-announcement no longer loses the rest of it  
+✎ An unfinished turn is finished on the next advance, and by the bot the moment it restarts  
+✚ The Rite of Ascension kills everyone, not just the game
+
+## 2026-09-09 · Restart Game forgets the Depot too
+
+✎ A Restart Game now resets the Depot. It was the one machine the wipe never touched, so the turret, the generator, the Merchant's account, the docked shuttle and the face on file all carried into the next game — which is how a turret nobody had armed shot the people in the caves
+
+## 2026-09-09 · The arrival letter stops stuttering its »
+
+
+## 2026-09-09 · Chat shows how loaded you are
+
+✚ A load bar under the Resources and weight chips in Chat's You panel — it fills as you pick things up and turns red once you are over your cap, so being Overburdened is something you can see coming instead of being told about  
+✚ Hovering a thing in your pockets now says what it weighs, quantity included, so you can tell what is worth putting down  
+✎ The ⬢ and pounds chips each redden for their own cap now. Being over on Resources used to turn the POUNDS number red, which said nothing true about what you were carrying
+
+## 2026-09-09 · Leper is an illness, Blessing is cheaper, and the daggers come off
+
+✎ Leper now sits under Health · Illness instead of General, so it reads and inspects like the ailment it is  
+✎ Blessing costs 3 points instead of 5  
+✎ The Held row says "3 slots" instead of "3 hands / empty", and an empty slot's menu says what it is waiting for  
+✎ The ‡ marks are off the web UI's error and empty-state copy — Pyrias's sweep
+
+## 2026-09-09 · Wielding five swords costs five hands, not one
+
+✎ Equipping something out of a stack now takes one slot per item — the rest stay in the pack, and three knives out of five fill three hands  
+✎ The equip rack draws one cell per item worn, so a stack no longer sits in a slot wearing a ×5 badge  
+✎ A second hat, or a fourth knife, is refused the same way two different helms always were  
+✎ Resetting a Move gives back the zone crossing it queued, so the travel menu unlocks and the day's free crossings come back  
+✎ The map redraws when somebody else moves you — an escort, or a leader dragging the party  
+✎ The travel panel counts the boat's extra crossing, which it was quietly leaving out  
+✚ The GM inspector's Sheet tab shows a character's combined armour, melee and ballistic
+
+## 2026-09-09 · The off hand is gone; you hold four things now
+
+− The Off hand row on the sheet. A shield goes in your hands like anything else, and the row is called Held  
+✎ You have four hands' worth instead of three, which is exactly what a shield plus three hands already allowed, so nobody's kit is refused by this  
+✎ Two shields at once are legal now, because hands are the only limit on what you hold
+
 ## 2026-09-09 · Wanted follows the face, and the Cerberon can hand it out
 
 ✎ A Wanted man is only read as wanted while he is under his own name — a hood or a Disguise Kit's false name now takes it off the read, which is what the tag always said it meant  

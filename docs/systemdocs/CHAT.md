@@ -438,7 +438,8 @@ from 17rem in the second pass: it is the game suite now, not a button strip.
 ```
 ┌───────────────┬────────────────────────────────────────────┬──────────────────────┐
 │ PLACES        │ Council Room                     ◔ Dusk 4  │ THE KEEP             │
-│               │────────────────────────────────────────────│ Fortress             │
+│               │ A long table under a cold window…          │ Fortress             │
+│               │────────────────────────────────────────────│                      │
 │ ✉ Bascinet  ● │                                            │                      │
 │ ▤ Summary   ● │                                            │ [Place] [Zone]       │
 │               │ ◉ Alexandra Hristov  13:58                 │ A high hall of black │
@@ -511,7 +512,7 @@ header, and the rest of the right column comes up as a bottom sheet from the
 ```
 ┌────────────────────────────────────┐
 │ ‹ Town · The Keep                  │
-│ A vaulted hall, damp and… more     │
+│ A vaulted hall, damp and cold…     │
 │────────────────────────────────────│
 │ Keep● | Throne | Cellar● | Old Tom●│
 │────────────────────────────────────│
@@ -597,7 +598,22 @@ header instead).
   web path only — a mention typed into Discord is Discord's own to handle.
 
 - **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
-  name, a search button, the runs, and the composer.
+  name, its own words under the name, a search button, the runs, and the
+  composer.
+- **The head says where you are, in the place's own words.** Under the name
+  sits that place's `description` — `Room.description`, `Location.description`
+  or `Zone.description`, whichever kind is open — as one clamped line of
+  subtext you open with a click and close with another. `db/lib/feedAccess.js`
+  already carries it on every row of the place list, so nothing is fetched for
+  it; a place with none (a conversation) draws no line at all.
+
+  A **room** is the reason it is there. `PlaceCard.js` in the right column
+  draws the *Location's* description and the zone's, never the room's, and the
+  hover card on the room's row in `PlacesColumn.js` is gone the moment you
+  click through — so standing in a room, the words written for it were on no
+  surface at all. The line is deliberately not the fixed-height strip with a
+  "more" button that used to live here: that one sat *over* the scene, this
+  one is a single line until asked.
   Enter appends the pending row in the same frame and clears the box; the POST
   swaps the real row in behind it. A failed send stays on screen as "Not sent.
   Retry". Runs group one speaker's messages within seven minutes, the same rule
@@ -935,7 +951,7 @@ header instead).
      whose category is **Items** or **Assets**, grouped in that order, as one
      chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
      menu of at most four: **Equip / Unequip** (`equippable`, the sheet's own
-     instant `toggleEquip`), **Use** (`consumable`), **Give** (`tradeable`)
+     instant `equipOne`/`unequipOne`), **Use** (`consumable`), **Give** (`tradeable`)
      and **Destroy** (`removable`) — the last three open the SHEET's dialogs
      through `RequestActionsProvider.open(mode, tagId)`, with the item already
      picked. The flags come off the catalog through `web/lib/tagRequests.js`,

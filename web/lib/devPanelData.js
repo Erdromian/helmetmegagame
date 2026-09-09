@@ -355,6 +355,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       name: ct.tag.name,
       quantity: ct.quantity,
       equipped: ct.equipped,
+      equippedQuantity: ct.equippedQuantity,
       // Where it sits, for the state strip's hands count (db/lib/equipSlots.js).
       equipSlot: ct.tag.equipSlot,
       twoHanded: ct.tag.twoHanded,

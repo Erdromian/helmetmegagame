@@ -329,6 +329,24 @@ own sentence, beside its incapacitation gate, and `travelOptions` draws every
 way shut and says why. A held follower is left behind rather than carried out
 (§3a).
 
+UNDOING a Move gives back what the crossing SPENT, and not the crossing:
+`web/lib/moveEconomy.js#deleteActionRestoringTurn` — shared by the Dev
+Panel's "Give their turn back" and the Moves desk's Reject — deletes the
+auto-resolved `Action` a paid crossing filed, and
+`db/lib/locationTravel.js#travelClaimsToUndo` is what tells it to also zero
+`zoneMovesUsed`/`zoneMovesTurnId` when this turn's free-crossing claim
+belongs to that Action (`Action.turnId` is unique per character, so a match
+can only ever mean this one). Left alone, the day's free crossings stayed
+spent even though the Move that spent them just came back.
+
+**It does not walk them home.** When a paid crossing was a day on the road,
+undoing the Action really did call the journey off, because nobody had moved
+yet. They have now — a GM who wants them back where they started teleports
+them. `travelClaimsToUndo`'s `travelTo*` branch survives only as a drain for
+a straggler, and goes with the arrival pass. `escortedById` is not restored
+either: a crossing overwrites it with `null` and never remembers what it
+was, so there is nothing to give back.
+
 Spending the Move is written as a real, auto-resolved `Action`
 (`type: MOVE`, `status: CONFIRMED`, `moveReviewStatus: SOLVED`,
 `gmNotes: "auto:zone_change"`), landing in `/gm/turns`' Moves history rather

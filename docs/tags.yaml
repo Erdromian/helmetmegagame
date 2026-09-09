@@ -853,8 +853,8 @@ tags:
   leper:
     catalog: all
     name: Leper
-    category: general
-    group: general-traits
+    category: health
+    group: health-illness
     description: "Covered in sores."
     pointCost: -1
     conflictsWith: [pretty, beautiful, ugly, disfigured]
@@ -2273,7 +2273,7 @@ tags:
     category: skills
     requiredTag: chaplain
     description: "You can craft {tag:holy-water}. Poured on the offender, it reduces the efficacy of unholy activity."
-    pointCost: 5
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -12199,7 +12199,7 @@ tags:
     description: "A small shield held in the fist, used for blocking attacks or making your own."
     pointCost: 2
     equippable: true
-    equipSlot: SHIELD
+    equipSlot: WEAPON
     melee: 0.25
     ballistic: 0.05
     visible: true
@@ -12224,7 +12224,7 @@ tags:
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
     pointCost: 5
     equippable: true
-    equipSlot: SHIELD
+    equipSlot: WEAPON
     melee: 0.4
     ballistic: 0.15
     visible: true
@@ -12248,7 +12248,7 @@ tags:
     description: "A shield tall enough to stand behind. It can be set on the ground as cover."
     pointCost: 4
     equippable: true
-    equipSlot: SHIELD
+    equipSlot: WEAPON
     melee: 0.5
     ballistic: 0.25
     visible: true
@@ -12452,7 +12452,7 @@ tags:
     description: "One of the few things in Ravenheart that can stop firearm fire, but doesn't completely stop melee damage."
     pointCost: 0
     equippable: true
-    equipSlot: SHIELD
+    equipSlot: WEAPON
     melee: 0.7
     ballistic: 0.95
     visible: true

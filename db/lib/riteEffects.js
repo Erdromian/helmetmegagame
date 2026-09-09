@@ -24,7 +24,7 @@ const { formatBareName } = require("./characterName");
 const { STUPID_SLUG } = require("./babble");
 const { HUNGERLESS_SLUG } = require("./constants");
 const { applyLocationMoveSideEffects } = require("./locationMove");
-const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag } = require("./tagWrites");
+const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquippedQuantity } = require("./tagWrites");
 const { createWithRetry } = require("./paperMint");
 const { resolveSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
@@ -221,6 +221,7 @@ async function spendFromHolder(tx, holder, tagId, what) {
   });
   if (count === 0) throw new Error(`the ${what} is gone`);
   await tx.characterTag.deleteMany({ where: { characterId: holder.id, tagId, quantity: { lte: 0 } } });
+  await clampEquippedQuantity(tx, holder.id, tagId);
 }
 
 async function grantToFloor(db, room, slug, quantity = 1) {

@@ -996,7 +996,20 @@ async function handleTravelPick(interaction) {
   // The party is what decides whether the mount's extra crossing survives, so
   // the number quoted below has to count it (MAP.md §3a).
   const party = await partyOf(prisma, character.id);
-  const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
+  // THIS crossing's own count, not a flat one that ignores where it goes — a
+  // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
+  // Forest<->Hills or Hills<->Marshes has to show one more than a crossing
+  // the water does nothing for. `crossing` above is only a boolean ("does
+  // this leave the zone at all"); the actual zone slugs live here.
+  const currentZone = character.zoneId
+    ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
+    : null;
+  const left = crossing
+    ? freeMovesLeft(character, config, openTurn, party.length, {
+        fromZoneSlug: currentZone?.slug ?? null,
+        toZoneSlug: target.zone?.slug ?? null,
+      })
+    : null;
   const seatWarning = crossing ? freeZoneMovesReason(character, party.length) : null;
 
   const cost = !character.locationId
