@@ -5209,9 +5209,62 @@ label.chip {
 }
 
 .chat-aside {
-  overflow-y: auto;
+  /* The panel inside does the scrolling now, not the column. */
+  overflow: hidden;
   border-left: 1px solid var(--border);
   padding: var(--sp-3);
+}
+
+/* The tabbed right column: a strip that holds still, and one panel under it
+   that scrolls on its own. Before this the five sections were stacked down a
+   single scroller and the tallest of them decided how far you travelled to
+   reach the rest. */
+.chat-aside-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chat-tabstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+  margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  /* Under the 44px floor the rest of this column is being held to, but a tab
+     is a wide target horizontally and sits in a row of its own. */
+  padding: var(--sp-2) var(--sp-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  cursor: pointer;
+  /* The selected tab is marked by a rule that shares the strip's own border
+     line, so nothing moves by a pixel when the selection changes. */
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.chat-tab:hover {
+  color: var(--text);
+}
+
+.chat-tab[data-open="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.chat-aside-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* The "Playing from the web" chip, in the foot beside the chime toggle. The
@@ -5737,19 +5790,32 @@ label.chip {
 
 /* ---- The right column: who is here, the place, and you ---- */
 
+/* Each section is a card now. They were a hairline border-bottom and nothing
+   else, which gave a Location's long prose and a one-chip status strip the
+   same weight and made the whole column read as one grey list. A surface, a
+   border and a radius is the same treatment .panel gets everywhere else in
+   the app. */
 .chat-card,
 .chat-here,
 .chat-party,
 .chat-room,
 .chat-travel,
 .chat-you {
-  padding-bottom: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
   margin-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--border);
 }
 
-.chat-you {
-  border-bottom: 0;
+/* Last card in whichever panel is open — there is no run of them to separate
+   from any more. */
+.chat-card:last-child,
+.chat-here:last-child,
+.chat-party:last-child,
+.chat-room:last-child,
+.chat-travel:last-child,
+.chat-you:last-child {
   margin-bottom: 0;
 }
 
@@ -6249,6 +6315,19 @@ label.chip {
   border-bottom: 0;
   border-radius: var(--radius) var(--radius) 0 0;
   padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Inside the phone's ⋯ sheet the MODAL is the scroller (max-height + overflow
+   above), so the tabbed column must not try to be one as well: a flex child
+   with min-height:0 inside an auto-height parent collapses to nothing. The
+   strip still sits at the top; the sheet scrolls the panel under it. */
+.chat-sheet .chat-aside-tabs {
+  height: auto;
+}
+
+.chat-sheet .chat-aside-panel {
+  overflow-y: visible;
+  min-height: 0;
 }
 
 /* ---- The ladder. Three widths above the phone, one breakpoint each:
