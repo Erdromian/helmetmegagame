@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A turn finishes saying what it has to say
+
+✎ The turn's Discord half is now recorded as it goes out, so a deploy that kills the app mid-announcement no longer loses the rest of it  
+✎ An unfinished turn is finished on the next advance, and by the bot the moment it restarts  
+✚ The Rite of Ascension kills everyone, not just the game
+
 ## 2026-09-09 · Restart Game forgets the Depot too
 
 ✎ A Restart Game now resets the Depot. It was the one machine the wipe never touched, so the turret, the generator, the Merchant's account, the docked shuttle and the face on file all carried into the next game — which is how a turret nobody had armed shot the people in the caves
