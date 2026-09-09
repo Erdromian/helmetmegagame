@@ -522,22 +522,31 @@ plain to see. See [`INTERCEPT.md`](INTERCEPT.md).
 
 A `catalog: secret` item that a player spends to stand somewhere else. It is a
 **raw relocation**, the same shape the Dev Panel's Teleport uses: no ⬢, no Move,
-no adjacency check, no cooldown, and no Action filed. What it is not is
-unlimited — the picker offers only Locations that character has actually
-**stood** in (`db/lib/locationVisits.js#knownLocations`), and
-`stepstoneRequest` recomputes that set server-side and refuses a posted id for
-anywhere else.
+no adjacency check, no cooldown, and no Action filed. It reaches **every
+surface Location, known or not** — the fog behind /map does not narrow it.
 
-**`stood`, never `seen`, and that is a security boundary rather than a
-flavour choice.** The `seen` half of the fog is written for every **listed**
+**The one refusal is the underground.** A `CAVE_LEVEL` zone is never a target,
+and `stepstoneRequest` re-checks that server-side rather than trusting the
+picker. The test is written as "is `SURFACE`" rather than "is not a cave":
+`ZoneKind` has three values and `CAVE_GROUP` is not a place anybody stands, so
+phrasing it positively keeps a zone kind added later out of the stone's reach
+until somebody decides it should be in. Destination only — stepping *out* of
+the caves is fine.
+
+**It used to be limited to somewhere you had STOOD, and that was a security
+boundary.** The `seen` half of the fog is written for every **listed**
 neighbour, and §2 above is explicit that `listed` is weaker than `passable`: a
 locked door or a shut portcullis is listed on purpose, so you know the door is
-there and cannot open it. A stone that accepted `seen` would therefore step
-through every locked gate and tag-gated crawl anybody had ever stood beside —
-a skeleton key to the whole map, granted by the very rows that exist to show
-players doors they have not earned. A `stood` row is a place the character
-already reached legitimately, so stepping back into it grants nothing they did
-not already have.
+there and cannot open it. Accepting `stood` only meant the stone could reach
+nowhere the character had not already got into legitimately.
+
+**That boundary is gone, deliberately, and the consequence is real**: the stone
+is now a way past every locked gate on the surface. The Undercroft is reached
+by a `hidden: elevator-key` connection and the Charon is down there; the
+Brigand camp, the Keep and the Underquarter are all surface Locations behind
+gates a stone-holder no longer needs to open. The caves are the one thing still
+walled off, which is what keeps the caving gate and the Caving Die meaning
+something.
 
 **A hold stops it**, the same as it stops a walk (`INTERCEPT.md`): an ambush is
 a hand on your shoulder, and the stone is not the way out of one.

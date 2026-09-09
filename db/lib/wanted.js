@@ -9,6 +9,8 @@
 //
 // Takes `db` as a parameter where it queries, the db/lib/dm.js convention.
 
+const { matchesTypedName } = require("./characterName");
+
 const WANTED_SLUG = "wanted";
 
 // The Cerberon's own tag — a Censor, an Incarn, a Cerberus, a Squire all hold
@@ -41,9 +43,40 @@ function canDeclareWarrant(heldSlugs) {
   return WARRANT_BADGE_SLUGS.some((slug) => held.has(slug));
 }
 
-// Every living wanted man, by name. The parallel of listComrades()
-// (db/lib/thanati.js) and it answers the same shape, so the notice rows on
-// /character render it unchanged.
+// Who a typed name puts a warrant on. EVERY living man who answers to it, not
+// one — the law does not know which Alexander Ivanov it wants, so it wants
+// both. This is the whole of the rule, kept pure and DB-free so db/test/ can
+// hold it down without a database.
+//
+// Two kinds of match are dropped from the set rather than aborting the whole
+// act, which is the part that used to be wrong. Swearing a warrant on a name
+// you happen to share must still catch the other man, and a namesake who is
+// already wanted must not stop a clean one being caught. Only when nothing is
+// left does the caller refuse, and the three counts below are what let it say
+// WHY.
+//
+// `candidates` are rows with `name`, `firstName`, `lastName`, `id`, and a
+// `tags` array holding the wanted tag if they already have it — the shape the
+// caller's query already selects.
+function warrantTargets(candidates, typed, { selfId = null } = {}) {
+  const matched = (candidates ?? []).filter((c) => matchesTypedName(c, typed));
+  const skippedSelf = selfId ? matched.filter((c) => c.id === selfId).length : 0;
+  const notMe = matched.filter((c) => c.id !== selfId);
+  const alreadyWanted = notMe.filter((c) => (c.tags?.length ?? 0) > 0).length;
+  const targets = notMe.filter((c) => (c.tags?.length ?? 0) === 0);
+  return { matched: matched.length, targets, skippedSelf, alreadyWanted };
+}
+
+// Every living wanted man, by NAME AND NOTHING ELSE. The parallel of
+// listComrades() (db/lib/thanati.js) and it answers the same notice-row shape,
+// so /character renders it unchanged.
+//
+// The role is deliberately not in here. A warrant book that printed "Censor"
+// or "Fisherman" beside a name would hand every badge holder a slice of the
+// roster nobody has earned — the book is a list of names the Cerberon want,
+// not a directory of who those people are. The cost is that two men who share
+// a name read as two identical rows, which is the honest answer: the law has
+// two Alexander Ivanovs and cannot tell them apart either.
 //
 // It does NOT care who is currently hooded. This is the Cerberon reading
 // their own warrant book, not an act of looking at somebody: a man does not
@@ -53,14 +86,9 @@ async function listWanted(db) {
   const rows = await db.character.findMany({
     where: { status: "ALIVE", tags: { some: { quantity: { gt: 0 }, tag: { slug: WANTED_SLUG } } } },
     orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      roleTitle: true,
-      role: { select: { name: true } },
-    },
+    select: { id: true, name: true },
   });
-  return rows.map((c) => ({ id: c.id, name: c.name, role: c.roleTitle ?? c.role?.name ?? "" }));
+  return rows.map((c) => ({ id: c.id, name: c.name }));
 }
 
 module.exports = {
@@ -70,5 +98,6 @@ module.exports = {
   isWanted,
   isCerberon,
   canDeclareWarrant,
+  warrantTargets,
   listWanted,
 };

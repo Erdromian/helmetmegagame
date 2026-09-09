@@ -9,11 +9,12 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { grantTagSlugs } from "@lifeweb/db/lib/tagWrites";
-import { FULL_NAME_LIMIT, matchesTypedName } from "@/lib/characterName";
+import { FULL_NAME_LIMIT } from "@/lib/characterName";
 import {
   WANTED_SLUG,
   CERBERON_SLUG,
   WARRANT_BADGE_SLUGS,
+  warrantTargets,
   listWanted,
 } from "@lifeweb/db/lib/wanted";
 
@@ -58,6 +59,12 @@ function revalidate() {
 // the game should make easy. Either form counts, the full display name or the
 // plain First Last, so an honorific the officer never learned is not a wall.
 //
+// A name TWO living men answer to warrants BOTH of them. This used to refuse
+// and hand the job to a GM, which meant a Cerberon could not act at all on the
+// two Alexander Ivanovs in the game — and the refusal was the wrong reading
+// anyway: the law does not know which one it wants, so it wants both. The
+// selection is warrantTargets() in db/lib/wanted.js, which is pure and tested.
+//
 // It costs NOTHING: no Move, no ⬢, no Routine filed. And it deliberately does
 // NOT call postWantedPosters (db/lib/wantedPoster.js) — no paper goes up. The
 // only way anyone finds out is by looking the man in the face, which is
@@ -69,7 +76,7 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
   if (!typed) throw new UserError("Whose name?");
 
   // A composed name is not something Prisma can compare against, so the living
-  // roster comes back and matchesTypedName does the rest. It is a hundred rows
+  // roster comes back and warrantTargets does the rest. It is a hundred rows
   // of four short columns; the query Engrave does is the same shape.
   const candidates = await prisma.character.findMany({
     where: { status: "ALIVE" },
@@ -81,37 +88,60 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
       tags: { where: { tag: { slug: WANTED_SLUG } }, select: { id: true } },
     },
   });
-  const matches = candidates.filter((c) => matchesTypedName(c, typed));
-  if (matches.length === 0)
+  const { matched, targets, skippedSelf, alreadyWanted } = warrantTargets(candidates, typed, {
+    selfId: me.id,
+  });
+  // Three refusals, and each has to say which of the three it is — "nobody by
+  // that name" and "everybody who answers to it is already wanted" look
+  // identical from the officer's side otherwise.
+  if (matched === 0) throw new UserError("Nobody living answers to that name. ‡");
+  if (targets.length === 0) {
+    // grantTagSlugs would no-op on a non-stackable tag already held, so this
+    // is here to say so out loud rather than report a success that did
+    // nothing.
+    if (alreadyWanted > 0) throw new UserError("There is already a warrant out on them. ‡");
+    // Nothing left and nobody already wanted means the only match was the
+    // officer themselves. A namesake would have survived the filter.
+    if (skippedSelf > 0) throw new UserError("Swear it out on somebody else. ‡");
     throw new UserError("Nobody living answers to that name. ‡");
-  if (matches.length > 1) {
-    throw new UserError(
-      "More than one living man answers to that name. A GM will have to do it. ‡",
-    );
   }
-  const target = matches[0];
-  if (target.id === me.id) throw new UserError("Swear it out on somebody else. ‡");
-  // grantTagSlugs would no-op on a non-stackable tag already held, so this is
-  // only here to say so out loud rather than reporting a success that did
-  // nothing.
-  if (target.tags.length > 0)
-    throw new UserError("There is already a warrant out on them. ‡");
 
   const openTurn = await getOpenTurn();
   await prisma.$transaction(async (tx) => {
-    await grantTagSlugs(tx, target.id, [WANTED_SLUG], openTurn?.number ?? null);
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_arrest_warrant",
-      targetCharacterId: target.id,
-      turnId: openTurn?.id ?? null,
-      details: { name: target.name, typed, by: me.name },
-    });
+    for (const target of targets) {
+      await grantTagSlugs(tx, target.id, [WANTED_SLUG], openTurn?.number ?? null);
+      // One row PER MAN, not one for the act. /gm/audit is read by target, so
+      // a single row naming two people would leave the second man's sheet
+      // with no record of why he is wanted.
+      await logAudit(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "request_arrest_warrant",
+        targetCharacterId: target.id,
+        turnId: openTurn?.id ?? null,
+        details: {
+          name: target.name,
+          typed,
+          by: me.name,
+          // Only present when the name was ambiguous, so a GM reading the row
+          // can see this man was caught by a namesake's warrant.
+          ...(matched > 1 ? { answeringToThatName: matched } : {}),
+        },
+      });
+    }
   });
 
-  await afterInventoryChange([target.id]);
+  await afterInventoryChange(targets.map((t) => t.id));
   revalidate();
-  return { ok: true, name: target.name, line: `A warrant is out on ${target.name}. ‡` };
+  const name = targets[0].name;
+  return {
+    ok: true,
+    name,
+    caught: targets.length,
+    line:
+      matched > 1
+        ? `A warrant is out on ${name} — ${matched} men answer to that name. ‡`
+        : `A warrant is out on ${name}. ‡`,
+  };
 }
 
 // ---- Check Wanted ----------------------------------------------------------
@@ -136,7 +166,8 @@ async function checkWantedImpl() {
   revalidate();
   return {
     ok: true,
-    roster: rows.map((r) => ({ name: r.name, role: r.role })),
+    // Names only. The role is a spoiler — see listWanted in db/lib/wanted.js.
+    roster: rows.map((r) => ({ name: r.name })),
     line: rows.length ? "The warrant book. ‡" : "Nobody is wanted. ‡",
   };
 }

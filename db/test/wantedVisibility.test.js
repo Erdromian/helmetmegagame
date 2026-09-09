@@ -7,6 +7,7 @@ const assert = require("node:assert/strict");
 const { seenByBystander } = require("../lib/medicalVision");
 const { examineReadout } = require("../lib/examine");
 const { matchesTypedName } = require("../lib/characterName");
+const { warrantTargets } = require("../lib/wanted");
 
 const WANTED = {
   name: "Wanted",
@@ -119,4 +120,76 @@ test("the warrant matches a whole name, either way it is written", () => {
   // The other Jorren is a different man.
   const other = { name: "Jorren Aldwych", firstName: "Jorren", lastName: "Aldwych" };
   assert.equal(matchesTypedName(other, "jorren vask"), false);
+});
+
+// ---- Who a warrant catches -------------------------------------------------
+// warrantTargets is the whole of the rule and it is pure, so it is held down
+// here rather than behind a database. The case that matters is two living men
+// answering to one name: the old code refused and sent the officer to a GM.
+
+// `tags` carries the wanted tag if the man already has one — the shape
+// cerberonActions.js selects.
+const man = (id, first, last, wanted = false) => ({
+  id,
+  name: `${first} ${last}`,
+  firstName: first,
+  lastName: last,
+  tags: wanted ? [{ id: `${id}-tag` }] : [],
+});
+
+const IVANOV_A = man("a", "Alexander", "Ivanov");
+const IVANOV_B = man("b", "Alexander", "Ivanov");
+const VASK = man("c", "Jorren", "Vask");
+
+test("a name two living men answer to warrants both of them", () => {
+  const out = warrantTargets([IVANOV_A, IVANOV_B, VASK], "Alexander Ivanov", { selfId: null });
+  assert.equal(out.matched, 2);
+  assert.deepEqual(
+    out.targets.map((t) => t.id),
+    ["a", "b"],
+  );
+  assert.equal(out.alreadyWanted, 0);
+});
+
+test("a namesake already wanted is skipped, and the other man is still caught", () => {
+  const wantedB = man("b", "Alexander", "Ivanov", true);
+  const out = warrantTargets([IVANOV_A, wantedB], "alexander ivanov", { selfId: null });
+  assert.equal(out.matched, 2);
+  assert.equal(out.alreadyWanted, 1);
+  assert.deepEqual(
+    out.targets.map((t) => t.id),
+    ["a"],
+  );
+});
+
+test("your own name does not stop a warrant on the man who shares it", () => {
+  const out = warrantTargets([IVANOV_A, IVANOV_B], "Alexander Ivanov", { selfId: "a" });
+  assert.equal(out.skippedSelf, 1);
+  assert.deepEqual(
+    out.targets.map((t) => t.id),
+    ["b"],
+  );
+});
+
+test("the only match being yourself leaves nothing to warrant", () => {
+  const out = warrantTargets([IVANOV_A, VASK], "Alexander Ivanov", { selfId: "a" });
+  assert.equal(out.matched, 1);
+  assert.equal(out.skippedSelf, 1);
+  assert.equal(out.targets.length, 0);
+});
+
+test("everybody answering to the name being wanted already leaves nothing", () => {
+  const both = [man("a", "Alexander", "Ivanov", true), man("b", "Alexander", "Ivanov", true)];
+  const out = warrantTargets(both, "Alexander Ivanov", { selfId: null });
+  assert.equal(out.matched, 2);
+  assert.equal(out.alreadyWanted, 2);
+  assert.equal(out.targets.length, 0);
+});
+
+test("nobody by that name matches nothing at all", () => {
+  const out = warrantTargets([IVANOV_A, VASK], "Someone Else", { selfId: null });
+  assert.equal(out.matched, 0);
+  assert.equal(out.targets.length, 0);
+  // A first name alone is still not enough here either.
+  assert.equal(warrantTargets([IVANOV_A], "Alexander", { selfId: null }).matched, 0);
 });

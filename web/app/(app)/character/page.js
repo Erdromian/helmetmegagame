@@ -19,7 +19,6 @@ import {
   guestRoomIds as roomGuestIds,
 } from "@lifeweb/db/lib/roomAccess";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
-import { knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
   THANATI_SLUG,
@@ -928,28 +927,27 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // since a hidden button is a hint and not a lock.
   const hasDatacard = heldSlugs.has("nuclear-datacard");
   const hasDevice = heldSlugs.has("nuclear-device");
-  // The Stepstone. Where you may step is where this character has actually
-  // STOOD (db/lib/locationVisits.js) — never the `seen` half of the fog.
+  // The Stepstone. It reaches anywhere on the SURFACE — every Location, known
+  // or not — and nowhere underground. CAVE_LEVEL zones are the dark, and
+  // CAVE_GROUP is not a place anybody stands (schema.prisma, ZoneKind), so the
+  // filter is SURFACE rather than "not a cave": a zone kind added later stays
+  // out until somebody decides it should be in.
   //
-  // That is a security boundary, not a flavour choice. `seen` is written from
-  // travelOptions, which filters on `listed`, and a LOCKED gate or a shut
-  // portcullis is listed-but-not-passable on purpose (locationGraph.js §85-90)
-  // — you are meant to know the door is there and be unable to open it. Taking
-  // `seen` would have made the stone a skeleton key to every locked door and
-  // tag-gated crawl anybody had ever stood beside. A `stood` row, by contrast,
-  // is a place this character already reached legitimately.
-  //
-  // Built ONLY for somebody carrying a stone: it is a per-character query, and
-  // a list of everywhere they have been has no business in the page source of
-  // a sheet with no stone to step with. stepstoneRequest recomputes it anyway.
+  // This list is the whole surface map, so it is built ONLY for somebody
+  // carrying a stone. A sheet with no stone has no business printing every
+  // place in the game into its page source. stepstoneRequest re-checks the
+  // posted id against the same rule anyway, since a picker is a hint and not a
+  // lock.
   const hasStepstone = heldSlugs.has("stepstone");
   const stepstoneTargets = hasStepstone
     ? await (async () => {
-        const { stood } = await knownLocations(prisma, character.id);
-        const ids = [...stood].filter((id) => id !== character.locationId);
-        if (ids.length === 0) return [];
         const rows = await prisma.location.findMany({
-          where: { id: { in: ids } },
+          where: {
+            zone: { kind: "SURFACE" },
+            // Somewhere you already stand is not somewhere to go. A null
+            // locationId matches nothing here, which is what we want.
+            ...(character.locationId ? { id: { not: character.locationId } } : {}),
+          },
           select: { id: true, name: true, zone: { select: { name: true } } },
           orderBy: [{ zone: { sortOrder: "asc" } }, { name: "asc" }],
         });

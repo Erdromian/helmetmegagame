@@ -121,10 +121,11 @@ import {
   killCharacter,
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-// The fog behind /map, and the die that walking into the dark wakes. Both
-// belong to the Stepstone below: it lands you somewhere the same way a walk
-// does, so it owes the map the same row and the caves the same roll.
-import { knownLocations } from "@lifeweb/db/lib/locationVisits";
+// The die that walking into the dark wakes. It belongs to the Stepstone
+// below: a step lands you somewhere the same way a walk does. The stone
+// refuses an underground target now, so this can no longer fire from one —
+// it stays because every writer of locationId owes the roll, and loosening
+// the refusal must not silently drop it.
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
@@ -5308,11 +5309,10 @@ async function whisperRequestImpl({ recipientId, message: rawMessage }) {
 // ---- The Stepstone -------------------------------------------------------
 //
 // A raw relocation, the shape the Dev Panel's Teleport already uses: no Move
-// cost, no adjacency, no cooldown, immediate. The one thing it is NOT is
-// unlimited — you step somewhere you KNOW, which is the fog behind /map
-// (db/lib/locationVisits.js), stood in or seen from next door. A picker over
-// all 56 Locations would hand the reader the whole map, which is the one
-// thing the fog exists to stop.
+// cost, no adjacency, no cooldown, immediate. It reaches anywhere on the
+// SURFACE, known or not — the fog behind /map no longer narrows it. The one
+// standing limit is the underground: a CAVE_LEVEL zone is never a target, so
+// the stone cannot drop somebody past the caving gate into the dark.
 const STEPSTONE_SLUG = "stepstone";
 
 async function stepstoneRequestImpl({ locationId }) {
@@ -5342,17 +5342,15 @@ async function stepstoneRequestImpl({ locationId }) {
   });
   if (!location) throw new UserError("There's no such place.");
 
-  // Recomputed here rather than trusted from the dialog: the picker is a hint,
-  // and a posted id for somewhere this character has never been must be
-  // refused whatever the client drew.
-  // STOOD only, never `seen`. A `seen` row is written for every LISTED
-  // neighbour, and a locked gate or a shut portcullis is listed-but-not-
-  // passable by design (db/lib/locationGraph.js) — so accepting `seen` would
-  // let the stone step through every door in Ravenheart anybody had ever
-  // stood next to. Somewhere you have STOOD is somewhere you already got into.
-  const { stood } = await knownLocations(prisma, character.id);
-  if (!stood.has(targetId)) {
-    throw new UserError("You've never stood there. The stone only takes you back. ‡");
+  // Re-checked here rather than trusted from the dialog: the picker is a hint,
+  // and a posted id for a cave level must be refused whatever the client drew.
+  //
+  // SURFACE only. CAVE_LEVEL is the underground, and CAVE_GROUP is not a place
+  // anybody stands (db/prisma/schema.prisma, ZoneKind) — testing for SURFACE
+  // rather than listing the two keeps a new kind out by default, which is the
+  // safe direction for a refusal.
+  if (location.zone?.kind !== "SURFACE") {
+    throw new UserError("The stone will not carry you underground. ‡");
   }
 
   const fromLocationId = character.locationId;

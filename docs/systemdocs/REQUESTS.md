@@ -113,7 +113,7 @@ reason.
 | `HEAL_CHARACTER` | Treats a `healable` affliction on anyone at their Location who isn't concealed, on whoever's tab they choose, billed to a payer — yourself, a Room stash here, or a person here. An affliction with `removesInto` leaves its treated form on the patient (`TAGS.md` §5c) | cost; put the affliction back (which also takes the aftermath off) | Restores the tag with its original expiry, takes back the aftermath, refunds the payer |
 | `RESEARCH` | A Scholastic in the Cathedral spends their Move as a GAMBIT studying a held ingredient — the die and the Hunger/Mood modifier are rolled and stored at submit, same as a Lesson's. Nobody adjudicates it: the Research pass resolves it at turn close, not a GM (`TURN-ENGINE.md` §2, `CRAFTING.md` §2b) | — | Nothing to undo once the pass has resolved it; before then, Reject the Action to give the Move back |
 | `request_whisper` | Spends a Raven Draught to send one typed sentence to any character in the game, immediately (`BIRD.md` §8a). No zone guess, no letter, no literacy, no reply. It reports "Sent." whatever happened — the row's `delivered` is the only record, and a whisper to a dead name is silently spent | — | Restores the bottle |
-| `request_stepstone` | Spends a Stepstone to stand in any Location that character has STOOD in (`MAP.md` §3b) — never one merely seen from a doorway, which would make the stone a key to every locked gate. No ⬢, no Move, no adjacency, no Action, but a hold still stops it. Escorts are cut loose and no gate line is posted | — | Restores the bottle and the old `locationId`/`zoneId` |
+| `request_stepstone` | Spends a Stepstone to stand in any **surface** Location, known or not (`MAP.md` §3b) — the underground is the one refusal, so the stone cannot drop somebody past the caving gate. No ⬢, no Move, no adjacency, no Action, but a hold still stops it. Escorts are cut loose and no gate line is posted | — | Restores the bottle and the old `locationId`/`zoneId` |
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
 | `LOOT_CHARACTER` | Searches a body, **or** anyone Bound/Dying/Paralyzed/Catatonic in their zone, taking Items, Assets and ⬢ in one act | — | Returns every tag with its original expiry, and the ⬢ |
@@ -821,8 +821,33 @@ body, which is a story the game should be able to tell.
 It types the name rather than picking it, the Engrave reasoning (§5d) and it
 applies harder here: a dropdown would be a roster of everybody alive, handed to
 anyone holding a badge. Same `matchesTypedName()` matcher, against
-`status: ALIVE`. Four refusals: nobody by that name, more than one, yourself,
-and a warrant already out on them.
+`status: ALIVE`. **Three** refusals: nobody by that name, everybody who answers
+to it already wanted, and — only when nothing else is left — yourself.
+
+**A name two living men answer to warrants both of them.** There is no
+disambiguation step and no bounce to a GM: the law does not know which
+Alexander Ivanov it wants, so it wants both, and a namesake who had nothing to
+do with it is caught up in the warrant. That is the intended shape rather than
+a rough edge. This used to be a fourth refusal — *"More than one living man
+answers to that name. A GM will have to do it."* — which meant that with two
+Alexander Ivanovs alive, no badge holder could act on either through the button
+at all. Names carry no unique constraint (`Character.name`) and character
+creation runs no duplicate check, so the collision is reachable and recurs.
+
+Two matches are dropped from the set rather than aborting it, which is the half
+that is easy to get wrong: **yourself**, and **anyone already wanted**. A
+warrant on a name you happen to share must still catch the other man, and a
+namesake who is already in the book must not stop a clean one being caught.
+Only when nothing survives does it refuse, and each refusal says which of the
+three cases it is — "nobody by that name" and "they are all wanted already"
+look identical from the officer's side otherwise. The selection is
+`warrantTargets()` in `db/lib/wanted.js`, which is pure and covered by
+`db/test/wantedVisibility.test.js`.
+
+Catching two men writes **two `AuditLog` rows**, not one. `/gm/audit` is read
+by target, so a single row naming both would leave the second man's sheet with
+no record of why he is wanted; the rows carry `answeringToThatName` when the
+name was ambiguous, so a GM can see he was caught by a namesake's warrant.
 
 **It costs nothing** — no Move, no ⬢, no Routine filed. And it deliberately
 does **not** put paper up: `postWantedPosters` (`db/lib/wantedPoster.js`) stays
@@ -838,6 +863,14 @@ needs no column. ‡
 tag. `listWanted()` (`db/lib/wanted.js`), returned as notice rows under the
 officer's own cursor, exactly like Recall Comrades (`THANATI.md`). Costs
 nothing, spends no Move.
+
+**Names and nothing else.** The book used to print each man's role beside his
+name, which handed every badge holder a slice of the roster nobody has earned —
+it is a list of names the Cerberon want, not a directory of who those people
+are. The cost is that two men sharing a name read as two identical rows, which
+is the honest answer: the law has two Alexander Ivanovs and cannot tell them
+apart either. No renderer changed for this — `NoticeProvider.js` already draws
+a row's note only when there is one.
 
 **It lists a hooded man the same as a bare-faced one, on purpose.** It is a
 *record*, not an act of looking: a name does not come off the book because
