@@ -736,22 +736,13 @@ async function depotRefuelImpl({ slug: rawSlug, quantity: rawQuantity }) {
 // Arming the gun. The confirm the client shows is a courtesy; this is the
 // gate. Note what is NOT checked: whether the Merchant is currently wearing
 // his own face. Arming it while concealed is a legal, fatal thing to do, and
-// the UI says so in as many words before you press it.
+// the UI says so in as many words before you press it. Nor is an empty
+// merchantFace refused — createActions.js writes it the moment a Merchant is
+// created, and the confirm says what happens if somehow it is blank.
 async function depotTurretImpl({ armed }) {
   const { session, character, depot } = await requireLicensedMerchant();
 
   const wanted = Boolean(armed);
-
-  // Arming with no face on file is a one-click suicide with a GM-only cure:
-  // the gun would fire on everyone including the Merchant, and merchantFace is
-  // writable from /gm/dev alone. Worse, disarming requires standing in the
-  // Depot — and walking in rolls the turret on you first. Refused outright
-  // rather than warned about. Disarming is always allowed.
-  if (wanted && !String(depot.merchantFace ?? "").trim()) {
-    throw new UserError(
-      "There is no face on file, so it would fire on you too. A GM has to set that first.",
-    );
-  }
 
   const openTurn = await getOpenTurn();
 

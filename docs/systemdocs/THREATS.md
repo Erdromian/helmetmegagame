@@ -147,7 +147,7 @@ You have been offered a seat: the {name}.
 Accept and you arrive immediately. Decline and nothing happens.
 
 The buttons work on **either face**: the same pair is drawn in the Bascinet
-pane on `/play`, which is the only place somebody with no character and no
+pane on `/chat`, which is the only place somebody with no character and no
 Discord can answer at all (`CHAT.md` §2b).
 ```
 

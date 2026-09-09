@@ -6,7 +6,7 @@
 //
 // Loading a game back is a read-only inspection of an old game, not a
 // resurrection: the rows land under their own gameId, below the feed floor, and
-// /play never shows them.
+// /chat never shows them.
 //
 // It prints what it dropped and what it let default. That report is the point
 // — a tolerant importer that says nothing rots silently as the schema moves,

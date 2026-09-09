@@ -22,7 +22,7 @@ export const MAX_REASON_LENGTH = 500;
 export const GM_MESSAGE_MAX_LENGTH = 6000;
 
 // What a player may write to Bascinet from Chat in one go
-// (web/app/(app)/play/DmPane.js). Discord's own DM ceiling, so a message
+// (web/app/(app)/chat/DmPane.js). Discord's own DM ceiling, so a message
 // typed on either face is the same size.
 export const PLAYER_DM_MAX_LENGTH = 2000;
 

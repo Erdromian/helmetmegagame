@@ -113,8 +113,8 @@ function MentionBody({ message }) {
   if (!placeKey) return <MarkdownContent content={message.content} />;
   return (
     <p className="dm-mention">
-      <em>{where ? `You were mentioned in ${where}. ‡` : "You were mentioned. ‡"}</em>{" "}
-      <a className="dm-mention-open" href={`/play#${encodeURIComponent(placeKey)}`}>
+      <em>{where ? `You were mentioned in ${where}.` : "You were mentioned."}</em>{" "}
+      <a className="dm-mention-open" href={`/chat#${encodeURIComponent(placeKey)}`}>
         Open
       </a>
     </p>

@@ -53,6 +53,7 @@ import {
   QuillIcon,
   SealIcon,
   CharacterIcon,
+  InterceptIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -73,9 +74,9 @@ export const ACTION_HELP = {
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   harm: "Further injure someone who is bound or incapacitated.",
   torture:
-    "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines. ‡",
+    "You can torture people, revealing all their tags on a 4 or higher. Brave or Craven characters will break on different timelines.",
   mutilate:
-    "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep. ‡",
+    "Cut a piece off somebody tied up here, or off a body you can reach. One piece each time, and it costs you nothing. The piece is yours to keep.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
   disguise:
@@ -97,6 +98,8 @@ export const ACTION_HELP = {
   recall: "Remember the other Thanati cultists in Ravenheart.",
   recover: "Recover your mask and robes from where you left them.",
   hideout: "Set your hideout room, determining where you can purchase things from.",
+  // Bascinet's words, verbatim.
+  intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
   // The Cerberon's two. The first is Bascinet's own words, verbatim.
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:
@@ -292,6 +295,11 @@ export const ACTION_SECTIONS = [
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
       { mode: "free", icon: KeyIcon, label: "Free" },
+      // NO gate and NO show. Laying in wait needs nothing and says nothing
+      // about who is near you — the metagaming rule at the top of this file
+      // has nothing to bite on, and there is no fact about your own sheet
+      // that could grey it either.
+      { mode: "intercept", icon: InterceptIcon, label: "Intercept" },
       // HIDDEN rather than greyed, the Extract rule: whether YOU are a
       // Fundamentalist standing at a Cross is your own fact, and a dead
       // Crucify icon on every other sheet would teach nothing.

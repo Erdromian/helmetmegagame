@@ -17,7 +17,7 @@
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
-const { addToStack } = require("./tagWrites");
+const { addToStack, clampEquippedQuantity } = require("./tagWrites");
 const { applyMood } = require("./mood");
 const { rollDie } = require("./moveEffects");
 const { expiryFrom } = require("./turnFormat");
@@ -67,7 +67,7 @@ async function rollCaving(prisma, character, turn, location) {
       if (kind === "TROUBLE") {
         const lure = await tx.characterTag.findFirst({
           where: { characterId: character.id, tag: { slug: "musk-lure" } },
-          select: { id: true, quantity: true },
+          select: { id: true, tagId: true, quantity: true },
         });
         if (lure) {
           const spent =
@@ -78,6 +78,7 @@ async function rollCaving(prisma, character, turn, location) {
                 })
               : await tx.characterTag.deleteMany({ where: { id: lure.id, quantity: 1 } });
           lured = spent.count > 0;
+          if (lured) await clampEquippedQuantity(tx, character.id, lure.tagId);
         }
       }
       const rowKind = lured ? "QUIET" : kind;
@@ -185,9 +186,10 @@ async function rollCaving(prisma, character, turn, location) {
 // `location` needs { id, attributes, zone: { id, slug, kind } }.
 async function rollCavingOnArrival(prisma, character, location) {
   if (location?.zone?.kind !== "CAVE_LEVEL") return null;
-  // Customs is the cave mouth with a sentry, a floodlight and a shop in it.
-  // Nothing stalks a place that busy, and the attribute says so rather than
-  // this file naming the slug — see db/lib/locationAttributes.js.
+  // Customs and the Depot are the cave mouth: a sentry, a floodlight and a
+  // shop between them. Nothing stalks a place that busy, and the attribute
+  // says so rather than this file naming either slug — see
+  // db/lib/locationAttributes.js.
   if (hasAttribute(location, SAFE_ATTRIBUTE)) return null;
 
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" } });

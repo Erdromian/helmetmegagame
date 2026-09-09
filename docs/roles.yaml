@@ -1101,7 +1101,7 @@ zones:
     factions:
       the-company:
         name: The Company
-        silo: customs-cargo-bay
+        silo: depot-cargo-bay
         roles:
           merchant:
             name: Merchant
@@ -1111,7 +1111,7 @@ zones:
               - >-
                 Ravenheart's poor souls are a great source of business, but it's a terrible place otherwise. You wouldn't dare put your heart here — the place is doomed. Time to make some money.
               - >-
-                Your Depot is in Customs, between the forest and the caverns. Your License lets you call down a shuttle. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however.
+                Your Depot is one hop east of Customs, between the forest and the caverns. Your License lets you call down a shuttle. The mini-turret is keyed to your face, so it will shoot everyone except you. Be careful not to conceal your face, however. ‡
               - >-
                 You deal in obols (¢), not ⬢. You are the only place they come from and the only place they go back to. You can buy at the Depot's price and sell it at whatever makes sense for profit. You can also buy things from Ravenheartians and sell them to the Depot: brews, ore, cave fungus, smithing production, paintings. {tag:ravenheart-red} and paintings especially fetch a good price.
               - >-
@@ -1124,7 +1124,7 @@ zones:
             multiple: false
             starting_resources: 10
             starting_zone: caves
-            starting_location: customs
+            starting_location: depot
             leader: true
             whitelist: true
             starting_tags:
@@ -1149,14 +1149,12 @@ zones:
                 Maybe they'll let you get a ride on their spaceship if things ever get bad around here.
               - >-
                 You are the legs of the Merchant's business. The Depot is at the bottom of the Caves and their customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe them. That is also you.
-              - >-
-                One warning about the Depot: the mini-turret does not recognize your keycard, or anybody's. It recognizes the Merchant's face and yours, unfortunately, is not theirs.
             difficulty: easy
             multiple: true
             weight: 2
             starting_resources: 1
             starting_zone: caves
-            starting_location: customs
+            starting_location: depot
             starting_tags:
               - Depot Keycard
             doc_elements:

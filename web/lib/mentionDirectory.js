@@ -28,7 +28,7 @@ import { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdent
 //
 // `includeUnburiedDead` is /notes' roster: a journal is written about people
 // you knew, and CHARACTERS.md §5's rule is that a dead-and-buried character is
-// simply absent from every roster while an unburied one is not yet gone. /play
+// simply absent from every roster while an unburied one is not yet gone. /chat
 // has no use for it — you cannot @ somebody who is not standing here.
 export async function loadMentionDirectory({ includeUnburiedDead = false } = {}) {
   const characters = await prisma.character.findMany({

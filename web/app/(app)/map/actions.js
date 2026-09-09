@@ -4,6 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { crossingCheck, travelOptions } from "@lifeweb/db/lib/locationGraph";
+import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { conversationsFor } from "@lifeweb/db/lib/conversations";
@@ -17,7 +18,7 @@ import { nodeAt, plateSize, PLATE_SRC } from "@/lib/mapNodes";
 import { zoneKey } from "@/lib/zones";
 
 // The map's one loader. Both surfaces call it — the /map route and the overlay
-// on /play — so the fog is computed in exactly one place.
+// on /chat — so the fog is computed in exactly one place.
 //
 // THE FOG IS REAL, NOT CSS. A Location this character does not know is absent
 // from the payload entirely rather than sent and hidden: a server action is a
@@ -26,7 +27,7 @@ import { zoneKey } from "@/lib/zones";
 // is indistinguishable here from no edge at all, which is the wording rule
 // crossingCheck already enforces on refusals (MAP.md §2a).
 //
-// Travel itself is NOT here. Moving stays with travelTo on /play, so there is
+// Travel itself is NOT here. Moving stays with travelTo on /chat, so there is
 // one mover and one set of rules; this only says what a hop would cost, using
 // the same numbers the Travel panel does.
 
@@ -75,7 +76,7 @@ export async function loadMap() {
 async function buildMap({ character, unfogged }) {
   const { width, height } = plateSize();
 
-  const [locations, links, config, openTurn] = await Promise.all([
+  const [locations, links, config, openTurn, currentZone] = await Promise.all([
     prisma.location.findMany({
       select: {
         id: true,
@@ -83,12 +84,13 @@ async function buildMap({ character, unfogged }) {
         name: true,
         description: true,
         indoors: true,
-        zone: { select: { name: true, kind: true } },
+        zone: { select: { slug: true, name: true, kind: true } },
       },
     }),
     prisma.locationLink.findMany(),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    character?.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
   ]);
 
   const known = character
@@ -96,10 +98,9 @@ async function buildMap({ character, unfogged }) {
     : { stood: new Set(), seen: new Set() };
 
   // Where they can go from here, already gated and costed — the same call the
-  // Travel panel makes, so the two can never disagree about a hop. Somebody on
-  // the road is asked too: travelOptions shuts their zone crossings and leaves
-  // the local ways open, so the board keeps working for the day they have left
-  // in the zone instead of going blank (MAP.md §3).
+  // Travel panel makes, so the two can never disagree about a hop. Somebody
+  // being held is asked too: travelOptions shuts every way and writes the
+  // reason onto each row, so the board still draws instead of going blank.
   const neighbours = character?.locationId ? await travelOptions(prisma, character, character.locationId) : [];
   const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
 
@@ -159,6 +160,17 @@ async function buildMap({ character, unfogged }) {
       adjacent: Boolean(near),
       passable: Boolean(near?.passable),
       crossesZone: Boolean(near?.crossesZone),
+      // THIS crossing's own count, not a flat one shared by every node — a
+      // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing),
+      // so Forest<->Hills or Hills<->Marshes shows one more than a crossing
+      // the water does nothing for. Only worth asking for an adjacent node;
+      // a merely-known one has no crossing to weigh yet.
+      freeLeft: near
+        ? freeMovesLeft(character, config, openTurn, party.length, {
+            fromZoneSlug: currentZone?.slug ?? null,
+            toZoneSlug: location.zone?.slug ?? null,
+          })
+        : null,
       dismounts: Boolean(near?.dismounts),
       reason: near?.refusal ?? null,
       // The tag of theirs that opens the way here, if one does. Same field the
@@ -195,10 +207,6 @@ async function buildMap({ character, unfogged }) {
   const layers = ["surface"];
   if (nodes.some((n) => n.layer === "under")) layers.push("under");
 
-  const heading = character?.travelToLocationId
-    ? (locations.find((l) => l.id === character.travelToLocationId)?.name ?? null)
-    : null;
-
   return {
     ok: true,
     plate: { src: PLATE_SRC, width, height },
@@ -212,7 +220,9 @@ async function buildMap({ character, unfogged }) {
     edges,
     travel: character
       ? {
-          heading,
+          // Somebody has hold of them (INTERCEPT.md) — the banner over the
+          // board. Every node's own refusal already says it too.
+          held: heldReasonFor(character),
           freeLeft: freeMovesLeft(character, config, openTurn, party.length),
           freeReason: freeZoneMovesReason(character, party.length),
           mounted: onFootBlocked,

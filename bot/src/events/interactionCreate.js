@@ -39,6 +39,9 @@ const {
   soundRange,
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
+const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
+const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
+const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const {
   syncCharacterRoomAccess,
@@ -417,7 +420,7 @@ async function handleThreadMemberCommand(interaction, action) {
     .catch((err) => console.error("Failed to record thread invite:", err));
 
   // A "web only" target is out of every channel on purpose (CHAT.md §6), so
-  // the row above is the whole of the add: they see the conversation on /play
+  // the row above is the whole of the add: they see the conversation on /chat
   // and the invite row replays the Discord half if they ever come back off it.
   if (target.locationId === row.locationId && !target.webOnly) {
     try {
@@ -759,7 +762,7 @@ async function handleIntercomSubmit(interaction, roomId) {
 
   // The transcript is broadcastIntercom's own job since phase 4: it writes one
   // SYSTEM row per zone it reached, so the announcement lands in each zone's
-  // feed on /play as well as in /archive. The single row that used to be
+  // feed on /chat as well as in /archive. The single row that used to be
   // written here had no place key and so was invisible in Chat.
 
   await prisma.auditLog
@@ -798,16 +801,11 @@ async function handleTravelOpen(interaction) {
     return;
   }
 
-  // On the road already. A paid crossing takes the whole day and there is still
-  // no way off it (MAP.md §3) — but only the ways OUT OF THE ZONE are shut, so
-  // the picker is still worth drawing. travelOptions has already marked those
-  // rows unpassable, which drops them into `shut` below with no work here.
-  const heading = character.travelToLocationId
-    ? await prisma.location.findUnique({
-        where: { id: character.travelToLocationId },
-        select: { name: true },
-      })
-    : null;
+  // Somebody has hold of them (docs/systemdocs/INTERCEPT.md). The picker is
+  // still worth drawing: travelOptions has marked every row unpassable, which
+  // drops them into `shut` below with no work here, so a held player can see
+  // where they would have gone.
+  const held = heldReasonFor(character);
 
   let current = null;
   let destinations;
@@ -847,15 +845,13 @@ async function handleTravelOpen(interaction) {
       : null;
   await respond(interaction, {
     content: [
-      heading
-        ? `» You're on the road to **${heading.name}**. You'll arrive next turn — until then this zone is still yours to walk.`
-        : null,
+      held ? `» *${held.replace(" ‡", "")}*` : null,
       destinations.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
       shutLine,
       truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
     ]
       .filter(Boolean)
-      .join("\n"),
+      .join("\n") + " ‡",
     components: destinations.length > 0 ? [buildLocationSelectRow(destinations, current)] : [],
   });
 }
@@ -936,6 +932,31 @@ async function handleKeyedPrompt(interaction, payload) {
   });
 }
 
+// Letting a prisoner go, from the Release button on the ambusher's own DM
+// (docs/systemdocs/INTERCEPT.md). The handleKeyedPrompt shape: update IS the
+// ack, and the buttons come off whatever the answer was. The shared half —
+// who may release whom, and the word owed to the person let go — is
+// db/lib/dmAnswer.js, so the web's Release cannot drift from this one.
+async function handleInterceptRelease(interaction, targetId) {
+  await ack(interaction, { update: true });
+
+  const result = await answerDmAction(prisma, {
+    action: { kind: DM_ACTION.INTERCEPT_HOLD, id: targetId },
+    choice: DM_CHOICE.ACCEPT,
+    discordUserId: interaction.user.id,
+  });
+  await respond(interaction, { content: `» *${result.line}*`, components: [] });
+  // The gateway twin takes a User, not an id (ARCHITECTURE.md §3) — the
+  // bot/src/lib/offers.js#fanOut shape.
+  for (const dm of result.dms ?? []) {
+    const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
+    if (!user) continue;
+    await sendDm(user, `» ${dm.content}`).catch((err) =>
+      console.error(`Intercept release DM to ${dm.discordUserId} failed:`, err.message ?? err),
+    );
+  }
+}
+
 // One message carries both the passenger list and the confirmation, because
 // Discord cannot keep them on two: an ephemeral reply is a single editable
 // surface, and a second message would leave the first one lying around with
@@ -975,7 +996,20 @@ async function handleTravelPick(interaction) {
   // The party is what decides whether the mount's extra crossing survives, so
   // the number quoted below has to count it (MAP.md §3a).
   const party = await partyOf(prisma, character.id);
-  const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
+  // THIS crossing's own count, not a flat one that ignores where it goes — a
+  // boat's bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
+  // Forest<->Hills or Hills<->Marshes has to show one more than a crossing
+  // the water does nothing for. `crossing` above is only a boolean ("does
+  // this leave the zone at all"); the actual zone slugs live here.
+  const currentZone = character.zoneId
+    ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
+    : null;
+  const left = crossing
+    ? freeMovesLeft(character, config, openTurn, party.length, {
+        fromZoneSlug: currentZone?.slug ?? null,
+        toZoneSlug: target.zone?.slug ?? null,
+      })
+    : null;
   const seatWarning = crossing ? freeZoneMovesReason(character, party.length) : null;
 
   const cost = !character.locationId
@@ -1068,12 +1102,11 @@ async function handleTravelConfirm(interaction, locationId) {
     return;
   }
 
-  const brought = (result.deferred ? result.travelers : result.moved)
+  const brought = result.moved
     .filter((entry) => entry.character.id !== character.id)
     .map((entry) => entry.character.name);
-  const parts = result.deferred
-    ? [`» You set out for **${target.name}**. You'll arrive next turn.`, "Your Move is spent."]
-    : [`» Moved to **${target.name}**.`];
+  const parts = [`» Moved to **${target.name}**.`];
+  if (result.spentTurn) parts.push("Your Move is spent.");
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
@@ -1082,8 +1115,13 @@ async function handleTravelConfirm(interaction, locationId) {
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
-  const stranded = (result.leftBehind ?? []).map((entry) => entry.character.name);
+  const stranded = (result.leftBehind ?? []).filter((e) => e.reason !== "held").map((e) => e.character.name);
   if (stranded.length > 0) parts.push(`${listNames(stranded)} couldn't follow.`);
+  // "held" is the one reason the leader IS given, because it is plain to see:
+  // somebody has hold of them (INTERCEPT.md). Every other reason stays unnamed
+  // — a hidden crawl's refusal would announce that the crawl is there.
+  const heldBack = (result.leftBehind ?? []).filter((e) => e.reason === "held").map((e) => e.character.name);
+  if (heldBack.length > 0) parts.push(`Somebody has hold of ${listNames(heldBack)}.`);
   // The way was too narrow for what they had out — dismounted rather than
   // refused (db/lib/indoors.js#dismountForNarrowWay), already applied by
   // performLocationMove by the time this reads it.
@@ -1093,7 +1131,7 @@ async function handleTravelConfirm(interaction, locationId) {
     );
   }
 
-  await respond(interaction, { content: `${parts.join(" ")}`, components: [] });
+  await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
 }
 
 async function handleTravelCancel(interaction) {
@@ -2056,6 +2094,12 @@ module.exports = {
         }
         if (interaction.customId.startsWith(KEYED_PREFIX)) {
           return void (await handleKeyedPrompt(interaction, interaction.customId.slice(KEYED_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(INTERCEPT_RELEASE_PREFIX)) {
+          return void (await handleInterceptRelease(
+            interaction,
+            interaction.customId.slice(INTERCEPT_RELEASE_PREFIX.length),
+          ));
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));

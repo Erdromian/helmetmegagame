@@ -128,6 +128,32 @@ const R = {
   request_change_name: (d) => [actor(), t("renamed from"), em(d.previousName), t("to"), em(d.name)],
   request_loot_character: (d) => [actor(), t("looted"), target(), ...effectTail(d)],
   request_crucify_character: (d) => [actor(), t("crucified"), target(), ...(d?.locationName ? [t("at"), em(d.locationName)] : [])],
+  // Intercept (docs/systemdocs/INTERCEPT.md). The `set` row is one per save,
+  // since the watch itself is overwritten and this is the only record of what
+  // it said at the time. `fired` names the person by the face the room saw,
+  // never their true name — the same rule the DMs run under.
+  request_intercept_set: (d) =>
+    d?.stopped
+      ? [actor(), t("stopped watching the road")]
+      : [
+          actor(),
+          t("laid in wait"),
+          chip(d?.mode === "AMBUSH" ? "Ambush" : "Safe"),
+          ...(d?.anyPerson
+            ? [t("for anyone")]
+            : d?.targetNames?.length
+              ? [t("for"), em(d.targetNames.join(", "))]
+              : d?.anyConcealed
+                ? [t("for anyone concealed")]
+                : []),
+        ],
+  request_intercept_fired: (d) => [
+    actor(),
+    t(d?.mode === "AMBUSH" ? "ambushed" : "intercepted"),
+    target(),
+    ...(d?.locationName ? [t("at"), em(d.locationName)] : []),
+  ],
+  request_intercept_released: () => [actor(), t("let"), target(), t("go")],
   request_loot_resources: (d) => [actor(), t("looted"), res(d.amount ?? d.resources), t("from"), target()],
   request_transfer_resources: (d) => [actor(), t("sent"), res(d.amount ?? d.resources), t("to"), target()],
   request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName), qty(d.quantity), t("from"), em(d.fromName)],

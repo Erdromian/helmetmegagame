@@ -73,7 +73,7 @@ function tornLine(tagName) {
 // It knows nothing about who is asking. That is deliberate: the ACTOR gate
 // (are you standing here, are you alive) belongs to the caller, and a loader
 // that carried it could not be used to draw a board into a page the way
-// web/app/(app)/play does. It answers `{ location, openTurn, posts }`, or
+// web/app/(app)/chat does. It answers `{ location, openTurn, posts }`, or
 // `{ error }` when there is no such place or no board on it.
 async function boardFor(prisma, locationId) {
   const location = await prisma.location.findUnique({

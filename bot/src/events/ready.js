@@ -1,6 +1,6 @@
 const cron = require("node-cron");
 const { ActivityType, Events } = require("discord.js");
-const { prisma } = require("@lifeweb/db");
+const { prisma, resumeTurnSideEffects } = require("@lifeweb/db");
 const {
   getInvalidResponseStats,
   loadBreakerState,
@@ -121,7 +121,7 @@ module.exports = {
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
-    // The web feed's Discord half: listen for messages typed into /play and
+    // The web feed's Discord half: listen for messages typed into /chat and
     // post them into their Location channel, plus a catch-up sweep for
     // anything sent while the bot was down. After refreshLocationChannels so
     // the channel ids it resolves are the current ones. Never throws.
@@ -237,6 +237,19 @@ module.exports = {
         );
       });
     }
+
+    // The web app closes a turn and then fans out to Discord from a deferred
+    // after() callback, which a redeploy can kill halfway. That happened on
+    // 2026-09-08: the bomb detonated, twelve characters died in the database,
+    // and the fireball and the Game Ended post were never posted at all. The
+    // bot coming back up is the earliest signal available that somebody's
+    // process just died, so finishing an unsaid turn is one of the catch-up
+    // passes now — waiting for the 04:00 cron is no use to a game that ended
+    // at 22:00. Idempotent and leased: it stands down if a live run holds the
+    // turn, and does nothing at all when there is nothing outstanding.
+    void resumeTurnSideEffects(prisma).catch((err) =>
+      console.error("Resuming an unfinished turn's side effects failed:", err),
+    );
 
     const runAdvanceTurn = () => {
       console.log("Turn-advance cron fired.");

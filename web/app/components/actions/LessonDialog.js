@@ -11,7 +11,7 @@ import { learnRequest, teachRequest, confessRequest } from "@/app/(app)/characte
 // Learn Skill, Teach Skill and Confess: a partner standing here, then what
 // passes between you — a skill they could teach, a skill you could teach
 // them, or a sin of yours (LESSONS.md, CONFESSION.md). All three are offers
-// the other side accepts in Discord or on /play, so the notice says so.
+// the other side accepts in Discord or on /chat, so the notice says so.
 //
 // The partner lists are the page's own, resolved server-side against who
 // could actually teach or hear YOU; nothing here greys on who is nearby.

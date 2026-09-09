@@ -46,6 +46,9 @@ const LINES = {
   // These are the fallbacks.
   warrant: (res, ctx) => `A warrant is out on ${res.name ?? named(ctx, "them")}. ‡`,
   wantedlist: (res) => (res.roster?.length ? `The warrant book. ‡` : `Nobody is wanted. ‡`),
+  // The server action returns its own `line`, which noticeLine prefers. This
+  // is the fallback.
+  intercept: () => `You lie in wait. ‡`,
   recover: (res) => (res.granted?.length ? `${res.granted.join(" and ")} back in your hands.` : `Recovered.`),
   pointer: (res) => res.line ?? `The card swings.`,
   arm: () => `The count has begun.`,

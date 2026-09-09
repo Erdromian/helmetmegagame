@@ -33,7 +33,7 @@ const FEED_ROW_SELECT = {
   deletedAt: true,
 };
 
-// One archived row as the wire shape /play and /api/feed speak.
+// One archived row as the wire shape /chat and /api/feed speak.
 //
 // `name` is the PRESENTED name: a concealed or forced send was written under
 // its alias, and that is the only name the room ever heard. `avatarPath` is
@@ -111,7 +111,7 @@ function feedRowShape(row, extra = {}) {
 // watched a portrait blink down the whole scene. The live NOTIFY path already
 // passes the right number (web/lib/feedHub.js#avatarVersionFor); this is the
 // same answer for the three surfaces that render a batch instead of a row:
-// the first paint of /play, the stream's catch-up, and /api/feed/history.
+// the first paint of /chat, the stream's catch-up, and /api/feed/history.
 //
 // ArchiveEntry.characterId is a SNAPSHOT string rather than a foreign key, so
 // a row whose character has since been deleted simply misses the map and
@@ -298,7 +298,7 @@ async function updateArchiveMessage(prisma, discordMessageId, content, options =
 
 // Soft since phase 1. A client holding the row has to be able to reconcile,
 // and the outbox needs something to read when it goes to remove the Discord
-// message — so the row stays and /archive and /play filter it out.
+// message — so the row stays and /archive and /chat filter it out.
 async function deleteArchiveMessage(prisma, discordMessageId, options = {}) {
   return safely("message delete", async () => {
     const row = await archiveRowForMessage(prisma, discordMessageId);

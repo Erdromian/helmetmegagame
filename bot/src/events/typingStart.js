@@ -5,7 +5,7 @@ const { notifyTyping } = require("@lifeweb/db/lib/typingNotify");
 
 // "Somebody in this room is writing something." Discord shows its own typing
 // indicator to the people in the channel; this carries the same fact across to
-// Chat, so a player on /play and a player in Discord are standing in the
+// Chat, so a player on /chat and a player in Discord are standing in the
 // same scene rather than two copies of it.
 //
 // The event is CHEAP on purpose. It fires roughly once every ten seconds per

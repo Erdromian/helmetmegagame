@@ -7,7 +7,7 @@ import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
-import PlayView from "./PlayView";
+import ChatView from "./ChatView";
 import Loading from "./Skeleton";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
 import { whosHere, hoodToken } from "@lifeweb/db/lib/whosHere";
@@ -32,7 +32,7 @@ import {
   researchableHeld,
 } from "@lifeweb/db/lib/research";
 
-// /play — Chat. Three columns on a desktop, one on a phone: everywhere
+// /chat — Chat. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
 // phase 3) the people standing there on the right.
 //
@@ -42,7 +42,7 @@ import {
 // Chat.js holds.
 //
 // Snapshotted (web/lib/snapshot, CHAT.md §5c): the page itself only reads the
-// session, mounts the shell, and streams FreshPlay in behind it. A browser
+// session, mounts the shell, and streams FreshChat in behind it. A browser
 // that has been here before paints its last Chat in the first frame and the
 // stream catches it up from the stored seq; the fresh props then re-seed it.
 export const dynamic = "force-dynamic";
@@ -56,21 +56,21 @@ export default async function PlayPage() {
     <SnapshotPage
       scope="play"
       userId={session.discordUserId}
-      render={PlayView}
+      render={ChatView}
       fallback={<Loading />}
       remountOnFresh={false}
     >
       <Suspense fallback={null}>
-        <FreshPlay userId={session.discordUserId} />
+        <FreshChat userId={session.discordUserId} />
       </Suspense>
     </SnapshotPage>
   );
 }
 
-// The whole load, ending in one serialisable object for PlayView. Every
+// The whole load, ending in one serialisable object for ChatView. Every
 // prop below used to be a JSX attribute on <Chat> or <RequestActionsProvider>
 // right here; the names are unchanged.
-async function FreshPlay({ userId }) {
+async function FreshChat({ userId }) {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) redirect("/");
 
@@ -169,7 +169,10 @@ async function FreshPlay({ userId }) {
               resources: true,
               // `id` is the CharacterTag row, which is what an equip toggle
               // acts on; the Things drawer is the only thing here that needs
-              // one (./thingRows.js).
+              // one (./thingRows.js). `equippedQuantity` alongside `equipped`
+              // — a slot holds one physical unit, not a stack, and thingRows.js
+              // reads the count to know how many of a holding are still free to
+              // equip and how many are already out to put back.
               // `tag.group` rides along for researchableHeld's `group`-kind
               // ingredient entries (a held corpse, matched by GROUP rather
               // than slug) — nothing else here read it before Research did.
@@ -179,6 +182,7 @@ async function FreshPlay({ userId }) {
                   tagId: true,
                   quantity: true,
                   equipped: true,
+                  equippedQuantity: true,
                   tag: { include: { group: { select: { slug: true } } } },
                 },
               },
@@ -428,7 +432,7 @@ async function FreshPlay({ userId }) {
 
   // Look at, Heal, Transfer, Loot, Bind, Free, Harm and Move Player are the
   // SHEET's dialogs, mounted over the same pools rather than rebuilt (in
-  // PlayView). Only the people half is handed down: the rest of the sheet's
+  // ChatView). Only the people half is handed down: the rest of the sheet's
   // pools — craft, paper, the bird, the Factory — belong to the sheet, and
   // ActionGrid is not mounted here at all.
   const providers = aside

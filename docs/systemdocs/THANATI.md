@@ -206,13 +206,20 @@ leader killed this turn beats the clock. If that leader is not ALIVE the
 countdown is cleared and nothing more is said. Otherwise `ascensionFiredTurn`
 is stamped (never cleared), every `#summary` hears the hellfire line, the game
 ends through `endGameInDb`, and `turnBannerPath` pins `hellfire.jpg` on for
-good. A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
+good — for **this** game: the stamp is written to `Game.ascensionFiredTurn`,
+not to `GameState`, so the next game starts under a clean sky
+(`TURN-ENGINE.md` §banner). A GM can also call it off from `/gm/dev?s=reports`, beside Defuse.
+
+**The hellfire kills everyone**, gibbed, with no zone exemption — not even the
+caves. That is the whole difference between the two endings: the bomb leaves
+survivors underground with a game to keep playing, and this leaves nothing to
+play.
 
 **If the bomb and the rite come due on the same close, the cult wins.** The
 ascension pass runs before `nukeExplosionPass` for exactly that reason: the
-blast would otherwise kill the snapshot leader and cancel the rite. Both still
-happen — everyone above ground dies — but the epilogue is the cult's, because
-`endGameInDb` is a no-op once the state is ENDED.
+blast would otherwise kill the snapshot leader and cancel the rite. By the time
+the bomb runs there is nobody left alive for it to find, and the epilogue is the
+cult's, because `endGameInDb` is a no-op once the state is ENDED.
 
 Fulfillment's "leader must be present" and "once a game", and Ascension's
 "not while one is already running", are checked in `riteIngredients.js` with

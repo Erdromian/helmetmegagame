@@ -54,8 +54,8 @@ const NOTICE_SPECS = {
   },
   DEBTOR: {
     author: "The Merchant",
-    roomSlugs: ["customs-merchants-office", "customs-storefront"],
-    boardLocationSlug: "customs",
+    roomSlugs: ["depot-merchants-office", "depot-storefront"],
+    boardLocationSlug: "depot",
     text: (name) => `DEBTOR: ${name}. Owes: ${DEBTOR_DEBT_OBOLS} obols. Send the dockers.`,
     needsZone: false,
   },

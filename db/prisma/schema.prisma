@@ -138,9 +138,17 @@ enum TagVisibility {
 // GameConfig.equipSlots, the old flat count, is retired and read by nothing.
 //
 // HEAD, BODY and MOUNT carry Tag.equipLayer 1-3, so a coif goes under a helm
-// and a cart is towed behind a horse; SHIELD admits exactly one. WEAPON is
-// capped by hands — three, a two-hander (Tag.twoHanded) taking two — and
-// ACCESSORY is not capped at all. See TAGS.md and db/lib/equipSlots.js.
+// and a cart is towed behind a horse. WEAPON is everything you hold, capped by
+// hands — four, a two-hander (Tag.twoHanded) taking two — and ACCESSORY is
+// capped at four. See TAGS.md and db/lib/equipSlots.js.
+//
+// SHIELD is RETIRED, not deleted. It was a second rule for the same place on
+// the body — one cell called "Off hand" beside a row that counted hands — and
+// folding it into WEAPON is what took the hands from three to four. Postgres
+// has no ALTER TYPE ... DROP VALUE, and this codebase keeps dead enum values
+// rather than rebuilding a type (see MoveReviewStatus.WAITING_FOR_OPPONENTS).
+// Nothing writes or reads it: db/lib/equipSlots.js leaves it out of
+// EQUIP_SLOTS, so syncTags.js throws on a YAML entry that still names it.
 enum EquipSlot {
   HEAD
   BODY
@@ -530,6 +538,20 @@ model Game {
   // db/lib/epilogue.js#buildEpilogue: { closingNote, facts, roster }. Written
   // when the game ends, or by the wipe if it never did.
   epilogue    Json?
+
+  // How this game ended, if it ended with a bang. Turn NUMBERS, and they live
+  // here rather than on GameState because turn numbers restart at 1 every game
+  // — which made the GameState copies meaningless the moment a new game began,
+  // and every reader treated a stale one as current. On 2026-09-09 a new game
+  // opened wearing the last one's fireball: the nuke plate above every turn
+  // announcement and an epilogue on a game that had only just started.
+  //
+  // A Game row is created fresh by the wipe, so these cannot cross a game
+  // boundary the way the GameState columns could. Set once, never cleared
+  // within a game — turnBannerPath pins the sky on the strength of that.
+  nukeDetonatedTurn  Int?
+  ascensionFiredTurn Int?
+
   createdAt   DateTime  @default(now())
 
   /// What a reader sees instead of a number, when it is worth naming.
@@ -1627,13 +1649,16 @@ model Character {
   // leaves it alone so the character can step at once.
   lastLocationMoveAt DateTime?
 
-  // A journey in progress. A zone crossing that costs the Move no longer
-  // lands at once — the Move is spent now and the character keeps standing
-  // where they are until db/lib/travelArrivalPass.js walks them over at the
-  // next turn advance, so nobody sees the destination's channels a turn early
-  // (docs/systemdocs/MAP.md §3). A free crossing and a same-zone hop are
-  // still instant and never write these. `travelTurnId` is the turn the
-  // journey was declared in, for the sheet's wording.
+  // RETIRED (2026-09-14). These held a journey in progress: a zone crossing
+  // that cost the Move spent it at once and parked its destination here, and
+  // db/lib/travelArrivalPass.js walked the character over at the next turn
+  // advance, so nobody saw the destination's channels a turn early. Every
+  // crossing lands the moment it is made now (docs/systemdocs/MAP.md §3) and
+  // nothing writes these any more.
+  //
+  // Kept because this schema drops no columns, like missedMealStreak and
+  // mindlinkChannelId. The arrival pass still reads them, as a drain for
+  // anybody who was mid-journey when the change deployed.
   travelToLocationId String?
   travelTo           Location? @relation("CharacterTravelDestination", fields: [travelToLocationId], references: [id])
   travelTurnId       String?
@@ -1910,6 +1935,32 @@ model Character {
   // Every Location this character has stood in or seen from next door.
   locationVisits          LocationVisit[]
 
+  // BEING HELD (docs/systemdocs/INTERCEPT.md). Somebody laid in wait where
+  // this character walked in and stopped them: they cannot MOVE until
+  // heldUntil passes, and they can do everything else. Two minutes for a
+  // Safe intercept, the turn's own end (db/lib/turnClock.js#turnEndsAt) for
+  // an Ambush.
+  //
+  // A DateTime rather than a flag plus a sweep, the keyed-way pattern
+  // (MAP.md §2b): the hold lapses on its own with no cron, no pass and no row
+  // to clean up, and one comparison against now() is the whole check.
+  // Deliberately NOT an incapacitating tag — those take ACT as well, and a
+  // held character is meant to be able to fight back, talk, and file a Gambit
+  // of their own (db/lib/incapacitation.js).
+  //
+  // heldById is who is holding them, so that only that person may let them go
+  // early, and so the three writers that end a hold before its time — the
+  // holder's own Release, the holder walking off, and the holder dying — know
+  // whose holds to clear. Not a cascade: a hold outliving its holder by a few
+  // minutes is harmless, and the clears below are what actually end it.
+  heldUntil DateTime?
+  heldById  String?
+  heldBy    Character?  @relation("InterceptHold", fields: [heldById], references: [id])
+  holding   Character[] @relation("InterceptHold")
+
+  interceptWatch InterceptWatch?
+  interceptHits  InterceptHit[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1921,6 +1972,8 @@ model Character {
   @@index([status, lastActivityTurn])
   // The one query an escort party ever runs: everyone following this leader.
   @@index([escortedById])
+  // The one query a release ever runs: everyone this character is holding.
+  @@index([heldById])
 }
 
 // Fresh or rotten. A player's corpse is written FRESH and turns ROTTEN three
@@ -2672,13 +2725,23 @@ model CharacterTag {
   // EVENT below.
   expiresTurn Int?
 
-  // Whether this held tag is currently equipped. The cap is per slot, not a
-  // flat count across the character: Tag.equipSlot says where a thing goes and
-  // db/lib/equipSlots.js says how many fit there. Only ever true for a
-  // Tag.equippable one. A stackable tag takes ONE slot however many units are
-  // held — the flag is a property of holding the tag, not of each unit, which
-  // is also why this is a column here rather than a separate join table.
+  // Whether AT LEAST ONE unit of this held tag is currently equipped —
+  // `equippedQuantity > 0`, kept in sync with it on every write. Only ever
+  // true for a Tag.equippable one. Every "holds it or doesn't" check in the
+  // codebase (fear, armour, mounts, concealment, labor bonuses...) reads only
+  // this column and is unaffected by how many units that actually is. The cap
+  // itself is per slot, not a flat count across the character: Tag.equipSlot
+  // says where a thing goes and db/lib/equipSlots.js says how many fit there.
   equipped Boolean @default(false)
+
+  // How many of `quantity` are currently equipped, each occupying its own
+  // slot or hand (db/lib/equipSlots.js) — five swords equipped is three hands
+  // spent and two still in the pack, not one hand for "a stack of swords".
+  // Never above `quantity`: whatever shrinks quantity below it
+  // (dropCharacterTag, a GM's patch) clamps this down first and frees the
+  // slots that unequips. Always 0 or 1 for a non-stackable tag, mirroring
+  // `equipped` exactly.
+  equippedQuantity Int @default(0)
 
   // How many of this tag the character holds. Always 1 for an ordinary tag;
   // only Tag.stackable ones ever go above it, and nothing may drive it
@@ -2938,6 +3001,35 @@ model Turn {
   // otherwise wedge the turn forever, so a claim older than the timeout can be
   // taken over.
   needsResumeClaimedAt DateTime?
+
+  // The DISCORD half of the turn, which the three fields above do not cover at
+  // all. resolveNeeds() stamps needsResolvedAt when the database passes are
+  // done — before advanceTurn() has even built the side-effect thunk — so a
+  // turn whose fan-out died was already "finished" as far as the resume query
+  // was concerned. On 2026-09-08 the bomb detonated, twelve characters died in
+  // the database, and a redeploy SIGTERM'd the container twenty-eight seconds
+  // later: three of twelve death DMs went out, the fireball and the Game Ended
+  // post never did, and nothing was ever going to retry them.
+  //
+  // Everything the thunk needs, as plain JSON, so it can be replayed by a
+  // process that never saw the turn resolve. See buildSideEffectPayload in
+  // db/lib/turnSideEffects.js for what may go in here — no Prisma rows, no
+  // Dates, no functions.
+  sideEffectPayload Json?
+
+  // Which sends have already gone out, as a JSON array of keys —
+  // resolvedPasses' shape and resolvedPasses' reason. A DM is not idempotent;
+  // re-running the loop tells somebody a second time that they died.
+  sideEffectSteps Json?
+
+  // The completion stamp, and the sole selector for the side-effect resume.
+  sideEffectsDoneAt DateTime?
+
+  // The side-effect resume's LEASE, needsResumeClaimedAt's twin and taken for
+  // the same reason: sideEffectSteps is last-write-wins and cannot arbitrate
+  // two resumes racing. Stale after RESUME_LEASE_MS so a resume that dies
+  // holding it cannot wedge the turn.
+  sideEffectClaimedAt DateTime?
 
   id         String     @id @default(cuid())
   number     Int        @unique
@@ -3396,6 +3488,76 @@ model Offer {
   @@index([responderId, status])
   @@index([initiatorId, status])
   @@index([teacherActionId])
+}
+
+// LAYING IN WAIT (docs/systemdocs/INTERCEPT.md). A standing order: stop these
+// people when they walk in where I am standing, and hand them this line.
+//
+// ONE watch per character, which is what the unique on characterId is for —
+// the column IS the rule, the same way Character.escortedById is the whole of
+// "you can only follow one person". Editing a watch is an upsert; there is no
+// history to keep.
+//
+// It stores NO Location. The watch fires wherever the interceptor happens to
+// be standing at the moment somebody arrives, read live — which is what "lay
+// in wait at your location" literally means, and which leaves no stale row
+// behind when they walk off.
+enum InterceptMode {
+  SAFE
+  AMBUSH
+}
+
+model InterceptWatch {
+  id          String    @id @default(cuid())
+  characterId String    @unique
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  mode    InterceptMode @default(SAFE)
+  // What the interceptor says to whoever they stop. Player-typed, so it is
+  // capped and stripped of broadcast pings before it is ever sent
+  // (db/lib/intercept.js#cleanMessage).
+  message String        @default("")
+
+  // The names typed into the picker, stored RAW and matched at FIRE time
+  // against what the arrival's face actually presents
+  // (db/lib/presentedIdentity.js). Never resolved to ids when the watch is
+  // saved: a dialog that answered "is there anybody called that?" would be a
+  // roster oracle, which is the same reasoning Engrave and the Arrest Warrant
+  // give for typing a name instead of picking one.
+  targetNames String[] @default([])
+
+  // The two dragnets. `anyPerson` subsumes `anyConcealed`.
+  anyConcealed Boolean @default(false)
+  anyPerson    Boolean @default(false)
+
+  hits InterceptHit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One row per person a watch has actually caught, per turn. This is the
+// ration, not a log: without it a lapsed two-minute hold is walked straight
+// back into, and a Safe watch on a busy road becomes an endless roadblock and
+// an endless DM feed. The unique IS the enforcement — the insert is what
+// claims the catch, inside the firing transaction, so two arrivals in one tick
+// cannot both pass.
+model InterceptHit {
+  id      String         @id @default(cuid())
+  watchId String
+  watch   InterceptWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+
+  targetCharacterId String
+  targetCharacter   Character @relation(fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  // Not a foreign key, the Character.zoneMovesTurnId reasoning: it is a claim
+  // token, and deleting a turn must never cascade into somebody's catch.
+  turnId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([watchId, targetCharacterId, turnId])
+  @@index([targetCharacterId])
 }
 
 // A multi-turn craft in progress (docs/systemdocs/CRAFTING.md). A table, not

@@ -24,7 +24,7 @@
 //
 // The one thing leaving a slug out really does protect is a HIDDEN way, because
 // `travelOptions` drops those before the sighting write ever sees them. So the
-// smugglers' crawl `customs -> caves-brooding-grounds` cannot leak here no
+// smugglers' crawl `depot -> caves-brooding-grounds` cannot leak here no
 // matter what this table says — but `caves-abandoned-camp` is a plain open road
 // away from the same place, which is why the three seats that only work the
 // cargo bay do not get it.
@@ -80,13 +80,13 @@ const HILLS_ALL = [
   "hills-cliffs",
 ];
 
-// The cargo bay and the road up to the gate — as much of the caves as somebody
-// who works customs has reason to know. NOT the abandoned camp: that is one
-// open road from the brooding grounds and two from the mouth of the Depths, and
-// handing a Merchant all three on his first morning is a bigger reveal than a
-// trade seat has earned. The Migrant, who actually lives in the camp, gets it
-// below.
-const CAVE_MOUTH = ["customs", "caves-approach"];
+// The sentry post, the shop one hop east of it, and the road up to the gate —
+// as much of the caves as somebody who works customs has reason to know.
+// NOT the abandoned camp: that is one open road from the brooding grounds and
+// two from the mouth of the Depths, and handing a Merchant all three on his
+// first morning is a bigger reveal than a trade seat has earned. The Migrant,
+// who actually lives in the camp, gets it below.
+const CAVE_MOUTH = ["customs", "depot", "caves-approach"];
 
 // The way down off the mountain, as the people who walk it know it.
 const FORTRESS_TO_TOWN = ["forest-northern-road", "north-gate"];

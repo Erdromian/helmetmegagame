@@ -14,7 +14,7 @@
 // becomes the spare and a fresh one takes over, so memory is capped at about
 // 2 × max while nothing is forgotten sooner than `max` rows after it was sent.
 // Forgetting early is cheap anyway — the browser keys its own Map on seq
-// (web/app/(app)/play/feedStore.js#applyRow) and treats a repeat as a no-op —
+// (web/app/(app)/chat/feedStore.js#applyRow) and treats a repeat as a no-op —
 // so this exists to keep the wire quiet, not for correctness.
 function makeSeenSeqs(max = 1000) {
   if (!Number.isInteger(max) || max < 1) throw new TypeError("makeSeenSeqs needs a positive integer");

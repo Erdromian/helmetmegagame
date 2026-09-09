@@ -181,7 +181,7 @@ export async function loadFeedCharacter(discordUserId) {
 //
 // `options` is what every db/lib/feedAccess.js call needs: `{ gm, discordUserId }`.
 // cache()d because every page's header asks for it now (AppHeader -> TurnMeta)
-// and /play asks again for its own load. One small indexed lookup either way,
+// and /chat asks again for its own load. One small indexed lookup either way,
 // but there is no reason for a page to run it twice in a request.
 export const loadFeedViewer = cache(async () => {
   const { session, isGm } = await getGmSession();

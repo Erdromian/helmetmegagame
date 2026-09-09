@@ -103,7 +103,10 @@ export default function TravelNodes({ onDone, pick = null }) {
   }
 
   const chosen = target ? (data.options.find((o) => o.id === target) ?? null) : null;
-  const nextTurn = Boolean(chosen?.crossesZone && data.freeLeft <= 0);
+  // chosen's OWN count, not the header's ambient one — a boat's bonus is
+  // earned per crossing, so a water-eligible destination can still be free
+  // even when the header's pre-selection number already reads 0.
+  const nextTurn = Boolean(chosen?.crossesZone && chosen.freeLeft <= 0);
 
   // Travel, in one place: the Go button and a second click on a node are two
   // doors onto the same call, the way the map's are (MAP.md §6c).
@@ -123,15 +126,10 @@ export default function TravelNodes({ onDone, pick = null }) {
         Travel · {data.freeLeft} available
       </p>
 
-      {/* Already walking: a paid crossing is a day on the road and there is no
-          way off it, but only the ways OUT OF THE ZONE are shut. The list stays
-          up so the last day can be spent somewhere with people in it — the
-          crossings draw dim, with the road named in their refusal. */}
-      {data.heading ? (
-        <p className="text-sm">
-          Leaving for {data.heading} at the end of the turn — until then this zone is still yours to walk.
-        </p>
-      ) : null}
+      {/* Held where they stand (INTERCEPT.md). The list stays up rather than
+          vanishing, with every way drawn shut and the reason on it — the same
+          shape a locked gate uses. This says it once, over the top. */}
+      {data.held ? <p className="text-sm">{data.held}</p> : null}
 
       {data.options.length === 0 ? (
         <EmptyState>There is no way out of here. ‡</EmptyState>
@@ -183,7 +181,7 @@ export default function TravelNodes({ onDone, pick = null }) {
                   TagChip, because an interactive chip cannot live inside this
                   button. */}
               {via && <ChipLabel tag={via} />}
-              <span className="chat-node-foot mono">{travelFoot(option, data.freeLeft, data.mounted)}</span>
+              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted)}</span>
             </button>
             );
           })}
@@ -193,7 +191,7 @@ export default function TravelNodes({ onDone, pick = null }) {
       {chosen && (
         <div className="chat-travel-confirm">
           <p className="text-sm">
-            {nextTurn ? `To ${chosen.name}, next turn.` : `To ${chosen.name}.`}
+            {nextTurn ? `To ${chosen.name}. This one spends your Move.` : `To ${chosen.name}.`}
           </p>
 
           {/* Who comes along is the party rack's business now, not this

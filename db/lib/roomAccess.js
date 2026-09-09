@@ -160,7 +160,7 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   const targets = rooms.filter((room) => entitled.has(room.id) !== stored.has(room.id));
   if (targets.length === 0) return result;
 
-  // A door opened or shut, so this character's /play place list changed —
+  // A door opened or shut, so this character's /chat place list changed —
   // wake their tabs before the Discord calls, which are the slow part and can
   // fail without changing the answer the web gives (docs CHAT.md §3).
   await notifyPresence(prisma, character.id);

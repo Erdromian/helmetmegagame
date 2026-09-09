@@ -274,7 +274,7 @@ Read [`ARCHIVE.md`](ARCHIVE.md) before touching any of that. The delete is
 batched outside the main transaction and bounded by the seq the packet reaches
 to, and both of those are load-bearing.
 
-`/play` is unaffected either way: Chat floors its feed at the highest seq
+`/chat` is unaffected either way: Chat floors its feed at the highest seq
 belonging to a previous game, so it is empty after a restart rather than full
 of the last game (`CHAT.md` §7).
 
@@ -296,5 +296,5 @@ of the last game (`CHAT.md` §7).
 | `bot/src/lib/lobby.js` | The Decline click |
 
 The **Decline the seat** button is answerable on either face — it is drawn in
-the Bascinet pane on `/play` as well as in the Discord DM (`CHAT.md` §2b),
+the Bascinet pane on `/chat` as well as in the Discord DM (`CHAT.md` §2b),
 which matters here because a player in the lobby has no character yet.

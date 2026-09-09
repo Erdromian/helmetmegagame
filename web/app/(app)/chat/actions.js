@@ -16,6 +16,7 @@ import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
+import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
   performLocationMove,
@@ -419,6 +420,7 @@ export async function myThings() {
         tagId: true,
         quantity: true,
         equipped: true,
+        equippedQuantity: true,
         tag: {
           select: {
             id: true,
@@ -429,6 +431,11 @@ export async function myThings() {
             consumable: true,
             tradeable: true,
             removable: true,
+            // The drawer draws each row's weight, and thingRows.js is the one
+            // place that shape is built — so leaving this out here would let
+            // the re-read after a verb disagree with the first paint, which is
+            // the exact thing that module exists to prevent.
+            weightLbs: true,
           },
         },
       },
@@ -488,24 +495,22 @@ export async function loadTravel() {
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  const heading = character.travelToLocationId
-    ? await prisma.location.findUnique({ where: { id: character.travelToLocationId }, select: { name: true } })
-    : null;
-
-  const [options, party] = await Promise.all([
+  const [options, party, currentZone] = await Promise.all([
     travelOptions(prisma, character, character.locationId),
     partyOf(prisma, character.id),
+    character.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
   ]);
 
   return {
     ok: true,
-    // Already walking? A paid crossing is a day on the road: there is no
-    // turning back, but the ways inside this zone stay open until the arrival
-    // pass lands them. travelOptions has shut the crossings and named the
-    // destination in each refusal, so `options` below needs nothing here.
-    heading: heading?.name ?? null,
-    // Both count the party: over the mount's seats, the extra crossing it
-    // buys is gone, and the number here has to already say so (MAP.md §3a).
+    // Somebody has hold of them (INTERCEPT.md). travelOptions has already
+    // shut every way and written the reason onto each row; this is the banner
+    // over the list, so the panel says it once rather than fifty times.
+    held: heldReasonFor(character),
+    // The AMBIENT count, before any destination is picked — freeZoneMoves'
+    // own honest answer with no crossing to weigh (see its doc comment). Both
+    // count the party: over the mount's seats, the extra crossing it buys is
+    // gone, and the number here has to already say so (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
     freeReason: freeZoneMovesReason(character, party.length),
     // Whether there's anything to dismount at all — the node list only
@@ -523,6 +528,15 @@ export async function loadTravel() {
       zoneName: row.location.zone?.name ?? null,
       crossesZone: row.crossesZone,
       passable: row.passable,
+      // THIS destination's own count, unlike the ambient one above — a boat's
+      // bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
+      // Forest<->Hills or Hills<->Marshes has to show one more than a
+      // crossing the water does nothing for, even though both are "a zone
+      // crossing" equally as far as `crossesZone` is concerned.
+      freeLeft: freeMovesLeft(character, config, openTurn, party.length, {
+        fromZoneSlug: currentZone?.slug ?? null,
+        toZoneSlug: row.location.zone?.slug ?? null,
+      }),
       // A Location a mount gets parked at on arrival (db/lib/indoors.js).
       indoors: Boolean(row.location.indoors),
       // A way too narrow to ride or push through — crossing it dismounts
@@ -678,31 +692,13 @@ export async function travelTo({ locationId } = {}) {
   // they were. The leader's line must not name the reason — a hidden crawl's
   // refusal would announce that the crawl is there (MAP.md §2a).
   const stranded = [];
+  const heldBack = [];
   for (const entry of result.leftBehind ?? []) {
-    stranded.push(entry.character.name);
+    // "held" is the one reason the leader IS told, because it is plain to see:
+    // somebody has hold of them. Every other reason stays unnamed.
+    (entry.reason === "held" ? heldBack : stranded).push(entry.character.name);
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     await sendDm(entry.character.discordUserId, `*${me.character.name} went on without you.* ‡`).catch(() => {});
-  }
-
-  // A paid crossing is a day on the road: nobody has moved yet, so there are
-  // no roles to swap — db/lib/travelArrivalPass.js does all of it at the next
-  // turn advance (MAP.md §3). The one thing owed now is a word to the
-  // passengers, who did not press anything.
-  if (result.deferred) {
-    for (const entry of result.travelers) {
-      if (entry.character.id === me.character.id) continue;
-      if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
-      await sendDm(
-        entry.character.discordUserId,
-        `*${me.character.name} is taking you to ${target.name}. You'll get there next turn.* ‡`,
-      ).catch(() => {});
-    }
-    const setOut = [`You set out for ${target.name}. You'll arrive next turn, and your Move is spent.`];
-    if (stranded.length > 0) setOut.push(`You can't move ${stranded.join(", ")} through here.`);
-    // dismountedMessage already carries its own mark, so only one ‡ ends the
-    // block either way.
-    if (result.dismounted.length > 0) setOut.push(dismountedMessage(result.dismounted));
-    return { ok: true, line: result.dismounted.length > 0 ? setOut.join(" ") : `${setOut.join(" ")} ‡` };
   }
 
   // Sequential on purpose: each entry is a handful of REST calls, and firing
@@ -724,6 +720,20 @@ export async function travelTo({ locationId } = {}) {
   for (const entry of result.moved) {
     if (entry.cavingDm) await sendDm(entry.cavingDm.discordUserId, entry.cavingDm.content).catch(() => {});
   }
+  // Anybody who was laying in wait here (INTERCEPT.md). Built inside
+  // performLocationMove and sent out here, the same split cavingDm uses.
+  for (const dm of result.interceptDms ?? []) {
+    await sendDm(dm.discordUserId, dm.content, {
+      kind: dm.kind,
+      authorDiscordUserId: dm.authorDiscordUserId ?? null,
+      components: dm.components,
+      meta: dm.meta,
+      // Player-typed text rides in these. cleanMessage() already took the
+      // broadcast pings out of the stored copy; this is the belt to that
+      // pair of braces, and it costs nothing.
+      allowedMentions: { parse: [] },
+    }).catch(() => {});
+  }
   const brought = [];
   for (const entry of result.moved) {
     if (entry.character.id === me.character.id) continue;
@@ -743,8 +753,17 @@ export async function travelTo({ locationId } = {}) {
         : "That was your last free move this turn.",
     );
   }
+  if (result.spentTurn) parts.push("That crossing spent your Move.");
   if (brought.length > 0) parts.push(`Bringing ${brought.join(", ")}.`);
   if (stranded.length > 0) parts.push(`You can't move ${stranded.join(", ")} through here.`);
+  if (heldBack.length > 0) parts.push(`Somebody has hold of ${heldBack.join(", ")}.`);
+  // A way too narrow for what they had out. This used to be said only on the
+  // deferred branch, so a free crossing dismounted a rider and told them
+  // nothing; every crossing lands here now, so it is said once, here.
+  // dismountedMessage carries its own mark, so only one ‡ ends the line.
+  if (result.dismounted.length > 0) {
+    return { ok: true, line: `${parts.join(" ")} ${dismountedMessage(result.dismounted)}` };
+  }
   return { ok: true, line: `${parts.join(" ")} ‡` };
 }
 
@@ -1063,7 +1082,7 @@ export async function ringBell({ roomId, word } = {}) {
 export async function turretState(roomId) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
-  const found = await roomHere(me.character, roomId, null, "There's no button here.");
+  const found = await roomHere(me.character, roomId, null, "There isn't a button here.");
   if (found.error) return { ok: false, error: found.error };
   const armed = await gatehouseTurretArmed(prisma);
   return { ok: true, armed, word: armed ? DISARM_WORD : ARM_WORD };
@@ -1072,7 +1091,7 @@ export async function turretState(roomId) {
 export async function toggleTurret({ roomId, word } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
-  const found = await roomHere(me.character, roomId, null, "There's no button here.");
+  const found = await roomHere(me.character, roomId, null, "There isn't a button here.");
   if (found.error) return { ok: false, error: found.error };
 
   // Re-read rather than trusting what the dialog was drawn against — two
@@ -1329,7 +1348,7 @@ export async function sendToGms(content) {
     return { ok: false, error: `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most. ‡` };
   }
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } });
-  if (config && !config.playPanelEnabled) return { ok: false, error: "The Play page is switched off. ‡" };
+  if (config && !config.playPanelEnabled) return { ok: false, error: "The Chat page is switched off. ‡" };
   const recent = await prisma.directMessage.count({
     where: {
       discordUserId: me.discordUserId,

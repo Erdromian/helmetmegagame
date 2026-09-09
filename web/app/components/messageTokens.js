@@ -9,7 +9,7 @@ import { useCharacterMentions } from "./CharacterMentionsProvider";
 // journal entry.
 //
 // It lives here rather than in ChatMarkdown.js because those five surfaces used
-// to disagree about it: /play resolved the tokens, MarkdownContent had never
+// to disagree about it: /chat resolved the tokens, MarkdownContent had never
 // been given remarkTokens at all so a DM printed literal braces, and the
 // transcript and the Journal went through RichText, which resolves the WHOLE
 // catalog. One copy, so they cannot drift again.
@@ -31,7 +31,7 @@ export function splitCharPayload(payload) {
 }
 
 // A {char:<id>} in a message. The map comes from CharacterMentionsProvider,
-// which /play fills from two lists: the people standing here, and the wider
+// which /chat fills from two lists: the people standing here, and the wider
 // directory of everybody whose name is safe to print
 // (web/lib/mentionDirectory.js).
 //

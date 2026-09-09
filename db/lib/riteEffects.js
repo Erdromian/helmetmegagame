@@ -24,7 +24,7 @@ const { formatBareName } = require("./characterName");
 const { STUPID_SLUG } = require("./babble");
 const { HUNGERLESS_SLUG } = require("./constants");
 const { applyLocationMoveSideEffects } = require("./locationMove");
-const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag } = require("./tagWrites");
+const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquippedQuantity } = require("./tagWrites");
 const { createWithRetry } = require("./paperMint");
 const { resolveSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
@@ -77,7 +77,7 @@ const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // ---- Lines -----------------------------------------------------------------
 
-// The room hears one `-#` line, on Discord and on /play. `room` needs { id,
+// The room hears one `-#` line, on Discord and on /chat. `room` needs { id,
 // name, discordThreadId }.
 // BOTH halves are caught. The Discord half always was; the archive half was
 // not, and a rite is not worth losing over a line of scenery — the floor is
@@ -221,6 +221,7 @@ async function spendFromHolder(tx, holder, tagId, what) {
   });
   if (count === 0) throw new Error(`the ${what} is gone`);
   await tx.characterTag.deleteMany({ where: { characterId: holder.id, tagId, quantity: { lte: 0 } } });
+  await clampEquippedQuantity(tx, holder.id, tagId);
 }
 
 async function grantToFloor(db, room, slug, quantity = 1) {

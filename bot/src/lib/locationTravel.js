@@ -91,7 +91,7 @@ function buildLocationSelectRow(locations, from) {
   return new ActionRowBuilder().addComponents(menu);
 }
 
-// Who you are taking with you — the Discord twin of the party rack on /play.
+// Who you are taking with you — the Discord twin of the party rack on /chat.
 // Null when nobody here can be brought: an empty select menu is rejected by
 // Discord, and a disabled one just asks a question with no answer.
 //
@@ -208,26 +208,6 @@ async function performMove(character, targetLocation) {
     }
   }
 
-  // A paid crossing is a day on the road: nobody has moved yet, so there are
-  // no roles to swap and no Caving Die to roll — db/lib/travelArrivalPass.js
-  // does all of it at the next turn advance (MAP.md §3). The one thing owed
-  // now is a word to the passengers, who did not press anything.
-  if (result.deferred) {
-    for (const entry of result.travelers) {
-      if (entry.character.id === character.id) continue;
-      if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
-      await sendDm(
-        prisma,
-        entry.character.discordUserId,
-        `*${character.name} is taking you to ${targetLocation.name}. You'll get there next turn.* ‡`,
-        { kind: DM_KIND.QUIET },
-      ).catch((err) =>
-        console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
-      );
-    }
-    return result;
-  }
-
   // Sequential on purpose: each entry is a handful of REST calls, and firing
   // a whole dragged party's worth at once is the shape that trips the
   // invalid-response breaker (db/lib/discordRest.js).
@@ -253,6 +233,22 @@ async function performMove(character, targetLocation) {
     await sendDm(prisma, entry.cavingDm.discordUserId, entry.cavingDm.content).catch((err) =>
       console.error(`Caving arrival DM to ${entry.cavingDm.discordUserId} failed:`, err.message ?? err),
     );
+  }
+
+  // Anybody who was laying in wait here (docs/systemdocs/INTERCEPT.md). Built
+  // inside performLocationMove and sent from out here, the same split the
+  // Caving DM above uses.
+  for (const dm of result.interceptDms ?? []) {
+    await sendDm(prisma, dm.discordUserId, dm.content, {
+      kind: dm.kind,
+      authorDiscordUserId: dm.authorDiscordUserId ?? null,
+      components: dm.components,
+      meta: dm.meta,
+      // Player-typed text rides in these. cleanMessage() already took the
+      // broadcast pings out of the stored copy; this is the belt to those
+      // braces.
+      allowedMentions: { parse: [] },
+    }).catch((err) => console.error(`Intercept DM to ${dm.discordUserId} failed:`, err.message ?? err));
   }
 
   // Being carried off is the one thing that happens to a player without them
@@ -283,7 +279,7 @@ async function performMove(character, targetLocation) {
 async function restoreStandingRoles(member, character) {
   // A "web only" character holds no Discord access on purpose, so a rejoin
   // restores nothing (docs/systemdocs/CHAT.md §6). Their sight of the game is
-  // /play, which never went away.
+  // /chat, which never went away.
   if (character.webOnly) return;
 
   const zoneRoleId = character.zone?.discordRoleId ?? null;

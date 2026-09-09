@@ -57,7 +57,7 @@ async function FreshNotes() {
     // loadMentionDirectory, not a query of its own. This page used to roll its
     // own findMany with NO concealment filter at all, so a hooded or disguised
     // character was offered by name in the autocomplete and drew their real
-    // portrait in an entry — while /play, one directory over, withheld both.
+    // portrait in an entry — while /chat, one directory over, withheld both.
     // The forced/concealed rule has three cases and a precedence order, and
     // the second copy of it is always the one that never got written.
     loadMentionDirectory({ includeUnburiedDead: true }),

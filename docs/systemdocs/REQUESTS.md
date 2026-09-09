@@ -127,9 +127,10 @@ reason.
 | `EXTRACT_GODFLESH` | Cuts Godflesh out of a marsh tile. Spends the Routine, needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the Move stays spent |
 | `PACKAGE_ITEMS` | Packs up to 150 lb of held goods into one crate weighing half that, with a line the packer types. Needs Packaging Equipment in reach; costs no Move (`FACTORY.md` §5) | — | Prises the crate open, returns the contents, deletes the runtime Tag |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
-| `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
+| `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at the Depot (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
 | `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
+| `INTERCEPT` | Lays in wait where they stand: names who they are watching for (or "anyone", or "anyone concealed"), writes a line to hand them, and picks Safe or Ambush. Costs no Move and no ⬢. When one of them walks in, they are stopped — two minutes, or until the turn ends. **A typed name never catches a hooded face**; that is what "anyone concealed" is for (`INTERCEPT.md`) | — | Nothing to undo: the hold lapses on its own, and the holder can Release early |
 | `BUILD_STRUCTURE` | Filed by whoever's crew-turn FINISHES a build site — the one Request a structure ever files, carrying type, ground, cost, payer and every contributor (docs/systemdocs/ADJUDICATION.md §6) | — | Tears the structure down, refunds the payer, and restores any edge it flipped (conditionally — see the Discord note below); the crew's spent Moves stay spent |
 
 (`DAMAGE_STRUCTURE` is also in the enum, declared ahead of use because
@@ -860,7 +861,7 @@ The sheet's band (`LedgerBand.js`) lays the four numbers out as tiles, and
 **every player action sits under them as one wrapping strip** (`ActionGrid.js`
 with `variant="strip"`, each button labelled; a greyed one writes the reason
 from `actionRegistry.js#gateReason` to a line under the strip rather than into
-a tooltip, since the sheet has none). `/play`'s YOU column draws the same
+a tooltip, since the sheet has none). `/chat`'s YOU column draws the same
 registry as an icon grid, with the HERE list (`HereList.js`) above it.
 
 That grid replaced three separate surfaces: a row of text buttons inside the
@@ -905,10 +906,10 @@ The tag menu inside the Add and Harm dialogs shares `filterTagsByQuery` with
 for the same words, and its pane is `60vh` rather than the 16rem box that used
 to show three rows of a hundred-tag catalog.
 
-### 6a. The same dialogs on `/play`
+### 6a. The same dialogs on `/chat`
 
 Since phase 3 of Chat (`CHAT.md` §5) the **people** dialogs have a second
-home. `/play`'s HERE column mounts the same `RequestActionsProvider` with the
+home. `/chat`'s HERE column mounts the same `RequestActionsProvider` with the
 same pools and calls `open(mode, null, { targetId })` from a person's own row,
 so clicking somebody standing in the Keep opens the very dialog the sheet
 opens, already pointed at them. Nothing is forked, and no rule is stated twice.
@@ -931,7 +932,7 @@ The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
 Factory are not mounted in Chat, and `ActionGrid` is not either — the
 column is a list of people, not a second grid.
 
-`/play` also carries two player actions that were Discord-only, both of them
+`/chat` also carries two player actions that were Discord-only, both of them
 in `play/actions.js` and both re-checking every gate the panel drew:
 **Move** (`db/lib/moves.js#fileMove`, the same call the `#turns` Move modal
 makes) and **Waiting on you** — the Accept/Decline for a pending offer, a

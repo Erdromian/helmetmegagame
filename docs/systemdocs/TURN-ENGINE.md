@@ -169,10 +169,15 @@ each arrived at by getting them wrong first.
    bomb, because the blast kills that same leader. With the bomb first, two
    doomsdays landing on one close meant the fireball cancelled the rite and the
    cult silently lost a race it had already won. Now the cult's ending is the
-   one written, and the blast still kills everyone above ground.
-   **Nobody dies here** — the bomb leaves survivors underground with a game to
-   play, this leaves nothing — so the pass writes one stamp and hands back one
-   line. `GameState.ascensionArmedTurn` due plus the snapshot leader still
+   one written, and by the time the bomb runs there is usually nobody left for
+   it to kill.
+   **Everyone dies here, with no zone exemption at all** — which is the one
+   line that separates this ending from the bomb's. The blast spares the two
+   cave levels because being under the rock is the whole escape; here the rock
+   is what Ravenheart is swallowed into. Gibbed, like the blast: no corpses to
+   loot or bury, and no afterwards to do it in. The pass hands back `deaths`
+   and one line, the `nukeExplosionPass` contract exactly.
+   `GameState.ascensionArmedTurn` due plus the snapshot leader still
    ALIVE fires it: `ascensionFiredTurn` is claimed first, every `#summary`
    hears the hellfire (no `@everyone`; the warning two turns ago was the one
    worth waking anybody for), and `endGameInDb` runs exactly as at 4c. A dead
@@ -260,19 +265,19 @@ each arrived at by getting them wrong first.
    row. Audit action `mood_resolved`; its DMs — only the two bands that carry
    one — ride the `tagExpiryDms` channel back on the thunk.
 8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
-   in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
-   finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
-   load-bearing: every pass above settles the turn that just ended, and the
-   traveller spent that turn walking — auto-labor pays them at the Location
-   they ended it in, and neither turret shoots somebody who has already left
-   the map. A pending journey shuts the ways out of the zone but not the ways
-   inside it (`MAP.md` §3), so "where they ended the day" and "where they set
-   out from" need not be the same Location any more; every pass above reads the
-   live one, which is the right answer — a traveller who spends their last
-   afternoon under a turret is standing under it. It does no
-   Discord work; the arrivals ride back on `travelArrivals` and go out through
-   the same thunk loop a GM's staged "Relocate to" uses. Audit action
-   `travellers_arrived`.
+   in `TURN_PASSES`) — **a drain, and nothing else.** It used to land everyone
+   who had spent their Move crossing a zone last turn; every crossing lands the
+   moment it is made now (`MAP.md` §3) and nothing files work for this pass at
+   all. It stays last, and stays at all, only to walk over anybody who was
+   mid-journey when that change deployed — after which its query matches
+   nobody. Delete it once they have landed. It does no Discord work; anything
+   it finds rides back on `travelArrivals` through the same thunk loop a GM's
+   staged "Relocate to" uses. Audit action `travellers_arrived`.
+
+   One consequence of the removal worth knowing here: every pass above now
+   settles a zone-crosser at their **destination** rather than their origin.
+   Auto-labor pays the yield of the place they ended the day in, the night's
+   mood reads its `wilderness`/`haven`, and a turret there can shoot them.
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and pick its banner (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,
@@ -317,12 +322,62 @@ every victim of the bomb was DM'd the literal string `You have died. undefined`.
 
 `advanceTurn` **composes but does not run** the Discord work. It returns
 `{ advanced, previousTurn, newTurn, note, runSideEffects }`, and the caller
-decides when the thunk runs.
+decides when the thunk runs. The thunk itself lives in
+`db/lib/turnSideEffects.js`.
 
 That split is load-bearing. The message wipe walks every zone's channels
 sequentially; awaiting it inside a server action holds the action open, and a
 pending server action blocks client-side navigation — which froze the entire
 web app until a hard refresh.
+
+### 3a. The thunk is recorded, and an unfinished one is finished
+
+**The four `Turn.sideEffect*` columns are to the Discord half what
+`resolvedPasses` and `needsResolvedAt` are to the database half, and they exist
+because that half had nothing of the kind.** `needsResolvedAt` is stamped by
+`resolveNeeds` before `advanceTurn` has even composed the thunk, so a turn whose
+fan-out died was already finished as far as §2's resume was concerned.
+
+What that cost, on 2026-09-08: the bomb went off at the close of turn 3 and the
+database half committed perfectly — twelve dead, gibbed, the game ENDED, all of
+it logged. A redeploy landed twenty-eight seconds later and SIGTERM'd the web
+container inside the per-death teardown loop. Three of twelve death DMs got out.
+**The fireball and the Game Ended post never did**, and nothing was ever going
+to send them.
+
+So, in order:
+
+- `advanceTurn` writes **`sideEffectPayload`** — everything the thunk needs, as
+  plain JSON — onto the closing turn *before* handing the thunk back. No Prisma
+  rows, no Dates, no functions: `newTurnId` rather than the row, and
+  `startedAtMs` rather than a live `Date.now()`, because that value is the
+  message wipe's cutoff and a resumed run would otherwise sweep away everything
+  said since. `buildSideEffectPayload` is the whole list.
+- Each send is wrapped in **`step(key, fn)`**, which records the key in
+  **`sideEffectSteps`** only once the send returns. Anything that posts or DMs
+  gets a per-item key (`death:<characterId>`, `delivery:<id>:<n>`, index keys
+  for the notice loops); a singleton post gets a section key
+  (`nukeBroadcast`, `gameEnded`, `messageWipe`). The granularity is the point:
+  a re-run must not tell somebody a second time that they died. The existing
+  per-call `.catch()`es stay — those stop one dead channel taking a loop down,
+  which is a different job.
+- **`sideEffectsDoneAt`** is stamped only at the very end, and is the sole
+  selector for the resume.
+- **`resumeTurnSideEffects(prisma)`** finds the oldest turn with a payload and
+  no `sideEffectsDoneAt`, claims **`sideEffectClaimedAt`** with the same
+  compare-and-swap and the same 30-minute staleness window §2 uses for
+  `needsResumeClaimedAt`, and finishes only the outstanding keys. It writes a
+  `turn_side_effects_resumed` audit row.
+
+**Two things call it, and the second is the one that matters.** `advanceTurn`'s
+own thunk runs it first, so the next advance catches up whatever the last one
+dropped — but a game that ended at 22:00 is not helped by the 04:00 cron. So the
+**bot calls it on `ready`**, as one of its catch-up passes: the bot coming back
+up is the earliest signal available that somebody's process just died, and the
+deploy that kills the web container restarts the bot too.
+
+**A turn that closed before this existed has a null payload and is never
+selected** — there is nothing to replay for it.
 
 The thunk performs, in narrative order:
 
@@ -409,9 +464,29 @@ mid-turn. A null `banner` — a row from before the column existed, or a creatio
 path that forgot — is not "no picture": the resolver picks one on the spot, so a
 Turn 1 never posts bare.
 
-**After the bomb there is no morning, only the sky.** `GameState.nukeDetonatedTurn`
+**After the bomb there is no morning, only the sky.** `Game.nukeDetonatedTurn`
 pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate, and
-`ascensionFiredTurn` pins `hellfire.jpg` the same way.
+`Game.ascensionFiredTurn` pins `hellfire.jpg` the same way.
+
+**Both stamps live on the `Game` row, and that is load-bearing.** They used to
+sit on `GameState` — but they are turn NUMBERS, and turn numbers restart at 1
+every game, so the value said nothing about which game had ended and every
+reader took a stale one as its own. On 2026-09-09 a freshly restarted game
+opened wearing the last one's fireball: the nuke plate over every turn
+announcement, an epilogue on a game one turn old, and the Arm button refusing
+on the grounds that the bomb had already gone off. A `Game` row is created
+fresh by the wipe, so it cannot carry anything over. The `GameState` columns
+are still written as a forensic record and read by nothing — the readers are
+`turnBannerPath`, `turnAnnouncement.js`, `bot/src/lib/turnsConsole.js`,
+`objectives.js` (the Tribunal), `riteIngredients.js` (the Ascension's
+"already running" gate), the two nuke buttons and `/gm/dev`, and every one of
+them selects `{ game: { select: … } }`.
+
+**Resume withdraws the ending.** `resumeGameInDb` clears the Game row's
+`endedAt`, `closingNote` and `epilogue` as well as the phase. It used to leave
+the reveal in place "until the next ending overwrites it", which meant a
+resumed game went on being played with `/archive` still rendering how it
+ended.
 
 How it is posted (`db/lib/turnAnnouncement.js`): **`#turns` is ONE rolling
 message**, replaced each turn, carrying the announcement, the banner and the

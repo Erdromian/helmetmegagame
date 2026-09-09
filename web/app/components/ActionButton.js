@@ -7,7 +7,7 @@ import Tooltip from "./Tooltip";
 //
 //   icon  — a framed glyph (IconButton), the /character rack.
 //   tile  — glyph and name as a full-width row, a labelled column of verbs.
-//   menu  — a plain verb in a .chat-menu, the /play person and thing menus.
+//   menu  — a plain verb in a .chat-menu, the /chat person and thing menus.
 //   strip — glyph and name, small, in the /ledger band's one wrapping row.
 //
 // All three share the tooltip: the label, then the sentence explaining what

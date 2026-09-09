@@ -12,45 +12,36 @@ function normalizedDatabaseUrl() {
 const databaseUrl = normalizedDatabaseUrl();
 
 const { PrismaClient, Prisma } = require("@prisma/client");
+// By path, off the barrel — the scripts that need it most are ad-hoc ones.
+const { assertRawSqlAllowed } = require("./lib/localDatabase");
 const { buildTurnAnnouncement } = require("./turnCalendar");
 const { nextTurnBanner } = require("./lib/turnBanner");
-const { postTurnsAnnouncement } = require("./lib/turnAnnouncement");
+// The turn's Discord half, and the ledger that lets a killed one be finished.
+const {
+  runTurnSideEffects,
+  buildSideEffectPayload,
+} = require("./lib/turnSideEffects");
 const { expiryFrom } = require("./lib/turnFormat");
 const { runCorpseRotPass } = require("./lib/corpseRotPass");
 const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
-// By path, not the barrel — same reason as db/lib/dm.js below.
-const { runMessageWipe } = require("./lib/messageWipe");
-const {
-  runHungerPass,
-  hungerDm,
-  DYING_DM,
-} = require("./lib/hungerPass");
+const { runHungerPass } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
 const { runMoodPass } = require("./lib/moodPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { getGameState, readGameState } = require("./lib/gameState");
-const { GHOST_ROLE_ID } = require("./lib/roleIds");
-const { announceTurretBurst } = require("./lib/turretBurst");
-const { ambientLine } = require("./lib/ambientLine");
-const { deliverCarryDrop } = require("./lib/carry");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
 const { runAscensionPass } = require("./lib/ascensionPass");
-const { endGameInDb, postGameEnded } = require("./lib/gameEnd");
-const { syncSpectatorAccess } = require("./lib/spectatorAccess");
-const { broadcastToZones } = require("./lib/worldBroadcast");
+const { endGameInDb } = require("./lib/gameEnd");
 const { runBirdPass } = require("./lib/birdPass");
 const { runHorseUpkeepPass } = require("./lib/horseUpkeepPass");
-// By path, not the barrel — see the note at the top of db/lib/accessSweep.js.
-const { revokeAllCharacterAccess } = require("./lib/accessSweep");
-const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("./lib/constants");
 const { runAutoLaborPass } = require("./lib/autoLaborPass");
 const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
@@ -61,28 +52,14 @@ const { runConfessionPass } = require("./lib/confessionPass");
 // are three same-named sendDm exports with three signatures.
 const { sendDm } = require("./lib/dm");
 const { recordArchiveMessage, recordArchiveEvent } = require("./lib/archive");
-const { sceneLineAt } = require("./lib/scene");
 const { loadForcedName } = require("./lib/presentedIdentity");
-const { reconcileCharacterRoleNames } = require("./lib/characterRoleNames");
-const {
-  postAsCharacter,
-  postMessage,
-  postMessageBatched,
-  attachBreakerStore,
-  patchGuildRole,
-  getGuildRoles,
-  deleteGuildRole,
-  addMemberRole,
-  getGuildMember,
-  setGuildNickname,
-} = require("./lib/discordRest");
+const { postAsCharacter, attachBreakerStore } = require("./lib/discordRest");
 const { bumpBlood, LIFEWEB_SPUTTER_THRESHOLD } = require("./lib/lifeweb");
 const { runFullChannelWipe } = require("./lib/fullWipe");
-const { syncZonesFromYaml, refreshLiveRooms } = require("./lib/syncZones");
+const { syncZonesFromYaml } = require("./lib/syncZones");
 const { syncTagsFromYaml } = require("./lib/syncTags");
 const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
-const { DM_KIND } = require("./lib/dmKinds");
 const { syncDesiresFromYaml } = require("./lib/syncDesires");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
 const {
@@ -109,7 +86,30 @@ const prisma =
     // avatar route; omitting it globally stops it riding along on every
     // `include`. An explicit `select: { avatarData: true }` still overrides.
     omit: { character: { avatarData: true } },
-  });
+  })
+    // TRUNCATE and DROP cannot reach a database that is not local, from
+    // anywhere, through this client. On 2026-09-09 a throwaway regression
+    // harness truncated seven tables on the LIVE database and emptied the
+    // game. It had a .env naming a local Postgres sitting right beside it —
+    // but DATABASE_URL was already exported in the shell, and dotenv does not
+    // override a variable that is already set, so every "local" run was
+    // production and said nothing. .claude/hooks/db-guard.py could not have
+    // caught it either: that hook matches a fixed list of known scripts, and
+    // an ad-hoc file is on no list.
+    //
+    // So the check lives here, where nothing has to opt in. It costs nothing
+    // real — every TRUNCATE/DROP in the repo is migration SQL, which the
+    // Prisma CLI applies without this client — and it holds inside
+    // $transaction, which a hand-wrapped method would not.
+    // See db/lib/localDatabase.js.
+    .$extends({
+      query: {
+        $queryRaw: ({ args, query }) => (assertRawSqlAllowed(args, databaseUrl), query(args)),
+        $executeRaw: ({ args, query }) => (assertRawSqlAllowed(args, databaseUrl), query(args)),
+        $queryRawUnsafe: ({ args, query }) => (assertRawSqlAllowed(args, databaseUrl), query(args)),
+        $executeRawUnsafe: ({ args, query }) => (assertRawSqlAllowed(args, databaseUrl), query(args)),
+      },
+    });
 
 globalForPrisma.prisma = prisma;
 
@@ -142,6 +142,12 @@ attachBreakerStore({
 // duration, so a stack sheds one unit at a time rather than all at once.
 // `model` is "characterTag" or "roomTag": a stack lying in a Room sheds
 // exactly the way one in a pocket does (docs/systemdocs/CARRY.md).
+//
+// No tag today is BOTH stackable and equippable and carries a
+// defaultDurationTurns, so this can never yet shed a unit out from under
+// CharacterTag.equippedQuantity — decrementing the row this way, unlike
+// dropCharacterTag / tagWrites.js#clampEquippedQuantity, does not clamp it.
+// The day a tag combines all three, this needs the same clamp those do.
 async function sweepExpiredStacks(turn, model = "characterTag") {
   const expired = await prisma[model].findMany({
     where: { expiresTurn: { lte: turn.number }, tag: { stackable: true } },
@@ -231,8 +237,10 @@ const TURN_PASSES = [
   // The mood dial's nightly settle: the place each character sleeps in, the
   // drift back toward Fine, hunger, a body in the room, a noble's missed
   // dinner. After hunger (it reads the final streak) and carry (the final
-  // sheet), and before travelArrival, so a traveller pays the night where they
-  // set out from. See db/lib/moodPass.js and docs/systemdocs/MOOD.md.
+  // sheet). It used to matter that this ran before travelArrival, so a
+  // traveller paid the night where they set out from; travel lands at once
+  // now, so a crosser simply pays the night wherever they ended the day
+  // standing. See db/lib/moodPass.js and docs/systemdocs/MOOD.md.
   "mood",
   // After "carry", because the overflow drop can put a corpse on a floor.
   // Pull-based, so it just re-reads where every body's tag ended up.
@@ -251,10 +259,10 @@ const TURN_PASSES = [
   // from "depot" so a failed Depot pass cannot swallow it, and so a resume
   // re-runs exactly the one that did not finish.
   "gatehouseTurret",
-  // Journeys landing (db/lib/travelArrivalPass.js). LAST, and the order is
-  // load-bearing: every pass above settles the turn that just ended, and a
-  // traveller spent that turn walking. Auto-labor pays them where they left
-  // from, and neither turret shoots somebody still on the road.
+  // A DRAIN (db/lib/travelArrivalPass.js). Nothing files work for this any
+  // more — every crossing lands the moment it is made. It stays LAST, and
+  // stays at all, only to land anybody who was mid-journey when the deferral
+  // was removed; after that it matches nobody. Delete it once they have.
   "travelArrival",
 ];
 
@@ -537,7 +545,11 @@ async function resolveNeeds(turn, config) {
     });
     if (ascension) await markDone("ascension");
   }
-  const { broadcast: ascensionBroadcast = null, ...ascensionSummary } = ascension ?? {};
+  const {
+    broadcast: ascensionBroadcast = null,
+    deaths: ascensionDeaths = [],
+    ...ascensionSummary
+  } = ascension ?? {};
   // Declared here, with the first of the two endings, and shared with the
   // bomb below: whichever fires first writes the epilogue, and endGameInDb is
   // a no-op on a state that is already ENDED.
@@ -1107,6 +1119,7 @@ async function resolveNeeds(turn, config) {
     dyingDeathWarnings,
     nukeDeaths,
     nukeBroadcast,
+    ascensionDeaths,
     ascensionBroadcast,
     gameEndedPost,
     birdNotices,
@@ -1138,6 +1151,80 @@ async function getConfig() {
     update: {},
     create: { id: 1 },
   });
+}
+
+// Finish the Discord half of a turn whose fan-out was killed part-way.
+//
+// This is what did not exist on 2026-09-08, when the bomb went off and a
+// redeploy SIGTERM'd the container twenty-eight seconds later: the deaths were
+// in the database, the game was over, and the fireball and the Game Ended post
+// were simply gone. See db/lib/turnSideEffects.js.
+//
+// Two callers, and the second is the one that matters. advanceTurn()'s own
+// thunk runs it first, so the next advance catches up whatever the last one
+// dropped — but a game that ended at 22:00 is not helped by the 04:00 cron.
+// The bot calls it on ready() as one of its catch-up passes, because the bot
+// coming back up is the fastest signal available that somebody's process just
+// died.
+async function resumeTurnSideEffects(prisma_, { skipTurnId = null } = {}) {
+  const db = prisma_ ?? prisma;
+  const unfinished = await db.turn.findFirst({
+    where: {
+      sideEffectsDoneAt: null,
+      // A turn that closed before this ledger existed has no payload, and
+      // there is nothing to replay for it.
+      sideEffectPayload: { not: Prisma.DbNull },
+      ...(skipTurnId ? { id: { not: skipTurnId } } : {}),
+    },
+    orderBy: { number: "asc" },
+    select: { id: true, number: true, sideEffectPayload: true, sideEffectSteps: true },
+  });
+  if (!unfinished) return { resumed: false };
+
+  // The same compare-and-swap the needs resume does, and for the same reason:
+  // sideEffectSteps is last-write-wins and cannot arbitrate two racers.
+  const staleBefore = new Date(Date.now() - RESUME_LEASE_MS);
+  const claimed = await db.turn.updateMany({
+    where: {
+      id: unfinished.id,
+      sideEffectsDoneAt: null,
+      OR: [{ sideEffectClaimedAt: null }, { sideEffectClaimedAt: { lt: staleBefore } }],
+    },
+    data: { sideEffectClaimedAt: new Date() },
+  });
+  if (claimed.count === 0) {
+    console.warn(
+      `Turn #${unfinished.number}'s side effects are already being resumed elsewhere — standing down.`,
+    );
+    return { resumed: false };
+  }
+
+  const outstanding = Array.isArray(unfinished.sideEffectSteps)
+    ? unfinished.sideEffectSteps.length
+    : 0;
+  console.warn(
+    `Turn #${unfinished.number} said only part of what it had to say — finishing it (${outstanding} step(s) already sent).`,
+  );
+  await db.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: "system",
+        actionType: "turn_side_effects_resumed",
+        details: { turnNumber: unfinished.number, alreadySent: outstanding },
+      },
+    })
+    .catch((err) =>
+      console.error(
+        "Failed to log turn_side_effects_resumed — the resume now has no record:",
+        err,
+      ),
+    );
+
+  await runTurnSideEffects(db, {
+    turnId: unfinished.id,
+    payload: unfinished.sideEffectPayload,
+  });
+  return { resumed: true, turnNumber: unfinished.number };
 }
 
 // Resolves the OPEN turn and opens the next, alternating DAWN/DUSK. Shared
@@ -1188,6 +1275,7 @@ async function advanceTurn() {
   let dyingDeaths = [];
   let nukeDeaths = [];
   let nukeBroadcast = null;
+  let ascensionDeaths = [];
   let ascensionBroadcast = null;
   let gameEndedPost = null;
   let dyingDeathWarnings = [];
@@ -1199,6 +1287,11 @@ async function advanceTurn() {
   let travelArrivals = [];
   let routineNotices = [];
   let gambitRollNotices = [];
+  // Which row carries this fan-out's payload: always the turn that just
+  // closed, never the one about to open. In the resume branch below that is
+  // the crashed turn, not `newTurn` — attaching it to the new OPEN turn would
+  // let its own close, a day later, overwrite an unfinished ledger.
+  let closedTurnId = openTurn?.id ?? null;
   if (openTurn) {
     // Close the turn first, conditioned on it still being OPEN — Postgres
     // serializes the updateMany, so exactly one racing caller sees count===1
@@ -1234,6 +1327,7 @@ async function advanceTurn() {
       dyingDeathWarnings,
       nukeDeaths,
       nukeBroadcast,
+      ascensionDeaths,
       ascensionBroadcast,
       gameEndedPost,
       birdNotices,
@@ -1292,6 +1386,7 @@ async function advanceTurn() {
       console.warn(
         `Turn #${unfinished.number} was claimed but never finished resolving — resuming its outstanding passes.`,
       );
+      closedTurnId = unfinished.id;
       await prisma.auditLog
         .create({
           data: {
@@ -1324,6 +1419,7 @@ async function advanceTurn() {
         dyingDeathWarnings,
         nukeDeaths,
         nukeBroadcast,
+        ascensionDeaths,
         ascensionBroadcast,
         gameEndedPost,
         birdNotices,
@@ -1370,7 +1466,7 @@ async function advanceTurn() {
   });
 
   // One row per zone rather than one for the game, so every zone's feed on
-  // /play carries the day line (HALL.md §5). /archive folds them back into the
+  // /chat carries the day line (HALL.md §5). /archive folds them back into the
   // single sticky day divider it always drew — a TURN_START row is never
   // rendered as a row, and the divider keys on the day.
   const turnStartContent = [
@@ -1403,513 +1499,63 @@ async function advanceTurn() {
   // Everything below this line is the only place in the turn-advance path
   // that talks to Discord; every resolveNeeds() pass hands back posts/DMs
   // instead of sending them.
+  // Everything the thunk will need, written to the row BEFORE it runs, so a
+  // process that never saw this turn resolve can still finish the fan-out.
+  // See db/lib/turnSideEffects.js for the whole story; the short version is
+  // that a redeploy landing mid-fan-out used to lose the rest of it forever.
+  const sideEffectPayload = buildSideEffectPayload({
+    newTurnId: newTurn.id,
+    note,
+    autoLaborDms,
+    lessonDms,
+    researchDms,
+    confessionDms,
+    tagExpiryDms,
+    turretBursts,
+    depotLocationId,
+    depotLines,
+    turretDms,
+    birdNotices,
+    carryDrops,
+    catatonicDms,
+    catatonicRoleUpdates,
+    catatonicDeathWarnings,
+    dyingDeathWarnings,
+    catatonicDeaths,
+    dyingDeaths,
+    nukeDeaths,
+    ascensionDeaths,
+    turretDeaths,
+    hungerNotices,
+    zoneMoves,
+    travelArrivals,
+    privateDeliveries,
+    routineNotices,
+    gambitRollNotices,
+    nukeBroadcast,
+    ascensionBroadcast,
+    gameEndedPost,
+    publicPosts,
+  });
+  const sideEffectTurnId = closedTurnId ?? newTurn.id;
+  await prisma.turn
+    .update({
+      where: { id: sideEffectTurnId },
+      data: { sideEffectPayload, sideEffectSteps: [], sideEffectsDoneAt: null },
+    })
+    .catch((err) => console.error("Failed to persist the side-effect payload:", err));
+
   const runSideEffects = async () => {
-    // Cutoff for the message wipe below, taken before the first Discord call so
-    // nothing posted by this thunk gets swept. See db/lib/messageWipe.js.
-    const sideEffectsStartedAt = Date.now();
-
-    for (const dm of autoLaborDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Auto-labor DM to ${dm.discordUserId} failed:`, err),
-      );
-    }
-
-    for (const dm of lessonDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Lesson DM to ${dm.discordUserId} failed:`, err),
-      );
-    }
-
-    for (const dm of researchDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Research DM to ${dm.discordUserId} failed:`, err),
-      );
-    }
-
-    for (const dm of confessionDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Confession DM to ${dm.discordUserId} failed:`, err),
-      );
-    }
-
-    for (const dm of tagExpiryDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Tag progression DM to ${dm.discordUserId} failed:`, err),
-      );
-    }
-
-    // A gun going off is heard well past the room it is in. Before the DMs
-    // below rather than after, so the zone hears the burst at about the moment
-    // the people it hit are told what it did to them.
-    for (const burstLocationId of turretBursts) {
-      await announceTurretBurst(prisma, burstLocationId).catch((err) =>
-        console.error("Turret burst failed:", err.message ?? err),
-      );
-    }
-
-    // The Depot's hardware, speaking for itself: the generator dying and the
-    // shuttle leaving on its own clock are both things the room witnesses.
-    if (depotLocationId && depotLines.length) {
-      const depotLocation = await prisma.location
-        .findUnique({
-          where: { id: depotLocationId },
-          select: { discordChannelId: true },
-        })
-        .catch(() => null);
-      if (depotLocation?.discordChannelId) {
-        for (const line of depotLines) {
-          await postMessage(
-            depotLocation.discordChannelId,
-            ambientLine(line.text, [], { signed: line.signed }),
-          ).catch((err) => console.error("Depot ambient line failed:", err));
-        }
-      }
-    }
-
-    // The Landing Pad's starter message says whether the shuttle is sitting on
-    // it (db/lib/roomLive.js), and the shuttle may have left on its own clock
-    // this turn. Hash-guarded, so a turn that did not move it edits nothing.
-    if (depotLocationId) {
-      await refreshLiveRooms(prisma, "shuttle").catch((err) =>
-        console.error("Landing pad refresh failed:", err.message),
-      );
-    }
-
-    for (const dm of turretDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Turret DM to ${dm.discordUserId} failed:`, err),
-      );
-    }
-
-    for (const dm of birdNotices) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Bird failure DM to ${dm.discordUserId} failed:`, err),
-      );
-    }
-
-    for (const result of carryDrops) {
-      await deliverCarryDrop(prisma, result).catch((err) =>
-        console.error(
-          `Carry drop delivery for ${result.characterId} failed:`,
-          err,
-        ),
-      );
-    }
-
-    for (const dm of catatonicDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-        console.error(`Catatonic DM to ${dm.discordUserId} failed:`, err),
-      );
-    }
-
-    // Two things want to rename a personal role in a turn — the Catatonic
-    // suffix, and a disguise coming on or off (db/lib/characterRoleNames.js) —
-    // and both compose their title through characterRoleAppearance. Merged
-    // before anything is sent, so one role is never PATCHed twice in a pass:
-    // the Catatonic list wins a collision, because it is computed from this
-    // turn's own flagging while the reconcile is comparing against a role list
-    // fetched before any of it happened.
-    //
-    // Best-effort, like every other Discord step in this block. The reconcile
-    // is a comparison, so whatever it could not do this turn it will simply
-    // find still disagreeing next turn.
-    const roleUpdates = new Map();
-    const guildRoles = await getGuildRoles().catch((err) => {
-      console.error("Couldn't read the guild's roles for the name reconcile:", err);
-      return [];
+    // An earlier turn whose fan-out was killed goes first — it is older news,
+    // and if the bomb went off yesterday nobody should read this turn's banner
+    // before the fireball.
+    await resumeTurnSideEffects(prisma, { skipTurnId: sideEffectTurnId }).catch((err) =>
+      console.error("Resuming an earlier turn's side effects failed:", err),
+    );
+    await runTurnSideEffects(prisma, {
+      turnId: sideEffectTurnId,
+      payload: sideEffectPayload,
     });
-    for (const update of await reconcileCharacterRoleNames(prisma, guildRoles).catch((err) => {
-      console.error("Character role name reconcile failed:", err);
-      return [];
-    })) {
-      roleUpdates.set(update.roleId, update);
-    }
-    for (const update of catatonicRoleUpdates) roleUpdates.set(update.roleId, update);
-
-    for (const update of roleUpdates.values()) {
-      await patchGuildRole(update.roleId, {
-        name: update.name,
-        color: update.color,
-      }).catch((err) =>
-        console.error(`Role rename for ${update.name} failed:`, err),
-      );
-    }
-
-    for (const warning of [...catatonicDeathWarnings, ...dyingDeathWarnings]) {
-      await sendDm(prisma, warning.discordUserId, warning.content).catch(
-        (err) =>
-          console.error(
-            `Death warning DM to ${warning.discordUserId} failed:`,
-            err,
-          ),
-      );
-    }
-
-    const turnDeaths = [...catatonicDeaths, ...dyingDeaths, ...nukeDeaths, ...turretDeaths];
-
-    // Same teardown web/lib/discordGuild.js#killCharacter performs, plus a
-    // membership check up front so a departed player's steps don't just 403
-    // into the REST breaker's tally.
-    for (const death of turnDeaths) {
-      const member = await getGuildMember(death.discordUserId).catch((err) => {
-        console.error(`Membership check for ${death.name} failed:`, err);
-        return null;
-      });
-
-      // `id` spread in because every pass builds its death entry with
-      // `characterId`, and revokeAllCharacterAccess reads `character.id` to
-      // clear private-Room door grants. Without it that deleteMany matched
-      // nothing and a corpse kept every door somebody had held open for them —
-      // silently, since the rest of the revoke worked fine.
-      const revoked = await revokeAllCharacterAccess(prisma, {
-        ...death,
-        id: death.id ?? death.characterId,
-      }).catch(
-        (err) => {
-          console.error(
-            `Failed to revoke access for ${death.name} on an automatic death:`,
-            err,
-          );
-          return null;
-        },
-      );
-      if (!revoked || revoked.failed > 0) {
-        await prisma.auditLog
-          .create({
-            data: {
-              actorDiscordUserId: "system",
-              actionType: "access_revoke_incomplete",
-              targetCharacterId: death.characterId,
-              targetName: death.name,
-              details: {
-                failed: revoked?.failed ?? null,
-                attempted: revoked?.attempted ?? null,
-              },
-            },
-          })
-          .catch((err) =>
-            console.error("Failed to log an incomplete access revoke:", err),
-          );
-      }
-
-      if (death.discordRoleId) {
-        await deleteGuildRole(death.discordRoleId).catch((err) =>
-          console.error(
-            `Failed to delete ${death.name}'s role on an automatic death:`,
-            err.message,
-          ),
-        );
-      }
-
-      if (member) {
-        await addMemberRole(death.discordUserId, GHOST_ROLE_ID).catch((err) =>
-          console.error(
-            `Failed to grant the ghost seat to ${death.discordUserId}:`,
-            err.message,
-          ),
-        );
-        await setGuildNickname(death.discordUserId, null).catch((err) =>
-          console.error(
-            `Failed to clear ${death.name}'s nickname:`,
-            err.message,
-          ),
-        );
-        // A turret says it better than this loop can, and already has — its
-        // own DM went out with the burst, in the second person and in the
-        // gun's voice. Sending a generic notice after it would be the same
-        // news twice. Everything else above still runs: the teardown is what
-        // a turret kill was missing, not the words.
-        if (!death.ownDm) {
-          await sendDm(
-            prisma,
-            death.discordUserId,
-            `You have died. ${death.reason}`,
-          ).catch((err) =>
-            console.error(`Death DM to ${death.discordUserId} failed:`, err),
-          );
-        }
-      }
-    }
-    if (turnDeaths.length > 0) {
-      await postMessage(
-        LEAVE_ANNOUNCE_CHANNEL_ID,
-        turnDeaths
-          .map((death) => `${death.name} has died — ${death.reason}`)
-          .join("\n"),
-      ).catch((err) =>
-        console.error("Automatic-death alert to #leave failed:", err),
-      );
-    }
-
-    for (const notice of hungerNotices) {
-      await sendDm(prisma, notice.discordUserId, hungerDm(notice)).catch(
-        (err) =>
-          console.error(`Hunger DM to ${notice.discordUserId} failed:`, err),
-      );
-      if (notice.justDied) {
-        await sendDm(prisma, notice.discordUserId, DYING_DM).catch((err) =>
-          console.error(`Dying DM to ${notice.discordUserId} failed:`, err),
-        );
-      }
-    }
-
-    const { applyLocationMoveSideEffects } = require("./lib/locationMove");
-    const { rollCavingOnArrival } = require("./lib/cavingPass");
-    // Two kinds of relocation land in the same breath and want the identical
-    // Discord work: a GM's staged "Relocate to" (zoneMoves) and a player's
-    // paid crossing finally arriving (travelArrivals, MAP.md §3).
-    for (const move of [...zoneMoves, ...travelArrivals]) {
-      await applyLocationMoveSideEffects(prisma, move).catch((err) =>
-        console.error(
-          `Relocation side effects failed for ${move.characterId}:`,
-          err,
-        ),
-      );
-
-      // The traveller pressed Confirm a turn ago and has heard nothing since,
-      // so arriving is the one thing that has to be told. A dragged corpse
-      // gets no letter; `alive` is only set by the travel pass.
-      if (move.toLocationName && move.alive && move.discordUserId) {
-        await sendDm(
-          prisma,
-          move.discordUserId,
-          `» You arrive at **${move.toLocationName}**. ‡`,
-          { kind: DM_KIND.QUIET },
-        ).catch((err) =>
-          console.error(`Arrival DM to ${move.discordUserId} failed:`, err),
-        );
-      }
-
-      // The Caving Die, for a GM's staged "Relocate to". It could not run
-      // inside applyOneStagedEffect — rollCaving opens its own transaction and
-      // that function is already in one — but out here the write has committed
-      // and this is the same post-commit half every other DM goes out from.
-      //
-      // It has to happen SOMEWHERE, and this is the only place left: the
-      // turn-start pass used to sweep up anyone a GM had dropped underground,
-      // and with that pass gone a staged relocation into the Depths would
-      // otherwise roll nothing at all until the character walked. Being
-      // *dropped* into the dark being the one free walk in is exactly how the
-      // die first looked broken (CAVING.md §2).
-      const landed = move.toLocationId
-        ? await prisma.location
-            .findUnique({ where: { id: move.toLocationId }, include: { zone: true } })
-            .catch(() => null)
-        : null;
-      if (landed && move.alive !== false) {
-        const dm = await rollCavingOnArrival(prisma, { id: move.characterId, discordUserId: move.discordUserId }, landed);
-        if (dm) {
-          await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-            console.error(`Arrival caving DM to ${dm.discordUserId} failed:`, err),
-          );
-        }
-      }
-    }
-
-    // Staged-arbitration deliveries (docs/systemdocs/ADJUDICATION.md).
-    // sentAt is stamped only after sends were attempted, so a crash partway
-    // leaves the remainder visibly unsent instead of falsely delivered.
-    const deliveryFailures = [];
-    for (const delivery of privateDeliveries) {
-      const failed = [];
-      for (const recipient of delivery.recipients) {
-        try {
-          await sendDm(prisma, recipient.discordUserId, delivery.content, {
-            authorDiscordUserId: delivery.createdByDiscordUserId ?? null,
-            source: "staged_push",
-            // A turn result is GM-authored prose, just delivered in bulk.
-            kind: DM_KIND.CONVERSATION,
-          });
-        } catch (err) {
-          failed.push({
-            characterId: recipient.characterId,
-            name: recipient.name,
-            error: String(err?.message ?? err),
-          });
-        }
-      }
-      await prisma.stagedMessage
-        .update({
-          where: { id: delivery.stagedMessageId },
-          data: {
-            sentAt: new Date(),
-            deliveryFailures: failed.length ? failed : Prisma.DbNull,
-          },
-        })
-        .catch((err) =>
-          console.error(
-            `Failed to stamp staged message ${delivery.stagedMessageId} sent:`,
-            err,
-          ),
-        );
-      if (failed.length)
-        deliveryFailures.push({
-          stagedMessageId: delivery.stagedMessageId,
-          failed,
-        });
-    }
-
-    for (const notice of routineNotices) {
-      await sendDm(prisma, notice.discordUserId, notice.content).catch((err) =>
-        console.error(
-          `Passed-Routine DM to ${notice.discordUserId} failed:`,
-          err,
-        ),
-      );
-    }
-
-    for (const notice of gambitRollNotices) {
-      await sendDm(prisma, notice.discordUserId, notice.content).catch((err) =>
-        console.error(`Gambit roll DM to ${notice.discordUserId} failed:`, err),
-      );
-    }
-
-    // The fireball, into every zone's #summary. Last of the announcements and
-    // after the deaths above, so nobody reads that the sky is on fire before
-    // their own character has actually died. It carries a real @everyone —
-    // the one message in the game that should wake somebody who is asleep.
-    if (nukeBroadcast) {
-      const { sent, failed } = await broadcastToZones(prisma, nukeBroadcast.content, {
-        mentionEveryone: nukeBroadcast.mentionEveryone,
-      }).catch((err) => {
-        console.error("Nuke broadcast failed:", err);
-        return { sent: 0, failed: [] };
-      });
-      console.log(`Nuke broadcast: ${sent} zones, ${failed.length} failed.`);
-    }
-
-    // The hellfire, same fan-out, no @everyone: the town was warned two turns
-    // ago and that was the message worth waking somebody for.
-    if (ascensionBroadcast) {
-      const { sent, failed } = await broadcastToZones(prisma, ascensionBroadcast.content).catch((err) => {
-        console.error("Ascension broadcast failed:", err);
-        return { sent: 0, failed: [] };
-      });
-      console.log(`Ascension broadcast: ${sent} zones, ${failed.length} failed.`);
-    }
-
-    // The reveal, after the sky and before anything else — the game is over.
-    if (gameEndedPost) {
-      await postGameEnded(prisma, gameEndedPost).catch((err) => console.error("Game Ended post failed:", err));
-      // A phase change, so the spectator seat is re-checked like any other.
-      await syncSpectatorAccess(prisma).catch((err) => console.error("Spectator sweep failed:", err));
-    }
-
-    for (const post of publicPosts) {
-      const targetChannelId = post.zoneSummaryChannelId;
-      if (!targetChannelId) {
-        console.error(
-          `Public declaration ${post.stagedMessageId} skipped: its zone has no summary channel.`,
-        );
-        await prisma.stagedMessage
-          .update({
-            where: { id: post.stagedMessageId },
-            data: {
-              deliveryFailures: [{ error: "no summary channel configured" }],
-            },
-          })
-          .catch((err) =>
-            console.error(
-              `Failed to mark public post ${post.stagedMessageId}:`,
-              err,
-            ),
-          );
-        deliveryFailures.push({
-          stagedMessageId: post.stagedMessageId,
-          failed: [{ error: "no summary channel configured" }],
-        });
-        continue;
-      }
-      try {
-        // Batched: a declaration over 2000 characters posts as several
-        // messages in order rather than being rejected. See ADJUDICATION.md §1.
-        await postMessageBatched(targetChannelId, post.content);
-        // The Hall's half: one SYSTEM row in the zone's feed, beside the post.
-        // The declaration is GM-authored and already signed, so it is not
-        // signed again.
-        await sceneLineAt(prisma, { zoneId: post.zoneId, text: post.content, signed: false });
-        await prisma.stagedMessage
-          .update({
-            where: { id: post.stagedMessageId },
-            data: { sentAt: new Date(), deliveryFailures: Prisma.DbNull },
-          })
-          .catch((err) =>
-            console.error(
-              `Failed to stamp public post ${post.stagedMessageId} sent:`,
-              err,
-            ),
-          );
-      } catch (err) {
-        console.error(
-          `Public declaration ${post.stagedMessageId} failed to post:`,
-          err,
-        );
-        await prisma.stagedMessage
-          .update({
-            where: { id: post.stagedMessageId },
-            data: {
-              deliveryFailures: [{ error: String(err?.message ?? err) }],
-            },
-          })
-          .catch((markErr) =>
-            console.error(
-              `Failed to mark public post ${post.stagedMessageId}:`,
-              markErr,
-            ),
-          );
-        deliveryFailures.push({
-          stagedMessageId: post.stagedMessageId,
-          failed: [{ error: String(err?.message ?? err) }],
-        });
-      }
-    }
-
-    if (deliveryFailures.length) {
-      await prisma.auditLog
-        .create({
-          data: {
-            actorDiscordUserId: "system",
-            actionType: "staged_push_delivery_failed",
-            details: { failures: deliveryFailures },
-          },
-        })
-        .catch((err) =>
-          console.error("Failed to log staged_push_delivery_failed:", err),
-        );
-    }
-
-    await postTurnsAnnouncement(prisma, newTurn, note).catch((err) =>
-      console.error("Failed to post turn announcement:", err),
-    );
-
-    // The wipe runs on EVERY turn now. A turn is one real day, and Dawn/Dusk
-    // alternate, so the old Dawn gate meant a Room scene ran for 48 hours.
-    // Only the zone summaries keep that slower life — CHANNELS.md §8.
-    // `messageWipeEnabled` is no longer a GM knob; the column stays as a
-    // hand-flippable escape hatch if Discord starts rate-limiting.
-    if (config.messageWipeEnabled) {
-      const wipeSummaries = newTurn.phase === "DAWN";
-      // The web's half of the same wipe, and it goes FIRST: the watermark is
-      // the newest row as the pass begins, which is the same instant
-      // `cutoffMs` names on the Discord side. Taking it afterwards would put
-      // everything said during the wipe below the floor — deleted from
-      // Discord's view and hidden from the Hall's, for no reason but that the
-      // sweep was slow. See db/lib/feedWipe.js and HALL.md §7.
-      const { markFeedWiped } = require("./lib/feedWipe");
-      await markFeedWiped(prisma, { summaries: wipeSummaries });
-      await runMessageWipe(prisma, { cutoffMs: sideEffectsStartedAt, wipeSummaries }).catch(
-        (err) => console.error("Message wipe failed:", err),
-      );
-    }
-
-    // The channel doctor's cheap reconcile — roles and membership only, a
-    // handful of requests. It used to sit behind autoReconcileEnabled, a
-    // switch nobody ever turned on; keeping Discord in step with the database
-    // after a turn moves people around is not a thing to opt into.
-    const { runChannelDoctor } = require("./lib/channelDoctor");
-    await runChannelDoctor(prisma, { apply: true, scope: "cheap" }).catch(
-      (err) => console.error("Post-turn channel doctor failed:", err),
-    );
   };
 
   return {
@@ -1928,6 +1574,7 @@ module.exports = {
   Prisma,
   resolveNeeds,
   advanceTurn,
+  resumeTurnSideEffects,
   runFullChannelWipe,
   syncZonesFromYaml,
   syncTagsFromYaml,

@@ -27,7 +27,6 @@ export default function TurnForecast({
   openTurnNumber = null,
   craftProjects = [],
   sitesHere = [],
-  travellingTo = null,
   resources = 0,
 }) {
   const [open, setOpen] = useState(false);
@@ -68,7 +67,6 @@ export default function TurnForecast({
     }
   }
 
-  if (travellingTo) items.push(<span key="travel">{`You arrive at ${travellingTo}`}</span>);
 
   // Dinner, the way db/lib/hungerPass.js settles it: Hungerless owes nothing,
   // a meal already eaten covers it, otherwise the flat 1 ⬢ (2 with Fast

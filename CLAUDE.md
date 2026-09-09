@@ -246,6 +246,7 @@ you pick the right doc — they are never enough to change code with.
 | [`SHEET.md`](docs/systemdocs/SHEET.md) | You're touching `/character` — the sheet: the band, the verb strip, the tag rail and its rows, the equip board, Escape back to `/play`, or the rule that **nothing on that sheet is a tooltip** |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
+| [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
@@ -823,6 +824,22 @@ that database.
   A full reset (`prisma migrate dev`/`reset`, `db push`, `npm run
   db:migrate`) has **no bypass at all**, confirmed or not — see the next
   bullet.
+- **`echo $DATABASE_URL` before you run anything that writes. The variable
+  wins, and a `.env` file proves nothing.** `dotenv.config()` does NOT override
+  a variable that is already exported, so a scratch script with a local `.env`
+  sitting right beside it will happily write to Railway and say nothing about
+  it. That is not hypothetical: on 2026-09-09 a throwaway regression harness
+  truncated seven tables on the live database exactly this way and emptied a
+  real game. Two guards now stand behind this, and neither replaces looking:
+  `db/lib/localDatabase.js` refuses TRUNCATE/DROP through the shared Prisma
+  client against any non-local host (no bypass, and it holds inside
+  `$transaction`), and `.claude/hooks/db-guard.py` refuses the same verbs typed
+  on a command line. The client guard is the one that catches SQL living inside
+  a file; the hook cannot see that far.
+- **A throwaway harness that writes calls `requireLocalDatabase()` first**, from
+  `db/lib/localDatabase.js`, before it opens a connection — the way
+  `scripts/dev/seed-test-data.mjs` does. One line, and it names the host it
+  refused.
 - **Test locally first, by default.** There is close to never a reason to
   need the live database just to check whether a change works.
   [`LOCAL-DEV.md`](docs/systemdocs/LOCAL-DEV.md) covers `npm run dev:setup`
@@ -1102,6 +1119,11 @@ global CLIs. To make one able to build, run, and deploy:
   `ActionStatus.ADJUDICATED`. `TagSource.DESIRE_REWARD` and
   `TagSource.LEADER_GRANT` are the same shape from an earlier tag-sourcing
   design — declared in the enum, written and read nowhere.
+  `Character.travelToLocationId` / `travelTurnId` joined them on 2026-09-14,
+  when deferred travel was removed and every crossing started landing at once
+  (`MAP.md` §3) — `db/lib/travelArrivalPass.js` still reads them, purely as a
+  drain for anybody left mid-journey by that change, and should be deleted once
+  they have landed.
   `GameConfig.mindlinkChannelId` is the same kind of orphan: the column
   stays in the schema, but nothing reads or writes it since the Cult of
   Bacchus was archived (`docs/archive/bacchus.yaml`), and `Character.missedMealStreak`

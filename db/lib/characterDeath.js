@@ -113,7 +113,10 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     );
   } else {
     await prisma.characterTag
-      .updateMany({ where: { characterId: character.id, equipped: true }, data: { equipped: false } })
+      .updateMany({
+        where: { characterId: character.id, equipped: true },
+        data: { equipped: false, equippedQuantity: 0 },
+      })
       .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
   }
 
@@ -128,6 +131,18 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
       data: { escortedById: null },
     })
     .catch((err) => console.error(`Failed to release the party on death for ${character.id}:`, err));
+
+  // A dead man holds nobody (docs/systemdocs/INTERCEPT.md). One of the three
+  // writers that ends a hold before its timestamp — the other two are the
+  // holder's own Release and the holder walking away. Their OWN heldUntil is
+  // deliberately left alone, for the same reason escortedById is: it costs a
+  // corpse nothing, and it lapses on its own anyway.
+  await prisma.character
+    .updateMany({
+      where: { heldById: character.id },
+      data: { heldUntil: null, heldById: null },
+    })
+    .catch((err) => console.error(`Failed to release held characters on death for ${character.id}:`, err));
   await prisma.character
     .update({
       where: { id: character.id },

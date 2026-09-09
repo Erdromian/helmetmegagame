@@ -65,7 +65,12 @@ function combineArmor(characterTags = [], field = "ballisticArmor") {
     if (typeof value !== "number" || Number.isNaN(value) || value <= 0) continue;
     through *= 1 - Math.min(1, value);
   }
-  return Math.min(ARMOR_CAP, 1 - through);
+  // Rounded, not the raw float: `1 - (1 - 0.2)` is 0.19999999999999996 in
+  // IEEE 754, and armorWord's bands compare with a strict `<` — a single
+  // piece of armour authored at exactly a band's edge (0.2, 0.4, 0.6, 0.8)
+  // would silently read one word weaker than the number on the tag says.
+  // Four places is well past anything a value is ever authored to.
+  return Math.round(Math.min(ARMOR_CAP, 1 - through) * 10000) / 10000;
 }
 
 // The Tag columns anything resolving armour must select. Same discipline as

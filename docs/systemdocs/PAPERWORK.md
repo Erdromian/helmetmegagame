@@ -311,7 +311,7 @@ doing. The `noticeboard` pass in `db/index.js` deletes the `NoticePost` and the
 
 Wanted and Debtor notices ride this same machinery rather than a bespoke one —
 `db/lib/wantedPoster.js` mints them through `paperMint.js` and pins one copy
-on a board (the Square for Wanted, the Depot/Customs board for Debtor) with
+on a board (the Square for Wanted, the Depot's board for Debtor) with
 two more loose sheets scattered in nearby rooms, on a 30-turn clock.
 
 That machinery is a **character-creation** thing only. The Censor's and the

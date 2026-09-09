@@ -96,7 +96,7 @@ export default function StarredList({ notes }) {
                 </button>
               </Tooltip>
             </div>
-            {/* The same renderer /play draws the line with. A starred card is a
+            {/* The same renderer /chat draws the line with. A starred card is a
                 verbatim copy of a scene line, so anything less than the scene's
                 own renderer shows the reader the plumbing: this used to be a
                 bare string, which meant a mention arrived as `{char:<cuid>}` and

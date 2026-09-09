@@ -782,6 +782,13 @@ export default function Chat({
           // The words themselves survive the switch (./draftStore.js).
           key={selectedKey}
           place={selected}
+          // Where you are STANDING, which is not always what you are reading:
+          // a conversation or the zone summary is open from somewhere. The
+          // open place's own name is the heading under this, so anything that
+          // would just repeat it is dropped rather than said twice.
+          crumb={[aside?.zone?.name, aside?.place?.name].filter(
+            (name) => name && name !== selected?.name,
+          )}
           self={self}
           autocorrect={autocorrect}
           onSeen={onSeen}

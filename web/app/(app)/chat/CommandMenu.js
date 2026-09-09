@@ -11,7 +11,7 @@ import { memo } from "react";
 // zone summary has no door to open. Filtering rather than greying: this is a
 // list of what you can type, not a menu of things you are being refused.
 
-const CommandMenu = memo(function CommandMenu({ matches, active, onPick }) {
+const CommandMenu = memo(function CommandMenu({ matches, active, onPick, onHover }) {
   if (matches.length === 0) return null;
   return (
     <div className="chat-mentions" role="listbox" aria-label="Commands">
@@ -25,6 +25,10 @@ const CommandMenu = memo(function CommandMenu({ matches, active, onPick }) {
           className="menu-item chat-cmd-item"
           // Mousedown rather than click, MentionMenu's reason: the textarea
           // must not lose focus before the pick lands.
+          // Pointing at a row makes it the active one, so Enter picks what
+          // the mouse is over rather than what the arrow keys last left
+          // behind. Neither list highlighted under a mouse at all before.
+          onMouseEnter={() => onHover?.(i)}
           onMouseDown={(e) => {
             e.preventDefault();
             onPick(entry);

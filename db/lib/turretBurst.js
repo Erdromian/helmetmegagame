@@ -21,13 +21,10 @@ const { ambientLine } = require("./ambientLine");
 const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
 
-// RRATATAT is Bascinet's own word and keeps its shape. The sentence in front of
-// it is not theirs — it was added so every audible line in the game opens "You
-// hear" — so the whole thing now carries a ‡ where the bare shout did not.
 const BURST_SOUND = "You hear a machinegun open up. RRATATAT!";
-// The room the gun is in gets it full size, so it appends its own mark;
-// ambientLine adds one for the copy that carries.
-const BURST_TEXT = `${BURST_SOUND} ‡`;
+// The room the gun is in gets it full size; ambientLine renders the copy that
+// carries to the rest of the zone as subtext.
+const BURST_TEXT = BURST_SOUND;
 
 async function announceTurretBurst(prisma, locationId) {
   if (!locationId || !process.env.DISCORD_TOKEN) return { sent: 0 };

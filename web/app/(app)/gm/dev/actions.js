@@ -95,7 +95,7 @@ export async function updateGameConfig(formData) {
   revalidatePath("/lifeweb");
   revalidatePath("/character");
   revalidatePath("/store");
-  revalidatePath("/play");
+  revalidatePath("/chat");
 }
 
 // The Depot's live state and its tuning, in one flat clamped allowlist —
@@ -455,6 +455,14 @@ export async function wipeGameData(formData) {
       // cannot carry anything over, which the old allowlist provably could.
       prisma.gameState.deleteMany({}),
       prisma.gameState.create({ data: { id: 1, gameId: nextGame.id } }),
+      // The Depot is the same kind of row and was missed entirely, so it kept
+      // everything: an ARMED turret, the Merchant's account, a docked shuttle
+      // and a merchantFace naming a character the wipe had just deleted. The
+      // gun then shot the people in the caves the next game, with nobody in
+      // that game having armed it. Same delete-and-recreate for the same
+      // reason — loadDepot upserts id 1, so a read before this lands is fine.
+      prisma.depot.deleteMany({}),
+      prisma.depot.create({ data: { id: 1 } }),
     ]);
     forgetGameId();
     // Chat reads past a finished game by seq (db/lib/feedWipe.js); drop
@@ -788,8 +796,14 @@ export async function assignFactionMember(formData) {
 export async function defuseNukeAction() {
   const session = await requireDev();
 
+  // The fired stamp lives on the Game row, not GameState — otherwise Defuse
+  // stayed refused for every game after the one that detonated.
   const state = await getGameState(prisma);
-  if (state.nukeDetonatedTurn != null) {
+  const currentGame = await prisma.game.findUnique({
+    where: { id: state.gameId },
+    select: { nukeDetonatedTurn: true },
+  });
+  if (currentGame?.nukeDetonatedTurn != null) {
     return { ok: false, error: "It already went off." };
   }
   if (state.nukeArmedTurn == null) {
@@ -821,7 +835,11 @@ export async function cancelAscensionAction() {
   const session = await requireDev();
 
   const state = await getGameState(prisma);
-  if (state.ascensionFiredTurn != null) {
+  const currentGame = await prisma.game.findUnique({
+    where: { id: state.gameId },
+    select: { ascensionFiredTurn: true },
+  });
+  if (currentGame?.ascensionFiredTurn != null) {
     return { ok: false, error: "It already happened." };
   }
   if (state.ascensionArmedTurn == null) {

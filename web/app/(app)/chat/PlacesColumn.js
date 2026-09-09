@@ -5,6 +5,7 @@ import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
 import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
+import { useFolded } from "./sectionFold";
 
 // The left column of Chat: everywhere this character may read, grouped the
 // way a person would think of them.
@@ -75,17 +76,41 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
   );
 });
 
+// A section folds shut, and stays shut across visits (./sectionFold.js). A
+// Keep with eight rooms used to push Conversations off the bottom of the
+// column, and nothing else here can make the list shorter.
+//
+// A fold NEVER hides an unread place. Somebody who folded Rooms in a quiet
+// hour would otherwise stop being told anything was said in one, and a column
+// that silently withholds a waiting conversation is worse than a long column.
 function Section({ title, places, selected, seen, newest, onSelect }) {
+  const [folded, toggleFolded] = useFolded(title);
+  // Hooks first: this return has to sit under them.
   if (places.length === 0) return null;
+  const unreadOf = (place) =>
+    place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place));
+  const shown = folded ? places.filter((place) => unreadOf(place)) : places;
+  const hidden = places.length - shown.length;
   return (
     <div className="chat-section">
-      <p className="chat-section-title">{title}</p>
-      {places.map((place) => (
+      <button
+        type="button"
+        className="chat-section-title chat-section-fold"
+        aria-expanded={!folded}
+        onClick={toggleFolded}
+      >
+        <span className="chat-fold-mark" aria-hidden="true">
+          {folded ? "▸" : "▾"}
+        </span>
+        {title}
+        {hidden > 0 && <span className="chat-fold-count mono">{hidden}</span>}
+      </button>
+      {shown.map((place) => (
         <PlaceRow
           key={place.placeKey}
           place={place}
           active={place.placeKey === selected}
-          unread={place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place))}
+          unread={unreadOf(place)}
           onSelect={onSelect}
         />
       ))}

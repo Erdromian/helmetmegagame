@@ -487,7 +487,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     console.error(`Move: thread invite pass failed for ${characterId}:`, err.message ?? err),
   );
 
-  // The feet moved, so the web's place list did too: every open /play tab of
+  // The feet moved, so the web's place list did too: every open /chat tab of
   // this character re-asks db/lib/feedAccess.js#placesFor (docs CHAT.md §3).
   await notifyPresence(prisma, characterId);
 }

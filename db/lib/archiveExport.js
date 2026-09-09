@@ -246,13 +246,13 @@ async function verifyPacket(filePath) {
 //
 // Every feed reader leans on one invariant (CHAT.md §7): seq only climbs, so
 // every row of a finished game sits BELOW every row of the current one.
-// db/lib/feedWipe.js#previousGameFloor turns that into the floor /play filters
+// db/lib/feedWipe.js#previousGameFloor turns that into the floor /chat filters
 // above, by taking MAX(seq) of everything not in this game.
 //
 // Deleting old rows is therefore safe — it can only lower the floor, and the
 // rows it would have hidden are gone. IMPORTING is the dangerous direction: a
 // packet whose seq range reaches into the live game's range lifts the floor
-// ABOVE the live rows, and /play, the SSE stream, history and the unread dots
+// ABOVE the live rows, and /chat, the SSE stream, history and the unread dots
 // all go dark at once.
 async function assertSeqSafe(prisma, { maxSeq, gameId }) {
   if (maxSeq === null) return;
@@ -269,7 +269,7 @@ async function assertSeqSafe(prisma, { maxSeq, gameId }) {
     throw new Error(
       `archiveExport: this packet's seq range (up to ${maxSeq}) reaches into the current game ` +
       `(from ${liveMin}). Importing it would lift the feed floor above the live rows and blank ` +
-      `/play for everyone. Re-run with --remap-seq to import it with fresh seq values instead.`,
+      `/chat for everyone. Re-run with --remap-seq to import it with fresh seq values instead.`,
     );
   }
 }

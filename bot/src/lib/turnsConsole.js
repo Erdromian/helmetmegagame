@@ -60,7 +60,9 @@ async function ensureTurnsConsole(guild) {
   const [openTurn, frozen, state] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
     clockFrozen(prisma),
-    readGameState(prisma, { nukeDetonatedTurn: true, ascensionFiredTurn: true }),
+    readGameState(prisma, {
+      game: { select: { nukeDetonatedTurn: true, ascensionFiredTurn: true } },
+    }),
   ]);
   const text = [
     openTurn ? buildTurnAnnouncement(openTurn, null, { clockFrozen: frozen }) : null,

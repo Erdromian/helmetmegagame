@@ -49,6 +49,13 @@ async function addToStack(tx, characterId, tagId, quantity, options = {}) {
 // Removes `quantity` of a tag, deleting the row once nothing is left. Pass
 // null (the default) to drop the whole holding however large the stack —
 // that is what an ordinary, non-stackable tag always wants.
+//
+// A unit taken off a stack is never one that is equipped — equippedQuantity
+// is clamped down to whatever quantity remains, freeing the slot(s) that
+// frees, rather than leaving it pointing past the end of a shorter stack.
+// This is the single place quantity ever shrinks without an explicit equip
+// op, so it is the one place that has to know the invariant
+// (equippedQuantity <= quantity) can break and put it back.
 async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
   const existing = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId, tagId } },
@@ -59,10 +66,37 @@ async function dropCharacterTag(tx, characterId, tagId, quantity = null) {
     await tx.characterTag.delete({ where: { id: existing.id } });
     return;
   }
+  const remaining = existing.quantity - take;
+  const equippedQuantity = Math.min(existing.equippedQuantity, remaining);
   await tx.characterTag.update({
     where: { id: existing.id },
-    data: { quantity: existing.quantity - take },
+    data: { quantity: remaining, equippedQuantity, equipped: equippedQuantity > 0 },
   });
+}
+
+// A stack shrunk by a raw quantity decrement OUTSIDE dropCharacterTag —
+// riteEffects.js#spendFromHolder, thanatiActions.js#spendCharacterTag,
+// requestActions.js#consumeRecipeItems, cavingPass.js's musk-lure spend —
+// each a guarded conditional updateMany rather than dropCharacterTag, for its
+// own concurrency reason documented at its call site (dropCharacterTag reads
+// then writes, "the wrong shape for money"). Every one of those needs this
+// run right after, the same clamp dropCharacterTag applies inline: a stack
+// spent down to fewer units than are equipped frees the slots that frees,
+// rather than leaving equippedQuantity pointing past the end of it.
+//
+// A single atomic UPDATE, safe to call unconditionally after any decrement —
+// the WHERE only ever matches a row the decrement actually left
+// over-equipped, so it is a no-op the rest of the time. Keyed on
+// (characterId, tagId) rather than the row id because not every call site has
+// read the row first.
+async function clampEquippedQuantity(tx, characterId, tagId) {
+  await tx.$executeRaw`
+    UPDATE "CharacterTag"
+    SET "equippedQuantity" = LEAST("equippedQuantity", "quantity"),
+        "equipped" = (LEAST("equippedQuantity", "quantity") > 0)
+    WHERE "characterId" = ${characterId} AND "tagId" = ${tagId}
+      AND "equippedQuantity" > "quantity"
+  `;
 }
 
 // A chain replaces upward (TAGS.md §3): gaining Melee (Trained) takes Melee
@@ -258,4 +292,12 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null) {
   return true;
 }
 
-module.exports = { addToStack, dropCharacterTag, replaceLowerTiers, grantTagSlugs, addToRoomStack, dropRoomTag };
+module.exports = {
+  addToStack,
+  dropCharacterTag,
+  clampEquippedQuantity,
+  replaceLowerTiers,
+  grantTagSlugs,
+  addToRoomStack,
+  dropRoomTag,
+};

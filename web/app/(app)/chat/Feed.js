@@ -143,6 +143,9 @@ const FeedRow = memo(function FeedRow({
   canRemove,
   editing,
   coarse,
+  // True only for a row that arrived after this place was painted, so the
+  // backlog does not animate. See `liveAfter`.
+  live,
   onRetry,
   onEdit,
   onCancelEdit,
@@ -153,25 +156,28 @@ const FeedRow = memo(function FeedRow({
   onStar,
   onRemove,
 }) {
-  const [hover, setHover] = useState(false);
   const [draft, setDraft] = useState(row.content ?? "");
 
-  // Always reachable on a touch screen, where there is no hover to reveal
-  // them; out of the way of a mouse until it is over the row.
   // ⭐ is offered on every line that HAS a seq — your own included, exactly as
   // the reaction is in Discord — which is what widened the bar past the rows
   // somebody can act against. A system line with no seq still has nothing.
   const anyAction = mine || canLook || canPhoto || canRemove || row.seq != null;
-  const showActions = anyAction && !editing && !row.pending && (coarse || hover);
+  // WHETHER the bar exists is decided here; whether it is SEEN is decided in
+  // CSS, by .chat-row:hover and :focus-within. It used to be a useState set
+  // from onMouseEnter/onMouseLeave, which re-rendered the row on every mouse
+  // crossing and — worse — meant a keyboard could never reveal the bar at
+  // all, because a keyboard produces no mouseenter. Rendering it always and
+  // letting :focus-within do the work is what makes it reachable by tab.
+  const showActions = anyAction && !editing && !row.pending;
 
   return (
     <li
       className="chat-row"
       data-seq={row.seq ?? undefined}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
       data-run={startsRun ? "start" : undefined}
       data-pending={row.pending ? "true" : undefined}
+      // Only a line that ARRIVED gets the fade. See `liveAfter` below.
+      data-live={live ? "true" : undefined}
     >
       <div className="chat-row-face">
         {startsRun && (
@@ -190,12 +196,19 @@ const FeedRow = memo(function FeedRow({
           />
         )}
       </div>
-      <div className="min-w-0 flex-1">
+      <div className="chat-row-body">
+        {/* A real class family rather than .chat-* mixed with loose Tailwind
+            utilities, so restyling a row is a CSS edit and not a JSX one.
+            data-alias tints the name where somebody is speaking under one, so
+            a scene is scannable by who is in it — a hood reads as a hood at a
+            glance instead of as one more name in the column. */}
         {startsRun && (
-          <div className="flex items-baseline gap-2">
-            <span className="font-semibold">{row.name}</span>
-            <span className="mono text-xs text-muted">{timeLabel(row.sentAt)}</span>
-            {row.editedAt && <span className="text-xs text-muted">(edited)</span>}
+          <div className="chat-row-head">
+            <span className="chat-row-name" data-alias={row.alias ? "true" : undefined}>
+              {row.name}
+            </span>
+            <span className="chat-row-time mono">{timeLabel(row.sentAt)}</span>
+            {row.editedAt && <span className="chat-row-edited">(edited)</span>}
           </div>
         )}
 
@@ -493,6 +506,8 @@ export default function Feed({
   // twice.
   jump = null,
   onJump = null,
+  // Zone · Location, from Chat.js. The open place is the heading under it.
+  crumb = [],
   // The rows page.js server-rendered, and which place they belong to.
   // feedStore.js is a module-level client store, so its server snapshot is
   // empty by construction — without this the SERVER paint of a busy street
@@ -554,6 +569,10 @@ export default function Feed({
       ? fallbackRows
       : stored;
   const [searchOpen, setSearchOpen] = useState(false);
+  // Whether the place's own description under the title is open. Chat.js keys
+  // this component on the open place, so walking into another room brings the
+  // line back closed without a reset.
+  const [descOpen, setDescOpen] = useState(false);
   // The `at` of a jump whose failure the reader has already waved away, so
   // closing the search box after a miss actually closes it.
   const [dismissedJump, setDismissedJump] = useState(null);
@@ -1367,6 +1386,33 @@ export default function Feed({
   // sits open, and a render that read it would be deciding on a stale one (and
   // is impure besides). It is checked when the button is pressed, and again by
   // the server, which is the only check that counts.
+  // The seq the feed was already showing when this place first painted.
+  // Anything above it ARRIVED, and only an arrival is worth animating.
+  //
+  // A lazily-filled ref rather than state, deliberately: the repo lints
+  // react-hooks/set-state-in-effect as an error, and this needs no re-render
+  // of its own — it is read during the same render that draws the rows. It is
+  // reset when the place changes, because the next place's backlog is a
+  // backlog too.
+  const liveAfter = useRef({ placeKey: null, seq: 0 });
+  if (liveAfter.current.placeKey !== placeKey) {
+    liveAfter.current = {
+      placeKey,
+      seq: rows.reduce((hi, r) => (Number(r.seq) > hi ? Number(r.seq) : hi), 0),
+    };
+  }
+  const liveFloor = liveAfter.current.seq;
+
+  // How many lines are under the NEW mark, for the pill that floats over the
+  // feed. `newAt` is the first row somebody else said since this place was
+  // last read, so everything from it down is what the reader has not seen.
+  // Nothing to count (no mark, or caught up) reads as a plain "New messages".
+  const newCount = useMemo(() => {
+    if (!newAt) return 0;
+    const from = rows.findIndex((row) => row.seq === newAt);
+    return from < 0 ? 0 : rows.length - from;
+  }, [rows, newAt]);
+
   const withRuns = useMemo(
     () =>
       rows.map((row, i) => {
@@ -1449,14 +1495,44 @@ export default function Feed({
     setDismissedJump(jump?.at ?? null);
   };
 
-  // The head is the place's name and nothing else. The description used to
-  // sit here with a "more" button on it, capped halfway down a fixed-height
-  // strip; it belongs beside the scene rather than over it, and the turn is
-  // already on the crumb above the whole Chat (layout.js).
+  // The head is the place's name and, under it, the place's own words. A room
+  // has nowhere else to say them: PlaceCard draws the LOCATION's description
+  // and the zone's, and the hover card on the room's row in the left column is
+  // gone the moment you click through. So the line comes back here — but as one
+  // clamped line of subtext you open with a click, not the fixed-height strip
+  // with a "more" button that used to sit over the scene. The turn is still on
+  // the crumb above the whole Chat (layout.js).
+  const description = place?.description?.trim() || "";
   return (
     <div className="chat-main">
       <div className="chat-head">
-        <h1 className="section-title">{place.name}</h1>
+        <div className="chat-head-main">
+          {/* Where you are standing, above what you are reading. A
+              conversation and the zone summary are both opened from
+              somewhere, and nothing on the page used to say where. */}
+          {crumb.length > 0 && (
+            <p className="chat-crumb">
+              {crumb.map((name, i) => (
+                <Fragment key={name}>
+                  {i > 0 && <span aria-hidden="true"> · </span>}
+                  {name}
+                </Fragment>
+              ))}
+            </p>
+          )}
+          <h1 className="section-title">{place.name}</h1>
+          {description && (
+            <button
+              type="button"
+              className="chat-head-desc"
+              data-open={descOpen ? "true" : undefined}
+              aria-expanded={descOpen}
+              onClick={() => setDescOpen((open) => !open)}
+            >
+              {description}
+            </button>
+          )}
+        </div>
         {onJump && (
           <IconButton
             icon={SearchIcon}
@@ -1488,8 +1564,14 @@ export default function Feed({
         />
       )}
 
+      {/* The scroller and the pill that floats over it share a wrapper, so
+          the pill can be positioned against the feed's own bottom edge. It
+          used to sit after this block as an ordinary flex child, which cost
+          the feed a whole layout row and pushed the scene up every time
+          somebody scrolled away from the bottom. */}
+      <div className="chat-feed-wrap">
       <div ref={scrollerRef} onScroll={onScroll} className="chat-feed">
-       <div ref={innerRef}>
+       <div ref={innerRef} className="chat-feed-inner">
         {/* The board is nailed to the top of the street, not filed into it in
             the order it went up: a notice is a thing standing there, and it
             has to still be readable after fifty lines of scene. */}
@@ -1530,6 +1612,10 @@ export default function Feed({
                     canRemove={canRemove}
                     editing={editing}
                     coarse={coarse}
+                    // A pending row is your own send, which has always just
+                    // happened; anything past the floor arrived while you
+                    // were watching. Everything else is backlog.
+                    live={Boolean(row.pending) || Number(row.seq) > liveFloor}
                     onRetry={onRetry}
                     onEdit={onEdit}
                     onCancelEdit={onCancelEdit}
@@ -1558,9 +1644,11 @@ export default function Feed({
             scrollerRef.current?.scrollTo({ top: scrollerRef.current.scrollHeight, behavior: "smooth" });
           }}
         >
-          New messages
+          {newCount > 0 ? `${newCount} new` : "New messages"}
+          <span aria-hidden="true"> ↓</span>
         </button>
       )}
+      </div>
 
       {/* Who is writing something, above the composer and below the scene.
           Holds its line's height whether or not anybody is, so the feed does
@@ -1573,11 +1661,27 @@ export default function Feed({
         <div className="chat-composer">
           {place.canSpeak ? (
             <>
-              <div className="field chat-composer-box">
+              <div className="field chat-composer-box" data-command={command ? "true" : undefined}>
+                {/* COMMAND MODE reads as a strip across the top of the box —
+                    what you are running, what it does, and a way out. It used
+                    to be a floating accent-tinted pill above the textarea,
+                    which read as a bubble stuck to the composer rather than
+                    as a state the box was in. */}
                 {command && (
-                  <span className="chat-cmd-chip mono" data-cmd={command.entry.name}>
-                    /{command.entry.name}
-                  </span>
+                  <div className="chat-cmd-strip">
+                    <span className="chat-cmd-strip-name mono">/{command.entry.name}</span>
+                    {command.entry.description && (
+                      <span className="chat-cmd-strip-hint">{command.entry.description}</span>
+                    )}
+                    <button
+                      type="button"
+                      className="chat-cmd-strip-out"
+                      aria-label="Leave command mode"
+                      onClick={() => exitCommand("")}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 )}
                 <textarea
                   id="chat-composer"
@@ -1669,10 +1773,20 @@ export default function Feed({
                   }}
                 />
                 {mention && (
-                  <MentionMenu matches={matches} active={mention.active} onPick={pickMention} />
+                  <MentionMenu
+                    matches={matches}
+                    active={mention.active}
+                    onPick={pickMention}
+                    onHover={(i) => setMention((cur) => (cur ? { ...cur, active: i } : cur))}
+                  />
                 )}
                 {slash && (
-                  <CommandMenu matches={cmdMatches} active={slash.active} onPick={pickCommand} />
+                  <CommandMenu
+                    matches={cmdMatches}
+                    active={slash.active}
+                    onPick={pickCommand}
+                    onHover={(i) => setSlash((cur) => (cur ? { ...cur, active: i } : cur))}
+                  />
                 )}
                 {/* The arguments a command still wants, as chips under the
                     box. One row at a time: the first unfilled one is the
@@ -1690,28 +1804,51 @@ export default function Feed({
                   />
                 )}
               </div>
-              {waitSeconds > 0 && (
-                // Slowmode, said as a clock rather than as a refusal. The
-                // zone summary is the only place that has one.
-                <span className="chat-countdown mono" data-nudge={nudge ? "true" : undefined} aria-live="polite">
-                  {waitSeconds} s
+              {/* Slowmode, said as a clock rather than as a refusal — and
+                  said BEFORE it bites. It only appeared once the wait was
+                  already running, so the first a player knew of a slowmode was
+                  being stopped by one. The zone summary is the only place that
+                  has one at all. */}
+              {slowmodeMs > 0 && (
+                <span
+                  className="chat-countdown mono"
+                  data-nudge={nudge ? "true" : undefined}
+                  data-waiting={waitSeconds > 0 ? "true" : undefined}
+                  aria-live="polite"
+                >
+                  {waitSeconds > 0 ? `${waitSeconds} s` : `${Math.round(slowmodeMs / 1000)} s`}
                 </span>
               )}
-              {coarse && (
-                // A phone's Enter is a newline (Discord's app does the same),
-                // so this button is the only way to run a command there too.
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={command ? runCurrent : submit}
-                  disabled={
-                    command
-                      ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
-                      : !draft.trim() || waitSeconds > 0
-                  }
+              {/* On a phone Enter is a newline (Discord's app does the same),
+                  so this is the only way to run a command there. On a desktop
+                  it used to be absent ENTIRELY — a mouse had no submit
+                  affordance at all, and nothing on the page said Enter would
+                  send. It is drawn everywhere now, with the keys spelled out
+                  beside it where there is a keyboard to use them. */}
+              <button
+                type="button"
+                className="btn"
+                onClick={command ? runCurrent : submit}
+                disabled={
+                  command
+                    ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
+                    : !draft.trim() || waitSeconds > 0
+                }
+              >
+                {command ? "Run" : "Send"}
+              </button>
+              {/* Two quiet readouts under the send. The keys, because nothing
+                  on the page said Enter would send; and the count, but only
+                  where a limit actually exists to run into — the refusal used
+                  to be the first mention of one. */}
+              {!coarse && <span className="chat-composer-keys">Enter to send · Shift+Enter for a line ‡</span>}
+              {command && textArgOf(command.entry)?.maxLength && (
+                <span
+                  className="chat-composer-count mono"
+                  data-over={draft.trim().length > textArgOf(command.entry).maxLength ? "true" : undefined}
                 >
-                  {command ? "Run" : "Send"}
-                </button>
+                  {draft.trim().length}/{textArgOf(command.entry).maxLength}
+                </span>
               )}
             </>
           ) : place.kind === "loc" ? (

@@ -77,8 +77,8 @@ list of the built things that were always standing there (the Square's cross),
 seeded as `COMPLETE` `Structure` rows by the zone sync (`SYNC.md` §2):
 
 ```yaml
-customs:
-  name: Customs
+depot:
+  name: Depot
   attributes:
     depot: true
 ```
@@ -296,36 +296,56 @@ adds one, and being Overburdened takes them all away — the full rule lives in
 [`CARRY.md`](CARRY.md) §2a. So a peasant walks Town → Forest for nothing,
 spends their Move to reach the Fortress, and the way home waits for next turn.
 
-**A crossing that costs the Move only lands NEXT TURN.** It is a day on the
-road: the Move is spent the moment the player confirms, but
-`Character.locationId` is not written. The destination is parked on
-`Character.travelToLocationId` (with `travelTurnId`, the turn it was declared
-in), and `db/lib/travelArrivalPass.js` — **last** in `TURN_PASSES` — walks the
-traveller and everyone they dragged over at the next advance. That is what
-keeps the destination's channels shut for the rest of the turn they left in,
-instead of opening under them the second they press Confirm. A **free**
-crossing and a same-zone hop are untouched and still instant.
+**A crossing lands at once, whatever it cost.** The Move is spent and the
+character is standing at the destination by the time the call returns — same as
+a free crossing and same as a same-zone hop.
 
-While a journey is pending the character **cannot leave the zone they set out
-from, and can still walk around inside it**. Only a crossing is refused —
-`performLocationMove` answers "You're on the road to X" for one, and
-`travelOptions` marks every `crossesZone` row unpassable with the same line, so
-the map, the `/play` panel and the bot's picker all draw the roads out shut and
-the local ways open without a copy of the rule in each. Hops inside the zone
-stay free on the ordinary cooldown, they do **not** clear
-`travelToLocationId`, and the arrival pass lands the traveller at the
-destination they paid for whichever Location they ended the day in — the edge
-was checked and the Move spent at declaration, so wandering buys nothing but
-company. There is still no turning back (the Turn back control was removed on
-2026-09-07). The freeze used to cover every move, including the free ones: that
-guard sat above the point where `performLocationMove` works out whether a hop
-crosses a zone at all, so it caught walks it was never aimed at, and a player
-who spent their Move on the road spent the day standing in one room.
-Nothing is announced at departure; the ordinary arrival lines fire next
-turn, plus a "You arrive at X" DM. Every raw relocation (a GM teleport, Bulk
-Move, the staged "Relocate to") clears the pending destination too, or the
-pass would undo the teleport at Dawn, and so does death. Each of them clears
-`escortedById` in the same statement (§3a).
+It was not always so. Until 2026-09-14 a crossing that cost the Move was a day
+on the road: the Move went at once, `Character.locationId` did not move, the
+destination was parked on `Character.travelToLocationId`, and
+`db/lib/travelArrivalPass.js` walked the traveller and their party over at the
+next advance. The point of that was the destination's Discord channels — they
+stayed shut for the rest of the turn you left in, instead of opening under you
+the second you pressed Confirm. Removing it is Bascinet's call, and the cost is
+exactly that: **press Confirm and the far zone's category, `#summary` and
+Location channel are yours within the minute**, along with the gate
+announcement, the Caving Die, the turrets, arrival mood and the carry settle.
+Anyone standing there can Bind, Loot or Harm you the same turn you set out.
+
+Two smaller things moved with it. The turn passes now settle a crosser at the
+**destination** rather than the origin — auto-labor pays the yield of the place
+they ended the day in, and the night's mood reads its `wilderness`/`haven`. And
+`travelArrivalPass` is now a **drain**: nothing files work for it, and it is
+kept only to land anybody who was mid-journey when the change deployed. Delete
+it once they have.
+
+The two columns stay in the schema, unwritten, beside `missedMealStreak` and
+`mindlinkChannelId`.
+
+**Being HELD is the one thing that stops a move outright.** Somebody laid in
+wait where you walked in and stopped you — see
+[`INTERCEPT.md`](INTERCEPT.md). `performLocationMove` refuses with the hold's
+own sentence, beside its incapacitation gate, and `travelOptions` draws every
+way shut and says why. A held follower is left behind rather than carried out
+(§3a).
+
+UNDOING a Move gives back what the crossing SPENT, and not the crossing:
+`web/lib/moveEconomy.js#deleteActionRestoringTurn` — shared by the Dev
+Panel's "Give their turn back" and the Moves desk's Reject — deletes the
+auto-resolved `Action` a paid crossing filed, and
+`db/lib/locationTravel.js#travelClaimsToUndo` is what tells it to also zero
+`zoneMovesUsed`/`zoneMovesTurnId` when this turn's free-crossing claim
+belongs to that Action (`Action.turnId` is unique per character, so a match
+can only ever mean this one). Left alone, the day's free crossings stayed
+spent even though the Move that spent them just came back.
+
+**It does not walk them home.** When a paid crossing was a day on the road,
+undoing the Action really did call the journey off, because nobody had moved
+yet. They have now — a GM who wants them back where they started teleports
+them. `travelClaimsToUndo`'s `travelTo*` branch survives only as a drain for
+a straggler, and goes with the arrival pass. `escortedById` is not restored
+either: a crossing overwrites it with `null` and never remembers what it
+was, so there is nothing to give back.
 
 Spending the Move is written as a real, auto-resolved `Action`
 (`type: MOVE`, `status: CONFIRMED`, `moveReviewStatus: SOLVED`,
@@ -373,20 +393,17 @@ extra free hop the instant they can act again.
 **The Caving Die rolls on arrival** for the mover and everyone in their
 party, on any `CAVE_LEVEL` destination — and arrival is now the *only*
 time it rolls, so walking is what wakes the dark. A Location wearing the
-`safe` attribute is exempt; Customs is the only one (`CAVING.md` §2).
-
-On a deferred crossing the die waits with everything else: nobody has arrived,
-so `travelArrivalPass` rolls it next turn through the thunk.
+`safe` attribute is exempt; Customs and the Depot are the two (`CAVING.md` §2).
 
 `performLocationMove` returns `{ ok, oldLocation, oldZone, targetLocation,
 targetZone, crossedZone, spentTurn, usedHorse, moved: [{ character,
 fromLocationId, fromZoneId, toLocationId, toZoneId, zoneChanged, cavingDm },
-...], leftBehind: [{ character, reason }] }` (mover first) on success, or
-`{ ok: false, reason, retryAfterSeconds? }` on refusal. A deferred crossing
-adds `deferred: true` and returns **`moved: []`** — every caller drives its
-role swaps off that list and nothing has moved — with the party in
-`travelers` instead, for the DM that tells a passenger they are being walked
-somewhere. `leftBehind` is filled on both, and is the caller's cue to DM.
+...], leftBehind: [{ character, reason }], interceptDms }` (mover first) on
+success, or `{ ok: false, reason, retryAfterSeconds? }` on refusal. There is
+one shape now — the `deferred: true` / empty-`moved` / `travelers` form went
+with the deferral. `leftBehind` is the caller's cue to DM, and `interceptDms`
+is sent the same way `cavingDm` is: built here, sent by the caller, never
+inside a transaction.
 
 ## 3a. Escorting — the party you carry
 
@@ -443,9 +460,9 @@ Three things about it are easy to get wrong:
   `db/test/escort.test.js` pins the case.
 - **`ESCORT_SELECT` is a strict superset of `CHARACTER_SELECT`**, because
   every caller now loads a mover with it and hands that row straight to
-  `performLocationMove`. Drop `travelToLocationId` and a character on the road
-  walks off it; drop `zoneMoves*` and free crossings never run out. A test
-  asserts the superset holds.
+  `performLocationMove`. Drop `zoneMoves*` and free crossings never run out;
+  drop `heldUntil` and an ambush stops working. A test asserts the superset
+  holds.
 
 **Consent lasts two turns.** Accepting stamps `escortConsentToId` and
 `escortConsentUntilTurn` (`turn.number + CONSENT_TURNS`) on the **responder's**
@@ -484,8 +501,15 @@ day it was written until this rework.
 **A stale attachment is inert, not dangerous.** `escortAuthority` returns
 `null` the moment two people are not co-located, so a row left behind by a GM
 teleport costs one poll of a wrong-looking panel and nothing else. The raw
-relocation writers clear it anyway, beside the `travelTo*` they already
-cleared.
+relocation writers clear it anyway.
+
+**Somebody being held is not available to be picked up.** `escortAuthority`
+returns `null` for them — above the FORCED branches, so an ambusher cannot walk
+off with their own prisoner either; taking them somewhere is what the Gambit is
+for. `performLocationMove` re-checks it per follower, because a hold can land
+between the pick and the walk, and drops them into `leftBehind` with the reason
+`held`. That is the one `leftBehind` reason the leader IS told, because it is
+plain to see. See [`INTERCEPT.md`](INTERCEPT.md).
 
 ## 4. The Discord half
 
@@ -526,7 +550,7 @@ underneath. It replaced the retired four-rhombus zone panel, which went out
 with per-zone-only travel and left this note in its place for a while.
 
 Two hosts, **one component** (`web/app/(app)/map/MapBoard.js`): the `/map`
-route, and an overlay on `/play` opened by the place card's **Open map** and
+route, and an overlay on `/chat` opened by the place card's **Open map** and
 closed with Escape, the backdrop or Return to game. On a folded viewport the
 button navigates to the route instead of opening the overlay — a full-bleed
 board inside the phone's "Here" sheet would be a dialog inside a dialog, and
@@ -644,7 +668,7 @@ re-activates it, which is the second pick. The map has to spell it out — its
 rhombi are SVG `<g>` elements with no focus, and the Ways out list, which *is*
 real buttons, unmounts the moment you pick something — so `MapBoard` listens on
 the window, and stands aside for anything already focused. Enter on **Cancel**
-means cancel. There is deliberately **no Escape**: on `/play` the map sits in a
+means cancel. There is deliberately **no Escape**: on `/chat` the map sits in a
 Modal that already owns it.
 
 `canTravelTo(node, here)` is the one predicate all three doors read, so a place
@@ -722,7 +746,8 @@ always had; side by side they want 486px of a 390px screen.
 |---|---|
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, walking the party, the Caving roll; no Discord |
 | `db/lib/escort.js` | The escort authority, the party, and the consent handshake — §3a. The ONLY module that decides who follows whom |
-| `db/lib/travelArrivalPass.js` | the turn pass that lands a paid crossing — the relocation and the archive row; no Discord |
+| `db/lib/travelArrivalPass.js` | a DRAIN. Nothing files work for it; it lands anybody left mid-journey by the removal of deferred travel (§3) |
+| `db/lib/intercept.js` | Laying in wait, and the hold it puts on somebody — [`INTERCEPT.md`](INTERCEPT.md). The ONLY module that decides who a watch catches |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half, shared by every caller |
 | `db/lib/roomAccess.js` | `syncCharacterRoomAccess` — private Room membership |
 | `db/lib/threadInvites.js` | `applyPendingInvites` — replays standing `/add` invites on arrival |

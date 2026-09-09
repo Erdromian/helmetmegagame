@@ -16,7 +16,7 @@ import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
 // Every player action on the character sheet: the mode that is open, what
 // the grid greys each button on, and the one place a result is spoken.
 // Renders no chrome of its own — mounted once per sheet (CharacterSheet.js,
-// self mode only) and once on /play, read off
+// self mode only) and once on /chat, read off
 // context by ActionGrid.js, HereList.js, RoomPanel.js and ThingsDrawer.js.
 //
 // This is a ROUTER now. It used to hold every dialog's fields and every

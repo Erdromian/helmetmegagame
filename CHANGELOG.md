@@ -6,6 +6,87 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Both turrets say the same short thing
+
+✎ The turret lines are much shorter, and both guns now use the same wording — hit, graze, death and the sounds in the yard  
+✎ Arming the Depot turret is one confirm instead of a confirm and then a second dialog  
+− The Docker's warning about the Depot turret, and the turret half of the Merchant's License  
+− The block telling a Merchant a GM has to put his face on file — the Depot has learned it at character creation for a while now
+
+## 2026-09-09 · The Play page is Chat now, and it has had a proper going-over
+
+✎ The page is called Chat, in the rail and in the address bar. Old /play links still work  
+✎ A filed Move reads as its own words instead of a pill with your sentence captioned under it  
+✚ Place, Here, Room, Travel and You are tabs in the right column now, and it remembers which one you left open  
+✎ Each panel is a card, so a long description and a one-line status strip stop looking like the same thing  
+✚ A Send button on a desktop. There was none at all, and nothing said Enter would send  
+✎ Typing a command puts a strip across the composer saying what it will do, with a way out  
+✚ Sections in the left rail fold shut, and stay shut. A folded one still shows anything unread in it  
+✎ Lines light up as you point at them, opening a place no longer fades a hundred old lines in at once, and New messages floats over the feed with a count  
+✚ Zone and Location above the place you are reading, so you can tell where you are standing
+
+## 2026-09-09 · A new game starts under its own sky
+
+✎ A new game no longer inherits the last one's ending: no nuke banner, no epilogue, and the bomb can be armed again  
+✎ Resuming an ended game takes the reveal back down instead of leaving it hanging off a game that is being played  
+✎ Fixed the crash that was breaking the character sheet and the dev panel whenever a Desire gate was read
+
+## 2026-09-09 · You can lay in wait, and travel arrives when you make it
+
+✚ An Intercept button on the sheet: name who you are watching for, write them a line, and stop them when they walk in where you stand  
+✚ Safe holds somebody two minutes and hands them your message; Ambush holds them until the turn ends, or until you let them go — file a Gambit if you mean them harm  
+✎ A crossing that costs your Move no longer waits for the turn to end. You arrive the moment you go, and the far zone's channels open with you  
+✎ A hood beats a name: watching for Lord Greeblus will not catch him hooded. Watch for anyone concealed instead  
+✎ Nobody can be carried out of an ambush by a friend, and one watch catches a given person once a turn
+
+## 2026-09-09 · A room says what it looks like
+
+✎ Every place on the web now shows its own description under its name, opened with a click. A room's words used to have nowhere to appear at all  
+✚ The little result popups render italics and bold instead of printing the asterisks  
+✎ The Mood box's heading sits level with the boxes beside it again
+
+## 2026-09-09 · A turn finishes saying what it has to say
+
+✎ The turn's Discord half is now recorded as it goes out, so a deploy that kills the app mid-announcement no longer loses the rest of it  
+✎ An unfinished turn is finished on the next advance, and by the bot the moment it restarts  
+✚ The Rite of Ascension kills everyone, not just the game
+
+## 2026-09-09 · Restart Game forgets the Depot too
+
+✎ A Restart Game now resets the Depot. It was the one machine the wipe never touched, so the turret, the generator, the Merchant's account, the docked shuttle and the face on file all carried into the next game — which is how a turret nobody had armed shot the people in the caves
+
+## 2026-09-09 · The arrival letter stops stuttering its »
+
+
+## 2026-09-09 · Chat shows how loaded you are
+
+✚ A load bar under the Resources and weight chips in Chat's You panel — it fills as you pick things up and turns red once you are over your cap, so being Overburdened is something you can see coming instead of being told about  
+✚ Hovering a thing in your pockets now says what it weighs, quantity included, so you can tell what is worth putting down  
+✎ The ⬢ and pounds chips each redden for their own cap now. Being over on Resources used to turn the POUNDS number red, which said nothing true about what you were carrying
+
+## 2026-09-09 · Leper is an illness, Blessing is cheaper, and the daggers come off
+
+✎ Leper now sits under Health · Illness instead of General, so it reads and inspects like the ailment it is  
+✎ Blessing costs 3 points instead of 5  
+✎ The Held row says "3 slots" instead of "3 hands / empty", and an empty slot's menu says what it is waiting for  
+✎ The ‡ marks are off the web UI's error and empty-state copy — Pyrias's sweep
+
+## 2026-09-09 · Wielding five swords costs five hands, not one
+
+✎ Equipping something out of a stack now takes one slot per item — the rest stay in the pack, and three knives out of five fill three hands  
+✎ The equip rack draws one cell per item worn, so a stack no longer sits in a slot wearing a ×5 badge  
+✎ A second hat, or a fourth knife, is refused the same way two different helms always were  
+✎ Resetting a Move gives back the zone crossing it queued, so the travel menu unlocks and the day's free crossings come back  
+✎ The map redraws when somebody else moves you — an escort, or a leader dragging the party  
+✎ The travel panel counts the boat's extra crossing, which it was quietly leaving out  
+✚ The GM inspector's Sheet tab shows a character's combined armour, melee and ballistic
+
+## 2026-09-09 · The off hand is gone; you hold four things now
+
+− The Off hand row on the sheet. A shield goes in your hands like anything else, and the row is called Held  
+✎ You have four hands' worth instead of three, which is exactly what a shield plus three hands already allowed, so nobody's kit is refused by this  
+✎ Two shields at once are legal now, because hands are the only limit on what you hold
+
 ## 2026-09-09 · Wanted follows the face, and the Cerberon can hand it out
 
 ✎ A Wanted man is only read as wanted while he is under his own name — a hood or a Disguise Kit's false name now takes it off the read, which is what the tag always said it meant  

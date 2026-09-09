@@ -99,7 +99,7 @@ export async function peopleToExamine() {
 
 // One look, at the line you heard them say. The seq is resolved server-side
 // into a speaker, a hood and a readout (db/lib/examineRow.js), which is the
-// same path 🔍 takes in Discord and both eyes take on /play — there is one
+// same path 🔍 takes in Discord and both eyes take on /chat — there is one
 // implementation of these rules now, not three.
 //
 // The subject is re-resolved from the sighting rather than trusted from the

@@ -1,7 +1,7 @@
 // The guard that keeps the message renderers agreeing about SYNTAX.
 //
 // WHAT A FAILURE HERE MEANS. The same words are read on several surfaces — a
-// line in /play, the copy of it a ⭐ files under /notes, the transcript, a DM
+// line in /chat, the copy of it a ⭐ files under /notes, the transcript, a DM
 // quoting it, the GM's audit peek. They are stored ONCE, in one spelling: a
 // mention is `{char:<id>}` on both faces (db/lib/characterMentions.js), a
 // Discord timestamp is `<t:…>`, a subtext line is `-#`. A surface that has not
@@ -91,7 +91,7 @@ test("a renderer that runs remarkTokens also draws them", () => {
 // typed, since it lets them mint one mid-scene. It rendered the transcript and
 // the Journal until this list existed.
 const BODY_RENDERERS = [
-  "web/app/(app)/play/Feed.js",
+  "web/app/(app)/chat/Feed.js",
   "web/app/(app)/notes/StarredList.js",
   "web/app/(app)/notes/JournalList.js",
   "web/app/(app)/notes/JournalComposer.js",

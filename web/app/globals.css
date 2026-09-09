@@ -5166,7 +5166,7 @@ label.chip {
   border-radius: var(--r-md);
 }
 
-/* ---- Chat (/play) ------------------------------------------------- */
+/* ---- Chat (/chat) ------------------------------------------------- */
 
 /* Chat owns its whole screen, the way the (desk) workspaces do: no
    PageShell, no centred column. A chat that scrolled the DOCUMENT would drag
@@ -5184,7 +5184,12 @@ label.chip {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr) 20rem;
+  /* The flanks are properties rather than literals so the ladder below moves
+     two numbers instead of rewriting the template three times — and so
+     anything else that needs to know how wide a column is can ask. */
+  --chat-rail: 15rem;
+  --chat-aside-w: 20rem;
+  grid-template-columns: var(--chat-rail) minmax(0, 1fr) var(--chat-aside-w);
 }
 
 .chat-body--empty {
@@ -5209,9 +5214,62 @@ label.chip {
 }
 
 .chat-aside {
-  overflow-y: auto;
+  /* The panel inside does the scrolling now, not the column. */
+  overflow: hidden;
   border-left: 1px solid var(--border);
   padding: var(--sp-3);
+}
+
+/* The tabbed right column: a strip that holds still, and one panel under it
+   that scrolls on its own. Before this the five sections were stacked down a
+   single scroller and the tallest of them decided how far you travelled to
+   reach the rest. */
+.chat-aside-tabs {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.chat-tabstrip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+  margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+.chat-tab {
+  appearance: none;
+  background: none;
+  border: 0;
+  /* Under the 44px floor the rest of this column is being held to, but a tab
+     is a wide target horizontally and sits in a row of its own. */
+  padding: var(--sp-2) var(--sp-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  cursor: pointer;
+  /* The selected tab is marked by a rule that shares the strip's own border
+     line, so nothing moves by a pixel when the selection changes. */
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.chat-tab:hover {
+  color: var(--text);
+}
+
+.chat-tab[data-open="true"] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.chat-aside-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 /* The "Playing from the web" chip, in the foot beside the chime toggle. The
@@ -5246,6 +5304,41 @@ label.chip {
   margin-bottom: var(--sp-1);
 }
 
+/* The title is the fold control. A section shut this way keeps showing any
+   place with something unread in it — folding is for shortening a column, not
+   for going deaf — and the count beside the title says how many rows are put
+   away. */
+.chat-section-fold {
+  appearance: none;
+  background: none;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  width: 100%;
+  text-align: left;
+  /* Matches .chat-section-title's own padding, which is set beside it. */
+  color: var(--muted);
+}
+
+.chat-section-fold:hover {
+  color: var(--text);
+}
+
+.chat-fold-mark {
+  font-size: var(--fs-2xs);
+  width: 1em;
+  flex-shrink: 0;
+}
+
+.chat-fold-count {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
 /* A place row and a person row are the same button — a full-width flex
    line with one focus ring — and differ only in padding, colour and the
    active bar. One base, two skins. */
@@ -5259,6 +5352,18 @@ label.chip {
   width: 100%;
   box-sizing: border-box;
   font-size: var(--fs-sm);
+  /* These are the two most-tapped rows on the page and they carried 4px of
+     vertical padding everywhere except inside the phone's ⋯ sheet, which was
+     the only place holding them to the floor the rest of this stylesheet
+     keeps. A coarse pointer gets the floor wherever it is pointing. */
+  min-height: 32px;
+}
+
+@media (pointer: coarse) {
+  .chat-place,
+  .chat-person {
+    min-height: 44px;
+  }
 }
 
 .chat-place:focus-visible,
@@ -5292,10 +5397,23 @@ label.chip {
   font-family: inherit;
 }
 
+/* The name line grew a second thing to hold — the Things drawer hangs a row's
+   weight off its right edge — so it is a row rather than a block. With one
+   child, which is every other caller, it draws exactly as it did. */
 .chat-tip-name {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
   font-weight: 600;
   margin-bottom: var(--sp-1);
+}
+
+.chat-tip-weight {
+  flex: none;
+  font-weight: 400;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
 }
 
 .chat-tip-desc {
@@ -5345,6 +5463,51 @@ label.chip {
   flex-shrink: 0;
 }
 
+/* The title and the place's own words, stacked, so the search button stays on
+   the right of the row rather than beside the second line. min-width: 0 or a
+   long name never truncates inside the flex row. */
+.chat-head-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* Room.description / Location.description / Zone.description, whichever place
+   is open. A button because it opens, but it is a line of the world rather
+   than a control, so it wears no button chrome. */
+/* Zone · Location, above the open place's name. */
+.chat-crumb {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  margin: 0;
+}
+
+.chat-head-desc {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-head-desc[data-open="true"] {
+  white-space: normal;
+  text-overflow: clip;
+  /* A long description must not eat the feed it sits above. */
+  max-height: 8rem;
+  overflow-y: auto;
+}
+
 .chat-quiet {
   flex: 1;
   font-size: var(--fs-sm);
@@ -5358,6 +5521,14 @@ label.chip {
   padding: var(--sp-3) var(--sp-4);
 }
 
+/* A line of prose stops being comfortable to read somewhere past 70-ish
+   characters, and the middle column on a wide monitor is far wider than that.
+   Capped here rather than on .chat-feed so the scrollbar stays at the edge of
+   the column and only the CONTENT is measured. */
+.chat-feed-inner {
+  max-width: 70ch;
+}
+
 
 .chat-row {
   display: flex;
@@ -5369,9 +5540,65 @@ label.chip {
   /* The row is the positioning context for the action bar that floats at its
      top-right. */
   position: relative;
-  /* A line does not blink into existence, it arrives. 80ms is under the
-     threshold where it reads as an animation at all — it just stops the
-     jump. */
+  /* The hover fill wants to read as a band across the feed rather than a
+     box hugging the words, so the row bleeds out to the scroller's padding
+     and pulls its content back to where it already sat. Net effect on the
+     text's position: none. */
+  padding: 1px var(--sp-2);
+  margin-inline: calc(var(--sp-2) * -1);
+  border-radius: var(--r-sm);
+}
+
+/* The row's own class family. It used to be .chat-* mixed with loose Tailwind
+   utilities (min-w-0 flex-1, flex items-baseline gap-2, font-semibold,
+   mono text-xs text-muted), which meant restyling a line meant editing JSX. */
+.chat-row-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.chat-row-name {
+  font-weight: 600;
+}
+
+/* Somebody speaking under an alias — a hood, or a forced name like Apex
+   Form's Beast (db/lib/archive.js#feedRowShape). Tinted so a scene can be
+   read by who is in it: an unfamiliar name in a room is a different fact from
+   a name you know, and the column gave them identical weight. */
+.chat-row-name[data-alias="true"] {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chat-row-time,
+.chat-row-edited {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+/* The row lights up under the pointer, and under the keyboard: without this
+   there was no indication at all of which line the action bar belonged to.
+   Kept to a fill, no border and no movement — a hundred of these scroll past
+   and any of them shifting by a pixel would read as the feed twitching. */
+.chat-row:hover,
+.chat-row:focus-within {
+  background: var(--row-hover);
+}
+
+/* A line does not blink into existence, it arrives. 80ms is under the
+   threshold where it reads as an animation at all — it just stops the jump.
+
+   ONLY A LINE THAT ARRIVED. This used to run on every .chat-row, so opening a
+   place faded its whole backlog in at once — a hundred lines animating
+   together, which is the one thing the effect was meant to avoid. Feed.js
+   sets data-live on a row past the seq the place painted with. */
+.chat-row[data-live="true"] {
   animation: chat-row-in 80ms ease-out;
 }
 
@@ -5382,7 +5609,7 @@ label.chip {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .chat-row {
+  .chat-row[data-live="true"] {
     animation: none;
   }
 }
@@ -5404,6 +5631,28 @@ label.chip {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
+  /* Hidden until the row is under the pointer or holds focus. It is always in
+     the DOM now — Feed.js no longer tracks hover in React — which is what
+     lets a keyboard reach it: opacity leaves a button focusable, and focus on
+     one fires :focus-within on the row, which brings the bar back into view.
+     pointer-events keeps an invisible bar from eating clicks meant for the
+     line underneath. */
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-row:hover .chat-row-actions,
+.chat-row:focus-within .chat-row-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* No hover on a touch screen, so the bar is simply always there. */
+@media (pointer: coarse) {
+  .chat-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* Discord's red line: everything below it arrived since you last had this
@@ -5604,9 +5853,30 @@ label.chip {
   padding-left: calc(var(--chat-face) + var(--sp-3));
 }
 
+/* The scroller and the jump-to-bottom pill. The wrapper exists only to give
+   the pill something to be positioned against. */
+.chat-feed-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* "N new ↓", floating over the last line of the feed rather than sitting in a
+   row of its own. As an ordinary flex child it took a whole row out of the
+   scene the moment somebody scrolled up — the feed jumped, which is a strange
+   thing for a control that exists to say the feed has moved on without you. */
 .chat-pill {
-  align-self: center;
-  margin-bottom: var(--sp-2);
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: var(--sp-3);
+  z-index: 2;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--e-2);
+  white-space: nowrap;
 }
 
 .chat-composer {
@@ -5620,19 +5890,32 @@ label.chip {
 
 /* ---- The right column: who is here, the place, and you ---- */
 
+/* Each section is a card now. They were a hairline border-bottom and nothing
+   else, which gave a Location's long prose and a one-chip status strip the
+   same weight and made the whole column read as one grey list. A surface, a
+   border and a radius is the same treatment .panel gets everywhere else in
+   the app. */
 .chat-card,
 .chat-here,
 .chat-party,
 .chat-room,
 .chat-travel,
 .chat-you {
-  padding-bottom: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
   margin-bottom: var(--sp-3);
-  border-bottom: 1px solid var(--border);
 }
 
-.chat-you {
-  border-bottom: 0;
+/* Last card in whichever panel is open — there is no run of them to separate
+   from any more. */
+.chat-card:last-child,
+.chat-here:last-child,
+.chat-party:last-child,
+.chat-room:last-child,
+.chat-travel:last-child,
+.chat-you:last-child {
   margin-bottom: 0;
 }
 
@@ -5974,6 +6257,21 @@ label.chip {
   border-color: var(--danger);
 }
 
+/* The load bar under those chips (play/StatusStrip.js). It is the SHEET's own
+   meter — .depot-meter / .depot-meter-fill, the same pair the Carrying tile
+   draws — so only its spacing is redefined here: it sits under a chip row
+   rather than inside a tile, and .chat-chips has already paid the gap below. */
+.chat-load {
+  margin-top: 0;
+  margin-bottom: var(--sp-3);
+}
+
+/* Over the cap, the fill matches the number above it. Opt-in via the data
+   attribute, so the depot's own credit meter is untouched. */
+.depot-meter-fill[data-tone="danger"] {
+  background: var(--danger);
+}
+
 .chat-move {
   margin-bottom: var(--sp-3);
 }
@@ -6119,6 +6417,19 @@ label.chip {
   padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
 }
 
+/* Inside the phone's ⋯ sheet the MODAL is the scroller (max-height + overflow
+   above), so the tabbed column must not try to be one as well: a flex child
+   with min-height:0 inside an auto-height parent collapses to nothing. The
+   strip still sits at the top; the sheet scrolls the panel under it. */
+.chat-sheet .chat-aside-tabs {
+  height: auto;
+}
+
+.chat-sheet .chat-aside-panel {
+  overflow-y: visible;
+  min-height: 0;
+}
+
 /* ---- The ladder. Three widths above the phone, one breakpoint each:
 
      >= 1200          15rem | 1fr | 20rem     three columns
@@ -6133,13 +6444,15 @@ label.chip {
    hidden too. */
 @media (max-width: 75rem) {
   .chat-body {
-    grid-template-columns: 12rem minmax(0, 1fr) 17rem;
+    --chat-rail: 12rem;
+    --chat-aside-w: 17rem;
   }
 }
 
 @media (max-width: 56.25rem) {
   .chat-body {
-    grid-template-columns: 11rem minmax(0, 1fr);
+    --chat-rail: 11rem;
+    grid-template-columns: var(--chat-rail) minmax(0, 1fr);
   }
 
   /* Belt and braces: the hook already stops the column mounting. */
@@ -6335,16 +6648,76 @@ label.chip {
 /* A command in the box, as a chip above the text it is taking. Accent-tinted
    and mono, so it reads as a mode the box is IN rather than as something that
    was typed into it — which is the whole tell that the slash parsed. */
-.chat-cmd-chip {
-  align-self: flex-start;
-  padding: 2px var(--sp-2);
+/* COMMAND MODE. A strip across the top of the composer saying what the box
+   is currently for, and how to get out of it. It replaced .chat-cmd-chip, a
+   floating accent-tinted pill that sat above the textarea and read as a
+   bubble stuck to the composer rather than as a state the box was in.
+
+   The accent is a RULE down the leading edge rather than a fill and a border
+   all the way round, which is the quieter half of the same vocabulary. */
+.chat-cmd-strip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-2);
+  margin: calc(var(--sp-1) * -1) calc(var(--sp-2) * -1) var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  border-left: 2px solid var(--accent);
+}
+
+.chat-cmd-strip-name {
   font-size: var(--fs-2xs);
-  /* --accent-text for the letters, --accent for the rule. They are different
-     colours on purpose (the header of this file, rule 2). */
   color: var(--accent-text);
-  background: var(--accent-soft);
-  border: 1px solid var(--accent);
-  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+
+/* The one line the `/` menu already shows for this command, so the box says
+   what it is about to do rather than only naming it. */
+.chat-cmd-strip-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-cmd-strip-out {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0 var(--sp-1);
+  font: inherit;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chat-cmd-strip-out:hover {
+  color: var(--text);
+}
+
+/* The keys, spelled out once beside the send. Nothing on the page said Enter
+   would send, and a desktop had no send button at all until 2026-09-09. */
+.chat-composer-keys {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  align-self: center;
+  white-space: nowrap;
+}
+
+/* Only drawn where a command actually caps its text. The refusal used to be
+   the first anybody heard of a limit. */
+.chat-composer-count {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  align-self: center;
+}
+
+.chat-composer-count[data-over="true"] {
+  color: var(--danger);
 }
 
 /* A row of the `/` popover: the name, then what it does. The name is fixed
@@ -6571,13 +6944,23 @@ label.chip {
   min-width: 0;
 }
 
-/* A tile with something to say when clicked (why the moves are 0, what holds
-   the cap up). Same box, a cursor, and the accent rule while it is open. */
+/* A tile with something to say when clicked (why the moves are 0, what moves
+   a mood). Same box, a cursor, and the accent rule while it is open.
+
+   The column flexbox is not decoration. A <button> centres its own content
+   vertically whatever its `display` is, so on a stretched grid row — one made
+   taller by the Carrying tile's weight meter — this tile's heading floated in
+   the middle while every plain-<div> tile beside it kept its heading at the
+   top. `justify-content: flex-start` is what puts it back on the same line as
+   its neighbours'. */
 .ledger-tile-button {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   background: var(--field-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -6670,11 +7053,12 @@ label.chip {
    stacks down a narrow strip. In the band it has a whole row, so the turn
    chips and the Move button share it — the button at its own width, not a
    full-width bar under the chip that made the box twice as tall as it needed
-   to be. /play's YOU column is untouched: this is scoped to .sheet-turn.
+   to be. /chat's YOU column is untouched: this is scoped to .sheet-turn.
 
-   A filed Move adds its kind to the SAME chip row and puts its words on the
-   line under it — it used to open a second chips row and a column of its own,
-   which roughly tripled the box's height the moment somebody filed. */
+   A filed Move puts its words on the line under the chips — it used to open a
+   second chips row and a column of its own, which roughly tripled the box's
+   height the moment somebody filed. Its kind is a quiet word in front of those
+   words now, not a chip in the row above. */
 .sheet-turn .chat-move {
   display: flex;
   flex-wrap: wrap;
@@ -6700,6 +7084,15 @@ label.chip {
 }
 
 .chat-move-mark {
+  color: var(--muted);
+  margin-right: var(--sp-1);
+}
+
+/* The Move's kind, as a word rather than a badge. It was a .chip in the turn
+   chip row until 2026-09-09 — filled, bordered and fully rounded, which read
+   as a control sitting on top of the player's own sentence. A quiet word in
+   front of the words is all it ever needed to be. */
+.chat-move-kind {
   color: var(--muted);
   margin-right: var(--sp-1);
 }
@@ -7097,7 +7490,7 @@ button.equip-cell-face:focus-visible {
 
 /* ------------------------------------------------------------------ /map
    The travel graph over the drawn plate (MAP.md §6). One board, two hosts:
-   the /map route and the overlay on /play, which is why nothing here assumes
+   the /map route and the overlay on /chat, which is why nothing here assumes
    a page or a dialog — .map-board fills whatever box it is handed.
 
    The plate is a raster and does not change with the theme; only the water
@@ -7488,7 +7881,7 @@ button.equip-cell-face:focus-visible {
   margin-top: auto;
 }
 
-/* The overlay on /play. .modal-panel is a dialog box -- 46rem wide, rounded,
+/* The overlay on /chat. .modal-panel is a dialog box -- 46rem wide, rounded,
    floating on a dim -- and a map in one read as a bubble with a map in it.
    This takes the screen instead: the whole viewport, no radius, no border.
    Escape and the backdrop still close it, because it is still a Modal. */

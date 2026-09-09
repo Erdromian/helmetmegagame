@@ -1,7 +1,7 @@
 import AppHeader from "@/app/components/AppHeader";
 import MapBoard from "./MapBoard";
 
-// The map as its own page. The overlay on /play mounts the identical board —
+// The map as its own page. The overlay on /chat mounts the identical board —
 // this route exists so the map has a link of its own, and because a phone
 // should not be opening a full-bleed board inside the "Here" sheet.
 //

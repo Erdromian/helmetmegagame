@@ -237,7 +237,12 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
   if (rite.key === "fulfillment" || rite.key === "ascension") {
     const state = await db.gameState.findUnique({
       where: { id: 1 },
-      select: { fulfillmentFiredAt: true, ascensionArmedTurn: true, ascensionFiredTurn: true },
+      select: {
+        fulfillmentFiredAt: true,
+        ascensionArmedTurn: true,
+        // The fired stamp is on the Game row, not here (db/lib/turnBanner.js).
+        game: { select: { ascensionFiredTurn: true } },
+      },
     });
     if (rite.key === "fulfillment") {
       // "You may only perform this rite once, and your leader must be
@@ -252,8 +257,11 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
       });
       if (leaders === 0) missing.push("leader");
     } else {
-      // The world can only end once, and it may already be ending.
-      if (state?.ascensionArmedTurn != null || state?.ascensionFiredTurn != null) {
+      // The world can only end once PER GAME, and it may already be ending.
+      // The fired stamp comes off the Game row: the GameState copy outlived
+      // its game, so a restart left the rite permanently refusing itself
+      // because the PREVIOUS world had already burned.
+      if (state?.ascensionArmedTurn != null || state?.game?.ascensionFiredTurn != null) {
         missing.push("already-running");
       }
       // And there has to be a leader to lose. Without one the rite would arm a

@@ -10,12 +10,12 @@ import { useTags } from "@/app/components/TagsProvider";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
-import { travelTo } from "../play/actions";
+import { travelTo } from "../chat/actions";
 
 // The map. Every Location this character knows, drawn on the plate it was
 // measured against, with the ways between them.
 //
-// One component, two hosts: the /map route and the overlay on /play. Neither
+// One component, two hosts: the /map route and the overlay on /chat. Neither
 // passes it anything except an optional onClose, because everything it draws
 // comes from loadMap() — which is also where the fog lives. Nothing is hidden
 // here that the server sent: an unknown Location never arrives in the first
@@ -58,6 +58,12 @@ const HIT_PX = 22;
 // happen to match a 2144x1792 drawing.
 const ZOOM = { min: 1, max: 7 };
 const FIT_MAX = 2.1;
+
+// How often the board checks whether somebody else moved you. The same
+// interval CharacterPoller.js uses, for the same reason: a move is rare
+// enough that this never competes with anything, and frequent enough that
+// being dragged along does not read as the map having lost you.
+const POLL_MS = 10_000;
 
 // Whether Go is on offer for a node. THE one predicate: the card's confirm
 // strip, the second click and Enter all read it, so a place can never travel on
@@ -170,6 +176,52 @@ export default function MapBoard({ onClose = null }) {
       cancelled = true;
     };
   }, [nonce]);
+
+  // Somebody else's feet can move YOU — a leader dragging a party along a
+  // crossing, an escort — and unlike travelTo() below, that write happens on
+  // a different browser entirely. This board has no other way to hear about
+  // it: it is not fed by page.js (it fetches its own data so the standalone
+  // /map route and the /chat overlay can share one component), so it is
+  // outside the reach of the live feed's SSE "places" push that already
+  // fires for every moved character (db/lib/presenceNotify.js) and refreshes
+  // everything else on /chat. Without this, a passenger's board kept
+  // describing the place they left until they closed and reopened it.
+  //
+  // /api/character-version, the same endpoint CharacterPoller.js polls for
+  // the same reason, so this is a second reader rather than a new one.
+  // Watches `locationId` alone, not the whole fingerprint: comparing the
+  // opaque `fp` would also bump `nonce` — and with it re-frame the board via
+  // the effect above — over something the map has nothing to do with, like a
+  // resource spent or the turn advancing.
+  const locationRef = useRef(undefined);
+  useEffect(() => {
+    let inFlight = false;
+    const id = setInterval(async () => {
+      if (inFlight || document.visibilityState !== "visible") return;
+      inFlight = true;
+      try {
+        const res = await fetch("/api/character-version", {
+          cache: "no-store",
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) return;
+        const { locationId } = await res.json();
+        if (locationRef.current === undefined) {
+          locationRef.current = locationId;
+          return;
+        }
+        if (locationId !== locationRef.current) {
+          locationRef.current = locationId;
+          setNonce((n) => n + 1);
+        }
+      } catch {
+        // A timeout or a flaky network is a skipped tick, not an error.
+      } finally {
+        inFlight = false;
+      }
+    }, POLL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   // Before the framing effect below, which calls fit() -> applyView() and needs
   // the clamp to already know how big the world is. Effects run in declaration
@@ -419,11 +471,11 @@ export default function MapBoard({ onClose = null }) {
   // key handler: the rhombi are SVG <g> elements with no focus of their own,
   // and the Ways out list — which IS real buttons — unmounts the moment you
   // pick something. So after a pick there is nothing focused for Enter to land
-  // on, and this catches it. /play needs none of this: its travel nodes are
+  // on, and this catches it. /chat needs none of this: its travel nodes are
   // real <button>s, so clicking one focuses it and Enter re-activates it,
   // which is the second activation already.
   //
-  // Deliberately no Escape. On /play the map is inside a Modal that already
+  // Deliberately no Escape. On /chat the map is inside a Modal that already
   // owns Escape (play/Chat.js), and a second meaning here would race it.
   useEffect(() => {
     if (!data?.ok || !sel || pending) return undefined;
@@ -677,7 +729,7 @@ export default function MapBoard({ onClose = null }) {
                 {/* The tag of theirs that opens it, where one does — the same
                     chip the Travel panel and the card below draw. */}
                 <ViaChip slug={n.openedBy} />
-                <span className="mono">{travelFoot(n, travel?.freeLeft ?? 0, travel?.mounted)}</span>
+                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted)}</span>
               </button>
             ))}
           </div>
@@ -746,7 +798,10 @@ function ViaChip({ slug }) {
 function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   const isHere = here && node.id === here.id;
   const reachable = canTravelTo(node, here);
-  const nextTurn = Boolean(node.crossesZone && (travel?.freeLeft ?? 0) <= 0);
+  // node's OWN count, not the header's ambient one — a boat's bonus is
+  // earned per crossing, so a water-eligible destination can still be free
+  // even when the header's pre-selection number already reads 0.
+  const nextTurn = Boolean(node.crossesZone && (node.freeLeft ?? 0) <= 0);
 
   return (
     <div className="map-card-body">
@@ -776,23 +831,17 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
           and nothing to leak by forgetting to. */}
       {node.inside && <Inside inside={node.inside} />}
 
-      {/* Already walking. This used to swallow the whole block below it, which
-          left a traveller a board they could read and not use. Only the ways
-          OUT OF THE ZONE are shut now, and the server shuts them — a crossing
-          comes back unpassable with the road named in its reason, so it falls
-          into the refusal branch on its own and the local ways still offer
-          their Go button (MAP.md §3). */}
-      {travel?.heading ? (
-        <p className="text-sm">
-          Leaving for {travel.heading} at the end of the turn — until then this zone is still yours to walk.
-        </p>
-      ) : null}
+      {/* Held where they stand (INTERCEPT.md). It deliberately does not swallow
+          the block below: the server shuts every way and writes the reason
+          onto each row, so a node falls into the refusal branch on its own and
+          the board stays readable while somebody has hold of you. */}
+      {travel?.held ? <p className="text-sm">{travel.held}</p> : null}
 
       {!isHere && node.adjacent && (
         <div className="map-confirm">
           {reachable ? (
             <>
-              <p className="text-sm">{nextTurn ? `To ${node.name}, next turn.` : `To ${node.name}.`}</p>
+              <p className="text-sm">{nextTurn ? `To ${node.name}. This one spends your Move.` : `To ${node.name}.`}</p>
               {travel?.partySize > 0 && (
                 <p className="chat-quiet-line">
                   {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you.

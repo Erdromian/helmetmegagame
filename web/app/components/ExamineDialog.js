@@ -108,7 +108,7 @@ function ExamineDialogBody({ onClose, targetId = null }) {
   );
 }
 
-// The readout itself, exported: /play's HERE column draws it for a hood and
+// The readout itself, exported: /chat's HERE column draws it for a hood and
 // its feed draws it for a photograph, and all three used to hand-roll their
 // What you can see on them, as hoverable chips.
 //

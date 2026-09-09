@@ -1,4 +1,4 @@
-# Chat: the web face of a scene (`/play`)
+# Chat: the web face of a scene (`/chat`)
 
 The web page where a character reads and speaks in the place they stand,
 mirroring the Location's Discord channel. Phase 0 shipped 2026-09-06; the rest
@@ -55,7 +55,7 @@ Neither touches Discord — §4 does.
 | `seq` | `BIGSERIAL`, the cursor. Monotonic and assigned by Postgres, so the bot and the web never need to agree on a clock. A BigInt in Prisma: it crosses JSON as a **string** and is compared with `BigInt()`, never `Number()`. |
 | `placeKey` | Where it was said: `loc:<id>`, `room:<id>`, `conv:<playerThreadId>`, `zone:<id>`. A snapshot string, no FK. `db/lib/placeKey.js` is the only thing that mints one; `placeKeyForChannel` resolves a Discord channel or thread id to one, memoised for a minute. |
 | `source` | `DISCORD`, `WEB` or `SYSTEM`. The outbox (§4) only ever posts `WEB` rows on to Discord, which is what keeps a proxied message from being echoed back into the channel it came from. |
-| `editedAt`, `deletedAt` | Soft delete everywhere since phase 1, so a client holding the row can reconcile and the outbox has something to read when it goes to remove the Discord message. `/archive` and `/play` filter on `deletedAt`. |
+| `editedAt`, `deletedAt` | Soft delete everywhere since phase 1, so a client holding the row can reconcile and the outbox has something to read when it goes to remove the Discord message. `/archive` and `/chat` filter on `deletedAt`. |
 | `discordSyncedAt` | The outbox watermark. Null on a `WEB` row means the bot has not posted it yet. |
 
 `recordArchiveMessage` / `recordArchiveEvent` (`db/lib/archive.js`) write
@@ -123,7 +123,7 @@ Every writer records the row first and then adds the account:
 | Converse | `handleConverseCreate`, the creator |
 | `/add` on a conversation | `bot/src/events/interactionCreate.js` |
 | A mention into a conversation, typed in Discord | `bot/src/events/messageCreate.js` |
-| A mention into a conversation, typed on /play | `bot/src/lib/feedOutbox.js#relayWebMentions` |
+| A mention into a conversation, typed on /chat | `bot/src/lib/feedOutbox.js#relayWebMentions` |
 | The invite replay on arrival | `db/lib/threadInvites.js#applyPendingInvites` |
 | `/remove` | deletes the row |
 
@@ -415,10 +415,10 @@ the same NOTIFY.
 
 ## 5. The page
 
-`web/app/(app)/play/`. Rail item **Play**, right under Character
+`web/app/(app)/chat/`. Rail item **Chat**, right under Character
 (`web/lib/navItems.js`). **`GameConfig.playPanelEnabled`** is the switch, in
-the Features group on `/gm/dev`, on by default. Off, the rail drops Play,
-`/play` bounces to `/character` (GMs included — they have the desk's Scene
+the Features group on `/gm/dev`, on by default. Off, the rail drops Chat,
+`/chat` bounces to `/character` (GMs included — they have the desk's Scene
 tab), ⌘K stops offering places and people, and the "Play from the web" switch
 is neither drawn nor honoured — except for a character already `webOnly`, who
 keeps it so they can come back, and is otherwise **not** flipped: check
@@ -430,15 +430,71 @@ chat that scrolled the document would drag the header off the top every time
 somebody spoke. Tokens only; `npm run audit:contrast --workspace=web` gates it
 like everything else.
 
+### The 2026-09-09 pass
+
+The page worked and was not pleasant: nothing on it had visual weight. Every
+section header in all three columns was the same 11px uppercase muted label,
+every right-column card was styled identically, the feed row mixed `.chat-*`
+with loose Tailwind and had no hover state at all, and the composer had no
+Send button on a desktop. What changed, beyond the aside tabs and the section
+cards described under `ChatAside.js` below:
+
+- **A filed Move reads as its words.** Its kind was a `.chip` in the turn chip
+  row — filled, bordered, fully rounded — with the player's own sentence
+  underneath reading as the badge's caption. It is `.chat-move-kind`, a quiet
+  word in front of the words, and the `»` house mark stays.
+- **The feed row lights up under pointer AND keyboard.** Hover moved out of
+  React (`useState` off `onMouseEnter`, re-rendering a row on every mouse
+  crossing) into `:hover` / `:focus-within`. The row action bar is now always
+  in the DOM and revealed by CSS, which is what makes it reachable by tab at
+  all — a keyboard fires no `mouseenter`, so it could never see the bar
+  before. The cost is that the bar's buttons are in the tab order on every
+  row; a roving-tabindex pattern would be the fix if that ever bites.
+- **Only a line that ARRIVED animates.** `chat-row-in` ran on every
+  `.chat-row`, so opening a place faded its whole backlog in at once. `Feed.js`
+  keeps a lazily-filled ref of the seq the place painted with — a ref rather
+  than state, since `react-hooks/set-state-in-effect` is an error here — and
+  sets `data-live` above it.
+- **The jump-to-bottom pill floats** over the feed as *"N new ↓"* instead of
+  taking a layout row between the scroller and the typing line, which pushed
+  the scene up every time somebody scrolled away.
+- **The composer got a Send button on every pointer.** It rendered only under
+  `coarse`, so a mouse had no submit affordance and nothing said Enter would
+  send. The keys are spelled out beside it. The slowmode clock shows before it
+  bites rather than only once it has, and a character count is drawn where a
+  command actually caps its text.
+- **Command mode is a strip** (`.chat-cmd-strip`) across the top of the box —
+  name, what it does, an ✕ — replacing `.chat-cmd-chip`, an accent-tinted
+  floating pill.
+- **The `/` and `@` menus highlight under a mouse**, and pointing at a row
+  makes it the active one, so Enter picks what the mouse is over.
+- **Sections in the places column fold** (`sectionFold.js`, same
+  `useSyncExternalStore` shape). A folded section **still shows anything
+  unread in it**, with a count of what it is holding back: folding is for
+  shortening a column, not for going deaf.
+- **A breadcrumb** — Zone · Location — above the open place's name, since a
+  conversation and the zone summary are both opened from somewhere.
+- **`.chat-row-head` / `-name` / `-time` / `-body`** replaced the loose
+  Tailwind, and `[data-alias]` tints a name somebody is speaking under a hood
+  or a forced name with.
+- **Touch targets.** `.chat-place` and `.chat-person` were 4px of vertical
+  padding everywhere except inside the phone's sheet; they hold a floor now,
+  44px under a coarse pointer.
+
 ### The wireframes Bascinet chose
 
-Desktop, three columns — `15rem minmax(0,1fr) 20rem`. The right column grew
-from 17rem in the second pass: it is the game suite now, not a button strip.
+Desktop, three columns — `15rem minmax(0,1fr) 20rem`, carried as
+`--chat-rail` and `--chat-aside-w` on `.chat-body` rather than as literals
+repeated across the media queries below. The right column grew from 17rem in
+the second pass: it is the game suite now, not a button strip. The feed's own
+content is capped at `70ch` (`.chat-feed-inner`) — the scrollbar stays at the
+column's edge and only the words are measured.
 
 ```
 ┌───────────────┬────────────────────────────────────────────┬──────────────────────┐
 │ PLACES        │ Council Room                     ◔ Dusk 4  │ THE KEEP             │
-│               │────────────────────────────────────────────│ Fortress             │
+│               │ A long table under a cold window…          │ Fortress             │
+│               │────────────────────────────────────────────│                      │
 │ ✉ Bascinet  ● │                                            │                      │
 │ ▤ Summary   ● │                                            │ [Place] [Zone]       │
 │               │ ◉ Alexandra Hristov  13:58                 │ A high hall of black │
@@ -511,7 +567,7 @@ header, and the rest of the right column comes up as a bottom sheet from the
 ```
 ┌────────────────────────────────────┐
 │ ‹ Town · The Keep                  │
-│ A vaulted hall, damp and… more     │
+│ A vaulted hall, damp and cold…     │
 │────────────────────────────────────│
 │ Keep● | Throne | Cellar● | Old Tom●│
 │────────────────────────────────────│
@@ -538,9 +594,9 @@ header instead).
   stream, §3), the place list, and which place is open.
 - **`openPlace.js`** is where the open place lives: a module store read through
   `useSyncExternalStore`, never an effect. The URL hash *follows* it and is
-  read only as input — on the first render (a `/play#…` link, a notification)
+  read only as input — on the first render (a `/chat#…` link, a notification)
   and on `hashchange` — and a place this browser last had open is remembered
-  in `localStorage`, so a bare `/play` (the rail, a reload, a notification)
+  in `localStorage`, so a bare `/chat` (the rail, a reload, a notification)
   comes back to it. The hash used to be the truth, and the app router wrote
   over it: it never learns about a `window.location.hash =` write, and on its
   next state change (any refresh) it put its own URL back with
@@ -597,7 +653,22 @@ header instead).
   web path only — a mention typed into Discord is Discord's own to handle.
 
 - **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
-  name, a search button, the runs, and the composer.
+  name, its own words under the name, a search button, the runs, and the
+  composer.
+- **The head says where you are, in the place's own words.** Under the name
+  sits that place's `description` — `Room.description`, `Location.description`
+  or `Zone.description`, whichever kind is open — as one clamped line of
+  subtext you open with a click and close with another. `db/lib/feedAccess.js`
+  already carries it on every row of the place list, so nothing is fetched for
+  it; a place with none (a conversation) draws no line at all.
+
+  A **room** is the reason it is there. `PlaceCard.js` in the right column
+  draws the *Location's* description and the zone's, never the room's, and the
+  hover card on the room's row in `PlacesColumn.js` is gone the moment you
+  click through — so standing in a room, the words written for it were on no
+  surface at all. The line is deliberately not the fixed-height strip with a
+  "more" button that used to live here: that one sat *over* the scene, this
+  one is a single line until asked.
   Enter appends the pending row in the same frame and clears the box; the POST
   swaps the real row in behind it. A failed send stays on screen as "Not sent.
   Retry". Runs group one speaker's messages within seven minutes, the same rule
@@ -675,7 +746,7 @@ header instead).
   `{tag:…}` chip mid-scene.
 
   Everything that draws a body somebody *wrote* now goes through one of the
-  two: `/play`, the `/notes` Starred tab and Journal, the `/archive` transcript,
+  two: `/chat`, the `/notes` Starred tab and Journal, the `/archive` transcript,
   DM threads, the audit inspector, the archive peek. Three of those did not.
   `StarredList.js` drew a **bare string** — a starred line showed its reader
   `{char:cmtt1148600jgql0pyydw04pn}` and literal asterisks — and the transcript
@@ -690,11 +761,11 @@ header instead).
 
   One consequence worth eyeballing: nothing wires `remark-breaks`, so a single
   `\n` folds. `StarredList` and `JournalList` used `whitespace-pre-wrap` and
-  now do not — Markdown owns the layout, the way it already did on `/play`.
+  now do not — Markdown owns the layout, the way it already did on `/chat`.
   Adding `remark-breaks` to bring the old look back would silently change every
   feed row too, which is the divergence this removed.
 - **`-#` subtext is `remarkSubtext.js`, and every renderer runs it.** It used
-  to sit inside `remarkChat`, which meant only `/play` understood it — so the
+  to sit inside `remarkChat`, which meant only `/chat` understood it — so the
   lobby seat DM reached players with a literal `-#` on its last line, beside a
   literal `<t:…>`. It is Discord's syntax rather than a style we chose, so it
   belongs wherever Discord-written text is read. It is block-level and must run
@@ -840,8 +911,29 @@ header instead).
   is the same sections in the same order; only the box around them changes,
   and the sheet is a `Modal` wearing `.chat-sheet` rather than a drawer of its
   own, so it keeps Escape, the focus trap and the backdrop `Modal` already
-  owns. It composes five sections, top to bottom, and owns the affordance list
-  they share through `usePlaceActions`:
+  owns.
+
+  **The five sections are TABS, not a stack** (2026-09-09) — Place · Here ·
+  Room · Travel · You. Three of them are unbounded (the place card is as long
+  as its prose, the travel grid is 6rem per exit, YOU is four sub-blocks plus a
+  waiting list), so stacked down one scroller the tallest of them decided how
+  far you travelled to reach anything under it; and two of them render nothing
+  at all when they have nothing to say, which moved the column's height on
+  every walk. One panel open at a time fixes both. **HERE** is the desktop
+  column's alone — on a phone those rows are the strip `Chat.js` draws under
+  the header, and two pollers on one screen is one too many. **ROOM** appears
+  only when a room is open. Which tab you left open is remembered per browser
+  in `localStorage` through `asideTabStore.js` — `useSyncExternalStore`, never
+  an effect — and a stored tab this place does not have falls back to Place.
+  The `dialogs` node hangs OUTSIDE the panel on purpose: a dialog opened from
+  one tab must not unmount because the reader pressed another.
+
+  Each section is a **card** — `--surface`, a border and `--r-md`, the same
+  treatment `.panel` gets everywhere else. They were a hairline `border-bottom`
+  and nothing else, which gave a Location's long prose and a one-chip status
+  strip identical weight.
+
+  It owns the affordance list the sections share through `usePlaceActions`:
   1. **`PlaceCard.js`** — the Location's name, its zone muted under it, a
      `Place` / `Zone` chip pair and the chosen text, always on the page inside
      a scrolling `max-height`. **Place** is `Location.description` plus the
@@ -901,9 +993,10 @@ header instead).
      shut is what sends you to find the winch. A zone crossing is tinted. The
      header is `Travel · N free` with `freeReason` as its title. Clicking a
      node opens an inline confirm strip under the grid — the sentence, the
-     drag-along chips, `Go` and `Cancel` — not a modal. While
-     `travelToLocationId` is set the grid is replaced by "Leaving for X at the
-     turn" and nothing else — there is no turning back (MAP.md §3).
+     drag-along chips, `Go` and `Cancel` — not a modal. While somebody has hold
+     of you the grid still draws, every way shut with its reason on it, under
+     one banner saying so (INTERCEPT.md). It used to be replaced outright while
+     a journey was pending; travel lands at once now (MAP.md §3).
   5. **`YouPanel.js`** — below.
 - **`PlacePanel.js`** is no longer a panel. It is `usePlaceActions()` plus the
   dialogs the sections open: Noticeboard, Converse, Bell, Turret, Intercom.
@@ -934,7 +1027,7 @@ header instead).
      whose category is **Items** or **Assets**, grouped in that order, as one
      chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
      menu of at most four: **Equip / Unequip** (`equippable`, the sheet's own
-     instant `toggleEquip`), **Use** (`consumable`), **Give** (`tradeable`)
+     instant `equipOne`/`unequipOne`), **Use** (`consumable`), **Give** (`tradeable`)
      and **Destroy** (`removable`) — the last three open the SHEET's dialogs
      through `RequestActionsProvider.open(mode, tagId)`, with the item already
      picked. The flags come off the catalog through `web/lib/tagRequests.js`,
@@ -1106,7 +1199,7 @@ header instead).
   it is from the composer's `@` list. Both are the same functions Chat
   itself uses, so the palette can never offer a place they may not read.
 
-  The href is `/play#<encoded placeKey>`, because a hash is what
+  The href is `/chat#<encoded placeKey>`, because a hash is what
   `openPlace.js` reads on the way in, so a link into a place needs no client
   plumbing at all. One catch the palette had to learn: `router.push` uses
   `history.pushState`, which does **not** fire a `hashchange` — so from Chat
@@ -1199,7 +1292,7 @@ street. `db/lib/locationAnchorRow.js` and `db/lib/roomStarterRow.js` are now
 only Discord's shape around those two: rows, styles and the five-per-row cap.
 
 `affordancesFor(prisma, character)` is what a **person** can do where they are
-standing, and it is what `/play` renders: the place's own, plus a Storage
+standing, and it is what `/chat` renders: the place's own, plus a Storage
 button per Room this character can actually get into, plus a gate for every
 modular way they can work from a watchtower they can reach, plus a keyed door
 they hold the key to. On Discord those last two are answered by a refusal
@@ -1223,7 +1316,7 @@ and rate-limited by `chimedRecently()` so a busy room is not a bell tower.
 `DirectMessage` row, on both faces (`bot/src/lib/mentions.js` for a
 Discord-origin mention, `bot/src/lib/feedOutbox.js#relayWebMentions` for a web
 one). It carries where and a link and never the text, and since 2026-09-07 it
-also shows in the player's Bascinet thread on `/play` (§2b) — before that the
+also shows in the player's Bascinet thread on `/chat` (§2b) — before that the
 plumbing classification hid it there, which read as "pinging from the web does
 nothing".
 
@@ -1238,15 +1331,15 @@ end them.
   for permission, subscribes and posts the subscription; pressing it again
   unsubscribes. It draws only when the browser has a `PushManager` **and**
   `/api/push/key` answers — the state is a module store read through
-  `useSyncExternalStore` (`web/app/(app)/play/pushStore.js`), never an effect
+  `useSyncExternalStore` (`web/app/(app)/chat/pushStore.js`), never an effect
   writing state.
 - **The service worker does one job.** `web/public/sw.js` draws the
   notification and, on a click, focuses an open tab and navigates it to the
-  url the payload carries. It caches nothing: `/play` is a live feed, and a
+  url the payload carries. It caches nothing: `/chat` is a live feed, and a
   worker serving it out of a cache would be showing yesterday's scene.
 - **What is sent.** Two things, and only two. A **mention** — after the DM, at
   both call sites, `"{name} was named ‡"` / `"in {place} ‡"`, pointing at
-  `/play` (the web-origin one at `/play#<placeKey>`, which is the same hash the
+  `/chat` (the web-origin one at `/chat#<placeKey>`, which is the same hash the
   places column round-trips). And the **turn opening**
   (`db/lib/turnAnnouncement.js`), after the announcement is posted, to every
   Discord account holding an ALIVE character, one at a time with a small gap.
@@ -1295,7 +1388,7 @@ when it lands. `web/lib/snapshot/`:
   update like it always was and an open dialog survives it. `Chat.js` opts
   out (`remountOnFresh={false}`): its seed effect re-seeds the store from the
   changed props, and the stream is *not* reopened — it was opened once, from
-  the seq the mount painted with. A stale snapshot of `/play` is still safe,
+  the seq the mount painted with. A stale snapshot of `/chat` is still safe,
   for a better reason than the reopen ever was: the stored seq is the *lower*
   cursor and therefore the more inclusive one, and the per-place history
   prefetch covers whatever the capped catch-up does not.
@@ -1304,7 +1397,7 @@ when it lands. `web/lib/snapshot/`:
 Every server action re-validates from the database (CLAUDE.md), so acting on
 a stale sheet is safe; the fresh data simply replaces it.
 
-**Which pages.** Snapshotted: `/play`, `/character`, `/documents`, `/depot`,
+**Which pages.** Snapshotted: `/chat`, `/character`, `/documents`, `/depot`,
 `/notes`, `/gm/players` and a player's conversation, `/gm/turns`, `/gm/audit`,
 `/gm/crafts`, `/gm/structures`, `/gm/dev/tags` and the dev panel for one
 character. Not yet, because their bodies are hand-built server JSX rather
@@ -1316,7 +1409,7 @@ visit; converting one means lifting its JSX into a client view first.
 the old body renamed `Fresh<Page>`; make the body end in
 `<SnapshotFresh scope userId data={props} />` with every early return
 expressed as a `kind` in that object; write a `<Page>View.js` client
-component that draws each `kind`. `/play` (`page.js#FreshPlay`, `PlayView.js`)
+component that draws each `kind`. `/chat` (`page.js#FreshPlay`, `PlayView.js`)
 is the model.
 
 ## 6. What comes next, in order
@@ -1327,7 +1420,7 @@ is the model.
    their message up as an `ArchiveEntry` row by `discordMessageId` instead of
    the in-memory `recentProxies`, which a restart emptied — so an hour-old
    message is no longer inert. Edit and delete have a **5-minute window on both
-   faces** (Bascinet's call), `/play` draws ✎ and ✕ on your own rows, and
+   faces** (Bascinet's call), `/chat` draws ✎ and ✕ on your own rows, and
    delete is soft everywhere.
 2. **The other places.** Public Rooms, private Rooms you can reach
    (`accessibleRooms`), Conversations you are in, the zone Summary. The place

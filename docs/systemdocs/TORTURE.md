@@ -15,7 +15,7 @@ had to honour by hand.
 **Torture** sits in the "People here" section of the character sheet's action
 grid (`web/app/components/actionRegistry.js`) and is **hidden, not greyed**,
 unless the character holds `torturer` — an own-sheet fact, which the grid's
-metagaming rule allows hiding on. `/play` does not mount the grid, and its
+metagaming rule allows hiding on. `/chat` does not mount the grid, and its
 per-person menu (`HereList.js`) is unconditional with no pools access, so
 Torture is deliberately not on it: a row there would tell every player that
 torture exists whether or not they could do it.

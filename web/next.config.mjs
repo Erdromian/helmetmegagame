@@ -31,6 +31,17 @@ const nextConfig = {
         destination: "/gm/players/:discordUserId",
         permanent: false,
       },
+      // The Chat page was /play until 2026-09-09. This redirect is not
+      // housekeeping -- it is load-bearing. Push notifications ALREADY
+      // DELIVERED to players' phones carry /play#<placeKey> URLs
+      // (db/lib/webPush.js, bot/src/lib/mentions.js, feedOutbox.js), and
+      // there is no reaching back into a notification to rewrite it. Drop
+      // this and every one of those taps 404s.
+      //
+      // The hash survives on its own: a fragment is never sent to the
+      // server, so the browser reattaches it to the destination and the
+      // place still opens.
+      { source: "/play", destination: "/chat", permanent: false },
     ];
   },
 };

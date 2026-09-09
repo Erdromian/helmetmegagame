@@ -168,7 +168,7 @@ async function setWebOnly(prisma, character, on) {
   }
 
   // The set of places is unchanged either way — the flag is about Discord, not
-  // about what /play may read — but the chip in the places column is not, and
+  // about what /chat may read — but the chip in the places column is not, and
   // an open tab should not have to be reloaded to lose it.
   await notifyPresence(prisma, character.id).catch(() => {});
 

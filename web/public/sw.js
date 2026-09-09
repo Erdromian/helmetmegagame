@@ -1,9 +1,9 @@
 // The service worker, and it does exactly one job: draw the notification a
 // push carries and open the page it names. It caches nothing and intercepts no
-// request — /play is a live feed, and a worker serving it out of a cache would
+// request — /chat is a live feed, and a worker serving it out of a cache would
 // be showing yesterday's scene.
 //
-// Registered from the Hall's push toggle (web/app/(app)/play/pushStore.js);
+// Registered from the Hall's push toggle (web/app/(app)/chat/pushStore.js);
 // sent from db/lib/webPush.js. See HALL.md §5a.
 
 self.addEventListener("push", (event) => {
@@ -20,7 +20,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(title, {
       body: data.body || "",
       // Where the click goes. Read back in notificationclick below.
-      data: { url: data.url || "/play" },
+      data: { url: data.url || "/chat" },
       // One tag, so a second notification replaces the first rather than
       // stacking a screenful of them while somebody is away from the page.
       tag: "bascinet",
@@ -30,7 +30,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification?.data?.url || "/play";
+  const url = event.notification?.data?.url || "/chat";
   event.waitUntil(
     (async () => {
       const target = new URL(url, self.location.origin);
@@ -44,7 +44,7 @@ self.addEventListener("notificationclick", (event) => {
         // A tab that is ALREADY on Chat is told which place to open and left
         // running. Navigating it would reload the page — the stream, the
         // scroll and a half-typed line all gone — to land on the page it was
-        // already showing (web/app/(app)/play/openPlace.js listens).
+        // already showing (web/app/(app)/chat/openPlace.js listens).
         if (at.pathname === target.pathname) {
           if (target.hash) client.postMessage({ openPlace: decodeURIComponent(target.hash.slice(1)) });
           return;

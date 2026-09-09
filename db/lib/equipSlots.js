@@ -10,11 +10,25 @@
 //                      a layer, so a coif (1) goes under a helm (2) and a cart
 //                      (2) is towed behind a horse (1), but two helms do not go
 //                      together.
-//   SHIELD             exactly one.
-//   WEAPON             three hands. A tag with Tag.twoHanded takes two.
+//   WEAPON             four hands, and everything you hold goes here. A tag
+//                      with Tag.twoHanded takes two. The old SHIELD slot was
+//                      a second rule for the same place on the body — one
+//                      cell called "Off hand" beside a row that counted hands
+//                      — so it was folded in here and its enum value retired.
+//                      Four is what the two slots already allowed together: a
+//                      shield plus three hands of weapons.
 //   ACCESSORY          four. A badge, spectacles, a fishing rod. Uncapped at
 //                      first, which turned it into the pocket everything that
 //                      fitted nowhere else went into.
+//
+// A STACKABLE tag takes one slot/hand PER EQUIPPED UNIT, not one for the whole
+// stack — CharacterTag.equippedQuantity says how many of a held stack are
+// actually out, and every function below expands a row into that many
+// physical instances before it asks anything about slots, layers or hands.
+// Five swords readied is three hands spent and two still in the pack, not one
+// hand for "a stack of swords"; two units of the very same stackable layered
+// tag (a hat, say) fight over their one layer exactly like two different hats
+// would.
 //
 // Two independent code paths flip CharacterTag.equipped — the player's own
 // toggle (web/app/(app)/character/equipActions.js) and the GM/staged batch
@@ -26,21 +40,22 @@
 //
 // See docs/systemdocs/TAGS.md.
 
-const WEAPON_HANDS = 3;
+const WEAPON_HANDS = 4;
 // A hard cap, not a GameConfig knob like the retired flat count: the number
 // is a rule about what a person can have about them, and the last thing this
 // file needs is a second limit a GM can set to disagree with the slots.
 const MAX_ACCESSORIES = 4;
 const MAX_EQUIP_LAYER = 3;
 const LAYERED_SLOTS = new Set(["HEAD", "BODY", "MOUNT"]);
-const EQUIP_SLOTS = ["HEAD", "BODY", "SHIELD", "WEAPON", "ACCESSORY", "MOUNT"];
+// SHIELD is deliberately absent: syncTags.js validates against this list, so
+// a YAML entry still naming it throws instead of sliding through.
+const EQUIP_SLOTS = ["HEAD", "BODY", "WEAPON", "ACCESSORY", "MOUNT"];
 
 // The words the sheet and the refusals use for each slot. Player-facing copy,
 // so every phrase of five words or more carries its ‡.
 const SLOT_LABELS = {
   HEAD: "on your head",
   BODY: "on your body",
-  SHIELD: "in your off hand",
   WEAPON: "in your hands",
   ACCESSORY: "about your person",
   MOUNT: "under you",
@@ -50,8 +65,7 @@ const SLOT_LABELS = {
 const SLOT_TITLES = {
   HEAD: "Head",
   BODY: "Body",
-  SHIELD: "Off hand",
-  WEAPON: "Hands",
+  WEAPON: "Held",
   ACCESSORY: "Accessories",
   MOUNT: "Ride",
 };
@@ -72,34 +86,49 @@ function listWords(names) {
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
+// One row per PHYSICAL unit, not one per CharacterTag row — a row carrying
+// `equippedQuantity: 3` has to appear three times to anything that counts
+// hands or looks for two things sharing a slot. `equippedQuantity` missing
+// entirely (a bare Tag[], or a caller that never selected it) counts as
+// exactly one, the same "holds it or doesn't" shape every other equipped
+// check in the codebase already assumes.
+function expandUnits(tags) {
+  if (!Array.isArray(tags)) return [];
+  return tags.flatMap((entry) => {
+    const tag = tagOf(entry);
+    const n = entry?.equippedQuantity ?? 1;
+    return Array.from({ length: Math.max(0, n) }, () => tag);
+  });
+}
+
 function handsOf(tag) {
   return tag?.equipSlot === "WEAPON" ? (tag.twoHanded ? 2 : 1) : 0;
 }
 
 /**
  * Hands in use across a set of equipped rows.
- * @param {Array} tags equipped rows — CharacterTag[] (with .tag) or Tag[]
+ * @param {Array} tags equipped rows — CharacterTag[] (with .tag, optionally
+ *   .equippedQuantity) or Tag[]
  */
 function handsUsed(tags) {
-  if (!Array.isArray(tags)) return 0;
-  return tags.reduce((n, entry) => n + handsOf(tagOf(entry)), 0);
+  return expandUnits(tags).reduce((n, tag) => n + handsOf(tag), 0);
 }
 
 /**
- * The first pair of equipped tags that cannot be worn together.
+ * The first pair of equipped units that cannot be worn together. Expands by
+ * equippedQuantity first, so a stack equipped twice clashes with itself.
  * @param {Array} tags equipped rows — CharacterTag[] (with .tag) or Tag[]
  * @returns {{a: object, b: object}|null} the clashing pair, outermost first
  */
 function findSlotClash(tags) {
-  if (!Array.isArray(tags)) return null;
   const seen = new Map();
-  for (const entry of tags) {
-    const tag = tagOf(entry);
+  for (const tag of expandUnits(tags)) {
     if (!tag?.equipSlot) continue;
     // WEAPON is counted in hands and ACCESSORY is never counted at all.
     if (tag.equipSlot === "WEAPON" || tag.equipSlot === "ACCESSORY") continue;
-    // A layered slot keys on slot+layer; SHIELD keys on the slot alone, which
-    // is what makes it hold exactly one.
+    // A layered slot keys on slot+layer. Nothing unlayered reaches here any
+    // more — SHIELD was the last one, and keying on the slot alone is what
+    // used to hold it to exactly one.
     const key = tag.equipLayer == null ? tag.equipSlot : `${tag.equipSlot}:${tag.equipLayer}`;
     const other = seen.get(key);
     if (other) return { a: tag, b: other };
@@ -114,6 +143,10 @@ function findSlotClash(tags) {
  */
 function describeSlotClash({ a, b }) {
   const where = SLOT_LABELS[a.equipSlot] ?? "there";
+  // The same tag twice is a stackable slotted item (a hat, say) equipped past
+  // its own single slot — TAGS.md §"equipSlot"/"equipLayer" still holds one
+  // physical thing per slot however many units the stack carries.
+  if (a.name === b.name) return `You can only have one ${a.name} ${where} at a time. ‡`;
   return `${a.name} and ${b.name} can't both go ${where}. ‡`;
 }
 
@@ -124,14 +157,15 @@ function describeSlotClash({ a, b }) {
  * rule needs to know which ones to put down, and a refusal that listed the
  * whole armful — the ones already fitting included — told them nothing they
  * could act on. Hands are filled in the order the rows came, and anything
- * that will not go in is what has to go.
+ * that will not go in is what has to go. Expands by equippedQuantity, so
+ * three swords from one stack fill three hands, not one.
  */
 function describeHandsOverflow(tags) {
-  if (handsUsed(tags) <= WEAPON_HANDS) return null;
+  const units = expandUnits(tags);
+  if (units.reduce((n, tag) => n + handsOf(tag), 0) <= WEAPON_HANDS) return null;
   const excess = [];
   let held = 0;
-  for (const entry of tags ?? []) {
-    const tag = tagOf(entry);
+  for (const tag of units) {
     if (tag?.equipSlot !== "WEAPON") continue;
     const hands = handsOf(tag);
     if (held + hands <= WEAPON_HANDS) {
@@ -140,9 +174,14 @@ function describeHandsOverflow(tags) {
     }
     excess.push(tag);
   }
-  // A two-hander says so inline, so the sentence stays one sentence and the
-  // player can still see why three things filled three hands.
-  const named = listWords(excess.map((t) => (t.twoHanded ? `${t.name} (two hands)` : t.name)));
+  // A two-hander says so inline, and a repeated name collapses to a count, so
+  // the sentence stays one sentence for a whole stack of excess swords too.
+  const counts = new Map();
+  for (const tag of excess) {
+    const label = tag.twoHanded ? `${tag.name} (two hands)` : tag.name;
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const named = listWords([...counts].map(([label, n]) => (n > 1 ? `${label} ×${n}` : label)));
   return `Your hands are full: put away ${named} before you take up anything else. ‡`;
 }
 
@@ -154,12 +193,12 @@ function describeHandsOverflow(tags) {
  * Armour, and the sentence a refusal needs is describeSlotClash's job. What it
  * exists to say is the thing a shopper cannot otherwise work out: that a coif
  * and a helm stack because they sit at different layers, that a poleaxe eats
- * two of three hands, and that trinkets run out at four.
+ * two of four hands, and that trinkets run out at four.
  */
 function describeEquipFit(tag) {
   const slot = tag?.equipSlot;
   if (!slot) return null;
-  if (slot === "WEAPON") return `Hands · takes ${tag.twoHanded ? "two" : "one"}`;
+  if (slot === "WEAPON") return `${SLOT_TITLES.WEAPON} · takes ${tag.twoHanded ? "two" : "one"}`;
   if (slot === "ACCESSORY") return `${SLOT_TITLES.ACCESSORY} · ${MAX_ACCESSORIES} at once`;
   const layer = LAYER_NAMES[slot]?.[(tag.equipLayer ?? 0) - 1];
   return layer ? `${SLOT_TITLES[slot]} · ${layer}` : SLOT_TITLES[slot] ?? null;
@@ -171,11 +210,17 @@ function describeEquipFit(tag) {
  * Names only the EXCESS, the same way describeHandsOverflow does and for the
  * same reason — a character wearing six trinkets from before the cap needs to
  * know which two to take off, not to be read their own inventory back.
+ * Expands by equippedQuantity like everything else here, so five badges out
+ * of one stack are five things about you, not one.
  */
 function describeAccessoryOverflow(tags) {
-  const worn = (tags ?? []).map(tagOf).filter((t) => t?.equipSlot === "ACCESSORY");
+  const worn = expandUnits(tags).filter((t) => t?.equipSlot === "ACCESSORY");
   if (worn.length <= MAX_ACCESSORIES) return null;
-  const named = listWords(worn.slice(MAX_ACCESSORIES).map((t) => t.name));
+  const counts = new Map();
+  for (const tag of worn.slice(MAX_ACCESSORIES)) {
+    counts.set(tag.name, (counts.get(tag.name) ?? 0) + 1);
+  }
+  const named = listWords([...counts].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name)));
   return `You can keep ${MAX_ACCESSORIES} things about you: put away ${named}. ‡`;
 }
 
