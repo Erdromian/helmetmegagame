@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · An interception ends however you leave, and so does a hold
+
+✚ Being taken away now lets your prisoner go. Walking off already did; a GM moving you, a rite dragging you or a Bulk Move did not, so a victim could stay pinned to the end of the turn by somebody three zones away with nobody able to free them  
+✎ The cancelled-interception letter is sent before the Discord channel work, so a hiccup in the middle of a move can no longer take somebody's watch away without telling them  
+✚ A GM teleporting somebody to nowhere cancels their watch too. It was the one move that ran nothing, so the watch sat waiting and came back to life if anything put them back  
+✎ The dialog says the watch ends when you leave, however you leave — not just when you walk  
+✎ The audit log tells a watch you stopped apart from one a move ended
+
 ## 2026-09-09 · You can kiss somebody now
 
 ✚ A Kiss button on the sheet and on a person's row in Chat. You pick somebody standing with you and they get a DM with Accept or Decline — nothing happens until they press one.  
