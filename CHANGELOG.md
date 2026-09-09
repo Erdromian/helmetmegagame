@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · You lie in wait in one place, and leaving cancels it
+
+✎ An interception is now set in one place and works in that place only. It used to be read live off wherever you happened to be standing, so a watch set at the gatehouse followed you around Ravenheart and was still stopping strangers on the far side of the map days later  
+✚ Any move at all ends it — walking, being carried along by somebody, a GM moving you, a rite — and you are told: "You left, so your interception was canceled."  
+✚ The dialog names the place you are waiting in, and says that walking away ends it  
+✎ Catching somebody once a turn is now counted against the catcher rather than against the watch, so stepping out of the room and setting a new one no longer buys a fresh set of catches  
+✎ A watch survives a GM pressing Resync, a revive, and a character's first placement — none of those is a move
+
 ## 2026-09-09 · Tap the map to put a place card away
 
 ✚ Tapping open ground on the map unpicks the place you had selected, so the card gets out of the way  
