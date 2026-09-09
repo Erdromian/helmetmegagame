@@ -20,20 +20,17 @@ const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = r
 
 const GATEHOUSE_LOCATION_SLUG = "gatehouse";
 
-const DEATH_CONTENT = "Cut down by the turret in the fortress yard.";
+const DEATH_CONTENT = "Shot by a turret.";
 
 // The plain fact under the flavour, for the death DM and #leave. Same split as
 // the Depot's: the line above is what the archive records, this is what the
 // person killed is told.
-const DEATH_REASON = "the gun on the rotor in the fortress yard cut them down.";
+const DEATH_REASON = "they were shot by a turret.";
 
-// Deliberately not the Depot's wording. That gun identifies you and decides it
-// does not like your face; this one never looks up at all, and the lines say so.
 const GATEHOUSE_TURRET_DM = {
-  graze:
-    "The gun on the rotor swings, finds you, and fires. The burst goes wide and takes a bite out of the wall.",
-  hit: "The gun on the rotor swings, finds you, and fires.",
-  dead: "The gun on the rotor swings, finds you, fires, and does not stop.",
+  graze: "The turret shoots you. You get in cover just in time.",
+  hit: "The turret shoots you.",
+  dead: "The turret shoots you.",
 };
 
 // What the world says when somebody flips the switch. Scenery, not an
@@ -41,12 +38,12 @@ const GATEHOUSE_TURRET_DM = {
 // db/lib/ambientLine.js, because a machine spinning up is the only warning
 // anyone in the yard is going to get.
 const TURRET_ARMED_LINE = {
-  text: "You hear something in the yard whir, and the barrels on the rotor come around to level.",
+  text: "You hear something in the yard whir.",
   signed: false,
 };
 
 const TURRET_DISARMED_LINE = {
-  text: "You hear the rotor in the yard settle, and the barrels drop.",
+  text: "You hear the rotor in the yard settle.",
   signed: false,
 };
 

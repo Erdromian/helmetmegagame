@@ -36,10 +36,9 @@ const SHUTTLE_DEPARTED_LINE = {
 };
 
 const TURRET_DM = {
-  graze:
-    "The turret tracked you across the depot floor and fired. It missed by an inch and put a hole in the wall behind you.",
-  hit: "The turret in the depot ceiling identified your face, decided it did not like it, and fired.",
-  dead: "The turret in the depot ceiling identified your face, decided it did not like it, and did not miss.",
+  graze: "The turret shoots you. You get in cover just in time.",
+  hit: "The turret shoots you.",
+  dead: "The turret shoots you.",
 };
 
 // One turn of the generator. Returns the line to speak if it died this turn.
@@ -91,11 +90,11 @@ async function sweepTurret(prisma, depot) {
   });
 }
 
-const DEATH_CONTENT = "Shot dead by the turret in the depot ceiling.";
+const DEATH_CONTENT = "Shot by a turret.";
 // What the victim's death DM ends on, and what #leave reads. Separate from the
 // flavour line above, which the gun speaks in the moment — this is the plain
 // fact, and it has to survive being read a day later out of context.
-const DEATH_REASON = "the turret in the depot ceiling shot them dead.";
+const DEATH_REASON = "they were shot by a turret.";
 
 // Walking in while it is hot. `armed` is a thunk so loadDepot — an upsert, and
 // therefore a write on one contended row — never runs for the thousands of

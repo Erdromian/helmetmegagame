@@ -8702,7 +8702,7 @@ tags:
     name: Merchant's License
     category: items
     group: items-special
-    description: "It bears the Merchant's name and face and, funnily enough, his home address — somewhere in a certain city far away. Allows you to run the Depot: the account, the generator, the shuttle, the turret. Be careful with that last one, it does not read this card. It reads faces, and the only face it will not fire on is the one printed here."
+    description: "It bears the Merchant's name and face and, funnily enough, his home address — somewhere in a certain city far away. Allows you to run the Depot: the account, the generator, the shuttle."
     pointCost: 0
     tradeable: true
     weight: 0

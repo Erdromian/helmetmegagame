@@ -165,7 +165,7 @@ function depotLines(ctx = {}) {
   // saying so every time would train people to stop reading the line that
   // matters.
   if (depot.turretArmed && depot.powered) {
-    lines.push("**Turret**: it's armed, and it's watching you. ‡");
+    lines.push("**Turret**: it's armed.");
   }
   return lines;
 }

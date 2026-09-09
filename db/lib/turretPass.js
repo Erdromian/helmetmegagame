@@ -179,13 +179,10 @@ async function applyTurretShot(prisma, shot, turn, { deathContent, deathReason }
 // about whether they are walking away or bleeding out — which they then had to
 // open the web app to discover. Naming the wound is not flavour, so it does not
 // get dressed up as any.
-//
-// The ‡ is moved rather than added: one per message, at the very end
-// (CLAUDE.md), and every one of these flavour lines already carries its own.
 function turretDmFor(lines, outcome) {
   const flavour = lines[outcome.kind === "hit" ? "hit" : outcome.kind] ?? lines.hit;
   if (!outcome.wound) return flavour;
-  return `${flavour.replace(/\s*‡\s*$/, "")}\n**${outcome.wound}.**`;
+  return `${flavour}\n**${outcome.wound}.**`;
 }
 
 // The OTHER trigger: walking in while it is hot.

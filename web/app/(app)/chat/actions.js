@@ -1082,7 +1082,7 @@ export async function ringBell({ roomId, word } = {}) {
 export async function turretState(roomId) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
-  const found = await roomHere(me.character, roomId, null, "There's no button here.");
+  const found = await roomHere(me.character, roomId, null, "There isn't a button here.");
   if (found.error) return { ok: false, error: found.error };
   const armed = await gatehouseTurretArmed(prisma);
   return { ok: true, armed, word: armed ? DISARM_WORD : ARM_WORD };
@@ -1091,7 +1091,7 @@ export async function turretState(roomId) {
 export async function toggleTurret({ roomId, word } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
-  const found = await roomHere(me.character, roomId, null, "There's no button here.");
+  const found = await roomHere(me.character, roomId, null, "There isn't a button here.");
   if (found.error) return { ok: false, error: found.error };
 
   // Re-read rather than trusting what the dialog was drawn against — two

@@ -9,10 +9,9 @@ import Tooltip from "./Tooltip";
 
 // The hardware: the generator, the fuel it eats, and the gun in the ceiling.
 //
-// The turret's confirm is the only hard one in the feature, and it spells out
-// the trap rather than asking a polite "are you sure?" — the failure mode is
-// somebody arming it while concealed and being shot by their own gun, and a
-// vague confirm would not have stopped that.
+// The turret's confirm spells out the trap rather than asking a polite "are you
+// sure?" — the failure mode is somebody arming it while concealed and being shot
+// by their own gun, and a vague confirm would not have stopped that.
 //
 // The generator is split by direction. A Docker with a keycard can feed it and
 // fire it up, because a dead generator otherwise means a dead Depot until the
@@ -51,20 +50,8 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
     });
   }
 
-  function submitTurret(reason) {
-    startTransition(async () => {
-      const result = await depotTurret({ armed: !depot.turretArmed, reason });
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setDialog(null);
-      refresh();
-    });
-  }
-
-  // Confirm first, transition second (DESIGN-SYSTEM.md §8): the dialog opens
-  // only after the confirm resolves, so the two never stack.
+  // One dialog, the way the Gatehouse turret does it: the confirm IS the
+  // confirm, and saying yes throws the switch.
   async function askTurret() {
     const arming = !depot.turretArmed;
     const ok = await confirm({
@@ -74,10 +61,18 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
             depot.merchantFace ? ` — ${depot.merchantFace}` : ", and no face is on file, so it will fire on everyone"
           }. Concealing yourself makes you a target, and a keycard will not save a Docker. People will be shot on the way in and again at the end of every turn.`
         : "It goes quiet and the depot is open to anyone who walks in.",
-      confirmLabel: arming ? "Arm it" : "Disarm it",
+      confirmLabel: arming ? "Arm" : "Disarm",
       cancelLabel: "Leave it",
     });
-    if (ok) setDialog({ kind: "turret" });
+    if (!ok) return;
+    startTransition(async () => {
+      const result = await depotTurret({ armed: arming });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      refresh();
+    });
   }
 
   return (
@@ -155,10 +150,7 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
 
       <section className="panel p-5">
         <h2 className="panel-header">Turret</h2>
-        <p className="mt-1 text-sm text-muted">
-          Facially identified. It fires on everyone in the depot whose face is not the one on file,
-          on the way in and again at the end of every turn. Armour matters a great deal.
-        </p>
+        <p className="mt-1 text-sm text-muted">It shoots everyone except the merchant.</p>
 
         <dl className="depot-totals">
           <div>
@@ -173,20 +165,10 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
           </div>
         </dl>
 
-        {!depot.merchantFace && (
-          <p className="mt-3 text-sm text-danger">
-            No face is on file, so it would fire on everyone including you. The Depot learns the
-            Merchant&apos;s face when he is created, so either nobody holds the seat yet or a GM
-            has cleared it. A GM can set it on the Dev Panel.
-          </p>
-        )}
-
         <button
           type="button"
           className={depot.turretArmed ? "btn-quiet mt-4" : "btn mt-4"}
-          // Disarming is always allowed. Arming with no face on file is
-          // refused server-side, so the button says so rather than failing.
-          disabled={disabled || pending || (!depot.turretArmed && !depot.merchantFace)}
+          disabled={disabled || pending}
           onClick={askTurret}
         >
           {depot.turretArmed ? "Disarm it" : "Arm it"}
@@ -238,21 +220,6 @@ export default function DepotStationTab({ depot, fuel, disabled, poweredDisabled
         </RequestDialog>
       )}
 
-      {dialog?.kind === "turret" && (
-        <RequestDialog
-          open
-          title={depot.turretArmed ? "Disarm the turret" : "Arm the turret"}
-          submitLabel="Confirm"
-          busy={pending}
-          error={error}
-          onCancel={() => setDialog(null)}
-          onConfirm={submitTurret}
-        >
-          <p className="text-sm text-muted">
-            A GM will see this in the log either way.
-          </p>
-        </RequestDialog>
-      )}
     </div>
   );
 }

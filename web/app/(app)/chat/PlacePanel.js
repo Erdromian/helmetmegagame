@@ -464,8 +464,8 @@ function TurretDialog({ entry, onClose, onDone }) {
       danger={!state.armed}
       help={
         state.armed
-          ? "The barrels drop and the yard is safe to cross again. ‡"
-          : "It fires on everyone standing in the Gatehouse — the Cerberon, the Baron, you. Armour helps; a name does not. ‡"
+          ? "The barrels drop and the yard is safe to cross again."
+          : "It fires on everyone standing in the Gatehouse — the Cerberon, the Baron, you. Armour helps; a name does not."
       }
       onClose={onClose}
       pending={pending}

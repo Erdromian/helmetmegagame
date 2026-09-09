@@ -1149,8 +1149,6 @@ zones:
                 Maybe they'll let you get a ride on their spaceship if things ever get bad around here.
               - >-
                 You are the legs of the Merchant's business. The Depot is at the bottom of the Caves and their customers are not, so somebody carries the goods up and the money down — that is you. Somebody also collects from the people who owe them. That is also you.
-              - >-
-                One warning about the Depot: the mini-turret does not recognize your keycard, or anybody's. It recognizes the Merchant's face and yours, unfortunately, is not theirs.
             difficulty: easy
             multiple: true
             weight: 2
