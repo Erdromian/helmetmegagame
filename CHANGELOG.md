@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Leper is an illness, Blessing is cheaper, and the daggers come off
+
+✎ Leper now sits under Health · Illness instead of General, so it reads and inspects like the ailment it is  
+✎ Blessing costs 3 points instead of 5  
+✎ The Held row says "3 slots" instead of "3 hands / empty", and an empty slot's menu says what it is waiting for  
+✎ The ‡ marks are off the web UI's error and empty-state copy — Pyrias's sweep
+
 ## 2026-09-09 · Wielding five swords costs five hands, not one
 
 ✎ Equipping something out of a stack now takes one slot per item — the rest stay in the pack, and three knives out of five fill three hands  
