@@ -3903,7 +3903,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 9
+      resourceCost: 14
       skills: [medical-expert]
 
   gut-wound:
@@ -3923,7 +3923,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 9
+      resourceCost: 14
       skills: [medical-expert]
 
   broken-jaw:
@@ -3979,7 +3979,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 9
+      resourceCost: 14
       skills: [medical-expert]
 
   rot-lung:
@@ -4052,7 +4052,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 9
+      resourceCost: 14
       skills: [medical-expert]
 
   pox:
@@ -4382,7 +4382,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 9
+      resourceCost: 14
       skills: [medical-expert]
       gambit: false
 
