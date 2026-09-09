@@ -38,8 +38,8 @@ conventions rather than displacing them: a line ending in `3 ⬢` becomes
 wording yet", and "Save", "Try again" or "You have no camera" have no wording to
 sign off on — there is one way to write them. Marking them buried the lines that
 really are drafted prose under a thousand button labels. Count the words of the
-string itself: four or fewer, no ‡. `scripts/copy/strip-short-daggers.py` is the
-sweep that took the existing ones off, and `--list` shows what it would judge.
+string itself: four or fewer, no ‡. A one-off sweep already took the existing
+short-string marks off.
 
 **Editing counts as writing.** Rework a line that has no ‡ and it gets one — the
 line is partly yours now. And never strip a ‡ that is already there: removing it
@@ -410,9 +410,6 @@ npm run db:prune-stale-channels      # deletes categories, channels and zone/
 npm run db:check-config              # the GameConfig field registry vs. the
                                      #   schema (db/lib/gameConfigFields.js).
                                      #   push.sh runs it; exits 1 on drift.
-npm run db:audit-equip               # read-only: living characters wearing a
-                                     #   set the slot rules would now refuse
-                                     #   (TAGS.md "equipSlot"). Never unequips.
 npm run db:audit-labor-drops         # read-only: prices docs/labordrops.yaml
                                      #   off disk (no sync needed first) — each
                                      #   entry's Depot sell value and every
