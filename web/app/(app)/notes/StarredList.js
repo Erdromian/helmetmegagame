@@ -74,6 +74,7 @@ export default function StarredList({ notes }) {
                   src={note.avatarPath ?? undefined}
                   unknown={note.unknownFace}
                   size={20}
+                  zoomable
                 />
                 <div className="flex flex-col">
                   <span className="font-bold">{note.characterName}</span>

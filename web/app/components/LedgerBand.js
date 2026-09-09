@@ -4,6 +4,7 @@ import { useState } from "react";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import StatusStrip from "@/app/(app)/play/StatusStrip";
 import ActionGrid from "./ActionGrid";
+import AvatarZoom from "./AvatarZoom";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import TagDetails from "./TagDetails";
@@ -89,13 +90,19 @@ export default function LedgerBand({
       <div className="ledger-band">
         <div className="flex items-start gap-3 min-w-0">
           {avatarSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={avatarSrc}
-              alt={character.name}
-              className="h-16 w-16 object-cover"
-              style={{ borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
-            />
+            // The one face on the sheet that is actually yours, so it is the
+            // one most worth opening: 64px here, 256 stored. `avatarSrc` is
+            // already whatever presentedIdentity resolved for the person
+            // looking, so the zoom shows that and never rebuilds a URL.
+            <AvatarZoom src={avatarSrc} name={character.name}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={avatarSrc}
+                alt={character.name}
+                className="h-16 w-16 object-cover"
+                style={{ borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+              />
+            </AvatarZoom>
           ) : (
             <div
               aria-hidden="true"

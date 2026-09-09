@@ -282,7 +282,7 @@ export default function ConversationPane({
     <div className="desk-convo">
       <div className="desk-convo-head">
         <div className="flex items-center gap-2 min-w-0">
-          <CharacterAvatar characterId={characterId} name={label} version={avatarVersion} size={32} />
+          <CharacterAvatar characterId={characterId} name={label} version={avatarVersion} size={32} zoomable />
           <h2 className="section-title truncate">{label}</h2>
           {zoneName ? <ZoneChip zoneName={zoneName} /> : null}
           {status && <EnumPill map={CHARACTER_STATUS} value={status} />}

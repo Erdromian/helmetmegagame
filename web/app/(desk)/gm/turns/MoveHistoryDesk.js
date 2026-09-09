@@ -45,7 +45,7 @@ export default function MoveHistoryDesk({
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="section-title flex items-center gap-2">
-            <CharacterAvatar characterId={move.characterId} name={move.characterName} version={move.avatarVersion} size={32} />
+            <CharacterAvatar characterId={move.characterId} name={move.characterName} version={move.avatarVersion} size={32} zoomable />
             <button type="button" className="desk-name" onClick={() => onInspect(move.characterId, move.characterName)}>
               {move.characterName}
             </button>{" "}

@@ -319,7 +319,7 @@ function Row({ item, gmProfileById, character, now, perspective }) {
           outbound ? (
             <GmAvatar profile={profile} size={32} />
           ) : (
-            <CharacterAvatar characterId={character?.id ?? null} name={name} version={character?.avatarVersion} size={32} />
+            <CharacterAvatar characterId={character?.id ?? null} name={name} version={character?.avatarVersion} size={32} zoomable />
           )
         ) : (
           <span className="dm-row-cont-time mono">{clockLabel(ms)}</span>

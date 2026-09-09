@@ -75,6 +75,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
               name={person.name}
               version={person.avatarVersion}
               size={20}
+              zoomable
             />
             <span className="truncate">{person.name}</span>
             <IconButton

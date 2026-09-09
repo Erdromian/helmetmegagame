@@ -186,6 +186,7 @@ const FeedRow = memo(function FeedRow({
             // and draws the plate (db/lib/archive.js#feedRowShape).
             unknown={row.unknownFace}
             size={32}
+            zoomable
           />
         )}
       </div>

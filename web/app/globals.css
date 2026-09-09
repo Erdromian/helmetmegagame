@@ -1747,6 +1747,32 @@ input[type="radio"]:disabled {
 .modal-panel[data-width="wide"] { max-width: 40rem; }
 .modal-panel[data-width="widest"] { max-width: 46rem; }
 
+/* An avatar you can click to see properly (AvatarZoom). The trigger is a bare
+   button so the face it wraps keeps whatever the call site was drawing — its
+   own size, its catatonic dot, its tooltip. */
+.avatar-zoom {
+  all: unset;
+  cursor: zoom-in;
+  display: inline-flex;
+  border-radius: var(--r-full);
+}
+
+.avatar-zoom:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+/* Every avatar in the game is stored at 256 square, so this stops there rather
+   than filling the panel — past its own resolution it would only get blurrier
+   (PORTRAITS.md). */
+.avatar-zoom-full {
+  display: block;
+  width: 100%;
+  max-width: 256px;
+  margin-inline: auto;
+  border-radius: var(--r-lg);
+}
+
 /* Under 640px a dialog is a bottom sheet: full width, up from the bottom,
    with the Cancel/Confirm row pinned to the foot so it stays reachable under
    a long body — the panel is its own scroll container (overflow-y above), so

@@ -134,6 +134,7 @@ export default function PartyRack() {
                 characterId={person.id}
                 name={person.name}
                 size={24}
+                zoomable
               />
               <span className="party-slot-name">{person.name}</span>
               {person.reason && <span className="party-slot-why">{person.reason}</span>}

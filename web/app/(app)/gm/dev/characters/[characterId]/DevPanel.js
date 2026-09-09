@@ -349,7 +349,7 @@ export default function DevPanel({
 
   const titleWithAvatar = (
     <span className="flex items-center gap-2">
-      <CharacterAvatar characterId={character.id} name={character.name} version={character.updatedAt} size={32} />
+      <CharacterAvatar characterId={character.id} name={character.name} version={character.updatedAt} size={32} zoomable />
       {staged.name || character.name}
     </span>
   );

@@ -28,6 +28,7 @@ export default async function DevCharacterLayout({ children, params }) {
               name={character.name}
               version={character.updatedAt.getTime()}
               size={24}
+              zoomable
             />
           ) : null
         }
