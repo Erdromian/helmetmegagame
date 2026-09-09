@@ -649,6 +649,8 @@ zones:
             description:
               - >-
                 Earth is a speck in the infinite firmament. You have always been humbled — or perhaps energized — by the Truth. Try to understand it. Investigate the world around you, find out its hidden truths, and create your own Great Work. Be a hermit or preach on the streets. Whether you wake others up or not, ensure you yourself _never_ fall asleep.
+
+                You can Research held items in the Cathedral, uncovering lost or secret crafting recipes.
             difficulty: normal
             multiple: true
             weight: 1

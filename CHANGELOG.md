@@ -6,6 +6,36 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Four things about you, and the buying screen tells the whole truth
+
+✚ You can keep four things about you at once; the equipped rig counts them like it counts hands  
+✎ The head's outer layer is named Outer, the same as the body's  
+✎ The buying screen now says who else can see a tag, whether it conceals you, what it weighs, how long it lasts and where it is worn  
+✎ Armour values are back on the buying screen, having quietly shown nothing at all
+
+## 2026-09-09 · Location channels go quiet on Discord too
+
+✎ Players can no longer type in a Location channel on Discord, the way they already couldn't on the web  
+✎ The channel doctor no longer throws everyone out of a Location channel when it runs in full
+
+## 2026-09-09 · Randomizing a portrait now suits the character's gender
+
+✎ The masculine hairstyles are men only now; the unisex ones stay open to anyone  
+✎ A woman no longer randomizes into a beard, and a man still can  
+✎ The picker itself is unchanged: every style is still there to pick by hand
+
+## 2026-09-09 · Merge PR #31: Scholastics can research secret recipes in the Cathedral
+
+✚ The Scholastic can Research an ingredient they are carrying, in the Cathedral. It takes the Move as a Gambit, and the answer arrives at the end of the turn  
+✚ A 6 or better turns up a recipe nobody else can see — one of the seven GM-only craftables, dealt once per character and minted as a note in their hands  
+✚ Every failed attempt on the same ingredient makes the next one easier, so a sixth try cannot miss. It resets once that ingredient gives something up  
+✚ A Research button on the tag's own row, and on the Cathedral's place card in Chat
+
+## 2026-09-09 · Take Pyrias's tag description rewrites
+
+✎ 152 tag descriptions rewritten from PR #33 — the double daggers are off  
+✎ Only the wording changed; no tag was added or removed by this
+
 ## 2026-09-09 · The buttons in Bascinet's messages work on the web
 
 ✎ Anything the game asks you to answer by message — a lesson, a confession, a bind, being taken along, a seat, a spawn, holding a door open — now has its Accept and Decline in the Bascinet pane, not only in Discord  

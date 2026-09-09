@@ -89,6 +89,13 @@ export default function CharacterSheet({
   healsLeft = null,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
   hasMoved = false,
+  // Research (CRAFTING.md §2b), same posture: three facts built
+  // once in character/page.js and handed straight to the provider, which
+  // composes them into canResearch/researchHint for the Research row in
+  // the tag rail.
+  holdsResearch = false,
+  atCathedral = false,
+  researchOptions = [],
   canTeach = false,
   knownRecipeIds = [],
   deathMaskCorpses = [],
@@ -188,6 +195,9 @@ export default function CharacterSheet({
         canHeal={canHeal}
         healsLeft={healsLeft}
         hasMoved={hasMoved}
+        holdsResearch={holdsResearch}
+        atCathedral={atCathedral}
+        researchOptions={researchOptions}
         canTeach={canTeach}
         knownRecipeIds={knownRecipeIds}
         deathMaskCorpses={deathMaskCorpses}

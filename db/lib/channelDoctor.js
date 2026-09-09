@@ -476,18 +476,19 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     const overwriteTargets = [];
     for (const zone of zones) {
       const spec = zoneChannelSpec(zone, { spectators });
-      overwriteTargets.push([`${zone.name}/category`, zone.discordCategoryId, spec.category]);
-      overwriteTargets.push([`${zone.name}/summary`, zone.discordSummaryChannelId, spec.summary]);
+      overwriteTargets.push([`${zone.name}/category`, zone.discordCategoryId, spec.category, false]);
+      overwriteTargets.push([`${zone.name}/summary`, zone.discordSummaryChannelId, spec.summary, false]);
     }
     for (const location of locations) {
       overwriteTargets.push([
         `${location.zoneName}/${location.name}`,
         location.discordChannelId,
         locationChannelSpec(location, location.zoneGmRoleId ?? null, { spectators }),
+        true,
       ]);
     }
     {
-      for (const [label, channelId, want] of overwriteTargets) {
+      for (const [label, channelId, want, isLocation] of overwriteTargets) {
         if (!channelId || !want) continue;
         let live;
         try {
@@ -498,16 +499,25 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
         }
         if (!live) continue;
 
-        // A member overwrite on a zone or location channel belongs to
-        // nobody; access rides the roles.
-        for (const overwrite of live.permission_overwrites ?? []) {
-          if (overwrite.type !== 1) continue;
-          await report(
-            "member-overwrite",
-            `${label}/${overwrite.id}`,
-            "stray per-member overwrite on a game channel",
-            () => deleteChannelOverwrite(channelId, overwrite.id),
-          );
+        // A member overwrite on a zone's CATEGORY or #summary belongs to
+        // nobody; access there rides the zone role.
+        //
+        // A LOCATION channel is the opposite, and this sweep used to take it
+        // down with the rest: since Bascinet 2 the per-member overwrite IS how
+        // an occupant is let in (CHANNELS.md §3), so one `--full --apply` threw
+        // every player out of every Location channel at once and left them out
+        // until the next run — the occupancy check that puts them back has
+        // already run by the time this gets here.
+        if (!isLocation) {
+          for (const overwrite of live.permission_overwrites ?? []) {
+            if (overwrite.type !== 1) continue;
+            await report(
+              "member-overwrite",
+              `${label}/${overwrite.id}`,
+              "stray per-member overwrite on a game channel",
+              () => deleteChannelOverwrite(channelId, overwrite.id),
+            );
+          }
         }
 
         // Spec drift, repaired with the same reconcile the sync uses.

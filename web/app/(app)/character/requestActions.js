@@ -171,6 +171,13 @@ import {
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
+  RESEARCH_TAG_SLUG,
+  CATHEDRAL_LOCATION_SLUG,
+  researchMarker,
+  loadResearchCatalog,
+  researchableHeld,
+} from "@lifeweb/db/lib/research";
+import {
   placementOf,
   structuresAt,
   canBuildHere,
@@ -2986,6 +2993,100 @@ async function healCharacterRequestImpl({
   };
 }
 
+// --- Research (Scholastic skill, docs/tags.yaml `research`) -------------
+//
+// Studying a held ingredient in the Cathedral's library. Filed exactly like
+// the heal Gambit above — CONFIRMED, `moveKind: GAMBIT`, the die already
+// rolled and stored, `moveReviewStatus: OPEN` — but for a different reason.
+// A gambit heal sits OPEN because a GM reads it and writes the cure by hand
+// (docs/systemdocs/TAGS.md §5c). Nobody adjudicates a research roll: it sits
+// OPEN because it hasn't been RESOLVED yet, the same posture a Lesson Gambit
+// takes (db/lib/lessons.js) — db/lib/researchPass.js reads `gmNotes` back at
+// turn close, in its own pass between Lessons and Confessions, and writes
+// the paper (or the "nothing" line) and the SOLVED status itself. Which
+// ingredient was chosen has nowhere else to live: the Action has one
+// `description` and no ingredient column, so `researchMarker()` stamps the
+// slug into `gmNotes`, the same channel Craft's `auto:craft` marker and the
+// Death Mask's corpse choice both ride.
+//
+// No file-time DM: the confirm prompt already told the player this spends
+// the Move as a Gambit whose result lands at turn close (the sheet's own
+// dialogs never echo that back the way Play's Move panel does — heal's
+// Gambit branch above sends nothing to the medic either, only to a target
+// who is someone else).
+async function researchRequestImpl({ ingredientSlug }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  if (!character.tags.some((ct) => ct.tag?.slug === RESEARCH_TAG_SLUG))
+    throw new UserError("You don't know how to research.");
+
+  // No `character.location` on the shared include (requireCharacter is every
+  // request's loader) — a targeted read off the scalar FK, the same shape
+  // db/lib/fear.js#applyArrivalFear uses for its own Cathedral check.
+  const location = character.locationId
+    ? await prisma.location.findUnique({
+        where: { id: character.locationId },
+        select: { slug: true },
+      })
+    : null;
+  if (location?.slug !== CATHEDRAL_LOCATION_SLUG)
+    throw new UserError("You must be located in the Cathedral to Research.");
+
+  const catalog = await loadResearchCatalog(prisma);
+  const held = researchableHeld(character.tags, catalog);
+  const ingredient = held.find((ct) => ct.tag?.slug === ingredientSlug);
+  if (!ingredient) throw new UserError("You aren't carrying that.");
+
+  const openTurn = await getOpenTurn();
+  // requireFreeMove is also the Move-window check (web/lib/moveSpend.js) —
+  // no separate `moveWindow` read is needed the way craft's fractional Move
+  // needs one, because a Gambit always takes the whole thing.
+  await requireFreeMove(character, openTurn);
+
+  let action;
+  await prisma.$transaction(async (tx) => {
+    // The P2002 catch below is the real gate — @@unique([characterId,
+    // turnId]) — but requireFreeMove's read a moment ago is what keeps a
+    // normal submit from ever reaching it.
+    try {
+      action = await tx.action.create({
+        data: {
+          characterId: character.id,
+          turnId: openTurn.id,
+          type: "MOVE",
+          status: "CONFIRMED",
+          confirmedAt: new Date(),
+          moveKind: "GAMBIT",
+          moveReviewStatus: "OPEN",
+          description: `Researching ${ingredient.tag.name} in the Cathedral.`,
+          diceRoll: rollDie(),
+          diceModifier: gambitModifierTotal(character.tags, {
+            hungerStreak: character.hungerStreak,
+          }),
+          zoneId: character.zoneId ?? null,
+          locationId: character.locationId ?? null,
+          gmNotes: researchMarker(ingredientSlug),
+        },
+      });
+    } catch (err) {
+      if (err?.code === "P2002")
+        throw new UserError("You've already used your Move this turn.");
+      throw err;
+    }
+
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "research_filed",
+      targetCharacterId: character.id,
+      turnId: openTurn.id,
+      details: { ingredientSlug },
+    });
+  });
+
+  revalidateAll();
+  return { ingredientName: ingredient.tag.name };
+}
+
 // --- Looting a living, incapacitated target ----------------------------
 
 // A helpless target (dying/catatonic/paralyzed/bound) is lootable the same
@@ -4744,6 +4845,9 @@ export async function consumeTagRequest(input) {
 
 export async function healCharacterRequest(input) {
   return guarded(() => healCharacterRequestImpl(input));
+}
+export async function researchRequest(input) {
+  return guarded(() => researchRequestImpl(input));
 }
 
 export async function claimDesire(input) {

@@ -254,10 +254,13 @@ async function runStagedPushPass(prisma, turn) {
   // decided at submit, this pass just delivers the news. Every CONFIRMED
   // Gambit still unpaid this turn qualifies.
   // A lesson's Gambit is excluded: the lesson pass (db/lib/lessonPass.js)
-  // already told the learner the die AND what it did, in one line.
+  // already told the learner the die AND what it did, in one line. A
+  // research Gambit is excluded for the same reason: db/lib/researchPass.js
+  // already told the researcher the die and what it turned up.
   const gambitRollNotices = [];
   for (const action of unapplied) {
     if ((action.gmNotes ?? "").includes("auto:lesson")) continue;
+    if ((action.gmNotes ?? "").includes("auto:research")) continue;
     if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
       gambitRollNotices.push({
         discordUserId: action.character.discordUserId,

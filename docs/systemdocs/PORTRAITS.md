@@ -217,6 +217,35 @@ Changing any of this only affects portraits saved **from then on**. The bytes
 in `Character.avatarData` are already baked; `Character.portrait` keeps the
 selection, so a re-bake is possible, but there is no script for one.
 
+### Randomize draws by gender
+
+**Randomize is the only thing gender touches. The picker is not filtered.**
+`MASCULINE_PARTS` in `catalog.js` lists the hair and beard indices that read
+masculine; `randomizableParts` strips them from the pool for a `WOMAN`, and
+`randomSelection` takes a `gender` alongside `allowFantasy`. `MAN` and `NEUTRAL`
+draw from everything, which is the same shape as
+`db/lib/nameCorpus.js#randomCharacterName` — a neutral character draws from both
+name pools rather than from a third one.
+
+The list is one-sided because the artist's set is: eleven of the 28 hairstyles
+and thirteen of the fourteen beards read masculine, and **nothing reads
+feminine-only**. So a woman rolls from the seventeen unisex hairstyles and always
+lands clean-shaven, and a man can roll anything. Hair index 0 — the empty tile,
+i.e. bald — counts as masculine on purpose; that is Bascinet's call, not an
+oversight about the "none" option.
+
+The grid still offers all 28 and all 14 to everybody, and `normalizeSelection`
+knows nothing about gender, so a hand-picked beard on a woman saves fine. That
+is deliberate: a roll should land somewhere plausible, but a player who wants a
+particular face gets it. The gender arrives as a prop —
+`BioForm` -> `AvatarField` -> `PortraitMaker`, defaulted to `"NEUTRAL"` (the
+widest pool) at each hop, so a caller that forgets it rolls the way the button
+did before this existed.
+
+One thing this does *not* fix: every beard but index 0 is masculine, so a man
+still rolls facial hair thirteen times in fourteen. That is uniform-roll
+weighting, not gender, and nobody has asked for it yet.
+
 ## 4. The client never posts pixels
 
 `setPortraitAvatar` takes a *selection* — part indices and palette indices —

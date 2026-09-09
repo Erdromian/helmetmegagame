@@ -39,6 +39,7 @@ export default function BioForm({
       <BioNameFields character={character} />
       <AvatarField
         defaultTurnPingOptIn={character.turnPingOptIn}
+        gender={character.gender}
         defaultWebOnly={character.webOnly}
         playPanelEnabled={playPanelEnabled}
         defaultConcealed={character.concealed}

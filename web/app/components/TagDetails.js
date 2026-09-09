@@ -4,6 +4,11 @@ import { formatTagArmor } from "@/lib/formatTagArmor";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { turnsLeft, tagDuration } from "@/lib/turnFormat";
 import { chainTokens } from "@/lib/tagChains";
+// The deep path, not the @lifeweb/db barrel: TagChip renders this on the
+// server and PointBuy renders it in a "use client" bundle, and the barrel
+// would drag @prisma/client into the second one. equipSlots.js requires
+// nothing, so it costs the bundle nothing.
+import { describeEquipFit } from "@lifeweb/db/lib/equipSlots";
 import DesireUnlocks from "./DesireUnlocks";
 import ChipText from "./ChipText";
 import PaperSheet from "./PaperSheet";
@@ -65,6 +70,7 @@ export default function TagDetails({
   const armor = formatTagArmor(tag);
   const weight = formatTagWeight(tag, quantity);
   const duration = tagDurationFor({ tag, expiresTurn, currentTurn, armedTurn });
+  const fit = describeEquipFit(tag);
   const becomes = chainTokens(tag.expiresInto);
   const treated = chainTokens(tag.removesInto);
 
@@ -113,7 +119,11 @@ export default function TagDetails({
         )}
         {armor && <Meta label="Armour">{armor}</Meta>}
         {weight && <Meta label="Weight">{weight}</Meta>}
-        {tag.equipSlot && tag.twoHanded && <Meta label="Hands">Two</Meta>}
+        {/* Where it goes and what it costs to put there. This used to say
+            only "Hands: Two", which named the one gear rule a buyer could
+            already guess and none of the ones they couldn't — that a coif
+            goes under a helm, that trinkets run out. */}
+        {fit && <Meta label="Worn">{fit}</Meta>}
         {tag.inspectVisibility && tag.inspectVisibility !== "HIDDEN" && (
           <Meta label="Seen by others">{tag.inspectVisibility === "WORN" ? "Only while worn" : "Yes"}</Meta>
         )}

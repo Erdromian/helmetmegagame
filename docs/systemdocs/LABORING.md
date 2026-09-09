@@ -381,7 +381,7 @@ first thing on the line and the eye can skip what it does not need.
 ```
 » *Customs.*
 **Hunting**: × | **Farming**: × | **Fishing**: ×
-**Indoors**: you can't equip a cart or horse here. ‡
+**Indoors**: you can't equip a cart or horse here.
 **Noticeboard**: you can pin paper here. ‡
 **Generator**: 5 days of coal left. ‡
 **Shuttle**: it's here. ‡

@@ -1,3 +1,4 @@
+import AvatarZoom from "./AvatarZoom";
 import Tooltip from "./Tooltip";
 
 // The little face next to a character's name wherever a GM scans a list of
@@ -43,6 +44,14 @@ export default function CharacterAvatar({
   // watched speak this turn, and for an archived line said before the game
   // recorded what was over the speaker's face.
   unknown = false,
+  // Click the face to see it at the size it is actually stored (AvatarZoom).
+  //
+  // Opt-in rather than on by default, because half the call sites in the app
+  // draw this INSIDE a control — a queue row, a mention-menu item, a link in a
+  // table — where a nested <button> is invalid markup and the click already
+  // means something else. Set it where the face is the subject, not where it
+  // is a decoration on somebody else's button.
+  zoomable = false,
 }) {
   const wrap = (face) =>
     catatonic ? (
@@ -125,8 +134,13 @@ export default function CharacterAvatar({
   // concealed character down that branch.
   const imageSrc = src ?? `/api/avatar/${characterId}${version ? `?v=${version}` : ""}`;
 
-  return (
-    <Tooltip text={label}>
+  // `pinnable={!zoomable}` is load-bearing, not tidiness: Tooltip is a
+  // HoverCard, and a HoverCard PINS its panel on click. Without this one click
+  // would both open the dialog and leave a pinned name card sitting behind it.
+  // IconButton turns it off for the same reason — a button is already a
+  // control.
+  const face = (
+    <Tooltip text={label} pinnable={!zoomable}>
       {wrap(
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -145,5 +159,16 @@ export default function CharacterAvatar({
         />,
       )}
     </Tooltip>
+  );
+
+  // Deliberately here and nowhere earlier: the two branches above — the `?`
+  // plate and the bare initial — have already returned, so a face with nothing
+  // behind it is never clickable. Enlarging a question mark would be pointless,
+  // and that plate exists to withhold.
+  if (!zoomable) return face;
+  return (
+    <AvatarZoom src={imageSrc} name={label}>
+      {face}
+    </AvatarZoom>
   );
 }

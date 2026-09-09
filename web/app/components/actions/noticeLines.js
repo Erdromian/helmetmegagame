@@ -39,6 +39,7 @@ const LINES = {
   write: () => `Written.`,
   seal: () => `Sealed.`,
   bird: () => `The bird is away.`,
+  research: (res, ctx) => `You settle in with ${ctx?.name ?? res.ingredientName ?? "it"}. What the archives give up arrives at the end of the turn. ‡`,
   craft: (res, ctx) => (res.made ? `${res.made} made.` : ctx?.line ?? `The work is filed.`),
   recall: () => `Your comrades.`,
   recover: (res) => (res.granted?.length ? `${res.granted.join(" and ")} back in your hands.` : `Recovered.`),

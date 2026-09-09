@@ -152,6 +152,18 @@ export const GROUPS = [
 
 const GROUP_BY_KEY = new Map(GROUPS.map((g) => [g.key, g]));
 
+// Which hair and beard indices read MASCULINE. Nothing in the artist's set
+// reads feminine-only, so this is a one-sided list: an index in here is men
+// only, and everything else is unisex. Randomize honours it (see
+// randomizableParts below); the picker deliberately does not, because a player
+// choosing by hand is not second-guessed. Indices, not labels — the picker
+// draws them as index + 1, so hair 0 is the "Hair 1" tile, which is bald.
+const MASCULINE_PARTS = {
+  hair: [0, 3, 4, 5, 7, 11, 13, 17, 18, 19, 25],
+  // Every beard but 0 (clean-shaven, the empty tile).
+  beard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+};
+
 // The colour pickers, kept beside GROUPS so the modal can render both from one
 // list and normalizeSelection can validate both in one loop.
 export const COLOR_GROUPS = [
@@ -228,11 +240,29 @@ export function parseSelection(json, { allowFantasy = false } = {}) {
   }
 }
 
+/** The indices Randomize may draw from — allowedParts, narrowed by gender.
+ * Only WOMAN narrows: MAN and NEUTRAL draw from the whole set, the same way a
+ * NEUTRAL character draws from both name pools (db/lib/nameCorpus.js). */
+function randomizableParts(group, allowFantasy, gender) {
+  const parts = allowedParts(group, allowFantasy);
+  if (gender !== "WOMAN") return parts;
+  const masculine = MASCULINE_PARTS[group.key];
+  if (!masculine) return parts;
+  const narrowed = parts.filter((i) => !masculine.includes(i));
+  // A classification that ever swallowed a whole group would hand `pick` an
+  // empty array and put `undefined` in the selection; fall back instead.
+  return narrowed.length ? narrowed : parts;
+}
+
 /** A random, fully valid selection — the modal's Randomize button. */
-export function randomSelection({ allowFantasy = false, random = Math.random } = {}) {
+export function randomSelection({
+  allowFantasy = false,
+  gender = "NEUTRAL",
+  random = Math.random,
+} = {}) {
   const pick = (arr) => arr[Math.floor(random() * arr.length)];
   const out = {};
-  for (const group of GROUPS) out[group.key] = pick(allowedParts(group, allowFantasy));
+  for (const group of GROUPS) out[group.key] = pick(randomizableParts(group, allowFantasy, gender));
   for (const { key, options } of COLOR_GROUPS) {
     const allowed = allowedColors(options, allowFantasy);
     out[key] = options.indexOf(pick(allowed));

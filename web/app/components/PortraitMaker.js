@@ -207,7 +207,13 @@ function OptionButton({ active, onClick, label, children }) {
 // Mounted only while it is open (see AvatarField.js) — that is what resets
 // the selection on a cancel-then-reopen, rather than an effect syncing state
 // to a prop, which `react-hooks/set-state-in-effect` forbids here anyway.
-export default function PortraitMaker({ onClose, initialSelection, allowFantasy = false }) {
+export default function PortraitMaker({
+  onClose,
+  initialSelection,
+  allowFantasy = false,
+  // Randomize only — the grid below still offers every part to a hand pick.
+  gender = "NEUTRAL",
+}) {
   const [selection, setSelection] = useState(initialSelection);
   const [tabKey, setTabKey] = useState(TABS[0].key);
   const [assets, setAssets] = useState(null);
@@ -288,7 +294,7 @@ export default function PortraitMaker({ onClose, initialSelection, allowFantasy 
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setSelection(randomSelection({ allowFantasy }))}
+                  onClick={() => setSelection(randomSelection({ allowFantasy, gender }))}
                 >
                   Randomize
                 </button>

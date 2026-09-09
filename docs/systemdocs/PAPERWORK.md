@@ -255,6 +255,27 @@ sealed, which a modal could never have expressed.
 `BirdMessage.body` survives as the GM's snapshot of what went — null on a
 sealed letter, because the bird did not open it either.
 
+### 6a. Paper minted straight into someone's hands
+
+Not every written sheet comes off the Write button. `paperMint.js#mintLetterFor`
+mints a `PAPER` row already carrying its text and puts it directly into a
+character's hands, with no blank sheet spent and no player at the keyboard.
+Two callers do this:
+
+- **The GM letter** (`BIRD.md` §9) — a God-King has no sheet to take a page
+  off, so the letter is minted rather than moved, authored in whatever name
+  the GM typed.
+- **The Research pass** (`db/lib/researchPass.js`, `TURN-ENGINE.md` §2) —
+  a Scholastic's Gambit that rolls a 6 or better against a secret recipe
+  (`CRAFTING.md` §2b) mints them a page of notes on it at turn close,
+  authored in the researcher's own presented name. Same primitive as the GM
+  letter, opposite direction: there the author is invented, here it's the
+  reader who earned the page.
+
+Either way the row is the same `PAPER_SHAPE` as a written sheet — it has
+weight, can be handed on, pinned up, stolen, and is swept by a Restart Game —
+so nothing downstream needs to know how it arrived.
+
 ## 7. Noticeboards
 
 `noticeboard: true` in a Location's `attributes:` map

@@ -149,6 +149,14 @@ function zoneChannelSpec(zone, { spectators = true } = {}) {
 // somebody chose to be in. The web face agrees: /play draws no composer on a
 // Location.
 //
+// But taking a bit OUT OF AN ALLOW DENIES NOTHING. Discord resolves a channel
+// from the guild-level @everyone permissions first, and @everyone carries Send
+// Messages guild-wide, so for two days every occupant of every Location channel
+// could still type there — unproxied and unarchived, under their real Discord
+// name, because isDesignatedTupperChannel had stopped watching the channel. The
+// deny that actually carries the rule is on @everyone in locationChannelSpec
+// below, the same shape #turns, the spectator seat and the ghost seat all use.
+//
 // One `npm run db:doctor -- --apply` rewrites every existing occupant's
 // overwrite to this bit set; the occupancy check compares the allow bits, not
 // just the presence of a target.
@@ -159,6 +167,13 @@ const LOCATION_MEMBER_ALLOW = PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES_IN_THREADS 
 // Occupant overwrites are written by the move pipeline and reconciled by the
 // channel doctor's occupancy check — never by this spec, which is exactly
 // why managedOverwriteIds() must never learn to delete a member target.
+//
+// The @everyone deny is what makes the street quiet. SEND_MESSAGES governs the
+// top level only — SEND_MESSAGES_IN_THREADS is a separate bit, so a Room thread
+// under this channel still takes an occupant's words. The GM: <Zone> allow
+// above outranks it (Discord applies role allows after the @everyone deny), so
+// a GM still types here; the bot bypasses overwrites outright, which is why the
+// arrivals and the turn line keep landing.
 function locationChannelSpec(location, zoneGmRoleId = null, { spectators = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const base = baseOverwrites(guildId, zoneGmRoleId, { spectators });
@@ -173,7 +188,11 @@ function locationChannelSpec(location, zoneGmRoleId = null, { spectators = true 
       {
         id: guildId,
         type: 0,
-        deny: (PERM_CREATE_PUBLIC_THREADS | PERM_CREATE_PRIVATE_THREADS).toString(),
+        deny: (
+          PERM_SEND_MESSAGES |
+          PERM_CREATE_PUBLIC_THREADS |
+          PERM_CREATE_PRIVATE_THREADS
+        ).toString(),
       },
     ].reduce(mergeOverwrite, base),
   };

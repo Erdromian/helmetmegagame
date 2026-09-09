@@ -911,8 +911,11 @@ them).
 - `teachable` — whether this tag is a skill Learn Skill / Teach Skill will
   offer. Set `true` on every entry in the `skills` category except the
   Teaching tree itself (Teaching, Lecturing, Drill Instructor are `false` —
-  you can't be taught to teach), not derived from the category; the one rule
-  is `db/lib/lessons.js#teachableSkills` (`LESSONS.md` §2).
+  you can't be taught to teach) and Research (also `false` — it arrives only
+  through the Scholastic's `starting_tags`, and studying it yourself in the
+  Cathedral is the whole point, not something a lesson can hand you), not
+  derived from the category; the one rule is
+  `db/lib/lessons.js#teachableSkills` (`LESSONS.md` §2).
 - `consumable` / `consumesInto` — whether a player can use this tag up, and
   what it becomes. Live; see §5b.
 - `expiresInto` — what this tag becomes when its `durationTurns` runs out,
@@ -1769,11 +1772,11 @@ because a slot holds one physical thing however large the stack behind it is.
 
 | `equipSlot` | limit | holds |
 |---|---|---|
-| `HEAD` | layers 1–3, one thing per layer | 1 liner (coif, cap, mask), 2 helm, 3 over (hat, hood, bag) |
+| `HEAD` | layers 1–3, one thing per layer | 1 liner (coif, cap, mask), 2 helm, 3 outer (hat, hood, bag) |
 | `BODY` | layers 1–3, one thing per layer | 1 clothes (padded armor, robes, garb), 2 mail (mail shirt, brigandine), 3 outer (breastplate, plate, cloak, longcoat) |
 | `SHIELD` | exactly one | buckler, shield, pavise |
 | `WEAPON` | **three hands**; a `twoHanded: true` weapon takes two | every weapon, the banners, the flamethrower, the chainsaw |
-| `ACCESSORY` | none | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
+| `ACCESSORY` | **four** | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
 
 `equipLayer:` 1 is against the skin and 3 outermost, and **two equipped tags
@@ -1792,6 +1795,14 @@ slot on a tag that is not `equippable`, and `twoHanded` on anything but a
 back and a pistol in the holster is exactly three. The two-handers are the
 polearms, the great swords, the bows and the long guns, and the refusal names
 which of them is eating two.
+
+**Accessories** are the second, and the same shape: `MAX_ACCESSORIES = 4`,
+beside it in the same file. The slot started uncapped, which made it the
+pocket that everything fitting nowhere else went into — a character could wear
+a dozen badges and every one of them counted. Four is a hard number rather
+than a `GameConfig` knob for the reason the flat count was retired: a limit a
+GM can set is a limit that can disagree with the slots. The refusal names only
+the excess, the way the hands one does, and the rig prints `n/4` on the row.
 
 A GM-authored custom tag (`/gm/dev/tags`) that is `equippable` but names no
 slot is limited by nothing at all — the form has no slot picker yet — which is

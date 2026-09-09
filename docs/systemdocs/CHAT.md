@@ -1131,7 +1131,10 @@ are a scene somebody chose to be in. Four changes carry it:
 - `LOCATION_MEMBER_ALLOW` in `db/lib/zoneChannelSpec.js` **drops Send**
   (view, send-in-threads and reactions stay). The doctor's `location-occupancy`
   check compares the **allow bits**, not just whether a target is present, so
-  one `npm run db:doctor -- --apply` rewrites every existing occupant.
+  one `npm run db:doctor -- --apply` rewrites every existing occupant. That
+  alone was not enough — an allow mask grants, it does not deny, and
+  `@everyone` has Send Messages guild-wide — so `locationChannelSpec` denies
+  `SendMessages` to `@everyone` outright. See `CHANNELS.md` §3.
 - Room threads get `rate_limit_per_user: 30` at creation, re-asserted the way
   `archived: false` is (`db/lib/syncZones.js`).
 - `bot/src/lib/channels.js#isDesignatedTupperChannel` no longer treats a

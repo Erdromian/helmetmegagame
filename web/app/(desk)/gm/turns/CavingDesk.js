@@ -121,7 +121,7 @@ export default function CavingDesk({
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="section-title flex items-center gap-2">
-            <CharacterAvatar characterId={roll.characterId} name={roll.characterName} version={roll.avatarVersion} size={32} />
+            <CharacterAvatar characterId={roll.characterId} name={roll.characterName} version={roll.avatarVersion} size={32} zoomable />
             <button type="button" className="desk-name" onClick={() => onInspect(roll.characterId, roll.characterName)}>
               {roll.characterName}
             </button>{" "}

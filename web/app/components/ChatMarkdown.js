@@ -39,6 +39,7 @@ function CharMention({ payload }) {
         name={character.name}
         version={character.updatedAt}
         size={16}
+        zoomable
       />
       <span>{character.name}</span>
     </span>

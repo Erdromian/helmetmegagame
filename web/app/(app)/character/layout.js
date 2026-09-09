@@ -62,6 +62,7 @@ export default async function CharacterLayout({ children }) {
                 name={character.name}
                 version={character.updatedAt.getTime()}
                 size={24}
+                zoomable
               />
             ) : null}
           </>

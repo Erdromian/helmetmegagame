@@ -69,6 +69,7 @@ export default function FactionPanel({ faction, siloOpen = false, onSelect = nul
                   name={member.name}
                   version={member.avatarVersion}
                   catatonic={member.catatonic}
+                  zoomable
                 />
                 <span className="chat-person-name">
                   {member.name}

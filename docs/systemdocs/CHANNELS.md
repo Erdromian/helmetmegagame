@@ -74,7 +74,8 @@ role (§3).
 > lands there is arrivals, gate crossings, smells, the turret, the noticeboard
 > and the turn line. **Talk happens in a Room thread, a Conversation or the
 > zone's `#summary`** — all of them a scene somebody chose to be in. Three
-> things carry the rule: `LOCATION_MEMBER_ALLOW` drops Send (§3),
+> things carry the rule: the `@everyone` **`SendMessages` deny** in
+> `locationChannelSpec` (§3),
 > `bot/src/lib/channels.js#isDesignatedTupperChannel` stops treating a
 > top-level Location channel as a tupper channel (so a GM typing there is left
 > alone rather than reposted under a mask), and `/play` draws no composer on a
@@ -189,9 +190,22 @@ does not update itself. The doctor's `location-occupancy` check therefore
 compares the **allow bits**, not merely whether a target is present, so one
 `npm run db:doctor -- --apply` rewrites every existing occupant (§6).
 
-**Room and Conversation creation is denied to `@everyone` on every Location
-channel.** `CREATE_PUBLIC_THREADS` and `CREATE_PRIVATE_THREADS` are both
-denied, while `SEND_MESSAGES_IN_THREADS` stays open — so players can talk
+> **Taking a bit out of an allow denies nothing.** Dropping `SendMessages` from
+> `LOCATION_MEMBER_ALLOW` was, on its own, decorative: Discord resolves a
+> channel from the guild-level `@everyone` permissions first, and `@everyone`
+> carries Send Messages guild-wide. So for two days the street was quiet on the
+> web and still open on Discord — and worse than open, because
+> `isDesignatedTupperChannel` had already stopped watching, so anything typed
+> there posted under the player's real Discord name, unproxied and unarchived.
+> The deny that carries the rule lives on `@everyone` in `locationChannelSpec`,
+> the same shape `#turns`, the spectator seat and the ghost seat all use. The
+> allow mask says what an occupant gains over `@everyone`; only a deny takes
+> something away.
+
+**Send, Room creation and Conversation creation are all denied to `@everyone`
+on every Location channel.** `SEND_MESSAGES`, `CREATE_PUBLIC_THREADS` and
+`CREATE_PRIVATE_THREADS` are denied, while `SEND_MESSAGES_IN_THREADS` stays
+open — a separate bit, so the quiet street does not reach into its rooms — so players can talk
 inside any thread they can see but can never open one themselves. The bot
 alone creates a Room (the sync, from `docs/zones.yaml`) or a Conversation (the
 Converse button, §4). Players hold no create permission anywhere, which is
@@ -639,7 +653,12 @@ Two scopes:
   the structure pass already fetched.
 - **full** — all of the above plus the expensive halves: zone and **Location
   channel overwrites** vs the spec (the *role* half; occupancy is cheap-scope),
-  leftover per-member overwrites on zone channels, **`room-thread`** (a Room's thread exists and is
+  leftover per-member overwrites on zone channels — **`member-overwrite`**, and
+  it skips Location channels on purpose, because there the per-member overwrite
+  is the access mechanism rather than a leftover. It used to sweep those too,
+  which meant one `--full --apply` threw every player out of every Location
+  channel at once and left them out until the next run, since `location-occupancy`
+  has already gone by the time the full scope starts — **`room-thread`** (a Room's thread exists and is
   unarchived — recreating a missing one is the sync's job, so this is
   report-only), **`room-membership`** (a private Room's actual thread
   membership vs who currently holds one of its `accessTagSlugs` **or a
