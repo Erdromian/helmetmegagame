@@ -107,7 +107,7 @@ costs a corpse nothing and lapses by itself.
 ## 4. Where the freeze bites
 
 **One gate**, at the top of `performLocationMove`, beside the incapacitation
-check. Every move in the game funnels through there, so it covers the `/play`
+check. Every move in the game funnels through there, so it covers the `/chat`
 travel panel, `/map`, the bot's picker and `/location` at once.
 
 **And one more, which is the easy one to miss.** Escort followers never touch

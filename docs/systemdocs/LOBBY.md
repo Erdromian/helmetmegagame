@@ -258,7 +258,7 @@ Wipes: `LobbyEntry`, and recreates `GameState` (phase CLOSED, new `gameId`).
 Everything else as before (`LAUNCH.md` §2, §4).
 
 `ArchiveEntry` is kept for `/archive` and shown nowhere else: Chat floors
-its feed at the highest seq belonging to a previous game, so `/play` is empty
+its feed at the highest seq belonging to a previous game, so `/chat` is empty
 after a restart rather than full of the last game (`CHAT.md` §7).
 
 ## 9. Where the code lives
@@ -279,5 +279,5 @@ after a restart rather than full of the last game (`CHAT.md` §7).
 | `bot/src/lib/lobby.js` | The Decline click |
 
 The **Decline the seat** button is answerable on either face — it is drawn in
-the Bascinet pane on `/play` as well as in the Discord DM (`CHAT.md` §2b),
+the Bascinet pane on `/chat` as well as in the Discord DM (`CHAT.md` §2b),
 which matters here because a player in the lobby has no character yet.

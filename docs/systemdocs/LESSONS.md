@@ -159,5 +159,5 @@ victim's DM never does still holds for Loot and Harm.
 | Player text | `docs/documents.yaml` `teachingskills`, `docs/handbook.md` "Teaching" |
 
 An offer's Accept / Decline is answerable on **either face** — the buttons are
-drawn in the Bascinet pane on `/play` as well as in the Discord DM
+drawn in the Bascinet pane on `/chat` as well as in the Discord DM
 (`CHAT.md` §2b).

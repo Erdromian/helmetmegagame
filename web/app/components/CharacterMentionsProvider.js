@@ -3,7 +3,7 @@
 import { createContext, useContext, useMemo } from "react";
 
 // Deliberately NOT mounted in the root layout, unlike TagsProvider and its
-// two siblings (ProductionRatesProvider, DocumentsProvider). Only /play and
+// two siblings (ProductionRatesProvider, DocumentsProvider). Only /chat and
 // /notes render a {char:…} token, and each hands down its own list. The
 // default is an empty Map, so a {char:…} token anywhere else in the app
 // simply fails to resolve — which now means the neutral chip its renderer

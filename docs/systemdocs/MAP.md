@@ -550,7 +550,7 @@ underneath. It replaced the retired four-rhombus zone panel, which went out
 with per-zone-only travel and left this note in its place for a while.
 
 Two hosts, **one component** (`web/app/(app)/map/MapBoard.js`): the `/map`
-route, and an overlay on `/play` opened by the place card's **Open map** and
+route, and an overlay on `/chat` opened by the place card's **Open map** and
 closed with Escape, the backdrop or Return to game. On a folded viewport the
 button navigates to the route instead of opening the overlay — a full-bleed
 board inside the phone's "Here" sheet would be a dialog inside a dialog, and
@@ -668,7 +668,7 @@ re-activates it, which is the second pick. The map has to spell it out — its
 rhombi are SVG `<g>` elements with no focus, and the Ways out list, which *is*
 real buttons, unmounts the moment you pick something — so `MapBoard` listens on
 the window, and stands aside for anything already focused. Enter on **Cancel**
-means cancel. There is deliberately **no Escape**: on `/play` the map sits in a
+means cancel. There is deliberately **no Escape**: on `/chat` the map sits in a
 Modal that already owns it.
 
 `canTravelTo(node, here)` is the one predicate all three doors read, so a place

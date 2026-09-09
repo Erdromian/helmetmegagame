@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import EmptyState from "@/app/components/EmptyState";
-import Feed from "@/app/(app)/play/Feed";
-import { seedRows, applyRow, removeRow } from "@/app/(app)/play/feedStore";
-import { noteTyping } from "@/app/(app)/play/typingStore";
+import Feed from "@/app/(app)/chat/Feed";
+import { seedRows, applyRow, removeRow } from "@/app/(app)/chat/feedStore";
+import { noteTyping } from "@/app/(app)/chat/typingStore";
 import { getCharacterScene } from "./actions";
 
 // The Scene tab: what is being said where this character is standing, live, in

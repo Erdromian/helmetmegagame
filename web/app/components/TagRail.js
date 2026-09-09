@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { chainTokens } from "@/lib/tagChains";
 import { buildCards, matchesQuery, nextRung, rowValue } from "@/lib/sheetCards";
-import { thingVerbSets, thingVerbs } from "@/app/(app)/play/thingRows";
+import { thingVerbSets, thingVerbs } from "@/app/(app)/chat/thingRows";
 import { consumeTagRequest } from "@/app/(app)/character/requestActions";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 // A leaf CommonJS module — constants and pure functions, no prisma require —

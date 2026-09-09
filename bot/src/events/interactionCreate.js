@@ -420,7 +420,7 @@ async function handleThreadMemberCommand(interaction, action) {
     .catch((err) => console.error("Failed to record thread invite:", err));
 
   // A "web only" target is out of every channel on purpose (CHAT.md §6), so
-  // the row above is the whole of the add: they see the conversation on /play
+  // the row above is the whole of the add: they see the conversation on /chat
   // and the invite row replays the Discord half if they ever come back off it.
   if (target.locationId === row.locationId && !target.webOnly) {
     try {
@@ -762,7 +762,7 @@ async function handleIntercomSubmit(interaction, roomId) {
 
   // The transcript is broadcastIntercom's own job since phase 4: it writes one
   // SYSTEM row per zone it reached, so the announcement lands in each zone's
-  // feed on /play as well as in /archive. The single row that used to be
+  // feed on /chat as well as in /archive. The single row that used to be
   // written here had no place key and so was invisible in Chat.
 
   await prisma.auditLog

@@ -27,13 +27,13 @@ so nothing had to be pinned. The shell class is gone entirely.
 (`web/app/components/AppHeader.js`) and nothing else around `{children}`. The
 header is a person rather than a page name — titled with the character's name,
 their role and faction as the meta line — and its actions are the avatar plus
-**← Back to the game · Esc**, a link to `/play`. The turn chip is `AppHeader`'s
+**← Back to the game · Esc**, a link to `/chat`. The turn chip is `AppHeader`'s
 own `TurnMeta`, the same one every other page gets.
 
 The Back link and the Escape listener are drawn **only when there is a living
 `ALIVE` character** (`loadHeaderIdentity()`, the same question that decides
-`kind === "sheet"`) and only when the Play page is on
-(`GameConfig.playPanelEnabled`), since `/play` would just bounce back. That
+`kind === "sheet"`) and only when the Chat page is on
+(`GameConfig.playPanelEnabled`), since `/chat` would just bounce back. That
 gate matters: a player halfway through the creation wizard pressing Escape
 means "close this", not "leave".
 
@@ -45,7 +45,7 @@ menu, a `Select` popup — whose own handler closes it on the same keypress.
 Capture, because those handlers sit on `document` and React flushes their
 close before a bubbling `window` listener runs; by then the menu was gone
 and the page navigated out from under a player who meant to close a menu.
-The `/play` snapshot (`CHAT.md` §5c) paints in the first frame, which is what
+The `/chat` snapshot (`CHAT.md` §5c) paints in the first frame, which is what
 makes it feel immediate.
 
 Inside, `.sheet-body` is the band, then `.ledger-body`: three columns
@@ -87,7 +87,7 @@ Who this is, where they stand, and:
   chip row** and puts its own words on the line under it, behind a `»` and
   clamped to two lines until clicked. It used to open a second chips row and a
   column of its own, which roughly tripled the box the moment somebody filed.
-  The rules are scoped to `.sheet-turn`: `/play`'s YOU column draws the same
+  The rules are scoped to `.sheet-turn`: `/chat`'s YOU column draws the same
   `TurnCard` and keeps its own three-line clamp.
 - **Turn Effects** (`TurnForecast.js`) — the turn passes read forward
   one step, as ONE wrapping line separated by `·` rather than a list, and with

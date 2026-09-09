@@ -5166,7 +5166,7 @@ label.chip {
   border-radius: var(--r-md);
 }
 
-/* ---- Chat (/play) ------------------------------------------------- */
+/* ---- Chat (/chat) ------------------------------------------------- */
 
 /* Chat owns its whole screen, the way the (desk) workspaces do: no
    PageShell, no centred column. A chat that scrolled the DOCUMENT would drag
@@ -6746,7 +6746,7 @@ label.chip {
    stacks down a narrow strip. In the band it has a whole row, so the turn
    chips and the Move button share it — the button at its own width, not a
    full-width bar under the chip that made the box twice as tall as it needed
-   to be. /play's YOU column is untouched: this is scoped to .sheet-turn.
+   to be. /chat's YOU column is untouched: this is scoped to .sheet-turn.
 
    A filed Move adds its kind to the SAME chip row and puts its words on the
    line under it — it used to open a second chips row and a column of its own,
@@ -7173,7 +7173,7 @@ button.equip-cell-face:focus-visible {
 
 /* ------------------------------------------------------------------ /map
    The travel graph over the drawn plate (MAP.md §6). One board, two hosts:
-   the /map route and the overlay on /play, which is why nothing here assumes
+   the /map route and the overlay on /chat, which is why nothing here assumes
    a page or a dialog — .map-board fills whatever box it is handed.
 
    The plate is a raster and does not change with the theme; only the water
@@ -7564,7 +7564,7 @@ button.equip-cell-face:focus-visible {
   margin-top: auto;
 }
 
-/* The overlay on /play. .modal-panel is a dialog box -- 46rem wide, rounded,
+/* The overlay on /chat. .modal-panel is a dialog box -- 46rem wide, rounded,
    floating on a dim -- and a map in one read as a bubble with a map in it.
    This takes the screen instead: the whole viewport, no radius, no border.
    Escape and the backdrop still close it, because it is still a Modal. */

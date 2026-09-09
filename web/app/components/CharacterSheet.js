@@ -23,7 +23,7 @@ import TagRail from "./TagRail";
 // scrolls as one ordinary page; nothing here scrolls inside itself.
 //
 // The props are built once in character/page.js#FreshCharacter, which is also
-// what /play's YOU column reads from, so the two surfaces cannot disagree
+// what /chat's YOU column reads from, so the two surfaces cannot disagree
 // about what a character is carrying.
 //
 // The file this replaced was the older sheet — PageShell, chips for tags, an
@@ -311,7 +311,7 @@ export default function CharacterSheet({
           </div>
 
           <div className="ledger-col" data-col="do">
-            {/* Who is standing here, with the same menu /play's column has —
+            {/* Who is standing here, with the same menu /chat's column has —
                 so Bind, Loot, Heal and the rest start from the person rather
                 than from a picker. No seed: the list is read on mount, which
                 is the click that asked. It leads this column because the

@@ -168,7 +168,7 @@ function canToggleGate(link, { tagSlugs, roleSlug } = {}) {
 // destination named in the refusal (MAP.md §3). Hops inside their own zone are
 // untouched — a paid crossing costs the day, not the ability to walk across
 // town and talk to somebody before it ends. Doing it here rather than in each
-// picker is what keeps the map, the /play panel and the bot's list from ever
+// picker is what keeps the map, the /chat panel and the bot's list from ever
 // disagreeing about a hop, the same reason the gates live here.
 async function resolveNeighbors(prisma, character, locationId, { fromZoneId = null } = {}) {
   const links = await linksFor(prisma, locationId);

@@ -23,7 +23,7 @@ chat log with no context: `TURN_START` (the chapter divider, written in
 `advanceTurn` where the turn is created rather than in `runSideEffects`, so a
 failed announcement can't leave two days with no boundary — **one row per zone**
 since phase 4 of Chat, each with `placeKey: zone:<id>`, so every zone's feed
-on `/play` carries the day line; the transcript still draws one divider, since
+on `/chat` carries the day line; the transcript still draws one divider, since
 it keys on the day and never renders a `TURN_START` as a row), `CHARACTER_CREATED`,
 `DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, and `TRAVEL`
 — the last gated behind `GameConfig.archiveTravelEvents`, off by default,
@@ -58,7 +58,7 @@ Five things about it are load-bearing:
   character and `channelKind: "scene"`, written by
   `db/lib/scene.js#sceneLine` **beside** the Discord post rather than instead
   of it (CHAT.md §2). They carry the plain sentence with no `-#` prefix: that
-  is Discord's rendering of subtext, and `/play` draws a SYSTEM row as
+  is Discord's rendering of subtext, and `/chat` draws a SYSTEM row as
   `.chat-subtext` on its own. The outbox never posts one — it handles `WEB`
   rows only — so a scene line can never be echoed back into the channel it
   came from.
@@ -130,7 +130,7 @@ purpose — the arrivals, deaths and moves they narrate are already in the fold,
 and showing both would print each one twice.
 No avatars, no jump links: the message wipe would have killed the links anyway.
 
-**The words go through `ChatMarkdown`**, the same renderer `/play` draws a line
+**The words go through `ChatMarkdown`**, the same renderer `/chat` draws a line
 with, so a transcript reads the way the scene read. It used to go through
 `RichText`, which renders no Markdown at all — asterisks, `-#` and `||spoilers||`
 all reached the reader literally — *and* resolved the whole catalog, so a

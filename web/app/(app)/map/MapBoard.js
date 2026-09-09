@@ -10,12 +10,12 @@ import { useTags } from "@/app/components/TagsProvider";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
-import { travelTo } from "../play/actions";
+import { travelTo } from "../chat/actions";
 
 // The map. Every Location this character knows, drawn on the plate it was
 // measured against, with the ways between them.
 //
-// One component, two hosts: the /map route and the overlay on /play. Neither
+// One component, two hosts: the /map route and the overlay on /chat. Neither
 // passes it anything except an optional onClose, because everything it draws
 // comes from loadMap() — which is also where the fog lives. Nothing is hidden
 // here that the server sent: an unknown Location never arrives in the first
@@ -181,10 +181,10 @@ export default function MapBoard({ onClose = null }) {
   // crossing, an escort — and unlike travelTo() below, that write happens on
   // a different browser entirely. This board has no other way to hear about
   // it: it is not fed by page.js (it fetches its own data so the standalone
-  // /map route and the /play overlay can share one component), so it is
+  // /map route and the /chat overlay can share one component), so it is
   // outside the reach of the live feed's SSE "places" push that already
   // fires for every moved character (db/lib/presenceNotify.js) and refreshes
-  // everything else on /play. Without this, a passenger's board kept
+  // everything else on /chat. Without this, a passenger's board kept
   // describing the place they left until they closed and reopened it.
   //
   // /api/character-version, the same endpoint CharacterPoller.js polls for
@@ -471,11 +471,11 @@ export default function MapBoard({ onClose = null }) {
   // key handler: the rhombi are SVG <g> elements with no focus of their own,
   // and the Ways out list — which IS real buttons — unmounts the moment you
   // pick something. So after a pick there is nothing focused for Enter to land
-  // on, and this catches it. /play needs none of this: its travel nodes are
+  // on, and this catches it. /chat needs none of this: its travel nodes are
   // real <button>s, so clicking one focuses it and Enter re-activates it,
   // which is the second activation already.
   //
-  // Deliberately no Escape. On /play the map is inside a Modal that already
+  // Deliberately no Escape. On /chat the map is inside a Modal that already
   // owns Escape (play/Chat.js), and a second meaning here would race it.
   useEffect(() => {
     if (!data?.ok || !sel || pending) return undefined;

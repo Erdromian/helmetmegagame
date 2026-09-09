@@ -18,7 +18,7 @@ import { nodeAt, plateSize, PLATE_SRC } from "@/lib/mapNodes";
 import { zoneKey } from "@/lib/zones";
 
 // The map's one loader. Both surfaces call it — the /map route and the overlay
-// on /play — so the fog is computed in exactly one place.
+// on /chat — so the fog is computed in exactly one place.
 //
 // THE FOG IS REAL, NOT CSS. A Location this character does not know is absent
 // from the payload entirely rather than sent and hidden: a server action is a
@@ -27,7 +27,7 @@ import { zoneKey } from "@/lib/zones";
 // is indistinguishable here from no edge at all, which is the wording rule
 // crossingCheck already enforces on refusals (MAP.md §2a).
 //
-// Travel itself is NOT here. Moving stays with travelTo on /play, so there is
+// Travel itself is NOT here. Moving stays with travelTo on /chat, so there is
 // one mover and one set of rules; this only says what a hop would cost, using
 // the same numbers the Travel panel does.
 

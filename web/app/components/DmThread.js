@@ -114,7 +114,7 @@ function MentionBody({ message }) {
   return (
     <p className="dm-mention">
       <em>{where ? `You were mentioned in ${where}.` : "You were mentioned."}</em>{" "}
-      <a className="dm-mention-open" href={`/play#${encodeURIComponent(placeKey)}`}>
+      <a className="dm-mention-open" href={`/chat#${encodeURIComponent(placeKey)}`}>
         Open
       </a>
     </p>

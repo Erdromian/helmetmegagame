@@ -1,6 +1,6 @@
 // Discord's `-#` subtext, as its own plugin.
 //
-// It lived in remarkChat.js, which meant only /play understood it — so the
+// It lived in remarkChat.js, which meant only /chat understood it — so the
 // `-#` line on a lobby seat DM reached players as a literal "-#". That is the
 // same bug as the raw `<t:…>` beside it, and it has the same cause: this is
 // Discord's SYNTAX, not a styling choice we made, so every surface that reads

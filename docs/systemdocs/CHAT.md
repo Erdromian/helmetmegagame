@@ -1,4 +1,4 @@
-# Chat: the web face of a scene (`/play`)
+# Chat: the web face of a scene (`/chat`)
 
 The web page where a character reads and speaks in the place they stand,
 mirroring the Location's Discord channel. Phase 0 shipped 2026-09-06; the rest
@@ -55,7 +55,7 @@ Neither touches Discord — §4 does.
 | `seq` | `BIGSERIAL`, the cursor. Monotonic and assigned by Postgres, so the bot and the web never need to agree on a clock. A BigInt in Prisma: it crosses JSON as a **string** and is compared with `BigInt()`, never `Number()`. |
 | `placeKey` | Where it was said: `loc:<id>`, `room:<id>`, `conv:<playerThreadId>`, `zone:<id>`. A snapshot string, no FK. `db/lib/placeKey.js` is the only thing that mints one; `placeKeyForChannel` resolves a Discord channel or thread id to one, memoised for a minute. |
 | `source` | `DISCORD`, `WEB` or `SYSTEM`. The outbox (§4) only ever posts `WEB` rows on to Discord, which is what keeps a proxied message from being echoed back into the channel it came from. |
-| `editedAt`, `deletedAt` | Soft delete everywhere since phase 1, so a client holding the row can reconcile and the outbox has something to read when it goes to remove the Discord message. `/archive` and `/play` filter on `deletedAt`. |
+| `editedAt`, `deletedAt` | Soft delete everywhere since phase 1, so a client holding the row can reconcile and the outbox has something to read when it goes to remove the Discord message. `/archive` and `/chat` filter on `deletedAt`. |
 | `discordSyncedAt` | The outbox watermark. Null on a `WEB` row means the bot has not posted it yet. |
 
 `recordArchiveMessage` / `recordArchiveEvent` (`db/lib/archive.js`) write
@@ -123,7 +123,7 @@ Every writer records the row first and then adds the account:
 | Converse | `handleConverseCreate`, the creator |
 | `/add` on a conversation | `bot/src/events/interactionCreate.js` |
 | A mention into a conversation, typed in Discord | `bot/src/events/messageCreate.js` |
-| A mention into a conversation, typed on /play | `bot/src/lib/feedOutbox.js#relayWebMentions` |
+| A mention into a conversation, typed on /chat | `bot/src/lib/feedOutbox.js#relayWebMentions` |
 | The invite replay on arrival | `db/lib/threadInvites.js#applyPendingInvites` |
 | `/remove` | deletes the row |
 
@@ -415,10 +415,10 @@ the same NOTIFY.
 
 ## 5. The page
 
-`web/app/(app)/play/`. Rail item **Play**, right under Character
+`web/app/(app)/chat/`. Rail item **Chat**, right under Character
 (`web/lib/navItems.js`). **`GameConfig.playPanelEnabled`** is the switch, in
-the Features group on `/gm/dev`, on by default. Off, the rail drops Play,
-`/play` bounces to `/character` (GMs included — they have the desk's Scene
+the Features group on `/gm/dev`, on by default. Off, the rail drops Chat,
+`/chat` bounces to `/character` (GMs included — they have the desk's Scene
 tab), ⌘K stops offering places and people, and the "Play from the web" switch
 is neither drawn nor honoured — except for a character already `webOnly`, who
 keeps it so they can come back, and is otherwise **not** flipped: check
@@ -539,9 +539,9 @@ header instead).
   stream, §3), the place list, and which place is open.
 - **`openPlace.js`** is where the open place lives: a module store read through
   `useSyncExternalStore`, never an effect. The URL hash *follows* it and is
-  read only as input — on the first render (a `/play#…` link, a notification)
+  read only as input — on the first render (a `/chat#…` link, a notification)
   and on `hashchange` — and a place this browser last had open is remembered
-  in `localStorage`, so a bare `/play` (the rail, a reload, a notification)
+  in `localStorage`, so a bare `/chat` (the rail, a reload, a notification)
   comes back to it. The hash used to be the truth, and the app router wrote
   over it: it never learns about a `window.location.hash =` write, and on its
   next state change (any refresh) it put its own URL back with
@@ -691,7 +691,7 @@ header instead).
   `{tag:…}` chip mid-scene.
 
   Everything that draws a body somebody *wrote* now goes through one of the
-  two: `/play`, the `/notes` Starred tab and Journal, the `/archive` transcript,
+  two: `/chat`, the `/notes` Starred tab and Journal, the `/archive` transcript,
   DM threads, the audit inspector, the archive peek. Three of those did not.
   `StarredList.js` drew a **bare string** — a starred line showed its reader
   `{char:cmtt1148600jgql0pyydw04pn}` and literal asterisks — and the transcript
@@ -706,11 +706,11 @@ header instead).
 
   One consequence worth eyeballing: nothing wires `remark-breaks`, so a single
   `\n` folds. `StarredList` and `JournalList` used `whitespace-pre-wrap` and
-  now do not — Markdown owns the layout, the way it already did on `/play`.
+  now do not — Markdown owns the layout, the way it already did on `/chat`.
   Adding `remark-breaks` to bring the old look back would silently change every
   feed row too, which is the divergence this removed.
 - **`-#` subtext is `remarkSubtext.js`, and every renderer runs it.** It used
-  to sit inside `remarkChat`, which meant only `/play` understood it — so the
+  to sit inside `remarkChat`, which meant only `/chat` understood it — so the
   lobby seat DM reached players with a literal `-#` on its last line, beside a
   literal `<t:…>`. It is Discord's syntax rather than a style we chose, so it
   belongs wherever Discord-written text is read. It is block-level and must run
@@ -1123,7 +1123,7 @@ header instead).
   it is from the composer's `@` list. Both are the same functions Chat
   itself uses, so the palette can never offer a place they may not read.
 
-  The href is `/play#<encoded placeKey>`, because a hash is what
+  The href is `/chat#<encoded placeKey>`, because a hash is what
   `openPlace.js` reads on the way in, so a link into a place needs no client
   plumbing at all. One catch the palette had to learn: `router.push` uses
   `history.pushState`, which does **not** fire a `hashchange` — so from Chat
@@ -1216,7 +1216,7 @@ street. `db/lib/locationAnchorRow.js` and `db/lib/roomStarterRow.js` are now
 only Discord's shape around those two: rows, styles and the five-per-row cap.
 
 `affordancesFor(prisma, character)` is what a **person** can do where they are
-standing, and it is what `/play` renders: the place's own, plus a Storage
+standing, and it is what `/chat` renders: the place's own, plus a Storage
 button per Room this character can actually get into, plus a gate for every
 modular way they can work from a watchtower they can reach, plus a keyed door
 they hold the key to. On Discord those last two are answered by a refusal
@@ -1240,7 +1240,7 @@ and rate-limited by `chimedRecently()` so a busy room is not a bell tower.
 `DirectMessage` row, on both faces (`bot/src/lib/mentions.js` for a
 Discord-origin mention, `bot/src/lib/feedOutbox.js#relayWebMentions` for a web
 one). It carries where and a link and never the text, and since 2026-09-07 it
-also shows in the player's Bascinet thread on `/play` (§2b) — before that the
+also shows in the player's Bascinet thread on `/chat` (§2b) — before that the
 plumbing classification hid it there, which read as "pinging from the web does
 nothing".
 
@@ -1255,15 +1255,15 @@ end them.
   for permission, subscribes and posts the subscription; pressing it again
   unsubscribes. It draws only when the browser has a `PushManager` **and**
   `/api/push/key` answers — the state is a module store read through
-  `useSyncExternalStore` (`web/app/(app)/play/pushStore.js`), never an effect
+  `useSyncExternalStore` (`web/app/(app)/chat/pushStore.js`), never an effect
   writing state.
 - **The service worker does one job.** `web/public/sw.js` draws the
   notification and, on a click, focuses an open tab and navigates it to the
-  url the payload carries. It caches nothing: `/play` is a live feed, and a
+  url the payload carries. It caches nothing: `/chat` is a live feed, and a
   worker serving it out of a cache would be showing yesterday's scene.
 - **What is sent.** Two things, and only two. A **mention** — after the DM, at
   both call sites, `"{name} was named ‡"` / `"in {place} ‡"`, pointing at
-  `/play` (the web-origin one at `/play#<placeKey>`, which is the same hash the
+  `/chat` (the web-origin one at `/chat#<placeKey>`, which is the same hash the
   places column round-trips). And the **turn opening**
   (`db/lib/turnAnnouncement.js`), after the announcement is posted, to every
   Discord account holding an ALIVE character, one at a time with a small gap.
@@ -1312,7 +1312,7 @@ when it lands. `web/lib/snapshot/`:
   update like it always was and an open dialog survives it. `Chat.js` opts
   out (`remountOnFresh={false}`): its seed effect re-seeds the store from the
   changed props, and the stream is *not* reopened — it was opened once, from
-  the seq the mount painted with. A stale snapshot of `/play` is still safe,
+  the seq the mount painted with. A stale snapshot of `/chat` is still safe,
   for a better reason than the reopen ever was: the stored seq is the *lower*
   cursor and therefore the more inclusive one, and the per-place history
   prefetch covers whatever the capped catch-up does not.
@@ -1321,7 +1321,7 @@ when it lands. `web/lib/snapshot/`:
 Every server action re-validates from the database (CLAUDE.md), so acting on
 a stale sheet is safe; the fresh data simply replaces it.
 
-**Which pages.** Snapshotted: `/play`, `/character`, `/documents`, `/depot`,
+**Which pages.** Snapshotted: `/chat`, `/character`, `/documents`, `/depot`,
 `/notes`, `/gm/players` and a player's conversation, `/gm/turns`, `/gm/audit`,
 `/gm/crafts`, `/gm/structures`, `/gm/dev/tags` and the dev panel for one
 character. Not yet, because their bodies are hand-built server JSX rather
@@ -1333,7 +1333,7 @@ visit; converting one means lifting its JSX into a client view first.
 the old body renamed `Fresh<Page>`; make the body end in
 `<SnapshotFresh scope userId data={props} />` with every early return
 expressed as a `kind` in that object; write a `<Page>View.js` client
-component that draws each `kind`. `/play` (`page.js#FreshPlay`, `PlayView.js`)
+component that draws each `kind`. `/chat` (`page.js#FreshPlay`, `PlayView.js`)
 is the model.
 
 ## 6. What comes next, in order
@@ -1344,7 +1344,7 @@ is the model.
    their message up as an `ArchiveEntry` row by `discordMessageId` instead of
    the in-memory `recentProxies`, which a restart emptied — so an hour-old
    message is no longer inert. Edit and delete have a **5-minute window on both
-   faces** (Bascinet's call), `/play` draws ✎ and ✕ on your own rows, and
+   faces** (Bascinet's call), `/chat` draws ✎ and ✕ on your own rows, and
    delete is soft everywhere.
 2. **The other places.** Public Rooms, private Rooms you can reach
    (`accessibleRooms`), Conversations you are in, the zone Summary. The place

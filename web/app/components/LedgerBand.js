@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { bandOf } from "@lifeweb/db/lib/mood";
-import StatusStrip from "@/app/(app)/play/StatusStrip";
+import StatusStrip from "@/app/(app)/chat/StatusStrip";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
 import SheetTurn from "./SheetTurn";

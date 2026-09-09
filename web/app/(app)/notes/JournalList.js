@@ -31,7 +31,7 @@ const SORT_OPTIONS = [
 // instead, so it's a small local twin rather than a prop ExpandableText
 // doesn't have a use for anywhere else.
 //
-// The body goes through ChatMarkdown, the same renderer /play draws a line
+// The body goes through ChatMarkdown, the same renderer /chat draws a line
 // with. It used to be RichText, which resolved the tokens but rendered no
 // Markdown at all, so a journal entry showed its author literal asterisks —
 // and RichText is the FULL catalog resolver, which meant a player could type

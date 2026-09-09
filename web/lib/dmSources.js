@@ -6,9 +6,9 @@
 // staged_push is deliberately excluded: it's GM-authored turn-result prose,
 // just delivered in bulk rather than typed live — see DmThread.js's comment
 // on why it never collapses.
-// The pseudo-place the Bascinet conversation occupies in /play's places
+// The pseudo-place the Bascinet conversation occupies in /chat's places
 // column (CHAT.md §2b). It sits in this module, not in ./DmPane.js, because
-// the SERVER component that builds /play's first paint needs it too — and a
+// the SERVER component that builds /chat's first paint needs it too — and a
 // "use client" module's exports are client references on the server, so a
 // string read across that line is not a string. Same reason the sources below
 // live here: this file drags no Prisma into either bundle.

@@ -77,13 +77,13 @@ async function notifyMentioned(client, character, context, link, { placeKey = nu
     source: "mention",
     meta: { placeKey, where },
   }).catch(() => {});
-  // And a browser notification, for a player whose /play tab is closed. Never
+  // And a browser notification, for a player whose /chat tab is closed. Never
   // in front of the DM and never allowed to affect it: an unconfigured
   // deployment is a no-op and every failure is swallowed (db/lib/webPush.js).
   await pushToUser(prisma, character.discordUserId, {
     title: `${character.name} was named`,
     body: `in ${where}`,
-    url: placeKey ? `/play#${encodeURIComponent(placeKey)}` : "/play",
+    url: placeKey ? `/chat#${encodeURIComponent(placeKey)}` : "/chat",
   }).catch(() => {});
 }
 

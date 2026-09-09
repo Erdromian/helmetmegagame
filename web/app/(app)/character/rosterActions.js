@@ -14,7 +14,7 @@ import { whosHere } from "@lifeweb/db/lib/whosHere";
 // offers is the roster standing there now, not the one the page rendered with.
 //
 // The character is always the session's own; nothing here takes an id. Every
-// list is the same helper the sheet page and /play build theirs from
+// list is the same helper the sheet page and /chat build theirs from
 // (web/lib/peoplePools.js), so the dialog, the page and the server's own
 // re-check cannot disagree about who is in reach. `need` names which slices
 // to pay for: a Bind dialog does not want the room stashes.
@@ -95,7 +95,7 @@ export async function loadActionRoster({ need = [] } = {}) {
 // Who is standing where you are, as db/lib/whosHere.js answers it — the same
 // rows the "Who's here?" button on the Discord anchor gives. Was in
 // play/actions.js; it lives here now because the HERE list is drawn on /ledger
-// as well as /play. withSightings is what gives a row its face and its eye
+// as well as /chat. withSightings is what gives a row its face and its eye
 // (db/lib/sightings.js); the Discord button asks without it, because a list
 // of names has no faces to withhold.
 export async function loadPeopleHere() {

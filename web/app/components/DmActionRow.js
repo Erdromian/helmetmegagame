@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { DM_CHOICE, dmActionLabels } from "@lifeweb/db/lib/dmActions";
-import { answerDmAction } from "@/app/(app)/play/dmActions";
+import { answerDmAction } from "@/app/(app)/chat/dmActions";
 
 // The buttons under a DM that asks something — an offer's Accept/Decline, a
 // seat's Decline, the keyed way's Yes/No. On Discord these are message

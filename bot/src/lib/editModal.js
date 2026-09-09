@@ -144,7 +144,7 @@ async function handleEditSubmit(interaction) {
 
   // The ROW is edited, and nothing here touches Discord. The outbox
   // (bot/src/lib/feedOutbox.js) sees the notify and carries the change across,
-  // which is the same path a ✎ on /play takes — one writer, one editor, and
+  // which is the same path a ✎ on /chat takes — one writer, one editor, and
   // the five-minute window enforced in one place (db/lib/say.js).
   const result = await editSpeech(prisma, { characterId: proxy.characterId, seq: proxy.seq, content });
   if (!result?.ok) {

@@ -90,7 +90,7 @@ export async function updateGameConfig(formData) {
   revalidatePath("/lifeweb");
   revalidatePath("/character");
   revalidatePath("/store");
-  revalidatePath("/play");
+  revalidatePath("/chat");
 }
 
 // The Depot's live state and its tuning, in one flat clamped allowlist —

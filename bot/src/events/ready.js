@@ -121,7 +121,7 @@ module.exports = {
 
     await refreshLocationChannels().catch((err) => console.error("Failed to refresh location channels:", err));
 
-    // The web feed's Discord half: listen for messages typed into /play and
+    // The web feed's Discord half: listen for messages typed into /chat and
     // post them into their Location channel, plus a catch-up sweep for
     // anything sent while the bot was down. After refreshLocationChannels so
     // the channel ids it resolves are the current ones. Never throws.

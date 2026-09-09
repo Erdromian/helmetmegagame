@@ -7,7 +7,7 @@
 //   1. The mask leaks. The raw message sits in the channel under the player's
 //      REAL Discord account and nickname. Hiding that is the load-bearing rule
 //      of the whole proxy (docs/systemdocs/PROXYING.md §2).
-//   2. It never reaches the web. /play and /archive render ArchiveEntry rows
+//   2. It never reaches the web. /chat and /archive render ArchiveEntry rows
 //      and never read Discord, so no row means invisible forever.
 //   3. The next turn wipe deletes it, so it vanishes having never been kept.
 //

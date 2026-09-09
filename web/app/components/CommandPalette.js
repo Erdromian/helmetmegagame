@@ -31,7 +31,7 @@ const KIND_LABELS = {
   faction: "Faction",
   page: "Page",
   // A player's own two: everywhere they can hear, and everyone standing
-  // beside them. Both land on /play with the place in the hash.
+  // beside them. Both land on /chat with the place in the hash.
   place: "Place",
   person: "Here",
 };
@@ -105,7 +105,7 @@ export default function CommandPalette() {
     (entry) => {
       if (!entry) return;
       close();
-      // A place or a person lands on /play with the place in the HASH, and
+      // A place or a person lands on /chat with the place in the HASH, and
       // Chat reads that hash through a hashchange listener (CHAT.md §5).
       // router.push uses history.pushState, which does not fire one — so
       // from Chat itself, jumping to another place has to move the hash

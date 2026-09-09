@@ -146,7 +146,7 @@ function zoneChannelSpec(zone, { spectators = true } = {}) {
 // CHANNELS.md §2). A Location channel is the street's SCENERY now — arrivals,
 // smells, the turret, the noticeboard, the turn line — and talk belongs in a
 // Room thread, a Conversation or the zone summary, all of which are a scene
-// somebody chose to be in. The web face agrees: /play draws no composer on a
+// somebody chose to be in. The web face agrees: /chat draws no composer on a
 // Location.
 //
 // But taking a bit OUT OF AN ALLOW DENIES NOTHING. Discord resolves a channel

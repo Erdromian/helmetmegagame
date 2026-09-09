@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import TurnCard from "@/app/(app)/play/TurnCard";
-import MoveDialog from "@/app/(app)/play/MoveDialog";
-import useMyMove from "@/app/(app)/play/useMyMove";
+import TurnCard from "@/app/(app)/chat/TurnCard";
+import MoveDialog from "@/app/(app)/chat/MoveDialog";
+import useMyMove from "@/app/(app)/chat/useMyMove";
 import { useRefresh } from "./useRefresh";
 
 // The turn card the Chat's YOU column carries, on the sheet's band: when it

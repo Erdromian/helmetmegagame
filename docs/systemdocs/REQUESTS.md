@@ -861,7 +861,7 @@ The sheet's band (`LedgerBand.js`) lays the four numbers out as tiles, and
 **every player action sits under them as one wrapping strip** (`ActionGrid.js`
 with `variant="strip"`, each button labelled; a greyed one writes the reason
 from `actionRegistry.js#gateReason` to a line under the strip rather than into
-a tooltip, since the sheet has none). `/play`'s YOU column draws the same
+a tooltip, since the sheet has none). `/chat`'s YOU column draws the same
 registry as an icon grid, with the HERE list (`HereList.js`) above it.
 
 That grid replaced three separate surfaces: a row of text buttons inside the
@@ -906,10 +906,10 @@ The tag menu inside the Add and Harm dialogs shares `filterTagsByQuery` with
 for the same words, and its pane is `60vh` rather than the 16rem box that used
 to show three rows of a hundred-tag catalog.
 
-### 6a. The same dialogs on `/play`
+### 6a. The same dialogs on `/chat`
 
 Since phase 3 of Chat (`CHAT.md` §5) the **people** dialogs have a second
-home. `/play`'s HERE column mounts the same `RequestActionsProvider` with the
+home. `/chat`'s HERE column mounts the same `RequestActionsProvider` with the
 same pools and calls `open(mode, null, { targetId })` from a person's own row,
 so clicking somebody standing in the Keep opens the very dialog the sheet
 opens, already pointed at them. Nothing is forked, and no rule is stated twice.
@@ -932,7 +932,7 @@ The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
 Factory are not mounted in Chat, and `ActionGrid` is not either — the
 column is a list of people, not a second grid.
 
-`/play` also carries two player actions that were Discord-only, both of them
+`/chat` also carries two player actions that were Discord-only, both of them
 in `play/actions.js` and both re-checking every gate the panel drew:
 **Move** (`db/lib/moves.js#fileMove`, the same call the `#turns` Move modal
 makes) and **Waiting on you** — the Accept/Decline for a pending offer, a

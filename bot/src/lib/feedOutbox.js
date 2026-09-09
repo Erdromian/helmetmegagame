@@ -1,6 +1,6 @@
 // The outbox: the bot is the only process that talks to Discord about chat.
 //
-// A message typed into /play is written straight to ArchiveEntry with
+// A message typed into /chat is written straight to ArchiveEntry with
 // `source = WEB` and no `discordMessageId`. This module listens on the
 // `bascinet_feed` NOTIFY channel, picks those rows up, and posts them into the
 // Location's Discord channel through the same webhook path a proxied message
@@ -143,7 +143,7 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
       // beside it so db/lib/threadInvites.js can replay the Discord add when
       // they walk in, and the Discord add now if they are already standing
       // here. A "web only" target has no Discord presence to add (CHAT.md §6)
-      // — the row above is their invite and they read it on /play.
+      // — the row above is their invite and they read it on /chat.
       await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
       await prisma.playerThreadInvite
         .upsert({
@@ -162,13 +162,13 @@ async function relayWebMentions({ row, characters, concealed, channelId, message
       source: "mention",
       meta: { placeKey: row.placeKey, where },
     }).catch((err) => console.error(`Feed outbox couldn't relay a mention to ${target.name}:`, err));
-    // And a browser notification, which is what reaches somebody whose /play
+    // And a browser notification, which is what reaches somebody whose /chat
     // tab is closed. After the DM, and wrapped: a push that will not send must
     // never cost the DM that already went (db/lib/webPush.js).
     await pushToUser(prisma, target.discordUserId, {
       title: `${target.name} was named`,
       body: `in ${where}`,
-      url: `/play#${encodeURIComponent(row.placeKey)}`,
+      url: `/chat#${encodeURIComponent(row.placeKey)}`,
     }).catch(() => { });
   }
 }
@@ -224,7 +224,7 @@ async function pushRow(row) {
 
   // The row stores `{char:<id>}`; Discord reads `<@&roleId>`
   // (db/lib/characterMentions.js). Rewritten here rather than at write time,
-  // so /play and /archive keep the face-neutral text and only the copy
+  // so /chat and /archive keep the face-neutral text and only the copy
   // Discord receives wears Discord's spelling.
   const { content, characters } = await tokensToRoles(prisma, row.content);
 
@@ -269,7 +269,7 @@ async function pushRow(row) {
 }
 
 // One row, edited on Discord. The row is the source of truth for the text
-// now, so this runs for a ✏️ in Discord exactly as it does for a ✎ on /play.
+// now, so this runs for a ✏️ in Discord exactly as it does for a ✎ on /chat.
 async function editRow(row) {
   if (!row?.discordMessageId || row.deletedAt) return false;
 

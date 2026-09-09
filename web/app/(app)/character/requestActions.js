@@ -3236,7 +3236,7 @@ async function lootCharacterRequestImpl({
 // word for word. Both are replaced by escorting: you attach somebody once and
 // they follow you, the helpless without asking and everyone else through an
 // Offer. db/lib/escort.js is the one authority now, and the party rack on
-// /play is the surface. See docs/systemdocs/MAP.md §3a.
+// /chat is the surface. See docs/systemdocs/MAP.md §3a.
 
 // --- Binding and freeing -------------------------------------------------
 

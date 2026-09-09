@@ -38,7 +38,7 @@ an `ALIVE` character in a tupper channel: `bot/src/lib/proxy.js#sendAsCharacter`
 runs the one write path (`db/lib/say.js` — `prepareSpeech`, post, `recordSpeech`),
 reposting through a per-channel webhook under the character's name and avatar,
 then deletes the original. The gates, the babble and autocorrect passes and the
-identity all live in `say.js` now, so a message typed into `/play` is decided
+identity all live in `say.js` now, so a message typed into `/chat` is decided
 by exactly the same code (`CHAT.md` §2).
 
 **No bracket or trigger syntax.** Each player has exactly one living character
@@ -158,7 +158,7 @@ at once, and the first is the one that matters:
 
 1. **The mask leaks.** The raw message stays in the channel under the player's
    real Discord account and nickname — the exact thing §2 exists to prevent.
-2. **The web never sees it.** `/play` and `/archive` render `ArchiveEntry` rows
+2. **The web never sees it.** `/chat` and `/archive` render `ArchiveEntry` rows
    and never read Discord, so with no row it is invisible on the site forever.
 3. **The turn wipe deletes it**, so it disappears having never been recorded.
 
@@ -197,7 +197,7 @@ message younger than ten seconds is left to the live handler, which may have it
 in hand already.
 
 One thing to know as a reader: `ArchiveEntry.seq` is assigned at INSERT and
-`/play` is cursored on it, so a recovered row appears at the **bottom** of the
+`/chat` is cursored on it, so a recovered row appears at the **bottom** of the
 live feed whatever its timestamp. `/archive`, ordered by `[sentAt, id]`, puts
 it where it belongs. For a sub-minute deploy gap this is invisible; for a long
 outage it is the honest cost of not renumbering the cursor the whole feed rests
@@ -395,12 +395,12 @@ on, with nothing said and no way to set it again from the page that broke it.
 **The relay is the other half, and it has to pass the answer through
 unchanged.** `db/lib/discordRest.js#postAsCharacter` is the REST twin of
 `bot/src/lib/proxy.js#postAsCharacterTo`, and it is the path every line typed
-on `/play` takes to Discord. It used to keep a concealment only when the gear
+on `/chat` takes to Discord. It used to keep a concealment only when the gear
 *forced* it, and override `Character.concealed` to match, on the reasoning that
 the player's own `/conceal` choice was not that path's business. It was: a
 voluntary hood was resolved correctly into the archive row and then posted to
 the channel under the speaker's real name and real face, so the hood worked on
-`/play` and did nothing on Discord. `db/test/presentedIdentity.test.js` holds
+`/chat` and did nothing on Discord. `db/test/presentedIdentity.test.js` holds
 the invariant now — a hood somebody chose conceals exactly as hard as one tied
 on for them.
 
@@ -591,7 +591,7 @@ spend the guild's role budget in one go.
 ### 5a. A face and an eye are earned
 
 Presence is public. **Who** is standing in a room is not a secret and never
-was: the HERE column on `/play` and the **Who's here?** button both list
+was: the HERE column on `/chat` and the **Who's here?** button both list
 everyone there, hooded or not, under the name or the alias they are wearing.
 
 What is over somebody's face is a different question, and the two used to be
@@ -740,7 +740,7 @@ now (`db/lib/characterMentions.js`, and a client twin in `richTokens.js`),
 which knows both spellings: a widened grammar otherwise stops matching at one
 call site and not the others, and the failure is silent.
 
-The composer on `/play` writes tokens directly, over an `@` autocomplete of
+The composer on `/chat` writes tokens directly, over an `@` autocomplete of
 `whosHere().named`: you can only name somebody you can see, and a row only
 renders a name its reader could have seen too (CHAT.md §5).
 
@@ -838,7 +838,7 @@ A forced name is not hiding, so a Beast is named openly with their id intact,
 and loses only their portrait for the letter plaque.
 
 **A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b),
-and it reads the same typed into `/play` as typed into Discord — the web half
+and it reads the same typed into `/chat` as typed into Discord — the web half
 lives in `bot/src/lib/feedOutbox.js#relayWebMentions`, which used to send the
 notification and stop there:
 a `PlayerThreadInvite` row is recorded, the Discord add is attempted now, and
@@ -863,7 +863,7 @@ covered here only because it shares the page. Neither tab is ever
 GM-visible or shared between players; see below.
 
 There are two ways in now: the reaction in Discord, and the ★ on a row's
-action bar on `/play` (`web/app/(app)/play/actions.js#starRow`, `CHAT.md` §5).
+action bar on `/chat` (`web/app/(app)/chat/actions.js#starRow`, `CHAT.md` §5).
 Both write the same row. A line with no Discord message behind it — a web-only
 player's, or one the outbox has not pushed yet — is filed under `seq:<seq>`
 instead of a message id, so the `(discordMessageId, discordUserId)` unique
@@ -914,14 +914,14 @@ free-text labels. A body can `@`-mention a character, which is stored as a
 already uses for `{tag:…}` and friends) and renders inline as a face + name.
 
 The mention roster is `web/lib/mentionDirectory.js#loadMentionDirectory`, the
-same one `/play` uses, asked for `{ includeUnburiedDead: true }` — every
+same one `/chat` uses, asked for `{ includeUnburiedDead: true }` — every
 character `ALIVE`, or `DEAD` and not yet buried (mirroring `character/page.js`'s
 own zone-roster precedent). It is passed once to
 `CharacterMentionsProvider.js`, mounted only by this page.
 
 **This page used to roll its own `findMany` with no concealment filter at all**,
 which meant a hooded or disguised character was offered by name in the
-autocomplete and drew their real portrait in an entry — while `/play`, one
+autocomplete and drew their real portrait in an entry — while `/chat`, one
 directory over, withheld both. The forced/concealed rule has three cases and a
 precedence order, and the second copy of it is always the one that never got
 written; there is one now.

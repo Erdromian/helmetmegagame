@@ -1348,7 +1348,7 @@ export async function sendToGms(content) {
     return { ok: false, error: `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most. ‡` };
   }
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } });
-  if (config && !config.playPanelEnabled) return { ok: false, error: "The Play page is switched off. ‡" };
+  if (config && !config.playPanelEnabled) return { ok: false, error: "The Chat page is switched off. ‡" };
   const recent = await prisma.directMessage.count({
     where: {
       discordUserId: me.discordUserId,

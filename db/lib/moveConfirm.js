@@ -5,7 +5,7 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 
 // Locks in a Move. Both faces file the same way — the bot's modal
 // (bot/src/events/interactionCreate.js#handleMoveSubmit) and Chat's
-// Move dialog (web/app/(app)/play/actions.js#submitMove) — so this lives in
+// Move dialog (web/app/(app)/chat/actions.js#submitMove) — so this lives in
 // db/lib and neither one owns it. A Move that is filed but never confirmed
 // stays PENDING_TYPE, which the staged push (db/lib/stagedPush.js) skips and
 // the GM desk never shows, so it costs the player the turn silently.

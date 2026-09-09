@@ -6,7 +6,7 @@
 // `content` to DirectMessage, so nothing on the web ever learned a button
 // existed. A web-only player read the offer and had no way to answer it --
 // which matters most for exactly the people who have no other face
-// (web/app/(app)/play/page.js, the characterless branch).
+// (web/app/(app)/chat/page.js, the characterless branch).
 //
 // The fix is not to persist Discord's component JSON. A button here is a VIEW
 // OF A PENDING ROW, so the DM records only which row it is about and the web

@@ -222,7 +222,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   }));
 
   // The two pools that fed the Move Player dialog are gone with it. Taking
-  // somebody along is the party rack on /play now, and it reads its own
+  // somebody along is the party rack on /chat now, and it reads its own
   // candidates off db/lib/escort.js#escortCandidates — a Location roster
   // rather than a zone one, with a verdict per row (docs/systemdocs/MAP.md
   // §3a).

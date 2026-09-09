@@ -91,7 +91,7 @@ function buildLocationSelectRow(locations, from) {
   return new ActionRowBuilder().addComponents(menu);
 }
 
-// Who you are taking with you — the Discord twin of the party rack on /play.
+// Who you are taking with you — the Discord twin of the party rack on /chat.
 // Null when nobody here can be brought: an empty select menu is rejected by
 // Discord, and a disabled one just asks a question with no answer.
 //
@@ -279,7 +279,7 @@ async function performMove(character, targetLocation) {
 async function restoreStandingRoles(member, character) {
   // A "web only" character holds no Discord access on purpose, so a rejoin
   // restores nothing (docs/systemdocs/CHAT.md §6). Their sight of the game is
-  // /play, which never went away.
+  // /chat, which never went away.
   if (character.webOnly) return;
 
   const zoneRoleId = character.zone?.discordRoleId ?? null;

@@ -466,7 +466,7 @@ file and you must change it in `interactionCreate.js` too.
 - **Who's here?** (`handleWhosHere`) lists everyone `ALIVE` and standing in
   this Location. Since phase 3 of Chat the rule itself is
   **`db/lib/whosHere.js#whosHere`**, and the handler only speaks the answer —
-  `/play`'s people column reads the same function, so the street and the page
+  `/chat`'s people column reads the same function, so the street and the page
   cannot disagree about who a stranger is. Named characters first (with their `roleTitle` shown to a
   fellow member of the same real faction, same rule the 🔍 inspect gate
   uses), then concealed characters as their alias with an article — "a young
@@ -709,8 +709,8 @@ long-lived listener for one message. ‡
 
 Every **player** command in §2 now has a web twin in Chat's composer
 (`CHAT.md` §5). Typing `/` at the start of the box opens the same list; the
-registry is `web/app/(app)/play/commands.js`, and each entry lands on a server
-action in `web/app/(app)/play/actions.js`.
+registry is `web/app/(app)/chat/commands.js`, and each entry lands on a server
+action in `web/app/(app)/chat/actions.js`.
 
 That matters for three of them in particular. `/conceal`, `/shout` and `/roll`
 were **guild-only and Discord-only**, which meant a character on the "web only"
@@ -755,7 +755,7 @@ room's own thread, and a thread is only visible to a character entitled to it
 test the same pair: one of `Room.accessTagSlugs` held, or a `RoomGuest` row
 for that room (`db/lib/roomAccess.js#roomAccessKeys`). Without it, anybody
 standing in the street could have let anybody through a door they could not
-open themselves. `web/app/(app)/play/actions.js#privateRoomHere` applies the
+open themselves. `web/app/(app)/chat/actions.js#privateRoomHere` applies the
 identical test, so the members strip never draws a guest list for somebody
 outside the room either.
 
@@ -782,16 +782,16 @@ Two smaller rules on the same pair:
 | `db/lib/placeAffordances.js` | **The affordance catalog** — the label and the predicate for every place-bound button, plus `affordancesFor(prisma, character)` for Chat's place panel. Both row builders below read it, so a new button is one entry |
 | `db/lib/locationAnchorRow.js` | The anchor buttons as Discord component JSON, styled off the catalog's tones |
 | `db/lib/roomStarterRow.js` | A Room starter's buttons, the same way |
-| `db/lib/gates.js` | `toggleGate` / `holdKeyedOpen` — the transactional flip and the 24-hour hold, shared with `/play` |
-| `db/lib/moves.js` | `fileMove` — every gate in front of an `Action` row, shared with `/play` |
-| `db/lib/whosHere.js` | `whosHere` / `whosHereLines` — who is standing here, shared with `/play` |
-| `db/lib/examineLocation.js` | `examineLines` — the Examine readout, read by `/play` |
+| `db/lib/gates.js` | `toggleGate` / `holdKeyedOpen` — the transactional flip and the 24-hour hold, shared with `/chat` |
+| `db/lib/moves.js` | `fileMove` — every gate in front of an `Action` row, shared with `/chat` |
+| `db/lib/whosHere.js` | `whosHere` / `whosHereLines` — who is standing here, shared with `/chat` |
+| `db/lib/examineLocation.js` | `examineLines` — the Examine readout, read by `/chat` |
 | `db/lib/roomAccess.js` | `syncCharacterRoomAccess`, `accessibleRooms`, `heldTagSlugs` — private Room membership |
 | `db/lib/roomGuests.js` | `addRoomGuest` / `removeRoomGuest` / `roomGuests` — the Room half of `/add` and `/remove`, extracted for the web (§6a) |
 | `db/lib/conceal.js` | `toggleConceal` — `/conceal`'s rule, both faces (§6a) |
 | `db/lib/shout.js` | `shoutLine` / `shoutParts` / `shout` — what a shout sounds like at N hops, and who hears it (§6a) |
 | `db/lib/roll.js` | `castDie` — one d6 as a `SYSTEM` archive row beside its Discord post (§6a) |
-| `web/app/(app)/play/commands.js` | The web twin registry Chat's composer reads (§6a) |
+| `web/app/(app)/chat/commands.js` | The web twin registry Chat's composer reads (§6a) |
 | `bot/src/lib/converseModal.js` | The Converse modal |
 | `bot/src/lib/whisperPoll.js` | The 15-minute Room whisper cron |
 | `bot/src/lib/moveConfirm.js` | Resolving a Move |

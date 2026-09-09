@@ -282,7 +282,7 @@ async function sayInPlace(prisma, { character, placeKey, content, source = "WEB"
 // ---- Edits and deletes -----------------------------------------------------
 //
 // The ROW is the source of truth for both, on both faces. A player pressing
-// ✏️ in Discord and a player pressing ✎ on /play now do the same thing: they
+// ✏️ in Discord and a player pressing ✎ on /chat now do the same thing: they
 // change the row and notify, and bot/src/lib/feedOutbox.js is the only thing
 // that touches the Discord message. That is what retires the in-memory
 // recentProxies map, and with it the restart amnesia that made an hour-old
@@ -383,7 +383,7 @@ async function editSpeech(prisma, { characterId, seq, content, gm = false } = {}
 
 // Soft, everywhere. The row stays so a client holding it can reconcile, and
 // so the outbox has something to read when it goes to delete the Discord
-// message; /archive and /play both filter on deletedAt.
+// message; /archive and /chat both filter on deletedAt.
 async function deleteSpeech(prisma, { characterId, seq, gm = false } = {}) {
   const found = await loadEditable(prisma, { characterId, seq, gm });
   if (!found.ok) return found;

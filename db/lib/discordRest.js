@@ -811,10 +811,10 @@ async function deleteWebhookMessage({ id, token }, messageId, threadId = null) {
 // their own name and face would hand back exactly the identity the sack took
 // away. The argument is sound and this was never the place for it: there has
 // been no auto-filing caller since the function was written. The only one is
-// the relay that carries every line typed on /play to Discord — so what the
+// the relay that carries every line typed on /chat to Discord — so what the
 // rule actually did was let a voluntary hood resolve correctly into the
 // archive row and then post that line to the channel under the speaker's real
-// name and real face. The hood worked on /play and did nothing on Discord.
+// name and real face. The hood worked on /chat and did nothing on Discord.
 //
 // If game-composed text ever needs that behaviour, it belongs at the caller,
 // which is the only thing that knows what it is filing.

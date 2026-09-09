@@ -9115,7 +9115,7 @@ tags:
 
   # The Rite of Scrying's yield (docs/systemdocs/THANATI.md §4). Equipped, and
   # only while the holder has the web-only switch on, it opens every room and
-  # conversation at their Location to them on /play, read-only
+  # conversation at their Location to them on /chat, read-only
   # (db/lib/feedAccess.js). Bascinet's wording.
   scrying-eye:
     catalog: secret

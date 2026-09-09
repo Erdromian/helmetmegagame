@@ -77,7 +77,7 @@ const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
 // ---- Lines -----------------------------------------------------------------
 
-// The room hears one `-#` line, on Discord and on /play. `room` needs { id,
+// The room hears one `-#` line, on Discord and on /chat. `room` needs { id,
 // name, discordThreadId }.
 // BOTH halves are caught. The Discord half always was; the archive half was
 // not, and a rite is not worth losing over a line of scenery — the floor is

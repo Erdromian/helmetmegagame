@@ -10,7 +10,7 @@ import { useSyncExternalStore } from "react";
 // fragment navigation the Next app router never hears about (it has no
 // hashchange listener, and its popstate handler ignores the null-state entry
 // a fragment navigation makes), so the router's own idea of the URL stayed
-// `/play`. On its next state change — any router.refresh(), a revalidating
+// `/chat`. On its next state change — any router.refresh(), a revalidating
 // action — the router wrote its URL back over the address bar with
 // history.replaceState, the hash was gone, and Chat fell back to the first
 // place in the list, which is always the street. That was the "jump".
@@ -21,9 +21,9 @@ import { useSyncExternalStore } from "react";
 //     "Open" link on a mention, a push notification), otherwise the place
 //     this browser last had open, otherwise nothing — and Chat.js falls back
 //     to the street.
-//   - hashchange still moves it, so an in-page `/play#…` anchor keeps working.
+//   - hashchange still moves it, so an in-page `/chat#…` anchor keeps working.
 //   - a service-worker message moves it, which is how a tapped notification
-//     reaches a tab that is already on /play without reloading it (sw.js).
+//     reaches a tab that is already on /chat without reloading it (sw.js).
 //   - setOpenPlace() writes the store, remembers the place for next time, and
 //     pushes the hash onto the URL through history.pushState — which Next
 //     patches to keep its own URL in step, so the address bar stays right.
@@ -63,7 +63,7 @@ function remember(key) {
   }
 }
 
-// The hash is read on EVERY snapshot, not once. A `/play#…` link followed by
+// The hash is read on EVERY snapshot, not once. A `/chat#…` link followed by
 // a client-side navigation (⌘K from another page) has its hash written by
 // the router in the commit AFTER Chat's first render, and router.push never
 // fires hashchange — so a hash that has appeared or changed since the last
@@ -87,7 +87,7 @@ function emit() {
   for (const cb of listeners) cb();
 }
 
-// Back and Forward, and an in-page `/play#…` anchor. An EMPTY hash is Back
+// Back and Forward, and an in-page `/chat#…` anchor. An EMPTY hash is Back
 // to the entry the page was opened on: the room closes and Chat falls back to
 // the street, the way it came — but the last place stays remembered, so a
 // reload still comes back to it.

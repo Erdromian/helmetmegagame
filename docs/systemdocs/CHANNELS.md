@@ -78,7 +78,7 @@ role (§3).
 > `locationChannelSpec` (§3),
 > `bot/src/lib/channels.js#isDesignatedTupperChannel` stops treating a
 > top-level Location channel as a tupper channel (so a GM typing there is left
-> alone rather than reposted under a mask), and `/play` draws no composer on a
+> alone rather than reposted under a mask), and `/chat` draws no composer on a
 > Location (`CHAT.md` §5b).
 
 **Room threads carry no slowmode.** The 5-minute one is `#summary`'s alone; a
@@ -840,7 +840,7 @@ fires identically whether the turn came from the bot's nightly cron or a GM's
 sets `GameConfig.feedWipeSeq` to the newest `ArchiveEntry.seq` as it BEGINS,
 and `feedWipeSummarySeq` alongside it on a Dawn
 (`db/lib/feedWipe.js#markFeedWiped`, called from `db/index.js` immediately
-before `runMessageWipe`). Every feed query on `/play` then reads `seq >` the
+before `runMessageWipe`). Every feed query on `/chat` then reads `seq >` the
 floor for **that place's own cadence**: a `zone:` key against the summary
 watermark, everything else against the turn one. The instant is deliberately
 the same one `cutoffMs` names below, so a message posted while the wipe is

@@ -81,7 +81,7 @@ async function getPaletteIndexImpl() {
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
       select: { id: true, name: true, locationId: true, factionId: true },
     }),
-    // Every entry below links into /play, so none is offered while Chat
+    // Every entry below links into /chat, so none is offered while Chat
     // is switched off (GameConfig.playPanelEnabled).
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
   ]);
@@ -98,11 +98,11 @@ async function getPaletteIndexImpl() {
         // Chat reads the open place off the URL hash (CHAT.md §5), so a
         // link into one is the hash and nothing else — no new client
         // plumbing, and Back leaves the room the way it came.
-        href: `/play#${encodeURIComponent(place.placeKey)}`,
+        href: `/chat#${encodeURIComponent(place.placeKey)}`,
       });
     }
 
-    // Everyone in the street. The href is the LOCATION, not a person: /play
+    // Everyone in the street. The href is the LOCATION, not a person: /chat
     // has no route for "open this person's menu", and taking somebody to
     // where that person is standing is the whole of what was being asked
     // for.
@@ -114,7 +114,7 @@ async function getPaletteIndexImpl() {
         id: person.characterId,
         label: person.name,
         hint: `${person.roleTitle ? `${person.roleTitle} · ` : ""}here`,
-        href: `/play#${encodeURIComponent(locationKey)}`,
+        href: `/chat#${encodeURIComponent(locationKey)}`,
       });
     }
   }

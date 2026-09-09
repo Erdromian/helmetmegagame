@@ -1,6 +1,6 @@
 # Chat, phase by phase
 
-The per-phase build specs for `/play` (design in [CHAT.md](CHAT.md)). Phases 0–5 shipped 2026-09-06; a phase is deleted from here once CHAT.md describes it. Internal reference, not game text.
+The per-phase build specs for `/chat` (design in [CHAT.md](CHAT.md)). Phases 0–5 shipped 2026-09-06; a phase is deleted from here once CHAT.md describes it. Internal reference, not game text.
 
 ## Phases 1–6: the rest (approved 2026-09-06, "just finish the rest")
 

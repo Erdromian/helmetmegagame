@@ -3,7 +3,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { mentionsCharacter } from "@/app/components/richTokens";
 
-// The Play page's message store, modelled on the GM inbox's
+// The Chat page's message store, modelled on the GM inbox's
 // web/app/(desk)/gm/players/liveInbox.js: module-level state read through
 // useSyncExternalStore, so a new message re-renders the one row it belongs to
 // and nothing needs a provider.

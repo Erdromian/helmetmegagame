@@ -8,7 +8,7 @@ import { railKindSql } from "@/lib/dmThread";
 
 export const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
-  { href: "/play", label: "Play", icon: "play" },
+  { href: "/chat", label: "Chat", icon: "play" },
   { href: "/map", label: "Map", icon: "map" },
   { href: "/faction", label: "Faction", icon: "faction" },
   { href: "/notes", label: "Notes", icon: "notes" },
@@ -32,7 +32,7 @@ export const GM_NAV = [
   { href: "/gm/audit", label: "Audit", icon: "audit", section: "gm" },
   // The GM's own player screens, in PLAYER_NAV's order minus Faction.
   { href: "/character", label: "Character", icon: "character", section: "player" },
-  { href: "/play", label: "Play", icon: "play", section: "player" },
+  { href: "/chat", label: "Chat", icon: "play", section: "player" },
   { href: "/map", label: "Map", icon: "map", section: "player" },
   { href: "/notes", label: "Notes", icon: "notes", section: "player" },
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
@@ -92,7 +92,7 @@ export async function loadNavItems(discordUserId) {
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MERCHANT_LICENSE_SLUG } },
     }),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
-    // Chat switch (CHAT.md §5). Presentation here; /play enforces it.
+    // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
     // A finished past game is everyone's to read, whatever the current one is.
     prisma.game.count({ where: { endedAt: { not: null } } }),
@@ -104,7 +104,7 @@ export async function loadNavItems(discordUserId) {
   const unreadCount = gm ? await loadUnreadConversationCount(discordUserId) : 0;
   const playEnabled = gameConfig?.playPanelEnabled ?? true;
   const baseNav = (gm ? GM_NAV : PLAYER_NAV)
-    .filter((item) => playEnabled || item.href !== "/play")
+    .filter((item) => playEnabled || item.href !== "/chat")
     .map((item) =>
       item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
     );

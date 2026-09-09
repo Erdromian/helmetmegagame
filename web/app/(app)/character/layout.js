@@ -4,7 +4,7 @@ import AppHeader from "@/app/components/AppHeader";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import FactionLink from "@/app/components/FactionLink";
 import { loadHeaderIdentity } from "@/lib/headerIdentity";
-import EscapeToPlay from "./EscapeToPlay";
+import EscapeToChat from "./EscapeToChat";
 
 // The one page whose header is a person rather than a page name. The title is
 // the character's name, with the role and faction as meta chips beside it and
@@ -34,9 +34,9 @@ export default async function CharacterLayout({ children }) {
     loadHeaderIdentity(),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
   ]);
-  // Left out when the Play page is switched off (GameConfig.playPanelEnabled),
-  // since /play would only bounce back here.
-  const backToPlay = Boolean(character) && (config?.playPanelEnabled ?? true);
+  // Left out when the Chat page is switched off (GameConfig.playPanelEnabled),
+  // since /chat would only bounce back here.
+  const backToChat = Boolean(character) && (config?.playPanelEnabled ?? true);
   return (
     <>
       <AppHeader
@@ -51,8 +51,8 @@ export default async function CharacterLayout({ children }) {
         }
         actions={
           <>
-            {backToPlay && (
-              <Link href="/play" className="btn-secondary">
+            {backToChat && (
+              <Link href="/chat" className="btn-secondary">
                 ← Back to the game · Esc ‡
               </Link>
             )}
@@ -68,7 +68,7 @@ export default async function CharacterLayout({ children }) {
           </>
         }
       />
-      {backToPlay && <EscapeToPlay />}
+      {backToChat && <EscapeToChat />}
       {children}
     </>
   );

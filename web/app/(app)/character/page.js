@@ -55,7 +55,7 @@ import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
-import { myMove } from "../play/actions";
+import { myMove } from "../chat/actions";
 import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
@@ -493,7 +493,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     .map((t) => ({ id: t.id, name: t.name }));
   // Every people pool the sheet's dialogs act on — the roster standing here,
   // the medical gate, and the Loot / Move / Bind / Harm lists — built once in
-  // web/lib/peoplePools.js so Chat's people column (/play) and this sheet
+  // web/lib/peoplePools.js so Chat's people column (/chat) and this sheet
   // cannot disagree about who is standing near you.
   const {
     here,
@@ -552,7 +552,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       })
     : [];
   // The Transfer dialog's far side, from the shared helper rather than a
-  // second copy of the same map — /play builds the identical list off it, and
+  // second copy of the same map — /chat builds the identical list off it, and
   // two answers to "which doors are open to you" is exactly what
   // web/lib/peoplePools.js exists to stop. `roomsHere` above is still this
   // page's own, because corpsesInReach below needs the ROWS and not the shape.

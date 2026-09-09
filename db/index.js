@@ -1441,7 +1441,7 @@ async function advanceTurn() {
   });
 
   // One row per zone rather than one for the game, so every zone's feed on
-  // /play carries the day line (HALL.md §5). /archive folds them back into the
+  // /chat carries the day line (HALL.md §5). /archive folds them back into the
   // single sticky day divider it always drew — a TURN_START row is never
   // rendered as a row, and the divider keys on the day.
   const turnStartContent = [

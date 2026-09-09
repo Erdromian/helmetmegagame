@@ -10,12 +10,12 @@ import LookReadout from "@/app/components/LookReadout";
 import { EyeIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { ACTION_HELP } from "@/app/components/actionRegistry";
-import { lookAtRow } from "@/app/(app)/play/actions";
+import { lookAtRow } from "@/app/(app)/chat/actions";
 import { loadPeopleHere } from "@/app/(app)/character/rosterActions";
-import useVisiblePoll from "@/app/(app)/play/useVisiblePoll";
+import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 
 // HERE: who is standing where you are, and what you can do to them. Drawn in
-// /play's right-hand column and on /ledger's Actions panel — the same rows,
+// /chat's right-hand column and on /ledger's Actions panel — the same rows,
 // the same menu — which is why it lives here rather than under play/.
 //
 // The rows come from db/lib/whosHere.js — the same function the "Who's here?"
