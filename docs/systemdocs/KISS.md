@@ -10,6 +10,11 @@ be kind to them. Every other thing that lifts a mood is something you buy or
 build: a drink, a meal, a roof, a confession, music. This one lifts it
 because another player agreed.
 
+**Every line this verb speaks is Bascinet's own**, so nothing in it carries a
+`‡`. That is a fact worth knowing before you touch the copy: an empty
+`grep -rn "‡" db/lib/kiss.js` means the wording is settled, not that somebody
+forgot to mark it.
+
 ## 1. The rules
 
 - Anyone picks somebody standing where they stand and presses **Kiss**. They

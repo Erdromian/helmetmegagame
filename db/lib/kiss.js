@@ -76,7 +76,7 @@ function kissBlock(character, { self }) {
   // which is what makes "a kiss needs somebody who can answer" fall out of one
   // table rather than a second list kept beside it.
   const blocker = blockerFor(character.tags, KISS);
-  if (blocker) return `${who} ${blocker.name}. ‡`;
+  if (blocker) return `${who} ${blocker.name}.`;
 
   // Then the short hand-written list of things that are not an incapacity at
   // all — a Ghoul walks and works and still is not kissing anyone.
@@ -84,7 +84,7 @@ function kissBlock(character, { self }) {
   const fiction = KISS_BLOCKING_SLUGS.find((slug) => held.has(slug));
   if (fiction) {
     const row = (character.tags ?? []).find((ct) => (ct?.tag?.slug ?? ct?.slug) === fiction);
-    return `${who} ${row?.tag?.name ?? row?.name ?? fiction}. ‡`;
+    return `${who} ${row?.tag?.name ?? row?.name ?? fiction}.`;
   }
 
   // A covered face, derived rather than listed: every helm, mask, hood and the
@@ -93,7 +93,10 @@ function kissBlock(character, { self }) {
   // person" — presence.js filters the /conceal WISH column, which a
   // forcesConceal helmet never touches.
   const piece = concealmentFrom(character.tags);
-  if (piece) return self ? `Not through your ${piece.name}.` : `Not through that ${piece.name}.`;
+  if (piece)
+    return self
+      ? `You can't kiss when you have a ${piece.name} on.`
+      : `${character.name} can't kiss when they have a ${piece.name} on.`;
 
   return null;
 }
@@ -106,7 +109,7 @@ function kissBlock(character, { self }) {
 function kissAuthority(actor, target) {
   if (!actor || !target) return "They aren't here.";
   if (actor.id === target.id) return "Kiss somebody else.";
-  if (actor.status !== "ALIVE") return "You can't do that right now. ‡";
+  if (actor.status !== "ALIVE") return "You can't do that right now.";
   if (target.status !== "ALIVE") return notHereMessage(target);
   if (!isHere(actor, target)) return notHereMessage(target);
   return kissBlock(actor, { self: true }) ?? kissBlock(target, { self: false });
@@ -151,7 +154,7 @@ async function createKissOffer(prisma, { actor, target, turn }) {
   const left = await kissCooldownLeft(prisma, actor.discordUserId);
   if (left > 0) {
     const minutes = Math.max(1, Math.ceil(left / 60_000));
-    return { ok: false, reason: `Not for another ${minutes} minute${minutes === 1 ? "" : "s"}. ‡` };
+    return { ok: false, reason: `Not for another ${minutes} minute${minutes === 1 ? "" : "s"}.` };
   }
 
   // The offer and the clock in ONE transaction. The audit row IS the cooldown
@@ -181,7 +184,7 @@ async function createKissOffer(prisma, { actor, target, turn }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${actor.name}* would like to kiss you. ‡`,
+      content: `*${actor.name}* would like to kiss you.`,
       components: offerButtonRow(offer.id),
       meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
@@ -300,8 +303,9 @@ async function acceptKiss(prisma, offer, responder) {
   };
 }
 
-// Bascinet's wording, dictated — so it carries NO ‡ (CLAUDE.md, "What is
-// exempt"). ambientLine() puts the `-#` on it.
+// Bascinet's own wording, like every other line this module speaks — all of
+// it signed off, so none of it carries the marker. ambientLine() puts the
+// `-#` on it.
 async function sayItHappened(prisma, actor, target) {
   if (!actor?.locationId) return;
   const a = presentedIdentity(actor, { concealment: concealmentFrom(actor.tags) }).name;
