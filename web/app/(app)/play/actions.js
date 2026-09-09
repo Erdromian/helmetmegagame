@@ -11,6 +11,7 @@ import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
+import { resolveDmActions } from "@/lib/dmActions";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
@@ -615,7 +616,7 @@ export async function bringAlong(targetId) {
     if (!openTurn) return { ok: false, error: "No turn is open." };
     const offer = await createEscortOffer(prisma, { actor: me.character, target, turn: openTurn });
     if (!offer.ok) return { ok: false, error: offer.reason };
-    await sendDm(offer.dm.discordUserId, offer.dm.content, { components: offer.dm.components }).catch(() => {});
+    await sendDm(offer.dm.discordUserId, offer.dm.content, { components: offer.dm.components, meta: offer.dm.meta }).catch(() => {});
     return { ok: true, line: `You asked ${target.name} to come with you. ‡` };
   }
 
@@ -1354,10 +1355,20 @@ export async function gmThread({ beforeId = null } = {}) {
     select: PLAYER_DM_SELECT,
   });
   const hasMore = rows.length > GM_THREAD_PAGE;
+  // Which of this page's DM buttons are still worth drawing. Stamped here
+  // rather than in the renderer, because "is this offer still open?" is a
+  // database question (web/lib/dmActions.js).
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: me.discordUserId, status: "ALIVE" },
+    select: { id: true },
+  });
   return {
     ok: true,
     hasMore,
-    rows: rows.slice(0, GM_THREAD_PAGE).reverse().map(playerDmRow),
+    rows: await resolveDmActions(
+      rows.slice(0, GM_THREAD_PAGE).reverse().map(playerDmRow),
+      { discordUserId: me.discordUserId, characterId: character?.id ?? null },
+    ),
   };
 }
 

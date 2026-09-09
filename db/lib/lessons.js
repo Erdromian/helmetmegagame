@@ -17,6 +17,7 @@ const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
+const { DM_ACTION, dmAction } = require("./dmActions");
 const {
   TEACHING_SLUG,
   LECTURING_SLUG,
@@ -336,6 +337,7 @@ async function createLessonOffer(
       discordUserId: responder.discordUserId,
       content,
       components: offerButtonRow(offer.id),
+      meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
   };
 }

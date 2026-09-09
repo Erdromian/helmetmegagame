@@ -17,6 +17,7 @@ const {
   postMessage,
   addThreadMember,
 } = require("./discordRest");
+const { DM_ACTION, dmAction } = require("./dmActions");
 const { buildNarrowcastContext, computeNarrowcastAccess, SPECIAL_CHANNELS } = require("./specialChannels");
 const { applyPendingInvites } = require("./threadInvites");
 const { conversationsFor } = require("./conversations");
@@ -258,7 +259,7 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
     character.discordUserId,
     `The way between ${far.name} and ${toLocation.name} is open behind you. Leave it open for the next 24 hours? ‡\n` +
       `-# While it stands open, anyone can see it and follow you through. ‡`,
-    { components: keyedPromptRow(link.id), source: "bot_auto" },
+    { components: keyedPromptRow(link.id), meta: dmAction(DM_ACTION.KEYED_WAY, link.id), source: "bot_auto" },
   );
 }
 

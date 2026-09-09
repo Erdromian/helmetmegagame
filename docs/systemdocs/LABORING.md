@@ -249,8 +249,8 @@ you stood. A firearm keeps +2 as the one thing that still buys an edge.
 your hands, so only the best-paying tag in the `items-weapons` group counts —
 a Longbow and a Crossbow pay +1, not +2, and the second one is dead weight.
 Everything outside that group sums on top of it, so a Longbow, Trapping Gear
-and Butcher is +1 +1 +1 = **+3**. `GameConfig.equipSlots` still caps how much
-of it you can carry at once.
+and Butcher is +1 +1 +1 = **+3**. Three hands (`db/lib/equipSlots.js`) still
+cap how many weapons you can have readied at once.
 
 The group is the whole test, which means a tag's `group:` is now load-bearing
 for laboring: move a bow out of `items-weapons` and it silently starts

@@ -1,5 +1,6 @@
 "use client";
 
+import { WEAPON_HANDS, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tagsById as buildTagsById } from "@/lib/characterCreation";
 import { tagDuration, turnsLeft } from "@/lib/turnFormat";
@@ -27,7 +28,6 @@ export default function TagEditor({
   tags,
   held,
   openTurn,
-  equipSlots,
   onApplyOps,
   characterId,
   characterName,
@@ -164,6 +164,11 @@ export default function TagEditor({
 
   // Slots spent, not rows worn — a stack equipped 3-of-5 spends 3.
   const equippedCount = held.reduce((sum, h) => sum + (h.equippedQuantity ?? 0), 0);
+  // Hands are the one equipment limit that is a number (db/lib/equipSlots.js);
+  // the layered slots say no for themselves when a GM patches a clash in.
+  // handsUsed expands each row by its own equippedQuantity, so this counts
+  // physical units the same way equippedCount above does.
+  const hands = handsUsed(held.filter((h) => h.equippedQuantity > 0));
 
   return (
     <>
@@ -198,7 +203,7 @@ export default function TagEditor({
           </span>
         )}
         <span className="text-xs text-muted">
-          Equipment {equippedCount} / {equipSlots}
+          Equipped {equippedCount} · {hands} / {WEAPON_HANDS} hands
         </span>
       </section>
 

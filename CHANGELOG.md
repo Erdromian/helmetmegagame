@@ -6,6 +6,48 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The buttons in Bascinet's messages work on the web
+
+✎ Anything the game asks you to answer by message — a lesson, a confession, a bind, being taken along, a seat, a spawn, holding a door open — now has its Accept and Decline in the Bascinet pane, not only in Discord  
+✚ Somebody playing entirely on the web can take a seat now. Before, the offer arrived and there was nothing to press  
+✚ An offer that has already been answered, or run out, stops showing buttons instead of leaving a dead one to click
+
+## 2026-09-09 · Click a place twice to go there
+
+✚ Picking a place twice travels — on the map and in the Travel panel — so an ordinary hop no longer means clicking the place, crossing to the card, and clicking Go  
+✚ Enter goes to the place you have picked  
+✎ The walk cooldown drops from 60 seconds to 3  
+✎ A way you hold no key to now says "This way isn't open to you."
+
+## 2026-09-09 · A nekker is lighter than it was
+
+✎ A nekker corpse weighs 35 rather than 45 — a spindly thing should be the lightest body you can pick up, and it was sitting closer to a person than to its own description.
+
+## 2026-09-08 · Structures are in the recipe book, and a body weighs what it weighs
+
+✚ Bodies weigh something now. A person is 50 lb — under the 71 lb cap, so you can carry someone and still walk with your kit. Giant makes a heavier body and Dwarf or Frail a lighter one; a frail dwarf is 28 lb.  
+✚ And whatever is still on them comes too, since their gear never leaves their sheet. A body in full plate is 105 lb, which is about the most anyone can shift — strip it first and it drops back to 50. Strong deliberately doesn't make you heavier dead; it isn't a tax on a trait somebody paid for.  
+✎ Structures now appear in the Recipes tab. They were being dropped on the grounds that raising one isn't crafting, but it is the same Craft button and the same recipe, and a player planning a Palisade had nowhere to read that it costs four turns and 40 ⬢.
+
+## 2026-09-08 · Cave characters come back to the GM desks
+
+✎ Characters standing in the Caves or the Depths are on the player desk again, for a GM who has picked their zones  
+✎ Their conversations are back in the inbox, so a DM from someone underground can no longer go unseen  
+✎ Caving rolls reach the Underground GM instead of nobody
+## 2026-09-09 · The new sheet is the character page now, and the Ledger is gone
+
+✎ /character is the rebuilt sheet: the band with your Move and every verb, the equip rig, and your tags as rows in cards. The old chip-and-panel sheet is gone.  
+− The Ledger entry on the rail. Its address still works and lands on /character, so an old link is not broken.  
+✎ The sheet scrolls as one page again. The columns were each scrolling inside themselves, which was wrong for a page where nothing arrives while you read it.  
+✎ The Move button sits beside the day and phase instead of below them, so the turn box is a line rather than a block.  
+✎ Routine, Gambit and Labor are explained on the web in the same words the Discord modal uses.
+
+## 2026-09-08 · The silo picker stops naming rooms you have never seen
+
+✚ "Where does the faction bank?" now only offers rooms the officer has stood in and can open — it used to read out the name and address of every secret room in the district, the Inn's Cellar and the Order Chambers included  
+✎ The faction's current silo is always on the list, even for an officer who has no key, so re-pointing it can never blank out  
+✎ An officer with no key can no longer move the silo behind a door they cannot open — depositing into a locked silo is unchanged
+
 ## 2026-09-08 · Stealth reaches the gates, and a forger can copy any stamp
 
 ✚ Stealth is a real skill now: cross an unwatched gate and it announces nothing at all, cross a guarded one and it records only what a passer-by saw, not your name  
@@ -17,6 +59,17 @@ Entries below predate this format and list files instead.
 ## 2026-09-08 · The travel lines say you'll arrive next turn
 
 ✎ "You arrive next turn" now reads "you'll arrive next turn" everywhere it appears, the two departure lines included, so they all match
+## 2026-09-08 · The sheet on /ledger is rebuilt, and equipment goes in slots now
+
+✎ Your tags are rows in cards by kind now, not one heap of chips. Wounds sort by how soon they turn and say what they become and what the cure costs; skills group by family and show the next rung; items group by kind with their weight against your cap.  
+✎ Click a tag and it opens where it sits. Items and wounds carry Use, Equip, Give, Destroy and Heal on the row itself.  
+✚ A search box over your tags, for the sheets that have got long  
+✎ The top of the sheet holds still while the columns scroll: your Move is filed and edited from there, your state and carry are on it, and every verb is one row of buttons instead of a panel. A greyed verb says why when you press it.  
+✚ A line saying what the turn will change: what runs out or turns worse, what finishes, where you arrive, and whether dinner is covered  
+✎ Escape takes you back to the game from the sheet.  
+✎ Equipment is places on the body, not a count of six. Three head layers, three body layers, an off hand, three hands, a ride and what it tows, and as many small things as you like. A two-handed weapon takes two hands. So a bastard sword on the back and a pistol on the hip, but not eight swords.  
+✎ The rig draws those places: click an empty one and it lists what you carry that fits. It will not offer a cart indoors or a boat beside a horse without saying why.  
+− The flat equipment-slot number on the Dev Panel
 
 ## 2026-09-08 · A traveller can walk their own zone while they wait on the road
 

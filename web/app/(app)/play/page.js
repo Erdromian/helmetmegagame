@@ -163,8 +163,13 @@ async function FreshPlay({ userId }) {
               resources: true,
               // `id` is the CharacterTag row, which is what an equip toggle
               // acts on; the Things drawer is the only thing here that needs
-              // one (./thingRows.js).
-              tags: { select: { id: true, tagId: true, quantity: true, equipped: true, tag: true } },
+              // one (./thingRows.js). `equippedQuantity` alongside `equipped`
+              // — a slot holds one physical unit, not a stack, and thingRows.js
+              // reads the count to know how many of a holding are still free to
+              // equip and how many are already out to put back.
+              tags: {
+                select: { id: true, tagId: true, quantity: true, equipped: true, equippedQuantity: true, tag: true },
+              },
               role: { select: { slug: true } },
               // Which in-game DAY the bird last left on
               // (docs/systemdocs/PAPERWORK.md §Bird).

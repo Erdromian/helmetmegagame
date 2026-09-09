@@ -6,8 +6,7 @@
 // bad place to keep a clock.
 //
 // A finished or ruined site is not "in progress" and belongs to
-// StandingHerePanel, which the ledger mounts beside this one — the same split
-// StatusPanel.js makes.
+// StandingHerePanel, which the sheet mounts beside this one.
 export default function LedgerWork({ craftProjects = [], sitesHere = [] }) {
   const sites = sitesHere.filter((s) => s.status === "UNDER_CONSTRUCTION");
   const nothing = craftProjects.length === 0 && sites.length === 0;

@@ -1,17 +1,26 @@
-// node --test over db/lib/equipSlots.js — the equip-slot clash rule and the
-// shared "is this resulting set wearable?" check both equipActions.js's
-// per-unit toggle and tagOps.js's whole-holding batch ask before committing
-// an equip. Pure functions, no Prisma, so every scenario below is a plain
-// object literal rather than a live character.
+// node --test over db/lib/equipSlots.js — the equip-slot clash rule, the hands
+// count, and the shared "is this resulting set wearable?" check both
+// equipActions.js's per-unit toggle and tagOps.js's whole-holding batch ask
+// before committing an equip. Pure functions, no Prisma, so every scenario
+// below is a plain object literal rather than a live character.
+//
+// findSlotClash/describeSlotClash are private now — findEquipProblem is the
+// one public answer both write paths actually call, so everything here goes
+// through it (or handsUsed/handsOf directly for the hands-only cases).
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { findSlotClash, describeSlotClash, checkEquipLimits } = require("../lib/equipSlots");
+const { WEAPON_HANDS, handsOf, handsUsed, findEquipProblem } = require("../lib/equipSlots");
 
-// A bare Tag shape — findSlotClash accepts Tag[] directly, and checkEquipLimits
-// builds this shape internally off CharacterTag rows.
-const tag = (name, { equipSlot = null, equipLayer = null } = {}) => ({ name, equipSlot, equipLayer });
+// A bare Tag shape — findEquipProblem accepts Tag[] directly, with no
+// equippedQuantity, which counts as exactly one unit.
+const tag = (name, { equipSlot = null, equipLayer = null, twoHanded = false } = {}) => ({
+  name,
+  equipSlot,
+  equipLayer,
+  twoHanded,
+});
 
-// A CharacterTag-shaped row — what checkEquipLimits actually reads.
+// A CharacterTag-shaped row — what the write paths actually select and pass.
 const row = (name, equippedQuantity, opts) => ({ equippedQuantity, tag: tag(name, opts) });
 
 const HELM = { equipSlot: "HEAD", equipLayer: 3 };
@@ -19,118 +28,121 @@ const COIF = { equipSlot: "HEAD", equipLayer: 1 };
 const HAT = { equipSlot: "HEAD", equipLayer: 4 };
 const SHIELD = { equipSlot: "SHIELD" };
 const BODY_1 = { equipSlot: "BODY", equipLayer: 1 };
+const SWORD = { equipSlot: "WEAPON" };
+const GREATSWORD = { equipSlot: "WEAPON", twoHanded: true };
 
-// --- findSlotClash ----------------------------------------------------
+// --- findEquipProblem: slot/layer clashes -------------------------------
 
-test("findSlotClash: nothing equipped clashes with nothing", () => {
-  assert.equal(findSlotClash([]), null);
+test("findEquipProblem: nothing equipped is fine", () => {
+  assert.equal(findEquipProblem([]), null);
 });
 
-test("findSlotClash: a non-array is treated as no clash rather than thrown", () => {
-  assert.equal(findSlotClash(null), null);
-  assert.equal(findSlotClash(undefined), null);
+test("findEquipProblem: a non-array is treated as nothing equipped rather than thrown", () => {
+  assert.equal(findEquipProblem(null), null);
+  assert.equal(findEquipProblem(undefined), null);
 });
 
-test("findSlotClash: unslotted tags never clash, however many there are", () => {
-  const swords = Array.from({ length: 5 }, () => tag("Broadsword"));
-  assert.equal(findSlotClash(swords), null);
+test("findEquipProblem: unslotted tags never clash, however many there are", () => {
+  const badges = Array.from({ length: 5 }, () => tag("Badge"));
+  assert.equal(findEquipProblem(badges), null);
 });
 
-test("findSlotClash: different slots never clash", () => {
-  assert.equal(findSlotClash([tag("Helm", HELM), tag("Breastplate", BODY_1)]), null);
+test("findEquipProblem: different slots never clash", () => {
+  assert.equal(findEquipProblem([tag("Helm", HELM), tag("Breastplate", BODY_1)]), null);
 });
 
-test("findSlotClash: the same slot, different layers, does not clash", () => {
+test("findEquipProblem: the same slot, different layers, does not clash", () => {
   // A mail coif (HEAD 1) goes under a knight's helm (HEAD 3) — TAGS.md's own example.
-  assert.equal(findSlotClash([tag("Mail Coif", COIF), tag("Helm", HELM)]), null);
+  assert.equal(findEquipProblem([tag("Mail Coif", COIF), tag("Helm", HELM)]), null);
 });
 
-test("findSlotClash: the same slot AND layer clashes, whatever the tags are", () => {
-  const clash = findSlotClash([tag("Helm", HELM), tag("Bascinet", HELM)]);
-  assert.deepEqual(clash, { a: tag("Bascinet", HELM), b: tag("Helm", HELM) });
+test("findEquipProblem: the same slot AND layer clashes, whatever the tags are", () => {
+  const msg = findEquipProblem([tag("Helm", HELM), tag("Bascinet", HELM)]);
+  assert.equal(msg, "Bascinet and Helm can't both go on your head. ‡");
 });
 
-test("findSlotClash: SHIELD has no layer, so two shields always clash", () => {
-  const clash = findSlotClash([tag("Buckler", SHIELD), tag("Pavise", SHIELD)]);
-  assert.ok(clash);
+test("findEquipProblem: SHIELD has no layer, so two shields always clash", () => {
+  assert.ok(findEquipProblem([tag("Buckler", SHIELD), tag("Pavise", SHIELD)]));
 });
 
-test("findSlotClash: the SAME tag twice clashes with itself", () => {
-  // Two units of one stackable slotted tag (a hat, say) fighting over the
-  // one slot it has — this is what checkEquipLimits's expansion produces.
-  const hat = tag("Hat", HAT);
-  const clash = findSlotClash([hat, hat]);
-  assert.deepEqual(clash, { a: hat, b: hat });
+test("findEquipProblem: accepts CharacterTag rows (.tag) as well as bare Tags", () => {
+  assert.ok(findEquipProblem([{ tag: tag("Helm", HELM) }, { tag: tag("Bascinet", HELM) }]));
 });
 
-test("findSlotClash: accepts CharacterTag rows (.tag) as well as bare Tags", () => {
-  const clash = findSlotClash([{ tag: tag("Helm", HELM) }, { tag: tag("Bascinet", HELM) }]);
-  assert.ok(clash);
-});
-
-// --- describeSlotClash --------------------------------------------------
-
-test("describeSlotClash: names both tags and where they clash", () => {
-  const msg = describeSlotClash({ a: tag("Helm", HELM), b: tag("Bascinet", HELM) });
-  assert.equal(msg, "Helm and Bascinet can't both go on your head. ‡");
-});
-
-test("describeSlotClash: the same tag twice reads as a count, not a pair", () => {
-  const hat = tag("Hat", HAT);
-  const msg = describeSlotClash({ a: hat, b: hat });
-  assert.equal(msg, "You can only have one Hat on your head at a time. ‡");
-});
-
-test("describeSlotClash: an unknown slot falls back to a plain 'there'", () => {
-  const weird = tag("Mystery Gear", { equipSlot: "TAIL" });
-  const msg = describeSlotClash({ a: weird, b: weird });
+test("findEquipProblem: an unknown slot falls back to a plain 'there'", () => {
+  const weird = { name: "Mystery Gear", equipSlot: "TAIL" };
+  const msg = findEquipProblem([weird, weird]);
   assert.equal(msg, "You can only have one Mystery Gear there at a time. ‡");
 });
 
-// --- checkEquipLimits -----------------------------------------------------
+// --- findEquipProblem: destacking — equippedQuantity expands into units ---
 
-test("checkEquipLimits: under the cap with no clash is fine", () => {
-  const result = checkEquipLimits([row("Broadsword", 2), row("Shield", 1, SHIELD)], 10);
-  assert.deepEqual(result, { equipped: 3, overCap: false, clash: null });
-});
-
-test("checkEquipLimits: exactly at the cap is still fine", () => {
-  const result = checkEquipLimits([row("Broadsword", 5)], 5);
-  assert.equal(result.overCap, false);
-});
-
-test("checkEquipLimits: one past the cap is refused", () => {
-  const result = checkEquipLimits([row("Broadsword", 5), row("Hatchet", 1)], 5);
-  assert.equal(result.overCap, true);
-  assert.equal(result.equipped, 6);
-});
-
-test("checkEquipLimits: five units of an unslotted stackable tag spend five slots and never clash", () => {
-  const result = checkEquipLimits([row("Broadsword", 5)], 10);
-  assert.equal(result.equipped, 5);
-  assert.equal(result.clash, null);
-});
-
-test("checkEquipLimits: two units of the same slotted stackable tag clash with themselves", () => {
+test("findEquipProblem: two units of the same slotted stackable tag clash with themselves", () => {
   // A stack of 2 Hats, both equipped — the exact case that took manual
   // browser testing to find before this file existed.
-  const result = checkEquipLimits([row("Hat", 2, HAT)], 10);
-  assert.ok(result.clash);
-  assert.equal(result.clash.a.name, "Hat");
+  const msg = findEquipProblem([row("Hat", 2, HAT)]);
+  assert.equal(msg, "You can only have one Hat on your head at a time. ‡");
 });
 
-test("checkEquipLimits: a clash is reported even while under the cap", () => {
-  const result = checkEquipLimits([row("Helm", 1, HELM), row("Bascinet", 1, HELM)], 10);
-  assert.equal(result.overCap, false);
-  assert.ok(result.clash);
+test("findEquipProblem: a row with nothing equipped contributes no units and no clash", () => {
+  assert.equal(findEquipProblem([row("Hat", 0, HAT), row("Hat", 0, HAT)]), null);
 });
 
-test("checkEquipLimits: a row with nothing equipped contributes no units and no clash", () => {
-  const result = checkEquipLimits([row("Hat", 0, HAT), row("Hat", 0, HAT)], 10);
-  assert.equal(result.equipped, 0);
-  assert.equal(result.clash, null);
+test("findEquipProblem: five units of an unslotted stackable tag never clash on the slot rule", () => {
+  assert.equal(findEquipProblem([row("Badge", 5)]), null);
 });
 
-test("checkEquipLimits: an empty worn set is always fine", () => {
-  assert.deepEqual(checkEquipLimits([], 0), { equipped: 0, overCap: false, clash: null });
+// --- handsOf / handsUsed --------------------------------------------------
+
+test("handsOf: a one-handed weapon costs one hand", () => {
+  assert.equal(handsOf(tag("Broadsword", SWORD)), 1);
+});
+
+test("handsOf: a two-handed weapon costs two", () => {
+  assert.equal(handsOf(tag("Greatsword", GREATSWORD)), 2);
+});
+
+test("handsOf: anything not a WEAPON costs no hands", () => {
+  assert.equal(handsOf(tag("Helm", HELM)), 0);
+});
+
+test("handsUsed: sums hands across rows, expanding each by its equippedQuantity", () => {
+  // Three swords from one stack is three hands, not one hand for "a stack".
+  assert.equal(handsUsed([row("Broadsword", 3, SWORD)]), 3);
+});
+
+test("handsUsed: a bare Tag[] with no equippedQuantity counts each entry once", () => {
+  assert.equal(handsUsed([tag("Broadsword", SWORD), tag("Buckler", SHIELD)]), 1);
+});
+
+// --- findEquipProblem: hands overflow -------------------------------------
+
+test("findEquipProblem: exactly WEAPON_HANDS worth of one-handers is fine", () => {
+  assert.equal(WEAPON_HANDS, 3);
+  assert.equal(findEquipProblem([row("Broadsword", 3, SWORD)]), null);
+});
+
+test("findEquipProblem: one sword past the hand cap is refused, naming only the excess", () => {
+  const msg = findEquipProblem([row("Broadsword", 4, SWORD)]);
+  assert.equal(msg, "Your hands are full: put away Broadsword before you take up anything else. ‡");
+});
+
+test("findEquipProblem: a two-hander says so inline", () => {
+  const msg = findEquipProblem([row("Broadsword", 2, SWORD), row("Greatsword", 1, GREATSWORD)]);
+  assert.equal(
+    msg,
+    "Your hands are full: put away Greatsword (two hands) before you take up anything else. ‡",
+  );
+});
+
+test("findEquipProblem: repeated excess names collapse to a count", () => {
+  // Five swords from one stack: three fit, two are excess.
+  const msg = findEquipProblem([row("Broadsword", 5, SWORD)]);
+  assert.equal(msg, "Your hands are full: put away Broadsword ×2 before you take up anything else. ‡");
+});
+
+test("findEquipProblem: a slot clash is reported before a hands overflow", () => {
+  // Two shields clash on the slot rule; hands never even get asked.
+  const msg = findEquipProblem([tag("Buckler", SHIELD), tag("Pavise", SHIELD), row("Broadsword", 4, SWORD)]);
+  assert.equal(msg, "Pavise and Buckler can't both go in your off hand. ‡");
 });

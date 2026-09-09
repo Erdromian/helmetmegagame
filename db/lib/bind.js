@@ -14,6 +14,7 @@ const { applyFear } = require("./fear");
 const { expiryForGrant } = require("./grantExpiry");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
+const { DM_ACTION, dmAction } = require("./dmActions");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 
 const BIND_SELECT = {
@@ -95,6 +96,7 @@ async function createBindOffer(prisma, { actor, target, turn }) {
       discordUserId: target.discordUserId,
       content: `*${actor.name}* wants to bind you. Accept?`,
       components: offerButtonRow(offer.id),
+      meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
   };
 }

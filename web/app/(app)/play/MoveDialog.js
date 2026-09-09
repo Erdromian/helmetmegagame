@@ -13,10 +13,15 @@ import { submitMove, updateMove } from "./actions";
 // It never asks twice: the one-Move-a-turn row IS the turn, so there is no
 // cancel-and-re-file to offer.
 
+// The three help lines are Bascinet's own, word for word from the Discord
+// modal's radio group (bot/src/lib/moveModal.js) — so a player reads the same
+// sentence whichever face they file from. Verbatim Bascinet, so NO ‡ on any
+// of them (CLAUDE.md, "text Bascinet dictated to you verbatim"): don't add one.
+// If the wording changes, change it in both places.
 export const MOVE_KINDS = [
-  { value: "ROUTINE", label: "Routine", help: "The day's ordinary business. It just happens. ‡" },
-  { value: "GAMBIT", label: "Gambit", help: "A reach. It is rolled for, and it can fail. ‡" },
-  { value: "LABOR", label: "Labor", help: "A day's work for ⬢, instead of the day's other business. ‡" },
+  { value: "ROUTINE", label: "Routine", help: "Easy — it resolves itself." },
+  { value: "GAMBIT", label: "Gambit", help: "Could go either way — rolls a die." },
+  { value: "LABOR", label: "Labor", help: "Work the day. Your best skill, where you stand." },
 ];
 
 export function moveKindLabel(kind) {

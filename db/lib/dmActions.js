@@ -1,0 +1,77 @@
+// What a DM's buttons ARE, written down once so both faces draw the same pair.
+//
+// A DM that carries Discord components (an offer's Accept/Decline, a seat's
+// Decline, the keyed way's Yes/No) used to be answerable on Discord alone: all
+// three sendDm twins forward `opts.components` to Discord but log only
+// `content` to DirectMessage, so nothing on the web ever learned a button
+// existed. A web-only player read the offer and had no way to answer it --
+// which matters most for exactly the people who have no other face
+// (web/app/(app)/play/page.js, the characterless branch).
+//
+// The fix is not to persist Discord's component JSON. A button here is a VIEW
+// OF A PENDING ROW, so the DM records only which row it is about and the web
+// derives the rest. That way a button cannot outlive the thing it answers, and
+// the two faces cannot draw a different pair.
+//
+// Written into `meta.action` -- a key INSIDE meta, never meta itself. The
+// Bird's delivery DM already stores `meta.paper`, so a call site that has meta
+// of its own merges rather than replaces.
+//
+// Not on the @lifeweb/db barrel; require it by path, the db/lib/dm.js
+// convention.
+
+const DM_ACTION = Object.freeze({
+  OFFER: "OFFER",
+  THREAT_SPAWN: "THREAT_SPAWN",
+  LOBBY_SEAT: "LOBBY_SEAT",
+  KEYED_WAY: "KEYED_WAY",
+});
+
+// The two answers. Every family reads as one of these, even where Discord
+// labels them differently -- escort says "Cancel" and the keyed way says
+// "No", but both are a decline.
+const DM_CHOICE = Object.freeze({ ACCEPT: "accept", DECLINE: "decline" });
+
+// What the web draws, matching the labels on the Discord row builders
+// (db/lib/offerRow.js, db/lib/threatSpawn.js, db/lib/lobby.js,
+// db/lib/locationAnchorRow.js). Kept beside the kinds so a relabelled button
+// on one face is a one-line change on both.
+//
+// `decline: null` means the family has no decline button at all.
+const DM_ACTION_LABELS = Object.freeze({
+  [DM_ACTION.OFFER]: { accept: "Accept", decline: "Decline" },
+  // Same row builder, different words: an escort is called off, not refused.
+  ESCORT: { accept: "Accept", decline: "Cancel" },
+  [DM_ACTION.THREAT_SPAWN]: { accept: "Accept", decline: "Decline" },
+  [DM_ACTION.LOBBY_SEAT]: { accept: null, decline: "Decline the seat" },
+  [DM_ACTION.KEYED_WAY]: { accept: "Yes", decline: "No" },
+});
+
+// The descriptor a sendDm call site spreads into `meta`. `variant` is optional
+// and only says which label set to draw -- "ESCORT" today, nothing else.
+//
+//   sendDm(id, text, { components: offerButtonRow(offer.id),
+//                      meta: dmAction(DM_ACTION.OFFER, offer.id) })
+function dmAction(kind, id, variant = null) {
+  if (!DM_ACTION[kind]) throw new Error(`Unknown DM action kind: ${kind}`);
+  return { action: variant ? { kind, id: String(id), variant } : { kind, id: String(id) } };
+}
+
+// The labels for a descriptor, variant first. Returns null for anything this
+// build does not know, so an old row written by a newer deploy draws no
+// buttons rather than throwing in the renderer.
+function dmActionLabels(action) {
+  if (!action?.kind) return null;
+  return DM_ACTION_LABELS[action.variant] ?? DM_ACTION_LABELS[action.kind] ?? null;
+}
+
+// Reads the descriptor off a DirectMessage row, or null. One reader, so the
+// shape of `meta` is known in one place.
+function dmActionOf(row) {
+  const action = row?.meta?.action;
+  if (!action?.kind || !action?.id) return null;
+  if (!DM_ACTION[action.kind]) return null;
+  return action;
+}
+
+module.exports = { DM_ACTION, DM_CHOICE, DM_ACTION_LABELS, dmAction, dmActionLabels, dmActionOf };

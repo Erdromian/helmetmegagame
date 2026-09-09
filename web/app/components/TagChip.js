@@ -1,44 +1,14 @@
-import { formatCost, costColor, prerequisiteNames } from "@/lib/characterCreation";
-import { formatTagRequirement } from "@/lib/formatTagRequirement";
-import { formatTagArmor } from "@/lib/formatTagArmor";
-import { formatTagWeight } from "@/lib/formatTagWeight";
-import { turnsLeft, tagDuration } from "@/lib/turnFormat";
 import ChipLabel from "./ChipLabel";
-import DesireUnlocks from "./DesireUnlocks";
-import ChipText from "./ChipText";
 import HoverCard from "./HoverCard";
-import PaperSheet from "./PaperSheet";
+import TagDetails, { tagDurationFor } from "./TagDetails";
 
-// Tag.expiresInto / Tag.removesInto as a {tag:…} token string for ChipText to
-// resolve — the same machinery the description below already goes through,
-// which is why this needs no catalog of its own and keeps working wherever
-// TagChip renders. Entries are normalised to { oneOf: [...] } by
-// db/lib/syncTags.js, so a bare slug is just a pick of one; several entries
-// all land at once ("and"), while a multi-slug oneOf is a roll between them
-// ("or").
-function chainTokens(chain) {
-  const entries = Array.isArray(chain) ? chain : null;
-  if (!entries?.length) return null;
-  return entries
-    .map((entry) => (entry?.oneOf ?? []).map((slug) => `{tag:${slug}}`).join(" or "))
-    .filter(Boolean)
-    .join(" and ");
-}
-
-// One label/value row. Labels are muted and values carry --text, so the panel
-// reads as answers rather than the flat block of grey <p>s it used to be.
-function Meta({ label, children }) {
-  return (
-    <>
-      <dt>{label}</dt>
-      <dd>{children}</dd>
-    </>
-  );
-}
-
+// A tag as a chip with its details on hover. The details themselves live in
+// TagDetails.js, which the sheet's rows also render inline — so the chip and
+// the row say exactly the same things about a tag.
+//
 // `onConsume` is set only for a consumable tag on your own sheet (see
-// TagsPanel.js), which puts a Consume button in the tooltip. The action and
-// its pending/error state stay in the client parent so this component keeps
+// TagRail.js), which puts a Consume button beside the tag. The action and its
+// pending/error state stay in the client parent so this component keeps
 // rendering fine on the server everywhere else it's used — and so it never
 // says a word about what the thing turns into.
 export default function TagChip({
@@ -54,141 +24,24 @@ export default function TagChip({
   // chip has to be told; null means not armed and the row simply isn't there.
   armedTurn = null,
 }) {
-  const stack = quantity > 1 ? quantity : null;
-  // Minified "cost to add/remove this tag in play" — see Tag.requirement* in
-  // schema.prisma. Null when unset, so the row is simply omitted.
-  const requirement = formatTagRequirement(tag);
-
-  // "Melee: Good | Ballistic: Meager". Null for everything that turns nothing
-  // aside, which is most of the catalog.
-  const armor = formatTagArmor(tag);
-
-  // "6 lb", or "1 lb each · 3 lb" for a stack. Null for everything that costs
-  // the carry cap nothing — a skill, a horse, a graft — so the row is simply
-  // omitted rather than reading "0 lb" over most of the catalog.
-  const weight = formatTagWeight(tag, quantity);
-
-  // Pass the CharacterTag's expiresTurn (not the Tag's defaultDurationTurns) —
-  // the clock started when it was granted. Null for a bare catalog reference,
-  // which is what makes tagDuration fall back to the catalog wording.
-  const left = turnsLeft(expiresTurn, currentTurn);
-  const duration =
-    armedTurn != null
-      ? {
-          label: `Armed. It fires as turn ${armedTurn} closes. ‡`,
-          badge: `armed · ${turnsLeft(armedTurn, currentTurn) ?? "?"}t`,
-          armed: true,
-        }
-      : tagDuration(left, tag.defaultDurationTurns);
-
-  // What it turns into when that runs out, rather than simply going away.
-  const becomes = chainTokens(tag.expiresInto);
-  // And what its treated form is — the aftermath a removal or Heal leaves.
-  const treated = chainTokens(tag.removesInto);
+  const duration = tagDurationFor({ tag, expiresTurn, currentTurn, armedTurn });
 
   const panel = (
-    <>
-      <div className="flex items-start justify-between gap-2">
-        <strong>
-          {tag.name}
-          {stack ? ` ×${stack}` : ""}
-        </strong>
-        {/* Group · category, top right — same info ChipLabel's border colour
-            implies, spelled out for whoever can't rely on the colour alone. */}
-        {(tag.group?.name || tag.category) && (
-          <span className="text-muted whitespace-nowrap text-xs">
-            {[tag.group?.name, tag.category].filter(Boolean).join(" · ")}
-          </span>
-        )}
-      </div>
-      {/* inTooltip: this text renders inside this HoverCard's panel, so a
-          {tag:…} in it can be a real, hoverable TagChip — pinning the panel
-          makes it reachable. Nesting stops there: the nested chip renders its
-          own description without the flag (see ChipText.js). */}
-      {tag.paper ? (
-        <PaperSheet paper={tag.paper} />
-      ) : (
-        tag.description && <ChipText text={tag.description} as="p" inTooltip />
-      )}
+    <TagDetails
+      tag={tag}
+      quantity={quantity}
+      expiresTurn={expiresTurn}
+      currentTurn={currentTurn}
+      armedTurn={armedTurn}
+      inTooltip
+    >
       {typeof onConsume === "function" && (
-        <button
-          type="button"
-          className="btn-quiet"
-          onClick={onConsume}
-          disabled={consumeBusy}
-        >
+        <button type="button" className="btn-quiet" onClick={onConsume} disabled={consumeBusy}>
           Consume
         </button>
       )}
       {consumeError && <p className="text-muted text-xs">{consumeError}</p>}
-      <dl className="tag-meta">
-        {duration && <Meta label={duration.armed ? "Armed" : "Expires"}>{duration.label}</Meta>}
-        {/* Reinforcement, not the only warning — every tag that gets worse
-            says so in its own description too. This is the precise version.
-            inTooltip: this text is rendered inside a HoverCard panel (this
-            one), so a nested {tag:…} can safely become a real, hoverable
-            TagChip now that pinning makes it reachable. */}
-        {becomes && (
-          <Meta label="Becomes">
-            <ChipText text={becomes} inTooltip />
-          </Meta>
-        )}
-        {treated && (
-          <Meta label="Treated">
-            <ChipText text={treated} inTooltip />
-          </Meta>
-        )}
-        {/* Labelled, not bare: formatTagRequirement's leading "1t" is turns of
-            WORK, which collided with the expiry countdown's own "1t" when both
-            sat unlabelled in the same panel. Which work it is depends on the
-            tag — on a wound the block is the cost to remove it, on a craftable
-            it is the recipe to make one, and "Cure" read wrong over every brew
-            and blade in the catalog. */}
-        {requirement && (
-          <Meta label={tag.craftable ? "Recipe" : tag.healable ? "Cure" : "Requirement"}>
-            {requirement}
-          </Meta>
-        )}
-        {armor && <Meta label="Armour">{armor}</Meta>}
-        {/* What this costs the carry cap (docs/systemdocs/CARRY.md §1). Sat
-            only on the sheet's "84 / 120 lb" total until now, which told a
-            player they were overloaded without telling them what to put
-            down. */}
-        {weight && <Meta label="Weight">{weight}</Meta>}
-        {/* Tag.inspectVisibility — whether another player sees this on the 🔍
-            inspect embed. Only the affirmative renders; hidden is the default,
-            so a "No" on most of the catalog would be noise. "Only while worn"
-            is the concealable middle state, and it is worth spelling out: it
-            is the difference between a dagger in a pocket and a drawn one. */}
-        {tag.inspectVisibility && tag.inspectVisibility !== "HIDDEN" && (
-          <Meta label="Seen by others">{tag.inspectVisibility === "WORN" ? "Only while worn" : "Yes"}</Meta>
-        )}
-        {/* Tag.concealsIdentity / Tag.forcesConceal. Three states, and the
-            difference between the last two is the whole reason this row
-            exists: "Always" means the wearer cannot choose to be seen, which
-            is a very different thing to own than a mask you can take off.
-            Nothing renders for gear that doesn't conceal, same posture as the
-            visibility row above. */}
-        {tag.concealsIdentity && (
-          <Meta label="Conceals you">{tag.forcesConceal ? "Always, while worn" : "Optional, while worn"}</Meta>
-        )}
-        {/* The prerequisite gate (requiredTag, or the group's) — what marks
-            role/faction kit as designed-for-you. Reads straight off the tag
-            prop, no hooks, so the chip keeps rendering on the server; a
-            caller that didn't fetch the relation simply gets no row. */}
-        {prerequisiteNames(tag).length > 0 && (
-          <Meta label="Requires">{prerequisiteNames(tag).join(", ")}</Meta>
-        )}
-        <Meta label="Cost">
-          <span style={{ color: costColor(tag.pointCost) }}>{formatCost(tag.pointCost)} {Math.abs(tag.pointCost ?? 0) === 1 ? "pt" : "pts"}</span>
-        </Meta>
-      </dl>
-      {/* What holding this OPENS. Below the meta list rather than inside it:
-          the rows are a list of names, not label/value pairs, and a <dd> full
-          of them fought the two-column grid. Renders nothing for the ~900 tags
-          that unlock no Desire. */}
-      <DesireUnlocks tag={tag} />
-    </>
+    </TagDetails>
   );
 
   return (

@@ -54,6 +54,7 @@ import { deployVersion } from "@/lib/deployVersion";
 import { auth } from "@/lib/auth";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
+import { myMove } from "../play/actions";
 import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
@@ -240,10 +241,10 @@ export default async function CharacterPage({ searchParams }) {
 // the sheet below used to be a JSX attribute on <CharacterSheet> right here;
 // the names are unchanged.
 //
-// `scope` is the snapshot bucket the result is written into. /ledger renders
-// the same four outcomes in its own layout (web/app/components/CharacterLedger.js)
-// and imports this body whole, so the load lives in one place; it passes its
-// own scope so the two pages never paint each other's stored copy.
+// `scope` is the snapshot bucket the result is written into (web/lib/snapshot).
+// There is only one caller and one bucket now that /ledger is a redirect, but
+// the parameter stays: it is what keeps a second surface over this same load
+// from painting /character's stored copy.
 export async function FreshCharacter({ userId, searchParams, scope = "character" }) {
   const session = { discordUserId: userId };
   const fresh = (data) => <SnapshotFresh scope={scope} userId={userId} data={data} />;
@@ -350,6 +351,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     // The bomb's clock, for the Nuclear Device chip (TagChip.js). World
     // state, so every sheet shows it, not just the holder's.
     nukeState,
+    // The turn card on /ledger (web/app/components/SheetTurn.js): the same
+    // server action Chat's YOU column polls, so the two never disagree.
+    // Only /ledger reads it, so /character skips the call entirely.
+    mine,
   ] = await Promise.all([
     getOpenTurn(),
     // getVisibleTags doesn't select purchasable/craftable, so this comes
@@ -424,7 +429,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     prisma.gameConfig.findUnique({
       where: { id: 1 },
       select: {
-        equipSlots: true,
         avatarUploadsEnabled: true,
         playPanelEnabled: true,
         portraitMakerEnabled: true,
@@ -438,6 +442,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     findOpenTurnAction(prisma, character.id),
     clockFrozen(prisma),
     readGameState(prisma, { nukeArmedTurn: true }),
+    // The turn card in the sheet's band paints from this, so it is read on
+    // every load rather than gated on a scope.
+    myMove(),
   ]);
 
   // Desires: the slots, and the evaluated catalog behind the picker. Both
@@ -540,7 +547,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
   // The Mulligan Potion, if they hold one. Drinking it is the one player-facing
   // rename, so the tag's own tooltip opens the identity dialog instead of
-  // consuming it — TagsPanel needs the id to tell that bottle from every other
+  // consuming it — the tag rail needs the id to tell that bottle from every other
   // consumable, and the name parts to seed the fields. Resolved here rather
   // than in the client so no slug matching reaches the browser;
   // changeNameRequestImpl re-checks the potion under the same predicate.
@@ -1058,7 +1065,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     concealment,
   }).avatarPath;
 
-  // The Move cutoff for StatusPanel's "This turn" row.
+  // The Move cutoff for the band's "This turn" box.
   const openTurnWithWindow = openTurn
     ? {
         ...openTurn,
@@ -1079,6 +1086,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       mode: "self",
       openTurn: openTurnWithWindow,
       currentAction: sheetAction,
+      // The turn card's first paint on /ledger: the same server action the
+      // Chat's YOU column reads (play/actions.js#myMove), so the two cannot
+      // disagree about the Move you filed.
+      moveState: mine.ok ? { turn: mine.turn, move: mine.move } : { turn: null, move: null },
       avatarSrc: avatarSrc,
       forcedIdentity: forcedIdentity,
       concealGear: concealGear,
@@ -1116,7 +1127,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       mySins: mySins,
       pendingOffers: pendingOffers,
       ...letters,
-      equipSlots: gameConfig?.equipSlots ?? 10,
       avatarUploadsEnabled: gameConfig?.avatarUploadsEnabled ?? false,
       playPanelEnabled: gameConfig?.playPanelEnabled ?? true,
       portraitMakerEnabled: gameConfig?.portraitMakerEnabled ?? false,

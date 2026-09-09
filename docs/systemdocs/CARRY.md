@@ -104,7 +104,7 @@ nothing.
 | Medium | 4–6 | spear, mace, helm, halberd, fishing rod |
 | Heavy | 8–12 | crossbow, rifle, shield, bear trap, padded armor |
 | Very Heavy | 20–30 | mail shirt, breastplate, pavise, Godflesh |
-| Massive | 40–75 | plate armor, flamethrower, a creature's corpse |
+| Massive | 40–75 | plate armor, flamethrower, a corpse (a person's or a creature's) |
 | Immense | 100 | workshop equipment, a nuclear device |
 
 **A thing with an obvious real weight gets that weight**, and the band is for
@@ -216,9 +216,9 @@ actually be free.
 
 `horse`, `motorcycle` and `cart` are **equippable**, and
 give nothing while stowed — no carry multiplier, no extra zone move, no
-passenger seats. They compete for the same six `GameConfig.equipSlots` as
-armour and weapons, which is the point: a cart should cost you something to
-keep out.
+passenger seats. They sit in the `MOUNT` slot (`TAGS.md`, "equipSlot"): a
+horse, a motorcycle or a boat is *ridden* (layer 1) and a cart is *towed*
+(layer 2), so a horse and a cart go together and a horse and a boat do not.
 
 **Seats, from `fastTravelCapacity()`:** a Horse alone is 2, and a Cart upgrades
 that pair to 6 — the biggest ride there is. They count the **rider**, so a
@@ -492,7 +492,7 @@ it out for a while, which made every stash in the game a one-way drop. ‡
 | Post-commit tail | `web/lib/afterInventoryChange.js` |
 | Merged action | `web/app/(app)/character/requestActions.js#transferRequest` |
 | Undo, party-shaped moves | `web/lib/tagEffects.js#takeTagFrom` / `giveTagTo` |
-| Dialog, grid, readout | `components/actions/MoveThingsDialog.js`, `StackRow.js`, `ActionGrid.js`, `StatusPanel.js` |
+| Dialog, grid, readout | `components/actions/MoveThingsDialog.js`, `StackRow.js`, `ActionGrid.js`, `LedgerBand.js` |
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
 | Free zone moves, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
 | Mounts: what counts while equipped | `db/lib/mounts.js` |

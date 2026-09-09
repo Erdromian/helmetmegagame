@@ -322,7 +322,6 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
       });
       applied.push(...liveTargets);
     } else {
-      const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
       const tagsById = new Map([[tag.id, tag]]);
       for (const characterId of liveTargets) {
         try {
@@ -332,7 +331,6 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
               ops: [{ tagId: tag.id, op: "add", quantity: 1 }],
               tagsById,
               openTurn,
-              equipSlots: config?.equipSlots ?? 10,
             }),
           );
           applied.push(characterId);

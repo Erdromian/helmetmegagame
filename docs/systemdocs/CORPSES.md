@@ -28,6 +28,35 @@ dropped. It would have made `LOOT_CHARACTER` pointless for corpses while
 leaving it necessary for the bound and the helpless, which is two mechanisms
 for one verb.
 
+### What a body weighs
+
+A corpse used to weigh nothing, so a character could walk a pile of them across
+the map while a Graga's corpse (75 lb) had always been real cargo.
+`db/lib/corpseWeight.js` gives one two parts:
+
+**The body.** 50 lb for a person, which is under the 71 lb base cap on purpose
+— carrying somebody costs you most of your back and still lets you walk with
+your own kit. It sits between the spindly nekker at 35 and the skinless at 55.
+Build bends it, as multipliers so they compose: Giant ×1.5 (75, the Graga's
+number), Fat ×1.3, Frail ×0.8, Dwarf ×0.7. A frail dwarf is 28 lb and nothing
+goes under 20. **Strong is deliberately not on that list** — muscle does weigh
+more, but the difference is small next to these and quietly taxing a trait
+somebody spent points on is a poor way to buy realism.
+
+**Their gear**, because of §1: a corpse is a handle to a sheet, not a
+container, and their belongings never move off the `Character` row. So whoever
+hauls the body hauls the plate armour still on it. A body in full harness is
+105 lb, which is a hair under the 1.5× hard stop — you have to strip it before
+you can carry it, and stripping drops it back to 50. That is the intended
+lesson rather than an accident of the numbers.
+
+The figure is **stored** on the corpse Tag's `weightLbs` rather than computed
+at read time: `db/lib/carry.js#rowWeight` reads that one column and every
+readout on both faces flows from it, so making one tag's weight dynamic would
+have meant threading a dead character's sheet through all of them, client
+components included. It is written at mint and recomputed by
+`refreshCorpseWeight` whenever the body is looted.
+
 ## 1a. Gibbing — the death that leaves no body
 
 Three deaths in the game vaporise a character outright: the Thanati **Rite of

@@ -108,6 +108,18 @@ export default function TravelNodes({ onDone, pick = null }) {
   // even when the header's pre-selection number already reads 0.
   const nextTurn = Boolean(chosen?.crossesZone && chosen.freeLeft <= 0);
 
+  // Travel, in one place: the Go button and a second click on a node are two
+  // doors onto the same call, the way the map's are (MAP.md §6c).
+  const go = (locationId) =>
+    run(travelTo, { locationId }, {
+      onOk: (res) => {
+        setTarget(null);
+        onDone?.(res);
+        reload();
+        refresh();
+      },
+    });
+
   return (
     <div className="chat-travel">
       <p className="chat-section-title" title={data.freeReason ?? undefined}>
@@ -140,7 +152,24 @@ export default function TravelNodes({ onDone, pick = null }) {
               data-active={target === option.id ? "true" : undefined}
               title={titleFor(option, via)}
               disabled={!option.passable || pending}
-              onClick={() => setTarget(target === option.id ? null : option.id)}
+              // Picking the same node twice goes there, so a hop need not
+              // reach for Go — and because this is a real <button>, Enter on a
+              // focused node is the same second pick, with no key handler to
+              // maintain. Every node here is already passable; the button is
+              // disabled otherwise.
+              //
+              // The focus() is not redundant. Safari and Firefox on macOS do
+              // NOT focus a button on a mouse click, so without it "click one,
+              // then press Enter" would work in Chrome and quietly do nothing
+              // in half the browsers players actually use.
+              onClick={(e) => {
+                e.currentTarget.focus();
+                if (target !== option.id) {
+                  setTarget(option.id);
+                  return;
+                }
+                if (!pending) go(option.id);
+              }}
             >
               <span className="chat-node-name">{option.name}</span>
               <span className="chat-node-zone">{option.zoneName}</span>
@@ -186,16 +215,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               type="button"
               className="btn"
               disabled={pending}
-              onClick={() =>
-                run(travelTo, { locationId: chosen.id }, {
-                  onOk: (res) => {
-                    setTarget(null);
-                    onDone?.(res);
-                    reload();
-                    refresh();
-                  },
-                })
-              }
+              onClick={() => go(chosen.id)}
             >
               Go
             </button>

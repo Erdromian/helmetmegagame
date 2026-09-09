@@ -1,5 +1,6 @@
 "use client";
 
+import { WEAPON_HANDS, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -56,7 +57,6 @@ export default function DevPanel({
   tags,
   held,
   feed,
-  equipSlots,
   maxDrawbackTags,
   maxDrawbackPoints,
   openTurn,
@@ -229,7 +229,6 @@ export default function DevPanel({
         discord={discord}
         curse={curse}
         held={held}
-        equipSlots={equipSlots}
         maxDrawbackTags={maxDrawbackTags}
         maxDrawbackPoints={maxDrawbackPoints}
         gambitModifier={gambitModifier}
@@ -289,7 +288,6 @@ export default function DevPanel({
           tags={tags}
           held={held}
           openTurn={openTurn}
-          equipSlots={equipSlots}
           onApplyOps={applyTagOps}
         />
       )}
@@ -424,7 +422,6 @@ function StateStrip({
   discord,
   curse,
   held,
-  equipSlots,
   maxDrawbackTags,
   maxDrawbackPoints,
   gambitModifier,
@@ -434,6 +431,10 @@ function StateStrip({
 }) {
   // Slots spent, not rows worn — a stack equipped 3-of-5 spends 3.
   const equipped = held.reduce((sum, h) => sum + (h.equippedQuantity ?? 0), 0);
+  // Hands, not a flat count: the only equipment limit that is a number now
+  // (db/lib/equipSlots.js). The layered slots refuse on their own. handsUsed
+  // expands each row by its own equippedQuantity, matching `equipped` above.
+  const hands = handsUsed(held.filter((h) => h.equippedQuantity > 0));
   // Point-bought drawbacks only, matching the ceilings PointBuy enforces — a
   // GM-inflicted wound is not one of the player's tags. Shown as a fact, not
   // a limit: a GM grant deliberately ignores every gate, these included.
@@ -468,7 +469,7 @@ function StateStrip({
       [
         ["Resources", `${staged.resources} ⬢`],
         ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
-        ["Equipment", `${equipped} / ${equipSlots}`],
+        ["Equipped", `${equipped} · ${hands} / ${WEAPON_HANDS} hands`],
         [
           "Drawbacks",
           <span key="db" className={overDrawbackCap ? "text-danger" : undefined}>

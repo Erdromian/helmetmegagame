@@ -7,7 +7,7 @@ import RequestDialog from "./RequestDialog";
 import { changeNameRequest } from "../(app)/character/requestActions";
 
 // Drinking a Mulligan Potion. It lives with the tags rather than on the Bio
-// card, because the bottle is what you click — TagsPanel routes that one
+// card, because the bottle is what you click — the tag rail routes that one
 // tag's Consume button here instead of consuming it, and every other
 // consumable just goes.
 //

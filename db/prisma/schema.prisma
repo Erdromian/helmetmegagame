@@ -129,17 +129,21 @@ enum TagVisibility {
   WORN
 }
 
-// Where on the body an equippable tag sits. Only three, because these are the
-// places where wearing two things at once is nonsense: you get one helmet, one
-// cuirass, one shield. Everything else equippable — a sword, a lantern, a cart
-// — has no slot and is limited only by GameConfig.equipSlots, the flat count.
+// Where on the body an equippable tag sits. Every equippable tag names one
+// (db/lib/syncTags.js throws otherwise), and the slot is the whole limit —
+// GameConfig.equipSlots, the old flat count, is retired and read by nothing.
 //
-// HEAD and BODY additionally carry Tag.equipLayer 1-4, so a coif can go under
-// a helm; SHIELD has no layers and admits exactly one. See TAGS.md.
+// HEAD, BODY and MOUNT carry Tag.equipLayer 1-3, so a coif goes under a helm
+// and a cart is towed behind a horse; SHIELD admits exactly one. WEAPON is
+// capped by hands — three, a two-hander (Tag.twoHanded) taking two — and
+// ACCESSORY is not capped at all. See TAGS.md and db/lib/equipSlots.js.
 enum EquipSlot {
   HEAD
   BODY
   SHIELD
+  WEAPON
+  ACCESSORY
+  MOUNT
 }
 
 // Who may see a tag in the /documents Tag Catalog (`catalog:` in
@@ -249,7 +253,7 @@ model GameConfig {
   // How long a character waits between two walks from one Location to
   // another inside the same zone (db/lib/locationTravel.js). Edited on
   // /gm/dev. Crossing into another zone is gated by the Move, not by this.
-  locationMoveCooldownSeconds Int @default(60)
+  locationMoveCooldownSeconds Int @default(3)
 
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — on by default,
@@ -387,14 +391,9 @@ model GameConfig {
   // back off keeps them until its owner next saves.
   portraitFantasyPartsEnabled Boolean @default(false)
 
-  // How many tags a character may have equipped at once. Enforced inside the
-  // transaction that flips CharacterTag.equipped, so two tabs racing on the
-  // last slot cannot both win. Editable live from the Dev Panel, same posture
-  // as startingTagPoints above.
-  //
-  // Raised 6 -> 10 on 2026-09-06, Bascinet's call. This is the FLAT count only;
-  // the per-body-part rule is separate and unchanged, so ten slots still buys
-  // nobody a second helmet (db/lib/equipSlots.js).
+  // RETIRED 2026-09-13: the per-slot rules (Tag.equipSlot, db/lib/equipSlots.js)
+  // are the whole limit now, and nothing reads this column. It stays so no
+  // migration drops a value; it is INTERNAL_KEYS in db/lib/gameConfigFields.js.
   equipSlots Int @default(10)
 
   // Carry caps: how many POUNDS of tradeable tags and how many ⬢ a character
@@ -2085,8 +2084,8 @@ model Tag {
   ballisticArmor Float?
 
   // Whether this tag is a thing a character can wear or carry readied, and so
-  // occupies one of their GameConfig.equipSlots. Equipped state lives on
-  // CharacterTag.equipped; equipping is instant and writes no Request.
+  // occupies its equipSlot. Equipped state lives on CharacterTag.equipped;
+  // equipping is instant and writes no Request.
   equippable Boolean @default(false)
 
   // Marks gear that hides who the wearer is — a mask, hood or closed helm.
@@ -2113,13 +2112,17 @@ model Tag {
   concealSprite String?
 
   // Where this sits on the body, and how deep. Two equipped tags may not share
-  // a slot, nor a layer within HEAD/BODY: layer 1 is against the skin and 4 is
-  // outermost, so a mail coif (1) goes under a knight's helm (3) but two helms
+  // a layer within HEAD/BODY/MOUNT: layer 1 is against the skin and 3 is
+  // outermost, so a mail coif (1) goes under a knight's helm (2) but two helms
   // do not go together. The OUTERMOST equipped concealing piece is the one
   // whose concealSprite the room sees. Enforced in both places that flip
   // CharacterTag.equipped — equipActions.js and db/lib/tagOps.js.
   equipSlot  EquipSlot?
   equipLayer Int?
+
+  // A WEAPON that fills two of the three hands (db/lib/equipSlots.js). Only
+  // meaningful on equipSlot WEAPON; syncTags.js throws anywhere else.
+  twoHanded Boolean @default(false)
 
   // The opposite of hiding: a tag that FIXES how the character presents. While
   // any held tag carries this, the character posts under this name with the
@@ -2622,16 +2625,19 @@ model CharacterTag {
   expiresTurn Int?
 
   // Whether AT LEAST ONE unit of this held tag is currently equipped —
-  // `equippedQuantity > 0`, kept in sync with it on every write. Every
-  // "holds it or doesn't" check in the codebase (fear, armour, mounts,
-  // concealment, labor bonuses...) reads only this column and is unaffected
-  // by how many units that actually is.
+  // `equippedQuantity > 0`, kept in sync with it on every write. Only ever
+  // true for a Tag.equippable one. Every "holds it or doesn't" check in the
+  // codebase (fear, armour, mounts, concealment, labor bonuses...) reads only
+  // this column and is unaffected by how many units that actually is. The cap
+  // itself is per slot, not a flat count across the character: Tag.equipSlot
+  // says where a thing goes and db/lib/equipSlots.js says how many fit there.
   equipped Boolean @default(false)
 
   // How many of `quantity` are currently equipped, each occupying its own
-  // slot of GameConfig.equipSlots — five swords equipped is five slots
-  // spent, not one. Never above `quantity`: whatever shrinks quantity below
-  // it (dropCharacterTag, a GM's patch) clamps this down first and frees the
+  // slot or hand (db/lib/equipSlots.js) — five swords equipped is three hands
+  // spent and two still in the pack, not one hand for "a stack of swords".
+  // Never above `quantity`: whatever shrinks quantity below it
+  // (dropCharacterTag, a GM's patch) clamps this down first and frees the
   // slots that unequips. Always 0 or 1 for a non-stackable tag, mirroring
   // `equipped` exactly.
   equippedQuantity Int @default(0)

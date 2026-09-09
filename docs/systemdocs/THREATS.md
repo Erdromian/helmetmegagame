@@ -115,8 +115,12 @@ cost the grant:
 
 ```
 You are now the {name}!
-Check your tags and documents. ‡
+Check your tags and documents.
 ```
+
+**No ‡ on a seat message.** Bascinet signed off on this wording, so the
+Assign and Spawn tails, the arrival line and the seat-conflict note all end
+on their own punctuation.
 
 No charter here: an assigned character already has a role, and the seat is
 its tags. The spawn offer (§4) is the one that carries a charter.
@@ -140,7 +144,11 @@ DMs the target the Role's charter plus Accept / Decline:
 You have been offered a seat: the {name}.
 {role.intro}
 {role.description, one line each}
-Accept and you arrive immediately. Decline and nothing happens. ‡
+Accept and you arrive immediately. Decline and nothing happens.
+
+The buttons work on **either face**: the same pair is drawn in the Bascinet
+pane on `/play`, which is the only place somebody with no character and no
+Discord can answer at all (`CHAT.md` §2b).
 ```
 
 A `{tag:…}` token in a description line is flattened to the tag's name for the

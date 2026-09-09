@@ -28,7 +28,7 @@ import { deployVersion } from "@/lib/deployVersion";
 // one Location all firing it the moment a turn moves them.
 //
 // The open handshakes are the exception, because those ARE on the page: "Waiting
-// for Ada to agree to be bound" sits in StatusPanel until the offer leaves
+// for Ada to agree to be bound" sits under the turn card until the offer leaves
 // PENDING, and an answer given in Discord moves nothing else here. Not scoped
 // to the open turn — the lesson pass expires every PENDING offer at the close
 // (LESSONS.md §3a), so the two sets are the same set.

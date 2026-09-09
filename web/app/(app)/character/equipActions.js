@@ -10,7 +10,7 @@ import {
   FAST_TRAVEL_SLUGS,
 } from "@lifeweb/db/lib/mounts";
 import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
-import { describeSlotClash, checkEquipLimits } from "@lifeweb/db/lib/equipSlots";
+import { findEquipProblem } from "@lifeweb/db/lib/equipSlots";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
@@ -131,37 +131,28 @@ export async function equipOne(characterTagId) {
 
   // Counting inside the transaction is NOT enough on its own: Prisma runs at
   // READ COMMITTED, so two tabs (or one impatient double-tap) both read the
-  // same count, both see a free slot, and both write — which is exactly what
+  // same worn set, both see room, and both write — which is exactly what
   // happens without the lock below. Taking a row lock on the Character first
   // serializes every equip for this one character, so the second attempt reads
-  // the first's committed count. Contention is per-character, i.e. only ever
+  // the first's committed set. Contention is per-character, i.e. only ever
   // between one player's own clients.
   try {
     await prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${character.id} FOR UPDATE`;
-      const config = await tx.gameConfig.findUnique({ where: { id: 1 }, select: { equipSlots: true } });
-      const slots = config?.equipSlots ?? 10;
       await tx.characterTag.update({
         where: { id: held.id },
         data: { equippedQuantity: { increment: 1 }, equipped: true },
       });
 
-      // Written first, then checked, so this asks the same question the GM
-      // batch path asks: "is the resulting set wearable?" — checkEquipLimits
-      // is the shared, unit-tested answer to that question (db/lib/equipSlots.js).
-      // Inside the same transaction and behind the same row lock taken above,
-      // so a double-tap cannot slip a second helmet past it; the throw below
-      // rolls the write back.
-      const wornRows = await tx.characterTag.findMany({
+      const worn = await tx.characterTag.findMany({
         where: { characterId: character.id, equippedQuantity: { gt: 0 } },
         select: {
           equippedQuantity: true,
-          tag: { select: { name: true, equipSlot: true, equipLayer: true } },
+          tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } },
         },
       });
-      const { overCap, clash } = checkEquipLimits(wornRows, slots);
-      if (overCap) throw new EquipRefusalError("You have no free equipment slots.");
-      if (clash) throw new EquipRefusalError(describeSlotClash(clash));
+      const problem = findEquipProblem(worn);
+      if (problem) throw new EquipRefusalError(problem);
     });
   } catch (err) {
     if (err instanceof EquipRefusalError) return { error: err.message };

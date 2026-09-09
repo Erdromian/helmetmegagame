@@ -11,6 +11,7 @@
 // ASSIGNED, so a tick the bot missed is simply caught up on the next one.
 
 const { sendDm } = require("./dm");
+const { DM_ACTION, dmAction } = require("./dmActions");
 const { assignmentMessage, reminderMessage, expiredMessage, declineComponents } = require("./lobby");
 
 const REMINDER_BEFORE_MS = 6 * 60 * 60 * 1000;
@@ -36,6 +37,7 @@ async function runLobbySweep(prisma, { origin = "https://ravenheart.quest", now 
     await sendDm(prisma, entry.discordUserId, assignmentMessage(seat, origin), {
       source: "lobby_assignment",
       components: declineComponents(entry.id),
+      meta: dmAction(DM_ACTION.LOBBY_SEAT, entry.id),
     }).catch((err) => console.error(`Assignment resend failed for ${entry.discordUserId}:`, err));
     resent += 1;
   }

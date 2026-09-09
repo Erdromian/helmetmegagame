@@ -277,3 +277,7 @@ after a restart rather than full of the last game (`CHAT.md` §7).
 | `web/app/(app)/gm/dev/gameActions.js` | Phase transitions, Preview, hand-set, Start, End, Resume |
 | `web/app/(desk)/gm/dev/{GameControls,AssignmentPreview,LobbyRoster}.js` | The Game section |
 | `bot/src/lib/lobby.js` | The Decline click |
+
+The **Decline the seat** button is answerable on either face — it is drawn in
+the Bascinet pane on `/play` as well as in the Discord DM (`CHAT.md` §2b),
+which matters here because a player in the lobby has no character yet.

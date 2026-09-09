@@ -227,8 +227,11 @@ top-level page is:
 
 `width` is `narrow` / `default` / `wide` / `full`, and that's the whole menu —
 it replaced five ad-hoc `max-w-*` values chosen per page. `full` drops the
-centring for a page whose own grid is the width (`/ledger`); it still keeps the
-shell's padding, which is what separates it from the desk exception below.
+centring for a page whose own grid is the width; it still keeps the shell's
+padding, which is what separates it from the desk exception below. (The
+character sheet used it once. It now draws its own full-width body under the
+shared `AppHeader` with no `PageShell` at all — still an ordinary scrolling
+page, just not a centred one: `SHEET.md` §1.)
 
 `PageHeader`'s `actions` slot takes anything belonging beside the title: a
 sub-nav, a faction switcher.

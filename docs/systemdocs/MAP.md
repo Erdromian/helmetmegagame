@@ -277,7 +277,8 @@ anywhere, spends nothing, and files no Action — it isn't travel, it's
 arrival. The adjacency gate is skipped entirely.
 
 **A hop inside the same zone is free, on a cooldown.**
-`GameConfig.locationMoveCooldownSeconds` (default 60, edited on `/gm/dev`)
+`GameConfig.locationMoveCooldownSeconds` (default 3, edited on `/gm/dev`; it
+was 60 until 2026-09-08, which was long enough to feel like a wall)
 gates it, enforced by a **conditional `updateMany`** whose `WHERE` clause
 *is* the check (`lastLocationMoveAt` null or old enough) — the same shape the
 hunger decrement and the mount's daily claim use, so two clicks in one tick
@@ -593,6 +594,27 @@ same numbers through `web/lib/travelCost.js#travelFoot` — extracted from
 `TravelNodes.js` precisely so the two surfaces cannot disagree about what a hop
 costs — and Go calls the same `travelTo`, which re-derives every gate
 server-side regardless.
+
+**Picking a place twice goes there**, on both surfaces, so an ordinary hop
+need not cross the board to the card and back. The second click on the node
+already picked *is* the Go button; anywhere you cannot go it still just
+unpicks. A real double-click works for the same reason and needs no code of
+its own — it arrives as two clicks, which pick and then go — which is why
+there is no `onDoubleClick` here to fight the 6px drag guard that stops a pan
+from registering as a pick.
+
+**Enter does the same** once something is picked. On the Travel panel that is
+free: its nodes are real `<button>`s, so a click focuses one and Enter
+re-activates it, which is the second pick. The map has to spell it out — its
+rhombi are SVG `<g>` elements with no focus, and the Ways out list, which *is*
+real buttons, unmounts the moment you pick something — so `MapBoard` listens on
+the window, and stands aside for anything already focused. Enter on **Cancel**
+means cancel. There is deliberately **no Escape**: on `/play` the map sits in a
+Modal that already owns it.
+
+`canTravelTo(node, here)` is the one predicate all three doors read, so a place
+can never travel on a gesture while its own card is showing a refusal. Go and
+Cancel are untouched — this adds a shortcut and draws nothing new.
 
 ### 6d. The plate
 

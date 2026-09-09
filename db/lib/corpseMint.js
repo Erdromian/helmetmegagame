@@ -14,6 +14,7 @@ const { CORPSE_GROUP_SLUG, CORPSE_ROT_TURNS } = require("./constants");
 const { pickRandomPublicRoom } = require("./roomStash");
 const { addToRoomStack, addToStack } = require("./tagWrites");
 const { expiryFrom } = require("./turnFormat");
+const { corpseWeightFor } = require("./corpseWeight");
 
 function corpseName(name) {
   return `${name}'s Corpse`;
@@ -49,7 +50,7 @@ function corpseSlug(name, suffix = 0) {
 // (db/lib/paper.js#paperName) — and is kept on purpose. A body is a thing a GM
 // picks out of a list, so two rows both reading "Ada's Corpse" is a confusion
 // worth spending a suffix on; two notes both reading "A Note" is the point.
-async function createCorpseTag(tx, character, groupId, expiresTurn) {
+async function createCorpseTag(tx, character, groupId, expiresTurn, weightLbs) {
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const suffixed = attempt ? `${corpseName(character.name)} (${attempt + 1})` : corpseName(character.name);
     try {
@@ -71,6 +72,10 @@ async function createCorpseTag(tx, character, groupId, expiresTurn) {
           // One body is one body. The non-stackable pin in tagWrites.js is
           // also what stops two people each holding "the" corpse.
           stackable: false,
+          // A body is cargo (db/lib/corpseWeight.js): the base weight bent by
+          // the build they had, plus whatever is still on their sheet, since
+          // their gear never moves off it. Recomputed when the body is looted.
+          weightLbs,
           // Not binnable from the Destroy menu: Butcher and Bury are the only
           // two ways a body leaves the world.
           removable: false,
@@ -113,7 +118,11 @@ async function mintCorpse(tx, character, turn = null) {
   }
 
   const expiresTurn = turn ? expiryFrom(turn.number + 1, CORPSE_ROT_TURNS) : null;
-  const tag = await createCorpseTag(tx, character, group.id, expiresTurn);
+  // Read off the sheet rather than the `character` handed in: the callers pass
+  // wildly different selects, and a missing `tags` would silently mint every
+  // body at the base weight with no sign anything was wrong.
+  const weightLbs = (await corpseWeightFor(tx, character.id)) ?? undefined;
+  const tag = await createCorpseTag(tx, character, group.id, expiresTurn, weightLbs);
   if (!tag) {
     console.error(`mintCorpse: could not find a free name for ${character.name}'s corpse.`);
     return { tag: null, room: null };

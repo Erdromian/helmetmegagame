@@ -89,6 +89,18 @@ which is the same six rows from the other direction. The channel doctor checks
 the invariant from a third: no stamped `zoneId` may point at a `CAVE_LEVEL`
 row, and it counts the offenders if any exist (`CHANNELS.md` §6).
 
+**The desk gate resolves a cave level to its seat, and that is not optional.**
+`GmZoneView` can only ever hold a seat, so a GM's ticked list says
+"Underground" and never "Caves" or "Depths" — while `Character.zoneId` and
+`Faction.zoneId` both point at the *level* (`unaligned` sits in Caves, and
+anybody standing in a cave reads as one). Comparing those two lists by name
+therefore matched nothing, and every character in the cave system, plus every
+caving roll, was missing from `/gm/players` and `/gm/turns` for any GM who had
+ticked a zone at all. `web/lib/zones.js#inVisibleZones` folds a row's zone onto
+its seat with `seatKey` before comparing, so ticking Underground shows the cave
+rows — the desk half of what `db:sync-zones`' `gmRoleIdFor` already does for the
+Discord channels. A row still *displays* the level it is in.
+
 ### 2b. Seat by faction, not by feet
 
 **The zone a character's *faction* is keyed to — `Faction.zoneId` — never where

@@ -4760,6 +4760,8 @@ tags:
     pointCost: 9
     tradeable: true
     equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
     purchasable: true
     visible: true
     purchasableAfterStart: false
@@ -4815,6 +4817,8 @@ tags:
     visible: true
     tradeable: true
     equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
     laborBonus: { kind: fishing, amount: 1 }
     purchasable: true
     purchasableAfterStart: true
@@ -4835,6 +4839,8 @@ tags:
     visible: true
     tradeable: true
     equippable: true
+    equipSlot: MOUNT
+    equipLayer: 2
     # ×5 on both carry caps; stacks with Pack Mule (docs/systemdocs/CARRY.md).
     carryBonus: 4
     purchasable: true
@@ -5253,7 +5259,7 @@ tags:
     description: "A spindly, hungry creature that roams in groups. It is often seen on the surface after battles, eating the corpses. Can be butchered to produce {tag:nekker-pheromones}. ‡"
     pointCost: 0
     tradeable: true
-    weight: 45
+    weight: 35
     stackable: false
     visible: true
     purchasable: false
@@ -5353,6 +5359,7 @@ tags:
     description: "A talisman of old metal worn smooth, hung on a cord. Old metal remembers old learning, and some of it rubs off. ‡"
     pointCost: 3
     equippable: true
+    equipSlot: ACCESSORY
     visible: worn
     tradeable: true
     weight: 0.5
@@ -5623,6 +5630,7 @@ tags:
     stackable: true
     visible: worn
     equippable: true
+    equipSlot: ACCESSORY
     purchasable: false
     purchasableAfterStart: false
 
@@ -5694,6 +5702,7 @@ tags:
     description: "A cruel but effective way to bind someone — it works on an armored target too. ‡"
     pointCost: 2
     equippable: true
+    equipSlot: ACCESSORY
     tradeable: true
     weight: 4
     stackable: true
@@ -5732,6 +5741,8 @@ tags:
     description: "A bright, bold jester outfit. Pure aura."
     pointCost: 7
     equippable: true
+    equipSlot: BODY
+    equipLayer: 1
     tradeable: true
     weight: 3
     stackable: true
@@ -5787,6 +5798,7 @@ tags:
     description: "Shiny. Could be pawned off for your life."
     pointCost: 2
     equippable: true
+    equipSlot: ACCESSORY
     tradeable: true
     weight: 0
     # Stackable as of the Merchant Update: a trader turns up with a handful,
@@ -6526,6 +6538,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     equippable: true
+    equipSlot: ACCESSORY
     sellable: true
     sellablePrice: 15
     depotPrice: 25
@@ -6912,6 +6925,7 @@ tags:
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 14
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2.5
     stackable: true
@@ -6935,6 +6949,7 @@ tags:
     description: "A femur wrapped in cord."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2
     stackable: true
@@ -6951,6 +6966,7 @@ tags:
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2
     stackable: true
@@ -6989,6 +7005,7 @@ tags:
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 1
     stackable: true
@@ -7012,6 +7029,7 @@ tags:
     description: "A good knife, hard to handle in battle."
     pointCost: 2
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 0.5
     stackable: true
@@ -7035,6 +7053,7 @@ tags:
     description: "For cutting wood."
     pointCost: 2
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2
     stackable: true
@@ -7062,6 +7081,7 @@ tags:
     pointCost: 2
     laborBonus: { kind: fishing, amount: 1 }
     equippable: true
+    equipSlot: ACCESSORY
     tradeable: true
     weight: 3
     stackable: true
@@ -7090,6 +7110,7 @@ tags:
     pointCost: 5
     laborBonus: { kind: hunting, amount: 1 }
     equippable: true
+    equipSlot: ACCESSORY
     tradeable: true
     weight: 10
     stackable: true
@@ -7141,6 +7162,7 @@ tags:
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 2
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 0.5
     stackable: true
@@ -7164,6 +7186,8 @@ tags:
     description: "What are you gonna do with this?"
     pointCost: 2
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 4
     stackable: true
@@ -7187,6 +7211,7 @@ tags:
     description: "A stick to hit people with."
     pointCost: 2
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2
     stackable: true
@@ -7211,6 +7236,7 @@ tags:
     description: "Made out of an unknown black material. This hurts."
     pointCost: 2
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 1.5
     stackable: true
@@ -7229,6 +7255,8 @@ tags:
     laborBonus: { kind: farming, amount: 1 }
     pointCost: 2
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 5
     stackable: true
@@ -7253,6 +7281,8 @@ tags:
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 2
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 2
     stackable: true
@@ -7278,6 +7308,8 @@ tags:
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 4
     stackable: true
@@ -7302,6 +7334,7 @@ tags:
     pointCost: 3
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 1
     stackable: true
@@ -7326,6 +7359,7 @@ tags:
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 1
     stackable: true
@@ -7350,6 +7384,7 @@ tags:
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2
     stackable: true
@@ -7374,6 +7409,8 @@ tags:
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 4
     stackable: true
@@ -7398,6 +7435,7 @@ tags:
     pointCost: 5
     requiredTag: ranged-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2
     stackable: true
@@ -7423,6 +7461,8 @@ tags:
     pointCost: 5
     requiredTag: ranged-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 3
     stackable: true
@@ -7447,6 +7487,7 @@ tags:
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 4
     stackable: true
@@ -7471,6 +7512,8 @@ tags:
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 4
     stackable: true
@@ -7495,6 +7538,7 @@ tags:
     description: "Wrap your fingers with metal."
     pointCost: 3
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 0.5
     stackable: true
@@ -7520,6 +7564,8 @@ tags:
     pointCost: 7
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 6
     stackable: true
@@ -7544,6 +7590,7 @@ tags:
     pointCost: 7
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 3
     stackable: true
@@ -7568,6 +7615,8 @@ tags:
     pointCost: 7
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 5
     stackable: true
@@ -7593,6 +7642,8 @@ tags:
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 3.5
     stackable: true
@@ -7617,6 +7668,7 @@ tags:
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2.5
     stackable: true
@@ -7641,6 +7693,7 @@ tags:
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2.5
     stackable: true
@@ -7665,6 +7718,7 @@ tags:
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2.5
     stackable: true
@@ -7689,6 +7743,8 @@ tags:
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 4
     stackable: true
@@ -7713,6 +7769,8 @@ tags:
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 6
     stackable: true
@@ -7737,6 +7795,8 @@ tags:
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 7
     stackable: true
@@ -7766,6 +7826,7 @@ tags:
     pointCost: 14
     requiredTag: melee-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 5
     stackable: true
@@ -7790,6 +7851,8 @@ tags:
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 8
     stackable: true
@@ -7816,6 +7879,8 @@ tags:
     pointCost: 18
     requiredTag: ranged-basic
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 7
     stackable: true
@@ -7841,6 +7906,7 @@ tags:
     pointCost: 14
     requiredTag: ranged-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 3
     stackable: true
@@ -7865,6 +7931,7 @@ tags:
     pointCost: 0
     requiredTag: ranged-basic
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 4
     stackable: true
@@ -7894,6 +7961,7 @@ tags:
     pointCost: 7
     depotPrice: 23
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2
     visible: worn
@@ -7915,6 +7983,7 @@ tags:
     description: "A non-lethal energy pistol, only useful against unarmed people. The required number of shots varies, but after enough of them the target's muscles fail and he falls to the floor, cramping and groaning. Powered by disposable batteries imported by the Baron."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 2
     stackable: true
@@ -8337,6 +8406,7 @@ tags:
     description: "An engine-powered gauntlet. What it does to a door, it does to a man."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 15
     visible: true
@@ -8413,6 +8483,8 @@ tags:
     description: "FSHWOOOOOOOOOOOOOOOOOMMMMMMM"
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 40
     visible: true
@@ -8436,6 +8508,7 @@ tags:
     description: "Wear these to see heat through solid stone — from flames, bodies, or anything else. Bright light will blind you."
     pointCost: 0
     equippable: true
+    equipSlot: ACCESSORY
     tradeable: true
     weight: 0
     visible: worn
@@ -8519,6 +8592,8 @@ tags:
     description: "A motorcycle."
     pointCost: 0
     equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
     tradeable: true
     # Weightless like the horse and the cart: you ride it, you don't carry it.
     weight: 0
@@ -8538,6 +8613,7 @@ tags:
     description: "Two big bangs, then a big long reload. Try not to miss. Unlike a normal shotgun, you can hide this under a coat."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 6
     stackable: true
@@ -8596,6 +8672,8 @@ tags:
     description: "Wind goggles, a mended cloak, quilted boots, and a long ivory pendant — the fang of a leviathan. Purest aura."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 1
     tradeable: true
     weight: 3
     stackable: false
@@ -8611,6 +8689,7 @@ tags:
     description: "Gold, gems, and filigree. This thing must weigh five pounds."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
     visible: true
     tradeable: true
     weight: 3
@@ -8625,6 +8704,8 @@ tags:
     description: "The black rags of a Mortus. They smell faintly of decay."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 1
     visible: true
     tradeable: true
     weight: 2
@@ -8639,6 +8720,8 @@ tags:
     description: "The elaborate outfit of a wealthy Merchant. Exotic furs and silks go a long way toward disguising the thin breastplate beneath — and the couple bionic pumps, which serve some unknown, impractical purpose."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 1
     visible: true
     tradeable: true
     weight: 3
@@ -8690,6 +8773,7 @@ tags:
     description: "An elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
     pointCost: 0
     equippable: true
+    equipSlot: ACCESSORY
     visible: worn
     tradeable: true
     weight: 0
@@ -8704,6 +8788,7 @@ tags:
     description: "A skull, proudly worn on the infantry armor."
     pointCost: 0
     equippable: true
+    equipSlot: ACCESSORY
     tradeable: true
     weight: 0
     visible: true
@@ -8718,6 +8803,7 @@ tags:
     description: "Three chevrons pointing up, two down, and a clover leaf in the middle. The God-King's army wears it; nobody in Ravenheart does. ‡"
     pointCost: 0
     equippable: true
+    equipSlot: ACCESSORY
     visible: worn
     tradeable: true
     weight: 0
@@ -8732,6 +8818,7 @@ tags:
     description: "The icon of the town's Sheriff: a badge shaped like a six-pointed star."
     pointCost: 0
     equippable: true
+    equipSlot: ACCESSORY
     visible: worn
     tradeable: true
     weight: 0
@@ -8746,6 +8833,8 @@ tags:
     description: "A patterned vest, freshly pressed. A serpent-shaped brooch nests atop its lapel."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 1
     visible: worn
     tradeable: true
     weight: 2
@@ -8760,6 +8849,7 @@ tags:
     description: "A golden pin of a wielded dagger. Nobody wears this but the Hand."
     pointCost: 0
     equippable: true
+    equipSlot: ACCESSORY
     visible: worn
     tradeable: true
     weight: 0
@@ -8774,6 +8864,8 @@ tags:
     description: "Dark leather. Billows like shadow. Silver mail glints moonishly underneath."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 3
     visible: true
     tradeable: true
     weight: 5
@@ -8788,6 +8880,8 @@ tags:
     description: "A Practicus's belted, hooded, knee-length robes. An argent cross on the belt buckle makes sure you know who you're dealing with."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 1
     visible: true
     tradeable: true
     weight: 3
@@ -8802,6 +8896,8 @@ tags:
     description: "A long black robe with a white collar."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 1
     visible: worn
     tradeable: true
     weight: 3
@@ -8816,6 +8912,8 @@ tags:
     description: "An elaborate banner: the ultimate icon of the Broken Spears Clan. It bears the clan's symbol, two splintered spears, and is decorated with gleaming scales, fur, and an enormous ram-horn. It's built such that you could wear it on your back while riding into battle."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     visible: true
     tradeable: true
     weight: 6
@@ -8830,6 +8928,8 @@ tags:
     description: "An elaborate banner: the ultimate icon of the Windrider Clan. It bears the clan's symbol, a rearing horse, and is decorated with dozens of braids of horse and human hair. It's built such that you could wear it on your back while riding into battle."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     visible: true
     tradeable: true
     weight: 6
@@ -9065,6 +9165,7 @@ tags:
     tradeable: true
     weight: 1
     equippable: true
+    equipSlot: ACCESSORY
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -9083,6 +9184,7 @@ tags:
     description: "A curved blade etched with all manner of heretical markings."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
     tradeable: true
     weight: 1
     stackable: true
@@ -10118,6 +10220,7 @@ tags:
     tradeable: true
     weight: 1.5
     equippable: true
+    equipSlot: WEAPON
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -10213,6 +10316,8 @@ tags:
     description: "Nearly impenetrable armor. Slow and heavy."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 3
     melee: 0.93
     ballistic: 0.93
     tradeable: true
@@ -10229,6 +10334,8 @@ tags:
     description: "A modern set of infantry armor, fully covering the body."
     pointCost: 0
     equippable: true
+    equipSlot: BODY
+    equipLayer: 3
     melee: 0.9
     ballistic: 0.9
     tradeable: true
@@ -10255,6 +10362,8 @@ tags:
     tradeable: true
     weight: 12
     equippable: true
+    equipSlot: BODY
+    equipLayer: 2
     melee: 0.75
     ballistic: 0.75
     visible: true
@@ -10378,6 +10487,7 @@ tags:
     sellable: true
     sellablePrice: 44
     equippable: true
+    equipSlot: ACCESSORY
     tradeable: true
     weight: 1
     stackable: true
@@ -10420,6 +10530,7 @@ tags:
     tradeable: true
     weight: 2
     equippable: true
+    equipSlot: WEAPON
     visible: worn
     purchasable: false
     purchasableAfterStart: false
@@ -10444,6 +10555,8 @@ tags:
     tradeable: true
     weight: 9
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -10462,6 +10575,8 @@ tags:
     tradeable: true
     weight: 8
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -10480,6 +10595,7 @@ tags:
     tradeable: true
     weight: 3
     equippable: true
+    equipSlot: WEAPON
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -10497,6 +10613,7 @@ tags:
     tradeable: true
     weight: 3
     equippable: true
+    equipSlot: WEAPON
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -10514,6 +10631,7 @@ tags:
     tradeable: true
     weight: 1
     equippable: true
+    equipSlot: WEAPON
     visible: worn
     purchasable: false
     purchasableAfterStart: false
@@ -11417,7 +11535,7 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.6
     ballistic: 0.5
     concealsIdentity: true
@@ -11437,7 +11555,7 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.5
     ballistic: 0.35
     concealsIdentity: true
@@ -11458,7 +11576,7 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.5
     ballistic: 0.35
     concealsIdentity: true
@@ -11486,7 +11604,7 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.4
     ballistic: 0.28
     concealsIdentity: true
@@ -11514,7 +11632,7 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.45
     ballistic: 0.4
     concealsIdentity: true
@@ -11535,7 +11653,7 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.45
     ballistic: 0.4
     concealsIdentity: true
@@ -11556,7 +11674,7 @@ tags:
     pointCost: 7
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.3
     ballistic: 0.2
     concealsIdentity: true
@@ -11577,7 +11695,7 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     concealsIdentity: true
     concealSprite: pumpkin
     visible: true
@@ -11604,7 +11722,7 @@ tags:
     weight: 2
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
+    equipLayer: 1
     visible: worn
     purchasable: false
     purchasableAfterStart: false
@@ -11630,7 +11748,7 @@ tags:
     weight: 2
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
+    equipLayer: 1
     melee: 0.65
     ballistic: 0.75
     # `true`, not `worn`, and the description is the reason: the plain robes
@@ -11650,7 +11768,7 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
+    equipLayer: 1
     melee: 0.15
     ballistic: 0.1
     concealsIdentity: true
@@ -11671,7 +11789,7 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
+    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: plaguedoctor
@@ -11690,7 +11808,7 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
+    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: rat
@@ -11712,7 +11830,7 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
+    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: bone
@@ -11801,7 +11919,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: HEAD
-    equipLayer: 4
+    equipLayer: 3
     visible: true
     tradeable: true
     weight: 1
@@ -11827,7 +11945,7 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 4
+    equipLayer: 3
     concealsIdentity: true
     forcesConceal: true
     concealSprite: hood
@@ -11851,7 +11969,7 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    equipLayer: 4
+    equipLayer: 3
     concealsIdentity: true
     forcesConceal: true
     concealSprite: bag
@@ -11876,7 +11994,7 @@ tags:
     requiredTag: laboring-basic
     equippable: true
     equipSlot: HEAD
-    equipLayer: 4
+    equipLayer: 3
     concealsIdentity: true
     concealSprite: plebhood
     visible: true
@@ -11895,7 +12013,7 @@ tags:
     requiredTag: leper
     equippable: true
     equipSlot: HEAD
-    equipLayer: 4
+    equipLayer: 3
     concealsIdentity: true
     concealSprite: leper
     visible: true
@@ -11965,7 +12083,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: HEAD
-    equipLayer: 2
+    equipLayer: 1
     concealsIdentity: true
     forcesConceal: true
     concealSprite: gas_mask
@@ -11985,7 +12103,7 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.35
     ballistic: 0.1
     concealsIdentity: true
@@ -12015,7 +12133,7 @@ tags:
     depotPrice: 14
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.35
     ballistic: 0.1
     visible: true
@@ -12035,7 +12153,7 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     melee: 0.5
     ballistic: 0.15
     concealsIdentity: true
@@ -12063,7 +12181,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     visible: worn
     tradeable: true
     weight: 1
@@ -12079,7 +12197,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: HEAD
-    equipLayer: 3
+    equipLayer: 2
     visible: worn
     tradeable: true
     weight: 0.5
@@ -12199,7 +12317,7 @@ tags:
     pointCost: 3
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
+    equipLayer: 3
     melee: 0.2
     ballistic: 0.1
     visible: true
@@ -12304,7 +12422,7 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: BODY
-    equipLayer: 4
+    equipLayer: 3
     melee: 0.4
     ballistic: 0.3
     visible: true
@@ -12322,7 +12440,7 @@ tags:
     pointCost: 14
     equippable: true
     equipSlot: BODY
-    equipLayer: 4
+    equipLayer: 3
     melee: 0.7
     ballistic: 0.25
     visible: true
@@ -12686,6 +12804,7 @@ tags:
     description: "Thick leather gloves with chainmail, essential for handling the dangerous Godflesh."
     pointCost: 2
     equippable: true
+    equipSlot: ACCESSORY
     melee: 0.15
     ballistic: 0.05
     tradeable: true
@@ -12856,6 +12975,8 @@ tags:
     description: "BRRRR! Produces two Godflesh per extraction."
     pointCost: 0
     equippable: true
+    equipSlot: WEAPON
+    twoHanded: true
     tradeable: true
     weight: 12
     visible: true

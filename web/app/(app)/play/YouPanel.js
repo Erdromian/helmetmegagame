@@ -10,8 +10,9 @@ import TurnCard from "./TurnCard";
 import StatusStrip from "./StatusStrip";
 import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
-import { waitingOnYou, answerWaiting, myMove } from "./actions";
+import { waitingOnYou, answerWaiting } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
+import useMyMove from "./useMyMove";
 
 // YOU: everything about this character that is not about where they are
 // standing, in the order a player asks it — what day is it and have I moved,
@@ -83,11 +84,14 @@ export default function YouPanel({
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(null);
   const [waiting, setWaiting] = useState(initialWaiting);
-  const [moveState, setMoveState] = useState({ turn, move });
+  // The Move half of the poll lives in useMyMove, which the sheet's band
+  // shares (web/app/components/SheetTurn.js).
+  const moveState = useMyMove({ turn, move });
+  const refreshMove = moveState.refresh;
 
   const refresh = useCallback(() => {
-    // One interval, both reads: a Move filed in Discord and an offer answered
-    // in Discord both land here without a reload.
+    // Just the offer list: useMyMove runs the Move's own minute poll, and
+    // polling it from here too asked for the same row twice a minute.
     waitingOnYou()
       .then((res) => {
         if (res?.ok) setWaiting(res.rows);
@@ -96,23 +100,21 @@ export default function YouPanel({
         // The list is a reminder, not the record. A failed refresh loses
         // nothing a reload does not bring back.
       });
-    myMove()
-      .then((res) => {
-        if (res?.ok) setMoveState({ turn: res.turn, move: res.move });
-      })
-      .catch(() => {});
   }, []);
 
   // A minute is often enough for a notice board of this kind, and it costs
-  // two small queries.
+  // one small query.
   useVisiblePoll(refresh, 60_000);
 
   const say = useCallback(
     (res) => {
       setNotice(res.line ?? null);
       refresh();
+      // A verb can file or change a Move, so pull the card now rather than
+      // leaving it up to a minute stale.
+      refreshMove();
     },
-    [refresh],
+    [refresh, refreshMove],
   );
 
   return (

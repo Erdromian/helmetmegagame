@@ -339,6 +339,9 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       quantity: ct.quantity,
       equipped: ct.equipped,
       equippedQuantity: ct.equippedQuantity,
+      // Where it sits, for the state strip's hands count (db/lib/equipSlots.js).
+      equipSlot: ct.tag.equipSlot,
+      twoHanded: ct.tag.twoHanded,
       expiresTurn: ct.expiresTurn,
       source: ct.source,
       // For the state strip's drawback point total — a negative pointCost is
@@ -346,7 +349,6 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       pointCost: ct.tag.pointCost,
     })),
     feed: { dropSlug: HUNGER_SLUG, grantSlug: ATE_MEAL_SLUG },
-    equipSlots: config?.equipSlots ?? 10,
     maxDrawbackTags: config?.maxDrawbackTags ?? DEFAULT_MAX_DRAWBACK_TAGS,
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,

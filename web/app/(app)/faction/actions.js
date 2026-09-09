@@ -12,6 +12,7 @@ import { guarded, UserError } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
+import { knownRooms } from "@lifeweb/db/lib/locationVisits";
 
 async function requireGm() {
   const { session, isGm: gm } = await getGmSession();
@@ -628,12 +629,27 @@ async function setSiloRoomImpl({ roomId }) {
     // happily offer a room on the far side of the map.
     const home = await prisma.faction.findUnique({
       where: { id: character.factionId },
-      select: { zoneId: true, zone: { select: { name: true } } },
+      select: { zoneId: true, siloRoomId: true, zone: { select: { name: true } } },
     });
     if (home?.zoneId && room.location.zoneId !== home.zoneId) {
       throw new UserError(
         `A silo has to be somewhere in ${home.zone?.name ?? "your own zone"} — nobody could put anything into one in ${room.location.zone?.name ?? "another zone"}.`,
       );
+    }
+
+    // And somewhere this officer has actually been, behind a door that opens
+    // for them — the same call the picker builds its list from, because a
+    // re-check that can drift from the list it re-checks is worse than none.
+    // A rendered option is a hint, not a lock.
+    //
+    // Re-posting the faction's CURRENT silo is always allowed: the picker pins
+    // it on whether or not the filter kept it, so an officer with no key can
+    // still press Set silo without being refused their own treasury.
+    if (id !== home?.siloRoomId) {
+      const allowed = await knownRooms(prisma, character.id, { id });
+      if (allowed.length === 0) {
+        throw new UserError("You can only bank somewhere you have been, behind a door that opens for you. ‡");
+      }
     }
   }
   await prisma.faction.update({ where: { id: character.factionId }, data: { siloRoomId: room?.id ?? null } });

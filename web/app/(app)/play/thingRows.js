@@ -18,10 +18,30 @@ import {
 // you carry — the status strip above draws the ones that matter.
 const GROUPS = ["Items", "Assets"];
 
+// The four verbs for every pocket at once: { tagId -> { consumable, tradeable,
+// removable } }, so a page drawing many rows asks the predicates once rather
+// than once per row. The sheet's tag rail (web/app/components/RowVerbs.js) and
+// the drawer below both read this, which is what keeps them agreeing.
+export function thingVerbSets(characterTags = []) {
+  return {
+    consumable: new Set(consumableTags(characterTags).map((t) => t.id)),
+    tradeable: new Set(transferableTags(characterTags).map((t) => t.id)),
+    removable: new Set(destroyableTags(characterTags).map((t) => t.id)),
+  };
+}
+
+// One row's verbs off those sets.
+export function thingVerbs(ct, sets) {
+  return {
+    equippable: Boolean(ct.tag?.equippable),
+    consumable: sets.consumable.has(ct.tagId),
+    tradeable: sets.tradeable.has(ct.tagId),
+    removable: sets.removable.has(ct.tagId),
+  };
+}
+
 export function thingGroups(characterTags = []) {
-  const consumable = new Set(consumableTags(characterTags).map((t) => t.id));
-  const tradeable = new Set(transferableTags(characterTags).map((t) => t.id));
-  const removable = new Set(destroyableTags(characterTags).map((t) => t.id));
+  const sets = thingVerbSets(characterTags);
 
   const rows = characterTags
     .filter((ct) => GROUPS.includes(ct.tag?.category))
@@ -39,10 +59,7 @@ export function thingGroups(characterTags = []) {
       // more in reserve) and "Unequip" (some is already out) at once.
       equippableRemaining: (ct.quantity ?? 1) - (ct.equippedQuantity ?? 0),
       equippedQuantity: ct.equippedQuantity ?? 0,
-      equippable: Boolean(ct.tag.equippable),
-      consumable: consumable.has(ct.tagId),
-      tradeable: tradeable.has(ct.tagId),
-      removable: removable.has(ct.tagId),
+      ...thingVerbs(ct, sets),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 

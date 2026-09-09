@@ -6,6 +6,7 @@ import { PRESENCE_CHANNEL } from "@lifeweb/db/lib/presenceNotify";
 import { TYPING_CHANNEL } from "@lifeweb/db/lib/typingNotify";
 import { DM_CHANNEL } from "@lifeweb/db/lib/dmNotify";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "./dmThread";
+import { dmActionOf } from "@lifeweb/db/lib/dmActions";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream.
@@ -209,7 +210,10 @@ async function handleDm(payload) {
     select: PLAYER_DM_SELECT,
   });
   if (!row) return;
-  const shaped = playerDmRow(row);
+  // A row arriving down the stream was written a moment ago, so anything it
+  // asks is by definition still open — no need to go and ask the database
+  // (web/lib/dmActions.js). A page load re-resolves it properly.
+  const shaped = { ...playerDmRow(row), actionable: Boolean(dmActionOf(row)) };
   for (const send of [...set]) {
     try {
       send(shaped);

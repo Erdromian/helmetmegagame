@@ -8,7 +8,7 @@
 // a stable address. Op shapes: DEV-PANEL.md §5. Every function takes a
 // transaction client (`tx`), so a caller composes them into its own.
 
-const { describeSlotClash, checkEquipLimits } = require("./equipSlots");
+const { findEquipProblem } = require("./equipSlots");
 const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { rollTagChain } = require("./tagShapes");
 const { expiryForGrant } = require("./grantExpiry");
@@ -61,9 +61,9 @@ async function expiresTurnFor(tx, op, tag, openTurn, characterId) {
 }
 
 // Applies staged tag changes inside a transaction. Order is load-bearing:
-// removes first, so swapping one tier of a chain for another can't trip the
-// equip cap halfway through.
-async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equipSlots }) {
+// removes first, so swapping one tier of a chain for another can't trip a
+// slot rule halfway through.
+async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn }) {
   const applied = [];
   const removes = ops.filter((o) => o.op === "remove");
   const adds = ops.filter((o) => o.op === "add");
@@ -145,7 +145,7 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
     });
   }
 
-  // Equipped last, and counted ONCE for the whole batch rather than per op:
+  // Equipped last, and checked ONCE for the whole batch rather than per op:
   // a GM staging "unequip A, equip B" must not be rejected on B just because
   // A hasn't been written yet.
   //
@@ -169,18 +169,22 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn, equip
         data: { equippedQuantity, equipped: equippedQuantity > 0 },
       });
     }
-    // checkEquipLimits (db/lib/equipSlots.js) is the shared, unit-tested
-    // answer to "is the resulting set wearable?" — the same question, and
-    // the same answer, the player's own toggle asks (equipActions.js).
-    const wornRows = await tx.characterTag.findMany({
+    // findEquipProblem (db/lib/equipSlots.js) is the shared, unit-tested
+    // answer to "is the resulting set wearable?" — one thing per layer, one
+    // shield, three hands — the same question, and the same answer, the
+    // player's own toggle asks (equipActions.js). It expands each row by
+    // equippedQuantity itself, so a stack the GM equipped in full still
+    // clashes with itself (a second Hat) or fills hands (three Swords) the
+    // same way a player's own per-unit toggle would.
+    const worn = await tx.characterTag.findMany({
       where: { characterId, equippedQuantity: { gt: 0 } },
-      select: { equippedQuantity: true, tag: { select: { name: true, equipSlot: true, equipLayer: true } } },
+      select: {
+        equippedQuantity: true,
+        tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } },
+      },
     });
-    const { equipped, overCap, clash } = checkEquipLimits(wornRows, equipSlots);
-    if (overCap) {
-      throw new TagOpError(`That would fill ${equipped} of ${equipSlots} equipment slots.`);
-    }
-    if (clash) throw new TagOpError(describeSlotClash(clash));
+    const problem = findEquipProblem(worn);
+    if (problem) throw new TagOpError(problem);
   }
 
   return applied;

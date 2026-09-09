@@ -263,7 +263,7 @@ drinker paces at 1 drink → Tipsy, two more → Wasted, two more → Unconsciou
 The catalog's `conflictsWith` keeps a character from holding both at once. The
 three slugs (`lightweight`, `iron-liver`, `holding-it-down`) are duplicated by
 hand at the top of `consumeGrants.js`, because that file is imported by client
-components (`TagsPanel.js`, `RequestActionsProvider.js`) and pulling
+components (`TagRail.js`, `RequestActionsProvider.js`) and pulling
 `@lifeweb/db/lib/constants` into the browser bundle isn't an option — keep
 them in sync with `db/lib/constants.js` if either ever changes.
 

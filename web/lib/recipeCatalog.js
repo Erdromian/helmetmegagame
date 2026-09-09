@@ -187,9 +187,13 @@ export function workBand(turns) {
 // uses to route them to its own build flow.
 export function recipeRows(tags) {
   return tags
-    .filter(
-      (tag) => tag.craftable && !tag.ingredientsWithheld && !tag.recipeWithheld && !tag.placement,
-    )
+    // A structure is listed like anything else with a recipe. It used to be
+    // dropped here on the argument that raising one is not crafting — true of
+    // how you BUILD it, and beside the point for a reference book. A Palisade
+    // costs skills, turns, ⬢ and timber exactly the way a sword does, and a
+    // player planning one had nowhere to read the cost. The Kind column
+    // already says "Structures", so the row explains itself.
+    .filter((tag) => tag.craftable && !tag.ingredientsWithheld && !tag.recipeWithheld)
     .map((tag) => {
       const { turns, ration, shared } = recipeWork(tag);
       const work = workLabel(tag);

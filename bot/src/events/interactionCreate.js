@@ -1027,7 +1027,7 @@ async function handleTravelBring(interaction) {
   for (const dm of outcome.dms) {
     const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
     if (!user) continue;
-    await sendDm(user, { content: `» ${dm.content}`, components: dm.components }).catch((err) =>
+    await sendDm(user, { content: `» ${dm.content}`, components: dm.components }, { meta: dm.meta }).catch((err) =>
       console.error("Escort ask DM failed:", err.message ?? err),
     );
   }
