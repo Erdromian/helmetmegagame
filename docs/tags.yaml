@@ -5381,7 +5381,7 @@ tags:
     sellable: true
     # The dearest of the three by a wide margin: an Aberrant has to fall first,
     # and the recipe it feeds costs 0 ⬢ because the heart is the price. ‡
-    sellablePrice: 20
+    sellablePrice: 55
 
   ravens-eye:
     catalog: gm

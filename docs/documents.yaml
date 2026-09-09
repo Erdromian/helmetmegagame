@@ -523,18 +523,18 @@ documents:
 
       | Recipe | Skill | ⬢ | Needs | The ingredient comes from |
       |---|---|---|---|---|
-      | {tag:white-honey} | Brewing (Skilled) | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 4 ⬢, and a rare fishing catch — GM-granted until the loot pass wires it |
+      | {tag:white-honey} | Brewing (Skilled) | 3 | {tag:honey} and {tag:trout-heart} | the Depot's shelf, 4 ⬢, and a rare fishing catch |
       | {tag:graga-sweat} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:invisibility-potion} | Brewing (Skilled) | 2 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:dreamers-draught} | Brewing (Skilled) | 6 | {tag:skinless-brain} | butchered from a {tag:skinless-corpse} |
-      | {tag:pure-luck} | Brewing (Skilled) | 0 | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
-      | {tag:raven-draught} | Brewing (Skilled) | 2 | {tag:ravens-eye} | foraged — GM-granted until the loot pass wires it |
+      | {tag:pure-luck} | Brewing (Skilled) | 0 | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
+      | {tag:raven-draught} | Brewing (Skilled) | 2 | {tag:ravens-eye} | foraged while hunting |
       | {tag:honeyed-cakes} | Cooking (Skilled) | 3 | {tag:honey} | the Depot's shelf, 4 ⬢ |
       | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:minted-charm} | Smithing | 15, 3-turn project | {tag:old-coin} | caving loot |
       | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
       | {tag:chrism} | Blessing | 2 | {tag:holy-water} and {tag:honey} | the Cathedral's still and the Depot's shelf |
-      | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
+      | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
 
       The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey. ‡
