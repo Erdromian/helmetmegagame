@@ -49,6 +49,15 @@ const CORE = 8.1;
 const ZOOM = { min: 1, max: 7 };
 const FIT_MAX = 2.1;
 
+// Whether Go is on offer for a node. THE one predicate: the card's confirm
+// strip, the second click and Enter all read it, so a place can never travel on
+// a gesture while its own card is showing a refusal.
+function canTravelTo(node, here) {
+  if (!node) return false;
+  if (here && node.id === here.id) return false;
+  return Boolean(node.adjacent && node.passable);
+}
+
 export default function MapBoard({ onClose = null }) {
   const router = useRouter();
   const [data, setData] = useState(null);
@@ -297,6 +306,48 @@ export default function MapBoard({ onClose = null }) {
     return () => svg.removeEventListener("wheel", onWheel);
   }, [toWorld, zoomBy]);
 
+  // Travel, in one place. The Go button, a second click on a node and Enter are
+  // three doors onto the same call — travelTo, which re-derives every gate
+  // server-side whatever any of them thought (MAP.md §6c).
+  const go = (locationId) =>
+    run(travelTo, { locationId }, {
+      onOk: () => {
+        setSel(null);
+        setNonce((n) => n + 1);
+        router.refresh();
+      },
+    });
+
+  // Enter goes to the place you have picked.
+  //
+  // On a window rather than on the node, because the node has nowhere to put a
+  // key handler: the rhombi are SVG <g> elements with no focus of their own,
+  // and the Ways out list — which IS real buttons — unmounts the moment you
+  // pick something. So after a pick there is nothing focused for Enter to land
+  // on, and this catches it. /play needs none of this: its travel nodes are
+  // real <button>s, so clicking one focuses it and Enter re-activates it,
+  // which is the second activation already.
+  //
+  // Deliberately no Escape. On /play the map is inside a Modal that already
+  // owns Escape (play/Chat.js), and a second meaning here would race it.
+  useEffect(() => {
+    if (!data?.ok || !sel || pending) return undefined;
+    const picked = data.nodes.find((n) => n.id === sel);
+    const standing = data.you.locationId ? data.nodes.find((n) => n.id === data.you.locationId) : null;
+    if (!canTravelTo(picked, standing)) return undefined;
+
+    const onKey = (e) => {
+      if (e.key !== "Enter" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      // Enter belongs to whatever is focused first. Cancel is a button, and
+      // somebody pressing Enter on Cancel means cancel.
+      if (e.target?.closest?.("input, textarea, select, button, [contenteditable]")) return;
+      e.preventDefault();
+      go(sel);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   // ---------------------------------------------------------------- render
 
   if (!data) {
@@ -390,7 +441,18 @@ export default function MapBoard({ onClose = null }) {
                   transform={`translate(${n.x} ${n.y})`}
                   onClick={() => {
                     if (panned.current) return;
-                    setSel(sel === n.id ? null : n.id);
+                    if (sel !== n.id) {
+                      setSel(n.id);
+                      return;
+                    }
+                    // The second click on the place already picked IS the Go
+                    // button, so a hop is one gesture instead of a trip across
+                    // the plate to the card. A real double-click lands here too
+                    // — it arrives as two clicks, which pick and then go — so
+                    // there is no onDoubleClick to fight the drag guard above.
+                    // Anywhere you cannot go, it still just unpicks.
+                    if (canTravelTo(n, here) && !pending) go(n.id);
+                    else setSel(null);
                   }}
                 >
                   <rect
@@ -482,15 +544,7 @@ export default function MapBoard({ onClose = null }) {
             pending={pending}
             error={error}
             onCancel={() => setSel(null)}
-            onGo={() =>
-              run(travelTo, { locationId: card.id }, {
-                onOk: () => {
-                  setSel(null);
-                  setNonce((n) => n + 1);
-                  router.refresh();
-                },
-              })
-            }
+            onGo={() => go(card.id)}
           />
         ) : (
           <EmptyState>You are nowhere on this map yet.</EmptyState>
@@ -573,7 +627,7 @@ function ViaChip({ slug }) {
 
 function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
   const isHere = here && node.id === here.id;
-  const reachable = node.adjacent && node.passable;
+  const reachable = canTravelTo(node, here);
   const nextTurn = Boolean(node.crossesZone && (travel?.freeLeft ?? 0) <= 0);
 
   return (

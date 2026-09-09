@@ -253,7 +253,7 @@ model GameConfig {
   // How long a character waits between two walks from one Location to
   // another inside the same zone (db/lib/locationTravel.js). Edited on
   // /gm/dev. Crossing into another zone is gated by the Move, not by this.
-  locationMoveCooldownSeconds Int @default(60)
+  locationMoveCooldownSeconds Int @default(3)
 
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — on by default,

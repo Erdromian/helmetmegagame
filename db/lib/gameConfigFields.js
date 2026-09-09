@@ -87,7 +87,7 @@ const FIELDS = [
     label: "Free zone moves",
   },
   {
-    key: "locationMoveCooldownSeconds", type: "int", group: "carry", default: 60, min: 0, max: 3600,
+    key: "locationMoveCooldownSeconds", type: "int", group: "carry", default: 3, min: 0, max: 3600,
     label: "Walk cooldown (seconds)",
   },
 

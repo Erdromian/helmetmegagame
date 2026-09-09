@@ -116,7 +116,7 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
   if (!hasTag) {
-    return { listed: true, passable: false, refusal: "The way is locked. You don't have what opens it. ‡" };
+    return { listed: true, passable: false, refusal: "This way isn't open to you." };
   }
   if (link.modular && !link.isOpen) {
     return {
