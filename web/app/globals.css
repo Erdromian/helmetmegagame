@@ -5358,6 +5358,44 @@ label.chip {
   flex-shrink: 0;
 }
 
+/* The title and the place's own words, stacked, so the search button stays on
+   the right of the row rather than beside the second line. min-width: 0 or a
+   long name never truncates inside the flex row. */
+.chat-head-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* Room.description / Location.description / Zone.description, whichever place
+   is open. A button because it opens, but it is a line of the world rather
+   than a control, so it wears no button chrome. */
+.chat-head-desc {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chat-head-desc[data-open="true"] {
+  white-space: normal;
+  text-overflow: clip;
+  /* A long description must not eat the feed it sits above. */
+  max-height: 8rem;
+  overflow-y: auto;
+}
+
 .chat-quiet {
   flex: 1;
   font-size: var(--fs-sm);
@@ -6599,13 +6637,23 @@ label.chip {
   min-width: 0;
 }
 
-/* A tile with something to say when clicked (why the moves are 0, what holds
-   the cap up). Same box, a cursor, and the accent rule while it is open. */
+/* A tile with something to say when clicked (why the moves are 0, what moves
+   a mood). Same box, a cursor, and the accent rule while it is open.
+
+   The column flexbox is not decoration. A <button> centres its own content
+   vertically whatever its `display` is, so on a stretched grid row — one made
+   taller by the Carrying tile's weight meter — this tile's heading floated in
+   the middle while every plain-<div> tile beside it kept its heading at the
+   top. `justify-content: flex-start` is what puts it back on the same line as
+   its neighbours'. */
 .ledger-tile-button {
   all: unset;
   box-sizing: border-box;
   cursor: pointer;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
   background: var(--field-bg);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);

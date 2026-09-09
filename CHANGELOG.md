@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A room says what it looks like
+
+✎ Every place on the web now shows its own description under its name, opened with a click. A room's words used to have nowhere to appear at all  
+✚ The little result popups render italics and bold instead of printing the asterisks  
+✎ The Mood box's heading sits level with the boxes beside it again
+
 ## 2026-09-09 · A turn finishes saying what it has to say
 
 ✎ The turn's Discord half is now recorded as it goes out, so a deploy that kills the app mid-announcement no longer loses the rest of it  

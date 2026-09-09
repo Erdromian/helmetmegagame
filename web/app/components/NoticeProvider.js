@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import MarkdownContent from "./MarkdownContent";
 
 // The result notice: one line that says what a button just did.
 //
@@ -118,7 +119,13 @@ export default function NoticeProvider({ children }) {
             }}
           >
             <div className="notice-body">
-              <p className="notice-text">{card.text}</p>
+              {/* Markdown, not a raw string. A notice carries the same
+                  sentence the bot would have DM'd — `» *The datacard points
+                  towards Road.*` — and printed literally it showed the
+                  asterisks. MarkdownContent is the DM renderer, which is what
+                  this is: a line the game says to one person, not a scene, so
+                  it gets Discord's vocabulary but none of remarkChat. */}
+              <MarkdownContent content={card.text} className="notice-text" />
               {card.rows && (
                 <ul className="notice-rows">
                   {card.rows.map((row, i) => (

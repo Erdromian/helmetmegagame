@@ -554,6 +554,10 @@ export default function Feed({
       ? fallbackRows
       : stored;
   const [searchOpen, setSearchOpen] = useState(false);
+  // Whether the place's own description under the title is open. Chat.js keys
+  // this component on the open place, so walking into another room brings the
+  // line back closed without a reset.
+  const [descOpen, setDescOpen] = useState(false);
   // The `at` of a jump whose failure the reader has already waved away, so
   // closing the search box after a miss actually closes it.
   const [dismissedJump, setDismissedJump] = useState(null);
@@ -1449,14 +1453,31 @@ export default function Feed({
     setDismissedJump(jump?.at ?? null);
   };
 
-  // The head is the place's name and nothing else. The description used to
-  // sit here with a "more" button on it, capped halfway down a fixed-height
-  // strip; it belongs beside the scene rather than over it, and the turn is
-  // already on the crumb above the whole Chat (layout.js).
+  // The head is the place's name and, under it, the place's own words. A room
+  // has nowhere else to say them: PlaceCard draws the LOCATION's description
+  // and the zone's, and the hover card on the room's row in the left column is
+  // gone the moment you click through. So the line comes back here — but as one
+  // clamped line of subtext you open with a click, not the fixed-height strip
+  // with a "more" button that used to sit over the scene. The turn is still on
+  // the crumb above the whole Chat (layout.js).
+  const description = place?.description?.trim() || "";
   return (
     <div className="chat-main">
       <div className="chat-head">
-        <h1 className="section-title">{place.name}</h1>
+        <div className="chat-head-main">
+          <h1 className="section-title">{place.name}</h1>
+          {description && (
+            <button
+              type="button"
+              className="chat-head-desc"
+              data-open={descOpen ? "true" : undefined}
+              aria-expanded={descOpen}
+              onClick={() => setDescOpen((open) => !open)}
+            >
+              {description}
+            </button>
+          )}
+        </div>
         {onJump && (
           <IconButton
             icon={SearchIcon}
