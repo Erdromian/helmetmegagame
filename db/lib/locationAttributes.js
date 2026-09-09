@@ -117,7 +117,7 @@ function authoredLines(location, ctx = {}) {
 // stated in the place it bites, which is the worst moment to learn it.
 function placementLine(location) {
   return location?.indoors
-    ? "**Indoors**: you can't equip a cart or horse here. ‡"
+    ? "**Indoors**: you can't equip a cart or horse here."
     : "**Outdoors**: you can use your horse or cart here. ‡";
 }
 
