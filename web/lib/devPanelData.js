@@ -8,6 +8,7 @@ import { isHealable } from "@/lib/healRequests";
 import { DEFAULT_MAX_DRAWBACK_TAGS, DEFAULT_MAX_DRAWBACK_POINTS } from "@/lib/characterCreation";
 import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
 import { HUNGER_SLUG, ATE_MEAL_SLUG } from "@lifeweb/db/lib/constants";
+import { concealmentFrom, forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 
 // The whole data-assembly behind the Dev Character Panel, extracted so it can
 // be shared by the standalone page (/gm/dev/characters/[characterId]) and the
@@ -279,6 +280,18 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       resources: character.resources,
       tagPoints: character.tagPoints,
       turnPingOptIn: character.turnPingOptIn,
+      // The two switches on /character a GM could not see. Both matter when a
+      // player reports being visible, or unhidden, when they expect otherwise
+      // — and `concealed` alone answers half the question, because the column
+      // is only a wish: it takes effect solely while something concealing is
+      // equipped (CHAT.md §6a, PROXYING.md §5). So the resolved answer comes
+      // along beside it, from the same function every send path asks.
+      webOnly: character.webOnly,
+      concealed: character.concealed,
+      concealedInEffect: presentedIdentity(character, {
+        forcedName: forcedNameFrom(heldTags),
+        concealment: concealmentFrom(heldTags),
+      }).concealed,
       discordRoleId: character.discordRoleId,
       avatarMimeType: character.avatarMimeType,
       hasAvatar: Boolean(character.avatarMimeType),

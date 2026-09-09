@@ -460,6 +460,17 @@ function StateStrip({
         ],
         ["Location", character.locationName ?? "—"],
         ["Zone", character.zoneName ?? "—"],
+        // Both switches on /character, which had no GM surface at all until
+        // now — CHAT.md §6a even tells a GM to check the roster for web-only
+        // players before turning Chat off, and there was nothing to check.
+        ["Play from the web", character.webOnly ? "On" : "Off"],
+        [
+          "Concealed",
+          // The column is a wish; it only takes effect while something
+          // concealing is equipped. A GM reading a bare "Yes" against a player
+          // insisting they are visible would learn nothing.
+          character.concealedInEffect ? "Yes" : character.concealed ? "On, but nothing worn" : "No",
+        ],
       ],
     ],
     [

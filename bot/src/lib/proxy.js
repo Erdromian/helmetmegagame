@@ -1,6 +1,6 @@
 const { WebhookClient, RESTJSONErrorCodes, GuildPremiumTier } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
-const { loadForcedName, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
+const { loadForcedName, presentedIdentity, wasHooded } = require("@lifeweb/db/lib/presentedIdentity");
 const { archiveRowForMessage, retractArchiveRow } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { prepareSpeech, recordSpeech, loadVoiceState: loadVoiceStateFor } = require("@lifeweb/db/lib/say");
@@ -142,9 +142,11 @@ async function postAsCharacterTo(channel, character, { content, files = [], iden
 // ✏️ ❌ 🔍 📸, and a row does not forget.
 //
 // `concealed` cannot be read straight off `concealedAlias`, because the column
-// holds a FORCED name too and a forced identity is not a concealed one. The
-// character's current forced name settles it: if the alias is that name, this
-// was a forced send and 🔍 answers for the real person, as it always has.
+// holds a FORCED name too and a forced identity is not a concealed one.
+// presentedIdentity.js#wasHooded settles it from what the row froze at send
+// time. The current forced name goes along as its tiebreaker only — on its own
+// it was wrong the moment the name expired, which for a Disguise Kit is three
+// turns in.
 async function proxyRowFor(discordMessageId) {
   const row = await archiveRowForMessage(prisma, discordMessageId);
   if (!row || row.kind !== "MESSAGE" || !row.characterId) return null;
@@ -154,11 +156,10 @@ async function proxyRowFor(discordMessageId) {
     select: { discordUserId: true },
   });
 
-  let concealed = Boolean(row.concealedAlias);
-  if (concealed) {
-    const forced = await loadForcedName(prisma, row.characterId);
-    if (forced && forced === row.concealedAlias) concealed = false;
-  }
+  // Short-circuited on the column, so an ordinary line costs no extra query.
+  const concealed = row.concealedAlias
+    ? wasHooded(row, { forcedName: await loadForcedName(prisma, row.characterId) })
+    : false;
 
   return {
     seq: row.seq,
@@ -250,25 +251,39 @@ async function handBack(message, reason, text) {
 async function sendAsCharacter(channel, character, message, { identity: _identity = null, content: override = null } = {}) {
   const text = override ?? message.content;
 
-  // What the row will be filed under. Memoised in placeKey.js, so this costs
-  // nothing on the hot path once the channel is warm.
-  const placeKey = await placeKeyForChannel(prisma, {
-    channelId: channel.id,
-    parentId: channel.parent?.id,
-  });
+  // Both of these used to sit outside any handler, and the only catch above
+  // them — messageCreate.js's — just logs and returns. So a database hiccup
+  // while working out the place or resolving the identity left the player's
+  // raw message sitting in the channel under their real Discord name, with
+  // nothing said to them: the exact failure the header above promises cannot
+  // happen. Deleting and handing back is the answer here as everywhere else.
+  let prepared;
+  try {
+    // What the row will be filed under. Memoised in placeKey.js, so this costs
+    // nothing on the hot path once the channel is warm.
+    const placeKey = await placeKeyForChannel(prisma, {
+      channelId: channel.id,
+      parentId: channel.parent?.id,
+    });
 
-  // The gates, the transforms and the identity, in one call. Its activity
-  // write on a refusal is deliberate: a player whose words were refused was
-  // still HERE, so their catatonic clock has to move even though nothing
-  // reached the channel — otherwise being Mute or Paralyzed would quietly
-  // march them toward the auto-kill in db/lib/catatonicDeathPass.js for the
-  // crime of trying to talk.
-  const prepared = await prepareSpeech(prisma, {
-    character,
-    placeKey,
-    content: text,
-    source: "DISCORD",
-  });
+    // The gates, the transforms and the identity, in one call. Its activity
+    // write on a refusal is deliberate: a player whose words were refused was
+    // still HERE, so their catatonic clock has to move even though nothing
+    // reached the channel — otherwise being Mute or Paralyzed would quietly
+    // march them toward the auto-kill in db/lib/catatonicDeathPass.js for the
+    // crime of trying to talk.
+    prepared = await prepareSpeech(prisma, {
+      character,
+      placeKey,
+      content: text,
+      source: "DISCORD",
+    });
+  } catch (err) {
+    console.error("Failed to prepare a message for proxying, returning it to its author:", err);
+    await deleteOriginal(message);
+    await handBack(message, "Something went wrong reposting that. Here it is back: ‡", text);
+    return null;
+  }
   if (!prepared.ok) {
     if (prepared.blocked) await touchCharacterActivity(prisma, character.id);
     await deleteOriginal(message);

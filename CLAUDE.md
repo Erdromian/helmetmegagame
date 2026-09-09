@@ -394,6 +394,13 @@ npm run db:check-config              # the GameConfig field registry vs. the
 npm run db:audit-equip               # read-only: living characters wearing a
                                      #   set the slot rules would now refuse
                                      #   (TAGS.md "equipSlot"). Never unequips.
+npm run db:inspect-character -- "Ada"  # read-only: one character's two hiding
+                                     #   switches and what they RESOLVE to —
+                                     #   webOnly and its cooldown, the conceal
+                                     #   wish against what is actually
+                                     #   equipped, any forced name, and the
+                                     #   equip set. The first thing to run on
+                                     #   "my hood doesn't work".
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
 npm run db:report-inactive-characters  # read-only inactivity report

@@ -778,56 +778,65 @@ async function deleteWebhookMessage({ id, token }, messageId, threadId = null) {
   });
 }
 
-// REST equivalent of a tupper proxy for text composed by the game itself.
-// Chunked since the biggest caller posts player-authored text that can
-// exceed 2000 chars. Returns the FIRST message, what the archive anchors to.
-// `forcedName` (Tag.forcedName) and `concealment` (loadConcealment) are both
-// resolved by the CALLER, which has a prisma handle — this module deliberately
-// has none. See db/lib/presentedIdentity.js.
+// REST equivalent of a tupper proxy. Chunked, since its one caller posts
+// player-authored text that can exceed 2000 chars, and it returns the FIRST
+// message — what the archive anchors to. `forcedName` (Tag.forcedName) and
+// `concealment` (loadConcealment) are both resolved by the CALLER, which has a
+// prisma handle; this module deliberately has none. See
+// db/lib/presentedIdentity.js. `threadId` posts into a Room or Conversation
+// thread under `channelId`, and the webhook is still the parent channel's —
+// see executeWebhook.
 //
-// An auto-filed summary still ignores /conceal: choosing to go unnamed in
-// conversation says nothing about the paperwork, and it never has. What it
-// does NOT ignore is FORCED concealment, because that is not a choice — a
-// character with a sack tied over their head filing a report under their own
-// name and face would hand back exactly the identity the sack took away.
-// `threadId` posts into a Room or Conversation thread under `channelId`. The
-// webhook is still the parent channel's — see executeWebhook.
+// The REST twin of bot/src/lib/proxy.js#postAsCharacterTo, so it has to reach
+// the same answer that one does: forced > concealed > own. `character` must
+// therefore carry the columns presentedIdentity reads — `concealed`, `age`,
+// `gender`, `name`, `updatedAt` — which is what the caller selects
+// (bot/src/lib/feedOutbox.js#pushRow).
+//
+// It used to keep a concealment only when it FORCED itself, and override the
+// column to match, on this argument: an auto-filed summary should ignore
+// /conceal, because going unnamed in conversation says nothing about the
+// paperwork — while it must NOT ignore forced concealment, because that is no
+// choice, and a character with a sack over their head filing a report under
+// their own name and face would hand back exactly the identity the sack took
+// away. The argument is sound and this was never the place for it: there has
+// been no auto-filing caller since the function was written. The only one is
+// the relay that carries every line typed on /play to Discord — so what the
+// rule actually did was let a voluntary hood resolve correctly into the
+// archive row and then post that line to the channel under the speaker's real
+// name and real face. The hood worked on /play and did nothing on Discord.
+//
+// If game-composed text ever needs that behaviour, it belongs at the caller,
+// which is the only thing that knows what it is filing.
 async function postAsCharacter(channelId, character, content, { forcedName = null, concealment = null, threadId = null } = {}) {
-  const forced = concealment?.forced ? concealment : null;
   const chunks = chunkMessage(String(content ?? ""));
-  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, forced, threadId);
+  if (chunks.length <= 1) return postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId);
 
   let first = null;
   for (const chunk of chunks) {
-    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName, forced, threadId);
+    const sent = await postAsCharacterChunk(channelId, character, chunk, forcedName, concealment, threadId);
     if (!first) first = sent;
   }
   return first;
 }
 
-async function postAsCharacterChunk(channelId, character, content, forcedName, forced, threadId = null) {
+async function postAsCharacterChunk(channelId, character, content, forcedName, concealment, threadId = null) {
   try {
-    return await postAsCharacterOnce(channelId, content, character, forcedName, forced, threadId);
+    return await postAsCharacterOnce(channelId, content, character, forcedName, concealment, threadId);
   } catch (err) {
     // Keyed on the error CODE, never message text — a 429 shouldn't rebuild.
     if (err.discordCode === UNKNOWN_WEBHOOK || err.status === 404) {
       forgetChannelWebhook(channelId);
-      return postAsCharacterOnce(channelId, content, character, forcedName, forced, threadId);
+      return postAsCharacterOnce(channelId, content, character, forcedName, concealment, threadId);
     }
     throw err;
   }
 }
 
-async function postAsCharacterOnce(channelId, content, character, forcedName, forced = null, threadId = null) {
+async function postAsCharacterOnce(channelId, content, character, forcedName, concealment = null, threadId = null) {
   const webhook = await ensureChannelWebhook(channelId);
   const base = process.env.WEB_BASE_URL;
-  // `concealed` is overridden rather than read: the column is the player's
-  // /conceal choice, which this path ignores, so only a forced piece of gear
-  // gets a vote here.
-  const identity = presentedIdentity(
-    { ...character, concealed: Boolean(forced) },
-    { forcedName, concealment: forced },
-  );
+  const identity = presentedIdentity(character, { forcedName, concealment });
   return executeWebhook(webhook, {
     content,
     username: identity.name,

@@ -31,7 +31,7 @@
 // pure; loadForcedName and loadConcealment are the two queries, for call sites
 // that already hold a Character without its tags. Spread into the @lifeweb/db
 // barrel beside concealedIdentity.js.
-const { concealedAlias } = require("./concealedIdentity");
+const { concealedAlias, isConcealedAlias } = require("./concealedIdentity");
 
 // The shape concealmentFrom returns, for the legacy fallback above: concealed
 // with no idea what by. It draws the blank letter plaque, which is the same
@@ -41,6 +41,10 @@ const { concealedAlias } = require("./concealedIdentity");
 // plate. web/public/assets/unknown.png is gone.
 const UNSLOTTED = { sprite: null, forced: false };
 const BLANK_PLAQUE = "/assets/letters/_default.webp";
+// Where a concealing item's own sprite is served from. A hood's face comes
+// from here and nothing else's does, which is what makes it readable back off
+// a row (see wasHooded).
+const HELM_PREFIX = "/assets/helms/";
 
 // The Tag columns concealmentFrom reads. Exported so the eight call sites that
 // resolve an identity select the same set — miss one and concealment silently
@@ -166,8 +170,42 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
   };
 }
 
+// Was an ARCHIVED line spoken from under a hood, or under a forced name?
+// ArchiveEntry.concealedAlias holds both — a Beast is being something, not
+// hiding — so something else has to tell them apart, and everything this
+// reads is frozen on the row at send time.
+//
+// Both call sites used to answer it by comparing the row's alias against the
+// speaker's CURRENT forced name. That works right up until the forced name
+// goes away, and one of them is built to: a Disguise Kit tag lasts three turns
+// and is swept at turn advance. After the sweep the comparison found no name
+// to match, so every line the character had said while disguised started
+// rendering as the impoverished concealed readout — on the web's Look at and
+// on Discord's 🔍 alike, since both ask this one question.
+//
+// Two frozen signals settle it without asking what anybody holds today:
+//
+//   1. presentedAvatarPath is the face the room actually saw. A hood wears the
+//      concealing item's own sprite and nothing else ever does.
+//   2. A hood's alias can only be one of the nine concealedIdentity.js can
+//      build, so an alias outside that set was a forced name.
+//
+// `forcedName` is the old tiebreaker, kept for the sliver both signals leave:
+// a row from before presentedAvatarPath existed whose forced name happens to
+// read like an alias. Pass it when the caller has it cheaply; without it an
+// ambiguous row reads as a hood, which is the safe direction to be wrong in.
+function wasHooded(row, { forcedName = null } = {}) {
+  const alias = row?.concealedAlias;
+  if (!alias) return false;
+  const path = row?.presentedAvatarPath;
+  if (typeof path === "string" && path.startsWith(HELM_PREFIX)) return true;
+  if (!isConcealedAlias(alias)) return false;
+  return forcedName !== alias;
+}
+
 module.exports = {
   CONCEALMENT_TAG_FIELDS,
+  wasHooded,
   forcedNameFrom,
   loadForcedName,
   concealmentFrom,

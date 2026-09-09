@@ -24,7 +24,7 @@ const { getMyFactionRole } = require("./factionPermissions");
 const { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("./examine");
 const { buildSkillAncestry, satisfiedSkillIds } = require("./medicalVision");
 const { examineBlock } = require("./examineVision");
-const { forcedNameFrom } = require("./presentedIdentity");
+const { forcedNameFrom, wasHooded } = require("./presentedIdentity");
 const { mayReadPlace } = require("./feedAccess");
 const { THANATI_SLUG } = require("./thanati");
 
@@ -57,7 +57,16 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false }
 
   const row = await prisma.archiveEntry.findUnique({
     where: { seq: key },
-    select: { characterId: true, concealedAlias: true, deletedAt: true, placeKey: true },
+    // presentedAvatarPath rides along for wasHooded below: it is the face the
+    // room actually saw, frozen at send time, and the only signal that still
+    // tells a hood from a forced name once the forcing tag has worn off.
+    select: {
+      characterId: true,
+      concealedAlias: true,
+      presentedAvatarPath: true,
+      deletedAt: true,
+      placeKey: true,
+    },
   });
   if (!row || row.deletedAt || !row.characterId || !row.placeKey) return null;
   if (row.characterId === viewer.id) return null;
@@ -87,10 +96,13 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false }
   if (!subject) return null;
 
   // A forced name is NOT a hood — a Beast is being something, not hiding — and
-  // say.js writes both into concealedAlias, so the two are told apart the way
-  // presentedIdentity tells them apart rather than by reading the column.
+  // say.js writes both into concealedAlias, so the two are told apart by what
+  // the ROW froze rather than by what the speaker happens to hold now
+  // (presentedIdentity.js#wasHooded). Comparing against the live forced name
+  // was the whole bug: a Disguise Kit lasts three turns, and once it was swept
+  // every line said under it started reading as a hood.
   const forced = forcedNameFrom(subject.tags);
-  const hooded = Boolean(row.concealedAlias) && row.concealedAlias !== forced;
+  const hooded = wasHooded(row, { forcedName: forced });
 
   // Sight the readout may use. A camera gets none of the viewer's.
   const sightTags = bystander ? [] : (viewer.tags ?? []);

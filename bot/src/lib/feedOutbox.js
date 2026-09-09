@@ -22,7 +22,7 @@ const {
   addThreadMember,
 } = require("@lifeweb/db/lib/discordRest");
 const { addConversationMember } = require("@lifeweb/db/lib/conversations");
-const { loadForcedName, loadConcealment } = require("@lifeweb/db/lib/presentedIdentity");
+const { loadForcedName, loadConcealment, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
 const { discordTargetForPlaceKey, archiveContextForPlaceKey } = require("@lifeweb/db/lib/placeKey");
@@ -228,6 +228,12 @@ async function pushRow(row) {
   // Discord receives wears Discord's spelling.
   const { content, characters } = await tokensToRoles(prisma, row.content);
 
+  // The same answer postAsCharacter reaches internally, resolved here too
+  // because the mention relay below turns on it. `alias` is the one field that
+  // is set for BOTH a hood and a forced name, which is exactly the pair that
+  // relays nothing.
+  const identity = presentedIdentity(character, { forcedName, concealment });
+
   const posted = await postAsCharacter(target.channelId, character, content, {
     forcedName,
     concealment,
@@ -254,7 +260,7 @@ async function pushRow(row) {
   await relayWebMentions({
     row,
     characters,
-    concealed: Boolean(forcedName) || Boolean(concealment),
+    concealed: Boolean(identity.alias),
     channelId: target.threadId ?? target.channelId,
     messageId: posted.id,
   }).catch((err) => console.error("Feed outbox mention relay failed:", err));

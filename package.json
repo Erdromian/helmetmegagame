@@ -34,6 +34,7 @@
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",
     "db:check-config": "node db/scripts/ops/check-config-registry.js",
     "db:audit-equip": "node db/scripts/ops/audit-equip.js",
+    "db:inspect-character": "node db/scripts/ops/inspect-character.js",
     "db:audit-craft-docs": "node db/scripts/ops/audit-craft-docs.js",
     "db:prune-orphan-roles": "node db/scripts/ops/prune-orphan-roles.js",
     "db:prune-stale-channels": "node db/scripts/ops/prune-stale-channels.js",

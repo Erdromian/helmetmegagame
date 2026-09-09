@@ -383,6 +383,27 @@ whole of it, and `CONCEALMENT_TAG_FIELDS` beside it is the field list every
 call site selects — miss one and concealment silently stops working at that
 surface only.
 
+Because it resolves back on its own, **the stored wish is never overwritten on
+the player's behalf**. The switch on `/character` is drawn `disabled` whenever
+there is nothing to toggle, and a disabled checkbox posts nothing, so
+`updateCharacterProfile` leaves the column out of the write entirely rather
+than reading a missing field as "off". It used to read it: take a hood off for
+a moment, save the Bio card for any other reason — the appearance, the turn
+ping, **Play from the web** — and the hood no longer worked when it went back
+on, with nothing said and no way to set it again from the page that broke it.
+
+**The relay is the other half, and it has to pass the answer through
+unchanged.** `db/lib/discordRest.js#postAsCharacter` is the REST twin of
+`bot/src/lib/proxy.js#postAsCharacterTo`, and it is the path every line typed
+on `/play` takes to Discord. It used to keep a concealment only when the gear
+*forced* it, and override `Character.concealed` to match, on the reasoning that
+the player's own `/conceal` choice was not that path's business. It was: a
+voluntary hood was resolved correctly into the archive row and then posted to
+the channel under the speaker's real name and real face, so the hood worked on
+`/play` and did nothing on Discord. `db/test/presentedIdentity.test.js` holds
+the invariant now — a hood somebody chose conceals exactly as hard as one tied
+on for them.
+
 The slash command only flips the column and replies; the message itself still
 rides the ordinary proxy path, so ✏️/❌/⭐/🔍 all behave unchanged.
 
@@ -440,9 +461,23 @@ for anybody who walked into the room announced a cult meeting to the first
 person through the door. So a face and an eye are earned: see §5a.
 
 The row records the alias it was posted under (`ArchiveEntry.concealedAlias`),
-and `proxyRowFor` works out whether that was a hood or a forced name by
-comparing it against the character's current forced name. Three handlers read
-it: ‡
+which holds a forced name as well as a hood's, so reading a line back means
+telling the two apart. `presentedIdentity.js#wasHooded` is the one answer, and
+both faces ask it — `proxyRowFor` here and `db/lib/examineRow.js` for the web's
+Look at. It reads only what the ROW froze at send time: the
+`presentedAvatarPath`, since a hood wears the concealing item's own sprite
+under `/assets/helms/` and nothing else does, and failing that the alias
+itself, since a hood's can only ever be one of the nine
+`concealedIdentity.js#CONCEALED_ALIASES` can build.
+
+**This used to compare the alias against the character's *current* forced
+name**, which was right until the name went away — and one of them is built to.
+A Disguise Kit lasts three turns and is swept at turn advance, so after it
+expired every line the character had spoken under it flipped to reading as a
+hood, on both faces at once. The live forced name is still passed, but only as
+the tiebreaker for a row too old to carry a face whose forced name happens to
+read like an alias; an ambiguous row reads as a hood, which is the safe
+direction. Three handlers read it: ‡
 
 - **🔍** returns a **hardcoded** embed *before* any of the normal field logic:
   the concealed line, plus only the visible ailments and the visible gear —

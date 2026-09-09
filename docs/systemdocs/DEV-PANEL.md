@@ -82,6 +82,16 @@ can't disagree about what an affliction is.
   nowhere as a column live: points spent, equipment slots used, the gambit
   modifier. Discord carries the live guild state (username, nickname,
   Cursed, whether the personal role exists).
+
+  Identity also carries the **two switches on `/character`** — `Play from the
+  web` and `Concealed` — which had no GM surface anywhere until they were put
+  here, though `CHAT.md` §6a tells a GM to look for web-only players before
+  turning Chat off. `Concealed` reads the resolved answer, not the column:
+  `Character.concealed` is only a wish and takes effect solely while something
+  concealing is equipped, so the strip says **On, but nothing worn** for the
+  state that reads to a player as "my hood does not work". The resolution
+  happens in `web/lib/devPanelData.js`, through `presentedIdentity` — the same
+  function every send path asks — rather than being restated on the client.
 - **Action bar** — `IconButton`s over `.icon-btn`, in three clusters
   separated by `.dev-bar-sep`: life & turn · staging · repair. A destructive
   verb never sits flush against a harmless one.
