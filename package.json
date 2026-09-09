@@ -35,6 +35,7 @@
     "db:check-config": "node db/scripts/ops/check-config-registry.js",
     "db:audit-equip": "node db/scripts/ops/audit-equip.js",
     "db:clear-stale-ending": "node db/scripts/ops/clear-stale-ending.js",
+    "db:collapse-games": "node db/scripts/ops/collapse-games.js",
     "db:inspect-character": "node db/scripts/ops/inspect-character.js",
     "db:audit-craft-docs": "node db/scripts/ops/audit-craft-docs.js",
     "db:prune-orphan-roles": "node db/scripts/ops/prune-orphan-roles.js",
