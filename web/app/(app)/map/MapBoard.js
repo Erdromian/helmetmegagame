@@ -368,6 +368,21 @@ export default function MapBoard({ onClose = null }) {
     pinch.current = gauge();
   };
 
+  // Tapping the plate itself puts the card away. Without this the only way to
+  // unpick was a second tap on the very node you picked, which on a phone —
+  // where the card is a sheet over the board — left the description sitting
+  // over half the map with no obvious way to be rid of it.
+  //
+  // A node's own handler owns its clicks, so this stands aside for anything
+  // inside one rather than racing it; the click bubbles up here afterwards and
+  // would otherwise unpick whatever had just been picked. `panned` is the same
+  // guard the nodes use: the end of a drag is not a tap.
+  const onBoardClick = (ev) => {
+    if (panned.current) return;
+    if (ev.target?.closest?.(".map-node")) return;
+    setSel(null);
+  };
+
   // On the window rather than the SVG, and deliberately NOT via
   // setPointerCapture: capturing retargets the pointerup, and with it the
   // click, onto the <svg> — which would mean no node was ever clickable.
@@ -528,6 +543,7 @@ export default function MapBoard({ onClose = null }) {
           preserveAspectRatio="xMidYMid slice"
           role="presentation"
           onPointerDown={onPointerDown}
+          onClick={onBoardClick}
         >
           <defs>
             {/* The water, cut out of the plate as an alpha mask so it can be

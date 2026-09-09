@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Tap the map to put a place card away
+
+✚ Tapping open ground on the map unpicks the place you had selected, so the card gets out of the way  
+− The zoom bar is gone on a phone — pinch does that, and the bar was sitting on top of Headwaters and the Mountain  
+✎ The map's own Surface / Underground switch is all that is left over the plate on a phone
+
 ## 2026-09-09 · Archive packets can be kept on a disk of your own
 
 ✚ npm run archive:pull syncs every packet in the bucket down to a local folder, skipping what is already there  
