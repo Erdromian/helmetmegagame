@@ -422,6 +422,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         // renders a Recipe line has to select this or it silently renders none
         // (CORPSES.md §8).
         requirementItems: true,
+        // Cooking (docs/systemdocs/COOKING.md). The slot count draws the
+        // dialog's slots; the two custom columns decide whether it shows a
+        // description box and what the words cost.
+        requirementIngredientSlots: true,
+        customCost: true,
+        customDescribable: true,
         // So the Craft menu can say what a piece of armour is worth before
         // somebody spends two turns and 26 ⬢ finding out.
         meleeArmor: true,

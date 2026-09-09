@@ -87,10 +87,32 @@ export function stripWeightless(tag) {
 
 // Exactly the Tag columns TagChip reads. Shared so every TagChip caller
 // (this module, /gm/turns) uses the same shape instead of a copy that drifts.
+// Cooking (docs/systemdocs/COOKING.md). A cook is told what an ingredient
+// TASTES of and nothing else — not its mood, not what it will do to whoever
+// eats it. You learn an ingredient by using it, and poisoning somebody is
+// meant to be a gamble the poisoner takes too (Bascinet, 2026-09-09).
+//
+// Prisma cannot select one key out of a Json column, so the whole `cooked`
+// block comes back and is cut down here, on the server, before it crosses.
+// Shipping it whole would put every mood figure and every hidden effect one
+// dev-tools inspection away, which is the entire secret.
+//
+// `Tag.cookedFrom` is a separate matter and is NOT in TAG_CHIP_FIELDS at all:
+// a dish says what it tastes of and never what it was made with, so the
+// column must not reach a browser under any circumstances. Do not add it.
+export function cookedTasteOnly(tag) {
+  if (!tag?.cooked) return tag;
+  const { cooked, ...rest } = tag;
+  return { ...rest, cooked: { taste: cooked.taste ?? "" } };
+}
+
 export const TAG_CHIP_FIELDS = {
   id: true,
   slug: true,
   name: true,
+  // Read and cut down to its taste by cookedTasteOnly before it ships — see
+  // above. Every caller that spreads TAG_CHIP_FIELDS must map through it.
+  cooked: true,
   description: true,
   pointCost: true,
   category: true,
@@ -210,7 +232,8 @@ export async function getVisibleTags() {
       .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
       .map(composePaper(viewer, held))
       .map(stripEmptyUnlocks)
-      .map(stripWeightless),
+      .map(stripWeightless)
+      .map(cookedTasteOnly),
     { visibleSlugs: readableSlugs },
   );
 }

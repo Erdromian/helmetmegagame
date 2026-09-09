@@ -1,5 +1,5 @@
 import { prisma, startingTagSlugs } from "@lifeweb/db";
-import { TAG_CHIP_FIELDS, stripEmptyUnlocks } from "@/lib/referenceData";
+import { TAG_CHIP_FIELDS, stripEmptyUnlocks, cookedTasteOnly } from "@/lib/referenceData";
 
 // A buy menu is not a recipe book. It prints a recipe only where the trade
 // that gates it is public knowledge — every wax seal in the game is made by a
@@ -101,10 +101,14 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
   // and shipping a tag's own catalog gate to the browser tells a reader which
   // rows are secret.
   return tags.map(({ conflictsWith, catalogVisibility, ...t }) =>
-    stripEmptyUnlocks({
-      ...t,
-      conflictsWithIds: conflictsWith.map((c) => c.id),
-      ...recipeFields(t),
-    }),
+    // cookedTasteOnly for the reason referenceData.js gives: an ingredient's
+    // mood and its hidden effects must not cross, only its taste.
+    cookedTasteOnly(
+      stripEmptyUnlocks({
+        ...t,
+        conflictsWithIds: conflictsWith.map((c) => c.id),
+        ...recipeFields(t),
+      }),
+    ),
   );
 }

@@ -19,6 +19,7 @@ import StorePanel from "./StorePanel";
 import TagPointsValue from "./TagPointsValue";
 import TagRow from "./TagRow";
 import { useRequestActions } from "./RequestActionsProvider";
+import { useNotice } from "./NoticeProvider";
 
 // The right column of /ledger: every held tag, one card per kind, one row per
 // tag, and a filter box over all of it. Which card, which order and which
@@ -62,6 +63,7 @@ export default function TagRail({
   const [identityOpen, setIdentityOpen] = useState(false);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  const notice = useNotice();
 
   const cards = useMemo(() => buildCards(characterTags, { currentTurn }), [characterTags, currentTurn]);
   const verbSets = useMemo(() => thingVerbSets(characterTags), [characterTags]);
@@ -69,11 +71,19 @@ export default function TagRail({
 
   // Straight to the server, no confirm and no dialog: a consumable is one
   // click. The action revalidates the page, so the row disappears on its own.
+  //
+  // The RESULT used to be thrown away here, which mattered the moment a
+  // cooked dish started having something to say: eating one from this rail is
+  // how people actually eat, and the taste line would only ever have reached
+  // the handful who go through the Actions grid instead. A `line` the server
+  // sent is raised the same way every other action's is (NoticeProvider),
+  // and a consume with nothing to say still says nothing.
   function consume(tagId) {
     setError(null);
     startTransition(async () => {
       const res = await consumeTagRequest({ tagId });
       if (!res?.ok) setError(res?.error ?? "Something went wrong.");
+      else if (res.line) notice(res.line);
     });
   }
 

@@ -491,6 +491,189 @@ function validateCustomizable(entry, { slug, label = "docs/tags.yaml" }) {
   }
 }
 
+// --- Cooking (docs/systemdocs/COOKING.md) ---------------------------------
+
+// Longer than a taste needs and shorter than a sentence. The string is
+// dropped into the middle of one line a player reads once, so anything past
+// this is prose that belongs in the tag's own description instead.
+const COOKED_TASTE_MAX = 40;
+
+// What a tag contributes AS AN INGREDIENT, from its `cooked:` block. The
+// presence of the block is the only thing that makes a tag cookable — there
+// is no `ingredient: true` flag and no per-recipe list of legal slugs, so
+// adding a fourteenth thing you can cook with is one entry and a sync.
+//
+//     cooked:
+//       taste: "little crunchies"
+//       mood: 28
+//       into: [nauseous]        # optional — see below
+//
+// READ THIS BEFORE CHANGING `into`, AND ESPECIALLY IF YOU ARE HERE FROM THE
+// MEDICAL REWORK. `into` is optional, and its absence does NOT mean "this
+// contributes nothing". An ingredient that omits it contributes its own live
+// `consumesInto`, looked up at the moment somebody eats the dish rather than
+// frozen into the dish when it was cooked. That is deliberate and it is the
+// whole reason the effects are derived at consume time:
+//
+//   - It is the RAW/COOKED SPLIT. A tag's own `consumesInto` is what eating
+//     it plain does; `cooked.into` overrides that for the cooked case. A
+//     deep morel is nausea raw and good in a stew, so it authors both. An
+//     onion does nothing either way, so it authors neither.
+//   - It means a medical consumable needs NOTHING here. When the medical
+//     rework changes what White Honey's `consumesInto` does, every dish
+//     already sitting in somebody's pocket does the new thing on the next
+//     bite — no re-mint, no backfill, no code. If you are merging the medical
+//     PR and looking for the cooking hook: there isn't one, and that is the
+//     design. Author a `cooked.taste` and a `cooked.mood` if the ingredient
+//     needs them, and leave `into` alone.
+//
+// `into` is parsed by the caller's own consumesInto normalizer (passed in as
+// `normalizeInto`) so `{oneOf:[…]}`, `{slug, durationTurns}` and
+// `{slug, unlessTags}` all work in a cooked block for free, rather than
+// growing a second parser that drifts from the first.
+function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml" }) {
+  if (cooked == null) return null;
+  if (typeof cooked !== "object" || Array.isArray(cooked)) {
+    throw new Error(`${label}: tag "${slug}" cooked must be a block with a taste and a mood`);
+  }
+  const taste = cooked.taste;
+  // The key is required; its VALUE may be empty. An empty taste is the
+  // undetectable poison — Phrygian Tears, Adder's Bite — and a dish carrying
+  // one reads exactly like a dish that is not, because web/lib/cooking.js
+  // drops an empty fragment from the line rather than printing a gap.
+  // Requiring the key is what keeps that a deliberate claim rather than a
+  // forgotten field: `taste: ""` says tasteless, an absent `taste:` is a slip.
+  if (typeof taste !== "string") {
+    throw new Error(
+      `${label}: tag "${slug}" cooked needs a taste — write taste: "" if it is deliberately undetectable`,
+    );
+  }
+  if (taste.trim().length > COOKED_TASTE_MAX) {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.taste is ${taste.trim().length} characters — keep it under ${COOKED_TASTE_MAX}, it sits mid-sentence`,
+    );
+  }
+  // The ‡ rides the MESSAGE, not the sentence (CLAUDE.md), and a taste is a
+  // fragment dropped into the middle of one. "It tastes like honey ‡ and
+  // onions ‡." is not what that convention asks for — the composed line in
+  // web/lib/cooking.js carries the one mark.
+  if (taste.includes("‡")) {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.taste carries a ‡ — a taste is a fragment, and the composed line in web/lib/cooking.js is what wears the mark`,
+    );
+  }
+  const mood = cooked.mood ?? 0;
+  if (!Number.isFinite(mood)) {
+    throw new Error(`${label}: tag "${slug}" cooked.mood must be a number`);
+  }
+  // The dial itself (db/lib/mood.js). A single ingredient past either end is
+  // always an authoring slip, and clamping it silently would hide one.
+  if (mood > 64 || mood < -100) {
+    throw new Error(`${label}: tag "${slug}" cooked.mood is ${mood} — the dial runs +64 to -100`);
+  }
+  const into = cooked.into == null ? null : normalizeInto(cooked.into);
+  return { taste: taste.trim(), mood, into };
+}
+
+// `cooked` deliberately does NOT require `consumable`. Being cookable and
+// being edible are different claims, and the six body parts are the case that
+// proves it: nobody gnaws a raw hand, and a hand in a stew is very much a
+// thing that can happen. The cooking path reads this block; the consume path
+// never sees it.
+//
+// The inverse is worth writing out too, because it looks like an omission and
+// is not: an ingredient that does nothing RAW says so with `consumable: true`
+// and an empty `consumesInto`. That is the honest way to write an onion —
+// you can put one in your mouth and the game lets you, and then nothing
+// happens — and it keeps "nothing happened" a real answer rather than a
+// missing one.
+function validateCooked(normalized, { selfSlug, tagSlugs, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  for (const entry of normalized.into ?? []) {
+    for (const target of entry.oneOf ?? [entry.slug]) {
+      if (!tagSlugs?.has(target)) {
+        throw new Error(`${label}: tag "${selfSlug}" cooked.into references unknown tag "${target}"`);
+      }
+    }
+  }
+}
+
+// How many ingredients a recipe takes, from `requirement.ingredientSlots`.
+// A sibling of requirement.items rather than a second `anyOf`: the legal set
+// is "any tag carrying a cooked block", which no authored list could keep up
+// with, and validateRequirementItems' one-picker cap stays exactly where it
+// is, still guarding the Death Mask and the Dreamer's Draught.
+const INGREDIENT_SLOTS_MAX = 4;
+
+function normalizeIngredientSlots(slots, { slug, label = "docs/tags.yaml" }) {
+  if (slots == null) return null;
+  if (typeof slots !== "object" || Array.isArray(slots)) {
+    throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots must be a { min, max } block`);
+  }
+  const min = slots.min ?? 0;
+  const max = slots.max ?? min;
+  for (const [key, value] of [["min", min], ["max", max]]) {
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots.${key} must be a whole number`);
+    }
+  }
+  if (max < min) {
+    throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots.max (${max}) is below its min (${min})`);
+  }
+  if (max < 1) {
+    throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots.max is 0 — a recipe that takes no ingredient should not declare slots`);
+  }
+  if (max > INGREDIENT_SLOTS_MAX) {
+    throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots.max is ${max} — the dialog draws at most ${INGREDIENT_SLOTS_MAX}`);
+  }
+  return { min, max };
+}
+
+function validateIngredientSlots(normalized, { selfSlug, craftable, placement = null, turnsCost = null, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  // Same reasoning as requirement.items: the Craft path is the only place
+  // slots are ever read, so declaring them anywhere else is a lie.
+  if (!craftable) {
+    throw new Error(`${label}: tag "${selfSlug}" declares ingredientSlots but is not craftable — nothing would ever check them`);
+  }
+  if (placement) {
+    throw new Error(`${label}: tag "${selfSlug}" declares ingredientSlots and placement — a build site never spends an ingredient`);
+  }
+  // A multi-turn project mints on the FINISHING turn, days after the cook
+  // picked their ingredients, so the slugs would have to ride on
+  // CraftProject.custom to survive the wait. Nothing needs that today, and a
+  // recipe that quietly forgot what went into it is a worse bug than a sync
+  // that refuses to ship one.
+  if (Number.isInteger(turnsCost) && turnsCost >= 2) {
+    throw new Error(
+      `${label}: tag "${selfSlug}" declares ingredientSlots on a ${turnsCost}-turn project — the picked slugs would not survive to the finishing turn`,
+    );
+  }
+}
+
+// What a customizable recipe charges for the player's words, and whether it
+// takes a description at all. Only legal beside `customizable: true`.
+//
+//     custom: { cost: 0, describable: false }
+//
+// An absent `cost` means the standard surcharge (web/lib/customCraft.js). `0`
+// is the meals: a cook naming their own dish is the point of the cooking
+// rework, not an upsell.
+function normalizeCustom(custom, { slug, customizable, label = "docs/tags.yaml" }) {
+  if (custom == null) return { customCost: null, customDescribable: true };
+  if (!customizable) {
+    throw new Error(`${label}: tag "${slug}" declares a custom block but is not customizable`);
+  }
+  if (typeof custom !== "object" || Array.isArray(custom)) {
+    throw new Error(`${label}: tag "${slug}" custom must be a block`);
+  }
+  const cost = custom.cost ?? null;
+  if (cost != null && (!Number.isInteger(cost) || cost < 0)) {
+    throw new Error(`${label}: tag "${slug}" custom.cost must be 0 or a positive whole number of ⬢`);
+  }
+  return { customCost: cost, customDescribable: custom.describable !== false };
+}
+
 // Two things the shape alone can't catch: a placement block on a tag nothing
 // would ever build (the Craft path is the only enforcement point, same
 // reasoning as validateRequirementItems), and a placement block on a tag that
@@ -554,4 +737,11 @@ module.exports = {
   normalizePlacement,
   validatePlacement,
   validateCustomizable,
+  COOKED_TASTE_MAX,
+  INGREDIENT_SLOTS_MAX,
+  normalizeCooked,
+  validateCooked,
+  normalizeIngredientSlots,
+  validateIngredientSlots,
+  normalizeCustom,
 };

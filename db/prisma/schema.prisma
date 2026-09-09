@@ -2668,6 +2668,67 @@ model Tag {
   // (db/lib/tagShapes.js). See CRAFTING.md.
   customizable Boolean @default(false)
 
+  // What a customizable recipe charges for the player's words, and whether it
+  // takes a description at all. Both authored under `custom:` in
+  // docs/tags.yaml and only legal beside `customizable: true`.
+  //
+  // NULL cost means CUSTOM_SURCHARGE (web/lib/customCraft.js) — the painting,
+  // the sketch, the badge, the hat. `0` means free, which is what the two
+  // meals are: a cook naming their own dish is the whole point of the cooking
+  // rework, not an upsell. surchargeFor() is the one verdict both the dialog
+  // and the server action read, so the ⬢ shown is always the ⬢ billed.
+  customCost Int?
+
+  // False hides the description box and refuses a posted description. The
+  // Fine Meal takes a name and nothing else; the Lavish Meal takes both.
+  customDescribable Boolean @default(true)
+
+  // --- Cooking (docs/systemdocs/COOKING.md) -------------------------------
+  //
+  // What this tag contributes AS AN INGREDIENT, once it has been cooked into
+  // something. Authored as the `cooked:` block in docs/tags.yaml, normalized
+  // and validated by db/lib/tagShapes.js#normalizeCooked.
+  //
+  //   { taste: String, mood: Float, into: [<consumesInto entry>, ...]? }
+  //
+  // The presence of this block is the ONLY thing that makes a tag a legal
+  // ingredient — there is no separate flag and no per-recipe list, so adding
+  // a fourteenth thing you can cook with is one YAML entry and a sync.
+  //
+  // `into` is DELIBERATELY OPTIONAL, and its absence is not "nothing". An
+  // ingredient that does not override it contributes its own live
+  // `consumesInto`, read at the moment somebody eats the dish — which is why
+  // this is the raw/cooked split rather than two frozen copies. See the
+  // note on normalizeCooked before touching it.
+  cooked Json?
+
+  // The ingredient slugs that went into THIS dish, in the order the cook
+  // slotted them. Written only on rows minted by a cooking craft
+  // (mintCustomCraft), empty on every catalog row and every other mint.
+  //
+  // Load-bearing twice over. It is what consumeTagRequestImpl reads to work
+  // out what a dish does, and it is part of the mint's REUSE KEY: two cooks
+  // who type the same words over different ingredients must get two rows, or
+  // one of them is eating the other's feces.
+  //
+  // NEVER ship it to a browser. It is deliberately absent from
+  // TAG_CHIP_FIELDS (web/lib/referenceData.js) — a dish says what it tastes
+  // of and never what it was made with, and a column in a flight payload
+  // would undo that in one dev-tools inspection.
+  cookedFrom String[] @default([])
+
+  // A meal recipe's own small mood, before its ingredients. Copied onto the
+  // minted dish row. Small on purpose (5 and 8): the ingredient is meant to
+  // do the work, which it cannot do if the plate it arrives on is already
+  // worth +30. See MOOD.md §6.
+  mealMood Float?
+
+  // How many ingredients this recipe takes: `{ min, max }`, authored as
+  // `requirement.ingredientSlots`. A sibling of requirementItems below rather
+  // than a second `anyOf` entry — the legal set is "any tag with a `cooked`
+  // block", which no authored list could keep up with.
+  requirementIngredientSlots Json?
+
   // The INGREDIENT half of a recipe — BREWING.md's "no code enforces a
   // recipe, least of all the ingredient" is no longer true of any entry that
   // carries this. Authored in docs/tags.yaml as `requirement.items`,

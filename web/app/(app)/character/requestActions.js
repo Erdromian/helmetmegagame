@@ -177,7 +177,14 @@ import {
   cleanCustomText,
   customCraftFields,
   customCraftName,
+  surchargeFor,
 } from "@/lib/customCraft";
+import {
+  mergeDishGrants,
+  dishIngredientMoods,
+  dishTastes,
+  tasteLine,
+} from "@/lib/cooking";
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
@@ -214,7 +221,14 @@ import {
   ACT,
   SPEAK,
 } from "@lifeweb/db/lib/incapacitation";
-import { applyMood, consumeReliefFor, woundMoodFor, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
+import {
+  applyMood,
+  applyMoodTerms,
+  consumeReliefFor,
+  dishMoodTerms,
+  woundMoodFor,
+  DESIRE_RELIEF_PER_POINT,
+} from "@lifeweb/db/lib/mood";
 import {
   NAME_LIMITS,
   FULL_NAME_LIMIT,
@@ -398,6 +412,62 @@ async function requireWorkshop(character, tag) {
 // once, when the work STARTS: a multi-turn project pays its ingredients up
 // front, the rule its ⬢ already lived under, so a continue re-checks nothing
 // about them.
+// INGREDIENT SLOTS (docs/systemdocs/COOKING.md) ride alongside `items` rather
+// than inside it. `ingredientChoices` is the array the cooking dialog posts:
+// the slugs the cook slotted, in order.
+//
+// Membership is not a list on the recipe — it is "any tag carrying a `cooked`
+// block", which is why the caller resolves the rows and hands them in as
+// `cookableBySlug`. A recipe never has to be edited to accept a new
+// ingredient, and this function never has to know what any of them are.
+function resolveIngredientSlots(character, tag, quantity, ingredientChoices, cookableBySlug) {
+  const slots = tag.requirementIngredientSlots;
+  const plan = { spend: [], hold: [], cookedFrom: [] };
+  const picks = (Array.isArray(ingredientChoices) ? ingredientChoices : [])
+    .map((s) => (typeof s === "string" ? s.trim() : ""))
+    .filter(Boolean);
+  if (!slots) {
+    // Picks posted at a recipe with no slots are ignored rather than refused,
+    // the same posture quantity takes on a non-stackable.
+    return plan;
+  }
+  if (picks.length < slots.min) {
+    throw new UserError(
+      slots.min === 1
+        ? "That needs something cooked into it. ‡"
+        : `That needs ${slots.min} ingredients. ‡`,
+    );
+  }
+  if (picks.length > slots.max) {
+    throw new UserError(`That takes at most ${slots.max}. ‡`);
+  }
+  // No slug twice. It keeps "it tastes like onion and onion" off the notice,
+  // and it keeps the spend honest: two slots naming one stack would plan two
+  // independent draws against it and the second refusal would name a count
+  // nobody could make sense of.
+  if (new Set(picks).size !== picks.length) {
+    throw new UserError("You've put the same thing in twice. ‡");
+  }
+  const bySlug = new Map(character.tags.filter((ct) => ct.tag).map((ct) => [ct.tag.slug, ct]));
+  for (const slug of picks) {
+    if (!cookableBySlug?.has(slug)) {
+      throw new UserError("That isn't something you can cook with. ‡");
+    }
+    const ct = bySlug.get(slug);
+    const name = cookableBySlug.get(slug).name;
+    if (!ct || ct.quantity < quantity) {
+      throw new UserError(
+        quantity > 1
+          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}.`
+          : `Making that needs ${name}.`,
+      );
+    }
+    plan.spend.push({ tagId: ct.tagId, tagName: name, quantity });
+    plan.cookedFrom.push(slug);
+  }
+  return plan;
+}
+
 function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
   const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : [];
   const plan = { spend: [], hold: [] };
@@ -793,19 +863,45 @@ async function spendCraftMove(
 // player's words — its query also filters `ephemeral` as a second lock),
 // and catalogVisibility (the GM default keeps a mint out of the public
 // catalog; referenceData ships an ephemeral row only to who holds it).
-async function mintCustomCraft(db, baseTag, { name, description, literal = false }) {
+async function mintCustomCraft(db, baseTag, { name, description, literal = false, cookedFrom = [] }) {
   // `literal` is the Death Mask's door: the name arrives finished ("Death
   // Mask of Ada" — stamped from the corpse, never typed) and must not gain
   // the "(Death Mask)" suffix a player-worded custom wears, because the base
   // identity is already the first two words.
-  const composedName = literal ? name : customCraftName(baseTag.name, name);
+  // An unnamed, undescribed cooking mint keeps the base recipe's own name.
+  // Tag.name is NOT unique (schema.prisma says so at the column), so "Fine
+  // Meal" beside the catalog's own "Fine Meal" is fine — and a plate of food
+  // nobody bothered to name should not read as "Fine Meal (custom)".
+  const composedName =
+    literal || (!name && cookedFrom.length && !description)
+      ? name || baseTag.name
+      : customCraftName(baseTag.name, name);
   const composedDescription = description || baseTag.description;
+  // THE INGREDIENTS ARE PART OF THE IDENTITY. Reuse used to key on the words
+  // alone, which was right when the words were all a mint carried. A dish
+  // carries what went into it, so two cooks who both type "Steak Dinner" —
+  // one over saffron, one over feces — must NOT land on one row, or one of
+  // them is serving the other's dinner. Sorted, so [onion, saffron] and
+  // [saffron, onion] are one dish rather than two.
+  //
+  // Nothing on any surface tells the two rows apart, which is deliberate
+  // (Bascinet, 2026-09-09): a dish says what it tastes of and never what it
+  // was made with.
+  //
+  // STORED sorted, not just compared sorted, because Postgres array equality
+  // is order-sensitive and a key that did not match what was written would
+  // reuse nothing and mint a row per craft. The cost is that the taste
+  // sentence reads alphabetically rather than in the order the cook slotted
+  // them, which is a fair trade for two cooks who picked the same two things
+  // in different orders landing on one dish.
+  const key = [...cookedFrom].sort();
   const existing = await db.tag.findFirst({
     where: {
       custom: true,
       ephemeral: true,
       name: composedName,
       description: composedDescription,
+      cookedFrom: { equals: key },
     },
   });
   if (existing) return { tag: existing, minted: false };
@@ -837,6 +933,16 @@ async function mintCustomCraft(db, baseTag, { name, description, literal = false
     consumesIntoUnless: baseTag.consumesIntoUnless ?? undefined,
     consumesIntoDurations: baseTag.consumesIntoDurations ?? undefined,
     consumesIntoResources: baseTag.consumesIntoResources,
+    // What this dish was made of, and its recipe's own small mood. Everything
+    // else about a dish is derived from these two at the moment somebody eats
+    // it (web/lib/cooking.js) — deliberately, so an ingredient retuned in the
+    // catalog retunes the dinners already in people's pockets.
+    //
+    // `cooked` is NOT copied: it says what a tag contributes as an
+    // INGREDIENT, and a dish is not one. Cooking a stew into a second stew is
+    // not a thing.
+    cookedFrom: key,
+    mealMood: baseTag.mealMood,
     sellable: baseTag.sellable,
     sellablePrice: baseTag.sellablePrice,
     defaultDurationTurns: baseTag.defaultDurationTurns,
@@ -1002,6 +1108,13 @@ async function craftRequestImpl({
   // re-checked for membership and possession like everything else a client
   // sends.
   ingredientChoice,
+  // The slugs a cook slotted, in order, on a recipe with `ingredientSlots`
+  // (docs/systemdocs/COOKING.md). A separate channel from `ingredientChoice`
+  // above because they answer different questions: that one picks a member of
+  // a list the recipe named, this one is an ordered set out of a catalog the
+  // recipe says nothing about. Re-checked here for membership, possession and
+  // count, so the chip list is a hint like every other disabled control.
+  ingredientChoices,
   // The custom-item fields (CRAFTING.md), honored only on a `customizable`
   // recipe. cleanCustomText decides what survives — the same shared helper
   // the dialog priced the +1 ⬢ with, so client and server cannot disagree
@@ -1047,6 +1160,34 @@ async function craftRequestImpl({
     quantity,
     ingredientChoice,
   );
+  // Ingredient slots, on top of `items` (COOKING.md). The legal set is every
+  // tag carrying a `cooked` block, so it is read here rather than named on
+  // the recipe — one query, narrowed to what was actually posted, and the
+  // `cooked: { not: null }` is the membership check itself.
+  const posted = (Array.isArray(ingredientChoices) ? ingredientChoices : [])
+    .map((s) => (typeof s === "string" ? s.trim() : ""))
+    .filter(Boolean);
+  const cookableBySlug = new Map(
+    posted.length && tag.requirementIngredientSlots
+      ? (
+          await prisma.tag.findMany({
+            where: { slug: { in: posted }, cooked: { not: null } },
+            select: { slug: true, name: true },
+          })
+        ).map((t) => [t.slug, t])
+      : [],
+  );
+  const slotPlan = resolveIngredientSlots(
+    character,
+    tag,
+    quantity,
+    ingredientChoices,
+    cookableBySlug,
+  );
+  // One plan from here on: the ingredients a dish spends are spent the same
+  // way, under the same lock, and land in the same `details.consumed`.
+  itemPlan.spend.push(...slotPlan.spend);
+  const cookedFrom = slotPlan.cookedFrom;
   // The Death Mask binds a SPECIFIC corpse (the group entry above only
   // proved one is held) — resolved out here for the fast fail, marked
   // inside the transaction by takeFace.
@@ -1054,15 +1195,25 @@ async function craftRequestImpl({
     tag.slug === DEATH_MASK_SLUG
       ? resolveDeathMaskSource(character, ingredientChoice)
       : null;
-  // Customizing is +CUSTOM_SURCHARGE ⬢ a unit, like every other per-unit
-  // cost. Fields posted against a non-customizable recipe are ignored, not
-  // refused — the same posture as quantity on a non-stackable.
+  // Customizing costs what the recipe says it costs — surchargeFor, the same
+  // verdict the dialog prices with, so the ⬢ shown is the ⬢ billed. Usually
+  // CUSTOM_SURCHARGE; zero on the two meals, which buy their words out
+  // (COOKING.md). Fields posted against a non-customizable recipe are
+  // ignored, not refused — the same posture as quantity on a non-stackable.
+  //
+  // A recipe that refuses descriptions (`customDescribable: false`, the Fine
+  // Meal) has one dropped here rather than throwing, for the same reason: a
+  // hidden textarea is a hint, and a posted value that the recipe has no room
+  // for is not an attack, it is a stale client.
   const custom = tag.customizable
-    ? customCraftFields({ customName, customDescription })
+    ? customCraftFields({
+        customName,
+        customDescription: tag.customDescribable === false ? "" : customDescription,
+      })
     : { name: "", description: "", active: false };
   const turns = tag.requirementTurns ?? 1;
   const cost =
-    ((tag.requirementResources ?? 0) + (custom.active ? CUSTOM_SURCHARGE : 0)) *
+    ((tag.requirementResources ?? 0) + (custom.active ? surchargeFor(tag) : 0)) *
     quantity;
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
@@ -1118,7 +1269,16 @@ async function craftRequestImpl({
       await resolveCraftMove(character, openTurn, moveCost);
     // Minted before the transaction (see mintCustomCraft for why), unwound
     // after it only if the transaction fails and the row was fresh.
-    const grant = custom.active ? await mintCustomCraft(prisma, tag, custom) : null;
+    //
+    // A DISH ALWAYS MINTS, words or no words: what went in is what it does,
+    // so it needs a row of its own even from a cook who named nothing. A meal
+    // with no ingredient and no words has nothing to carry and stays the
+    // plain catalog row, which keeps it Depot-listable and out of the way of
+    // the Restart Game ephemeral sweep.
+    const grant =
+      custom.active || cookedFrom.length
+        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
+        : null;
     try {
     await prisma.$transaction(async (tx) => {
       // One lock for all the racy things: the ration counts, the ingredient
@@ -1231,8 +1391,8 @@ async function craftRequestImpl({
           description: "",
           literal: true,
         })
-      : custom.active
-        ? await mintCustomCraft(prisma, tag, custom)
+      : custom.active || cookedFrom.length
+        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
         : null
     : null;
   try {
@@ -2414,12 +2574,41 @@ async function consumeTagRequestImpl({ tagId }) {
   });
   const ladder = new Map(ladderRows.map((t) => [t.slug, t.escalatesInto]));
 
+  // A COOKED DISH (docs/systemdocs/COOKING.md) is the one consumable whose
+  // effects are not written on its own row. It carries `cookedFrom` — the
+  // ingredient slugs the cook slotted — and what it does is worked out from
+  // those NOW, off the live catalog, rather than from a snapshot taken when
+  // it was cooked. web/lib/cooking.js says why at length; the short version
+  // is that it keeps raw and cooked separable, and it means a medicine
+  // changed by the medical rework changes in a stew for free.
+  //
+  // findMany does not preserve the order it was asked for, and slot order is
+  // what the taste sentence reads in, so the rows are put back in
+  // `cookedFrom` order by hand. A slug that no longer resolves (an ingredient
+  // pruned out of the catalog) is dropped rather than throwing: the dish is
+  // already in somebody's hands and refusing to let them eat it would be the
+  // worse answer.
+  const cookedFrom = held.tag.cookedFrom ?? [];
+  let ingredientTags = [];
+  if (cookedFrom.length) {
+    const rows = await prisma.tag.findMany({ where: { slug: { in: cookedFrom } } });
+    const bySlug = new Map(rows.map((t) => [t.slug, t]));
+    ingredientTags = cookedFrom.map((slug) => bySlug.get(slug)).filter(Boolean);
+  }
+  // ONE call, never one per ingredient: resolveConsumeGrants tracks what the
+  // eater WILL hold across the list it is handed, which is how the drinking
+  // ladder resolves against a rung the same swallow just granted. Two calls
+  // would each resolve against a stale sheet and double-grant.
+  const resolveAgainst = ingredientTags.length
+    ? { ...held.tag, ...mergeDishGrants(held.tag, ingredientTags) }
+    : held.tag;
+
   const {
     slugs: grantSlugs,
     removes: climbedFrom,
     durations: grantDurations,
     resources: resourcesGranted,
-  } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags), ladder);
+  } = resolveConsumeGrants(resolveAgainst, heldSlugsOf(character.tags), ladder);
 
   // The rungs the climb clears — Tipsy coming off as Wasted goes on.
   // Snapshotted the same way `cleared` below is, so an Undo puts the drinker
@@ -2436,11 +2625,27 @@ async function consumeTagRequestImpl({ tagId }) {
       quantity: 1,
     }));
 
-  // What this lifts (docs/systemdocs/MOOD.md): a drink or a drug by the state
-  // it lands you in, a meal, a treat, a hot drink or a smoke by what it is.
-  // The largest single figure, never a sum — Bliss is one drink, and Sweets
-  // is a treat rather than a treat plus a meal.
-  const moodRelief = consumeReliefFor(held.tag.slug, grantSlugs);
+  // What this does to the dial (docs/systemdocs/MOOD.md), and the two rules
+  // are different enough to be two functions.
+  //
+  // A DISH sums: its own small figure plus every ingredient's, harm and
+  // relief kept apart so only the harm half is ever scaled. Saffron makes the
+  // best thing in Ravenheart and feces the worst, and both are the
+  // ingredient's doing rather than the recipe's.
+  //
+  // EVERYTHING ELSE takes the largest single figure, never a sum — Bliss is
+  // one drink, and Sweets is a treat rather than a treat plus a meal.
+  const isDish = ingredientTags.length > 0 || held.tag.mealMood != null;
+  const moodTerms = isDish
+    ? dishMoodTerms(held.tag.mealMood, dishIngredientMoods(ingredientTags))
+    : null;
+  const moodRelief = isDish ? 0 : consumeReliefFor(held.tag.slug, grantSlugs);
+
+  // What the eater is told, and the only thing they are told: a dish names
+  // its tastes and never its ingredients. `line` is returned to the client,
+  // which prefers it over the generic "It used up." (noticeLines.js).
+  const tastes = dishTastes(ingredientTags);
+  const line = isDish ? tasteLine(tastes) : null;
 
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, character.id, tagId, 1);
@@ -2462,9 +2667,13 @@ async function consumeTagRequestImpl({ tagId }) {
       );
     }
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
-    // nothing on the request, on purpose.
+    // nothing on the request, on purpose. A dish runs it for each INGREDIENT
+    // too, so a pie made with leeches still takes the bruise off — the cure
+    // is a property of the leeches, not of eating them whole.
     await applyHiddenCures(tx, character.id, held.tag.slug);
-    if (moodRelief) await applyMood(tx, character.id, { kind: "DRINK", base: moodRelief });
+    for (const ing of ingredientTags) await applyHiddenCures(tx, character.id, ing.slug);
+    if (moodTerms?.length) await applyMoodTerms(tx, character.id, moodTerms);
+    else if (moodRelief) await applyMood(tx, character.id, { kind: "DRINK", base: moodRelief });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
@@ -2475,13 +2684,18 @@ async function consumeTagRequestImpl({ tagId }) {
         granted: granted.map((g) => g.tagName),
         resourcesGranted,
         moodRelief: moodRelief || undefined,
+        // The GM's copy of what a dish was, which is the only place the
+        // ingredients are ever written down after the craft — the eater is
+        // told the taste and nothing else.
+        cookedFrom: cookedFrom.length ? cookedFrom : undefined,
+        moodTerms: moodTerms?.length ? moodTerms : undefined,
         climbed: climbed.map((c) => c.tagName),
       },
     });
   });
   await afterInventoryChange(character.id);
   revalidateAll();
-  return {};
+  return line ? { line } : {};
 }
 
 // --- Transfer (the merged dialog) -------------------------------------

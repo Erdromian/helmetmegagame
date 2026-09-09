@@ -3791,6 +3791,104 @@ label.chip {
   gap: var(--sp-1);
 }
 
+/* The cooking bench's ingredient slots (IngredientSlots.js,
+   docs/systemdocs/COOKING.md). A row of boxes above the .chip-row that fills
+   them.
+
+   Drawn as .control surfaces rather than as cards: a slot is a form field
+   with a value in it, not an object in its own right, and giving each one a
+   border-radius and a shadow would have made two empty boxes look like the
+   most important thing on the dialog. Dashed while empty, solid once filled,
+   which is the whole state language — an empty required slot and an empty
+   optional one differ by border colour alone. */
+.slot-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.slot {
+  position: relative;
+  flex: 1 1 10rem;
+  min-height: 3.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  background: var(--field-bg);
+}
+
+/* A Lavish Meal's first slot. Solid rather than a second colour: the dash is
+   already saying "optional", so taking it away is enough. */
+.slot[data-required] {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Where the next chip will land. Without it two identical empty boxes leave
+   the cook guessing which one they are filling. */
+.slot[data-next] {
+  border-color: var(--accent-text);
+}
+
+.slot[data-filled] {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.slot-tag {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.slot[data-filled] .slot-tag {
+  text-transform: none;
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.slot-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* What it tastes of, and the only thing the cook is told (COOKING.md). The
+   speech token because it is the words the eater will read, quoted back. */
+.slot-taste {
+  font-size: var(--fs-xs);
+  color: var(--speech);
+}
+
+.slot-clear {
+  all: unset;
+  cursor: pointer;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+
+.slot-clear:hover {
+  color: var(--danger);
+  background: var(--row-hover);
+}
+
+.slot-clear:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
 /* A chip's aside — a corpse's yield, "✓ current", a price — in the muted
    face beside the label (ChipPicker.js). */
 .chip .chip-note {

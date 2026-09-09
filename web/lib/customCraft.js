@@ -8,6 +8,18 @@
 // Pure — no prisma, no React — importable from either side.
 
 export const CUSTOM_SURCHARGE = 1; // ⬢ per unit, on top of the recipe's own
+
+// What THIS recipe charges for the player's words. A recipe may buy them out
+// with `custom: { cost: 0 }` in docs/tags.yaml, and both meals do: a cook
+// naming their own dish is the point of the cooking rework (COOKING.md), not
+// an upsell, and charging for it made every meal in the game anonymous.
+//
+// One verdict, both sides — the dialog prices what it shows with this and
+// craftRequestImpl prices what it charges with this, the same way
+// customCraftFields below is the one verdict on "is this name blank".
+export function surchargeFor(tag) {
+  return tag?.customCost ?? CUSTOM_SURCHARGE;
+}
 export const CUSTOM_NAME_MAX = 30;
 export const CUSTOM_DESCRIPTION_MAX = 300;
 export const INSCRIPTION_MAX = 200;

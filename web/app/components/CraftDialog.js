@@ -5,13 +5,14 @@ import Select from "./Select";
 import { needsWorkshop } from "@/lib/tagRequests";
 import { craftFamilyLabel, formatMoveFraction } from "@/lib/craftBudget";
 import {
-  CUSTOM_SURCHARGE,
   CUSTOM_NAME_MAX,
   CUSTOM_DESCRIPTION_MAX,
   INSCRIPTION_MAX,
   customCraftFields,
   customCraftName,
+  surchargeFor,
 } from "@/lib/customCraft";
+import IngredientSlots from "./IngredientSlots";
 import QuantityField from "./QuantityField";
 
 // The body of the Craft dialog (docs/systemdocs/CRAFTING.md). State lives in
@@ -60,6 +61,16 @@ export default function CraftDialog({
   ingredientPick = null,
   ingredientChoice = "",
   onIngredientChoice,
+  // Cooking (docs/systemdocs/COOKING.md). A separate channel from the `anyOf`
+  // pick above because they answer different questions: that one names a
+  // member of a list the recipe wrote down, this one is an ordered set out of
+  // a catalog the recipe says nothing about. A recipe never carries both.
+  ingredientSlots = null,
+  // [{ slug, name, taste, held }] — what this cook is carrying that can go in
+  // a pot. Already cut to its taste server-side (referenceData.js).
+  cookables = [],
+  ingredientChoices = [],
+  onIngredientChoices,
   // Custom-item fields on a `customizable` recipe, and the builder's line on
   // an inscribable placement (CRAFTING.md). Raw as typed — the shared
   // cleaner in web/lib/customCraft.js is the one verdict on what counts.
@@ -87,13 +98,21 @@ export default function CraftDialog({
   ));
   const turns = chosen?.requirementTurns ?? 1;
   const qty = Math.max(1, Number(quantity) || 1);
-  // The same shared verdict the server bills by: customized words are
-  // +CUSTOM_SURCHARGE ⬢ a unit, and blank-after-cleaning fields cost nothing.
+  // The same shared verdict the server bills by: blank-after-cleaning fields
+  // cost nothing, and what words cost is the recipe's own business —
+  // surchargeFor, which is 0 on the two meals (COOKING.md). A recipe that
+  // takes no description never counts one, so a value left in state by a
+  // previous pick cannot quietly bill.
+  const describable = chosen?.customDescribable !== false;
   const custom = chosen?.customizable
-    ? customCraftFields({ customName, customDescription })
+    ? customCraftFields({
+        customName,
+        customDescription: describable ? customDescription : "",
+      })
     : null;
+  const surcharge = surchargeFor(chosen);
   const cost =
-    ((chosen?.requirementResources ?? 0) + (custom?.active ? CUSTOM_SURCHARGE : 0)) *
+    ((chosen?.requirementResources ?? 0) + (custom?.active ? surcharge : 0)) *
     (chosen?.stackable ? qty : 1);
   // Smith's work needs a forge in reach (SMITHING.md). Said here so a player
   // sees it before committing; craftRequest re-checks it regardless — and
@@ -282,6 +301,21 @@ export default function CraftDialog({
                     them.
                   </p>
                 ))}
+              {ingredientSlots && (
+                <div className="field">
+                  <span className="field-label">
+                    {ingredientSlots.min > 0 ? "What goes in ‡" : "Anything going in? ‡"}
+                  </span>
+                  <IngredientSlots
+                    min={ingredientSlots.min}
+                    max={ingredientSlots.max}
+                    options={cookables}
+                    value={ingredientChoices}
+                    onChange={onIngredientChoices}
+                    quantity={chosen.stackable ? qty : 1}
+                  />
+                </div>
+              )}
               {chosen.customizable && (
                 <>
                   <label className="field">
@@ -294,6 +328,11 @@ export default function CraftDialog({
                       maxLength={CUSTOM_NAME_MAX}
                     />
                   </label>
+                  {/* A recipe may take a name and no words — the Fine Meal
+                      does (COOKING.md). The server drops a posted description
+                      on one of those rather than refusing it, so this is a
+                      hint like every other hidden control. */}
+                  {describable && (
                   <label className="field">
                     <span className="field-label">Describe it (optional)</span>
                     <textarea
@@ -303,10 +342,14 @@ export default function CraftDialog({
                       maxLength={CUSTOM_DESCRIPTION_MAX}
                     />
                   </label>
+                  )}
+                  {/* The surcharge half of this line disappears where a
+                      recipe buys the words out. What it will READ as stays:
+                      that is the one thing worth showing before the click. */}
                   {custom?.active && (
                     <p className="text-xs text-muted">
-                      Your words on your work, +{CUSTOM_SURCHARGE} ⬢ each. It
-                      will read as “{customCraftName(chosen.name, custom.name)}”.
+                      {surcharge > 0 ? `Your words on your work, +${surcharge} ⬢ each. ` : ""}
+                      It will read as “{customCraftName(chosen.name, custom.name)}”.
                     </p>
                   )}
                 </>
