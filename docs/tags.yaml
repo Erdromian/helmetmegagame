@@ -376,7 +376,7 @@ tags:
     catalog: gm
     name: Mortus
     category: general
-    description: "One of the Mortii. Tends to the dead and the Lifeweb."
+    description: "You are one of the Mortii, who deal with the dead and tend to the Lifeweb."
     pointCost: 0
     purchasable: false
     visible: false
@@ -385,7 +385,7 @@ tags:
     catalog: gm
     name: Servant
     category: general
-    description: "You work the Keep's back stairs. The Servant's Quarters are yours to occupy and work."
+    description: "You work to maintain the Keep and please its masters."
     pointCost: 0
     purchasable: false
     visible: false
@@ -447,7 +447,7 @@ tags:
     catalog: all
     name: Teaching
     category: skills
-    description: "Can train someone in a skill you have. It's a Routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
+    description: "You can train someone in a skill you have. It's a Routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
     pointCost: 5
     visible: false
     purchasable: true
@@ -459,7 +459,7 @@ tags:
     name: Teaching (Lecturing)
     category: skills
     parentTag: teaching
-    description: "Can train up to 3 people at the same time. It's a Routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
+    description: "You can train up to 3 people at the same time. It's a Routine move for you; the learner(s) have to make a Gambit. They'll succeed in a 5 or a 6."
     pointCost: 5
     visible: false
     purchasable: true
@@ -627,7 +627,7 @@ tags:
     name: Mad Doctor
     category: general
     group: general-personality
-    description: "Unlocks Desires about modifying the body."
+    description: "You are intrigued by humanity's potential. Unlocks Desires about modifying the body."
     pointCost: 5
     requiredTag: medical-basic
     purchasable: true
@@ -658,7 +658,7 @@ tags:
     name: Cruel
     category: general
     group: general-personality
-    description: "It's a call, a need. Unlocks Desires about cruelty. Your torture rolls get +1."
+    description: "It's a call, a need. Unlocks Desires about cruelty."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -678,7 +678,7 @@ tags:
     name: Torturer
     category: general
     group: general-personality
-    description: "You can torture people."
+    description: "You know the best ways to draw knowledge out of someone through… certain means. Your Gambits to extract information are likelier to shake a dark secret loose."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -700,7 +700,7 @@ tags:
     name: Schemer
     category: general
     group: general-personality
-    description: "Unlocks Desires about scheming."
+    description: "You have quite the active, or ambitious, mind. Unlocks Desires about scheming."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -709,7 +709,7 @@ tags:
     catalog: gm
     name: Chaplain
     category: general
-    description: "You can cure negative psychological tags like addictions. People can Confess to you pressing the Confess button, consuming their turn. If the confessor rolls a 5 or a 6, the tag is removed."
+    description: "Your forgiving presence can cure negative psychological tags like addictions. People can Confess to you pressing the Confess button, consuming their turn. If the confessor rolls a 5 or a 6, the tag is removed."
     pointCost: 0
     purchasable: false
 
@@ -1003,7 +1003,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "You're addicted to drinking. Your bottom Desire slot is locked to drinking Desires."
+    description: "You're addicted to drinking. Your bottom Desire slot is locked to Desires about drinking."
     pointCost: -4
     exclusive: true
     purchasable: true
@@ -1041,7 +1041,7 @@ tags:
     name: Broken
     category: general
     group: general-traits
-    description: "Life has lost its color. Nothing matters. Wander endlessly."
+    description: "Nothing matters to you. Life has lost its color. Wander endlessly."
     pointCost: 0
     visible: true
     purchasable: false
@@ -1063,7 +1063,7 @@ tags:
     name: Spotter
     category: general
     group: general-traits
-    description: "You're unusually awake on the watch. Very little gets past you."
+    description: "You're unusually awake and alert. Very little gets past you."
     pointCost: 5
     visible: false
     purchasable: true
@@ -1077,7 +1077,7 @@ tags:
     name: Rough Camper
     category: general
     group: general-traits
-    description: "Not being inside doesn't bother you nearly as much as it bothers others."
+    description: "No shelter, no problem. Being outside doesn't bother you."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1119,7 +1119,7 @@ tags:
     name: Brave
     category: general
     group: general-traits
-    description: "Fearlessness isn't a choice, it's the natural state of your mind. Everything frightens you half as much."
+    description: "Fearlessness isn't a choice. It's the natural state of your mind. It takes a lot for you to become Afraid."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: false
@@ -1152,7 +1152,7 @@ tags:
     name: Strong
     category: general
     group: general-traits
-    description: "Functional strength. {carry:strong}"
+    description: "You possess high functional strength. {carry:strong}."
     pointCost: 5
     # A body, not a vehicle, so it needs no equipping — unlike Cart and Horse
     # below (docs/systemdocs/CARRY.md §1).
@@ -1171,7 +1171,7 @@ tags:
     name: Intelligent
     category: general
     group: general-traits
-    description: "Helps with tactical, gambling, knowledge-based, and other Gambits."
+    description: "You are more likely to succeed at tactical, gambling, knowledge-based, and other similar Gambits."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1201,7 +1201,7 @@ tags:
     name: Ambidextrous
     category: general
     group: general-traits
-    description: "Losing a hand would only be a minor inconvenience."
+    description: "Losing a hand would only be a minor inconvenience to you."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: false
@@ -1213,7 +1213,7 @@ tags:
     name: Iron Liver
     category: general
     group: general-traits
-    description: "You can drink grown men under the table. Grown women, too. Even children. After the first drink, it takes two more to move you a rung further down the bottle."
+    description: "You can drink grown men under the table. Grown women, too. Even children. It takes more drinks for you to feel the negative effects of being drunk."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1253,7 +1253,7 @@ tags:
     name: Thick Skull
     category: general
     group: general-traits
-    description: "Blows to the head don't put you out. People frequently tell you this is your best quality."
+    description: "Blows to the head don't put you out."
     pointCost: 2
     conflictsWith: [glass-jaw]
     purchasable: true
@@ -1550,7 +1550,7 @@ tags:
     name: Pale
     category: general
     group: general-traits
-    description: "You're from the caves, and you're used to their darkness."
+    description: "Your skin is pale as milk, marking you as a recent migrant from the Caves."
     pointCost: 0
     visible: true
     # Role-granted only (the Migrant's starting tag). Closed to the point-buy
@@ -1637,7 +1637,7 @@ tags:
     name: Hypochondriac
     category: general
     group: general-personality
-    description: "In your mind, you inflate minor scrapes and sicknesses into disastrous, incurable maladies. The Sanctuary is sick of hearing from you."
+    description: "You mentally inflate minor scrapes and sicknesses into disastrous, incurable maladies. Unlocks desires related to hypochondria."
     pointCost: 2
     visible: false
     purchasable: true
@@ -1736,7 +1736,7 @@ tags:
     name: Motion Sickness
     category: general
     group: general-personality
-    description: "You can't use horses or boats."
+    description: "You are unpleasantly affected by certain movements. You can't use horses or boats."
     pointCost: -4
     visible: false
     purchasable: true
@@ -1892,8 +1892,8 @@ tags:
     name: Relentless
     category: general
     group: general-traits
-    description: "Get up, get up, it's not over yet — you must get up! You won't give up in a fight, no matter what, until the Lifeweb itself swallows you: your companions will track you by the trail of blood on the floor. You may roll a Gambit to keep fighting, even in the face of incredible injury."
-    pointCost: 9
+    description: "Get up, get up, it's not over yet — you must get up! You won't give up in a fight, no matter what, until the Lifeweb itself swallows you."
+    pointCost: 7
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -1949,7 +1949,7 @@ tags:
     name: Post-Christian
     category: general
     group: general-beliefs
-    description: "Protected by God. A reasonable decision, and potentially a path to Heaven."
+    description: "You are protected by God. A reasonable decision, and potentially a path to Heaven."
     pointCost: 0
     purchasable: true
     purchasableAfterStart: true
@@ -1960,7 +1960,7 @@ tags:
     name: Atheist
     category: general
     group: general-beliefs
-    description: "To abstain from choosing is still a choice."
+    description: "You have abstained from choosing a religion, a choice in its own right."
     pointCost: 0
     purchasable: true
     purchasableAfterStart: true
@@ -1985,7 +1985,7 @@ tags:
     name: Fundamentalist
     category: general
     group: general-beliefs
-    description: "You are hardcore about your Post-Christian beliefs — perhaps more hardcore than the Church itself is. Heresy is a thing that burns."
+    description: "Unlocks desires related to zealotry."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2043,7 +2043,7 @@ tags:
     name: Pilgrim
     category: general
     group: general-beliefs
-    description: "The road to the Cathedral is worth walking, and you walk it with piety."
+    description: "Unlocks desires related to religion."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true
@@ -2053,7 +2053,7 @@ tags:
     name: Saint
     category: general
     group: general-beliefs
-    description: "It is clear that you are at peace. Your doctrine is unique, but your holiness is undeniable. Are you a heretic or do you know the truth? Once per day, you can instantly cure a Moderately Severe or lesser wound. Refer to the Medical document. You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
+    description: "You are at peace. Once per day, you can instantly cure a Moderately Severe or lesser wound (refer to the Medical document). You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
     pointCost: 14
     visible: true
     # Migrants only: Pale is the Migrant role's starting tag and is
@@ -2094,7 +2094,7 @@ tags:
     name: Cerberon
     category: general
     group: general-traits
-    description: "Sworn to the Cerberon. You guard access to the Fortress and protect order."
+    description: "You are sworn to the Cerberon. You guard access to the Fortress and uphold order."
     pointCost: 0
     visible: false
     purchasable: false
@@ -2193,7 +2193,7 @@ tags:
     category: general
     group: general-brigand
     teachable: true
-    description: "You blend in with natural environments. Good for ambushes."
+    description: "You blend into the forest. Useful for ambushes."
     pointCost: 3
     purchasable: true
     purchasableAfterStart: true
@@ -2345,7 +2345,7 @@ tags:
     category: skills
     group: skills-labor
     teachable: true
-    description: "While laboring in a wilderness location, you produce {resource:labor:hunting}. Certain locations produce far more than others, and what a place is worth changes."
+    description: "While laboring in a wilderness location, you produce {resource:labor:hunting}."
     pointCost: 7
     requiredTag: laboring-skilled
     purchasable: true
@@ -2357,7 +2357,7 @@ tags:
     category: skills
     group: skills-labor
     teachable: true
-    description: "While laboring in fields and worked ground, you produce {resource:labor:farming}. The Farms are richest, but they are not the only soil to be tilled."
+    description: "While laboring in fields and worked ground, you produce {resource:labor:farming}."
     pointCost: 7
     requiredTag: laboring-skilled
     purchasable: true
@@ -2474,7 +2474,7 @@ tags:
     name: Stealth
     category: skills
     teachable: true
-    description: "You know how to step lightly."
+    description: "You are adept at sneaking around and concealing yourself. Others will be less likely to spot you doing so."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -2642,7 +2642,7 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "You have practiced this drill. When standing within reach of 2 or more other Watchmen, your melee skill counts as 2 tiers higher."
+    description: "You have practiced forming a shield wall. When standing within reach of 2 or more other Cerberi, your melee skill counts as 2 tiers higher."
     pointCost: 8
     requiredTag: melee-basic
     visible: false
@@ -2850,7 +2850,7 @@ tags:
     category: skills
     group: skills-crafting
     teachable: true
-    description: "You have an architect's mind. You could design things as complex as a cathedral, a bridge, or a water mill."
+    description: "You have an architect's mind."
     pointCost: 5
     parentTag: builder-skilled
     visible: false
@@ -2864,7 +2864,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat very minor and minor injuries as Routine. This may include first aid, bandaging, packing a wound, or setting a simple break. Anything harder is a Gambit."
+    description: "You have some basic medical training."
     pointCost: 5
     visible: false
     purchasable: true
@@ -2876,7 +2876,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat moderate and severe cases as Routine, and the most minor surgery, like closing a large bleed or cutting away dead flesh. Any surgery past that is a Gambit."
+    description: "You are practiced in providing medical services."
     pointCost: 5
     parentTag: medical-basic
     visible: false
@@ -2889,7 +2889,7 @@ tags:
     category: skills
     group: skills-medical
     teachable: true
-    description: "Allows you to treat almost everything as Routine, difficult surgery included. Only the most complex work counts as a Gambit."
+    description: "You are an experienced and accomplished medical practitioner."
     pointCost: 5
     parentTag: medical-skilled
     visible: false
@@ -2903,7 +2903,7 @@ tags:
     category: skills
     group: skills-brewing
     teachable: true
-    description: "Can brew basic alcohol (beer, ale, mead) and basic tonics."
+    description: "You are an amateur brewer. You can brew basic alcohol (beer, ale, mead) and basic tonics."
     pointCost: 5
     visible: false
     purchasable: true
@@ -2915,7 +2915,7 @@ tags:
     category: skills
     group: skills-brewing
     teachable: true
-    description: "Can brew advanced alcohol (wine and other refined drinks) and advanced tonics, which call for hard-to-find ingredients."
+    description: "You are an experienced brewer. You can brew advanced alcohol (wine and other refined drinks) and advanced tonics, which call for hard-to-find ingredients."
     pointCost: 5
     parentTag: brewing-basic
     visible: false
@@ -2929,7 +2929,7 @@ tags:
     category: skills
     group: skills-cooking
     teachable: true
-    description: "Can cook Fine Meals — 2 ⬢ each, up to 4 in one Routine Move."
+    description: "You have a fair handle on how to prepare food."
     pointCost: 5
     visible: false
     purchasable: true
@@ -2941,7 +2941,7 @@ tags:
     category: skills
     group: skills-cooking
     teachable: true
-    description: "Can cook Lavish Meals — 3 ⬢ and 1 exotic ingredient each, up to 3 in one Routine Move."
+    description: "You are adept in the combination and collation of ingredients."
     pointCost: 5
     parentTag: cooking-basic
     visible: false
@@ -2978,7 +2978,7 @@ tags:
     name: Hungry
     category: status
     group: status-debuffs
-    description: "-1 to the die on all Gambits per turn gone hungry. Eating removes 1 turn's worth."
+    description: "Your stomach is grumbling, and you feel somewhat distracted. You have a -1 modifier on all Gambits per turn you have been hungry."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -3001,7 +3001,7 @@ tags:
     name: Bound
     category: status
     group: status-debuffs
-    description: "Restrained — can't act, and their shouts don't carry past where they stand; can be looted or moved by whoever bound them."
+    description: "You are restrained, meaning you can't use actions besides speaking, and can be looted or moved by others."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3020,7 +3020,7 @@ tags:
     name: Crucified
     category: status
     group: status-debuffs
-    description: "You're crucified. You can't do anything."
+    description: "You are crucified."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3044,7 +3044,7 @@ tags:
     name: Tipsy
     category: status
     group: status-debuffs
-    description: "Your fighting skill counts as 1 tier lower."
+    description: "You feel warm, but a bit uncoordinated. Your Fighting skill counts as 1 tier lower."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3056,7 +3056,7 @@ tags:
     name: Wasted
     category: status
     group: status-debuffs
-    description: "You're going to regret this... Your fighting skill counts as 2 tiers lower."
+    description: "You are in a bit of a stupor and are having trouble controlling your body. Your Fighting skill counts as 2 tiers lower."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3182,7 +3182,7 @@ tags:
     name: Pain Immunity
     category: status
     group: status-buffs
-    description: "You can't feel pain, but you're clear-headed."
+    description: "You can't feel pain. What an odd sensation!"
     pointCost: 0
     visible: false
     purchasable: false
@@ -3194,7 +3194,7 @@ tags:
     name: Brutish Strength
     category: status
     group: status-buffs
-    description: "You gain impossible strength."
+    description: "You possess impossible strength."
     pointCost: 0
     visible: false
     purchasable: false
@@ -3206,7 +3206,7 @@ tags:
     name: Increased Accuracy
     category: status
     group: status-buffs
-    description: "Steady hands, sharper vision. It's easier for you to hit what you aim for."
+    description: "You have steady hands and sharper vision. It's easier for you to hit what you aim for."
     pointCost: 0
     visible: false
     purchasable: false
@@ -3341,7 +3341,7 @@ tags:
     name: Disabled (Slowed)
     category: status
     group: status-debuffs
-    description: "You took a few disabler shots, but you're still up."
+    description: "You took a few disabler shots. It's hard to keep standing."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3364,7 +3364,7 @@ tags:
     name: High
     category: status
     group: status-debuffs
-    description: "Pleasantly adrift."
+    description: "You feel pleasantly adrift."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3397,7 +3397,7 @@ tags:
     name: Otherworldly Beauty
     category: status
     group: status-buffs
-    description: "You are peerless in your beauty. Even people of your own gender do a double take."
+    description: "You are peerless in your beauty."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3454,7 +3454,7 @@ tags:
     name: Overburdened
     category: status
     group: status-debuffs
-    description: "You're overburdened. You can't freely change zones until you fix that."
+    description: "You're overburdened. You can't freely change zones."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3509,7 +3509,7 @@ tags:
     name: Infected
     category: health
     group: health-infection
-    description: "The wound is hot and draining pus. Left alone it goes {tag:festering}. Amputation would work, or {tag:cleaning-powder}."
+    description: "Your wound is hot and draining pus. You could amputate it."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3526,7 +3526,7 @@ tags:
     name: Festering
     category: health
     group: health-infection
-    description: "The flesh around the wound goes soft and gives off an odor. Amputation still would work."
+    description: "The flesh around your wound has gone soft and gives off an odor. You could amputate it."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3604,7 +3604,7 @@ tags:
     name: Dying
     category: health
     group: health-infection
-    description: "You're on death's door. You have 1 turn. Someone with the very best medicine and a lot of luck could pull you back before it closes, but don't count on it."
+    description: "You're on death's door."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3661,7 +3661,7 @@ tags:
     name: Sprained Ankle
     category: health
     group: health-wounds
-    description: "You can walk, but it's a struggle. Wrapping with a splint would help."
+    description: "You can walk, but it's a struggle. Wrapping your wound with a splint would help."
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3679,7 +3679,7 @@ tags:
     name: Burned
     category: health
     group: health-wounds
-    description: "Bubbling skin from a burn. Left untreated it either turns {tag:infected} or heals badly and scars."
+    description: "Your skin is bubbling from a burn."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3698,7 +3698,7 @@ tags:
     name: Severe Burns
     category: health
     group: health-wounds
-    description: "Your skin is destroyed and will scar if healed. If untreated, you'll become {tag:infected}."
+    description: "Your skin is destroyed and will scar if healed."
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3718,7 +3718,7 @@ tags:
     name: Minor Bleeding
     category: health
     group: health-wounds
-    description: "Nothing a bandage can't stop."
+    description: "Your wound is nothing a bandage can't stop."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3735,7 +3735,7 @@ tags:
     name: Deep Wound
     category: health
     group: health-wounds
-    description: "You can see bone or deep tissue. If this wound does not receive medical attention, you will become {tag:infected}."
+    description: "You can see bone or deep tissue."
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3755,7 +3755,7 @@ tags:
     name: Severe Bleeding
     category: health
     group: health-wounds
-    description: "You're bleeding fast. You need medical attention to stop the bleeding."
+    description: "You're bleeding fast. You need medical attention to stop the flow."
     pointCost: 0
     visible: true
     purchasable: false
@@ -3793,7 +3793,7 @@ tags:
     name: Broken Bone
     category: health
     group: health-wounds
-    description: "Your bone fractured. You need medical attention or your body will heal crooked."
+    description: "Your bone is fractured. You need medical attention or your body will heal crooked."
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -3811,7 +3811,7 @@ tags:
     name: Cracked Ribs
     category: health
     group: health-wounds
-    description: "Breathing hurts. Hopefully there's nothing else under the surface."
+    description: "Your breathing hurts. Hopefully there's nothing else under the surface."
     pointCost: 0
     carryBonus: -0.1
     purchasable: false
@@ -3847,7 +3847,7 @@ tags:
     name: Dislocated Shoulder
     category: health
     group: health-wounds
-    description: "Your arm hangs out. Someone with experience can push it back in."
+    description: "Your arm is hanging out. Someone with experience can push it back in."
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3863,7 +3863,7 @@ tags:
     name: Frostbite
     category: health
     group: health-wounds
-    description: "Fingers and toes turn pale and cold. They'll fall off without proper care."
+    description: "Your fingers and toes have turned pale and cold. They'll fall off without proper care."
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3961,7 +3961,7 @@ tags:
     name: Appendicitis
     category: health
     group: health-illness
-    description: "A hot pain on your lower right side since last night. What's going on?"
+    description: "You've had a hot pain on your lower right side since last night."
     pointCost: -11
     purchasable: false
     purchasableAfterStart: false
@@ -3979,7 +3979,7 @@ tags:
     name: Rot Lung
     category: health
     group: health-illness
-    description: "Caused by long exposure to dust and spores."
+    description: "Your lungs are damaged by dust and spores."
     pointCost: 0
     visible: false
     purchasable: false
@@ -4014,7 +4014,7 @@ tags:
     name: Poisoned
     category: health
     group: health-illness
-    description: "While not deadly, you'll feel like death for days, unable to concentrate past the sweat and pain."
+    description: "You're sweating profusely."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4116,7 +4116,7 @@ tags:
     name: Heatstroke
     category: health
     group: health-illness
-    description: "You can't focus. You need water and coolness."
+    description: "You can't focus."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4183,7 +4183,7 @@ tags:
     name: Exploded Chest
     category: health
     group: health-illness
-    description: "Your chest exploded. A larva slithered out. No coming back from this."
+    description: "Your chest exploded."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4217,7 +4217,7 @@ tags:
     psychological: true
     category: health
     group: health-mind
-    description: "No medic can treat the trauma from an event. Loud noises or sudden bangs jolt you back to that time."
+    description: "You are traumatized."
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4277,7 +4277,7 @@ tags:
     name: Blind
     category: health
     group: health-mind
-    description: "You can't see. Good luck fighting. Requires a fresh pair of eyes to treat."
+    description: "You can't see."
     pointCost: -8
     conflictsWith: [nearsighted, eagle-eyes]
     visible: true
@@ -4297,7 +4297,7 @@ tags:
     psychological: true
     category: health
     group: health-mind
-    description: "You come off as a mess."
+    description: "You have trouble speaking clearly."
     pointCost: -1
     visible: true
     purchasable: true
@@ -4308,7 +4308,7 @@ tags:
     name: Mute
     category: health
     group: health-mind
-    description: "Your voice won't carry. You can talk, but you can't shout."
+    description: "You can't speak."
     pointCost: -7
     visible: true
     purchasable: false
@@ -4322,7 +4322,7 @@ tags:
     name: Missing Leg
     category: health
     group: health-maiming
-    description: "Taken off above the knee."
+    description: "Your leg ends above the knee."
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4334,7 +4334,7 @@ tags:
     name: Missing Arm
     category: health
     group: health-maiming
-    description: "Gone at the shoulder."
+    description: "Your arm is gone at the shoulder."
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4379,7 +4379,7 @@ tags:
     name: Missing Fingers
     category: health
     group: health-maiming
-    description: "One hand is missing several fingers."
+    description: "One of your hands is missing several fingers."
     pointCost: -4
     carryBonus: -0.05
     visible: true
@@ -4460,7 +4460,7 @@ tags:
     name: Missing Eye
     category: health
     group: health-maiming
-    description: "You've lost all depth perception. But at least it looks kind of cool."
+    description: "You've lost all depth perception."
     pointCost: -5
     conflictsWith: [eagle-eyes, blind]
     visible: true
@@ -4472,7 +4472,7 @@ tags:
     name: Night Blind
     category: health
     group: health-mind
-    description: "You can't see in dim or darkness."
+    description: "You can't see in dim light or darkness."
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -4502,7 +4502,7 @@ tags:
     name: Vomiting
     category: health
     group: health-minor
-    description: "Not the worst."
+    description: "You're vomiting fairly often."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4515,7 +4515,7 @@ tags:
     name: Aching
     category: health
     group: health-minor
-    description: "It'll pass."
+    description: "You're in pain."
     pointCost: 0
     visible: false
     purchasable: false
@@ -4543,7 +4543,7 @@ tags:
     name: Pain Shock
     category: health
     group: health-minor
-    description: "… Off in la-la-land."
+    description: "You're … Off in la-la-land."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4610,7 +4610,7 @@ tags:
     name: Migraine
     category: health
     group: health-minor
-    description: "Pain behind your eye and bright lights that come and go. Incurable."
+    description: "There's pain behind your eye and bright lights that come and go. It's incurable."
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -4638,7 +4638,7 @@ tags:
     name: Splinted
     category: health
     group: health-recovery
-    description: "Set and strapped."
+    description: "Your limb is set and strapped."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4650,7 +4650,7 @@ tags:
     name: Stitched Up
     category: health
     group: health-recovery
-    description: "Cleaned and sewn up."
+    description: "Your wound is cleaned and sewn up."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4663,7 +4663,7 @@ tags:
     name: Cauterized
     category: health
     group: health-recovery
-    description: "An ugly scar, but it stopped the bleeding."
+    description: "You have an ugly scar, but the bleeding has stopped."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4718,7 +4718,7 @@ tags:
     name: Horse
     category: assets
     group: assets-companions
-    description: "A horse. While it's equipped, you get 1 extra free zone move each turn, but you'll be easily visible. Consumes 1 ⬢ per turn while in your inventory."
+    description: "A horse rideable by up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others. Cannot be used in the Caves. Consumes 1 ⬢ per day."
     pointCost: 9
     tradeable: true
     equippable: true
@@ -4738,7 +4738,7 @@ tags:
     name: Bird
     category: assets
     group: assets-companions
-    description: "You have an intelligent bird: a crow from the rooftops, a pigeon from the Caves, a parrot from parts unknown. You don't have a raven, unless you are the Baron. That would look bad on you, wouldn't it, taking his heraldic animal…?"
+    description: "An intelligent bird. It can send letters if you're {tag:literate}."
     pointCost: 5
     visible: true
     tradeable: true
@@ -4750,7 +4750,7 @@ tags:
     name: Rat
     category: assets
     group: assets-companions
-    description: "You have a trained rat. It's not good for much. But it does tiny tricks!"
+    description: "A trained rat. It's not good for much. But it does tiny tricks!"
     pointCost: 2
     visible: true
     tradeable: true
@@ -4762,7 +4762,7 @@ tags:
     name: Kitty Cat
     category: assets
     group: assets-companions
-    description: "You have a cat. It may or may not be useful for anything — generally, it's the cat who decides that."
+    description: "A cat. It may or may not be useful for anything — generally, it's the cat who decides that."
     pointCost: 2
     visible: true
     tradeable: true
@@ -4774,7 +4774,7 @@ tags:
     name: Fishing Boat
     category: assets
     group: assets-property
-    description: "A flat-bottomed boat you pole yourself. While it's equipped you get one extra free zone crossing each turn, but only between the Forest, the Black Hills and the Marshes — the boat follows the water and nothing else. Adds +1 to your Fishing labor. You can't have it out at the same time as a {tag:horse} or a {tag:cart}, and it waits outside indoors."
+    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor."
     pointCost: 4
     visible: true
     tradeable: true
@@ -4796,7 +4796,7 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to push more than you can carry. The wheels work most of the time. Only counts while it's equipped, and it waits outside indoors. Upgrades the {tag:horse}, letting you carry up to 6 people total. {carry:cart}"
+    description: "A standard hand-cart to better move items. Upgrades personal carrying capacity while equipped and improves the {tag:horse}, letting it carry up to 6 people total. {carry:cart}."
     pointCost: 5
     visible: true
     tradeable: true
@@ -4819,7 +4819,7 @@ tags:
     name: Wayside Shrine
     category: assets
     group: assets-structures
-    description: "A small shrine raised where you stand — stacked stones, a niche, whatever the ground gives. It does nothing but stand there, and everyone who passes knows somebody put it up."
+    description: "A small raised shrine made of stacked stones, a niche, or whatever else can be found around. Can be marked with a message by a Builder."
     pointCost: 0
     visible: false
     tradeable: false
@@ -4842,7 +4842,7 @@ tags:
     name: Drying Racks
     category: assets
     group: assets-structures
-    description: "Lashed poles and lines for smoking and drying a catch, so less of it spoils on the way home. Raised where you stand, serving whoever works this location."
+    description: "Lashed poles and lines for smoking and drying a catch, allowing for better storage down the line. Gives an additional 1 ⬢ when Hunting where erected."
     pointCost: 0
     visible: false
     tradeable: false
@@ -4867,7 +4867,7 @@ tags:
     name: Fish Weir
     category: assets
     group: assets-structures
-    description: "Staked wickerwork walling off a stretch of water, funnelling whatever swims into an established trap. Raised where you stand, serving whoever fishes this location."
+    description: "A fishing weir. Gives an additional 1 ⬢ when Fishing where erected."
     pointCost: 0
     visible: false
     tradeable: false
@@ -4889,7 +4889,7 @@ tags:
     name: Forge
     category: assets
     group: assets-structures
-    description: "A standing hearth, anvil and bellows — a smithy in the open, built to stay. Anyone working this ground can do smith's work here without hauling a kit around."
+    description: "A standing hearth, anvil and bellows. Allows for Smithing where erected."
     pointCost: 0
     visible: false
     tradeable: false
@@ -4915,7 +4915,7 @@ tags:
     name: Palisade
     category: assets
     group: assets-structures
-    description: "A ring of sharpened stakes raised around the ground you stand on. It will not stop a determined assault by itself, but nobody walks through it, and everybody sees who tries."
+    description: "A fence of sharpened stakes raised along the ground. Difficult to cut through or climb over."
     pointCost: 0
     visible: false
     tradeable: false
@@ -4941,7 +4941,7 @@ tags:
     name: Watchtower
     category: assets
     group: assets-structures
-    description: "An elevated tower of lashed timber, raised where you stand. Whoever climbs it sees the land around long before anything on it arrives."
+    description: "An elevated tower of lashed timber. Those who stand on it see farther into the distance."
     pointCost: 0
     visible: false
     tradeable: false
@@ -4965,7 +4965,7 @@ tags:
     name: Barricade
     category: assets
     group: assets-structures
-    description: "Carts, timber and furniture heaped into a fighting line. One good fight's worth of cover, raised in an afternoon."
+    description: "Carts, timber and furniture heaped into a fighting line. A decent cover in case of conflict."
     pointCost: 0
     visible: false
     tradeable: false
@@ -4989,7 +4989,7 @@ tags:
     name: Battering Ram
     category: assets
     group: assets-structures
-    description: "A roofed ram on rollers, built where it will be used — a promise that some gate nearby is going to be opened one way or the other."
+    description: "A roofed ram on rollers, built to break through heavy gates or doors. Requires multiple people to operate."
     pointCost: 0
     visible: false
     tradeable: false
@@ -5019,7 +5019,7 @@ tags:
     name: Threshing Floor
     category: assets
     group: assets-structures
-    description: "A beaten circle of hard ground for flailing and winnowing grain, so less of the harvest is lost to the straw. Raised where you stand, serving whoever farms this location."
+    description: "A beaten circle of hard ground for flailing and winnowing grain, reducing the amount of harvest lost to the straw. Gives an additional 1 ⬢ when Farming where erected."
     pointCost: 0
     visible: false
     tradeable: false
@@ -5041,7 +5041,7 @@ tags:
     name: Lazarette
     category: assets
     group: assets-structures
-    description: "A clean house for the sick: scrubbed boards, boiled linen, beds that are actually beds. Serious treatment that would be a gamble anywhere else is steady work here."
+    description: "A clean house for the sick: scrubbed boards, boiled linen, well-made beds. Medical treatment done where this is erected is done as if the treater's Medical skill is 1 tier higher."
     pointCost: 0
     visible: false
     tradeable: false
@@ -5068,7 +5068,7 @@ tags:
     name: Trebuchet
     category: assets
     group: assets-structures
-    description: "A counterweighted engine the height of a house, built where it will stand and be aimed at somewhere it can reach. It does not move, and it is not subtle."
+    description: "A counterweighted engine the height of a house, able to bombard an adjacent Location."
     pointCost: 0
     visible: false
     tradeable: false
@@ -5091,7 +5091,7 @@ tags:
     name: Gallows
     category: assets
     group: assets-structures
-    description: "A platform, a beam, and a length of rope. It does nothing at all, and everyone who passes understands it completely."
+    description: "A platform, a beam, and a length of rope."
     pointCost: 0
     visible: false
     tradeable: false
@@ -5128,7 +5128,7 @@ tags:
     name: Crucifix
     category: assets
     group: assets-structures
-    description: "Two beams and a footrest, raised where you stand. You can crucify people here."
+    description: "Two beams and a footrest. It allows crucification."
     pointCost: 0
     visible: false
     tradeable: false
@@ -5148,7 +5148,7 @@ tags:
     name: Dog
     category: assets
     group: assets-companions
-    description: "You have a highly-trained dog with good sense of smell. In other words, a good dog."
+    description: "A highly-trained dog with a good sense of smell."
     pointCost: 5
     visible: true
     tradeable: true
@@ -5160,7 +5160,7 @@ tags:
     name: Graga Sac
     category: items
     group: items-gear
-    description: "Cut from a dead Graga. It's useful in many tonics. The Merchant is always looking for more."
+    description: "A fleshy item cut from a dead Graga. It's useful in many tonics. The Merchant is always looking for more."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5181,7 +5181,7 @@ tags:
     name: Skinless Brain
     category: items
     group: items-gear
-    description: "The extracted, wrinkled mass of a skinless. A miraculous organ, prized for its alchemical properties."
+    description: "The extracted, wrinkled mass of a Skinless. A miraculous organ, prized for its alchemical properties."
     pointCost: 0
     tradeable: true
     weight: 3
@@ -5218,7 +5218,7 @@ tags:
     name: Nekker Corpse
     category: items
     group: items-corpse
-    description: "A spindly, hungry creature that roams in groups. It is often seen on the surface after battles, eating the corpses. Can be butchered to produce {tag:nekker-pheromones}."
+    description: "The spindly corpse of a Nekker. Can be butchered to produce {tag:nekker-pheromones}."
     pointCost: 0
     tradeable: true
     weight: 35
@@ -5234,7 +5234,7 @@ tags:
     name: Graga Corpse
     category: items
     group: items-corpse
-    description: "A bloated, off-green, hulking humanoid. Its legs barely support it. Can be butchered to produce {tag:graga-sac}."
+    description: "The bloated corpse of a Graga. Can be butchered to produce {tag:graga-sac}."
     pointCost: 0
     tradeable: true
     weight: 75
@@ -5250,7 +5250,7 @@ tags:
     name: Skinless Corpse
     category: items
     group: items-corpse
-    description: "A pink humanoid, often carrying weapons. They stalk the depths in service of their masters. Can be butchered to produce {tag:skinless-brain}."
+    description: "The pink, slimy corpse of a Skinless. Can be butchered to produce {tag:skinless-brain}."
     pointCost: 0
     tradeable: true
     weight: 55
@@ -5268,7 +5268,7 @@ tags:
     name: Saltpeter
     category: items
     group: items-gear
-    description: "Mined. Refined into {tag:black-powder}, or packed raw into a {tag:gunpowder-grenade}."
+    description: "A white powdery compound."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -5289,7 +5289,7 @@ tags:
     name: Black Powder
     category: items
     group: items-gear
-    description: "Saltpeter ground fine and refined until it is eager to burn. A {tag:bomb} is built around a charge of it."
+    description: "Saltpeter ground fine and refined until it is eager to burn."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5382,7 +5382,7 @@ tags:
     name: Aberrant Heart
     category: items
     group: items-gear
-    description: "Cut out of a dead Aberrant. It beats a while longer unhurriedly in the hand."
+    description: "The cut out heart of an Aberrant."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5400,7 +5400,7 @@ tags:
     name: Raven's Eye
     category: items
     group: items-gear
-    description: "Taken from a bird that saw a great deal. Brewed into {tag:raven-draught}."
+    description: "A raven's eye."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5416,7 +5416,7 @@ tags:
     name: Nightshade Herb
     category: items
     group: items-gear
-    description: "A dark forest herb, harmless until it is refined into {tag:nightshade}."
+    description: "A dark forest herb. Harmless."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5437,7 +5437,7 @@ tags:
     name: Poppy Pods
     category: items
     group: items-gear
-    description: "Dry seed pods that weep a milky sap. Refined into {tag:poppy}."
+    description: "Seed pods weeping a milky sap."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5453,7 +5453,7 @@ tags:
     name: Coca Leaves
     category: items
     group: items-gear
-    description: "Glossy leaves that numb the tongue. Distilled into {tag:distilled-coca}."
+    description: "Glossy leaves that numb the tongue."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5512,7 +5512,7 @@ tags:
     name: Coal
     category: items
     group: items-gear
-    description: "Feeds the merchant's generator. You can also toss {tag:saltpeter} in instead if you really need to keep it running."
+    description: "A black rock that rubs off on one's hands."
     pointCost: 0
     tradeable: true
     weight: 3
@@ -5534,7 +5534,7 @@ tags:
     name: Fertilizer
     category: items
     group: items-gear
-    description: "Consume to fertilize your fields, boosting your farming payout."
+    description: "Synthetic liquid that can be consumed to gain {tag:fertilized-fields}."
     pointCost: 2
     depotPrice: 5
     tradeable: true
@@ -5555,7 +5555,7 @@ tags:
     name: Instrument
     category: items
     group: items-gear
-    description: "An instrument of your choice — type {cmd:play} to play it."
+    description: "An instrument of one's choice — type {cmd:play} to play it."
     pointCost: 1
     tradeable: true
     weight: 4
@@ -5570,7 +5570,7 @@ tags:
     name: Radio System (Cerberon)
     category: items
     group: items-gear
-    description: "It sends a message to all its paired Systems and Bracelets. Tuned to the Cerberon's frequency."
+    description: "An old device that sends messages to all its paired Systems and Bracelets. Tuned to the Cerberon's frequency."
     pointCost: 14
     requiredTag: cerberon
     tradeable: true
@@ -5585,7 +5585,7 @@ tags:
     name: Radio Bracelet (Cerberon)
     category: items
     group: items-gear
-    description: "A bracelet. It receives only. Tuned to the Cerberon's frequency."
+    description: "A metal bracelet that receives messages from Radio Systems. Tuned to the Cerberon's frequency."
     pointCost: 0
     tradeable: true
     weight: 0.2
@@ -5661,7 +5661,7 @@ tags:
     name: Barbed Net
     category: items
     group: items-gear
-    description: "A cruel but effective way to bind someone — it works on an armored target too."
+    description: "A cruel but effective tool used to bind someone."
     pointCost: 2
     equippable: true
     equipSlot: ACCESSORY
@@ -5685,7 +5685,7 @@ tags:
     name: Skeleton Wedge
     category: items
     group: items-gear
-    description: "Can open a locked door. Afterwards, it's unusable."
+    description: "A metal wedge that can be used once to open a locked door."
     pointCost: 3
     tradeable: true
     weight: 0
@@ -5723,7 +5723,7 @@ tags:
     name: Spyglass
     category: items
     group: items-gear
-    description: "You can see the deer on the mountainside."
+    description: "An extendable tool used to see far away sights up close."
     pointCost: 2
     tradeable: true
     weight: 1
@@ -5737,7 +5737,7 @@ tags:
     name: Disguise Kit
     category: items
     group: items-gear
-    description: "Makeup, a change of clothes, an array of false mustaches... You can temporarily change your name and appearance — for 3 turns nobody sees your own face or your own name, and you cannot conceal yourself on top of it. The kit is not used up."
+    description: "Makeup, a change of clothes, an array of false mustaches… Can be used to temporarily change one's name and appearance for 3 turns. Reusable."
     pointCost: 2
     tradeable: true
     weight: 3
@@ -5757,7 +5757,7 @@ tags:
     name: Jewelry
     category: items
     group: items-gear
-    description: "Shiny. Could be pawned off for your life."
+    description: "Shiny valuables. It could be offered in exchange for one's life."
     pointCost: 2
     equippable: true
     equipSlot: ACCESSORY
@@ -5782,7 +5782,7 @@ tags:
     name: Art Supplies
     category: items
     group: items-gear
-    description: "Brushes, pigment, and a stretch of canvas — everything a painting takes except the eye for detail. The Merchant imports them."
+    description: "Brushes, pigment, and a stretch of canvas. Artists can use them to make a {tag:painting}."
     pointCost: 0
     depotPrice: 3
     tradeable: true
@@ -5813,7 +5813,7 @@ tags:
     name: Painting
     category: items
     group: items-gear
-    description: "A painting of middling beauty. It'll fetch a good price — owning it is a valid Desire too, especially for nobles."
+    description: "A painting of middling beauty. It'll fetch a good price."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -5869,7 +5869,7 @@ tags:
     name: Badge
     category: items
     group: items-gear
-    description: "A small emblem worked in tin, pinned where it can be seen. Says who you are to others without a word exchanged."
+    description: "A small emblem worked in tin, pinned where it can be seen showing a name or icon."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -5896,7 +5896,7 @@ tags:
     name: Old Coin
     category: items
     group: items-gear
-    description: "The Merchant might buy this."
+    description: "A weathered coin."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -5919,7 +5919,7 @@ tags:
     name: Obol
     category: items
     group: items-gear
-    description: "Obols (¢) are worth 1 ⬢ at the merchant's depot. They weigh nothing, which is the whole reason to hold them."
+    description: "A small coin used by the Merchant."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -5947,7 +5947,7 @@ tags:
     name: Purse
     category: items
     group: items-gear
-    description: "Consume this to gain 3 ⬢."
+    description: "A purse of useful things."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -5964,7 +5964,7 @@ tags:
     name: Skinned Cave Rat
     category: items
     group: items-food
-    description: "This is probably edible."
+    description: "A dead, hairless creature. It is probably edible."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -6026,7 +6026,7 @@ tags:
     name: Supply Kit
     category: items
     group: items-gear
-    description: "Open it to gain resources and a nice surprise."
+    description: "A kit full of various useful things. Can be consumed to gain 8 ⬢."
     pointCost: 0
     tradeable: true
     weight: 10
@@ -6044,7 +6044,7 @@ tags:
     name: Smoke Grenade
     category: items
     group: items-gear
-    description: "Blocks vision, makes people choke."
+    description: "A thin metal canister. Can be thrown to obscure vision and make people choke."
     pointCost: 0
     tradeable: true
     weight: 1.5
@@ -6058,7 +6058,7 @@ tags:
     name: Tear Gas Grenade
     category: items
     group: items-gear
-    description: "A sealed canister."
+    description: "A sealed canister. Can be thrown to obscure vision, cause choking, and irritate people's skin."
     pointCost: 0
     tradeable: true
     weight: 1.5
@@ -6088,7 +6088,7 @@ tags:
     name: Military Autoinjector
     category: items
     group: items-gear
-    description: "Using this heals you immediately, clearing all minor and moderate wounds (remove the tags yourself.)"
+    description: "A thin piece of equipment with a needle inside."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -6160,7 +6160,7 @@ tags:
     onlyRoles: [commoner]
     conflictsWith: [commoner-farmer, commoner-hunter]
     group: items-gear
-    description: "Everything a fisherman owns, waiting at the waterline. Unpacks into a {tag:fishing-boat} and {tag:laboring-fishing}."
+    description: "Live off the rivers of Ravenheart. Gives a {tag:fishing-boat} and {tag:laboring-fishing}."
     pointCost: 1
     tradeable: true
     weight: 2
@@ -6178,7 +6178,7 @@ tags:
     onlyRoles: [commoner]
     conflictsWith: [commoner-fisherman, commoner-hunter]
     group: items-gear
-    description: "Everything a farmer owns, which is not much. Unpacks into a {tag:work-knife} and {tag:laboring-farming}."
+    description: "Live off the land of Ravenheart. Gives a {tag:work-knife} and {tag:laboring-farming}."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -6196,7 +6196,7 @@ tags:
     onlyRoles: [commoner]
     conflictsWith: [commoner-fisherman, commoner-farmer]
     group: items-gear
-    description: "Everything a hunter owns, and the habit of reading a treeline. Unpacks into {tag:laboring-hunting}, {tag:forester}, {tag:rough-camper} and a {tag:shortbow}."
+    description: "Live off the harsh forests of Ravenheart. Gives {tag:laboring-hunting}, {tag:forester}, {tag:rough-camper} and a {tag:shortbow}."
     pointCost: 2
     tradeable: true
     weight: 2
@@ -6236,7 +6236,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Carry messages for the Baron and tell the day's news. Unpacks into a {tag:horse}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}."
+    description: "Live carrying out messages for the Baron and telling the day's news. Gives a {tag:horse}, a {tag:trumpet}, a {tag:bird} and four sheets of {tag:paper}."
     pointCost: 7
     tradeable: true
     weight: 2
@@ -6263,7 +6263,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Reminisce on your valor during the Skinless attack of 1088. Unpacks into knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic} and a {tag:devoted-follower} — along with the years behind all of it, {tag:old} and {tag:arthritis}."
+    description: "Live out your days as a knight of Ravenheart and reminisce on your valor during the Skinless attack of 1088. Gives knighthood, {tag:plate-armor}, a {tag:broadsword}, a {tag:shield}, a {tag:knights-helmet}, {tag:melee-trained}, {tag:ranged-basic} and a {tag:devoted-follower}, along with {tag:old} and {tag:arthritis}."
     pointCost: 9
     tradeable: true
     weight: 3
@@ -6289,7 +6289,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Train the Successor and the Heir in your skill of choice. Unpacks into {tag:teaching}, {tag:intelligent} and {tag:insightful}."
+    description: "Live to train the Successor and the Heir in your specialized trade. Gives {tag:teaching}, {tag:intelligent} and {tag:insightful}."
     pointCost: 4
     tradeable: true
     weight: 1
@@ -6308,7 +6308,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "An envoy from the church. Unpacks into {tag:chaplain}, {tag:pious} and a {tag:blessing}."
+    description: "Live as an envoy from the church. Gives {tag:chaplain}, {tag:pious} and {tag:blessing}."
     pointCost: 4
     tradeable: true
     weight: 1
@@ -6327,7 +6327,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Host marvelous feasts. Unpacks into the skills of a {tag:dancer} and a {tag:game-master}, an {tag:iron-liver} and two bottles of {tag:alcohol}."
+    description: "Live to host and enjoy marvelous feasts. Gives {tag:game-master}, an {tag:iron-liver} and two {tag:alcohol}."
     pointCost: 3
     tradeable: true
     weight: 4
@@ -6351,7 +6351,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Run your manor from outside the fortress gates. Unpacks into {tag:old-blood}, an {tag:heirloom}, a {tag:rapier} and two {tag:manor-key}."
+    description: "Live to run your manor from outside the fortress gates. Gives an {tag:heirloom}, a {tag:rapier} and two {tag:manor-key}."
     pointCost: 5
     tradeable: true
     weight: 2
@@ -6372,7 +6372,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "A general member of the court, here to try their hand at the fates. Unpacks into {tag:pretty}."
+    description: "Live as a general member of the court, here to try their fate. Gives {tag:pretty}."
     pointCost: 1
     tradeable: true
     weight: 1
@@ -6389,7 +6389,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Treat the Keep's wounded. Unpacks into {tag:medical-skilled} and a {tag:sanctuary-key}, so the Sanctuary is open to you."
+    description: "Live to treat the Keep's wounded. Gives {tag:medical-skilled} and a {tag:sanctuary-key}."
     pointCost: 4
     tradeable: true
     weight: 1
@@ -6407,7 +6407,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-master-engineer]
     group: items-gear
-    description: "Paint portraits of the Baron. Unpacks into {tag:artist}, {tag:musician}, an {tag:instrument} and the grace of a {tag:dancer}."
+    description: "Live to paint portraits of the Baron and his family. Gives {tag:artist}, {tag:musician}, and an {tag:instrument}."
     pointCost: 5
     tradeable: true
     weight: 2
@@ -6429,7 +6429,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-court-artist]
     group: items-gear
-    description: "Improve the defenses of Ravenheart. Unpacks into {tag:builder-expert}, a {tag:hatchet}, a {tag:work-knife}, a {tag:purse} and a {tag:cart}."
+    description: "Live to improve the defenses of Ravenheart. Gives {tag:builder-expert}, a {tag:hatchet}, a {tag:work-knife}, a {tag:purse} and a {tag:cart}."
     pointCost: 8
     tradeable: true
     weight: 3
@@ -6472,7 +6472,7 @@ tags:
     name: Cargo Crate
     category: items
     group: items-gear
-    description: "A merchant's crate, still nailed shut. The manifest on the side reads: coffee, coffee, alcohol, work knife."
+    description: "A merchant's crate, still nailed shut. The manifest on the side reads: Coffee x2, Alcohol, Work Knife."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -6491,7 +6491,7 @@ tags:
     name: Spectacles
     category: items
     group: items-gear
-    description: "You can see clearly when you wear these, removing the downside of {tag:nearsighted}. Be careful with them: they're hard to obtain."
+    description: "Allows the wearer to see clearly, removing the downside of {tag:nearsighted}."
     pointCost: 2
     tradeable: true
     weight: 0
@@ -6510,7 +6510,7 @@ tags:
     name: Suspicious Game Set
     category: items
     group: items-gear
-    description: "You're so good that you'll win anyway: why not speed things up? Weighted and shaved dice, marked and bonus cards — whatever you need."
+    description: "A game set with weighted and shaved dice, marked and bonus cards, and an assortment of other tricks to guarantee the owner's victory."
     pointCost: 7
     tradeable: true
     weight: 2
@@ -6524,7 +6524,7 @@ tags:
     name: Sewer Key
     category: items
     group: items-keys
-    description: "Opens the culvert grating on the riverbank, leading into the Underquarter through its sewers."
+    description: "A small metal key."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6535,7 +6535,7 @@ tags:
     name: Elevator Key
     category: items
     group: items-keys
-    description: "A key to the elevator."
+    description: "A small metal key."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6597,7 +6597,7 @@ tags:
     name: "Baroness's Key"
     category: items
     group: items-keys
-    description: "A key to the Baron's Chambers. It opens nothing else."
+    description: "A finely engraved key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6616,7 +6616,7 @@ tags:
     name: Manor Key
     category: items
     group: items-keys
-    description: "A key to the manor."
+    description: "A finely engraved key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6630,7 +6630,7 @@ tags:
     name: Cerberus Key
     category: items
     group: items-keys
-    description: "A key to the defenses."
+    description: "A menacing metal key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6644,7 +6644,7 @@ tags:
     name: Armory Key
     category: items
     group: items-keys
-    description: "A key to the armory."
+    description: "A menacing metal key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6658,7 +6658,7 @@ tags:
     name: Inn Key
     category: items
     group: items-keys
-    description: "A key to the inn's cellar and kitchen."
+    description: "A wooden key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6672,7 +6672,7 @@ tags:
     name: Order Key
     category: items
     group: items-keys
-    description: "A key to the Order Chambers. It's old and simple."
+    description: "An old key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6686,7 +6686,7 @@ tags:
     name: Cathedral Key
     category: items
     group: items-keys
-    description: "A key to the Cathedral's locked rooms."
+    description: "An old key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6700,7 +6700,7 @@ tags:
     name: Sanctuary Key
     category: items
     group: items-keys
-    description: "A key to the Sanctuary's locked rooms."
+    description: "An old key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6714,7 +6714,7 @@ tags:
     name: Smithy Key
     category: items
     group: items-keys
-    description: "A key to the Smithery's storeroom."
+    description: "A small key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6728,7 +6728,7 @@ tags:
     name: Headman's Key
     category: items
     group: items-keys
-    description: "A key to the town's public stores."
+    description: "A small key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6742,7 +6742,7 @@ tags:
     name: Pusher's Key
     category: items
     group: items-keys
-    description: "A key to the Pusher's room."
+    description: "A small key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6756,7 +6756,7 @@ tags:
     name: Room A Key
     category: items
     group: items-keys
-    description: "A key to Room A."
+    description: "A small key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6770,7 +6770,7 @@ tags:
     name: Room B Key
     category: items
     group: items-keys
-    description: "A key to Room B."
+    description: "A small key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6784,7 +6784,7 @@ tags:
     name: Room C Key
     category: items
     group: items-keys
-    description: "A key to Room C."
+    description: "A small key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6798,7 +6798,7 @@ tags:
     name: "Mortus Key"
     category: items
     group: items-keys
-    description: "A key to the Lifeweb's door and the shacks beside it. Every Mortus carries one."
+    description: "A small key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6812,7 +6812,7 @@ tags:
     name: "Hand's Key"
     category: items
     group: items-keys
-    description: "A key to the Hand's office and the Servant's Quarters."
+    description: "A finely made key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6826,7 +6826,7 @@ tags:
     name: "Meister's Key"
     category: items
     group: items-keys
-    description: "A key to the Meister's office and the Council Room."
+    description: "A finely made key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6840,7 +6840,7 @@ tags:
     name: "Censor's Key"
     category: items
     group: items-keys
-    description: "A key to the Council Room, the dungeons, and the oubliette."
+    description: "A finely made key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6854,7 +6854,7 @@ tags:
     name: "Heir's Key"
     category: items
     group: items-keys
-    description: "A key to the Heir's room."
+    description: "A finely made key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6868,7 +6868,7 @@ tags:
     name: "Successor's Key"
     category: items
     group: items-keys
-    description: "A key to the Successor's room."
+    description: "A finely made key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -6883,7 +6883,7 @@ tags:
     name: Neoclassic R&W10
     category: items
     group: items-weapons
-    description: "A classic revolver with six chambers. Hunting produces +2 ⬢ when equipped."
+    description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 14
     equippable: true
@@ -6924,7 +6924,7 @@ tags:
     name: Neoclassic Duelista
     category: items
     group: items-weapons
-    description: "A one-shot revolver. Kicks like a horse. Hunting produces +2 ⬢ when equipped."
+    description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
     equippable: true
@@ -6963,7 +6963,7 @@ tags:
     name: Trench Knife
     category: items
     group: items-weapons
-    description: "A deadly knife with brass knuckles embedded on the grip. Carrying one gives your torture rolls +1."
+    description: "A deadly knife with brass knuckles embedded on the grip. While equipped, torture-related Gambits gain +1."
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7012,7 +7012,7 @@ tags:
     name: Hatchet
     category: items
     group: items-weapons
-    description: "For cutting wood."
+    description: "A short single-bladed axe meant for cutting wood."
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7039,7 +7039,7 @@ tags:
     name: Fishing Rod
     category: items
     group: items-gear
-    description: "A rod, a line, and patience. Fishing produces +1 ⬢ when equipped."
+    description: "A wooden rod and line. While equipped, Fishing produces an additional 1 ⬢."
     pointCost: 2
     laborBonus: { kind: fishing, amount: 1 }
     equippable: true
@@ -7068,7 +7068,7 @@ tags:
     name: Trapping Gear
     category: items
     group: items-gear
-    description: "A set of gear to trap small animals with. Hunting produces +1 ⬢ when equipped."
+    description: "A set of gear to trap small animals with. While equipped, Hunting produces an additional 1 ⬢."
     pointCost: 5
     laborBonus: { kind: hunting, amount: 1 }
     equippable: true
@@ -7098,7 +7098,7 @@ tags:
     name: Plow
     category: assets
     group: assets-property
-    description: "If you also have a {tag:horse}, Farming produces +3 ⬢."
+    description: "A framed instrument meant for tilling soil. While equipped with a {tag:horse}, Farming produces an additional 3 ⬢."
     pointCost: 5
     laborBonus: { kind: farming, amount: 3, equipped: false, requiresTag: horse }
     tradeable: true
@@ -7120,7 +7120,7 @@ tags:
     name: Sling
     category: items
     group: items-weapons
-    description: "It can kill people and animals. Hunting produces +1 ⬢ when equipped."
+    description: "A small weapon made of rope and leather meant to injure people and animals. While equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 2
     equippable: true
@@ -7145,7 +7145,7 @@ tags:
     name: Quarterstaff
     category: items
     group: items-weapons
-    description: "What are you gonna do with this?"
+    description: "A wooden staff meant to be wielded as a weapon."
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7170,7 +7170,7 @@ tags:
     name: Cudgel
     category: items
     group: items-weapons
-    description: "A stick to hit people with."
+    description: "A heavy stick meant to hit people."
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7195,7 +7195,7 @@ tags:
     name: Truncheon
     category: items
     group: items-weapons
-    description: "Made out of an unknown black material. This hurts."
+    description: "A short thick stiff made out of an unknown black material. Meant for hitting people?"
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7213,7 +7213,7 @@ tags:
     name: Pitchfork
     category: items
     group: items-weapons
-    description: "The traditional instrument of the discontented. Farming produces +1 ⬢ when equipped."
+    description: "A pronged agricultural tool used to move around loose materials. The traditional instrument of the discontented. While equipped, Farming produces an additional 1 ⬢."
     laborBonus: { kind: farming, amount: 1 }
     pointCost: 2
     equippable: true
@@ -7239,7 +7239,7 @@ tags:
     name: Shortbow
     category: items
     group: items-weapons
-    description: "A small, quiet bow. It's fast to draw, but it won't do much against someone wearing armor. Hunting produces +1 ⬢ when equipped."
+    description: "A small, quiet bow that's fast to draw, but sports less power against armored targets. While equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 2
     equippable: true
@@ -7266,7 +7266,7 @@ tags:
     name: Spear
     category: items
     group: items-weapons
-    description: "A solid ranged melee weapon."
+    description: "A wooden staff with a sharp tip at the end that gives a longer reach."
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7317,7 +7317,7 @@ tags:
     name: Silver Knife
     category: items
     group: items-weapons
-    description: "For the superstitious."
+    description: "A short blade made of silver. For the superstitious."
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7393,7 +7393,7 @@ tags:
     name: Javelin
     category: items
     group: items-weapons
-    description: "A powerful throwing weapon."
+    description: "A light spear designed to be thrown into one's enemies."
     pointCost: 5
     requiredTag: ranged-basic
     equippable: true
@@ -7418,7 +7418,7 @@ tags:
     name: Longbow
     category: items
     group: items-weapons
-    description: "A bow as tall as the person drawing it. It takes a strong archer to use well, but at full draw it can crack armor. Hunting produces +1 ⬢ when equipped."
+    description: "A large bow that requires strength to wield, but can pack a major punch. While equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 5
     requiredTag: ranged-basic
@@ -7470,7 +7470,7 @@ tags:
     name: Battle Axe
     category: items
     group: items-weapons
-    description: "A sleek metal wedge. It has a spearhead on top."
+    description: "A haft with a sleek metal wedge and a spearhead on top."
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7497,7 +7497,7 @@ tags:
     name: Knuckle Duster
     category: items
     group: items-weapons
-    description: "Wrap your fingers with metal."
+    description: "Connected metal rings meant to be worn on one's fingers to pack a heavier punch."
     pointCost: 3
     equippable: true
     equipSlot: WEAPON
@@ -7600,7 +7600,7 @@ tags:
     name: Bastard Sword
     category: items
     group: items-weapons
-    description: "A large sword that requires 2 hands to fight effectively."
+    description: "A large sword that requires 2 hands to use effectively."
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -7701,7 +7701,7 @@ tags:
     name: Silver Spear
     category: items
     group: items-weapons
-    description: "It might have its uses. The metal is demanding, hence its cost."
+    description: "A silver spear."
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -7727,7 +7727,7 @@ tags:
     name: Lucerne
     category: items
     group: items-weapons
-    description: "Long and mean. A pick, a hammer, and a spear all in one."
+    description: "A long and mean polearm combining the traits of a spear, pick, and hammer."
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -7753,7 +7753,7 @@ tags:
     name: Zweihander
     category: items
     group: items-weapons
-    description: "Monstrous, and of questionable use."
+    description: "A monstrously large double bladed sword."
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -7808,7 +7808,7 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "Bruises plate, punctures almost everything else. It's easy to point — while using it, your ranged skill counts as 1 tier higher. Hunting produces +1 ⬢ when equipped."
+    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as one tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
     pointCost: 9
     requiredTag: ranged-basic
@@ -7836,7 +7836,7 @@ tags:
     name: Musketoon
     category: items
     group: items-weapons
-    description: "A short gun with a wide bore. It fires a heavy shot, but you only get one before you have to reload. Hunting produces +2 ⬢ when equipped."
+    description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 18
     requiredTag: ranged-basic
@@ -7863,7 +7863,7 @@ tags:
     name: Bore Pistol
     category: items
     group: items-weapons
-    description: "A single-shot pistol. Slow to reload, but the shot hits like a bull. Hunting produces +2 ⬢ when equipped."
+    description: "A powerful single-shot pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 14
     requiredTag: ranged-basic
@@ -7942,7 +7942,7 @@ tags:
     name: Disabler
     category: items
     group: items-weapons
-    description: "A non-lethal energy pistol, only useful against unarmed people. The required number of shots varies, but after enough of them the target's muscles fail and he falls to the floor, cramping and groaning. Powered by disposable batteries imported by the Baron."
+    description: "A non-lethal energy pistol, only useful against unarmed people. After enough shots, the target's muscles fail and they fall to the floor, cramping and groaning. Powered by disposable batteries imported by the Baron."
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -7976,7 +7976,7 @@ tags:
     name: Human Flesh
     category: items
     group: items-food
-    description: "Meat, cut from a person. It keeps you alive, but at what cost?"
+    description: "Meat, cut from a person."
     pointCost: 0
     tradeable: true
     weight: 5
@@ -8130,7 +8130,7 @@ tags:
     name: Fine Meal
     category: items
     group: items-food
-    description: "An honest, well-made meal. Makes an ordinary person happy; expected by {tag:nobility}…"
+    description: "An honest, well-made meal."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -8157,7 +8157,7 @@ tags:
     name: Lavish Meal
     category: items
     group: items-food
-    description: "A worthy meal! Makes anyone happy, Nobility included, and can be used as a Desire. Needs 1 hard-to-get exotic ingredient on top of the resource cost."
+    description: "A worthy meal made with a special ingredient."
     pointCost: 0
     tradeable: true
     weight: 3
@@ -8324,7 +8324,7 @@ tags:
     catalog: all
     name: Torturing Equipment
     category: items
-    description: "If you're in a location with torturing equipment, your torturing gambits get +1 to success."
+    description: "Various equipment and devices designed to bring harm to others. Torture-related Gambits attempted while equipped or at a Location holding this gain +1."
     pointCost: 0
     visible: true
     tradeable: true
@@ -8350,7 +8350,7 @@ tags:
     name: Mesmer Glass
     category: items
     group: items-special
-    description: "Swirling with color; immensely fragile. Shatter it in somebody's face to blind them temporarily. You are unaffected. Single use."
+    description: "A glass vial swirling with color. You can activate it to blind someone."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -8365,7 +8365,7 @@ tags:
     name: Power Fist
     category: items
     group: items-special
-    description: "An engine-powered gauntlet. What it does to a door, it does to a man."
+    description: "An engine-powered gauntlet."
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -8410,7 +8410,7 @@ tags:
     name: EMP Grenade
     category: items
     group: items-special
-    description: "Shuts down anything electric, or electronic, in a 10-foot radius. Single use."
+    description: "A small metal device that shuts down anything electronic in a 10-foot radius."
     pointCost: 0
     tradeable: true
     weight: 1.5
@@ -8426,7 +8426,7 @@ tags:
     name: Heirloom
     category: items
     group: items-special
-    description: "Choose a non-combat heirloom. You can sell it to the Merchant if worst comes to worst."
+    description: "Choose a non-combat heirloom. Can be sold to the Merchant if worst comes to worst."
     pointCost: 5
     requiredTag: courtier
     tradeable: true
@@ -8442,7 +8442,7 @@ tags:
     name: Flamethrower
     category: items
     group: items-special
-    description: "FSHWOOOOOOOOOOOOOOOOOMMMMMMM"
+    description: "A barrelled two handed device that can shoot out a stream of fire."
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -8467,7 +8467,7 @@ tags:
     name: Dark-Eye Lenses
     category: items
     group: items-special
-    description: "Wear these to see heat through solid stone — from flames, bodies, or anything else. Bright light will blind you."
+    description: "Allows the wearer to see heat through solid stone, including from flames, bodies, or anything else. The wearer will also be blinded by bright light."
     pointCost: 0
     equippable: true
     equipSlot: ACCESSORY
@@ -8482,7 +8482,7 @@ tags:
     name: Stepstone
     category: items
     group: items-special
-    description: "Swallow this stone and be somewhere else — anywhere else. Single use. DM the GMs with where you went."
+    description: "You can consume it to teleport anywhere."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -8497,7 +8497,7 @@ tags:
     name: Quickened Nerve-Braid
     category: items
     group: items-special
-    description: "Grafted into your neck, it sends electric spasms through you. Once per day, attain the speed of a galloping horse. But watch out: you don't have a horse's circulation."
+    description: "A group of metal wires grafted into the neck to transmit electric spasms. Allows the user to attain the speed of a galloping horse once per day."
     pointCost: 0
     tradeable: false
     visible: false
@@ -8523,7 +8523,7 @@ tags:
     name: Nuclear Device
     category: items
     group: items-special
-    description: "A fissile explosive. A gift from God King Enoch II. There's no way to activate it."
+    description: "A large capsule of a fissile explosive. A gift from God King Enoch II. There's no way to activate it."
     pointCost: 0
     tradeable: true
     weight: 100
@@ -8537,7 +8537,7 @@ tags:
     name: Nuclear Datacard
     category: items
     group: items-special
-    description: "This can be inserted into the {tag:nuclear-device} to start a ten minute countdown. It also points to where the device is at all times."
+    description: "It can be inserted into the {tag:nuclear-device} to start a ten minute countdown. It also points to where the device is at all times."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -8551,7 +8551,7 @@ tags:
     name: Motorcycle
     category: items
     group: items-special
-    description: "A motorcycle."
+    description: "A two-wheeled motor vehicle that can carry up to two people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others."
     pointCost: 0
     equippable: true
     equipSlot: MOUNT
@@ -8572,7 +8572,7 @@ tags:
     name: Sawn-Off Double Barrel
     category: items
     group: items-special
-    description: "Two big bangs, then a big long reload. Try not to miss. Unlike a normal shotgun, you can hide this under a coat."
+    description: "A two-shot shotgun that is more easily concealable than its normal counterpart."
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -8648,7 +8648,7 @@ tags:
     name: Baron's Scepter
     category: items
     group: items-special
-    description: "Gold, gems, and filigree. This thing must weigh five pounds."
+    description: "A rod of gold, gems, and filigree. This thing must weigh five pounds."
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -8702,7 +8702,7 @@ tags:
     name: Merchant's License
     category: items
     group: items-special
-    description: "It bears the Merchant's name and face and, funnily enough, his home address — somewhere in a certain city far away. Allows you to run the Depot: the account, the generator, the shuttle."
+    description: "A sharp plastic card bearing the Merchant's name, face and, funnily enough, their home address — somewhere in a certain city far away."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -8719,7 +8719,7 @@ tags:
     name: Depot Keycard
     category: items
     group: items-keys
-    description: "A worn plastic card on a lanyard. It opens the hangar door and the sealed crates, and it will not stop a single bullet from the thing in the ceiling."
+    description: "A worn plastic card on a lanyard."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -8732,7 +8732,7 @@ tags:
     name: Incarn's Key
     category: items
     group: items-keys
-    description: "An elegant silver key worn around the Incarn's neck. It unlocks the Silver Cross's display case."
+    description: "An elegant silver key."
     pointCost: 0
     equippable: true
     equipSlot: ACCESSORY
@@ -8747,7 +8747,7 @@ tags:
     name: Ordinator Insignia
     category: items
     group: items-special
-    description: "A skull, proudly worn on the infantry armor."
+    description: "A skull symbol, proudly worn on the infantry armor."
     pointCost: 0
     equippable: true
     equipSlot: ACCESSORY
@@ -8762,7 +8762,7 @@ tags:
     name: Major's Insignia
     category: items
     group: items-special
-    description: "Three chevrons pointing up, two down, and a clover leaf in the middle. The God-King's army wears it; nobody in Ravenheart does."
+    description: "Three chevrons pointing up, two down, and a clover leaf in the middle."
     pointCost: 0
     equippable: true
     equipSlot: ACCESSORY
@@ -8808,7 +8808,7 @@ tags:
     name: Hand's Pin
     category: items
     group: items-special
-    description: "A golden pin of a wielded dagger. Nobody wears this but the Hand."
+    description: "A golden pin of a wielded dagger, the personal emblem of the Hand."
     pointCost: 0
     equippable: true
     equipSlot: ACCESSORY
@@ -8823,7 +8823,7 @@ tags:
     name: Inquisitor's Longcoat
     category: items
     group: items-special
-    description: "Dark leather. Billows like shadow. Silver mail glints moonishly underneath."
+    description: "A coat of dark leather. Silver mail glints underneath."
     pointCost: 0
     equippable: true
     equipSlot: BODY
@@ -8839,7 +8839,7 @@ tags:
     name: Practicii's Robes
     category: items
     group: items-special
-    description: "A Practicus's belted, hooded, knee-length robes. An argent cross on the belt buckle makes sure you know who you're dealing with."
+    description: "Belted, hooded, knee-length robes with an argent cross on the belt buckle."
     pointCost: 0
     equippable: true
     equipSlot: BODY
@@ -8930,7 +8930,7 @@ tags:
     name: Cigarette
     category: items
     group: items-drink
-    description: "A Mudghara, special import. Cheap. It has a robust, heavy flavor."
+    description: "A Mudghara, special import. It has a robust, heavy flavor."
     pointCost: 0
     depotPrice: 5
     sellable: true
@@ -8951,7 +8951,7 @@ tags:
     name: Tea
     category: items
     group: items-drink
-    description: "Its soothing aroma settles the nerves and lifts a poor mood. Ravenheart has never grown a leaf of it. ‡"
+    description: "A hot, soothing liquid."
     pointCost: 0
     depotPrice: 2
     sellable: true
@@ -8988,7 +8988,7 @@ tags:
     name: Stack of Paper
     category: items
     group: items-paper
-    description: "A ream of blank sheets, still bound. Consumes into 20 {tag:paper}."
+    description: "A ream of blank sheets. It can be consumed into paper."
     pointCost: 1
     tradeable: true
     weight: 2
@@ -9998,7 +9998,7 @@ tags:
     name: Coffee
     category: items
     group: items-drink
-    description: "Refreshing and energizing."
+    description: "A brown drink that's refreshing and energizing."
     pointCost: 0
     depotPrice: 2
     sellable: true
@@ -10018,7 +10018,7 @@ tags:
     name: Firecracker
     category: items
     group: items-gear
-    description: "It'll cause a commotion — maybe enough to get away."
+    description: "A small red tube. It's loud."
     pointCost: 0
     depotPrice: 3
     sellable: true
@@ -10038,7 +10038,7 @@ tags:
     name: Sweets
     category: items
     group: items-food
-    description: "What a rarity! There's no sugar in Ravenheart!"
+    description: "A sweet treat. What a rarity!"
     pointCost: 0
     depotPrice: 4
     sellable: true
@@ -10079,7 +10079,7 @@ tags:
     name: Honey
     category: items
     group: items-food
-    description: "What a rarity! Delicious on its own, even better if cooked into a meal."
+    description: "A sweet viscous substance. What a rarity!"
     pointCost: 0
     depotPrice: 4
     sellable: true
@@ -10099,7 +10099,7 @@ tags:
     name: Sky Lantern
     category: items
     group: items-gear
-    description: "Throw a small object into the air or celebrate something special."
+    description: "A paper lantern. Can be lit on the bottom to rise into the air. Used to celebrate something special."
     pointCost: 0
     depotPrice: 4
     sellable: true
@@ -10142,7 +10142,7 @@ tags:
     name: Boombox
     category: items
     group: items-gear
-    description: "A portable speaker."
+    description: "A black box that can serve as a portable speaker."
     pointCost: 0
     depotPrice: 11
     sellable: true
@@ -10174,7 +10174,7 @@ tags:
     name: Whip
     category: items
     group: items-weapons
-    description: "Punish the heretics or those who have not paid their taxes."
+    description: "A thin leather implement that can be used to punish heretics or those who have not paid their taxes."
     pointCost: 0
     depotPrice: 11
     sellable: true
@@ -10192,7 +10192,7 @@ tags:
     name: Censer
     category: items
     group: items-gear
-    description: "Pour a substance into it and watch as it diffuses through the room."
+    description: "A metal vessel which substances can be poured into to diffuse through the room."
     pointCost: 0
     depotPrice: 12
     sellable: true
@@ -10213,7 +10213,7 @@ tags:
     name: Poison Snooper
     category: items
     group: items-gear
-    description: "Detects poisons. Multi-use."
+    description: "A thin metal tube that can be applied into food or drink to detect poisons. Multi-use."
     pointCost: 9
     depotPrice: 22
     sellable: true
@@ -10229,7 +10229,7 @@ tags:
     name: Black Body Bag
     category: items
     group: items-gear
-    description: "It muffles whatever goes on inside."
+    description: "A black bag large enough to fit a person. Muffles sounds from inside."
     pointCost: 0
     depotPrice: 22
     sellable: true
@@ -10246,7 +10246,7 @@ tags:
     name: Microscope
     category: items
     group: items-gear
-    description: "What are those things?!"
+    description: "An odd contraption with a spot to place the eyes. Heavily magnifies small objects placed under it."
     pointCost: 0
     depotPrice: 29
     sellable: true
@@ -10315,7 +10315,7 @@ tags:
     name: Light Infantry Armour
     category: items
     group: items-armor
-    description: "A bulletproof vest and pad combination. It's not as good as plate armor in stopping melee, but it's one of the few things capable of stopping bullets."
+    description: "A bulletproof vest and pad combination."
     pointCost: 0
     depotPrice: 34
     sealedShipping: true
@@ -10353,7 +10353,7 @@ tags:
     name: Hound
     category: assets
     group: assets-companions
-    description: "A large, well-trained fighting dog awaits your commands."
+    description: "A large, well-trained fighting dog ready to obey commands."
     pointCost: 0
     depotPrice: 38
     sellable: true
@@ -10369,7 +10369,7 @@ tags:
     name: Soporific
     category: items
     group: items-drink
-    description: "Give someone a few vials of this and they'll be asleep for a while. Inflicts {tag:asleep}."
+    description: "A small vial of a clear substance."
     pointCost: 0
     depotPrice: 45
     sealedShipping: true
@@ -10389,7 +10389,7 @@ tags:
     name: Amoeba Vial
     category: items
     group: items-gear
-    description: "Let them go wherever you like — they'll eat anything. It'll even help you get rid of the tiniest traces of a crime."
+    description: "A small vial containing a wriggling mass that will eat all material it finds. Can be used to effectively clean up crime scenes."
     pointCost: 0
     depotPrice: 52
     sealedShipping: true
@@ -10409,7 +10409,7 @@ tags:
     name: Illusion Crystal
     category: items
     group: items-gear
-    description: "Creates an illusion up to human size. It lasts as long as you want."
+    description: "A reflective crystal. Can be used to create an illusion up to human size that lasts an amount of time of the user's choice. Single use."
     pointCost: 0
     depotPrice: 60
     sealedShipping: true
@@ -10443,7 +10443,7 @@ tags:
     name: Silencer
     category: items
     group: items-gear
-    description: "Equip to muffle your shots."
+    description: "A metal cylinder that can be equipped to a firearm to muffle its shots."
     pointCost: 0
     depotPrice: 74
     sellable: true
@@ -10462,7 +10462,7 @@ tags:
     name: Antibiotics
     category: items
     group: items-drink
-    description: "Immediately cures all stages of infection."
+    description: "A small vial of liquid that can be drunk to immediately cure all stages of infection."
     pointCost: 0
     depotPrice: 82
     sellable: true
@@ -10482,7 +10482,7 @@ tags:
     name: ML-23
     category: items
     group: items-weapons
-    description: "A 9mm pistol. Hunting produces +2 ⬢ when equipped."
+    description: "A 9mm pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
     pointCost: 0
     depotPrice: 149
@@ -10548,7 +10548,7 @@ tags:
     name: Adamantium Sword
     category: items
     group: items-weapons
-    description: "Fit for the highest of nobility. Light, strong, and unimaginably sharp."
+    description: "A gleaming sword fit for the highest of nobility. Light, strong, and unimaginably sharp."
     pointCost: 0
     depotPrice: 189
     sealedShipping: true
@@ -10567,7 +10567,7 @@ tags:
     name: Silver Sword
     category: items
     group: items-weapons
-    description: "You're no longer afraid of the night."
+    description: "A sword with a blade of pure silver. Might be useful…"
     pointCost: 0
     depotPrice: 123
     sellable: true
@@ -10585,7 +10585,7 @@ tags:
     name: BB Pistol
     category: items
     group: items-weapons
-    description: "Hurts!"
+    description: "A small pistol that shoots nonlethal, but still painful, bullets."
     pointCost: 0
     depotPrice: 61
     sellable: true
@@ -10605,7 +10605,7 @@ tags:
     name: Cave Fungus
     category: items
     group: items-drink
-    description: "Many different kinds of fungus: all of them are pale and taste like mud. An important ingredient in a great many recipes. Eaten raw, it will get you {tag:high} for a couple of turns."
+    description: "One of many different kinds of fungus that are all pale and taste like mud. An important ingredient in a great many recipes."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -10627,7 +10627,7 @@ tags:
     name: Alcohol
     category: items
     group: items-drink
-    description: "Beer, ale, and other fine drinks. 2 ⬢ each, and you can brew up to 3 in a turn. It makes anyone, even Nobility, happy."
+    description: "Beer, ale, and other fine drinks."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -10656,7 +10656,7 @@ tags:
     name: Holy Water
     category: items
     group: items-special
-    description: "Water that was prayed over. Poured on the offender, it reduces the efficacy of unholy activity."
+    description: "Water that has been prayed over. Poured on the offender, it reduces the efficacy of unholy activity."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -10703,7 +10703,7 @@ tags:
     name: Bliss
     category: items
     group: items-drink
-    description: "Properly boiled and refined cave fungus; will give you a greater high. Still doesn't taste great."
+    description: "Properly boiled and refined cave fungus."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10735,7 +10735,7 @@ tags:
     name: Ravenheart Red
     category: items
     group: items-drink
-    description: "Dark as a raven's blood. Ravenheart's only export. A fair object of desire."
+    description: "A wine as dark as a raven's blood. Ravenheart's only export."
     pointCost: 0
     tradeable: true
     weight: 2.5
@@ -10773,7 +10773,7 @@ tags:
     name: Miasma
     category: items
     group: items-drink
-    description: "Bottled with rotting flesh. When uncorked, gives {tag:vomiting} to everyone in a closed room."
+    description: "A bottle that stinks of rotting flesh. Can be uncorked to give {tag:vomiting} to everyone in a closed room."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10802,7 +10802,7 @@ tags:
     name: Feces
     category: items
     group: items-drink
-    description: "Poop. Cuts with it on a blade will give {tag:infected}. How dishonorable!"
+    description: "Poop. Can be applied to a blade to give those cut {tag:infected}. How dishonorable!"
     pointCost: 0
     tradeable: true
     weight: 1
@@ -10826,7 +10826,7 @@ tags:
     name: Cleaning Powder
     category: items
     group: items-drink
-    description: "Cures a minor infection outright, but does not help against {tag:festering}. 1 turn yields 2."
+    description: "An alchemical substance that can cure a minor infection outright, but does not help against {tag:festering}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10849,7 +10849,7 @@ tags:
     name: Cat
     category: items
     group: items-drink
-    description: "Distilled with alcohol until it turns pale. Drink it and your eyes flash yellow: gain {tag:night-vision} for 2 turns."
+    description: "A special concoction distilled with alcohol until it turns pale. Can be consumed to gain {tag:night-vision} for 2 turns."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10876,7 +10876,7 @@ tags:
     name: Poppy
     category: items
     group: items-drink
-    description: "Soothes pain, but is rapidly addictive. Grants you {tag:opium-high}."
+    description: "A draught that soothes pain, but is rapidly addictive."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10902,7 +10902,7 @@ tags:
     name: Molotov Cocktail
     category: items
     group: items-drink
-    description: "A bottle of alcohol and a rag. Light it, throw it, and run."
+    description: "A bottle of alcohol and a rag."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -10929,7 +10929,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
-    description: "Refined from {tag:nightshade-herb}. Whoever takes it dies frothing in public — it inflicts {tag:choking}."
+    description: "A draught refined from {tag:nightshade-herb}. Inflicts {tag:choking as the consumer begins to perish."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -10965,7 +10965,7 @@ tags:
     name: Crude Grenade
     category: items
     group: items-weapons
-    description: "A bomb. It's packed with raw {tag:saltpeter} mined out of the Caves."
+    description: "A crude bomb packed with raw {tag:saltpeter} mined out of the Caves."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -10992,7 +10992,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
-    description: "The perfect silent killer. 2 turns of careful work to make. Inflicts {tag:phrygian-toxin}."
+    description: "A powerful draught that requires two turns to create. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11046,7 +11046,7 @@ tags:
     name: Graga Sweat
     category: items
     group: items-drink
-    description: "Rank, oily, and warm no matter the room. Grants 2 turns of {tag:brutish-strength}."
+    description: "A draught made with rendered {tag:graga-sac}. If consumed, gain 2 turns of {tag:brutish-strength}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11072,7 +11072,7 @@ tags:
     name: Purifier
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Clears {tag:infected}, {tag:festering} and {tag:feverish} without medical attention, and greatly improves the condition of someone with {tag:sepsis}."
+    description: "A draught brewed from {tag:cave-fungus}. Can be consumed to remove {tag:infected}, {tag:festering} and {tag:feverish}, and greatly improve the condition of someone with {tag:sepsis}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11096,7 +11096,7 @@ tags:
     name: White Honey
     category: items
     group: items-drink
-    description: "Boiled pale and thick over a long afternoon. Cures a poisoning of any kind."
+    description: "A substance boiled pale and thick. Can be consumed to cure a poisoning of any kind."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11126,7 +11126,7 @@ tags:
     name: Deadeye Drops
     category: items
     group: items-drink
-    description: "Eye drops refined from {tag:cave-fungus}. {tag:increased-accuracy} for 2 turns."
+    description: "Eye drops refined from {tag:cave-fungus}. Can be consumed to gain {tag:increased-accuracy} for 2 turns."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11152,7 +11152,7 @@ tags:
     name: Mercy
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Grants {tag:increased-recovery}. Goes down smoothly."
+    description: "A draught brewed from {tag:cave-fungus}. Can be consumed to gain {tag:increased-recovery}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11178,7 +11178,7 @@ tags:
     name: Distilled Coca
     category: items
     group: items-drink
-    description: "Distilled from {tag:coca-leaves} down to a bitter green syrup. Consume for {tag:stimulant-high}."
+    description: "A bitter green syrup distilled from {tag:coca-leaves}. Can be consumed to gain {tag:stimulant-high}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11205,7 +11205,7 @@ tags:
     name: Mindbreaker Toxin
     category: items
     group: items-drink
-    description: "A vial full of a clear acid drawn from cave fungus. Grants {tag:hallucinating}."
+    description: "A vial full of a clear acid drawn from cave fungus. Inflicts {tag:hallucinating}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11237,7 +11237,7 @@ tags:
     name: Mulligan Potion
     category: items
     group: items-drink
-    description: "Milky but tastes like nothing. Grants a new name and appearance to those with honest regrets."
+    description: "A milky but tasteless potion. Can be consumed to transfigure into a new name and appearance."
     pointCost: 2
     tradeable: true
     weight: 0.5
@@ -11262,7 +11262,7 @@ tags:
     name: Invisibility Potion
     category: items
     group: items-drink
-    description: "It pours like water, yet has an odd sensation on the way down. Grants {tag:invisible} for 2 turns."
+    description: "A clear potion distilled from a {tag:graga-sac}. Can be consumed to gain {tag:invisible} for 2 turns."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11292,7 +11292,7 @@ tags:
     name: Nekker Pheromones
     category: items
     group: items-drink
-    description: "Wrung out of a dead nekker. Grants {tag:pheromones}."
+    description: "A substance wrung out of a dead nekker. Can be consumed to gain {tag:pheromones}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11311,7 +11311,7 @@ tags:
     name: Succubus Draught
     category: items
     group: items-drink
-    description: "Patient work to create, with a glinting red glow to it. Grants {tag:mindreading}."
+    description: "A reddish draught. Can be consumed to gain {tag:mindreading}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11343,7 +11343,7 @@ tags:
     name: Raven Draught
     category: items
     group: items-drink
-    description: "Black to the bottom of the glass. If consumed, you can send a single message to anyone anywhere. DM the GMs the message."
+    description: "A black draught made with a {tag:ravens-eye}. It can be consumed to send a message anywhere."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11367,7 +11367,7 @@ tags:
     name: Pure Luck
     category: items
     group: items-drink
-    description: "For 3 turns straight, every Gambit you roll is a 6 — {tag:aberrant-luck}."
+    description: "A strange draught made with an {tag:aberrant-heart}. Can be consumed to gain {tag:aberrant-luck} for three turns."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11399,7 +11399,7 @@ tags:
     name: Dreamer's Draught
     category: items
     group: items-drink
-    description: "When you drink it before sleeping, you can ask the universe anything. Let a GM know what you're asking."
+    description: "A cloudy draught made with a {tag:skinless-brain}. It can be consumed to ask the universe anything during one's next rest (ask a GM)."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11425,7 +11425,7 @@ tags:
     name: Forgiveness
     category: items
     group: items-drink
-    description: "Clear, and colder than the room it sits in. The drinker forgets the event that broke them — cures {tag:shell-shocked}."
+    description: "A clear, cold draught."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11451,7 +11451,7 @@ tags:
     name: Flawless Skin
     category: items
     group: items-drink
-    description: "A pale cream, and a great deal of work for 3 turns of it. You are granted supreme beauty."
+    description: "A pale cream, granting supreme beauty."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11513,7 +11513,7 @@ tags:
     name: Cerberus Helmet
     category: items
     group: items-headgear
-    description: "A new design, shaped like a wolf's head. Slightly more reliable than your average bucketcap."
+    description: "A metal helmet shaped like a wolf's head."
     pointCost: 9
     equippable: true
     equipSlot: HEAD
@@ -11534,7 +11534,7 @@ tags:
     name: Censor's Helmet
     category: items
     group: items-headgear
-    description: "A brutal helmet to aid in your noble task."
+    description: "A brutal helmet."
     pointCost: 9
     equippable: true
     equipSlot: HEAD
@@ -11590,7 +11590,7 @@ tags:
     name: Tribunal Helmet
     category: items
     group: items-headgear
-    description: "A thick flak helmet, concealing your identity."
+    description: "A thick flak helmet that conceals one's identity."
     pointCost: 7
     equippable: true
     equipSlot: HEAD
@@ -11611,7 +11611,7 @@ tags:
     name: Tribunal Ordinator Helmet
     category: items
     group: items-headgear
-    description: "A thick flak helmet, concealing your identity. It has a band around on top with playing cards stuffed in."
+    description: "A thick flak helmet that conceals one's identity. It has a band around on top with playing cards stuffed in."
     pointCost: 7
     equippable: true
     equipSlot: HEAD
@@ -11632,7 +11632,7 @@ tags:
     name: Spacesuit Helmet
     category: items
     group: items-headgear
-    description: "An old helmet with a reflective visor. It has a pipe connecting it to the suit's internal systems."
+    description: "An old helmet with a reflective visor with a pipe connecting it to the suit's internal systems."
     pointCost: 7
     equippable: true
     equipSlot: HEAD
@@ -11653,7 +11653,7 @@ tags:
     name: Pumpkin
     category: items
     group: items-headgear
-    description: "Put it on your head!"
+    description: "A large orange fruit. Put it on your head!"
     pointCost: 2
     equippable: true
     equipSlot: HEAD
@@ -11726,7 +11726,7 @@ tags:
     name: Thanati Mask
     category: items
     group: items-headgear
-    description: "A horrific mask that conceals the identity of the wearer. Provides minor protection to the face."
+    description: "A bold declaration of one's faith, wrought out of iron. Offers some protection."
     pointCost: 5
     equippable: true
     equipSlot: HEAD
@@ -11747,7 +11747,7 @@ tags:
     name: Plague Doctor Mask
     category: items
     group: items-headgear
-    description: "The long beak is elegant."
+    description: "A black mask with a long elegant beak."
     pointCost: 2
     equippable: true
     equipSlot: HEAD
@@ -11855,7 +11855,7 @@ tags:
     name: Balaclava
     category: items
     group: items-headgear
-    description: "A sock for your head."
+    description: "A sock to be worn around one's head."
     pointCost: 2
     equippable: true
     equipSlot: HEAD
@@ -11877,7 +11877,7 @@ tags:
     name: Hat
     category: items
     group: items-headgear
-    description: "A hat with some character to it. Keeps the weather off, and says something about the one who wears it."
+    description: "A hat with some character to it."
     pointCost: 0
     equippable: true
     equipSlot: HEAD
@@ -11951,7 +11951,7 @@ tags:
     name: Plebeian Hood
     category: items
     group: items-headgear
-    description: "A peasant's hood, can be drawn down."
+    description: "A peasant's hood. It can be drawn down."
     pointCost: 1
     requiredTag: laboring-basic
     equippable: true
@@ -11970,7 +11970,7 @@ tags:
     name: Leper's Hood
     category: items
     group: items-headgear
-    description: "A hood that masks the worst of your wounds."
+    description: "A hood that masks the worst of a leper's wounds."
     pointCost: 0
     requiredTag: leper
     equippable: true
@@ -11989,7 +11989,7 @@ tags:
     name: Padded Cap
     category: items
     group: items-headgear
-    description: "Cushioned. Turns away blows."
+    description: "A cushioned cap. It turns away blows."
     pointCost: 2
     equippable: true
     equipSlot: HEAD
@@ -12014,7 +12014,7 @@ tags:
     name: Mail Coif
     category: items
     group: items-headgear
-    description: "A mail hood covering the head and neck, worn under a helmet."
+    description: "A mail hood covering the head and neck."
     pointCost: 5
     equippable: true
     equipSlot: HEAD
@@ -12041,7 +12041,7 @@ tags:
     name: Gas Mask
     category: items
     group: items-headgear
-    description: "This could protect you from fumes, but mostly it looks cool."
+    description: "A specialized mask."
     pointCost: 0
     equippable: true
     equipSlot: HEAD
@@ -12111,7 +12111,7 @@ tags:
     name: Knight's Helmet
     category: items
     group: items-headgear
-    description: "A closed helmet. Vision is obscured."
+    description: "A closed helmet that partially obscures vision."
     pointCost: 9
     equippable: true
     equipSlot: HEAD
@@ -12196,7 +12196,7 @@ tags:
     name: Buckler
     category: items
     group: items-armor
-    description: "A small shield held in the fist, used for blocking attacks or making your own."
+    description: "A small shield held in the fist."
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -12303,7 +12303,7 @@ tags:
     name: Mail Shirt
     category: items
     group: items-armor
-    description: "Interlocking rings. It cannot be cut, but blunt force or thrusts can still be deadly."
+    description: "A shirt made out of interlocking rings."
     pointCost: 7
     equippable: true
     equipSlot: BODY
@@ -12329,7 +12329,7 @@ tags:
     name: Brigandine
     category: items
     group: items-armor
-    description: "Small steel plates riveted inside a fabric coat. Protection is similar to plate without the visibility of plate."
+    description: "Small steel plates riveted inside a fabric coat. It isn't visible."
     pointCost: 9
     equippable: true
     equipSlot: BODY
@@ -12380,7 +12380,7 @@ tags:
     name: Spacesuit
     category: items
     group: items-armor
-    description: "Thick, bulky, painted with orange stripes. Has an internal oxygen system."
+    description: "A thick bulky outfit painted with orange stripes. It has an internal oxygen system."
     pointCost: 9
     equippable: true
     equipSlot: BODY
@@ -12449,7 +12449,7 @@ tags:
     name: Energy Shield
     category: items
     group: items-armor
-    description: "One of the few things in Ravenheart that can stop firearm fire, but doesn't completely stop melee damage."
+    description: "A futuristic shield that can stop firearm fire, but is less effective against melee attacks."
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -12469,7 +12469,7 @@ tags:
     name: Silver Cross
     category: items
     group: items-special
-    description: "As simple as it is, it is beautiful."
+    description: "A cross. As simple as it is, it is beautiful."
     pointCost: 0
     visible: true
     tradeable: true
@@ -12506,7 +12506,7 @@ tags:
     name: "True Form: Serpent"
     category: demoness
     group: demoness
-    description: "You can switch into your true form at will: a beautiful, monstrous woman with a serpentine lower body, slitted eyes, and a tongue like a snake's. Can wrap around people, immobilizing them, and has fangs which inflict {tag:envenomated}."
+    description: "You can switch into your true form at will: a beautiful, monstrous woman with a serpentine lower body, slitted eyes, and a tongue like a snake's. You can wrap around people, immobilizing them, and have fangs which inflict {tag:envenomated}."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -12516,7 +12516,7 @@ tags:
     name: "True Form: Spider"
     category: demoness
     group: demoness
-    description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. Hard to see in the dark — can inflict {tag:paralyzed} and {tag:hallucinating}."
+    description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. You become hard to see in the dark and can inflict {tag:paralyzed} and {tag:hallucinating}."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -12526,7 +12526,7 @@ tags:
     name: "True Form: Siren"
     category: demoness
     group: demoness
-    description: "You can switch into your true form at will — a beautiful, monstrous woman with a scaled face and a long, finned tail. Can swim expertly, and has a call that lures the weak-willed."
+    description: "You can switch into your true form at will: a beautiful, monstrous woman with a scaled face and a long, finned tail. You can swim expertly, and have a call that lures the weak-willed."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -12537,7 +12537,7 @@ tags:
     category: demoness
     group: demoness
     forcesName: Beast
-    description: "Give in to the carnage. You permanently become a monstrously tall woman with hands like rakes. You hide in the dark, sprint impossibly quickly, and heal from eating people. Fire and silver stop the healing. You can no longer speak. Requires a True Form, and removes almost all of your other tags."
+    description: "Give in to the carnage. You permanently become a monstrously tall woman with hands like rakes. You can hide in the dark, sprint impossibly quickly, and heal from eating people unless hurt by silver or fire. You can no longer speak. Removes almost all of your other tags."
     pointCost: 9
     visible: true
     purchasable: true
@@ -12548,7 +12548,7 @@ tags:
     name: Terrifying
     category: demoness
     group: demoness
-    description: "Your True Form terrifies people, sinking their mood towards Afraid or Panicking. Requires a True Form other than Apex — nobody is frightened of a thing they never see coming. ‡"
+    description: "Your True Form terrifies people, either making them Afraid or Panicking. Requires a True Form other than Apex."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -12579,7 +12579,7 @@ tags:
     name: Beguiling
     category: demoness
     group: demoness
-    description: "People struggle to raise a hand against you. In your True Form their fighting skill counts as 1 tier lower; wearing a human face, 2 tiers lower."
+    description: "While in your True Form, people struggle to raise a hand against you, having their fighting skill counts as 1 tier lower or 2 tiers lower if you are wearing a human face."
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -12589,7 +12589,7 @@ tags:
     name: Silver Callus
     category: demoness
     group: demoness
-    description: "The Silver Cross disables your powers for 1 turn, not the rest of the day. It took decades to grow this scar."
+    description: "The Silver Cross disables your powers for 1 turn. It took decades to grow this scar."
     pointCost: 11
     purchasable: true
     purchasableAfterStart: true
@@ -12599,7 +12599,7 @@ tags:
     name: Heal
     category: demoness
     group: demoness
-    description: "Drink a person's blood to clear up to 2 of your negative Health tags."
+    description: "You can drink a person's blood to clear up to 2 of your negative Health tags."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -12659,7 +12659,7 @@ tags:
     name: Grievous Wound
     category: health
     group: health-wounds
-    description: "No… It can't be— Without treatment it will turn {tag:infected}."
+    description: "No… It can't be— A dangerous injury that will turn {tag:infected} without treatment."
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -12706,7 +12706,7 @@ tags:
     name: Godflesh
     category: items
     group: items-gear
-    description: "A fibrous, pink substance harvested from the waterlogged marshes. It previously squirmed and tried to gnaw your hands off, but now it's dead. Labor at the Godard Factory to refine it."
+    description: "A fibrous, pink substance harvested from the waterlogged marshes. While alive, it squirmed and bit at anyone handling it."
     pointCost: 0
     tradeable: true
     weight: 28
@@ -12722,7 +12722,7 @@ tags:
     name: Squeeze
     category: items
     group: items-gear
-    description: "A gelatinous pink substance. The machines made it into a cube. Do not eat."
+    description: "A gelatinous pink cube."
     pointCost: 0
     tradeable: true
     weight: 17
@@ -12750,7 +12750,7 @@ tags:
     name: Packaging Equipment
     category: items
     group: items-gear
-    description: "Allows you to package things into crates, bolted down afterwards."
+    description: "Bolten down tools that allow one to package things into crates."
     pointCost: 0
     tradeable: false
     visible: true
@@ -12763,7 +12763,7 @@ tags:
     name: Armored Gloves
     category: items
     group: items-armor
-    description: "Thick leather gloves with chainmail, essential for handling the dangerous Godflesh."
+    description: "Thick leather gloves with chainmail, essential for handling dangerous Godflesh."
     pointCost: 2
     equippable: true
     equipSlot: ACCESSORY
@@ -12788,7 +12788,7 @@ tags:
     name: Factory Key
     category: items
     group: items-keys
-    description: "A key to Godard factory."
+    description: "A large key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -12802,7 +12802,7 @@ tags:
     name: Banneret's Key
     category: items
     group: items-keys
-    description: "A key to the overseer box."
+    description: "A finely made key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -12816,7 +12816,7 @@ tags:
     name: Fisherman's Key
     category: items
     group: items-keys
-    description: "A key to the old hut out past the village."
+    description: "A wooden key."
     pointCost: 0
     tradeable: true
     stackable: true
@@ -12830,7 +12830,7 @@ tags:
     name: Flooded Crate
     category: items
     group: items-gear
-    description: "A crate somebody left in a cellar that has been underwater for years. The boards have swollen shut, preserving the crate's contents."
+    description: "A swollen crate."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -12845,7 +12845,7 @@ tags:
     name: Moonshine
     category: items
     group: items-drink
-    description: "Freebase alcohol. Not good for your vision."
+    description: "Freebase alcohol. Not good for one's vision."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -12889,7 +12889,7 @@ tags:
     name: Damaged Vision
     category: health
     group: health-mind
-    description: "Your vision is slowly getting worse. Don't let it get to 5."
+    description: "Your vision is slowly getting worse."
     pointCost: 0
     stackable: true
     visible: false
