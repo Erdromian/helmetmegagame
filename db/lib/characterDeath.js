@@ -12,7 +12,7 @@ const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
 const { CATATONIC_SLUG, GIBBED_SLUG } = require("./constants");
 const { SEAT_TAG_SLUGS } = require("./threats");
-const { applyFear } = require("./fear");
+const { applyMood } = require("./mood");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
 // was no longer ALIVE, in which case NOTHING else was written: the update's
@@ -189,7 +189,7 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
         return { tag: null, room: null };
       });
 
-  // Everyone standing where they fell saw it (docs/systemdocs/FEAR.md). The
+  // Everyone standing where they fell saw it (docs/systemdocs/MOOD.md). The
   // location is re-read rather than trusted off `character`, since callers
   // pass rows of every shape. Wrapped, and after the claim: a death is never
   // aborted by a witness's nerves.
@@ -220,8 +220,8 @@ async function frightenWitnesses(prisma, deadCharacterId) {
   // Sequential on purpose: a dozen witnesses is the most a room holds, and a
   // burst of parallel transactions at turn close competes for pool slots.
   for (const { id } of witnesses) {
-    await applyFear(prisma, id, { kind: "DEATH_SEEN" }).catch((err) =>
-      console.error(`Death-seen fear failed for ${id}:`, err.message ?? err),
+    await applyMood(prisma, id, { kind: "DEATH_SEEN" }).catch((err) =>
+      console.error(`Death-seen mood failed for ${id}:`, err.message ?? err),
     );
   }
 }

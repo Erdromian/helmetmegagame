@@ -28,7 +28,7 @@ const { STEALTH_SLUG } = require("./constants");
 const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessage } = require("./indoors");
-const { applyArrivalFear } = require("./fear");
+const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
@@ -326,11 +326,11 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
 
   // What walking in here does to the nerves is a DB fact too, same as parking
   // a mount above — before the Discord guard, so it lands whether or not
-  // there's a token to talk to Discord with (docs/systemdocs/FEAR.md). No
+  // there's a token to talk to Discord with (docs/systemdocs/MOOD.md). No
   // per-turn ration on the arrival cost: a mount's two crossings are two real
   // arrivals. The Cathedral's relief rations itself inside.
-  await applyArrivalFear(prisma, { characterId, fromLocationId, toLocationId }).catch((err) => {
-    console.error(`Move: fear on arrival failed for ${characterId}:`, err.message ?? err);
+  await applyArrivalMood(prisma, { characterId, fromLocationId, toLocationId }).catch((err) => {
+    console.error(`Move: mood on arrival failed for ${characterId}:`, err.message ?? err);
   });
 
   // Walking into an armed turret. Before the Discord guard, and before the

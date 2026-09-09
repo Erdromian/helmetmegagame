@@ -28,7 +28,7 @@ const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquip
 const { createWithRetry } = require("./paperMint");
 const { resolveSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
-const { settleFearTag } = require("./fear");
+const { setMood, MOOD_MIN } = require("./mood");
 const { normalizeChant, containsPhrase } = require("./rites");
 const { GHOST_ROLE_ID } = require("./roleIds");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
@@ -564,7 +564,7 @@ async function answerPanic(db, { attempt, content }) {
 
   // CLAIM THE ANSWER FIRST. noteChant is fire-and-forget on both faces, so two
   // participants naming two different places in the same second both reach
-  // here; without this the fear-100 loop ran twice and one heart haunted two
+  // here; without this the panic loop ran twice and one heart haunted two
   // places. Whoever wins the guarded write does the striking, the loser walks
   // away. Same shape as the READY claim in db/lib/riteChant.js.
   const { count } = await db.riteAttempt.updateMany({
@@ -573,7 +573,7 @@ async function answerPanic(db, { attempt, content }) {
   });
   if (count === 0) return null;
 
-  // Rage does not become afraid (db/lib/fear.js) — this write bypasses the
+  // Rage does not become afraid (db/lib/mood.js) — this write bypasses the
   // multiplier table, so the exemption is applied here by hand.
   const struck = await db.character.findMany({
     where: {
@@ -585,8 +585,7 @@ async function answerPanic(db, { attempt, content }) {
   });
   for (const c of struck) {
     await db.$transaction(async (tx) => {
-      await tx.character.update({ where: { id: c.id }, data: { fear: 100 } });
-      await settleFearTag(tx, c.id, {});
+      await setMood(tx, c.id, MOOD_MIN);
     }).catch(log(`panic for ${c.name}`));
   }
   // The status and the clock were written by the claim above; this only

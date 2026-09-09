@@ -434,7 +434,7 @@ tick, and a separate Loot dialog that was a third dropdown over the same body.
 The people are the same roster every picker uses (web/lib/peopleHere.js), and
 the whole thing is re-read the moment the dialog opens
 (`actions/useRoster.js`). Out of a person's pockets **is** Loot — the server
-hands that source to `lootCharacterRequest`, so the helpless gate, the fear
+hands that source to `lootCharacterRequest`, so the helpless gate, the mood
 hit and the "your body was searched" notice fire whichever button opened it;
 you can't reach into a standing person's pockets, and listing what's in them
 would show their hidden tags (REQUESTS.md §5b). The Loot button opens the same

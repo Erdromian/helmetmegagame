@@ -279,6 +279,10 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       isTreasurer: character.isTreasurer,
       resources: character.resources,
       tagPoints: character.tagPoints,
+      // The dial itself, so the Mood box shows what it actually is
+      // (docs/systemdocs/MOOD.md). It was missing while this was `fear`, so
+      // that box read 0 for everybody however frightened they were.
+      mood: character.mood,
       turnPingOptIn: character.turnPingOptIn,
       // The two switches on /character a GM could not see. Both matter when a
       // player reports being visible, or unhidden, when they expect otherwise
@@ -366,7 +370,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     maxDrawbackPoints: config?.maxDrawbackPoints ?? DEFAULT_MAX_DRAWBACK_POINTS,
     startingTagPoints: config?.startingTagPoints ?? 12,
     openTurn: openTurn ? { id: openTurn.id, number: openTurn.number, phase: openTurn.phase } : null,
-    gambitModifier: gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak }),
+    gambitModifier: gambitModifierTotal(heldTags, { hungerStreak: character.hungerStreak, mood: character.mood }),
     stagedForPush,
     openTurnAction: openTurnAction
       ? {

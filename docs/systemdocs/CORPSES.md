@@ -166,7 +166,7 @@ obligations here are negative, and they matter: never pin the line, and never
 record its id as an anchor. Do neither and it clears itself every Dawn.
 
 An unburied corpse also costs the living: at turn close, everyone ending the
-turn in a Location that still holds a rotten body takes +5 fear (`FEAR.md`).
+turn in a Location that still holds a rotten body takes −5 mood (`MOOD.md`).
 
 ## 6. Butcher
 

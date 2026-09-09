@@ -5959,6 +5959,13 @@ label.chip {
   margin-bottom: var(--sp-2);
 }
 
+/* A stash chip wrapped in a HoverCard so its description shows on hover
+   (RoomPanel.js). .tag-hover is mono, because the chips it was written for
+   are; these are not, and inheriting it turned the floor into a typewriter. */
+.chat-chip-hover {
+  font-family: inherit;
+}
+
 /* The one bad-news tone, scoped to this column so it cannot leak into the
    chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
    carry line over its cap. */
@@ -6552,12 +6559,14 @@ label.chip {
 
 .ledger-tiles {
   display: grid;
-  /* auto-fit rather than a fixed four, so the row folds to two before any
-     tile is narrow enough to wrap "30.5 / 71 lb" onto a second line. */
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  /* auto-fit rather than a fixed five, so the row folds before any tile is
+     narrow enough to wrap "30.5 / 71 lb" onto a second line. The max-width
+     fits all five across when there is room — it was 40rem for the four
+     before the Mood box, which left the Gambit die orphaned on its own row. */
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: var(--sp-2);
   flex: 1 1 26rem;
-  max-width: 40rem;
+  max-width: 47rem;
 }
 
 .ledger-tile {
@@ -6603,6 +6612,29 @@ label.chip {
 
 .ledger-tile-value[data-over="true"] {
   color: var(--accent-text);
+}
+
+/* The Mood box says a WORD, not a number, so it drops the mono face
+   (--font-mono is for data) and takes its colour from a tone rather than a
+   token picked at the call site — the .status-pill rule, same four names. */
+.ledger-tile-value[data-word="true"] {
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.ledger-tile-value[data-tone="muted"] {
+  color: var(--muted);
+}
+
+.ledger-tile-value[data-tone="good"] {
+  color: var(--positive);
+}
+
+.ledger-tile-value[data-tone="warn"] {
+  color: var(--warning);
+}
+
+.ledger-tile-value[data-tone="bad"] {
+  color: var(--danger);
 }
 
 .ledger-tile .depot-meter,
@@ -7026,10 +7058,11 @@ button.equip-cell-face:focus-visible {
     grid-column: 1 / -1;
   }
 
-  /* Two by two beside the name once the band has wrapped — three across and
-     one orphan underneath reads as a mistake. */
+  /* Three then two once the band has wrapped. It was two-by-two while there
+     were four tiles; with the Mood box making five, two columns leaves the
+     last one orphaned underneath, which reads as a mistake. */
   .ledger-tiles {
-    grid-template-columns: repeat(2, minmax(9rem, 1fr));
+    grid-template-columns: repeat(3, minmax(8.5rem, 1fr));
   }
 }
 
@@ -7191,6 +7224,32 @@ button.equip-cell-face:focus-visible {
   cursor: pointer;
 }
 
+/* An element whose only job is to be the hit area, the way .check-hit is one
+   for a checkbox row. A node is about two pixels across on a phone at the zoom
+   floor, and no amount of care makes that tappable.
+
+   fill: transparent, not fill: none — a rect with no fill is not hit-testable,
+   and being hit is the entire point of this one.
+
+   Inert on a mouse. A pointer that lands within a pixel does not want a square
+   swallowing its neighbours' hover, and the desktop board should come out of
+   this change byte for byte. --map-hit is written by applyView on every frame
+   and only ever shrinks the square: HIT is already as wide as a node may be
+   before it reaches the next one along. */
+.map-node-hit {
+  fill: transparent;
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  .map-node-hit {
+    pointer-events: fill;
+    transform-box: fill-box;
+    transform-origin: center;
+    transform: scale(var(--map-hit, 1));
+  }
+}
+
 /* The rim is a thin ring standing off the core, not a band the core sits in.
    Filled, it read as one fat blob at any zoom and swallowed the zone colour;
    hollow, the plate shows through the gap and the core keeps its colour.
@@ -7253,6 +7312,14 @@ button.equip-cell-face:focus-visible {
 
 /* -------------------------------------------------------- /map · controls */
 
+/* Nothing on a desktop: display: contents generates no box, so the two
+   children below keep resolving their own corners against .map-stage exactly
+   as they did before this wrapper existed. It only becomes a real element on
+   a phone, in the 640px block at the foot of this section. */
+.map-hud {
+  display: contents;
+}
+
 .map-layers {
   position: absolute;
   top: var(--sp-2);
@@ -7276,6 +7343,32 @@ button.equip-cell-face:focus-visible {
 .map-count {
   font-size: var(--fs-xs);
   color: var(--muted);
+}
+
+/* The zoom controls are the only way to zoom for anyone who cannot pinch, so
+   they get the full 44px floor DESIGN-SYSTEM.md §9 sets. Scoped here rather
+   than raised in the global coarse-pointer block above, which takes .btn-quiet
+   to 36px at all fifty-odd of its call sites — those are flush text links in a
+   row of prose, and these three are buttons standing alone over a map.
+   touch-action: manipulation for the reason .check-row gives: without it iOS
+   holds every tap back waiting to see whether a second one is coming. */
+@media (pointer: coarse) {
+  .map-controls .btn-quiet,
+  .map-controls .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-width: 44px;
+    min-height: 44px;
+    padding-inline: var(--sp-2);
+    touch-action: manipulation;
+  }
+
+  /* A minus sign at --fs-xs centred in a 44px box reads as a speck. */
+  .map-controls .btn-quiet {
+    font-size: var(--fs-sm);
+  }
 }
 
 /* ------------------------------------------------------------ /map · card */
@@ -7418,17 +7511,60 @@ button.equip-cell-face:focus-visible {
   min-height: 0;
 }
 
-/* Phone: the card stops being a column and becomes a strip under the board.
-   The board keeps most of the height — the card is a caption, and its Ways
-   out list is the thing worth scrolling. */
+/* Phone: the card stops being a column beside the board and becomes a sheet
+   OVER it. It used to be a strip underneath, which cost the board 40% of an
+   already short screen and cropped the plate to a letterbox. Over it, the
+   drawing runs on underneath and anything the sheet covers is one drag away
+   rather than gone.
+
+   The two heights come off whether something is picked and nothing else.
+   Nothing picked, it is a caption and its Ways out list; something picked, it
+   opens far enough that Go is on screen with the place you chose — which is
+   what lets the second tap stop meaning travel (MapBoard.js). */
 @media (max-width: 640px) {
   .map-board {
     flex-direction: column;
+    position: relative;
+  }
+
+  .map-stage {
+    position: absolute;
+    inset: 0;
   }
 
   .map-card {
+    position: absolute;
+    inset: auto 0 0 0;
+    z-index: 1;
     width: auto;
-    max-height: 40%;
+    max-height: 32dvh;
+    border-radius: var(--r-md) var(--r-md) 0 0;
+  }
+
+  .map-card[data-picked] {
+    max-height: 62dvh;
+  }
+
+  /* Bottom left is under the sheet now, and the two bars will not fit on one
+     line — 191px of layer switch and 295px of controls against a 390px
+     screen. So they stack down the top-left corner instead, and neither needs
+     to know the other's width. The wrapper is what takes the position;
+     pointer-events step aside so the column's own gaps stay draggable map. */
+  .map-hud {
+    display: flex;
+    position: absolute;
+    inset: var(--sp-2) var(--sp-2) auto var(--sp-2);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--sp-2);
+    pointer-events: none;
+  }
+
+  .map-hud > * {
+    position: static;
+    pointer-events: auto;
+    max-width: 100%;
+    flex-wrap: wrap;
   }
 }
 

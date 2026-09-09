@@ -951,6 +951,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     phase: openTurn?.phase ?? null,
     indoors: character.location?.indoors ?? true,
   };
+  // The mood dial rides along as a number (docs/systemdocs/MOOD.md) because
+  // the sheet needs it for two things — the Mood box's word and the Gambit
+  // tile's modifier — and both are computed client-side. Nothing renders the
+  // figure itself; LedgerBand only ever prints bandOf()'s label.
   const sheetCharacter = {
     ...character,
     tags: character.tags.map((ct) => {
@@ -962,10 +966,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       };
     }),
   };
-  // The fear dial is hidden from players by design (docs/systemdocs/FEAR.md):
-  // they see the band tag, never the number. The sheet is handed to client
-  // components, so the column must not ride along in the payload.
-  delete sheetCharacter.fear;
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
 

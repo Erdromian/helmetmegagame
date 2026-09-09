@@ -51,6 +51,7 @@ export function thingGroups(characterTags = []) {
       characterTagId: ct.id ?? null,
       tagId: ct.tagId,
       name: ct.tag.name,
+      description: ct.tag.description ?? "",
       category: ct.tag.category,
       quantity: ct.quantity ?? 1,
       equipped: Boolean(ct.equipped),

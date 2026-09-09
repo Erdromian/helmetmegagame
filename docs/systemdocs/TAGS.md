@@ -514,8 +514,8 @@ Bascinet's call, the same off-band spot as Motion Sickness and Insomniac.
 that is Bascinet's call rather than a new scale.** Fourteen tags now sit
 between bands: Adventurer 3, Dagger 3, Death Wish 3, Knuckle Duster 3,
 Pickpocket 3, Skeleton Wedge 3 and Nine Lives 3 (between 2 and 5); Brave was 4 here too, but the fear-dial batch of
-2026-09-06 moved it to 5 (repriced for its new ×0.5 relief on every fear
-gain, FEAR.md) — it sits on the ordinary 5 band now, so drop it from this
+2026-09-06 moved it to 5 (repriced for its new ×0.5 on every mood harm,
+MOOD.md) — it sits on the ordinary 5 band now, so drop it from this
 off-band list. Escape Artist 4, Esoteric 4, Lockpicking 4, Pavise 4 and
 Camouflage 4 (also between 2 and 5); Light Sleeper and Old Blood at 1 (below
 the 2 band, alongside Pilgrim and Instrument). Don't read a pattern into any
@@ -1194,9 +1194,9 @@ presence of a `requirement:` block (§5, `isHealable`). A rung priced
 carelessly can still be wrong twice, on both surfaces — just remember they're
 two different flags now, not one inference.
 
-The ladder is read a third time by the fear dial: a new wound's rung decides
-how much it frightens the character who takes it, `db/lib/fear.js` reading the
-same rungs as the table above (FEAR.md). Pricing a rung carelessly is now
+The ladder is read a third time by the mood dial: a new wound's rung decides
+how much it costs the character who takes it, `db/lib/mood.js` reading the
+same rungs as the table above (MOOD.md). Pricing a rung carelessly is now
 wrong three ways, not two.
 
 **Remove/Destroy no longer cures anything.** Before `healable` existed, the
@@ -1668,9 +1668,9 @@ The Personality batch of 2026-09-05 added a second wave of scripted
 drawbacks, each with its own writer:
 
 - **Claustrophobia, Hemophobia, Agoraphobia, Pyrophobia and Teratophobia**
-  each multiply one kind of fear gain rather than sustaining a mood of their
-  own — `db/lib/fear.js` (the multiplier table) and `db/lib/fearPass.js` (the
-  nightly turn pass). See `FEAR.md`.
+  each multiply one kind of mood harm rather than sustaining a state of their
+  own — `db/lib/mood.js` (the multiplier table) and `db/lib/moodPass.js` (the
+  nightly turn pass). See `MOOD.md`.
 - **Guilt Ridden and Insomniac** each carry a nightly chance of a bad night's
   sleep, stepped through the same Tired -> Exhausted ladder a day's Labor uses
   (`LABORING.md` §4) — `db/lib/dawnAfflictionPass.js`, run right after the
@@ -1691,9 +1691,9 @@ drawbacks, each with its own writer:
 
 ## Phobias
 
-A phobia is no longer its own system. It's a multiplier on one kind of fear
-gain in the hidden fear dial — see `FEAR.md` for the dial, the five mood
-bands it produces, and the full multiplier table.
+A phobia is no longer its own system. It's a multiplier on one kind of harm to
+the mood dial — see `MOOD.md` for the dial, the nine bands it produces, and the
+full multiplier table.
 
 ## `equippable` / `concealsIdentity`
 

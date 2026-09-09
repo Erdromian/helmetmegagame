@@ -62,13 +62,20 @@ Who this is, where they stand, and:
   line, every Status and Health tag. On the sheet it takes `onPick`, and a
   clicked chip opens the tag's `TagDetails` under the strip. The rail has no
   Status card for that reason.
-- **Four tiles** — free moves, ⬢ against the cap, carrying with the meter,
-  the Gambit modifier (`db/lib/gambitModifier.js`, the same call the bot
-  makes). Free moves is the one tile with something to say — why it is 0 —
-  and is a button for it; its detail reads under the row of tiles, where a
-  native `title=` used to be. The other three are numbers and do not press.
-  Carrying opened a breakdown of what holds its cap up until that came off:
-  one pressable tile in a row of read-only ones read as a bug.
+- **Five tiles** — free moves, ⬢ against the cap, carrying with the meter,
+  the **Mood box** (`MOOD.md` §4), the Gambit modifier
+  (`db/lib/gambitModifier.js`, the same call the bot makes). Two of them have
+  something to say and are buttons for it — free moves (why it is 0) and the
+  Mood box (what moves a mood); their detail reads under the row of tiles,
+  where a native `title=` used to be, and they share the one paragraph. The
+  other three are numbers and do not press. Carrying opened a breakdown of
+  what holds its cap up until that came off: one pressable tile in a row of
+  read-only ones read as a bug.
+- The Mood box opens its line **on hover as well as on click** — a request,
+  not an exception: it is still the same on-page line, and there is still no
+  tooltip. It is also the one tile whose value is a word rather than a number,
+  so it drops `--font-mono` and takes its colour from a `data-tone` (Fine
+  grey, Panicking `--danger`) instead of the `data-over` the others use.
 - **This turn** — Chat's `TurnCard` + `MoveDialog`, wrapped in
   `SheetTurn.js`, over the same `play/actions.js#myMove` and the same minute
   poll (`play/useMyMove.js`, which `YouPanel.js` shares). File or edit the

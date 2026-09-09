@@ -28,8 +28,8 @@ const {
   DRILL_THRESHOLD,
 } = require("./constants");
 
-// What a lesson needs to know about each side. hungerStreak feeds the
-// learner's Gambit modifier, same as a hand-filed Gambit.
+// What a lesson needs to know about each side. hungerStreak and mood feed
+// the learner's Gambit modifier, same as a hand-filed Gambit.
 const LESSON_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -40,6 +40,7 @@ const LESSON_CHARACTER_SELECT = {
   buriedAt: true,
   discordUserId: true,
   hungerStreak: true,
+  mood: true,
   tags: {
     select: {
       tagId: true,
@@ -429,6 +430,7 @@ async function acceptLesson(prisma, offer, responder) {
           diceRoll: rollDie(),
           diceModifier: gambitModifierTotal(learner.tags, {
             hungerStreak: learner.hungerStreak,
+            mood: learner.mood,
           }),
           zoneId: learner.zoneId ?? null,
           gmNotes: "auto:lesson",

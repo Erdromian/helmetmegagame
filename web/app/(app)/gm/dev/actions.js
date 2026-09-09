@@ -847,9 +847,9 @@ async function bulkMove(session, characters, input) {
         failures.push({ step: "move", target: c.name, message: err.message });
         console.error(`Bulk move: Discord sync failed for ${c.name}:`, err);
       }
-      // One Caving Die per arrival, same as walking in — keyed on the
-      // LOCATION now. Outside the try above: a failed Discord sync still moved
-      // the character.
+      // One Caving Die per arrival, same as walking in — including a drop
+      // into somewhere they already stood today. Outside the try above: a
+      // failed Discord sync still moved the character.
       try {
         const cavingDm = await rollCavingOnArrival(
           prisma,

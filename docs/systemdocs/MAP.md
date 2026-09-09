@@ -83,8 +83,8 @@ customs:
     depot: true
 ```
 
-Two more keys feed the fear dial (`FEAR.md`): `wilderness` marks a Location
-where arriving and ending the turn cost fear (every Forest, Black Hills and
+Two more keys feed the mood dial (`MOOD.md`): `wilderness` marks a Location
+where arriving and ending the turn cost mood (every Forest, Black Hills and
 Marshes Location except the factory, the farms and the marshes village), and
 `haven` marks a Location whose roof gives extra relief at turn close — the
 Inn, the Keep and the Sanctuary.
@@ -521,7 +521,14 @@ Two hosts, **one component** (`web/app/(app)/map/MapBoard.js`): the `/map`
 route, and an overlay on `/play` opened by the place card's **Open map** and
 closed with Escape, the backdrop or Return to game. On a folded viewport the
 button navigates to the route instead of opening the overlay — a full-bleed
-board inside the phone's "Here" sheet would be a dialog inside a dialog.
+board inside the phone's "Here" sheet would be a dialog inside a dialog, and
+§6e is what makes the route the better place to land anyway.
+
+**Drag to pan, pinch or wheel to zoom**, with `−` / `+` / Reset as the path
+for anyone who does neither. The whole view is `{x, y, k}` in a ref, written
+straight onto one `<g>`; nothing about the board is React state, because a
+pointermove that re-rendered fifty nodes and eighty lines drops frames on a
+phone.
 
 ### 6a. The fog
 
@@ -615,6 +622,14 @@ its own — it arrives as two clicks, which pick and then go — which is why
 there is no `onDoubleClick` here to fight the 6px drag guard that stops a pan
 from registering as a pick.
 
+**Not on a finger.** On a coarse pointer the second tap unpicks like any
+other and the card's Go is the only door. A stray tap on a phone is easy and
+this one spends a crossing; a deliberate press an inch away is not much to
+ask, and the sheet in §6e puts Go on screen the moment you pick, so there is
+nowhere to travel to. `canTravelTo` is untouched by this — it narrows a
+gesture, not the rule about where you may walk. It is also why there is no
+double-tap-to-zoom: on this board a double tap already means *go*.
+
 **Enter does the same** once something is picked. On the Travel panel that is
 free: its nodes are real `<button>`s, so a click focuses one and Enter
 re-activates it, which is the second pick. The map has to spell it out — its
@@ -646,6 +661,52 @@ rims, the cores, the ways — is tokens all the way down.
 
 `Zone.mapPolygon` / `mapLabelX` / `mapLabelY` are still there and still always
 null: they described the retired panel's four rhombi, and nothing reads them.
+
+### 6e. The board on a phone
+
+For a while the map was readable on a desktop and a picture of a map on a
+phone: there was no pinch handler at all, `touch-action: none` had already
+taken the browser's own away, and the only zoom left was two ~20px buttons in
+a corner. Three things fix it, and they are all in `MapBoard.js` and the
+`/map` block of `globals.css`.
+
+**Pinch is two pointers and one number.** Every pointer down on the board is
+kept by id in a ref; a second one ends the pan and starts a pinch, measured by
+`gauge()` as the distance between the fingers and the plate pixel between
+them. Each move hands `zoomBy` the ratio of the distances, the **old**
+midpoint as its anchor and the **new** one as where that anchor should land —
+which is the whole trick, because it makes a two-finger drag pan and zoom in a
+single write. `to` defaults to `at`, so the wheel and the buttons are
+unchanged. Two things are easy to get wrong and are handled: lifting one
+finger of two re-seats the pan on the finger that is *left* (on the midpoint,
+the map leaps by half the gap between them), and `panned` is set the moment a
+second finger lands, so the click that fires when the last one lifts is never
+read as picking a place.
+
+**The zoom floor of 1 still holds**, and pinch-panning survives it: at the
+clamp the factor is swallowed and the translation is not, so a two-finger
+drag at full extent still moves the board.
+
+**A node is about two pixels across at the floor**, so each carries an
+invisible `.map-node-hit` square — the `.check-hit` idea in SVG. It is inert
+on a mouse, which does not need it and would only lose precision. `HIT` is 27
+plate pixels half-width, which is not a taste: the two closest Locations on
+the plate sit 54.6 apart, and anything wider turns a tap in the Fortress into
+a lottery. `applyView` writes `--map-hit` on every frame to shrink that toward
+44 CSS px once you are zoomed in far enough to have the room. Below about
+2.7× the cap binds and the target is simply as big as it may be — which is
+honest: fifty nodes over 375px cannot each own 44px, and pinch is the answer
+to that, not arithmetic.
+
+**Under 640px the card is a sheet over the board, not a column beside it.**
+It used to be a strip underneath taking 40% of an already short screen, which
+letterboxed the plate. Over it, the drawing runs on underneath and anything
+the sheet covers is one drag away. Its two heights come off `sel` and nothing
+else, through a `data-picked` attribute — nothing picked is a caption and its
+Ways out list, something picked opens far enough to show Go. The layer switch
+and the zoom controls stack down the top-left corner in a `.map-hud` wrapper,
+which is `display: contents` on a desktop so each keeps the corner it has
+always had; side by side they want 486px of a 390px screen.
 
 ## 7. Where the code lives
 

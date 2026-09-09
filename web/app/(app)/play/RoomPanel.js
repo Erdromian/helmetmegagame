@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import FormError from "@/app/components/FormError";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
+import HoverCard from "@/app/components/HoverCard";
 import { readStash } from "./actions";
 import { TONE_CLASS } from "./PlacePanel";
 
@@ -37,6 +38,38 @@ function roomIdOf(selected) {
 // room as the source and that stack already ticked, which is the whole of
 // "take that". Reading a list of things you cannot touch was the complaint.
 // The ⬢ chip stays inert — a quantity is typed, not picked.
+// One stack on the floor, and what it is. A name alone ("Wolfsbane") is not
+// enough to decide with when the choice is what to carry out of here, so the
+// description shows on hover — PlacesColumn.js's room rows do the same thing
+// for the same reason, and through the same portal, because this strip is
+// inside a scrolling column that would clip an in-tree tooltip.
+//
+// pinnable={false}: the chip is a button already. A click has one meaning
+// here — open Transfer with this stack ticked — and a pin would fight it.
+function StashChip({ item, onTake }) {
+  const button = (
+    <button type="button" className="chip" title={`Take ${item.name}`} onClick={() => onTake(item)}>
+      {item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name}
+    </button>
+  );
+  const description = item.description?.trim();
+  if (!description) return button;
+  return (
+    <HoverCard
+      pinnable={false}
+      className="chat-chip-hover"
+      panel={
+        <>
+          <span className="chat-tip-name">{item.name}</span>
+          <span className="chat-tip-desc">{description}</span>
+        </>
+      }
+    >
+      {button}
+    </HoverCard>
+  );
+}
+
 function StashChips({ stash, showAll, onToggle, onTake }) {
   const items = stash.items ?? [];
   if (items.length === 0 && !(stash.resources > 0)) {
@@ -48,15 +81,7 @@ function StashChips({ stash, showAll, onToggle, onTake }) {
     <div className="chat-chips">
       <span className="chip chip-mono">{stash.resources ?? 0} ⬢</span>
       {shown.map((item) => (
-        <button
-          key={item.tagId}
-          type="button"
-          className="chip"
-          title={`Take ${item.name}`}
-          onClick={() => onTake(item)}
-        >
-          {item.quantity > 1 ? `${item.name} ×${item.quantity}` : item.name}
-        </button>
+        <StashChip key={item.tagId} item={item} onTake={onTake} />
       ))}
       {/* Both ways. It opened and then had no way back, so a room holding
           thirty stacks stayed thirty stacks tall for the rest of the visit. */}

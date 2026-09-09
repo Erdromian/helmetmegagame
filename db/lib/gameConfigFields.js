@@ -18,7 +18,7 @@ const GROUPS = [
   { key: "creation", name: "Character creation" },
   { key: "economy", name: "Economy" },
   { key: "carry", name: "Carrying" },
-  { key: "fear", name: "Fear" },
+  { key: "mood", name: "Mood" },
   { key: "desires", name: "Desires" },
   { key: "clock", name: "Turn clock" },
   { key: "catatonic", name: "Catatonic" },
@@ -91,10 +91,10 @@ const FIELDS = [
     label: "Walk cooldown (seconds)",
   },
 
-  // --- Fear ------------------------------------------------------------------
+  // --- Mood ------------------------------------------------------------------
   {
-    key: "fearIntensity", type: "float", group: "fear", default: 1, min: 0, max: 4, step: 0.1,
-    label: "Fear intensity",
+    key: "moodIntensity", type: "float", group: "mood", default: 1, min: 0, max: 4, step: 0.1,
+    label: "Mood intensity",
   },
 
   // --- Desires ---------------------------------------------------------------

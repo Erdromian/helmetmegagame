@@ -747,8 +747,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # The Rite of Rage. Permanent; fear never touches a Raging character
-  # (db/lib/fear.js MULTIPLIERS) and every Desire but cruelty is locked to
+  # The Rite of Rage. Permanent; nothing sinks a Raging character's mood
+  # (db/lib/mood.js MULTIPLIERS) and every Desire but cruelty is locked to
   # them. Bascinet's wording.
   rage:
     catalog: secret
@@ -1069,7 +1069,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # The outdoors family (docs/systemdocs/FEAR.md). Rough Camper halves what
+  # The outdoors family (docs/systemdocs/MOOD.md). Rough Camper halves what
   # the wilderness and the caves do to the nerves; Outsider and Spelunker,
   # gated behind it, each cancel one of the two outright.
   rough-camper:
@@ -1669,7 +1669,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # The phobias each sharpen one kind of fear (docs/systemdocs/FEAR.md):
+  # The phobias each sharpen one kind of harm (docs/systemdocs/MOOD.md):
   # Claustrophobia doubles the caves, Agoraphobia the wilderness, Hemophobia
   # any wound, Teratophobia triples a bad Caving Die, Pyrophobia triples a burn.
   hemophobia:
@@ -2957,8 +2957,8 @@ tags:
     purchasable: false
 
   # "Ate a fine or lavish meal this turn" — what a noble needs to sleep easy
-  # (docs/systemdocs/FEAR.md). No durationTurns on purpose: a 1-turn grant
-  # would be swept before the fear pass reads it, so that pass eats it itself,
+  # (docs/systemdocs/MOOD.md). No durationTurns on purpose: a 1-turn grant
+  # would be swept before the mood pass reads it, so that pass eats it itself,
   # the way the hunger pass eats Ate Meal.
   dined:
     catalog: gm
@@ -3273,8 +3273,8 @@ tags:
 
   # What a chrism anoints (Chris 2026-09-07). Two real mechanics, neither
   # named here so the tag leaks no secrets: db/lib/tagWrites.js refuses to
-  # grant `broken` / `broken-enslaved` to a holder, and db/lib/fear.js halves
-  # every fear gain (MULTIPLIERS). Visible on purpose — a ward someone can
+  # grant `broken` / `broken-enslaved` to a holder, and db/lib/mood.js halves
+  # every mood harm (MULTIPLIERS). Visible on purpose — a ward someone can
   # see is a statement, and the Demoness seeing it is the point.
   blessed:
     catalog: gm
@@ -3326,67 +3326,12 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
 
-  # The five fear bands (docs/systemdocs/FEAR.md), lowest to highest. A
-  # character wears at most one, projected from their hidden fear dial by
-  # db/lib/fear.js#settleFearTag — those rows carry `source: CONDITION`, which
-  # is what tells the dial's row from a GM's hand grant of the same slug. No
-  # durationTurns: the settle owns their lifetime. Afraid and Panic are the
-  # two that touch the dice (db/lib/gambitModifier.js).
-
-  uncomfortable:
-    catalog: gm
-    name: Uncomfortable
-    category: status
-    group: status-debuffs
-    description: "You're uncomfortable. Wait for it to pass."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-
-  stressed:
-    catalog: gm
-    name: Stressed
-    category: status
-    group: status-debuffs
-    description: "You're stressed. Have a drink or eat a nice meal."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-
-  anxious:
-    catalog: gm
-    name: Anxious
-    category: status
-    group: status-debuffs
-    description: "You're anxious. Get away from whatever's happening."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-
-  afraid:
-    catalog: gm
-    name: Afraid
-    category: status
-    group: status-debuffs
-    description: "You're afraid. -1 to all Gambits."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-
-  panic:
-    catalog: gm
-    name: Panic
-    category: status
-    group: status-debuffs
-    description: "You're panicking. -2 to all Gambits."
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
+  # The five fear bands used to sit here — Uncomfortable, Stressed, Anxious,
+  # Afraid and Panic, projected onto a sheet from the hidden dial. They are
+  # gone: the mood dial (docs/systemdocs/MOOD.md) is one number and the band is
+  # a WORD read off it in its own box on the sheet, so there is nothing left
+  # for a tag row to do. The rows still on live sheets come off with
+  # `npm run db:prune-tags -- --apply`.
 
   # For Disabler
   disabled-slowed:
@@ -6049,7 +5994,7 @@ tags:
       - poisoned
 
   # Not on the caving table — the maggot is the loot, this is what you make of
-  # it. Calms like {tag:tea} (db/lib/fear.js CONSUME_RELIEF) and feeds you.
+  # it. Calms like {tag:tea} (db/lib/mood.js CONSUME_RELIEF) and feeds you.
   maggot-milk:
     catalog: gm
     name: Maggot Milk
@@ -7829,7 +7774,7 @@ tags:
 
   # HIDDEN recipe (aberrant-heart is non-public; Chris 2026-09-07). Fights as
   # Exceptional tier — the ladder's own language — and its second mechanic
-  # lives in db/lib/fear.js: while EQUIPPED, every fear gain is ×0. Not for
+  # lives in db/lib/mood.js: while EQUIPPED, every mood harm is ×0. Not for
   # the counter: no sell price on purpose. The heart drops nowhere until the
   # loot pass lands; a GM grants it.
   heartforged-blade:
@@ -9004,7 +8949,7 @@ tags:
     name: Tea
     category: items
     group: items-drink
-    description: "Its soothing aroma cures minor unpleasant effects — like {tag:afraid} and {tag:panic}. Ravenheart has never grown a leaf of it."
+    description: "Its soothing aroma settles the nerves and lifts a poor mood. Ravenheart has never grown a leaf of it. ‡"
     pointCost: 0
     depotPrice: 2
     sellable: true
@@ -12601,7 +12546,7 @@ tags:
     name: Terrifying
     category: demoness
     group: demoness
-    description: "Your True Form terrifies people, either making them {tag:afraid} or {tag:panic}. Requires a True Form other than Apex — nobody is frightened of a thing they never see coming."
+    description: "Your True Form terrifies people, sinking their mood towards Afraid or Panicking. Requires a True Form other than Apex — nobody is frightened of a thing they never see coming. ‡"
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true

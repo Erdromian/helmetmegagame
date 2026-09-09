@@ -117,15 +117,8 @@ const CONFESSION_THRESHOLD = 5;
 // general-category tag that worked the same way, was retired 2026-09-05.)
 const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 
-// The five fear bands (docs/systemdocs/FEAR.md), lowest to highest. Owned by
-// db/lib/fear.js#settleFearTag; the top two are Gambit modifiers.
-const UNCOMFORTABLE_SLUG = "uncomfortable";
-const STRESSED_SLUG = "stressed";
-const ANXIOUS_SLUG = "anxious";
-const AFRAID_SLUG = "afraid";
-const PANIC_SLUG = "panic";
 // The "ate a fine or lavish meal this turn" marker a noble needs to sleep
-// easy. Granted by consumesInto, consumed by the fear pass — never by time.
+// easy. Granted by consumesInto, consumed by the mood pass — never by time.
 const DINED_SLUG = "dined";
 // What a drawback-triggered ride leaves you as — db/lib/locationTravel.js.
 const VOMITING_SLUG = "vomiting";
@@ -139,7 +132,7 @@ const MOTION_SICKNESS_SLUG = "motion-sickness";
 // own copies rather than importing from here.
 const DEBTOR_SLUG = "debtor";
 // The phobias, Brave, Pale, Rough Camper and friends are read by slug inside
-// db/lib/fear.js's multiplier table rather than exported from here.
+// db/lib/mood.js's multiplier table rather than exported from here.
 
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA
 // system, so two separate rules gate on standing there.
@@ -203,11 +196,6 @@ module.exports = {
   CHAPLAIN_SLUG,
   CONFESSION_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
-  UNCOMFORTABLE_SLUG,
-  STRESSED_SLUG,
-  ANXIOUS_SLUG,
-  AFRAID_SLUG,
-  PANIC_SLUG,
   DINED_SLUG,
   VOMITING_SLUG,
   LAZY_SLUG,

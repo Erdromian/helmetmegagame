@@ -6,16 +6,19 @@
 // old turn-start pass is gone, because it punished the one thing a cave should
 // reward, which is not moving.
 //
-// @@unique([characterId, turnId, trigger, locationId]) caps it at one roll per
-// LOCATION per turn, and rollCaving swallows that repeat's P2002 as "already
-// rolled" — so a character pacing between two places pays for each of them
-// once and then walks in silence.
+// EVERY arrival rolls, first visit or fifth. There used to be a cap of one
+// roll per Location per turn, enforced by a @@unique on the CavingRoll row and
+// read here as a swallowed P2002 — so a caver who pushed four rooms into the
+// Depths walked the whole way back out in silence, which read as a broken die
+// rather than a rule. Nothing caps it now: the walk cooldown
+// (GameConfig.locationMoveCooldownSeconds) is the only brake on how often
+// somebody can pace between two rooms and pay for it.
 
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
 const { addToStack, clampEquippedQuantity } = require("./tagWrites");
-const { applyFear } = require("./fear");
+const { applyMood } = require("./mood");
 const { rollDie } = require("./moveEffects");
 const { expiryFrom } = require("./turnFormat");
 
@@ -39,124 +42,46 @@ function findDm(die, tagName) {
 
 // The single-character primitive. `location` must be a Location row
 // ({ id, attributes, zone }) whose zone is a CAVE_LEVEL; the caller is
-// responsible for that check. Returns { roll, dm } — `roll` is null if this
-// character already rolled for this Location this turn (P2002); never sends
-// the DM itself.
+// responsible for that check. Always writes a row and returns { roll, dm };
+// never sends the DM itself.
 //
 // `trigger` used to be a parameter, back when a turn-start pass shared this
 // function. ARRIVAL is the only value anything can write now, so it is written
 // here rather than threaded through — but the COLUMN stays, because historic
-// rows carry TURN_START and the @@unique reads it.
+// rows carry TURN_START.
 async function rollCaving(prisma, character, turn, location) {
   const zone = location.zone;
   const trigger = "ARRIVAL";
   const die = rollDie(6);
   const kind = die === 1 ? "TROUBLE" : die === 6 ? "FIND" : "QUIET";
 
-  try {
-    return await prisma.$transaction(async (tx) => {
-      if (kind !== "FIND") {
-        // A held Musk Lure eats the first TROUBLE in the holder's place
-        // (docs/tags.yaml `musk-lure`): the lure is spent, the row lands
-        // QUIET with nothing for the Caving lens to deliberate, and the
-        // CAVE_TROUBLE fear never fires — whatever it was followed the
-        // stink instead. The conditional write is the check, the same
-        // no-free-overdraw rule the craft spend uses.
-        let lured = false;
-        if (kind === "TROUBLE") {
-          const lure = await tx.characterTag.findFirst({
-            where: { characterId: character.id, tag: { slug: "musk-lure" } },
-            select: { id: true, tagId: true, quantity: true },
-          });
-          if (lure) {
-            const spent =
-              lure.quantity > 1
-                ? await tx.characterTag.updateMany({
-                    where: { id: lure.id, quantity: { gte: 1 } },
-                    data: { quantity: { decrement: 1 } },
-                  })
-                : await tx.characterTag.deleteMany({ where: { id: lure.id, quantity: 1 } });
-            lured = spent.count > 0;
-            if (lured) await clampEquippedQuantity(tx, character.id, lure.tagId);
-          }
+  return await prisma.$transaction(async (tx) => {
+    if (kind !== "FIND") {
+      // A held Musk Lure eats the first TROUBLE in the holder's place
+      // (docs/tags.yaml `musk-lure`): the lure is spent, the row lands
+      // QUIET with nothing for the Caving lens to deliberate, and the
+      // CAVE_TROUBLE mood hit never fires — whatever it was followed the
+      // stink instead. The conditional write is the check, the same
+      // no-free-overdraw rule the craft spend uses.
+      let lured = false;
+      if (kind === "TROUBLE") {
+        const lure = await tx.characterTag.findFirst({
+          where: { characterId: character.id, tag: { slug: "musk-lure" } },
+          select: { id: true, tagId: true, quantity: true },
+        });
+        if (lure) {
+          const spent =
+            lure.quantity > 1
+              ? await tx.characterTag.updateMany({
+                  where: { id: lure.id, quantity: { gte: 1 } },
+                  data: { quantity: { decrement: 1 } },
+                })
+              : await tx.characterTag.deleteMany({ where: { id: lure.id, quantity: 1 } });
+          lured = spent.count > 0;
+          if (lured) await clampEquippedQuantity(tx, character.id, lure.tagId);
         }
-        const rowKind = lured ? "QUIET" : kind;
-        const row = await tx.cavingRoll.create({
-          data: {
-            turnId: turn.id,
-            characterId: character.id,
-            trigger,
-            zoneId: zone.id,
-            locationId: location.id,
-            die,
-            kind: rowKind,
-            resolvedAt: rowKind === "QUIET" ? new Date() : null,
-          },
-        });
-        // Something is wrong down here — and the caver knows it (FEAR.md).
-        // Teratophobia triples this one.
-        if (rowKind === "TROUBLE") await applyFear(tx, character.id, { kind: "CAVE_TROUBLE" });
-        return {
-          roll: row,
-          dm: {
-            discordUserId: character.discordUserId,
-            content: lured ? luredDm(die) : kind === "TROUBLE" ? troubleDm(die) : quietDm(die),
-          },
-        };
       }
-
-      // FIND — draw a tier and a tag, grant it, and file the CAVING_LOOT
-      // request in the same transaction as the roll and the grant, so a
-      // roll can never exist without its loot (or vice versa).
-      const { tier, slug } = drawLoot(zone.slug);
-      const tag = await tx.tag.findUnique({
-        where: { slug },
-        select: { id: true, name: true, stackable: true, defaultDurationTurns: true },
-      });
-      if (!tag) {
-        // The catalog is out of sync with cavingLoot.js — refuse to grant a
-        // phantom tag. Recorded as TROUBLE-shaped so it still lands on the
-        // Caving lens for a GM to notice, rather than vanishing silently.
-        console.error(`Caving pass: loot tier "${tier}" drew unknown tag "${slug}" — run npm run db:sync-tags.`);
-        const row = await tx.cavingRoll.create({
-          data: {
-            turnId: turn.id,
-            characterId: character.id,
-            trigger,
-            zoneId: zone.id,
-            locationId: location.id,
-            die,
-            kind: "TROUBLE",
-          },
-        });
-        return {
-          roll: row,
-          dm: { discordUserId: character.discordUserId, content: troubleDm(die) },
-        };
-      }
-
-      // `turn.number`, NOT turn.number + 1: unlike hungerPass/tagExpiryPass/
-      // moveEffects, `turn` here IS already the first live turn. Nothing in
-      // cavingLoot.js's table is timed today; this stamps null either way.
-      await addToStack(tx, character.id, tag.id, 1, {
-        source: "EVENT",
-        stackable: tag.stackable,
-        expiresTurn: expiryFrom(turn.number, tag.defaultDurationTurns),
-      });
-
-      // The find is recorded on the CavingRoll itself and in the audit log;
-      // taking it back lives on the Caving lens (CavingDesk.js), which is the
-      // only place a GM ever reached for it.
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: character.discordUserId ?? "system",
-          actionType: "caving_loot_granted",
-          targetCharacterId: character.id,
-          turnId: turn.id,
-          details: { tagId: tag.id, tagName: tag.name, added: 1, zoneId: zone.id, tier, die },
-        },
-      });
-
+      const rowKind = lured ? "QUIET" : kind;
       const row = await tx.cavingRoll.create({
         data: {
           turnId: turn.id,
@@ -165,23 +90,91 @@ async function rollCaving(prisma, character, turn, location) {
           zoneId: zone.id,
           locationId: location.id,
           die,
-          kind: "FIND",
-          lootTier: tier,
-          lootTagId: tag.id,
-          resolvedAt: new Date(),
+          kind: rowKind,
+          resolvedAt: rowKind === "QUIET" ? new Date() : null,
         },
       });
+      // Something is wrong down here — and the caver knows it (MOOD.md).
+      // Teratophobia triples this one.
+      if (rowKind === "TROUBLE") await applyMood(tx, character.id, { kind: "CAVE_TROUBLE" });
+      return {
+        roll: row,
+        dm: {
+          discordUserId: character.discordUserId,
+          content: lured ? luredDm(die) : kind === "TROUBLE" ? troubleDm(die) : quietDm(die),
+        },
+      };
+    }
 
-      return { roll: row, dm: { discordUserId: character.discordUserId, content: findDm(die, tag.name) } };
+    // FIND — draw a tier and a tag, grant it, and file the CAVING_LOOT
+    // request in the same transaction as the roll and the grant, so a
+    // roll can never exist without its loot (or vice versa).
+    const { tier, slug } = drawLoot(zone.slug);
+    const tag = await tx.tag.findUnique({
+      where: { slug },
+      select: { id: true, name: true, stackable: true, defaultDurationTurns: true },
     });
-  } catch (err) {
-    // P2002 on @@unique([characterId, turnId, trigger, locationId]) — this
-    // character already rolled for THIS Location this turn. Not an error: it
-    // is the anti-pacing rule, and walking back into somewhere you already
-    // saw today is meant to be quiet.
-    if (err?.code === "P2002") return { roll: null, dm: null };
-    throw err;
-  }
+    if (!tag) {
+      // The catalog is out of sync with cavingLoot.js — refuse to grant a
+      // phantom tag. Recorded as TROUBLE-shaped so it still lands on the
+      // Caving lens for a GM to notice, rather than vanishing silently.
+      console.error(`Caving pass: loot tier "${tier}" drew unknown tag "${slug}" — run npm run db:sync-tags.`);
+      const row = await tx.cavingRoll.create({
+        data: {
+          turnId: turn.id,
+          characterId: character.id,
+          trigger,
+          zoneId: zone.id,
+          locationId: location.id,
+          die,
+          kind: "TROUBLE",
+        },
+      });
+      return {
+        roll: row,
+        dm: { discordUserId: character.discordUserId, content: troubleDm(die) },
+      };
+    }
+
+    // `turn.number`, NOT turn.number + 1: unlike hungerPass/tagExpiryPass/
+    // moveEffects, `turn` here IS already the first live turn. Nothing in
+    // cavingLoot.js's table is timed today; this stamps null either way.
+    await addToStack(tx, character.id, tag.id, 1, {
+      source: "EVENT",
+      stackable: tag.stackable,
+      expiresTurn: expiryFrom(turn.number, tag.defaultDurationTurns),
+    });
+
+    // The find is recorded on the CavingRoll itself and in the audit log;
+    // taking it back lives on the Caving lens (CavingDesk.js), which is the
+    // only place a GM ever reached for it.
+    await tx.auditLog.create({
+      data: {
+        actorDiscordUserId: character.discordUserId ?? "system",
+        actionType: "caving_loot_granted",
+        targetCharacterId: character.id,
+        turnId: turn.id,
+        details: { tagId: tag.id, tagName: tag.name, added: 1, zoneId: zone.id, tier, die },
+      },
+    });
+
+    const row = await tx.cavingRoll.create({
+      data: {
+        turnId: turn.id,
+        characterId: character.id,
+        trigger,
+        zoneId: zone.id,
+        locationId: location.id,
+        die,
+        kind: "FIND",
+        lootTier: tier,
+        lootTagId: tag.id,
+        resolvedAt: new Date(),
+      },
+    });
+
+    return { roll: row, dm: { discordUserId: character.discordUserId, content: findDm(die, tag.name) } };
+  });
 }
 
 // The one trigger, for every path that lands a character on a Location —

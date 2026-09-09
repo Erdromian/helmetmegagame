@@ -28,7 +28,7 @@ const {
   stowedMounts,
   performMove,
 } = require("../lib/locationTravel");
-const { applyFear } = require("@lifeweb/db/lib/fear");
+const { applyMood } = require("@lifeweb/db/lib/mood");
 const {
   travelOptions,
   canToggleGate,
@@ -1766,9 +1766,9 @@ const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
 const PLAY_COOLDOWN_MS = 5 * 60_000;
 const lastPlayed = new Map();
 
-const PLAY_SOOTHE_AUDIT_ACTION = "fear_soothed_play";
+const PLAY_SOOTHE_AUDIT_ACTION = "mood_soothed_play";
 
-// −10 fear to every living character standing at the musician's Location, the
+// +10 mood to every living character standing at the musician's Location, the
 // musician included. The ration is an AuditLog row per listener with turnId
 // set (REQUESTS.md §1a); /play is rate-limited to one a few minutes and a
 // room holds a dozen people at most, so the rows stay few. The band DM goes
@@ -1796,7 +1796,7 @@ async function sootheListeners(musician) {
   for (const { id } of listeners) {
     if (soothedAlready.has(id)) continue;
     await prisma.$transaction(async (tx) => {
-      await applyFear(tx, id, { kind: "MUSIC" });
+      await applyMood(tx, id, { kind: "MUSIC" });
       await tx.auditLog.create({
         data: {
           actorDiscordUserId: musician.discordUserId ?? "system",
@@ -1869,7 +1869,7 @@ async function handlePlayCommand(interaction) {
   lastPlayed.set(character.id, Date.now());
 
   // A musician's playing settles everyone in earshot, once per listener per
-  // turn (docs/systemdocs/FEAR.md). Only a MUSICIAN's: a bad performance calms
+  // turn (docs/systemdocs/MOOD.md). Only a MUSICIAN's: a bad performance calms
   // nobody. Wrapped, so the dial can never swallow the performance.
   if (held(MUSICIAN_SLUG)) {
     await sootheListeners(character).catch((err) =>
