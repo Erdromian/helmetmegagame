@@ -1679,7 +1679,7 @@ async function advanceTurn() {
         await sendDm(
           prisma,
           move.discordUserId,
-          `» You arrive at **${move.toLocationName}**. ‡`,
+          `You arrive at **${move.toLocationName}**.`,
           { kind: DM_KIND.QUIET },
         ).catch((err) =>
           console.error(`Arrival DM to ${move.discordUserId} failed:`, err),
