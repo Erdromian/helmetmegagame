@@ -21,7 +21,7 @@ async function main() {
 
   const state = await prisma.gameState.findUnique({
     where: { id: 1 },
-    include: { game: { select: { id: true, number: true, endedAt: true, closingNote: true, epilogue: true } } },
+    include: { game: { select: { id: true, endedAt: true, closingNote: true, epilogue: true } } },
   });
   if (!state) {
     console.error("No GameState row. Nothing to do.");
@@ -29,7 +29,7 @@ async function main() {
   }
 
   const game = state.game;
-  console.log(`Game ${game?.number ?? "?"} — phase ${state.phase}`);
+  console.log(`Game ${game?.id ?? "?"} — phase ${state.phase}`);
   console.log(`  GameState.closingNote : ${state.closingNote ? JSON.stringify(state.closingNote) : "(none)"}`);
   console.log(`  Game.closingNote      : ${game?.closingNote ? JSON.stringify(game.closingNote) : "(none)"}`);
   console.log(`  Game.epilogue         : ${game?.epilogue ? "present" : "(none)"}`);

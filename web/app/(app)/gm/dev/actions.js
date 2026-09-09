@@ -367,8 +367,7 @@ export async function wipeGameData(formData) {
         data: { endedAt: oldGame.endedAt ?? new Date(), startedAt: oldGame.startedAt ?? state.startedAt, playerCount: oldGame.playerCount ?? state.playerCount, ...(epilogue ? { epilogue } : {}) },
       });
     }
-    const lastNumber = (await prisma.game.aggregate({ _max: { number: true } }))._max.number ?? 0;
-    const nextGame = await prisma.game.create({ data: { number: lastNumber + 1 } });
+    const nextGame = await prisma.game.create({ data: {} });
     // Whoever is still wearing the ghost seat, so the wipe can take it off
     // them. Read off the guild rather than the database on purpose: the rows
     // that would answer it are about to be deleted, and a leftover ghost role

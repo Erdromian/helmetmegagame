@@ -63,7 +63,7 @@ Five things about it are load-bearing:
   rows only — so a scene line can never be echoed back into the channel it
   came from.
 - **Restart Game asks what to do with it, and either way the rows leave.**
-  Every game is a `Game` row (`number`, dates, closing note, epilogue), and the
+  Every game is a `Game` row (dates, closing note, epilogue), and the
   wipe snapshots the old game's reveal onto it, opens the next, and points
   `GameState.gameId` at the new one. What happens to the transcript is now a
   choice — **discard** it, or **keep** it as a packet — and §6 below is the
@@ -273,14 +273,23 @@ every column, a damaged packet being refused, the seq guard firing, and the
 sequence never moving backward. It wants a real Postgres, so it skips unless
 `ARCHIVE_TEST_DATABASE_URL` points at a throwaway one.
 
-### Identity: the number is not shown any more
+### Identity: a game is its id
 
-`Game.number` still exists and is still assigned — it orders the picker, and
-`#turns` still names it in the **Game Ended** post. But `/archive` keys on
-`Game.id` and labels a game by `Game.label` or its dates. A discarded game
-frees its number, so numbers are reusable now, which is exactly why an old
-`?game=3` link must not silently resolve to whatever game holds 3 today: an
-unknown game redirects rather than falling through to the current one.
+**`Game.number` is gone** (2026-09-09). It was a creation ordinal, every
+playtest wipe consumed one, and it reached 13 before the game had launched
+once. The picker had already stopped showing it; the column went with the last
+two places that did — the **Game Ended** post in `#turns`, and the chip on
+`/gm/dev?s=game`, which is the game's short id now.
+
+So `/archive` keys on `Game.id`, names a game by `Game.label` or its dates
+(`web/lib/gameLabel.js#gameTitle`), and orders the picker by `createdAt`, which
+is the same order the ordinal gave. An id nobody has is not a game: the page
+redirects rather than falling through to the current one, which matters because
+`?game=3` links from the numbered era exist and a 3 means nothing now.
+
+Archive packets are unaffected. `decodeGame` walks the **current** schema's
+fields and ignores anything else in the file, so a packet written while games
+had numbers still imports; it simply carries a column nothing reads.
 
 ### A copy on your own disk
 

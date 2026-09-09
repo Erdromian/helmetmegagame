@@ -38,7 +38,6 @@ test("archive packet round-trip", { skip: SKIP && "set ARCHIVE_TEST_DATABASE_URL
   const packet = path.join(dir, "game.jsonl.gz");
 
   const gameId = `test-game-${Date.now()}`;
-  const number = Math.floor(Date.now() / 1000) % 2000000000;
 
   // Content chosen to break a CSV exporter: newlines, commas, quotes, the `»`
   // quote prefix, `-#` subtext, a resource glyph and a mention token.
@@ -68,7 +67,7 @@ test("archive packet round-trip", { skip: SKIP && "set ARCHIVE_TEST_DATABASE_URL
     fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  await prisma.game.create({ data: { id: gameId, number, closingNote: "It ended, badly." } });
+  await prisma.game.create({ data: { id: gameId, closingNote: "It ended, badly." } });
   // Make it the current game, so the round-trip below is the ordinary
   // "re-import the game you just exported" case rather than the cross-game one
   // the seq guard exists to refuse. The guard gets its own subtest further down.
@@ -156,7 +155,7 @@ test("archive packet round-trip", { skip: SKIP && "set ARCHIVE_TEST_DATABASE_URL
     const liveId = `test-live-${Date.now()}`;
     try {
       await prisma.archiveEntry.deleteMany({ where: { gameId } });
-      await prisma.game.create({ data: { id: liveId, number: number + 1 } });
+      await prisma.game.create({ data: { id: liveId } });
       await prisma.archiveEntry.create({
         data: { gameId: liveId, content: "live", seq: before[0].seq - 1n },
       });

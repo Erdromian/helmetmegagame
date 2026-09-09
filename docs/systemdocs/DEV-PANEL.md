@@ -572,7 +572,7 @@ page being superadmin was an inconsistency, not a policy.
 
 ### 11b. The sections
 
-Eleven: **Game**, **Turn**, **Configuration** and **The Depot** under "Game";
+Twelve: **Game**, **Games**, **Turn**, **Configuration** and **The Depot** under "Game";
 **Bulk actions**, **Send a letter**, **Say something**, **System reports** and
 **Gamemasters** under "Operations"; **Assignments** and **Antagonists** under
 "Threats"; **Restart game** on its own under "Danger". Everything under "Game"
@@ -686,6 +686,26 @@ inside the server page, which has nowhere to report a refusal to; a letter has
 two of them worth reading ("no turn is open", "they're past reading it") and a
 pair of seal fields that only appear once Sealed is on.
 
+### 11c. The Games section
+
+`/gm/dev?s=games`, superadmin. Every `Game` row there has ever been, newest
+first: what it is called (its label, or the dates it ran — `gameTitle`), its
+short id, how it ended (Running / Ended / Nuked or Ascended with the turn /
+Never finished), whether its transcript has been exported to a packet or has
+left the database entirely, and the days, turns, characters and deaths off its
+stored epilogue. The archive count is the exception — it is counted live,
+because `epilogue.facts.archived` is a snapshot from the moment a game ended
+and the game being played has no epilogue at all — and it is the link into
+`/archive?game=<id>` for that game. A game that has been archived away links
+too: the page renders its stub.
+
+This section exists because a game stopped having a number (`ARCHIVE.md`
+§"Identity"). The ordinal was the only thing that made the pile of `Game` rows
+legible; the list is what makes them legible now. It reads, it does not edit —
+Archive this game and Restart Game's keep-or-discard are on the Game and Danger
+sections, and taking the whole history down at once is `npm run
+db:collapse-games`, off a command line and behind a dry run.
+
 ## 12. Where the code lives
 
 | Concern | File |
@@ -709,6 +729,7 @@ pair of seal fields that only appear once Sealed is on.
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel`, and `.qty` / `.qty-btn` / `.qty-input` in `globals.css` |
 | Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) — page shell + section rail | `web/app/(desk)/gm/dev/page.js`, `web/app/(desk)/gm/dev/OpsNav.js` |
+| Games (§11c) — every game there has ever been, and the way into each transcript | `web/app/(desk)/gm/dev/PastGames.js`, and `web/lib/gameLabel.js` for what a game is called |
 | Send a Letter (§11) — the form, and the action behind it | `web/app/(desk)/gm/dev/SendLetterForm.js`, `web/app/(app)/gm/dev/actions.js#sendGmLetter` |
 | The game-level panel's server actions | `web/app/(app)/gm/dev/actions.js` |
 | The game-level panel's toggle help text, read through `InfoIcon` | `web/app/(app)/gm/dev/devHelp.js` |

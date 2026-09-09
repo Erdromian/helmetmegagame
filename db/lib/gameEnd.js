@@ -32,12 +32,12 @@ async function endGameInDb(db, { closingNote = null, reason = "gm", actorDiscord
         actionType: "game_ended",
         // gameId, because a restart wipes the audit log and the turn number
         // alone cannot say which game a row belonged to.
-        details: { reason, gameId: state.gameId, gameNumber: state.game?.number ?? null, closingNote: note },
+        details: { reason, gameId: state.gameId, closingNote: note },
       },
     })
     .catch((err) => console.error("game_ended audit failed:", err));
 
-  return { ended: true, epilogue, post: formatEpilogue(epilogue, { number: state.game?.number }) };
+  return { ended: true, epilogue, post: formatEpilogue(epilogue) };
 }
 
 // The undo. The archive stays open — closing it again would re-hide what

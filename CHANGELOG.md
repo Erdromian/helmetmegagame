@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A game has no number at all now, and there is a list of them
+
+− The last two places a game was called Game 13: the Game Ended post in #turns, and the chip on the dev panel's Game section, which shows the game's short id instead  
+✚ A Games section on the dev panel: every game there has ever been, what it was called, how it ended, its days, turns, characters and deaths, whether its transcript is in a packet, and a link into it  
+✎ The archive picks a game by its id only. An old /archive?game=3 link now sends you to the current game rather than resolving to whichever game once held 3  
+✎ Old archive packets still import: the reader follows the current schema and ignores the number the file carries
+
 ## 2026-09-09 · Who's here is back on the page, and the web stops the turn ping
 
 ✎ The people standing where you are are drawn at the top of the Place panel again, so you no longer press a tab to find out who you are in a room with  

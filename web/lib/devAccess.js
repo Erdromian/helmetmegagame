@@ -18,6 +18,7 @@ import { isSuperadmin } from "@/lib/superadmin";
 // hidden nav item is a hint, not a lock.
 export const SECTION_TIER = {
   game: "super",
+  games: "super",
   turn: "super",
   config: "super",
   depot: "super",

@@ -39,7 +39,7 @@ const BLAST_DEATH_REASON = "the blast caught them above ground and left nothing 
 async function runNukeExplosionPass(prisma, turn) {
   const state = await prisma.gameState.findUnique({
     where: { id: 1 },
-    include: { game: { select: { id: true, number: true, nukeDetonatedTurn: true } } },
+    include: { game: { select: { id: true, nukeDetonatedTurn: true } } },
   });
 
   // Not armed, or armed for a turn that has not come yet. Returning an object
@@ -55,7 +55,7 @@ async function runNukeExplosionPass(prisma, turn) {
   // saying it had ever been armed, and there was no way to tell afterwards
   // whether the arming belonged to that game at all.
   console.log(
-    `Nuclear device: armed for turn ${armedTurn}, closing turn ${turn.number}, game ${state?.game?.number ?? "?"}.`,
+    `Nuclear device: armed for turn ${armedTurn}, closing turn ${turn.number}, game ${state?.game?.id ?? "?"}.`,
   );
 
   // Already gone off IN THIS GAME. Read off the Game row, not GameState:

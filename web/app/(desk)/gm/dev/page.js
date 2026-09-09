@@ -50,6 +50,7 @@ import { listObjectives, locationEligible, membersByParty } from "@lifeweb/db/li
 import { kindsForParty, OBJECTIVE_WEIGHTS, PARTY_DEFAULTS, INQUISITOR_OR_BARON_ROLE_SLUGS } from "@lifeweb/db/lib/objectiveKinds";
 import { effectivePlayerCount, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
 import GameControls from "./GameControls";
+import PastGames from "./PastGames";
 import ConfigForm from "./ConfigForm";
 import LobbyRoster from "./LobbyRoster";
 import SeatsOut from "./SeatsOut";
@@ -62,6 +63,7 @@ import Switch from "@/app/components/Switch";
 import Select from "@/app/components/Select";
 import StatusPill from "@/app/components/StatusPill";
 import EmptyState from "@/app/components/EmptyState";
+import { shortId } from "@/lib/gameLabel";
 
 // Eight numeric Depot knobs share one shape, so they share one component
 // rather than eight copies of the same six lines.
@@ -185,7 +187,7 @@ export default async function DevPanelPage({ searchParams }) {
     prisma.gameState.upsert({ where: { id: 1 }, update: {}, create: GAME_STATE_CREATE, include: {
       game: {
         select: {
-          number: true, nukeDetonatedTurn: true, ascensionFiredTurn: true,
+          id: true, nukeDetonatedTurn: true, ascensionFiredTurn: true,
           exportKey: true, entryCount: true,
         },
       },
@@ -248,6 +250,10 @@ export default async function DevPanelPage({ searchParams }) {
   let seatsOut = [];
   let draftRows = [];
   let pickableRoles = [];
+  // The Games section: every game there has ever been, and how much of each
+  // one's transcript is still in the database.
+  let pastGames = [];
+  let archiveCounts = {};
 
   switch (section) {
     case "game": {
@@ -298,6 +304,35 @@ export default async function DevPanelPage({ searchParams }) {
           expiresAt: e.expiresAt ? e.expiresAt.toISOString().slice(5, 16).replace("T", " ") : null,
         };
       });
+      break;
+    }
+    case "games": {
+      const [rows, counts] = await Promise.all([
+        prisma.game.findMany({
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            label: true,
+            startedAt: true,
+            endedAt: true,
+            createdAt: true,
+            playerCount: true,
+            closingNote: true,
+            epilogue: true,
+            nukeDetonatedTurn: true,
+            ascensionFiredTurn: true,
+            exportKey: true,
+            entryCount: true,
+            archivedAt: true,
+          },
+        }),
+        // Counted live rather than read off epilogue.facts.archived: that one
+        // is a snapshot from the moment a game ended, and the game being
+        // played has no epilogue at all. One grouped scan of the gameId index.
+        prisma.archiveEntry.groupBy({ by: ["gameId"], _count: { _all: true } }),
+      ]);
+      pastGames = rows;
+      archiveCounts = Object.fromEntries(counts.map((c) => [c.gameId, c._count._all]));
       break;
     }
     case "bulk": {
@@ -715,7 +750,7 @@ export default async function DevPanelPage({ searchParams }) {
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                   <StatusPill tone={PHASE_TONE[state.phase]}>{PHASE_LABEL[state.phase]}</StatusPill>
-                  {state.game?.number ? <span className="chip mono">Game {state.game.number}</span> : null}
+                  {state.game?.id ? <span className="chip mono">{shortId(state.game)}</span> : null}
                   {state.lobbyOpenedAt ? (
                     <span className="text-xs text-muted">Lobby opened {stamp(state.lobbyOpenedAt)}</span>
                   ) : null}
@@ -770,6 +805,22 @@ export default async function DevPanelPage({ searchParams }) {
                   </div>
                   <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
                 </form>
+              </section>
+            </div>
+          ) : null}
+
+          {section === "games" ? (
+            <div className="flex flex-col gap-8">
+              <section className="ops-section ops-section--wide">
+                <div className="ops-section-head">
+                  <h2 className="section-title">Games</h2>
+                  <p className="ops-lede">
+                    Every game that has been opened, newest first. A game has no number — it is its id, and
+                    it reads as its label or the dates it ran. Click an archive count to read that
+                    game&apos;s transcript. ‡
+                  </p>
+                </div>
+                <PastGames games={pastGames} currentGameId={state.gameId} archiveCounts={archiveCounts} />
               </section>
             </div>
           ) : null}

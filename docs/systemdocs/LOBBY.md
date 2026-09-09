@@ -220,7 +220,7 @@ build, spawn. Open during RUNNING and ENDED to anyone with the Player role.
 
 ## 6. The GM side
 
-`/gm/dev?s=game`: the phase with its stamps and game number; Open lobby / Close
+`/gm/dev?s=game`: the phase with its stamps and the game's short id; Open lobby / Close
 lobby / Start game / End game (with a closing-note box) / Resume; the Preview
 table; and the lobby roster (`LobbyRoster.js`) — who readied, their High and
 their Med/Low counts, opt-ins by public name, whitelist standing, fallback,
@@ -244,11 +244,14 @@ seat tag, the dead marked with their turn. `formatEpilogue` is the `**Game
 Ended**` post to `#turns`; `/archive` renders the same object. Resume undoes
 the phase and leaves the archive open.
 
-`Game` is one row per game (`number`, dates, note, epilogue). `GameState.gameId`
-points at the current one; every `ArchiveEntry` carries `gameId` as a snapshot,
-stamped by `db/lib/archive.js` from a thirty-second memo. Restart Game
-snapshots an epilogue onto the old Game if it never got one, creates Game N+1,
-and recreates GameState pointing at it. `/archive` picks a game (`ARCHIVE.md`).
+`Game` is one row per game (dates, note, epilogue). **A game is its id** —
+there was a creation ordinal beside it until 2026-09-09, and `ARCHIVE.md`
+§"Identity" is why it went. `GameState.gameId` points at the current one; every
+`ArchiveEntry` carries `gameId` as a snapshot, stamped by `db/lib/archive.js`
+from a thirty-second memo. Restart Game snapshots an epilogue onto the old Game
+if it never got one, creates a fresh Game row, and recreates GameState pointing
+at it. `/archive` picks a game, and `/gm/dev?s=games` lists every game there has
+ever been with a link into each transcript (`ARCHIVE.md`, `DEV-PANEL.md` §11c).
 
 ## 8. What Restart Game does and does not touch
 
@@ -260,10 +263,9 @@ Everything else as before (`LAUNCH.md` §2, §4).
 changed. Restart Game asks first — keep this game or discard it — and either
 way its `ArchiveEntry` rows go:
 
-- **Discard** takes the rows and the `Game` row with them. Nothing survives,
-  and the game's number is freed for the next one. This is the answer for a
-  playtest, and it is the default: the number reached 13 before launch, and
-  every one of those games sat in the `/archive` picker.
+- **Discard** takes the rows and the `Game` row with them. Nothing survives.
+  This is the answer for a playtest, and it is the default: twelve dead
+  playtests sat in the `/archive` picker before this existed.
 - **Keep** requires an archive packet to have been written first — the
   **Archive this game** button, beside Restart Game on `/gm/dev`. The rows
   still go; the packet in the bucket is what survives, and the `Game` row stays

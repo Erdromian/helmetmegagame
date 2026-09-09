@@ -50,7 +50,7 @@ a GM unseated unless you specifically want the default.
 turn-scoped row deleted in one transaction (in FK-dependency order), the old
 `Game` given its epilogue and the next one opened, `GameState` recreated at
 CLOSED, and a fresh Turn 1/DAWN opened. The transcript is **kept** under the
-old game's number (`ARCHIVE.md`). It writes a
+old game's id (`ARCHIVE.md`). It writes a
 `SystemReport` row (`kind: WIPE`) **before** the Discord half starts, then hands
 that half to `after()` and returns.
 
@@ -134,7 +134,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
 | `GameConfig` | Every knob on the Configuration section. Per-game state is on `GameState`, which is recreated. |
 | `PlayerPreference` rows | Role priorities, opt-ins and the fallback a player set in the lobby, keyed by Discord user. Next game they only press Ready. |
-| `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its number, with the reveal on top. |
+| `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its id, with the reveal on top. |
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
 | `Zone`, `Location`, `Room`, `Faction`, `Tag`, `Role`, `Document` | Re-synced from YAML rather than deleted. |

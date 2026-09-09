@@ -8,6 +8,7 @@ import PageShell from "@/app/components/PageShell";
 import AppHeader from "@/app/components/AppHeader";
 import Pager from "@/app/components/Pager";
 import Select from "@/app/components/Select";
+import { gameTitle } from "@/lib/gameLabel";
 import ArchiveTranscript from "./ArchiveTranscript";
 
 // The transcript, one game at a time (docs/systemdocs/ARCHIVE.md). A past
@@ -15,21 +16,6 @@ import ArchiveTranscript from "./ArchiveTranscript";
 // ends (GameState.archiveVisible), and to GMs always. Server-paged: this and
 // /gm/audit are the two lists too long for client-side paging.
 const PAGE_SIZE = 150;
-
-// What a game is CALLED. Never "Game 13" — the number is a creation ordinal
-// that every playtest wipe consumed, and showing it made the picker read as a
-// list of failures. A label if one was given, otherwise the dates it ran.
-function gameTitle(game) {
-  if (game?.label) return game.label;
-  const fmt = (d) => new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-  if (game?.startedAt && game?.endedAt) return `${fmt(game.startedAt)} – ${fmt(game.endedAt)}`;
-  if (game?.startedAt) return `From ${fmt(game.startedAt)}`;
-  // A game that never started still needs a name of its own. "Unplayed" alone
-  // would read the same on every one of them, and a lobby that was opened and
-  // abandoned three times is exactly the shape this picker is full of.
-  if (game?.createdAt) return `Unplayed · opened ${fmt(game.createdAt)}`;
-  return "Unplayed";
-}
 
 export default async function ArchivePage({ searchParams }) {
   const session = await auth();
@@ -39,39 +25,33 @@ export default async function ArchivePage({ searchParams }) {
     getGmSession(),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true, gameId: true, phase: true } }),
     prisma.game.findMany({
-      orderBy: { number: "desc" },
+      // Newest first. This was `number: "desc"` while a game had one; the
+      // ordinal is gone and creation order is the same order.
+      orderBy: { createdAt: "desc" },
       select: {
-        id: true, number: true, label: true, startedAt: true, endedAt: true, epilogue: true,
+        id: true, label: true, startedAt: true, endedAt: true, epilogue: true,
         archivedAt: true, entryCount: true, exportKey: true, createdAt: true,
       },
     }),
   ]);
 
   const params = await searchParams;
-  // Keyed on the game's ID, not its number. The number climbed to 13 before
-  // the game had launched once — every playtest wipe consumed one — so it is
-  // no longer shown to anybody, and a discarded game frees its number for
-  // reuse, which would make an old ?game=3 link point at a DIFFERENT game.
-  //
-  // The old numbered form is still honoured, because links to it exist. What
-  // it must not do is quietly fall through to the current game: that was the
-  // behaviour of the `?? current` below, and with numbers now reusable it
-  // would show the wrong game rather than none.
+  // Keyed on the game's ID, and only on that. `?game=3` was honoured for a
+  // while, for links written when a game had a number — but numbers were
+  // reusable by then, so an old link could already resolve to a DIFFERENT
+  // game, and the column is gone now anyway. An id nobody has is no game:
+  // what it must not do is quietly fall through to the current one and show
+  // it as if it were the one that was asked for.
   const requested = params?.game?.toString().trim() ?? "";
-  const requestedNumber = Number.parseInt(requested, 10);
   const current = games.find((g) => g.id === state?.gameId) ?? games[0] ?? null;
-  const game = requested
-    ? games.find((g) => g.id === requested)
-      ?? games.find((g) => Number.isFinite(requestedNumber) && g.number === requestedNumber)
-      ?? null
-    : current;
+  const game = requested ? (games.find((g) => g.id === requested) ?? null) : current;
   const isCurrent = Boolean(game && game.id === state?.gameId);
 
   // The real gate. The nav hides the link when it's shut, but a page is a
   // public URL — same posture as /character's creation gate. A past game is
   // over, and its record is everyone's.
-  // A named game that no longer exists was discarded, or its link predates a
-  // number being reused. Send them to the current game rather than silently
+  // A named game that no longer exists was discarded, or the link predates
+  // the numbering going away. Send them to the current game rather than silently
   // showing it as if it were the one they asked for.
   if (!game) redirect(current ? "/archive" : "/character");
   if (isCurrent && !gm && !state?.archiveVisible) redirect("/character");

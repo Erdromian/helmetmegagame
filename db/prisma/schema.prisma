@@ -525,12 +525,12 @@ enum GamePhase {
 /// (docs/systemdocs/ARCHIVE.md). Thirteen throwaway test games in the picker
 /// before launch is what changed that.
 model Game {
+  /// A game IS its id. There was a creation ordinal beside it — `number` —
+  /// until 2026-09-09: it climbed to 13 before the game had launched once,
+  /// every playtest wipe consuming one, and it was never anything a person
+  /// should read. Ordering is `createdAt`, naming is the label or the dates
+  /// (web/lib/gameLabel.js), and the id is what a URL and an audit row carry.
   id          String    @id @default(cuid())
-  /// The creation ordinal. Internal only — nothing shows it to a player any
-  /// more, because it climbed to 13 before the game had launched once. It
-  /// still orders the /archive picker, and #turns still names it in the Game
-  /// Ended post. Discarding a game frees its number for the next one.
-  number      Int       @unique
   startedAt   DateTime?
   endedAt     DateTime?
   closingNote String?
