@@ -1,14 +1,14 @@
 # YAML masters and the sync scripts
 
-Five hand-edited YAML files under `docs/` are the sole source of truth for
-their tables. Each has a sync that reconciles the database to it. The five look
+Six hand-edited YAML files under `docs/` are the sole source of truth for
+their tables. Each has a sync that reconciles the database to it. The six look
 alike and **differ on every axis that matters**, which is the reason for this
 page.
 
 There is deliberately **no admin UI** for any of this. Editing the YAML and
 running the sync is the only way these rows change.
 
-## 1. The four at a glance
+## 1. The six at a glance
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
@@ -17,15 +17,19 @@ running the sync is the only way these rows change.
 | `docs/roles.yaml` | `db:sync-roles` | `Faction`, `Role` | `slug` | **Prunes only if unreferenced** — a Faction with members or roles is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
 | `docs/documents.yaml` | `db:sync-documents` | `Document` | `key` | **Destructive** — pure reference content, no player state to preserve |
+| `docs/labordrops.yaml` | `db:sync-labor-drops` | `LaborDropOption` | none (rebuilt whole) | **Destructive** — pure config, no player state ever points at a row. See `LABORDROPS.md` |
 
-**Run order matters:** zones → tags → roles → desires → documents. Roles
+**Run order matters:** zones → tags → roles → desires → documents → labor
+drops. Roles
 resolve a `starting_zone` and an optional `starting_location` by slug, and a
 Faction's zone by name, and validate
 `starting_tags` against the tag catalog; desires validate `requires.anyRoles`/
 `notRoles` against the Role catalog and `requires.anyTags`/`notTags` against
 the Tag catalog, so it runs after both; documents validate against tags,
-roles *and* factions. Running them out of order throws on a reference that
-would have existed.
+roles *and* factions; labor drops validate every pool entry against the tag
+catalog and every scope against the zone/location catalogs, and has no
+dependents of its own, so it runs last. Running them out of order throws on a
+reference that would have existed.
 
 `db:sync-narrowcast-channels` (§4) belongs right after `db:sync-zones`, because
 a registry entry's static `roleViewZones` grants name zone roles the zone sync
@@ -397,7 +401,7 @@ pre-launch wipe rebuilds everything else from YAML.
 
 | Command | What it does |
 |---|---|
-| `db:sync` | All six masters in the working order (zones, narrowcast channels, tags, roles, desires, documents). |
+| `db:sync` | All seven masters in the working order (zones, narrowcast channels, tags, roles, desires, documents, labor drops). |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |
 | `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags, then any TagGroup absent from `docs/taggroups.yaml` once no surviving tag sits in it. |
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Add `-- --include-catatonic` to also accept the Catatonic repaint (`CATATONIC_ROLE_COLOR` + the ` • Catatonic` suffix), which otherwise can never match — harmless while a character claims the role, but it strands one left by a finished game. "Permissionless" here means **`0` or exactly @everyone's bitfield**: Discord's create-role endpoint copies @everyone's permissions when the field is omitted, which `ensureCharacterRole` used to do, so a stricter test made this script a silent no-op. Guards the 250-role guild cap. |

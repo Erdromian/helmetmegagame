@@ -252,6 +252,7 @@ you pick the right doc — they are never enough to change code with.
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
 | [`LABORING.md`](docs/systemdocs/LABORING.md) | You're touching Laboring — the tag ladder, a Location's `yield:` coefficients and their drift, the tools (`laborBonus`), the auto-labor pass, or the Examine button |
+| [`LABORDROPS.md`](docs/systemdocs/LABORDROPS.md) | You're touching the labor drop die — `docs/labordrops.yaml`, `db/lib/laborDrops.js`, or the `laborDrop` entry in `db/lib/moveEffects.js` |
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
@@ -353,10 +354,10 @@ npm run db:backups                   # what is in the bucket. EXITS 1 if the
                                      #   how a dead backup system announces
                                      #   itself. See BACKUPS.md.
 
-# YAML masters -> DB. `db:sync` runs all six in the working order; the
+# YAML masters -> DB. `db:sync` runs all seven in the working order; the
 # individual scripts exist for one master at a time. See SYNC.md.
 npm run db:sync                      # zones, narrowcast channels, tags,
-                                     #   roles, desires, documents.
+                                     #   roles, desires, documents, labor drops.
 npm run db:sync-zones                # docs/zones.yaml      (destructive; zones,
                                      #   Locations, Rooms, their channels/
                                      #   threads + roles)
@@ -365,7 +366,9 @@ npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced
 npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-
                                      #   retires a template absent from the
                                      #   YAML — see DESIRES.md §10)
-npm run db:sync-documents            # docs/documents.yaml  (destructive; last)
+npm run db:sync-documents            # docs/documents.yaml  (destructive)
+npm run db:sync-labor-drops          # docs/labordrops.yaml (destructive; last)
+                                     #   — see LABORDROPS.md
 npm run db:sync-narrowcast-channels  # #watch provisioning + reconcile.
                                      #   Run AFTER db:sync-zones.
 npm run db:sync-info-channel         # #info, edited in place. The default:
@@ -410,6 +413,10 @@ npm run db:check-config              # the GameConfig field registry vs. the
 npm run db:audit-equip               # read-only: living characters wearing a
                                      #   set the slot rules would now refuse
                                      #   (TAGS.md "equipSlot"). Never unequips.
+npm run db:audit-labor-drops         # read-only: prices docs/labordrops.yaml
+                                     #   off disk (no sync needed first) — each
+                                     #   entry's Depot sell value and every
+                                     #   pool's ⬢ expected value. LABORDROPS.md §6a.
 npm run db:inspect-character -- "Ada"  # read-only: one character's two hiding
                                      #   switches and what they RESOLVE to —
                                      #   webOnly and its cooldown, the conceal

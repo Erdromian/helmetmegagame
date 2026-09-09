@@ -1,0 +1,255 @@
+#!/usr/bin/env node
+// Prices out docs/labordrops.yaml — what each pool entry is worth and each
+// pool's ⬢ expected value — so a table can be balanced by the numbers rather
+// than by feel. Reads the YAML straight off disk rather than the synced
+// LaborDropOption table, so it prices a draft before you've even run
+// db:sync-labor-drops.
+//
+// See docs/systemdocs/LABORDROPS.md §2 for the six buckets this groups by,
+// §2a for the requiredTag gate, and §6 for what "not yet configured" means
+// for an empty one.
+//
+//   npm run db:audit-labor-drops
+//   npm run db:audit-labor-drops -- --zone forest --location forest-west-riverbank
+//     previews the COMBINED pool at that zone/location too, for when a
+//     zone- or location-scoped bucket gets added later.
+//   npm run db:audit-labor-drops -- --zone forest --holds forester
+//     also folds in whatever a Forester standing in the Forest additionally
+//     qualifies for (LABORDROPS.md §2a) — omit --holds to see the baseline
+//     every OTHER character gets, which is what the Combined section shows
+//     by default.
+//   npm run db:audit-labor-drops -- --write
+//     the only flag that TOUCHES the file: rewrites docs/labordrops.yaml's
+//     own comments in place — per-entry value, per-roll own/combined EV,
+//     and a per-category rollup — via db/lib/labordropsAnnotate.js. Every
+//     other flag combination only prints to the terminal. See §6a-§6b.
+const fs = require("node:fs");
+const { prisma } = require("../../index");
+const { loadDoc, parseDoc } = require("../../lib/syncLaborDrops");
+const { scopeFilters, TIER_TO_LABOR_DROP_TYPE, passesRequiredTag } = require("../../lib/laborDrops");
+const { annotateLines, priceRows } = require("../../lib/labordropsAnnotate");
+const { docsPath } = require("../../lib/repoPaths");
+
+function parseArgs(argv) {
+  const out = { zoneSlug: null, locationSlug: null, holdsSlugs: [], write: false };
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === "--zone") out.zoneSlug = argv[++i];
+    else if (argv[i] === "--location") out.locationSlug = argv[++i];
+    else if (argv[i] === "--write") out.write = true;
+    else if (argv[i] === "--holds") {
+      out.holdsSlugs = (argv[++i] ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+    }
+  }
+  return out;
+}
+
+// The one tag that IS ⬢ rather than something sold for it — DEPOT.md: "one
+// obol is one ⬢", the physical form of the currency itself (weight 0, no
+// sellablePrice of its own because selling an obol for ⬢ is a category
+// error). Hardcoded here rather than read off any catalog field, because
+// there is no field that says it — the same "known by name" carve-out
+// db/lib/lifeweb.js and a handful of others already accept for this repo's
+// smallest set of singular concepts.
+const OBOL_SLUG = "obol";
+const OBOL_VALUE = 1;
+
+// One pool entry -> { label, evValue, note }. evValue is always a ⬢ number
+// (0 for NOTHING and for a tag with no sellablePrice) — see the legend
+// printed at the bottom of the report for why a tag's pointCost is shown but
+// never summed into it.
+function priceEntry(row, tagsById) {
+  if (row.kind === "NOTHING") return { label: "(nothing)", evValue: 0, note: null };
+  if (row.kind === "RESOURCES") {
+    const amount = row.resourceAmount ?? 0;
+    return { label: `${amount > 0 ? "+" : ""}${amount} ⬢`, evValue: amount, note: null };
+  }
+  const tag = tagsById.get(row.tagId);
+  const name = tag?.name ?? `(unknown tag ${row.tagId})`;
+  if (tag?.slug === OBOL_SLUG) {
+    return { label: `${name} — the coin itself, worth ${OBOL_VALUE} ⬢`, evValue: OBOL_VALUE, note: null };
+  }
+  if (tag?.sellable && tag.sellablePrice) {
+    return { label: `${name} — sells ${tag.sellablePrice} ⬢`, evValue: tag.sellablePrice, note: null };
+  }
+  const pointNote = tag ? `pointCost ${tag.pointCost}` : "tag missing from catalog";
+  return { label: `${name} — not sellable (${pointNote})`, evValue: 0, note: "unpriced" };
+}
+
+function bucketLabel(row, zoneNameById, locationNameById, tagsById) {
+  const parts = [];
+  if (row.laborType) parts.push(`labor type: ${row.laborType.toLowerCase()}`);
+  if (row.zoneId) parts.push(`zone: ${zoneNameById.get(row.zoneId) ?? row.zoneId}`);
+  if (row.locationId) parts.push(`location: ${locationNameById.get(row.locationId) ?? row.locationId}`);
+  if (row.requiredTagId) {
+    const skill = tagsById.get(row.requiredTagId);
+    parts.push(`requires: ${skill?.name ?? row.requiredTagId}`);
+  }
+  return parts.length ? parts.join(" + ") : "global";
+}
+
+function summarize(rows, tagsById) {
+  const priced = rows.map((r) => priceEntry(r, tagsById));
+  const hits = priced.filter((p) => p.label !== "(nothing)").length;
+  const ev = priced.length ? priced.reduce((sum, p) => sum + p.evValue, 0) / priced.length : 0;
+  const unpriced = priced.filter((p) => p.note === "unpriced").length;
+  return { priced, hits, ev, unpriced };
+}
+
+async function main() {
+  const { zoneSlug, locationSlug, holdsSlugs, write } = parseArgs(process.argv.slice(2));
+
+  const [tags, zones, locations] = await Promise.all([
+    prisma.tag.findMany({ select: { id: true, slug: true, name: true, sellable: true, sellablePrice: true, pointCost: true } }),
+    prisma.zone.findMany({ select: { id: true, slug: true, name: true } }),
+    prisma.location.findMany({ select: { id: true, slug: true, name: true } }),
+  ]);
+  const catalogs = {
+    tagIdBySlug: new Map(tags.map((t) => [t.slug, t.id])),
+    zoneIdBySlug: new Map(zones.map((z) => [z.slug, z.id])),
+    locationIdBySlug: new Map(locations.map((l) => [l.slug, l.id])),
+  };
+  const tagsById = new Map(tags.map((t) => [t.id, t]));
+  const zoneNameById = new Map(zones.map((z) => [z.id, z.name]));
+  const locationNameById = new Map(locations.map((l) => [l.id, l.name]));
+
+  const doc = loadDoc();
+  const rows = parseDoc(doc, catalogs);
+
+  if (rows.length === 0) {
+    console.log("docs/labordrops.yaml has no entries at all yet.");
+    await prisma.$disconnect();
+    return;
+  }
+
+  if (write) {
+    const filePath = docsPath("labordrops.yaml");
+    if (!filePath) throw new Error("Cannot find docs/labordrops.yaml — see db/lib/repoPaths.js");
+    const lines = fs.readFileSync(filePath, "utf8").split("\n");
+    const pricedRows = priceRows(rows, tagsById);
+    const out = annotateLines(lines, {
+      rows: pricedRows,
+      tagsById,
+      zoneIdBySlug: catalogs.zoneIdBySlug,
+      locationIdBySlug: catalogs.locationIdBySlug,
+      tagIdBySlug: catalogs.tagIdBySlug,
+    });
+    fs.writeFileSync(filePath, out.join("\n"));
+    console.log(`Wrote refreshed comments to ${filePath}\n`);
+  }
+
+  // ── 1. Every authored bucket, as written ──────────────────────────────
+  const byBucketRoll = new Map();
+  for (const row of rows) {
+    const key = `${bucketLabel(row, zoneNameById, locationNameById, tagsById)}|||${row.roll}`;
+    if (!byBucketRoll.has(key)) byBucketRoll.set(key, []);
+    byBucketRoll.get(key).push(row);
+  }
+
+  console.log("=== Authored pools ===\n");
+  for (const [key, group] of [...byBucketRoll.entries()].sort()) {
+    const [label, roll] = key.split("|||");
+    const { priced, hits, ev, unpriced } = summarize(group, tagsById);
+    console.log(`${label}, roll ${roll} — ${group.length} entries`);
+    for (const p of priced) console.log(`  ${p.label}`);
+    console.log(
+      `  -> ⬢ EV ${ev.toFixed(2)} · hit rate ${((hits / group.length) * 100).toFixed(0)}%` +
+        (unpriced ? ` · ${unpriced} tag(s) with no ⬢ price` : ""),
+    );
+    console.log("");
+  }
+
+  const gatedCount = rows.filter((r) => r.requiredTagId).length;
+  if (gatedCount > 0) {
+    console.log(
+      `(${gatedCount} entr${gatedCount === 1 ? "y is" : "ies are"} gated behind "requires:" above — pass ` +
+        `--holds <skill-slug> to fold them into the Combined section below; omitted, Combined shows the\n` +
+        ` baseline every other character gets.)\n`,
+    );
+  }
+
+  // ── 2. Combined, as a real Labor payout would actually draw it ────────
+  const zoneId = zoneSlug ? catalogs.zoneIdBySlug.get(zoneSlug) : null;
+  const locationId = locationSlug ? catalogs.locationIdBySlug.get(locationSlug) : null;
+  if (zoneSlug && !zoneId) console.log(`(warning: unknown --zone "${zoneSlug}", ignored)\n`);
+  if (locationSlug && !locationId) console.log(`(warning: unknown --location "${locationSlug}", ignored)\n`);
+
+  const heldTagIds = new Set();
+  const heldNames = [];
+  for (const slug of holdsSlugs) {
+    const id = catalogs.tagIdBySlug.get(slug);
+    if (!id) {
+      console.log(`(warning: unknown --holds tag "${slug}", ignored)\n`);
+      continue;
+    }
+    heldTagIds.add(id);
+    heldNames.push(tagsById.get(id)?.name ?? slug);
+  }
+
+  const where = [
+    zoneSlug && zoneId ? `zone ${zoneSlug}` : null,
+    locationSlug && locationId ? `location ${locationSlug}` : null,
+    heldNames.length ? `holding ${heldNames.join(" + ")}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  console.log(`=== Combined pools (what a payout actually draws from${where ? `, at ${where}` : ""}) ===\n`);
+
+  for (const [tier, laborType] of Object.entries(TIER_TO_LABOR_DROP_TYPE)) {
+    // The die is 1d6, uniform — the real expected value of ONE Labor here
+    // is (1/6) * sum over every face's combined EV, and a face nobody
+    // configured (almost always 2-5) is a real, counted zero in that sum,
+    // not a face to skip. Printing each configured face next to another
+    // (the old shape) reads as if those numbers add on their own; they
+    // don't without dividing by 6 first, and the unlisted faces belong in
+    // the denominator too.
+    let totalEv = 0;
+    let totalHitFraction = 0;
+    let anyConfigured = false;
+    for (let roll = 1; roll <= 6; roll++) {
+      const scopes = scopeFilters(laborType, zoneId ?? null, locationId ?? null);
+      const combined = rows.filter(
+        (r) =>
+          r.roll === roll &&
+          scopes.some((s) => s.laborType === r.laborType && s.zoneId === r.zoneId && s.locationId === r.locationId) &&
+          passesRequiredTag(r, heldTagIds),
+      );
+      if (combined.length === 0) continue;
+      anyConfigured = true;
+      const { hits, ev, unpriced } = summarize(combined, tagsById);
+      totalEv += ev;
+      totalHitFraction += hits / combined.length;
+      console.log(
+        `${tier}, roll ${roll} — ${combined.length} pooled entries -> ⬢ EV ${ev.toFixed(2)} · ` +
+          `hit rate ${((hits / combined.length) * 100).toFixed(0)}%` +
+          (unpriced ? ` · ${unpriced} unpriced` : ""),
+      );
+    }
+    if (anyConfigured) {
+      console.log(
+        `  -> ${tier}: ⬢ EV/labor ${(totalEv / 6).toFixed(2)} · hit ${Math.round((totalHitFraction / 6) * 100)}% ` +
+          `(across all six faces, not just the configured ones)`,
+      );
+    }
+  }
+
+  console.log(
+    "\nLegend: a bare 'roll N' line is CONDITIONAL on landing on that face — what you'd get IF you\n" +
+      "rolled it. The '-> tier: ⬢ EV/labor' line is the real, unconditional number: (1/6) times the\n" +
+      "sum of all six faces' EV, an unconfigured face (almost always 2-5) counted as a real zero\n" +
+      "rather than skipped. Adding two 'roll N' lines together is not that number — divide by 6 first,\n" +
+      "and count the unlisted faces too. ⬢ EV itself averages each pool entry's Depot sell price\n" +
+      "(RESOURCES entries use their own ⬢ delta; NOTHING and a non-sellable tag both count as 0 ⬢).\n" +
+      "A tag's pointCost is shown for reference only — it's a different scale (character-build points,\n" +
+      "not ⬢) and is never summed into the EV. Hit rate is the share of the pool that isn't NOTHING,\n" +
+      "regardless of whether the result carries a ⬢ price. A \"requires:\" entry only joins the\n" +
+      "Combined section when its skill is named on --holds.",
+  );
+
+  await prisma.$disconnect();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exitCode = 1;
+  prisma.$disconnect();
+});

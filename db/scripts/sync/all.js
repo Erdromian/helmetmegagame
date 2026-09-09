@@ -1,12 +1,14 @@
 // Every YAML master into the database, in the one order that works: zones
 // first (roles resolve a starting zone), then the narrowcast channels (their
 // view grants name the zone roles), tags before roles (starting_tags must
-// exist), desires, documents last. Same sequence as wipeGameData's re-sync.
+// exist), desires, documents, labor drops last (nothing depends on it, but it
+// validates against the tag/zone/location catalogs everything above builds).
+// Same sequence as wipeGameData's re-sync.
 //
-//   npm run db:sync                    # all six
+//   npm run db:sync                    # all seven
 //
-// sync-zones and sync-documents delete rows dropped from their YAML; see
-// SYNC.md §1 before running against a live game.
+// sync-zones, sync-documents and sync-labor-drops delete rows dropped from
+// their YAML; see SYNC.md §1 before running against a live game.
 require("dotenv").config();
 const {
   prisma,
@@ -16,6 +18,7 @@ const {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
+  syncLaborDropsFromYaml,
 } = require("../../index");
 
 async function main() {
@@ -49,6 +52,10 @@ async function main() {
     ["documents", async () => {
       const s = await syncDocumentsFromYaml(prisma);
       return `+${s.created}/~${s.updated}` + (s.pruned.length ? `, pruned ${s.pruned.join(", ")}` : "");
+    }],
+    ["labor drops", async () => {
+      const s = await syncLaborDropsFromYaml(prisma);
+      return `${s.total} options`;
     }],
   ];
 
