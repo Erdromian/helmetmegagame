@@ -168,9 +168,14 @@ this codebase already had.
 
 The flip side: there is **no GM lens** for this system yet, unlike Caving's
 (`CAVING.md` §5). A find shows up in the player's DM and in the Move's own
-`appliedEffects` (so `describeMoveEffects` prints "found Nightshade Herb" or
-"+2 ⬢ (find)" on the Move history desk like any other effect), but nothing
-surfaces "everyone who found something this turn" as its own view. Worth
+`appliedEffects`, but nothing surfaces "everyone who found something this
+turn" as its own view.
+
+Printing it on the desk costs **two** edits, not one: `describeMoveEffects`
+(`db/lib/moveEffects.js`) is mirrored by hand in `web/lib/moveRows.js#paidLabel`
+so the web never imports `db/lib` just to print "+5 ⬢". The first version of
+this system taught only the db half, and `/gm/turns` rendered
+`laborDrop: [object Object]` for a week. Teach both. Worth
 building once the table is real and Bascinet wants to watch it; not built
 now because there is nothing yet worth watching.
 
@@ -191,9 +196,8 @@ different design questions:
   GM-adjudicated trouble that lands unresolved on its own desk lens. The
   labor drop die rolls **on a Labor payout resolving**, and every face is
   either silent, a tag, or a ⬢ delta — nothing here is ever left for a GM to
-  narrate. A "bad" result (planned for low rolls, not yet authored) is still
-  just a pool entry like any other — most likely a Tag grant (a `bruised`,
-  say), never a queued adjudication.
+  narrate. A "bad" result is still just a pool entry like any other — a
+  `bruised` on a 1, never a queued adjudication.
 - Caving loot is a **separate row** (`CavingRoll`) outside the Move
   machinery, because a cave arrival isn't a Move at all. A labor drop rides
   on the `Action` a Labor already is, which is what buys it free Undo (§4)
@@ -323,7 +327,66 @@ written, or the tool's own prior output) is left alone rather than wrapped
 into a fake blurb, which is what stops a plain refresh from ever duplicating
 itself into `sells 4 ⬢ — sells 4 ⬢`.
 
-## 7. Where the code lives
+## 7. The pads on face 1
+
+Every roll-1 bucket carries its own `nothing` entries, and the fraction
+deepens as buckets stack: `global` 30%, `laborType.hunting` 40%, every zone
+and cross bucket 50%.
+
+This is not decoration, and it is the thing most easily broken by a
+well-meaning edit. The draw is uniform over the **concatenation** of whichever
+buckets match (§2), so the pooled no-wound rate is the size-weighted average of
+the contributing buckets' own rates. Pad only `global` and a hunter in the
+Depths — who pools four buckets — is back to "a 1 always hurts", which is
+exactly the character who least deserves it. The deepening pads are why a
+Depths hunter is slightly *safer* per 1 (42% clean) than a labourer in Town
+(30%): the dangerous places add more entries, so they need more silence in them
+to stay level.
+
+**Adding a wound to a roll-1 bucket means adding pad with it.** Otherwise you
+have quietly raised the wound rate everywhere that bucket applies.
+
+Where it currently lands, per Labor:
+
+| Situation | No wound on a 1 | Wound | Severe | Grievous |
+|---|---|---|---|---|
+| Basic/Skilled, quiet zone | 30% | 11.7% | — | — |
+| Hunting, Forest | 35% | 10.8% | — | — |
+| Hunting, Forest Cliffs | 40% | 10.0% | 1.1% | — |
+| Hunting, Marshes / Depths | 42% | 9.6% | 2.1% | 0.42% |
+| Hunting, Black Hills | 42% | 9.6% | 0.4% | — |
+| Basic labor, Marshes / Depths | 40% | 10.0% | 1.7% | — |
+
+Every wound carries the catalog's `durationTurns` (2-4) onto the grant, so
+these all clear on their own — see `laborDrop.apply`'s own comment for why
+that has to be stamped at grant time rather than read back from the catalog.
+
+## 8. The Depths corpse table
+
+`laborTypeZone.hunting.depths` configures faces **5 and 6** with one pool:
+`skinless-corpse` ×3, `nekker-corpse` ×3, `graga-corpse` ×3, `aberrant-heart` ×1.
+
+Zone-scoped rather than repeated across six Locations because
+`laborAccess.js#resolveLaborRate` refuses a tier whose location coefficient is
+missing or zero, and `depths-crystal-chambers` is the only Depths Location with
+no `yield:` block. Hunting is already impossible there, so "zone-wide" and
+"every Depths Location with a yield" name the same set.
+
+Face 5 is otherwise unconfigured everywhere, so a 5 draws from this pool alone
+— 90% a corpse, 10% the heart. A 6 pools with the global obol and the hunting
+table (18 entries), halving it. That asymmetry is deliberate: a 5 in the Depths
+is always a body, a 6 is a body or an ordinary find. Per Depths-hunting Labor:
+**23.3% a corpse, 2.59% an Aberrant Heart.**
+
+Two things to know about the corpses. They are `sellable: false`, so
+`db:audit-labor-drops` scores them at 0 ⬢ and the bucket's EV is really the
+heart alone — their worth is butchering (`skinless-brain`, `graga-sac`,
+`nekker-pheromones`). And a Graga Corpse is 75 lb against a 71 lb base cap, so
+a hunter who draws one walks out Overburdened; the carry pass settles it at
+turn close (`TURN-ENGINE.md` §8b), shedding to a Depths room only past the
+106 lb hard cap.
+
+## 9. Where the code lives
 
 | Concern | File |
 |---|---|

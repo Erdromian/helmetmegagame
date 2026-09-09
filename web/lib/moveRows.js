@@ -104,6 +104,17 @@ export function paidLabel(applied) {
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
     // Legacy rows recorded a bare `1`, always meaning a plain Exhausted grant.
     else if (key === "exhausted") parts.push(value?.slug === "tired" ? "Tired" : "Exhausted");
+    // Mirrors the laborDrop arm of describeMoveEffects. Without it the desk
+    // printed "laborDrop: [object Object]" — the cost of the deliberate
+    // duplication at the top of this function is that both halves have to
+    // learn a new effect key.
+    else if (key === "laborDrop") {
+      parts.push(
+        value.kind === "TAG"
+          ? `found ${value.tagName}`
+          : `${value.amount > 0 ? "+" : ""}${value.amount} ⬢ (find)`,
+      );
+    }
     else parts.push(`${key}: ${value}`);
   }
   return parts.join(", ");

@@ -235,10 +235,23 @@ const MOVE_EFFECTS = {
       // pins a non-stackable tag at quantity 1 no matter how many times it's
       // drawn, so a repeat find of the same non-stackable item is a no-op
       // grant rather than an error.
+      //
+      // The catalog's own clock rides along, the same way the `exhausted`
+      // effect above stamps one: nothing backfills expiresTurn from the
+      // catalog later (tagExpiryPass.js queries ON the column), so a wound
+      // granted without it is a PERMANENT Deep Wound. `turn.number + 1`, not
+      // a bare turn.number — at a Labor payout `turn` is the turn being
+      // CLOSED, so the clock starts on the next one. A find with no
+      // durationTurns (an obol, a corpse) stamps null and never expires,
+      // which is what expiryFrom already does with a nullish duration.
       const { addToStack } = require("./tagWrites");
+      const turn = option.tag?.defaultDurationTurns
+        ? await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } })
+        : null;
       await addToStack(tx, action.characterId, option.tagId, 1, {
         source: "EVENT",
         stackable: option.tag?.stackable === true,
+        expiresTurn: turn ? expiryFrom(turn.number + 1, option.tag.defaultDurationTurns) : null,
       });
       return {
         roll,

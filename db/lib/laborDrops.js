@@ -57,7 +57,7 @@ function passesRequiredTag(row, heldTagIds = new Set()) {
 async function laborDropPool(tx, { roll, laborType = null, zoneId = null, locationId = null, heldTagIds = new Set() }) {
   const rows = await tx.laborDropOption.findMany({
     where: { roll, OR: scopeFilters(laborType, zoneId, locationId) },
-    include: { tag: { select: { id: true, slug: true, name: true, stackable: true } } },
+    include: { tag: { select: { id: true, slug: true, name: true, stackable: true, defaultDurationTurns: true } } },
   });
   return rows.filter((row) => passesRequiredTag(row, heldTagIds));
 }
