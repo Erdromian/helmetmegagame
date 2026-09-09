@@ -6,6 +6,19 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The archive is a page you can actually read
+
+✎ The archive is rebuilt. A real header row with the line count, a slim search bar with the rest of the filters behind one button, and chips saying what is narrowed so a filter can't be silently on. The old eight controls in one row had no widths on them, which is why they wrapped raggedly and every dropdown truncated at once.  
+✚ It scrolls now instead of paging. What you are reading is still in the link.  
+✚ Faces, behind a toggle — the face frozen onto the line when it was said, so a later disguise or a rename can't rewrite it. A hood still shows the mask, and a hooded line still doesn't hand the browser anything to match it to a named one with.  
+✚ Scenes are a toggle too, and a scene now carries its zone's colour.  
+✎ A line the world said reads as the world saying it, rather than as somebody called "Unknown" — bells, smells and gate crossings were drawing as ordinary speech.  
+✎ The day header actually sticks. It never has: the box around the transcript was clipping it to itself.  
+✎ A concealed speaker's name no longer gets cut off. "Young Man (Sir Alder)" was one character over the limit, so the most interesting name in the archive was the one thing it truncated.  
+✚ Every line has a link you can copy, arrivals and deaths and moves each get their own mark, an edited line says so, and clicking a name or a place narrows to it.  
+✎ The folded events render properly instead of showing raw braces.  
+✚ A loading skeleton, so a first visit isn't a blank page.
+
 ## 2026-09-09 · Launch sweep: Turn 1 clock, the Game Ended post, and spawned antagonists
 
 ✎ Start Game now restamps Turn 1's clock, so the Move cutoff on /chat, the sheet and /gm/turns is today's instead of the day the game was wiped  
