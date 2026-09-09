@@ -121,8 +121,10 @@ export default function RequestActionsProvider({
   // touch. canButcher is just "do you hold the Butcher tag".
   corpses = [],
   canButcher = false,
-  // The Bird. birdTargets is EVERY character, alive or dead, on purpose.
+  // The Bird. birdTargets is EVERY character, alive or dead, on purpose —
+  // and the Raven Draught reaches into the same list, for the same reason.
   hasBird = false,
+  hasRavenDraught = false,
   birdSentToday = false,
   birdTargets = [],
   birdZones = [],
@@ -164,6 +166,11 @@ export default function RequestActionsProvider({
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
   hasDevice = false,
+  // The Stepstone. Whether you carry one is your own sheet; where you may step
+  // is the fog behind /map, resolved server-side in character/page.js and
+  // re-checked by stepstoneRequest.
+  hasStepstone = false,
+  stepstoneTargets = [],
   // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one and whether
   // you lead are your own sheet; the hideout is one you set. `hideoutRooms`
   // is Set Hideout's picker, `thanatiWares` / `hideoutStock` are Purchase
@@ -270,6 +277,7 @@ export default function RequestActionsProvider({
     sealOptions,
     birdTargets,
     birdZones,
+    stepstoneTargets,
     hideoutRooms,
     hideoutStock,
     thanatiWares,
@@ -406,6 +414,8 @@ export default function RequestActionsProvider({
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
       // is a `gate` on top, so the button exists but is dead post-send.
       hasBird,
+      hasRavenDraught,
+      hasStepstone,
       canRead,
       canWrite,
       hasSeal,
@@ -448,6 +458,8 @@ export default function RequestActionsProvider({
       canTeach,
       mySins,
       hasBird,
+      hasRavenDraught,
+      hasStepstone,
       canRead,
       canWrite,
       hasSeal,

@@ -59,6 +59,8 @@ export default function CharacterSheet({
   canTorture = false,
   canMutilate = false,
   hasDatacard = false,
+  hasStepstone = false,
+  stepstoneTargets = [],
   hasDevice = false,
   // The THANATI section (docs/systemdocs/THANATI.md), resolved in
   // character/page.js and handed straight through to the dialogs.
@@ -115,6 +117,7 @@ export default function CharacterSheet({
   mySins = [],
   pendingOffers = [],
   hasBird = false,
+  hasRavenDraught = false,
   canRead = false,
   canWrite = false,
   hasSeal = false,
@@ -214,6 +217,7 @@ export default function CharacterSheet({
         confessors={confessors}
         mySins={mySins}
         hasBird={hasBird}
+        hasRavenDraught={hasRavenDraught}
         canRead={canRead}
         canWrite={canWrite}
         hasSeal={hasSeal}
@@ -244,6 +248,8 @@ export default function CharacterSheet({
         canTorture={canTorture}
         canMutilate={canMutilate}
         hasDatacard={hasDatacard}
+        hasStepstone={hasStepstone}
+        stepstoneTargets={stepstoneTargets}
         hasDevice={hasDevice}
         isThanati={isThanati}
         isThanatiLeader={isThanatiLeader}

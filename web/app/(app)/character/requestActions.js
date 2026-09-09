@@ -120,6 +120,11 @@ import {
   killCharacter,
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+// The fog behind /map, and the die that walking into the dark wakes. Both
+// belong to the Stepstone below: it lands you somewhere the same way a walk
+// does, so it owes the map the same row and the caves the same roll.
+import { knownLocations } from "@lifeweb/db/lib/locationVisits";
+import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
@@ -2373,6 +2378,19 @@ async function consumeTagRequestImpl({ tagId }) {
   // MULLIGAN_SLUG is declared beside that function, further down this file.
   if (held.tag.slug === MULLIGAN_SLUG) {
     throw new UserError("Drink this one from the tag itself — it needs a name first. ‡");
+  }
+
+  // Two more that cannot be drunk from here, for the reason the Mulligan gives:
+  // the generic path below reads `consumesInto`, and neither of these turns
+  // into a tag at all. One asks who you are whispering to, the other where you
+  // are going, so both come in through their own button on the Actions grid
+  // and spend the bottle there. Without these branches the generic path would
+  // swallow either one for nothing.
+  if (held.tag.slug === RAVEN_DRAUGHT_SLUG) {
+    throw new UserError("Drink this one from Send a message — it needs someone to reach. ‡");
+  }
+  if (held.tag.slug === STEPSTONE_SLUG) {
+    throw new UserError("Use this one from Stepstone — it needs somewhere to go. ‡");
   }
 
   const openTurn = await getOpenTurn();
@@ -5190,3 +5208,222 @@ export async function packageItemsRequest(input) {
 export async function birdMessageRequest(input) {
   return guarded(() => birdMessageRequestImpl(input));
 }
+
+// ---- The Raven Draught ---------------------------------------------------
+//
+// The second crossing of zone isolation, after the Bird (docs/systemdocs/
+// BIRD.md). A brewed bottle, spent on one sentence to one person anywhere in
+// Ravenheart, with no guess to get right and no reply coming back.
+//
+// It is allowed to be certain where the Bird is not, and the reason is the
+// whole of BIRD.md §2: the Bird's delayed, identically-worded failure exists
+// so nobody can use it to ask "is this person alive". This asks nothing. It
+// reports "Sent." every single time — to the living, to the dead, to somebody
+// who logged off in week one — so the sender learns exactly nothing they did
+// not already know. The truth goes in the audit row, for a GM, and nowhere a
+// player can read it.
+//
+// Declared here rather than in db/lib for the reason MULLIGAN_SLUG gives: one
+// bespoke consumable, one place that names it.
+const RAVEN_DRAUGHT_SLUG = "raven-draught";
+const MAX_WHISPER_LENGTH = 400;
+
+// Bascinet's words, verbatim, so no dagger.
+function whisperDm(message) {
+  return `You hear a whisper in your mind: ${message}`;
+}
+
+async function whisperRequestImpl({ recipientId, message: rawMessage }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const held = character.tags.find(
+    (ct) => ct.tag.slug === RAVEN_DRAUGHT_SLUG && ct.quantity > 0,
+  );
+  if (!held) throw new UserError("You aren't carrying a Raven Draught.");
+
+  const message = String(rawMessage ?? "").trim().slice(0, MAX_WHISPER_LENGTH);
+  if (!message) throw new UserError("Say something first.");
+
+  const targetId = String(recipientId ?? "");
+  if (!targetId) throw new UserError("Pick someone.");
+  if (targetId === character.id) {
+    throw new UserError("You already know what you were going to say.");
+  }
+  // Loaded WITHOUT a status filter, the way the Bird loads its recipient: a
+  // query that could only find the living would answer the question this
+  // whole action is built not to answer.
+  const recipient = await prisma.character.findUnique({
+    where: { id: targetId },
+    select: { id: true, name: true, status: true, discordUserId: true },
+  });
+  if (!recipient) throw new UserError("Nobody by that name.");
+
+  const delivered = recipient.status === "ALIVE";
+  const openTurn = await getOpenTurn();
+  const restore = {
+    tagId: held.tagId,
+    source: held.source,
+    expiresTurn: held.expiresTurn,
+    quantity: 1,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    // The bottle was read outside this transaction — lock before spending it,
+    // or two submits in flight both see one draught and send two whispers.
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You aren't carrying a Raven Draught.");
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_whisper",
+      targetCharacterId: recipient.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        restore,
+        recipientId: recipient.id,
+        recipientName: recipient.name,
+        message,
+        // The one place the outcome is written down. The sender is never told.
+        delivered,
+      },
+    });
+  });
+
+  // Post-commit, and only to somebody alive to hear it (ARCHITECTURE.md §5).
+  if (delivered) {
+    notifyCharacter(recipient, whisperDm(message), { source: RAVEN_DRAUGHT_SLUG });
+  }
+
+  await afterInventoryChange(character.id);
+  revalidateAll();
+  // Identical either way. See the note at the top of this section.
+  return { ok: true };
+}
+
+// ---- The Stepstone -------------------------------------------------------
+//
+// A raw relocation, the shape the Dev Panel's Teleport already uses: no Move
+// cost, no adjacency, no cooldown, immediate. The one thing it is NOT is
+// unlimited — you step somewhere you KNOW, which is the fog behind /map
+// (db/lib/locationVisits.js), stood in or seen from next door. A picker over
+// all 56 Locations would hand the reader the whole map, which is the one
+// thing the fog exists to stop.
+const STEPSTONE_SLUG = "stepstone";
+
+async function stepstoneRequestImpl({ locationId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const held = character.tags.find(
+    (ct) => ct.tag.slug === STEPSTONE_SLUG && ct.quantity > 0,
+  );
+  if (!held) throw new UserError("You aren't carrying a Stepstone.");
+
+  const targetId = String(locationId ?? "");
+  if (!targetId) throw new UserError("Pick somewhere.");
+  if (character.locationId === targetId) {
+    throw new UserError("You're already there.");
+  }
+
+  const location = await prisma.location.findUnique({
+    where: { id: targetId },
+    include: { zone: true },
+  });
+  if (!location) throw new UserError("There's no such place. ‡");
+
+  // Recomputed here rather than trusted from the dialog: the picker is a hint,
+  // and a posted id for somewhere this character has never been must be
+  // refused whatever the client drew.
+  const { stood, seen } = await knownLocations(prisma, character.id);
+  if (!stood.has(targetId) && !seen.has(targetId)) {
+    throw new UserError("You don't know that place well enough to step to it.");
+  }
+
+  const fromLocationId = character.locationId;
+  const openTurn = await getOpenTurn();
+  const restore = {
+    tagId: held.tagId,
+    source: held.source,
+    expiresTurn: held.expiresTurn,
+    quantity: 1,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You aren't carrying a Stepstone.");
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    await tx.character.update({
+      where: { id: character.id },
+      data: {
+        locationId: location.id,
+        // Denormalized mirror — every writer of locationId writes both.
+        zoneId: location.zoneId,
+        // A crossing already declared would otherwise walk them off again at
+        // the next close, and an escort you have vanished out of is over.
+        travelToLocationId: null,
+        travelTurnId: null,
+        escortedById: null,
+      },
+    });
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_stepstone",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        restore,
+        fromLocationId,
+        toLocationId: location.id,
+        toLocationName: location.name,
+        toZoneName: location.zone?.name ?? null,
+      },
+    });
+  });
+
+  // Post-commit and out of band: this is the one hook every writer of
+  // locationId owes — the map row, the channel overwrite, the zone role, the
+  // carry settle, the corpses being carried, the poke at every open /chat.
+  // Discord must never be touched from inside a transaction.
+  after(async () => {
+    try {
+      await applyLocationMoveSideEffects(prisma, {
+        characterId: character.id,
+        fromLocationId,
+        toLocationId: location.id,
+      });
+    } catch (err) {
+      console.error("Stepstone: location side effects failed:", err);
+    }
+    // Walking is what wakes the dark, and stepping counts as arriving.
+    try {
+      const moved = await prisma.character.findUnique({ where: { id: character.id } });
+      const cavingDm = await rollCavingOnArrival(prisma, moved, location);
+      if (cavingDm) {
+        await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
+          console.error("Stepstone: caving arrival DM failed:", err),
+        );
+      }
+    } catch (err) {
+      console.error("Stepstone: caving roll failed:", err);
+    }
+  });
+
+  revalidateAll();
+  return { ok: true, locationName: location.name, zoneName: location.zone?.name ?? null };
+}
+
+export async function whisperRequest(input) {
+  return guarded(() => whisperRequestImpl(input));
+}
+
+export async function stepstoneRequest(input) {
+  return guarded(() => stepstoneRequestImpl(input));
+}
+

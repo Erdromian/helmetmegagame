@@ -8470,7 +8470,7 @@ tags:
     name: Stepstone
     category: items
     group: items-special
-    description: "You can consume it to teleport anywhere."
+    description: "You can consume it to teleport anywhere you know. ‡"
     pointCost: 0
     tradeable: true
     weight: 0
@@ -10391,23 +10391,6 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: []
-
-  illusion-crystal:
-    catalog: gm
-    name: Illusion Crystal
-    category: items
-    group: items-gear
-    description: "A reflective crystal. Can be used to create an illusion up to human size that lasts an amount of time of the user's choice. Single use."
-    pointCost: 0
-    depotPrice: 60
-    sealedShipping: true
-    sellable: true
-    sellablePrice: 36
-    tradeable: true
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
 
   homunculus:
     catalog: gm

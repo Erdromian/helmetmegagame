@@ -511,6 +511,31 @@ between the pick and the walk, and drops them into `leftBehind` with the reason
 `held`. That is the one `leftBehind` reason the leader IS told, because it is
 plain to see. See [`INTERCEPT.md`](INTERCEPT.md).
 
+## 3b. The Stepstone — the one move that is not travel
+
+A `catalog: secret` item that a player spends to stand somewhere else. It is a
+**raw relocation**, the same shape the Dev Panel's Teleport uses: no ⬢, no Move,
+no adjacency check, no cooldown, and no Action filed. What it is not is
+unlimited — the picker offers only what that character **knows**, which is the
+fog behind `/map`: everywhere they have stood, plus everywhere they have seen
+from a doorway (`db/lib/locationVisits.js#knownLocations`). A picker over all 56
+Locations would hand the reader the entire map, which is the one thing the fog
+exists to prevent, so `stepstoneRequest` recomputes the set server-side and
+refuses a posted id for anywhere else.
+
+It writes `locationId` **and** `zoneId`, clears `travelToLocationId` /
+`travelTurnId` / `escortedById`, and then calls `applyLocationMoveSideEffects`
+(§4) like every other writer of `locationId` — which is what gets it the
+`LocationVisit` row, the channel overwrite, the zone role, the carry settle and
+the corpses it is carrying, for free. `rollCavingOnArrival` runs after, because
+stepping into the dark wakes it the same as walking in.
+
+**Two things it inherits from Teleport, both deliberate.** Anyone escorting the
+stepper is left behind — a party follows a walk, not a stone. And because a
+teleport crosses no graph link, `announceGateCrossing` has no edge to read and
+posts nothing: you arrive without the gate line a walker would set off, which is
+the closest thing the item has to stealth.
+
 ## 4. The Discord half
 
 **`db/lib/locationMove.js#applyLocationMoveSideEffects(prisma, entry)`** is
