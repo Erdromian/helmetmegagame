@@ -340,6 +340,11 @@ npm run archive:export               # one game's transcript -> a packet in the
                                      #   will keep a game. See ARCHIVE.md.
 npm run archive:import -- --key K    # load a packet back. Prints every column
                                      #   it dropped or defaulted.
+npm run archive:pull                 # every packet in the bucket -> ./archives
+                                     #   (gitignored). Skips what it has,
+                                     #   verifies each download, EXITS 1 on a
+                                     #   bad file. `-- --recheck` re-verifies
+                                     #   what is already there.
 npm run archive:exports              # what packets exist. EXITS 1 if the
                                      #   current game's newest is over 36h old.
 npm run db:backups                   # what is in the bucket. EXITS 1 if the

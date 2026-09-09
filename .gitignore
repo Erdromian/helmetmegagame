@@ -29,3 +29,10 @@ local-discord-outbox.jsonl
 # Python bytecode from scripts/copy
 __pycache__/
 *.pyc
+
+# Archive packets pulled down by `npm run archive:pull` (docs/systemdocs/
+# ARCHIVE.md §6). A transcript names the character behind every /conceal and
+# this repo is public, so a packet must never be committed. The folder writes
+# its own .gitignore too, for a destination that is not this one.
+archives/
+*.jsonl.gz
