@@ -6,7 +6,7 @@
 // Run with: npm test --workspace=db
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { escortAuthority, escortReason, ESCORT_SELECT } = require("../lib/escort");
+const { escortAuthority, escortReason, escortRefusal, ESCORT_SELECT } = require("../lib/escort");
 const { freeZoneMoves, freeMovesLeft, fitsMount, CHARACTER_SELECT } = require("../lib/locationTravel");
 const { equippedSlugs } = require("../lib/mounts");
 
@@ -71,14 +71,39 @@ test("consent counts, and only until its window lapses", () => {
   assert.equal(escortAuthority(leader(), willing, null), "ASK");
 });
 
-test("nobody is taken from across the map, from the ground, or from somebody else", () => {
+test("nobody is taken from across the map, from the ground, or off a friend", () => {
   assert.equal(escortAuthority(leader(), person({ locationId: "loc-2" })), null);
   assert.equal(escortAuthority(leader(), person({ status: "DEAD", buriedAt: new Date() })), null);
-  assert.equal(escortAuthority(leader(), person({ escortedById: "Z" })), null);
+  // A WILLING follower is somebody else's, and stays theirs.
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", factionId: "f2" })), null);
   // Already yours is still yours.
   assert.equal(escortAuthority(leader(), person({ escortedById: "L" })), "ASK");
   assert.equal(escortAuthority(leader(), person({ id: "L" })), null);
   assert.equal(escortAuthority(leader({ locationId: null }), person()), null);
+});
+
+test("force beats an arrangement: a captor takes their prisoner off whoever has them", () => {
+  // The reported bug. Tie somebody up while they are walking with a friend
+  // and the friend used to keep them, because the escortedById guard ran
+  // before the FORCED branches ever did.
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", tags: [tag("bound", "Bound")] })), "FORCED");
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", status: "DEAD" })), "FORCED");
+  assert.equal(escortAuthority(leader(), person({ escortedById: "Z", factionId: "f1" })), "FORCED");
+  // Consent is not force: a standing agreement to YOU does not outrank
+  // somebody who is holding them right now.
+  assert.equal(
+    escortAuthority(leader(), person({ escortedById: "Z", escortConsentToId: "L", escortConsentUntilTurn: 9 }), 3),
+    null,
+  );
+});
+
+test("a refusal says which rule refused", () => {
+  assert.equal(escortRefusal(leader(), person({ escortedById: "Z" })), "They're already with somebody. ‡");
+  assert.equal(escortRefusal(leader(), person({ locationId: "loc-2", name: "Ada" })), "Ada isn't here.");
+  assert.equal(escortRefusal(leader(), null), "They aren't here any more. ‡");
+  // Yours is not a refusal at all, so it falls through to the flat wording
+  // rather than claiming somebody else has them.
+  assert.equal(escortRefusal(leader(), person({ escortedById: "L" })), "You can't take them along. ‡");
 });
 
 test("a hood is off the list, the way it is off every other picker", () => {

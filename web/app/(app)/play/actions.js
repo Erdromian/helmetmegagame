@@ -25,6 +25,7 @@ import {
 import {
   ESCORT_SELECT as MOVER_SELECT,
   escortAuthority,
+  escortRefusal,
   escortCandidates,
   partyOf,
   attach,
@@ -605,7 +606,11 @@ export async function bringAlong(targetId) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
   const target = await prisma.character.findUnique({ where: { id: targetId ?? "" }, select: MOVER_SELECT });
   const verdict = escortAuthority(me.character, target, openTurn?.number ?? null);
-  if (!verdict) return { ok: false, error: "You can't take them along. ‡" };
+  // Says WHICH rule refused. The picker only lists people you can take, so a
+  // refusal here means the world moved between the list and the click, and
+  // "you can't" with no reason left the player staring at somebody standing
+  // in front of them.
+  if (!verdict) return { ok: false, error: escortRefusal(me.character, target) };
 
   if (verdict === "ASK") {
     if (!openTurn) return { ok: false, error: "No turn is open." };
@@ -615,7 +620,10 @@ export async function bringAlong(targetId) {
     return { ok: true, line: `You asked ${target.name} to come with you. ‡` };
   }
 
-  if (!(await attach(prisma, me.character.id, target.id))) {
+  // A FORCED target is taken, not agreed with, so somebody else holding the
+  // column is not a reason to refuse — escortAuthority already decided that
+  // above and attach must not re-decide it (db/lib/escort.js).
+  if (!(await attach(prisma, me.character.id, target.id, { takeover: verdict === "FORCED" }))) {
     return { ok: false, error: "Somebody else has them. ‡" };
   }
   return { ok: true, line: `${target.name} is with you. ‡` };

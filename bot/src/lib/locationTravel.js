@@ -154,7 +154,12 @@ async function applyBring(mover, pickedIds, turn) {
       }
       continue;
     }
-    if (await attach(prisma, mover.id, id)) out.attached.push(candidate.name);
+    // FORCED is taken rather than agreed with, so a leader already holding
+    // the column is not a reason to refuse — the same call the web's
+    // bringAlong makes (db/lib/escort.js#attach).
+    if (await attach(prisma, mover.id, id, { takeover: candidate.verdict === "FORCED" })) {
+      out.attached.push(candidate.name);
+    }
   }
   return out;
 }
