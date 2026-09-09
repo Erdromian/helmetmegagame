@@ -91,7 +91,7 @@ export default function ThreatRosterTable({ rows, pending, threats }) {
           {pageRows.length === 0 ? (
             <tr>
               <td colSpan={COL_COUNT}>
-                <EmptyState>Nobody holds a threat seat yet. ‡</EmptyState>
+                <EmptyState>Nobody holds a threat seat yet.</EmptyState>
               </td>
             </tr>
           ) : null}
@@ -134,7 +134,7 @@ function PendingRow({ row }) {
     setError(null);
     const ok = await confirm({
       title: `Cancel the ${row.threatName} offer?`,
-      message: `${row.handle} won't be able to accept it. ‡`,
+      message: `${row.handle} won't be able to accept it.`,
       confirmLabel: "Cancel the offer",
       cancelLabel: "Leave it",
     });

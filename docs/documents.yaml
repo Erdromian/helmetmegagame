@@ -310,14 +310,14 @@ documents:
         {tag:cudgel}, {tag:armored-gloves}
       - {tag:bone-mask} needs Butcher instead.
       - {tag:rope} is Crafting with no forge as well, but costs 4 ⬢ rather
-        than 3. ‡
+        than 3.
 
       **Simple — 6 ⬢, 1 turn**
 
       - Weapons: {tag:gladius}, {tag:javelin}, {tag:mace}, {tag:battle-axe}
       - Small metalwork, a third of a turn's work each — up to three in one
         Routine: {tag:spear}, {tag:dagger}, {tag:silver-knife},
-        {tag:phrygian-spear} ‡
+        {tag:phrygian-spear}
       - Armor: {tag:simple-helm}, {tag:mail-coif}
       - Mail Coif needs Smithing. Crafting instead of Smithing: {tag:longbow},
         {tag:shield}, {tag:pavise}, {tag:trapping-gear}
@@ -366,7 +366,7 @@ documents:
         piece of smith's work you can do without a forge, because otherwise
         nobody could ever make the first one.
       - {tag:painting} — 4 turns, a set of {tag:art-supplies}, and Artist.
-      - {tag:sketch} — 1 ⬢, half a turn's work, Artist. Two to a Routine. ‡
+      - {tag:sketch} — 1 ⬢, half a turn's work, Artist. Two to a Routine.
       - {tag:badge} — 2 ⬢, 1 turn, Crafting.
       - {tag:hat} — 3 ⬢, 1 turn, Crafting.
 
@@ -374,7 +374,7 @@ documents:
       the {tag:painting}, the {tag:sketch}, and a cook's meals — can be made
       as YOURS: pay 1 ⬢ extra per piece and give it your own name and
       description. A named piece always shows what it is underneath, so a
-      "Dockers' Mark (Badge)" is still plainly a badge. ‡
+      "Dockers' Mark (Badge)" is still plainly a badge.
 
   caving:
     name: Caving
@@ -419,8 +419,8 @@ documents:
       Fine meals make average people happy, but Nobility have them as a baseline. They need to eat them every once in a while or they'll be unhappy. Lavish meals make everyone happy and are valid objects of a Desire.
 
       **{tag:fine-meal}:** cost 2 ⬢ per meal. You can make up to 4 Fine meals in one Routine Move.
-      **{tag:trail-ration}:** cost 2 ⬢ per ration. Weighs next to nothing — the meal you pack for a long walk. Up to 4 in one Routine Move. ‡
-      **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one delicacy per meal — {tag:tea} or {tag:sweets} off the Depot's shelf, or {tag:fish-roe} if you can get it. Your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move. ‡
+      **{tag:trail-ration}:** cost 2 ⬢ per ration. Weighs next to nothing — the meal you pack for a long walk. Up to 4 in one Routine Move.
+      **{tag:lavish-meal}:** cost 3 ⬢ per meal, plus one delicacy per meal — {tag:tea} or {tag:sweets} off the Depot's shelf, or {tag:fish-roe} if you can get it. Your pick, and it is used up. You can make up to 3 Lavish meals in one Routine Move.
 
       **A dish of your own.** Either meal can be cooked as a signature dish for 1 ⬢ extra per meal: you name it and describe it, and it still plainly shows what it is — "Steak Dinner (Lavish Meal)".
   alcoholdrugs:
@@ -472,7 +472,7 @@ documents:
       | {tag:mulligan-potion} | 8 | 2 | — |
       | {tag:flawless-skin} | 8 | 1 | — |
 
-      Rumor has it the skilled brewers of past generations knew recipes beyond these — worked from stranger ingredients than any listed here. If something rare and organic finds its way into your hands, a still is one way to ask it questions. ‡
+      Rumor has it the skilled brewers of past generations knew recipes beyond these — worked from stranger ingredients than any listed here. If something rare and organic finds its way into your hands, a still is one way to ask it questions.
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser
@@ -519,7 +519,7 @@ documents:
     flags:
       - gamemaster
     description: |-
-      Recipes hidden from the public papers and the Recipes tab. Each appears in a character's Craft menu only while they hold the ingredient — finding the thing is how the recipe is learned. Nothing here should be told to a player outright; place the ingredient instead. ‡
+      Recipes hidden from the public papers and the Recipes tab. Each appears in a character's Craft menu only while they hold the ingredient — finding the thing is how the recipe is learned. Nothing here should be told to a player outright; place the ingredient instead.
 
       | Recipe | Skill | ⬢ | Needs | The ingredient comes from |
       |---|---|---|---|---|
@@ -537,9 +537,9 @@ documents:
       | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
 
-      The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey. ‡
+      The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey.
 
-      Mechanics a GM adjudicates or should know: the {tag:blessed} status a {tag:chrism} grants blocks Break-family grants outright and halves everything that sinks the mood for 3 turns; an equipped {tag:heartforged-blade} stops the mood sinking at all and fights as Exceptional; a held {tag:musk-lure} is auto-spent to negate its holder's first cave TROUBLE; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead. ‡
+      Mechanics a GM adjudicates or should know: the {tag:blessed} status a {tag:chrism} grants blocks Break-family grants outright and halves everything that sinks the mood for 3 turns; an equipped {tag:heartforged-blade} stops the mood sinking at all and fights as Exceptional; a held {tag:musk-lure} is auto-spent to negate its holder's first cave TROUBLE; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead.
 
   # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag

@@ -49,14 +49,14 @@ async function holder() {
 }
 
 function requireCard(slugs) {
-  if (!slugs.has(DATACARD_SLUG)) throw new UserError("You aren't carrying the datacard. ‡");
+  if (!slugs.has(DATACARD_SLUG)) throw new UserError("You aren't carrying the datacard.");
 }
 
 // Both halves, for Arm and Disarm. You cannot work the device you are not
 // holding, which is what the greyed button already says.
 function requireBoth(slugs) {
   requireCard(slugs);
-  if (!slugs.has(DEVICE_SLUG)) throw new UserError("The device isn't here in your hands. ‡");
+  if (!slugs.has(DEVICE_SLUG)) throw new UserError("The device isn't here in your hands.");
 }
 
 async function readPointerImpl() {
@@ -88,8 +88,8 @@ async function armNukeImpl() {
     where: { id: 1 },
     include: { game: { select: { nukeDetonatedTurn: true } } },
   });
-  if (state?.game?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
-  if (state?.nukeArmedTurn != null) throw new UserError("It is already counting down. ‡");
+  if (state?.game?.nukeDetonatedTurn != null) throw new UserError("It has already gone off.");
+  if (state?.nukeArmedTurn != null) throw new UserError("It is already counting down.");
 
   // The absolute turn it fires on. Two turns, counted the way every other
   // duration in the game counts: armed while turn T is open, it goes at the
@@ -133,7 +133,7 @@ async function disarmNukeImpl() {
     where: { id: 1 },
     include: { game: { select: { nukeDetonatedTurn: true } } },
   });
-  if (state?.game?.nukeDetonatedTurn != null) throw new UserError("It has already gone off. ‡");
+  if (state?.game?.nukeDetonatedTurn != null) throw new UserError("It has already gone off.");
   if (state?.nukeArmedTurn == null) throw new UserError("It isn't armed.");
 
   // Snapshotted so an Undo can put the countdown back exactly where it was

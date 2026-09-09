@@ -23,21 +23,21 @@ const GATE_CHARACTER_SELECT = {
 // Returns { ok: true, opened, farName, locationIds } or { ok: false, error }.
 // Every refusal is a sentence a player reads, so both faces say the same one.
 async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
-  if (!character) return { ok: false, error: "You don't have a living character. ‡" };
+  if (!character) return { ok: false, error: "You don't have a living character." };
 
   const link = await prisma.locationLink.findUnique({ where: { id: linkId }, include: { a: true, b: true } });
   // Covers "not modular" — whatever a stale button claimed.
-  if (!gateOperable(link)) return { ok: false, error: "There's no gate here to work. ‡" };
+  if (!gateOperable(link)) return { ok: false, error: "There's no gate here." };
   // You have to be standing on one side of it.
   if (character.locationId !== link.aId && character.locationId !== link.bId) {
-    return { ok: false, error: "You aren't standing at that gate. ‡" };
+    return { ok: false, error: "You aren't standing at that gate." };
   }
 
   const allowed = canToggleGate(link, {
     tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
     roleSlug: character.role?.slug ?? null,
   });
-  if (!allowed) return { ok: false, error: "The gate's mechanism doesn't answer to you. ‡" };
+  if (!allowed) return { ok: false, error: "The gate's mechanism doesn't answer to you." };
 
   const wantOpen = !link.isOpen;
   // The permission verdict above read a snapshot, and the flip must not trust
@@ -58,8 +58,8 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
     }
     await tx.locationLink.update({ where: { id: link.id }, data: { isOpen: wantOpen } });
   });
-  if (outcome === "gone") return { ok: false, error: "There's no gate here to work. ‡" };
-  if (outcome === "raced") return { ok: false, error: "Somebody just beat you to it. ‡" };
+  if (outcome === "gone") return { ok: false, error: "There's no gate here to work." };
+  if (outcome === "raced") return { ok: false, error: "Somebody just beat you to it." };
 
   await prisma.auditLog.create({
     data: {
@@ -77,7 +77,7 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
     farName,
     // Both sides, for whichever face has an anchor to redraw.
     locationIds: [link.aId, link.bId],
-    line: wantOpen ? `You open the way to ${farName}. ‡` : `You shut the way to ${farName}. ‡`,
+    line: wantOpen ? `You open the way to ${farName}.` : `You shut the way to ${farName}.`,
   };
 }
 
@@ -91,20 +91,20 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
 // propping the same door in the same moment cannot stack two windows.
 async function holdKeyedOpen(prisma, { discordUserId, linkId, hold }) {
   const link = await prisma.locationLink.findUnique({ where: { id: linkId }, include: { a: true, b: true } });
-  if (!link?.keyed) return { ok: false, error: "There's no door here to hold. ‡" };
+  if (!link?.keyed) return { ok: false, error: "There's no door here to hold." };
   const between = `${link.a.name} and ${link.b.name}`;
 
-  if (!hold) return { ok: true, held: false, line: `You let the way between ${between} fall shut. ‡` };
+  if (!hold) return { ok: true, held: false, line: `You let the way between ${between} fall shut.` };
 
   const character = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
     select: { id: true, tags: { select: { tag: { select: { slug: true } } } } },
   });
   const holdsKey = (character?.tags ?? []).some((ct) => ct.tag?.slug === link.requiredTagSlug);
-  if (!holdsKey) return { ok: false, error: "You no longer have what holds that open. ‡" };
+  if (!holdsKey) return { ok: false, error: "You no longer have what holds that open." };
 
   if (isHeldOpen(link)) {
-    return { ok: false, error: `The way between ${between} is already being held open. ‡` };
+    return { ok: false, error: `The way between ${between} is already being held open.` };
   }
 
   const openUntil = new Date(Date.now() + KEYED_OPEN_MS);
@@ -112,7 +112,7 @@ async function holdKeyedOpen(prisma, { discordUserId, linkId, hold }) {
     where: { id: link.id, OR: [{ openUntil: null }, { openUntil: { lte: new Date() } }] },
     data: { openUntil },
   });
-  if (claim.count === 0) return { ok: false, error: "Somebody just beat you to it. ‡" };
+  if (claim.count === 0) return { ok: false, error: "Somebody just beat you to it." };
 
   await prisma.auditLog.create({
     data: {
@@ -126,8 +126,8 @@ async function holdKeyedOpen(prisma, { discordUserId, linkId, hold }) {
   return {
     ok: true,
     held: true,
-    line: `You leave the way between ${between} open. ‡`,
-    note: "It stands open for 24 hours, and anyone can see and use it until then. ‡",
+    line: `You leave the way between ${between} open.`,
+    note: "It stands open for 24 hours, and anyone can see and use it until then.",
   };
 }
 

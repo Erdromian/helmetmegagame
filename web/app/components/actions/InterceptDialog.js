@@ -87,13 +87,13 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       }
     >
       <p className="text-sm text-muted">
-        You wait where you are standing. Anyone you are watching for is stopped when they walk in. ‡
+        You wait where you are standing. Anyone you are watching for is stopped when they walk in.
       </p>
       {/* Said on the page, not hidden behind anything: where the watch is set
           and what ends it are the two things about this verb a player cannot
           work out by using it (SHEET.md §3, INTERCEPT.md §8). */}
       <p className="text-sm text-muted">
-        {place ? `You are lying in wait at ${place}. ` : ""}Leave this place, however you leave it, and the watch ends. ‡
+        {place ? `You are lying in wait at ${place}. ` : ""}Leave this place, however you leave it, and the watch ends.
       </p>
 
       {/* The two standing rules sit ABOVE the typed names rather than mixed in
@@ -123,7 +123,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
           </button>
         </div>
         {anyPerson ? (
-          <p className="text-xs text-muted">Any person already covers everyone. ‡</p>
+          <p className="text-xs text-muted">Any person already covers everyone.</p>
         ) : null}
       </div>
 
@@ -139,7 +139,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
           could not work out by using it (INTERCEPT.md). */}
       <p className="text-xs text-muted">
         A name only catches a face you would recognise. Somebody hooded walks past it — watch for
-        anyone concealed instead. ‡
+        anyone concealed instead.
       </p>
 
       <label className="field">

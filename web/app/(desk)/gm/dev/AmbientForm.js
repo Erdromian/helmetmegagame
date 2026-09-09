@@ -53,7 +53,7 @@ export default function AmbientForm({ zones, locations, rooms }) {
     setNote(null);
     const ok = await confirm({
       title: `Say this in ${targetName}?`,
-      message: "Everyone standing there reads it the moment it lands. ‡",
+      message: "Everyone standing there reads it the moment it lands.",
       confirmLabel: "Say it",
       cancelLabel: "Not yet",
     });
@@ -107,7 +107,7 @@ export default function AmbientForm({ zones, locations, rooms }) {
           <textarea
             rows={6}
             value={text}
-            placeholder="Something drips, far back in the dark. ‡"
+            placeholder="Something drips, far back in the dark."
             onChange={(e) => setText(e.target.value)}
           />
         </label>
@@ -131,7 +131,7 @@ export default function AmbientForm({ zones, locations, rooms }) {
         <pre className="desk-move-text whitespace-pre-wrap">{preview || "—"}</pre>
         <p className="text-xs text-muted">
           Subtext, one prefix per line. It sits under the conversation rather than in it, which
-          is what keeps scenery from reading as an interruption. ‡
+          is what keeps scenery from reading as an interruption.
         </p>
       </div>
     </div>

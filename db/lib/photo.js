@@ -29,12 +29,12 @@ function joinBits(bits) {
 // bandaged hand — which is exactly what examineReadout already decided.
 function photoCaption(readout) {
   if (readout.concealed) {
-    return `${readout.line} ${joinBits([...readout.ailments, ...readout.equipment])}`.trim() + " ‡";
+    return `${readout.line} ${joinBits([...readout.ailments, ...readout.equipment])}`.trim();
   }
 
   const appearance = readout.appearance || "Nothing you can make out.";
   const tags = joinBits(readout.tags.map((t) => t.name));
-  return [appearance, tags].filter(Boolean).join(" ") + " ‡";
+  return [appearance, tags].filter(Boolean).join(" ");
 }
 
 // What the camera prints when nobody is in front of it. Bascinet's line, so no

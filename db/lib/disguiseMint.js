@@ -84,7 +84,7 @@ function disguiseData(characterId, name, attempt) {
     weightLbs: null,
     slug: disguiseSlug(characterId, attempt),
     name: `Disguised (${label})`,
-    description: `You are disguised as ${name}. ‡`,
+    description: `You are disguised as ${name}.`,
     forcedName: name,
     defaultDurationTurns: DISGUISE_TURNS,
   };

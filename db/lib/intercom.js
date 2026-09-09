@@ -59,7 +59,7 @@ function intercomLine(text) {
   // Supply a full stop only when the speaker didn't end on one themselves,
   // so "Get to the wall!" doesn't broadcast as "Get to the wall!."
   const stop = /[.!?…]$/.test(body) ? "" : ".";
-  return `@here You hear a voice from the intercom: ${body}${stop} ‡`;
+  return `@here You hear a voice from the intercom: ${body}${stop}`;
 }
 
 // Posts to every zone in range, sequentially and individually caught. Never

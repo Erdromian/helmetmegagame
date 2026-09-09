@@ -83,19 +83,19 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
   });
   const matches = candidates.filter((c) => matchesTypedName(c, typed));
   if (matches.length === 0)
-    throw new UserError("Nobody living answers to that name. ‡");
+    throw new UserError("Nobody living answers to that name.");
   if (matches.length > 1) {
     throw new UserError(
-      "More than one living man answers to that name. A GM will have to do it. ‡",
+      "More than one living man answers to that name. A GM will have to do it.",
     );
   }
   const target = matches[0];
-  if (target.id === me.id) throw new UserError("Swear it out on somebody else. ‡");
+  if (target.id === me.id) throw new UserError("Swear it out on somebody else.");
   // grantTagSlugs would no-op on a non-stackable tag already held, so this is
   // only here to say so out loud rather than reporting a success that did
   // nothing.
   if (target.tags.length > 0)
-    throw new UserError("There is already a warrant out on them. ‡");
+    throw new UserError("There is already a warrant out on them.");
 
   const openTurn = await getOpenTurn();
   await prisma.$transaction(async (tx) => {
@@ -111,7 +111,7 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
 
   await afterInventoryChange([target.id]);
   revalidate();
-  return { ok: true, name: target.name, line: `A warrant is out on ${target.name}. ‡` };
+  return { ok: true, name: target.name, line: `A warrant is out on ${target.name}.` };
 }
 
 // ---- Check Wanted ----------------------------------------------------------
@@ -137,7 +137,7 @@ async function checkWantedImpl() {
   return {
     ok: true,
     roster: rows.map((r) => ({ name: r.name, role: r.role })),
-    line: rows.length ? "The warrant book. ‡" : "Nobody is wanted. ‡",
+    line: rows.length ? "The warrant book." : "Nobody is wanted.",
   };
 }
 

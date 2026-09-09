@@ -132,7 +132,7 @@ export default function TravelNodes({ onDone, pick = null }) {
       {data.held ? <p className="text-sm">{data.held}</p> : null}
 
       {data.options.length === 0 ? (
-        <EmptyState>There is no way out of here. ‡</EmptyState>
+        <EmptyState>There is no way out of here.</EmptyState>
       ) : (
         <div className="chat-nodes">
           {data.options.map((option) => {
@@ -200,7 +200,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               here is the count. */}
           {data.partySize > 0 && (
             <p className="chat-quiet-line">
-              {data.partySize === 1 ? "One person" : `${data.partySize} people`} with you. ‡
+              {data.partySize === 1 ? "One person" : `${data.partySize} people`} with you.
             </p>
           )}
 

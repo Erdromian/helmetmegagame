@@ -84,7 +84,7 @@ function buildLocationSelectRow(locations, from) {
           ? location.zoneId === from.zoneId
             ? "Same zone"
             : `Into ${location.zone?.name ?? "another zone"} — free, or costs a Move`
-          : `${location.zone?.name ?? "Somewhere"} ‡`
+          : `${location.zone?.name ?? "Somewhere"}`
         ).slice(0, 100),
       })),
     );
@@ -113,8 +113,8 @@ function buildBringRow(candidates) {
         value: candidate.id,
         default: candidate.attached,
         description: (candidate.verdict === "ASK"
-          ? "You'd have to ask them ‡"
-          : `${candidate.reason ?? "comes with you"} ‡`
+          ? "You'd have to ask them"
+          : `${candidate.reason ?? "comes with you"}`
         ).slice(0, 100),
       })),
     );
@@ -193,8 +193,8 @@ async function performMove(character, targetLocation) {
         prisma,
         character.discordUserId,
         entry.reason === "edge"
-          ? `*You can't move ${entry.character.name} through here. They stay behind.* ‡`
-          : `*${entry.character.name} isn't with you any more.* ‡`,
+          ? `*You can't move ${entry.character.name} through here. They stay behind.*`
+          : `*${entry.character.name} isn't with you any more.*`,
         { kind: DM_KIND.QUIET },
       ).catch(() => { });
     }
@@ -202,7 +202,7 @@ async function performMove(character, targetLocation) {
       await sendDm(
         prisma,
         entry.character.discordUserId,
-        `*${character.name} went on without you.* ‡`,
+        `*${character.name} went on without you.*`,
         { kind: DM_KIND.QUIET },
       ).catch(() => { });
     }
@@ -260,7 +260,7 @@ async function performMove(character, targetLocation) {
     await sendDm(
       prisma,
       entry.character.discordUserId,
-      `*${character.name} brought you along to ${targetLocation.name}.* ‡`,
+      `*${character.name} brought you along to ${targetLocation.name}.*`,
       { kind: DM_KIND.QUIET },
     ).catch((err) =>
       console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),

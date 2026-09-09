@@ -87,7 +87,7 @@ export default function NoticeCards({ version = 0, onChanged }) {
                 if (
                   !(await confirm({
                     title: "Take it down?",
-                    message: `${notice.name} comes off the board and into your hands. ‡`,
+                    message: `${notice.name} comes off the board and into your hands.`,
                     confirmLabel: "Tear it down",
                   }))
                 ) {

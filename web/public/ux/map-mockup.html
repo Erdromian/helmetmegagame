@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Ravenheart travel map — node mockup‡</title>
+<title>Ravenheart travel map — node mockup</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{
@@ -72,7 +72,7 @@ button.t[aria-pressed=true]{color:var(--bg);background:var(--ink);border-color:v
   </div>
   <aside id="side">
     <header>
-      <h1>Ravenheart <small>travel-graph mockup over the prototype plate‡</small></h1>
+      <h1>Ravenheart <small>travel-graph mockup over the prototype plate</small></h1>
     </header>
     <div class="body">
       <div class="sect">
@@ -97,7 +97,7 @@ button.t[aria-pressed=true]{color:var(--bg);background:var(--ink);border-color:v
         </div>
         <div style="margin-top:7px;font-size:11px;color:var(--dim)">
           A hidden way is invisible without its tag, so turning secrets off is
-          roughly what an ordinary character sees.‡</div>
+          roughly what an ordinary character sees.</div>
       </div>
       <div class="sect"><h2>Trail</h2><div id="log"></div></div>
     </div>
@@ -234,8 +234,8 @@ function paint() {
   document.getElementById('log').innerHTML =
     trail.slice(-40).reverse().map(t => `<div>${t}</div>`).join('');
   document.getElementById('hint').textContent = editing
-    ? 'Drag a node to move it, then Copy coords.‡'
-    : 'Click a lit node to travel. Wheel zooms, drag pans.‡';
+    ? 'Drag a node to move it, then Copy coords.'
+    : 'Click a lit node to travel. Wheel zooms, drag pans.';
 }
 
 function go(id) {

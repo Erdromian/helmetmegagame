@@ -73,7 +73,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 |---|---|
 | `/move` | Open the Move submission form. |
 | `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. |
-| `/message` | Speak as your character in the room or thread you're in, without typing in it. ‡ |
+| `/message` | Speak as your character in the room or thread you're in, without typing in it. |
 | `/roll` | Roll a 1d6 into the channel, for everyone to see. |
 | `/add` | Invite a character into your Conversation. |
 | `/remove` | Remove a character from your Conversation. |
@@ -101,21 +101,21 @@ Bascinet runs for 30 real days. One turn is one of those days, and turns alterna
 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
-You can find information on the current turn in the `#turns` channel, in addition to the two main controls: ‡  
+You can find information on the current turn in the `#turns` channel, in addition to the two main controls:  
 - **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, a body, or a member of your faction if you lead it.  
 - **Move** is used to submit your character's Move for the turn.  
 
 ### The Wipe
 
-At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn. ‡
+At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, which is unlocked for players to read after the game ends. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
 
-The one exception is your Zone's Summary channel, which is only cleared at Dawn — so what is posted there has two days to be read. ‡
+The one exception is your Zone's Summary channel, which is only cleared at Dawn — so what is posted there has two days to be read.
 
 What survives:
-- Every Room keeps its thread and its description; the messages in it are archived. ‡
-- Conversations do not survive. Open a new one after the wipe. ‡
+- Every Room keeps its thread and its description; the messages in it are archived.
+- Conversations do not survive. Open a new one after the wipe.
 
-If you want to remember something, use the ⭐ reaction on the message before the turn ends to save it to your [Notes](https://ravenheart.quest/notes) page. ‡
+If you want to remember something, use the ⭐ reaction on the message before the turn ends to save it to your [Notes](https://ravenheart.quest/notes) page.
 
 ## Character Creation
 The first thing you will do is open the **Character** page on the website, from the button at the top of the sidebar.
@@ -167,7 +167,7 @@ Sometimes turns will have consequences that impact your character. If you were b
 
 As a roleplay game, conversation is at the heart of Bascinet, and the bot is designed to maintain separation between a player's identity and their character. When you send a message to a roleplay channel, the bot will automatically delete your message and post it again under your character name. No special commands or formatting is needed to speak in character.
 
-Sometimes Discord may take a few seconds to update your message with the bot's version, and your username is also visible at the bottom of the channel when typing directly. If you want to ensure neither of these can be used to connect you to your character, use the `/message` slash command in the room you want to speak in. It opens a box to type into, so nothing you write appears under your own name and nobody sees you typing. ‡
+Sometimes Discord may take a few seconds to update your message with the bot's version, and your username is also visible at the bottom of the channel when typing directly. If you want to ensure neither of these can be used to connect you to your character, use the `/message` slash command in the room you want to speak in. It opens a box to type into, so nothing you write appears under your own name and nobody sees you typing.
 
 ### Channels And Locations
 
@@ -186,7 +186,7 @@ Out in the wild, a Location carries its Zone in its name — the Gullies in the 
 
 Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all.
 
-Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. Cross one of those mounted and you leave the animal behind and go through on your own two feet, same as arriving somewhere indoors does — you can take it up again once you're through. ‡
+Some ways are too tight, too steep or too enclosed for a horse or a cart — a crawl, a cliff path, a lift, a culvert. Cross one of those mounted and you leave the animal behind and go through on your own two feet, same as arriving somewhere indoors does — you can take it up again once you're through.
 
 If you have the key to one of those, you may be asked in a DM whether to leave it open for the next 24 hours. Say yes and anyone can see it and use it until the day is out — which is how somebody without a key follows you through. Say no and it falls shut behind you.
 
@@ -194,7 +194,7 @@ Each Location's channel has a pinned message at the top with its description, th
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
-| **A Location** (text channel) | The open street. You can see what happens here, but talk belongs in its Rooms — step into one to speak. ‡ |
+| **A Location** (text channel) | The open street. You can see what happens here, but talk belongs in its Rooms — step into one to speak. |
 | **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. |
 
 The three buttons on the pinned message:
@@ -220,7 +220,7 @@ To hold a private conversation with one or more other characters at your Locatio
 3. Use `/add` in the thread and choose who you want to invite.
 4. Use `/remove` if someone should leave the conversation.
 
-A Conversation isn't silent. Every fifteen minutes, the Room it's linked to hears who has been whispering — never names, only descriptions: *You hear a young man and an old woman whispering.* Conversations are cleared at the end of every turn. ‡
+A Conversation isn't silent. Every fifteen minutes, the Room it's linked to hears who has been whispering — never names, only descriptions: *You hear a young man and an old woman whispering.* Conversations are cleared at the end of every turn.
 
 ### Character Mentions
 
@@ -287,13 +287,13 @@ After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review
 
 ### Mood
 
-Your character has a mood, and there is a box for it on your sheet that says it in one word. From best to worst: Happy, Pleased, Content, **Fine**, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Most people sit at Fine. ‡
+Your character has a mood, and there is a box for it on your sheet that says it in one word. From best to worst: Happy, Pleased, Content, **Fine**, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Most people sit at Fine.
 
-Things wear on a character — nights spent out in the wilderness or down in the caves, a wound, going hungry, being tied up, seeing somebody die, worse. Things lift them too: a roof over your head, and the Inn, the Keep or the Sanctuary more so than an ordinary room. So does a drink, a meal, a treat, a pot of tea, a coffee, a smoke, hearing a Musician play, a confession, or getting what you wanted from a Desire. Nothing stays extreme for long — every night your mood slides a little back toward Fine, from either direction. ‡
+Things wear on a character — nights spent out in the wilderness or down in the caves, a wound, going hungry, being tied up, seeing somebody die, worse. Things lift them too: a roof over your head, and the Inn, the Keep or the Sanctuary more so than an ordinary room. So does a drink, a meal, a treat, a pot of tea, a coffee, a smoke, hearing a Musician play, a confession, or getting what you wanted from a Desire. Nothing stays extreme for long — every night your mood slides a little back toward Fine, from either direction.
 
-Only the bottom two do anything to the dice: **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2. A good mood is its own reward and changes no roll. You are told when you drop into Afraid or Panicking, and otherwise the box on your sheet is the only place your mood is written down. ‡
+Only the bottom two do anything to the dice: **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2. A good mood is its own reward and changes no roll. You are told when you drop into Afraid or Panicking, and otherwise the box on your sheet is the only place your mood is written down.
 
-A noble who skips a fine meal takes it as hard as anyone else takes a rough night outdoors. ‡
+A noble who skips a fine meal takes it as hard as anyone else takes a rough night outdoors.
 
 
 ## Submitting A Move

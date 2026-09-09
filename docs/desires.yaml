@@ -1568,7 +1568,7 @@ desires:
   # hand — only tier 7 gets that automatically — because none of them is a
   # thing you can meaningfully do twice.
   climb-the-mountain:
-    name: Figure out how to get on top of the Mountain, and climb there ‡
+    name: Figure out how to get on top of the Mountain, and climb there
     tier: 3
     oncePerLife: true
     families: [adventure, bravery]

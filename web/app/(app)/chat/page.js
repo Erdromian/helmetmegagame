@@ -302,7 +302,7 @@ async function FreshChat({ userId }) {
           canExtract: Boolean(extractToolFor(sheet?.tags ?? [])),
           extractBlocked:
             hasAttribute(boardLocation, GODFLESH_ATTRIBUTE) && !extractToolFor(sheet?.tags ?? [])
-              ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
+              ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
               : null,
           // Research (CRAFTING.md §2b): the Cathedral's own
           // place-card button, alongside the sheet's Research tag chip.

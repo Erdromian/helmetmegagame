@@ -3692,8 +3692,8 @@ model Structure {
   // The builder's optional line, offered only where the type's
   // `placement.inscribable` says so (the wayside shrine). When set it
   // REPLACES placement.examine in the Examine readout — and prints WITHOUT
-  // the ‡, because these are a player's words, not drafted copy. Sanitized
-  // on the way in (web/lib/customCraft.js): no rich tokens, no ‡, no @.
+  // the, because these are a player's words, not drafted copy. Sanitized
+  // on the way in (web/lib/customCraft.js): no rich tokens, no, no @.
   inscription String?
 
   startedTurnId    String?

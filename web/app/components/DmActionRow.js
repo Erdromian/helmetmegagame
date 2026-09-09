@@ -28,9 +28,9 @@ export default function DmActionRow({ action }) {
     setBusy(true);
     try {
       const result = await answerDmAction(action.kind, action.id, choice);
-      setOutcome(result?.line ?? "That didn't go through. Try again. ‡");
+      setOutcome(result?.line ?? "That didn't go through. Try again.");
     } catch {
-      setOutcome("That didn't go through. Try again. ‡");
+      setOutcome("That didn't go through. Try again.");
       setBusy(false);
     }
   }

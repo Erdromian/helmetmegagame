@@ -66,7 +66,7 @@ export async function openLobby() {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
   if (state.phase !== "CLOSED") {
-    return { ok: false, error: "The lobby can only open from Closed. ‡" };
+    return { ok: false, error: "The lobby can only open from Closed." };
   }
   await prisma.gameState.update({
     where: { id: 1 },
@@ -85,7 +85,7 @@ export async function closeLobby() {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
   if (state.phase !== "LOBBY") {
-    return { ok: false, error: "There is no open lobby to close. ‡" };
+    return { ok: false, error: "There is no open lobby to close." };
   }
   await prisma.gameState.update({ where: { id: 1 }, data: { phase: "CLOSED" } });
   await audit(session, "game_lobby_closed");
@@ -106,7 +106,7 @@ async function memberRoleMap() {
 export async function previewAssignment() {
   await requireSuperadmin();
   const state = await getGameState(prisma);
-  if (!ROLL_PHASES.has(state.phase)) return { ok: false, error: "Preview needs a lobby, open or frozen. ‡" };
+  if (!ROLL_PHASES.has(state.phase)) return { ok: false, error: "Preview needs a lobby, open or frozen." };
   const draft = await buildDraft(prisma, await memberRoleMap(), { seed: newSeed() });
   await prisma.gameState.update({ where: { id: 1 }, data: { assignmentDraft: draft } });
   refresh();
@@ -120,12 +120,12 @@ export async function setDraftRow({ discordUserId, roleSlug }) {
   await requireSuperadmin();
   const state = await getGameState(prisma);
   const draft = state.assignmentDraft;
-  if (!ROLL_PHASES.has(state.phase) || !draft?.rows) return { ok: false, error: "There is no preview to edit. ‡" };
+  if (!ROLL_PHASES.has(state.phase) || !draft?.rows) return { ok: false, error: "There is no preview to edit." };
   const slug = roleSlug ? String(roleSlug) : null;
   if (slug) {
     const role = await prisma.role.findUnique({ where: { slug }, select: { id: true, slug: true } });
     if (!role) return { ok: false, error: "No such role." };
-    if (isSpawnOnly(role)) return { ok: false, error: "That seat can only be spawned, never assigned. ‡" };
+    if (isSpawnOnly(role)) return { ok: false, error: "That seat can only be spawned, never assigned." };
   }
   const rows = draft.rows.map((r) =>
     r.discordUserId === discordUserId ? { ...r, roleSlug: slug, source: "GM" } : r,
@@ -147,7 +147,7 @@ export async function setDraftRow({ discordUserId, roleSlug }) {
 export async function startGame() {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
-  if (!ROLL_PHASES.has(state.phase)) return { ok: false, error: "Start Game needs a lobby, open or frozen. ‡" };
+  if (!ROLL_PHASES.has(state.phase)) return { ok: false, error: "Start Game needs a lobby, open or frozen." };
 
   const ready = await prisma.lobbyEntry.count({ where: { status: "READY" } });
   let draft = state.assignmentDraft;
@@ -161,7 +161,7 @@ export async function startGame() {
     if (err.message === "DRAFT_STALE") {
       return { ok: false, error: `The lobby changed since the preview. Preview again. ${(err.problems ?? []).join(" ")}` };
     }
-    if (err.message === "NOT_LOBBY") return { ok: false, error: "Start Game needs a lobby, open or frozen. ‡" };
+    if (err.message === "NOT_LOBBY") return { ok: false, error: "Start Game needs a lobby, open or frozen." };
     throw err;
   }
 
@@ -210,11 +210,11 @@ export async function endGame(formData) {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
   if (state.phase !== "RUNNING") {
-    return { ok: false, error: "Only a running game can be ended. ‡" };
+    return { ok: false, error: "Only a running game can be ended." };
   }
   const closingNote = formData?.get("closingNote")?.toString().trim().slice(0, 4000) || null;
   const result = await endGameInDb(prisma, { closingNote, reason: "gm", actorDiscordUserId: session.discordUserId });
-  if (!result.ended) return { ok: false, error: "The game had already ended. ‡" };
+  if (!result.ended) return { ok: false, error: "The game had already ended." };
   refresh();
   revalidatePath("/archive");
   sweepSpectators();
@@ -242,13 +242,13 @@ export async function endGame(formData) {
 export async function repostGameEnded() {
   await requireSuperadmin();
   const state = await prisma.gameState.findUnique({ where: { id: 1 }, include: { game: true } });
-  if (state?.phase !== "ENDED") return { ok: false, error: "Only an ended game has a reveal to post. ‡" };
-  if (!state.game?.epilogue) return { ok: false, error: "This game has no reveal stored. End it again to build one. ‡" };
+  if (state?.phase !== "ENDED") return { ok: false, error: "Only an ended game has a reveal to post." };
+  if (!state.game?.epilogue) return { ok: false, error: "This game has no reveal stored. End it again to build one." };
   const posted = await postGameEnded(prisma, formatEpilogue(state.game.epilogue)).catch((err) => {
     console.error("Game Ended repost failed:", err);
     return false;
   });
-  if (!posted) return { ok: false, error: "The reveal still didn't reach #turns. Check the channel exists and the bot can post there. ‡" };
+  if (!posted) return { ok: false, error: "The reveal still didn't reach #turns. Check the channel exists and the bot can post there." };
   return { ok: true, posted };
 }
 
@@ -257,7 +257,7 @@ export async function repostGameEnded() {
 export async function resumeGame() {
   const session = await requireSuperadmin();
   const result = await resumeGameInDb(prisma, { actorDiscordUserId: session.discordUserId });
-  if (!result.resumed) return { ok: false, error: "Only an ended game can be resumed. ‡" };
+  if (!result.resumed) return { ok: false, error: "Only an ended game can be resumed." };
   refresh();
   sweepSpectators();
   return { ok: true };

@@ -72,17 +72,17 @@ async function structuresAt(prisma, locationId, { statuses = null } = {}) {
 // (the Depot, the Lifeweb's ground). `location` needs
 // { indoors, attributes, zone: { kind } }.
 function canBuildHere(location) {
-  if (!location) return { ok: false, reason: "You are nowhere to build. ‡" };
+  if (!location) return { ok: false, reason: "You are nowhere to build." };
   // Cave first: the cave levels are also authored `indoors: true`, and the
   // underground refusal is the truer sentence for them.
   if (location.zone?.kind === "CAVE_LEVEL") {
-    return { ok: false, reason: "Nothing can be raised down here. ‡" };
+    return { ok: false, reason: "Nothing can be raised down here." };
   }
   if (location.indoors) {
-    return { ok: false, reason: "There is no ground to build on indoors. ‡" };
+    return { ok: false, reason: "There is no ground to build on indoors." };
   }
   if (hasAttribute(location, "noBuild")) {
-    return { ok: false, reason: "This ground cannot be built on. ‡" };
+    return { ok: false, reason: "This ground cannot be built on." };
   }
   return { ok: true, reason: null };
 }

@@ -28,7 +28,7 @@ export default function ObjectivesPanel({ parties, characters, locations, weight
       <h3 className="section-title">Objectives</h3>
       {ended ? (
         <p className="text-sm text-muted">
-          The game has ended and the reveal is already written. Changes here reach nobody unless the game is ended again. ‡
+          The game has ended and the reveal is already written. Changes here reach nobody unless the game is ended again.
         </p>
       ) : null}
       {/* A filling grid, not a stack. One card per party in a single column
@@ -65,7 +65,7 @@ function PartyCard({ party, characters, locations, weights }) {
       </div>
 
       {party.members.length === 0 ? (
-        <p className="text-sm text-muted">Nothing here reaches the reveal until somebody holds the seat. ‡</p>
+        <p className="text-sm text-muted">Nothing here reaches the reveal until somebody holds the seat.</p>
       ) : null}
 
       {party.objectives.length === 0 ? (
@@ -146,7 +146,7 @@ function ObjectiveRow({ row }) {
     setError(null);
     const ok = await confirm({
       title: "Remove this objective?",
-      message: `${row.description} — it leaves the reveal too. ‡`,
+      message: `${row.description} — it leaves the reveal too.`,
       confirmLabel: "Remove",
       cancelLabel: "Keep it",
     });

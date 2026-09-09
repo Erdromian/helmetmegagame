@@ -141,7 +141,7 @@ function roomAffordances(room) {
 // hold two gates and "Close" alone would be a coin flip, and the verb is what
 // the click DOES, not what the gate currently is.
 function gateLabel({ isOpen, farName }) {
-  return `${isOpen ? "Close" : "Open"} the way to ${farName} ‡`;
+  return `${isOpen ? "Close" : "Open"} the way to ${farName}`;
 }
 
 // EVERYTHING this character can do where they are standing, as one ordered
@@ -217,7 +217,7 @@ async function affordancesFor(prisma, character) {
       id: "keyed",
       kind: "keyed",
       linkId: link.id,
-      label: `Hold the way to ${farName} open ‡`,
+      label: `Hold the way to ${farName} open`,
       tone: PLAIN,
       held: isHeldOpen(link),
       farName,

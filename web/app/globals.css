@@ -2117,7 +2117,7 @@ input[type="radio"]:disabled {
 /* A modeless dialog (Modal.js `modeless`, desktop only). The dim is gone and
    the overlay stops catching pointer events, so the GM desks' right-hand
    inspector stays browsable while a composer is open. Only the panel itself
-   takes clicks back. ‡ */
+   takes clicks back. */
 .modal-overlay[data-modeless="true"] {
   background: transparent;
   pointer-events: none;
@@ -6775,7 +6775,7 @@ label.chip {
   color: var(--muted);
 }
 
-/* "X is typing… ‡" — one line above the composer, six seconds after the last
+/* "X is typing…" — one line above the composer, six seconds after the last
    event. Reserves no height when empty: a line that appears and disappears
    must not shove the scene up and down as people write. */
 .chat-typing {

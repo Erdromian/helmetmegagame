@@ -74,7 +74,7 @@ export default function NameChips({ label, names, onChange, max = 12, maxLength 
         type="text"
         value={draft}
         disabled={disabled || names.length >= max}
-        placeholder={names.length >= max ? "That's as many as you can watch for. ‡" : "Type a name, press Enter ‡"}
+        placeholder={names.length >= max ? "That's as many as you can watch for." : "Type a name, press Enter"}
         autoComplete="off"
         maxLength={maxLength}
         onChange={(e) => setDraft(e.target.value)}

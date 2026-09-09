@@ -146,8 +146,8 @@ function describeSlotClash({ a, b }) {
   // The same tag twice is a stackable slotted item (a hat, say) equipped past
   // its own single slot — TAGS.md §"equipSlot"/"equipLayer" still holds one
   // physical thing per slot however many units the stack carries.
-  if (a.name === b.name) return `You can only have one ${a.name} ${where} at a time. ‡`;
-  return `${a.name} and ${b.name} can't both go ${where}. ‡`;
+  if (a.name === b.name) return `You can only have one ${a.name} ${where} at a time.`;
+  return `${a.name} and ${b.name} can't both go ${where}.`;
 }
 
 /**
@@ -182,7 +182,7 @@ function describeHandsOverflow(tags) {
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   const named = listWords([...counts].map(([label, n]) => (n > 1 ? `${label} ×${n}` : label)));
-  return `Your hands are full: put away ${named} before you take up anything else. ‡`;
+  return `Your hands are full: put away ${named} before you take up anything else.`;
 }
 
 /**
@@ -221,7 +221,7 @@ function describeAccessoryOverflow(tags) {
     counts.set(tag.name, (counts.get(tag.name) ?? 0) + 1);
   }
   const named = listWords([...counts].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name)));
-  return `You can keep ${MAX_ACCESSORIES} things about you: put away ${named}. ‡`;
+  return `You can keep ${MAX_ACCESSORIES} things about you: put away ${named}.`;
 }
 
 /**

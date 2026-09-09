@@ -952,7 +952,7 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Bulk actions</h2>
                 <p className="ops-lede">
                   Raw edits to many sheets at once. Nothing here costs a Move, an Action or a
-                  point, and nothing here can be undone — the audit log is the only record. ‡
+                  point, and nothing here can be undone — the audit log is the only record.
                 </p>
               </div>
               <BulkActions
@@ -972,7 +972,7 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Say something</h2>
                 <p className="ops-lede">
                   A line the world says — a gate closing, a smell, a noise far back in the dark.
-                  It arrives as subtext, so it sits under the scene rather than interrupting it. ‡
+                  It arrives as subtext, so it sits under the scene rather than interrupting it.
                 </p>
               </div>
               <AmbientForm zones={ambientZones} locations={ambientLocations} rooms={ambientRooms} />
@@ -998,13 +998,13 @@ export default async function DevPanelPage({ searchParams }) {
                   <h2 className="section-title">The device</h2>
                   {state.game?.nukeDetonatedTurn != null ? (
                     <p className="ops-lede">
-                      It went off at the close of turn {state.game?.nukeDetonatedTurn}. ‡
+                      It went off at the close of turn {state.game?.nukeDetonatedTurn}.
                     </p>
                   ) : (
                     <>
                       <p className="ops-lede">
                         <strong>Armed.</strong> It detonates at the close of turn{" "}
-                        {state.nukeArmedTurn}. ‡
+                        {state.nukeArmedTurn}.
                       </p>
                       <form action={defuseNukeAction}>
                         <SubmitButton className="btn-secondary" pendingLabel="Defusing…">
@@ -1023,13 +1023,13 @@ export default async function DevPanelPage({ searchParams }) {
                   <h2 className="section-title">The cult&rsquo;s countdown</h2>
                   {state.game?.ascensionFiredTurn != null ? (
                     <p className="ops-lede">
-                      Ravenheart burned at the close of turn {state.game?.ascensionFiredTurn}. ‡
+                      Ravenheart burned at the close of turn {state.game?.ascensionFiredTurn}.
                     </p>
                   ) : (
                     <>
                       <p className="ops-lede">
                         <strong>Running.</strong> Ravenheart burns at the close of turn{" "}
-                        {state.ascensionArmedTurn}, unless the cult leader is killed first. ‡
+                        {state.ascensionArmedTurn}, unless the cult leader is killed first.
                       </p>
                       <form action={cancelAscensionAction}>
                         <SubmitButton className="btn-secondary" pendingLabel="Calling it off…">
@@ -1045,7 +1045,7 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Who has gone quiet</h2>
                 <p className="ops-lede">
                   Living characters who left the guild, never registered any activity, or have not
-                  been seen since day one. Read-only until you send something. ‡
+                  been seen since day one. Read-only until you send something.
                 </p>
               </div>
               <InactivePanel rows={inactiveList} turn={inactiveTurn} />
@@ -1230,7 +1230,7 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Archive this game</h2>
                 <p className="ops-lede">
                   Writes the whole transcript out as one file and checks it can be read back. Deletes nothing, and
-                  safe to press twice. Restart Game will not keep a game that has not been through here. ‡
+                  safe to press twice. Restart Game will not keep a game that has not been through here.
                 </p>
                 <ArchiveGameButton
                   exportKey={state?.game?.exportKey ?? null}

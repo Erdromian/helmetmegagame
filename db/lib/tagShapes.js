@@ -425,11 +425,11 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   // A FRAGMENT, not a line: the GM Move card splices it after the status
   // word, so a ‡ inside it would land mid-string. The composing surfaces
   // add the mark; catalogue this string for the rewrite pass by its tag.
-  if (typeof raw.examine === "string" && raw.examine.includes("‡")) {
-    throw new Error(`${label}: placement.examine is a spliced fragment — no ‡ inside it (Examine prints it after "**Name**: " and carries the mark)`);
+  if (typeof raw.examine === "string" && raw.examine.includes("")) {
+    throw new Error(`${label}: placement.examine is a spliced fragment — no inside it (Examine prints it after "**Name**: " and carries the mark)`);
   }
-  if (typeof raw.defenseNote === "string" && raw.defenseNote.includes("‡")) {
-    throw new Error(`${label}: placement.defenseNote is a spliced fragment — no ‡ inside it (the surfaces that print it carry the mark)`);
+  if (typeof raw.defenseNote === "string" && raw.defenseNote.includes("")) {
+    throw new Error(`${label}: placement.defenseNote is a spliced fragment — no inside it (the surfaces that print it carry the mark)`);
   }
   if (raw.provides != null && (!Array.isArray(raw.provides) || raw.provides.some((s) => typeof s !== "string"))) {
     throw new Error(`${label}: placement.provides must be a list of tag slugs`);

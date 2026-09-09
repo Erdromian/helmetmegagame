@@ -54,17 +54,17 @@ const EVERYWHERE = ["loc", "room", "conv", "zone"];
 export const COMMANDS = [
   {
     name: "move",
-    description: "Lock in your Move for this turn. ‡",
+    description: "Lock in your Move for this turn.",
     where: EVERYWHERE,
     args: [
       { name: "kind", kind: "moveKind" },
-      { name: "description", kind: "text", placeholder: "What you spend the day doing… ‡" },
+      { name: "description", kind: "text", placeholder: "What you spend the day doing…" },
     ],
     run: ({ kind, description }) => submitMove({ moveKind: kind, description }),
   },
   {
     name: "travel",
-    description: "Go somewhere connected to here. ‡",
+    description: "Go somewhere connected to here.",
     where: EVERYWHERE,
     args: [{ name: "to", kind: "destination" }],
     // Not a server action: it picks the node in the Travel grid and opens its
@@ -72,19 +72,19 @@ export const COMMANDS = [
     // before anybody's feet move.
     run: ({ to }, ctx) => {
       ctx.travelTo?.(to);
-      return { ok: true, line: "Picked. Confirm it in Travel. ‡" };
+      return { ok: true, line: "Picked. Confirm it in Travel." };
     },
   },
   {
     name: "conceal",
-    description: "Hide your name behind an alias, until you turn it off. ‡",
+    description: "Hide your name behind an alias, until you turn it off.",
     where: EVERYWHERE,
     args: [],
     run: () => toggleConceal(),
   },
   {
     name: "shout",
-    description: "Yell, loud enough that the next few places over hear you. ‡",
+    description: "Yell, loud enough that the next few places over hear you.",
     // Not the zone summary: a shout is a voice in a place, and the summary is
     // not a place anybody stands in. Not the street either: a Location takes
     // no voice at all, which is the whole reason it has no composer.
@@ -94,7 +94,7 @@ export const COMMANDS = [
   },
   {
     name: "roll",
-    description: "Roll a die here, for everyone to see. ‡",
+    description: "Roll a die here, for everyone to see.",
     // Not the zone summary, for the reason /shout gives above: a die is cast
     // in a place somebody is standing in, and the summary is a broadcast.
     where: ["room", "conv"],
@@ -103,7 +103,7 @@ export const COMMANDS = [
   },
   {
     name: "look",
-    description: "Look at somebody standing here. ‡",
+    description: "Look at somebody standing here.",
     where: EVERYWHERE,
     // Hoods included: looking at somebody is the one thing you can do to a
     // person you cannot name, and the token is what carries them.
@@ -115,7 +115,7 @@ export const COMMANDS = [
   },
   {
     name: "converse",
-    description: "Take somebody aside for a private conversation. ‡",
+    description: "Take somebody aside for a private conversation.",
     where: EVERYWHERE,
     // No argument: the Converse dialog asks which room and what to call it,
     // and it has its own tick-list of everyone standing here. Asking for one
@@ -128,14 +128,14 @@ export const COMMANDS = [
   },
   {
     name: "add",
-    description: "Bring somebody into this conversation or private room. ‡",
+    description: "Bring somebody into this conversation or private room.",
     where: ["room", "conv"],
     args: [{ name: "person", kind: "person" }],
     run: ({ person }, ctx) => addMember(ctx.placeKey, person),
   },
   {
     name: "remove",
-    description: "Show somebody out of this conversation or private room. ‡",
+    description: "Show somebody out of this conversation or private room.",
     where: ["room", "conv"],
     // The people to show out are the MEMBERS, not the street — ctx supplies
     // them, and the picker falls back to who is here when it has none.

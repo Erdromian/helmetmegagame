@@ -33,7 +33,7 @@ function troubleDm(die) {
 }
 
 function luredDm(die) {
-  return `Caving Die: ${die} — Something big circled you in the dark, caught the lure's stink, and followed it away instead. The lure is spent. ‡`;
+  return `Caving Die: ${die} — Something big circled you in the dark, caught the lure's stink, and followed it away instead. The lure is spent.`;
 }
 
 function findDm(die, tagName) {
