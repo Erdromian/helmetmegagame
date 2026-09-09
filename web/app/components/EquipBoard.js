@@ -105,7 +105,7 @@ function mountMenu(fits, wornRows, { indoors, motionSick }) {
 // having left something out — never a silent omission. A row with room left
 // in a partly-equipped stack still offers it here, alongside whatever else is
 // carried — Equip pulls one more unit out, same gesture either way.
-function EmptyCell({ label, options, onPick, pending, span = 1, note = null, fact = "empty" }) {
+function EmptyCell({ label, options, onPick, pending, span = 1, note = null, state = "empty" }) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
   return (
@@ -123,7 +123,7 @@ function EmptyCell({ label, options, onPick, pending, span = 1, note = null, fac
         onClick={() => setOpen((was) => !was)}
       >
         <span className="equip-cell-name text-muted">{label}</span>
-        {fact && <span className="equip-cell-fact text-muted">{fact}</span>}
+        {state && <span className="equip-cell-fact text-muted">{state}</span>}
       </button>
       {open && (
         <ClickMenu triggerRef={ref} onClose={() => setOpen(false)} ariaLabel={label}>
@@ -308,7 +308,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
               <EmptyCell
                 key="hands-free"
                 label={freeHands === 1 ? "One slot" : `${freeHands} slots`}
-                fact={null}
+                state={null}
                 span={freeHands}
                 options={fits.filter((row) => handsOf(row.tag) <= freeHands)}
                 onPick={equip}
