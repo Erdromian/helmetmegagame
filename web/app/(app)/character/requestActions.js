@@ -3694,6 +3694,18 @@ async function disguiseSelfRequestImpl({ name: rawName }) {
     });
   });
 
+  // The mention token follows the false name (PROXYING.md §6), and this is the
+  // one moment a player is watching for it — a disguise that only takes hold
+  // at the next turn roll is a disguise that did not work when it was put on.
+  // Taking it OFF can wait for the reconcile in advanceTurn
+  // (db/lib/characterRoleNames.js), which is what covers every other way a
+  // forcedName tag can arrive or leave.
+  //
+  // Best-effort and outside the transaction, the rule for every Discord call
+  // (ARCHITECTURE.md §5): the disguise is the tag, not the role, and a Discord
+  // hiccup must not cost somebody their kit.
+  await ensureCharacterRole(character).catch(() => {});
+
   await afterInventoryChange(character.id);
   revalidateAll();
   return { name };

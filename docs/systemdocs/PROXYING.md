@@ -546,10 +546,47 @@ has no prisma of its own.
 
 While a forced name is held, `/conceal` refuses and the switch on `/character`
 renders disabled; `updateCharacterProfile` writes `concealed: false` whatever
-the form posted, and drops any upload. The **@-mention role and the nickname
-keep the real bare name** on purpose (§6, §8) — so the `/add` picker naming a
-Beast by their old name is intended. Nothing is written when the tag lands, so
-there is no grant hook: the next message is already the Beast's.
+the form posted, and drops any upload.
+
+**The @-mention role follows the forced name; the nickname does not.** This
+used to say both kept the real bare name on purpose, and the Disguise Kit is
+what changed the answer: a disguise's whole job is to put somebody behind a
+false name, and a scene where the false name is in the prose and the real one
+is in the `@`-token beside it is not a disguise. So the role is titled after
+the forced name, and — the load-bearing half — **coloured by it too**
+(`db/lib/characterRoleAppearance.js`). `hashNameToColor` is deterministic, so
+titling by the false name while colouring by the real one would leave a stable
+per-character swatch beside every disguise that character ever wore: a
+fingerprint that survives the thing meant to hide them, which is worse than not
+renaming at all. The `/add` picker names a Beast as Beast.
+
+**A hood renames nothing.** `/conceal` presents as "Young Woman", which is a
+description rather than a name — a guild of identical `@Young Woman` tokens is
+unmentionable in practice, and concealment is already answered by the rule that
+a concealed message relays nothing at all (§6). Only a forced *name* moves the
+role.
+
+**The nickname still says who they really are** (§8), and that is a real hole
+rather than a subtlety: anyone who can see the member sidebar can pair
+`Rowan | Sir Alder` against `@John` and undo the disguise. What this buys is
+the token that appears *inline in scene text*, which is where a false name
+actually does any work. Closing the rest means taking the nickname too.
+
+There is a **grant path** now, where there used to be none, and it is a
+reconcile rather than a hook: `db/lib/characterRoleNames.js` asks Discord what
+the roles are called and PATCHes only the ones that disagree, run from
+`advanceTurn` beside the Catatonic pass's own role updates and merged with them
+so one role is never edited twice in a turn. The reason it is not a hook is
+arithmetic — a `forcedName` tag can arrive or leave through the Disguise Kit,
+an early drop, `advanceTurn`'s bulk expiry `deleteMany` (which has no
+per-character seam at all), a GM grant or revoke, a trade, a loot, a corpse
+strip and a Restart. That is eight or more generic tag writes, none of which
+knows a Discord role exists. One comparison covers all of them and costs
+nothing in a steady state. The Disguise Kit action also calls
+`ensureCharacterRole` directly, because a disguise that only takes hold at the
+next turn roll is a disguise that did not work when it was put on; taking one
+*off* waits for the pass. It is capped at 25 renames a turn so a Restart cannot
+spend the guild's role budget in one go.
 
 ### 5a. A face and an eye are earned
 
@@ -623,8 +660,8 @@ and is silently ignored.
 ### The row spells it differently, on purpose
 
 Since Chat's phase 6, `<@&roleId>` is **Discord's** spelling and the
-archive row stores a face-neutral **`{char:<id>}`** instead — the same inline
-token syntax the web renders everywhere else
+archive row stores a face-neutral **`{char:<id>|<Name>}`** instead — the same
+inline token syntax the web renders everywhere else
 (`web/app/components/richTokens.js`). `db/lib/characterMentions.js` is the pair
 of translations, and neither face ever sees the other's:
 
@@ -645,6 +682,63 @@ Only a role id that IS a character's name token is ever rewritten —
 `Character.discordRoleId` is `@unique`, so the lookup answers with one
 character or with nothing. A GM/spectator/player role passes through
 untouched, exactly as it always has.
+
+### The token carries the name it was sent under
+
+The half after the `|` is the name the room heard, frozen at send time.
+
+Everything else about a row's identity was already frozen —
+`ArchiveEntry.characterName`, `.concealedAlias`, `.presentedAvatarPath`
+(`db/lib/archive.js`). The mention was the exception: it resolved live against
+the roster on every render, which made a past sentence editable by its own
+subject. A Mulligan rename renamed somebody in every line that had ever named
+them, and putting a hood on collapsed all of those to "someone" — retroactively
+erasing a name that was public when it was said. A row records who someone was
+as they were known then, and that rule now covers the people a speaker named as
+well as the speaker.
+
+**In the token rather than a column beside the row**, because the text gets
+copied. A ⭐ lifts a body into `Note.content` (both star paths do, and the
+Discord one never reads the `ArchiveEntry` for its text at all), and a journal
+entry is its own store. A sidecar would have needed a column on three tables
+and hand-carried copy code down every path, where a missed one falls back to
+live resolution — which is the bug. A name in the token travels with the words
+for free, and needed no migration.
+
+The name written is the **presented** one (`db/lib/presentedIdentity.js`):
+forced > concealed > own. A row must never print a name the room could not have
+heard, so a hooded target mentioned from Discord — where any name role can be
+pinged — freezes as `Young Woman`, and a Beast freezes as `Beast`.
+
+`stampMentionNames` runs on both faces and **overwrites** whatever is there.
+The web composer writes the name in as it inserts the chip so the draft reads
+right, and a server action is a public endpoint, so a posted
+`{char:<victim>|Some Fake Name}` is a claim until the server re-resolves it.
+`freezeMentionName` strips `{`, `}` and `|` and caps at 64 — a disguise name is
+player-typed and `normalizeDisguiseName` only collapses whitespace, so a
+character called `Bob}` is reachable today and would otherwise break the
+grammar.
+
+An **edit** re-stamps the whole text, so a mention added by a ✏️ freezes as of
+now. That does re-date a mention the edit kept; the edit window is five
+minutes, and the alternative is diffing two strings to work out which tokens
+are old.
+
+A token with **no `|`** was written before this existed and resolves live,
+exactly as it always did. There is deliberately **no backfill** — stamping
+today's names onto old rows would perform the retroactive rewrite this exists
+to prevent, once, in bulk, and permanently.
+
+On the way out, a token whose character has no role falls back to printing the
+frozen **name** as plain text rather than the raw braces. Braces were the best
+answer available while the token held nothing a human could read.
+
+Three things scan a row for a mention — the unread dot (`feedStore.js`), the
+chime (`Chat.js`) and the feed's own mention gate (`web/lib/feedAccess.js`) —
+and each used to build the string itself. They go through `mentionsCharacter`
+now (`db/lib/characterMentions.js`, and a client twin in `richTokens.js`),
+which knows both spellings: a widened grammar otherwise stops matching at one
+call site and not the others, and the failure is silent.
 
 The composer on `/play` writes tokens directly, over an `@` autocomplete of
 `whosHere().named`: you can only name somebody you can see, and a row only
@@ -701,6 +795,47 @@ over.
 option** rather than a user option on purpose: the picker then names
 characters, never Discord accounts, so inviting someone can't reveal who plays
 them. Anyone already in the thread may add or remove, plus GMs.
+
+**Every sentence either of them answers with uses the presented name**
+(`db/lib/presentedMembers.js#presentedNameOf`). They said `Character.name` out
+loud, in a channel, about somebody who might have been standing there in a
+hood — so the disguise came apart at the door. Same for the Room half's four
+replies, and for `removeRoomGuest`'s own `line`.
+
+### Who is IN a place, and what face it draws
+
+`db/lib/presentedMembers.js` is the resolver for a Conversation's members and a
+private Room's guests, and it is the same rule `whosHere` applies to the HERE
+column. It is a second function rather than an argument to that one because
+**membership is not presence** — a member may be standing anywhere, since the
+row persists when they walk away — and what the two share is the projection.
+
+Before it existed, `conversationMembers()` and `roomGuests()` selected
+`Character.name` and shipped the character's id beside it. `MembersStrip.js`
+draws that under `.chat-head`, at the top of the pane, which is why "inviting
+people into a conversation breaks disguises" was a true sentence: the strip
+named a hooded member outright and drew their real portrait. The *candidate*
+picker was always right, because it was built from `whosHere()`.
+
+**A concealed row carries no `characterId` at all.** `/api/avatar/<id>` takes
+an id and answers with a face, so shipping the id is the leak whatever the page
+then chooses to draw. It carries `hoodToken(id)` instead — the same HMAC handle
+the HERE column mints, moved to its own leaf `db/lib/hoodToken.js` so this
+module can use one without dragging `whosHere` → `sightings` → `feedAccess` →
+`conversations` round in a circle. `removeMember` takes either an id or a
+token, told apart the way `/look` tells them apart (32 hex characters, and a
+cuid never is), and `resolveMemberToken` recomputes it **only over the roster
+of the place the caller already gated on** — so a token names somebody in a
+room you are in and nobody anywhere else.
+
+The face is on §5a's sighting rule, unchanged: a mask is drawn only for
+somebody you have watched speak in it this turn, and the question-mark plate
+until then. The sightings Map is an **argument** rather than a query made
+inside — `placeMembers` already pays for one to build the candidate list in the
+same breath, and two identical queries would be two answers to one question.
+
+A forced name is not hiding, so a Beast is named openly with their id intact,
+and loses only their portrait for the letter plaque.
 
 **A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b),
 and it reads the same typed into `/play` as typed into Discord — the web half
@@ -778,17 +913,24 @@ free-text labels. A body can `@`-mention a character, which is stored as a
 `{char:<characterId>}` token (the same `{kind:payload}` grammar `RichText.js`
 already uses for `{tag:…}` and friends) and renders inline as a face + name.
 
-The mention roster and the mention *resolver* are the same query — every
-character `ALIVE`, or `DEAD` and not yet buried (mirroring
-`character/page.js`'s own zone-roster precedent) — passed once to
-`CharacterMentionsProvider.js`, mounted only by this page. There is
-deliberately no second, narrower lookup keyed off whatever ids a body happens
-to contain: an entry can only ever mention a character its author was allowed
-to see in the autocomplete in the first place, so a second lookup could only
-ever widen what a pasted-in id could reveal (a buried character's name and
-portrait, for instance) — never narrow it usefully. A mention of a character
-outside that roster (buried, or simply invented) just fails to resolve and
-renders as the raw token, the token pipeline's existing behaviour for any
+The mention roster is `web/lib/mentionDirectory.js#loadMentionDirectory`, the
+same one `/play` uses, asked for `{ includeUnburiedDead: true }` — every
+character `ALIVE`, or `DEAD` and not yet buried (mirroring `character/page.js`'s
+own zone-roster precedent). It is passed once to
+`CharacterMentionsProvider.js`, mounted only by this page.
+
+**This page used to roll its own `findMany` with no concealment filter at all**,
+which meant a hooded or disguised character was offered by name in the
+autocomplete and drew their real portrait in an entry — while `/play`, one
+directory over, withheld both. The forced/concealed rule has three cases and a
+precedence order, and the second copy of it is always the one that never got
+written; there is one now.
+
+What the roster supplies is the **face**. The NAME comes off the token itself,
+frozen when the entry was written (§6), so an entry naming somebody who has
+since put a hood on keeps saying what its author wrote and simply loses the
+portrait. A mention of a character outside the roster (buried, or simply
+invented) draws the neutral chip, the token pipeline's behaviour for any
 unresolvable reference.
 
 ## 8. Nickname sync
@@ -806,6 +948,15 @@ source of truth for the same 32 characters and nothing else.
 
 Gated behind `GameConfig.nicknameSyncEnabled` (off by default). Clearing a dead
 character's nickname is **not** gated (`CHARACTERS.md` §5).
+
+**A disguise does not reach here.** The `@`-mention role follows a held
+`Tag.forcedName` now (§5), and the nickname deliberately still carries the real
+bare name — which means the two disagree while a disguise is on, and anybody
+reading the member sidebar can pair `Rowan | Sir Alder` against `@John` and
+undo it. That is a known hole, not a subtlety: what the role rename buys is the
+token that appears inline in scene text, and closing the rest means taking the
+nickname with it. Written down so the next person does not assume the omission
+was an oversight, or extend the rename to a hood by symmetry.
 
 **The nickname is the one surface where a title deliberately does not appear.**
 The 32-char cap is shared between the two halves — roughly 14 each — and
@@ -837,6 +988,9 @@ title off itself.
 | Channel opt-in | `bot/src/lib/channels.js`, `web/lib/discordGuild.js` |
 | Concealed alias | `db/lib/concealedIdentity.js` |
 | Presented identity (forced > concealed > own) | `db/lib/presentedIdentity.js` |
+| Presented membership (a conversation, a room) | `db/lib/presentedMembers.js` |
+| Hood handle (HMAC, no id) | `db/lib/hoodToken.js` |
+| Role title follows a forced name | `db/lib/characterRoleAppearance.js`, `db/lib/characterRoleNames.js` |
 | Mentions, `/add`, `/remove` | `bot/src/lib/mentions.js`, `bot/src/lib/commands.js` |
 | Inspect gates | `db/lib/inspectVision.js` |
 | Doctor's eye on inspect | `db/lib/medicalVision.js` (`TAGS.md` §5c) |
@@ -844,4 +998,4 @@ title off itself.
 | Avatar route | `web/app/api/avatar/[characterId]/route.js` |
 | Plaque generator | `web/scripts/generate-letters.js` |
 | Notes UI (Starred + Journal) | `web/app/(app)/notes/` |
-| `{char:…}` mention token | `web/app/components/RichText.js`, `CharacterMentionsProvider.js` |
+| `{char:…\|…}` mention token | `db/lib/characterMentions.js`, `web/app/components/messageTokens.js`, `CharacterMentionsProvider.js` |

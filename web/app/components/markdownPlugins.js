@@ -11,6 +11,15 @@ import { DiscordEmoji, DiscordMention, DiscordPing } from "./DiscordMarkupNodes"
 // thread as literal text: ChatMarkdown had learned Discord's chat syntax and
 // MarkdownContent never did, and nothing made them agree.
 //
+// There are only TWO lists now, and the difference between them is one plugin.
+// It used to be three, and the third — BASE_PLUGINS, the DM/inspector one —
+// was missing remarkTokens, which is the same drift one layer down: a mention
+// is stored as `{char:<id>}` on both faces, so a DM quoting one, a starred
+// line and the archive transcript all printed a cuid in braces at the reader.
+// A surface does not get to know a different SYNTAX from its neighbours. What
+// it gets to decide is which tokens it resolves, and that is the `components`
+// map, not this file.
+//
 // ORDER IS LOAD-BEARING, and in this order:
 //   remarkSubtext  block-level, needs RAW text — a `-#` cannot be found once
 //                  an inline pass has cut the paragraph into children
@@ -20,12 +29,13 @@ import { DiscordEmoji, DiscordMention, DiscordPing } from "./DiscordMarkupNodes"
 // Put a token pass before remarkChat and a mention in the middle of a quote
 // splits the text node, so the quote stops matching itself (CHAT.md).
 
-// DMs, the audit inspector, the archive context peek.
-export const BASE_PLUGINS = [remarkGfm, remarkSubtext, remarkDiscord];
-// A scene line: everything above plus chat's own three and the {kind:…} chips.
+// Anything written that is read as words: DMs, the audit inspector, the
+// archive-context peek, documents and the handbook.
+export const MESSAGE_PLUGINS = [remarkGfm, remarkSubtext, remarkDiscord, remarkTokens];
+// A scene line: everything above plus chat's own two, ||spoilers|| and the
+// speech tint. A DM is a GM and a player talking, not a scene, which is the
+// one thing that genuinely differs between the two.
 export const CHAT_PLUGINS = [remarkGfm, remarkSubtext, remarkChat, remarkDiscord, remarkTokens];
-// Documents and the handbook: authored prose, with catalog chips.
-export const DOC_PLUGINS = [remarkGfm, remarkSubtext, remarkDiscord, remarkTokens];
 
 // The custom tags remarkDiscord emits. Spread into every renderer's
 // `components` map — a renderer that omits it renders the tag as nothing at

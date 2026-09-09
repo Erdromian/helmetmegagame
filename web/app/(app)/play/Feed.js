@@ -895,16 +895,23 @@ export default function Feed({
   );
 
   // Swaps the half-typed `@bar` for the token the row is actually made of.
-  // {char:<id>} is what goes on the wire, on both faces: the outbox turns it
-  // into a Discord role mention on the way out, and prepareSpeech turns a
-  // Discord one back into this on the way in, so the ROW is face-neutral.
+  // {char:<id>|<Name>} is what goes on the wire, on both faces: the outbox
+  // turns it into a Discord role mention on the way out, and prepareSpeech
+  // turns a Discord one back into this on the way in, so the ROW is
+  // face-neutral.
+  //
+  // The name half is written here so the composer's own preview reads right,
+  // and the server OVERWRITES it on the way in (db/lib/say.js#prepareSpeech
+  // via stampMentionNames) — this copy is a convenience, never the record. It
+  // is the name the picker offered, which is already the presented one:
+  // whosHere() hands the @ menu no hoods.
   const pickMention = useCallback(
     (person) => {
       setMention((current) => {
         if (!current) return null;
         const before = draft.slice(0, current.at);
         const after = draft.slice(current.at + 1 + current.query.length);
-        const token = `{char:${person.id}} `;
+        const token = `{char:${person.id}${person.name ? `|${person.name}` : ""}} `;
         setDraft(`${before}${token}${after}`);
         const caret = before.length + token.length;
         // After the value lands, or setSelectionRange moves a caret in the old

@@ -399,18 +399,26 @@ export async function removeGhostRole(discordUserId) {
 
 // Personal Discord role titled after this character, colored deterministically.
 // Goes through db/lib/characterRoleAppearance.js so a Catatonic character's
-// grey stays intact.
+// grey and a disguised character's false name both stay intact — a profile
+// save landing mid-disguise would otherwise put the real name straight back on
+// the token, which is the failure mode that comment has always warned about.
 export async function ensureCharacterRole(character) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
   const bare = formatBareName(character);
   if (!guildId || !token || !bare) return character.discordRoleId ?? null;
 
-  const catatonic =
-    (await prisma.characterTag.count({
-      where: { characterId: character.id, tag: { slug: CATATONIC_SLUG } },
-    })) > 0;
-  const { name, color } = characterRoleAppearance(bare, { catatonic });
+  // One query for both halves of the title.
+  const held = await prisma.characterTag.findMany({
+    where: {
+      characterId: character.id,
+      OR: [{ tag: { slug: CATATONIC_SLUG } }, { tag: { forcedName: { not: null } } }],
+    },
+    select: { tag: { select: { slug: true, forcedName: true } } },
+  });
+  const catatonic = held.some((row) => row.tag?.slug === CATATONIC_SLUG);
+  const forcedName = held.find((row) => row.tag?.forcedName)?.tag?.forcedName ?? null;
+  const { name, color } = characterRoleAppearance(bare, { catatonic, forcedName });
 
   try {
     if (!character.discordRoleId) {

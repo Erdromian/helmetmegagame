@@ -25,9 +25,17 @@ import { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdent
 // the neutral chip. Deciding that with presentedIdentity() rather than by
 // reading the columns is deliberate: the forced/concealed rule has three
 // cases and a precedence order, and a second copy of it here would drift.
-export async function loadMentionDirectory() {
+//
+// `includeUnburiedDead` is /notes' roster: a journal is written about people
+// you knew, and CHARACTERS.md §5's rule is that a dead-and-buried character is
+// simply absent from every roster while an unburied one is not yet gone. /play
+// has no use for it — you cannot @ somebody who is not standing here.
+export async function loadMentionDirectory({ includeUnburiedDead = false } = {}) {
   const characters = await prisma.character.findMany({
-    where: { status: "ALIVE" },
+    where: includeUnburiedDead
+      ? { OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }] }
+      : { status: "ALIVE" },
+    orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
     select: {
       id: true,
       name: true,

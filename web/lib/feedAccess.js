@@ -112,7 +112,25 @@ async function notableWatermarks(client, places, character) {
         where: {
           ...base,
           ...placeSeqWhere(floors, allKeys),
-          content: { contains: `{char:${character.id}}` },
+          // Both spellings of a mention. The token carries the name it was
+          // sent under now (db/lib/characterMentions.js), so the bare form
+          // only ever matches a row written before that — and a bare
+          // `{char:<id>` prefix would be wrong in the other direction, since
+          // nothing makes one cuid a non-prefix of another.
+          //
+          // Under AND, not a bare OR: placeSeqWhere returns its OWN `OR` when
+          // the set spans both zone summaries and turn places, and a sibling
+          // `OR` key would overwrite it — dropping the place scoping entirely
+          // and marking this reader notable for mentions in rooms they cannot
+          // read.
+          AND: [
+            {
+              OR: [
+                { content: { contains: `{char:${character.id}}` } },
+                { content: { contains: `{char:${character.id}|` } },
+              ],
+            },
+          ],
         },
         _max: { seq: true },
       }),

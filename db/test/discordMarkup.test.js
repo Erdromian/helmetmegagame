@@ -138,25 +138,11 @@ test("the renderer handles every kind the grammar defines", () => {
   }
 });
 
-test("all three markdown renderers still run both Discord passes", () => {
-  // The drift this whole change exists to stop: ChatMarkdown knew Discord's
-  // chat syntax, MarkdownContent did not, and nothing made them agree.
-  const plugins = fs.readFileSync(path.join(REPO, "web/app/components/markdownPlugins.js"), "utf8");
-  for (const list of ["BASE_PLUGINS", "CHAT_PLUGINS", "DOC_PLUGINS"]) {
-    const line = plugins.split("\n").find((l) => l.includes(`export const ${list}`));
-    assert.ok(line, `markdownPlugins.js no longer exports ${list}`);
-    // Both Discord-syntax passes, on every surface. remarkSubtext is the `-#`
-    // one, and it was missing from DMs for exactly as long as remarkDiscord
-    // was — the lobby seat DM shipped a raw `-#` and a raw `<t:…>` in one
-    // message.
-    assert.ok(line.includes("remarkDiscord"), `${list} dropped remarkDiscord`);
-    assert.ok(line.includes("remarkSubtext"), `${list} dropped remarkSubtext`);
-    // Order: the block-level pass must precede the inline ones.
-    assert.ok(line.indexOf("remarkSubtext") < line.indexOf("remarkDiscord"), `${list} runs remarkSubtext too late`);
-  }
-  for (const file of ["MarkdownContent.js", "ChatMarkdown.js", "DocumentMarkdown.js"]) {
-    const source = fs.readFileSync(path.join(REPO, "web/app/components", file), "utf8");
-    assert.ok(source.includes("markdownPlugins"), `${file} builds its own plugin list again`);
-    assert.ok(source.includes("DISCORD_COMPONENTS"), `${file} renders no Discord nodes`);
-  }
-});
+// The plugin-list assertions that used to live here moved to
+// db/test/messageRenderers.test.js. They were never only about Discord's
+// syntax — the thing they were actually guarding is that the renderers agree
+// about ALL of it, and the hole they left open was remarkTokens: this file
+// checked that every list ran remarkDiscord and remarkSubtext while one of
+// them quietly shipped without the token pass, so a mention printed as a cuid
+// in braces in every DM. One home for "the renderers agree", so the next pass
+// somebody adds is covered by the list that already exists.

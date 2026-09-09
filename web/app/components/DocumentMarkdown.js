@@ -1,7 +1,7 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { DOC_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
+import { MESSAGE_PLUGINS, DISCORD_COMPONENTS } from "./markdownPlugins";
 import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { useDocuments } from "./DocumentsProvider";
@@ -127,7 +127,7 @@ export default function DocumentMarkdown({ text }) {
   return (
     <div className="markdown-content">
       <ReactMarkdown
-        remarkPlugins={DOC_PLUGINS}
+        remarkPlugins={MESSAGE_PLUGINS}
         disallowedElements={["img"]}
         unwrapDisallowed
         components={{

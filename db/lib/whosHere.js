@@ -12,11 +12,14 @@
 // glance. A forced name (Tag.forcedName) outranks both: it lands in `named`
 // with NO role — a Role is as identifying as a name — and never in the
 // concealed list, even if Character.concealed is still on underneath.
-const crypto = require("node:crypto");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
 const { concealedAlias, withArticle } = require("./concealedIdentity");
 const { isUnaffiliated } = require("./factionConstants");
 const { lastSightings } = require("./sightings");
+// The hood handle moved to its own leaf so presentedMembers.js can mint one
+// without dragging this file's sightings -> feedAccess -> conversations chain
+// round in a circle. Re-exported below, because every caller found it here.
+const { hoodToken } = require("./hoodToken");
 
 const PRESENT_SELECT = {
   id: true,
@@ -35,25 +38,6 @@ const PRESENT_SELECT = {
     select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
   },
 };
-
-// A hood needs a handle the page can send back without ever having been told
-// who is under it. The token is an HMAC of the character id keyed with
-// AUTH_SECRET, truncated: stable for as long as the secret is, opaque to the
-// browser, and worthless anywhere but resolveHoodToken() below, which only
-// ever looks at the people standing where the viewer is standing.
-// With no AUTH_SECRET there is no key, and an HMAC under the empty one is
-// something anybody holding a character id can compute for themselves — which
-// would turn the token from a handle into an unmasking oracle. So there is no
-// token at all in that case: the row still draws, and the eye on it gets the
-// refusal resolveHoodToken already answers a bad token with.
-function hoodToken(characterId) {
-  if (!process.env.AUTH_SECRET) return null;
-  return crypto
-    .createHmac("sha256", process.env.AUTH_SECRET)
-    .update(`hood:${characterId}`)
-    .digest("hex")
-    .slice(0, 32);
-}
 
 // `viewer` needs { id?, factionId, locationId } — an id is only used to keep
 // the looker out of their own list, which the Discord readout never did and

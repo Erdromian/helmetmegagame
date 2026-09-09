@@ -1,4 +1,4 @@
-import RichText from "@/app/components/RichText";
+import ChatMarkdown from "@/app/components/ChatMarkdown";
 
 // The transcript as a dense reading surface (docs/systemdocs/ARCHIVE.md §5):
 // one line per thing said, under a sticky day header and a scene line, with
@@ -131,7 +131,7 @@ export default function ArchiveTranscript({ entries }) {
               {displayName(entry)}
             </span>
             <span className="archive-row-what">
-              <RichText text={entry.content} />
+              <ChatMarkdown content={entry.content} />
             </span>
           </div>
         );

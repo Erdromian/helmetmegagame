@@ -46,8 +46,11 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
     [placeKey, run, done],
   );
 
+  // A character id for somebody named, the opaque hood token for somebody in
+  // one — a concealed row carries no id at all, because /api/avatar takes one
+  // and answers with a face (db/lib/presentedMembers.js).
   const onRemove = useCallback(
-    (characterId) => run(() => removeMember(placeKey, characterId), undefined, { onOk: done }),
+    (ref) => run(() => removeMember(placeKey, ref), undefined, { onOk: done }),
     [placeKey, run, done],
   );
 
@@ -69,9 +72,19 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
     <div className="chat-members">
       <div className="chip-row">
         {data.members.map((person) => (
-          <span key={person.characterId} className="chip chat-member">
+          <span key={person.characterId ?? person.token ?? person.name} className="chip chat-member">
+            {/* The face the server decided this reader may have, on the same
+                three props the HERE column draws with: a real id only for
+                somebody named, the mask sprite as `src` once you have watched
+                them speak in it, and the question-mark plate until then. This
+                strip used to pass the character id unconditionally, which
+                fetched the real portrait of everybody in the room — the
+                reason inviting somebody into a conversation looked like it
+                broke their disguise. */}
             <CharacterAvatar
-              characterId={person.characterId}
+              characterId={person.characterId ?? undefined}
+              src={person.avatarPath ?? undefined}
+              unknown={Boolean(person.unknownFace)}
               name={person.name}
               version={person.avatarVersion}
               size={20}
@@ -82,7 +95,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
               icon={CloseIcon}
               label={`Show ${person.name} out`}
               disabled={pending}
-              onClick={() => onRemove(person.characterId)}
+              onClick={() => onRemove(person.characterId ?? person.token)}
             />
           </span>
         ))}

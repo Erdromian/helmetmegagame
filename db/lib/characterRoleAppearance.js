@@ -1,8 +1,9 @@
 // The one place a personal character role's name and colour are composed.
-// Two writers rename these roles — web/lib/discordGuild.js#ensureCharacterRole
-// on every profile save, and the Catatonic pass's role updates applied by
-// advanceTurn() — and both must go through here, or a profile save landing
-// mid-catatonia quietly strips the "• Catatonic" suffix the pass just wrote.
+// Three writers rename these roles — web/lib/discordGuild.js#ensureCharacterRole
+// on every profile save, the Catatonic pass's role updates applied by
+// advanceTurn(), and the forced-name reconcile beside it
+// (db/lib/characterRoleNames.js) — and all of them must go through here, or one
+// landing mid-catatonia quietly strips the "• Catatonic" suffix another wrote.
 //
 // While a character is Catatonic (AFK — see db/lib/catatonicPass.js), the
 // role reads "<bare name> • Catatonic" in one fixed desaturated grey, so the
@@ -23,11 +24,28 @@ const CATATONIC_ROLE_COLOR = 0x4e5457;
 
 const CATATONIC_ROLE_SUFFIX = " • Catatonic";
 
-function characterRoleAppearance(bareName, { catatonic = false } = {}) {
+// `forcedName` is a held Tag.forcedName — a Disguise Kit row, or Apex Form
+// (db/lib/presentedIdentity.js). The role wears it INSTEAD of the bare name,
+// so the mention token in a scene reads as the false name the character is
+// going by. This reverses what PROXYING.md §6 used to say, and §6 now says why.
+//
+// The COLOUR follows it too, and that is the load-bearing half. hashNameToColor
+// is deterministic, so colouring by the real name while titling by the false
+// one would leave a stable per-character swatch sitting beside every disguise
+// that character ever wears — a fingerprint that survives the thing meant to
+// hide them, which is strictly worse than not renaming at all.
+//
+// A HOOD is deliberately not here. `/conceal` presents as "Young Woman", which
+// is a description rather than a name: a guild full of identical @Young Woman
+// tokens is unmentionable in practice, and concealment is already answered by
+// the rule that a concealed message relays nothing at all (PROXYING.md §6).
+// Only a forced NAME renames the role.
+function characterRoleAppearance(bareName, { catatonic = false, forcedName = null } = {}) {
+  const shown = forcedName?.trim() || bareName;
   if (catatonic) {
-    return { name: `${bareName}${CATATONIC_ROLE_SUFFIX}`, color: CATATONIC_ROLE_COLOR };
+    return { name: `${shown}${CATATONIC_ROLE_SUFFIX}`, color: CATATONIC_ROLE_COLOR };
   }
-  return { name: bareName, color: hashNameToColor(bareName) };
+  return { name: shown, color: hashNameToColor(shown) };
 }
 
 module.exports = { characterRoleAppearance, CATATONIC_ROLE_COLOR, CATATONIC_ROLE_SUFFIX };

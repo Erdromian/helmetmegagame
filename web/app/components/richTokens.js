@@ -26,3 +26,17 @@ export function splitTokens(text) {
 
   return parts;
 }
+
+// Whether this text names this character, in either spelling of a mention.
+//
+// The web twin of db/lib/characterMentions.js#mentionsCharacter, kept here
+// because the two callers are a client store and a client component and
+// neither should drag the db workspace into the browser bundle for a string
+// scan. Both spellings, because a mention carries the name it was sent under
+// now (`{char:<id>|<Name>}`) and only a row written before that is bare — three
+// places asked this question by building the string themselves, and a widened
+// grammar silently stops matching at one of them and not the others.
+export function mentionsCharacter(text, characterId) {
+  if (typeof text !== "string" || !characterId) return false;
+  return text.includes(`{char:${characterId}}`) || text.includes(`{char:${characterId}|`);
+}

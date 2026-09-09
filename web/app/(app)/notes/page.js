@@ -7,6 +7,7 @@ import Loading from "./Skeleton";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
+import { loadMentionDirectory } from "@/lib/mentionDirectory";
 
 // Notes are personal — a player's own Journal and their own list of messages
 // they've starred, never a shared/GM view. Each signed-in user only ever
@@ -45,18 +46,21 @@ async function FreshNotes() {
     // The @mention roster: every character a player may currently see stood
     // somewhere, alive or freshly dead — mirrors character/page.js's own
     // zoneRoster precedent. This is the ONE roster query, reused for both the
-    // composer's autocomplete AND resolving a saved {char:<id>} token: an
-    // entry can only ever mention a character its author was allowed to see
-    // in the autocomplete in the first place, so there is nothing a second,
-    // narrower lookup could withhold that this one doesn't already carry.
-    // Crucially, this is also what keeps a buried character's death from
-    // leaking by omission (CHARACTERS.md §5) — a dead-and-buried character is
-    // simply absent from the list, exactly like every other roster in the app.
-    prisma.character.findMany({
-      where: { OR: [{ status: "ALIVE" }, { status: "DEAD", buriedAt: null }] },
-      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-      select: { id: true, name: true, updatedAt: true },
-    }),
+    // composer's autocomplete AND drawing the FACE on a saved {char:<id>}
+    // token. (The NAME comes off the token itself now, frozen at the moment it
+    // was written — db/lib/characterMentions.js.)
+    //
+    // It keeps a buried character's death from leaking by omission
+    // (CHARACTERS.md §5) — a dead-and-buried character is simply absent, like
+    // every other roster in the app.
+    //
+    // loadMentionDirectory, not a query of its own. This page used to roll its
+    // own findMany with NO concealment filter at all, so a hooded or disguised
+    // character was offered by name in the autocomplete and drew their real
+    // portrait in an entry — while /play, one directory over, withheld both.
+    // The forced/concealed rule has three cases and a precedence order, and
+    // the second copy of it is always the one that never got written.
+    loadMentionDirectory({ includeUnburiedDead: true }),
     getOpenTurn(),
   ]);
 
@@ -99,7 +103,9 @@ async function FreshNotes() {
     updatedAtMs: e.updatedAt.getTime(),
   }));
 
-  const mentionRoster = roster.map((c) => ({ id: c.id, name: c.name, updatedAt: c.updatedAt.getTime() }));
+  // Already the shape the provider wants — loadMentionDirectory stamps
+  // updatedAt as a number so nothing on this page has to remember to.
+  const mentionRoster = roster;
 
   return (
     <SnapshotFresh

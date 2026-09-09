@@ -4,12 +4,11 @@ import { useTags } from "./TagsProvider";
 import { useProductionRates } from "./ProductionRatesProvider";
 import { useCarryReference } from "./CarryProvider";
 import { useDocuments } from "./DocumentsProvider";
-import { useCharacterMentions } from "./CharacterMentionsProvider";
 import TagChip from "./TagChip";
 import ResourceChip from "./ResourceChip";
 import DocumentChip from "./DocumentChip";
-import CharacterAvatar from "./CharacterAvatar";
 import InfoIcon from "./InfoIcon";
+import { CharMention } from "./messageTokens";
 import { splitTokens } from "./richTokens";
 
 function TagToken({ payload, fallback }) {
@@ -39,33 +38,10 @@ function DocumentToken({ payload, fallback }) {
   return doc ? <DocumentChip doc={doc} /> : fallback;
 }
 
-// Payload is a Character.id. The lookup map comes from
-// CharacterMentionsProvider; its default is an empty Map, so a {char:…} on a
-// page that mounts no provider still has to render as SOMETHING.
-//
-// That something is not the raw token. Every other kind falls back to its own
-// literal text and that reads fine — `{tag:iron-hauberk}` still says what was
-// meant. A character id does not: `{char:cmtt1148600jgql0pyydw04pn}` is not a
-// visible unresolved reference, it is a line that looks broken. So a miss
-// draws a person-shaped blank instead, which is also the right answer for
-// somebody behind a mask, whose name is the one thing we must not print.
-function CharToken({ payload }) {
-  const mentionsById = useCharacterMentions();
-  const character = mentionsById.get(payload.trim());
-  if (!character) return <span className="chat-mention chat-mention--unknown">someone</span>;
-  return (
-    <span className="inline-flex items-center gap-1 align-middle">
-      <CharacterAvatar
-        characterId={character.id}
-        name={character.name}
-        version={character.updatedAt}
-        size={16}
-        zoomable
-      />
-      <span>{character.name}</span>
-    </span>
-  );
-}
+// Payload is a Character.id, optionally with the name it was mentioned under
+// after a `|`. One implementation, shared with the Markdown renderers
+// (messageTokens.js) — this used to be a second copy, and a second copy of a
+// rule about whose name may be printed is a second answer to it.
 
 // Payload is the tooltip sentence itself, not a lookup key — the one token
 // that can never fail to resolve. It renders the shared "?" glyph, for a
@@ -103,7 +79,7 @@ const BUBBLE_KINDS = {
   resource: ResourceToken,
   carry: CarryToken,
   document: DocumentToken,
-  char: CharToken,
+  char: CharMention,
   info: InfoToken,
   cmd: CmdToken,
   word: WordToken,

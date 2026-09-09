@@ -47,13 +47,18 @@ export function rankRoster(roster, query, limit = 8) {
     .map((h) => h.c);
 }
 
-// Splices `{char:<id>} ` into `text` at the query's byte range, and reports
-// where the caret should land afterward. The trailing space is what closes
-// the query — without it, accepting a mention would leave the caret still
-// inside what findMentionQuery sees as an (empty) @-run, and typing the next
-// word would immediately reopen the menu.
+// Splices `{char:<id>|<Name>} ` into `text` at the query's byte range, and
+// reports where the caret should land afterward. The trailing space is what
+// closes the query — without it, accepting a mention would leave the caret
+// still inside what findMentionQuery sees as an (empty) @-run, and typing the
+// next word would immediately reopen the menu.
+//
+// The name half freezes who was meant, so a later rename or disguise cannot
+// rewrite an entry somebody already wrote (db/lib/characterMentions.js). A
+// journal body is not stamped by a send path, so this IS the record here —
+// which is fine, because the roster it comes from is the presented one.
 export function insertMention(text, query, character) {
-  const token = `{char:${character.id}} `;
+  const token = `{char:${character.id}${character.name ? `|${character.name}` : ""}} `;
   const next = text.slice(0, query.start) + token + text.slice(query.end);
   return { text: next, caret: query.start + token.length };
 }

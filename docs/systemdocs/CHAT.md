@@ -660,6 +660,39 @@ header instead).
   `npm run audit:contrast`. The tint is there because a Chat row is narration
   and dialogue mixed, and the words somebody actually said are what a reader
   scans for.
+
+  **The rule the two renderers split on is scene-or-prose, and only that.** A
+  surface does not get to know a different *syntax* from its neighbours; what
+  it gets to decide is which tokens it *resolves*, and that is the `components`
+  map, not the plugin list. There are two lists now — `MESSAGE_PLUGINS` and
+  `CHAT_PLUGINS`, differing by `remarkChat` alone. There used to be three, and
+  the third (`BASE_PLUGINS`, the DM one) was missing `remarkTokens`, which is
+  the same drift one layer down from the `<t:…>` bug below: a mention is stored
+  as `{char:…}` on **both** faces, so a DM quoting one, the audit inspector and
+  the archive peek all printed a cuid in braces at the reader. The vocabulary a
+  message may resolve is `messageTokens.js` — `char`, `info`, `cmd` and nothing
+  else, shared by both renderers, so a player still cannot mint a live
+  `{tag:…}` chip mid-scene.
+
+  Everything that draws a body somebody *wrote* now goes through one of the
+  two: `/play`, the `/notes` Starred tab and Journal, the `/archive` transcript,
+  DM threads, the audit inspector, the archive peek. Three of those did not.
+  `StarredList.js` drew a **bare string** — a starred line showed its reader
+  `{char:cmtt1148600jgql0pyydw04pn}` and literal asterisks — and the transcript
+  and the Journal went through `RichText`, which renders no Markdown at all
+  *and* resolves the whole catalog, so a player could type `{tag:apex-form}`
+  into a journal entry and get a live hoverable chip out of it. `RichText`
+  remains the right renderer for authored prose (a tag description, a Desire,
+  an appearance); it just no longer draws messages. `db/test/messageRenderers.test.js`
+  is the guard — the plugin-list assertions moved there from
+  `discordMarkup.test.js`, which had been checking the Discord passes on every
+  list while one of them quietly shipped without the token pass.
+
+  One consequence worth eyeballing: nothing wires `remark-breaks`, so a single
+  `\n` folds. `StarredList` and `JournalList` used `whitespace-pre-wrap` and
+  now do not — Markdown owns the layout, the way it already did on `/play`.
+  Adding `remark-breaks` to bring the old look back would silently change every
+  feed row too, which is the divergence this removed.
 - **`-#` subtext is `remarkSubtext.js`, and every renderer runs it.** It used
   to sit inside `remarkChat`, which meant only `/play` understood it — so the
   lobby seat DM reached players with a literal `-#` on its last line, beside a
@@ -687,7 +720,10 @@ header instead).
   and a player talking, not a scene. Discord's raw syntax is a different thing:
   it is not styling we chose, it is characters that leaked in, and it belongs
   everywhere the text is read.
-- **Mentions are `{char:<id>}` in the row, on both faces.** The composer's `@`
+- **Mentions are `{char:<id>|<Name>}` in the row, on both faces.** The name
+  half is the name the room heard, frozen at send time — a mention used to
+  resolve live, so a disguise or a Mulligan rename rewrote what every past line
+  had said. PROXYING.md §6 has the whole argument. The composer's `@`
   autocomplete (`MentionMenu.js`) runs over `whosHere().named` — the people
   standing here, concealed ones deliberately absent — and inserts the token;
   `CharacterMentionsProvider` is mounted on the page with the same roster, so

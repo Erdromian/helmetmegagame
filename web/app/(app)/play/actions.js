@@ -54,6 +54,7 @@ import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout } from "@lifeweb/db/lib/shout";
 import { castDie } from "@lifeweb/db/lib/roll";
 import { addRoomGuest, removeRoomGuest, roomGuests } from "@lifeweb/db/lib/roomGuests";
+import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMembers";
 import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
 import { sceneLine } from "@lifeweb/db/lib/scene";
 import { parsePlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
@@ -1791,7 +1792,7 @@ export async function lookAt(personRef) {
 
 // The conversation behind a `conv:` key, plus whether this character is in
 // it. Being a member IS the permission, the same gate the bot applies.
-async function conversationHere(character, placeKey) {
+async function conversationHere(character, placeKey, { sightings = null } = {}) {
   const parsed = parsePlaceKey(placeKey);
   if (!parsed || parsed.kind !== "conv") return { error: "That isn't a conversation." };
   const conversation = await prisma.playerThread.findUnique({
@@ -1799,11 +1800,25 @@ async function conversationHere(character, placeKey) {
     select: { id: true, threadId: true, name: true, locationId: true, location: { select: { name: true } } },
   });
   if (!conversation) return { error: "That conversation is gone." };
-  const members = await conversationMembers(prisma, conversation.id);
-  if (!members.some((entry) => entry.characterId === character.id)) {
+
+  // The raw ids stay HERE, on the server. `members` is the presented list and
+  // carries no id for anybody in a hood (db/lib/presentedMembers.js) — which
+  // is also why the membership gate below is answered off `memberIds` rather
+  // than off the rows: your own row is a hood like any other when you are
+  // wearing one, and matching on a withheld id would lock you out of your own
+  // conversation.
+  const memberIds = (
+    await prisma.playerThreadMember.findMany({
+      where: { playerThreadId: conversation.id },
+      orderBy: { createdAt: "asc" },
+      select: { characterId: true },
+    })
+  ).map((row) => row.characterId);
+  if (!memberIds.includes(character.id)) {
     return { error: "You're not in this conversation. ‡" };
   }
-  return { conversation, members };
+  const members = await conversationMembers(prisma, conversation.id, character, { sightings });
+  return { conversation, members, memberIds };
 }
 
 // The private room behind a `room:` key. Two things, not one: your feet at its
@@ -1842,12 +1857,20 @@ export async function placeMembers(placeKey) {
     return { ok: true, members: null, candidates: [] };
   }
 
+  // One sightings Map for the whole answer. It is what decides whether a mask
+  // is DRAWN on a member row (PROXYING.md §5a) — standing somewhere is public,
+  // what is over your face is not — and the strip and the HERE column above it
+  // must agree about it, so they read the same one rather than each asking.
+  const sightings = await lastSightings(prisma, me.character);
+
   let members;
+  let memberIds = [];
   let room = null;
   if (parsed.kind === "conv") {
-    const found = await conversationHere(me.character, placeKey);
+    const found = await conversationHere(me.character, placeKey, { sightings });
     if (found.error) return { ok: false, error: found.error };
     members = found.members;
+    memberIds = found.memberIds;
   } else {
     const found = await privateRoomHere(me.character, placeKey);
     // A public room is not a refusal, it is a place with no strip.
@@ -1857,14 +1880,24 @@ export async function placeMembers(placeKey) {
         : { ok: false, error: found.error };
     }
     room = found.room;
-    members = await roomGuests(prisma, room.id);
+    memberIds = (
+      await prisma.roomGuest.findMany({
+        where: { roomId: room.id },
+        orderBy: { createdAt: "asc" },
+        select: { characterId: true },
+      })
+    ).map((row) => row.characterId);
+    members = await roomGuests(prisma, room.id, me.character, { sightings });
   }
 
   // Everyone standing here who is not already in. Concealed people are
   // absent: a hood has no id to hand this, and letting somebody into a room
   // is not a thing you can do to a person you cannot name.
   const here = await whosHere(prisma, me.character);
-  const inside = new Set(members.map((entry) => entry.characterId));
+  // Off the raw ids, not off `members` — a hooded member carries no id, so
+  // testing the presented rows would offer them in the picker as somebody
+  // outside and let them be "added" to a place they are already in.
+  const inside = new Set(memberIds);
   let candidates = (here.named ?? [])
     .filter((person) => person.characterId !== me.character.id && !inside.has(person.characterId))
     .map((person) => ({
@@ -1939,12 +1972,16 @@ export async function addMember(placeKey, characterId) {
       { kind: DM_KIND.QUIET },
     ).catch(() => {});
 
+    // The presented name in the sentence, not the real one. Adding somebody is
+    // the moment the strip redraws, so this was the line that announced who
+    // was under the hood you had just invited.
+    const shown = await presentedNameOf(prisma, target.id, me.character);
     return {
       ok: true,
       line:
         target.locationId === conversation.locationId
-          ? `${target.name} was added.`
-          : `${target.name} is invited — they'll see this when they reach ${conversation.location?.name ?? "this place"}. ‡`,
+          ? `${shown} was added.`
+          : `${shown} is invited — they'll see this when they reach ${conversation.location?.name ?? "this place"}. ‡`,
     };
   }
 
@@ -1971,7 +2008,25 @@ export async function addMember(placeKey, characterId) {
   return { ok: true, line: result.line };
 }
 
-export async function removeMember(placeKey, characterId) {
+// A character id or a hood token, resolved against the roster of the place
+// the caller has already gated on. Anything that is not a token is passed
+// through as an id and re-checked downstream, which is where a bad id was
+// always going to be refused anyway.
+function resolveMemberRef(ref, memberIds) {
+  const raw = String(ref ?? "").trim();
+  if (!HOOD_TOKEN.test(raw)) return raw;
+  return resolveMemberToken(memberIds, raw);
+}
+
+// `ref` is a character id, or the opaque hood token a concealed member's row
+// carries instead of one (db/lib/presentedMembers.js). Same pair /look takes,
+// and told apart the same way: a token is 32 hex characters and a cuid never
+// is, so the browser never says which it sent.
+//
+// The token resolves only inside the roster of the place it was minted from,
+// which is what makes handing it out safe — it can name somebody in a room you
+// are in and nobody anywhere else.
+export async function removeMember(placeKey, ref) {
   const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
   const parsed = parsePlaceKey(placeKey);
@@ -1980,7 +2035,8 @@ export async function removeMember(placeKey, characterId) {
   if (parsed.kind === "conv") {
     const found = await conversationHere(me.character, placeKey);
     if (found.error) return { ok: false, error: found.error };
-    const { conversation } = found;
+    const { conversation, memberIds } = found;
+    const characterId = resolveMemberRef(ref, memberIds);
 
     // ALIVE, the same gate the bot's /remove applies and the same one
     // addMember above already applies: a dead character is off the roster on
@@ -2004,16 +2060,22 @@ export async function removeMember(placeKey, characterId) {
       );
     }
 
-    return { ok: true, line: `${target.name} was removed.` };
+    // The presented name. Showing somebody out is not the moment to announce
+    // who was under the hood.
+    const shown = await presentedNameOf(prisma, target.id, me.character);
+    return { ok: true, line: `${shown} was removed.` };
   }
 
   const found = await privateRoomHere(me.character, placeKey);
   if (found.error) return { ok: false, error: found.error };
 
+  const guestIds = (
+    await prisma.roomGuest.findMany({ where: { roomId: found.room.id }, select: { characterId: true } })
+  ).map((row) => row.characterId);
   const result = await removeRoomGuest(prisma, {
     actor: me.character,
     roomId: found.room.id,
-    characterId,
+    characterId: resolveMemberRef(ref, guestIds),
   });
   if (!result.ok) return { ok: false, error: result.error };
 
