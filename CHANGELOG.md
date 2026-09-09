@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Restart Game forgets the Depot too
+
+✎ A Restart Game now resets the Depot. It was the one machine the wipe never touched, so the turret, the generator, the Merchant's account, the docked shuttle and the face on file all carried into the next game — which is how a turret nobody had armed shot the people in the caves
+
 ## 2026-09-09 · The arrival letter stops stuttering its »
 
 
