@@ -14,6 +14,12 @@ Entries below predate this format and list files instead.
 ✎ An Aberrant Heart is worth 55 ⬢, and the Withheld Recipes sheet now says where four ingredients actually come from  
 ✎ Wounds from a labor find now heal on their own; they were permanent
 
+## 2026-09-09 · The lobby's antagonist boxes tick All or None
+
+✎ The pregame page is headed Lobby, and the fallback dropdown reads If none are available  
+✎ Whitelisted antagonist boxes no longer sit indented as if they belonged to the one above  
+✚ All and None buttons over the antagonist boxes
+
 ## 2026-09-09 · Four settings stop being settings
 
 − The whitelist always gates a gated role; the switch that could turn it off is gone  
