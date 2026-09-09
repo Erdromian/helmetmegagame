@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Wielding five swords costs five hands, not one
+
+✎ Equipping something out of a stack now takes one slot per item — the rest stay in the pack, and three knives out of five fill three hands  
+✎ The equip rack draws one cell per item worn, so a stack no longer sits in a slot wearing a ×5 badge  
+✎ A second hat, or a fourth knife, is refused the same way two different helms always were  
+✎ Resetting a Move gives back the zone crossing it queued, so the travel menu unlocks and the day's free crossings come back  
+✎ The map redraws when somebody else moves you — an escort, or a leader dragging the party  
+✎ The travel panel counts the boat's extra crossing, which it was quietly leaving out  
+✚ The GM inspector's Sheet tab shows a character's combined armour, melee and ballistic
+
 ## 2026-09-09 · A filed Move is final, and the rope beats the arrangement
 
 − A Move can no longer be edited once it is filed. You get one Move a turn and it stands; only a GM changes one now
