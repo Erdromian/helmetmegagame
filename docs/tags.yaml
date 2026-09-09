@@ -4922,7 +4922,7 @@ tags:
     placement:
       fieldwork: true
       examine: "sharpened stakes ring this ground."
-      defenseNote: "A ring of sharpened stakes; attackers on foot come over or through it, never past it unseen."
+      defenseNote: "a ring of sharpened stakes, forming a formidable wall."
 
   watchtower:
     catalog: all
@@ -4946,7 +4946,7 @@ tags:
     placement:
       fieldwork: true
       examine: "a timber tower stands over this ground."
-      defenseNote: "Whoever holds the tower sees what comes before it arrives; nothing approaches this ground unseen."
+      defenseNote: "provides good vision."
 
   barricade:
     catalog: all
@@ -4970,7 +4970,7 @@ tags:
     placement:
       fieldwork: true
       examine: "heaped timber and carts cross this ground."
-      defenseNote: "Heaped cover to fight from; whoever holds it meets a charge on their own terms."
+      defenseNote: "a small obstacle for enemies."
 
   battering-ram:
     catalog: all
@@ -4996,7 +4996,7 @@ tags:
     # ram stands, and this line prints on Examine and the GM Move card.
     placement:
       examine: "it stands under its rough roof."
-      defenseNote: "a shut gate can be stormed."
+      defenseNote: "allows storming shut gates."
 
   # --- Milestone D catalog fill: everything below is pure YAML over the
   # A-C mechanisms — no new code. Numbers are design-facing placeholders
@@ -5049,7 +5049,7 @@ tags:
     # happens. No fieldwork — a real building wants the workshop kit.
     placement:
       examine: "windows open, linens boiled."
-      defenseNote: "A treatment that would be a Gambit elsewhere is Routine work under this roof."
+      defenseNote: "improves medical outcomes."
 
   trebuchet:
     catalog: all
@@ -5072,7 +5072,7 @@ tags:
       gambit: false
     placement:
       examine: "counterweight hung, arm cocked."
-      defenseNote: "a structure at a neighbouring location can be bombarded."
+      defenseNote: "allows bombarding nearby locations, as a Gambit."
 
   gallows:
     catalog: all

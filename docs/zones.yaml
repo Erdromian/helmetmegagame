@@ -227,7 +227,7 @@ zones:
           square-smithery-storeroom:
             name: Smithery Storeroom
             description: >-
-              Bar iron, charcoal, and the tools too good to leave out where a customer could lift them. ‡
+              Bar iron, charcoal, and the tools too good to leave out where a customer could lift them.
             access: [smithy-key, headmans-key]
             stash:
               resources: 2
@@ -573,7 +573,7 @@ zones:
             name: Servant's Quarters
             access: [servant, barons-key, hands-key]
             description: >-
-              Bunks, a stove and a long table, all of it worn smooth. The one room in the Keep the nobility has no reason to enter. ‡
+              Bunks, a stove and a long table, all of it worn smooth. The one room in the Keep the nobility has no reason to enter.
           # `fortress-kitchen`, not `kitchen` — the Old Cock Inn holds that slug.
           servants-kitchen:
             name: Kitchen
@@ -715,7 +715,7 @@ zones:
             name: Graga Pit
             access: [in-the-pit]
             description: >-
-              Wet stone, a long way down, and something breathing in the dark that is much larger than you are. ‡
+              Wet stone, a long way down, and something breathing in the dark that is much larger than you are.
           keep-the-charon:
             name: The Charon
             description: >-
@@ -724,7 +724,7 @@ zones:
           keep-reliquary-chapel:
             name: Reliquary Chapel
             description: >-
-              Courtiers come here to pray. The Silver Cross of Ravenheart is locked away behind the altar, accessible by the Incarn's key. ‡
+              Courtiers come here to pray. The Silver Cross of Ravenheart is locked away behind the altar, accessible by the Incarn's key.
           keep-cross-room:
             name: Cross Room
             access: [incarns-key]
@@ -827,7 +827,7 @@ zones:
             name: Stables
             access: [cerberus-key]
             description: >-
-              A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human. Good and mean dogs both are caged along the back wall, ready to hunt unruly peasants. ‡
+              A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human. Good and mean dogs both are caged along the back wall, ready to hunt unruly peasants.
             stash:
               items:
                 hound: 2

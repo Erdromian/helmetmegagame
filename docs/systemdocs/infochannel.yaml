@@ -136,13 +136,11 @@ categories:
           The game's roleplay layer is where the results of last turn's Moves come to life. If the Gamemaster declared you were bested in a duel, that's canon; you can describe how it went down in the roleplay channels. You can also use the roleplay channels at any time to chat, exchange information, or coordinate your Moves with other players.
 
           **Channels and Zones**
-          There are five surface zones — the Fortress, the Town, the Forest, the Black Hills, and the Marshes — and below them the Underground, which holds two cave levels: the Caves and the Depths. Each is made of Locations, and you stand in exactly one of them. Walking to a connected Location inside your Zone is free (with a short cooldown); crossing into another Zone costs your Move, the cave levels included.
+          There are five surface zones. Each has their own Locations. Walking to a connected Location inside your Zone is free, but crossing into another Zone uses your turn. Everyone has one free Zone move per turn.
 
-          Every surface zone has a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing.
+          Every surface zone has a summary channel: optionally describe, in broad terms, what other people in your Zone saw you doing. You can roleplay by using each Location's rooms.
 
           Every Location has its own channel — the only one you see. Talk in it, step into one of its public Rooms (the threads under it), or use the pinned message's buttons: **Who's here?**, **Secret rooms?** (the private Rooms your tags let you into), and **Converse** (a private thread; then `/add (character)` to invite people).
-
-          A cave level has Location channels of its own — just no summary.
 
           You cannot roleplay in DMs or outside of the server.
 
@@ -159,21 +157,12 @@ categories:
 
           Players are responsible for producing, taxing, distributing, and trading Resources.
 
-          Characters automatically consume 1 ⬢ a day — 2 if you have a Big Appetite. Come up short and you'll go **Hungry**, netting you −1 to all rolls until the next time you eat. The penalty increases until you die at −6.
+          Characters automatically consume 1 ⬢ a day. If you go hungry, you'll get a −1 to your Gambit. The penalty increases until you die at −6.
 
           **Laboring**
-          Labor is its own kind of Move, and it takes a skill — without a Laboring tag you produce nothing at all. Submit no Move and you'll Labor automatically.
-
-          Past the two general tiers there are three specialisations — hunting, farming and fishing — and **where you stand decides what they pay**. Some ground is rich, some is barren, and what a place is worth shifts over the course of the game. Press **Examine** in any Location's channel to see what it yields today.
-
-          Farming feeds Ravenheart, and as such it is taxed by the Baron in order to distribute food through the valley.
+          Resources are produced by laboring. If you don't submit a move and have a laboring skill, you'll automatically labor. You can only labor every other turn.
       - title: Tags
         body: |-
           Tags represent your character's health, items, traits, and skills.
 
-          The main way to obtain new Tags is to spend Tag Points. Everyone starts with Tag Points, but gains more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game — such as by smithing a sword, poisoning someone, or treating a wound.
-
-          **Desires**
-          You can fulfill Desires to obtain more Tag Points. You claim one *after* you have done the thing, not before — so play your character, then come and collect.
-
-          Desires must be difficult and personal to receive points. For the Baron, even a whole bottle of gin is hardly satisfactory; for the Commoner, one glass is enough. Something you arranged purely in order to claim a Desire does not count.
+          The main way to obtain new Tags is to spend Tag Points. Everyone starts with Tag Points but gain more through the game as they fulfill Desires. However, you can also create, inflict, and remove tags throughout the game — such as by smithing a sword, poisoning someone, or treating a wound.

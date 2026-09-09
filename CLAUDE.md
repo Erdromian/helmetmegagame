@@ -809,13 +809,12 @@ it before writing any UI. Four rules apply everywhere:
   clean, and threw only when someone opened the page. That's why the rule is
   on.
 
-## Game state: playtest data is real — ask before anything destructive
+## Game state: the live data is real — ask before anything destructive
 
-**There is a single live production site now, with playtest users whose
-characters, turns and messages are real.** The pre-launch "act, don't ask"
-era described in git history is over. Do not treat production as a sandbox
-you can rebuild from the YAML masters and a wipe — someone's afternoon is in
-that database.
+**There is a single live production site, and the characters, turns and
+messages in it are real.** Do not treat production as a sandbox you can
+rebuild from the YAML masters and a wipe — someone's afternoon is in that
+database.
 
 - **Stop and ask before anything that can lose data on the live database.**
   A migration that drops a column, `db:sync-zones`, `db:sync-documents`,
