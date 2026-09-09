@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Four settings stop being settings
+
+− The whitelist always gates a gated role; the switch that could turn it off is gone  
+− The portrait maker is always open, and the fantasy parts are always off  
+− The face the turret spares is no longer a box on the Dev Panel — the Merchant's own name is written when he is created
+
 ## 2026-09-09 · Every ephemeral reply speaks in one voice
 
 ✎ The short messages only you can see — refusals, confirmations — now all read the same way, with the chevron and italics  
