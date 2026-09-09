@@ -3520,7 +3520,7 @@ tags:
     expiresInto: [festering]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3675,7 +3675,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3695,7 +3695,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3882,7 +3882,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3902,7 +3902,7 @@ tags:
     removesInto: [stitched-up, recovering]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 1
       resourceCost: 9
       skills: [medical-expert]
 
@@ -3922,7 +3922,7 @@ tags:
     removesInto: [stitched-up, recovering]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 1
       resourceCost: 9
       skills: [medical-expert]
 
@@ -3978,7 +3978,7 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 1
       resourceCost: 9
       skills: [medical-expert]
 
@@ -4051,7 +4051,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 1
       resourceCost: 9
       skills: [medical-expert]
 
@@ -4120,7 +4120,7 @@ tags:
     expiresInto: [dying]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
 
   heatstroke:
@@ -4381,7 +4381,7 @@ tags:
     removesInto: [scarred]
     healable: true
     requirement:
-      turnsCost: 1/2
+      turnsCost: 1
       resourceCost: 9
       skills: [medical-expert]
       gambit: false
@@ -4625,7 +4625,7 @@ tags:
     expiresInto: [dying]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
       gambit: false
 
@@ -13233,7 +13233,7 @@ tags:
       - oneOf: [infected, recovering]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 

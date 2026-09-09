@@ -119,15 +119,15 @@ same turn, same as any two families would.
 **The free pool.** Every cure priced at `turnsCost: 0` on the cure ladder —
 first aid, bandaging, setting a simple break — is a free action, shared
 across a medic's whole day regardless of which health tag it treats, up to
-`MEDICAL_SIMPLE_PER_TURN = 8` (`web/lib/requests.js`). This replaced the old
+`MEDICAL_SIMPLE_PER_TURN = 4` (`web/lib/requests.js`). This replaced the old
 per-tier daily ration (2/3/4 by Basic/Skilled/Expert) — the pool is now flat
 and shared by tier, because the Expert's edge is what they can afford on the
 turn-costing rungs (below), not a bigger free allowance. Counted by
 `routineHealsThisTurn`: `request_heal_character` audit rows this turn, for
 this medic (`actorDiscordUserId`, **not** the patient — a medic treating four
 different people is rationed once, not per patient), filtered to
-`!gambit && requirement.turns === 0`. Past the 8th, each additional 0-turn
-cure spills into the medical family's Move at **1/8** — the same "allowance
+`!gambit && requirement.turns === 0`. Past the 4th, each additional 0-turn
+cure spills into the medical family's Move at **1/4** — the same "allowance
 free, past it costs the Move" rule Dead Simple crafting uses. **The predicate
 is counted in three places that all have to change together** if this pool's
 shape ever does: `routineHealsThisTurn` here, `peoplePools.js` (whose own

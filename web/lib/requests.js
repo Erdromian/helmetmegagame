@@ -13,7 +13,7 @@ export { MAX_REASON_LENGTH };
 // The free pool a medic's 0-turn cures share, whatever their tier
 // (docs/systemdocs/TAGS.md §5c, M2). First aid, bandaging, setting a simple
 // break — cures repriced to `turnsCost: 0` — are free actions up to this many
-// a turn; past it, each one spills into the medical family's Move at 1/8
+// a turn; past it, each one spills into the medical family's Move at 1/4
 // (web/lib/craftBudget.js#craftMoveCost). This replaced the old per-tier
 // MEDICAL_TIER_CAPS, which rationed every cure that cost a TURN — those are
 // billed the Move's own fractions now (CRAFTING.md §2a), and no longer
@@ -22,7 +22,7 @@ export { MAX_REASON_LENGTH };
 // Gambits are not counted here either: a gambit heal files a Move, and
 // Action's @@unique([characterId, turnId]) already allows exactly one of those
 // a turn.
-export const MEDICAL_SIMPLE_PER_TURN = 8;
+export const MEDICAL_SIMPLE_PER_TURN = 4;
 
 // isDeadSimple and DEAD_SIMPLE_PER_TURN live in tagRequests.js now (recipe
 // facts a client component can reach); imported above for the counters below

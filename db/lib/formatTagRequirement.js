@@ -20,9 +20,10 @@ const FRACTION_GLYPHS = {
   // have no glyphs and fall through to "n/m", which is fine.
   "1/6": "⅙",
   "5/6": "⅚",
-  // Eighths (review fix, M2): the medical pool's spill prices at
-  // 1/MEDICAL_SIMPLE_PER_TURN = 1/8, and the ledger's remaining fraction
-  // after a few of those lands on the other eighths too.
+  // Eighths (review fix, M2): kept for other fractional recipes (a brew's
+  // ledger remainder can land on an eighth) even though the medical pool's
+  // own spill moved off it — since M2a it prices at
+  // 1/MEDICAL_SIMPLE_PER_TURN = 1/4, not 1/8.
   "1/8": "⅛",
   "3/8": "⅜",
   "5/8": "⅝",

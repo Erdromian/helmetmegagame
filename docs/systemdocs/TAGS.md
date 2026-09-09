@@ -1296,14 +1296,14 @@ full mechanism (the shared `craft` family arithmetic, the ledger, the
 `billedSeen` re-check); this is the tag-side summary.
 
 **A 0-turn cure is free, up to a shared daily pool.** Every tier-1/2 (and any
-named exception below) rung draws on `MEDICAL_SIMPLE_PER_TURN = 8`
-(`web/lib/requests.js`) — 8 first-aids a day for a medic of ANY tier,
+named exception below) rung draws on `MEDICAL_SIMPLE_PER_TURN = 4`
+(`web/lib/requests.js`) — 4 first-aids a day for a medic of ANY tier,
 counted per medic (not per patient) off that turn's `request_heal_character`
 audit rows. This replaced the old per-tier daily ration (2 a turn on Basic, 3
 on Skilled, 4 on Expert, `MEDICAL_TIER_CAPS` — deleted); the Expert's edge is
 now what they can afford on the turns-costing rungs, not a bigger free
-allowance. Past the 8th, each additional 0-turn cure spills into the
-medical family's Move at **1/8** rather than refusing outright, the same
+allowance. Past the 4th, each additional 0-turn cure spills into the
+medical family's Move at **1/4** rather than refusing outright, the same
 "allowance free, past it costs the Move" rule Dead Simple crafting uses.
 
 **Everything at tier 3+ bills the Move directly and never touches that

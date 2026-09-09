@@ -2753,6 +2753,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
           removesInto: true,
           requirementResources: true,
           requirementTurns: true,
+          requirementPerTurn: true,
           requirementGambit: true,
           group: { select: { slug: true } },
         },
@@ -3574,6 +3575,7 @@ async function healCharacterRequestImpl({
     // price actually quoted rather than today's tags.yaml.
     requirement: {
       turns: held.tag.requirementTurns,
+      perTurn: held.tag.requirementPerTurn,
       resources: held.tag.requirementResources,
       gambit: held.tag.requirementGambit,
       skills: held.tag.requirementSkills.map((t) => t.name),
@@ -3704,7 +3706,14 @@ async function healCharacterRequestImpl({
       // it is re-read here rather than trusted.
       const woundTag = await tx.tag.findUnique({
         where: { id: held.tagId },
-        select: { slug: true, requirementResources: true, requirementTurns: true, requirementGambit: true, group: { select: { slug: true } } },
+        select: {
+          slug: true,
+          requirementResources: true,
+          requirementTurns: true,
+          requirementPerTurn: true,
+          requirementGambit: true,
+          group: { select: { slug: true } },
+        },
       });
       const relief = -woundMoodFor(woundTag) / 2;
       if (relief > 0) await applyMood(tx, target.id, { kind: "HEALED", base: relief });

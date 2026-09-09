@@ -259,7 +259,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
             // The `kind` label for "past the pool" does NOT match the
             // server's own for that same case — this reads the real tag
             // (requirementTurns 0) with an allowance, landing on "spill";
-            // priceHeal (requestActions.js) prices a SYNTHETIC 1/8-turn tag
+            // priceHeal (requestActions.js) prices a SYNTHETIC 1/4-turn tag
             // there instead, landing on "share". Cosmetic only: both compute
             // the identical num/den fraction, and nothing branches on `kind`
             // except this dialog's own "past today's free first aid" wording,
