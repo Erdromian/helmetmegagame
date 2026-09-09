@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The stone and the draught do what they say
+
+✚ Raven Draught: a Send a message button. Pick anyone in the game, type a line, and they hear it — no zone to guess, no letter, no reply. It says "Sent." whether or not anyone was alive to hear it, so it can't be used to ask  
+✚ Stepstone: step to anywhere you know — somewhere you have stood, or seen from a doorway. It costs no ⬢ and not your Move  
+− The Illusion Crystal is out of the catalog and off the Depot shelf
+
 ## 2026-09-09 · An interception ends however you leave, and so does a hold
 
 ✚ Being taken away now lets your prisoner go. Walking off already did; a GM moving you, a rite dragging you or a Bulk Move did not, so a victim could stay pinned to the end of the turn by somebody three zones away with nobody able to free them  
