@@ -56,14 +56,16 @@ documents:
 
       **First aid is free, up to a point.** A cure the table below marks with
       no Move cost at all is a free action — first aid, bandaging, setting a
-      simple break. Any medic can do 8 of them in one turn before it starts
+      simple break. Any medic can do 4 of them in one turn before it starts
       costing anything; past that, each extra one spills into your Move at
-      ⅛ apiece.
+      ¼ apiece. ‡
 
-      **Everything past first aid spends a fraction of your Move.** A ⅓ cure
-      is a third of your turn's work — three fit in one Routine. A ½ cure is
-      half — two fit. The heaviest tier takes the WHOLE Move, and that tier
-      is also where you roll.
+      **Everything else spends a fraction of your Move — even Minor.** A
+      Minor cure is a flat ¼, every time, however few you're doing that
+      turn; it never dips into the free pool above. A ⅓ cure is a third of
+      your turn's work — three fit in one Routine. A ½ cure is half — two
+      fit. The heaviest tiers take the WHOLE Move, and Complex surgery is
+      also where you roll. ‡
 
       **Reaching past your skill.** You can attempt any cure, including ones
       well above your training. That's a Gambit: it spends your Move for the
@@ -83,28 +85,31 @@ documents:
 
       | Tier | ⬢ | Move | Skill |
       |---|---|---|---|
-      | Free | 0 | none — shared pool of 8 a turn | Medical (Basic) |
-      | Very minor — first aid | 1–2 | none — shared pool of 8 a turn | Medical (Basic) |
-      | Minor | 2 | none — shared pool of 8 a turn | Medical (Basic) |
+      | Free | 0 | none — shared pool of 4 a turn | Medical (Basic) |
+      | Very minor — first aid | 1 | none — shared pool of 4 a turn | Medical (Basic) |
+      | Minor | 2 | ¼ | Medical (Basic) |
       | Moderately severe | 2 | ⅓ | Medical (Skilled) |
-      | Severe | 3–4 | ⅓ | Medical (Skilled) |
+      | Severe | 4 | ⅓ | Medical (Skilled) |
       | Very minor surgery | 7 | ½ | Medical (Skilled) |
-      | Severe surgery | 9 | ½ | Medical (Expert) |
+      | Severe surgery | 14 | whole | Medical (Expert) |
       | Complex surgery | 14 | whole, and a Gambit | Medical (Expert) |
 
       **Free — 0 ⬢, no Move**
 
       - {tag:minor-bleeding}, {tag:dislocated-shoulder}
 
-      **Very minor — 1–2 ⬢, no Move**
+      **Very minor — 1 ⬢, no Move**
 
-      - {tag:bruised}, {tag:severe-pain}, {tag:hypothermia}, {tag:choking}
-      - {tag:frostbite} — cheap and quick, but it takes Medical (Skilled)
-        hands all the same ‡
+      - {tag:bruised}, {tag:severe-pain}
 
-      **Minor — 2 ⬢, no Move**
+      **Minor — 2 ⬢, ¼ Move**
 
       - {tag:minor-wound}, {tag:burned}, {tag:sprained-ankle}, {tag:infected}
+      - {tag:frostbite} — same price and the same quarter-Move as the rest
+        of this rung, but it's the one that still needs Medical (Skilled)
+        hands. ‡
+      - {tag:choking}, {tag:hypothermia} — same rung again, and the only
+        cures on this whole ladder that need no medical training at all. ‡
 
       **Moderately severe — 2 ⬢, ⅓ Move**
 
@@ -112,26 +117,28 @@ documents:
         {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock},
         {tag:blunt-force-trauma}, {tag:cave-fever}
 
-      **Severe — 3–4 ⬢, ⅓ Move**
+      **Severe — 4 ⬢, ⅓ Move**
 
-      - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites},
-        {tag:severe-burns}, {tag:broken-jaw}, {tag:mangled-hand},
-        {tag:festering}, {tag:rot-lung}, {tag:pox}, {tag:lockjaw}
+      - {tag:broken-jaw}, {tag:festering}, {tag:lockjaw}, {tag:mangled-hand},
+        {tag:pox}, {tag:rot-lung}, {tag:severe-burns}
+      - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites} — 3 ⬢
+        instead of 4, but otherwise this rung exactly: ⅓ Move, Medical
+        (Skilled). ‡
 
       **Very minor surgery — 7 ⬢, ½ Move**
 
-      - {tag:grievous-wound}, {tag:feverish}, {tag:necrosis}, {tag:stuffed},
-        {tag:crush-injury}
+      - {tag:crush-injury}, {tag:feverish}, {tag:grievous-wound},
+        {tag:necrosis}, {tag:stuffed}
 
-      **Severe surgery — 9 ⬢, ½ Move**
+      **Severe surgery — 14 ⬢, whole Move**
 
-      - {tag:punctured-lung}, {tag:gut-wound}, {tag:appendicitis},
-        {tag:envenomated}, {tag:disfigured}
+      - {tag:appendicitis}, {tag:disfigured}, {tag:envenomated},
+        {tag:gut-wound}, {tag:punctured-lung}
 
       **Complex surgery — 14 ⬢, whole Move, Gambit**
 
-      - {tag:sepsis}, {tag:dying}, {tag:consumptive}, {tag:exploded-chest},
-        {tag:blind}, {tag:crippled-leg}, {tag:phrygian-toxin}
+      - {tag:blind}, {tag:consumptive}, {tag:crippled-leg}, {tag:dying},
+        {tag:exploded-chest}, {tag:phrygian-toxin}, {tag:sepsis}
 
       Some tonics and dressings cure specific tags outright, no medic needed
       — see the Recipes tab on the Documents page for what's brewed or

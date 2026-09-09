@@ -412,7 +412,7 @@ When you 🔍 a character you will see tags marked as visible, such as clearly w
 
 ### Health Tags
 
-Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. First aid — anything minor enough — is a free action, and any doctor can do 8 of them a day before it costs anything at all. Anything past that spends a fraction of their Move for the day, and the most serious injuries take their whole Move and a roll of the dice.
+Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. The most trivial injuries are free, up to 4 a day for any doctor; anything else always costs at least a quarter of their Move, and the most serious surgeries take a whole Move, 14 ⬢, and a roll of the dice. ‡
 
 Some items cure a specific ailment outright the moment you Consume them, no doctor needed — a tonic, a dressing, a prosthetic fitted onto a lost limb. A few of those still need someone medically trained to apply, even to their own body.
 
@@ -433,8 +433,8 @@ Press **Craft** on your [Character](https://ravenheart.quest/character) page, pi
 - **Crafting** — tailoring, woodwork, and the simplest metalwork (Dead Simple tier), no forge needed.
 - **Smithing**, **Smithing (Skilled)**, and **Smithing (Gunpowder)** — proper metalwork, each rung opening heavier and more expensive gear than the last. Anything past Dead Simple metalwork needs a **forge**: Workshop Equipment held, sitting in a room you can get into where you stand, or a forge standing at the place. Work you can do with your hands alone needs nothing.
 - **Cooking (Basic)** and **Cooking (Skilled)** — meals. Fine and Lavish meals each have their own cap per Routine, and a Lavish meal wants a delicacy off the Depot's shelf besides its ⬢.
-- **Brewing (Basic)** and **Brewing (Skilled)** — alcohol, tonics, and poisons. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise. A couple of tonics are Medical work rather than Brewing, but they're brewed the same way and sit on the same shelf.
-- **Medical (Skilled)** and **Medical (Expert)** — a few dressings and tonics, plus the prosthetics: fitting one onto a maiming (even your own) is a separate job from making it, and needs Medical (Expert) even if a smith built the thing.
+- **Brewing (Basic)**, **Brewing (Skilled)**, and **Brewing (Expert)** — alcohol, tonics, poisons, and now the medicines too: three plain remedies brew at Skilled, the rest — five more, including the field's rarest recipes — brew at Expert. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise. ‡
+- **Medical (Skilled)** and **Medical (Expert)** — no medicine-making left in this trade. Heal treats a patient, and fitting a prosthetic onto a maiming (even your own) still needs Medical (Expert), whoever crafted the prosthetic itself. ‡
 
 **Make it your own.** A few crafts — a badge, a hat, a painting, a sketch, and a cook's meals — can be made as truly YOURS: pay 1 ⬢ extra and give it your own name and description. A named piece always still plainly shows what it is underneath, so a "Dockers' Mark (Badge)" reads as a badge regardless of what you called it. ‡
 
