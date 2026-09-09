@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Laboring hurts less, and the Depths give up their dead
+
+✎ A bad roll while laboring is now a clean day about a third of the time, instead of always costing you something  
+✎ Hunting wounds are lighter across the board, and a Grievous Wound is roughly a fifth as likely as it was  
+✚ Hunting the Depths now brings back a Skinless, Nekker or Graga corpse — and, rarely, an Aberrant Heart  
+✎ An Aberrant Heart is worth 55 ⬢, and the Withheld Recipes sheet now says where four ingredients actually come from  
+✎ Wounds from a labor find now heal on their own; they were permanent
+
 ## 2026-09-09 · Four settings stop being settings
 
 − The whitelist always gates a gated role; the switch that could turn it off is gone  
