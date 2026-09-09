@@ -69,7 +69,14 @@ export default function ChatAside({
     usePlaceActions(affordances, onPlaceChanged);
   // Extract is the SHEET's dialog, mounted on this page (play/page.js) over
   // the same two facts the sheet resolves — there is no second copy of it.
-  const openAction = useRequestActions()?.open ?? null;
+  const requestActions = useRequestActions();
+  const openAction = requestActions?.open ?? null;
+  // Research (CRAFTING.md §2b): the same canResearch/researchHint pool the
+  // sheet's Research row reads (TagRail.js), computed once by the provider
+  // off the atCathedral/holdsResearch/researchOptions props play/page.js
+  // hands it — nothing extra to thread through this column.
+  const canResearch = requestActions?.pools?.canResearch ?? false;
+  const researchHint = requestActions?.pools?.researchHint ?? null;
 
   // The Location's own fixtures. Travel, Who's here?, Secret rooms? and
   // Examine are filtered out: the first is the node grid below, and the other
@@ -94,6 +101,8 @@ export default function ChatAside({
         onConverse={openConverse}
         depotHref={depotHref}
         onFactory={canSeeExtract && openAction ? () => openAction("extract") : null}
+        onResearch={canResearch && openAction ? () => openAction("research") : null}
+        researchHint={researchHint}
         onOpenMap={onOpenMap}
         pending={pending}
       />

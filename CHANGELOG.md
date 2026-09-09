@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Merge PR #31: Scholastics can research secret recipes in the Cathedral
+
+✚ The Scholastic can Research an ingredient they are carrying, in the Cathedral. It takes the Move as a Gambit, and the answer arrives at the end of the turn  
+✚ A 6 or better turns up a recipe nobody else can see — one of the seven GM-only craftables, dealt once per character and minted as a note in their hands  
+✚ Every failed attempt on the same ingredient makes the next one easier, so a sixth try cannot miss. It resets once that ingredient gives something up  
+✚ A Research button on the tag's own row, and on the Cathedral's place card in Chat
+
 ## 2026-09-09 · Take Pyrias's tag description rewrites
 
 ✎ 152 tag descriptions rewritten from PR #33 — the double daggers are off  

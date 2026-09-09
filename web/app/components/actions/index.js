@@ -24,6 +24,7 @@ import SealDialog from "./SealDialog";
 import BirdDialog from "./BirdDialog";
 import ExamineAction from "./ExamineAction";
 import CraftAction from "./CraftAction";
+import ResearchAction from "./ResearchAction";
 
 // Instant verbs. Each is `{ run, confirm }`: `run()` is the server action,
 // `confirm(pools)` is the one-line question to ask first, or null for none.
@@ -98,6 +99,7 @@ export const DIALOGS = {
   bird: BirdDialog,
   examine: ExamineAction,
   craft: CraftAction,
+  research: ResearchAction,
 };
 
 // The shortcut past the picker. When a dialog is opened with the one thing it

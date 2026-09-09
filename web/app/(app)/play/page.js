@@ -25,6 +25,12 @@ import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
+import {
+  RESEARCH_TAG_SLUG,
+  CATHEDRAL_LOCATION_SLUG,
+  loadResearchCatalog,
+  researchableHeld,
+} from "@lifeweb/db/lib/research";
 
 // /play — Chat. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
@@ -164,7 +170,18 @@ async function FreshPlay({ userId }) {
               // `id` is the CharacterTag row, which is what an equip toggle
               // acts on; the Things drawer is the only thing here that needs
               // one (./thingRows.js).
-              tags: { select: { id: true, tagId: true, quantity: true, equipped: true, tag: true } },
+              // `tag.group` rides along for researchableHeld's `group`-kind
+              // ingredient entries (a held corpse, matched by GROUP rather
+              // than slug) — nothing else here read it before Research did.
+              tags: {
+                select: {
+                  id: true,
+                  tagId: true,
+                  quantity: true,
+                  equipped: true,
+                  tag: { include: { group: { select: { slug: true } } } },
+                },
+              },
               role: { select: { slug: true } },
               // Which in-game DAY the bird last left on
               // (docs/systemdocs/PAPERWORK.md §Bird).
@@ -195,7 +212,7 @@ async function FreshPlay({ userId }) {
           }),
         };
 
-        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation] = await Promise.all([
+        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation, researchCatalog] = await Promise.all([
           whosHere(prisma, character, { withSightings: true }),
           affordancesFor(prisma, character),
           // What Examine used to answer in a modal. It is the place card's
@@ -235,6 +252,11 @@ async function FreshPlay({ userId }) {
                 select: { slug: true, attributes: true },
               })
             : null,
+          // The Research picker's held-ingredients shortlist
+          // (researchableHeld) needs the craftable catalog it's checked
+          // against — the same call requestActions.js#researchRequestImpl
+          // makes, so the menu and the server's own re-check can't drift.
+          loadResearchCatalog(prisma),
         ]);
         return {
           people,
@@ -278,6 +300,17 @@ async function FreshPlay({ userId }) {
             hasAttribute(boardLocation, GODFLESH_ATTRIBUTE) && !extractToolFor(sheet?.tags ?? [])
               ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
               : null,
+          // Research (CRAFTING.md §2b): the Cathedral's own
+          // place-card button, alongside the sheet's Research tag chip.
+          // `atCathedral` is a fact about the ground, same posture as
+          // `depotHref`/`canSeeExtract` above; `holdsResearch` and the
+          // shortlist are facts about this character's own sheet.
+          holdsResearch: heldSlugs.has(RESEARCH_TAG_SLUG),
+          atCathedral: boardLocation?.slug === CATHEDRAL_LOCATION_SLUG,
+          researchOptions: researchableHeld(character.tags, researchCatalog).map((ct) => ({
+            slug: ct.tag.slug,
+            name: ct.tag.name,
+          })),
         };
       })()
     : null;
@@ -422,6 +455,16 @@ async function FreshPlay({ userId }) {
         canSeeExtract: aside.canSeeExtract,
         canExtract: aside.canExtract,
         extractBlocked: aside.extractBlocked,
+        // Research: the sheet's Research row AND the place card's Cathedral
+        // button both read the provider's composed canResearch/researchHint,
+        // which is built off these three and the Move below.
+        holdsResearch: aside.holdsResearch,
+        atCathedral: aside.atCathedral,
+        researchOptions: aside.researchOptions,
+        // Whether this turn's Move is already filed — the same
+        // `Boolean(action)` the sheet passes (character/page.js). Advisory
+        // either way: requireFreeMove re-reads it.
+        hasMoved: Boolean(aside.move),
       }
     : null;
 

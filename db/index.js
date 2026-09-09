@@ -55,6 +55,7 @@ const { runAutoLaborPass } = require("./lib/autoLaborPass");
 const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { runLessonPass } = require("./lib/lessonPass");
+const { runResearchPass } = require("./lib/researchPass");
 const { runConfessionPass } = require("./lib/confessionPass");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
 // are three same-named sendDm exports with three signatures.
@@ -183,6 +184,10 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
 const TURN_PASSES = [
   "autoLabor",
   "lessons",
+  // Research (db/lib/researchPass.js): same slot as Lessons, and right after
+  // it for the same reason lessons follows autoLabor — after only because it
+  // shares the slot, not because either depends on the other's result.
+  "research",
   "confessions",
   "stagedPush",
   "tagExpiry",
@@ -342,6 +347,31 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Lessons audit log failed:", err));
+  }
+
+  // Research (db/lib/researchPass.js): a filed research Gambit is SOLVED
+  // here, same slot as Lessons and right after it. The D5 ledger row
+  // (research_revealed) is written inside the pass itself, per character,
+  // not here — this summary row is only the turn-wide tally.
+  let research = null;
+  if (!done.has("research")) {
+    research = await runResearchPass(prisma, turn).catch(async (err) => {
+      await passFailed("Research", err);
+      return null;
+    });
+    if (research) await markDone("research");
+  }
+  const { dms: researchDms = [], ...researchSummary } = research ?? {};
+  if (research && (research.resolved || research.failed)) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "research_resolved",
+          details: researchSummary,
+        },
+      })
+      .catch((err) => console.error("Research audit log failed:", err));
   }
 
   // Confessions (db/lib/confessionPass.js): same slot and the same reason as
@@ -1063,6 +1093,7 @@ async function resolveNeeds(turn, config) {
     hungerNotices,
     autoLaborDms,
     lessonDms,
+    researchDms,
     confessionDms,
     tagExpiryDms,
     catatonicDms,
@@ -1139,6 +1170,7 @@ async function advanceTurn() {
   let hungerNotices = [];
   let autoLaborDms = [];
   let lessonDms = [];
+  let researchDms = [];
   let confessionDms = [];
   let tagExpiryDms = [];
   let depotLines = [];
@@ -1188,6 +1220,7 @@ async function advanceTurn() {
       hungerNotices,
       autoLaborDms,
       lessonDms,
+      researchDms,
       confessionDms,
       tagExpiryDms,
       catatonicDms,
@@ -1381,6 +1414,12 @@ async function advanceTurn() {
     for (const dm of lessonDms) {
       await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
         console.error(`Lesson DM to ${dm.discordUserId} failed:`, err),
+      );
+    }
+
+    for (const dm of researchDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Research DM to ${dm.discordUserId} failed:`, err),
       );
     }
 

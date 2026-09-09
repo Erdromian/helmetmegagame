@@ -94,6 +94,16 @@ export default function RequestActionsProvider({
   mySins = [],
   // Whether a Move is already filed this turn — a craft with turns needs one.
   hasMoved = false,
+  // Research (the Scholastic skill, CRAFTING.md §2b): whether you hold it at
+  // all, whether you're standing in the Cathedral, and the held ingredients
+  // that are in ANY recipe (db/lib/research.js#researchableHeld, computed
+  // server-side so the picker and researchRequest's own re-check agree). All
+  // three are folded into `canResearch` below, which is what the sheet's
+  // Research row (TagRail.js) and the Cathedral's place card (play/PlaceCard.js)
+  // both draw off.
+  holdsResearch = false,
+  atCathedral = false,
+  researchOptions = [],
   // Built once in character/page.js so the four target menus can't disagree.
   lootTargets = [],
   bindTargets = [],
@@ -254,6 +264,7 @@ export default function RequestActionsProvider({
     hideoutStock,
     thanatiWares,
     atHideout,
+    researchOptions,
     // Craft's slice (actions/CraftAction.js).
     craftable,
     gateById,
@@ -335,6 +346,20 @@ export default function RequestActionsProvider({
     [runInstant, runNow],
   );
 
+  // Research (CRAFTING.md §2b). A READOUT — researchRequestImpl re-checks all
+  // three gates under its own read.
+  const canResearch = holdsResearch && atCathedral && !hasMoved && researchOptions.length > 0;
+  const researchHint = !holdsResearch
+    ? null // Never shown: nobody without the tag ever asks why the verb is
+      // missing, because the row it hangs off isn't on their sheet.
+    : !atCathedral
+      ? "Go to the Cathedral."
+      : hasMoved
+        ? "Your Move is already used."
+        : researchOptions.length === 0
+          ? "You're carrying nothing worth studying."
+          : null;
+
   // What the grid needs to grey a button out — this character's sheet only.
   const pools = useMemo(
     () => ({
@@ -345,6 +370,14 @@ export default function RequestActionsProvider({
       canDestroy: removable.length > 0,
       canConsume: consumable.length > 0,
       canHeal,
+      // Research's two, composed here rather than at either call site so the
+      // sheet row and the place card can never disagree. `canResearch` is
+      // every gate open at once; `researchHint` names the first one that
+      // isn't, in the order a player would fix them — get to the Cathedral,
+      // free up the Move, then find something worth studying. Both are null/
+      // false for anyone without the tag, who is never shown either.
+      canResearch,
+      researchHint,
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
@@ -388,6 +421,8 @@ export default function RequestActionsProvider({
       removable,
       consumable,
       canHeal,
+      canResearch,
+      researchHint,
       examineBlocked,
       extractBlocked,
       teachers,

@@ -7,6 +7,9 @@ import { buildCards, matchesQuery, nextRung, rowValue } from "@/lib/sheetCards";
 import { thingVerbSets, thingVerbs } from "@/app/(app)/play/thingRows";
 import { consumeTagRequest } from "@/app/(app)/character/requestActions";
 import { toggleEquip } from "@/app/(app)/character/equipActions";
+// A leaf CommonJS module — constants and pure functions, no prisma require —
+// so naming it here does not drag the @lifeweb/db barrel into the bundle.
+import { RESEARCH_TAG_SLUG } from "@lifeweb/db/lib/research";
 import ChipText from "./ChipText";
 import FormError from "./FormError";
 import IdentityDialog from "./IdentityDialog";
@@ -45,6 +48,13 @@ export default function TagRail({
   const actions = useRequestActions();
   const open = actions?.open ?? null;
   const pools = actions?.pools ?? {};
+  // Research (CRAFTING.md §2b): the provider composes both off the three
+  // facts the page hands it. `canResearch` is "every gate is open", so the
+  // verb only renders when it can actually fire; `researchHint` is the
+  // reason it can't, and rides the row's own note line instead — this
+  // surface has no tooltips (SHEET.md).
+  const canResearch = pools.canResearch ?? false;
+  const researchHint = pools.researchHint ?? null;
 
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState(null);
@@ -77,7 +87,12 @@ export default function TagRail({
 
   function verbsFor(ct) {
     if (!isSelf) return null;
-    const v = { ...thingVerbs(ct, verbSets), equipped: Boolean(ct.equipped), healable: Boolean(ct.tag.healable) };
+    const v = {
+      ...thingVerbs(ct, verbSets),
+      equipped: Boolean(ct.equipped),
+      healable: Boolean(ct.tag.healable),
+      researchable: ct.tag.slug === RESEARCH_TAG_SLUG && canResearch,
+    };
     const isPotion = v.consumable && ct.tag.id === identity?.tagId;
     return (
       <RowVerbs
@@ -88,6 +103,7 @@ export default function TagRail({
         onGive={open ? () => open("transfer", ct.tag.id) : null}
         onDestroy={open ? () => open("destroy", ct.tag.id) : null}
         onHeal={pools.canHeal && open && selfId ? () => open("heal", ct.tag.id, { patientId: selfId }) : null}
+        onResearch={open ? () => open("research") : null}
       />
     );
   }
@@ -108,6 +124,17 @@ export default function TagRail({
         {cure ? `cure ${cure}` : ""}
       </>
     );
+  }
+
+  // A row's second line. Health says what it turns into and what a cure
+  // costs; the Research row says why the verb is missing when a gate is shut,
+  // since this surface has no tooltips; a skill says what the next rung up
+  // would cost.
+  function noteFor(ct, card, rung) {
+    if (card.key === "Health") return healthNote(ct);
+    if (isSelf && ct.tag.slug === RESEARCH_TAG_SLUG && !canResearch) return researchHint;
+    if (rung) return `next: ${rung.name} · ${rung.pointCost > 0 ? "+" : ""}${rung.pointCost} pts ‡`;
+    return null;
   }
 
   const pointsControl =
@@ -196,8 +223,12 @@ export default function TagRail({
                         key={id}
                         ct={ct}
                         value={rowValue(ct, currentTurn)}
-                        note={card.key === "Health" ? healthNote(ct) : rung ? `next: ${rung.name} · ${rung.pointCost > 0 ? "+" : ""}${rung.pointCost} pts ‡` : null}
-                        verbs={card.key === "Items" || card.key === "Assets" || card.key === "Health" ? verbsFor(ct) : null}
+                        note={noteFor(ct, card, rung)}
+                        verbs={
+                          card.key === "Items" || card.key === "Assets" || card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG
+                            ? verbsFor(ct)
+                            : null
+                        }
                         open={openId === id}
                         onToggle={() => setOpenId((was) => (was === id ? null : id))}
                         currentTurn={currentTurn}
