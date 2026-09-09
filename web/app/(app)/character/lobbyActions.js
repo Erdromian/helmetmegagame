@@ -20,7 +20,7 @@ async function lobbyGate() {
 
   const [state, config, member, alive] = await Promise.all([
     readGameState(prisma, { phase: true }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { leaderWhitelistEnabled: true, playtestModeEnabled: true } }),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playtestModeEnabled: true } }),
     // Always fresh: a gate must not refuse on a five-minute-old roles list.
     getGuildMember(discordUserId, 0),
     prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, select: { id: true } }),
@@ -40,8 +40,7 @@ async function lobbyGate() {
   }
   if (alive) return { error: "You already have a character. ‡" };
 
-  const whitelisted =
-    superadmin || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
+  const whitelisted = superadmin || isLeaderWhitelisted(member);
   return { discordUserId, whitelisted };
 }
 

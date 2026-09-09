@@ -177,16 +177,6 @@ export async function setPortraitAvatar(rawSelection) {
   });
   if (!character) redirect("/character");
 
-  // Both switches re-read here rather than trusted from the props the modal
-  // rendered against: the button not existing is presentation, this is the
-  // lock. Same posture as the avatarUploadsEnabled gate above.
-  const gameConfig = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { portraitMakerEnabled: true, portraitFantasyPartsEnabled: true },
-  });
-  if (!gameConfig?.portraitMakerEnabled) {
-    return { ok: false, error: "The portrait maker is closed right now." };
-  }
   // The face is fixed while a forced identity is held (Tag.forcedName); the
   // button is hidden, and this is the lock.
   if (await loadForcedName(prisma, character.id)) {
@@ -195,9 +185,7 @@ export async function setPortraitAvatar(rawSelection) {
 
   // Anything invalid, out of range, or fantasy-while-gated silently becomes
   // the default for that slot, so this cannot throw on a malformed post.
-  const selection = normalizeSelection(rawSelection, {
-    allowFantasy: gameConfig.portraitFantasyPartsEnabled,
-  });
+  const selection = normalizeSelection(rawSelection, { allowFantasy: false });
 
   const avatarData = await renderPortrait(selection);
 

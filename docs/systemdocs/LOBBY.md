@@ -130,7 +130,7 @@ tgstation's `SSjob.divide_occupations`:
    or Migrant, both unlimited) or a walk back to the lobby (`roleSlug: null`).
 
 Eligibility: not spawn-only (`SPAWN_ONLY_ROLE_SLUGS`, `db/lib/roleCapacity.js`),
-whitelist honoured unless `leaderWhitelistEnabled` is off, and a seat with room
+whitelist always honoured, and a seat with room
 — capacity from `roleCapacity()` at the stamped player count minus what
 `heldSeatsByRole` (`db/lib/seatCount.js`) already counts.
 

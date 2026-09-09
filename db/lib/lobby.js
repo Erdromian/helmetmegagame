@@ -60,7 +60,7 @@ async function loadAssignmentInput(db, memberRoles) {
     roles: roles.map((r) => ({ ...r, spawnOnly: isSpawnOnly(r) })),
     taken,
     playerCount,
-    leaderWhitelistEnabled: config.leaderWhitelistEnabled !== false,
+    leaderWhitelistEnabled: true,
   };
 }
 

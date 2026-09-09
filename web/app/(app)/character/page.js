@@ -152,11 +152,7 @@ async function loadCreationData(discordUserId) {
     // no reason to announce itself.
     masked: playtestMode && !approved,
   };
-  // `=== false`, not falsy: no config row means the gate stays enforced.
-  const leaderWhitelisted =
-    superadmin ||
-    config?.leaderWhitelistEnabled === false ||
-    isLeaderWhitelisted(member);
+  const leaderWhitelisted = superadmin || isLeaderWhitelisted(member);
   const playerCount = effectivePlayerCount(config, state);
 
   return {
@@ -443,8 +439,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       select: {
         avatarUploadsEnabled: true,
         playPanelEnabled: true,
-        portraitMakerEnabled: true,
-        portraitFantasyPartsEnabled: true,
         desireSlots: true,
         desireSlotLockTurns: true,
         maxDrawbackTags: true,
@@ -1192,11 +1186,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       ...letters,
       avatarUploadsEnabled: gameConfig?.avatarUploadsEnabled ?? false,
       playPanelEnabled: gameConfig?.playPanelEnabled ?? true,
-      portraitMakerEnabled: gameConfig?.portraitMakerEnabled ?? false,
-      portraitFantasyPartsEnabled: gameConfig?.portraitFantasyPartsEnabled ?? false,
+      portraitMakerEnabled: true,
+      portraitFantasyPartsEnabled: false,
       // Re-validated here: a stored index can outlive a catalog change.
       portraitSelection: parseSelection(character.portrait, {
-      allowFantasy: gameConfig?.portraitFantasyPartsEnabled ?? false,
+      allowFantasy: false,
       }),
       hasCustomAvatar: Boolean(character.avatarMimeType),
       healTargets: healTargets,

@@ -504,12 +504,9 @@ reservation is explained once in `#info`, not repeated on every card.
 Same shape as every other gate here: the disabled card is presentation, and
 `createCharacter` re-checks before it writes. Superadmins bypass.
 
-The requirement can also be turned off for the whole game:
-`GameConfig.leaderWhitelistEnabled` is a Dev Panel switch, **on** by default.
-Off, every player may take a Leader seat and the Discord role stops mattering —
-both the card and `createCharacter` read the same flag, so a hand-posted request
-gets in too. It is on by default because the gate fails closed; a missing config
-row still enforces it.
+The requirement is **not** switchable. `GameConfig.leaderWhitelistEnabled` was
+a Dev Panel switch; it is an orphan column now, and the gate is simply always
+on.
 
 ### The starting package
 

@@ -55,8 +55,8 @@
 #
 # `whitelist: true` is a SEPARATE thing, and used to be the same thing: who
 # may claim this seat at all. Picking a whitelisted role needs the @Leader
-# Whitelist Discord role (db/lib/roleIds.js), unless a GM has switched
-# GameConfig.leaderWhitelistEnabled off on /gm/dev. It rode on `leader:` until
+# Whitelist Discord role (db/lib/roleIds.js), always — that used to be a Dev
+# Panel switch and is now simply the rule. It rode on `leader:` until
 # the two were split, which conflated a hosting decision with a faction
 # mechanic — the Baron HAS to lead the Court whether or not his seat is gated,
 # and the Hand and the Arbiter are gated without leading anything. Every

@@ -283,7 +283,9 @@ the `merchant` role calls `setMerchantFace` with that character's own name
 (`web/app/(app)/character/createActions.js`, in the best-effort side-effect
 block; the writer is in `db/lib/depotState.js`). It used to be a GM-only field,
 which meant a new Merchant met a gun he was forbidden to arm and had to go and
-ask somebody to type his name into a form. `/gm/dev` is still the override.
+ask somebody to type his name into a form. There is no field for it on
+`/gm/dev` any more either — the face is the Merchant's, written at creation,
+and nothing else sets it.
 
 It is set **once and never resynced**, because a face does not change when the
 papers do. Two consequences worth knowing, both deliberate:

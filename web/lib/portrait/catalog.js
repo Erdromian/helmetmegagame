@@ -133,7 +133,7 @@ export const LAYERS = [
 
 // Groups — what the player picks. A group can drive two layers at once
 // (hairstyle = HairFront + HairBack at the same index). `fantasy` indices
-// only appear when GameConfig.portraitFantasyPartsEnabled is on.
+// indices are never shown: `allowFantasy` is hardcoded false at every caller.
 export const GROUPS = [
   { key: "face", label: "Face", count: 26, optional: false },
   { key: "eyes", label: "Eyes", count: 26, optional: false },

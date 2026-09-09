@@ -882,18 +882,6 @@ export default async function DevPanelPage({ searchParams }) {
                     label="Fuel in the tank"
                     value={depot.generatorFuel}
                   />
-                  <div className="field">
-                    <label htmlFor="depot-merchantFace" className="field-label">
-                      Face the turret spares
-                    </label>
-                    <input
-                      type="text"
-                      id="depot-merchantFace"
-                      name="merchantFace"
-                      defaultValue={depot.merchantFace}
-                      placeholder="The Merchant's name"
-                    />
-                  </div>
                 </div>
 
                 <div className="ops-toggles">

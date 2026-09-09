@@ -22,12 +22,12 @@ from before the last rename or portrait change.
 
 | Control | Shown when |
 |---|---|
-| **Customize Appearance** | `GameConfig.portraitMakerEnabled` |
+| **Customize Appearance** | always |
 | **Browse** (upload your own) | `GameConfig.avatarUploadsEnabled` |
 | **Reset to Default** | the character has a picture of either kind |
 
-They are independent. Both switches off means the field reads "Using your
-letter plaque", exactly as it did before this existed.
+They are independent. With uploads off and no picture on file, the field
+reads "Using your letter plaque", exactly as it did before this existed.
 
 **Browse carries a hover note reading "Requires GM approval, run your art by
 the GM."** That approval is a conversation, not a queue: the upload lands
@@ -261,20 +261,18 @@ default, so a malformed post degrades rather than throwing. It also runs on
 `Character.portrait` stores the selection as JSON so reopening the modal
 resumes where the player left off. It is not the picture; `avatarData` is.
 
-## 5. The two switches
+## 5. No switches
 
-Both on `GameConfig`, both off by default, both re-checked inside
-`setPortraitAvatar` rather than trusted from the props the modal rendered
-against — the button not existing is presentation, the action is the lock.
-
-- **`portraitMakerEnabled`** — whether the feature exists for players at all.
-- **`portraitFantasyPartsEnabled`** — whether the catalog's `fantasy` options
-  appear: pointed ears, horns, antlers, and the plum/blue/teal hair and
-  violet/crimson eye ramps.
+There were two, `portraitMakerEnabled` and `portraitFantasyPartsEnabled`, and
+neither is a knob any more. The maker is **always open**, and the catalog's
+`fantasy` options — pointed ears, horns, antlers, and the plum/blue/teal hair
+and violet/crimson eye ramps — are **always hidden**. The columns still exist
+on `GameConfig` so nothing drops a value, but nothing reads them; the answers
+are hardcoded at the call sites (`allowFantasy: false`).
 
 Ravenheart is low fantasy and human-only, so those parts are **hidden rather
-than deleted**. A GM running something stranger flips one switch and they come
-back, and nobody has to re-cut a sprite sheet. Everything else in the artist's
+than deleted** — a code change brings them back, and nobody has to re-cut a
+sprite sheet. Everything else in the artist's
 set is a human face and stays available: the ears at index 0-8, every jaw,
 nose, mouth, brow and beard, the glasses, monocles, eyepatches and piercings,
 and the freckles, scars, moles and warpaint under **Marks**.

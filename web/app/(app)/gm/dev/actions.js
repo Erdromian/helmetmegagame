@@ -119,7 +119,6 @@ export async function updateDepot(formData) {
       // that was there before — otherwise raising both at once silently loses
       // the fuel.
       generatorFuel: Math.max(0, Math.min(fuelMax, intOrZero(formData, "generatorFuel"))),
-      merchantFace: str(formData, "merchantFace"),
       generatorOn: formData.get("generatorOn") === "on",
       turretArmed: formData.get("turretArmed") === "on",
 

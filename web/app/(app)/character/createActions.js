@@ -191,10 +191,9 @@ export async function createCharacter(formData) {
       : { error: "That role isn't open to anyone." };
   }
 
-  // Split so each rejection gets its own message. `=== false` rather than
-  // falsy: no config row leaves the whitelist enforced.
-  const leaderWhitelisted =
-    bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
+  // Split so each rejection gets its own message. The whitelist is always
+  // enforced — it stopped being a switch.
+  const leaderWhitelisted = bypass || isLeaderWhitelisted(member);
   if (!assignedEntry && role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }
@@ -630,8 +629,7 @@ export async function reserveRoleAction(roleId) {
   if (isSpawnOnly(role)) {
     return { error: "That role isn't open to anyone." };
   }
-  const leaderWhitelisted =
-    bypass || config?.leaderWhitelistEnabled === false || isLeaderWhitelisted(member);
+  const leaderWhitelisted = bypass || isLeaderWhitelisted(member);
   if (role.requiresWhitelist && !leaderWhitelisted) {
     return { error: "That role isn't available to you." };
   }

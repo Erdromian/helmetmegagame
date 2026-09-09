@@ -739,7 +739,7 @@ db:collapse-games`, off a command line and behind a dry run.
 ## The Depot section
 
 `/gm/dev?s=depot`. The Merchant's station, split into live state you can
-override (account, debt, fuel, the face the turret spares, the two switches)
+override (account, debt, fuel, the two switches)
 and the tuning the game runs on (tank size, burn rate, fuel values, shuttle
 clock and cooldown, credit cap). There is no ⬢-per-obol field: an obol is one
 ⬢ and the rate is gone (`DEPOT.md` §0).

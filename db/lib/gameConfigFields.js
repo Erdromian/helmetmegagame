@@ -50,10 +50,6 @@ const FIELDS = [
     label: "Creation window (hours)",
   },
   {
-    key: "leaderWhitelistEnabled", type: "bool", group: "creation", default: true,
-    label: "Require the whitelist for gated roles",
-  },
-  {
     key: "playtestModeEnabled", type: "bool", group: "creation", default: false,
     label: "Playtest",
     info: "Only GMs, playtesters, and contributors can join",
@@ -129,14 +125,6 @@ const FIELDS = [
     label: "Player avatar uploads",
   },
   {
-    key: "portraitMakerEnabled", type: "bool", group: "features", default: true,
-    label: "Portrait maker",
-  },
-  {
-    key: "portraitFantasyPartsEnabled", type: "bool", group: "features", default: false,
-    label: "Portrait fantasy parts",
-  },
-  {
     key: "archiveTravelEvents", type: "bool", group: "features", default: false,
     label: "Archive travel events",
   },
@@ -177,6 +165,13 @@ const INTERNAL_KEYS = [
   // Retired 2026-09-13: the per-slot rules in db/lib/equipSlots.js are the
   // whole equipment limit. The column stays, unread, so nothing drops a value.
   "equipSlots",
+  // Retired as knobs 2026-09-09. All three are rules of the game now, not
+  // preferences: the whitelist always gates a gated role, the portrait maker
+  // is always open, and the fantasy parts are always off. The code hardcodes
+  // each answer; the columns stay so nothing drops a value.
+  "leaderWhitelistEnabled",
+  "portraitMakerEnabled",
+  "portraitFantasyPartsEnabled",
 ];
 
 function fieldsInGroup(groupKey) {
