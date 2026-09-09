@@ -1104,7 +1104,7 @@ export default function Feed({
   // legal and correct. The refusal is the bot's word for word, so a player
   // hears one rule on both faces.
   const withinWindow = (sentAt) => Date.now() - new Date(sentAt ?? 0).getTime() < EDIT_WINDOW_MS;
-  const TOO_LATE = "That was said more than five minutes ago and stands. ‡";
+  const TOO_LATE = "You can't edit that any more.";
 
   const onEdit = useCallback((seq, sentAt) => {
     if (!withinWindow(sentAt)) {

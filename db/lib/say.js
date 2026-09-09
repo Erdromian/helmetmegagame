@@ -312,7 +312,7 @@ function pastWindow(row) {
   return Date.now() - new Date(row.sentAt).getTime() > EDIT_WINDOW_MS;
 }
 
-const WINDOW_REFUSAL = "That was said more than five minutes ago and stands. ‡";
+const WINDOW_REFUSAL = "You can't edit that any more.";
 const GONE_REFUSAL = "That message is gone.";
 const NOT_YOURS_REFUSAL = "That isn't yours to change. ‡";
 
