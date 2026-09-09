@@ -382,10 +382,9 @@ first thing on the line and the eye can skip what it does not need.
 » *Customs.*
 **Hunting**: × | **Farming**: × | **Fishing**: ×
 **Indoors**: you can't equip a cart or horse here.
+**Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place. ‡
 **Noticeboard**: you can pin paper here. ‡
-**Generator**: 5 days of coal left. ‡
-**Shuttle**: it's here. ‡
-**Approach**: the way stands open. ‡
+**Approach**: the way stands open. Worked from the watchtower. ‡
 ```
 
 The second part is `db/lib/locationAttributes.js` reading

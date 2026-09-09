@@ -186,9 +186,10 @@ async function rollCaving(prisma, character, turn, location) {
 // `location` needs { id, attributes, zone: { id, slug, kind } }.
 async function rollCavingOnArrival(prisma, character, location) {
   if (location?.zone?.kind !== "CAVE_LEVEL") return null;
-  // Customs is the cave mouth with a sentry, a floodlight and a shop in it.
-  // Nothing stalks a place that busy, and the attribute says so rather than
-  // this file naming the slug — see db/lib/locationAttributes.js.
+  // Customs and the Depot are the cave mouth: a sentry, a floodlight and a
+  // shop between them. Nothing stalks a place that busy, and the attribute
+  // says so rather than this file naming either slug — see
+  // db/lib/locationAttributes.js.
   if (hasAttribute(location, SAFE_ATTRIBUTE)) return null;
 
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" } });

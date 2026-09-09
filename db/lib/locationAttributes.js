@@ -64,10 +64,11 @@ const ATTRIBUTES = {
   },
 
   // Underground, and nothing in the dark wants you. The Caving Die skips a
-  // Location wearing this (db/lib/cavingPass.js), which is what makes Customs
-  // — a cave mouth with a sentry, a floodlight and a shop in it — the one
-  // place down there you can stand without rolling. Says so out loud, because
-  // a player choosing where to camp should be able to read the answer.
+  // Location wearing this (db/lib/cavingPass.js), which is what makes the cave
+  // mouth — Customs and the Depot one hop east of it, between them a sentry, a
+  // floodlight and a shop — the only ground down there you can stand on
+  // without rolling. Says so out loud, because a player choosing where to camp
+  // should be able to read the answer.
   safe: {
     describe: () => "**Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place. ‡",
   },

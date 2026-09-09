@@ -1800,7 +1800,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Scripted: starts with 20 obols; three DEBTOR notices go up at Customs on
+  # Scripted: starts with 20 obols; three DEBTOR notices go up at the Depot on
   # arrival, db/lib/wantedPoster.js.
   debtor:
     catalog: all
@@ -8924,7 +8924,7 @@ tags:
   #     what makes it worth importing.
 
   # Comforts. Cheap, harmless, and the reason ordinary people have any reason
-  # at all to walk down to Customs.
+  # at all to walk down to the Depot.
   cigarette:
     catalog: gm
     name: Cigarette

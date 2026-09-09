@@ -1794,34 +1794,26 @@ zones:
         description: >-
           Wet, dimly-lit caves. The main paths have been smoothed down by centuries of traffic, but side paths and natural holes descend into darkness.
         locations:
-          # The mouth of the caves: the sentry post and the merchant's berth are
-          # one place. They used to be two Locations with no edge between them,
-          # so a migrant who cleared customs could not then walk to the shop.
+          # The sentry post at the cave mouth. The merchant's berth next door is
+          # its own Location again (`depot`, below) — they were merged because
+          # the two used to stand with NO edge between them, so a migrant who
+          # cleared customs could not then walk to the shop. The plain
+          # customs ↔ depot pair in `connections:` is what keeps that from
+          # coming back; do not remove it while these are two places.
           customs:
             name: Customs
             indoors: true
             attributes:
-              depot: true
               noticeboard: true
               safe: true
             description: >-
-              Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. Steel grate bridges a cave stream, leading to the merchant's neon-lit, concrete depot. It's all illuminated by a pair of floodlights, connected by a suspended cable.
+              Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. It's all illuminated by a pair of floodlights, connected by a suspended cable.
             rooms:
               customs-yard:
                 name: Customs
                 description: >-
                   Migrants set up tents here, awaiting someone to create their necessary paperwork.
                 stash: [skinned-cave-rat]
-              customs-storefront:
-                name: Storefront
-                description: >-
-                  An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the shuttle landing pad.
-                stash: [tea, sweets]
-              customs-landing-pad:
-                name: Landing Pad
-                live: shuttle
-                description: >-
-                  A grated steel bay. The roof automatically opens and closes.
               customs-watchtower:
                 name: Watchtower
                 access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
@@ -1832,7 +1824,32 @@ zones:
                     paper: 8
                     shortbow: 1
                     spear: 1
-              customs-merchants-office:
+          # The merchant's berth, over the cave-river from the sentry post. A
+          # built place, so a bare slug and a bare name (there is one Depot).
+          # `safe:` is not decoration here: without it this is a CAVE_LEVEL
+          # arrival like any other and the Caving Die would roll on every
+          # single shop trip.
+          depot:
+            name: Depot
+            indoors: true
+            attributes:
+              depot: true
+              noticeboard: true
+              safe: true
+            description: >-
+              Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
+            rooms:
+              depot-storefront:
+                name: Storefront
+                description: >-
+                  An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the shuttle landing pad.
+                stash: [tea, sweets]
+              depot-landing-pad:
+                name: Landing Pad
+                live: shuttle
+                description: >-
+                  A grated steel bay. The roof automatically opens and closes.
+              depot-merchants-office:
                 name: Merchant's Office
                 access: [merchants-license]
                 description: >-
@@ -1842,7 +1859,7 @@ zones:
                     paper: 32
               # The lock moved off the Landing Pad and onto here: the pad is
               # just a hole in the roof, but the goods are worth a door.
-              customs-cargo-bay:
+              depot-cargo-bay:
                 name: Cargo Bay
                 access: [depot-keycard]
                 description: >-
@@ -2270,9 +2287,17 @@ connections:
   - [caves/caves-approach, caves/caves-abandoned-camp]
   - [caves/caves-walkways, caves/caves-brooding-grounds]
   - [caves/caves-brooding-grounds, caves/caves-abandoned-camp]
+  # Over the cave-river, from the sentry post to the shop. A plain pair on
+  # purpose: same zone, so it is free on the location-move cooldown, and both
+  # ends are `indoors`, which already parks a mount at the door — `on_foot`
+  # would refuse the crossing instead of stabling the horse. This edge is the
+  # whole reason these two can be separate Locations; the last time they were,
+  # it was missing, and a migrant who cleared customs could not walk to the
+  # shop.
+  - [caves/customs, caves/depot]
   # The mushroom forest's own way into the cargo bay, which is how the
   # merchant's crates get in without passing the sentry at the gate.
-  - pair: [caves/customs, caves/caves-brooding-grounds]
+  - pair: [caves/depot, caves/caves-brooding-grounds]
     hidden: caving
     on_foot: true
 

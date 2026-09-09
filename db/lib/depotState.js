@@ -28,12 +28,14 @@ const OBOL_SLUG = "obol";
 // The room the shuttle lands in. Room access is handled entirely by
 // Room.accessTagSlugs and the channel doctor — there is no bespoke access code
 // anywhere in this feature, and the pad currently carries no access list at
-// all. The `customs-` stem is not decoration: when Customs and the Depot
-// merged into one Location every room took the Location's short name as a
-// prefix, and this constant kept the old bare slug for a while, which made
-// every shuttle action report a missing room as "a GM needs to run the zone
+// all. The `depot-` stem is not decoration: a room's id is always
+// `<location-stem>-<room>` (docs/zones.yaml), so the pad's slug follows
+// whichever Location the pad sits in. It has been wrong twice — once as a bare
+// `landing-pad`, and once as `customs-landing-pad`, left behind when the Depot
+// split back out of Customs into a Location of its own — and both times every
+// shuttle action reported a missing room as "a GM needs to run the zone
 // sync".
-const LANDING_PAD_SLUG = "customs-landing-pad";
+const LANDING_PAD_SLUG = "depot-landing-pad";
 
 // Nothing at the Depot works with the generator off: no ordering, no shuttle,
 // no ATM, no turret. One predicate so the web actions, the turn passes and the

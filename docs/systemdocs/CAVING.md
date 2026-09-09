@@ -85,13 +85,14 @@ Three callers:
   had dropped underground, and without this a staged relocation into the Depths
   would roll nothing at all until the character walked.
 
-### 2a. Customs is safe
+### 2a. The cave mouth is safe
 
 `Location.attributes.safe` (`db/lib/locationAttributes.js`) exempts a Location
-from the Die, and **Customs is the only place that wears it**. It is a cave
-mouth with a sentry, a floodlight, a campfire and a shop in it; nothing stalks a
-place that busy. It is also where every migrant lands, and rolling a 1 on
-somebody's first step into the game was the worst first impression the map had.
+from the Die, and **Customs and the Depot are the only two places that wear
+it**. Between them they are the cave mouth: a sentry, a floodlight, a campfire
+and, one plain hop east, a shop. Nothing stalks a place that busy. Customs is
+also where every migrant lands, and rolling a 1 on somebody's first step into
+the game was the worst first impression the map had.
 
 It is an attribute rather than a slug comparison in `cavingPass.js` for the
 reason `MAP.md` §1b gives: a system that owns a place should ask what is true

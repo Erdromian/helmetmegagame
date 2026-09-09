@@ -77,8 +77,8 @@ list of the built things that were always standing there (the Square's cross),
 seeded as `COMPLETE` `Structure` rows by the zone sync (`SYNC.md` §2):
 
 ```yaml
-customs:
-  name: Customs
+depot:
+  name: Depot
   attributes:
     depot: true
 ```
@@ -393,7 +393,7 @@ extra free hop the instant they can act again.
 **The Caving Die rolls on arrival** for the mover and everyone in their
 party, on any `CAVE_LEVEL` destination — and arrival is now the *only*
 time it rolls, so walking is what wakes the dark. A Location wearing the
-`safe` attribute is exempt; Customs is the only one (`CAVING.md` §2).
+`safe` attribute is exempt; Customs and the Depot are the two (`CAVING.md` §2).
 
 `performLocationMove` returns `{ ok, oldLocation, oldZone, targetLocation,
 targetZone, crossedZone, spentTurn, usedHorse, moved: [{ character,

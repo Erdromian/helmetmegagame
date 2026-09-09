@@ -40,6 +40,12 @@
       "x": 616,
       "y": 1287
     },
+    "depot": {
+      "name": "Depot",
+      "zone": "caves",
+      "x": 700,
+      "y": 1287
+    },
     "depths-chasm": {
       "name": "Chasm",
       "zone": "depths",
