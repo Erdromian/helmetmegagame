@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A hood works on Discord again, and the Bio card stops taking it off you
+
+✎ A hood you chose to wear hides you on Discord again. Anything you typed on the website reached the channel under your own name and face, so the hood worked on the website and did nothing where people were reading it.  
+✎ Saving your Bio card no longer takes your hood off. It used to clear the setting whenever nothing concealing was worn at that moment, so tidying your appearance, or ticking Play from the web, quietly unmasked you until you noticed — and you could not set it again until the hood was back on.  
+✎ Looking back at something said under a disguise reads properly once the disguise has worn off. Every line said under one used to turn into an anonymous hooded stranger three turns later.  
+✚ The Dev Panel shows whether someone is playing from the web, and whether they are concealed. Neither was visible to a GM anywhere before, and the conceal line says when the setting is on but nothing is being worn, which is the state a player reports as their disguise not working.  
+✎ A message the bot cannot repost is taken down and handed back on one more path, where it used to be left in the channel under the player's real Discord name.
+
 ## 2026-09-09 · Speak is a slash command now, not a button
 
 − The 🔊 Speak button on the #turns console  
