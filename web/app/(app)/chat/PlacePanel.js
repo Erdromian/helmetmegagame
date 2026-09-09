@@ -89,8 +89,8 @@ export function usePlaceActions(initialAffordances, onChanged) {
       setNotice(null);
       if (entry.kind === "gate") {
         const ask = entry.isOpen
-          ? { title: "Shut the way?", message: `The way to ${entry.farName} closes.`, confirmLabel: "Shut it" }
-          : { title: "Open the way?", message: `The way to ${entry.farName} opens.`, confirmLabel: "Open it" };
+          ? { title: "Shut the way?", message: `The way to ${entry.farName} closes. ‡`, confirmLabel: "Shut it" }
+          : { title: "Open the way?", message: `The way to ${entry.farName} opens. ‡`, confirmLabel: "Open it" };
         // Confirm first, transition second — never inside startTransition
         // (DESIGN-SYSTEM.md §8).
         if (!(await confirm(ask))) return;
@@ -99,7 +99,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       }
       if (entry.kind === "keyed") {
         if (entry.held) {
-          setNotice(`The way to ${entry.farName} is already being held open.`);
+          setNotice(`The way to ${entry.farName} is already being held open. ‡`);
           return;
         }
         run(holdKeyed, entry.linkId, { onOk: say });
@@ -301,7 +301,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
       {!rooms && <p className="text-sm text-muted">Looking for a corner…</p>}
       {rooms && !rooms.ok && <FormError>{rooms.error}</FormError>}
       {rooms?.ok && rooms.rooms.length === 0 && (
-        <EmptyState>There&apos;s no room here to hold a conversation in.</EmptyState>
+        <EmptyState>There&apos;s no room here to hold a conversation in. ‡</EmptyState>
       )}
       {rooms?.ok && rooms.rooms.length > 0 && (
         <>
@@ -405,7 +405,7 @@ function BellDialog({ entry, onClose, onDone }) {
     <WordDialog
       title="Sound the bell"
       word="RING"
-      help="Heard for a long way around, loudest near the Cathedral. Nobody is pinged."
+      help="Heard for a long way around, loudest near the Cathedral. Nobody is pinged. ‡"
       onClose={onClose}
       pending={pending}
       error={error}
@@ -488,7 +488,7 @@ function IntercomDialog({ entry, onClose, onDone }) {
   return (
     <Modal open title="Intercom" onClose={onClose}>
       <p className="text-sm text-muted">
-        Heard in every zone that has a speaker, and everyone is pinged. Nobody is told who spoke.
+        Heard in every zone that has a speaker, and everyone is pinged. Nobody is told who spoke. ‡
       </p>
       <div className="field">
         <label className="field-label" htmlFor="chat-pa">

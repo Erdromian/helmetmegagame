@@ -269,13 +269,13 @@ export async function archiveCurrentGame() {
     if (!bucketConfigured()) {
       return {
         ok: false,
-        error: "This deployment has no bucket credentials, so it cannot upload a packet. Run `npm run archive:export -- --final` from a machine that has them.",
+        error: "This deployment has no bucket credentials, so it cannot upload a packet. Run `npm run archive:export -- --final` from a machine that has them. ‡",
       };
     }
 
     const state = await prisma.gameState.findUnique({ where: { id: 1 }, include: { game: true } });
     const game = state?.game;
-    if (!game) return { ok: false, error: "There is no current game to archive." };
+    if (!game) return { ok: false, error: "There is no current game to archive. ‡" };
 
     const tmp = path.join(os.tmpdir(), `bascinet-archive-${game.id}.jsonl.gz`);
     let manifest;
@@ -311,7 +311,7 @@ export async function archiveCurrentGame() {
     return { ok: true, entryCount: manifest.entryCount };
   } catch (err) {
     console.error("Archive export failed:", err);
-    return { ok: false, error: err.message ?? "Could not write the packet. Check the server logs." };
+    return { ok: false, error: err.message ?? "Could not write the packet. Check the server logs. ‡" };
   }
 }
 
@@ -353,7 +353,7 @@ export async function wipeGameData(formData) {
     if (keepArchive && oldGame && !oldGame.exportKey) {
       return {
         ok: false,
-        error: "This game has no archive packet yet. Press Archive this game first — nothing has been changed.",
+        error: "This game has no archive packet yet. Press Archive this game first — nothing has been changed. ‡",
       };
     }
 
@@ -906,7 +906,7 @@ export async function applyBulkAction(input) {
   const characterIds = (Array.isArray(input?.characterIds) ? input.characterIds : [])
     .map(String)
     .filter(Boolean);
-  if (characterIds.length === 0) return { ok: false, error: "Pick at least one character." };
+  if (characterIds.length === 0) return { ok: false, error: "Pick at least one character. ‡" };
 
   const characters = await prisma.character.findMany({
     where: { id: { in: characterIds }, status: "ALIVE" },
@@ -1039,9 +1039,9 @@ async function bulkMove(session, characters, input) {
 // a negative balance is not a state the rest of the game knows how to read.
 async function bulkResources(session, characters, input) {
   const amount = Number(input?.amount);
-  if (!Number.isInteger(amount)) return { ok: false, error: "Resources must be a whole number." };
+  if (!Number.isInteger(amount)) return { ok: false, error: "Resources must be a whole number. ‡" };
   const set = input?.mode === "set";
-  if (set && amount < 0) return { ok: false, error: "A total cannot be negative." };
+  if (set && amount < 0) return { ok: false, error: "A total cannot be negative. ‡" };
 
   const changes = characters.map((c) => ({
     ...c,
@@ -1071,7 +1071,7 @@ async function bulkResources(session, characters, input) {
   for (const c of changes) {
     if (c.to === c.resources) continue;
     const delta = c.to - c.resources;
-    notifyCharacter(c, `${delta > 0 ? "+" : ""}${delta} ⬢ — you now hold ${c.to} ⬢.`);
+    notifyCharacter(c, `${delta > 0 ? "+" : ""}${delta} ⬢ — you now hold ${c.to} ⬢. ‡`);
   }
 
   revalidatePath("/gm/dev");
@@ -1143,14 +1143,14 @@ async function bulkTag(session, characters, input) {
 
   for (const c of characters) {
     if (!touched.includes(c.id)) continue;
-    notifyCharacter(c, remove ? `You have lost ${tag.name}.` : `You have gained ${tag.name}.`);
+    notifyCharacter(c, remove ? `You have lost ${tag.name}. ‡` : `You have gained ${tag.name}. ‡`);
   }
 
   revalidatePath("/gm/dev");
   return {
     ok: failures.length === 0,
     applied: touched.length,
-    error: failures.length ? `${failures.length} failed — see System reports.` : undefined,
+    error: failures.length ? `${failures.length} failed — see System reports. ‡` : undefined,
   };
 }
 
@@ -1172,12 +1172,12 @@ export async function nudgeInactivePlayers(input) {
 
   const text = String(input?.text ?? "").trim();
   if (!text) return { ok: false, error: "Write the message first." };
-  if (text.length > NUDGE_MAX) return { ok: false, error: "That is too long for a nudge." };
+  if (text.length > NUDGE_MAX) return { ok: false, error: "That is too long for a nudge. ‡" };
 
   const characterIds = (Array.isArray(input?.characterIds) ? input.characterIds : [])
     .map(String)
     .filter(Boolean);
-  if (characterIds.length === 0) return { ok: false, error: "Pick at least one player." };
+  if (characterIds.length === 0) return { ok: false, error: "Pick at least one player. ‡" };
 
   // Re-derived from the module rather than trusted from the form: a server
   // action is a public endpoint, and this one can DM anybody otherwise.
@@ -1187,7 +1187,7 @@ export async function nudgeInactivePlayers(input) {
   );
 
   const targets = characterIds.map((id) => eligible.get(id)).filter((c) => c?.discordUserId);
-  if (targets.length === 0) return { ok: false, error: "None of those are on the inactive list." };
+  if (targets.length === 0) return { ok: false, error: "None of those are on the inactive list. ‡" };
 
   const sent = [];
   const failures = [];
@@ -1215,7 +1215,7 @@ export async function nudgeInactivePlayers(input) {
   return {
     ok: failures.length === 0,
     sent: sent.length,
-    error: failures.length ? `${failures.length} could not be reached.` : undefined,
+    error: failures.length ? `${failures.length} could not be reached. ‡` : undefined,
   };
 }
 
@@ -1243,7 +1243,7 @@ async function ambientTarget(kind, id) {
         select: { id: true, name: true, discordSummaryChannelId: true },
       });
       if (!zone) return { error: "No such zone." };
-      if (!zone.discordSummaryChannelId) return { error: "That zone has no #summary channel yet." };
+      if (!zone.discordSummaryChannelId) return { error: "That zone has no #summary channel yet. ‡" };
       return { channelId: zone.discordSummaryChannelId, name: `${zone.name} — #summary`, zoneId: zone.id };
     }
     case "location": {
@@ -1252,7 +1252,7 @@ async function ambientTarget(kind, id) {
         select: { id: true, name: true, discordChannelId: true, zoneId: true },
       });
       if (!location) return { error: "No such location." };
-      if (!location.discordChannelId) return { error: "That location has no channel yet." };
+      if (!location.discordChannelId) return { error: "That location has no channel yet. ‡" };
       return { channelId: location.discordChannelId, name: location.name, zoneId: location.zoneId };
     }
     case "room": {
@@ -1261,11 +1261,11 @@ async function ambientTarget(kind, id) {
         select: { id: true, name: true, discordThreadId: true, location: { select: { zoneId: true } } },
       });
       if (!room) return { error: "No such room." };
-      if (!room.discordThreadId) return { error: "That room has no thread yet." };
+      if (!room.discordThreadId) return { error: "That room has no thread yet. ‡" };
       return { channelId: room.discordThreadId, name: room.name, zoneId: room.location?.zoneId ?? null };
     }
     default:
-      return { error: "Pick somewhere to say it." };
+      return { error: "Pick somewhere to say it. ‡" };
   }
 }
 
@@ -1276,7 +1276,7 @@ export async function sendAmbientLine(input) {
   const targetId = String(input?.targetId ?? "");
   const text = String(input?.text ?? "").trim();
   if (!text) return { ok: false, error: "Write the line first." };
-  if (text.length > AMBIENT_MAX) return { ok: false, error: "That is too long for one line of scenery." };
+  if (text.length > AMBIENT_MAX) return { ok: false, error: "That is too long for one line of scenery. ‡" };
 
   const target = await ambientTarget(kind, targetId);
   if (target.error) return { ok: false, error: target.error };
@@ -1285,7 +1285,7 @@ export async function sendAmbientLine(input) {
   // speak into a zone they cannot see. No rows means every zone.
   const allowed = await visibleZoneIds(prisma, session.discordUserId);
   if (allowed && target.zoneId && !allowed.has(target.zoneId)) {
-    return { ok: false, error: "That is not one of the zones you are watching." };
+    return { ok: false, error: "That is not one of the zones you are watching. ‡" };
   }
 
   const content = ambientLine(text);
@@ -1293,7 +1293,7 @@ export async function sendAmbientLine(input) {
     await postMessage(target.channelId, content);
   } catch (err) {
     console.error("Ambient line failed:", err);
-    return { ok: false, error: "Discord refused it. Nothing was said." };
+    return { ok: false, error: "Discord refused it. Nothing was said. ‡" };
   }
 
   await prisma.auditLog.create({

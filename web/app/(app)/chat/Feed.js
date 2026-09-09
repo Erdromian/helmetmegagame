@@ -334,7 +334,7 @@ const MAX_SLOWMODE_RETRIES = 3;
 const MEMBERS_REFRESH_MS = 60_000;
 
 // What `/travel`'s picker says when the reachable places could not be read.
-const ROAD_ERROR = "Couldn't read the road. Try again.";
+const ROAD_ERROR = "Couldn't read the road. Try again. ‡";
 
 // The chips a command still wants: a person, a Move kind, or a destination.
 //
@@ -405,7 +405,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   if (arg.kind === "destination") {
     if (!destinations) return <p className="text-sm text-muted">Reading the road…</p>;
     if (destinations.error) return <p className="text-sm text-muted">{destinations.error}</p>;
-    if (destinations.length === 0) return <p className="text-sm text-muted">No way out of here.</p>;
+    if (destinations.length === 0) return <p className="text-sm text-muted">No way out of here. ‡</p>;
     return (
       <div className="chip-row" aria-label="Where to">
         {destinations.map((option) => (
@@ -442,7 +442,7 @@ function CommandArgs({ command, people, members, query = "", onPick }) {
   const shown = hits.slice(0, PERSON_CHIP_LIMIT);
   const more = hits.length - shown.length;
 
-  if (shown.length === 0) return <p className="text-sm text-muted">Nobody here by that name.</p>;
+  if (shown.length === 0) return <p className="text-sm text-muted">Nobody here by that name. ‡</p>;
 
   return (
     <div className="chip-row" aria-label="Who">
@@ -848,7 +848,7 @@ export default function Feed({
       })
       .catch(() => {
         if (!cancelled) {
-          setMembers({ placeKey, res: { ok: false, error: "Couldn't read who is in here." } });
+          setMembers({ placeKey, res: { ok: false, error: "Couldn't read who is in here. ‡" } });
         }
       });
     return () => {
@@ -1010,7 +1010,7 @@ export default function Feed({
       return;
     }
     if (textArg?.maxLength && body.length > textArg.maxLength) {
-      setCmdError(`That is ${body.length} characters, and the most is ${textArg.maxLength}.`);
+      setCmdError(`That is ${body.length} characters, and the most is ${textArg.maxLength}. ‡`);
       return;
     }
     const missing = pendingArg(entry, values);
@@ -1144,7 +1144,7 @@ export default function Feed({
         setError(TOO_LATE);
         return;
       }
-      if (!(await confirm({ title: "Take that back?", message: "It goes from here and from Discord.", confirmLabel: "Take it back" }))) {
+      if (!(await confirm({ title: "Take that back?", message: "It goes from here and from Discord. ‡", confirmLabel: "Take it back" }))) {
         return;
       }
       try {
@@ -1215,7 +1215,7 @@ export default function Feed({
         if (res?.ok) setCmdLine(res.line ?? "Saved to your Notes.");
         else setCmdError(res?.error ?? "That line is gone.");
       })
-      .catch(() => setCmdError("Could not reach the server. Nothing was changed."));
+      .catch(() => setCmdError("Could not reach the server. Nothing was changed. ‡"));
   }, [setCmdError]);
 
   // A GM taking a line down. Same route as Take back, with no character on
@@ -1226,7 +1226,7 @@ export default function Feed({
       if (
         !(await confirm({
           title: "Remove this line?",
-          message: "It goes from here and from Discord.",
+          message: "It goes from here and from Discord. ‡",
           confirmLabel: "Remove it",
         }))
       ) {
@@ -1693,7 +1693,7 @@ export default function Feed({
                   value={draft}
                   placeholder={
                     command
-                      ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it")
+                      ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it ‡")
                       : concealed && alias
                         ? `Say something as ${alias}…`
                         : `Say something in ${place.name}…`
@@ -1841,7 +1841,7 @@ export default function Feed({
                   on the page said Enter would send; and the count, but only
                   where a limit actually exists to run into — the refusal used
                   to be the first mention of one. */}
-              {!coarse && <span className="chat-composer-keys">Enter to send · Shift+Enter for a line</span>}
+              {!coarse && <span className="chat-composer-keys">Enter to send · Shift+Enter for a line ‡</span>}
               {command && textArgOf(command.entry)?.maxLength && (
                 <span
                   className="chat-composer-count mono"
@@ -1917,7 +1917,7 @@ export default function Feed({
                         if (res?.ok) refresh();
                         else setConcealError(res?.error ?? "Something went wrong.");
                       } catch {
-                        setConcealError("Could not reach the server. Nothing was changed.");
+                        setConcealError("Could not reach the server. Nothing was changed. ‡");
                       }
                     });
                   }}

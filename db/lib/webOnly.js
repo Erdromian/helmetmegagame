@@ -133,7 +133,7 @@ async function setWebOnly(prisma, character, on) {
     const clock = readyAt.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
     return {
       ok: false,
-      error: `You switched ${minutes} minutes ago. You can switch again at ${clock}.`,
+      error: `You switched ${minutes} minutes ago. You can switch again at ${clock}. ‡`,
       minutes,
       readyAt,
     };

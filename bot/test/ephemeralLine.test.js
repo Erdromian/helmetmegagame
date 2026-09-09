@@ -6,6 +6,10 @@ test("wraps a plain notice in the chevron and italics", () => {
   assert.equal(ephemeralLine("You're not here."), "» *You're not here.*");
 });
 
+test("lifts a trailing dagger outside the italics", () => {
+  assert.equal(ephemeralLine("Moves are locked. ‡"), "» *Moves are locked.* ‡");
+});
+
 test("is idempotent on a line that already carries the chevron", () => {
   assert.equal(ephemeralLine("» *GMs only.*"), "» *GMs only.*");
   assert.equal(ephemeralLine(ephemeralLine("Gone.")), "» *Gone.*");

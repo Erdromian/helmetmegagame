@@ -48,13 +48,13 @@ export default function DesiresBlock({ view }) {
     desireCatalogView()
       .then((res) => {
         setLoading(false);
-        if (!res?.ok) return setError(res?.error ?? "Could not load the Desires.");
+        if (!res?.ok) return setError(res?.error ?? "Could not load the Desires. ‡");
         setFull(res.view);
         setCatalogSlot(slotIndex);
       })
       .catch(() => {
         setLoading(false);
-        setError("Could not reach the server. Nothing was changed.");
+        setError("Could not reach the server. Nothing was changed. ‡");
       });
   }
 
@@ -83,7 +83,7 @@ export default function DesiresBlock({ view }) {
               <p className="chat-quiet-line">
                 <strong>Last:</strong> <RichText text={slot.lastEnded.text} /> — {slot.lastEnded.points} Tag Point
                 {slot.lastEnded.points === 1 ? "" : "s"}
-                {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""}
+                {cooldownLabel(slot.lastEnded.template) ? ` · ${cooldownLabel(slot.lastEnded.template)}` : ""} ‡
               </p>
             )}
             {slot.lockedUntilTurn != null ? (
@@ -137,7 +137,7 @@ export default function DesiresBlock({ view }) {
       >
         <p className="text-sm">
           <RichText text={claiming?.entry?.name} /> — {claiming?.entry?.tier} Tag Point
-          {claiming?.entry?.tier === 1 ? "" : "s"}, into slot {(claiming?.slotIndex ?? 0) + 1}
+          {claiming?.entry?.tier === 1 ? "" : "s"}, into slot {(claiming?.slotIndex ?? 0) + 1} ‡
         </p>
       </RequestDialog>
     </div>

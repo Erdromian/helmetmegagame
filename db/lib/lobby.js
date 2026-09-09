@@ -84,7 +84,7 @@ async function buildDraft(db, memberRoles, { seed = newSeed() } = {}) {
 // of problems; empty means Start may commit.
 async function validateDraft(db, draft) {
   const problems = [];
-  if (!draft?.rows) return ["There is no preview to commit."];
+  if (!draft?.rows) return ["There is no preview to commit. ‡"];
   const [ready, roles] = await Promise.all([
     db.lobbyEntry.findMany({ where: { status: "READY" }, select: { discordUserId: true } }),
     db.role.findMany({ select: { id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true } }),
@@ -93,11 +93,11 @@ async function validateDraft(db, draft) {
   const bySlug = new Map(roles.map((r) => [r.slug, r]));
   const drafted = new Set(draft.rows.map((r) => r.discordUserId));
 
-  for (const id of readySet) if (!drafted.has(id)) problems.push("Somebody readied up after the preview.");
+  for (const id of readySet) if (!drafted.has(id)) problems.push("Somebody readied up after the preview. ‡");
   for (const row of draft.rows) {
-    if (!readySet.has(row.discordUserId)) problems.push("Somebody in the preview is no longer ready.");
-    if (row.roleSlug && !bySlug.has(row.roleSlug)) problems.push(`${row.roleSlug} is no longer a role.`);
-    if (row.roleSlug && isSpawnOnly(bySlug.get(row.roleSlug))) problems.push(`${bySlug.get(row.roleSlug).name} can only be spawned, never assigned.`);
+    if (!readySet.has(row.discordUserId)) problems.push("Somebody in the preview is no longer ready. ‡");
+    if (row.roleSlug && !bySlug.has(row.roleSlug)) problems.push(`${row.roleSlug} is no longer a role. ‡`);
+    if (row.roleSlug && isSpawnOnly(bySlug.get(row.roleSlug))) problems.push(`${bySlug.get(row.roleSlug).name} can only be spawned, never assigned. ‡`);
   }
 
   // buildDraft always stamps playerCount; the empty draft has no rows to check.
@@ -109,7 +109,7 @@ async function validateDraft(db, draft) {
   for (const role of wantedRoles) {
     const count = wanted.get(role.slug);
     if ((heldById.get(role.id) ?? 0) + count > roleCapacity(role, playerCount)) {
-      problems.push(`${role.name} no longer has room for ${count}.`);
+      problems.push(`${role.name} no longer has room for ${count}. ‡`);
     }
   }
   return [...new Set(problems)];
@@ -222,16 +222,16 @@ function assignmentMessage({ roleName, factionName, zoneName, expiresAt }, origi
 }
 
 function returnedMessage(origin) {
-  return `No seat matched what you asked for. The game has started and late join is open at ${origin}/character.`;
+  return `No seat matched what you asked for. The game has started and late join is open at ${origin}/character. ‡`;
 }
 
 function reminderMessage({ roleName, expiresAt }, origin) {
   const t = epoch(expiresAt);
-  return `Your seat as ${roleName} is still waiting at ${origin}/character. It opens to anyone <t:${t}:R>, at <t:${t}:F>.`;
+  return `Your seat as ${roleName} is still waiting at ${origin}/character. It opens to anyone <t:${t}:R>, at <t:${t}:F>. ‡`;
 }
 
 function expiredMessage({ roleName }, origin) {
-  return `Your seat as ${roleName} has been released. Late join is open at ${origin}/character.`;
+  return `Your seat as ${roleName} has been released. Late join is open at ${origin}/character. ‡`;
 }
 
 function startedLine() {
@@ -276,9 +276,9 @@ async function settleLobbyEntry(tx, discordUserId, characterId) {
 async function declineAssignment(db, entryId, discordUserId) {
   const entry = await db.lobbyEntry.findUnique({ where: { id: entryId }, include: { assignedRole: { select: { name: true } } } });
   if (!entry) return { ok: false, reason: "That seat's gone." };
-  if (entry.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer." };
-  if (entry.status === "CREATED") return { ok: false, reason: "You already built the character." };
-  if (entry.status !== "ASSIGNED") return { ok: false, reason: "That seat was already released." };
+  if (entry.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer. ‡" };
+  if (entry.status === "CREATED") return { ok: false, reason: "You already built the character. ‡" };
+  if (entry.status !== "ASSIGNED") return { ok: false, reason: "That seat was already released. ‡" };
   await db.lobbyEntry.update({ where: { id: entry.id }, data: { status: "DECLINED" } });
   await db.auditLog
     .create({
@@ -289,7 +289,7 @@ async function declineAssignment(db, entryId, discordUserId) {
       },
     })
     .catch((err) => console.error("Lobby decline audit failed:", err));
-  return { ok: true, line: "You turned the seat down. Late join is open." };
+  return { ok: true, line: "You turned the seat down. Late join is open. ‡" };
 }
 
 module.exports = {

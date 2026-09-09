@@ -56,7 +56,7 @@ const BLANK_LINE = "*Blank paper.*";
 // contents — and the catalog goes to every signed-in browser, so composing the
 // text for anyone who has not picked the book up would publish the Library to
 // the whole game. Reaching the shelf is meant to be the cost.
-const CLOSED_BOOK_LINE = "A bound book. You would have to pick it up to read it.";
+const CLOSED_BOOK_LINE = "A bound book. You would have to pick it up to read it. ‡";
 const SEALED_LINE = "Opening it permanently breaks the seal. This one bears a seal:";
 const BROKEN_LINE = "An envelope with a broken seal. The wax looks like:";
 
@@ -112,10 +112,10 @@ function paperDescription(tag, viewer = null) {
   if (!isPaper(tag)) return tag?.description ?? null;
 
   if (tag.paperKind === "SEALED") {
-    return `${SEALED_LINE} ${markOf(tag)}`;
+    return `${SEALED_LINE} ${markOf(tag)} ‡`;
   }
   if (tag.paperKind === "BROKEN_SEAL") {
-    return `${BROKEN_LINE} ${markOf(tag)}`;
+    return `${BROKEN_LINE} ${markOf(tag)} ‡`;
   }
 
   const text = (tag.paperText ?? "").trim();
@@ -145,8 +145,8 @@ function paperDescription(tag, viewer = null) {
 function paperView(tag, viewer = null) {
   if (!isPaper(tag)) return null;
   const kind = tag.paperKind;
-  if (kind === "SEALED") return { kind, text: `${SEALED_LINE} ${markOf(tag)}`, plain: true };
-  if (kind === "BROKEN_SEAL") return { kind, text: `${BROKEN_LINE} ${markOf(tag)}`, plain: true };
+  if (kind === "SEALED") return { kind, text: `${SEALED_LINE} ${markOf(tag)} ‡`, plain: true };
+  if (kind === "BROKEN_SEAL") return { kind, text: `${BROKEN_LINE} ${markOf(tag)} ‡`, plain: true };
 
   const text = (tag.paperText ?? "").trim();
   if (isBook(tag) && viewer?.holdsIt === false) return { kind, text: CLOSED_BOOK_LINE, plain: true };

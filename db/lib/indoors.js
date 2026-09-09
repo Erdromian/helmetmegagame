@@ -70,7 +70,7 @@ function parkedMessage(names, locationName) {
 // {place}" to name, since the way itself was the obstacle.
 function dismountedMessage(names) {
   const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  return `The way was too narrow for your ${list}. You leave ${names.length === 1 ? "it" : "them"} behind and go on foot.`;
+  return `The way was too narrow for your ${list}. You leave ${names.length === 1 ? "it" : "them"} behind and go on foot. ‡`;
 }
 
 module.exports = { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessage };

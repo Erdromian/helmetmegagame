@@ -182,11 +182,11 @@ test("RESEARCH_MARKER_RE does not false-positive on a similarly-worded marker", 
   assert.equal(RESEARCH_MARKER_RE.exec("auto:lesson"), null);
 });
 
-test("researchPaperText: name, quoted description with tokens named and dropped, costs, escaped Requires rule", () => {
+test("researchPaperText: name, quoted description with tokens named and ‡ dropped, costs, escaped Requires rule", () => {
   const text = researchPaperText(
     {
       name: "Chrism",
-      description: "Consecrated oil. Anointing someone marks them {tag:blessed} for a time.",
+      description: "Consecrated oil. Anointing someone marks them {tag:blessed} for a time. ‡",
       requirementTurns: 3,
       requirementResources: 15,
       requirementSkills: [{ name: "Smithing (Skilled)" }],

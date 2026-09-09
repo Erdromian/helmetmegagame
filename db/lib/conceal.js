@@ -32,23 +32,23 @@ const { concealedAlias, withArticle } = require("./concealedIdentity");
 // { discordUserId }. Returns { ok, concealed, alias, line } or
 // { ok: false, error }.
 async function toggleConceal(prisma, character) {
-  if (!character?.id) return { ok: false, error: "You don't have a living character." };
+  if (!character?.id) return { ok: false, error: "You don't have a living character. ‡" };
 
   const forcedName = await loadForcedName(prisma, character.id);
   if (forcedName) {
-    return { ok: false, error: `You are ${forcedName} now. There is no hiding that.` };
+    return { ok: false, error: `You are ${forcedName} now. There is no hiding that. ‡` };
   }
 
   const concealment = await loadConcealment(prisma, character.id);
   if (!concealment) {
-    return { ok: false, error: "Your face is bare. Put something over it first." };
+    return { ok: false, error: "Your face is bare. Put something over it first. ‡" };
   }
   if (concealment.forced) {
     return {
       ok: false,
       error: concealment.name
-        ? `The ${concealment.name} already hides you, and it does not come off by asking.`
-        : "That already hides you, and it does not come off by asking.",
+        ? `The ${concealment.name} already hides you, and it does not come off by asking. ‡`
+        : "That already hides you, and it does not come off by asking. ‡",
     };
   }
 
@@ -72,8 +72,8 @@ async function toggleConceal(prisma, character) {
     concealed,
     alias: concealed ? alias : null,
     line: concealed
-      ? `You now speak as **${withArticle(alias.toLowerCase())}**. Nobody sees your name until you turn it off.`
-      : "You speak under your own name again.",
+      ? `You now speak as **${withArticle(alias.toLowerCase())}**. Nobody sees your name until you turn it off. ‡`
+      : "You speak under your own name again. ‡",
   };
 }
 

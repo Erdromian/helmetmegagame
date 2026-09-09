@@ -123,7 +123,7 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     return {
       listed: true,
       passable: false,
-      refusal: "The way is shut. Somebody in the watchtower would have to work the winch.",
+      refusal: "The way is shut. Somebody in the watchtower would have to work the winch. ‡",
     };
   }
   // Used to refuse outright and send the traveller to find their own Equip

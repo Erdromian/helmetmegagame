@@ -653,7 +653,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const canExtract = Boolean(extractTool);
   const extractBlocked =
     canSeeExtract && !canExtract
-      ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
+      ? "You need a hatchet, a battle-axe or a chainsaw in your hands. ‡"
       : null;
   const canSeePackage = await hasEquipmentInReach(
     prisma,

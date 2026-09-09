@@ -34,7 +34,7 @@ async function loadSite(structureId) {
     where: { id: structureId ?? "" },
     include: { location: { select: { id: true, name: true, discordChannelId: true } } },
   });
-  if (!site) throw new UserError("That structure is gone — reload.");
+  if (!site) throw new UserError("That structure is gone — reload. ‡");
   return site;
 }
 
@@ -97,11 +97,11 @@ async function damageStructureImpl({ structureId }) {
       where: { id: site.id, status: "COMPLETE" },
       data: { status: "DAMAGED" },
     });
-    if (claim.count === 0) throw new UserError("Only a standing structure can be damaged — reload.");
+    if (claim.count === 0) throw new UserError("Only a standing structure can be damaged — reload. ‡");
     await logOp(tx, session, "structure_damaged", site);
   });
   speak(site, structureDamagedLine(site));
-  dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} has been damaged.`);
+  dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} has been damaged. ‡`);
   refreshViews();
   return { status: "DAMAGED" };
 }
@@ -114,11 +114,11 @@ async function repairStructureImpl({ structureId }) {
       where: { id: site.id, status: "DAMAGED" },
       data: { status: "COMPLETE" },
     });
-    if (claim.count === 0) throw new UserError("Only a damaged structure can be repaired — reload.");
+    if (claim.count === 0) throw new UserError("Only a damaged structure can be repaired — reload. ‡");
     await logOp(tx, session, "structure_repaired", site);
   });
   speak(site, structureRepairedLine(site));
-  dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} stands whole again.`);
+  dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} stands whole again. ‡`);
   refreshViews();
   return { status: "COMPLETE" };
 }
@@ -140,11 +140,11 @@ async function destroyStructureImpl({ structureId }) {
       where: { id: site.id, status: { in: PRESENT_STATUSES } },
       data: { status: "RUINED" },
     });
-    if (claim.count === 0) throw new UserError("That structure is already down — reload.");
+    if (claim.count === 0) throw new UserError("That structure is already down — reload. ‡");
     await logOp(tx, session, "structure_destroyed", site, { wasStatus });
   });
   speak(site, structureDestroyedLine(site));
-  dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} has been destroyed.`);
+  dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} has been destroyed. ‡`);
   refreshViews();
   return { status: "RUINED" };
 }
@@ -164,7 +164,7 @@ async function clearStructureImpl({ structureId }) {
     const gone = await tx.structure.deleteMany({
       where: { id: site.id, status: { in: ["RUINED", "ABANDONED"] } },
     });
-    if (gone.count === 0) throw new UserError("Only a wreck can be cleared — reload.");
+    if (gone.count === 0) throw new UserError("Only a wreck can be cleared — reload. ‡");
     await logOp(tx, session, "structure_cleared", site, { wasStatus });
   });
   speak(site, structureClearedLine(site));

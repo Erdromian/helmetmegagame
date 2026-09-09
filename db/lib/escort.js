@@ -173,13 +173,13 @@ function escortReason(target, verdict) {
 // plain to see anyway. Their leader is deliberately not named: the refusal
 // does not need it, and naming them would say more than the player asked.
 function escortRefusal(leader, target) {
-  if (!target) return "They aren't here any more.";
+  if (!target) return "They aren't here any more. ‡";
   if (target.buriedAt) return "They're in the ground.";
   // The one wording every "they aren't here" refusal in the game shares
   // (db/lib/presence.js), so this one does not invent a second.
   if (!leader?.locationId || target.locationId !== leader.locationId) return notHereMessage(target);
-  if (target.escortedById && target.escortedById !== leader.id) return "They're already with somebody.";
-  return "You can't take them along.";
+  if (target.escortedById && target.escortedById !== leader.id) return "They're already with somebody. ‡";
+  return "You can't take them along. ‡";
 }
 
 // Everyone standing here, each with its verdict. The panel draws the lot:
@@ -277,7 +277,7 @@ async function createEscortOffer(prisma, { actor, target, turn }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${actor.name}* wants to take you along.`,
+      content: `*${actor.name}* wants to take you along. ‡`,
       components: escortButtonRow(offer.id),
       meta: dmAction(DM_ACTION.OFFER, offer.id, "ESCORT"),
     },
@@ -345,15 +345,15 @@ async function acceptEscort(prisma, offer, _responder) {
   return {
     ok: true,
     line: together
-      ? `You're with ${actor.name} now.`
-      : `You agreed, but ${actor.name} isn't here any more.`,
+      ? `You're with ${actor.name} now. ‡`
+      : `You agreed, but ${actor.name} isn't here any more. ‡`,
     dms: actor.discordUserId
       ? [
           {
             discordUserId: actor.discordUserId,
             content: together
               ? `${target.name} is with you.`
-              : `${target.name} agreed, but you've moved away.`,
+              : `${target.name} agreed, but you've moved away. ‡`,
           },
         ]
       : [],

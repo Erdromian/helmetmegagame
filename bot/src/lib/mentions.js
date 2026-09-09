@@ -73,7 +73,7 @@ async function notifyMentioned(client, character, context, link, { placeKey = nu
 
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;
-  await sendDm(user, `» *You were mentioned in ${where}.*\n${link}`, {
+  await sendDm(user, `» *You were mentioned in ${where}.* ‡\n${link}`, {
     source: "mention",
     meta: { placeKey, where },
   }).catch(() => {});

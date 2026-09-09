@@ -114,7 +114,7 @@ export default function BulkActions({ characters, locations, tags }) {
     setNote(null);
     const ok = await confirm({
       title: "Apply to everyone picked?",
-      message: `${sentence} There is no Undo — the audit log is the only record.`,
+      message: `${sentence} There is no Undo — the audit log is the only record. ‡`,
       confirmLabel: "Apply",
       cancelLabel: "Not yet",
     });

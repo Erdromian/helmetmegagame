@@ -212,7 +212,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
         const res = await unequipOne(ct.id);
         if (res?.error) setError(res.error);
       } catch {
-        setError("Could not reach the server. Nothing was changed.");
+        setError("Could not reach the server. Nothing was changed. ‡");
       }
     });
   }

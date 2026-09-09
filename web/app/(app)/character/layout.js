@@ -53,7 +53,7 @@ export default async function CharacterLayout({ children }) {
           <>
             {backToChat && (
               <Link href="/chat" className="btn-secondary">
-                ← Back to the game · Esc
+                ← Back to the game · Esc ‡
               </Link>
             )}
             {character ? (

@@ -55,6 +55,11 @@ function ephemeralLine(content, { components } = {}) {
   // in italics reads as BOLD, which says the opposite of quiet.
   if (text.startsWith("*")) return content;
 
+  // The ‡ goes AFTER the closing `*`, never inside it (CLAUDE.md). Roughly 62
+  // refusal strings in `db/lib` already end in one, so lifting it out here is
+  // what keeps them from coming out italicised along with the sentence.
+  const match = text.match(/^([\s\S]*?)\s*‡\s*$/);
+  if (match) return `» *${match[1]}* ‡`;
   return `» *${text}*`;
 }
 

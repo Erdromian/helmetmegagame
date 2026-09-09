@@ -220,7 +220,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   // 300, the option's own maximum. This goes into a couple of dozen channels
   // and half of them get it with most of the letters knocked out; a paragraph
   // of blocks is not a message anybody reads.
-  if (body.length > 300) return { ok: false, error: "A shout is 300 characters at the most." };
+  if (body.length > 300) return { ok: false, error: "A shout is 300 characters at the most. ‡" };
 
   if (!character?.id) return { ok: false, error: "You don't have a living character." };
   if (!character.locationId) return { ok: false, error: "You're nowhere." };
@@ -234,7 +234,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   // below: a refused shout must not burn the throat timer.
   const voice = await loadVoiceState(prisma, character.id);
   if (voice.shoutBlock) {
-    return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}.` };
+    return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}. ‡` };
   }
 
   const last = await prisma.auditLog
@@ -251,7 +251,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
     return {
       ok: false,
       retryAfter: Math.ceil(left / 1000),
-      error: `Your throat needs about ${minutes} more minute${minutes === 1 ? "" : "s"}.`,
+      error: `Your throat needs about ${minutes} more minute${minutes === 1 ? "" : "s"}. ‡`,
     };
   }
 
@@ -307,7 +307,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   //
   // The `!muffled` guard is load-bearing. A soundproof room empties `heard` by
   // design, and without it every single muffled shout would refuse here.
-  if (!muffled && heard.length === 0) return { ok: false, error: "There's nobody here to hear it." };
+  if (!muffled && heard.length === 0) return { ok: false, error: "There's nobody here to hear it. ‡" };
 
   // The cooldown, claimed once the shout is certain — and BEFORE the caller's
   // posting loop, not after: that loop is a couple of dozen REST calls and

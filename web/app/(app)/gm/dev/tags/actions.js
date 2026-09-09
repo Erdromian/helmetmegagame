@@ -106,7 +106,7 @@ function scalarsFrom(input) {
   // syncTags.js exists to prevent; refusing here says so out loud instead.
   if (input.concealsIdentity) {
     throw new UserError(
-      "Concealing gear needs a sprite, so it has to be authored in docs/tags.yaml rather than here.",
+      "Concealing gear needs a sprite, so it has to be authored in docs/tags.yaml rather than here. ‡",
     );
   }
 

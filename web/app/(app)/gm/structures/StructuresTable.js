@@ -13,13 +13,13 @@ import { damageStructure, repairStructure, destroyStructure, clearStructure } fr
 const DESTROY_CONFIRM = {
   title: "Destroy this structure?",
   message:
-    "It becomes a ruin on Examine. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared.",
+    "It becomes a ruin on Examine. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared. ‡",
   confirmLabel: "Destroy",
 };
 
 const CLEAR_CONFIRM = {
   title: "Clear this wreck?",
-  message: "The row is deleted — Examine forgets it entirely. There is no undo.",
+  message: "The row is deleted — Examine forgets it entirely. There is no undo. ‡",
   confirmLabel: "Clear",
 };
 
@@ -31,7 +31,7 @@ const VERBS = {
       confirm: {
         title: "Damage this structure?",
         message:
-          "It reads as damaged on Examine and the Move card, and its labor bonus or kit stops serving until repaired.",
+          "It reads as damaged on Examine and the Move card, and its labor bonus or kit stops serving until repaired. ‡",
         confirmLabel: "Damage",
       },
     },
@@ -43,7 +43,7 @@ const VERBS = {
       action: repairStructure,
       confirm: {
         title: "Repair this structure?",
-        message: "It stands whole again, and its effects come back.",
+        message: "It stands whole again, and its effects come back. ‡",
         confirmLabel: "Repair",
       },
     },
@@ -57,7 +57,7 @@ const VERBS = {
       confirm: {
         title: "Destroy this build site?",
         message:
-          "Sabotage destroys the work done, never silently: the site becomes a ruin on Examine and its crew are told.",
+          "Sabotage destroys the work done, never silently: the site becomes a ruin on Examine and its crew are told. ‡",
         confirmLabel: "Destroy",
       },
     },
@@ -70,7 +70,7 @@ const VERBS = {
       danger: true,
       confirm: {
         title: "Clear this abandoned groundwork?",
-        message: "The row is deleted — Examine forgets it entirely. There is no undo.",
+        message: "The row is deleted — Examine forgets it entirely. There is no undo. ‡",
         confirmLabel: "Clear",
       },
     },
@@ -180,7 +180,7 @@ export default function StructuresTable({ structures }) {
           {table.pageRows.length === 0 && (
             <tr>
               <td colSpan={9} className="text-muted">
-                Nothing has been built yet.
+                Nothing has been built yet. ‡
               </td>
             </tr>
           )}

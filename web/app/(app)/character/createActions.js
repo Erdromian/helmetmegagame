@@ -187,7 +187,7 @@ export async function createCharacter(formData) {
   // endpoint and the picker simply not listing these is a hint, not a lock.
   if (isSpawnOnly(role)) {
     return assignedEntry
-      ? { error: "Your assigned seat can only be spawned by a GM, not built here. Ask one." }
+      ? { error: "Your assigned seat can only be spawned by a GM, not built here. Ask one. ‡" }
       : { error: "That role isn't open to anyone." };
   }
 

@@ -648,7 +648,7 @@ async function setSiloRoomImpl({ roomId }) {
     if (id !== home?.siloRoomId) {
       const allowed = await knownRooms(prisma, character.id, { id });
       if (allowed.length === 0) {
-        throw new UserError("You can only bank somewhere you have been, behind a door that opens for you.");
+        throw new UserError("You can only bank somewhere you have been, behind a door that opens for you. ‡");
       }
     }
   }

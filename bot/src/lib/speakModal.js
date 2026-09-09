@@ -27,7 +27,7 @@ const {
 // to a question already settled. A held forcesName tag (db/lib/presentedIdentity.js)
 // overrides concealment the same way, and refuses /conceal outright — so
 // there is nothing for this modal to ask about that either.
-const SPEAK_HELP = "-# Sent as your character. Nobody sees you typing.";
+const SPEAK_HELP = "-# Sent as your character. Nobody sees you typing. ‡";
 
 // customId carries the destination, so the submit handler needs no state of
 // its own — which matters because an open modal outlives a player walking out

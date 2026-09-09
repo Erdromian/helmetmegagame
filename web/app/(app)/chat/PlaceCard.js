@@ -63,7 +63,7 @@ export default function PlaceCard({
 
   const body =
     side === "zone"
-      ? [zone?.description || "Nothing is written about this part of the world."]
+      ? [zone?.description || "Nothing is written about this part of the world. ‡"]
       : [place?.description, ...lines].filter(Boolean);
 
   return (

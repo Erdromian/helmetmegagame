@@ -98,7 +98,7 @@ export default function TagEditor({
       const list = leaves.length === 1 ? leaves[0] : `one of ${leaves.join(" or ")}`;
       const ok = await confirm({
         title: `Remove ${holding.name}?`,
-        message: `Removing it leaves ${list} behind, and putting it back will not clear that.`,
+        message: `Removing it leaves ${list} behind, and putting it back will not clear that. ‡`,
         confirmLabel: "Remove it",
         cancelLabel: "Keep it",
       });
@@ -313,7 +313,7 @@ function HeldRow({ tag, holding, openTurn, busy, onSetQuantity, onRemove, onPatc
           <QuantityField
             inline
             min={0}
-            ariaLabel={`How many ${holding.name} — 0 removes it`}
+            ariaLabel={`How many ${holding.name} — 0 removes it ‡`}
             value={draft}
             onChange={commit}
             disabled={busy}

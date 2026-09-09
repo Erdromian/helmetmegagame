@@ -113,7 +113,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
       {picking && (
         <div className="chip-row chat-member-picker">
           {candidates.length === 0 ? (
-            <span className="text-sm text-muted">Nobody else is standing here.</span>
+            <span className="text-sm text-muted">Nobody else is standing here. ‡</span>
           ) : (
             candidates.map((person) => (
               <button

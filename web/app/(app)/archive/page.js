@@ -123,7 +123,7 @@ export default async function ArchivePage({ searchParams }) {
             <h2 className="panel-header">This game has been put away</h2>
             <p className="text-sm">
               Its {game.entryCount ?? "—"} lines were written out to a file and taken out of the database, so the
-              transcript is not here to read. What it ended with is above.
+              transcript is not here to read. What it ended with is above. ‡
             </p>
             <p className="text-sm text-muted mono">npm run archive:import -- --key {game.exportKey ?? "…"}</p>
           </section>

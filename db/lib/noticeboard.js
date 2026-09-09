@@ -45,10 +45,10 @@ function noticeLine(post, turnNumber) {
 // board is information, and a silent panel would read as a bug.
 function boardText(locationName, posts, turnNumber) {
   if (!posts || posts.length === 0) {
-    return `The noticeboard at ${locationName} is bare.`;
+    return `The noticeboard at ${locationName} is bare. ‡`;
   }
   const lines = posts.map((p) => `  ${noticeLine(p, turnNumber)}`);
-  return [`The noticeboard at ${locationName}:`, ...lines].join("\n");
+  return [`The noticeboard at ${locationName}:`, ...lines, "‡"].join("\n");
 }
 
 // What the world says when somebody nails something up. Scenery, so the caller

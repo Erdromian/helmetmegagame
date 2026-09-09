@@ -41,7 +41,7 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
     const ok = await confirm({
       title: "End the game?",
       message:
-        "The clock stops and the archive opens to every player.",
+        "The clock stops and the archive opens to every player. ‡",
       confirmLabel: "End game",
       cancelLabel: "Keep playing",
     });
@@ -99,10 +99,10 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
       {phase === "ENDED" ? (
         <div className="flex flex-col gap-2">
           {revealPosted === false ? (
-            <p className="text-sm text-accent">The game ended, but the reveal did not reach #turns.</p>
+            <p className="text-sm text-accent">The game ended, but the reveal did not reach #turns. ‡</p>
           ) : null}
           {revealPosted === true ? (
-            <p className="text-sm text-muted">The reveal is up in #turns.</p>
+            <p className="text-sm text-muted">The reveal is up in #turns. ‡</p>
           ) : null}
           <div className="ops-actions">
             <button type="button" className="btn-secondary" onClick={() => run(resumeGame)} disabled={pending}>

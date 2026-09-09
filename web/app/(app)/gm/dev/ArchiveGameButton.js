@@ -20,7 +20,7 @@ export default function ArchiveGameButton({ exportKey, entryCount }) {
   async function onClick() {
     if (exportKey && !(await confirm({
       title: "Archive again?",
-      message: "This game already has a packet. Writing a new one replaces it with the transcript as it stands right now.",
+      message: "This game already has a packet. Writing a new one replaces it with the transcript as it stands right now. ‡",
       confirmLabel: "Replace it",
     }))) return;
 
@@ -32,7 +32,7 @@ export default function ArchiveGameButton({ exportKey, entryCount }) {
         if (res?.ok) setDone(res.entryCount);
         else setError(res?.error ?? "Something went wrong.");
       } catch {
-        setError("Could not reach the server. Nothing was changed.");
+        setError("Could not reach the server. Nothing was changed. ‡");
       }
     });
   }
@@ -52,7 +52,7 @@ export default function ArchiveGameButton({ exportKey, entryCount }) {
       <FormError>{error}</FormError>
       {done != null ? (
         <p className="text-sm">
-          » <em>Packet written and checked — {done} lines.</em> Restart Game can keep this game now.
+          » <em>Packet written and checked — {done} lines.</em> Restart Game can keep this game now. ‡
         </p>
       ) : null}
     </div>

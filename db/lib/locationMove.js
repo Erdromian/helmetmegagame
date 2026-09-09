@@ -269,8 +269,8 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
   await sendDm(
     prisma,
     character.discordUserId,
-    `The way between ${far.name} and ${toLocation.name} is open behind you. Leave it open for the next 24 hours?\n` +
-      `-# While it stands open, anyone can see it and follow you through.`,
+    `The way between ${far.name} and ${toLocation.name} is open behind you. Leave it open for the next 24 hours? ‡\n` +
+      `-# While it stands open, anyone can see it and follow you through. ‡`,
     { components: keyedPromptRow(link.id), meta: dmAction(DM_ACTION.KEYED_WAY, link.id), source: "bot_auto" },
   );
 }

@@ -87,13 +87,13 @@ async function loadVoiceState(prisma, characterId) {
 // What a silenced character is told. One sentence, naming the state, because
 // a player refused without a reason files a GM ticket about it.
 function speechRefusal(block) {
-  return `You can't get the words out — you're ${block.name}. Here it is back:`;
+  return `You can't get the words out — you're ${block.name}. Here it is back: ‡`;
 }
 
 function lengthRefusal(length) {
   return (
     `That was ${length} characters, and a reposted message has to fit Discord's ${MESSAGE_LIMIT}. ` +
-    "Nitro's higher limit is yours, not the bot's. Here it is back:"
+    "Nitro's higher limit is yours, not the bot's. Here it is back: ‡"
   );
 }
 
@@ -135,7 +135,7 @@ async function slowmodeWaitSeconds(prisma, { characterId, placeKey }) {
 // long, and both come before the transforms so nothing is spent on text that
 // is not going anywhere.
 async function prepareSpeech(prisma, { character, placeKey, content, source = "WEB" } = {}) {
-  if (!character?.id) return { ok: false, refusal: "You have no living character." };
+  if (!character?.id) return { ok: false, refusal: "You have no living character. ‡" };
 
   const web = source !== "DISCORD";
 
@@ -155,13 +155,13 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   if (voice.block) return { ok: false, refusal: speechRefusal(voice.block), blocked: voice.block };
 
   const raw = content ?? "";
-  if (!raw.trim()) return { ok: false, refusal: "There was nothing in that to say." };
+  if (!raw.trim()) return { ok: false, refusal: "There was nothing in that to say. ‡" };
   if (raw.length > MESSAGE_LIMIT) return { ok: false, refusal: lengthRefusal(raw.length) };
 
   if (web) {
     const wait = await slowmodeWaitSeconds(prisma, { characterId: character.id, placeKey });
     if (wait > 0) {
-      return { ok: false, refusal: `Wait ${wait}s before speaking again.`, retryAfter: wait };
+      return { ok: false, refusal: `Wait ${wait}s before speaking again. ‡`, retryAfter: wait };
     }
   }
 
@@ -275,7 +275,7 @@ async function sayInPlace(prisma, { character, placeKey, content, source = "WEB"
   const prepared = await prepareSpeech(prisma, { character, placeKey, content, source });
   if (!prepared.ok) return prepared;
   const row = await recordSpeech(prisma, prepared, context);
-  if (!row) return { ok: false, refusal: "That didn't get written down. Try again." };
+  if (!row) return { ok: false, refusal: "That didn't get written down. Try again. ‡" };
   return { ok: true, row, prepared };
 }
 
@@ -314,7 +314,7 @@ function pastWindow(row) {
 
 const WINDOW_REFUSAL = "You can't edit that any more.";
 const GONE_REFUSAL = "That message is gone.";
-const NOT_YOURS_REFUSAL = "That isn't yours to change.";
+const NOT_YOURS_REFUSAL = "That isn't yours to change. ‡";
 
 // Shared by both verbs: find the row, and answer whether this caller may
 // touch it. `gm: true` skips the owner and window checks — a GM taking a line
@@ -345,7 +345,7 @@ async function editSpeech(prisma, { characterId, seq, content, gm = false } = {}
   const row = found.row;
 
   const raw = content ?? "";
-  if (!raw.trim()) return { ok: false, refusal: "There was nothing in that to say." };
+  if (!raw.trim()) return { ok: false, refusal: "There was nothing in that to say. ‡" };
   if (raw.length > MESSAGE_LIMIT) return { ok: false, refusal: lengthRefusal(raw.length) };
 
   const [voice, config] = await Promise.all([

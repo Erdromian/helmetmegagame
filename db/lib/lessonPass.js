@@ -139,8 +139,8 @@ async function runLessonPass(prisma, turn) {
           }
         }
         const resultMessage = succeeded
-          ? `Learned ${skill} from ${nameOf(offer.teacherId)} (${total} vs ${threshold}).`
-          : `Failed to learn ${skill} from ${nameOf(offer.teacherId)} (${total} vs ${threshold}).`;
+          ? `Learned ${skill} from ${nameOf(offer.teacherId)} (${total} vs ${threshold}). ‡`
+          : `Failed to learn ${skill} from ${nameOf(offer.teacherId)} (${total} vs ${threshold}). ‡`;
         await tx.action.update({
           where: { id: action.id },
           data: {
@@ -175,14 +175,14 @@ async function runLessonPass(prisma, turn) {
       const learnerDm = dmTo(
         offer.learnerId,
         outcome.succeeded
-          ? `${outcome.text} → you learned **${outcome.skill}** from ${teacherName}.`
-          : `${outcome.text} → you didn't learn **${outcome.skill}** this time.`,
+          ? `${outcome.text} → you learned **${outcome.skill}** from ${teacherName}. ‡`
+          : `${outcome.text} → you didn't learn **${outcome.skill}** this time. ‡`,
       );
       const teacherDm = dmTo(
         offer.teacherId,
         outcome.succeeded
           ? `${learnerName} picked up **${outcome.skill}**.`
-          : `${learnerName} didn't learn **${outcome.skill}**.`,
+          : `${learnerName} didn't learn **${outcome.skill}**. ‡`,
       );
       for (const dm of [learnerDm, teacherDm]) if (dm) dms.push(dm);
     } catch (err) {
@@ -203,14 +203,14 @@ async function runLessonPass(prisma, turn) {
       const other = nameOf(offer.responderId);
       const content =
         offer.kind === "BIND"
-          ? `${other} didn't answer. The turn is over.`
+          ? `${other} didn't answer. The turn is over. ‡`
           : offer.kind === "CONFESSION"
             ? // Never names the tag: an expiry notice is not the place to
               // start writing somebody's sins into a DM log.
-              `${other} never heard your confession. Your Move wasn't spent.`
+              `${other} never heard your confession. Your Move wasn't spent. ‡`
             : offer.initiatorId === offer.learnerId
-              ? `${other} never answered your offer to learn ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`
-              : `${other} never answered your offer to teach ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`;
+              ? `${other} never answered your offer to learn ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent. ‡`
+              : `${other} never answered your offer to teach ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent. ‡`;
       const dm = dmTo(offer.initiatorId, content);
       if (dm) dms.push(dm);
     } catch (err) {

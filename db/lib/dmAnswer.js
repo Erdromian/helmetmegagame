@@ -40,7 +40,7 @@ const { recordArchiveEvent } = require("./archive");
 // Nothing to do, drawn as the reason under the message. Shared so the four
 // families refuse in the same words.
 const GONE = "That offer's gone.";
-const NOT_YOURS = "That's not yours to answer.";
+const NOT_YOURS = "That's not yours to answer. ‡";
 
 function empty(extra = {}) {
   return { dms: [], sideEffects: { spawn: null, nicknameSyncDiscordUserId: null, roomSyncCharacterIds: [], carryDrop: null, boundNotification: null, ...extra } };
@@ -178,7 +178,7 @@ async function answerInterceptHold(prisma, { id, discordUserId }) {
   });
   if (!holder) return { ok: false, line: NOT_YOURS, ...empty() };
   const freed = await releaseHeldBy(prisma, holder.id, { targetId: id });
-  if (freed.length === 0) return { ok: false, line: "They're already free.", ...empty() };
+  if (freed.length === 0) return { ok: false, line: "They're already free. ‡", ...empty() };
 
   const target = freed[0];
   const dms = [];
@@ -186,9 +186,9 @@ async function answerInterceptHold(prisma, { id, discordUserId }) {
     // Unattributed, the notifyCharacter posture (REQUESTS.md §3): they know
     // perfectly well who had hold of them, and the game does not need to
     // confirm it.
-    dms.push({ discordUserId: target.discordUserId, content: "You've been let go. You can move again." });
+    dms.push({ discordUserId: target.discordUserId, content: "You've been let go. You can move again. ‡" });
   }
-  return { ok: true, line: `You let ${target.name} go.`, ...empty(), dms };
+  return { ok: true, line: `You let ${target.name} go. ‡`, ...empty(), dms };
 }
 
 // The one entry point. `action` is the descriptor off DirectMessage.meta

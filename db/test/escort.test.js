@@ -98,12 +98,12 @@ test("force beats an arrangement: a captor takes their prisoner off whoever has 
 });
 
 test("a refusal says which rule refused", () => {
-  assert.equal(escortRefusal(leader(), person({ escortedById: "Z" })), "They're already with somebody.");
+  assert.equal(escortRefusal(leader(), person({ escortedById: "Z" })), "They're already with somebody. ‡");
   assert.equal(escortRefusal(leader(), person({ locationId: "loc-2", name: "Ada" })), "Ada isn't here.");
-  assert.equal(escortRefusal(leader(), null), "They aren't here any more.");
+  assert.equal(escortRefusal(leader(), null), "They aren't here any more. ‡");
   // Yours is not a refusal at all, so it falls through to the flat wording
   // rather than claiming somebody else has them.
-  assert.equal(escortRefusal(leader(), person({ escortedById: "L" })), "You can't take them along.");
+  assert.equal(escortRefusal(leader(), person({ escortedById: "L" })), "You can't take them along. ‡");
 });
 
 test("a hood is off the list, the way it is off every other picker", () => {

@@ -978,7 +978,7 @@ async function takeFace(tx, source) {
   const current = row?.description ?? "";
   if (current.includes(FACE_TAKEN_SENTENCE))
     throw new UserError("That face has already been taken.");
-  const next = `${current.trimEnd()} ${FACE_TAKEN_SENTENCE}`.trim();
+  const next = `${current.replace(/\s*‡\s*$/, "")} ${FACE_TAKEN_SENTENCE} ‡`.trim();
   const { count } = await tx.tag.updateMany({
     where: { id: source.tagId, description: current },
     data: { description: next },
@@ -2379,7 +2379,7 @@ async function consumeTagRequestImpl({ tagId }) {
   // spend the bottle on nothing at all — it has no `consumesInto`.
   // MULLIGAN_SLUG is declared beside that function, further down this file.
   if (held.tag.slug === MULLIGAN_SLUG) {
-    throw new UserError("Drink this one from the tag itself — it needs a name first.");
+    throw new UserError("Drink this one from the tag itself — it needs a name first. ‡");
   }
 
   // Two more that cannot be drunk from here, for the reason the Mulligan gives:
@@ -2389,10 +2389,10 @@ async function consumeTagRequestImpl({ tagId }) {
   // and spend the bottle there. Without these branches the generic path would
   // swallow either one for nothing.
   if (held.tag.slug === RAVEN_DRAUGHT_SLUG) {
-    throw new UserError("Drink this one from Send a message — it needs someone to reach.");
+    throw new UserError("Drink this one from Send a message — it needs someone to reach. ‡");
   }
   if (held.tag.slug === STEPSTONE_SLUG) {
-    throw new UserError("Use this one from Stepstone — it needs somewhere to go.");
+    throw new UserError("Use this one from Stepstone — it needs somewhere to go. ‡");
   }
 
   const openTurn = await getOpenTurn();
@@ -3989,7 +3989,7 @@ async function claimDesireImpl({
     const slot = slots[slotIndex];
     if (slot?.lockedUntilTurn != null) {
       throw new UserError(
-        `That slot is locked for ${slot.lockedTurnsLeft} more turn${slot.lockedTurnsLeft === 1 ? "" : "s"}.`,
+        `That slot is locked for ${slot.lockedTurnsLeft} more turn${slot.lockedTurnsLeft === 1 ? "" : "s"}. ‡`,
       );
     }
   }
@@ -4336,10 +4336,10 @@ async function mutilateRequestImpl({
   // Re-checked here and not merely in the UI: the hidden button is a hint.
   const actorSlugs = character.tags.map((ct) => ct.tag.slug);
   if (!actorSlugs.some((slug) => MUTILATE_GATE_SLUGS.includes(slug)))
-    throw new UserError("You couldn't bring yourself to.");
+    throw new UserError("You couldn't bring yourself to. ‡");
 
   const named = partFor(part);
-  if (!named) throw new UserError("That isn't something you could take.");
+  if (!named) throw new UserError("That isn't something you could take. ‡");
 
   // Two subjects, one action. A corpse resolves through the reach rule Butcher
   // and Bury already share; a living person through the Bound-and-here check
@@ -4351,7 +4351,7 @@ async function mutilateRequestImpl({
     corpse = await resolveCorpseSource(character, { tagId, sourceKey });
     // A Nekker has no sheet to injure and nothing recognisable to take.
     if (!corpse.human || !corpse.deadCharacterId)
-      throw new UserError("There's nothing in that one you'd want.");
+      throw new UserError("There's nothing in that one you'd want. ‡");
     subject = await prisma.character.findUnique({
       where: { id: corpse.deadCharacterId },
       include: { tags: { include: { tag: { select: { slug: true } } } } },
@@ -4379,7 +4379,7 @@ async function mutilateRequestImpl({
     subject.tags.map((ct) => ct.tag.slug),
   );
   if (!step)
-    throw new UserError(`There's no ${named.label.toLowerCase()} left to take.`);
+    throw new UserError(`There's no ${named.label.toLowerCase()} left to take. ‡`);
 
   const [grantTag, itemTag] = await Promise.all([
     prisma.tag.findUnique({ where: { slug: step.grantSlug } }),
@@ -4444,16 +4444,16 @@ async function mutilateRequestImpl({
         console.error(`Failed to kill mutilated character ${subject.id}:`, err),
     );
   } else if (corpse) {
-    notifyCharacter(subject, "Somebody has been cutting pieces off your body.");
+    notifyCharacter(subject, "Somebody has been cutting pieces off your body. ‡");
   } else {
-    notifyCharacter(subject, `Somebody cut off your ${named.label.toLowerCase()}.`);
+    notifyCharacter(subject, `Somebody cut off your ${named.label.toLowerCase()}. ‡`);
   }
 
   // A public room's contents changing is public by nature (CARRY.md §6). Said
   // vaguely on purpose — the room learns a body was cut, not what came off it.
   if (corpse && corpse.source.kind === "room") {
     after(() =>
-      announceInRoom(corpse.source, character, "cuts something off a body here."),
+      announceInRoom(corpse.source, character, "cuts something off a body here. ‡"),
     );
   }
 
@@ -4805,7 +4805,7 @@ async function packageItemsRequestImpl({
     // ships a horse crated (DEPOT.md §0e) — this refusal is the hand-packed
     // button only.
     if (isMount(row.tag))
-      throw new UserError("A mount doesn't fit in a crate.");
+      throw new UserError("A mount doesn't fit in a crate. ‡");
     const quantity = Math.min(line.quantity, row.quantity);
     return {
       tagId: row.tagId,
@@ -5240,7 +5240,7 @@ async function whisperRequestImpl({ recipientId, message: rawMessage }) {
   const held = character.tags.find(
     (ct) => ct.tag.slug === RAVEN_DRAUGHT_SLUG && ct.quantity > 0,
   );
-  if (!held) throw new UserError("You aren't carrying a Raven Draught.");
+  if (!held) throw new UserError("You aren't carrying a Raven Draught. ‡");
 
   const message = String(rawMessage ?? "").trim().slice(0, WHISPER_MAX);
   if (!message) throw new UserError("Say something first.");
@@ -5276,7 +5276,7 @@ async function whisperRequestImpl({ recipientId, message: rawMessage }) {
       where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
       select: { id: true },
     });
-    if (!stillHeld) throw new UserError("You aren't carrying a Raven Draught.");
+    if (!stillHeld) throw new UserError("You aren't carrying a Raven Draught. ‡");
     await dropCharacterTag(tx, character.id, held.tagId, 1);
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
@@ -5321,7 +5321,7 @@ async function stepstoneRequestImpl({ locationId }) {
   const held = character.tags.find(
     (ct) => ct.tag.slug === STEPSTONE_SLUG && ct.quantity > 0,
   );
-  if (!held) throw new UserError("You aren't carrying a Stepstone.");
+  if (!held) throw new UserError("You aren't carrying a Stepstone. ‡");
 
   // A hold stops a walk at locationTravel.js#performLocationMove, and it has to
   // stop a step for the same reason: an ambush is a hand on your shoulder
@@ -5352,7 +5352,7 @@ async function stepstoneRequestImpl({ locationId }) {
   // stood next to. Somewhere you have STOOD is somewhere you already got into.
   const { stood } = await knownLocations(prisma, character.id);
   if (!stood.has(targetId)) {
-    throw new UserError("You've never stood there. The stone only takes you back.");
+    throw new UserError("You've never stood there. The stone only takes you back. ‡");
   }
 
   const fromLocationId = character.locationId;
@@ -5370,7 +5370,7 @@ async function stepstoneRequestImpl({ locationId }) {
       where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
       select: { id: true },
     });
-    if (!stillHeld) throw new UserError("You aren't carrying a Stepstone.");
+    if (!stillHeld) throw new UserError("You aren't carrying a Stepstone. ‡");
     await dropCharacterTag(tx, character.id, held.tagId, 1);
     await tx.character.update({
       where: { id: character.id },

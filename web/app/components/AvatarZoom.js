@@ -30,7 +30,7 @@ export default function AvatarZoom({ src, name, children }) {
       <button
         type="button"
         className="avatar-zoom"
-        aria-label={`Look closer at ${name}`}
+        aria-label={`Look closer at ${name} ‡`}
         onClick={() => setOpen(true)}
       >
         {children}

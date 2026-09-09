@@ -59,7 +59,7 @@ export default function FactionPanel({ faction, siloOpen = false, onSelect = nul
 
         <p className="chat-section-title">Members · {roster.length}</p>
         {roster.length === 0 ? (
-          <EmptyState>Nobody living is in it.</EmptyState>
+          <EmptyState>Nobody living is in it. ‡</EmptyState>
         ) : (
           roster.map((member) => (
             <div key={member.characterId} className="chat-person-row">

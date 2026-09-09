@@ -58,7 +58,7 @@ test("findEquipProblem: the same slot, different layers, does not clash", () => 
 
 test("findEquipProblem: the same slot AND layer clashes, whatever the tags are", () => {
   const msg = findEquipProblem([tag("Helm", HELM), tag("Bascinet", HELM)]);
-  assert.equal(msg, "Bascinet and Helm can't both go on your head.");
+  assert.equal(msg, "Bascinet and Helm can't both go on your head. ‡");
 });
 
 test("findEquipProblem: accepts CharacterTag rows (.tag) as well as bare Tags", () => {
@@ -68,7 +68,7 @@ test("findEquipProblem: accepts CharacterTag rows (.tag) as well as bare Tags", 
 test("findEquipProblem: an unknown slot falls back to a plain 'there'", () => {
   const weird = { name: "Mystery Gear", equipSlot: "TAIL" };
   const msg = findEquipProblem([weird, weird]);
-  assert.equal(msg, "You can only have one Mystery Gear there at a time.");
+  assert.equal(msg, "You can only have one Mystery Gear there at a time. ‡");
 });
 
 // --- findEquipProblem: destacking — equippedQuantity expands into units ---
@@ -77,7 +77,7 @@ test("findEquipProblem: two units of the same slotted stackable tag clash with t
   // A stack of 2 Hats, both equipped — the exact case that took manual
   // browser testing to find before this file existed.
   const msg = findEquipProblem([row("Hat", 2, HAT)]);
-  assert.equal(msg, "You can only have one Hat on your head at a time.");
+  assert.equal(msg, "You can only have one Hat on your head at a time. ‡");
 });
 
 test("findEquipProblem: a row with nothing equipped contributes no units and no clash", () => {
@@ -120,27 +120,27 @@ test("findEquipProblem: exactly WEAPON_HANDS worth of one-handers is fine", () =
 
 test("findEquipProblem: one sword past the hand cap is refused, naming only the excess", () => {
   const msg = findEquipProblem([row("Broadsword", 5, SWORD)]);
-  assert.equal(msg, "Your hands are full: put away Broadsword before you take up anything else.");
+  assert.equal(msg, "Your hands are full: put away Broadsword before you take up anything else. ‡");
 });
 
 test("findEquipProblem: a two-hander says so inline", () => {
   const msg = findEquipProblem([row("Broadsword", 3, SWORD), row("Greatsword", 1, GREATSWORD)]);
   assert.equal(
     msg,
-    "Your hands are full: put away Greatsword (two hands) before you take up anything else.",
+    "Your hands are full: put away Greatsword (two hands) before you take up anything else. ‡",
   );
 });
 
 test("findEquipProblem: repeated excess names collapse to a count", () => {
   // Six swords from one stack: four fit, two are excess.
   const msg = findEquipProblem([row("Broadsword", 6, SWORD)]);
-  assert.equal(msg, "Your hands are full: put away Broadsword ×2 before you take up anything else.");
+  assert.equal(msg, "Your hands are full: put away Broadsword ×2 before you take up anything else. ‡");
 });
 
 test("findEquipProblem: a slot clash is reported before a hands overflow", () => {
   // Two helms clash on the layer rule; hands never even get asked.
   const msg = findEquipProblem([tag("Helm", HELM), tag("Bascinet", HELM), row("Broadsword", 5, SWORD)]);
-  assert.equal(msg, "Bascinet and Helm can't both go on your head.");
+  assert.equal(msg, "Bascinet and Helm can't both go on your head. ‡");
 });
 
 // --- findEquipProblem: accessory overflow ---------------------------------
@@ -152,7 +152,7 @@ test("findEquipProblem: exactly MAX_ACCESSORIES worth of trinkets is fine", () =
 
 test("findEquipProblem: one accessory past the cap is refused, naming only the excess", () => {
   const msg = findEquipProblem([row("Badge", 5, BADGE)]);
-  assert.equal(msg, "You can keep 4 things about you: put away Badge.");
+  assert.equal(msg, "You can keep 4 things about you: put away Badge. ‡");
 });
 
 test("findEquipProblem: five units of one stackable accessory tag are five things about you, not one", () => {
@@ -166,7 +166,7 @@ test("findEquipProblem: five units of one stackable accessory tag are five thing
 
 test("findEquipProblem: repeated excess accessory names collapse to a count", () => {
   const msg = findEquipProblem([row("Badge", 6, BADGE)]);
-  assert.equal(msg, "You can keep 4 things about you: put away Badge ×2.");
+  assert.equal(msg, "You can keep 4 things about you: put away Badge ×2. ‡");
 });
 
 test("findEquipProblem: accessories never clash on the slot rule, only overflow the cap", () => {
@@ -176,5 +176,5 @@ test("findEquipProblem: accessories never clash on the slot rule, only overflow 
 
 test("findEquipProblem: a hands overflow is reported before an accessory overflow", () => {
   const msg = findEquipProblem([row("Broadsword", 5, SWORD), row("Badge", 5, BADGE)]);
-  assert.equal(msg, "Your hands are full: put away Broadsword before you take up anything else.");
+  assert.equal(msg, "Your hands are full: put away Broadsword before you take up anything else. ‡");
 });

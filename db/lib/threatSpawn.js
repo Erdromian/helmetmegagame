@@ -123,14 +123,14 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
     },
   });
   if (!spawn) return { ok: false, reason: "That offer's gone." };
-  if (spawn.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer." };
-  if (spawn.status !== "PENDING") return { ok: false, reason: "That offer has already been answered." };
+  if (spawn.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer. ‡" };
+  if (spawn.status !== "PENDING") return { ok: false, reason: "That offer has already been answered. ‡" };
 
   const threat = threatBySlug(spawn.threatSlug);
-  if (!threat?.spawn) return { ok: false, reason: "That seat can no longer be spawned into." };
+  if (!threat?.spawn) return { ok: false, reason: "That seat can no longer be spawned into. ‡" };
 
   if (await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } })) {
-    return { ok: false, reason: "You already have a character." };
+    return { ok: false, reason: "You already have a character. ‡" };
   }
 
   const [config, state, openTurn, resolved] = await Promise.all([
@@ -139,7 +139,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }),
     resolveSpawnTags(prisma, threat, spawn.role),
   ]);
-  if (resolved.error) return { ok: false, reason: `${resolved.error}` };
+  if (resolved.error) return { ok: false, reason: `${resolved.error} ‡` };
 
   // A spawned character's location may be overridden by the GM; the role's
   // own start is the fallback. The denormalization contract says zoneId is
@@ -220,10 +220,10 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
     });
   } catch (err) {
     if (err.message === "ROLE_FULL") {
-      return { ok: false, reason: `There's no ${spawn.role.name} seat left. Tell a GM.` };
+      return { ok: false, reason: `There's no ${spawn.role.name} seat left. Tell a GM. ‡` };
     }
     if (err.message === "ALREADY_ANSWERED") {
-      return { ok: false, reason: "That offer has already been answered." };
+      return { ok: false, reason: "That offer has already been answered. ‡" };
     }
     throw err;
   }
@@ -257,14 +257,14 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
 async function declineThreatSpawn(prisma, spawnId, discordUserId) {
   const spawn = await prisma.threatSpawn.findUnique({ where: { id: spawnId } });
   if (!spawn) return { ok: false, reason: "That offer's gone." };
-  if (spawn.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer." };
-  if (spawn.status !== "PENDING") return { ok: false, reason: "That offer has already been answered." };
+  if (spawn.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer. ‡" };
+  if (spawn.status !== "PENDING") return { ok: false, reason: "That offer has already been answered. ‡" };
 
   await prisma.threatSpawn.update({
     where: { id: spawn.id },
     data: { status: "DECLINED", resolvedAt: new Date() },
   });
-  return { ok: true, line: "You turned the seat down." };
+  return { ok: true, line: "You turned the seat down. ‡" };
 }
 
 

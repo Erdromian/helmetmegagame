@@ -42,7 +42,7 @@ export default function StepstoneDialog({ onDone, onClose }) {
       submitLabel="Step"
       busy={busy}
       error={error}
-      empty={places.length === 0 ? "You have been nowhere else yet." : null}
+      empty={places.length === 0 ? "You have been nowhere else yet. ‡" : null}
       canSubmit={Boolean(locationId)}
       onClose={onClose}
       onSubmit={() =>

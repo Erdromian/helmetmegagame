@@ -33,7 +33,7 @@ const MOVE_HELP =
   "-# Describe what you're hoping to accomplish — in the broadest sense, the ideal outcome, your intent. " +
   "Mention relevant tags or circumstances that the GMs should consider. " +
   "Labor needs no arbitration: it pays your best Laboring skill for where you're standing. " +
-  "Careful! This can't be changed or canceled.";
+  "Careful! This can't be changed or canceled. ‡";
 
 function buildMoveModal() {
   return new ModalBuilder()

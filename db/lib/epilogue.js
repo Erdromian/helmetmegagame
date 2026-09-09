@@ -80,7 +80,7 @@ function factsLine(facts) {
   parts.push(`${facts.characters} character${facts.characters === 1 ? "" : "s"} lived in Ravenheart, ${facts.deaths} died.`);
   if (facts.letters) parts.push(`${facts.letters} letter${facts.letters === 1 ? "" : "s"} flew.`);
   parts.push(`${facts.archived.toLocaleString()} thing${facts.archived === 1 ? "" : "s"} went into the archive.`);
-  return `${parts.join(" ")}`;
+  return `${parts.join(" ")} ‡`;
 }
 
 function rosterLine(r) {

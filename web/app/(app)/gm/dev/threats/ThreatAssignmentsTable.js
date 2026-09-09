@@ -170,12 +170,12 @@ function Row({ row, threats, onSpawn, onMessage }) {
   async function assign() {
     const threat = assignable.find((t) => t.slug === slug);
     if (!threat) {
-      setError("Pick a seat to assign first.");
+      setError("Pick a seat to assign first. ‡");
       return;
     }
     const ok = await confirm({
       title: `Make ${row.characterName} the ${threat.name}?`,
-      message: `They get the seat's tags and ${threat.tagPoints} tag points, and a DM telling them so.`,
+      message: `They get the seat's tags and ${threat.tagPoints} tag points, and a DM telling them so. ‡`,
       confirmLabel: "Assign",
     });
     if (!ok) return;
@@ -196,12 +196,12 @@ function Row({ row, threats, onSpawn, onMessage }) {
         // The seat lands either way — the DM is the half that can fail on its
         // own, and the GM is the only one who can tell the player instead.
         if (res.dmFailed) {
-          setError(`${row.characterName} holds the seat, but the DM never sent. Tell them yourself.`);
+          setError(`${row.characterName} holds the seat, but the DM never sent. Tell them yourself. ‡`);
         } else {
-          setNote(`${row.characterName} is now the ${threat.name}.`);
+          setNote(`${row.characterName} is now the ${threat.name}. ‡`);
         }
       } catch {
-        setError("Could not reach the server. Nothing was changed.");
+        setError("Could not reach the server. Nothing was changed. ‡");
       }
     });
   }
@@ -300,7 +300,7 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
         setError(res?.error ?? "Something went wrong.");
         return;
       }
-      setDone(`Offered ${res.threat} to ${row.handle}, starting as ${res.role}.`);
+      setDone(`Offered ${res.threat} to ${row.handle}, starting as ${res.role}. ‡`);
     });
   }
 

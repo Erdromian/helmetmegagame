@@ -84,9 +84,9 @@ async function applySideEffects({ dms, sideEffects }) {
 // the bot's interaction.update() does to the DM.
 export async function answerDmAction(kind, id, choice) {
   const session = await auth();
-  if (!session?.discordUserId) return { ok: false, line: "You are not signed in." };
+  if (!session?.discordUserId) return { ok: false, line: "You are not signed in. ‡" };
 
-  if (!DM_ACTION[kind]) return { ok: false, line: "That's not something you can answer." };
+  if (!DM_ACTION[kind]) return { ok: false, line: "That's not something you can answer. ‡" };
   const picked = choice === DM_CHOICE.ACCEPT ? DM_CHOICE.ACCEPT : DM_CHOICE.DECLINE;
 
   const result = await routeDmAction(prisma, {

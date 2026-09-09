@@ -63,14 +63,14 @@ export default function DmPane({ self }) {
       .then((result) => {
         if (cancelled) return;
         if (!result?.ok) {
-          setLoadError(result?.error ?? "Couldn't load the conversation.");
+          setLoadError(result?.error ?? "Couldn't load the conversation. ‡");
           return;
         }
         setLoadError(null);
         seedDmRows(result.rows, result.hasMore);
       })
       .catch(() => {
-        if (!cancelled) setLoadError("Couldn't load the conversation.");
+        if (!cancelled) setLoadError("Couldn't load the conversation. ‡");
       });
     return () => {
       cancelled = true;
@@ -147,7 +147,7 @@ export default function DmPane({ self }) {
         // The words come back into the box — unless the player has already
         // started the next line, which is theirs to keep.
         setDraft((current) => (current.trim() ? current : content));
-        setError(result?.error ?? "That didn't send. Try again.");
+        setError(result?.error ?? "That didn't send. Try again. ‡");
         return;
       }
       addDmRow(result.row);
@@ -156,7 +156,7 @@ export default function DmPane({ self }) {
 
   const over = draft.length > PLAYER_DM_MAX_LENGTH;
   const nearLimit = draft.length > PLAYER_DM_MAX_LENGTH * 0.9;
-  const footError = error ?? (over ? `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most.` : null);
+  const footError = error ?? (over ? `That is too long — ${PLAYER_DM_MAX_LENGTH} characters at most. ‡` : null);
 
   return (
     <div className="chat-main">
@@ -175,7 +175,7 @@ export default function DmPane({ self }) {
         ) : !dm.seeded ? (
           <FeedSkeleton />
         ) : messages.length === 0 ? (
-          <EmptyState>Nothing yet. Bascinet writes here, and so can you.</EmptyState>
+          <EmptyState>Nothing yet. Bascinet writes here, and so can you. ‡</EmptyState>
         ) : (
           <DmThread
             messages={messages}

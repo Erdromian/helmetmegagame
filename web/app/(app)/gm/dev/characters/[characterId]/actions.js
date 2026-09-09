@@ -247,7 +247,7 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
   if (diff.locationId) changeLines.push(`Moved.`);
   if (diff.name || diff.lastName) changeLines.push(`Name updated.`);
   if (changeLines.length) {
-    notifyCharacter(session, existing, `Your sheet was edited:\n${changeLines.join("\n")}`);
+    notifyCharacter(session, existing, `Your sheet was edited: ‡\n${changeLines.join("\n")}`);
   }
 
   repaint(characterId);
@@ -521,7 +521,7 @@ async function teleportCharacterImpl({ characterId, locationId }) {
   const location = locationId
     ? await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } })
     : null;
-  if (locationId && !location) throw new UserError("That location no longer exists.");
+  if (locationId && !location) throw new UserError("That location no longer exists. ‡");
   if (character.locationId === (locationId || null)) {
     throw new UserError(`${character.name} is already there.`);
   }
@@ -555,7 +555,7 @@ async function teleportCharacterImpl({ characterId, locationId }) {
     character,
     location
       ? `You were moved to ${location.name}.`
-      : "You were moved somewhere with no channel access.",
+      : "You were moved somewhere with no channel access. ‡",
   );
 
   after(async () => {

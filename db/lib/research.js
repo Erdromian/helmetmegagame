@@ -135,10 +135,12 @@ const TAG_TOKEN_RE = /\{tag:([A-Za-z0-9_-]+)\}/g;
 // would render as a live chip inside the sheet, and in a Discord DM it would
 // be the raw braces. `nameOf(slug)` supplies the name; a slug it can't
 // resolve is left as the token so the gap is visible rather than silent.
-// The paper is a player's object: the catalog's own tokens are named out.
+// The catalog's trailing ‡ comes off — the paper is a player's object, not
+// unsigned prose.
 function researchPaperText(recipe, nameOf = () => null) {
   const description = (recipe.description ?? "")
     .replace(TAG_TOKEN_RE, (raw, slug) => nameOf(slug) ?? raw)
+    .replace(/\s*‡\s*$/, "")
     .trim();
   const costLines = [];
   if (recipe.requirementTurns) {

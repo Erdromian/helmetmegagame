@@ -281,7 +281,7 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
   } catch (err) {
     console.error("Failed to prepare a message for proxying, returning it to its author:", err);
     await deleteOriginal(message);
-    await handBack(message, "Something went wrong reposting that. Here it is back:", text);
+    await handBack(message, "Something went wrong reposting that. Here it is back: ‡", text);
     return null;
   }
   if (!prepared.ok) {
@@ -349,7 +349,7 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
     // how a message ends up on Discord and nowhere else.
     console.error("Failed to record message, returning it to its author:", err);
     await deleteOriginal(message);
-    await handBack(message, "Something went wrong reposting that. Here it is back:", text);
+    await handBack(message, "Something went wrong reposting that. Here it is back: ‡", text);
     return null;
   }
 
@@ -368,7 +368,7 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
     // heard.
     if (row?.id) await retractArchiveRow(prisma, row.id);
     await deleteOriginal(message);
-    await handBack(message, "Something went wrong reposting that. Here it is back:", text);
+    await handBack(message, "Something went wrong reposting that. Here it is back: ‡", text);
     return null;
   }
 

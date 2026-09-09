@@ -90,7 +90,7 @@ export default function CraftsTable({ projects }) {
           {table.pageRows.length === 0 && (
             <tr>
               <td colSpan={7} className="text-muted">
-                Nobody has a craft project going.
+                Nobody has a craft project going. ‡
               </td>
             </tr>
           )}

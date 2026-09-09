@@ -111,8 +111,8 @@ function heldReasonFor(character, now = new Date()) {
   // Under five minutes it is worth counting down; a hold that runs to the end
   // of the turn is not, and saying "43188s" would be worse than saying nothing.
   return seconds <= 300
-    ? `Somebody has hold of you. You can't move for another ${seconds}s.`
-    : "Somebody has hold of you. You can't move until the end of the turn.";
+    ? `Somebody has hold of you. You can't move for another ${seconds}s. ‡`
+    : "Somebody has hold of you. You can't move until the end of the turn. ‡";
 }
 
 // The one write that ends a hold early, and the three callers that use it: the

@@ -38,7 +38,7 @@ export default function InactivePanel({ rows, turn }) {
     setNote(null);
     const ok = await confirm({
       title: `Message ${picked.length} player${picked.length === 1 ? "" : "s"}?`,
-      message: "It arrives as a DM and lands in their conversation on the player desk.",
+      message: "It arrives as a DM and lands in their conversation on the player desk. ‡",
       confirmLabel: "Send it",
       cancelLabel: "Not yet",
     });
@@ -56,7 +56,7 @@ export default function InactivePanel({ rows, turn }) {
   }
 
   if (rows.length === 0) {
-    return <EmptyState>Nobody has gone quiet.</EmptyState>;
+    return <EmptyState>Nobody has gone quiet. ‡</EmptyState>;
   }
 
   return (
@@ -115,7 +115,7 @@ export default function InactivePanel({ rows, turn }) {
           <textarea
             rows={7}
             value={text}
-            placeholder="We have not seen you in a while — are you still playing?"
+            placeholder="We have not seen you in a while — are you still playing? ‡"
             onChange={(e) => setText(e.target.value)}
           />
         </label>

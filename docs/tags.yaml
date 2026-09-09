@@ -8470,7 +8470,7 @@ tags:
     name: Stepstone
     category: items
     group: items-special
-    description: "You can consume it to teleport anywhere you have been."
+    description: "You can consume it to teleport anywhere you have been. ‡"
     pointCost: 0
     tradeable: true
     weight: 0

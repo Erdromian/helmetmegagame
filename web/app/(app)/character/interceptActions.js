@@ -44,7 +44,7 @@ async function me({ needs = null } = {}) {
     // A bound man whose ambush silently never fires files a support ticket; a
     // bound man told why does not. fireWatches checks this again at the moment
     // it would fire, which is the check that actually counts.
-    if (blocker) throw new UserError(`You can't lay in wait — you're ${blocker.name}.`);
+    if (blocker) throw new UserError(`You can't lay in wait — you're ${blocker.name}. ‡`);
   }
   return { session, character };
 }
@@ -105,12 +105,12 @@ async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson 
   const clean = cleanMessage(message);
 
   if (!anyone && !concealed && targetNames.length === 0) {
-    throw new UserError("Name somebody to watch for, or watch for anyone.");
+    throw new UserError("Name somebody to watch for, or watch for anyone. ‡");
   }
   // The anchor. Character.locationId is nullable, and a watch with nowhere to
   // wait would be a 500 out of the upsert instead of a sentence.
   if (!character.locationId) {
-    throw new UserError("You have to be standing somewhere to lie in wait.");
+    throw new UserError("You have to be standing somewhere to lie in wait. ‡");
   }
 
   const data = {
@@ -145,14 +145,14 @@ async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson 
   revalidate();
   return {
     ok: true,
-    line: wantAmbush ? "You lie in wait, ready to spring." : "You lie in wait.",
+    line: wantAmbush ? "You lie in wait, ready to spring. ‡" : "You lie in wait. ‡",
   };
 }
 
 async function stopInterceptImpl() {
   const { session, character } = await me();
   const gone = await prisma.interceptWatch.deleteMany({ where: { characterId: character.id } });
-  if (gone.count === 0) return { ok: true, line: "You weren't watching for anybody." };
+  if (gone.count === 0) return { ok: true, line: "You weren't watching for anybody. ‡" };
   await logAudit(prisma, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_intercept_set",
@@ -161,7 +161,7 @@ async function stopInterceptImpl() {
     details: { stopped: true },
   });
   revalidate();
-  return { ok: true, line: "You stop watching the road." };
+  return { ok: true, line: "You stop watching the road. ‡" };
 }
 
 // Letting somebody go early. releaseHeldBy's WHERE is the ownership check —
@@ -171,7 +171,7 @@ async function stopInterceptImpl() {
 async function releaseHeldImpl({ targetCharacterId }) {
   const { session, character } = await me();
   const freed = await releaseHeldBy(prisma, character.id, { targetId: targetCharacterId });
-  if (freed.length === 0) throw new UserError("They're already free.");
+  if (freed.length === 0) throw new UserError("They're already free. ‡");
   const target = freed[0];
 
   await logAudit(prisma, {
@@ -186,11 +186,11 @@ async function releaseHeldImpl({ targetCharacterId }) {
   // them, and the game does not need to confirm it (REQUESTS.md §3).
   if (target.discordUserId && target.status === "ALIVE") {
     after(() =>
-      sendDm(target.discordUserId, "You've been let go. You can move again.").catch(() => {}),
+      sendDm(target.discordUserId, "You've been let go. You can move again. ‡").catch(() => {}),
     );
   }
   revalidate();
-  return { ok: true, line: `You let ${target.name} go.` };
+  return { ok: true, line: `You let ${target.name} go. ‡` };
 }
 
 export async function loadIntercept() {

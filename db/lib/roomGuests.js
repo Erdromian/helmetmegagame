@@ -57,12 +57,12 @@ const GUEST_SELECT = {
 // `actor` may be null for a GM. Returns { room, target } or { error }.
 async function doorwayFor(prisma, { actor, roomId, characterId, gm = false }) {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: ROOM_SELECT });
-  if (!room) return { error: "That room no longer exists." };
-  if (room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in." };
+  if (!room) return { error: "That room no longer exists. ‡" };
+  if (room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in. ‡" };
 
   if (!gm) {
     if (!actor?.id || !room.locationId || actor.locationId !== room.locationId) {
-      return { error: "You're not in this room." };
+      return { error: "You're not in this room. ‡" };
     }
     // Standing at the Location is NOT being inside the room. On Discord that
     // second half was implicit — the command was typed into the room's own
@@ -74,18 +74,18 @@ async function doorwayFor(prisma, { actor, roomId, characterId, gm = false }) {
     const keys = await roomAccessKeys(prisma, actor.id);
     const inside =
       room.accessTagSlugs.some((slug) => keys.heldSlugs.has(slug)) || keys.guestRoomIds.has(room.id);
-    if (!inside) return { error: "You are not inside that room." };
+    if (!inside) return { error: "You are not inside that room. ‡" };
   }
 
   const target = await prisma.character.findFirst({
     where: { id: String(characterId ?? ""), status: "ALIVE" },
     select: GUEST_SELECT,
   });
-  if (!target) return { error: "That isn't a living character." };
+  if (!target) return { error: "That isn't a living character. ‡" };
   if (target.locationId !== room.locationId) {
     // The presented name in every sentence this file answers with. A door
     // refusing to open for somebody is not the place to learn who they are.
-    return { error: `${await presentedNameOf(prisma, target.id, actor)} isn't here to be let in.` };
+    return { error: `${await presentedNameOf(prisma, target.id, actor)} isn't here to be let in. ‡` };
   }
   return { room, target };
 }
@@ -132,7 +132,7 @@ async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = fa
       threadName: room.name,
       threadId: room.discordThreadId,
     },
-    line: `${await presentedNameOf(prisma, target.id, actor)} was let in. They stay until they leave.`,
+    line: `${await presentedNameOf(prisma, target.id, actor)} was let in. They stay until they leave. ‡`,
   };
 }
 
@@ -143,7 +143,7 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
 
   const held = await heldTagSlugs(prisma, target.id);
   if (room.accessTagSlugs.some((slug) => held.has(slug))) {
-    return { ok: false, error: "Their key admits them. Take the key." };
+    return { ok: false, error: "Their key admits them. Take the key. ‡" };
   }
 
   await prisma.roomGuest
@@ -161,7 +161,7 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
       await recordRoomThread(prisma, target.id, room.id, false);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err.message ?? err);
-      return { ok: false, error: "Couldn't remove them. The bot may be missing Manage Threads." };
+      return { ok: false, error: "Couldn't remove them. The bot may be missing Manage Threads. ‡" };
     }
   }
 

@@ -14,7 +14,7 @@ export default function ChatView({ kind, chat, providers, roster, mentionDirecto
     return (
       <div className="chat-body chat-body--empty">
         <div className="panel">
-          <EmptyState>{kind === "empty" ? "You have no living character." : "You are nowhere yet."}</EmptyState>
+          <EmptyState>{kind === "empty" ? "You have no living character. ‡" : "You are nowhere yet."}</EmptyState>
         </div>
       </div>
     );

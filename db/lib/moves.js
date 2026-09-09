@@ -25,27 +25,27 @@ const DESCRIPTION_MAX = 2000;
 // `character` needs { id, zoneId, locationId, discordUserId }.
 // Returns { ok: true, action, laborRate, openTurn } or { ok: false, error }.
 async function fileMove(prisma, { character, actorDiscordUserId, moveKind, description }) {
-  if (!character) return { ok: false, error: "You don't have a living character." };
-  if (!MOVE_KINDS.has(moveKind)) return { ok: false, error: "Pick a kind of Move first." };
+  if (!character) return { ok: false, error: "You don't have a living character. ‡" };
+  if (!MOVE_KINDS.has(moveKind)) return { ok: false, error: "Pick a kind of Move first. ‡" };
 
   const raw = String(description ?? "").trim();
   if (!raw) return { ok: false, error: "Write something first." };
-  if (raw.length > DESCRIPTION_MAX) return { ok: false, error: "That's too long to file." };
+  if (raw.length > DESCRIPTION_MAX) return { ok: false, error: "That's too long to file. ‡" };
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  if (!openTurn) return { ok: false, error: "No turn is open — your Move wasn't recorded." };
+  if (!openTurn) return { ok: false, error: "No turn is open — your Move wasn't recorded. ‡" };
 
   // Re-checked here rather than only where the dialog opened: a form can sit
   // open across the cutoff. Before the Action row, so a refusal costs no turn.
   const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
-  if (locked) return { ok: false, error: "Moves for this turn are locked. Yours wasn't recorded." };
+  if (locked) return { ok: false, error: "Moves for this turn are locked. Yours wasn't recorded. ‡" };
 
   const alreadyActed = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
     select: { id: true },
   });
   if (alreadyActed) {
-    return { ok: false, error: "You've already locked in a Move this turn — this one wasn't recorded." };
+    return { ok: false, error: "You've already locked in a Move this turn — this one wasn't recorded. ‡" };
   }
 
   // The same gate every other action runs (db/lib/incapacitation.js): Bound,
@@ -58,7 +58,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
   });
   const stuck = blockerFor(heldTags, ACT);
   if (stuck) {
-    return { ok: false, error: `You can't act right now — you're ${stuck.name}. Nothing was recorded.` };
+    return { ok: false, error: `You can't act right now — you're ${stuck.name}. Nothing was recorded. ‡` };
   }
 
   // Labor is its own kind, not a checkbox riding along with a Routine — so
@@ -67,7 +67,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
   let laborRate = null;
   if (moveKind === "LABOR") {
     laborRate = await resolveLaborRate(prisma, character.id);
-    if (!laborRate.ok) return { ok: false, error: `${laborRate.reason}` };
+    if (!laborRate.ok) return { ok: false, error: `${laborRate.reason} ‡` };
     resourceRollExpression = laborRate.expression;
   }
 
@@ -92,7 +92,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
       },
     });
   } catch (err) {
-    if (err.code === "P2002") return { ok: false, error: "You've already acted this turn." };
+    if (err.code === "P2002") return { ok: false, error: "You've already acted this turn. ‡" };
     throw err;
   }
 

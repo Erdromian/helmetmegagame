@@ -449,7 +449,7 @@ export default function EffectComposer({
                     inline
                     allowBlank={op.op !== "add"}
                     ariaLabel={
-                      op.op === "add" ? "Quantity" : "Quantity — blank means the whole holding"
+                      op.op === "add" ? "Quantity" : "Quantity — blank means the whole holding ‡"
                     }
                     value={
                       quantityDrafts.has(op.tagId)

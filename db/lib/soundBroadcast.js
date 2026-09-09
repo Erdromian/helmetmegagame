@@ -81,7 +81,7 @@ async function broadcastSound(prisma, { originLocationId, text, maxHops, loudHop
     zones.filter((loc) => carriesTo(originKind, loc.zone?.kind)).map((loc) => loc.id),
   );
 
-  const loud = `${text}${signed ? "" : ""}`;
+  const loud = `${text}${signed ? " ‡" : ""}`;
   const quiet = ambientLine(text, [], { signed });
 
   // Sequential, no Promise.all: a fan-out across three dozen Locations would

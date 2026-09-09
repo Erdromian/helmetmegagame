@@ -127,7 +127,7 @@ export default function AvatarField({
           <p className="text-sm text-muted">
             Playing from the web, so this ping has nowhere to arrive — it lives in a Discord
             channel you are no longer in. Your answer is kept, and the ping comes back if you
-            turn Play from the web off.
+            turn Play from the web off. ‡
           </p>
         )}
         {/* The anonymity switch (docs/systemdocs/CHAT.md §6). On, this player's

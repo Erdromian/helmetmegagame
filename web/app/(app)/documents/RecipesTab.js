@@ -89,7 +89,7 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
         <p className="text-sm">
           Not every recipe is shown below. Secret recipes can be found across Ravenheart, and
           your crafting menu will reveal them if you possess the necessary ingredients and
-          skill.
+          skill. ‡
         </p>
         <FilterBar
           filterDefs={FILTER_DEFS}
@@ -108,7 +108,7 @@ export default function RecipesTab({ tags, mySkillIds = null }) {
               checked={mineOnly}
               onChange={(e) => setMineOnly(e.target.checked)}
             />
-            Only recipes my skills allow
+            Only recipes my skills allow ‡
           </label>
         )}
       </div>
@@ -238,8 +238,8 @@ function RecipeRow({ row, byId, bySlug, onView }) {
         {row.ration != null && (
           <span className="block text-xs text-muted">
             {row.rationShared
-              ? `Dead Simple: ${row.ration} a turn across all of it`
-              : `Up to ${row.ration} a turn`}
+              ? `Dead Simple: ${row.ration} a turn across all of it ‡`
+              : `Up to ${row.ration} a turn ‡`}
           </span>
         )}
         {row.work == null && row.ration == null && (
