@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Take Pyrias's tag description rewrites
+
+✎ 152 tag descriptions rewritten from PR #33 — the double daggers are off  
+✎ Only the wording changed; no tag was added or removed by this
+
 ## 2026-09-09 · The buttons in Bascinet's messages work on the web
 
 ✎ Anything the game asks you to answer by message — a lesson, a confession, a bind, being taken along, a seat, a spawn, holding a door open — now has its Accept and Decline in the Bascinet pane, not only in Discord  
