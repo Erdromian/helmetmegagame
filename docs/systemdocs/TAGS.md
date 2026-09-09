@@ -1210,9 +1210,9 @@ thing. See "The Move economy" below for how that bills and what it replaced.
 | Tier | Reads as | ⬢ | turns (Move) | skill | Gambit |
 |---|---|---|---|---|---|
 | 0 | Untreatable | — | — | — | — |
-| 1 | Very minor — first aid | 1 | 0 | Basic | no |
-| 2 | Minor | 2 | 1/4 | Basic | no |
-| 3 | Moderately severe | 2 | 1/3 | Skilled | no |
+| 1 | Dead Simple | 1 | 0 | Basic | no |
+| 2 | Simple | 2 | 1/4 | Basic | no |
+| 3 | Moderate | 2 | 1/3 | Skilled | no |
 | 4 | Severe | 4 | 1/3 | Skilled | no |
 | 5 | Very minor surgery | 7 | 1/2 | Skilled | no |
 | 6 | Severe surgery | 14 | 1 | Expert | no |

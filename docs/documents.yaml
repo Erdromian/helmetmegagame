@@ -60,8 +60,8 @@ documents:
       costing anything; past that, each extra one spills into your Move at
       ¼ apiece. ‡
 
-      **Everything else spends a fraction of your Move — even Minor.** A
-      Minor cure is a flat ¼, every time, however few you're doing that
+      **Everything else spends a fraction of your Move — even Simple.** A
+      Simple cure is a flat ¼, every time, however few you're doing that
       turn; it never dips into the free pool above. A ⅓ cure is a third of
       your turn's work — three fit in one Routine. A ½ cure is half — two
       fit. The heaviest tiers take the WHOLE Move, and Complex surgery is
@@ -85,24 +85,24 @@ documents:
 
       | Tier | ⬢ | Move | Skill |
       |---|---|---|---|
-      | Free | 0 | none — shared pool of 4 a turn | Medical (Basic) |
-      | Very minor — first aid | 1 | none — shared pool of 4 a turn | Medical (Basic) |
-      | Minor | 2 | ¼ | Medical (Basic) |
-      | Moderately severe | 2 | ⅓ | Medical (Skilled) |
+      | Dead Simple | 0 | none — shared pool of 4 a turn | Medical (Basic) |
+      | Dead Simple | 1 | none — shared pool of 4 a turn | Medical (Basic) |
+      | Simple | 2 | ¼ | Medical (Basic) |
+      | Moderate | 2 | ⅓ | Medical (Skilled) |
       | Severe | 4 | ⅓ | Medical (Skilled) |
       | Very minor surgery | 7 | ½ | Medical (Skilled) |
       | Severe surgery | 14 | whole | Medical (Expert) |
       | Complex surgery | 14 | whole, and a Gambit | Medical (Expert) |
 
-      **Free — 0 ⬢, no Move**
+      **Dead Simple — 0 ⬢, no Move**
 
       - {tag:minor-bleeding}, {tag:dislocated-shoulder}
 
-      **Very minor — 1 ⬢, no Move**
+      **Dead Simple — 1 ⬢, no Move**
 
       - {tag:bruised}, {tag:severe-pain}
 
-      **Minor — 2 ⬢, ¼ Move**
+      **Simple — 2 ⬢, ¼ Move**
 
       - {tag:minor-wound}, {tag:burned}, {tag:sprained-ankle}, {tag:infected}
       - {tag:frostbite} — same price and the same quarter-Move as the rest
@@ -111,7 +111,7 @@ documents:
       - {tag:choking}, {tag:hypothermia} — same rung again, and the only
         cures on this whole ladder that need no medical training at all. ‡
 
-      **Moderately severe — 2 ⬢, ⅓ Move**
+      **Moderate — 2 ⬢, ⅓ Move**
 
       - {tag:deep-wound}, {tag:broken-bone}, {tag:cracked-ribs},
         {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock},
