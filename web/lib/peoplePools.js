@@ -25,6 +25,7 @@ import {
   countsAgainstHealCap,
   healCapFor,
   satisfiedSkillIds,
+  HEAL_SKILL_SELECT,
 } from "@/lib/healRequests";
 
 // Everything the PEOPLE dialogs need — Look at, Heal, Transfer's recipient
@@ -72,7 +73,10 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
                 requirementPerTurn: true,
                 requirementResources: true,
                 requirementGambit: true,
-                requirementSkills: { select: { id: true, name: true } },
+                // HEAL_SKILL_SELECT: the id qualifies the medic, and the slug is
+                // what needsSurgicalSite() matches medical-expert on — without it
+                // a patient standing here never warns that their wound needs a site.
+                requirementSkills: { select: HEAL_SKILL_SELECT },
                 concealsIdentity: true,
                 concealSprite: true,
                 forcesConceal: true,

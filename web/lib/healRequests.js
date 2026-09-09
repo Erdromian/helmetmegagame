@@ -74,6 +74,15 @@ export function healCost(tag) {
   return tag?.requirementResources ?? 0;
 }
 
+// What a `requirementSkills` row has to carry for the predicates below to
+// answer correctly. Every query whose tags reach isGambitHeal() or
+// needsSurgicalSite() must select THIS, not a subset: `name` alone renders a
+// correct requirement label while silently breaking both — a row with no `id`
+// matches nothing in `satisfied`, so every cure reads as a Gambit, and a row
+// with no `slug` never matches medical-expert, so surgery stops asking for a
+// site. Neither failure is visible in the label the player reads beside it.
+export const HEAL_SKILL_SELECT = { id: true, name: true, slug: true };
+
 // The requirementSkills rows still missing — [] when qualified.
 export function missingSkillsFor(tag, satisfied) {
   return (tag?.requirementSkills ?? []).filter((skill) => !satisfied.has(skill.id));

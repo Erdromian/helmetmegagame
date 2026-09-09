@@ -18,6 +18,7 @@ import { carryStatus } from "@lifeweb/db/lib/carry";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
+import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
@@ -190,7 +191,18 @@ async function FreshChat({ userId }) {
                   equippedQuantity: true,
                   poisonedCount: true,
                   poisonPayload: true,
-                  tag: { include: { group: { select: { slug: true } } } },
+                  // requirementSkills named explicitly for the same reason
+                  // the sheet's own query names it (character/page.js): these
+                  // rows are the SELF patient in loadPeoplePools' heal roster,
+                  // and `include` does not pull an unnamed relation — without
+                  // it every cure here reads as Routine, above-tier ones
+                  // included, which is the wrong direction to be silent in.
+                  tag: {
+                    include: {
+                      group: { select: { slug: true } },
+                      requirementSkills: { select: HEAL_SKILL_SELECT },
+                    },
+                  },
                 },
               },
               role: { select: { slug: true } },

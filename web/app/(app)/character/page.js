@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
+import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import {
   LESSON_CATALOG_SELECT,
   teachableSkills,
@@ -274,13 +275,16 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly: `include` doesn't pull
       // unnamed relations, and formatTagRequirement's `?.length` guard would
-      // silently drop it rather than fail.
+      // silently drop it rather than fail. HEAL_SKILL_SELECT rather than
+      // `name` alone: these rows are the SELF patient in loadPeoplePools'
+      // heal roster, where isGambitHeal() needs the id and needsSurgicalSite()
+      // needs the slug.
       tags: {
         include: {
           tag: {
             include: {
               group: true,
-              requirementSkills: { select: { name: true } },
+              requirementSkills: { select: HEAL_SKILL_SELECT },
             },
           },
         },
