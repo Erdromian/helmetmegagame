@@ -6,6 +6,9 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The arrival letter stops stuttering its »
+
+
 ## 2026-09-09 · Chat shows how loaded you are
 
 ✚ A load bar under the Resources and weight chips in Chat's You panel — it fills as you pick things up and turns red once you are over your cap, so being Overburdened is something you can see coming instead of being told about  
