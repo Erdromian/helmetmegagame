@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · A finished game becomes one file, and leaves the database
+
+✚ An Archive this game button on /gm/dev. It writes the whole transcript out to one file, checks it reads back, and deletes nothing  
+✎ Restart Game now asks whether the game that is ending is worth keeping. Discard throws its transcript away for good; Keep needs a packet written first, and refuses without one  
+✎ Either way the transcript leaves the database, so a playtest stops leaving a permanent entry in the archive picker  
+✚ npm run archive:export, archive:import and archive:exports for doing it by hand  
+✎ The archive picker names a game by its dates or a label now, never Game N  
+✎ An archived game shows how it ended and where its transcript went, instead of an empty page  
+✎ A bot restart can no longer repost an old game's lines into today's channels
+
 ## 2026-09-09 · The edit refusal just says no
 
 ✎ Trying to edit something older than five minutes now says "You can't edit that any more." instead of explaining itself
