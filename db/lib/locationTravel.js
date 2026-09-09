@@ -66,6 +66,43 @@ function freeMovesLeft(character, config, openTurn, partySize = 0) {
   return Math.max(0, allowance - spent);
 }
 
+// What undoing a Move should also undo on the Character row — the two
+// things a zone crossing spends OUTSIDE Action.appliedEffects entirely,
+// because performLocationMove writes them straight onto Character instead
+// of snapshotting them on the Action: a PAID crossing (past the free
+// allowance) stamps travelToLocationId/travelTurnId rather than moving
+// anyone, and EVERY crossing this turn — free or paid — claims against
+// zoneMovesUsed/zoneMovesTurnId. Deleting the Action alone left both stuck:
+// the travel menu stayed locked ("you're on the road to X") on a road that,
+// per the Action ledger, was never taken, and the day's free crossings
+// stayed spent even though the Move that (over-)spent them just came back.
+//
+// Pure on purpose — web/lib/moveEconomy.js#deleteActionRestoringTurn is the
+// only caller and applies whatever this returns, but keeping the decision
+// separate from the write is what makes it testable without a database.
+//
+// `action` needs { turnId, characterId, character: { travelToLocationId,
+// travelTurnId, zoneMovesTurnId } }. Returns a Character update object, or
+// null when this Action never claimed either one.
+//
+// Action.turnId is unique per character (@@unique([characterId, turnId])),
+// so a match against it can only ever mean THIS Action — there is no other
+// Action this turn it could belong to instead.
+function travelClaimsToUndo(action) {
+  const character = action?.character;
+  if (!character) return null;
+  const data = {};
+  if (character.travelToLocationId && character.travelTurnId === action.turnId) {
+    data.travelToLocationId = null;
+    data.travelTurnId = null;
+  }
+  if (character.zoneMovesTurnId === action.turnId) {
+    data.zoneMovesUsed = 0;
+    data.zoneMovesTurnId = null;
+  }
+  return Object.keys(data).length ? data : null;
+}
+
 // Motion Sickness can't be equipped onto a mount or a boat (that gate lives
 // in web/app/(app)/character/equipActions.js) — so the only way it ever rides
 // one is being dragged along by someone else's. Best-effort and swallows its
@@ -622,6 +659,7 @@ module.exports = {
   freeZoneMoves,
   freeMovesLeft,
   freeZoneMovesReason,
+  travelClaimsToUndo,
   fitsMount,
   CHARACTER_SELECT,
 };

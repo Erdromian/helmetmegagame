@@ -12,6 +12,7 @@
 // Two copies would drift the first time Action.appliedEffects grows a key.
 import { revertMoveEffects } from "@lifeweb/db";
 import { cancelOffersForAction } from "@lifeweb/db/lib/lessons";
+import { travelClaimsToUndo } from "@lifeweb/db/lib/locationTravel";
 
 // A cooperative lock, not a status — see the comment on MOVE_LOCK_TTL_MS in
 // gm/turns/actions.js. Exported so anything that mutates a Move can honour a
@@ -46,6 +47,21 @@ export async function findOpenTurnAction(prisma, characterId) {
 // ONLY the appliedEffects snapshot, never the live row, so it stays correct
 // even for a Move a GM edited in between.
 //
+// Two more things a Move can spend that never go through appliedEffects at
+// all, because db/lib/locationTravel.js writes them straight onto the
+// Character row instead: a PAID zone crossing (past the free allowance)
+// stamps travelToLocationId/travelTurnId rather than moving anyone, and
+// EVERY crossing this turn — free or paid — claims against
+// zoneMovesUsed/zoneMovesTurnId. Undoing the Action alone left both stuck:
+// the travel menu stayed locked ("you're on the road to X") on a road that,
+// per the Action ledger, was never taken, and the day's free crossings
+// stayed spent even though the Move that (over-)spent them just came back.
+// travelClaimsToUndo works out WHAT to undo; this just writes it.
+async function undoTravelClaims(tx, action) {
+  const data = travelClaimsToUndo(action);
+  if (data) await tx.character.update({ where: { id: action.characterId }, data });
+}
+
 // Takes a transaction client: both callers do this alongside an audit write
 // that must not commit separately.
 //
@@ -55,6 +71,7 @@ export async function findOpenTurnAction(prisma, characterId) {
 export async function deleteActionRestoringTurn(tx, action) {
   const dms = await cancelOffersForAction(tx, action.id);
   if (action.appliedEffects) await revertMoveEffects(tx, action);
+  await undoTravelClaims(tx, action);
   await tx.action.deleteMany({ where: { id: action.id } });
   return dms;
 }
