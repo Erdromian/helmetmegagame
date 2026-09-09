@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Archive packets can be kept on a disk of your own
+
+✚ npm run archive:pull syncs every packet in the bucket down to a local folder, skipping what is already there  
+✎ Every download is re-read and re-hashed before it is kept, and a bad one is moved aside so the next run fetches it again  
+✎ Packets can never be committed: the repo is public and a transcript names the character behind every /conceal
+
 ## 2026-09-09 · A finished game becomes one file, and leaves the database
 
 ✚ An Archive this game button on /gm/dev. It writes the whole transcript out to one file, checks it reads back, and deletes nothing  
