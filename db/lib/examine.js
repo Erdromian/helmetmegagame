@@ -124,7 +124,9 @@ function thanatiLines(subjectTags = []) {
 // doctor's eye does not apply either: a surgeon reading a hood is still just
 // reading a hood.
 function concealedReadout(identity, subject) {
-  const seen = (subject.tags ?? []).filter((ct) => seenByBystander(ct.tag, ct));
+  // `false` is the whole point of this branch: a NAMED tag is a reputation
+  // attached to a face, and there is no face here (db/lib/medicalVision.js).
+  const seen = (subject.tags ?? []).filter((ct) => seenByBystander(ct.tag, ct, false));
   // Tag.category stores the display name, not the YAML slug.
   const isHealth = (ct) => ct.tag.category === HEALTH_CATEGORY;
   return {
@@ -181,6 +183,13 @@ function examineReadout({
   // presented name. presentedIdentity.js carries that distinction.
   if (identity.concealed) return concealedReadout(identity, subject);
 
+  // A forced name is not concealment — a Beast under Apex Form gets the
+  // ordinary read (see above) — but it is still not the subject's OWN name,
+  // and a Disguise Kit is exactly that: a false name over an unhidden face.
+  // So a NAMED tag comes off here too, or a wanted man would buy a kit, be
+  // read under somebody else's name, and still be read as Wanted.
+  const identityVisible = !identity.forced;
+
   const { canSeeDesire } = inspectVision(viewerTags);
   return {
     concealed: false,
@@ -191,7 +200,9 @@ function examineReadout({
     ailments: [],
     equipment: [],
     tags: [
-      ...medicallyVisibleTags(subject.tags, satisfied).map((entry) => describeTag(entry, openTurnNumber)),
+      ...medicallyVisibleTags(subject.tags, satisfied, identityVisible).map((entry) =>
+        describeTag(entry, openTurnNumber),
+      ),
       ...(viewerIsThanati ? thanatiLines(subject.tags) : []),
     ],
     // An unseen field is ABSENT, never a "hidden" placeholder — and nothing

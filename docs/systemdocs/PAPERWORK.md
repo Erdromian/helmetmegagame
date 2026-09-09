@@ -314,6 +314,13 @@ Wanted and Debtor notices ride this same machinery rather than a bespoke one —
 on a board (the Square for Wanted, the Depot/Customs board for Debtor) with
 two more loose sheets scattered in nearby rooms, on a 30-turn clock.
 
+That machinery is a **character-creation** thing only. The Censor's and the
+Sheriff's Arrest Warrant button (`REQUESTS.md` §5g) grants the Wanted tag and
+puts up **no paper at all** — the man is read as wanted off his own face
+(`TAGS.md`, `visible: named`) and nothing announces it. Do not "fix" that by
+wiring `postWantedPosters` into the warrant: a warrant nobody can see coming is
+the point of it. ‡
+
 ## 8. Where the code lives
 
 `db/lib/reading.js` (the gate), `db/lib/paper.js` (names, descriptions, the

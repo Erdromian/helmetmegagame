@@ -171,6 +171,14 @@ permanent path and Disguise is the temporary one**, and they do not interact:
 a disguise keeps presenting its `forcedName` over whatever the real name
 becomes (`PROXYING.md` §6).
 
+**Drinking it also clears the Wanted tag.** A new name is a new man, and
+buying your way off the warrant book is the sharpest thing the bottle does —
+leaving the tag on would have meant the Cerberon still reading you as wanted
+under a name their own book has never heard of. The posters already nailed up
+are *not* recalled: they are paper, on their own clock (`PAPERWORK.md` §7).
+A Disguise Kit hides the tag for three turns; this takes it off for good.
+See `REQUESTS.md` §5g and `TAGS.md` (`visible: named`). ‡
+
 The potion is brewable (`brewing-skilled`, 2 turns, 8 ⬢) and stocked at the
 Depot, so it is a thing a player can actually get. It re-validates the same cap
 and dynasty-lock rules every other writer of `Character.name` enforces, and runs the same

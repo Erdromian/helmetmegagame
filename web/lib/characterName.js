@@ -8,10 +8,13 @@
 // makes Turbopack emit runtime interop and warn on every build.
 export {
   NAME_LIMITS,
+  FULL_NAME_LIMIT,
   AGE_MIN,
   AGE_MAX,
   formatCharacterName,
   formatBareName,
+  nameKey,
+  matchesTypedName,
   splitLegacyName,
   normalizeHonorific,
   normalizeEarnedHonorific,

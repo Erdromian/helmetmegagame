@@ -42,6 +42,10 @@ const LINES = {
   research: (res, ctx) => `You settle in with ${ctx?.name ?? res.ingredientName ?? "it"}. What the archives give up arrives at the end of the turn. ‡`,
   craft: (res, ctx) => (res.made ? `${res.made} made.` : ctx?.line ?? `The work is filed.`),
   recall: () => `Your comrades.`,
+  // Both server actions return their own `line`, which noticeLine prefers.
+  // These are the fallbacks.
+  warrant: (res, ctx) => `A warrant is out on ${res.name ?? named(ctx, "them")}. ‡`,
+  wantedlist: (res) => (res.roster?.length ? `The warrant book. ‡` : `Nobody is wanted. ‡`),
   recover: (res) => (res.granted?.length ? `${res.granted.join(" and ")} back in your hands.` : `Recovered.`),
   pointer: (res) => res.line ?? `The card swings.`,
   arm: () => `The count has begun.`,

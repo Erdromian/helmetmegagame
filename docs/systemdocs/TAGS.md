@@ -704,7 +704,7 @@ has since been deleted outright along with the channel it opened.
   public by omission.
 - `visible` (`Tag.inspectVisibility`) — whether another player who 🔍-reacts
   to this character's proxied messages sees the tag
-  (`bot/src/events/messageReactionAdd.js`). **Three states**, and the YAML
+  (`bot/src/events/messageReactionAdd.js`). **Four states**, and the YAML
   says them in words:
 
   | `visible:` | Column | Means |
@@ -712,6 +712,7 @@ has since been deleted outright along with the channel it opened.
   | `false` (default) | `HIDDEN` | Never seen. |
   | `true` | `ALWAYS` | Seen whether it is equipped or not. |
   | `worn` | `WORN` | Seen **only while `CharacterTag.equipped`**. |
+  | `named` | `NAMED` | Seen **only while the subject is under their own name**. |
 
   **THE RULE, and it is catalog-wide.** `visible: true` means *a stranger
   looking you over would notice*: your body, your face, your gait; your
@@ -737,6 +738,29 @@ has since been deleted outright along with the channel it opened.
   `syncTagsFromYaml` **throws** if it is set without one — the same pairing
   discipline as `concealsIdentity`, and for the same reason. See the
   `equippable` section below for the item-by-item rule of thumb.
+
+  `named` is the reputation case, and **Wanted is the tag it was written
+  for**. A bounty is on a *name*, and the tag's own description says so — the
+  Cerberon know your **face**. Under `true` it read the same either way, so a
+  hooded stranger came back as "an unknown young man" whose kit included
+  Wanted, and a man wearing a Disguise Kit's false name was read as Wanted
+  under somebody else's name. Both are the hood failing at the one job it has.
+  So a `named` tag is dropped from the read whenever the viewer is not seeing
+  the real name: under concealment, and under a forced name (Apex Form, the
+  Disguise Kit). It behaves exactly like `true` the rest of the time.
+
+  The rule lives in `seenByBystander()` (`db/lib/medicalVision.js`) like the
+  other three, and `db/lib/examine.js` is what works out whether the name is
+  the subject's own — so **both** branches of the readout, the ordinary one and
+  the concealed one, get it, and the camera's `wasConcealedAs` path inherits
+  it. `db/test/wantedVisibility.test.js` holds it down. Two things it
+  deliberately does **not** touch: torture (breaking a man gets you his real
+  name, so the warrant comes with it — `TORTURE.md`), and the Cerberon's
+  warrant book (`Check Wanted`, `REQUESTS.md`), which is a *record* and does
+  not care who is hooded.
+
+  Knighted is `true` and stays `true` for now — whether a hooded knight should
+  still read as Knighted is Bascinet's call, and it is now a one-word change.
 
   Read it through `seenByBystander()` (`db/lib/medicalVision.js`), never by
   comparing the enum at a call site: both of the bot's embeds route through

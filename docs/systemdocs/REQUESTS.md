@@ -724,19 +724,31 @@ Bury originally had it. Every other target menu in the app is a dropdown built
 from the roster; a dropdown here would be a list of the dead, readable by anyone
 who opened the dialog, and the whole reason `/character`'s panels never render a
 status pill on a corpse is that who died is not supposed to be free information.
-So the dialog holds one text field and `firstName` is matched
-case-insensitively against `Character.firstName` inside a `WHERE` scoped to
-`status: DEAD` and `buriedAt: null`.
+So the dialog holds one text field.
+
+It matches the **whole name** now, not the first name. First names repeat
+constantly in a game this size, so a mourner who knew exactly whose stone they
+meant was told "more than one dead person answers to that name" and had to go
+find a GM — the refusal firing on a case it was never written for. The
+comparison is `matchesTypedName()` (`db/lib/characterName.js`), which accepts
+either form: the full display name (`Sir Jorren "the Blind" Vask`) or the plain
+`First Last`, since an honorific the mourner never learned should not be a wall.
+Both are exact, trimmed and case-folded — there is no fuzzy matching anywhere in
+this game. `Character.name` is composed rather than stored in parts Prisma can
+compare, so the unburied dead come back on a `WHERE` scoped to `status: DEAD`
+and `buriedAt: null` and the filter runs in JS. The Arrest Warrant (§5g) uses
+the same matcher against the living.
 
 **And Engrave's search is game-wide** — no zone clause at all, because the whole
 point is a body nobody can find. Two consequences follow, and both are accepted
 deliberately. The leak is bigger than Bury's was: a hit tells you that person is
 dead *somewhere*, where before it only told you they were not a corpse in your
-zone. And **the `>1 match` refusal now does real work.** Two dead people sharing
-a first name anywhere in Ravenheart is a plain error — "More than one dead
-person answers to that name. A GM will have to do it." — rather than a guess,
-because it is the only thing standing between a mourner and freeing the wrong
-soul. Do not soften it into picking the first match.
+zone. And **the `>1 match` refusal still does real work**, though it is rare now
+that the match is on the whole name: two dead people sharing a full name
+anywhere in Ravenheart is a plain error — "More than one dead person answers to
+that name. A GM will have to do it." — rather than a guess, because it is the
+only thing standing between a mourner and freeing the wrong soul. Do not soften
+it into picking the first match.
 
 **Butchering destroys a body without freeing the soul.** This reads as an
 oversight and is not: cutting someone up is not a burial, so their player stays
@@ -786,6 +798,54 @@ that out by opening the dialog. Bury and Engrave carry no gate at all for the
 same reason: whether a corpse lies where you stand, or whether the name you have
 in mind belongs to someone dead, is exactly what you are not supposed to learn
 from a greyed-out icon.
+
+## 5g. The Cerberon: Arrest Warrant, Check Wanted
+
+Two buttons in a `CERBERON` section of the Actions grid, both **hidden** rather
+than greyed — which badge you carry, and whether you are sworn, are your own
+sheet's facts, and a dead Arrest Warrant icon on a brigand's sheet would teach
+him nothing except that the warrant book exists. They live in
+`web/app/(app)/character/cerberonActions.js`, the `thanatiActions.js` shape:
+one actor resolver, each verb re-checking the tag the button's `show` already
+read.
+
+**Arrest Warrant** is gated on the **badge, not the role**:
+`censors-key`, `sheriffs-badge` or `cerberus-helmet` (`WARRANT_BADGE_SLUGS`,
+`db/lib/wanted.js`). Every other button on the sheet gates on a tag, and this
+way the authority travels with the thing — including when it is looted off a
+body, which is a story the game should be able to tell.
+
+It types the name rather than picking it, the Engrave reasoning (§5d) and it
+applies harder here: a dropdown would be a roster of everybody alive, handed to
+anyone holding a badge. Same `matchesTypedName()` matcher, against
+`status: ALIVE`. Four refusals: nobody by that name, more than one, yourself,
+and a warrant already out on them.
+
+**It costs nothing** — no Move, no ⬢, no Routine filed. And it deliberately
+does **not** put paper up: `postWantedPosters` (`db/lib/wantedPoster.js`) stays
+a character-creation thing. Granting the tag is the whole act, and the only way
+anyone finds out is by looking the man in the face — which is exactly what
+`visible: named` (`TAGS.md`) makes worth doing. There is no cooldown either, so
+a Censor could paper the roster; `AuditLog` is the record (`request_arrest_warrant`)
+and a GM repairs by hand from `/gm/dev`. If that turns out to matter, the cheap
+fix is Recover Equipment's shape — count the last two turns' audit rows — and it
+needs no column. ‡
+
+**Check Wanted** is the warrant book, open to anyone holding the `cerberon`
+tag. `listWanted()` (`db/lib/wanted.js`), returned as notice rows under the
+officer's own cursor, exactly like Recall Comrades (`THANATI.md`). Costs
+nothing, spends no Move.
+
+**It lists a hooded man the same as a bare-faced one, on purpose.** It is a
+*record*, not an act of looking: a name does not come off the book because
+somebody pulled a hood up. That is the whole point of the pairing with
+`visible: named` — the book says Jorren Vask is wanted, the stranger in the
+Square reads as an unknown young man, and closing that gap is the game.
+
+**A Mulligan Potion clears the tag** (`changeNameRequestImpl`,
+`requestActions.js`). A new name is a new man, and that is what the bottle is
+for. The posters already nailed up are not recalled — they are paper, on their
+own 30-turn clock.
 
 ## 6. The player-facing surface
 
@@ -900,6 +960,8 @@ over the URL, so a filtered view stays linkable.
 | Request creation, reason validation, audit helper | `web/lib/requests.js` |
 | `UserError` + `guarded()` result wrapper | `web/lib/actionResult.js` |
 | The player-facing server actions | `web/app/(app)/character/requestActions.js` |
+| The Cerberon's two (§5g) | `web/app/(app)/character/cerberonActions.js`, `db/lib/wanted.js` |
+| Matching a typed name against a character | `db/lib/characterName.js#matchesTypedName` (Engrave §5d, Arrest Warrant §5g) |
 | Universal popup | `web/app/components/RequestDialog.js`, `actions/ActionDialog.js` on top of it |
 | The result notice | `web/app/components/NoticeProvider.js`, `actions/noticeLines.js` |
 | The sheet's band: numbers, turn card, verb strip | `web/app/components/LedgerBand.js` (`SHEET.md` §2) |

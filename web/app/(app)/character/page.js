@@ -27,6 +27,7 @@ import {
   OBOL_SLUG,
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
+import { CERBERON_SLUG, WARRANT_BADGE_SLUGS } from "@lifeweb/db/lib/wanted";
 import {
   BUTCHER_SLUG,
   MUTILATE_GATE_SLUGS,
@@ -880,6 +881,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // yourself. thanatiActions.js re-checks every one of these.
   const isThanati = heldSlugs.has(THANATI_SLUG);
   const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
+  // THE CERBERON. Whether you are sworn, and which badge you carry, are your
+  // own sheet's facts too. cerberonActions.js re-checks both.
+  const isCerberon = heldSlugs.has(CERBERON_SLUG);
+  const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugs.has(slug));
   const hideout = isThanati ? await hideoutRoom(prisma) : null;
   const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
   // Set Hideout's picker: the rooms at this Location the leader can get into.
@@ -1178,6 +1183,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canMutilate: canMutilate,
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,
+      isCerberon: isCerberon,
+      canWarrant: canWarrant,
       atHideout: atHideout,
       hideoutRooms: hideoutRooms,
       hideoutStock: hideoutStock,

@@ -2248,7 +2248,9 @@ tags:
     group: general-brigand
     description: "The Cerberon know your face and have a reward on your head."
     pointCost: -5
-    visible: true
+    # named, not true: they know your FACE. A hood or a Disguise Kit's false
+    # name takes this off the read, which is what makes either worth buying.
+    visible: named
     purchasable: true
     purchasableAfterStart: false
 
