@@ -6,6 +6,29 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The Supply Kit says what it is for
+
+✎ The Supply Kit's description: "Open it to gain resources and a nice surprise."
+
+## 2026-09-09 · The End turn confirm just asks
+
+✎ Ending a turn asks the question and nothing else — the paragraph explaining Needs, the upkeep and the channel wipe is gone
+
+## 2026-09-09 · The horse spends its own free move first
+
+✎ A rider who stables their horse at an indoors door keeps the free crossing they never spent. Riding in used to be charged to your own move, and then the horse's move left with the horse — two crossings, one ride, none left.  
+✎ The same for a boat: crossing the water no longer eats the crossing you had on land
+
+## 2026-09-09 · The turn's effects read as one line
+
+✎ What the turn will change now reads as one wrapping line separated by dots, instead of a list that made the box taller than the turn card beside it
+✎ Past three effects the rest fold behind a "+N more"
+✎ The Butcher button's icon is a ham. It was meant to be a cleaver, but an outlined rectangle at that size reads as a saucepan
+− The Carrying tile no longer opens a breakdown when clicked — it is a number like the three beside it
+
+## 2026-09-09 · A burial and an engraving are heard where they happen
+
+
 ## 2026-09-09 · Four things about you, and the buying screen tells the whole truth
 
 ✚ You can keep four things about you at once; the equipped rig counts them like it counts hands  

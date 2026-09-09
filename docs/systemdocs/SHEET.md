@@ -64,9 +64,11 @@ Who this is, where they stand, and:
   Status card for that reason.
 - **Four tiles** — free moves, ⬢ against the cap, carrying with the meter,
   the Gambit modifier (`db/lib/gambitModifier.js`, the same call the bot
-  makes). A tile with something to say (why the free moves are 0, what holds
-  the cap up) is a button; its detail reads under the row of tiles. It used
-  to be a native `title=`.
+  makes). Free moves is the one tile with something to say — why it is 0 —
+  and is a button for it; its detail reads under the row of tiles, where a
+  native `title=` used to be. The other three are numbers and do not press.
+  Carrying opened a breakdown of what holds its cap up until that came off:
+  one pressable tile in a row of read-only ones read as a bug.
 - **This turn** — Chat's `TurnCard` + `MoveDialog`, wrapped in
   `SheetTurn.js`, over the same `play/actions.js#myMove` and the same minute
   poll (`play/useMyMove.js`, which `YouPanel.js` shares). File or edit the
@@ -78,8 +80,12 @@ Who this is, where they stand, and:
   paragraph of somebody's own words and a clamp that opens. The rules are
   scoped to `.sheet-turn`: `/play`'s YOU column draws the same `TurnCard` and
   is deliberately untouched.
-- **When the turn turns** (`TurnForecast.js`) — the turn passes read forward
-  one step: tags on their last turn and what they become (`expiresInto`),
+- **Turn Effects** (`TurnForecast.js`) — the turn passes read forward
+  one step, as ONE wrapping line separated by `·` rather than a list, and with
+  no full stops: four short clauses down a column made the box taller than the
+  turn card beside it. Past three items the rest fold behind a `+N more`,
+  decided by counting them and never by measuring the box (`ExpandableText.js`
+  explains why). It reads: tags on their last turn and what they become (`expiresInto`),
   crafts and builds that finish, the road's end, and dinner (the
   `hungerPass.js` rule: Hungerless owes nothing, a meal covers it, otherwise
   1 ⬢, 2 with Fast Metabolism, and short of that you go Hungry). Renders

@@ -238,6 +238,13 @@ The headstone mint is an **upsert**: two mourners can engrave the same person,
 and the second gets a grant of the row the first made. One stone; more than one
 person can have helped.
 
+**Both say so where they happened.** A burial posts `{name} was buried.` and an
+engraving `A headstone was engraved for {name}.` into the actor's own Location
+channel, as ambient subtext (`speakHere` in `requestActions.js`, over the shared
+`speakAtSite`/`ambientLine` pair). The Location is the actor's in both cases —
+for Engrave that is the only sensible one, since the body may be anywhere and
+the carving is not.
+
 ## 8. `Tag.requirementItems` — the enforced ingredient
 
 `BREWING.md` was explicit that no code enforced a recipe, "least of all the

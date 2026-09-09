@@ -14,8 +14,9 @@ import { forceAdvanceTurn } from "./actions";
 //   2. forceAdvanceTurn now returns { ok, error } rather than throwing into a
 //      non-existent error.js, so something has to render the error.
 //   3. Ending a turn resolves Needs and wipes the roleplay channels — a
-//      confirm belongs in front of it.
-export default function EndTurnButton({ turnLabel, wipesSummaries }) {
+//      confirm belongs in front of it. Just the question, though: the GM
+//      running the panel knows what ending a turn does.
+export default function EndTurnButton({ turnLabel }) {
   const confirm = useConfirm();
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -23,14 +24,6 @@ export default function EndTurnButton({ turnLabel, wipesSummaries }) {
   async function onClick() {
     const ok = await confirm({
       title: turnLabel ? `End ${turnLabel}?` : "End the current turn?",
-      message: [
-        "This resolves Needs on the open turn — tag expiry, the Hunger upkeep, and the Lifeweb's blood decay — then opens the next one.",
-        "Every Location channel, Room and Conversation is then wiped.",
-        wipesSummaries ? "The next turn is a Dawn, so the Zone summaries go too." : null,
-      ]
-        .filter(Boolean)
-        // One ‡ for the whole rendered message, not one per sentence.
-        .join(" ") + " ‡",
       confirmLabel: "End the turn",
       cancelLabel: "Leave it open",
     });

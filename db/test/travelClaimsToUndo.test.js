@@ -3,8 +3,9 @@
 // row, since a zone crossing spends two things outside Action.appliedEffects
 // entirely: the pending-travel pointer (travelToLocationId/travelTurnId) a
 // PAID crossing stamps instead of moving anyone, and the
-// zoneMovesUsed/zoneMovesTurnId counter every crossing this turn claims
-// against, free or paid. Pure function, no Prisma, no tx.
+// zoneMovesUsed/zoneMovesBonusUsed/zoneMovesTurnId counters every crossing
+// this turn claims against, free or paid, base or bonus. Pure function, no
+// Prisma, no tx.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { travelClaimsToUndo } = require("../lib/locationTravel");
@@ -57,7 +58,7 @@ test("travelTurnId set with no actual destination is not a claim", () => {
   assert.equal(travelClaimsToUndo(action), null);
 });
 
-test("a free crossing spent this turn resets the counter", () => {
+test("a free crossing spent this turn resets both counters", () => {
   const action = actionFor({
     travelToLocationId: null,
     travelTurnId: null,
@@ -65,6 +66,26 @@ test("a free crossing spent this turn resets the counter", () => {
   });
   assert.deepEqual(travelClaimsToUndo(action), {
     zoneMovesUsed: 0,
+    zoneMovesBonusUsed: 0,
+    zoneMovesTurnId: null,
+  });
+});
+
+test("a crossing charged to the mount/boat bonus also gives that back", () => {
+  // The base/bonus split (locationTravel.js#movesLeft): a crossing charged
+  // to the bonus pool stays charged to it for the rest of the turn, so
+  // undoing the Action that charged it has to hand back both counters, not
+  // just the flat zoneMovesUsed total.
+  const action = actionFor({
+    travelToLocationId: null,
+    travelTurnId: null,
+    zoneMovesTurnId: TURN_A,
+    zoneMovesUsed: 1,
+    zoneMovesBonusUsed: 1,
+  });
+  assert.deepEqual(travelClaimsToUndo(action), {
+    zoneMovesUsed: 0,
+    zoneMovesBonusUsed: 0,
     zoneMovesTurnId: null,
   });
 });
@@ -90,6 +111,7 @@ test("a paid crossing past the free allowance undoes both at once", () => {
     travelToLocationId: null,
     travelTurnId: null,
     zoneMovesUsed: 0,
+    zoneMovesBonusUsed: 0,
     zoneMovesTurnId: null,
   });
 });

@@ -6079,7 +6079,7 @@ tags:
     name: Supply Kit
     category: items
     group: items-gear
-    description: "This is probably edible."
+    description: "Open it to gain resources and a nice surprise."
     pointCost: 0
     tradeable: true
     weight: 10

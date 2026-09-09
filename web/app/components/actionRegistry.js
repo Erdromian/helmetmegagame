@@ -42,7 +42,7 @@ import {
   KeyIcon,
   WoundIcon,
   GraveIcon,
-  CleaverIcon,
+  HamIcon,
   HeadstoneIcon,
   BirdIcon,
   EyeIcon,
@@ -304,7 +304,7 @@ export const ACTION_SECTIONS = [
       // whether there's a body nearby; you find that out by opening it.
       {
         mode: "butcher",
-        icon: CleaverIcon,
+        icon: HamIcon,
         label: "Butcher",
         gate: "canButcher",
         gateReason: "You aren't a Butcher.",

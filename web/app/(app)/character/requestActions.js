@@ -4367,6 +4367,20 @@ async function mutilateRequestImpl({
   return { part: named.label, name: subject.name };
 }
 
+// Scenery into the Location the actor is standing in. Corpse work is the most
+// visible thing a person can do with a body, and until now only a room stash
+// pull said anything. `requireCharacter` carries no `character.location`, so
+// the channel is read here (the same lookup every other action in this file
+// does).
+async function speakHere(character, text) {
+  if (!character.locationId) return;
+  const location = await prisma.location.findUnique({
+    where: { id: character.locationId },
+    select: { discordChannelId: true },
+  });
+  speakAtSite(location?.discordChannelId, ambientLine(text));
+}
+
 // Burying. Takes the body — you have to actually have it, or be able to reach
 // it — and spends your Move.
 //
@@ -4423,6 +4437,7 @@ async function buryCharacterRequestImpl({
   if (corpse.source.kind === "room") {
     after(() => announceInRoom(corpse.source, character, "takes a body away."));
   }
+  await speakHere(character, `${target.name} was buried.`);
 
   revalidateAll();
   return { name: target.name };
@@ -4518,6 +4533,7 @@ async function engraveHeadstoneRequestImpl({
     target,
     "Somebody carved your name in stone. The curse has lifted.",
   );
+  await speakHere(character, `A headstone was engraved for ${target.name}.`);
 
   revalidateAll();
   return { name: target.name, headstone: result.headstone.name };

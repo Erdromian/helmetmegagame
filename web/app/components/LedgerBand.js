@@ -10,21 +10,6 @@ import SoundTrumpetButton from "./SoundTrumpetButton";
 import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
 
-// What holds a carry cap up, in words, under the carry tile. Assets are absent
-// on purpose: they raise the cap without ever weighing on it (CARRY.md §1).
-// It lived in a statusBits.js of its own while the old sheet's StatusPanel
-// wanted the same string; that sheet is gone and this is the only caller left.
-function carryCapTitle(carry) {
-  const lines = [`Base ${carry.baseWeightCap} lb`];
-  // Signed, because a body can now push the cap down as well as up: a Cart
-  // reads "+4", Frail reads "−0.1" (CARRY.md §1).
-  for (const m of carry.breakdown ?? []) {
-    lines.push(`${m.name} ${m.bonus > 0 ? "+" : "−"}${Math.abs(m.bonus)}`);
-  }
-  lines.push(`= ${carry.weightCap} lb, and ${carry.weightHardCap} lb is the most you could ever hold.`);
-  return lines.join("\n");
-}
-
 // One number and its label. The label is the word, the value carries the
 // glyph — the house rule for ⬢ (CLAUDE.md), and the reason no tile below
 // writes "Resources" next to a hexagon.
@@ -80,9 +65,11 @@ export default function LedgerBand({
   // The status chip a player clicked open, read inline under the strip — the
   // sheet has no tooltips, so a chip's wording has to be reachable by a tap.
   const [picked, setPicked] = useState(null);
-  // Which tile's detail is open: "moves" or "carry".
-  const [tileOpen, setTileOpen] = useState(null);
-  const carryDetail = carry ? carryCapTitle(carry) : null;
+  // Free moves is the only tile with anything to say. Carrying used to open a
+  // breakdown of what holds its cap up; that came off on purpose — the tile is
+  // a number, and a number the whole band reads as read-only should not be the
+  // one thing on the row that presses.
+  const [movesOpen, setMovesOpen] = useState(false);
   const pickedRow = picked ? character.tags.find((ct) => (ct.tag.id ?? ct.tagId) === picked) ?? null : null;
 
   return (
@@ -152,8 +139,8 @@ export default function LedgerBand({
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
             hasDetail={Boolean(zoneMovesReason)}
-            open={tileOpen === "moves"}
-            onToggle={() => setTileOpen((was) => (was === "moves" ? null : "moves"))}
+            open={movesOpen}
+            onToggle={() => setMovesOpen((v) => !v)}
           />
           <Tile
             label="Resources"
@@ -164,9 +151,6 @@ export default function LedgerBand({
             label="Carrying"
             value={carrying ? `${carrying} lb` : "—"}
             over={Boolean(carry && carry.weightUsed > carry.weightCap)}
-            hasDetail={Boolean(carryDetail)}
-            open={tileOpen === "carry"}
-            onToggle={() => setTileOpen((was) => (was === "carry" ? null : "carry"))}
           >
             {carry && (
               <div
@@ -185,9 +169,7 @@ export default function LedgerBand({
             value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
             over={Boolean(gambit)}
           />
-          {tileOpen && (
-            <p className="sheet-tile-detail">{tileOpen === "moves" ? zoneMovesReason : carryDetail}</p>
-          )}
+          {movesOpen && <p className="sheet-tile-detail">{zoneMovesReason}</p>}
         </div>
       </div>
 
