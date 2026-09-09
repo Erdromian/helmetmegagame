@@ -430,10 +430,65 @@ chat that scrolled the document would drag the header off the top every time
 somebody spoke. Tokens only; `npm run audit:contrast --workspace=web` gates it
 like everything else.
 
+### The 2026-09-09 pass
+
+The page worked and was not pleasant: nothing on it had visual weight. Every
+section header in all three columns was the same 11px uppercase muted label,
+every right-column card was styled identically, the feed row mixed `.chat-*`
+with loose Tailwind and had no hover state at all, and the composer had no
+Send button on a desktop. What changed, beyond the aside tabs and the section
+cards described under `ChatAside.js` below:
+
+- **A filed Move reads as its words.** Its kind was a `.chip` in the turn chip
+  row — filled, bordered, fully rounded — with the player's own sentence
+  underneath reading as the badge's caption. It is `.chat-move-kind`, a quiet
+  word in front of the words, and the `»` house mark stays.
+- **The feed row lights up under pointer AND keyboard.** Hover moved out of
+  React (`useState` off `onMouseEnter`, re-rendering a row on every mouse
+  crossing) into `:hover` / `:focus-within`. The row action bar is now always
+  in the DOM and revealed by CSS, which is what makes it reachable by tab at
+  all — a keyboard fires no `mouseenter`, so it could never see the bar
+  before. The cost is that the bar's buttons are in the tab order on every
+  row; a roving-tabindex pattern would be the fix if that ever bites.
+- **Only a line that ARRIVED animates.** `chat-row-in` ran on every
+  `.chat-row`, so opening a place faded its whole backlog in at once. `Feed.js`
+  keeps a lazily-filled ref of the seq the place painted with — a ref rather
+  than state, since `react-hooks/set-state-in-effect` is an error here — and
+  sets `data-live` above it.
+- **The jump-to-bottom pill floats** over the feed as *"N new ↓"* instead of
+  taking a layout row between the scroller and the typing line, which pushed
+  the scene up every time somebody scrolled away.
+- **The composer got a Send button on every pointer.** It rendered only under
+  `coarse`, so a mouse had no submit affordance and nothing said Enter would
+  send. The keys are spelled out beside it. The slowmode clock shows before it
+  bites rather than only once it has, and a character count is drawn where a
+  command actually caps its text.
+- **Command mode is a strip** (`.chat-cmd-strip`) across the top of the box —
+  name, what it does, an ✕ — replacing `.chat-cmd-chip`, an accent-tinted
+  floating pill.
+- **The `/` and `@` menus highlight under a mouse**, and pointing at a row
+  makes it the active one, so Enter picks what the mouse is over.
+- **Sections in the places column fold** (`sectionFold.js`, same
+  `useSyncExternalStore` shape). A folded section **still shows anything
+  unread in it**, with a count of what it is holding back: folding is for
+  shortening a column, not for going deaf.
+- **A breadcrumb** — Zone · Location — above the open place's name, since a
+  conversation and the zone summary are both opened from somewhere.
+- **`.chat-row-head` / `-name` / `-time` / `-body`** replaced the loose
+  Tailwind, and `[data-alias]` tints a name somebody is speaking under a hood
+  or a forced name with.
+- **Touch targets.** `.chat-place` and `.chat-person` were 4px of vertical
+  padding everywhere except inside the phone's sheet; they hold a floor now,
+  44px under a coarse pointer.
+
 ### The wireframes Bascinet chose
 
-Desktop, three columns — `15rem minmax(0,1fr) 20rem`. The right column grew
-from 17rem in the second pass: it is the game suite now, not a button strip.
+Desktop, three columns — `15rem minmax(0,1fr) 20rem`, carried as
+`--chat-rail` and `--chat-aside-w` on `.chat-body` rather than as literals
+repeated across the media queries below. The right column grew from 17rem in
+the second pass: it is the game suite now, not a button strip. The feed's own
+content is capped at `70ch` (`.chat-feed-inner`) — the scrollbar stays at the
+column's edge and only the words are measured.
 
 ```
 ┌───────────────┬────────────────────────────────────────────┬──────────────────────┐
@@ -856,8 +911,29 @@ header instead).
   is the same sections in the same order; only the box around them changes,
   and the sheet is a `Modal` wearing `.chat-sheet` rather than a drawer of its
   own, so it keeps Escape, the focus trap and the backdrop `Modal` already
-  owns. It composes five sections, top to bottom, and owns the affordance list
-  they share through `usePlaceActions`:
+  owns.
+
+  **The five sections are TABS, not a stack** (2026-09-09) — Place · Here ·
+  Room · Travel · You. Three of them are unbounded (the place card is as long
+  as its prose, the travel grid is 6rem per exit, YOU is four sub-blocks plus a
+  waiting list), so stacked down one scroller the tallest of them decided how
+  far you travelled to reach anything under it; and two of them render nothing
+  at all when they have nothing to say, which moved the column's height on
+  every walk. One panel open at a time fixes both. **HERE** is the desktop
+  column's alone — on a phone those rows are the strip `Chat.js` draws under
+  the header, and two pollers on one screen is one too many. **ROOM** appears
+  only when a room is open. Which tab you left open is remembered per browser
+  in `localStorage` through `asideTabStore.js` — `useSyncExternalStore`, never
+  an effect — and a stored tab this place does not have falls back to Place.
+  The `dialogs` node hangs OUTSIDE the panel on purpose: a dialog opened from
+  one tab must not unmount because the reader pressed another.
+
+  Each section is a **card** — `--surface`, a border and `--r-md`, the same
+  treatment `.panel` gets everywhere else. They were a hairline `border-bottom`
+  and nothing else, which gave a Location's long prose and a one-chip status
+  strip identical weight.
+
+  It owns the affordance list the sections share through `usePlaceActions`:
   1. **`PlaceCard.js`** — the Location's name, its zone muted under it, a
      `Place` / `Zone` chip pair and the chosen text, always on the page inside
      a scrolling `max-height`. **Place** is `Location.description` plus the
