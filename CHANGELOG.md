@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Randomizing a portrait now suits the character's gender
+
+✎ The masculine hairstyles are men only now; the unisex ones stay open to anyone  
+✎ A woman no longer randomizes into a beard, and a man still can  
+✎ The picker itself is unchanged: every style is still there to pick by hand
+
 ## 2026-09-09 · Merge PR #31: Scholastics can research secret recipes in the Cathedral
 
 ✚ The Scholastic can Research an ingredient they are carrying, in the Cathedral. It takes the Move as a Gambit, and the answer arrives at the end of the turn  
