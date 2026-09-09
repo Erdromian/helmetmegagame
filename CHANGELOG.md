@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Four things about you, and the buying screen tells the whole truth
+
+✚ You can keep four things about you at once; the equipped rig counts them like it counts hands  
+✎ The head's outer layer is named Outer, the same as the body's  
+✎ The buying screen now says who else can see a tag, whether it conceals you, what it weighs, how long it lasts and where it is worn  
+✎ Armour values are back on the buying screen, having quietly shown nothing at all
+
 ## 2026-09-09 · Location channels go quiet on Discord too
 
 ✎ Players can no longer type in a Location channel on Discord, the way they already couldn't on the web  
