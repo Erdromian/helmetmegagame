@@ -138,9 +138,17 @@ enum TagVisibility {
 // GameConfig.equipSlots, the old flat count, is retired and read by nothing.
 //
 // HEAD, BODY and MOUNT carry Tag.equipLayer 1-3, so a coif goes under a helm
-// and a cart is towed behind a horse; SHIELD admits exactly one. WEAPON is
-// capped by hands — three, a two-hander (Tag.twoHanded) taking two — and
-// ACCESSORY is not capped at all. See TAGS.md and db/lib/equipSlots.js.
+// and a cart is towed behind a horse. WEAPON is everything you hold, capped by
+// hands — four, a two-hander (Tag.twoHanded) taking two — and ACCESSORY is
+// capped at four. See TAGS.md and db/lib/equipSlots.js.
+//
+// SHIELD is RETIRED, not deleted. It was a second rule for the same place on
+// the body — one cell called "Off hand" beside a row that counted hands — and
+// folding it into WEAPON is what took the hands from three to four. Postgres
+// has no ALTER TYPE ... DROP VALUE, and this codebase keeps dead enum values
+// rather than rebuilding a type (see MoveReviewStatus.WAITING_FOR_OPPONENTS).
+// Nothing writes or reads it: db/lib/equipSlots.js leaves it out of
+// EQUIP_SLOTS, so syncTags.js throws on a YAML entry that still names it.
 enum EquipSlot {
   HEAD
   BODY

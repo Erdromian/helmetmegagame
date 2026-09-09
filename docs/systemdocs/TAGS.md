@@ -1774,8 +1774,7 @@ rule. Every `equippable` tag names one; sync throws on one that doesn't.
 |---|---|---|
 | `HEAD` | layers 1–3, one thing per layer | 1 liner (coif, cap, mask), 2 helm, 3 outer (hat, hood, bag) |
 | `BODY` | layers 1–3, one thing per layer | 1 clothes (padded armor, robes, garb), 2 mail (mail shirt, brigandine), 3 outer (breastplate, plate, cloak, longcoat) |
-| `SHIELD` | exactly one | buckler, shield, pavise |
-| `WEAPON` | **three hands**; a `twoHanded: true` weapon takes two | every weapon, the banners, the flamethrower, the chainsaw |
+| `WEAPON` | **four hands**; a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
 | `ACCESSORY` | **four** | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
 
@@ -1783,18 +1782,30 @@ rule. Every `equippable` tag names one; sync throws on one that doesn't.
 may not share a layer**. So a mail coif (`HEAD` 1) goes under a knight's helm
 (`HEAD` 2), but two helms do not go together; a cart (`MOUNT` 2) is towed
 behind a horse (`MOUNT` 1), but a horse and a boat are one ride too many.
-`SHIELD`, `WEAPON` and `ACCESSORY` carry no layer, and sync throws if one is
-set on them. Sync also throws on a layer outside **that slot's own range** —
+`WEAPON` and `ACCESSORY` carry no layer, and sync throws if one is set on
+them. Sync also throws on a layer outside **that slot's own range** —
 1–3 on `HEAD` and `BODY`, 1–2 on `MOUNT`, since the rig has no third mount
 cell to draw one in — a layer with no slot, a layered slot with no layer, a
 slot on a tag that is not `equippable`, and `twoHanded` on anything but a
 `WEAPON`.
 
-**Hands** are the one limit that is a number: `WEAPON_HANDS = 3` in
+**Hands** are the one limit that is a number: `WEAPON_HANDS = 4` in
 `db/lib/equipSlots.js`, a constant rather than a knob. A bastard sword on the
-back and a pistol in the holster is exactly three. The two-handers are the
-polearms, the great swords, the bows and the long guns, and the refusal names
-which of them is eating two.
+back, a shield and a pistol in the holster is exactly four. The two-handers
+are the polearms, the great swords, the bows and the long guns, and the
+refusal names which of them is eating two. The rig calls the row **Held**, and
+prints `n/4` on it the way the accessories row does.
+
+There used to be a **`SHIELD`** slot beside this one, holding exactly one
+thing under the title "Off hand". It was a second rule for the same place on
+the body, so it was folded in here (2026-09-14) and the hands went from three
+to four — which is precisely what the two slots already allowed together, so
+no living character was left wearing a set the rules refuse. Two consequences
+worth knowing: a shield now costs a hand like anything else, and **two shields
+at once are legal**, because hands are the only limit on what you hold. The
+enum value is **retired, not deleted** — Postgres cannot drop one, so it stays
+in `schema.prisma` while `EQUIP_SLOTS` in `db/lib/equipSlots.js` leaves it
+out, which makes sync throw on any YAML still naming it.
 
 **Accessories** are the second, and the same shape: `MAX_ACCESSORIES = 4`,
 beside it in the same file. The slot started uncapped, which made it the

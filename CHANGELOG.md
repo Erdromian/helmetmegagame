@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The off hand is gone; you hold four things now
+
+− The Off hand row on the sheet. A shield goes in your hands like anything else, and the row is called Held  
+✎ You have four hands' worth instead of three, which is exactly what a shield plus three hands already allowed, so nobody's kit is refused by this  
+✎ Two shields at once are legal now, because hands are the only limit on what you hold
+
 ## 2026-09-09 · A filed Move is final, and the rope beats the arrangement
 
 − A Move can no longer be edited once it is filed. You get one Move a turn and it stands; only a GM changes one now

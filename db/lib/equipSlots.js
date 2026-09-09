@@ -10,8 +10,13 @@
 //                      a layer, so a coif (1) goes under a helm (2) and a cart
 //                      (2) is towed behind a horse (1), but two helms do not go
 //                      together.
-//   SHIELD             exactly one.
-//   WEAPON             three hands. A tag with Tag.twoHanded takes two.
+//   WEAPON             four hands, and everything you hold goes here. A tag
+//                      with Tag.twoHanded takes two. The old SHIELD slot was
+//                      a second rule for the same place on the body — one
+//                      cell called "Off hand" beside a row that counted hands
+//                      — so it was folded in here and its enum value retired.
+//                      Four is what the two slots already allowed together: a
+//                      shield plus three hands of weapons.
 //   ACCESSORY          four. A badge, spectacles, a fishing rod. Uncapped at
 //                      first, which turned it into the pocket everything that
 //                      fitted nowhere else went into.
@@ -26,21 +31,22 @@
 //
 // See docs/systemdocs/TAGS.md.
 
-const WEAPON_HANDS = 3;
+const WEAPON_HANDS = 4;
 // A hard cap, not a GameConfig knob like the retired flat count: the number
 // is a rule about what a person can have about them, and the last thing this
 // file needs is a second limit a GM can set to disagree with the slots.
 const MAX_ACCESSORIES = 4;
 const MAX_EQUIP_LAYER = 3;
 const LAYERED_SLOTS = new Set(["HEAD", "BODY", "MOUNT"]);
-const EQUIP_SLOTS = ["HEAD", "BODY", "SHIELD", "WEAPON", "ACCESSORY", "MOUNT"];
+// SHIELD is deliberately absent: syncTags.js validates against this list, so
+// a YAML entry still naming it throws instead of sliding through.
+const EQUIP_SLOTS = ["HEAD", "BODY", "WEAPON", "ACCESSORY", "MOUNT"];
 
 // The words the sheet and the refusals use for each slot. Player-facing copy,
 // so every phrase of five words or more carries its ‡.
 const SLOT_LABELS = {
   HEAD: "on your head",
   BODY: "on your body",
-  SHIELD: "in your off hand",
   WEAPON: "in your hands",
   ACCESSORY: "about your person",
   MOUNT: "under you",
@@ -50,8 +56,7 @@ const SLOT_LABELS = {
 const SLOT_TITLES = {
   HEAD: "Head",
   BODY: "Body",
-  SHIELD: "Off hand",
-  WEAPON: "Hands",
+  WEAPON: "Held",
   ACCESSORY: "Accessories",
   MOUNT: "Ride",
 };
@@ -98,8 +103,9 @@ function findSlotClash(tags) {
     if (!tag?.equipSlot) continue;
     // WEAPON is counted in hands and ACCESSORY is never counted at all.
     if (tag.equipSlot === "WEAPON" || tag.equipSlot === "ACCESSORY") continue;
-    // A layered slot keys on slot+layer; SHIELD keys on the slot alone, which
-    // is what makes it hold exactly one.
+    // A layered slot keys on slot+layer. Nothing unlayered reaches here any
+    // more — SHIELD was the last one, and keying on the slot alone is what
+    // used to hold it to exactly one.
     const key = tag.equipLayer == null ? tag.equipSlot : `${tag.equipSlot}:${tag.equipLayer}`;
     const other = seen.get(key);
     if (other) return { a: tag, b: other };
@@ -154,12 +160,12 @@ function describeHandsOverflow(tags) {
  * Armour, and the sentence a refusal needs is describeSlotClash's job. What it
  * exists to say is the thing a shopper cannot otherwise work out: that a coif
  * and a helm stack because they sit at different layers, that a poleaxe eats
- * two of three hands, and that trinkets run out at four.
+ * two of four hands, and that trinkets run out at four.
  */
 function describeEquipFit(tag) {
   const slot = tag?.equipSlot;
   if (!slot) return null;
-  if (slot === "WEAPON") return `Hands · takes ${tag.twoHanded ? "two" : "one"}`;
+  if (slot === "WEAPON") return `${SLOT_TITLES.WEAPON} · takes ${tag.twoHanded ? "two" : "one"}`;
   if (slot === "ACCESSORY") return `${SLOT_TITLES.ACCESSORY} · ${MAX_ACCESSORIES} at once`;
   const layer = LAYER_NAMES[slot]?.[(tag.equipLayer ?? 0) - 1];
   return layer ? `${SLOT_TITLES[slot]} · ${layer}` : SLOT_TITLES[slot] ?? null;

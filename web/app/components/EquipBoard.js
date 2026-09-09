@@ -24,19 +24,19 @@ import FormError from "./FormError";
 
 // The rig: what is worn, drawn as the slots it is worn in (TAGS.md,
 // "equipSlot"). One row per slot, one cell per place a thing can go — three
-// head layers, three body layers, an off hand, three hands, a ride and what
-// it tows, and the accessories, which have no cap. A filled cell names the
-// thing and the one fact about it worth a glance; an empty cell is dashed and
-// named, and clicking it lists what you carry that fits there.
+// head layers, three body layers, four hands, a ride and what it tows, and
+// the accessories, which have no cap. A filled cell names the thing and the
+// one fact about it worth a glance; an empty cell is dashed and named, and
+// clicking it lists what you carry that fits there.
 //
 // Everything goes through the same toggleEquip the /character rack uses, and
-// the server's refusal — a second helm, a fourth hand — lands in FormError
+// the server's refusal — a second helm, a fifth hand — lands in FormError
 // under the board. No tooltips on this surface.
 
 // Cell counts come from equipSlots.js rather than being written out again: a
 // layered slot has one cell per layer name, the hands have WEAPON_HANDS of
 // them, and anything else holds exactly one.
-const ROWS = ["HEAD", "BODY", "SHIELD", "WEAPON", "MOUNT"].map((slot) => ({
+const ROWS = ["HEAD", "BODY", "WEAPON", "MOUNT"].map((slot) => ({
   slot,
   cells: LAYER_NAMES[slot]?.length ?? (slot === "WEAPON" ? WEAPON_HANDS : 1),
 }));
@@ -330,7 +330,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
             >
               {drawn}
             </div>
-            {/* A character who filled their hands before the three-hand rule
+            {/* A character who filled their hands before the hand rule
                 existed can equip nothing at all until they put something
                 down, and the refusal they would otherwise meet arrives from
                 the server on an unrelated click. Say it here instead. */}
