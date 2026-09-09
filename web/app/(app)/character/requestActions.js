@@ -108,6 +108,7 @@ import {
 } from "@lifeweb/db/lib/bind";
 import { createLessonOffer } from "@lifeweb/db/lib/lessons";
 import { createConfessionOffer } from "@lifeweb/db/lib/confession";
+import { createKissOffer, KISS_SELECT } from "@lifeweb/db/lib/kiss";
 import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
@@ -2041,6 +2042,51 @@ async function confessRequestImpl({ chaplainId, tagId }) {
       },
     },
   });
+  revalidateAll();
+  return { pending: true };
+}
+
+// --- Kiss (docs/systemdocs/KISS.md) --------------------------------------
+
+// The one door. Every gate lives in db/lib/kiss.js#kissAuthority so the picker
+// on the sheet, this action, and the Accept click a day later all refuse for
+// the same reasons — and createKissOffer re-runs it rather than trusting
+// anything that arrived in the body.
+//
+// The acting character comes from the session, never from a posted id, so
+// there is no way to file a kiss on somebody else's behalf.
+//
+// No Move is spent and no Action row is filed. What holds it back is the
+// 2-hour cooldown inside createKissOffer and the once-a-turn mood ration on
+// the other side of Accept.
+async function kissRequestImpl({ targetCharacterId }) {
+  const { character } = await requireCharacter({ needs: ACT });
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    select: KISS_SELECT,
+  });
+  if (!target) throw new UserError(notHereMessage(target));
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  const offer = await createKissOffer(prisma, { actor: character, target, turn: openTurn });
+  if (!offer.ok) throw new UserError(offer.reason);
+
+  after(() =>
+    sendDm(offer.dm.discordUserId, offer.dm.content, {
+      components: offer.dm.components,
+      meta: offer.dm.meta,
+      source: "player_event",
+    }).catch((err) => console.error(`Kiss offer DM to ${target.id} failed:`, err)),
+  );
+
+  // No audit row here on purpose. createKissOffer writes it inside the same
+  // transaction as the Offer, because that row IS the two-hour cooldown
+  // (db/lib/kiss.js#kissCooldownLeft) — a second one written here would just
+  // be a duplicate, and leaving it to each caller is how a cooldown quietly
+  // stops existing for whichever caller forgets.
   revalidateAll();
   return { pending: true };
 }
@@ -4889,6 +4935,10 @@ export async function teachRequest(input) {
 
 export async function confessRequest(input) {
   return guarded(() => confessRequestImpl(input));
+}
+
+export async function kissRequest(input) {
+  return guarded(() => kissRequestImpl(input));
 }
 
 export async function transferRequest(input) {

@@ -3448,6 +3448,7 @@ enum OfferKind {
   BIND
   CONFESSION
   ESCORT
+  KISS
 }
 
 enum OfferStatus {

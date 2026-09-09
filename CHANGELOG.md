@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · You can kiss somebody now
+
+✚ A Kiss button on the sheet and on a person's row in Chat. You pick somebody standing with you and they get a DM with Accept or Decline — nothing happens until they press one.  
+✚ A kiss lifts BOTH moods by 15, the same as a confession. It costs no Move and rolls nothing.  
+✚ Two things hold it back: you can only ask once every two hours, and the mood is only worth something once a turn per person. Kissing all afternoon lifts you one band, not eight.  
+✚ The room hears one quiet line saying it happened.  
+✎ Who can't: the helpless (bound, dying, unconscious, crucified, asleep), the mouth injuries (a broken or wired jaw, choking, vomiting), the states with nobody home, Ghouls, Rage, Broken, and anybody with their face covered. Illness is NOT a gate — lepers kiss freely. Nor is Prudish, Eunuch, Pacifist or Saint: a build locks Desires, not buttons.
+
 ## 2026-09-09 · Sell instant cameras on the Thanati shelf
 
 ✚ Purchase Gear at the hideout now stocks an Instant Camera for 3 ⬢

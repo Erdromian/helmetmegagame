@@ -54,6 +54,7 @@ import {
   SealIcon,
   CharacterIcon,
   InterceptIcon,
+  KissIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -70,6 +71,8 @@ export const ACTION_HELP = {
     "Confessing a tag is a Gambit. It succeeds on a 5 or a 6. It also takes the confessor's turn.",
   move: "Forcibly move an incapacitated or Bound person. If you're a Leader, you can also move people within your own faction.",
   bind: "Tie someone up. Bound people can be looted or forcefully moved.",
+  kiss:
+    "Ask somebody standing here for a kiss. They have to say yes, and it lifts both your moods. ‡",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   harm: "Further injure someone who is bound or incapacitated.",
@@ -294,6 +297,19 @@ export const ACTION_SECTIONS = [
       },
       { mode: "loot", icon: LootIcon, label: "Loot" },
       { mode: "bind", icon: ShackleIcon, label: "Bind" },
+      // Greys on YOUR OWN mouth and nothing else — a broken jaw, a hood you
+      // are wearing, a state with nobody home (db/lib/kiss.js#kissBlock,
+      // resolved server-side into pools.gateReason.kiss). NEVER on whether
+      // anybody here would say yes, which is the rule at the top of this file
+      // and which this verb could break more loudly than most: a lit or dead
+      // Kiss button must not tell a player anything about the room.
+      {
+        mode: "kiss",
+        icon: KissIcon,
+        label: "Kiss",
+        gate: "canKiss",
+        gateReason: "You're in no state to kiss anybody. ‡",
+      },
       { mode: "free", icon: KeyIcon, label: "Free" },
       // NO gate and NO show. Laying in wait needs nothing and says nothing
       // about who is near you — the metagaming rule at the top of this file

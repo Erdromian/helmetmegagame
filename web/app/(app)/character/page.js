@@ -509,6 +509,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     bindTargets,
     harmTargets,
     harmTags,
+    kissTargets,
+    kissBlocked,
   } = await loadPeoplePools(character, {
     discordUserId: session.discordUserId,
     openTurn,
@@ -1193,6 +1195,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       deployVersion: deployVersion(),
       harmTargets: harmTargets,
       harmTags: harmTags,
+      kissTargets: kissTargets,
+      kissBlocked: kissBlocked,
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,
       storeRoleSlug: character.role?.slug ?? null,

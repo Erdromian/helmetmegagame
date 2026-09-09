@@ -35,12 +35,26 @@
 const ACT = "ACT";
 const SPEAK = "SPEAK";
 const SHOUT = "SHOUT";
+// KISS is the fourth, and the narrowest: it gates one verb
+// (docs/systemdocs/KISS.md). It is separate from ACT rather than folded into
+// it because the two disagree in both directions — {tag:mute} acts and kisses
+// fine, and {tag:broken-jaw} acts fine with its mouth wired shut.
+const KISS = "KISS";
 
-// SPEAK implies SHOUT, and nothing else implies anything. Written once here
-// rather than by listing SHOUT beside every SPEAK in the table, because the
-// second half of such a pair is exactly the thing somebody forgets.
+// Two implications, written once here rather than by listing the second half
+// beside every first half in the table, because that second half is exactly
+// the thing somebody forgets.
+//
+//   SPEAK implies SHOUT   a slug that takes your voice takes your yell too.
+//   ACT   implies KISS    every state that leaves you unable to act — bound,
+//                         dying, unconscious, crucified — is also a state
+//                         nobody can kiss you in. This is what makes the
+//                         "a kiss needs somebody who can answer" rule fall
+//                         out of the table instead of being a second list.
 function expandCaps(caps) {
-  return caps.includes(SPEAK) ? [...caps, SHOUT] : caps;
+  const out = caps.includes(SPEAK) ? [...caps, SHOUT] : [...caps];
+  if (caps.includes(ACT) && !out.includes(KISS)) out.push(KISS);
+  return out;
 }
 
 // The table. A slug absent from here takes nothing away.
@@ -83,6 +97,37 @@ const RESTRICTIONS = {
   paralyzed: [ACT, SPEAK],
   unconscious: [ACT, SPEAK],
   mute: [SHOUT],
+
+  // KISS only. Everything above already blocks it through ACT (see
+  // expandCaps); these are the states that leave a character walking and
+  // working and still in no condition to kiss anybody. Three groups:
+  //
+  //   nobody home    asleep, blind-drunk, hallucinating, madness, sepsis,
+  //                  pain-shock, stupid — the consent is not there to give.
+  //                  {tag:madness} also compels an attack on whoever is
+  //                  standing nearby, which settles it twice over.
+  //   the mouth      broken-jaw, wired-jaw, choking, vomiting. The injury IS
+  //                  the mouth; {tag:wired-jaw} is literally wired shut.
+  //   nothing left   gibbed, exploded-chest. Both are unrecoverable, and both
+  //                  can sit on a row the engine has not finished with.
+  //
+  // Illness is deliberately absent. Leper, Pox, Consumptive and the rest all
+  // kiss freely — Bascinet's call, and the same posture TAGS.md §5f takes
+  // about what is NOT gated ("somebody can always pour a drink into you").
+  asleep: [KISS],
+  "blind-drunk": [KISS],
+  hallucinating: [KISS],
+  madness: [KISS],
+  sepsis: [KISS],
+  "pain-shock": [KISS],
+  stupid: [KISS],
+  "disabled-shocked": [KISS],
+  choking: [KISS],
+  vomiting: [KISS],
+  "broken-jaw": [KISS],
+  "wired-jaw": [KISS],
+  gibbed: [KISS],
+  "exploded-chest": [KISS],
 };
 
 // A living character who can't defend themselves or walk away — the target
@@ -159,6 +204,7 @@ module.exports = {
   ACT,
   SPEAK,
   SHOUT,
+  KISS,
   RESTRICTIONS,
   INCAPACITATING_SLUGS,
   FINISHABLE_SLUGS,

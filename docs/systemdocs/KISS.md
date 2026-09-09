@@ -1,0 +1,192 @@
+# Kissing
+
+The Kiss button on `/character` and on a person's row in `/chat`. Read
+[`LESSONS.md`](LESSONS.md) §3 first — this is that Offer handshake with no
+skill, no die, no Move and no turn pass, and everything below is a delta
+from it.
+
+It exists because the game had many ways to hurt somebody and almost none to
+be kind to them. Every other thing that lifts a mood is something you buy or
+build: a drink, a meal, a roof, a confession, music. This one lifts it
+because another player agreed.
+
+## 1. The rules
+
+- Anyone picks somebody standing where they stand and presses **Kiss**. They
+  get a DM with Accept / Decline; **nothing happens until they press one.**
+- On Accept **both** dials move **+15** — the same figure a confession is
+  worth (`MOOD.md`) — and the room hears one `-#` line.
+- **It costs no Move**, files no `Action`, rolls nothing, and no turn pass
+  touches it.
+- What holds it back instead is two rations. **Asking** has a **2-hour
+  cooldown**. The **mood** is worth something **once per turn per person**.
+- Both sides must be at the same Location and unconcealed
+  (`db/lib/presence.js`), both alive, and neither in any state §2 refuses.
+- You cannot kiss yourself, the dead, or anyone you cannot see.
+
+Constants: `KISS_COOLDOWN_MS`, `KISS_SELECT` in `db/lib/kiss.js`;
+`KISS_BLOCKING_SLUGS` in `db/lib/constants.js`; `EVENTS.KISS` in
+`db/lib/mood.js`.
+
+## 2. Who may not, and why it is a capability
+
+Prohibitions live in **two** places on purpose, split by which question is
+being asked.
+
+**Incapacity → `db/lib/incapacitation.js`.** `KISS` is a fourth capability
+beside `ACT`, `SPEAK` and `SHOUT`, and `expandCaps` says **ACT implies
+KISS**. That one line is the whole "a kiss needs somebody who can answer"
+rule: Bound, Dying, Unconscious, Crucified, Paralyzed, Seizure and Catatonic
+all already block ACT, so all of them refuse a kiss without a second list
+existing to drift from the first.
+
+`ACT` is not a sufficient proxy in *either* direction, which is why `KISS`
+is its own column rather than an alias:
+
+- **`mute` keeps it.** It blocks only SHOUT. `TAGS.md` §5f is emphatic that
+  over-gating that tag "removed the PLAYER from the game rather than the
+  character from a conversation" — a mute smith is still a smith, and still
+  has a mouth.
+- **`broken-jaw` loses it** and keeps ACT. The injury *is* the mouth.
+
+The `KISS`-only rows are three groups: nobody home (`asleep`, `blind-drunk`,
+`hallucinating`, `madness`, `sepsis`, `pain-shock`, `stupid`,
+`disabled-shocked`), the mouth (`broken-jaw`, `wired-jaw`, `choking`,
+`vomiting`), and nothing left (`gibbed`, `exploded-chest`).
+
+**Fiction → `KISS_BLOCKING_SLUGS` in `db/lib/constants.js`.** The short
+hand-written list of things that are not an incapacity at all — a Ghoul walks
+and works and is still not kissing anyone. `ghoul`, `rage`,
+`servant-of-tzchernobog`, `apex-form`, `broken`, `broken-enslaved`,
+`phrygian-toxin`, `installed-poison-tooth`. Same posture as
+`FINISHABLE_SLUGS`: deliberately shorter than it could be, and every addition
+should cost somebody a keystroke.
+
+**A covered face is derived, never listed.** Anyone wearing an equipped
+`Tag.concealsIdentity` piece is refused, through
+`presentedIdentity.js#concealmentFrom`. That covers every helm, mask, hood and
+the bag in the catalog today and anything added tomorrow. It is also the
+honest half of "you can't kiss a concealed person": `presence.js` filters the
+`/conceal` **wish column**, which a `forcesConceal` helmet never sets, so
+without this a knight in a closed helm would be on every picker.
+
+### What is deliberately allowed
+
+**No disease gate at all.** Leper, Pox, Consumptive, Feverish, Infected,
+Festering and the rest all kiss freely. Bascinet's call, and the same posture
+`TAGS.md` §5f takes about what is not gated.
+
+Nor is taste, belief or appearance blocked: `prudish`, `eunuch`, `pacifist`,
+`saint`, `chaplain`, `pious`, `mimes-vow`, `biter`, `disfigured`, `scarred`,
+`ugly`, `unhygienic`, `depressed`, `teratophobia`, the three True Forms, and
+every limb mutilation all keep the button. The game's convention is that a
+build locks **Desires** rather than removing a verb — `eunuch` and `prudish`
+already lock the `romance` family in `docs/tags.yaml`, which is the right
+place for "would refuse".
+
+**`demoness` must stay able to kiss.** The voluntary kiss is how a Break is
+sealed (`docs/tags.yaml`, the `demoness` description). Blocking it would
+remove the cult's own mechanic.
+
+## 3. The three audit actions, which are not interchangeable
+
+| `actionType` | Written by | What it is for |
+|---|---|---|
+| `kiss` | the ask (`requestActions.js#kissRequestImpl`) | **the cooldown clock.** `kissCooldownLeft` reads the newest one by `actorDiscordUserId`. |
+| `kiss_accepted` | `acceptKiss`, one per side | the record that it happened |
+| `mood_kissed` | `mood.js#applyKissMood`, one per side | **the per-turn mood ration** |
+
+Keeping the first two apart is load-bearing. If Accept wrote `kiss` rows, then
+**being kissed would start a two-hour wall on the person who said yes** —
+punishing them for agreeing.
+
+All of them set `turnId` (`REQUESTS.md` §1a): it costs nothing now and it is
+the only thing that lets a ration ever count them.
+
+## 4. Why the rations are AuditLog rows and not columns
+
+At +15 against a 15-a-turn ceiling, a magnitude cap and a once-a-turn gate are
+the same arithmetic — so this takes the cheap one. `applyKissMood` counts a
+`mood_kissed` row the way the Cathedral's relief counts `mood_cathedral`, and
+the whole feature's migration is **one enum value**.
+
+`MOVE_MOOD_TURN_CAP`'s heavier machinery (`moveMoodTurnId` / `moveMoodUsed`,
+a guarded `updateMany`) earns itself on movement, where a dozen small steps
+have to part-spend one allowance. Nothing here needs that.
+
+The **ask** spends the cooldown, not the answer, and a decline does not refund
+it. That is the whole point: otherwise asking a whole room costs nothing and
+the picker becomes a way to find out who is willing.
+
+## 5. What the room hears
+
+One `-#` line, Bascinet's wording, through `db/lib/placeLine.js#roomLine`:
+
+```
+-# Ada and Celeste kissed.
+```
+
+Both names come from `presentedIdentity()`, not `character.name` — a kiss is
+not a place to out somebody the room is seeing as a stranger.
+
+**Where it lands.** Co-presence is Location-grain while a Room is a thread
+inside one, so `placeForKiss` looks for a room they are **both** guests of and
+posts there; with no shared room the Location's own channel hears it. Standing
+in the open street is a place.
+
+Best-effort on both halves, and outside the transaction — it is a network
+call, and a line nobody heard must never undo two dials that already moved.
+
+`roomLine` and `locationLine` moved out of `db/lib/riteEffects.js` into
+`db/lib/placeLine.js` when this shipped; riteEffects still re-exports both, so
+the rites and `riteChant.js` were untouched.
+
+## 6. What it does NOT do
+
+- **No bot change.** `offerRow.js` owns the `offer:accept:` prefixes and
+  `interactionCreate.js` routes on the prefix, not the kind. The web's own
+  Accept/Decline (`DmActionRow.js` → `dmAnswer.js`) works for free too.
+- **No Desire is claimed.** `kiss-someone`, `dem-offered-kiss` and
+  `dem-kiss-a-broken` stay GM-adjudicated. Blocking `broken` in §2 is what
+  keeps `dem-kiss-a-broken` a GM's job rather than a button.
+- **No turn pass.** `lessonPass.js` already expires every PENDING offer at
+  turn close, kind-agnostic, so a kiss nobody answered dies with the day.
+
+## 7. The gate is your own mouth, never the room
+
+The Kiss button greys on `kissBlocked` — **your own** broken jaw, your own
+Rage, your own hood — resolved server-side in `web/lib/peoplePools.js` so the
+greyed button and `kissRequestImpl`'s refusal read the same sentence.
+
+It must **never** grey on whether anybody here would say yes. That is the rule
+at the top of `actionRegistry.js`, and this verb could break it more loudly
+than most: a button that lit up only when somebody kissable was standing there
+would be free scouting on every page load.
+
+`kissTargets` is menu hygiene only. `kissAuthority` runs again in
+`createKissOffer` on whatever id is posted, and **again** on Accept — a DM can
+sit unanswered for hours, and in that time either of them can be bound,
+hooded, drugged or killed.
+
+## 8. Known wart
+
+`installed-poison-tooth` is on the fiction list, and a greyed button is a
+**tell**: it is the only tag on that sheet which could explain the refusal, so
+the gate quietly leaks a secret to the person carrying it. The alternatives
+were letting the kiss go through normally, or letting it kill both parties.
+Blocked is what shipped.
+
+## 9. Where the code lives
+
+| File | What |
+|---|---|
+| `db/lib/kiss.js` | the rules: `kissAuthority`, `kissBlock`, `createKissOffer`, `acceptKiss` |
+| `db/lib/incapacitation.js` | the `KISS` capability and ACT-implies-KISS |
+| `db/lib/constants.js` | `KISS_BLOCKING_SLUGS` |
+| `db/lib/mood.js` | `EVENTS.KISS`, `applyKissMood` |
+| `db/lib/placeLine.js` | the `-#` line into a room or a Location |
+| `db/lib/dmAnswer.js` | the Accept branch, shared by both faces |
+| `db/test/kiss.test.js` | the pure half |
+| `web/app/(app)/character/requestActions.js` | `kissRequestImpl` |
+| `web/lib/peoplePools.js` | `kissTargets`, `kissBlocked` |
+| `web/app/components/actions/KissDialog.js` | one picker |

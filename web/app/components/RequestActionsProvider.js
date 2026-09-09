@@ -109,6 +109,12 @@ export default function RequestActionsProvider({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
+  // Kiss (docs/systemdocs/KISS.md). `kissTargets` is who you could ask;
+  // `kissBlocked` is why YOU can't ask anybody, or null — your own broken jaw,
+  // your own hood. Both resolved server-side in web/lib/peoplePools.js so the
+  // greyed button and kissRequestImpl's refusal read the same sentence.
+  kissTargets = [],
+  kissBlocked = null,
   // Corpses (CORPSES.md): every body in reach — yours and the ones lying in
   // rooms here — built once server-side by db/lib/corpses.js#corpsesInReach so
   // the menu and the two server re-checks can't disagree about what you can
@@ -247,6 +253,8 @@ export default function RequestActionsProvider({
     bindTargets,
     harmTargets,
     harmTags,
+    kissTargets,
+    kissBlocked,
     corpses,
     healTargets,
     healParties,
@@ -383,13 +391,18 @@ export default function RequestActionsProvider({
       canExamine: !examineBlocked,
       // The sentence ActionGrid appends to a greyed button's tooltip, so a
       // player reads why instead of DMing to ask.
-      gateReason: { examine: examineBlocked, extract: extractBlocked },
+      gateReason: { examine: examineBlocked, extract: extractBlocked, kiss: kissBlocked },
       canLearn: teachers.length > 0,
       canTeach,
       // Your own sheet only. Greying this on whether a chaplain happens to be
       // standing here would announce their presence to anyone who glanced at
       // their own page — the rule at the top of actionRegistry.js.
       canConfess: mySins.length > 0,
+      // Your own mouth, never the room's. A Kiss button that lit up only when
+      // somebody kissable was standing there would be free scouting on every
+      // page load — the rule at the top of actionRegistry.js.
+      canKiss: !kissBlocked,
+      kissTargets,
       // `show` gates whether ActionGrid renders the icon; canSendBirdToday
       // is a `gate` on top, so the button exists but is dead post-send.
       hasBird,
@@ -429,6 +442,8 @@ export default function RequestActionsProvider({
       researchHint,
       examineBlocked,
       extractBlocked,
+      kissBlocked,
+      kissTargets,
       teachers,
       canTeach,
       mySins,

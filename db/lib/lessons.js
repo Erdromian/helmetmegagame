@@ -575,6 +575,10 @@ async function declineOffer(prisma, offer, responder) {
       content: `${responder.name} isn't coming with you.`,
       line: "You stay where you are. ‡",
     },
+    KISS: {
+      content: `${responder.name} turned you down.`,
+      line: "You said no.",
+    },
   };
   const wording = WORDING[offer.kind] ?? {
     content: `${responder.name} declined the lesson.`,

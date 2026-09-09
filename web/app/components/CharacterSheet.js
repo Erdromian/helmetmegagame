@@ -141,6 +141,8 @@ export default function CharacterSheet({
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
+  kissTargets = [],
+  kissBlocked = null,
   avatarUploadsEnabled = false,
   playPanelEnabled = true,
   portraitMakerEnabled = false,
@@ -234,6 +236,8 @@ export default function CharacterSheet({
         bindTargets={bindTargets}
         harmTargets={harmTargets}
         harmTags={harmTags}
+        kissTargets={kissTargets}
+        kissBlocked={kissBlocked}
         examineBlocked={examineBlocked}
         canCrucify={canCrucify}
         canDisguise={canDisguise}
