@@ -422,6 +422,7 @@ export async function myThings() {
           select: {
             id: true,
             name: true,
+            description: true,
             category: true,
             equippable: true,
             consumable: true,
@@ -451,7 +452,9 @@ export async function readStash(roomId) {
       tags: {
         where: { quantity: { gt: 0 } },
         orderBy: { tag: { name: "asc" } },
-        select: { tagId: true, quantity: true, tag: { select: { name: true } } },
+        // description: what the chip says on hover, so a floor full of names
+        // is a floor you can read before you pick anything up.
+        select: { tagId: true, quantity: true, tag: { select: { name: true, description: true } } },
       },
     },
   });
@@ -465,7 +468,12 @@ export async function readStash(roomId) {
     resources: room.resources ?? 0,
     items: (room.tags ?? [])
       .filter((rt) => (rt.quantity ?? 0) > 0)
-      .map((rt) => ({ tagId: rt.tagId, name: rt.tag.name, quantity: rt.quantity })),
+      .map((rt) => ({
+        tagId: rt.tagId,
+        name: rt.tag.name,
+        description: rt.tag.description ?? "",
+        quantity: rt.quantity,
+      })),
   };
 }
 
@@ -1635,6 +1643,16 @@ export async function shoutHere(text, placeKey = null) {
   // thread is the ONLY audience, so failing this check would burn the cooldown
   // on a shout literally nobody heard.
   const here = parsePlaceKey(placeKey);
+
+  // Not from the street. A shout is a voice and a Location takes none — the
+  // composer is gone from it (Feed.js) and `/shout` is not offered there
+  // (commands.js) — but a server action is a public endpoint, and the UI is a
+  // hint rather than a lock. Before shout(), so a refused shout costs no
+  // cooldown.
+  if (here?.kind === "loc") {
+    return { ok: false, error: "Step into a room, a conversation or the summary to shout. ‡" };
+  }
+
   const inThread = Boolean(here && (here.kind === "room" || here.kind === "conv"));
   if (inThread) {
     const mine = await mayWritePlace(prisma, me.character, placeKey, {

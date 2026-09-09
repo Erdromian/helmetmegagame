@@ -86,8 +86,9 @@ export const COMMANDS = [
     name: "shout",
     description: "Yell, loud enough that the next few places over hear you. ‡",
     // Not the zone summary: a shout is a voice in a place, and the summary is
-    // not a place anybody stands in.
-    where: ["loc", "room", "conv"],
+    // not a place anybody stands in. Not the street either: a Location takes
+    // no voice at all, which is the whole reason it has no composer.
+    where: ["room", "conv"],
     args: [{ name: "message", kind: "text", placeholder: "What you yell…", maxLength: SHOUT_LIMIT }],
     run: ({ message }, ctx) => shoutHere(message, ctx.placeKey),
   },

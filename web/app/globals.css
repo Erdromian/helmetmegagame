@@ -5959,6 +5959,13 @@ label.chip {
   margin-bottom: var(--sp-2);
 }
 
+/* A stash chip wrapped in a HoverCard so its description shows on hover
+   (RoomPanel.js). .tag-hover is mono, because the chips it was written for
+   are; these are not, and inheriting it turned the floor into a typewriter. */
+.chat-chip-hover {
+  font-family: inherit;
+}
+
 /* The one bad-news tone, scoped to this column so it cannot leak into the
    chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
    carry line over its cap. */

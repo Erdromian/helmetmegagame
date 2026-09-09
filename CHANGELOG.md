@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The street has no mouth, and the floor says what it is
+
+✎ The chat box is gone from a Location: there is a line there now saying to step into a room, the summary or a conversation to speak  
+− Shouting from the open street. A shout is a voice, and the street takes none  
+✚ Hover an item lying on a room's floor and it tells you what it is, instead of just its name  
+✚ The same hover on the things in your own pockets
+
 ## 2026-09-09 · The map pinches to zoom on a phone
 
 ✚ Pinch to zoom the map, and a two-finger drag pans it  

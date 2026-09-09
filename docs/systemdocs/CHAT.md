@@ -727,14 +727,15 @@ header instead).
   summary too, for the reason `/shout` is: a summary is a broadcast, not a
   place anybody stands in.
 
-  **The street gets a COMMAND-ONLY composer.** A Location is `canSpeak: false`
-  (§5b) and used to draw no box at all — which meant `/shout`, the one command
-  whose entire point is being heard outdoors, had nowhere on the web to be
-  typed. So the same box is drawn there, placeholdered *"Type / for a
-  command… ‡"*, and it accepts a slash and nothing else: Enter on plain prose
-  answers *"This is the open street. Step into a room to speak. ‡"*, keeps the
-  draft, and sends nothing. The sentence is the same one that used to stand
-  there in place of the composer.
+  **The street gets NO composer at all.** A Location is `canSpeak: false`
+  (§5b). It carried a command-only box for two days — drawn only so `/shout`,
+  the one command whose point is being heard outdoors, had somewhere on the web
+  to be typed — and then shouting from the street stopped being a thing you can
+  do either (`/shout` is `["room", "conv"]` now, and `shoutHere` refuses a
+  `loc` place key server-side). With nothing left to run in it, the box went:
+  what stands there is one grey italic line, *"Go into a room, the zone summary
+  channel, or a conversation to speak."*, and the quill and the hood beside it,
+  which are things you do with your own hands anywhere.
 
   Three of these are the first web twins of commands that were **Discord-only**
   — `/conceal`, `/shout` and `/roll` — which is to say a "web only" character
@@ -1141,8 +1142,9 @@ are a scene somebody chose to be in. Four changes carry it:
   **top-level** Location channel as a tupper channel. Threads and `#summary`
   still are. What is left at top level is a GM typing, and a GM's own words are
   theirs.
-- On the web the Location place is `canSpeak: false`. It draws a command-only
-  composer — no speech goes through it, and `/shout` needs somewhere to live.
+- On the web the Location place is `canSpeak: false` and draws **no composer**
+  — see §3's note. It briefly kept a command-only box for `/shout`; a shout is
+  not something you do from the street either, so both are gone.
 
 ### 5c. One affordance catalog, two faces
 

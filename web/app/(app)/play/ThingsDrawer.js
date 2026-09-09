@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import ClickMenu from "@/app/components/ClickMenu";
 import FormError from "@/app/components/FormError";
+import HoverCard from "@/app/components/HoverCard";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { toggleEquip } from "@/app/(app)/character/equipActions";
@@ -109,22 +110,41 @@ function ThingMenu({ row, onClose, onEquip, pending }) {
 // above it.
 function ThingChip({ row, isOpen, onToggle, onClose, onEquip, pending }) {
   const triggerRef = useRef(null);
+  const description = row.description?.trim();
   return (
     <span className="chat-thing-wrap">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="chip"
-        aria-haspopup="menu"
-        aria-expanded={isOpen}
-        data-active={row.equipped ? "true" : undefined}
-        onClick={onToggle}
+      {/* The name on hover, the same as the floor's chips (RoomPanel.js) —
+          "Wolfsbane" says nothing about what drinking it does. The panel is
+          dropped while the action menu is open: the two are portaled to the
+          same corner of the same chip, and both at once is a pile.
+          pinnable={false} because the chip's click already owns that menu. */}
+      <HoverCard
+        pinnable={false}
+        className="chat-chip-hover"
+        panel={
+          description && !isOpen ? (
+            <>
+              <span className="chat-tip-name">{row.name}</span>
+              <span className="chat-tip-desc">{description}</span>
+            </>
+          ) : null
+        }
       >
-        {row.name}
-        {row.quantity > 1 ? ` ×${row.quantity}` : ""}
-        {/* What is out and in hand, rather than in a pocket. */}
-        {row.equipped ? " ·" : ""}
-      </button>
+        <button
+          ref={triggerRef}
+          type="button"
+          className="chip"
+          aria-haspopup="menu"
+          aria-expanded={isOpen}
+          data-active={row.equipped ? "true" : undefined}
+          onClick={onToggle}
+        >
+          {row.name}
+          {row.quantity > 1 ? ` ×${row.quantity}` : ""}
+          {/* What is out and in hand, rather than in a pocket. */}
+          {row.equipped ? " ·" : ""}
+        </button>
+      </HoverCard>
       {isOpen && (
         <ClickMenu triggerRef={triggerRef} onClose={onClose} ariaLabel={row.name}>
           <ThingMenu row={row} onClose={onClose} onEquip={onEquip} pending={pending} />

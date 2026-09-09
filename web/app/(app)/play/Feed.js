@@ -320,11 +320,6 @@ const MAX_SLOWMODE_RETRIES = 3;
 // the interval in Feed() for why a push-only strip is not enough.
 const MEMBERS_REFRESH_MS = 60_000;
 
-// What the open street answers to a sentence somebody typed at it. One string,
-// because the command-only composer says it on Enter and the read-only fall-
-// through below says it where there is no composer at all.
-const STREET_LINE = "This is the open street. Step into a room to speak. ‡";
-
 // What `/travel`'s picker says when the reachable places could not be read.
 const ROAD_ERROR = "Couldn't read the road. Try again. ‡";
 
@@ -540,12 +535,11 @@ export default function Feed({
   // place rather than filtered at use: a /roll offered in the street and
   // refused on Enter is a control that lied.
   const available = useMemo(() => commandsFor(place?.kind), [place?.kind]);
-  // A COMMAND-ONLY composer. The street takes no speech (CHANNELS.md §2) and
-  // used to take no box either — which quietly meant /shout, the one command
-  // whose whole point is being heard outdoors, had nowhere to be typed
-  // (CHAT.md §5). So the box is drawn, and it accepts a `/` and nothing else:
-  // plain text answers with the same sentence that used to sit here instead.
-  const commandOnly = Boolean(place) && !place.canSpeak && place.kind === "loc";
+  // The street takes NO box at all — not speech, and not a command either. It
+  // carried one for a while so /shout had somewhere to be typed, and then a
+  // shout stopped being a thing you do out here too (commands.js), which left
+  // the box with nothing to run. What sits there now is a line saying where to
+  // go instead.
   // The server rows stand in only until this place's history is actually
   // loaded. Past that the store IS the scene — and it was the fallback that
   // brought a deleted line back: take the only line in a quiet street down,
@@ -1031,13 +1025,6 @@ export default function Feed({
   const submit = useCallback(() => {
     const content = draft.trim();
     if (!content || !placeKey) return;
-    // The street's box is for commands. The draft is KEPT — a player who meant
-    // to shout is one slash away from meaning it — and the sentence says which
-    // slash-less thing they just did.
-    if (commandOnly) {
-      setError(STREET_LINE);
-      return;
-    }
     // Inside the hold. The draft is kept — it is theirs, and they will send
     // it in a second — and the chip is what says so.
     if (deadline > Date.now()) {
@@ -1077,7 +1064,7 @@ export default function Feed({
     // The RAW text goes to the server, which runs the same transforms itself
     // — sending the transformed copy would run them twice.
     void send(clientId, content);
-  }, [draft, placeKey, self, send, autocorrect, slowmodeMs, deadline, commandOnly]);
+  }, [draft, placeKey, self, send, autocorrect, slowmodeMs, deadline]);
 
   const onRetry = useCallback(
     (clientId) => {
@@ -1577,7 +1564,7 @@ export default function Feed({
 
       {!readOnly && (
         <div className="chat-composer">
-          {place.canSpeak || commandOnly ? (
+          {place.canSpeak ? (
             <>
               <div className="field chat-composer-box">
                 {command && (
@@ -1589,22 +1576,16 @@ export default function Feed({
                   id="chat-composer"
                   ref={textareaRef}
                   aria-label={
-                    commandOnly
-                      ? `Run a command in ${place.name} ‡`
-                      : concealed && alias
-                        ? `Say something as ${alias}`
-                        : `Say something in ${place.name}`
+                    concealed && alias ? `Say something as ${alias}` : `Say something in ${place.name}`
                   }
                   rows={2}
                   value={draft}
                   placeholder={
                     command
                       ? (textArgOf(command.entry)?.placeholder ?? "Press Enter to run it ‡")
-                      : commandOnly
-                        ? "Type / for a command…"
-                        : concealed && alias
-                          ? `Say something as ${alias}…`
-                          : `Say something in ${place.name}…`
+                      : concealed && alias
+                        ? `Say something as ${alias}…`
+                        : `Say something in ${place.name}…`
                   }
                   onChange={onDraftChange}
                   onKeyDown={(e) => {
@@ -1719,21 +1700,24 @@ export default function Feed({
                   disabled={
                     command
                       ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
-                      : // In the street the button is live with text in the box
-                        // on purpose: pressing it is how a phone hears the
-                        // sentence explaining why nothing was said.
-                        !draft.trim() || (!commandOnly && waitSeconds > 0)
+                      : !draft.trim() || waitSeconds > 0
                   }
                 >
                   {command ? "Run" : "Send"}
                 </button>
               )}
             </>
+          ) : place.kind === "loc" ? (
+            // The street. Not "you can only watch here" — that reads like a
+            // refusal, and this is a signpost: the scene is one door away, and
+            // the line says which doors.
+            <p className="chat-quiet italic">
+              Go into a room, the zone summary channel, or a conversation to speak.
+            </p>
           ) : (
-            // Everywhere else a character may read but not speak — the zone
-            // summary they are only listed in, somewhere a GM is watching.
-            // The street is not here any more: it has the command-only box
-            // above, and says STREET_LINE when somebody types prose into it.
+            // Everywhere else a character may read but not speak. The street
+            // is not here any more — it has its own line above — so what is
+            // left is somebody with no voice at all.
             <p className="chat-quiet">You’re a ghost. You can’t speak.</p>
           )}
           {/* Paperwork and the hood, beside the send. Neither is a place's
