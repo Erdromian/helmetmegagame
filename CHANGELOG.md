@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · You can lay in wait, and travel arrives when you make it
+
+✚ An Intercept button on the sheet: name who you are watching for, write them a line, and stop them when they walk in where you stand  
+✚ Safe holds somebody two minutes and hands them your message; Ambush holds them until the turn ends, or until you let them go — file a Gambit if you mean them harm  
+✎ A crossing that costs your Move no longer waits for the turn to end. You arrive the moment you go, and the far zone's channels open with you  
+✎ A hood beats a name: watching for Lord Greeblus will not catch him hooded. Watch for anyone concealed instead  
+✎ Nobody can be carried out of an ambush by a friend, and one watch catches a given person once a turn
+
 ## 2026-09-09 · A room says what it looks like
 
 ✎ Every place on the web now shows its own description under its name, opened with a click. A room's words used to have nowhere to appear at all  
