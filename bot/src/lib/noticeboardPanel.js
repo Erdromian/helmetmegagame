@@ -81,7 +81,7 @@ function selectRow(customId, placeholder, options) {
 async function handleNoticeboardOpen(interaction, locationId) {
   await ack(interaction, { ephemeral: true });
   const ctx = await boardContext(interaction, locationId);
-  if (ctx.error) return respond(interaction, { content: ctx.error, ephemeral: true });
+  if (ctx.error) return respond(interaction, { content: ctx.error });
 
   const { location, character, posts, openTurn } = ctx;
 
@@ -108,7 +108,6 @@ async function handleNoticeboardOpen(interaction, locationId) {
 
   return respond(interaction, {
     content: boardText(location.name, posts, openTurn?.number ?? 0),
-    ephemeral: true,
     components: rows,
   });
 }
@@ -116,10 +115,10 @@ async function handleNoticeboardOpen(interaction, locationId) {
 async function handleNoticeRead(interaction, locationId) {
   await ack(interaction, { ephemeral: true });
   const ctx = await boardContext(interaction, locationId);
-  if (ctx.error) return respond(interaction, { content: ctx.error, ephemeral: true });
+  if (ctx.error) return respond(interaction, { content: ctx.error });
 
   const post = ctx.posts.find((p) => p.id === interaction.values?.[0]);
-  if (!post) return respond(interaction, { content: "It's gone.", ephemeral: true });
+  if (!post) return respond(interaction, { content: "It's gone." });
 
   // The same predicate the tag chip uses, and the same sentence — a blind
   // reader and an illiterate one get identical refusals, so neither the reader
@@ -131,40 +130,40 @@ async function handleNoticeRead(interaction, locationId) {
   // stops anything written on it rendering as Discord markup or pinging
   // somebody. Nobody is told it was read.
   const content = blocked || post.tag.paperKind === "SEALED" ? text : `\`\`\`\n${text}\n\`\`\``;
-  return respond(interaction, { content, ephemeral: true });
+  return respond(interaction, { content });
 }
 
 async function handleNoticeTear(interaction, locationId) {
   await ack(interaction, { ephemeral: true });
   const ctx = await boardContext(interaction, locationId);
-  if (ctx.error) return respond(interaction, { content: ctx.error, ephemeral: true });
+  if (ctx.error) return respond(interaction, { content: ctx.error });
 
   const post = ctx.posts.find((p) => p.id === interaction.values?.[0]);
-  if (!post) return respond(interaction, { content: "It's gone.", ephemeral: true });
+  if (!post) return respond(interaction, { content: "It's gone." });
 
   // The delete IS the claim, so two people tearing at the same paper cannot
   // both walk away with it — the same shape every other race here uses.
   const claimed = await prisma.noticePost.deleteMany({ where: { id: post.id } });
   if (claimed.count === 0) {
-    return respond(interaction, { content: "Somebody got there first.", ephemeral: true });
+    return respond(interaction, { content: "Somebody got there first." });
   }
   await addToStack(prisma, ctx.character.id, post.tagId, 1, {});
 
   if (ctx.location.discordChannelId) {
     // Catch-logged: an unreachable channel must never undo a tear that has
     // already committed (ARCHITECTURE.md §5).
-    await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
+    await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => { });
   }
   // Beside the post, so Chat sees the board change too.
   await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
-  return respond(interaction, { content: `You take ${post.tag.name} down.`, ephemeral: true });
+  return respond(interaction, { content: `You take ${post.tag.name} down.` });
 }
 
 async function handleNoticePin(interaction, locationId) {
   await ack(interaction, { ephemeral: true });
   const ctx = await boardContext(interaction, locationId);
-  if (ctx.error) return respond(interaction, { content: ctx.error, ephemeral: true });
-  if (!ctx.openTurn) return respond(interaction, { content: "Nothing is happening yet.", ephemeral: true });
+  if (ctx.error) return respond(interaction, { content: ctx.error });
+  if (!ctx.openTurn) return respond(interaction, { content: "Nothing is happening yet." });
 
   const tagId = interaction.values?.[0];
   const held = ctx.character.tags.find((ct) => ct.tagId === tagId);
@@ -172,7 +171,7 @@ async function handleNoticePin(interaction, locationId) {
   // check: a spent envelope and a bound book both have one, and neither goes
   // up on a wall.
   if (!held || (held.tag.paperKind !== "PAPER" && held.tag.paperKind !== "SEALED")) {
-    return respond(interaction, { content: "You aren't holding that.", ephemeral: true });
+    return respond(interaction, { content: "You aren't holding that." });
   }
 
   const config = await prisma.gameConfig.findUnique({
@@ -202,18 +201,17 @@ async function handleNoticePin(interaction, locationId) {
     });
   } catch (err) {
     if (err?.code === "P2002") {
-      return respond(interaction, { content: "That one is already up somewhere. ‡", ephemeral: true });
+      return respond(interaction, { content: "That one is already up somewhere." });
     }
     throw err;
   }
 
   if (ctx.location.discordChannelId) {
-    await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(held.tag.name))).catch(() => {});
+    await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(held.tag.name))).catch(() => { });
   }
   await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(held.tag.name) });
   return respond(interaction, {
-    content: `You nail ${held.tag.name} up. Anyone here can read it, or take it down. ‡`,
-    ephemeral: true,
+    content: `You put ${held.tag.name} up. Anyone here can read it, or take it down.`,
   });
 }
 

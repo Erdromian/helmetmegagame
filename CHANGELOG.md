@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Every ephemeral reply speaks in one voice
+
+✎ The short messages only you can see — refusals, confirmations — now all read the same way, with the chevron and italics  
+✎ Fixed /conceal printing raw code at players, and its two replies losing an asterisk  
+✎ The bird, the noticeboard and room storage answered in a different voice than everything else; they don't now
+
 ## 2026-09-09 · The archive is a page you can actually read
 
 ✎ The archive is rebuilt. A real header row with the line count, a slim search bar with the rest of the filters behind one button, and chips saying what is narrowed so a filter can't be silently on. The old eight controls in one row had no widths on them, which is why they wrapped raggedly and every dropdown truncated at once.  

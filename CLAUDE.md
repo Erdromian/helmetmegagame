@@ -738,6 +738,35 @@ text. Bot-composed DMs write the `»` at the call site instead, because
 they're mixed with other formatting (zone, dice roll) that doesn't go through
 `sendDm`.
 
+**An ephemeral reply is `» *italics*`, and `bot/src/lib/respond.js` writes it.**
+Every refusal, confirmation and one-line answer the bot gives to one player goes
+out through `respond()`, and the format is applied there — the way `sendDm`
+applies its `»` and `ambientLine.js` applies its `-#`. The chevron is there
+because an ephemeral reply is the game restating your own action back at you;
+the italics because it's a note in the margin, not a line in the scene. Before
+this, 158 call sites had two formats between them: about a hundred hand-wrote
+`» *text*`, three whole modules answered in bare prose, and a refusal coming up
+from `db/lib` arrived unformatted and stayed that way — so the same kind of
+message reached players in two different voices.
+
+So **call sites pass a bare sentence.** Don't write the chevron by hand and
+don't write the italics. `db/lib` especially: those strings are shared with the
+web and must stay plain — a trailing `‡` on one is lifted out and re-appended
+after the closing `*`, because the mark rides the message, not the sentence.
+
+Four things are left alone, each for a reason. **Anything with a newline** is a
+readout with its own shape — Examine, Who's here?, the Move confirmation — and
+italicising a whole block isn't the same act as marking one sentence.
+**Anything whose payload carries components**: the line above a picker is a
+prompt, not a notice, and "Where would you like to go?" shouldn't arrive in the
+voice of a refusal. **Anything already opening with `»` or `-#`**, so the pass
+is idempotent and subtext stays subtext. And **anything opening with `*`** —
+`**Here:**` would become `» ***Here:**`, and wrapping italics in italics reads
+as bold, which says the opposite of quiet.
+
+If a reply needs a shape this can't give it, that's a sign it's a readout, and
+it should be built as one.
+
 ## Resources glyph (`⬢`)
 
 `⬢` is the Resources glyph. It **replaces the word — it never sits next to

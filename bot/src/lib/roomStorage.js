@@ -18,11 +18,11 @@ async function handleRoomStorage(interaction, roomId) {
       tags: { where: { quantity: { gt: 0 } }, select: { quantity: true, tag: { select: { name: true } } } },
     },
   });
-  if (!room) return respond(interaction, { content: "That room is gone.", ephemeral: true });
+  if (!room) return respond(interaction, { content: "That room is gone." });
   if (!character?.locationId || character.locationId !== room.locationId) {
-    return respond(interaction, { content: "You're not here.", ephemeral: true });
+    return respond(interaction, { content: "You're not here." });
   }
-  return respond(interaction, { content: formatStashLine(room), ephemeral: true });
+  return respond(interaction, { content: formatStashLine(room) });
 }
 
 module.exports = { handleRoomStorage };

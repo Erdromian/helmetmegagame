@@ -95,14 +95,14 @@ async function handleReportOpen(interaction) {
 
   const userId = interaction.user.id;
   if (inFlight.has(userId)) {
-    await respond(interaction, "» *One moment — your ticket is already being opened.*");
+    await respond(interaction, "One moment — your ticket is already being opened.");
     return;
   }
 
   const { guild } = await resolveActingMember(interaction);
   const channel = guild ? await fetchReportChannel(guild) : null;
   if (!channel) {
-    await respond(interaction, "» *Couldn't create that — try again, or tell a GM.*");
+    await respond(interaction, "Couldn't create that — try again, or tell a GM.");
     return;
   }
 
@@ -112,7 +112,7 @@ async function handleReportOpen(interaction) {
     return;
   }
   if (Date.now() - (lastOpened.get(userId) ?? 0) < OPEN_COOLDOWN_MS) {
-    await respond(interaction, "» *Give it a minute before opening another ticket.*");
+    await respond(interaction, "Give it a minute before opening another ticket.");
     return;
   }
 
@@ -167,7 +167,7 @@ async function handleReportOpen(interaction) {
     // would answer every retry with "you already have a ticket open". Take
     // it down so the retry starts clean.
     if (thread) await thread.delete("failed report ticket").catch(() => {});
-    await respond(interaction, "» *Couldn't create that — try again, or tell a GM.*");
+    await respond(interaction, "Couldn't create that — try again, or tell a GM.");
     return;
   } finally {
     inFlight.delete(userId);
@@ -189,7 +189,7 @@ async function handleReportClose(interaction) {
   const thread = interaction.channel;
   if (!isReportThread(thread)) {
     await ack(interaction);
-    await respond(interaction, "» *That button only works inside a report ticket.*");
+    await respond(interaction, "That button only works inside a report ticket.");
     return;
   }
 

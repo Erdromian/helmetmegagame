@@ -6,8 +6,12 @@
 // clamps it instead. Every handler that touches the database calls `ack`
 // first and answers via `respond`, not `interaction.reply` — the exception is
 // a handler that opens a modal, where `showModal` IS the acknowledgement.
+//
+// `respond` also puts the reply through `ephemeralLine`, so the house format —
+// `» *text*` — lives in one place and a call site writes a plain sentence.
 
 const { MessageFlags } = require("discord.js");
+const { ephemeralLine } = require("./ephemeralLine");
 
 const DISCORD_MESSAGE_LIMIT = 2000;
 const TRUNCATION_NOTE = "\n-# …trimmed to fit Discord's 2000-character limit.";
@@ -64,7 +68,11 @@ async function ack(interaction, { update = false, ephemeral = true } = {}) {
 // to opt a specific reply out.
 async function respond(interaction, payload, { fleeting = true } = {}) {
   const options = typeof payload === "string" ? { content: payload } : { ...payload };
-  if (options.content !== undefined) options.content = clampContent(options.content);
+  // House format first, clamp second — so the chevron is inside the 2000-char
+  // budget rather than pushing the tail of the sentence past it.
+  if (options.content !== undefined) {
+    options.content = clampContent(ephemeralLine(options.content, { components: options.components }));
+  }
 
   try {
     if (interaction.deferred) {
