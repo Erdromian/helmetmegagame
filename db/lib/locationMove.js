@@ -30,6 +30,7 @@ const { settleCarry, deliverCarryDrop } = require("./carry");
 const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessage } = require("./indoors");
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
+const { cancelWatchOnMove, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -295,6 +296,25 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     console.error(`Move: recording the visit failed for ${characterId}:`, err.message ?? err);
   });
 
+  // Laying in wait ends the moment you leave the place you were waiting in
+  // (docs/systemdocs/INTERCEPT.md §1). Here rather than in performLocationMove
+  // because this is the writer every relocation runs — a teleport, a Bulk
+  // Move, a staged Relocate to and a rite all break the anchor as surely as
+  // walking does. Above the Discord guard, the recordArrival reasoning: the
+  // watch is a database fact and must not survive on a box with no token.
+  //
+  // `fromLocationId` has to be set. Three callers pass null for something that
+  // is NOT a move — a GM's Discord resync, a revive, and a character's first
+  // placement — and cancelling on those would have a GM pressing Resync
+  // silently end a player's ambush.
+  const droppedWatch =
+    fromLocationId && fromLocationId !== toLocationId
+      ? await cancelWatchOnMove(prisma, characterId).catch((err) => {
+          console.error(`Move: cancelling the watch failed for ${characterId}:`, err.message ?? err);
+          return null;
+        })
+      : null;
+
   // Before the Discord guard below, because this one is a DB change and has to
   // happen whether or not there is a token to talk to Discord with. Also
   // before the settle further down, so the settle sees the reduced cap and
@@ -427,6 +447,14 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     await swapRole(discordUserId, fromLocation?.zone?.discordRoleId ?? null, toLocation.zone?.discordRoleId ?? null, "zone");
     await reconcileNarrowcastAccess(prisma, characterId, discordUserId).catch((err) =>
       console.error(`Move: narrowcast reconcile failed for ${characterId}:`, err.message ?? err),
+    );
+  }
+
+  // The watch that walking away just ended, told plainly. The delete itself
+  // happened above the guard; only the letter waits for a token.
+  if (droppedWatch?.cancelled) {
+    await sendDm(prisma, discordUserId, INTERCEPT_CANCELLED_DM).catch((err) =>
+      console.error(`Move: intercept-cancelled DM to ${discordUserId} failed:`, err.message ?? err),
     );
   }
 

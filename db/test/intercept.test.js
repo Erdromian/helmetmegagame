@@ -4,7 +4,15 @@
 const test = require("node:test");
 const assert = require("node:assert");
 
-const { matchesArrival, heldReasonFor, cleanMessage, cleanNames, seenAs, saidWord } = require("../lib/intercept");
+const {
+  matchesArrival,
+  heldReasonFor,
+  anchorHolds,
+  cleanMessage,
+  cleanNames,
+  seenAs,
+  saidWord,
+} = require("../lib/intercept");
 
 const GREEBLUS = { name: "Lord Greeblus Vane", firstName: "Greeblus", lastName: "Vane" };
 const OPEN = { name: "Lord Greeblus Vane", concealed: false, forced: false };
@@ -43,6 +51,19 @@ test("any person catches everybody", () => {
 test("a watch naming nobody catches nobody", () => {
   assert.equal(matchesArrival(watch({}), GREEBLUS, OPEN), null);
   assert.equal(matchesArrival(null, GREEBLUS, OPEN), null);
+});
+
+test("a watch works where it was set and nowhere else", () => {
+  // The anchor, and it beats everything else the watch says: a dragnet set at
+  // the gatehouse catches nobody in the caves. Moving deletes the row, so this
+  // is the belt for one left behind by a relocation that skipped the cancel.
+  const gate = watch({ anyPerson: true, locationId: "loc-gatehouse" });
+  assert.equal(anchorHolds(gate, "loc-gatehouse"), true);
+  assert.equal(anchorHolds(gate, "loc-caves"), false);
+  // Nowhere is not somewhere, on either side.
+  assert.equal(anchorHolds(watch({ anyPerson: true }), "loc-gatehouse"), false);
+  assert.equal(anchorHolds(gate, null), false);
+  assert.equal(anchorHolds(null, "loc-gatehouse"), false);
 });
 
 test("the hold lapses on its own", () => {

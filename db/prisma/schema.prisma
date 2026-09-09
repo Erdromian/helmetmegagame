@@ -1153,6 +1153,10 @@ model Location {
   threatSpawns ThreatSpawn[]
   cavingRolls  CavingRoll[]
   visits       LocationVisit[]
+  // Everybody lying in wait here. A watch is anchored to one place and dies
+  // when its owner leaves it (docs/systemdocs/INTERCEPT.md §1), so a Location
+  // that goes away takes them with it.
+  interceptWatches InterceptWatch[]
 
   @@index([zoneId])
 }
@@ -1959,7 +1963,10 @@ model Character {
   holding   Character[] @relation("InterceptHold")
 
   interceptWatch InterceptWatch?
-  interceptHits  InterceptHit[]
+  // Caught by somebody, and the catches they made. Two relations to the same
+  // table, so both ends are named.
+  interceptHits    InterceptHit[] @relation("InterceptCaught")
+  interceptCatches InterceptHit[] @relation("InterceptCatcher")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3512,6 +3519,13 @@ model InterceptWatch {
   characterId String    @unique
   character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
 
+  // WHERE they are lying in wait, stamped from where they stood when they set
+  // it. The watch fires here and nowhere else, and any move at all deletes the
+  // row (db/lib/locationMove.js). Anchored rather than read live: laying in
+  // wait is a fact about a place, not a property you carry around with you.
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
   mode    InterceptMode @default(SAFE)
   // What the interceptor says to whoever they stop. Player-typed, so it is
   // capped and stripped of broadcast pings before it is ever sent
@@ -3530,25 +3544,31 @@ model InterceptWatch {
   anyConcealed Boolean @default(false)
   anyPerson    Boolean @default(false)
 
-  hits InterceptHit[]
-
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([locationId])
 }
 
-// One row per person a watch has actually caught, per turn. This is the
+// One row per person an interceptor has actually caught, per turn. This is the
 // ration, not a log: without it a lapsed two-minute hold is walked straight
 // back into, and a Safe watch on a busy road becomes an endless roadblock and
 // an endless DM feed. The unique IS the enforcement — the insert is what
 // claims the catch, inside the firing transaction, so two arrivals in one tick
 // cannot both pass.
 model InterceptHit {
-  id      String         @id @default(cuid())
-  watchId String
-  watch   InterceptWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
+
+  // The CATCHER, not the watch row. A watch is churn — Stop and re-save, or
+  // walk away and set another one when you come back (INTERCEPT.md §1) — and
+  // keying the ration to the row would let anybody mint a fresh slate of
+  // catches inside one turn by doing either. The catch belongs to the person
+  // who made it.
+  interceptorId String
+  interceptor   Character @relation("InterceptCatcher", fields: [interceptorId], references: [id], onDelete: Cascade)
 
   targetCharacterId String
-  targetCharacter   Character @relation(fields: [targetCharacterId], references: [id], onDelete: Cascade)
+  targetCharacter   Character @relation("InterceptCaught", fields: [targetCharacterId], references: [id], onDelete: Cascade)
 
   // Not a foreign key, the Character.zoneMovesTurnId reasoning: it is a claim
   // token, and deleting a turn must never cascade into somebody's catch.
@@ -3556,7 +3576,7 @@ model InterceptHit {
 
   createdAt DateTime @default(now())
 
-  @@unique([watchId, targetCharacterId, turnId])
+  @@unique([interceptorId, targetCharacterId, turnId])
   @@index([targetCharacterId])
 }
 

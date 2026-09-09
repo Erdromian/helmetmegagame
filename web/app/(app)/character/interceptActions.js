@@ -16,6 +16,7 @@ import {
   cleanMessage,
   cleanNames,
   releaseHeldBy,
+  anchorHolds,
   identityOf,
   seenAs,
   IDENTITY_SELECT,
@@ -65,17 +66,26 @@ async function holdingRows(characterId) {
 
 async function loadInterceptImpl() {
   const { character } = await me();
-  const watch = await prisma.interceptWatch.findUnique({ where: { characterId: character.id } });
+  const watch = await prisma.interceptWatch.findUnique({
+    where: { characterId: character.id },
+    include: { location: { select: { name: true } } },
+  });
+  // A watch reads as no watch anywhere but where it was set. Moving deletes
+  // the row (db/lib/locationMove.js), so this only catches one left behind by
+  // a relocation that never ran the cancel — but the dialog must never draw a
+  // watch that could not fire.
+  const live = watch && anchorHolds(watch, character.locationId) ? watch : null;
   return {
     ok: true,
     limits: { names: MAX_NAMES, message: MESSAGE_LIMIT },
-    watch: watch
+    watch: live
       ? {
-          mode: watch.mode,
-          message: watch.message ?? "",
-          names: watch.targetNames ?? [],
-          anyConcealed: watch.anyConcealed,
-          anyPerson: watch.anyPerson,
+          mode: live.mode,
+          message: live.message ?? "",
+          names: live.targetNames ?? [],
+          anyConcealed: live.anyConcealed,
+          anyPerson: live.anyPerson,
+          place: live.location?.name ?? null,
         }
       : null,
     holding: await holdingRows(character.id),
@@ -97,8 +107,16 @@ async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson 
   if (!anyone && !concealed && targetNames.length === 0) {
     throw new UserError("Name somebody to watch for, or watch for anyone. ‡");
   }
+  // The anchor. Character.locationId is nullable, and a watch with nowhere to
+  // wait would be a 500 out of the upsert instead of a sentence.
+  if (!character.locationId) {
+    throw new UserError("You have to be standing somewhere to lie in wait. ‡");
+  }
 
   const data = {
+    // Stamped from where they stand, and never moved afterwards: walking away
+    // deletes the whole row (docs/systemdocs/INTERCEPT.md §1).
+    locationId: character.locationId,
     mode: wantAmbush ? "AMBUSH" : "SAFE",
     message: clean,
     targetNames,

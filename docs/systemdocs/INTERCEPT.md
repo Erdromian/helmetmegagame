@@ -18,12 +18,42 @@ whole of "you can only follow one person". Editing is an upsert; there is no
 history to keep, so the `AuditLog` row written on each save is the only record
 of what a watch said at the time.
 
-It carries a mode, a message, a list of typed names, and two dragnet flags.
+It carries a Location, a mode, a message, a list of typed names, and two
+dragnet flags.
 
-**It stores no Location.** The watch fires wherever the interceptor is standing
-at the moment somebody arrives, read live. That is what "lay in wait at your
-location" literally means, and it leaves nothing stale behind when they walk
-off.
+**It is anchored.** `locationId` is stamped from where its owner stood when
+they saved it, and the watch works there and nowhere else. **Any move at all
+cancels it** — walking, being carried along by an escort, a GM's teleport, a
+Bulk Move, a staged Relocate to, a rite — and the owner is told:
+
+> You left, so your interception was canceled.
+
+Laying in wait is a fact about a **place**. It used to be read live off
+wherever the interceptor happened to be standing, which made it a property of
+the person instead: a watch set at the gatehouse on Tuesday followed its owner
+around Ravenheart and was still stopping strangers in the Underquarter on
+Friday.
+
+Both halves of that are load-bearing, and they are different hooks on purpose:
+
+- **The delete** is `db/lib/intercept.js#cancelWatchOnMove`, called from
+  `db/lib/locationMove.js#applyLocationMoveSideEffects` — the writer every
+  relocation runs, which is why a teleport and a rite end a watch just as
+  surely as legs do. It sits **above** that function's `DISCORD_TOKEN` guard,
+  the `recordArrival` reasoning: losing the watch is a database fact and must
+  not depend on there being a token to talk to Discord with. Only the letter
+  waits for one. It fires only when `fromLocationId` is set, because a GM's
+  Discord resync, a revive and a first placement all pass `null` for something
+  that is not a move — without that check, pressing **Resync** would silently
+  end a player's ambush.
+- **The anchor** is `anchorHolds()`, and it is what `fireWatches` and the
+  dialog both ask. A row is inert anywhere but its own Location, so a
+  relocation that somehow skipped the delete leaves a dud rather than a
+  roaming radar. The delete is what a player sees; the anchor is what makes it
+  safe.
+
+Note the deliberate asymmetry with §5: a watch **fires** only from the road,
+but it **dies** however you left.
 
 **Setting one costs nothing** — no Move, no ⬢, no `Action`, no per-turn ration
 — and nothing gates it. There is no `gate` or `show` key on the button: laying
@@ -32,9 +62,10 @@ in `actionRegistry.js` has nothing to bite on. `needs: ACT` applies at save
 time, though, so a bound man is told why rather than left with a watch that
 silently never fires.
 
-The watch **survives** death, binding and catatonia. It is a standing
-preference, like an escort consent; a stale one is inert, and it works again
-the moment its owner can act.
+The watch **survives** death, binding and catatonia — none of those moves
+anybody. It is a standing preference, like an escort consent; a stale one is
+inert, and it works again the moment its owner can act. It does not survive a
+move of any kind.
 
 ## 2. A hood beats a name
 
@@ -145,6 +176,12 @@ Thanati rite and a brand-new character's first placement could all trip
 somebody's ambush. The cost, stated plainly: **a rite that yanks people
 somewhere will not trip a watch.** That is the right side of the trade.
 
+The query loads every watch **anchored to the arrival Location whose owner is
+also standing there**. Both clauses, not one: the anchor is the rule (§1), and
+the owner's live position is what keeps a row left behind by the one writer
+that relocates somebody without running the cancel — `db/lib/corpseFollow.js`,
+which moves DEAD characters only — from ever biting. Do not fold them into one.
+
 A watch does not fire if its owner is not `ALIVE`, cannot `ACT`, or is
 **themselves one of the arrivals** — you cannot lay in wait while you are
 walking, and catching the person you travelled with would be a trick nobody
@@ -161,11 +198,18 @@ meant to build.
 - A Safe watch reports its whole haul in one line to its owner. An Ambush is
   one DM per victim, because each carries a Release button and a button answers
   about exactly one person (`db/lib/dmActions.js#dmAction`).
-- **A watch catches a given person at most once a turn.** `InterceptHit`, and
-  the `@@unique([watchId, targetCharacterId, turnId])` **is** the enforcement —
-  the insert is what claims the catch, so two arrivals in one tick cannot both
-  pass. Without it a lapsed two-minute hold is walked straight back into, and a
-  Safe watch on a busy road becomes an endless roadblock and an endless DM feed.
+- **You catch a given person at most once a turn.** `InterceptHit`, and the
+  `@@unique([interceptorId, targetCharacterId, turnId])` **is** the enforcement
+  — the insert is what claims the catch, so two arrivals in one tick cannot
+  both pass. Without it a lapsed two-minute hold is walked straight back into,
+  and a Safe watch on a busy road becomes an endless roadblock and an endless
+  DM feed.
+
+  The row is keyed to the **catcher**, never to the watch. A watch is churn: it
+  dies when its owner steps out of the room and is a new row when they come
+  back, and Stop-then-Save is two clicks. Keyed to the row, the ration would be
+  reset by any of that, and a Safe watch could catch the same person all
+  afternoon. Keyed to the person, re-setting a watch buys nothing.
 
 ## 6. The DMs
 
@@ -227,8 +271,9 @@ DM button is the convenience.
 whatever watch is set so it can be reopened and edited at any time.
 
 **Nothing in it is a tooltip** (`SHEET.md` §3). Both mode sentences print on the
-page, both at once rather than only the chosen one, and the hood rule reads
-under the name field — it is the one thing about this verb a player could not
+page, both at once rather than only the chosen one; the dialog names the place
+the watch is anchored to and says that walking away ends it; and the hood rule
+reads under the name field — it is the one thing about this verb a player could not
 work out by using it.
 
 `web/app/components/NameChips.js` is the app's first real multi-select input:
@@ -250,7 +295,7 @@ Three `actionType`s, all under the existing `request_` family so
 
 | Type | Written by | `turnId` |
 |---|---|---|
-| `request_intercept_set` | the save, and Stop watching | yes |
+| `request_intercept_set` | the save, Stop watching, and a move cancelling it | yes |
 | `request_intercept_fired` | `fireWatches`, bot-side too | **yes** |
 | `request_intercept_released` | the sheet's Release | yes |
 
@@ -260,6 +305,10 @@ though: **unlike the three rations in `REQUESTS.md` §1a, the rule is not
 enforced by counting these rows.** The unique on `InterceptHit` is. Those three
 count audit rows only because they have no state of their own; this has.
 
+The move-cancel row is written with `actorDiscordUserId: "system"`, not the
+walker's: nobody *chose* to end the watch, and a GM's teleport ends one the
+same way somebody's own legs do.
+
 Nothing here is destructive, so no `restore` snapshot is owed (`REQUESTS.md` §2).
 
 ## 10. Where the code lives
@@ -268,6 +317,7 @@ Nothing here is destructive, so no `restore` snapshot is owed (`REQUESTS.md` §2
 |---|---|
 | `db/lib/intercept.js` | The whole mechanism. The ONLY module that decides who a watch catches, and the only one that knows what a hold is |
 | `db/lib/locationTravel.js` | The mover's gate, the per-follower drop, the fire hook |
+| `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — cancels the watch on ANY relocation, and sends the letter |
 | `db/lib/locationGraph.js` | `resolveNeighbors` draws the refusal on every way |
 | `db/lib/escort.js` | Refuses to attach somebody being held |
 | `db/lib/dmAnswer.js` | `answerInterceptHold` — Release, shared by both faces |
