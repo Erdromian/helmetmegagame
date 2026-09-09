@@ -47,7 +47,7 @@ export async function GET() {
   const [tags, roomTags, roomResources, openTurn, state, offers] = await Promise.all([
     prisma.characterTag.findMany({
       where: { characterId: me.id },
-      select: { tagId: true, quantity: true, equipped: true, expiresTurn: true },
+      select: { tagId: true, quantity: true, equipped: true, equippedQuantity: true, expiresTurn: true },
       orderBy: { tagId: "asc" },
     }),
     me.locationId
@@ -73,7 +73,9 @@ export async function GET() {
     me.zoneId ?? "",
     me.resources,
     me.tagPoints,
-    tags.map((t) => `${t.tagId}:${t.quantity}:${t.equipped ? 1 : 0}:${t.expiresTurn ?? ""}`).join(","),
+    tags
+      .map((t) => `${t.tagId}:${t.quantity}:${t.equipped ? 1 : 0}:${t.equippedQuantity}:${t.expiresTurn ?? ""}`)
+      .join(","),
     roomTags?._count?._all ?? 0,
     roomTags?._sum?.quantity ?? 0,
     roomTags?._max?.updatedAt?.getTime() ?? 0,
@@ -86,7 +88,14 @@ export async function GET() {
   ].join("|");
 
   return Response.json(
-    { version: deployVersion(), fp },
+    // `locationId` rides alongside the opaque `fp` rather than inside it —
+    // MapBoard.js (../map/MapBoard.js) polls this same endpoint to notice a
+    // move somebody else made (an escort, a leader dragging a party), and it
+    // only wants to know about that one thing: a plain field means it never
+    // has to parse `fp`'s internal shape, and never re-frames the board over
+    // some unrelated change (a resource spent, a turn advancing) the way
+    // comparing the whole fingerprint would.
+    { version: deployVersion(), fp, locationId: me.locationId ?? null },
     { headers: { "cache-control": "no-store" } },
   );
 }

@@ -6,7 +6,7 @@ import { chainTokens } from "@/lib/tagChains";
 import { buildCards, matchesQuery, nextRung, rowValue } from "@/lib/sheetCards";
 import { thingVerbSets, thingVerbs } from "@/app/(app)/play/thingRows";
 import { consumeTagRequest } from "@/app/(app)/character/requestActions";
-import { toggleEquip } from "@/app/(app)/character/equipActions";
+import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 // A leaf CommonJS module — constants and pure functions, no prisma require —
 // so naming it here does not drag the @lifeweb/db barrel into the bundle.
 import { RESEARCH_TAG_SLUG } from "@lifeweb/db/lib/research";
@@ -77,10 +77,15 @@ export default function TagRail({
     });
   }
 
-  function equip(characterTagId) {
+  // A slot holds one physical unit, not a stack (equipSlots.js): this row's
+  // button is a plain toggle, so it moves exactly one unit — onto the rack if
+  // none of this holding is out yet, back off if any of it is. Equipping a
+  // second unit of a partly-out stack is the rig's job (EquipBoard.js), which
+  // draws one cell per unit and can offer both verbs on the same holding.
+  function equip(ct) {
     setError(null);
     startTransition(async () => {
-      const res = await toggleEquip(characterTagId);
+      const res = await (ct.equipped ? unequipOne(ct.id) : equipOne(ct.id));
       if (res?.error) setError(res.error);
     });
   }
@@ -99,7 +104,7 @@ export default function TagRail({
         verbs={v}
         pending={pending}
         onUse={v.consumable ? () => (isPotion ? setIdentityOpen(true) : consume(ct.tag.id)) : null}
-        onEquip={v.equippable && ct.id ? () => equip(ct.id) : null}
+        onEquip={v.equippable && ct.id ? () => equip(ct) : null}
         onGive={open ? () => open("transfer", ct.tag.id) : null}
         onDestroy={open ? () => open("destroy", ct.tag.id) : null}
         onHeal={pools.canHeal && open && selfId ? () => open("heal", ct.tag.id, { patientId: selfId }) : null}

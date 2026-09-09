@@ -103,7 +103,10 @@ export default function TravelNodes({ onDone, pick = null }) {
   }
 
   const chosen = target ? (data.options.find((o) => o.id === target) ?? null) : null;
-  const nextTurn = Boolean(chosen?.crossesZone && data.freeLeft <= 0);
+  // chosen's OWN count, not the header's ambient one — a boat's bonus is
+  // earned per crossing, so a water-eligible destination can still be free
+  // even when the header's pre-selection number already reads 0.
+  const nextTurn = Boolean(chosen?.crossesZone && chosen.freeLeft <= 0);
 
   // Travel, in one place: the Go button and a second click on a node are two
   // doors onto the same call, the way the map's are (MAP.md §6c).
@@ -183,7 +186,7 @@ export default function TravelNodes({ onDone, pick = null }) {
                   TagChip, because an interactive chip cannot live inside this
                   button. */}
               {via && <ChipLabel tag={via} />}
-              <span className="chat-node-foot mono">{travelFoot(option, data.freeLeft, data.mounted)}</span>
+              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted)}</span>
             </button>
             );
           })}

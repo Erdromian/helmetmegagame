@@ -11,7 +11,7 @@ import { logAudit } from "@/lib/requests";
 import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
-import { grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
+import { grantTagSlugs, addToRoomStack, dropRoomTag, clampEquippedQuantity } from "@lifeweb/db/lib/tagWrites";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import {
   THANATI_SLUG,
@@ -187,6 +187,7 @@ async function spendCharacterTag(tx, characterId, tagId, quantity) {
   });
   if (count === 0) return false;
   await tx.characterTag.deleteMany({ where: { characterId, tagId, quantity: { lte: 0 } } });
+  await clampEquippedQuantity(tx, characterId, tagId);
   return true;
 }
 

@@ -18,20 +18,23 @@ import {
 import { armorWord, combineArmor } from "@lifeweb/db/lib/armorValue";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { carryBonusLabel } from "@/lib/sheetCards";
-import { toggleEquip } from "@/app/(app)/character/equipActions";
+import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import ClickMenu from "./ClickMenu";
 import FormError from "./FormError";
 
 // The rig: what is worn, drawn as the slots it is worn in (TAGS.md,
 // "equipSlot"). One row per slot, one cell per place a thing can go — three
 // head layers, three body layers, an off hand, three hands, a ride and what
-// it tows, and the accessories, which have no cap. A filled cell names the
+// it tows, and up to MAX_ACCESSORIES accessories. A filled cell names the
 // thing and the one fact about it worth a glance; an empty cell is dashed and
 // named, and clicking it lists what you carry that fits there.
 //
-// Everything goes through the same toggleEquip the /character rack uses, and
-// the server's refusal — a second helm, a fourth hand — lands in FormError
-// under the board. No tooltips on this surface.
+// A slot holds one PHYSICAL unit, not a stack — CharacterTag.equippedQuantity
+// says how many of a held stack are out, so a cell here is one unit of it,
+// not the row. Equipping and unequipping move that number by one at a time
+// (equipOne/unequipOne, character/equipActions.js), and the server's refusal
+// — a second helm, a fourth hand — lands in FormError under the board. No
+// tooltips on this surface.
 
 // Cell counts come from equipSlots.js rather than being written out again: a
 // layered slot has one cell per layer name, the hands have WEAPON_HANDS of
@@ -40,6 +43,18 @@ const ROWS = ["HEAD", "BODY", "SHIELD", "WEAPON", "MOUNT"].map((slot) => ({
   slot,
   cells: LAYER_NAMES[slot]?.length ?? (slot === "WEAPON" ? WEAPON_HANDS : 1),
 }));
+
+// One row per PHYSICAL unit a CharacterTag row has equipped, not one per row
+// — a stack with equippedQuantity 3 draws three cells. Each unit still points
+// back at its own row (`ct`), since that row's id is what equipOne/unequipOne
+// act on; units of one stack are fungible, so which one a click names never
+// matters (equipActions.js#unequipOne).
+function equippedUnits(rows) {
+  return rows.flatMap((ct) => {
+    const n = ct.equippedQuantity ?? 0;
+    return Array.from({ length: Math.max(0, n) }, (_, i) => ({ ct, tag: ct.tag, key: `${ct.id}-${i}` }));
+  });
+}
 
 // The one line under a worn thing's name.
 function fact(tag) {
@@ -58,8 +73,8 @@ function fact(tag) {
 // then failing them is a worse menu than one that leaves them out and says
 // why. Everything else on the board is filtered on the slot alone, because the
 // slot really is the whole rule there.
-function mountMenu(fits, worn, { indoors, motionSick }) {
-  const out = new Set(worn.map((ct) => ct.tag.slug));
+function mountMenu(fits, wornRows, { indoors, motionSick }) {
+  const out = new Set(wornRows.map((ct) => ct.tag.slug));
   const boatOut = [...WATER_TRAVEL_SLUGS].some((slug) => out.has(slug));
   const rideOut = [...BOAT_CONFLICT_SLUGS].some((slug) => out.has(slug));
   const why = new Set();
@@ -87,7 +102,9 @@ function mountMenu(fits, worn, { indoors, motionSick }) {
 
 // A dashed, named empty place. Its click menu lists the carried things that
 // fit; nothing fits and it says so. `note` is the MOUNT row's reason for
-// having left something out — never a silent omission.
+// having left something out — never a silent omission. A row with room left
+// in a partly-equipped stack still offers it here, alongside whatever else is
+// carried — Equip pulls one more unit out, same gesture either way.
 function EmptyCell({ label, options, onPick, pending, span = 1, note = null }) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
@@ -136,15 +153,15 @@ function EmptyCell({ label, options, onPick, pending, span = 1, note = null }) {
   );
 }
 
-function WornCell({ ct, onUnequip, pending, span = 1, canAct }) {
-  const line = fact(ct.tag);
+// One physical unit, worn. Not the row's total `quantity` — a cell is a
+// single thing, and showing the whole stack's count on it read as though
+// equipping one equipped all of them.
+function WornCell({ unit, onUnequip, pending, span = 1, canAct }) {
+  const line = fact(unit.tag);
   return (
     <div className="equip-cell" style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
       <div className="equip-cell-face">
-        <span className="equip-cell-name">
-          {ct.tag.name}
-          {(ct.quantity ?? 1) > 1 ? <span className="text-muted"> ×{ct.quantity}</span> : null}
-        </span>
+        <span className="equip-cell-name">{unit.tag.name}</span>
         {line && <span className="equip-cell-fact text-muted">{line}</span>}
       </div>
       {canAct && (
@@ -153,7 +170,7 @@ function WornCell({ ct, onUnequip, pending, span = 1, canAct }) {
           className="equip-cell-off"
           disabled={pending}
           onClick={onUnequip}
-          aria-label={`Unequip ${ct.tag.name}`}
+          aria-label={`Unequip ${unit.tag.name}`}
         >
           ✕
         </button>
@@ -167,15 +184,19 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
   const [error, setError] = useState(null);
 
   const equippable = characterTags.filter((ct) => ct.tag.equippable);
-  const worn = equippable.filter((ct) => ct.equipped);
-  const carried = equippable.filter((ct) => !ct.equipped);
+  const wornRows = equippable.filter((ct) => (ct.equippedQuantity ?? 0) > 0);
+  // What still has room to come out — a partly-equipped stack (2 of 5 out)
+  // still offers the other 3 wherever it fits, alongside whatever else is
+  // carried.
+  const carried = equippable.filter((ct) => (ct.quantity ?? 1) - (ct.equippedQuantity ?? 0) > 0);
+  const worn = equippedUnits(wornRows);
 
-  function toggle(ct) {
+  function equip(ct) {
     if (!isSelf || !ct.id) return;
     setError(null);
     startTransition(async () => {
       try {
-        const res = await toggleEquip(ct.id);
+        const res = await equipOne(ct.id);
         if (res?.error) setError(res.error);
       } catch {
         setError("Could not reach the server. Nothing was changed. ‡");
@@ -183,9 +204,22 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
     });
   }
 
-  const melee = combineArmor(worn, "meleeArmor");
-  const ballistic = combineArmor(worn, "ballisticArmor");
-  const hands = handsUsed(worn);
+  function unequip(ct) {
+    if (!isSelf || !ct.id) return;
+    setError(null);
+    startTransition(async () => {
+      try {
+        const res = await unequipOne(ct.id);
+        if (res?.error) setError(res.error);
+      } catch {
+        setError("Could not reach the server. Nothing was changed. ‡");
+      }
+    });
+  }
+
+  const melee = combineArmor(wornRows, "meleeArmor");
+  const ballistic = combineArmor(wornRows, "ballisticArmor");
+  const hands = handsUsed(wornRows);
   const freeHands = Math.max(0, WEAPON_HANDS - hands);
 
   if (equippable.length === 0) {
@@ -211,20 +245,20 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
       </div>
 
       {ROWS.map(({ slot, cells }) => {
-        const inSlot = worn.filter((ct) => ct.tag.equipSlot === slot);
+        const inSlot = worn.filter((unit) => unit.tag.equipSlot === slot);
         const fits = carried.filter((ct) => ct.tag.equipSlot === slot);
         const layered = Boolean(LAYER_NAMES[slot]);
         let drawn;
         if (layered) {
           drawn = Array.from({ length: cells }, (_, i) => {
             const layer = i + 1;
-            const ct = inSlot.find((row) => row.tag.equipLayer === layer);
+            const unit = inSlot.find((row) => row.tag.equipLayer === layer);
             const label = `${LAYER_NAMES[slot][i]}`;
-            return ct ? (
+            return unit ? (
               <WornCell
-                key={ct.id}
-                ct={ct}
-                onUnequip={() => toggle(ct)}
+                key={unit.key}
+                unit={unit}
+                onUnequip={() => unequip(unit.ct)}
                 pending={pending}
                 canAct={isSelf}
               />
@@ -233,7 +267,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
                 key={`${slot}-${layer}`}
                 label={label}
                 options={fits.filter((row) => row.tag.equipLayer === layer)}
-                onPick={toggle}
+                onPick={equip}
                 pending={pending}
               />
             );
@@ -245,26 +279,26 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
           // be worn at a layer that no longer exists. Drawing only the named
           // layers would leave it on the character's head with nothing to
           // take it off with.
-          for (const ct of inSlot) {
-            const layer = ct.tag.equipLayer;
+          for (const unit of inSlot) {
+            const layer = unit.tag.equipLayer;
             if (Number.isInteger(layer) && layer >= 1 && layer <= cells) continue;
             drawn.push(
               <WornCell
-                key={ct.id}
-                ct={ct}
-                onUnequip={() => toggle(ct)}
+                key={unit.key}
+                unit={unit}
+                onUnequip={() => unequip(unit.ct)}
                 pending={pending}
                 canAct={isSelf}
               />,
             );
           }
         } else if (slot === "WEAPON") {
-          drawn = inSlot.map((ct) => (
+          drawn = inSlot.map((unit) => (
             <WornCell
-              key={ct.id}
-              ct={ct}
-              span={handsOf(ct.tag)}
-              onUnequip={() => toggle(ct)}
+              key={unit.key}
+              unit={unit}
+              span={handsOf(unit.tag)}
+              onUnequip={() => unequip(unit.ct)}
               pending={pending}
               canAct={isSelf}
             />
@@ -276,22 +310,22 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
                 label={freeHands === 1 ? "One hand" : `${freeHands} hands`}
                 span={freeHands}
                 options={fits.filter((row) => handsOf(row.tag) <= freeHands)}
-                onPick={toggle}
+                onPick={equip}
                 pending={pending}
               />,
             );
           }
         } else {
-          const ct = inSlot[0];
+          const unit = inSlot[0];
           const menu =
             slot === "MOUNT"
-              ? mountMenu(fits, worn, { indoors, motionSick })
+              ? mountMenu(fits, wornRows, { indoors, motionSick })
               : { options: fits, note: null };
-          drawn = ct ? (
+          drawn = unit ? (
             <WornCell
-              key={ct.id}
-              ct={ct}
-              onUnequip={() => toggle(ct)}
+              key={unit.key}
+              unit={unit}
+              onUnequip={() => unequip(unit.ct)}
               pending={pending}
               canAct={isSelf}
             />
@@ -301,7 +335,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
               label={SLOT_TITLES[slot]}
               options={menu.options}
               note={menu.note}
-              onPick={toggle}
+              onPick={equip}
               pending={pending}
             />
           );
@@ -345,7 +379,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
       })}
 
       {(() => {
-        const inSlot = worn.filter((ct) => ct.tag.equipSlot === "ACCESSORY");
+        const inSlot = worn.filter((unit) => unit.tag.equipSlot === "ACCESSORY");
         const fits = carried.filter((ct) => ct.tag.equipSlot === "ACCESSORY");
         if (inSlot.length === 0 && fits.length === 0) return null;
         return (
@@ -365,17 +399,17 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
               </span>
             </span>
             <div className="equip-cells equip-cells-wrap">
-              {inSlot.map((ct) => (
+              {inSlot.map((unit) => (
                 <WornCell
-                  key={ct.id}
-                  ct={ct}
-                  onUnequip={() => toggle(ct)}
+                  key={unit.key}
+                  unit={unit}
+                  onUnequip={() => unequip(unit.ct)}
                   pending={pending}
                   canAct={isSelf}
                 />
               ))}
               {isSelf && fits.length > 0 && inSlot.length < MAX_ACCESSORIES && (
-                <EmptyCell label="Add" options={fits} onPick={toggle} pending={pending} />
+                <EmptyCell label="Add" options={fits} onPick={equip} pending={pending} />
               )}
             </div>
           </div>
@@ -383,37 +417,38 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
       })()}
 
       {/* Whatever is carried and fits nowhere drawn above: a slotless custom
-          tag. Still equippable, still one click. */}
+          tag. Still equippable, still one click — one cell per equipped unit,
+          plus an "equip" cell for the row while it still has room. */}
       {(() => {
-        const stray = equippable.filter((ct) => !ct.tag.equipSlot);
-        if (stray.length === 0) return null;
+        const strayEquipped = worn.filter((unit) => !unit.tag.equipSlot);
+        const strayFits = carried.filter((ct) => !ct.tag.equipSlot);
+        if (strayEquipped.length === 0 && strayFits.length === 0) return null;
         return (
           <div className="equip-row">
             <span className="field-label equip-row-title">Other</span>
             <div className="equip-cells equip-cells-wrap">
-              {stray.map((ct) =>
-                ct.equipped ? (
-                  <WornCell
-                    key={ct.id}
-                    ct={ct}
-                    onUnequip={() => toggle(ct)}
-                    pending={pending}
-                    canAct={isSelf}
-                  />
-                ) : (
-                  <div key={ct.id} className="equip-cell is-empty">
-                    <button
-                      type="button"
-                      className="equip-cell-face"
-                      disabled={pending || !isSelf}
-                      onClick={() => toggle(ct)}
-                    >
-                      <span className="equip-cell-name text-muted">{ct.tag.name}</span>
-                      <span className="equip-cell-fact text-muted">equip</span>
-                    </button>
-                  </div>
-                ),
-              )}
+              {strayEquipped.map((unit) => (
+                <WornCell
+                  key={unit.key}
+                  unit={unit}
+                  onUnequip={() => unequip(unit.ct)}
+                  pending={pending}
+                  canAct={isSelf}
+                />
+              ))}
+              {strayFits.map((ct) => (
+                <div key={ct.id} className="equip-cell is-empty">
+                  <button
+                    type="button"
+                    className="equip-cell-face"
+                    disabled={pending || !isSelf}
+                    onClick={() => equip(ct)}
+                  >
+                    <span className="equip-cell-name text-muted">{ct.tag.name}</span>
+                    <span className="equip-cell-fact text-muted">equip</span>
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         );

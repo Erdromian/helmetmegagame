@@ -327,6 +327,21 @@ Move, the staged "Relocate to") clears the pending destination too, or the
 pass would undo the teleport at Dawn, and so does death. Each of them clears
 `escortedById` in the same statement (§3a).
 
+UNDOING a queued crossing has to clear the same two fields, for the same
+reason, without ever having moved anybody: `web/lib/moveEconomy.js#deleteActionRestoringTurn`
+— shared by the Dev Panel's "Give their turn back" and the Moves desk's
+Reject — deletes the auto-resolved `Action` a paid crossing filed, and
+`db/lib/locationTravel.js#travelClaimsToUndo` is what tells it to also clear
+`travelToLocationId`/`travelTurnId` when that Action is the one that set
+them (`Action.turnId` is unique per character, so a match can only ever mean
+this Action) and to zero `zoneMovesUsed`/`zoneMovesTurnId` when this turn's
+free-crossing claim belongs to it too. Left alone, a restored Move stayed
+locked out of the travel menu — "you're on the road to X" — for a road the
+Action ledger no longer had them on, and the day's free crossings stayed
+spent regardless. `escortedById` is NOT restored here: queuing a crossing
+overwrites it with `null` and never remembers what it was, so there is
+nothing to give back.
+
 Spending the Move is written as a real, auto-resolved `Action`
 (`type: MOVE`, `status: CONFIRMED`, `moveReviewStatus: SOLVED`,
 `gmNotes: "auto:zone_change"`), landing in `/gm/turns`' Moves history rather

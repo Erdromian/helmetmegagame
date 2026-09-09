@@ -68,8 +68,16 @@ const CHARACTER_SELECT = {
 
 // How many are LEFT right now, for the surfaces that have to say so before a
 // player commits: the Travel confirm and the character sheet.
-function freeMovesLeft(character, config, openTurn, partySize = 0) {
-  return movesLeft(moveAllowance(character, config, null, partySize), character, openTurn);
+//
+// `crossing` is the same optional `{ fromZoneSlug, toZoneSlug }` moveAllowance
+// takes, and for the same reason: a caller with a specific destination in
+// hand (the Travel panel and /map, once a node is picked) has to pass it, or
+// a boat's bonus — earned per crossing, never banked — silently disappears
+// from the very surfaces that are supposed to tell a player it applies. A
+// caller with no destination yet (the sheet's ambient count) passes nothing,
+// same as freeZoneMoves, and gets the honest pre-commitment number.
+function freeMovesLeft(character, config, openTurn, partySize = 0, crossing = null) {
+  return movesLeft(moveAllowance(character, config, crossing, partySize), character, openTurn);
 }
 
 // The arithmetic both the display above and the spend below run: base and
@@ -84,6 +92,47 @@ function movesLeft({ base, bonus }, character, openTurn) {
   const bonusSpent = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;
   const baseSpent = Math.max(0, spent - bonusSpent);
   return Math.max(0, base - baseSpent) + Math.max(0, bonus - bonusSpent);
+}
+
+// What undoing a Move should also undo on the Character row — the two
+// things a zone crossing spends OUTSIDE Action.appliedEffects entirely,
+// because performLocationMove writes them straight onto Character instead
+// of snapshotting them on the Action: a PAID crossing (past the free
+// allowance) stamps travelToLocationId/travelTurnId rather than moving
+// anyone, and EVERY crossing this turn — free or paid — claims against
+// zoneMovesUsed/zoneMovesTurnId. Deleting the Action alone left both stuck:
+// the travel menu stayed locked ("you're on the road to X") on a road that,
+// per the Action ledger, was never taken, and the day's free crossings
+// stayed spent even though the Move that (over-)spent them just came back.
+//
+// Pure on purpose — web/lib/moveEconomy.js#deleteActionRestoringTurn is the
+// only caller and applies whatever this returns, but keeping the decision
+// separate from the write is what makes it testable without a database.
+//
+// `action` needs { turnId, characterId, character: { travelToLocationId,
+// travelTurnId, zoneMovesTurnId, zoneMovesUsed, zoneMovesBonusUsed } }.
+// Returns a Character update object, or null when this Action never claimed
+// either one. zoneMovesBonusUsed resets alongside zoneMovesUsed — a claim
+// undone this turn owes back whatever pool it was charged to, mount bonus
+// included, not just the flat count.
+//
+// Action.turnId is unique per character (@@unique([characterId, turnId])),
+// so a match against it can only ever mean THIS Action — there is no other
+// Action this turn it could belong to instead.
+function travelClaimsToUndo(action) {
+  const character = action?.character;
+  if (!character) return null;
+  const data = {};
+  if (character.travelToLocationId && character.travelTurnId === action.turnId) {
+    data.travelToLocationId = null;
+    data.travelTurnId = null;
+  }
+  if (character.zoneMovesTurnId === action.turnId) {
+    data.zoneMovesUsed = 0;
+    data.zoneMovesBonusUsed = 0;
+    data.zoneMovesTurnId = null;
+  }
+  return Object.keys(data).length ? data : null;
 }
 
 // Motion Sickness can't be equipped onto a mount or a boat (that gate lives
@@ -661,6 +710,7 @@ module.exports = {
   freeZoneMoves,
   freeMovesLeft,
   freeZoneMovesReason,
+  travelClaimsToUndo,
   fitsMount,
   CHARACTER_SELECT,
 };

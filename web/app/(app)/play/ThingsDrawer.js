@@ -5,7 +5,7 @@ import ClickMenu from "@/app/components/ClickMenu";
 import FormError from "@/app/components/FormError";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
-import { toggleEquip } from "@/app/(app)/character/equipActions";
+import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
 
@@ -57,7 +57,12 @@ function write(open) {
 
 // Just the buttons — ClickMenu owns the .chat-menu box itself, so wrapping
 // them in a second one here would double it up.
-function ThingMenu({ row, onClose, onEquip, pending }) {
+//
+// A slot holds one physical item, so a partly-equipped stack (2 of 5 swords
+// out) can offer BOTH verbs at once — Equip pulls one more from reserve,
+// Unequip puts one back — rather than one toggle that can only mean one of
+// them.
+function ThingMenu({ row, onClose, onEquip, onUnequip, pending }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
 
@@ -71,7 +76,7 @@ function ThingMenu({ row, onClose, onEquip, pending }) {
 
   return (
     <>
-      {row.equippable && (
+      {row.equippable && row.equippableRemaining > 0 && (
         <button
           type="button"
           role="menuitem"
@@ -82,7 +87,21 @@ function ThingMenu({ row, onClose, onEquip, pending }) {
             onEquip(row);
           }}
         >
-          {row.equipped ? "Unequip" : "Equip"}
+          Equip
+        </button>
+      )}
+      {row.equippable && row.equippedQuantity > 0 && (
+        <button
+          type="button"
+          role="menuitem"
+          className="menu-item"
+          disabled={pending}
+          onClick={() => {
+            onClose();
+            onUnequip(row);
+          }}
+        >
+          Unequip
         </button>
       )}
       {row.consumable && (
@@ -107,7 +126,7 @@ function ThingMenu({ row, onClose, onEquip, pending }) {
 // One chip and its (portaled) menu. A component of its own so each row gets
 // its own triggerRef — hooks can't be called per-iteration inside the .map()
 // above it.
-function ThingChip({ row, isOpen, onToggle, onClose, onEquip, pending }) {
+function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, pending }) {
   const triggerRef = useRef(null);
   return (
     <span className="chat-thing-wrap">
@@ -127,7 +146,7 @@ function ThingChip({ row, isOpen, onToggle, onClose, onEquip, pending }) {
       </button>
       {isOpen && (
         <ClickMenu triggerRef={triggerRef} onClose={onClose} ariaLabel={row.name}>
-          <ThingMenu row={row} onClose={onClose} onEquip={onEquip} pending={pending} />
+          <ThingMenu row={row} onClose={onClose} onEquip={onEquip} onUnequip={onUnequip} pending={pending} />
         </ClickMenu>
       )}
     </span>
@@ -159,14 +178,33 @@ export default function Things({ groups: initialGroups = [] }) {
   useVisiblePoll(refresh, POLL_MS, { enabled: open });
 
   // Equipping is instant and answers { equipped } or { error } rather than the
-  // { ok } shape useActionRunner reads, so it is run here.
+  // { ok } shape useActionRunner reads, so it is run here. Each call moves
+  // exactly one unit — a slot holds one physical item, so pulling all of a
+  // stack out is one tap per unit, same as the sheet's own rack.
   const equip = useCallback(
     (row) => {
       if (!row.characterTagId) return;
       setError(null);
       startTransition(async () => {
         try {
-          const res = await toggleEquip(row.characterTagId);
+          const res = await equipOne(row.characterTagId);
+          if (res?.error) setError(res.error);
+          else refresh();
+        } catch {
+          setError("Could not reach the server. Nothing was changed. ‡");
+        }
+      });
+    },
+    [refresh],
+  );
+
+  const unequip = useCallback(
+    (row) => {
+      if (!row.characterTagId) return;
+      setError(null);
+      startTransition(async () => {
+        try {
+          const res = await unequipOne(row.characterTagId);
           if (res?.error) setError(res.error);
           else refresh();
         } catch {
@@ -200,6 +238,7 @@ export default function Things({ groups: initialGroups = [] }) {
                       onToggle={() => setOpenId(openId === row.tagId ? null : row.tagId)}
                       onClose={close}
                       onEquip={equip}
+                      onUnequip={unequip}
                       pending={pending}
                     />
                   ))}

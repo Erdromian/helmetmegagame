@@ -126,7 +126,7 @@ import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { partFor, resolveMutilation } from "@lifeweb/db/lib/mutilate";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
-import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
+import { dropRoomTag, clampEquippedQuantity } from "@lifeweb/db/lib/tagWrites";
 import {
   BUTCHER_SLUG,
   ENGRAVE_RESOURCE_COST,
@@ -480,6 +480,7 @@ async function consumeRecipeItems(tx, characterId, plan) {
         data: { quantity: { decrement: quantity } },
       });
       if (count === 0) throw short();
+      await clampEquippedQuantity(tx, characterId, tagId);
     }
     consumed.push({
       tagId,

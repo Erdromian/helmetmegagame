@@ -16,7 +16,14 @@ async function main() {
       name: true,
       tags: {
         where: { equipped: true },
-        select: { tag: { select: { name: true, slug: true, equippable: true, equipSlot: true, equipLayer: true, twoHanded: true } } },
+        // equippedQuantity rides along because findEquipProblem/handsUsed
+        // expand a row into that many physical units — without it a stack
+        // worn three-deep reads as one thing and the audit misses the very
+        // overfull hands it exists to find.
+        select: {
+          equippedQuantity: true,
+          tag: { select: { name: true, slug: true, equippable: true, equipSlot: true, equipLayer: true, twoHanded: true } },
+        },
       },
     },
     orderBy: { name: "asc" },
@@ -29,7 +36,8 @@ async function main() {
     if (!problem && bare.length === 0) continue;
     if (problem) offenders += 1;
     slotless += bare.length;
-    console.log(`\n${c.name} — ${c.tags.length} equipped, ${handsUsed(c.tags)}/${WEAPON_HANDS} hands`);
+    const units = c.tags.reduce((n, ct) => n + (ct.equippedQuantity ?? 1), 0);
+    console.log(`\n${c.name} — ${units} equipped, ${handsUsed(c.tags)}/${WEAPON_HANDS} hands`);
     if (problem) console.log(`  refused: ${problem}`);
     for (const ct of bare) console.log(`  no slot (custom tag?): ${ct.tag.name} (${ct.tag.slug})`);
   }

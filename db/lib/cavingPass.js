@@ -14,7 +14,7 @@
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
-const { addToStack } = require("./tagWrites");
+const { addToStack, clampEquippedQuantity } = require("./tagWrites");
 const { applyFear } = require("./fear");
 const { rollDie } = require("./moveEffects");
 const { expiryFrom } = require("./turnFormat");
@@ -66,7 +66,7 @@ async function rollCaving(prisma, character, turn, location) {
         if (kind === "TROUBLE") {
           const lure = await tx.characterTag.findFirst({
             where: { characterId: character.id, tag: { slug: "musk-lure" } },
-            select: { id: true, quantity: true },
+            select: { id: true, tagId: true, quantity: true },
           });
           if (lure) {
             const spent =
@@ -77,6 +77,7 @@ async function rollCaving(prisma, character, turn, location) {
                   })
                 : await tx.characterTag.deleteMany({ where: { id: lure.id, quantity: 1 } });
             lured = spent.count > 0;
+            if (lured) await clampEquippedQuantity(tx, character.id, lure.tagId);
           }
         }
         const rowKind = lured ? "QUIET" : kind;

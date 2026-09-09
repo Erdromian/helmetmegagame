@@ -169,7 +169,10 @@ async function FreshPlay({ userId }) {
               resources: true,
               // `id` is the CharacterTag row, which is what an equip toggle
               // acts on; the Things drawer is the only thing here that needs
-              // one (./thingRows.js).
+              // one (./thingRows.js). `equippedQuantity` alongside `equipped`
+              // — a slot holds one physical unit, not a stack, and thingRows.js
+              // reads the count to know how many of a holding are still free to
+              // equip and how many are already out to put back.
               // `tag.group` rides along for researchableHeld's `group`-kind
               // ingredient entries (a held corpse, matched by GROUP rather
               // than slug) — nothing else here read it before Research did.
@@ -179,6 +182,7 @@ async function FreshPlay({ userId }) {
                   tagId: true,
                   quantity: true,
                   equipped: true,
+                  equippedQuantity: true,
                   tag: { include: { group: { select: { slug: true } } } },
                 },
               },

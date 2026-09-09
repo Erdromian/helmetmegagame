@@ -1698,11 +1698,25 @@ bands it produces, and the full multiplier table.
 ## `equippable` / `concealsIdentity`
 
 `equippable: true` marks a tag as something a character can wear or carry
-readied, and so occupies its `equipSlot` (next section). The state lives on
-`CharacterTag.equipped`, not on a join table: equipping is a property of
-holding the tag, so `@@unique([characterId, tagId])` stays and every "holds it
-or doesn't" check in the codebase is unaffected. A `stackable` tag takes one
-place however many units are held.
+readied, and so occupies its `equipSlot` (next section). Each UNIT spends its
+own slot or hand: a stack of 5 swords, all equipped, is three hands full and
+two still in the pack, not one hand for "a stack of swords" — a stackable tag
+with no `equipSlot` at all still takes no more room than any other equippable
+tag, since the slot (or the lack of one) is the only limit, never a flat count.
+
+The state lives on two `CharacterTag` columns rather than a join table.
+`equippedQuantity` is how many of `quantity` are currently out — 0 for an
+unheld or fully-stowed stack, up to `quantity` itself for one equipped down to
+the last unit — and `equipped` is kept in sync as `equippedQuantity > 0`, so
+every "holds it or doesn't" check elsewhere in the codebase (fear, armour,
+mounts, concealment, labor bonuses...) reads that one boolean and needs to
+know nothing about counts. `@@unique([characterId, tagId])` stays: a stack is
+still one row, it just carries two numbers instead of one flag.
+
+Shrinking a stack below what is equipped — `dropCharacterTag`, a GM's quantity
+patch — clamps `equippedQuantity` down to match and frees whatever slots or
+hands that frees. Nothing is ever left with `equippedQuantity` pointing past
+the end of a shorter stack.
 
 `CharacterTag.equipped` is **cleared on death** — `killCharacter` runs an
 `updateMany` over the corpse's held tags. A corpse doesn't wield things, and
@@ -1737,6 +1751,16 @@ with free slots could ready eight swords, and later three helmets. **It is
 retired** (2026-09-13): the column stays in the schema, unread and listed under
 `INTERNAL_KEYS` in `db/lib/gameConfigFields.js`, and the slot is the whole
 rule. Every `equippable` tag names one; sync throws on one that doesn't.
+
+`equipSlot:` is the other half — `HEAD`, `BODY`, `SHIELD`, `WEAPON`,
+`ACCESSORY` and `MOUNT`, the table below. `HEAD`, `BODY` and `MOUNT` are
+layered (next paragraph), `SHIELD` holds exactly one, `WEAPON` is counted in
+hands rather than a slot, and `ACCESSORY` has no limit at all. **Two equipped
+tags may not share a slot (or, on a layered slot, a layer)** — including two
+UNITS of the very same stackable slotted tag (`hat`, `death-mask`, `gas-mask`,
+`graga-hide-cloak` are four that are both today): equipping a second one
+clashes with the first, same as it would against any other tag in that slot,
+because a slot holds one physical thing however large the stack behind it is.
 
 > **Shipping this needs a tag sync.** The migration only adds the enum values
 > and `Tag.twoHanded`. Every slot, every layer and every `twoHanded` flag
@@ -1887,6 +1911,17 @@ which is both how armour actually works and what stops somebody in six
 overlapping layers from being untouchable. The 0.95 cap is the same idea said
 absolutely: nothing is ever bulletproof.
 
+The result is rounded to four places before it leaves `combineArmor` — a
+single piece authored at exactly a band edge (`0.2`, `0.4`, `0.6`, `0.8`)
+combines to `0.19999999999999996` in IEEE 754, which `armorWord`'s strict `<`
+reads as one word weaker than the tag says. Invisible for a long time because
+the only caller was `db/lib/depotTurret.js`'s roll math, where the error is
+irrelevant; visible the moment something displays the word — a character's
+combined Melee/Ballistic now shows as an `Armor` line on the GM's Sheet tab
+(`web/app/components/InspectorColumn.js`, shared by `/gm/turns` and
+`/gm/players`), computed across every equipped piece the same way
+`combineArmor` always has.
+
 ### Authoring one
 
 `db/lib/syncTags.js` rejects a value outside 0..1, and rejects either key on a
@@ -1961,11 +1996,19 @@ Equipping is **instant and writes neither a `Request` nor an `AuditLog` row**,
 unlike everything in `REQUESTS.md`. It costs nothing, the player undoes it in
 one tap, and at 100+ players a row per toggle would drown `/gm/audit`.
 
-`toggleEquip` (`web/app/(app)/character/equipActions.js`) resolves the character
-from the session rather than trusting a posted id, re-checks `tag.equippable`,
-and counts the slots inside a transaction — **but the count alone is not
-sufficient.** Prisma runs at READ COMMITTED, so two tabs both read the same free
-slot and both write. The transaction opens with
+`equipOne` and `unequipOne` (`web/app/(app)/character/equipActions.js`) replaced
+a single `toggleEquip` the day a slot stopped being a whole-holding flag —
+`equipOne` pulls one more unit out of a stack, `unequipOne` puts one back, and
+`EquipmentPanel.js` renders one box per `CharacterTag.equippedQuantity`, all of
+them acting on the same row (units of a stack are fungible, so it never matters
+which visual box unequips). The "Carrying" row underneath shows only the
+REMAINDER — `quantity - equippedQuantity` — not the stack's full count.
+
+Both resolve the character from the session rather than trusting a posted id,
+re-check `tag.equippable`, and `equipOne` counts the slots inside a
+transaction — **but the count alone is not sufficient.** Prisma runs at READ
+COMMITTED, so two tabs both read the same free slot and both write. The
+transaction opens with
 
 ```sql
 SELECT id FROM "Character" ... FOR UPDATE

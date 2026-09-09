@@ -418,6 +418,7 @@ export async function myThings() {
         tagId: true,
         quantity: true,
         equipped: true,
+        equippedQuantity: true,
         tag: {
           select: {
             id: true,
@@ -483,9 +484,10 @@ export async function loadTravel() {
     ? await prisma.location.findUnique({ where: { id: character.travelToLocationId }, select: { name: true } })
     : null;
 
-  const [options, party] = await Promise.all([
+  const [options, party, currentZone] = await Promise.all([
     travelOptions(prisma, character, character.locationId),
     partyOf(prisma, character.id),
+    character.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } }) : null,
   ]);
 
   return {
@@ -495,8 +497,10 @@ export async function loadTravel() {
     // pass lands them. travelOptions has shut the crossings and named the
     // destination in each refusal, so `options` below needs nothing here.
     heading: heading?.name ?? null,
-    // Both count the party: over the mount's seats, the extra crossing it
-    // buys is gone, and the number here has to already say so (MAP.md §3a).
+    // The AMBIENT count, before any destination is picked — freeZoneMoves'
+    // own honest answer with no crossing to weigh (see its doc comment). Both
+    // count the party: over the mount's seats, the extra crossing it buys is
+    // gone, and the number here has to already say so (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
     freeReason: freeZoneMovesReason(character, party.length),
     // Whether there's anything to dismount at all — the node list only
@@ -514,6 +518,15 @@ export async function loadTravel() {
       zoneName: row.location.zone?.name ?? null,
       crossesZone: row.crossesZone,
       passable: row.passable,
+      // THIS destination's own count, unlike the ambient one above — a boat's
+      // bonus is earned per crossing (db/lib/mounts.js#boatCrossing), so
+      // Forest<->Hills or Hills<->Marshes has to show one more than a
+      // crossing the water does nothing for, even though both are "a zone
+      // crossing" equally as far as `crossesZone` is concerned.
+      freeLeft: freeMovesLeft(character, config, openTurn, party.length, {
+        fromZoneSlug: currentZone?.slug ?? null,
+        toZoneSlug: row.location.zone?.slug ?? null,
+      }),
       // A Location a mount gets parked at on arrival (db/lib/indoors.js).
       indoors: Boolean(row.location.indoors),
       // A way too narrow to ride or push through — crossing it dismounts
