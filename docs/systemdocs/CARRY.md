@@ -178,7 +178,10 @@ crossing per *day*. Now:
 
 - Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
 - An **equipped** mount adds one, and it refreshes every turn — a horse carries
-  you at Dawn and again at Dusk. **Only while your escort party fits its
+  you at Dawn and again at Dusk. It is **spent first**: the mount's crossing
+  goes before the base one and stays charged to the mount, so parking the horse
+  at an indoors door later in the turn cannot take back a crossing you never
+  spent. **Only while your escort party fits its
   seats**: go over `fastTravelCapacity` and the mount buys nothing this
   crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
   walking any number of people is free.
@@ -192,7 +195,9 @@ crossing per *day*. Now:
 So a peasant walks Town → Forest for nothing, spends their Move to reach the
 Fortress, and the way back waits for the next turn. That is the whole model.
 
-`Character.zoneMovesTurnId` + `zoneMovesUsed` track it, claimed by a
+`Character.zoneMovesTurnId` + `zoneMovesUsed` track it, and
+`zoneMovesBonusUsed` counts how many of those crossings went on a mount's or a
+boat's extra rather than the base allowance. All three are claimed by a
 conditional `updateMany` whose WHERE is the check, so two tabs cannot both
 spend the last one. A differing turn id resets the counter in the same
 statement, so nothing ever sweeps the field. `freeZoneMoves()` and

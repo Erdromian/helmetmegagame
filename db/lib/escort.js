@@ -69,6 +69,7 @@ const ESCORT_SELECT = {
   // Not escorting's business — performLocationMove's. See above.
   zoneMovesTurnId: true,
   zoneMovesUsed: true,
+  zoneMovesBonusUsed: true,
   travelToLocationId: true,
   travelTurnId: true,
   tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },

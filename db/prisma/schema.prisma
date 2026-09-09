@@ -1703,6 +1703,14 @@ model Character {
   zoneMovesTurnId String?
   zoneMovesUsed   Int     @default(0)
 
+  // How many of those spent crossings were charged to a BONUS crossing (a
+  // mount's, or a boat's on the water) rather than the base allowance. The
+  // bonus is always charged first, so losing the bonus later in the turn —
+  // a horse parked at an indoors door — can never reach back and take the
+  // base crossing the rider still had. Reset by the same differing-turn-id
+  // write as the counter above.
+  zoneMovesBonusUsed Int  @default(0)
+
   // The movement fear ration (db/lib/fear.js, MOVE_FEAR_TURN_CAP). Same claim-
   // token shape as zoneMovesTurnId above, and not a foreign key for the same
   // reason. Float because what it counts is the delta that actually landed,

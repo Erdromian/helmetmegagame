@@ -342,7 +342,19 @@ turn** rather than once a day — a horse carries you at Dawn and again at Dusk.
 They only count while **equipped**, and they are unequipped for you at the door
 of any indoors Location (`CARRY.md` §3).
 
-The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`,
+**A bonus crossing is spent before the base one.** The mount's move goes
+first, and it stays charged to the mount for the rest of the turn — so
+stabling the horse at an indoors door gives nothing back and, more to the
+point, takes nothing back. Before this, the allowance was one number
+recomputed from scratch on every read: a rider with two crossings who rode
+into the Customs house had their ride charged to their base move, and then
+watched the horse's move leave with the horse. Two, ride once, none left. The
+narrow-way case is untouched, because `dismountForNarrowWay` runs *inside* the
+transaction before any of this arithmetic — a rider who cannot get their horse
+through the gap never earns the bonus to begin with (§2c).
+
+The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`, with
+`zoneMovesBonusUsed` counting how many of those went on a bonus, all three
 claimed by a conditional `updateMany` whose WHERE is the check, so two tabs
 cannot both spend the last one. The **`FAST_TRAVEL` Request is retired** —
 there's no separate route through `requestActions.js`; a mount is just a

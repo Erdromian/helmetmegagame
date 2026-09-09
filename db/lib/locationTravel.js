@@ -42,6 +42,7 @@ const CHARACTER_SELECT = {
   buriedAt: true,
   zoneMovesTurnId: true,
   zoneMovesUsed: true,
+  zoneMovesBonusUsed: true,
   travelToLocationId: true,
   travelTurnId: true,
   // `name` rides along for stowedMounts(), which puts it in a sentence.
@@ -57,13 +58,32 @@ const CHARACTER_SELECT = {
 // cost that replaced the old flat refusal, so an overloaded character can
 // still cross, they just pay their Move to do it. A ruined leg takes it too,
 // unless a horse is doing the walking.
+//
+// The mount's crossing is spent BEFORE the base one (moveAllowance below
+// returns the two pools separately, and Character.zoneMovesBonusUsed
+// remembers which was charged). Otherwise a rider who stables their horse at
+// an indoors door loses a crossing they still had: the allowance is
+// recomputed every time, so the horse's move would vanish and the base one
+// would already be spent.
+
 // How many are LEFT right now, for the surfaces that have to say so before a
 // player commits: the Travel confirm and the character sheet.
 function freeMovesLeft(character, config, openTurn, partySize = 0) {
-  const allowance = freeZoneMoves(character, config, null, partySize);
-  if (!openTurn) return allowance;
-  const spent = character?.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
-  return Math.max(0, allowance - spent);
+  return movesLeft(moveAllowance(character, config, null, partySize), character, openTurn);
+}
+
+// The arithmetic both the display above and the spend below run: base and
+// bonus are counted SEPARATELY, because a bonus that goes away mid-turn must
+// not take a base crossing with it. Whatever was charged to a bonus stays
+// charged to it, so a horse parked at an indoors door leaves the rider the
+// crossing they never spent.
+function movesLeft({ base, bonus }, character, openTurn) {
+  if (!openTurn) return base + bonus;
+  const sameTurn = character?.zoneMovesTurnId === openTurn.id;
+  const spent = sameTurn ? (character.zoneMovesUsed ?? 0) : 0;
+  const bonusSpent = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;
+  const baseSpent = Math.max(0, spent - bonusSpent);
+  return Math.max(0, base - baseSpent) + Math.max(0, bonus - bonusSpent);
 }
 
 // Motion Sickness can't be equipped onto a mount or a boat (that gate lives
@@ -96,8 +116,16 @@ async function vomitOnTheRide(prisma, row, openTurn) {
 // move is earned per crossing rather than banked per turn — so every caller
 // that is merely displaying an allowance passes nothing and is unaffected.
 function freeZoneMoves(character, config, crossing = null, partySize = 0) {
+  const { base, bonus } = moveAllowance(character, config, crossing, partySize);
+  return base + bonus;
+}
+
+// The same rules, split into the two pools that are now spent in order. The
+// BONUS pool is whatever a mount or a boat is buying for this crossing; the
+// BASE pool is the flat per-turn allowance everybody gets.
+function moveAllowance(character, config, crossing = null, partySize = 0) {
   const held = character.tags ?? [];
-  if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return 0;
+  if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return { base: 0, bonus: 0 };
   const base = config?.freeZoneMovesPerTurn ?? 1;
   const active = equippedSlugs(held);
   // A horse carries you whatever your legs are, so it is checked FIRST and
@@ -111,13 +139,13 @@ function freeZoneMoves(character, config, crossing = null, partySize = 0) {
   // bonus to lose, so walking any number of people is free; an overloaded
   // horse is therefore never WORSE than legs, only no better.
   if (isMounted(active)) {
-    return fitsMount(active, partySize) ? base + 1 : base;
+    return { base, bonus: fitsMount(active, partySize) ? 1 : 0 };
   }
   // A boat does the same, but only where the water goes. It does NOT cancel
   // lameness: you still have to get down to the bank.
   const onWater = isBoated(active) && boatCrossing(crossing?.fromZoneSlug, crossing?.toZoneSlug);
-  if (held.some((ct) => LAMED_SLUGS.has(ct.tag?.slug))) return 0;
-  return onWater ? base + 1 : base;
+  if (held.some((ct) => LAMED_SLUGS.has(ct.tag?.slug))) return { base: 0, bonus: 0 };
+  return { base, bonus: onWater ? 1 : 0 };
 }
 
 // Whether the mover and their party fit the seats their mount actually has.
@@ -363,15 +391,22 @@ async function performLocationMove(prisma, character, targetLocation) {
         // partyPreview, not the re-authorized list: the seats are spent on
         // who you SET OUT with. Somebody the gate drops at the threshold has
         // already taken up a saddle for this crossing.
-        const allowance = freeZoneMoves(
+        const allowance = moveAllowance(
           character,
           config,
           { fromZoneSlug: currentLocation.zone?.slug, toZoneSlug: targetLocation.zone?.slug },
           partyPreview.length,
         );
-        const spentFree = character.zoneMovesTurnId === openTurn.id ? (character.zoneMovesUsed ?? 0) : 0;
+        const sameTurn = character.zoneMovesTurnId === openTurn.id;
+        const spentFree = sameTurn ? (character.zoneMovesUsed ?? 0) : 0;
+        const spentBonus = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;
+        const left = movesLeft(allowance, character, openTurn);
+        // The bonus pool goes first. A crossing charged to it stays charged to
+        // it for the rest of the turn, so parking the horse indoors afterwards
+        // gives back nothing and takes back nothing.
+        const onBonus = allowance.bonus > spentBonus;
 
-        if (spentFree < allowance) {
+        if (left > 0) {
           const claimed = await tx.character.updateMany({
             where:
               character.zoneMovesTurnId === openTurn.id
@@ -383,11 +418,15 @@ async function performLocationMove(prisma, character, targetLocation) {
                     // this turn could never claim their first free move.
                     OR: [{ zoneMovesTurnId: null }, { zoneMovesTurnId: { not: openTurn.id } }],
                   },
-            data: { zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree + 1 },
+            data: {
+              zoneMovesTurnId: openTurn.id,
+              zoneMovesUsed: spentFree + 1,
+              zoneMovesBonusUsed: onBonus ? spentBonus + 1 : spentBonus,
+            },
           });
           if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment. ‡");
           outcome.usedFreeMove = true;
-          outcome.freeMovesLeft = allowance - (spentFree + 1);
+          outcome.freeMovesLeft = left - 1;
         } else {
           // Out of free moves, so this costs the Move. Acting and crossing are
           // mutually exclusive within a turn, in either order;
@@ -399,7 +438,7 @@ async function performLocationMove(prisma, character, targetLocation) {
           });
           if (existing) {
             throw new MoveRefused(
-              allowance === 0
+              allowance.base + allowance.bonus === 0
                 ? "You're overburdened, so you have no free moves left, and you've already acted this turn. ‡"
                 : "You're out of free moves this turn, and you've already acted. ‡",
             );
