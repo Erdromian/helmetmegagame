@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Click a place twice to go there
+
+✚ Picking a place twice travels — on the map and in the Travel panel — so an ordinary hop no longer means clicking the place, crossing to the card, and clicking Go  
+✚ Enter goes to the place you have picked  
+✎ The walk cooldown drops from 60 seconds to 3  
+✎ A way you hold no key to now says "This way isn't open to you."
+
 ## 2026-09-09 · A nekker is lighter than it was
 
 ✎ A nekker corpse weighs 35 rather than 45 — a spindly thing should be the lightest body you can pick up, and it was sitting closer to a person than to its own description.
