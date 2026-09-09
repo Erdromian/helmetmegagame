@@ -36,7 +36,7 @@ the map while a Graga's corpse (75 lb) had always been real cargo.
 
 **The body.** 50 lb for a person, which is under the 71 lb base cap on purpose
 — carrying somebody costs you most of your back and still lets you walk with
-your own kit. It sits between the spindly nekker at 45 and the skinless at 55.
+your own kit. It sits between the spindly nekker at 35 and the skinless at 55.
 Build bends it, as multipliers so they compose: Giant ×1.5 (75, the Graga's
 number), Fat ×1.3, Frail ×0.8, Dwarf ×0.7. A frail dwarf is 28 lb and nothing
 goes under 20. **Strong is deliberately not on that list** — muscle does weigh

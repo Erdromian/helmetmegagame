@@ -68,5 +68,5 @@ test("untradeable rows and Assets never weigh on the pallbearer", () => {
 // and every recompute would add that weight again.
 test("a corpse never counts toward its own weight", () => {
   assert.equal(gearWeight([item("custom-ada-corpse", 50, { corpseOfCharacterId: "c1" })]), 0);
-  assert.equal(gearWeight([item("nekker-corpse", 45, { group: { slug: "items-corpse" } })]), 0);
+  assert.equal(gearWeight([item("nekker-corpse", 35, { group: { slug: "items-corpse" } })]), 0);
 });

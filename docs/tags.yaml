@@ -5259,7 +5259,7 @@ tags:
     description: "A spindly, hungry creature that roams in groups. It is often seen on the surface after battles, eating the corpses. Can be butchered to produce {tag:nekker-pheromones}. ‡"
     pointCost: 0
     tradeable: true
-    weight: 45
+    weight: 35
     stackable: false
     visible: true
     purchasable: false

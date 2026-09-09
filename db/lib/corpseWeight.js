@@ -27,7 +27,7 @@ const { rowWeight } = require("./carry");
 // A human body, and the anchor for everything below. Deliberately under the
 // 71 lb base cap (GameConfig.carryWeightLbs) rather than near it: carrying
 // somebody should cost you most of your back and still leave you able to walk
-// with your own kit. It sits between the spindly nekker at 45 and the pink
+// with your own kit. It sits between the spindly nekker at 35 and the pink
 // skinless at 55, which is about right for a person.
 const BASE_CORPSE_LBS = 50;
 
