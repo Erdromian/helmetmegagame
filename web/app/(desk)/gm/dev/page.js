@@ -792,11 +792,6 @@ export default async function DevPanelPage({ searchParams }) {
               <section className="ops-section ops-section--wide">
                 <div className="ops-section-head">
                   <h2 className="section-title">Games</h2>
-                  <p className="ops-lede">
-                    Every game that has been opened, newest first. A game has no number — it is its id, and
-                    it reads as its label or the dates it ran. Click an archive count to read that
-                    game&apos;s transcript. ‡
-                  </p>
                 </div>
                 <PastGames games={pastGames} currentGameId={state.gameId} archiveCounts={archiveCounts} />
               </section>
