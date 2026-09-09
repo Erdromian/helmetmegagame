@@ -26,7 +26,11 @@ const { pushToUser, vapidPublicKey } = require("./webPush");
 //   Travel   Move   Speak        <- components, always last
 //
 // and the buttons are at the bottom of the channel by construction.
-async function postTurnsAnnouncement(prisma, newTurn, note) {
+//
+// `push: false` reposts the console without the "turn has opened" web push —
+// End Game rebuilds the console so its Move cutoff goes away, and nobody's
+// phone should say a turn opened.
+async function postTurnsAnnouncement(prisma, newTurn, note, { push = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const token = process.env.DISCORD_TOKEN;
   if (!guildId || !token) return;
@@ -55,6 +59,7 @@ async function postTurnsAnnouncement(prisma, newTurn, note) {
   // AFTER the announcement, never before it: a turn opens whether or not
   // anybody's browser hears about it. Best-effort throughout — an unconfigured
   // deployment is a no-op (db/lib/webPush.js) and nothing here can throw.
+  if (!push) return;
   await pushTurnOpen(prisma, text).catch((err) =>
     console.error("Turn announcement: push failed:", err),
   );

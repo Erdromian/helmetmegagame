@@ -117,8 +117,9 @@ async function validateDraft(db, draft) {
 
 // Commits a validated draft: every READY entry becomes ASSIGNED (with a
 // window) or UNASSIGNED, the game goes RUNNING, Turn 1 is restamped to now.
-// Returns what the caller must DM. Runs the validation again under a lock on
-// the GameState row so two Start clicks cannot both commit.
+// Returns what the caller must DM, plus the open turn for the #turns repost.
+// Runs the validation again under a lock on the GameState row so two Start
+// clicks cannot both commit.
 async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
   return db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "GameState" WHERE id = 1 FOR UPDATE`;
@@ -169,13 +170,17 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
       where: { id: 1 },
       data: { phase: "RUNNING", startedAt: now, playerCount: draft.playerCount ?? null, assignmentDraft: null },
     });
+    // Both stamps, not just gameDate: every Move deadline is derived from
+    // startedAt (db/lib/turnClock.js), and the wipe opened this turn days ago.
+    // Left alone, Turn 1 read as having ended before the game began.
     const open = await tx.turn.findFirst({ where: { status: "OPEN" } });
-    if (open) await tx.turn.update({ where: { id: open.id }, data: { gameDate: now } });
+    let turn;
+    if (open) turn = await tx.turn.update({ where: { id: open.id }, data: { gameDate: now, startedAt: now } });
     else {
       // Turn.number is unique; a resolved Turn 1 with nothing open is rare but
       // possible by hand, and must not turn Start into a constraint error.
       const last = await tx.turn.aggregate({ _max: { number: true } });
-      await tx.turn.create({ data: { number: (last._max.number ?? 0) + 1, phase: "DAWN", banner: pickTurnBanner("DAWN"), status: "OPEN", gameDate: now } });
+      turn = await tx.turn.create({ data: { number: (last._max.number ?? 0) + 1, phase: "DAWN", banner: pickTurnBanner("DAWN"), status: "OPEN", gameDate: now, startedAt: now } });
     }
 
     await tx.auditLog.create({
@@ -192,7 +197,7 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
       },
     });
 
-    return { assigned, returned, expiresAt };
+    return { assigned, returned, expiresAt, turn };
   });
 }
 
@@ -254,9 +259,14 @@ async function markNotified(db, entryId) {
 // character and no longer holding a seat. Every character.create runs this
 // in its transaction; without it a readied player who took a spawn instead
 // would block their rolled seat for the whole window.
+//
+// READY too, not only ASSIGNED: a GM who readied up to test the lobby and
+// then pressed Skip kept a READY row, so the roll handed them a second seat
+// and held it for the whole window. Settling it here makes a stale preview
+// refuse on "no longer ready", which is the right answer.
 async function settleLobbyEntry(tx, discordUserId, characterId) {
   await tx.lobbyEntry.updateMany({
-    where: { discordUserId, status: "ASSIGNED" },
+    where: { discordUserId, status: { in: ["READY", "ASSIGNED"] } },
     data: { status: "CREATED", characterId },
   });
 }

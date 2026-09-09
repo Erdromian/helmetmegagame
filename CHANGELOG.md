@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Launch sweep: Turn 1 clock, the Game Ended post, and spawned antagonists
+
+✎ Start Game now restamps Turn 1's clock, so the Move cutoff on /chat, the sheet and /gm/turns is today's instead of the day the game was wiped  
+✎ Start Game reposts the #turns console with the started line on it, so the buttons stay at the bottom and the cutoff shows  
+✎ The Game Ended post no longer cuts through the middle of a name when the roster runs past one Discord message  
+✎ End Game says whether the reveal actually reached #turns, and the Game section has a Post the reveal again button  
+✎ End Game reposts the #turns console with the Move cutoff gone, since the clock is stopped  
+✎ A spawned antagonist now wakes knowing their seat's part of the map, the same as a wizard-made character  
+✎ A GM who readied up and then used Skip no longer gets rolled a second seat
 ## 2026-09-09 · The Stepstone is not a skeleton key
 
 ✎ The stone only takes you somewhere you have actually STOOD. It used to accept anywhere you had SEEN from a doorway, and a locked gate is listed-but-shut on purpose — so it would have stepped through every locked door and gated crawl anyone had ever stood next to  

@@ -2,8 +2,9 @@
 
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
+import { useState } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { openLobby, closeLobby, startGame, endGame, resumeGame } from "@/app/(app)/gm/dev/gameActions";
+import { openLobby, closeLobby, startGame, endGame, resumeGame, repostGameEnded } from "@/app/(app)/gm/dev/gameActions";
 
 // The phase buttons on the Game section. A client component for the same
 // reasons EndTurnButton.js is one: the actions return { ok, error } instead of
@@ -16,6 +17,10 @@ import { openLobby, closeLobby, startGame, endGame, resumeGame } from "@/app/(ap
 export default function GameControls({ phase, readyCount, hasDraft }) {
   const confirm = useConfirm();
   const { run, pending, error } = useActionRunner();
+  // Whether the reveal reached #turns. null until an End or a repost has
+  // answered, so a page opened on an already-ended game says nothing rather
+  // than guessing.
+  const [revealPosted, setRevealPosted] = useState(null);
 
   async function onStart() {
     const ok = await confirm({
@@ -40,7 +45,11 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
       confirmLabel: "End game",
       cancelLabel: "Keep playing",
     });
-    if (ok) run(endGame, formData);
+    if (ok) run(endGame, formData, { onOk: (res) => setRevealPosted(res?.posted !== false) });
+  }
+
+  function onRepost() {
+    run(repostGameEnded, undefined, { onOk: (res) => setRevealPosted(res?.posted !== false) });
   }
 
   return (
@@ -88,10 +97,21 @@ export default function GameControls({ phase, readyCount, hasDraft }) {
       ) : null}
 
       {phase === "ENDED" ? (
-        <div className="ops-actions">
-          <button type="button" className="btn-secondary" onClick={() => run(resumeGame)} disabled={pending}>
-            {pending ? "Resuming…" : "Resume game"}
-          </button>
+        <div className="flex flex-col gap-2">
+          {revealPosted === false ? (
+            <p className="text-sm text-accent">The game ended, but the reveal did not reach #turns. ‡</p>
+          ) : null}
+          {revealPosted === true ? (
+            <p className="text-sm text-muted">The reveal is up in #turns. ‡</p>
+          ) : null}
+          <div className="ops-actions">
+            <button type="button" className="btn-secondary" onClick={() => run(resumeGame)} disabled={pending}>
+              {pending ? "Resuming…" : "Resume game"}
+            </button>
+            <button type="button" className="btn-secondary" onClick={onRepost} disabled={pending}>
+              {pending ? "Posting…" : "Post the reveal again"}
+            </button>
+          </div>
         </div>
       ) : null}
 

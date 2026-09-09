@@ -26,6 +26,8 @@ const { createGuildRole, removeMemberRole } = require("./discordRest");
 const { GHOST_ROLE_ID } = require("./roleIds");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { applyLocationMoveSideEffects } = require("./locationMove");
+const { seedMemories } = require("./locationVisits");
+const { startingMemorySlugs } = require("./startingMemories");
 const {
   threatBySlug,
   randomSpawnName,
@@ -241,6 +243,9 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       // Which seat this was, so the side-effect step can tell whether the
       // whole map should hear a shuttle come down.
       threatSlug: threat.slug,
+      // The role's slug decides what this character already knows of the map
+      // (db/lib/startingMemories.js), seeded after placement below.
+      roleSlug: spawn.role.slug,
     },
     turn: openTurn,
     line: created.locationId
@@ -272,7 +277,7 @@ async function declineThreatSpawn(prisma, spawnId, discordUserId) {
 // access rides the zone role and the Location overwrite instead
 // (CHANNELS.md §3), which is what applyLocationMoveSideEffects hands out.
 async function applySpawnSideEffects(prisma, sideEffects) {
-  const { characterId, discordUserId, bareName, toLocationId, threatSlug } = sideEffects;
+  const { characterId, discordUserId, bareName, toLocationId, threatSlug, roleSlug } = sideEffects;
 
   try {
     const { name, color } = characterRoleAppearance(bareName);
@@ -291,6 +296,25 @@ async function applySpawnSideEffects(prisma, sideEffects) {
       fromLocationId: null,
       toLocationId,
     }).catch((err) => console.error("Spawn placement failed:", err));
+  }
+
+  // The map this seat wakes up with — the same seeding createCharacter does
+  // (createActions.js), after placement for the same reason: arrival has
+  // already recorded where they stand. Without it a Tribune landed in the
+  // Black Hills knowing nothing but the one Location under their feet.
+  if (roleSlug) {
+    try {
+      const character = await prisma.character.findUnique({
+        where: { id: characterId },
+        include: { tags: { select: { equipped: true, tag: { select: { slug: true } } } } },
+      });
+      if (character) {
+        const heldSlugs = character.tags.map((t) => t.tag.slug);
+        await seedMemories(prisma, character, startingMemorySlugs(roleSlug, heldSlugs));
+      }
+    } catch (err) {
+      console.error("Spawn memory seeding failed:", err);
+    }
   }
 
   // A spawned threat is alive again, so the ghost seat comes off. The curse

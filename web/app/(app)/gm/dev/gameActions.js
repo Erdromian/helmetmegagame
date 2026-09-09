@@ -18,8 +18,9 @@ import {
 import { isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
 import { newSeed } from "@lifeweb/db/lib/roleAssignment";
 import { endGameInDb, resumeGameInDb, postGameEnded } from "@lifeweb/db/lib/gameEnd";
+import { formatEpilogue } from "@lifeweb/db/lib/epilogue";
 import { syncSpectatorAccess } from "@lifeweb/db/lib/spectatorAccess";
-import { postMessage } from "@lifeweb/db/lib/discordRest";
+import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
 import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { listGuildMembers, sendDm } from "@/lib/discordGuild";
@@ -139,7 +140,10 @@ export async function setDraftRow({ discordUserId, roleSlug }) {
 // refusal rather than a wrong roll. With nobody readied (a GM test game) it
 // just flips the phase. Turn 1 is already open — the wipe creates it — so it
 // is restamped to now; the bot's cron does the rest from the next midnight.
-// The DMs go out after the commit, one at a time.
+// The DMs go out after the commit, one at a time, and then the #turns console
+// is reposted: the one the wipe left was built with the clock frozen, so it
+// carried no Move cutoff, and a bare line under it left the buttons stranded
+// above the newest message.
 export async function startGame() {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
@@ -183,12 +187,11 @@ export async function startGame() {
         source: "lobby_returned",
       }).catch((err) => console.error(`Return-to-lobby DM failed for ${r.discordUserId}:`, err));
     }
-    const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnsConsoleChannelId: true } });
-    if (config?.turnsConsoleChannelId) {
-      await postMessage(config.turnsConsoleChannelId, startedLine()).catch((err) =>
-        console.error("Game started announcement failed:", err),
-      );
-    }
+    // The started line rides the console as its note; postTurnsConsole sweeps
+    // everything else in #turns, so a separate message would not survive it.
+    await postTurnsAnnouncement(prisma, outcome.turn, startedLine()).catch((err) =>
+      console.error("Game started announcement failed:", err),
+    );
   });
   return { ok: true, assigned: outcome.assigned.length, returned: outcome.returned.length };
 }
@@ -196,6 +199,13 @@ export async function startGame() {
 // Stops the clock, opens the archive, writes the reveal (db/lib/gameEnd.js)
 // and posts it to #turns. The closing note is the superadmin's epilogue,
 // shown above the roster.
+//
+// The post is AWAITED, not deferred to after(): the ending is already
+// committed, so a failed post cannot cost it, and the superadmin is the only
+// person who can do anything about a reveal that never landed. It used to run
+// in after() with the error swallowed to console, so a game ended and never
+// announced returned a clean ok. `posted: false` now says so, and the Game
+// section offers the repost below.
 export async function endGame(formData) {
   const session = await requireSuperadmin();
   const state = await getGameState(prisma);
@@ -208,8 +218,38 @@ export async function endGame(formData) {
   refresh();
   revalidatePath("/archive");
   sweepSpectators();
-  after(() => postGameEnded(prisma, result.post).catch((err) => console.error("Game Ended post failed:", err)));
-  return { ok: true };
+
+  // The console first, so the reveal is the last thing in #turns: the clock is
+  // frozen now, so the rebuilt announcement drops its Move cutoff instead of
+  // naming a time nothing happens at. Then the reveal itself.
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } });
+  if (openTurn) {
+    await postTurnsAnnouncement(prisma, openTurn, null, { push: false }).catch((err) =>
+      console.error("Game Ended console repost failed:", err),
+    );
+  }
+  const posted = await postGameEnded(prisma, result.post).catch((err) => {
+    console.error("Game Ended post failed:", err);
+    return false;
+  });
+  return { ok: true, posted };
+}
+
+// Posts the reveal to #turns again, from the epilogue already stored on the
+// Game row. For an End Game whose post did not land — Discord down, #turns
+// not yet configured. Nothing is rebuilt, so pressing it twice posts the same
+// words twice; that is the superadmin's call.
+export async function repostGameEnded() {
+  await requireSuperadmin();
+  const state = await prisma.gameState.findUnique({ where: { id: 1 }, include: { game: true } });
+  if (state?.phase !== "ENDED") return { ok: false, error: "Only an ended game has a reveal to post. ‡" };
+  if (!state.game?.epilogue) return { ok: false, error: "This game has no reveal stored. End it again to build one. ‡" };
+  const posted = await postGameEnded(prisma, formatEpilogue(state.game.epilogue)).catch((err) => {
+    console.error("Game Ended repost failed:", err);
+    return false;
+  });
+  if (!posted) return { ok: false, error: "The reveal still didn't reach #turns. Check the channel exists and the bot can post there. ‡" };
+  return { ok: true, posted };
 }
 
 // The undo for End Game. The archive stays open — closing it again would
