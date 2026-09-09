@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The Stepstone is not a skeleton key
+
+✎ The stone only takes you somewhere you have actually STOOD. It used to accept anywhere you had SEEN from a doorway, and a locked gate is listed-but-shut on purpose — so it would have stepped through every locked door and gated crawl anyone had ever stood next to  
+✎ Somebody holding you stops the stone, the same as it stops a walk  
+✎ Stepping cuts your escort party loose instead of leaving them pointed at you from another zone
+
 ## 2026-09-09 · A game has no number at all now, and there is a list of them
 
 − The last two places a game was called Game 13: the Game Ended post in #turns, and the chip on the dev panel's Game section, which shows the game's short id instead  
