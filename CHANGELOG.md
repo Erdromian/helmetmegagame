@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Sell instant cameras on the Thanati shelf
+
+✚ Purchase Gear at the hideout now stocks an Instant Camera for 3 ⬢
+
 ## 2026-09-09 · You lie in wait in one place, and leaving cancels it
 
 ✎ An interception is now set in one place and works in that place only. It used to be read live off wherever you happened to be standing, so a watch set at the gatehouse followed you around Ravenheart and was still stopping strangers on the far side of the map days later  
