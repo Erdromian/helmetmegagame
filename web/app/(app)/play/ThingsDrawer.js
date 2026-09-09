@@ -141,10 +141,17 @@ function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, pending
         pinnable={false}
         className="chat-chip-hover"
         panel={
-          description && !isOpen ? (
+          (description || row.weightLbs > 0) && !isOpen ? (
             <>
-              <span className="chat-tip-name">{row.name}</span>
-              <span className="chat-tip-desc">{description}</span>
+              <span className="chat-tip-name">
+                {row.name}
+                {/* What the whole row costs you to carry, so the bar under the
+                    status chips has something to point at. Weightless rows —
+                    every Asset, anything untradeable — say nothing rather than
+                    "0 lb", which would read as a fact about the thing. */}
+                {row.weightLbs > 0 && <span className="chat-tip-weight mono">{row.weightLbs} lb</span>}
+              </span>
+              {description && <span className="chat-tip-desc">{description}</span>}
             </>
           ) : null
         }

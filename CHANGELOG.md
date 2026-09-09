@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Chat shows how loaded you are
+
+✚ A load bar under the Resources and weight chips in Chat's You panel — it fills as you pick things up and turns red once you are over your cap, so being Overburdened is something you can see coming instead of being told about  
+✚ Hovering a thing in your pockets now says what it weighs, quantity included, so you can tell what is worth putting down  
+✎ The ⬢ and pounds chips each redden for their own cap now. Being over on Resources used to turn the POUNDS number red, which said nothing true about what you were carrying
+
 ## 2026-09-09 · Leper is an illness, Blessing is cheaper, and the daggers come off
 
 ✎ Leper now sits under Health · Illness instead of General, so it reads and inspects like the ailment it is  

@@ -430,6 +430,11 @@ export async function myThings() {
             consumable: true,
             tradeable: true,
             removable: true,
+            // The drawer draws each row's weight, and thingRows.js is the one
+            // place that shape is built — so leaving this out here would let
+            // the re-read after a verb disagree with the first paint, which is
+            // the exact thing that module exists to prevent.
+            weightLbs: true,
           },
         },
       },

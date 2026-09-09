@@ -5292,10 +5292,23 @@ label.chip {
   font-family: inherit;
 }
 
+/* The name line grew a second thing to hold — the Things drawer hangs a row's
+   weight off its right edge — so it is a row rather than a block. With one
+   child, which is every other caller, it draws exactly as it did. */
 .chat-tip-name {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
   font-weight: 600;
   margin-bottom: var(--sp-1);
+}
+
+.chat-tip-weight {
+  flex: none;
+  font-weight: 400;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
 }
 
 .chat-tip-desc {
@@ -5972,6 +5985,21 @@ label.chip {
 .chat-chips .chip[data-tone="danger"] {
   color: var(--danger);
   border-color: var(--danger);
+}
+
+/* The load bar under those chips (play/StatusStrip.js). It is the SHEET's own
+   meter — .depot-meter / .depot-meter-fill, the same pair the Carrying tile
+   draws — so only its spacing is redefined here: it sits under a chip row
+   rather than inside a tile, and .chat-chips has already paid the gap below. */
+.chat-load {
+  margin-top: 0;
+  margin-bottom: var(--sp-3);
+}
+
+/* Over the cap, the fill matches the number above it. Opt-in via the data
+   attribute, so the depot's own credit meter is untouched. */
+.depot-meter-fill[data-tone="danger"] {
+  background: var(--danger);
 }
 
 .chat-move {

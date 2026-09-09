@@ -122,7 +122,14 @@ export default function YouPanel({
       <p className="chat-section-title">You</p>
 
       <TurnCard turn={moveState.turn} move={moveState.move} onFile={() => setDialog("move")} />
-      <StatusStrip resources={status?.resources ?? 0} carry={status?.carry ?? null} tags={status?.tags ?? []} />
+      {/* `meter` for the load bar: this column has no Carrying tile of its
+          own, so unlike the sheet there is nothing here already drawing it. */}
+      <StatusStrip
+        resources={status?.resources ?? 0}
+        carry={status?.carry ?? null}
+        tags={status?.tags ?? []}
+        meter
+      />
       <Things groups={things} />
       <DesiresBlock view={desires} />
 
