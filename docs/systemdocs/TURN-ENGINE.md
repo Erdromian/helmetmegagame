@@ -169,10 +169,15 @@ each arrived at by getting them wrong first.
    bomb, because the blast kills that same leader. With the bomb first, two
    doomsdays landing on one close meant the fireball cancelled the rite and the
    cult silently lost a race it had already won. Now the cult's ending is the
-   one written, and the blast still kills everyone above ground.
-   **Nobody dies here** — the bomb leaves survivors underground with a game to
-   play, this leaves nothing — so the pass writes one stamp and hands back one
-   line. `GameState.ascensionArmedTurn` due plus the snapshot leader still
+   one written, and by the time the bomb runs there is usually nobody left for
+   it to kill.
+   **Everyone dies here, with no zone exemption at all** — which is the one
+   line that separates this ending from the bomb's. The blast spares the two
+   cave levels because being under the rock is the whole escape; here the rock
+   is what Ravenheart is swallowed into. Gibbed, like the blast: no corpses to
+   loot or bury, and no afterwards to do it in. The pass hands back `deaths`
+   and one line, the `nukeExplosionPass` contract exactly.
+   `GameState.ascensionArmedTurn` due plus the snapshot leader still
    ALIVE fires it: `ascensionFiredTurn` is claimed first, every `#summary`
    hears the hellfire (no `@everyone`; the warning two turns ago was the one
    worth waking anybody for), and `endGameInDb` runs exactly as at 4c. A dead
@@ -317,12 +322,62 @@ every victim of the bomb was DM'd the literal string `You have died. undefined`.
 
 `advanceTurn` **composes but does not run** the Discord work. It returns
 `{ advanced, previousTurn, newTurn, note, runSideEffects }`, and the caller
-decides when the thunk runs.
+decides when the thunk runs. The thunk itself lives in
+`db/lib/turnSideEffects.js`.
 
 That split is load-bearing. The message wipe walks every zone's channels
 sequentially; awaiting it inside a server action holds the action open, and a
 pending server action blocks client-side navigation — which froze the entire
 web app until a hard refresh.
+
+### 3a. The thunk is recorded, and an unfinished one is finished
+
+**The four `Turn.sideEffect*` columns are to the Discord half what
+`resolvedPasses` and `needsResolvedAt` are to the database half, and they exist
+because that half had nothing of the kind.** `needsResolvedAt` is stamped by
+`resolveNeeds` before `advanceTurn` has even composed the thunk, so a turn whose
+fan-out died was already finished as far as §2's resume was concerned.
+
+What that cost, on 2026-09-08: the bomb went off at the close of turn 3 and the
+database half committed perfectly — twelve dead, gibbed, the game ENDED, all of
+it logged. A redeploy landed twenty-eight seconds later and SIGTERM'd the web
+container inside the per-death teardown loop. Three of twelve death DMs got out.
+**The fireball and the Game Ended post never did**, and nothing was ever going
+to send them.
+
+So, in order:
+
+- `advanceTurn` writes **`sideEffectPayload`** — everything the thunk needs, as
+  plain JSON — onto the closing turn *before* handing the thunk back. No Prisma
+  rows, no Dates, no functions: `newTurnId` rather than the row, and
+  `startedAtMs` rather than a live `Date.now()`, because that value is the
+  message wipe's cutoff and a resumed run would otherwise sweep away everything
+  said since. `buildSideEffectPayload` is the whole list.
+- Each send is wrapped in **`step(key, fn)`**, which records the key in
+  **`sideEffectSteps`** only once the send returns. Anything that posts or DMs
+  gets a per-item key (`death:<characterId>`, `delivery:<id>:<n>`, index keys
+  for the notice loops); a singleton post gets a section key
+  (`nukeBroadcast`, `gameEnded`, `messageWipe`). The granularity is the point:
+  a re-run must not tell somebody a second time that they died. The existing
+  per-call `.catch()`es stay — those stop one dead channel taking a loop down,
+  which is a different job.
+- **`sideEffectsDoneAt`** is stamped only at the very end, and is the sole
+  selector for the resume.
+- **`resumeTurnSideEffects(prisma)`** finds the oldest turn with a payload and
+  no `sideEffectsDoneAt`, claims **`sideEffectClaimedAt`** with the same
+  compare-and-swap and the same 30-minute staleness window §2 uses for
+  `needsResumeClaimedAt`, and finishes only the outstanding keys. It writes a
+  `turn_side_effects_resumed` audit row.
+
+**Two things call it, and the second is the one that matters.** `advanceTurn`'s
+own thunk runs it first, so the next advance catches up whatever the last one
+dropped — but a game that ended at 22:00 is not helped by the 04:00 cron. So the
+**bot calls it on `ready`**, as one of its catch-up passes: the bot coming back
+up is the earliest signal available that somebody's process just died, and the
+deploy that kills the web container restarts the bot too.
+
+**A turn that closed before this existed has a null payload and is never
+selected** — there is nothing to replay for it.
 
 The thunk performs, in narrative order:
 

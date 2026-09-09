@@ -7,23 +7,34 @@
 // adjudicated this turn has to beat the clock. If this ran first, a town that
 // stormed the hideout and won would still burn.
 //
-// NOBODY DIES HERE. The bomb kills everyone above ground; this ends the game
-// and changes the sky. That is what Bascinet's spec says, and it is a
-// different event: the nuke leaves survivors underground with a game to keep
-// playing, and this leaves nothing to play.
+// WHO DIES: EVERYONE. Every ALIVE character, with no zone exemption at all —
+// which is the one line that separates this ending from the bomb's. The nuke
+// spares the two cave levels, because being under the rock is the whole
+// escape; here the rock is what Ravenheart is swallowed into, so there is
+// nowhere to have been. Gibbed, like the blast: nothing is left to loot, bury
+// or butcher afterwards, and there is no afterwards.
 //
-// DB writes only. The Discord fan-out comes back as `broadcast` for the
+// DB writes only. The Discord fan-out comes back as `broadcast` and `deaths`
+// for the
 // side-effect thunk, the catatonicDeathPass.js contract — a pass that posts
 // inside the turn transaction is a pass that wedges a turn on a 429.
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js.
+const { applyDeathToRow } = require("./characterDeath");
 
 // What every #summary reads, verbatim from Bascinet. No @everyone: the warning
 // two turns ago was the one worth waking somebody for, and by the time this
 // posts there is nothing left to do about it.
 const ASCENSION_LINE = "Ravenheart is consumed by ravenous hellfire and swallowed into the earth.";
 
-const IDLE = Object.freeze({ fired: false, cancelled: false, broadcast: null });
+// What each victim is told. Without a `reason` the shared death-DM loop in
+// db/index.js interpolates it anyway, and everybody gets "You have died.
+// undefined" — the bug db/lib/nukeExplosionPass.js records having shipped once
+// already.
+const ASCENSION_DEATH_REASON =
+  "the hellfire took Ravenheart and everything standing in it.";
+
+const IDLE = Object.freeze({ fired: false, cancelled: false, deaths: [], broadcast: null });
 
 async function runAscensionPass(prisma, turn) {
   const state = await prisma.gameState.findUnique({ where: { id: 1 } });
@@ -52,6 +63,7 @@ async function runAscensionPass(prisma, turn) {
       fired: false,
       cancelled: true,
       leader: leader?.name ?? null,
+      deaths: [],
       broadcast: null,
     };
   }
@@ -63,13 +75,49 @@ async function runAscensionPass(prisma, turn) {
     data: { ascensionFiredTurn: turn.number, ascensionArmedTurn: null },
   });
 
+  const doomed = await prisma.character.findMany({
+    where: { status: "ALIVE" },
+    select: {
+      id: true,
+      name: true,
+      discordUserId: true,
+      discordRoleId: true,
+      zoneId: true,
+    },
+  });
+
+  const deaths = [];
+  for (const character of doomed) {
+    // Sequential, never Promise.all, and gibbed — the bomb's rule and for the
+    // bomb's reasons (db/lib/nukeExplosionPass.js). The conditional claim
+    // inside applyDeathToRow is what stops a resumed turn killing twice.
+    const { claimed } = await applyDeathToRow(prisma, character, {
+      turn,
+      gib: true,
+      content: `${character.name} burned with Ravenheart.`,
+    });
+    if (!claimed) continue;
+    deaths.push({
+      characterId: character.id,
+      name: character.name,
+      discordUserId: character.discordUserId,
+      // Captured before applyDeathToRow nulls it — the thunk still owes
+      // Discord this role's deletion.
+      discordRoleId: character.discordRoleId,
+      zoneId: character.zoneId,
+      reason: ASCENSION_DEATH_REASON,
+    });
+  }
+
   return {
     turnNumber: turn.number,
     fired: true,
     cancelled: false,
     leader: leader.name,
+    killed: deaths.length,
+    deaths,
     broadcast: { content: ASCENSION_LINE },
   };
 }
 
-module.exports = { runAscensionPass, ASCENSION_LINE };
+module.exports = { runAscensionPass, ASCENSION_LINE, ASCENSION_DEATH_REASON };

@@ -2923,6 +2923,35 @@ model Turn {
   // taken over.
   needsResumeClaimedAt DateTime?
 
+  // The DISCORD half of the turn, which the three fields above do not cover at
+  // all. resolveNeeds() stamps needsResolvedAt when the database passes are
+  // done — before advanceTurn() has even built the side-effect thunk — so a
+  // turn whose fan-out died was already "finished" as far as the resume query
+  // was concerned. On 2026-09-08 the bomb detonated, twelve characters died in
+  // the database, and a redeploy SIGTERM'd the container twenty-eight seconds
+  // later: three of twelve death DMs went out, the fireball and the Game Ended
+  // post never did, and nothing was ever going to retry them.
+  //
+  // Everything the thunk needs, as plain JSON, so it can be replayed by a
+  // process that never saw the turn resolve. See buildSideEffectPayload in
+  // db/lib/turnSideEffects.js for what may go in here — no Prisma rows, no
+  // Dates, no functions.
+  sideEffectPayload Json?
+
+  // Which sends have already gone out, as a JSON array of keys —
+  // resolvedPasses' shape and resolvedPasses' reason. A DM is not idempotent;
+  // re-running the loop tells somebody a second time that they died.
+  sideEffectSteps Json?
+
+  // The completion stamp, and the sole selector for the side-effect resume.
+  sideEffectsDoneAt DateTime?
+
+  // The side-effect resume's LEASE, needsResumeClaimedAt's twin and taken for
+  // the same reason: sideEffectSteps is last-write-wins and cannot arbitrate
+  // two resumes racing. Stale after RESUME_LEASE_MS so a resume that dies
+  // holding it cannot wedge the turn.
+  sideEffectClaimedAt DateTime?
+
   id         String     @id @default(cuid())
   number     Int        @unique
   phase      TurnPhase
