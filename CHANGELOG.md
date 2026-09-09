@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The End turn confirm just asks
+
+✎ Ending a turn asks the question and nothing else — the paragraph explaining Needs, the upkeep and the channel wipe is gone
+
 ## 2026-09-09 · The horse spends its own free move first
 
 ✎ A rider who stables their horse at an indoors door keeps the free crossing they never spent. Riding in used to be charged to your own move, and then the horse's move left with the horse — two crossings, one ride, none left.  
