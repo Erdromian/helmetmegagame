@@ -1076,23 +1076,85 @@ input[type="radio"]:disabled {
 }
 
 /* --- The archive transcript (docs/systemdocs/ARCHIVE.md §5) ----------------
-   Dense on purpose: one line per thing said, the audit log's grid at the
-   audit log's sizes. Day headers stick; system rows fold. */
+   Dense on purpose: one line per thing said, under a day header that sticks
+   and a scene line that says where. */
+
+/* The controls above the stream. A slim bar — search, what to show, the way
+   into the rest — because eight controls in one flex row is what the old
+   version was, and they clipped: nothing carried a flex basis or a min-width,
+   so every field sized to its own content and every dropdown truncated at
+   once the moment the line overflowed. The sizing here is FilterBar's
+   (DataTable.js), which had solved this. */
+.archive-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.archive-search {
+  flex: 1 1 16rem;
+  min-width: 0;
+}
+
+.archive-search input {
+  width: 100%;
+}
+
+/* Pushes the view toggles to the far end on a wide screen and simply
+   disappears when the bar wraps. */
+.archive-bar-spacer {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* What is narrowed right now, and one click to undo any of it. A filter set
+   in the drawer and forgotten about is the whole reason a drawer needs these. */
+.archive-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.archive-chips .chip {
+  cursor: pointer;
+}
+
+.archive-chips-clear {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.archive-chips-clear:hover {
+  color: var(--text);
+}
+
+.archive-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* NOT `overflow: hidden`. It was, and that made .archive its own scrollport,
+   so the day header's `position: sticky` stuck to the top of THIS box rather
+   than to the viewport and never actually stuck to anything a reader could
+   see. It also clipped every popover a row wanted to draw. */
 .archive {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   background: var(--surface);
-  overflow: hidden;
 }
 
 .archive-day {
   position: sticky;
   top: 0;
-  z-index: 1;
+  z-index: 2;
   padding: var(--sp-2) var(--sp-3);
-  background: var(--surface);
+  background: var(--surface-raised);
   border-bottom: 1px solid var(--border);
   font-size: var(--fs-2xs);
   letter-spacing: 0.08em;
@@ -1100,26 +1162,72 @@ input[type="radio"]:disabled {
   color: var(--muted);
 }
 
+/* The zone's colour as a rule down the side, the same 3px .zone-chip wears.
+   Fills only — none of these would clear AA as text. */
 .archive-scene {
-  padding: var(--sp-2) var(--sp-3) var(--sp-1);
+  position: sticky;
+  top: 1.9rem;
+  z-index: 1;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  background: var(--surface);
+  border-left: 3px solid var(--border);
   font-size: var(--fs-2xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
 }
 
-.archive-row {
-  display: grid;
-  grid-template-columns: 3.25rem minmax(7rem, 11rem) minmax(0, 1fr);
-  align-items: baseline;
-  gap: var(--sp-3);
-  padding: 0.2rem var(--sp-3);
-  font-size: var(--fs-sm);
-  border-bottom: 1px solid var(--border);
+.archive-scene[data-zone="fortress"] { border-left-color: var(--zone-fortress); }
+.archive-scene[data-zone="town"] { border-left-color: var(--zone-town); }
+.archive-scene[data-zone="forest"] { border-left-color: var(--zone-forest); }
+.archive-scene[data-zone="hills"] { border-left-color: var(--zone-hills); }
+.archive-scene[data-zone="marshes"] { border-left-color: var(--zone-marshes); }
+.archive-scene[data-zone="caves"] { border-left-color: var(--zone-caves); }
+.archive-scene[data-zone="depths"] { border-left-color: var(--zone-depths); }
+
+.archive-scene-name {
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
 }
 
-.archive-row:last-child {
-  border-bottom: 0;
+.archive-scene-name:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.archive-scene-kind {
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  opacity: 0.8;
+}
+
+/* Tight by default. The who column is `auto` rather than a capped range: it
+   used to be minmax(7rem, 11rem), which is about 21 characters, and a
+   concealed speaker renders "Young Man (Sir Alder)" — 21 characters. The most
+   interesting name in the archive was the one thing it cut off. */
+.archive-row {
+  display: grid;
+  grid-template-columns: 3.25rem auto minmax(0, 1fr) 1.25rem;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-3);
+  padding: 0.1rem var(--sp-3);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.archive-row:hover {
+  background: var(--surface-raised);
+}
+
+/* A line the world said, not a person: the same subtext treatment /chat gives
+   it. It used to draw as an ordinary speech row whose speaker read "Unknown". */
+.archive-row[data-world="true"] {
+  color: var(--muted);
+  font-size: var(--fs-xs);
 }
 
 .archive-row-time {
@@ -1131,9 +1239,32 @@ input[type="radio"]:disabled {
 }
 
 .archive-row-who {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+  max-width: 22rem;
   font-weight: 600;
+}
+
+.archive-row-name {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+  font-weight: inherit;
+}
+
+.archive-row-name:enabled:hover {
+  text-decoration: underline;
+}
+
+/* Who it actually was, behind the alias. Dimmed so the scene reads the way the
+   room read it and the answer is still there when you want it. */
+.archive-row-real {
+  font-weight: 400;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
   white-space: nowrap;
 }
 
@@ -1143,12 +1274,44 @@ input[type="radio"]:disabled {
   overflow-wrap: anywhere;
 }
 
-/* A run of system rows, one muted line until opened. */
+/* Only with scenes off, where a row has to say where it happened itself. */
+.archive-row-place {
+  margin-right: var(--sp-2);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.archive-row-edited {
+  margin-left: var(--sp-2);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+
+/* One per row, and invisible until the row is under the pointer. A transcript
+   nobody can cite is a transcript you have to describe from memory. */
+.archive-row-cite {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  opacity: 0;
+}
+
+.archive-row:hover .archive-row-cite,
+.archive-row-cite:focus-visible {
+  opacity: 1;
+}
+
+.archive-row-cite:hover {
+  color: var(--text);
+}
+
+/* A run of event rows, one muted line until opened. */
 .archive-fold {
   padding: 0.2rem var(--sp-3);
   font-size: var(--fs-xs);
   color: var(--muted);
-  border-bottom: 1px solid var(--border);
 }
 
 .archive-fold > summary {
@@ -1171,14 +1334,39 @@ input[type="radio"]:disabled {
   gap: 0.15rem;
 }
 
+.archive-fold li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+/* A death and a move were the same muted line; one glyph tells them apart. */
+.archive-fold-mark {
+  width: 1ch;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* The foot of the scroll: how much you have, and whether there is more. */
+.archive-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-4);
+  font-size: var(--fs-xs);
+}
+
 @media (max-width: 640px) {
   .archive-row {
-    grid-template-columns: 3.25rem minmax(0, 1fr);
+    grid-template-columns: 3.25rem minmax(0, 1fr) 1.25rem;
   }
 
   .archive-row-what {
     grid-column: 1 / -1;
     padding-left: 0;
+  }
+
+  .archive-scene {
+    position: static;
   }
 }
 

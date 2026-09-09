@@ -132,6 +132,64 @@ async function withAvatarVersions(prisma, rows, extra = {}) {
   });
 }
 
+// --------------------------------------------------------------- /archive
+
+// The columns the transcript reads, on top of the feed's. `id` is the React
+// key and the anchor a citation points at; the rest are what the page groups
+// and styles by, and every one of them was being loaded and thrown away
+// before (docs/systemdocs/ARCHIVE.md §5).
+const ARCHIVE_ROW_SELECT = {
+  ...FEED_ROW_SELECT,
+  id: true,
+  kind: true,
+  turnNumber: true,
+  turnPhase: true,
+  zoneName: true,
+  threadName: true,
+  channelKind: true,
+};
+
+// A page of transcript rows, shaped for the browser.
+//
+// It goes through feedRowShape rather than around it, and that is the whole
+// point: the archive names the character behind every hood, but it must still
+// not hand a browser the pieces to correlate a hooded line with a named one by
+// id. feedRowShape withholds `characterId` on an aliased row and substitutes
+// the HMAC `speakerKey`; re-shaping these rows by hand would quietly undo it.
+//
+// The archive DOES render `alias (Real Name)` where the feed shows only the
+// alias — that is deliberate and is why the page stays shut until the game is
+// over — so `realName` rides along explicitly rather than being smuggled back
+// into `name`.
+//
+// One `?v=` per character, not per row: withAvatarVersions' comment explains
+// why, and a transcript of a busy day is the surface that showed it worst.
+async function archiveRowsShape(prisma, rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const ids = [...new Set(list.map((row) => row?.characterId).filter(Boolean))];
+  const versions = new Map();
+  if (ids.length > 0) {
+    const characters = await prisma.character
+      .findMany({ where: { id: { in: ids } }, select: { id: true, updatedAt: true } })
+      .catch(() => []);
+    for (const c of characters) versions.set(c.id, c.updatedAt?.getTime?.() ?? null);
+  }
+  return list.map((row) => {
+    const version = row?.characterId ? versions.get(row.characterId) : undefined;
+    return feedRowShape(row, {
+      ...(version === undefined ? {} : { avatarVersion: version }),
+      id: row.id,
+      kind: row.kind,
+      turnNumber: row.turnNumber ?? null,
+      turnPhase: row.turnPhase ?? null,
+      zoneName: row.zoneName ?? null,
+      threadName: row.threadName ?? null,
+      channelKind: row.channelKind ?? null,
+      realName: row.characterName ?? null,
+    });
+  });
+}
+
 // Every write here is best-effort and swallows its own failure. A transcript
 // row is never worth breaking a player's message over, and the proxy path
 // calls this inline with the send. Failures are logged, not thrown.
@@ -332,8 +390,10 @@ async function retractArchiveRow(prisma, id) {
 
 module.exports = {
   FEED_ROW_SELECT,
+  ARCHIVE_ROW_SELECT,
   feedRowShape,
   withAvatarVersions,
+  archiveRowsShape,
   currentGameId,
   forgetGameId,
   recordArchiveMessage,

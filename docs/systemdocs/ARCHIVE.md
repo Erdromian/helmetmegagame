@@ -133,7 +133,15 @@ filter is Speech (the default: `MESSAGE` rows that are not `SYSTEM`, plus the
 day dividers) or Everything. SYSTEM scene lines are out of the default view on
 purpose — the arrivals, deaths and moves they narrate are already in the fold,
 and showing both would print each one twice.
-No avatars, no jump links: the message wipe would have killed the links anyway.
+No jump links: the message wipe would have killed them anyway. **Faces are a
+toggle**, off by default — `presentedAvatarPath` is frozen onto the row at send
+time precisely so a later disguise or a Mulligan rename cannot rewrite what a
+line looked like, and a line said under an alias before that column existed
+draws the plate rather than a guess. Every row goes through
+`db/lib/archive.js#archiveRowsShape`, which wraps `feedRowShape`: the archive
+names the character behind a hood in `realName`, and still withholds
+`characterId` on that row so a browser cannot correlate a hooded line with a
+named one by id.
 
 **The words go through `ChatMarkdown`**, the same renderer `/chat` draws a line
 with, so a transcript reads the way the scene read. It used to go through

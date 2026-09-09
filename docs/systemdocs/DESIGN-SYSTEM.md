@@ -295,11 +295,19 @@ filtered `visible`, plus `SortHeader`, `FilterBar` and `TableScroll`.
 
 Three things about it are load-bearing:
 
-- **Paging is client-side everywhere except `/gm/audit` and `/archive`**, which
-  page server-side over `?page=` so a filtered view stays linkable. That's why
+- **Paging is client-side everywhere except `/gm/audit`**, which pages
+  server-side over `?page=` so a filtered view stays linkable. That's why
   `Pager` has **no `"use client"` directive** and takes precomputed
   `prevHref`/`nextHref` there instead of the `onPage` callback the in-memory
   tables pass — a function prop cannot cross a server→client boundary.
+  `/archive` was the second of those and is now a **keyset scroll** instead:
+  the page renders the first screen and `/api/archive` returns the next on a
+  `sentAt|id` cursor. Its filters still live in the URL, so the view stays
+  shareable — it is only the scroll position that no longer is. The cursor is
+  deliberately not `seq`: seq is assigned at INSERT, so a message recovered
+  after the bot was down carries its real `sentAt` and a brand-new seq, and
+  ordering by it would file the line under the day it was recovered rather than
+  the day it was said.
 - **Changing the search, a filter or the sort resets to page 1 inside the
   setters, never in an effect.** `react-hooks/set-state-in-effect` is an error
   in this repo, and the setter version lands in the same render anyway.
