@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · Location channels go quiet on Discord too
+
+✎ Players can no longer type in a Location channel on Discord, the way they already couldn't on the web  
+✎ The channel doctor no longer throws everyone out of a Location channel when it runs in full
+
 ## 2026-09-09 · Randomizing a portrait now suits the character's gender
 
 ✎ The masculine hairstyles are men only now; the unisex ones stay open to anyone  
