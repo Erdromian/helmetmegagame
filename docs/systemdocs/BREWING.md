@@ -130,7 +130,8 @@ someone else's wound — so the GM applies the result to whoever it happened to.
 
 Eight recipes moved in from the old Medical craft when the medical pass split
 crafting the medicine from treating the patient with it: three price at
-Skilled, five — all HIDDEN or secret — at Expert. Brewing them is a `brewing`
+Skilled, five at Expert — four of those hidden or secret, the Portable
+Surgical Pack plainly visible. Brewing them is a `brewing`
 craft now, billed off `craftFamily()` like any other brew (`CRAFTING.md`
 §2a); Healing a patient with a Heal request, and fitting the two prosthetics
 below with `administerSkill`, are still Medical (Expert)'s job

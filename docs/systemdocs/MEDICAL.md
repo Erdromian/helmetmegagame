@@ -6,7 +6,7 @@ the eight rungs, which group wants which kind of medicine, `expiresInto` and
 top of it: `Tag.cures`/`curesInto`/`administerable`/`administerSkill` (a
 non-medic curing something with an item instead of a medic's Heal request),
 the Move economy a routine cure spends (shared with `CRAFTING.md` §2a),
-poisoning and its resistance trait, and the five prosthetics. Code:
+poisoning and its resistance trait, and the four prosthetics. Code:
 `web/lib/consumeGrants.js`, the administer/poison paths in
 `web/app/(app)/character/requestActions.js` (`consumeTagRequestImpl`,
 `poisonItemRequestImpl`, `poisonCharacterRequestImpl`), `db/lib/tagWrites.js`,
@@ -72,7 +72,7 @@ way, so it never refuses here.
 
 ## 2. `administerSkill`: the one exception to "self-consume is never ACT-gated"
 
-A handful of items (the five prosthetics, and any future item like them) set
+A handful of items (the four prosthetics, and any future item like them) set
 `Tag.administerSkill`, and it gates **every** consume of that item — self
 included. Fitting a peg leg onto your own stump is still surgery, and the
 game does not let an untrained character do surgery on themselves for free
@@ -259,7 +259,7 @@ the same way whether it was swallowed or forced.
 
 ## 6. Prosthetics and the hidden cures
 
-The five prosthetics are ordinary `Tag.cures` items with one extra field —
+The four prosthetics are ordinary `Tag.cures` items with one extra field —
 `administerSkill: medical-expert` (§2) — and a `curesInto` override, since
 none of the four maimings they treat carries its own `removesInto`: Wooden
 Leg cures `missing-leg` into the cosmetic `peg-leg`, Iron Hook cures
