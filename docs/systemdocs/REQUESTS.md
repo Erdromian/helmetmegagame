@@ -130,6 +130,7 @@ reason.
 | `DEPOT_BUY` | Buys an import off the orbital station at its `depotPrice`. Licence + standing at Customs (`DEPOT.md`) | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Sells a `sellable` tag to the station at its `sellablePrice` | — | Buys it back with its original expiry, takes the ⬢ |
 | `DEPOT_CREDIT` | Draws on or repays the Company's 60 ⬢ credit line | — | Reverses the ⬢ and the tab together |
+| `INTERCEPT` | Lays in wait where they stand: names who they are watching for (or "anyone", or "anyone concealed"), writes a line to hand them, and picks Safe or Ambush. Costs no Move and no ⬢. When one of them walks in, they are stopped — two minutes, or until the turn ends. **A typed name never catches a hooded face**; that is what "anyone concealed" is for (`INTERCEPT.md`) | — | Nothing to undo: the hold lapses on its own, and the holder can Release early |
 | `BUILD_STRUCTURE` | Filed by whoever's crew-turn FINISHES a build site — the one Request a structure ever files, carrying type, ground, cost, payer and every contributor (docs/systemdocs/ADJUDICATION.md §6) | — | Tears the structure down, refunds the payer, and restores any edge it flipped (conditionally — see the Discord note below); the crew's spent Moves stay spent |
 
 (`DAMAGE_STRUCTURE` is also in the enum, declared ahead of use because

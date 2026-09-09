@@ -557,7 +557,13 @@ export async function killCharacter(character, reason = null) {
 // DM_KIND.CONVERSATION only when a person actually typed the words.
 export async function sendDm(discordUserId, content, opts = {}) {
   const formatted = `» ${content}`;
-  const message = await postDmBatched(discordUserId, formatted, { components: opts.components, embeds: opts.embeds });
+  const message = await postDmBatched(discordUserId, formatted, {
+    components: opts.components,
+    embeds: opts.embeds,
+    // Pass one whenever the line carries text a PLAYER typed, so it cannot
+    // ping the room out of somebody else's inbox.
+    allowedMentions: opts.allowedMentions,
+  });
   await prisma.directMessage
     .create({
       data: {

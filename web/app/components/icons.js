@@ -61,6 +61,7 @@ import {
   BellOff,
   Camera,
   Search,
+  OctagonMinus,
   X,
 } from "lucide-react";
 
@@ -168,6 +169,10 @@ export const HandOffIcon = lucide(ArrowLeftRight, "HandOffIcon");
 export const LootIcon = lucide(Hand, "LootIcon");
 // Bind — a chain link.
 export const ShackleIcon = lucide(Link, "ShackleIcon");
+// Intercept — a halt sign. Not the Hand that Loot already wears, and not the
+// Link that Bind wears: laying in wait is neither taking nor tying, it is
+// standing in somebody's way (docs/systemdocs/INTERCEPT.md).
+export const InterceptIcon = lucide(OctagonMinus, "InterceptIcon");
 // Free — the key that opens it.
 export const KeyIcon = lucide(KeyRound, "KeyIcon");
 // A bird in flight, for the Bird's letter.

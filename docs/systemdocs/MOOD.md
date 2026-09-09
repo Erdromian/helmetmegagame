@@ -298,10 +298,11 @@ starts with Nobility too, and therefore with its 1-point Desire lock.
 
 `db/lib/moodPass.js`, `"mood"` in `TURN_PASSES`, in the slot the phobia pass
 held: **after `hunger`** (it reads the final `hungerStreak`), **after `carry`**
-(the final sheet), **before `corpseFollow`**, and **before `travelArrival`** —
-every pass above that one settles the turn that just ended, and a traveller
-spent it walking out of where they started, so they pay the night for the
-place they set out from (the same rule auto-labor and the turrets use).
+(the final sheet) and **before `corpseFollow`**. It used to matter that it also
+ran before `travelArrival`, so a traveller paid the night where they set out
+from; travel lands at once now (`MAP.md` §3), so everybody simply pays the
+night for wherever they ended the day standing — which is also what auto-labor
+and the turrets now read.
 
 Per ALIVE character it gathers the terms — place, drift, HUNGER, BOUND, CORPSE,
 NOBLE_MEAL — and applies them in one write through `applyMoodTerms`, its own

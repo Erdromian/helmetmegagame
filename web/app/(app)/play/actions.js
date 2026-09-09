@@ -16,6 +16,7 @@ import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
+import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
   performLocationMove,
@@ -488,10 +489,6 @@ export async function loadTravel() {
 
   const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  const heading = character.travelToLocationId
-    ? await prisma.location.findUnique({ where: { id: character.travelToLocationId }, select: { name: true } })
-    : null;
-
   const [options, party] = await Promise.all([
     travelOptions(prisma, character, character.locationId),
     partyOf(prisma, character.id),
@@ -499,11 +496,10 @@ export async function loadTravel() {
 
   return {
     ok: true,
-    // Already walking? A paid crossing is a day on the road: there is no
-    // turning back, but the ways inside this zone stay open until the arrival
-    // pass lands them. travelOptions has shut the crossings and named the
-    // destination in each refusal, so `options` below needs nothing here.
-    heading: heading?.name ?? null,
+    // Somebody has hold of them (INTERCEPT.md). travelOptions has already
+    // shut every way and written the reason onto each row; this is the banner
+    // over the list, so the panel says it once rather than fifty times.
+    held: heldReasonFor(character),
     // Both count the party: over the mount's seats, the extra crossing it
     // buys is gone, and the number here has to already say so (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
@@ -678,31 +674,13 @@ export async function travelTo({ locationId } = {}) {
   // they were. The leader's line must not name the reason — a hidden crawl's
   // refusal would announce that the crawl is there (MAP.md §2a).
   const stranded = [];
+  const heldBack = [];
   for (const entry of result.leftBehind ?? []) {
-    stranded.push(entry.character.name);
+    // "held" is the one reason the leader IS told, because it is plain to see:
+    // somebody has hold of them. Every other reason stays unnamed.
+    (entry.reason === "held" ? heldBack : stranded).push(entry.character.name);
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     await sendDm(entry.character.discordUserId, `*${me.character.name} went on without you.* ‡`).catch(() => {});
-  }
-
-  // A paid crossing is a day on the road: nobody has moved yet, so there are
-  // no roles to swap — db/lib/travelArrivalPass.js does all of it at the next
-  // turn advance (MAP.md §3). The one thing owed now is a word to the
-  // passengers, who did not press anything.
-  if (result.deferred) {
-    for (const entry of result.travelers) {
-      if (entry.character.id === me.character.id) continue;
-      if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
-      await sendDm(
-        entry.character.discordUserId,
-        `*${me.character.name} is taking you to ${target.name}. You'll get there next turn.* ‡`,
-      ).catch(() => {});
-    }
-    const setOut = [`You set out for ${target.name}. You'll arrive next turn, and your Move is spent.`];
-    if (stranded.length > 0) setOut.push(`You can't move ${stranded.join(", ")} through here.`);
-    // dismountedMessage already carries its own mark, so only one ‡ ends the
-    // block either way.
-    if (result.dismounted.length > 0) setOut.push(dismountedMessage(result.dismounted));
-    return { ok: true, line: result.dismounted.length > 0 ? setOut.join(" ") : `${setOut.join(" ")} ‡` };
   }
 
   // Sequential on purpose: each entry is a handful of REST calls, and firing
@@ -724,6 +702,20 @@ export async function travelTo({ locationId } = {}) {
   for (const entry of result.moved) {
     if (entry.cavingDm) await sendDm(entry.cavingDm.discordUserId, entry.cavingDm.content).catch(() => {});
   }
+  // Anybody who was laying in wait here (INTERCEPT.md). Built inside
+  // performLocationMove and sent out here, the same split cavingDm uses.
+  for (const dm of result.interceptDms ?? []) {
+    await sendDm(dm.discordUserId, dm.content, {
+      kind: dm.kind,
+      authorDiscordUserId: dm.authorDiscordUserId ?? null,
+      components: dm.components,
+      meta: dm.meta,
+      // Player-typed text rides in these. cleanMessage() already took the
+      // broadcast pings out of the stored copy; this is the belt to that
+      // pair of braces, and it costs nothing.
+      allowedMentions: { parse: [] },
+    }).catch(() => {});
+  }
   const brought = [];
   for (const entry of result.moved) {
     if (entry.character.id === me.character.id) continue;
@@ -743,8 +735,17 @@ export async function travelTo({ locationId } = {}) {
         : "That was your last free move this turn.",
     );
   }
+  if (result.spentTurn) parts.push("That crossing spent your Move.");
   if (brought.length > 0) parts.push(`Bringing ${brought.join(", ")}.`);
   if (stranded.length > 0) parts.push(`You can't move ${stranded.join(", ")} through here.`);
+  if (heldBack.length > 0) parts.push(`Somebody has hold of ${heldBack.join(", ")}.`);
+  // A way too narrow for what they had out. This used to be said only on the
+  // deferred branch, so a free crossing dismounted a rider and told them
+  // nothing; every crossing lands here now, so it is said once, here.
+  // dismountedMessage carries its own mark, so only one ‡ ends the line.
+  if (result.dismounted.length > 0) {
+    return { ok: true, line: `${parts.join(" ")} ${dismountedMessage(result.dismounted)}` };
+  }
   return { ok: true, line: `${parts.join(" ")} ‡` };
 }
 

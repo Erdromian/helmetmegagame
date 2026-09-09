@@ -901,9 +901,10 @@ header instead).
      shut is what sends you to find the winch. A zone crossing is tinted. The
      header is `Travel · N free` with `freeReason` as its title. Clicking a
      node opens an inline confirm strip under the grid — the sentence, the
-     drag-along chips, `Go` and `Cancel` — not a modal. While
-     `travelToLocationId` is set the grid is replaced by "Leaving for X at the
-     turn" and nothing else — there is no turning back (MAP.md §3).
+     drag-along chips, `Go` and `Cancel` — not a modal. While somebody has hold
+     of you the grid still draws, every way shut with its reason on it, under
+     one banner saying so (INTERCEPT.md). It used to be replaced outright while
+     a journey was pending; travel lands at once now (MAP.md §3).
   5. **`YouPanel.js`** — below.
 - **`PlacePanel.js`** is no longer a panel. It is `usePlaceActions()` plus the
   dialogs the sections open: Noticeboard, Converse, Bell, Turret, Intercom.

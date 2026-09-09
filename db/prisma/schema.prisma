@@ -1593,13 +1593,16 @@ model Character {
   // leaves it alone so the character can step at once.
   lastLocationMoveAt DateTime?
 
-  // A journey in progress. A zone crossing that costs the Move no longer
-  // lands at once — the Move is spent now and the character keeps standing
-  // where they are until db/lib/travelArrivalPass.js walks them over at the
-  // next turn advance, so nobody sees the destination's channels a turn early
-  // (docs/systemdocs/MAP.md §3). A free crossing and a same-zone hop are
-  // still instant and never write these. `travelTurnId` is the turn the
-  // journey was declared in, for the sheet's wording.
+  // RETIRED (2026-09-14). These held a journey in progress: a zone crossing
+  // that cost the Move spent it at once and parked its destination here, and
+  // db/lib/travelArrivalPass.js walked the character over at the next turn
+  // advance, so nobody saw the destination's channels a turn early. Every
+  // crossing lands the moment it is made now (docs/systemdocs/MAP.md §3) and
+  // nothing writes these any more.
+  //
+  // Kept because this schema drops no columns, like missedMealStreak and
+  // mindlinkChannelId. The arrival pass still reads them, as a drain for
+  // anybody who was mid-journey when the change deployed.
   travelToLocationId String?
   travelTo           Location? @relation("CharacterTravelDestination", fields: [travelToLocationId], references: [id])
   travelTurnId       String?
@@ -1712,7 +1715,7 @@ model Character {
   // a horse parked at an indoors door — can never reach back and take the
   // base crossing the rider still had. Reset by the same differing-turn-id
   // write as the counter above.
-  zoneMovesBonusUsed Int  @default(0)
+  zoneMovesBonusUsed Int @default(0)
 
   // The movement mood ration (db/lib/mood.js, MOVE_MOOD_TURN_CAP). Same claim-
   // token shape as zoneMovesTurnId above, and not a foreign key for the same
@@ -1876,6 +1879,32 @@ model Character {
   // Every Location this character has stood in or seen from next door.
   locationVisits          LocationVisit[]
 
+  // BEING HELD (docs/systemdocs/INTERCEPT.md). Somebody laid in wait where
+  // this character walked in and stopped them: they cannot MOVE until
+  // heldUntil passes, and they can do everything else. Two minutes for a
+  // Safe intercept, the turn's own end (db/lib/turnClock.js#turnEndsAt) for
+  // an Ambush.
+  //
+  // A DateTime rather than a flag plus a sweep, the keyed-way pattern
+  // (MAP.md §2b): the hold lapses on its own with no cron, no pass and no row
+  // to clean up, and one comparison against now() is the whole check.
+  // Deliberately NOT an incapacitating tag — those take ACT as well, and a
+  // held character is meant to be able to fight back, talk, and file a Gambit
+  // of their own (db/lib/incapacitation.js).
+  //
+  // heldById is who is holding them, so that only that person may let them go
+  // early, and so the three writers that end a hold before its time — the
+  // holder's own Release, the holder walking off, and the holder dying — know
+  // whose holds to clear. Not a cascade: a hold outliving its holder by a few
+  // minutes is harmless, and the clears below are what actually end it.
+  heldUntil DateTime?
+  heldById  String?
+  heldBy    Character?  @relation("InterceptHold", fields: [heldById], references: [id])
+  holding   Character[] @relation("InterceptHold")
+
+  interceptWatch InterceptWatch?
+  interceptHits  InterceptHit[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1887,6 +1916,8 @@ model Character {
   @@index([status, lastActivityTurn])
   // The one query an escort party ever runs: everyone following this leader.
   @@index([escortedById])
+  // The one query a release ever runs: everyone this character is holding.
+  @@index([heldById])
 }
 
 // Fresh or rotten. A player's corpse is written FRESH and turns ROTTEN three
@@ -3362,6 +3393,76 @@ model Offer {
   @@index([responderId, status])
   @@index([initiatorId, status])
   @@index([teacherActionId])
+}
+
+// LAYING IN WAIT (docs/systemdocs/INTERCEPT.md). A standing order: stop these
+// people when they walk in where I am standing, and hand them this line.
+//
+// ONE watch per character, which is what the unique on characterId is for —
+// the column IS the rule, the same way Character.escortedById is the whole of
+// "you can only follow one person". Editing a watch is an upsert; there is no
+// history to keep.
+//
+// It stores NO Location. The watch fires wherever the interceptor happens to
+// be standing at the moment somebody arrives, read live — which is what "lay
+// in wait at your location" literally means, and which leaves no stale row
+// behind when they walk off.
+enum InterceptMode {
+  SAFE
+  AMBUSH
+}
+
+model InterceptWatch {
+  id          String    @id @default(cuid())
+  characterId String    @unique
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  mode    InterceptMode @default(SAFE)
+  // What the interceptor says to whoever they stop. Player-typed, so it is
+  // capped and stripped of broadcast pings before it is ever sent
+  // (db/lib/intercept.js#cleanMessage).
+  message String        @default("")
+
+  // The names typed into the picker, stored RAW and matched at FIRE time
+  // against what the arrival's face actually presents
+  // (db/lib/presentedIdentity.js). Never resolved to ids when the watch is
+  // saved: a dialog that answered "is there anybody called that?" would be a
+  // roster oracle, which is the same reasoning Engrave and the Arrest Warrant
+  // give for typing a name instead of picking one.
+  targetNames String[] @default([])
+
+  // The two dragnets. `anyPerson` subsumes `anyConcealed`.
+  anyConcealed Boolean @default(false)
+  anyPerson    Boolean @default(false)
+
+  hits InterceptHit[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One row per person a watch has actually caught, per turn. This is the
+// ration, not a log: without it a lapsed two-minute hold is walked straight
+// back into, and a Safe watch on a busy road becomes an endless roadblock and
+// an endless DM feed. The unique IS the enforcement — the insert is what
+// claims the catch, inside the firing transaction, so two arrivals in one tick
+// cannot both pass.
+model InterceptHit {
+  id      String         @id @default(cuid())
+  watchId String
+  watch   InterceptWatch @relation(fields: [watchId], references: [id], onDelete: Cascade)
+
+  targetCharacterId String
+  targetCharacter   Character @relation(fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  // Not a foreign key, the Character.zoneMovesTurnId reasoning: it is a claim
+  // token, and deleting a turn must never cascade into somebody's catch.
+  turnId String
+
+  createdAt DateTime @default(now())
+
+  @@unique([watchId, targetCharacterId, turnId])
+  @@index([targetCharacterId])
 }
 
 // A multi-turn craft in progress (docs/systemdocs/CRAFTING.md). A table, not

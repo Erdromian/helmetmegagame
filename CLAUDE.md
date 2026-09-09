@@ -246,6 +246,7 @@ you pick the right doc — they are never enough to change code with.
 | [`SHEET.md`](docs/systemdocs/SHEET.md) | You're touching `/character` — the sheet: the band, the verb strip, the tag rail and its rows, the equip board, Escape back to `/play`, or the rule that **nothing on that sheet is a tooltip** |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
+| [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, nicknames, notes |
 | [`FACTIONS.md`](docs/systemdocs/FACTIONS.md) | You're touching factions, or who can see a member's ⬢ (Leader/Treasurer) |
@@ -1091,6 +1092,11 @@ global CLIs. To make one able to build, run, and deploy:
   `ActionStatus.ADJUDICATED`. `TagSource.DESIRE_REWARD` and
   `TagSource.LEADER_GRANT` are the same shape from an earlier tag-sourcing
   design — declared in the enum, written and read nowhere.
+  `Character.travelToLocationId` / `travelTurnId` joined them on 2026-09-14,
+  when deferred travel was removed and every crossing started landing at once
+  (`MAP.md` §3) — `db/lib/travelArrivalPass.js` still reads them, purely as a
+  drain for anybody left mid-journey by that change, and should be deleted once
+  they have landed.
   `GameConfig.mindlinkChannelId` is the same kind of orphan: the column
   stays in the schema, but nothing reads or writes it since the Cult of
   Bacchus was archived (`docs/archive/bacchus.yaml`), and `Character.missedMealStreak`

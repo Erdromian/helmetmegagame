@@ -379,16 +379,19 @@ async function postMessageBatched(channelId, text) {
 const UNKNOWN_CHANNEL = 10003;
 
 // `extras` is { components, embeds }, both optional.
+// `allowedMentions` rides through for the same reason postMessage takes one:
+// a DM that carries text a PLAYER typed must not be able to ping the room.
+// Omitted, Discord parses everything in the string.
 async function postDmOnce(discordUserId, content, extras = {}) {
-  const { components, embeds } = extras ?? {};
+  const { components, embeds, allowedMentions } = extras ?? {};
   const channel = await createDmChannel(discordUserId);
   try {
-    return await postMessage(channel.id, content, components, undefined, embeds);
+    return await postMessage(channel.id, content, components, allowedMentions, embeds);
   } catch (err) {
     if (err.discordCode !== UNKNOWN_CHANNEL && err.status !== 404) throw err;
     forgetDmChannel(discordUserId);
     const fresh = await createDmChannel(discordUserId);
-    return postMessage(fresh.id, content, components, undefined, embeds);
+    return postMessage(fresh.id, content, components, allowedMentions, embeds);
   }
 }
 
@@ -402,7 +405,14 @@ async function postDmBatched(discordUserId, text, extras = {}) {
   let sent = null;
   for (let i = 0; i < chunks.length; i++) {
     const last = i === chunks.length - 1;
-    sent = await postDmOnce(discordUserId, chunks[i], last ? extras : {});
+    sent = await postDmOnce(
+      discordUserId,
+      chunks[i],
+      // components and embeds ride the last chunk only, or Discord draws one
+      // live row per chunk. allowedMentions rides EVERY chunk: a ping in an
+      // early one would otherwise go out unmuzzled.
+      last ? extras : { allowedMentions: extras?.allowedMentions },
+    );
   }
   return sent;
 }

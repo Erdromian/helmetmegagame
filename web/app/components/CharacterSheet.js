@@ -48,7 +48,6 @@ export default function CharacterSheet({
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
-  travellingTo = null,
   examineBlocked = null,
   // Eight flags the page computes off your own sheet and the provider gates
   // buttons on. They were passed here and dropped for a while, which is why
@@ -257,7 +256,6 @@ export default function CharacterSheet({
           carry={carry}
           zoneMoves={zoneMoves}
           zoneMovesReason={zoneMovesReason}
-          travellingTo={travellingTo}
           openTurn={openTurn}
           moveState={moveState}
           pendingOffers={pendingOffers}

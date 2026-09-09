@@ -83,7 +83,6 @@ export default function LedgerBand({
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
-  travellingTo = null,
   openTurn = null,
   moveState = null,
   pendingOffers = [],
@@ -146,7 +145,6 @@ export default function LedgerBand({
           <div className="min-w-0">
             <p className="m-0 text-sm text-muted">
               {character.zone?.name ?? "Unassigned"} · {character.location?.name ?? "Nowhere"}
-              {travellingTo ? <span> · walking to {travellingTo}</span> : null}
             </p>
             <div className="mt-2">
               <StatusStrip
@@ -238,7 +236,6 @@ export default function LedgerBand({
           openTurnNumber={openTurn?.number ?? null}
           craftProjects={craftProjects}
           sitesHere={sitesHere}
-          travellingTo={travellingTo}
           resources={character.resources}
         />
       </div>

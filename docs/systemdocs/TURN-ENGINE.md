@@ -260,19 +260,19 @@ each arrived at by getting them wrong first.
    row. Audit action `mood_resolved`; its DMs — only the two bands that carry
    one — ride the `tagExpiryDms` channel back on the thunk.
 8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
-   in `TURN_PASSES`) — everyone who spent their Move crossing a zone last turn
-   finally lands (`MAP.md` §3). **Last of the passes**, and the slot is
-   load-bearing: every pass above settles the turn that just ended, and the
-   traveller spent that turn walking — auto-labor pays them at the Location
-   they ended it in, and neither turret shoots somebody who has already left
-   the map. A pending journey shuts the ways out of the zone but not the ways
-   inside it (`MAP.md` §3), so "where they ended the day" and "where they set
-   out from" need not be the same Location any more; every pass above reads the
-   live one, which is the right answer — a traveller who spends their last
-   afternoon under a turret is standing under it. It does no
-   Discord work; the arrivals ride back on `travelArrivals` and go out through
-   the same thunk loop a GM's staged "Relocate to" uses. Audit action
-   `travellers_arrived`.
+   in `TURN_PASSES`) — **a drain, and nothing else.** It used to land everyone
+   who had spent their Move crossing a zone last turn; every crossing lands the
+   moment it is made now (`MAP.md` §3) and nothing files work for this pass at
+   all. It stays last, and stays at all, only to walk over anybody who was
+   mid-journey when that change deployed — after which its query matches
+   nobody. Delete it once they have landed. It does no Discord work; anything
+   it finds rides back on `travelArrivals` through the same thunk loop a GM's
+   staged "Relocate to" uses. Audit action `travellers_arrived`.
+
+   One consequence of the removal worth knowing here: every pass above now
+   settles a zone-crosser at their **destination** rather than their origin.
+   Auto-labor pays the yield of the place they ended the day in, the night's
+   mood reads its `wilderness`/`haven`, and a turret there can shoot them.
 9. **Lifeweb decay** — a fixed `lifewebDecayPerTurn` off `GameConfig.lifewebBlood`.
 10. **Open the next turn** with the alternated phase, and pick its banner (§4).
 11. **Write the `TURN_START` archive row** — here, where the turn is created,

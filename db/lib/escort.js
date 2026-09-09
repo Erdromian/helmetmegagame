@@ -72,6 +72,13 @@ const ESCORT_SELECT = {
   zoneMovesBonusUsed: true,
   travelToLocationId: true,
   travelTurnId: true,
+  // Escorting's business as well as the mover's: somebody being held is not
+  // available to be picked up (INTERCEPT.md, and escortAuthority below).
+  // heldById rides along because every caller hands this row on to something
+  // that may want to know WHO — a select carrying half the hold is the kind of
+  // gap that fails silently at one surface only.
+  heldUntil: true,
+  heldById: true,
   tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
 };
 
@@ -106,6 +113,12 @@ function escortAuthority(leader, target, turnNumber = null) {
   // gate. The old MOVE_CHARACTER already refused a hood for this reason; the
   // old canDrag never checked, because it read a zone roster instead.
   if (target.concealed) return null;
+  // Somebody has hold of them (INTERCEPT.md). Above the FORCED branches on
+  // purpose: an ambusher's own prisoner is not theirs to walk off with either
+  // — the ambush is a standoff, and taking them somewhere is what the Gambit
+  // is for. performLocationMove re-checks this per follower, since a hold can
+  // land between the pick and the walk.
+  if (target.heldUntil && new Date(target.heldUntil).getTime() > Date.now()) return null;
   if (isHelpless(target)) return "FORCED";
 
   // Unaffiliated is not a faction (FACTIONS.md §1a), so a Leader of it — which

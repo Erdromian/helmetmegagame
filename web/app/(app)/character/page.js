@@ -268,7 +268,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       location: { include: { zone: { select: { kind: true } } } },
       // Where they are WALKING, if a paid crossing is still on the road
       // (MAP.md §3). Name only — the sheet just says so in a line.
-      travelTo: { select: { name: true } },
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly: `include` doesn't pull
       // unnamed relations, and formatTagRequirement's `?.length` guard would
@@ -1125,7 +1124,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       carry: carry,
       zoneMoves: zoneMoves,
       zoneMovesReason: zoneMovesReason,
-      travellingTo: character.travelTo?.name ?? null,
       examineBlocked: examineBlocked,
       hasWorkshop: hasWorkshop,
       tagCatalog: clientTagCatalog,

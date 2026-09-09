@@ -1,15 +1,21 @@
-// Journeys landing. docs/systemdocs/MAP.md §3.
+// A DRAIN, and nothing else any more. docs/systemdocs/MAP.md §3.
 //
-// A zone crossing that costs the Move is a day on the road: the Move is spent
-// the moment the player confirms, but nothing about where they STAND changes
-// until this pass walks them over at the next turn advance. That is the whole
-// point — the destination's channels stay shut for the rest of the turn they
-// left in, instead of opening under them the second they press Confirm. Free
-// crossings and same-zone hops never come through here; they land at once.
+// This used to be the whole deferred-travel mechanic: a zone crossing that
+// cost the Move spent it at once and parked its destination on
+// Character.travelToLocationId, and this pass walked the traveller and their
+// party over at the next turn advance — a day on the road, which is what kept
+// the destination's channels shut until then.
 //
-// The destination is parked on Character.travelToLocationId by
-// db/lib/locationTravel.js#performLocationMove, for the traveller and for
-// anyone they dragged along.
+// Every crossing lands the moment it is made now (2026-09-14), and
+// performLocationMove writes travelToLocationId nowhere. NOTHING FILES WORK
+// FOR THIS PASS. It is kept, and kept LAST in TURN_PASSES, for exactly one
+// reason: anybody who was mid-journey when that change deployed still has a
+// destination parked on their row and nothing else left to land them. It walks
+// them over on the first advance after the deploy and is a permanent no-op
+// from then on — its findMany matches nobody, and no cleanup is owed.
+//
+// Delete it once the stragglers have landed. The columns stay either way;
+// this schema drops none (CLAUDE.md).
 //
 // LAST in TURN_PASSES, and the order is load-bearing: every other pass settles
 // the turn that just ended, and the traveller spent that turn walking. Auto-

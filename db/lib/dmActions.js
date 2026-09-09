@@ -25,6 +25,13 @@ const DM_ACTION = Object.freeze({
   THREAT_SPAWN: "THREAT_SPAWN",
   LOBBY_SEAT: "LOBBY_SEAT",
   KEYED_WAY: "KEYED_WAY",
+  // The Release on an ambusher's own "you caught them" DM. The odd one out of
+  // the family: every other kind is a PENDING ROW somebody is being asked
+  // about, and this is the person who imposed a state ending it. It is a view
+  // of a live hold (Character.heldUntil) rather than of an Offer, which is
+  // also why it never became an Offer kind — an Offer's responder answers, and
+  // here the initiator does (docs/systemdocs/INTERCEPT.md).
+  INTERCEPT_HOLD: "INTERCEPT_HOLD",
 });
 
 // The two answers. Every family reads as one of these, even where Discord
@@ -45,6 +52,8 @@ const DM_ACTION_LABELS = Object.freeze({
   [DM_ACTION.THREAT_SPAWN]: { accept: "Accept", decline: "Decline" },
   [DM_ACTION.LOBBY_SEAT]: { accept: null, decline: "Decline the seat" },
   [DM_ACTION.KEYED_WAY]: { accept: "Yes", decline: "No" },
+  // One button, and it is the accept — the LOBBY_SEAT shape, the other way up.
+  [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
 });
 
 // The descriptor a sendDm call site spreads into `meta`. `variant` is optional

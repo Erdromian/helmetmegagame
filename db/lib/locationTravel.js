@@ -5,10 +5,11 @@
 // Discord side effects**: the caller runs
 // db/lib/locationMove.js#applyLocationMoveSideEffects over `moved`.
 //
-// A crossing that COSTS the Move moves nobody today. It parks the destination
-// on Character.travelToLocationId and returns `deferred: true` with an empty
-// `moved`; db/lib/travelArrivalPass.js lands the party at the next turn
-// advance, so the destination's channels stay shut until then (MAP.md §3).
+// EVERY crossing lands at once, paid or free. A crossing that cost the Move
+// used to park its destination on Character.travelToLocationId and wait for
+// db/lib/travelArrivalPass.js to walk the party over at the next advance — a
+// day on the road, which kept the destination's channels shut until then. It
+// doesn't any more (MAP.md §3): the Move is still spent, and you are there.
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
@@ -18,6 +19,7 @@ const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
 const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, STOWABLE_SLUGS } = require("./mounts");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
+const { heldReasonFor, fireWatches } = require("./intercept");
 const { linkBetween, crossingCheck } = require("./locationGraph");
 const { dismountForNarrowWay } = require("./indoors");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
@@ -45,6 +47,9 @@ const CHARACTER_SELECT = {
   zoneMovesBonusUsed: true,
   travelToLocationId: true,
   travelTurnId: true,
+  // The hold. One timestamp, read by heldReasonFor() at the top of
+  // performLocationMove and again per follower (INTERCEPT.md).
+  heldUntil: true,
   // `name` rides along for stowedMounts(), which puts it in a sentence.
   tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
 };
@@ -223,6 +228,13 @@ async function performLocationMove(prisma, character, targetLocation) {
   const stuck = blockerFor(character.tags, ACT);
   if (stuck) return { ok: false, reason: `You can't go anywhere — you're ${stuck.name}. ‡` };
 
+  // Somebody laid in wait and stopped them (docs/systemdocs/INTERCEPT.md).
+  // Beside the ACT gate rather than inside it because a hold takes MOVEMENT
+  // and nothing else — held, you can still act, speak and fight back. One
+  // comparison against a timestamp, and it lapses on its own.
+  const held = heldReasonFor(character);
+  if (held) return { ok: false, reason: held };
+
   let currentLocation = null;
   let crossingLink = null;
   if (character.locationId) {
@@ -256,26 +268,6 @@ async function performLocationMove(prisma, character, targetLocation) {
   // whose edge crosses into another zone files the Move.
   const first = !currentLocation;
   const crossedZone = !first && currentLocation.zoneId !== targetLocation.zoneId;
-
-  // Already walking. A paid crossing is a day on the road (below) and there is
-  // still no way off it — but the freeze is on LEAVING THE ZONE, not on moving
-  // at all. A hop inside the zone they set out from costs nothing and changes
-  // nothing about the journey, so it goes through, and the traveller gets to
-  // spend their last day somewhere with people in it (MAP.md §3). This sits
-  // BELOW the adjacency gate on purpose: the answer to "can I even get there"
-  // should not depend on whether they happen to be travelling.
-  if (character.travelToLocationId && (crossedZone || first)) {
-    const heading = await prisma.location.findUnique({
-      where: { id: character.travelToLocationId },
-      select: { name: true },
-    });
-    return {
-      ok: false,
-      reason: heading
-        ? `You're on the road to ${heading.name}. You'll arrive next turn.`
-        : "You're on the road. You'll arrive next turn.",
-    };
-  }
 
   let openTurn = null;
   if (crossedZone) {
@@ -349,6 +341,19 @@ async function performLocationMove(prisma, character, targetLocation) {
         const mover = await tx.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });
         const coming = [];
         for (const row of party) {
+          // Held where they stand. A follower is walked by an updateMany and
+          // never comes past the mover's own gate, so without this line a
+          // friend could carry somebody straight out of an ambush.
+          //
+          // ABOVE escortAuthority on purpose, even though that refuses a held
+          // character too. Its refusal is a bare null, which reads here as
+          // "gone" — and "held" is the ONE leftBehind reason the leader is
+          // told out loud, because somebody having hold of your friend is
+          // plain to see. Ordered the other way, they never hear it.
+          if (heldReasonFor(row)) {
+            outcome.leftBehind.push({ row, reason: "held" });
+            continue;
+          }
           if (!escortAuthority(mover, row)) {
             outcome.leftBehind.push({ row, reason: "gone" });
             continue;
@@ -450,49 +455,36 @@ async function performLocationMove(prisma, character, targetLocation) {
               type: "MOVE",
               status: "CONFIRMED",
               moveReviewStatus: "SOLVED",
-              description: `Set out for ${targetLocation.name} (${targetLocation.zone.name}) — arrives next turn.`,
+              description: `Travelled to ${targetLocation.name} (${targetLocation.zone.name}).`,
               // The SEAT zone, not the presence zone — a Move filed from the
               // Railroad belongs on the Caves GM's table.
               zoneId: seatZoneIdFor(targetLocation.zone),
-              resultMessage: `» Set out for ${targetLocation.name}.`,
+              resultMessage: `» Travelled to ${targetLocation.name}.`,
               gmNotes: "auto:zone_change",
             },
           });
           outcome.spentTurn = true;
         }
         outcome.freeMovesLeft ??= 0;
-        if (outcome.spentTurn) {
-          // A paid crossing is a day's walk: the Move is spent now, but
-          // nothing moves. db/lib/travelArrivalPass.js walks them over at the
-          // next advance, which is what keeps the destination's channels shut
-          // for the rest of this turn (MAP.md §3). lastLocationMoveAt is
-          // deliberately NOT stamped — nobody has been anywhere yet.
-          await tx.character.update({
-            where: { id: character.id },
-            data: { travelToLocationId: targetLocation.id, travelTurnId: openTurn.id, escortedById: null },
-          });
-        } else {
-          await tx.character.update({
-            where: { id: character.id },
-            data: {
-              locationId: targetLocation.id,
-              zoneId: targetLocation.zoneId,
-              lastLocationMoveAt: now,
-              // Walking under your own power is how a willing follower leaves
-              // (MAP.md §3a). A helpless one never reaches this line.
-              escortedById: null,
-            },
-          });
-        }
+        // Paid or free, the crossing lands NOW. A paid one used to park its
+        // destination on travelToLocationId and wait for the turn advance to
+        // walk the traveller over; it doesn't any more (MAP.md §3), so the two
+        // branches are one write.
+        await tx.character.update({
+          where: { id: character.id },
+          data: {
+            locationId: targetLocation.id,
+            zoneId: targetLocation.zoneId,
+            lastLocationMoveAt: now,
+            // Walking under your own power is how a willing follower leaves
+            // (MAP.md §3a). A helpless one never reaches this line.
+            escortedById: null,
+          },
+        });
       } else {
         // Same zone (or first placement): the cooldown, enforced by the
         // WHERE of a conditional update so two clicks in one tick can't both
         // pass.
-        //
-        // travelToLocationId is deliberately NOT cleared here. A traveller
-        // walking around the zone they set out from is still on the road, and
-        // travelArrivalPass lands them at the destination they paid for
-        // whichever Location they ended the day in.
         const cutoff = new Date(now.getTime() - cooldownMs);
         const claimed = await tx.character.updateMany({
           where: {
@@ -517,14 +509,22 @@ async function performLocationMove(prisma, character, targetLocation) {
         }
       }
 
+      // Walking off releases anybody this character was holding. A hold is a
+      // hand on a shoulder (INTERCEPT.md); you cannot keep one from the next
+      // zone. One of the three writers that ends a hold early — the other two
+      // are the holder's own Release and their death.
+      await tx.character.updateMany({
+        where: { heldById: character.id, heldUntil: { gt: now } },
+        data: { heldUntil: null, heldById: null },
+      });
+
       if (outcome.partyRows.length > 0 || outcome.leftBehind.length > 0) {
-        // Passengers on a paid crossing walk the same day the mover does, so
-        // they get the same pending destination rather than the arrival.
+        // The party lands with the mover, whether or not the crossing cost a
+        // Move — one statement for all of them, and no Action, cooldown claim
+        // or mount claim of their own (MAP.md §3a).
         await tx.character.updateMany({
           where: { id: { in: outcome.partyRows.map((t) => t.id) } },
-          data: outcome.spentTurn
-            ? { travelToLocationId: targetLocation.id, travelTurnId: openTurn.id }
-            : { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
+          data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
         });
         await tx.auditLog.create({
           data: {
@@ -535,7 +535,6 @@ async function performLocationMove(prisma, character, targetLocation) {
               mover: character.name,
               to: targetLocation.name,
               zone: targetLocation.zone.name,
-              setOut: outcome.spentTurn,
               party: outcome.partyRows.map((t) => ({ id: t.id, name: t.name })),
               leftBehind: outcome.leftBehind.map((e) => ({ id: e.row.id, name: e.row.name, why: e.reason })),
             },
@@ -547,42 +546,6 @@ async function performLocationMove(prisma, character, targetLocation) {
     if (err?.refused) return { ok: false, reason: err.message, retryAfterSeconds: err.retryAfterSeconds };
     if (err?.code === "P2002") return { ok: false, reason: "You've already acted this turn." };
     throw err;
-  }
-
-  // A paid crossing has committed its Move and its pending destination and
-  // that is all: nobody has changed Location, so there are no Discord side
-  // effects, no Caving roll, no ride to be sick on and nothing to archive.
-  // All four belong to the arrival, and db/lib/travelArrivalPass.js does
-  // them at the next advance. `moved` stays EMPTY on purpose — every caller
-  // drives its role swaps off it. `travelers` is who set out.
-  if (outcome.spentTurn) {
-    return {
-      ok: true,
-      deferred: true,
-      oldLocation: currentLocation,
-      oldZone: currentLocation?.zone ?? null,
-      targetLocation,
-      targetZone: targetLocation.zone,
-      crossedZone,
-      spentTurn: true,
-      usedFreeMove: false,
-      freeMovesLeft: outcome.freeMovesLeft,
-      // Already applied above, whether or not arrival is a turn away — the
-      // threshold was crossed now, not at the advance.
-      dismounted: outcome.dismounted,
-      moved: [],
-      travelers: [character, ...outcome.partyRows].map((row) => ({
-        character: { id: row.id, name: row.name, discordUserId: row.discordUserId, status: row.status },
-      })),
-      // Followers the way would not take. Detached and still standing where
-      // they were; the caller owes them and their leader a line. The reason
-      // is deliberately NOT the edge's own refusal — "the way is locked" on a
-      // hidden crawl would announce that the crawl is there (MAP.md §2a).
-      leftBehind: outcome.leftBehind.map((e) => ({
-        character: { id: e.row.id, name: e.row.name, discordUserId: e.row.discordUserId, status: e.row.status },
-        reason: e.reason,
-      })),
-    };
   }
 
   // Off by default (see GameConfig.archiveTravelEvents), and only for a
@@ -631,26 +594,52 @@ async function performLocationMove(prisma, character, targetLocation) {
     });
   }
 
+  // Anybody laying in wait here (docs/systemdocs/INTERCEPT.md). Hooked HERE
+  // rather than on applyLocationMoveSideEffects — which is the writer every
+  // relocation runs — because an intercept is one person acting on another
+  // and the fiction is being stopped ON THE ROAD. Coming down the road is the
+  // gate: a GM's teleport, a Bulk Move, a staged Relocate to, a rite and a
+  // character's first placement must not trip somebody's ambush.
+  //
+  // The whole party goes in at once, mover first, which is what makes "if
+  // several people come up together they all get stopped" free. It sends
+  // nothing; the caller sends `interceptDms` the way it already sends
+  // `cavingDm`, after this returns and outside any transaction.
+  let interceptDms = [];
+  if (moved.length > 0) {
+    const turnForWatches = openTurn ?? (await prisma.turn.findFirst({ where: { status: "OPEN" } }));
+    // Wrapped: a watch that throws must never wedge a move that has already
+    // committed. The mover is standing at the destination either way.
+    try {
+      ({ dms: interceptDms } = await fireWatches(prisma, {
+        arrivals: moved.map((entry) => entry.character),
+        locationId: targetLocation.id,
+        openTurn: turnForWatches,
+      }));
+    } catch (err) {
+      console.error(`Intercept: firing watches at ${targetLocation.id} failed:`, err.message ?? err);
+    }
+  }
+
   return {
     ok: true,
+    interceptDms,
     oldLocation: currentLocation,
     oldZone: currentLocation?.zone ?? null,
     targetLocation,
     targetZone: targetLocation.zone,
     crossedZone,
-    deferred: false,
-    spentTurn: false,
+    spentTurn: outcome.spentTurn,
     usedFreeMove: outcome.usedFreeMove,
     dismounted: outcome.dismounted,
-    travelers: [],
-      // Followers the way would not take. Detached and still standing where
-      // they were; the caller owes them and their leader a line. The reason
-      // is deliberately NOT the edge's own refusal — "the way is locked" on a
-      // hidden crawl would announce that the crawl is there (MAP.md §2a).
-      leftBehind: outcome.leftBehind.map((e) => ({
-        character: { id: e.row.id, name: e.row.name, discordUserId: e.row.discordUserId, status: e.row.status },
-        reason: e.reason,
-      })),
+    // Followers the way would not take. Detached and still standing where
+    // they were; the caller owes them and their leader a line. The reason
+    // is deliberately NOT the edge's own refusal — "the way is locked" on a
+    // hidden crawl would announce that the crawl is there (MAP.md §2a).
+    leftBehind: outcome.leftBehind.map((e) => ({
+      character: { id: e.row.id, name: e.row.name, discordUserId: e.row.discordUserId, status: e.row.status },
+      reason: e.reason,
+    })),
     freeMovesLeft: outcome.freeMovesLeft,
     moved,
   };

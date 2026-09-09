@@ -33,6 +33,7 @@ const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
 const { holdKeyedOpen } = require("./gates");
 const { settleCarry } = require("./carry");
+const { releaseHeldBy } = require("./intercept");
 const { recordArchiveEvent } = require("./archive");
 
 // Nothing to do, drawn as the reason under the message. Shared so the four
@@ -161,6 +162,32 @@ async function answerKeyedWay(prisma, { id, discordUserId, choice }) {
   return { ok: true, line: result.note ? `${result.line}\n-# ${result.note}` : result.line, ...empty() };
 }
 
+// Letting a prisoner go (docs/systemdocs/INTERCEPT.md). The odd one out of the
+// family: every other kind here is a pending row somebody is being ASKED
+// about, and this is the person who imposed a state ending it — so `id` is the
+// person being held, and the clicker must be the one holding them.
+// releaseHeldBy's WHERE is that check, which is why there is no ownership
+// lookup of its own here.
+async function answerInterceptHold(prisma, { id, discordUserId }) {
+  const holder = await prisma.character.findFirst({
+    where: { discordUserId, status: "ALIVE" },
+    select: { id: true, name: true },
+  });
+  if (!holder) return { ok: false, line: NOT_YOURS, ...empty() };
+  const freed = await releaseHeldBy(prisma, holder.id, { targetId: id });
+  if (freed.length === 0) return { ok: false, line: "They're already free. ‡", ...empty() };
+
+  const target = freed[0];
+  const dms = [];
+  if (target.discordUserId && target.status === "ALIVE") {
+    // Unattributed, the notifyCharacter posture (REQUESTS.md §3): they know
+    // perfectly well who had hold of them, and the game does not need to
+    // confirm it.
+    dms.push({ discordUserId: target.discordUserId, content: "You've been let go. You can move again. ‡" });
+  }
+  return { ok: true, line: `You let ${target.name} go. ‡`, ...empty(), dms };
+}
+
 // The one entry point. `action` is the descriptor off DirectMessage.meta
 // (db/lib/dmActions.js#dmActionOf); `discordUserId` is the CLICKER, resolved
 // by the caller from its own session or interaction and never from anything
@@ -183,6 +210,8 @@ async function answerDmAction(prisma, { action, choice, discordUserId }) {
       return answerLobbySeat(prisma, args);
     case DM_ACTION.KEYED_WAY:
       return answerKeyedWay(prisma, args);
+    case DM_ACTION.INTERCEPT_HOLD:
+      return answerInterceptHold(prisma, args);
     default:
       return { ok: false, line: GONE, ...empty() };
   }

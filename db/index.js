@@ -231,8 +231,10 @@ const TURN_PASSES = [
   // The mood dial's nightly settle: the place each character sleeps in, the
   // drift back toward Fine, hunger, a body in the room, a noble's missed
   // dinner. After hunger (it reads the final streak) and carry (the final
-  // sheet), and before travelArrival, so a traveller pays the night where they
-  // set out from. See db/lib/moodPass.js and docs/systemdocs/MOOD.md.
+  // sheet). It used to matter that this ran before travelArrival, so a
+  // traveller paid the night where they set out from; travel lands at once
+  // now, so a crosser simply pays the night wherever they ended the day
+  // standing. See db/lib/moodPass.js and docs/systemdocs/MOOD.md.
   "mood",
   // After "carry", because the overflow drop can put a corpse on a floor.
   // Pull-based, so it just re-reads where every body's tag ended up.
@@ -251,10 +253,10 @@ const TURN_PASSES = [
   // from "depot" so a failed Depot pass cannot swallow it, and so a resume
   // re-runs exactly the one that did not finish.
   "gatehouseTurret",
-  // Journeys landing (db/lib/travelArrivalPass.js). LAST, and the order is
-  // load-bearing: every pass above settles the turn that just ended, and a
-  // traveller spent that turn walking. Auto-labor pays them where they left
-  // from, and neither turret shoots somebody still on the road.
+  // A DRAIN (db/lib/travelArrivalPass.js). Nothing files work for this any
+  // more — every crossing lands the moment it is made. It stays LAST, and
+  // stays at all, only to land anybody who was mid-journey when the deferral
+  // was removed; after that it matches nobody. Delete it once they have.
   "travelArrival",
 ];
 

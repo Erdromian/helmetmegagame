@@ -4,6 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { crossingCheck, travelOptions } from "@lifeweb/db/lib/locationGraph";
+import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { conversationsFor } from "@lifeweb/db/lib/conversations";
@@ -96,10 +97,9 @@ async function buildMap({ character, unfogged }) {
     : { stood: new Set(), seen: new Set() };
 
   // Where they can go from here, already gated and costed — the same call the
-  // Travel panel makes, so the two can never disagree about a hop. Somebody on
-  // the road is asked too: travelOptions shuts their zone crossings and leaves
-  // the local ways open, so the board keeps working for the day they have left
-  // in the zone instead of going blank (MAP.md §3).
+  // Travel panel makes, so the two can never disagree about a hop. Somebody
+  // being held is asked too: travelOptions shuts every way and writes the
+  // reason onto each row, so the board still draws instead of going blank.
   const neighbours = character?.locationId ? await travelOptions(prisma, character, character.locationId) : [];
   const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
 
@@ -195,10 +195,6 @@ async function buildMap({ character, unfogged }) {
   const layers = ["surface"];
   if (nodes.some((n) => n.layer === "under")) layers.push("under");
 
-  const heading = character?.travelToLocationId
-    ? (locations.find((l) => l.id === character.travelToLocationId)?.name ?? null)
-    : null;
-
   return {
     ok: true,
     plate: { src: PLATE_SRC, width, height },
@@ -212,7 +208,9 @@ async function buildMap({ character, unfogged }) {
     edges,
     travel: character
       ? {
-          heading,
+          // Somebody has hold of them (INTERCEPT.md) — the banner over the
+          // board. Every node's own refusal already says it too.
+          held: heldReasonFor(character),
           freeLeft: freeMovesLeft(character, config, openTurn, party.length),
           freeReason: freeZoneMovesReason(character, party.length),
           mounted: onFootBlocked,

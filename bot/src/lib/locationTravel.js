@@ -208,26 +208,6 @@ async function performMove(character, targetLocation) {
     }
   }
 
-  // A paid crossing is a day on the road: nobody has moved yet, so there are
-  // no roles to swap and no Caving Die to roll — db/lib/travelArrivalPass.js
-  // does all of it at the next turn advance (MAP.md §3). The one thing owed
-  // now is a word to the passengers, who did not press anything.
-  if (result.deferred) {
-    for (const entry of result.travelers) {
-      if (entry.character.id === character.id) continue;
-      if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
-      await sendDm(
-        prisma,
-        entry.character.discordUserId,
-        `*${character.name} is taking you to ${targetLocation.name}. You'll get there next turn.* ‡`,
-        { kind: DM_KIND.QUIET },
-      ).catch((err) =>
-        console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
-      );
-    }
-    return result;
-  }
-
   // Sequential on purpose: each entry is a handful of REST calls, and firing
   // a whole dragged party's worth at once is the shape that trips the
   // invalid-response breaker (db/lib/discordRest.js).
@@ -253,6 +233,22 @@ async function performMove(character, targetLocation) {
     await sendDm(prisma, entry.cavingDm.discordUserId, entry.cavingDm.content).catch((err) =>
       console.error(`Caving arrival DM to ${entry.cavingDm.discordUserId} failed:`, err.message ?? err),
     );
+  }
+
+  // Anybody who was laying in wait here (docs/systemdocs/INTERCEPT.md). Built
+  // inside performLocationMove and sent from out here, the same split the
+  // Caving DM above uses.
+  for (const dm of result.interceptDms ?? []) {
+    await sendDm(prisma, dm.discordUserId, dm.content, {
+      kind: dm.kind,
+      authorDiscordUserId: dm.authorDiscordUserId ?? null,
+      components: dm.components,
+      meta: dm.meta,
+      // Player-typed text rides in these. cleanMessage() already took the
+      // broadcast pings out of the stored copy; this is the belt to those
+      // braces.
+      allowedMentions: { parse: [] },
+    }).catch((err) => console.error(`Intercept DM to ${dm.discordUserId} failed:`, err.message ?? err));
   }
 
   // Being carried off is the one thing that happens to a player without them

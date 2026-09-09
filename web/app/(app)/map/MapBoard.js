@@ -776,23 +776,17 @@ function MapCard({ node, here, travel, pending, error, onCancel, onGo }) {
           and nothing to leak by forgetting to. */}
       {node.inside && <Inside inside={node.inside} />}
 
-      {/* Already walking. This used to swallow the whole block below it, which
-          left a traveller a board they could read and not use. Only the ways
-          OUT OF THE ZONE are shut now, and the server shuts them — a crossing
-          comes back unpassable with the road named in its reason, so it falls
-          into the refusal branch on its own and the local ways still offer
-          their Go button (MAP.md §3). */}
-      {travel?.heading ? (
-        <p className="text-sm">
-          Leaving for {travel.heading} at the end of the turn — until then this zone is still yours to walk.
-        </p>
-      ) : null}
+      {/* Held where they stand (INTERCEPT.md). It deliberately does not swallow
+          the block below: the server shuts every way and writes the reason
+          onto each row, so a node falls into the refusal branch on its own and
+          the board stays readable while somebody has hold of you. */}
+      {travel?.held ? <p className="text-sm">{travel.held}</p> : null}
 
       {!isHere && node.adjacent && (
         <div className="map-confirm">
           {reachable ? (
             <>
-              <p className="text-sm">{nextTurn ? `To ${node.name}, next turn.` : `To ${node.name}.`}</p>
+              <p className="text-sm">{nextTurn ? `To ${node.name}. This one spends your Move.` : `To ${node.name}.`}</p>
               {travel?.partySize > 0 && (
                 <p className="chat-quiet-line">
                   {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you.

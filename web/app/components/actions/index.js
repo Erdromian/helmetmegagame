@@ -12,6 +12,7 @@ import MutilateDialog from "./MutilateDialog";
 import BodyDialog from "./BodyDialog";
 import EngraveDialog from "./EngraveDialog";
 import WarrantDialog from "./WarrantDialog";
+import InterceptDialog from "./InterceptDialog";
 import DisguiseDialog from "./DisguiseDialog";
 import ConsumeDialog from "./ConsumeDialog";
 import HideoutDialog from "./HideoutDialog";
@@ -87,6 +88,7 @@ export const DIALOGS = {
   butcher: BodyDialog,
   engrave: EngraveDialog,
   warrant: WarrantDialog,
+  intercept: InterceptDialog,
   disguise: DisguiseDialog,
   consume: ConsumeDialog,
   hideout: HideoutDialog,

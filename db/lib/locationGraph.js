@@ -13,6 +13,7 @@
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { heldTagSlugs } = require("./roomAccess");
 const { blocksOnFoot, equippedSlugs } = require("./mounts");
+const { heldReasonFor } = require("./intercept");
 
 // The two endpoints of a link, oriented so `near` is the side you are
 // standing on. Callers only ever want `far`.
@@ -193,14 +194,11 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   // down it and show as both open and shut in one render.
   const now = new Date();
 
-  // Where they are already walking, if anywhere. One query, and only when the
-  // field is set, so the ordinary case pays nothing for this.
-  const heading = character?.travelToLocationId
-    ? await prisma.location.findUnique({
-        where: { id: character.travelToLocationId },
-        select: { name: true },
-      })
-    : null;
+  // Somebody has hold of them (docs/systemdocs/INTERCEPT.md). Pure — one
+  // comparison against Character.heldUntil, no query — so every picker draws
+  // the refusal the mover is about to give, instead of the server refusing
+  // after a click.
+  const heldReason = heldReasonFor(character, now);
 
   return links
     .map((link) => {
@@ -211,12 +209,14 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
         crossesZone: Boolean(zoneId) && far.zoneId !== zoneId,
         ...crossingCheck(link, { tagSlugs, onFootBlocked, now }),
       };
-      // `listed` is deliberately left alone: the road out still draws, it just
-      // draws SHUT and says why — the same shape a locked gate uses, rather
-      // than vanishing and reading like there was never a way there at all.
-      if (heading && row.crossesZone) {
+      // Being held here shuts every way out, not just the ones that cross a
+      // zone — an ambush is a hand on your shoulder (INTERCEPT.md). `listed`
+      // is deliberately left alone: the way still draws, it just draws SHUT
+      // and says why, the same shape a locked gate uses, rather than vanishing
+      // and reading like there was never a way there at all.
+      if (heldReason) {
         row.passable = false;
-        row.refusal = `You're on the road to ${heading.name}. You'll arrive next turn.`;
+        row.refusal = heldReason;
       }
       return row;
     })
