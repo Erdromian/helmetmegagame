@@ -28,6 +28,11 @@ Bulk Move, a staged Relocate to, a rite — and the owner is told:
 
 > You left, so your interception was canceled.
 
+It is sent **first** of the move's DMs and ahead of the channel work, because
+the swaps below that are unguarded and every caller swallows this function's
+throw: one Discord 5xx and the owner would lose the watch without ever being
+told.
+
 Laying in wait is a fact about a **place**. It used to be read live off
 wherever the interceptor happened to be standing, which made it a property of
 the person instead: a watch set at the gatehouse on Tuesday followed its owner
@@ -46,11 +51,17 @@ Both halves of that are load-bearing, and they are different hooks on purpose:
   Discord resync, a revive and a first placement all pass `null` for something
   that is not a move — without that check, pressing **Resync** would silently
   end a player's ambush.
-- **The anchor** is `anchorHolds()`, and it is what `fireWatches` and the
-  dialog both ask. A row is inert anywhere but its own Location, so a
-  relocation that somehow skipped the delete leaves a dud rather than a
-  roaming radar. The delete is what a player sees; the anchor is what makes it
-  safe.
+- **The anchor** is the same rule written twice, on purpose: `anchorHolds()`
+  for the dialog, and a `where` clause for `fireWatches` (§5). A row is inert
+  anywhere but its own Location, so a relocation that skipped the delete leaves
+  a dud rather than a roaming radar — and it **can** be skipped, because every
+  caller of `applyLocationMoveSideEffects` swallows its throw. The delete is
+  what a player sees; the anchor is what makes it safe.
+
+One relocation runs no side effects at all and so cancels by hand: a GM
+teleporting somebody to **nowhere** (`web/app/(app)/gm/dev/characters/[characterId]/actions.js`).
+Without that call the watch would sit inert while they stood nowhere and come
+back to life the moment anything put them back.
 
 Note the deliberate asymmetry with §5: a watch **fires** only from the road,
 but it **dies** however you left.
@@ -128,8 +139,12 @@ of them know whose holds to clear:
    DM. Both go through `db/lib/dmAnswer.js#answerInterceptHold`, so the faces
    cannot drift. `releaseHeldBy`'s `WHERE` is the ownership check; there is no
    second lookup to disagree with it.
-2. The holder **walks away** — `performLocationMove` clears their holds inside
-   its own transaction. You cannot keep a hand on a shoulder from the next zone.
+2. The holder **leaves** — `performLocationMove` clears their holds inside its
+   own transaction when they walk, and `applyLocationMoveSideEffects` clears
+   them for every other way of going: a GM's teleport, a rite, a Bulk Move.
+   You cannot keep a hand on a shoulder from the next zone, and it should not
+   matter whether you chose to go. The two clears overlap on the walking case,
+   which costs one no-op update.
 3. The holder **dies** — `db/lib/characterDeath.js`, beside the escort release.
 
 A held character's own `heldUntil` is never cleared on their own death. It
@@ -178,9 +193,10 @@ somewhere will not trip a watch.** That is the right side of the trade.
 
 The query loads every watch **anchored to the arrival Location whose owner is
 also standing there**. Both clauses, not one: the anchor is the rule (§1), and
-the owner's live position is what keeps a row left behind by the one writer
-that relocates somebody without running the cancel — `db/lib/corpseFollow.js`,
-which moves DEAD characters only — from ever biting. Do not fold them into one.
+the owner's live position is what neuters a row the cancel missed. It can miss:
+every caller of `applyLocationMoveSideEffects` swallows its throw, so one
+Discord failure mid-relocation leaves a live row at a place its owner has
+walked out of.
 
 A watch does not fire if its owner is not `ALIVE`, cannot `ACT`, or is
 **themselves one of the arrivals** — you cannot lay in wait while you are

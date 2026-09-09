@@ -93,7 +93,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
           and what ends it are the two things about this verb a player cannot
           work out by using it (SHEET.md §3, INTERCEPT.md §8). */}
       <p className="text-sm text-muted">
-        {place ? `You are lying in wait at ${place}. ` : ""}Walk anywhere else and the watch ends. ‡
+        {place ? `You are lying in wait at ${place}. ` : ""}Leave this place, however you leave it, and the watch ends. ‡
       </p>
 
       {/* The two standing rules sit ABOVE the typed names rather than mixed in

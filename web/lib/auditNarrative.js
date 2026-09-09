@@ -134,7 +134,7 @@ const R = {
   // never their true name — the same rule the DMs run under.
   request_intercept_set: (d) =>
     d?.stopped
-      ? [actor(), t("stopped watching the road")]
+      ? [actor(), t(d?.reason === "moved" ? "left, so the watch ended" : "stopped watching the road")]
       : [
           actor(),
           t("laid in wait"),

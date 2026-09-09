@@ -276,10 +276,10 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
     where: {
       // The anchor is the rule: a watch works where it was set and nowhere
       // else. The character clause stays beside it rather than being replaced
-      // by it — it is what keeps a row left behind by the one writer that
-      // relocates somebody without running the cancel hook
-      // (db/lib/corpseFollow.js, dead characters only) from ever biting. Do
-      // not fold these two into one.
+      // by it, because the cancel can be missed — every caller of
+      // applyLocationMoveSideEffects swallows its throw, so a Discord failure
+      // mid-relocation can leave a live row anchored to a place its owner has
+      // already left. This is what makes that a dud instead of a ghost.
       locationId,
       character: { locationId, status: "ALIVE" },
       OR: [{ anyPerson: true }, { anyConcealed: true }, { NOT: { targetNames: { isEmpty: true } } }],
