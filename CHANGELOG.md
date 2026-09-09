@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-09 · The Supply Kit says what it is for
+
+✎ The Supply Kit's description: "Open it to gain resources and a nice surprise."
+
 ## 2026-09-09 · The End turn confirm just asks
 
 ✎ Ending a turn asks the question and nothing else — the paragraph explaining Needs, the upkeep and the channel wipe is gone
