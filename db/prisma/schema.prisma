@@ -552,7 +552,7 @@ model Game {
   nukeDetonatedTurn  Int?
   ascensionFiredTurn Int?
 
-  createdAt   DateTime  @default(now())
+  createdAt DateTime @default(now())
 
   /// What a reader sees instead of a number, when it is worth naming.
   label String?
@@ -979,14 +979,15 @@ model Zone {
   mapLabelY  Float?
 
   locations        Location[]
-  factions         Faction[]       @relation("FactionHomeZone")
+  factions         Faction[]         @relation("FactionHomeZone")
   characters       Character[]
   actions          Action[]
   notes            Note[]
   gmZoneViews      GmZoneView[]
   stagedMessages   StagedMessage[]
-  startingForRoles Role[]          @relation("RoleStartingZone")
+  startingForRoles Role[]            @relation("RoleStartingZone")
   cavingRolls      CavingRoll[]
+  laborDropOptions LaborDropOption[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1083,6 +1084,85 @@ model LocationYield {
   @@unique([locationId, kind])
 }
 
+// The labor drop die's config: what a Labor payout can find, keyed by which
+// face of a 1-6 roll landed, up to two scopes at once (a labor type, and
+// either a zone or a location — never both on one row), and an optional
+// SEVENTH gate orthogonal to all of those — requiredTagId, "only joins the
+// pool for a character who holds this tag too" (Forester in the Forest is
+// the first user). Pure config, not player state — no CharacterTag or Action
+// row ever points at one of these rows, so docs/labordrops.yaml replaces the
+// whole table on every sync run rather than upserting it
+// (db/lib/syncLaborDrops.js). See docs/systemdocs/LABORDROPS.md.
+enum LaborDropLaborType {
+  BASIC
+  SKILLED
+  HUNTING
+  FARMING
+  FISHING
+}
+
+enum LaborDropKind {
+  TAG
+  RESOURCES
+  NOTHING
+}
+
+// One entry in one pool. A "table" is never its own row: it is every
+// LaborDropOption sharing one (roll, laborType, zoneId, locationId) scope,
+// drawn from uniformly — repeat an entry to weight it, the way
+// docs/labordrops.yaml's own examples do. Combining several scopes at once
+// (LABORDROPS.md §2) is a query over this table, not a join anywhere else.
+model LaborDropOption {
+  id String @id @default(cuid())
+
+  // Which face of the Labor die this entry answers, 1-6.
+  roll Int
+
+  // Every dimension below is optional, and the SET of six legal combinations
+  // (laborType alone, zoneId alone, locationId alone, laborType+zoneId,
+  // laborType+locationId, or all-null for Global) is enforced by the sync,
+  // not by the schema — zoneId and locationId are never both set on one row.
+  laborType LaborDropLaborType?
+
+  zoneId String?
+  zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  kind LaborDropKind
+
+  // TAG only. Cascades on delete rather than blocking a tag prune — the sync
+  // fully rebuilds this table from docs/labordrops.yaml on every run, so a
+  // row orphaned by a pruned tag either comes back on the next sync or the
+  // sync throws on a YAML entry naming a slug that no longer exists, the
+  // same as any other stale reference.
+  tagId String?
+  tag   Tag?    @relation("LaborDropGrantTag", fields: [tagId], references: [id], onDelete: Cascade)
+
+  // RESOURCES only. A ⬢ delta — usually a bonus, but nothing stops a
+  // negative one for a bad-table entry.
+  resourceAmount Int?
+
+  // The seventh gate, orthogonal to roll/laborType/zoneId/locationId: null
+  // (the overwhelming common case) means every character; set, this row only
+  // enters the combined pool for a character who holds this tag, checked in
+  // application code (db/lib/laborDrops.js#passesRequiredTag) rather than the
+  // SQL WHERE — the six scopes above are matched in the query, this is a
+  // post-filter over whichever of those rows come back, because "does this
+  // character hold tag X" isn't expressible as a join against a query keyed
+  // on the drawing character's zone/location/laborType alone. Authored in
+  // docs/labordrops.yaml as a `requiresTag:` block nested under any of the
+  // six buckets. Same cascade reasoning as tagId above.
+  requiredTagId String?
+  requiredTag   Tag?    @relation("LaborDropRequiredTag", fields: [requiredTagId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([roll, laborType, zoneId, locationId])
+  @@index([requiredTagId])
+}
+
 model Location {
   id   String @id @default(cuid())
   slug String @unique
@@ -1149,14 +1229,15 @@ model Location {
   updatedAt DateTime @updatedAt
 
   // Moves filed while standing here (Action.locationId).
-  actions      Action[]
-  threatSpawns ThreatSpawn[]
-  cavingRolls  CavingRoll[]
-  visits       LocationVisit[]
+  actions          Action[]
+  threatSpawns     ThreatSpawn[]
+  cavingRolls      CavingRoll[]
+  visits           LocationVisit[]
   // Everybody lying in wait here. A watch is anchored to one place and dies
   // when its owner leaves it (docs/systemdocs/INTERCEPT.md §1), so a Location
   // that goes away takes them with it.
   interceptWatches InterceptWatch[]
+  laborDropOptions LaborDropOption[]
 
   @@index([zoneId])
 }
@@ -1962,11 +2043,11 @@ model Character {
   heldBy    Character?  @relation("InterceptHold", fields: [heldById], references: [id])
   holding   Character[] @relation("InterceptHold")
 
-  interceptWatch InterceptWatch?
+  interceptWatch   InterceptWatch?
   // Caught by somebody, and the catches they made. Two relations to the same
   // table, so both ends are named.
-  interceptHits    InterceptHit[] @relation("InterceptCaught")
-  interceptCatches InterceptHit[] @relation("InterceptCatcher")
+  interceptHits    InterceptHit[]  @relation("InterceptCaught")
+  interceptCatches InterceptHit[]  @relation("InterceptCatcher")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2656,13 +2737,15 @@ model Tag {
   desireForbiddenBy   DesireTemplate[] @relation("DesireForbidsTag")
   desireAllRequiredBy DesireTemplate[] @relation("DesireRequiresAllTag")
 
-  characters    CharacterTag[]
-  roomTags      RoomTag[]
-  noticePost    NoticePost?
-  gatedGroups   TagGroup[]     @relation("TagGroupGate")
-  cavingRolls   CavingRoll[]
-  offers        Offer[]
-  craftProjects CraftProject[]
+  characters          CharacterTag[]
+  roomTags            RoomTag[]
+  noticePost          NoticePost?
+  gatedGroups         TagGroup[]        @relation("TagGroupGate")
+  cavingRolls         CavingRoll[]
+  offers              Offer[]
+  craftProjects       CraftProject[]
+  laborDropOptions    LaborDropOption[] @relation("LaborDropGrantTag")
+  laborDropRequiredBy LaborDropOption[] @relation("LaborDropRequiredTag")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3099,6 +3182,19 @@ model Action {
   // moveReviewStatus itself).
   moveKind         MoveKind?
   moveReviewStatus MoveReviewStatus @default(OPEN)
+
+  // Which tier actually won for a LABOR Move — "basic" | "skilled" |
+  // "hunting" | "farming" | "fishing" | "refining", db/lib/laborAccess.js's
+  // own tier strings, not a Prisma enum (nothing else needs to query on it).
+  // Stamped once, at filing (db/lib/moves.js) or at auto-labor creation
+  // (db/lib/autoLaborPass.js), and never recomputed — a free zone move can
+  // carry a character somewhere else before turn close (see locationId's own
+  // comment above), so re-deriving from where they stand NOW would answer a
+  // different question than the one that was actually priced.
+  // db/lib/moveEffects.js's `laborDrop` effect is the one reader; a row filed
+  // before this field existed reads null and simply rolls no drop, same as
+  // any LABOR Move whose roll matches no configured pool.
+  laborTier String?
 
   // Who resolved this Move and when. Request has carried these since the
   // rework; Moves need them too now that several GMs share the queue behind a

@@ -213,6 +213,7 @@ async function runAutoLaborPass(prisma, turn) {
             // matches a Lazy holder's actual payout. See laborAccess.js#lazyExpression.
             resourceRollExpression: lazyExpression(rate.expression, tagSlugs),
             resourceRollValue: roll?.value ?? null,
+            laborTier: rate.tier,
             zoneId: character.zoneId ?? null,
             // Where the work happened, not where they end up — see
             // Action.locationId in schema.prisma.

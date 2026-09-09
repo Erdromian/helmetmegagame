@@ -70,6 +70,9 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
     if (!laborRate.ok) return { ok: false, error: `${laborRate.reason} ‡` };
     resourceRollExpression = laborRate.expression;
   }
+  // The tier that won, stamped once here — see Action.laborTier's comment in
+  // schema.prisma for why this is never recomputed later.
+  const laborTier = laborRate?.tier ?? null;
 
   // @@unique([characterId, turnId]) is the real gate; a retried submit at
   // rollover must not become a second Move.
@@ -85,6 +88,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
         description: raw,
         resourceDelta: null,
         resourceRollExpression,
+        laborTier,
         zoneId: character.zoneId ?? null,
         // Stamped at filing time. A free zone move costs no Action, so by the
         // time a Labor pays at turn close they may be standing somewhere else.

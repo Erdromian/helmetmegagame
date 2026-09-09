@@ -51,6 +51,7 @@ async function addResources(tx, characterId, amount) {
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { nextLaborFatigueSlug } = require("./laborFatigue");
+const { TIER_TO_LABOR_DROP_TYPE, pickLaborDropOption } = require("./laborDrops");
 
 // One entry per pushable thing. `read` decides what this Move would push right
 // now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert` takes back
@@ -187,6 +188,78 @@ const MOVE_EFFECTS = {
       await revertRefinery(tx, action.characterId, snapshot);
     },
   },
+
+  // The labor drop die (docs/systemdocs/LABORDROPS.md): a 1d6 rolled against
+  // whatever pool docs/labordrops.yaml configured for the tier that won,
+  // combined across up to six scopes. `action.laborTier` is read rather than
+  // recomputed — see its own comment in schema.prisma — so this fires for
+  // exactly the tier that was actually priced, even if the character has
+  // since walked somewhere else on a free zone move. No config for a roll (the
+  // common case while the table is still mostly unbuilt) or a drawn NOTHING
+  // entry both read as "nothing happened" and record nothing.
+  laborDrop: {
+    read: (action) => (action.laborTier && action.laborTier !== "refining" ? 1 : 0),
+    apply: async (tx, action) => {
+      const laborType = TIER_TO_LABOR_DROP_TYPE[action.laborTier] ?? null;
+      if (!laborType) return 0;
+      const roll = 1 + Math.floor(Math.random() * 6);
+      // Skill-gated pools (Forester in the Forest, LABORDROPS.md §2a) need to
+      // know what the character actually holds RIGHT NOW — a skill learned
+      // since filing should count, the same live-state reasoning
+      // resolveLaborRate already uses for the tier itself.
+      const heldTagIds = new Set(
+        (
+          await tx.characterTag.findMany({
+            where: { characterId: action.characterId },
+            select: { tagId: true },
+          })
+        ).map((row) => row.tagId),
+      );
+      const option = await pickLaborDropOption(tx, {
+        roll,
+        laborType,
+        zoneId: action.zoneId ?? null,
+        locationId: action.locationId ?? null,
+        heldTagIds,
+      });
+      if (!option || option.kind === "NOTHING") return 0;
+
+      if (option.kind === "RESOURCES") {
+        const moved = await addResources(tx, action.characterId, option.resourceAmount ?? 0);
+        if (!moved) return 0;
+        return { roll, kind: "RESOURCES", amount: moved };
+      }
+
+      // TAG. addToStack is the shared primitive (db/lib/tagWrites.js) — it
+      // increments an existing stack rather than minting a second row, and
+      // pins a non-stackable tag at quantity 1 no matter how many times it's
+      // drawn, so a repeat find of the same non-stackable item is a no-op
+      // grant rather than an error.
+      const { addToStack } = require("./tagWrites");
+      await addToStack(tx, action.characterId, option.tagId, 1, {
+        source: "EVENT",
+        stackable: option.tag?.stackable === true,
+      });
+      return {
+        roll,
+        kind: "TAG",
+        tagId: option.tagId,
+        tagSlug: option.tag?.slug ?? null,
+        tagName: option.tag?.name ?? "something",
+      };
+    },
+    revert: async (tx, action, snapshot) => {
+      if (!snapshot) return;
+      if (snapshot.kind === "RESOURCES") {
+        await addResources(tx, action.characterId, -snapshot.amount);
+        return;
+      }
+      if (snapshot.kind === "TAG" && snapshot.tagId) {
+        const { dropCharacterTag } = require("./tagWrites");
+        await dropCharacterTag(tx, action.characterId, snapshot.tagId, 1);
+      }
+    },
+  },
 };
 
 // Pushes everything this Move is worth and returns the blob to stamp on
@@ -228,6 +301,13 @@ function describeMoveEffects(applied) {
     if (key === "resources") parts.push(`${value > 0 ? "+" : ""}${value} ⬢`);
     // Legacy rows recorded a bare `1`, always meaning a plain Exhausted grant.
     else if (key === "exhausted") parts.push(value?.slug === TIRED_SLUG ? "Tired" : "Exhausted");
+    else if (key === "laborDrop") {
+      parts.push(
+        value.kind === "TAG"
+          ? `found ${value.tagName}`
+          : `${value.amount > 0 ? "+" : ""}${value.amount} ⬢ (find)`,
+      );
+    }
     else if (key === "refined") {
       parts.push(
         value.empty

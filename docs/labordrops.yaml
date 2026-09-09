@@ -1,0 +1,210 @@
+# The labor drop die's config. Sole master for LaborDropOption, synced by
+# `db:sync-labor-drops` — see docs/systemdocs/LABORDROPS.md, which is
+# canonical for the shape below and how the six buckets combine.
+#
+# Six top-level buckets, one per legal scope. Each nests roll face (1-6) ->
+# a pool (a plain list). A combined draw for one Labor payout pulls from
+# whichever of the six buckets actually name that labor type/zone/location,
+# all at the SAME roll face, and picks one entry uniformly from all of them
+# pooled together — repeat an entry to weight it, the way the good tables
+# below repeat "nothing" rather than carrying a weight field.
+#
+# One pool entry is one of three things:
+#   - a Tag slug (docs/tags.yaml)              -> grants the tag
+#   - "+N" / "-N"                               -> a ⬢ delta
+#   - nothing                                   -> an explicit no-result pad
+#
+# laborType keys: basic, skilled, hunting, farming, fishing — the five
+# Laboring tiers db/lib/laborAccess.js resolves a Labor payout to
+# (LABORING.md §2). A refining Labor (the Godard Factory floor) never rolls
+# at all — it pays in Squeeze, not the die.
+#
+# zone / location keys are slugs from docs/zones.yaml. laborTypeZone and
+# laborTypeLocation nest labor type first, then place.
+#
+# A SEVENTH gate, orthogonal to all six buckets: nest `requiresTag:` under
+# any roll-keyed node (a whole bucket, or one place/labor-type inside it) to
+# add a skill-gated pool on top — a map of skill slug -> the same roll-keyed
+# shape, recursively, so it can nest to any depth. A gated entry only joins
+# the combined draw for a character who holds that tag too; every ungated
+# entry at the same roll still applies to everyone, same as before. See
+# LABORDROPS.md §2a.
+#
+# Basic/skilled on their own are still unconfigured — an unconfigured
+# (bucket, roll) pair simply never contributes to the pool, so a character
+# labors and finds nothing, same as an explicit "nothing" draw. That's the
+# deliberate default while the rest of the table gets designed.
+#
+# Every pool entry below carries a short "why" blurb before its mechanical
+# value (`slug  # blurb — value`, LABORDROPS.md §6b) — write the blurb
+# yourself when you add an entry; `npm run db:audit-labor-drops -- --write`
+# (which runs automatically on save, via .claude/hooks/labordrops-value-hint.py)
+# preserves it and only refreshes what comes after " — ". Never hand-guess a
+# number — run `--write` (or the plain read-only form) instead.
+
+# Global entries combine into EVERY labor type's pool at the same roll face
+# (LABORDROPS.md §2), which is exactly why the minor mishaps below live here
+# instead of being copy-pasted into hunting/farming/fishing separately —
+# there's no tag in the catalog that reads as hunting-specific-minor-injury
+# vs farming-specific, so one shared "the day went a little wrong" pool
+# covers all of them. All three are self-clearing in 2-3 turns with no
+# mechanical cost beyond the flavor (LABORDROPS.md §6 has the reasoning).
+global:
+  1:  # EV 0.00 ⬢ · hit 100%
+    - bruised  # an ordinary knock, nothing dramatic — not sellable
+    - vomiting  # something you ate, or just a bad morning — not sellable
+    - aching  # a long day, nothing more — not sellable
+  6:  # EV 1.00 ⬢ · hit 100%
+    - obol  # someone dropped it and never noticed — the coin itself, worth 1 ⬢
+
+laborType:
+  hunting:  # ⬢ EV/labor 0.33 · hit 33%
+    # A boar doesn't go down quietly, and neither does anything bigger.
+    # Minor, self-limiting, medical-basic-or-free injuries only — the
+    # zone-specific hunting tables below (laborTypeZone.hunting.*) are
+    # where the genuinely dangerous game lives (LABORDROPS.md §2a-adjacent).
+    1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+      - minor-bleeding  # a snare wire or a blade gets away from you — not sellable
+      - minor-wound  # the animal gets one good hit in before it goes down — not sellable
+      - sprained-ankle  # a bad step chasing something faster than you — not sellable
+    6:  # own EV 2.14 ⬢ · hit 100% · combined EV 2.00 ⬢ · hit 100%
+      - nightshade-herb  # a coil left behind at an old camp — sells 2 ⬢
+      - poppy-pods  # sells 2 ⬢
+      - coca-leaves  # sells 2 ⬢
+      - ravens-eye  # sells 4 ⬢
+      - leeches  # sells 2 ⬢
+      - "+1"
+      - "+2"
+  fishing:  # ⬢ EV/labor 0.25 · hit 30%
+    6:  # own EV 1.56 ⬢ · hit 78% · combined EV 1.50 ⬢ · hit 80%
+      - trout-heart  # sells 4 ⬢
+      - poppy-pods  # sells 2 ⬢
+      - leeches  # sells 2 ⬢
+      - fish-roe  # sells 2 ⬢
+      - old-coin  # sells 1 ⬢
+      - nothing
+      - nothing
+      - "+1"
+      - "+2"
+  farming:  # ⬢ EV/labor 0.20 · hit 28%
+    6:  # own EV 1.22 ⬢ · hit 67% · combined EV 1.20 ⬢ · hit 70%
+      - nightshade-herb  # sells 2 ⬢
+      - poppy-pods  # sells 2 ⬢
+      - coca-leaves  # sells 2 ⬢
+      - honey  # sells 2 ⬢
+      - nothing
+      - nothing
+      - nothing
+      - "+1"
+      - "+2"
+  basic: {}
+  skilled: {}
+
+zone:
+  # Forester's own catalog line is "gaining an advantage in finding food,
+  # water, or shelter" (docs/tags.yaml) — nothing read it before this. A
+  # Forester working the Forest zone (any labor type — Basic and Skilled
+  # included, same as Global) now draws from this pool ON TOP OF whatever
+  # their labor type's own table already gives them. The Forest carries NO
+  # ungated zone-wide entry of its own, on purpose: it's the safest zone to
+  # work, so nothing extra applies to an ordinary character standing in it —
+  # `laborTypeLocation.hunting.forest-cliffs` below is the one deliberate
+  # exception, a single dangerous spot inside an otherwise uneventful zone.
+  forest:  # ⬢ EV/labor 0.17 · hit 33%
+    requiresTag:
+      forester:  # ⬢ EV/labor 0.25 · hit 33%
+        6:  # own EV 1.67 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
+          - rope  # a coil left behind at an old camp — sells 4 ⬢
+          - trail-ration  # provisions someone else didn't need any more — not sellable
+          - "+1"
+
+  # Six of the marsh's seven locations carry `attributes.godflesh` in
+  # zones.yaml — the whole zone sits on it, not one Location's labor, so the
+  # find lives here rather than under laborTypeZone. "Thick reeds crowd
+  # open-ended ponds... an endless landscape of purple wetness" (zones.yaml,
+  # the zone's own words) is also where the two bad entries below come from:
+  # a mire that hides more than mud (marshes-woods' sleeping thing, the
+  # north marshes' scratched-up cages).
+  marshes:  # ⬢ EV/labor 0.17 · hit 33%
+    1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+      - deep-wound  # something under the water was not a root — not sellable
+      - minor-bleeding  # the reeds and the leeches both bite — not sellable
+    6:  # own EV 1.00 ⬢ · hit 100% · combined EV 1.00 ⬢ · hit 100%
+      - godflesh  # the mud gives up a piece of what it's fed on — not sellable
+      - "+1"
+      - "+2"
+
+  # "Ancient buildings layer atop craggy, mossy rocks" (zones.yaml) — old
+  # stonework, sheer drops (the Hanging Steps, the Grand Ravine), and a
+  # brigand camp sharing the high ground. Danger only; the zone's own name
+  # never promised a bonus for it.
+  hills:  # ⬢ EV/labor 0.17 · hit 33%
+    1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+      - sprained-ankle  # the ground here doesn't forgive a bad step — not sellable
+
+  # "A place of true darkness. The end of the world." (zones.yaml) — the
+  # zone-wide entry is deliberately the only thing authored for Depths
+  # outside the labor-specific hunting table below; nothing about working
+  # here is meant to feel safe.
+  depths:  # ⬢ EV/labor 0.17 · hit 33%
+    1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+      - deep-wound  # the dark gets a piece of you before you see what did it — not sellable
+
+location:
+  # "A walled garden for growing herbs" behind "ornate galleries" (zones.yaml,
+  # manors / manors-garden) — old money, and old money misplaces things.
+  # Deliberately not laborType-scoped: whatever work brings you to the
+  # Manors, someone here dropped something worth finding.
+  manors:  # ⬢ EV/labor 0.37 · hit 30%
+    6:  # own EV 2.50 ⬢ · hit 75% · combined EV 2.20 ⬢ · hit 80%
+      - purse  # tucked behind a hedge, forgotten mid-errand — not sellable
+      - jewelry  # a stray earring, or worse, nobody's come looking for — sells 8 ⬢
+      - nothing
+      - "+2"
+
+laborTypeZone:
+  hunting:
+    # cliffs-den (forest-cliffs' own room, zones.yaml) — "damp fur, old
+    # blood, and wet leaves. Bones have been pushed toward the edges" — is
+    # the reason forest-cliffs gets its own laborTypeLocation table below
+    # instead of a zone-wide entry; this section is the OTHER three zones,
+    # where the danger is the whole place rather than one den in it.
+    marshes:  # ⬢ EV/labor 0.29 · hit 33%
+      1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+        - grievous-wound  # whatever sleeps in the mire wakes up wrong — not sellable
+    hills:  # ⬢ EV/labor 0.33 · hit 33%
+      1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+        - blunt-force-trauma  # gored, thrown, or both, before the kill lands — not sellable
+    depths:  # ⬢ EV/labor 0.33 · hit 33%
+      1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+        - grievous-wound  # something down here hunts back — not sellable
+
+laborTypeLocation:
+  hunting:
+    # The Cliffs' own den (zones.yaml room `cliffs-den`, under this
+    # Location): "damp fur, old blood, and wet leaves... bones pushed
+    # toward the edges." Forest stays the safe zone in general (see the
+    # `zone.forest` comment above) — this is the one named exception, a
+    # single dangerous den inside it, with the payout to match the risk.
+    forest-cliffs:  # ⬢ EV/labor 0.38 · hit 33%
+      1:  # own EV 0.00 ⬢ · hit 100% · combined EV 0.00 ⬢ · hit 100%
+        - deep-wound  # whatever denned here doesn't share — not sellable
+      6:  # own EV 3.50 ⬢ · hit 100% · combined EV 2.30 ⬢ · hit 100%
+        - "+3"
+        - "+4"
+  fishing:
+    # hills-waterway / "Fracturing Waterway" (zones.yaml): its own bridge
+    # "fallen into disrepair," patched scaffolding over a collapsed arch —
+    # decayed infrastructure over real fishing water (`yield.fishing: 0.8`).
+    # Salvage Plate and a Bastard Sword are both real catalog items
+    # (CAVING.md's own Rare/Extremely-rare loot tiers), heavily padded with
+    # `nothing` so a fishing trip here is ordinary nine times in ten and a
+    # real find the rest.
+    hills-waterway:  # ⬢ EV/labor 0.65 · hit 28%
+      6:  # own EV 7.83 ⬢ · hit 50% · combined EV 3.88 ⬢ · hit 69%
+        - salvage-plate  # scrap metal, snagged off the collapsed scaffolding — sells 3 ⬢
+        - bastard-sword  # someone went into that water and didn't come out for it — sells 42 ⬢
+        - nothing
+        - nothing
+        - nothing
+        - "+2"

@@ -62,6 +62,7 @@ const { deleteCharacterRow } = require("./lib/deleteCharacter");
 const { syncRolesFromYaml } = require("./lib/syncRoles");
 const { syncDesiresFromYaml } = require("./lib/syncDesires");
 const { syncDocumentsFromYaml } = require("./lib/syncDocuments");
+const { syncLaborDropsFromYaml } = require("./lib/syncLaborDrops");
 const {
   SPECIAL_CHANNELS,
   NARROWCAST_SLUGS,
@@ -1582,6 +1583,7 @@ module.exports = {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
+  syncLaborDropsFromYaml,
   SPECIAL_CHANNELS,
   NARROWCAST_SLUGS,
   buildNarrowcastContext,

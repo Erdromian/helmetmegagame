@@ -8,6 +8,11 @@ Read this before touching `db/lib/laborAccess.js`, `db/lib/production.js`,
 `db/lib/laborYield.js`, `db/lib/autoLaborPass.js`, the `yield:` blocks in
 `docs/zones.yaml`, or any `laborBonus:` in `docs/tags.yaml`.
 
+A resolved Labor also rolls the **labor drop die** — a 1d6 on top of the ⬢,
+which can grant a tag or a bonus. That system is its own doc,
+[`LABORDROPS.md`](LABORDROPS.md); this page only owns what a Labor is worth,
+not what else it might find.
+
 ## 1. The shape of it
 
 Three things changed at once, and they only make sense together:

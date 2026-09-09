@@ -25,6 +25,7 @@ import {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
+  syncLaborDropsFromYaml,
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
@@ -626,6 +627,9 @@ async function finishGameWipe(actorDiscordUserId, characters, ghostMemberIds, fi
   await step("role sync", () => syncRolesFromYaml(prisma));
   await step("desire sync", () => syncDesiresFromYaml(prisma));
   await step("document sync", () => syncDocumentsFromYaml(prisma));
+  // No dependents of its own, so it runs last — validates against the tag,
+  // zone and location catalogs the steps above just rebuilt.
+  await step("labor drop sync", () => syncLaborDropsFromYaml(prisma));
 
   // Backstop: whatever a retry above missed, the doctor finds and repairs.
   await step("channel doctor", () =>
