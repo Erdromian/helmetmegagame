@@ -231,12 +231,12 @@
 #
 #   Tier 0  untreatable            no requirement block at all
 #   Tier 1  very minor, first aid  1 ⬢,  0 turns, medical-basic
-#   Tier 2  minor                  2 ⬢,  0 turns, medical-basic
-#   Tier 3  moderately severe      2 ⬢,  1 turn,  medical-skilled
-#   Tier 4  severe                 4 ⬢,  1 turn,  medical-skilled
-#   Tier 5  very minor surgery     6 ⬢,  1 turn,  medical-skilled
-#   Tier 6  severe surgery         8 ⬢,  1 turn,  medical-expert
-#   Tier 7  complex surgery        8 ⬢,  1 turn,  medical-expert, gambit
+#   Tier 2  minor                  2 ⬢,  1/4 turn, medical-basic
+#   Tier 3  moderately severe      2 ⬢,  1/3 turn, medical-skilled
+#   Tier 4  severe                 4 ⬢,  1/3 turn, medical-skilled
+#   Tier 5  very minor surgery     7 ⬢,  1/2 turn, medical-skilled
+#   Tier 6  severe surgery         14 ⬢, 1 turn,   medical-expert
+#   Tier 7  complex surgery        14 ⬢, 1 turn,   medical-expert, gambit
 #
 # The top three rungs are the surgical ones, and they are where the ladder
 # does its real work. A Serpent closes an arterial bleed and cuts away dead

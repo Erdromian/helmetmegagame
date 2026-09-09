@@ -142,6 +142,19 @@ guess, which is also why a Routine already committed to treating somebody
 refuses a Broadsword for the rest of the turn, same as any two families
 would.
 
+**The eight medicines (`antidote`, `fever-draught`, `burn-dressing`,
+`autoinjector`, `portable-surgical-pack`, `last-breath`, `cybernetic-arm`,
+`cybernetic-leg`) are ordinary recipes now, not afflictions or fitted
+items** — they carry `requirementSkills: [brewing-skilled]` or
+`[brewing-expert]`, so `craftFamily()` derives them as `brewing` by the
+ordinary rule above, the same as any other brew. They no longer share a
+family with Heal at all: `medical` bills healing and `administerSkill`
+fittings only now, and brewing a batch of Antidote is a `brewing`-family
+craft that a Routine already spent on Healing someone would refuse, same as
+any Broadsword. One Action per character per turn still carries only one
+family, so a medic can no longer heal a patient and brew their own
+medicine in the same turn.
+
 **The ledger.** `Action.craftBudget` on the `auto:craft` Action:
 
 ```json

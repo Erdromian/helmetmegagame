@@ -1211,18 +1211,21 @@ thing. See "The Move economy" below for how that bills and what it replaced.
 |---|---|---|---|---|---|
 | 0 | Untreatable | — | — | — | — |
 | 1 | Very minor — first aid | 1 | 0 | Basic | no |
-| 2 | Minor | 2 | 0 | Basic | no |
+| 2 | Minor | 2 | 1/4 | Basic | no |
 | 3 | Moderately severe | 2 | 1/3 | Skilled | no |
 | 4 | Severe | 4 | 1/3 | Skilled | no |
 | 5 | Very minor surgery | 7 | 1/2 | Skilled | no |
-| 6 | Severe surgery | 9 | 1/2 | Expert | no |
+| 6 | Severe surgery | 14 | 1 | Expert | no |
 | 7 | Complex surgery | 14 | 1 | Expert | yes |
 
 Tiers 5–7 were repriced by the medical pass (M2 — 6→7, 8→9, 8→14) precisely
 because a whole Move stopped being what any of them actually cost once the
 lower rungs moved onto fractions; the ⬢ went up with the tier's now-relative
-weight rather than staying pinned to the old flat 6/8/8. Tiers 1–4 kept
-their ⬢ exactly — only their Move billing changed.
+weight rather than staying pinned to the old flat 6/8/8. Tier 6 has since
+been repriced again, 9→14 and 1/2→1 Move, so it now costs exactly what tier
+7 does — see below. Tiers 1 and 3–4 kept their ⬢ and their Move billing
+exactly; tier 2 kept its ⬢ but lost its free ride — it now bills a flat 1/4
+Move like tiers 3–4's fractions, never touching the pool below.
 
 The ladder now runs in both directions. `HARM_CHARACTER` (`REQUESTS.md` §5b)
 puts a Health tag **on** somebody — offered from `isInflictable()`'s curated
@@ -1253,7 +1256,7 @@ rolling — that is tier 5, and it is all the surgery they get. Anything that
 means opening a chest or a belly is Esculap's work at tier 6; a Serpent may
 still attempt it, but they roll. Tier 7 is the rung even Esculap rolls for,
 which is why it shares tier 6's price: what separates the two is the Gambit,
-not the bill. Only eleven tags sit above tier 5, and that scarcity is the point —
+not the bill. Only twelve tags sit above tier 5, and that scarcity is the point —
 Esculap's time should be a thing players negotiate over.
 
 **Realism sets the rung, not severity.** Severity and duration matter, but the
@@ -1295,20 +1298,24 @@ A routine cure spends the same Move a craft does — `MEDICAL.md` §3 owns the
 full mechanism (the shared `craft` family arithmetic, the ledger, the
 `billedSeen` re-check); this is the tag-side summary.
 
-**A 0-turn cure is free, up to a shared daily pool.** Every tier-1/2 (and any
-named exception below) rung draws on `MEDICAL_SIMPLE_PER_TURN = 4`
-(`web/lib/requests.js`) — 4 first-aids a day for a medic of ANY tier,
-counted per medic (not per patient) off that turn's `request_heal_character`
-audit rows. This replaced the old per-tier daily ration (2 a turn on Basic, 3
-on Skilled, 4 on Expert, `MEDICAL_TIER_CAPS` — deleted); the Expert's edge is
-now what they can afford on the turns-costing rungs, not a bigger free
-allowance. Past the 4th, each additional 0-turn cure spills into the
-medical family's Move at **1/4** rather than refusing outright, the same
-"allowance free, past it costs the Move" rule Dead Simple crafting uses.
+**A 0-turn cure is free, up to a shared daily pool.** Only tier 1 and the
+two 0-⬢ named exceptions below (`dislocated-shoulder`, `minor-bleeding`)
+still price at `turnsCost: 0` — tier 2 no longer does (below) — and that
+rung draws on `MEDICAL_SIMPLE_PER_TURN = 4` (`web/lib/requests.js`) — 4
+first-aids a day for a medic of ANY tier, counted per medic (not per
+patient) off that turn's `request_heal_character` audit rows. This
+replaced the old per-tier daily ration (2 a turn on Basic, 3 on Skilled, 4
+on Expert, `MEDICAL_TIER_CAPS` — deleted); the Expert's edge is now what
+they can afford on the turns-costing rungs, not a bigger free allowance.
+Past the 4th, each additional 0-turn cure spills into the medical family's
+Move at **1/4** rather than refusing outright, the same "allowance free,
+past it costs the Move" rule Dead Simple crafting uses.
 
-**Everything at tier 3+ bills the Move directly and never touches that
-pool** — a 1/3 or 1/2 rung spends that fraction of the medic's Routine, and
-tier 7 (always a Gambit) spends the whole thing. The family is hardcoded
+**Everything at tier 2+ bills the Move directly and never touches that
+pool** — tier 2 (and its named-exception siblings `frostbite`, `choking`,
+`hypothermia`) is a flat 1/4 now rather than drawing on the pool at all, a
+1/3 or 1/2 rung spends that fraction of the medic's Routine, and tier 6 or
+7 (a full Move, tier 7 always a Gambit) spends the whole thing. The family is hardcoded
 `"medical"` on every caller that bills one of these, never derived from
 `craftFamily(tag)`'s guess — a skill-less cure like Choking would otherwise
 fall into the generic `craft` family and share a Routine with actual
@@ -1380,12 +1387,13 @@ rungs; don't copy their numbers onto anything else.
 - **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 1/3 Move,
   Medical (Skilled). Sits between tiers 3 and 4: stopping blood loss is
   urgent but simpler than the rest of what "Severe" covers.
-- **`choking`, `hypothermia`** — 2 ⬢, 0 turns, no skill. A Heimlich (or
+- **`choking`, `hypothermia`** — 2 ⬢, 1/4 Move, no skill. A Heimlich (or
   warming somebody back up) needs no training at all — the ⬢ buys the
   doctor's time, not their expertise. Choking was repriced onto this shape
   by M2 (it used to cost a whole turn); Hypothermia was untreatable at all
-  until M6 gave it the identical shape.
-- **`frostbite`** — 2 ⬢, 0 turns, Medical (Skilled). Also gained
+  until M6 gave it the identical shape; both now bill the same flat 1/4 Move
+  every other rung-2 tag does, never the free pool.
+- **`frostbite`** — 2 ⬢, 1/4 Move, Medical (Skilled). Also gained
   `expiresInto: [necrosis]` — it now progresses like an untreated wound
   instead of sitting inert.
 
@@ -1490,7 +1498,7 @@ carries `durationTurns: 1`: one turn on death's door, then
 
 That turn is the whole design. `dying` is visible and carries a tier-7 cure,
 so a heroic save is still on the table — a medic with Medical (Expert), a
-Gambit, 8 ⬢ and one turn can pull someone back. What went away is the version
+Gambit, 14 ⬢ and one turn can pull someone back. What went away is the version
 where a character sat on death's door indefinitely because no GM had got to
 the Kill button. The pass is also careful in one direction: a `dying` row with
 a **null** `expiresTurn` is stamped for the next close and its holder warned

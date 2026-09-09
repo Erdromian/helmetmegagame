@@ -273,7 +273,7 @@ bypasses Envenomated's own tier. Its recipe (and the two cybernetics') is
 hidden by conjunction rather than by the ordinary "hidden until you hold the
 ingredient" rule most secret recipes use (`CRAFTING.md`'s Recipes-tab
 filter): the Craft menu shows it only to a character who is BOTH
-`medical-expert` AND already holding the named ingredient
+`brewing-expert` AND already holding the named ingredient
 (`web/lib/tagRequests.js#computeKnownRecipeIds`) — an expert holding the rare
 part realizes what it could brew; neither half alone is enough to see it.
 

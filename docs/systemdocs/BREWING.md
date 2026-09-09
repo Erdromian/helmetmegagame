@@ -43,8 +43,12 @@ it undercutting the Factory's refining.
 
 | Slug | Name | pt | Gate |
 |---|---|---|---|
-| `brewing-basic` | Brewing (Basic) | 2 | none |
-| `brewing-skilled` | Brewing (Skilled) | 2 | `parentTag: brewing-basic` (cumulative, total 4) |
+| `brewing-basic` | Brewing (Basic) | 5 | none |
+| `brewing-skilled` | Brewing (Skilled) | 5 | `parentTag: brewing-basic` (cumulative, total 10) |
+| `brewing-expert` | Brewing (Expert) | 5 | `parentTag: brewing-skilled` (cumulative, total 15) |
+
+Brewing (Expert) is new with the medical pass — it exists to gate the five
+medicines below that used to be a Medical crafter's work (§3a).
 
 ## 2. Brewing (Basic)
 
@@ -121,6 +125,44 @@ An empty **Consumes into** cell is not an oversight. `consumable` with no
 `consumesInto` is set where the brew is spent *by a Move* rather than by the
 drinker — a poison you administer, a flask you throw, a powder worked into
 someone else's wound — so the GM applies the result to whoever it happened to.
+
+## 3a. The medicines (medical pass)
+
+Eight recipes moved in from the old Medical craft when the medical pass split
+crafting the medicine from treating the patient with it: three price at
+Skilled, five — all HIDDEN or secret — at Expert. Brewing them is a `brewing`
+craft now, billed off `craftFamily()` like any other brew (`CRAFTING.md`
+§2a); Healing a patient with a Heal request, and fitting the two prosthetics
+below with `administerSkill`, are still Medical (Expert)'s job
+(`MEDICAL.md` §2, `TAGS.md` §5c) — one Action carries one family, so a medic
+can't brew a batch and heal a patient in the same turn.
+
+These don't fit the **Consumes into** shape above — they're `Tag.cures`
+items (`MEDICAL.md` §1), not status brews — so the last column is **Cures**
+instead.
+
+| Brew (Skilled) | ⬢ | Turns | Cures |
+|---|---|---|---|
+| `antidote` | 4 | 1/2 | poisoned, envenomated |
+| `fever-draught` | 3 | 1/2 | feverish, heatstroke, cave-fever |
+| `burn-dressing` | 4 | 1/2 | burned, severe-burns |
+
+| Brew (Expert) | ⬢ | Turns | Ingredient | Cures |
+|---|---|---|---|---|
+| `autoinjector` | 3 | 1 | `antidote` + `fever-draught` + `brackenmoss` (HIDDEN — needs the brewer to hold all three) | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
+| `portable-surgical-pack` | 8 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
+| `last-breath` | 12 | 3 (project) | `aberrant-heart` (secret) | dying |
+| `cybernetic-arm` | 16 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
+| `cybernetic-leg` | 16 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
+
+`last-breath` and the two cybernetics are `catalog: secret` and hidden by
+conjunction — the Craft menu only shows them to a `brewing-expert` already
+holding the named ingredient (`MEDICAL.md` §6). `autoinjector` is `catalog:
+all` but HIDDEN the ordinary way: off the Recipes tab until the brewer holds
+`brackenmoss`, the non-public ingredient (`CRAFTING.md` §2b). Neither
+cybernetic has an aftermath — the graft leaves no mark — while `last-breath`
+cures Dying outright with no die, the one item door onto a tier-7 cure that
+isn't a Gambit.
 
 ## 4. Ingredients
 

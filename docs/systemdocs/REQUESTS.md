@@ -651,10 +651,12 @@ must be satisfied —
 a Deep Wound names Medical (Skilled), so a character with only the Basic tier
 sees it in the menu labelled "— Gambit ‡" and may still attempt it — it files a
 GAMBIT Move rather than curing anything, and the GM resolves the roll
-(TAGS.md §5c). A cure costing a turn or more bills the medical family's Move
-directly instead of any ration; a 0-turn cure draws on a shared daily pool of
-8 first-aids a medic — of any tier — instead (`MEDICAL_SIMPLE_PER_TURN`,
-`MEDICAL.md` §3), replacing the older per-tier 2/3/4 daily cap. The menu is
+(TAGS.md §5c). A cure costing any fraction of a turn — including the 2 ⬢
+Simple rung, which now always bills 1/4 rather than drawing on the pool —
+bills the medical family's Move directly instead of any ration; only a
+0-turn cure draws on a shared daily pool of 4 first-aids a medic — of any
+tier — instead (`MEDICAL_SIMPLE_PER_TURN`, `MEDICAL.md` §3), replacing the
+older per-tier 2/3/4 daily cap. The menu is
 advisory as always: `healCharacterRequestImpl` re-derives every one of those
 from the database before it writes anything.
 
