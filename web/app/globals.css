@@ -516,6 +516,16 @@ h3 {
   color: var(--text);
 }
 
+/* The first row that came out of a room stash rather than off your own back
+   (EquipBoard.js). A hairline instead of a heading: the rows below it already
+   name their room, and a "In the Chest" label over one item was a line of
+   words to say what one word already said. */
+.menu-item[data-rule] {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
 .menu-item:hover,
 .menu-item:focus-visible {
   color: var(--accent-text);

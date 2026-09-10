@@ -8,6 +8,12 @@ import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { isTradeable } from "@/lib/tagRequests";
+import {
+  TAG_CHIP_FIELDS,
+  cookedTasteOnly,
+  stripEmptyUnlocks,
+  stripWeightless,
+} from "@/lib/referenceData";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { craftMoveCost } from "@/lib/craftBudget";
 import { MEDICAL_SIMPLE_PER_TURN } from "@/lib/requests";
@@ -107,6 +113,14 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
                 category: true,
                 stackable: true,
                 tradeable: true,
+                // Weight, and DELIBERATELY nothing more. A room's stash rows
+                // carry a whole chip; pockets do not. The loot filter below is
+                // `tradeable`, not catalogVisibility, so a secret tag somebody
+                // is carrying is already named here — adding its description,
+                // its recipe and its cost to that would hand a looter the
+                // catalog entry as well (REQUESTS.md §5b). What it weighs is
+                // not a secret from the person about to pick it up.
+                weightLbs: true,
               },
             },
           },
@@ -303,6 +317,9 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         tagName: ct.tag.name,
         stackable: ct.tag.stackable,
         quantity: ct.quantity ?? 1,
+        // Assets weigh nothing on your back (CARRY.md §1), the same rule the
+        // room rows and the sheet's own source apply.
+        weightLbs: ct.tag.category === "Assets" ? 0 : (ct.tag.weightLbs ?? 0),
       })),
   }));
 
@@ -432,7 +449,13 @@ export async function loadStashRooms(character) {
           select: {
             tagId: true,
             quantity: true,
-            tag: { select: { name: true, stackable: true, weightLbs: true, category: true } },
+            // The whole chip shape, not the four columns this used to take.
+            // Pulling something out of a stash is the one moment a player has
+            // to decide whether they want it, and until 2026-09-10 the row was
+            // a bare name — so the only way to learn where a helmet went was to
+            // carry it home and try it on. Spread it, don't retype it: that is
+            // the drift TAG_CHIP_FIELDS exists to stop.
+            tag: { select: { ...TAG_CHIP_FIELDS, stackable: true, equippable: true } },
           },
         },
       },
@@ -450,6 +473,10 @@ export async function loadStashRooms(character) {
       quantity: rt.quantity,
       stackable: rt.tag.stackable,
       weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
+      // The chip's own copy, through the same two filters every other
+      // TAG_CHIP_FIELDS caller runs: a dish names its taste and not its
+      // ingredients, and a weightless tag ships neither weight column.
+      tag: stripWeightless(stripEmptyUnlocks(cookedTasteOnly(rt.tag))),
     })),
   }));
 }

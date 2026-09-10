@@ -208,3 +208,54 @@ export async function unequipOne(characterTagId) {
   revalidatePath("/character");
   return { equipped: equippedQuantity > 0 };
 }
+
+// Take something out of a room stash and put it on, in one gesture.
+//
+// The board's empty cells list what a reachable room is holding beside what
+// you carry (EquipBoard.js), because a player pointed out the alternative:
+// open Transfer, take the thing, close it, find the slot, try it on. This is
+// that sequence with the middle taken out.
+//
+// TWO ACTS, NOT ONE, and deliberately not merged. The take goes through the
+// ordinary transferRequest — so it files its TRANSFER_TAG the same as any
+// other, and the room says "a young man takes a Padded Cap" in its own thread
+// the same as any other (CARRY.md §7). Reaching into the stash from here must
+// cost exactly what reaching into it from the dialog costs, and the only way
+// to be sure of that is to call the same function. transferRequest re-resolves
+// the actor and re-checks reach itself; nothing here is trusted.
+//
+// If the wearing half then refuses — a second helm, a fifth hand — THE TAKE
+// STILL STANDS. It is in your pack, the sentence says so, and it is one click
+// to put it on something else or drop it back. The alternative is unwinding a
+// committed transfer, which would mean a second audit row saying a thing was
+// taken and returned, for a slot clash the player can see on the board.
+export async function takeAndEquip({ roomId, tagId }) {
+  const actor = await resolveActor();
+  if (actor.error) return actor;
+  const { character } = actor;
+  if (!roomId || !tagId) return { error: "Nothing to take." };
+
+  const { transferRequest } = await import("./requestActions");
+  const took = await transferRequest({
+    fromKey: `room:${roomId}`,
+    toKey: `character:${character.id}`,
+    tags: [{ tagId: String(tagId), quantity: 1 }],
+    amount: 0,
+  });
+  if (took?.error) return { error: took.error };
+
+  // The row the transfer just made or grew. Found by tag rather than by an id
+  // the transfer returned, because a stack already part-held merges into the
+  // existing row instead of creating one.
+  const held = await prisma.characterTag.findFirst({
+    where: { characterId: character.id, tagId: String(tagId) },
+    select: { id: true },
+  });
+  if (!held) return { error: "You took it, but it isn't on your sheet. Tell a GM." };
+
+  const wore = await equipOne(held.id);
+  if (wore?.error) {
+    return { error: `${wore.error} It is in your pack.` };
+  }
+  return wore;
+}

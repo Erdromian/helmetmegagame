@@ -363,6 +363,10 @@ export default function CharacterSheet({
               isSelf={isSelf}
               indoors={indoors}
               motionSick={motionSick}
+              // The same rooms the Transfer dialog offers, so the board's empty
+              // cells can hold out what a stash here is keeping. One list, one
+              // reach rule: a door locked to the dialog is locked to the board.
+              stash={transferParties?.rooms ?? []}
             />
 
             {isSelf && (

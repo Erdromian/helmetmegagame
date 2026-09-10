@@ -199,7 +199,20 @@ cell per place, a two-hander spanning two hand cells, `Ride` only when
 something to ride is held. A filled cell says the one fact worth a glance
 (the armour words, "conceals you", a carry bonus, pounds) and carries ✕. An
 empty cell is dashed and named; clicking it is a `ClickMenu` of what you
-carry that fits there, and nothing fitting says so. The header is the
+carry that fits there **and what a Room stash here is holding that fits there**,
+and nothing fitting says where it looked ("Nothing you carry or in the
+Waystation fits here.").
+
+The stash half arrived 2026-09-10, from a player: *"If I'm in a room with stuff
+stored in it, I should be able to click on this and see what I can take from
+that room that would fit in this slot."* A stash row names its room and sits
+under a hairline below the carried ones; picking it runs
+`equipActions.js#takeAndEquip`, which is the ordinary `transferRequest` — the
+audit row and the room's own "a young man takes a Padded Cap" line both still
+fire (`CARRY.md` §7) — and then equips what it took. **A refusal on the wearing
+half leaves the take standing**, says so, and the thing is in your pack. The
+rooms are the ones `loadStashRooms` already offers the Transfer dialog, so a
+door locked to one is locked to the other. The header is the
 combined armour as words (`armorValue.js#combineArmor` → `armorWord`).
 
 The rows are only as good as the catalog: slots and layers reach the database

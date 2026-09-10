@@ -450,7 +450,21 @@ modes `transfer` and `loot`) — is Transfer, Loot, Take, Drop and Give. Two
 chip rows say the direction (From: you, a Room here, or somebody helpless;
 To: you, a person here, a Room, your silo), then every stack the source
 offers is a row with a count (`StackRow.js`: name · − n + · All), plus a ⬢
-box. It replaced two dropdowns, a checkbox list with a "How many?" field per
+box.
+
+**The name is a `TagChip`, and the weight sits beside it** (2026-09-10). This
+dialog was the one list in the app showing a bare name, and a player said what
+that cost: *"Right now I have to pick up equipment and try putting it on to
+figure out where it goes."* The chip's hover is the same card the Depot, the
+Tag Catalog and the sheet's own rail already show — In a fight, Armour, Weight,
+**Worn** (`describeEquipFit`: "Held · takes two", "Head · Liner"), Cost. The
+weight is inline rather than on the hover because it is the fact that decides
+the answer while the dialog is open, with the carry cap in the projection line
+below. **A helpless person's pockets are the exception**: those rows keep a
+plain name and a weight and get no chip, because the loot filter is `tradeable`
+rather than `catalogVisibility`, so a secret tag somebody is carrying is already
+named there and handing over its description, recipe and cost too would be a
+second leak (`REQUESTS.md` §5b). It replaced two dropdowns, a checkbox list with a "How many?" field per
 tick, and a separate Loot dialog that was a third dropdown over the same body.
 The people are the same roster every picker uses (web/lib/peopleHere.js), and
 the whole thing is re-read the moment the dialog opens

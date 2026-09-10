@@ -258,6 +258,21 @@ async function FreshDocuments() {
     inspectVisibility: t.inspectVisibility,
     stackable: t.stackable,
     equippable: t.equippable,
+    // The two lines this tab has never drawn, and the reason a player had to
+    // pick a helmet up and try it on to find out where it went: TagChip's
+    // "In a fight" (formatTagFighting) and "Worn" (describeEquipFit). This map
+    // is the fourth hand-written copy of the chip's shape TAG_CHIP_FIELDS's own
+    // comment warns about, and these four columns are what fell out of it.
+    // All three equip columns or the Worn line lies — equipSlot alone reads a
+    // two-hander as one-handed and drops the layer entirely.
+    fighting: t.fighting,
+    equipSlot: t.equipSlot,
+    equipLayer: t.equipLayer,
+    twoHanded: t.twoHanded,
+    // TagChip's Armour line. Both halves, always: a chip showing only the
+    // strong number hides that a breastplate is paper against a rifle.
+    meleeArmor: t.meleeArmor,
+    ballisticArmor: t.ballisticArmor,
     concealsIdentity: t.concealsIdentity,
     forcedName: t.forcedName,
     consumable: t.consumable,
