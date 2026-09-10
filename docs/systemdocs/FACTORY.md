@@ -100,7 +100,7 @@ silently.
   that the floor is work rather than a vending machine. The trouble is that the
   Laboring ladder prices ⬢ and a shift here pays none, so the gate bought
   nothing and stood the Factory's own people off its floor. Anybody who can get
-  in can work it (`LABORING.md` §3b). ‡
+  in can work it (`LABORING.md` §3b).
 - No `laborBonus` applies. A refinery is not a coefficient.
 
 **Auto-labor picks this up for free.** A refugee who files nothing refines,

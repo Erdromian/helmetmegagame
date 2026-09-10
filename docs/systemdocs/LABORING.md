@@ -29,7 +29,7 @@ Three things changed at once, and they only make sense together:
   tier is `unskilled`, the range is a real `0-0`, and every surface prints an
   em dash rather than a range, because there is no range. The day is still
   spent: it steps the fatigue ladder below, and it draws no drop die
-  (`LABORDROPS.md`), which stays something a skill earns. ‡
+  (`LABORDROPS.md`), which stays something a skill earns.
 
 ## 2. The tag ladder
 
@@ -215,7 +215,7 @@ still needs its row. It still steps the character up the fatigue ladder below.
 above came from.** The skill ladder exists to price ⬢, and a refining shift
 pays none — so the gate bought nothing, and meanwhile it stood the Factory's
 own people off its floor. Anybody standing there works it now. See
-`FACTORY.md` §4. ‡
+`FACTORY.md` §4.
 
 ## 4. Resolving one labor
 

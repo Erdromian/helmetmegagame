@@ -712,7 +712,7 @@ Action, no Resources, no DM:
   an unskilled Labor earns nothing (it is allowed, just unpaid —
   `LABORING.md` §1), so filing one for somebody who never asked would hand them
   a `tired` for a day that bought them nothing. A character without a skill who
-  does nothing has simply done nothing. ‡
+  does nothing has simply done nothing.
 - **Exhausted.** They've worked two turns running (or a bad night's sleep
   pushed them there) and need to rest — `tired`, the rung below it, does not
   block Labor (`LABORING.md` §4).

@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Anyone can work the Factory floor, skill or no skill
+
+✎ A Laboring skill is no longer needed to Labor — without one the day earns nothing, and the readouts show a dash instead of a range  
+✎ The Godard Factory works for anybody standing on it, which is what was stopping the Banneret  
+✎ Nobody is auto-assigned an unpaid day, except in the Factory where the shift is worth something  
+✚ Prospecting shows up in the Move dialog's labor readout, which it had been missing since it was added
+
 ## 2026-09-10 · The draft marks come off, and the rule goes with them
 
 − The little double daggers that marked drafted prose. They are gone from the handbook, the tag descriptions, every DM and every screen  
