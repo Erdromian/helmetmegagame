@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A caving 1 keeps you in the zone until a GM has looked at it
+
+✎ Rolling a 1 in the caves now holds you in that zone until a GM adjudicates the roll. You can still walk the level — camp, regroup, push deeper — you just cannot leave until somebody has dealt with what found you.  
+✎ Nobody can escort you out of it either; a held caver is left standing and the party goes on without them.  
+✎ The Stepstone will not carry you out of it.  
+✎ Marking the roll resolved on the Caving lens is what frees them, and nothing resolves on its own at turn end.
+
 ## 2026-09-10 · A GM's message rail says where somebody is, and stops losing people who moved
 
 ✎ The zone on a person in the message list is now where they are standing, not where their faction is seated — those disagree for ten of the seventy living characters  
