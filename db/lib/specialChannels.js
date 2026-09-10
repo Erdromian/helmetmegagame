@@ -37,7 +37,7 @@ const SPECIAL_CHANNELS = [
     configKey: "freq27065ChannelId",
     categoryConfigKey: "radioCategoryId",
     topic:
-      "An open frequency. Everyone holding a radio tuned to it hears everything said, and anyone who hears may answer. ‡",
+      "An open frequency. Everyone holding a radio tuned to it hears everything said, and anyone who hears may answer.",
     tupper: true,
     wipe: "clear",
     ghostsMaySee: true,

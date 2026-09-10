@@ -178,11 +178,11 @@ export function dishCarriesPoison(tag, poisonSlugs) {
 
 // The line the eater reads (NoticeProvider, bottom-right).
 //
-// If a ‡ ever belongs on this feature it belongs HERE, on the composed
+// If a ever belongs on this feature it belongs HERE, on the composed
 // sentence, and nowhere else. A taste is a FRAGMENT dropped into the middle
-// of it, so marking each one would print "honey ‡ and onions ‡" — one mark
+// of it, so marking each one would print "honey and onions" — one mark
 // per message, at the very end, is the convention (CLAUDE.md), and
-// db/lib/tagShapes.js#normalizeCooked refuses a ‡ in a taste to keep it that
+// db/lib/tagShapes.js#normalizeCooked refuses a in a taste to keep it that
 // way. Bascinet has signed off on the wording below, so it carries none.
 // An empty taste is dropped rather than printed as a gap — that is Phrygian
 // Tears and Adder's Bite, the two things a cook can hide in a meal with no

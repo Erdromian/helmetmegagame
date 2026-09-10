@@ -53,7 +53,7 @@ export default async function OraclePage({ searchParams }) {
           <h1 className="section-title">Oracle</h1>
         </header>
         <div className="desk-empty">
-          <p>No turn has begun yet. ‡</p>
+          <p>No turn has begun yet.</p>
         </div>
       </>
     );

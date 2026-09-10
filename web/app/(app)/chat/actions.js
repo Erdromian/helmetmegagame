@@ -1049,11 +1049,11 @@ export async function pray({ roomId } = {}) {
   }
 
   const result = await grantXom(prisma, { characterId: me.character.id });
-  if (result.already) return { ok: false, error: "The face is already watching you. ‡" };
+  if (result.already) return { ok: false, error: "The face is already watching you." };
   if (result.spoken) {
-    return { ok: false, error: "Something else has you already, and it does not share. ‡" };
+    return { ok: false, error: "Something else has you already, and it does not share." };
   }
-  if (!result.ok) return { ok: false, error: "Nothing answers. Tell a GM. ‡" };
+  if (!result.ok) return { ok: false, error: "Nothing answers. Tell a GM." };
 
   await prisma.auditLog
     .create({
@@ -1069,7 +1069,7 @@ export async function pray({ roomId } = {}) {
   // Anybody else standing in the shrine sees it. Nothing leaves the room —
   // the tag is `catalog: secret`, and this is the only place it is ever
   // announced at all.
-  const witnessed = `${me.character.name} kneels, and the face seems to lean down. ‡`;
+  const witnessed = `${me.character.name} kneels, and the face seems to lean down.`;
   await sceneLineAt(prisma, { roomId: found.room.id, text: witnessed }).catch(() => {});
   const thread = await prisma.room
     .findUnique({ where: { id: found.room.id }, select: { discordThreadId: true } })
@@ -1081,8 +1081,8 @@ export async function pray({ roomId } = {}) {
   return {
     ok: true,
     line: result.replaced
-      ? `It takes your ${result.replaced} off you and does not offer anything back. ‡`
-      : "Something old and amused turns its attention on you. ‡",
+      ? `It takes your ${result.replaced} off you and does not offer anything back.`
+      : "Something old and amused turns its attention on you.",
   };
 }
 
@@ -1330,7 +1330,11 @@ const LABOR_TIER_LABELS = {
   hunting: "Hunting",
   farming: "Farming",
   fishing: "Fishing",
+  prospecting: "Prospecting",
   refining: "Refining",
+  // No skill that pays here. An em dash rather than a word, because there is
+  // no tier — the day still files, and it still earns nothing.
+  unskilled: "—",
 };
 
 // The same fixed order the bot's Examine uses, so a player who has learned the
@@ -1339,6 +1343,7 @@ const LABOR_CONTEXT_KINDS = [
   { kind: "HUNTING", label: "Hunting" },
   { kind: "FARMING", label: "Farming" },
   { kind: "FISHING", label: "Fishing" },
+  { kind: "PROSPECTING", label: "Prospecting" },
 ];
 
 export async function moveContext() {

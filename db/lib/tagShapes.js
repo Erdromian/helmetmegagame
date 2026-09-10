@@ -771,15 +771,6 @@ function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml"
       `${label}: tag "${slug}" cooked.taste is ${taste.trim().length} characters — keep it under ${COOKED_TASTE_MAX}, it sits mid-sentence`,
     );
   }
-  // The ‡ rides the MESSAGE, not the sentence (CLAUDE.md), and a taste is a
-  // fragment dropped into the middle of one. "It tastes like honey ‡ and
-  // onions ‡." is not what that convention asks for — the composed line in
-  // web/lib/cooking.js carries the one mark.
-  if (taste.includes("‡")) {
-    throw new Error(
-      `${label}: tag "${slug}" cooked.taste carries a ‡ — a taste is a fragment, and the composed line in web/lib/cooking.js is what wears the mark`,
-    );
-  }
   const mood = cooked.mood ?? 0;
   if (!Number.isFinite(mood)) {
     throw new Error(`${label}: tag "${slug}" cooked.mood must be a number`);

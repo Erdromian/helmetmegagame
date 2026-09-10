@@ -330,7 +330,7 @@ function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
               <MatchHint match={matchFor(row)} />
             </span>
             <span className="block truncate text-xs text-muted">
-              {error ?? "Uploaded a portrait ‡"}
+              {error ?? "Uploaded a portrait"}
             </span>
           </span>
         </span>
@@ -905,7 +905,7 @@ export default function QueueRail({
               kbdLens={lens}
             />
             {otherTable.total === 0 && (
-              <p className="p-3 text-sm text-muted">Nobody is being held, and no portraits are waiting. ‡</p>
+              <p className="p-3 text-sm text-muted">No miscellaneous requests.</p>
             )}
           </div>
         </>

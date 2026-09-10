@@ -638,7 +638,7 @@ async function handlePrayOpen(interaction, roomId) {
   await respond(interaction, {
     content:
       "The face is waiting. Praying here is permanent, it takes whatever you believed in now, " +
-      "and what happens to you afterwards is not up to you. ‡",
+      "and what happens to you afterwards is not up to you.",
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -661,15 +661,15 @@ async function handlePrayConfirm(interaction, roomId) {
 
   const result = await grantXom(prisma, { characterId: character.id });
   if (result.already) {
-    await respond(interaction, "The face is already watching you. ‡");
+    await respond(interaction, "The face is already watching you.");
     return;
   }
   if (result.spoken) {
-    await respond(interaction, "Something else has you already, and it does not share. ‡");
+    await respond(interaction, "Something else has you already, and it does not share.");
     return;
   }
   if (!result.ok) {
-    await respond(interaction, "Nothing answers. Tell a GM. ‡");
+    await respond(interaction, "Nothing answers. Tell a GM.");
     return;
   }
 
@@ -687,7 +687,7 @@ async function handlePrayConfirm(interaction, roomId) {
   // Anybody else standing in the shrine sees it happen, and nothing leaves the
   // room — the tag is `catalog: secret` and this is the only place it is ever
   // announced at all.
-  const witnessed = `${character.name} kneels, and the face seems to lean down. ‡`;
+  const witnessed = `${character.name} kneels, and the face seems to lean down.`;
   await sceneLineAt(prisma, { roomId: room.id, text: witnessed }).catch(() => {});
   const thread = await prisma.room
     .findUnique({ where: { id: room.id }, select: { discordThreadId: true } })
@@ -699,8 +699,8 @@ async function handlePrayConfirm(interaction, roomId) {
   await respond(
     interaction,
     result.replaced
-      ? `It takes your ${result.replaced} off you and does not offer anything back. ‡`
-      : "Something old and amused turns its attention on you. ‡",
+      ? `It takes your ${result.replaced} off you and does not offer anything back.`
+      : "Something old and amused turns its attention on you.",
   );
 }
 

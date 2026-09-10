@@ -74,10 +74,6 @@ test("a taste longer than the line it sits in is refused", () => {
   assert.doesNotThrow(() => cook({ taste: "x".repeat(COOKED_TASTE_MAX) }));
 });
 
-test("a ‡ in a taste is refused — the composed line wears the mark", () => {
-  assert.throws(() => cook({ taste: "onions ‡", mood: 8 }), /composed line/);
-});
-
 test("a cooked mood off either end of the dial is refused", () => {
   assert.throws(() => cook({ taste: "x", mood: MOOD_MAX + 1 }), /the dial runs/);
   assert.throws(() => cook({ taste: "x", mood: MOOD_MIN - 1 }), /the dial runs/);

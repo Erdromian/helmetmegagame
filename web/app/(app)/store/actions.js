@@ -234,7 +234,7 @@ async function buyTagsImpl({ tagIds }) {
     // out bare and gets it.
     await sendDm(
       session.discordUserId,
-      "You awake! Whenever you die, something interesting will happen. ‡",
+      "You awake! Whenever you die, something interesting will happen.",
     ).catch(() => {});
   }
 

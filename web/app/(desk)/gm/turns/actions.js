@@ -758,7 +758,7 @@ async function rejectMoveImpl({ actionId }) {
   try {
     await sendDm(
       action.character.discordUserId,
-      "Your Move was returned to you — you can act again this turn. ‡",
+      "Your Move was returned to you — you can act again this turn.",
       // Canned all the way through now that Reject carries no typed reason,
       // but it is still a GM handing somebody their turn back, so it belongs
       // in the conversation rather than sinking into the notices.
@@ -1219,7 +1219,7 @@ async function rejectAvatarImpl({ characterId }) {
   if (character.discordUserId && character.status === "ALIVE") {
     await sendDm(
       character.discordUserId,
-      "Your portrait has been taken down, and your character is back to their default face. Have a word with a GM before putting up another one. ‡",
+      "Your portrait has been taken down, and your character is back to their default face. Have a word with a GM before putting up another one.",
       { kind: DM_KIND.NOTICE },
     ).catch((err) => console.error("Avatar rejection DM failed:", err));
   }

@@ -83,7 +83,7 @@ const XOM_OUTCOMES = Object.freeze([
 
 const XOM_TOTAL_WEIGHT = XOM_OUTCOMES.reduce((sum, row) => sum + row.weight, 0);
 
-// The seven things a Xom-holder shouts. Bascinet's words — no ‡ on any of them.
+// The seven things a Xom-holder shouts. Bascinet's words — no on any of them.
 const XOM_SHOUTS = Object.freeze([
   "HAHAHAHAHAHAH!",
   "PLEASE HELP ME! OH GOD, HELP! HELP ME!",
@@ -94,7 +94,7 @@ const XOM_SHOUTS = Object.freeze([
   "I'm going to kill you, motherfucker!",
 ]);
 
-// Bascinet's words, all three. No ‡.
+// Bascinet's words, all three. No.
 const XOM_LONELY_LINE = "You are too alone!! You two!! Talk to each other!!";
 const XOM_FECES_LINE = "You couldn't control yourself…";
 const XOM_MADNESS_LINE = "Oh god, what is happening! You're going insane—kill everyone!";

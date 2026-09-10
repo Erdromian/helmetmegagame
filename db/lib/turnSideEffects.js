@@ -490,8 +490,8 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
       // is a graph link between the two places, and there almost never is one
       // here — without this the character simply materialises with nothing
       // said, at either end.
-      const gone = `${move.name} is not here any more. ‡`;
-      const come = `${move.name} is here, and was not a moment ago. ‡`;
+      const gone = `${move.name} is not here any more.`;
+      const come = `${move.name} is here, and was not a moment ago.`;
       for (const [locationId, text] of [
         [move.fromLocationId, gone],
         [move.toLocationId, come],
@@ -509,7 +509,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
       }
 
       if (move.discordUserId) {
-        await sendDm(prisma, move.discordUserId, "The floor changes under you. ‡", {
+        await sendDm(prisma, move.discordUserId, "The floor changes under you.", {
           kind: DM_KIND.NOTICE,
         }).catch((err) => console.error(`Xom teleport DM to ${move.discordUserId} failed:`, err));
       }

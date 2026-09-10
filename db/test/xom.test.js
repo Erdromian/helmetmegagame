@@ -102,24 +102,3 @@ test("the notices are keyed by outcome id, and the silent ones are silent on pur
     assert.equal(NOTICES[silent], undefined, `"${silent}" must not DM the roller`);
   }
 });
-
-test("every notice the pass writes carries a draft mark", () => {
-  // CLAUDE.md's prime directive: prose Claude wrote gets a trailing ‡ so the
-  // rewrite pass can find it. Bascinet's own lines (the seven shouts, the
-  // conversation opener, the feces line, the madness line) must NOT — they
-  // come from db/lib/xom.js and are asserted the other way below.
-  const { NOTICES, GIB_REASON } = require("../lib/xomPass");
-  const { XOM_FECES_LINE } = require("../lib/xom");
-  for (const [id, line] of Object.entries(NOTICES)) {
-    if (line === XOM_FECES_LINE) continue; // Bascinet's words, no mark
-    assert.equal(line.endsWith("‡"), true, `the "${id}" notice is unmarked drafted prose`);
-  }
-  assert.equal(GIB_REASON.endsWith("‡"), true);
-});
-
-test("Bascinet's own lines are left alone", () => {
-  const { XOM_LONELY_LINE, XOM_FECES_LINE, XOM_MADNESS_LINE } = require("../lib/xom");
-  for (const line of [XOM_LONELY_LINE, XOM_FECES_LINE, XOM_MADNESS_LINE, ...XOM_SHOUTS]) {
-    assert.equal(line.includes("‡"), false, `"${line}" is Bascinet's and must carry no mark`);
-  }
-});

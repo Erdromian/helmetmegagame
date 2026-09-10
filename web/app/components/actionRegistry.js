@@ -69,7 +69,7 @@ export const ACTION_HELP = {
   free: "Cut somebody loose.",
   butcher: "Butcher a body.",
   write:
-    "Add a line to a sheet of paper you're carrying. Writing only ever appends. ‡",
+    "Add a line to a sheet of paper you're carrying. Writing only ever appends.",
   heal: "Heal yourself or someone nearby. Gated by your Medical skill.",
   consume:
     "Use something up. You can also just click on the tag on your sheet.",

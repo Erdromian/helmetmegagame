@@ -30,7 +30,7 @@ import { stagingReaches } from "@/lib/stagingReach";
 // claims so two GMs don't work the same row.
 
 const REJECT_HELP =
-  "Deletes the Move and frees up their turn — the misclick escape hatch, or a Move that shouldn't have been one. They're told right away, and anything staged on it stays, detached, in the tray. ‡";
+  "Deletes the Move and frees up their turn — the misclick escape hatch, or a Move that shouldn't have been one. They're told right away, and anything staged on it stays, detached, in the tray.";
 
 function Switch({ label, value, options, onChange, disabled, children }) {
   return (

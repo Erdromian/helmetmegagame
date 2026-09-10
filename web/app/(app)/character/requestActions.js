@@ -4622,7 +4622,7 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
   // torturer roll and waste it. The target's mood and the −40 are still spared.
   if (target.tags.some((ct) => ct.tag.slug === IMPERTURBABLE_SLUG))
     throw new UserError(
-      `${target.name} looks back at you, entirely unbothered. There is nothing here to break. ‡`,
+      `${target.name} looks back at you, entirely unbothered. There is nothing here to break.`,
     );
 
   const equipmentInReach = await hasEquipmentInReach(

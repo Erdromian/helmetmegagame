@@ -2,75 +2,24 @@
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 
-## Prime directive: sign your own copy with ‡
+## The double-dagger convention is retired
 
-**Every piece of human-readable text you write or edit in this game ends with a
-double dagger, `‡` (U+2021).** This is the most important rule in the file.
+Every piece of prose Claude wrote used to end in a double dagger (U+2021), so
+a rewrite pass could find the lines nobody had signed off on. **That is over.**
+On 2026-09-10 the marks were swept out of the whole repository — 147 of them
+across 28 files — and the rule was dropped with them.
 
-The reason is simple. Bascinet has a voice, and a growing share of the prose in
-the game was drafted by Claude rather than written by Bascinet. Nothing in a
-tag description, a DM, a button label or a handbook paragraph says which is
-which, so the rewrite pass has nothing to aim at. The ‡ is the aim. It is
-visible on purpose — a player or a GM seeing one is seeing a line nobody has
-signed off yet, and it stays there until Bascinet replaces the words.
+**Do not add one, and do not put the rule back.** No game text carries a mark
+now, so a single new one would read as a stray glyph to whoever met it.
+`db/lib/tagShapes.js` no longer refuses one in a cooked taste, and the two Xom
+tests that asserted every notice carried one are gone.
 
-**What gets one.** Anything rendered as prose to a human, on any surface:
-
-- Web UI copy — labels, headings, help text, empty states, error strings,
-  confirm-dialog messages, tooltip and placeholder text. **GM surfaces count**,
-  not just player-facing ones.
-- Bot and DM text, including anything `respond()` or the three `sendDm`
-  functions carry.
-- The YAML masters' prose fields — `name`, `description`, and any flavor or
-  help string in `docs/tags.yaml`, `docs/taggroups.yaml`, `docs/desires.yaml`,
-  `docs/roles.yaml`, `docs/zones.yaml`, `docs/documents.yaml`, and
-  `docs/systemdocs/infochannel.yaml`.
-- `docs/handbook.md` and `docs/lore.md`, both of which players read.
-
-**Where it goes.** At the very end of the string, after the final punctuation.
-**One per string, not one per sentence** — a three-sentence tag description gets
-exactly one ‡, at the end. A multi-block document marks per rendered block, the
-way `docs/handbook.md` already does. It sits *after* the other glyph
-conventions rather than displacing them: a line ending in `3 ⬢` becomes
-`3 ⬢ ‡`, and a `»` quote line keeps its prefix.
-
-**Four words or fewer get no mark.** The ‡ says "nobody has signed off on this
-wording yet", and "Save", "Try again" or "You have no camera" have no wording to
-sign off on — there is one way to write them. Marking them buried the lines that
-really are drafted prose under a thousand button labels. Count the words of the
-string itself: four or fewer, no ‡. A one-off sweep already took the existing
-short-string marks off.
-
-**Editing counts as writing.** Rework a line that has no ‡ and it gets one — the
-line is partly yours now. And never strip a ‡ that is already there: removing it
-is Bascinet's signal, not yours.
-
-**What is exempt.**
-
-- Text Bascinet dictated to you verbatim. Their words, their line, no marker.
-  (This is the rule `docs/desires.yaml` already states.)
-- Code comments and identifiers.
-- `docs/systemdocs/*` and this file — internal reference, not game text. (A
-  few marks already sit in `DESIRES.md` and `TAGS.md` §4a. Those are an older,
-  narrower use — a drafted *rule* awaiting sign-off, not copy — and they stay.)
-- Commit messages, `CHANGELOG.md`, and your replies in chat. The changelog is
-  internal reference like `docs/systemdocs/*`, and its entries are commit
-  subjects, so it is exempt twice over. Never mark it.
-
-**Never put one in a value something matches on.** This is the caveat that keeps
-the directive from breaking the game. No ‡ in a slug, an id, an enum value, a
-`{resource:…}` token, a Discord channel or role name, or any
-string a sync or a lookup compares. Those are keys, not prose. A tag's `name` is
-safe, because the catalog matches on `slug`; a Zone's Discord role title is not,
-because the channel doctor matches on it.
-
-**Finding them.** `grep -rn "‡" docs web bot db` lists every line still waiting
-on a rewrite. That one command is the whole point of the convention.
+Write prose that is ready to read, and say in chat which lines you drafted if
+Bascinet needs to know.
 
 ## How to write and talk
 
-Everything below is about voice. The rule about marking what you wrote is the
-prime directive above, and it applies to all of it.
+Everything below is about voice.
 
 Apply ASD-STE100 principles to all responses.
 
@@ -722,9 +671,8 @@ a Location, a whisper overheard in a Room, somebody moving goods around a
 stash — all of it is scenery. It arrives unprompted, often mid-scene, and
 full-size bot text competing with player prose read as an interruption. Subtext
 sits under the conversation instead of in it. Two things are easy to get wrong
-by hand and the helper handles both: `-#` is **per line**, so a multi-line block
-needs the prefix on every line, and there is still only **one ‡ per message**,
-at the very end.
+by hand and the helper handles it: `-#` is **per line**, so a multi-line block
+needs the prefix on every line.
 
 **The intercom is the deliberate exception** (`db/lib/intercom.js`). A PA is
 not scenery, it is a loudspeaker, and it carries an `@here` — delivering the
@@ -762,8 +710,7 @@ message reached players in two different voices.
 
 So **call sites pass a bare sentence.** Don't write the chevron by hand and
 don't write the italics. `db/lib` especially: those strings are shared with the
-web and must stay plain — a trailing `‡` on one is lifted out and re-appended
-after the closing `*`, because the mark rides the message, not the sentence.
+web and must stay plain.
 
 Four things are left alone, each for a reason. **Anything with a newline** is a
 readout with its own shape — Examine, Who's here?, the Move confirmation — and

@@ -433,7 +433,7 @@ function PrayDialog({ entry, onClose, onDone }) {
     <Modal open title="Pray" onClose={onClose}>
       <p className="text-sm text-muted">
         The face is waiting. Praying here is permanent, it takes whatever you believed in now, and
-        what happens to you afterwards is not up to you. ‡
+        what happens to you afterwards is not up to you.
       </p>
       <FormError>{error}</FormError>
       <div className="modal-actions">

@@ -286,7 +286,7 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
     prisma,
     discordUserId,
     `Your soul automatically found a new body. You feel blessed. You wake as ${created.name}, ` +
-      `${identity.age}, the ${role.name} — with ${budget} tag points still to spend. ‡`,
+      `${identity.age}, the ${role.name} — with ${budget} tag points still to spend.`,
   ).catch((err) => console.error(`Reincarnation DM failed for ${discordUserId}:`, err.message ?? err));
 
   console.log(

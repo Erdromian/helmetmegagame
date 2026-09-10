@@ -9,16 +9,12 @@ and the notes alone, hand it back and I'll put the edits into the source.
 
 Three things to know before you start:
 
-- **`‡` means I drafted it.** Leave the mark where it is — I'll drop it when I
-  apply your wording. If you rewrite a line, it stays marked until you say
-  otherwise.
-- **`(yours)` means you dictated it** and it carries no mark. In here only so
+- **Everything here is a draft** unless it is marked `(yours)`. Rewrite freely;
+  I'll apply your wording.
+- **`(yours)` means you dictated it.** In here only so
   nothing looks missing.
 - **`{name}` is filled in at send time**, and it is already the face the room
   saw — a hooded stranger reads as "a young man", never as their real name.
-
-One rule worth remembering while you rewrite: a string of **four words or
-fewer** carries no `‡`. Grow a short line past four words and it needs one.
 
 ---
 
@@ -197,15 +193,15 @@ What the victim of an ambush is told on arrival. Unchanged. **(yours)**
 Five paragraphs, under **Attacking Somebody**. They render on `/handbook` and
 on the Player Handbook card in `/documents`.
 
-    Press **Attack** on somebody standing with you and neither of you goes anywhere. You are both held where you are until the turn ends and a Gamemaster reads what you each filed — so nobody starts a fight and then wanders off to have a nice afternoon. Make a Gambit declaring what you are actually trying to do. ‡
+    Press **Attack** on somebody standing with you and neither of you goes anywhere. You are both held where you are until the turn ends and a Gamemaster reads what you each filed — so nobody starts a fight and then wanders off to have a nice afternoon. Make a Gambit declaring what you are actually trying to do.
 
-    It costs nothing. The Gambit is what costs your Move. ‡
+    It costs nothing. The Gambit is what costs your Move.
 
-    You can **break it off** at any point before the turn ends, from the Attack panel or from the button on your own DM, and that frees you both. But you only get one attack on a given person per turn, so breaking off is the end of it for today. ‡
+    You can **break it off** at any point before the turn ends, from the Attack panel or from the button on your own DM, and that frees you both. But you only get one attack on a given person per turn, so breaking off is the end of it for today.
 
-    Some people are simply out of your league, and the button will say so rather than let you freeze somebody far above you for a whole day. It will not tell you how far above you they are, or anything at all about the people it lets you attack. ‡
+    Some people are simply out of your league, and the button will say so rather than let you freeze somebody far above you for a whole day. It will not tell you how far above you they are, or anything at all about the people it lets you attack.
 
-    An **ambush** is the same thing sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too. ‡
+    An **ambush** is the same thing sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too.
 
 ---
 
