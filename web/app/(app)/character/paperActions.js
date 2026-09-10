@@ -23,6 +23,7 @@ import {
   forcedNameFrom,
   presentedIdentity,
 } from "@lifeweb/db/lib/presentedIdentity";
+import { cleanCustomText } from "@/lib/customCraft";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { guarded, UserError } from "@/lib/actionResult";
 import { auth } from "@/lib/auth";
@@ -139,9 +140,17 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
   const text = String(rawText ?? "").trim().slice(0, writingBook ? BOOK_MAX : WRITE_MAX);
   if (!text) throw new UserError("Write something first.");
 
-  // Only a book takes one: a sheet's Tag.name is a deliberately anonymous
-  // waybill code (db/lib/paper.js#paperName), a book's is its title on a shelf.
-  const title = writingBook ? String(rawTitle ?? "").trim().slice(0, TITLE_MAX) : null;
+  // A book must be named and a sheet may be. Blank on a sheet is a legal
+  // answer and leaves it "A Note" (db/lib/paper.js#paperName), which is what
+  // every sheet was called before this existed.
+  //
+  // CLEANED, NOT JUST TRIMMED. A paper's name is interpolated straight into
+  // bot messages — the noticeboard's "You put X up." and the Bird's "The bird
+  // is away with X." — so an unscrubbed title is a Discord mention waiting to
+  // happen. cleanCustomText is the custom-craft mint's own scrubber and takes
+  // "@", "{" and "}" out for exactly this reason; it was never run on a book
+  // title, which is a hole this closes on the way past.
+  const title = cleanCustomText(rawTitle, TITLE_MAX) || null;
   if (writingBook && !title) throw new UserError("Give it a title first.");
 
   const hand = writerName(character);
@@ -163,7 +172,7 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
     }
     // A blank sheet becomes a written one: a unit off the stack, a new row.
     if (held.tag.slug === PAPER_SLUG) {
-      result = await writeNewPaper(tx, { id: character.id, name: hand }, held.tagId, text);
+      result = await writeNewPaper(tx, { id: character.id, name: hand }, held.tagId, text, title);
       return;
     }
     // Writing more on a sheet that already has words on it. APPEND-ONLY —

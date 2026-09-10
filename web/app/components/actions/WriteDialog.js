@@ -17,7 +17,9 @@ import { WRITE_MAX, BOOK_MAX, TITLE_MAX } from "@lifeweb/db/lib/paper";
 // it read-only above the cursor — writing only ever appends. Fetched on
 // demand rather than shipped with the page: an unreadable sheet must never
 // have its text sitting in the page source. A blank book takes a title and
-// six times the text, and is finished for good once written.
+// six times the text, and is finished for good once written; a blank SHEET may
+// take one too, and leaving it empty keeps the sheet anonymous the way every
+// sheet used to be (db/lib/paper.js#paperName).
 export default function WriteDialog({ onDone, onClose }) {
   const pools = useActionPools();
   const options = pools.paperOptions ?? [];
@@ -30,6 +32,11 @@ export default function WriteDialog({ onDone, onClose }) {
 
   const paper = options.find((o) => o.tagId === paperId) ?? null;
   const book = Boolean(paper?.book);
+  // A sheet is named when it stops being blank, and never again — the same one
+  // pass a book gets. Writing more on a sheet that already has words appends
+  // to it and leaves its name alone, so a second hand cannot rename what a
+  // first hand called it.
+  const naming = book || Boolean(paper?.blank);
   const max = book ? BOOK_MAX : WRITE_MAX;
 
   function choose(nextId) {
@@ -80,10 +87,17 @@ export default function WriteDialog({ onDone, onClose }) {
           <PaperSheet paper={existing} />
         </div>
       )}
-      {book && (
+      {naming && (
         <label className="field">
-          <span className="field-label">What is it called?</span>
-          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={TITLE_MAX} required />
+          <span className="field-label">{book ? "What is it called?" : "Name it (optional)"}</span>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            autoComplete="off"
+            maxLength={TITLE_MAX}
+            required={book}
+          />
         </label>
       )}
       {paperId && (

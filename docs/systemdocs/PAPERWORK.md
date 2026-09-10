@@ -129,10 +129,9 @@ book** rather than ten sheets, because the sheets were spent at the craft.
 - **Binding needs no letters any more.** Craft has no notion of literacy, and
   that turned out to be right: sewing pages together is not writing. The gate
   is where the writing is — `writePaperImpl`'s `readBlock` check.
-- **A book wears its title**, unlike a note's anonymous name (below). A title
-  is what the binder chose to advertise, and a shelf of books all called
-  `A Note` would be useless. The contents still sit
-  behind the literacy gate. Same reason its `inspectVisibility` is `ALWAYS`
+- **A book wears its title**, and must be given one — a shelf of books all
+  called `A Note` would be useless. A letter may be given one and need not be
+  (below). The contents of either still sit behind the literacy gate. Same reason its `inspectVisibility` is `ALWAYS`
   where a note's is `HIDDEN`: carrying a book is visible, reading it is not.
 - **Authored books** — the Keep's Library, the Meister's Office — are declared
   in `docs/tags.yaml` with `bookText:`, the same shape `sealMark:` has:
@@ -146,14 +145,40 @@ book** rather than ten sheets, because the sheets were spent at the craft.
   everyone else reads `CLOSED_BOOK_LINE` and has to go and find it. Without
   that, one literate character would publish the whole Library.
 
-**A note's name is deliberately anonymous** — every written sheet in the game
-is called `A Note`, and nothing else. `Tag.name` travels everywhere a tag does
-(Transfer, Loot, a room's Storage readout, the bot's inspect embed) and none of
-those surfaces knows anything about literacy, so a title reading "hand of Ada"
-would hand every one of them the one fact this system protects. The writer is
-kept on `Tag.paperAuthor` for the GM and nothing else.
+**A note's name is anonymous unless the writer names it.** The Write dialog
+offers a title on a **blank** sheet — optional, and left empty the sheet is
+called `A Note`, which is what every sheet in the game was called before this
+existed. `paperName(title)` in `db/lib/paper.js` is the whole rule.
 
-It used to read `A Note (TG-4596)` — a waybill code in the Depot's house
+Know what a title costs, because it is not nothing. `Tag.name` travels
+everywhere a tag does (Transfer, Loot, a room's Storage readout, the bot's
+inspect embed, a noticeboard listing) and **none of those surfaces knows
+anything about literacy** — so a title is read by every hand the sheet passes
+through, illiterate ones included, while the text stays gated. That is the same
+bargain a book has always made: a title is what the writer chose to advertise
+on the outside, and it is a different act from what they wrote inside. A writer
+who wants to advertise nothing leaves it blank. The writer's own name is still
+kept on `Tag.paperAuthor` for the GM and nothing else, and is never composed
+into the title.
+
+**Set once, on the first write.** Writing on a sheet that already has words
+appends and shows no title field, so a second hand cannot rename what a first
+hand called it. Sheets written before this existed therefore stay `A Note`
+permanently — there is no retitle path, deliberately.
+
+**Sealing is untouched.** A `SEALED` row is still named `Sealed Letter
+(<wax>)` and a `BROKEN_SEAL` row `Broken Seal (<wax>)`, so the outside of a
+sealed letter tells a courier whose wax is on it and nothing else. A title does
+not survive the seal, and does not come back when it is broken.
+
+**A title is scrubbed, not just trimmed.** It goes through
+`cleanCustomText` (`web/lib/customCraft.js`), the custom-craft mint's own
+scrubber, which takes out `@`, `{` and `}` — a paper's name is interpolated
+straight into bot messages (`You put ${name} up.` on a noticeboard, the Bird's
+`The bird is away with ${name}.`), so an unscrubbed `@everyone` would be a real
+mention. The book title never ran through it and now does.
+
+The name used to read `A Note (TG-4596)` — a waybill code in the Depot's house
 style — and that was never a design choice, only a constraint showing through:
 `Tag.name` was `@unique`, so every new sheet needed a title no other tag had.
 Naming an object after its own database key is what `slug` is for, and

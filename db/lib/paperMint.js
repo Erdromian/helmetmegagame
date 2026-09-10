@@ -103,9 +103,9 @@ async function createWithRetry(tx, buildData) {
 // `character` needs { id, name } — the PRESENTED name, resolved by the caller
 // through db/lib/presentedIdentity.js, so a Beast's letter is in the Beast's
 // hand and a concealed writer does not sign their own name by accident.
-async function writeNewPaper(tx, character, blankTagId, text) {
+async function writeNewPaper(tx, character, blankTagId, text, title = null) {
   await dropCharacterTag(tx, character.id, blankTagId, 1);
-  return mintPaperRow(tx, character.id, character.name, text);
+  return mintPaperRow(tx, character.id, character.name, text, title);
 }
 
 // A sheet out of nowhere, landing in somebody's hands. The GM letter's minter
@@ -123,8 +123,8 @@ async function mintLetterFor(tx, recipientId, authorName, text) {
 // The shared core. Mints the row and puts it in `ownerId`'s hands; what it
 // deliberately does NOT do is spend anything, so each caller decides what the
 // paper cost.
-async function mintPaperRow(tx, ownerId, authorName, text) {
-  const tag = await mintUnownedPaper(tx, ownerId, authorName, text);
+async function mintPaperRow(tx, ownerId, authorName, text, title = null) {
+  const tag = await mintUnownedPaper(tx, ownerId, authorName, text, title);
   await addToStack(tx, ownerId, tag.id, 1, {});
   return tag;
 }
@@ -134,16 +134,21 @@ async function mintPaperRow(tx, ownerId, authorName, text) {
 // would be a write it then has to undo. `seed` is only the slug's uniquifier —
 // any stable-ish string does, and a caller with no character passes whatever
 // it has.
-async function mintUnownedPaper(tx, seed, authorName, text) {
+// `title` is what the writer called it, already cleaned by the caller. Null or
+// blank leaves the sheet anonymous — see db/lib/paper.js#paperName. The two
+// callers that mint a sheet with nobody at the keyboard (the GM letter and the
+// Research pass) pass none, so those stay "A Note" as they always have.
+async function mintUnownedPaper(tx, seed, authorName, text, title = null) {
   const groupId = await paperGroupId(tx);
 
   const tag = await createWithRetry(tx, (attempt) => ({
     ...PAPER_SHAPE,
     groupId,
     slug: paperSlug(seed, attempt),
-    // Every sheet is called this. It is the slug that has to be unique, and
-    // paperSlug re-rolls it per attempt.
-    name: paperName(),
+    // What the writer called it, or "A Note". Only the SLUG has to be unique
+    // and paperSlug re-rolls it per attempt, so two letters may share a title
+    // — which is the point, since two people may both write "Orders".
+    name: paperName(title),
     // Never the text. The description column is broadcast to every browser;
     // paperDescription composes what a given reader is allowed to see.
     description: null,
@@ -227,7 +232,9 @@ async function sealWithMark(tx, paperTag, { label, mark }) {
         where: { id: paperTag.id },
         data: {
           // Whose wax is on it is PUBLIC — that is the whole point of sealing
-          // a letter — so unlike a note's title this one says something.
+          // a letter. This REPLACES whatever the writer called it, and does
+          // not put it back when the seal is broken: the outside of a sealed
+          // letter tells a courier whose wax it carries and nothing else.
           name: attempt ? `${sealedName(label)} (${attempt + 1})` : sealedName(label),
           paperKind: "SEALED",
           sealMark: mark ?? null,
