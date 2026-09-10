@@ -8,6 +8,7 @@ import { bandOf } from "@lifeweb/db/lib/mood";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
+import FactionLink from "./FactionLink";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import TagDetails from "./TagDetails";
@@ -291,37 +292,36 @@ export default function LedgerBand({
   return (
     <section className="sheet-band panel">
       <div className="ledger-band">
-        <div className="flex items-start gap-3 min-w-0">
-          {avatarSrc ? (
-            // The one face on the sheet that is actually yours, so it is the
-            // one most worth opening: 64px here, 256 stored. `avatarSrc` is
-            // already whatever presentedIdentity resolved for the person
-            // looking, so the zoom shows that and never rebuilds a URL.
-            <AvatarZoom src={avatarSrc} name={character.name}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={avatarSrc}
-                alt={character.name}
-                className="h-16 w-16 object-cover"
-                style={{ borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+        <div className="ledger-identity">
+          <div className="ledger-face">
+            {avatarSrc ? (
+              // The one face on the sheet that is actually yours, so it is the
+              // one most worth opening: whatever height the column beside it
+              // comes out at here, 256 stored. `avatarSrc` is already whatever
+              // presentedIdentity resolved for the person looking, so the zoom
+              // shows that and never rebuilds a URL.
+              <AvatarZoom src={avatarSrc} name={character.name}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={avatarSrc} alt={character.name} />
+              </AvatarZoom>
+            ) : (
+              <div className="ledger-face-blank" aria-hidden="true" />
+            )}
+          </div>
+          {/* Who this is, and where they stand. The name, the role and the
+              faction lived in the page's header until 2026-09-10 — the header
+              says "Character" now, and this is the only place on the page that
+              names the person. */}
+          <div className="ledger-who">
+            <h2 className="ledger-name">{character.name}</h2>
+            <p className="m-0 text-sm text-muted">
+              {character.roleTitle ?? "No role"} ·{" "}
+              <FactionLink
+                factionId={character.faction?.id ?? null}
+                name={character.faction?.name ?? "No faction"}
+                className="ledger-faction"
               />
-            </AvatarZoom>
-          ) : (
-            <div
-              aria-hidden="true"
-              className="h-16 w-16"
-              style={{
-                background: "var(--field-bg)",
-                borderRadius: "var(--radius)",
-                border: "1px solid var(--border)",
-              }}
-            />
-          )}
-          {/* The name, the role and the faction used to be repeated here. They
-              are the page's header now (ledger/layout.js), and saying them
-              twice, 40px apart, only made the band look like a second title.
-              Where you STAND is not up there, so it stays. */}
-          <div className="min-w-0">
+            </p>
             <p className="m-0 text-sm text-muted">
               {character.zone?.name ?? "Unassigned"} · {character.location?.name ?? "Nowhere"}
             </p>

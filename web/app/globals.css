@@ -7207,6 +7207,84 @@ label.chip {
   gap: var(--sp-4);
 }
 
+/* The identity half GROWS now. It was flex-initial until 2026-09-10, so on a
+   wide screen `space-between` opened a gap in the middle of the band and the
+   face sat small at the far left of it. `.ledger-tiles` still caps at 47rem,
+   so this soaks up whatever is left over rather than the gap doing it. */
+.ledger-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+
+/* Grows into whatever the face leaves. Without the grow it sat at its own
+   152px shrink-to-fit width inside a 590px cluster, and every line in it
+   wrapped. */
+.ledger-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The one heading on the sheet that is somebody's name. Serif comes from the
+   h2 itself (DESIGN-SYSTEM.md) — this only takes the margin off and pins the
+   size, so the four lines beside the face stay a block rather than a column
+   with a gap at the top of it. */
+.ledger-name {
+  margin: 0;
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+}
+
+/* 9rem square, up from the 64px it was. The number is not arbitrary: it is
+   what the column beside it comes out at — the name, the role and faction, the
+   place, and the status chips under them — so the face fills the row instead
+   of sitting small at the top of it. It stays put when that column runs taller
+   (somebody wearing a lot of status tags); a face that grew with the chip
+   count would be a portrait that changes size as you get hungry.
+
+   `.avatar-zoom` is `all: unset`, so the size has to be said again through the
+   zoom button rather than only on the <img> inside it.
+
+   Every selector here is a DIRECT-CHILD chain, and that is load-bearing:
+   AvatarZoom renders its open Modal as a sibling of the button, INSIDE this
+   div (Modal.js does not portal). A loose `.ledger-face img` therefore also
+   caught `.avatar-zoom-full` and shrank the zoomed face from its stored 256
+   to 9rem — which is the one thing the zoom exists to avoid. */
+.ledger-face,
+.ledger-face > .avatar-zoom,
+.ledger-face > .avatar-zoom > img,
+.ledger-face > .ledger-face-blank {
+  flex: 0 0 auto;
+  width: 9rem;
+  height: 9rem;
+}
+
+.ledger-face > .avatar-zoom > img,
+.ledger-face > .ledger-face-blank {
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.ledger-face-blank {
+  background: var(--field-bg);
+}
+
+/* The faction is a link to /faction, but on a muted line rather than in a
+   menu — FactionLink's own default is .menu-item, which is the header's look
+   and reads as a control here. */
+.ledger-faction {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ledger-faction:hover {
+  color: var(--accent-text);
+}
+
 .ledger-tiles {
   display: grid;
   /* auto-fit rather than a fixed five, so the row folds before any tile is
