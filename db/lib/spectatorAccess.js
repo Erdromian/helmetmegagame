@@ -84,7 +84,7 @@ async function managedSpectatorChannels(db) {
     db.location.findMany({ select: { name: true, discordChannelId: true } }),
     db.gameConfig.findUnique({
       where: { id: 1 },
-      select: { turnsConsoleChannelId: true, cerberonChannelId: true },
+      select: { turnsConsoleChannelId: true, cerberonChannelId: true, freq27065ChannelId: true },
     }),
   ]);
   const out = [];
@@ -95,6 +95,7 @@ async function managedSpectatorChannels(db) {
   for (const l of locations) if (l.discordChannelId) out.push({ id: l.discordChannelId, label: l.name });
   if (config?.turnsConsoleChannelId) out.push({ id: config.turnsConsoleChannelId, label: "#turns" });
   if (config?.cerberonChannelId) out.push({ id: config.cerberonChannelId, label: "#cerberon" });
+  if (config?.freq27065ChannelId) out.push({ id: config.freq27065ChannelId, label: "#27.065" });
   return out;
 }
 

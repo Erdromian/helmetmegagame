@@ -319,17 +319,27 @@ goes is the job the number is withheld from players for.
 
 ## 6. The surfaces
 
-- **`web/app/components/LedgerBand.js`** — the Combat tile, spanning two
-  tracks of the band's lower rank. Resting it shows the two bands, the combined
-  armour **beside them on one line**, and one quiet 11px line naming the
-  situational tags. Hover, focus or click and it **swaps its own face** for the
-  breakdown: MELEE and RANGED as full-width stacked rows. Sized by the resting
-  face, so opening it moves nothing. **Not a tooltip** — `SHEET.md` §3 is the
-  rule for that surface, and swapping in place is what keeps it.
+- **`web/app/components/LedgerBand.js`** — the Combat readout, in the **band
+  row** beside This turn and Turn Effects rather than in the tile row. That
+  row's `max-width` fits exactly five tiles and a sixth needs 856px; putting
+  Combat there broke a line that had never wrapped.
 
-  It lives in the **band row** beside This turn and Turn Effects, not in the
-  tile row. That row's `max-width` fits exactly five tiles and a sixth needs
-  856px; putting Combat there broke a line that had never wrapped.
+  Resting, it is **a row per dimension** — Melee and Ranged, each with its own
+  band and its own armour. It was two unlabelled *pairs* first ("Pitiful ·
+  Pitiful" over "⛊ None · None") and nobody could read the second half of
+  either: one shield in front of two words says nothing about which word it
+  belongs to. Turning it ninety degrees answers both at once.
+
+  One honest approximation is baked in: the Ranged row pairs ranged **skill**
+  with **ballistic** armour, and those are not quite the same axis — ballistic
+  is what guns roll against, while ranged skill covers bows too. Bascinet's
+  call, made knowingly, on the grounds that two labelled lines roughly right
+  beat four values nobody can attribute at all.
+
+  Hover, focus or click and it **swaps its own face** for the breakdown: MELEE
+  and RANGED as full-width stacked rows. Sized by the resting face, so opening
+  it moves nothing. **Not a tooltip** — `SHEET.md` §3 is the rule for that
+  surface, and swapping in place is what keeps it.
 - **`web/app/components/InspectorColumn.js`** — the GM's Fighting fact.
 - **`web/app/components/TagDetails.js`** — one tag's own "In a fight" line.
 

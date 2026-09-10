@@ -1,30 +1,25 @@
 import Link from "next/link";
 import { prisma } from "@lifeweb/db";
 import AppHeader from "@/app/components/AppHeader";
-import CharacterAvatar from "@/app/components/CharacterAvatar";
-import FactionLink from "@/app/components/FactionLink";
 import { loadHeaderIdentity } from "@/lib/headerIdentity";
 import EscapeToChat from "./EscapeToChat";
 
-// The one page whose header is a person rather than a page name. The title is
-// the character's name, with the role and faction as meta chips beside it and
-// the face on the right — the same three facts the old PageHeader carried,
-// in the bar every other page now wears.
+// An ordinary page name, and nothing else. This header used to be a person —
+// the character's name as the title, their role and faction as the meta line,
+// their face as a 24px avatar in the actions. All four of those are the band's
+// now (LedgerBand.js), where they sit beside a face big enough to be worth
+// looking at, so repeating them 40px above only made the page say who you are
+// twice.
 //
-// The avatar is 24px because that is exactly the bar's content height
-// (.desk-header is 0.5rem of padding around a 23px chip), so it can sit in the
-// header without making it taller than any other page's.
+// `loadHeaderIdentity()` is still asked, because `backToChat` needs to know
+// whether there IS a living character: the Back link and the Escape listener
+// belong to the sheet, and a player halfway through the creation wizard who
+// taps Escape means "close this", not "leave". It is the same ALIVE-character
+// question page.js asks to decide it draws the sheet at all, and it is
+// cache()d, so asking it twice costs one query.
 //
 // Drawn from the layout, not the page: /character renders a client view, and
 // a client component cannot render AppHeader.
-//
-// No living character — the lobby, the creation wizard, a closed door — falls
-// back to the page name, because there is nobody to name yet, and gets neither
-// the Back link nor the Escape listener: those belong to the sheet, and a
-// player halfway through the creation wizard who taps Escape means "close
-// this", not "leave". `loadHeaderIdentity()` is the same ALIVE-character
-// question page.js asks to decide it draws the sheet at all, and it is
-// cache()d, so asking it twice costs one query.
 //
 // There is no full-height shell here. The sheet is an ordinary page that
 // scrolls with the document, like every other route in this group
@@ -40,32 +35,13 @@ export default async function CharacterLayout({ children }) {
   return (
     <>
       <AppHeader
-        title={character?.name ?? "Character"}
-        meta={
-          character ? (
-            <span className="text-sm text-muted">
-              {character.roleTitle ?? "No role"} —{" "}
-              <FactionLink factionId={character.faction?.id ?? null} name={character.faction?.name ?? "No faction"} />
-            </span>
-          ) : null
-        }
+        title="Character"
         actions={
-          <>
-            {backToChat && (
-              <Link href="/chat" className="btn-secondary">
-                ← Back to the game · Esc
-              </Link>
-            )}
-            {character ? (
-              <CharacterAvatar
-                characterId={character.id}
-                name={character.name}
-                version={character.updatedAt.getTime()}
-                size={24}
-                zoomable
-              />
-            ) : null}
-          </>
+          backToChat ? (
+            <Link href="/chat" className="btn-secondary">
+              ← Back to the game · Esc
+            </Link>
+          ) : null
         }
       />
       {backToChat && <EscapeToChat />}

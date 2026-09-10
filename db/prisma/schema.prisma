@@ -518,13 +518,17 @@ model GameConfig {
   // makes a role in the YAML unpickable.
   playerCount Int @default(80)
 
-  // The narrowcast channel (#cerberon) lives under a shared Discord "radio"
-  // category — see db/lib/specialChannels.js. Provisioned once by
+  // The narrowcast channels (#cerberon, #27.065) live under a shared Discord
+  // "radio" category — see db/lib/specialChannels.js. Provisioned once by
   // npm run db:sync-narrowcast-channels; never touched again after that.
   // #intercom used to be the second one; it is a button on the Council Room
   // table now, so its column is gone with it.
-  radioCategoryId   String?
-  cerberonChannelId String?
+  radioCategoryId    String?
+  cerberonChannelId  String?
+  // The second net (2026-09-10): an open frequency anyone holding a
+  // Radio (27.065) both hears and speaks on. Column name can't lead with a
+  // digit; the channel itself is named after the frequency.
+  freq27065ChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
