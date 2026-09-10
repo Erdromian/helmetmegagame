@@ -450,20 +450,39 @@ hooks in the same tick cannot race a stale read past either end.
 Both are `mastery` tags (`TAGS.md` §4a), and they `conflictsWith` each other —
 one says every blow lifts you, the other says nothing moves you at all.
 
-**Amor Fati** is two rows in `MULTIPLIERS` (`db/lib/mood.js`) and introduces a
-**negative factor**, which is new to that table and is the whole trick.
-`resolveDelta` only consults the multipliers for harm (`base < 0`), so a factor
-of `-0.5` hands half the sting back as *relief* instead of taking it: being
-crucified is worth **+40** to a man who has decided to want whatever happens.
+**Amor Fati** is the one rule in this file that is deliberately **not** a
+multiplier, and it has to stay that way.
+
+It reads like a factor of `-0.5`, and it was one for a day. But `multiplierFor`
+MULTIPLIES every applicable rule together, so a negative factor composed with
+the vulnerability rows and **inverted** them:
+
+| held | was | should be |
+|---|---|---|
+| Amor Fati alone, cave trouble | +5 | +5 |
+| Amor Fati **+ Teratophobia** (×3) | **+15** | +5 |
+| Amor Fati **+ Hemophobia** (×2), a wound | **+30** | +15 |
+| Amor Fati **+ Brave** (×0.5), a wound | **+7.5** | +15 |
+
+The phobias *refund* points, so stacking one was strictly better **and**
+strictly cheaper, while Brave — which costs points — punished you. Backwards in
+both directions.
+
+So for a kind it owns, Amor Fati **replaces** the multiplier chain rather than
+joining it (`amorFatiHarm`, applied in `resolveDelta`): the gift is half of what
+the event costs *anybody*, and what you happen to fear does not change it.
+Reordering alone would not have fixed this — multiplication commutes, so
+`base × phobia × -0.5` is the same number whichever way round you write it.
+What had to go was the phobia's involvement at all.
 
 The kinds are split on purpose. Misfortune that *happens* to you — a shock with
-an author and a moment — flips: `WOUND`, `DYING`, `CRUCIFIED`, `TORTURED`,
-`MUTILATED`, `BOUND`, `ROBBED`, `TURRET`, `CAVE_TROUBLE`, `DEATH_SEEN`. The
-weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `CORPSE`, `NOBLE_MEAL` simply
-stop landing rather than becoming a pleasure, because nobody would call an
-ever-present cost an incident. `DRIFT` needs no row (it carries
-`noMultiplier`), and `PLACE` harm is already capped at Fine. Relief is
-untouched in both lists — this is not a damper on good things.
+an author and a moment — pays half back: `WOUND`, `DYING`, `CRUCIFIED`,
+`TORTURED`, `MUTILATED`, `BOUND`, `ROBBED`, `TURRET`, `CAVE_TROUBLE`,
+`DEATH_SEEN`. The weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `CORPSE`,
+`NOBLE_MEAL` simply stop landing rather than becoming a pleasure, because nobody
+would call an ever-present cost an incident. `DRIFT` needs no entry (it carries
+`noMultiplier`), `PLACE` harm is already capped at Fine, and relief is untouched
+throughout — this is not a damper on good things.
 
 **Imperturbable** rides on `intensity`, **not** on a multiplier row, and the
 reason is the same asymmetry: a multiplier is only ever read for `base < 0`, so
@@ -479,8 +498,8 @@ the tag and not only of the events that stop landing afterwards. The nightly
 pass reaches every living character, so it settles within a turn at the
 outside.
 
-One trap, and it is why `imperturbable` sits in `MULTIPLIER_SLUGS` despite not
-being a multiplier: `db/lib/moodPass.js` **filters its tag query** to that list.
+One trap, and it is why BOTH `imperturbable` and `amor-fati` sit in
+`MULTIPLIER_SLUGS` despite neither being a multiplier any more: `db/lib/moodPass.js` **filters its tag query** to that list.
 A slug missing from it is not selected, and the whole night is then computed as
 though the holder were ordinary. Anything the dial reads belongs on that list,
 multiplier or not.

@@ -10,10 +10,9 @@
 const { recordArchiveEvent } = require("./archive");
 const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
-const { CATATONIC_SLUG, GIBBED_SLUG } = require("./constants");
 const { SEAT_TAG_SLUGS } = require("./threats");
 const { applyMood } = require("./mood");
-const { METEMPSYCHOSIS_SLUG } = require("./constants");
+const { CATATONIC_SLUG, GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
 // was no longer ALIVE, in which case NOTHING else was written: the update's
@@ -237,7 +236,7 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     // back to this file, and a top-level require resolves to a half-built
     // exports object whose applyDeathToRow is undefined.
     const { reincarnate } = require("./reincarnate");
-    await reincarnate(prisma, { ...character, tags: [{ tag: { slug: METEMPSYCHOSIS_SLUG } }] }, { turn }).catch(
+    await reincarnate(prisma, character, { turn }).catch(
       (err) => console.error(`Reincarnation failed for ${character.id}:`, err.message ?? err),
     );
   }

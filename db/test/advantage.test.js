@@ -3,17 +3,18 @@
 // with `npm test --workspace=db`. Nothing here touches Prisma.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { rollWithAdvantage, holdsAdvantage, formatAdvantage } = require("../lib/advantage");
-const { effectiveDropRoll } = require("../lib/laborDrops");
+const { rollWithAdvantage, formatAdvantage } = require("../lib/advantage");
+const { scavengingMayFallBack, SCAVENGING_FALLBACK_TO } = require("../lib/laborDrops");
 
 const LUCKY = [{ tag: { slug: "lucky" } }];
 
-test("holdsAdvantage takes both tag shapes, and neither by accident", () => {
-  assert.equal(holdsAdvantage(LUCKY), true);
-  assert.equal(holdsAdvantage([{ slug: "lucky" }]), true);
-  assert.equal(holdsAdvantage([{ tag: { slug: "brave" } }]), false);
-  assert.equal(holdsAdvantage([]), false);
-  assert.equal(holdsAdvantage(undefined), false);
+// Tested through the public surface: two dice mean the tag was recognised.
+test("Lucky is recognised in both tag shapes, and nothing else is", () => {
+  assert.equal(rollWithAdvantage(LUCKY).advantage, true);
+  assert.equal(rollWithAdvantage([{ slug: "lucky" }]).advantage, true);
+  assert.equal(rollWithAdvantage([{ tag: { slug: "brave" } }]).advantage, false);
+  assert.equal(rollWithAdvantage([]).advantage, false);
+  assert.equal(rollWithAdvantage(undefined).advantage, false);
 });
 
 test("without Lucky exactly one die is thrown", () => {
@@ -53,20 +54,35 @@ test("the roll line names Lucky only when it actually fired", () => {
   assert.equal(formatAdvantage({ rolls: [6, 2], advantage: true }), "(6, 2 — Lucky)");
 });
 
-// Laboring (Scavenging). Only faces 1 and 6 are configured in
-// docs/labordrops.yaml, so "drops on 4 and 5 as well" is a remap onto 6.
-test("Scavenging reads a 4 or a 5 as a 6, and leaves a 1 alone", () => {
-  const none = new Set();
+// Laboring (Scavenging). The pure half only says WHICH faces may fall back;
+// whether one actually does depends on the pool, and lives in
+// pickLaborDropOption where the pool is in hand.
+test("Scavenging may fall back from a 4 or a 5, and never from a 1", () => {
   const scav = new Set(["laboring-scavenging"]);
-  assert.deepEqual([1, 2, 3, 4, 5, 6].map((r) => effectiveDropRoll(r, none)), [1, 2, 3, 4, 5, 6]);
-  assert.deepEqual([1, 2, 3, 4, 5, 6].map((r) => effectiveDropRoll(r, scav)), [1, 2, 3, 6, 6, 6]);
+  assert.deepEqual(
+    [1, 2, 3, 4, 5, 6].map((r) => scavengingMayFallBack(r, scav)),
+    [false, false, false, true, true, false],
+  );
 });
 
-test("Scavenging never converts the injury face into a find", () => {
-  assert.equal(effectiveDropRoll(1, new Set(["laboring-scavenging"])), 1);
+test("nobody else falls back at all", () => {
+  for (const r of [1, 2, 3, 4, 5, 6]) {
+    assert.equal(scavengingMayFallBack(r, new Set()), false);
+    assert.equal(scavengingMayFallBack(r, new Set(["laboring-skilled"])), false);
+  }
 });
 
-test("effectiveDropRoll takes an array as readily as a Set", () => {
-  assert.equal(effectiveDropRoll(4, ["laboring-scavenging"]), 6);
-  assert.equal(effectiveDropRoll(4, []), 4);
+test("scavengingMayFallBack takes an array as readily as a Set", () => {
+  assert.equal(scavengingMayFallBack(4, ["laboring-scavenging"]), true);
+  assert.equal(scavengingMayFallBack(4, []), false);
+});
+
+// The regression this rule exists for. It began as a blanket 4/5 -> 6 remap,
+// written when 1 and 6 were the only configured faces anywhere; Prospecting
+// then filled in 2, 4 and 5, and a blanket remap became a DOWNGRADE — a
+// fisherman's face 4 pays 10 ⬢ against face 6's 1.56. Falling back only from
+// an EMPTY pool can never take a configured payout away.
+test("the fallback face is the 6, and a 1 is never touched", () => {
+  assert.equal(SCAVENGING_FALLBACK_TO, 6);
+  assert.equal(scavengingMayFallBack(1, new Set(["laboring-scavenging"])), false);
 });

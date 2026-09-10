@@ -48,6 +48,9 @@ async function FreshPlayerRoster({ searchParams, userId }) {
         category: true,
         description: true,
         pointCost: true,
+        // ChipLabel's mastery star. A GM handing out Lucky from this picker
+        // should see that they are granting a capstone.
+        mastery: true,
         // The bulk-tag picker sorts chain-aware; without parentTagId the
         // chain walk degrades to plain alphabetical.
         parentTagId: true,

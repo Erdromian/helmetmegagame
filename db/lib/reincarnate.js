@@ -18,7 +18,12 @@ const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
 const { heldSeatsByRole } = require("./seatCount");
 const { effectivePlayerCount } = require("./gameState");
 const { parseStartingTag } = require("./startingTags");
-const { formatCharacterName, AGE_MIN } = require("./characterName");
+const { expiryForGrant } = require("./grantExpiry");
+const { seedMemories } = require("./locationVisits");
+const { startingMemorySlugs } = require("./startingMemories");
+const { formatCharacterName, formatBareName, AGE_MIN } = require("./characterName");
+const { removeMemberRole, setGuildNickname } = require("./discordRest");
+const { GHOST_ROLE_ID } = require("./roleIds");
 const { randomCharacterName } = require("./nameCorpus");
 const { GENDERS } = require("./titles");
 const { isDynastyMember, DYNASTY_HEAD_SLUG } = require("./dynasty");
@@ -72,6 +77,9 @@ async function rollIdentity(prisma, role) {
   const { firstName, lastName } = randomCharacterName({ gender, lastNameLocked });
 
   let surname = lastName;
+  // Unreachable while openRoles() excludes the dynasty seats, and kept anyway:
+  // it is correct, it is tested, and a GM re-seating somebody by hand is a
+  // different door into the same rule.
   if (lastNameLocked) {
     const baron = await prisma.character.findFirst({
       where: { status: "ALIVE", role: { slug: DYNASTY_HEAD_SLUG } },
@@ -101,14 +109,18 @@ async function openRoles(prisma, config, state) {
     where: { requiresWhitelist: false },
     include: { startingLocation: { include: { zone: true } } },
   });
-  const selectable = roles.filter((r) => !isSpawnOnly(r));
+  // Three exclusions, not two. Whitelisted seats are gated on a Discord role
+  // the dead player may not hold, and spawn-only seats "can only be spawned,
+  // never assigned" — those two match the assignment roll. The DYNASTY seats
+  // are this file's own: Baroness, Heir and Successor are not whitelisted, so
+  // without this a coin flip could seat a random dead player in the ruling
+  // family, complete with the Baron's surname and the seat's key. That is the
+  // largest political event in the game, and it does not get to happen with no
+  // human in the loop.
+  const selectable = roles.filter((r) => !isSpawnOnly(r) && !isDynastyMember(r.slug));
   const heldById = await heldSeatsByRole(prisma, selectable);
   const playerCount = effectivePlayerCount(config, state);
   return selectable.filter((r) => (heldById.get(r.id) ?? 0) < roleCapacity(r, playerCount));
-}
-
-function holdsMetempsychosis(character) {
-  return (character?.tags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === METEMPSYCHOSIS_SLUG);
 }
 
 // Returns the new Character row, or null when nothing happened — no tag, no
@@ -116,17 +128,26 @@ function holdsMetempsychosis(character) {
 // null is a normal outcome, not an error: a player whose soul finds nowhere to
 // go is simply dead the ordinary way.
 //
-// `deadCharacter` must arrive with `tags: { tag: { slug } }` loaded. It is read
-// BEFORE applyDeathToRow strips anything, because a gib deletes the tag rows
-// outright and there would be no Metempsychosis left to find afterwards.
+// THE CALLER OWNS THE TAG CHECK. db/lib/characterDeath.js counts the holding
+// before it flips the status — it has to, because a gib deletes the tag rows
+// outright and there would be nothing left to find by the time we got here —
+// so re-testing it in this file only ever meant the caller fabricating a `tags`
+// array to satisfy a guard it had already passed. Same posture as db/lib/dm.js.
 async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
-  if (!holdsMetempsychosis(deadCharacter)) return null;
   const discordUserId = deadCharacter.discordUserId;
   if (!discordUserId) return null;
 
   // Somebody who already has another living character does not need a body.
   const living = await prisma.character.count({ where: { discordUserId, status: "ALIVE" } });
   if (living > 0) return null;
+
+  // Read off the DATABASE, not off `deadCharacter`: the eight callers pass
+  // Character rows of every shape and most select only what they need, so a
+  // web-only player would otherwise be read as `undefined` and silently moved
+  // onto Discord by dying.
+  const previous = await prisma.character
+    .findUnique({ where: { id: deadCharacter.id }, select: { webOnly: true } })
+    .catch(() => null);
 
   const [config, state] = await Promise.all([
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { startingTagPoints: true, playerCount: true } }),
@@ -137,7 +158,12 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   if (candidates.length === 0) return null;
   const role = candidates[Math.floor(Math.random() * candidates.length)];
 
-  const budget = (config?.startingTagPoints ?? 12) + REINCARNATION_BONUS_POINTS;
+  // The seat's own bonus counts, exactly as it does in the wizard
+  // (web/lib/characterCreation.js#computeBudget) — reborn as an Outsider you
+  // still get the +4 that role carries. The Cursed penalty deliberately does
+  // NOT apply: the soul found a body, so there is no curse to pay for.
+  const budget =
+    (config?.startingTagPoints ?? 12) + (role.extraStartingPoints ?? 0) + REINCARNATION_BONUS_POINTS;
 
   // The role's own kit, resolved the way the wizard resolves it: an entry may
   // carry a count ("obol x5"), and the lookup is a set query, so duplicates
@@ -174,6 +200,9 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
           name: identity.name,
           gender: identity.gender,
           age: identity.age,
+          // Carried across, not defaulted: a player who reads and writes the
+          // game on the web must not be silently moved onto Discord by dying.
+          webOnly: previous?.webOnly ?? false,
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,
@@ -189,14 +218,22 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
         },
       });
 
-      if (startingTags.length > 0) {
-        await tx.characterTag.createMany({
-          data: startingTags.map((tag) => ({
+      // expiresTurn has to arrive STAMPED. Nothing backfills it later — the
+      // expiry sweep matches on the column — so a timed kit tag written without
+      // one is permanent, and would have been permanent only for reincarnated
+      // characters. Same expiryForGrant the wizard uses.
+      for (const tag of startingTags) {
+        await tx.characterTag.create({
+          data: {
             characterId: character.id,
             tagId: tag.id,
             source: "GM_GRANT",
             quantity: tag.stackable ? (wanted.get(tag.slug) ?? 1) : 1,
-          })),
+            expiresTurn: await expiryForGrant(tx, tag, turn, {
+              characterId: character.id,
+              where: "reincarnate",
+            }),
+          },
         });
       }
       return character;
@@ -220,6 +257,28 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
     }).catch((err) => console.error(`Reincarnation placement failed for ${created.id}:`, err.message ?? err));
   }
 
+  // The map this seat wakes up with (db/lib/startingMemories.js). After the
+  // transaction so it can read the tags just granted, and after placement,
+  // which has already recorded the Location they are standing in — otherwise a
+  // reborn character wakes with a fogged map of the town under their feet.
+  await seedMemories(
+    prisma,
+    created,
+    startingMemorySlugs(role.slug, new Set(startingTags.map((t) => t.slug))),
+  ).catch((err) => console.error(`Reincarnation memories failed for ${created.id}:`, err.message ?? err));
+
+  // Alive again, so the ghost seat comes off and the guild sees the new name —
+  // the same two steps db/lib/threatSpawn.js takes when a spawned character
+  // brings a dead player back. Both death teardowns already skip a player who
+  // is alive again (db/lib/deathTeardown.js#stillAlive), so this is the belt to
+  // that braces: the web's killCharacter revokes access BEFORE it writes the
+  // death row, which no ordering can guard.
+  //
+  // The curse itself needs no write — db/lib/curse.js derives it, and this
+  // character being ALIVE is already the answer.
+  await removeMemberRole(discordUserId, GHOST_ROLE_ID).catch(() => {});
+  await setGuildNickname(discordUserId, formatBareName(created)).catch(() => {});
+
   // Plain, not `-#`: sendDm prefixes every DM with `»` (CLAUDE.md), and a
   // `» -#` line renders as neither — Discord only reads subtext at the start
   // of a line. The chevron IS the DM convention, so this goes out bare.
@@ -236,4 +295,4 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   return created;
 }
 
-module.exports = { reincarnate, holdsMetempsychosis, REINCARNATION_BONUS_POINTS, REINCARNATION_AGE_MAX };
+module.exports = { reincarnate, REINCARNATION_BONUS_POINTS, REINCARNATION_AGE_MAX };

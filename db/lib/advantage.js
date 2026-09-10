@@ -47,4 +47,4 @@ function formatAdvantage({ rolls, advantage }) {
   return `(${rolls.join(", ")} — Lucky)`;
 }
 
-module.exports = { rollWithAdvantage, holdsAdvantage, formatAdvantage };
+module.exports = { rollWithAdvantage, formatAdvantage };

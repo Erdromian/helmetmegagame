@@ -455,26 +455,31 @@ turn close (`TURN-ENGINE.md` §8b), shedding to a Depths room only past the
 | Cascading-EV / annotator tests | `db/test/labordropsAnnotate.test.js` |
 
 
-## 8. Laboring (Scavenging) bends the die, not the table
+## 8. Laboring (Scavenging) redraws an empty face
 
-Laboring (Scavenging) (a mastery, `TAGS.md` §4a) maps a rolled **4 or 5 up to
-a 6** before the pool is drawn — `db/lib/laborDrops.js#effectiveDropRoll`, read
-by the `laborDrop` effect in `db/lib/moveEffects.js`.
+Laboring (Scavenging) (a mastery, `TAGS.md` §4a) redraws on the **6's pool**
+when a rolled 4 or 5 finds **an empty one** — `pickLaborDropOption` in
+`db/lib/laborDrops.js`, where the pool is already in hand.
 
-It is a remap rather than an edit to `docs/labordrops.yaml` because only faces
-**1 and 6** are configured at all: 2 through 5 draw from nothing. So "drops on
-4 and 5 as well as 6" and "4 and 5 read as a 6" are the same statement, and the
-second one touches no pool, no pad and none of the EV numbers
-`npm run db:audit-labor-drops` prints.
+The empty-pool test is the rule, not a detail. This shipped first as a blanket
+`4/5 → 6` remap, which was written when faces **1 and 6 were the only ones
+configured anywhere**. Prospecting (2026-09-19) filled in 2, 4 and 5, and the
+blanket remap immediately became a **downgrade**:
 
-**A 1 is deliberately left alone.** The tag says a *good* day is never an
-injury, not that a bad one stops happening — moving 1 as well would have
-deleted the only face that costs a labourer anything.
+| labor type | configured faces | what a blanket remap cost |
+|---|---|---|
+| hunting | 1, 6 | nothing |
+| farming | 6 | nothing |
+| fishing | **4** (EV 10 ⬢), 6 (EV 1.56) | traded 10 ⬢ for 1.56 |
+| prospecting | **2, 4, 5**, 6 | traded face 5's 8 ⬢ for 6.75 |
 
-Note what this does to §7's odds table: a Scavenger's chance of a find is **1
-in 2, not 1 in 6**, and their chance of a mishap is unchanged. The table there
-is written for an ordinary labourer and stays that way; read it against the
-remapped face for anyone holding this tag.
+Falling back only from a face that would otherwise pay **nothing** gives the
+same answer as the old rule everywhere the old rule was right, can never take a
+configured payout away, and stays true on its own as the rest of the table gets
+built out — no per-face bookkeeping to keep in step.
+
+**A 1 is still left alone.** The tag says a *good* day is never an injury, not
+that a bad one stops happening.
 
 Lucky stacks on top and is applied first (`db/lib/advantage.js`): two dice,
-better one kept, and only then the remap.
+better one kept, and only then the fallback.

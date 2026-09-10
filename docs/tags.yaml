@@ -2268,7 +2268,7 @@ tags:
     name: Lucky
     category: general
     group: general-traits
-    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the laboring die included. \u2021"
+    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the laboring die included. ‡"
     pointCost: 15
     visible: false
     purchasable: true
@@ -2284,7 +2284,7 @@ tags:
     category: general
     group: general-personality
     psychological: true
-    description: "You want the next thing before the last one has finished. Your Desire slots take no rest between claims. \u2021"
+    description: "You want the next thing before the last one has finished. Your Desire slots take no rest between claims. ‡"
     pointCost: 13
     visible: false
     purchasable: true
@@ -2300,7 +2300,7 @@ tags:
     name: Metempsychosis
     category: general
     group: general-traits
-    description: "You know something very, very important. \u2021"
+    description: "You know something very, very important. ‡"
     pointCost: 12
     visible: false
     purchasable: true
@@ -2315,7 +2315,7 @@ tags:
     name: Amor Fati
     category: general
     group: general-beliefs
-    description: "Unfortunate incidents only serve to make you pleased. What would wound another man's spirits lifts yours instead, and the ordinary miseries do not touch you at all. \u2021"
+    description: "Unfortunate incidents only serve to make you pleased. What would wound another man's spirits lifts yours instead, and the ordinary miseries do not touch you at all. ‡"
     pointCost: 12
     visible: false
     purchasable: true
@@ -2331,7 +2331,7 @@ tags:
     name: Imperturbable
     category: general
     group: general-traits
-    description: "Your mind is unshakable. Nothing moves your mood from Fine, and there is nothing in you for a torturer to break. \u2021"
+    description: "Your mind is unshakable. Nothing moves your mood from Fine, and there is nothing in you for a torturer to break. ‡"
     pointCost: 12
     visible: false
     purchasable: true
@@ -2347,7 +2347,7 @@ tags:
     name: Second Wind
     category: general
     group: general-traits
-    description: "You fight through it. Wounds and illness cost you nothing at all in a fight, though being at death's door still ends one. \u2021"
+    description: "You fight through it. Wounds and illness cost you nothing at all in a fight, though being at death's door still ends one. ‡"
     pointCost: 6
     visible: false
     purchasable: true
@@ -2571,16 +2571,19 @@ tags:
 
   # The two Laboring MASTERIES. Both need Laboring (Skilled) behind them and
   # neither can be bought at creation — see TAGS.md 4a on the mastery band.
-  # Scavenging remaps the drop die rather than editing docs/labordrops.yaml:
-  # only faces 1 and 6 are configured, so "drops on 4 and 5 too" is a 4/5 -> 6
-  # remap in db/lib/laborDrops.js. A 1 still hurts.
+  # Neither is teachable: a capstone bought only after the game starts must not
+  # be obtainable for the price of one Lesson Move.
+  #
+  # Scavenging redraws on the 6's pool when a 4 or a 5 finds an EMPTY one
+  # (db/lib/laborDrops.js) rather than remapping every 4 and 5, which would take
+  # a fisherman's 10 ⬢ face away and hand him a 1.56 ⬢ one. A 1 still hurts.
   laboring-scavenging:
     catalog: all
     name: Laboring (Scavenging)
     category: skills
     group: skills-labor
-    teachable: true
-    description: "You have an eye for what a day's work turns up. Your laboring finds something far more often, and what a good day turns up is never an injury. \u2021"
+    teachable: false
+    description: "You have an eye for what a day's work turns up. Your laboring finds something far more often, and what a good day turns up is never an injury. ‡"
     pointCost: 12
     requiredTag: laboring-skilled
     visible: false
@@ -2588,16 +2591,19 @@ tags:
     purchasableAfterStart: true
     mastery: true
 
-  # Tireless does two things, and the second is the one that matters: laboring
-  # while Exhausted does not step the fatigue ladder (db/lib/laborFatigue.js),
-  # so the holder can work every turn instead of one turn in three.
+  # Tireless does two things, and the second is the one that matters. The gate
+  # in db/lib/laborAccess.js lets the holder work while Exhausted at half yield;
+  # the fatigue ladder then needs NO special case, because
+  # db/lib/laborFatigue.js#nextLaborFatigueSlug already returns null for anybody
+  # who is Exhausted — so the work neither escalates nor refreshes the tag, and
+  # the holder can labor every turn instead of one turn in three.
   laboring-tireless:
     catalog: all
     name: Laboring (Tireless)
     category: skills
     group: skills-labor
-    teachable: true
-    description: "You can work through exhaustion. While {tag:exhausted} you still labor, at half of what you would otherwise make. \u2021"
+    teachable: false
+    description: "You can work through exhaustion. While {tag:exhausted} you still labor, at half of what you would otherwise make. ‡"
     pointCost: 14
     requiredTag: laboring-skilled
     visible: false
@@ -2648,8 +2654,8 @@ tags:
     catalog: all
     name: Musician (Pythagorean)
     category: skills
-    teachable: true
-    description: "Your music is complex and absorbing. It lifts everyone who hears it three times as much. \u2021"
+    teachable: false
+    description: "Your music is complex and absorbing. It lifts everyone who hears it three times as much. ‡"
     pointCost: 14
     requiredTag: musician
     visible: false
@@ -3234,8 +3240,8 @@ tags:
     name: Brewing (Distilling)
     category: skills
     group: skills-brewing
-    teachable: true
-    description: "You draw twice as much out of the same mash. Every brewing recipe you follow yields two of its item for the price of one. \u2021"
+    teachable: false
+    description: "You draw twice as much out of the same mash. Every brewing recipe you follow yields two of its item for the price of one. ‡"
     pointCost: 14
     requiredTag: brewing-skilled
     visible: false

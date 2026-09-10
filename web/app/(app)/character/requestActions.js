@@ -952,7 +952,11 @@ async function grantCrafted(
       // their Dead Simple allowance halved by their own doubled output.
       // What actually landed is recorded beside it when the two differ.
       quantity,
-      ...(distilled ? { granted, distilled: true } : {}),
+      // Only when the doubling actually landed. addToStack pins a
+      // non-stackable tag at quantity 1 however many are granted, so a
+      // non-stackable brew doubles to nothing — and a row claiming otherwise
+      // is a lie in the GM ledger rather than a rounding error.
+      ...(distilled && tag.stackable ? { granted, distilled: true } : {}),
       resourcesSpent: cost,
       payer: payerParty,
       projectId: project?.id ?? null,
@@ -3629,17 +3633,20 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
     throw new UserError(notHereMessage(target));
   if (!isBoundTarget(target))
     throw new UserError(`${target.name} isn't tied up.`);
-  // Imperturbable: there is nothing in there to break. Refused outright rather
-  // than given a threshold of 7, so the torturer is told why instead of
-  // spending a Move on a roll that could never land — and so the target's
-  // Move, mood and the -40 are all left alone.
+  const openTurn = await getOpenTurn();
+  await requireFreeMove(character, openTurn);
+
+  // Imperturbable: there is nothing in there to break.
+  //
+  // BELOW requireFreeMove on purpose, so the attempt costs the torturer their
+  // Move. Above it, this was a free probe: anyone could test a bound target for
+  // a hidden tag (`visible: false`) at no cost at all and read the answer off
+  // the refusal. Spending the Move matches pain-immunity, which lets the
+  // torturer roll and waste it. The target's mood and the −40 are still spared.
   if (target.tags.some((ct) => ct.tag.slug === IMPERTURBABLE_SLUG))
     throw new UserError(
       `${target.name} looks back at you, entirely unbothered. There is nothing here to break. ‡`,
     );
-
-  const openTurn = await getOpenTurn();
-  await requireFreeMove(character, openTurn);
 
   const equipmentInReach = await hasEquipmentInReach(
     prisma,
@@ -3647,10 +3654,13 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
     TORTURING_EQUIPMENT_SLUG,
   );
   const targetSlugs = target.tags.map((ct) => ct.tag.slug);
+  // The TORTURER's die, so it is the torturer's Lucky that bends it — the same
+  // side gambitMods below are computed for. Both dice are carried through, so
+  // the roll line can show the one that was thrown away.
+  const tortureRoll = rollWithAdvantage(character.tags);
   const result = resolveTorture({
-    // The TORTURER's die, so it is the torturer's Lucky that bends it — the
-    // same side gambitMods below are computed for.
-    die: rollWithAdvantage(character.tags).die,
+    die: tortureRoll.die,
+    rolls: tortureRoll.rolls,
     torturerSlugs,
     targetSlugs,
     equipmentInReach,

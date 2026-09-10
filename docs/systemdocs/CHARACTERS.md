@@ -900,8 +900,22 @@ Four things worth knowing before changing it:
   takes** (§2). Two deaths resolving inside one turn pass must not both land
   in the last free seat. `heldSeatsByRole` + `roleCapacity` decide "full", so
   reincarnation and the assignment roll cannot disagree about it.
-  Whitelisted and spawn-only roles are excluded — the same two exclusions the
-  roll makes.
+  **Three** exclusions: whitelisted and spawn-only (the two the assignment roll
+  makes), plus the **dynasty seats**. Baroness, Heir and Successor are not
+  whitelisted, so without that third one a coin flip could seat a random dead
+  player in the ruling family with the Baron's surname and the seat's key —
+  the largest political event in the game, with no human in the loop.
+- **It builds the character the wizard would have built.** The role kit arrives
+  with `expiresTurn` **stamped** (nothing backfills it, so a timed kit tag
+  written without one is permanent), `Role.extraStartingPoints` counts toward
+  the budget, `seedMemories` runs so the new body is not standing in a town it
+  cannot see, and `webOnly` is carried across — read off the database, not off
+  the passed row, since the eight callers select whatever they happen to need.
+- **The player is not ghosted by their own corpse.** Both death teardowns key on
+  `discordUserId`, so they reach the *person*; both now skip somebody who is
+  alive again (`db/lib/deathTeardown.js#stillAlive`), and reincarnation lifts
+  the ghost role and sets the nickname itself, the way `db/lib/threatSpawn.js`
+  does when a spawn brings a dead player back.
 - **The points arrive unspent**, on `Character.tagPoints`. Skipping the wizard
   means there is no menu in which to spend them, and `/store` is that menu
   mid-game — it already spends exactly this column. No new surface.

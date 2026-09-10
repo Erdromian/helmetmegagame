@@ -15,6 +15,26 @@ const AMOR = ["amor-fati"];
 // "Unfortunate incidents only serve to make you pleased." A negative factor
 // in the multiplier table, so harm comes back as relief.
 
+// The regression this shape exists for. Amor Fati was a NEGATIVE multiplier
+// for a day, and multiplierFor multiplies every applicable rule together — so
+// it composed with the vulnerability rows and inverted them. The phobias refund
+// points, so stacking one was strictly better AND cheaper; Brave, which costs
+// points, punished you.
+test("a phobia cannot amplify the gift, and Brave cannot shrink it", () => {
+  assert.equal(resolveDelta({ kind: "CAVE_TROUBLE", base: -10, heldSlugs: AMOR }), 5);
+  assert.equal(resolveDelta({ kind: "CAVE_TROUBLE", base: -10, heldSlugs: [...AMOR, "teratophobia"] }), 5);
+  assert.equal(resolveDelta({ kind: "WOUND", base: -30, heldSlugs: [...AMOR, "hemophobia"] }), 15);
+  assert.equal(resolveDelta({ kind: "WOUND", base: -30, heldSlugs: [...AMOR, "brave"] }), 15);
+  assert.equal(resolveDelta({ kind: "WILDERNESS", base: -10, heldSlugs: [...AMOR, "agoraphobia"] }), 0);
+});
+
+// ...and the multipliers still work for everybody who does NOT hold it.
+test("the phobias and Brave are untouched without Amor Fati", () => {
+  assert.equal(resolveDelta({ kind: "WOUND", base: -30, heldSlugs: ["brave"] }), -15);
+  assert.equal(resolveDelta({ kind: "WOUND", base: -30, heldSlugs: ["hemophobia"] }), -60);
+  assert.equal(resolveDelta({ kind: "CAVE_TROUBLE", base: -10, heldSlugs: ["teratophobia"] }), -30);
+});
+
 test("a shock pays back half its sting as mood instead of taking it", () => {
   assert.equal(resolveDelta({ kind: "CRUCIFIED", base: EVENTS.CRUCIFIED, heldSlugs: AMOR }), 40);
   assert.equal(resolveDelta({ kind: "TORTURED", base: EVENTS.TORTURED, heldSlugs: AMOR }), 20);
@@ -58,10 +78,36 @@ test("Imperturbable is on the watched-slug list, or the nightly pass would miss 
 });
 
 // --- Second Wind ----------------------------------------------------------
-const tag = (slug, category, fighting) => ({ tag: { slug, name: slug, category, fighting } });
+const tag = (slug, category, fighting, group = null) =>
+  ({ tag: { slug, name: slug, category, fighting, group: group ? { slug: group } : null } });
 const SKILL = tag("melee-basic", "Skills", { tree: "melee", rung: 1 });
 const SECOND_WIND = tag("second-wind", "General", null);
-const WOUND = tag("broken-arm", "Health", { tree: "both", points: -15 });
+const WOUND = tag("broken-arm", "Health", { tree: "both", points: -15 }, "health-wounds");
+
+test("a Health penalty that is NOT a wound still costs you", () => {
+  // Blind and the illnesses are Health, and Second Wind is not a cure for them.
+  for (const [slug, group] of [["blind", "health-mind"], ["envenomated", "health-illness"], ["aching", "health-minor"]]) {
+    const row = { tag: { slug, name: slug, category: "Health", group: { slug: group }, fighting: { tree: "both", points: -15 } } };
+    const r = fightingSkillFor([SKILL, SECOND_WIND, row], "melee");
+    assert.equal(r.contributors.find((c) => c.label === slug).points, -15, slug);
+  }
+});
+
+test("all three wound groups are waived", () => {
+  for (const group of ["health-wounds", "health-maiming", "health-infection"]) {
+    const row = { tag: { slug: group, name: group, category: "Health", group: { slug: group }, fighting: { tree: "both", points: -15 } } };
+    const r = fightingSkillFor([SKILL, SECOND_WIND, row], "melee");
+    assert.equal(r.contributors.find((c) => c.label === group).points, 0, group);
+  }
+});
+
+// A row whose group was never selected must read as not-a-wound: the penalty
+// keeps counting rather than being waived by accident.
+test("a missing group fails safe", () => {
+  const row = { tag: { slug: "deep-wound", name: "deep-wound", category: "Health", fighting: { tree: "both", points: -15 } } };
+  const r = fightingSkillFor([SKILL, SECOND_WIND, row], "melee");
+  assert.equal(r.contributors.find((c) => c.label === "deep-wound").points, -15);
+});
 
 test("a Health penalty stops counting, but is still named at zero", () => {
   const without = fightingSkillFor([SKILL, WOUND], "melee");

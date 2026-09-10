@@ -375,8 +375,8 @@ an event when somebody does.
 
 ## Second Wind
 
-An ordinary 6-point tag (**not** a mastery, despite reading like one): a Health
-tag's *penalty* stops counting toward the rating.
+An ordinary 6-point tag (**not** a mastery, despite reading like one): a
+**wound's** penalty stops counting toward the rating.
 
 It works through `contextOf`'s new `secondWind` flag and reuses the branch in
 `modifiers()` that already exists for a cancelled maiming — the contributor is
@@ -391,10 +391,20 @@ Three things it deliberately does **not** do:
   at one, which is exactly what the cap mechanism is for (§2).
 - **It only waives penalties.** A Health tag with positive `points` keeps
   helping.
-- **It is Health only.** A Status penalty — Bound, a hangover, Wasted — is
-  untouched.
+- **It is WOUNDS only** — the three groups in `WOUND_TAG_GROUPS`
+  (`db/lib/constants.js`): `health-wounds`, `health-maiming`,
+  `health-infection`. 33 tags, against 30 Health tags that still cost you:
+  every illness, Blind, Concussed, Envenomated, Choking, and the aches. It
+  waived the whole Health category for a day, which at 6 points bought off
+  sixty-odd stacking penalties on a tag buyable at creation. A cold is not a
+  wound, and neither is blindness.
+- **A Status penalty** — Bound, a hangover, Wasted — is untouched.
 
-`FIGHTING_TAG_FIELDS` gained `category: true` for this. Drop it and every wound
-quietly starts costing a Second Wind holder again, at that surface only — the
-same silent-per-surface failure the comment on that constant already warns
-about.
+`FIGHTING_TAG_FIELDS` gained `category: true` for this. The group slug it also
+needs is deliberately **not** in that object: every caller spreads it into a
+wider select that already asks for `group` with more fields, and a narrower
+`group` spread in afterwards would silently strip the colour off every chip in
+the app. So the contract is that a caller resolving a whole character selects
+`group: { select: { slug: true } }` itself — both do today. A row arriving
+without its group reads as not-a-wound, which fails **safe**: the penalty still
+counts.

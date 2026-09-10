@@ -53,7 +53,7 @@ const { rollDie } = require("./rollDie");
 const { rollWithAdvantage } = require("./advantage");
 const { expiryFrom } = require("./turnFormat");
 const { nextLaborFatigueSlug } = require("./laborFatigue");
-const { TIER_TO_LABOR_DROP_TYPE, pickLaborDropOption, effectiveDropRoll } = require("./laborDrops");
+const { TIER_TO_LABOR_DROP_TYPE, pickLaborDropOption } = require("./laborDrops");
 
 // One entry per pushable thing. `read` decides what this Move would push right
 // now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert` takes back
@@ -215,16 +215,15 @@ const MOVE_EFFECTS = {
       });
       const heldTagIds = new Set(held.map((row) => row.tagId));
       const heldSlugs = new Set(held.map((row) => row.tag?.slug).filter(Boolean));
-      // Lucky throws this die twice and keeps the better one; Scavenging then
-      // remaps a 4 or a 5 up to a 6 (db/lib/laborDrops.js#effectiveDropRoll),
-      // which is what "drops more often, and a good day is never an injury"
-      // means against a table that only configures faces 1 and 6. `roll` below
-      // is the face the pool is drawn on, and it is what gets snapshotted onto
+      // Lucky throws this die twice and keeps the better one. Scavenging's own
+      // bend happens INSIDE pickLaborDropOption, because it depends on whether
+      // the rolled face has a pool at all — see the note there. `roll` stays
+      // the face that was actually rolled, which is what gets snapshotted onto
       // appliedEffects so Undo and the readout agree with what happened.
-      const { die } = rollWithAdvantage([...heldSlugs].map((slug) => ({ slug })));
-      const roll = effectiveDropRoll(die, heldSlugs);
+      const { die: roll } = rollWithAdvantage([...heldSlugs].map((slug) => ({ slug })));
       const option = await pickLaborDropOption(tx, {
         roll,
+        heldSlugs,
         laborType,
         zoneId: action.zoneId ?? null,
         locationId: action.locationId ?? null,

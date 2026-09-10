@@ -17,4 +17,4 @@ function tagDisplayName(tag) {
   return tag?.mastery ? `${MASTERY_STAR} ${name}` : name;
 }
 
-module.exports = { tagDisplayName, MASTERY_STAR };
+module.exports = { tagDisplayName };

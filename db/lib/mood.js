@@ -47,8 +47,8 @@
 // No require of ./tagWrites here, on purpose: tagWrites requires THIS module
 // for applyWoundMood, and a cycle would hand one of them a half-built export.
 const { hasAttribute, SAFE_ATTRIBUTE, WILDERNESS_ATTRIBUTE, HAVEN_ATTRIBUTE } = require("./locationAttributes");
-const { DYING_SLUG } = require("./constants");
-const { IMPERTURBABLE_SLUG } = require("./constants");
+const { DYING_SLUG, IMPERTURBABLE_SLUG, AMOR_FATI_SLUG, WOUND_TAG_GROUPS } = require("./constants");
+
 
 // Still asymmetric, but by one band rather than by a whole half: Ecstatic
 // mirrors Afraid exactly — same width, same distance from Fine, +1 against its
@@ -186,7 +186,7 @@ const CONSUME_RELIEF = Object.freeze({
 
 // Which Health groups sink a mood when they land. Illness, mind, minor and
 // recovery do not — a cold is not a wound.
-const WOUND_GROUPS = new Set(["health-wounds", "health-maiming", "health-infection"]);
+const WOUND_GROUPS = new Set(WOUND_TAG_GROUPS);
 const BURN_SLUGS = new Set(["burned", "severe-burns"]);
 // Cure-ladder rung (TAGS.md §5c) -> what it costs the mood, signed. The half
 // rungs are the six named exceptions the ladder documents.
@@ -232,27 +232,51 @@ const MULTIPLIERS = Object.freeze([
   // caller can say what is equipped (equippedSlugs below); a caller that
   // cannot simply never applies them, which fails safe — no free immunity.
   { slug: "heartforged-blade", kinds: "*", factor: 0, equipped: true },
-  // Amor Fati (a mastery, TAGS.md 4a). A NEGATIVE factor, which is new here
-  // and is the whole trick: `resolveDelta` only consults this table for harm
-  // (base < 0), so multiplying by -0.5 hands back half the sting as RELIEF
-  // instead of taking it. Being crucified is worth +40 to a man who has
-  // decided to want whatever happens.
-  //
-  // Split in two on purpose. The first list is misfortune that HAPPENS to
-  // you — a shock with an author and a moment. The second is the weather:
-  // ever-present costs nobody would call an incident, which simply stop
-  // landing rather than becoming a pleasure. WILDERNESS and CAVE cover both
-  // the arrival hit and the nightly one, since the kind is the same for each.
-  //
-  // DRIFT needs no row (it carries noMultiplier), and PLACE harm is already
-  // capped at Fine.
-  {
-    slug: "amor-fati",
-    kinds: ["WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BOUND", "ROBBED", "TURRET", "CAVE_TROUBLE", "DEATH_SEEN"],
-    factor: -0.5,
-  },
-  { slug: "amor-fati", kinds: ["WILDERNESS", "CAVE", "HUNGER", "CORPSE", "NOBLE_MEAL"], factor: 0 },
 ]);
+// Amor Fati (a mastery, TAGS.md 4a) — the one rule that is NOT a multiplier,
+// and it has to stay that way.
+//
+// It reads like a factor of -0.5, and it was one for a day. But `multiplierFor`
+// MULTIPLIES every applicable rule together, so a negative factor composed with
+// the vulnerability rows and inverted them: Teratophobia's ×3 turned cave
+// trouble into +15 rather than +5, Hemophobia's ×2 paid a wound back at FULL
+// value instead of half, and Brave's ×0.5 — a tag you pay points for — HALVED
+// the relief. Since the phobias refund points, stacking one was strictly better
+// and strictly cheaper. Backwards in both directions.
+//
+// So for a kind it owns, Amor Fati REPLACES the multiplier chain rather than
+// joining it: the gift is half of what the event costs anybody, and what you
+// happen to fear or how brave you are does not change it. Nothing can compose
+// with it, so nothing can invert it.
+//
+// Split in two on purpose. SHOCK is misfortune that HAPPENS to you — an author
+// and a moment — and pays back half of what it cost. AMBIENT is the weather:
+// ever-present costs nobody would call an incident, which simply stop landing
+// rather than becoming a pleasure. WILDERNESS and CAVE cover both the arrival
+// hit and the nightly one, since the kind is the same for each. DRIFT needs no
+// entry (it carries noMultiplier) and PLACE harm is already capped at Fine.
+const AMOR_FATI_SHOCK = Object.freeze(
+  new Set(["WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BOUND", "ROBBED", "TURRET", "CAVE_TROUBLE", "DEATH_SEEN"]),
+);
+const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "CORPSE", "NOBLE_MEAL"]));
+const AMOR_FATI_SHARE = -0.5;
+
+// Takes the RAW base, not the multiplied harm, and that is the fix rather than
+// an implementation detail. Reordering alone changes nothing — multiplication
+// commutes, so `base × phobia × -0.5` is the same number either way. What has
+// to go is the phobia's involvement at all: the gift is half of what the event
+// COSTS, not half of what it would have cost this particular sufferer.
+//
+// Returns `{ handled, value }`. `handled: false` means Amor Fati has no opinion
+// about this kind and the ordinary multiplied path should run.
+function amorFatiHarm(kind, base, heldSlugs) {
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  if (!held.has(AMOR_FATI_SLUG)) return { handled: false, value: 0 };
+  if (AMOR_FATI_AMBIENT.has(kind)) return { handled: true, value: 0 };
+  if (AMOR_FATI_SHOCK.has(kind)) return { handled: true, value: base * AMOR_FATI_SHARE };
+  return { handled: false, value: 0 };
+}
+
 // Every slug the mood system reads, so a caller loading a sheet knows what to
 // select — and so the turn pass can filter its candidate query. Imperturbable
 // is on the list without being in the table above: it works through
@@ -260,7 +284,7 @@ const MULTIPLIERS = Object.freeze([
 // did not SELECT it would compute the whole night as though the holder were
 // ordinary. That is exactly the silent kind of miss this list exists to stop,
 // so anything the dial reads belongs here whether or not it is a multiplier.
-const MULTIPLIER_SLUGS = [...new Set([...MULTIPLIERS.map((m) => m.slug), IMPERTURBABLE_SLUG])];
+const MULTIPLIER_SLUGS = [...new Set([...MULTIPLIERS.map((m) => m.slug), IMPERTURBABLE_SLUG, AMOR_FATI_SLUG])];
 
 // --- the pure half --------------------------------------------------------
 
@@ -400,7 +424,10 @@ function resolveDelta({
   const k = Number.isFinite(intensity) && intensity > 0 ? intensity : 0;
   if (!base || k === 0) return 0;
   const harm = base < 0 && !noMultiplier;
-  const raw = harm ? base * multiplierFor(kind, heldSlugs, ctx, equippedSlugs) * k : base / k;
+  const amor = harm ? amorFatiHarm(kind, base, heldSlugs) : { handled: false, value: 0 };
+  const raw = harm
+    ? (amor.handled ? amor.value : base * multiplierFor(kind, heldSlugs, ctx, equippedSlugs)) * k
+    : base / k;
   // `|| 0` folds -0 back to 0. A zeroing multiplier on a negative base
   // produces it (Outsider in the wilderness, Amor Fati on any of the ambient
   // costs), and while -0 adds like 0 it PRINTS like "-0" in a readout.
@@ -532,7 +559,7 @@ async function applyMoodTerms(
   // Nothing moves an Imperturbable dial, so the correction is a one-time
   // write back to 0 the next time anything asks — the nightly pass reaches
   // every living character, so it settles within a turn at the outside.
-  if (unshakable && before !== 0) {
+  if (unshakable && before !== 0 && character.status === "ALIVE") {
     await tx.character.update({ where: { id: characterId }, data: { mood: 0 } });
     after = 0;
     delta = 0;

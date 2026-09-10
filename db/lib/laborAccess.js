@@ -307,7 +307,6 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
       max: 0,
       bonus: 0,
       tools: [],
-      halved: false,
       halvedBy: [],
       lifewebFailing,
       locationCoefficient: 1,
@@ -365,7 +364,6 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
     min = Math.floor(min / 2);
     max = Math.floor(max / 2);
   }
-  const halved = halvedBy.length > 0;
 
   if (lifewebFailing) {
     // Basic is not scaled, it stops. Everything else keeps a twentieth.
@@ -385,7 +383,6 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
     max,
     bonus: best.bonus,
     tools: best.tools,
-    halved,
     halvedBy,
     lifewebFailing,
     locationCoefficient: best.locationCoefficient,
@@ -419,7 +416,7 @@ function laborTierLabel(tier) {
 // Returns null when there is nothing to explain, so a caller can spread it
 // straight into a lines array.
 function formatLaborBonusNote(
-  { tools = [], halved = false, halvedBy = [], lifewebFailing = false, refinery = false } = {},
+  { tools = [], halvedBy = [], lifewebFailing = false, refinery = false } = {},
   { refined = true } = {},
 ) {
   // A refining shift has no tools and no dials — what it made is the whole
@@ -437,11 +434,9 @@ function formatLaborBonusNote(
   for (const tool of tools) {
     if (tool.amount) parts.push(`+${tool.amount} ⬢ from ${tool.name}`);
   }
-  // `halvedBy` names each cut; the bare `halved` is the older shape and still
-  // reads as Soft Hands, so a caller that has not been updated says something
-  // true rather than nothing.
+  // Each cut is NAMED. A bare "halved" on a day somebody was merely tired read
+  // as a bug, and with two possible cuts it could not say which applied.
   if (halvedBy.length > 0) parts.push(`halved by ${halvedBy.join(" and then by ")}`);
-  else if (halved) parts.push("halved by Soft Hands");
   if (lifewebFailing) parts.push("and the Lifeweb is failing, so almost nothing came of it");
   if (parts.length === 0) return null;
   const [first, ...rest] = parts;

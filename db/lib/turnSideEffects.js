@@ -37,6 +37,7 @@ const { announceTurretBurst } = require("./turretBurst");
 const { ambientLine } = require("./ambientLine");
 const { deliverCarryDrop } = require("./carry");
 const { revokeAllCharacterAccess } = require("./accessSweep");
+const { stillAlive } = require("./deathTeardown");
 const { reconcileCharacterRoleNames } = require("./characterRoleNames");
 const { refreshLiveRooms } = require("./syncZones");
 const { broadcastToZones } = require("./worldBroadcast");
@@ -311,7 +312,14 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
       // clear private-Room door grants. Without it that deleteMany matched
       // nothing and a corpse kept every door somebody had held open for them —
       // silently, since the rest of the revoke worked fine.
-      const revoked = await revokeAllCharacterAccess(prisma, {
+      // A player who is alive again already — Metempsychosis put them in a new
+      // body a moment ago (db/lib/reincarnate.js) — must not be stripped by
+      // their own corpse's teardown. Everything below keys on discordUserId, so
+      // it reaches the person rather than the body. Same guard, same reason, as
+      // db/lib/deathTeardown.js#stillAlive.
+      const reborn = await stillAlive(prisma, death.discordUserId);
+
+      const revoked = reborn ? { failed: 0, attempted: 0 } : await revokeAllCharacterAccess(prisma, {
         ...death,
         id: death.id ?? death.characterId,
       }).catch((err) => {
@@ -349,7 +357,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
         );
       }
 
-      if (member) {
+      if (member && !reborn) {
         await addMemberRole(death.discordUserId, GHOST_ROLE_ID).catch((err) =>
           console.error(
             `Failed to grant the ghost seat to ${death.discordUserId}:`,

@@ -284,6 +284,11 @@ async function syncTagsFromYaml(prisma) {
     // menu that offers it. Both of these would leave it quietly unbuyable
     // rather than visibly broken, which is why they throw here.
     if (t.mastery) {
+      if (t.purchasable === false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is mastery but not purchasable — mastery narrows WHEN a tag can be bought, it cannot make an unbuyable one buyable`,
+        );
+      }
       if (t.purchasableAfterStart === false) {
         throw new Error(
           `docs/tags.yaml: tag "${t.slug}" is mastery but purchasableAfterStart: false — creation already refuses a mastery tag, so it could be bought nowhere at all`,

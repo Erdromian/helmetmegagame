@@ -176,12 +176,27 @@ const MOTION_SICKNESS_SLUG = "motion-sickness";
 // web/lib/consumeGrants.js — that file ships to the client, so it keeps its
 // own copies rather than importing from here.
 const DEBTOR_SLUG = "debtor";
-// The mastery tags (TAGS.md 4a). Each is read by exactly one mechanic:
-// Lucky by db/lib/advantage.js, Manic by the desire-slot lock, Amor Fati and
-// Imperturbable by db/lib/mood.js, Second Wind by db/lib/fightingSkill.js,
-// Scavenging by the labor drop die, Tireless by the fatigue ladder,
-// Distilling by Craft, and Pythagorean by /play. Metempsychosis is read on
-// death (db/lib/characterDeath.js).
+// The mastery tags (TAGS.md 4a), as one registry.
+//
+// Six of the ten are imported from here — Lucky by db/lib/advantage.js,
+// Amor Fati and Imperturbable by db/lib/mood.js, Second Wind by
+// db/lib/fightingSkill.js, Scavenging by the drop die, Tireless by
+// db/lib/laborAccess.js, Distilling by Craft, Metempsychosis on death.
+//
+// Three are NOT, and deliberately keep their own copies: Manic is spelled out
+// in db/lib/desireGates.js, which has no imports because client components
+// deep-import it (the web/lib/consumeGrants.js precedent CLAUDE.md cites), and
+// Pythagorean sits beside MUSICIAN_SLUG in the bot's own handler. They stay
+// listed here so the registry is the complete set rather than a partial one —
+// the same reason MUTILATE_GATE_SLUG and KISS_BLOCKING_SLUG are listed.
+// The Health groups that are a WOUND rather than an illness or a state of mind
+// — "a cold is not a wound". Shared because two unrelated systems ask the same
+// question of the same three groups: the mood dial charges for one landing
+// (db/lib/mood.js), and Second Wind waives what one costs a fighting rating
+// (db/lib/fightingSkill.js). It lived in mood.js until fightingSkill needed it,
+// and importing mood into a pure scorer to get three strings was not the trade.
+const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "health-infection"]);
+
 const LUCKY_SLUG = "lucky";
 const MANIC_SLUG = "manic";
 const METEMPSYCHOSIS_SLUG = "metempsychosis";
@@ -267,6 +282,7 @@ module.exports = {
   INSOMNIAC_SLUG,
   MOTION_SICKNESS_SLUG,
   DEBTOR_SLUG,
+  WOUND_TAG_GROUPS,
   LUCKY_SLUG,
   MANIC_SLUG,
   METEMPSYCHOSIS_SLUG,

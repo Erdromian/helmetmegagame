@@ -21,7 +21,7 @@
 // tier and the arithmetic still never touches a float. docs/tags.yaml speaks
 // tiers (`tiers: -0.5`); db/lib/tagShapes.js multiplies by this on the way in
 // and every number below here is an integer.
-const { SECOND_WIND_SLUG } = require("./constants");
+const { SECOND_WIND_SLUG, WOUND_TAG_GROUPS } = require("./constants");
 const { HEALTH_CATEGORY } = require("./medicalVision");
 
 const SECOND_WIND_LABEL = "Second Wind";
@@ -171,6 +171,14 @@ function rungBase(rows, tree) {
   return { points: UNTRAINED + RUNG_STEP * best.rung, label: best.label };
 }
 
+// A wound rather than an illness or a state of mind — what Second Wind waives.
+// Health-category AND one of the three wound groups; a tag whose group was not
+// selected reads as not-a-wound, which fails SAFE (the penalty still counts).
+function isWoundRow(row) {
+  const tag = tagOf(row);
+  return tag?.category === HEALTH_CATEGORY && WOUND_TAG_GROUPS.includes(tag?.group?.slug);
+}
+
 // Everything programmatic that is not about a weapon. These SUM: a maiming and
 // a hangover both land, the way docs/handbook.md:350 says a weapon, a set of
 // gear and a skill all stack.
@@ -186,11 +194,19 @@ function modifiers(rows, tree, ctx) {
     // A wound the holder fights straight through. Named at 0 rather than
     // dropped, exactly like a cancelled maiming below and for the same
     // reason: a player should be able to read why their broken arm costs
-    // nothing instead of assuming the system lost it. Only PENALTIES are
-    // waived — a Health tag that somehow helped would keep helping — and the
-    // band CAPS (Dying, Paralyzed, Seizure) are untouched on purpose: those
-    // take you out of a fight rather than making you worse at one.
-    if (ctx.secondWind && tagOf(row)?.category === HEALTH_CATEGORY && block.points < 0) {
+    // nothing instead of assuming the system lost it.
+    //
+    // WOUNDS ONLY, not the whole Health category. It waived every Health tag
+    // for a day, which at 6 points bought off Blind, Cripple, every illness and
+    // every maiming at once — sixty-odd tags, stacking, on a tag buyable at
+    // character creation. The three wound groups are what "you fight through
+    // it" can honestly mean; a cold is not a wound, and neither is blindness.
+    //
+    // Two further limits: only PENALTIES are waived — a Health tag that
+    // somehow helped keeps helping — and the band CAPS (Dying, Paralyzed,
+    // Seizure) are untouched on purpose, since those take you out of a fight
+    // rather than making you worse at one.
+    if (ctx.secondWind && isWoundRow(row) && block.points < 0) {
       out.push({ label: nameOf(row), points: 0, cancelledBy: SECOND_WIND_LABEL });
       continue;
     }
@@ -405,6 +421,18 @@ function formatFightingSkill(resolved) {
 // `category` is here because Second Wind asks whether a penalty is a Health
 // one; drop it and every wound quietly starts costing a Second Wind holder
 // again, at that surface only.
+// `category` is here because Second Wind asks whether a penalty is a Health
+// one. It also needs the tag's GROUP slug — but that is deliberately NOT in
+// this object, because every caller spreads this into a wider select that
+// already asks for `group` with more fields (web/lib/referenceData.js's
+// TAG_CHIP_FIELDS wants name and colour too), and a narrower `group` spread in
+// afterwards would silently overwrite theirs and strip the colour off every
+// chip in the app.
+//
+// So the contract is: a caller resolving a whole character's fighting rating
+// must select `group: { select: { slug: true } }` itself. Both do today, via
+// TAG_CHIP_FIELDS. A row whose group is missing reads as not-a-wound, which
+// fails safe — the penalty still counts.
 const FIGHTING_TAG_FIELDS = { fighting: true, equipSlot: true, category: true };
 
 module.exports = {

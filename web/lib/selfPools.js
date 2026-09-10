@@ -54,8 +54,8 @@ import {
 export async function loadDesireView(character, { openTurn, gameConfig, withCatalog = true } = {}) {
   const desireSlots = gameConfig?.desireSlots ?? 2;
   const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 1;
-  // Manic. Passed down to the client as well as used here, so the sheet's own
-  // "Locked (1t)" label agrees with what claimDesire will actually allow.
+  // Manic. The client needs no flag of its own: slotStates below already comes
+  // back unlocked for a holder, and the sheet labels a slot off that.
   const slotsNeverLock = desireSlotsNeverLock(character.tags ?? []);
   const heldTags = (character.tags ?? []).map((ct) => ct.tag);
   const heldDesireTagIds = new Set((character.tags ?? []).map((ct) => ct.tagId));
@@ -80,7 +80,6 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
   const view = {
     desireSlots,
     desireSlotLockTurns,
-    slotsNeverLock,
     slotStates: slotStates({
       history,
       openTurnNumber,
