@@ -231,8 +231,17 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
 // them. Watching is not standing there: a GM who wants to say something in a
 // scene says it as a GM, on Discord or through the desk.
 async function gmPlacesFor(prisma, discordUserId) {
+  // visibleZoneIds already folds a seat down onto the zones it owns, so
+  // "Underground" arrives here as Underground + Caves + Depths and the cave
+  // Locations come with it (db/lib/gmZoneView.js).
   const visible = await visibleZoneIds(prisma, discordUserId);
-  const zoneWhere = visible ? { id: { in: [...visible] } } : {};
+  // A CAVE_GROUP is a Discord category and a GM seat, never a place: it holds
+  // no Locations and the sync gives it no #summary channel, so listing it
+  // would draw a row that opens nothing. Its two levels carry the places.
+  const zoneWhere = {
+    kind: { not: "CAVE_GROUP" },
+    ...(visible ? { id: { in: [...visible] } } : {}),
+  };
 
   const zones = await prisma.zone.findMany({
     where: zoneWhere,

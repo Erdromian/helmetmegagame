@@ -5664,6 +5664,17 @@ label.chip {
   overflow-y: auto;
 }
 
+/* The GM zone picker at the foot of the right column. It wears the desks'
+   .desk-inspector-zones, which brings its own side padding — and .chat-aside
+   is already padded, so the chips would sit two insets deep and the rule
+   above them would stop short of the column's edges. Pull the padding back to
+   vertical only and let the border run the full width, the way it does in an
+   inspector that has no padding of its own. */
+.chat-aside-tabs > .desk-inspector-zones {
+  padding-inline: 0;
+  margin-top: auto;
+}
+
 /* The "Playing from the web" chip, in the foot beside the chime toggle. The
    foot is a flex row and carries the padding now, so the chip carries none. */
 .chat-webonly {

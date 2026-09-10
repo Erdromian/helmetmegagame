@@ -21,7 +21,26 @@ const SETTLE_MS = 350;
 // desk re-filters through GmZoneViewProvider, and the Discord role grants land
 // a moment later in the action's after() — they used to be awaited inside the
 // click, which is what made it take twenty seconds.
+// RE-SEEDING, AND WHY IT IS A KEY. Everything below reads the server's answer
+// once, into useState and a ref — which is right for a control that paints on
+// the click and lets the write catch up, and wrong the moment the server hands
+// down a different answer without remounting. Three of the pages carrying this
+// rail are snapshotted (/chat, /gm/audit, /gm/turns): they paint a stored copy
+// first and swap the fresh payload in underneath (web/lib/snapshot). So the
+// chips froze at whatever the snapshot was saved with — tick a zone, reload,
+// and the places list beside the rail showed the new zones while the chip for
+// one of them sat unticked.
+//
+// Keying on the selection remounts the inner rail when, and only when, the
+// server's answer actually changes. Same move as HereList's key in
+// ./ChatAside.js, and made here rather than at five call sites so no future
+// one can forget it. It cannot be done from inside — a component cannot key
+// itself — which is the whole reason for the split.
 export default function GmZoneRail({ zones, selectedIds }) {
+  return <ZoneChips key={(selectedIds ?? []).join(",")} zones={zones} selectedIds={selectedIds} />;
+}
+
+function ZoneChips({ zones, selectedIds }) {
   const [selected, setSelected] = useState(() => new Set(selectedIds ?? []));
   const [error, setError] = useState(null);
   const publish = useSetVisibleZoneNames();

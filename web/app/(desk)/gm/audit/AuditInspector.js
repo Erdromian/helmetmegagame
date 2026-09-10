@@ -6,6 +6,7 @@ import CharacterLink from "@/app/components/CharacterLink";
 import StatusPill from "@/app/components/StatusPill";
 import { describeAudit, prettifyActionType } from "@/lib/auditNarrative";
 import AuditSegments from "./AuditSegments";
+import GmZoneRail from "@/app/components/GmZoneRail";
 
 // The selected entry, in full.
 //
@@ -38,20 +39,23 @@ function labelize(key) {
     .trim();
 }
 
-export default function AuditInspector({ entry, names, onFilter }) {
+export default function AuditInspector({ entry, names, onFilter, selectableZones, visibleZoneIds }) {
   const [rawOpen, setRawOpen] = useState(false);
   const [copied, setCopied] = useState("");
 
   if (!entry) {
     return (
       <aside className="desk-inspector">
-        <div className="desk-empty text-muted">
-          <p>Pick a line to see who did it, to whom, and with what.</p>
-          <p className="text-xs mt-2">
-            <span className="mono">j</span> / <span className="mono">k</span> to walk,{" "}
-            <span className="mono">Enter</span> to open.
-          </p>
+        <div className="desk-inspector-body">
+          <div className="desk-empty text-muted">
+            <p>Pick a line to see who did it, to whom, and with what.</p>
+            <p className="text-xs mt-2">
+              <span className="mono">j</span> / <span className="mono">k</span> to walk,{" "}
+              <span className="mono">Enter</span> to open.
+            </p>
+          </div>
         </div>
+        <ZoneFoot zones={selectableZones} selectedIds={visibleZoneIds} />
       </aside>
     );
   }
@@ -192,8 +196,18 @@ export default function AuditInspector({ entry, names, onFilter }) {
           <pre className="audit-raw mono">{JSON.stringify(details, null, 2)}</pre>
         )}
       </div>
+
+      <ZoneFoot zones={selectableZones} selectedIds={visibleZoneIds} />
     </aside>
   );
+}
+
+// A snapshot stored before this desk carried the picker has neither prop, and
+// GmZoneRail would map over undefined. web/lib/snapshot replays whatever it
+// saved, so the guard is the version check.
+function ZoneFoot({ zones, selectedIds }) {
+  if (!zones?.length) return null;
+  return <GmZoneRail zones={zones} selectedIds={selectedIds ?? []} />;
 }
 
 function Fact({ label, children }) {

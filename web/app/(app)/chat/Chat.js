@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import Modal from "@/app/components/Modal";
 import ChatAside, { hereKey } from "./ChatAside";
+import GmZoneRail from "@/app/components/GmZoneRail";
 import MapBoard from "../map/MapBoard";
 import HereList from "@/app/components/HereList";
 import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
@@ -82,6 +83,17 @@ export default function Chat({
   // carrying an instant camera. Both only decide which controls a feed row
   // draws; the server re-decides every one of them when it is pressed.
   gm = false,
+  // The GM's "Zones I see" picker, or null. It rides the right column rather
+  // than the places list because it is a control, not a place — and because
+  // that column is where the same picker sits on every GM desk.
+  //
+  // Only ever set in GM MODE, which is a GM with no living character
+  // (web/lib/feedAccess.js#loadFeedViewer: `gm = isGm && !character`). A GM
+  // who is playing somebody reads this page as that somebody, off the places
+  // they are standing in — GmZoneView decides nothing there, so a picker
+  // would be a control that changed nothing on the page carrying it. So this
+  // is never handed to <ChatAside>: `aside` and `gmZones` cannot both exist.
+  gmZones = null,
   hasCamera = false,
   // The composer's own two: the paperwork gates (web/lib/selfPools.js) and
   // whether there is anything over this character's face to put up or take
@@ -829,6 +841,18 @@ export default function Chat({
           hiding is not unmounting: both copies used to be live at once on a
           phone, which meant two travel loads, two stash reads and two
           separate answers about what can be worked here. */}
+      {/* GM mode has no `aside` at all — page.js builds that off
+          viewer.character, and GM mode is the absence of one — but the grid
+          still reserves the column (globals.css .chat-body). So the rail is
+          the column's only tenant here, bottom-pinned by the same
+          .chat-aside-tabs the tabbed version uses. */}
+      {!aside && gmZones && !asideFolded && (
+        <aside className="chat-aside">
+          <div className="chat-aside-tabs">
+            <GmZoneRail zones={gmZones.selectable} selectedIds={gmZones.selectedIds} />
+          </div>
+        </aside>
+      )}
       {aside && !asideFolded && (
         <aside className="chat-aside">
           {/* The OPEN place, so the room panel knows which room's storage and

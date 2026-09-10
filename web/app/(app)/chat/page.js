@@ -17,6 +17,7 @@ import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import { waitingOnYou, myMove } from "./actions";
@@ -111,6 +112,18 @@ async function FreshChat({ userId }) {
 
   const places = await placesFor(prisma, viewer.character, viewer.options);
   const first = places[0] ?? null;
+
+  // The "Zones I see" picker, at the foot of the right column. A GM reading
+  // Chat is reading the zones they hold, so the control that decides that
+  // belongs on the page rather than three clicks away on a desk — it is the
+  // same control the GM desks carry, writing the same GmZoneView rows. Nobody
+  // else has one: a player's places come from where they are standing.
+  const gmZones = viewer.gm
+    ? await (async () => {
+        const [visible, selectable] = await Promise.all([getVisibleZones(), listSelectableZones()]);
+        return { selectable, selectedIds: visible?.map((zone) => zone.id) ?? [] };
+      })()
+    : null;
 
   if (!first) {
     return <SnapshotFresh scope="play" userId={userId} data={{ kind: "nowhere" }} />;
@@ -460,6 +473,7 @@ async function FreshChat({ userId }) {
     // A GM with no living character reads every zone they may see and may
     // take a line down (web/app/api/feed/delete/route.js).
     gm: Boolean(viewer.gm),
+    gmZones,
     // The 📷 on somebody else's line, only for a character actually
     // carrying one. photographRow() re-checks the sheet, so this is the
     // hint and never the lock.
