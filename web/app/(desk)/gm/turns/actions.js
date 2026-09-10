@@ -1140,6 +1140,96 @@ async function undoCavingFindImpl({ rollId }) {
   return { ok: true };
 }
 
+// ─── The uploaded-portrait queue (docs/systemdocs/PORTRAITS.md §1a) ─────────
+//
+// The Browse control has always told players "Requires GM approval, run your
+// art by the GM". These two are what stands behind that sentence. The picture
+// is live from the moment it is saved — Keep and Reject decide whether it
+// stays, they do not gate it.
+//
+// requireGm() first in both: the id below is posted by a client, and a server
+// action is a public endpoint.
+
+// Looked at, and fine. Nothing about the game changes, so nothing is written
+// to the audit log — /gm/audit is the record of what was DONE to the game, and
+// filling it with "a GM looked at a picture" would cost the log its signal.
+async function keepAvatarImpl({ characterId }) {
+  await requireGm();
+  const character = await prisma.character.findUnique({
+    where: { id: String(characterId ?? "") },
+    select: { id: true, name: true, avatarData: true, portrait: true },
+  });
+  if (!character) throw new UserError("That character is gone.");
+  // Another GM got here first and rejected it. Say so rather than stamping a
+  // review onto a picture that is no longer there.
+  if (!character.avatarData || character.portrait) {
+    throw new UserError("That picture is already gone.");
+  }
+
+  await prisma.character.update({
+    where: { id: character.id },
+    data: { avatarReviewedAt: new Date() },
+  });
+
+  revalidatePath("/gm/turns");
+  return { name: character.name };
+}
+
+// Not fine. Clears the picture exactly as the player's own Reset to Default
+// does — there is nothing to restore, because the letter plaque is derived
+// from firstName at read time by /api/avatar/[characterId].
+//
+// `updatedAt` bumps on its own, which is what retires the immutably-cached
+// image URL every surface is holding.
+async function rejectAvatarImpl({ characterId }) {
+  const session = await requireGm();
+  const character = await prisma.character.findUnique({
+    where: { id: String(characterId ?? "") },
+    select: { id: true, name: true, discordUserId: true, status: true, avatarData: true, portrait: true },
+  });
+  if (!character) throw new UserError("That character is gone.");
+  if (!character.avatarData || character.portrait) {
+    throw new UserError("That picture is already gone.");
+  }
+
+  await prisma.character.update({
+    where: { id: character.id },
+    data: {
+      avatarData: null,
+      avatarMimeType: null,
+      portrait: null,
+      avatarSetAt: null,
+      avatarReviewedAt: new Date(),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_avatar_rejected",
+      targetCharacterId: character.id,
+      details: { characterName: character.name },
+    },
+  });
+
+  // The third thing a queue needs, after the surface and the state: telling
+  // them. A NOTICE rather than a CONVERSATION — the wording is canned, and a
+  // canned line sitting at the top of the GM inbox as mail is the exact
+  // pattern DM_KIND was built to stop. A GM who wants to talk about it writes.
+  if (character.discordUserId && character.status === "ALIVE") {
+    await sendDm(
+      character.discordUserId,
+      "Your portrait has been taken down, and your character is back to their default face. Have a word with a GM before putting up another one. ‡",
+      { kind: DM_KIND.NOTICE },
+    ).catch((err) => console.error("Avatar rejection DM failed:", err));
+  }
+
+  revalidatePath("/gm/turns");
+  revalidatePath("/character");
+  return { name: character.name };
+}
+
+
 export async function resolveCavingRoll(input) {
   return guarded(() => resolveCavingRollImpl(input));
 }
@@ -1163,4 +1253,11 @@ export async function getCharacterMoveHistory(input) {
 }
 export async function getArchiveContext(input) {
   return guarded(() => getArchiveContextImpl(input));
+}
+
+export async function keepAvatar(input) {
+  return guarded(() => keepAvatarImpl(input));
+}
+export async function rejectAvatar(input) {
+  return guarded(() => rejectAvatarImpl(input));
 }

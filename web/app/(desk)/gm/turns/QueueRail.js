@@ -13,6 +13,10 @@ import { MOVE_REVIEW_TONES, MOVE_REVIEW_LABELS } from "@/lib/moves";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { inVisibleZones } from "@/lib/zones";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
+import IconButton from "@/app/components/IconButton";
+import { CheckIcon, CloseIcon } from "@/app/components/icons";
+import { useRefresh } from "@/app/components/useRefresh";
+import { keepAvatar, rejectAvatar } from "./actions";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -117,9 +121,11 @@ const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 //
 // The lens is deliberately named for the shape rather than the contents. It is
 // where the next thing that is neither a Move nor a die goes.
-const OTHER_KIND_OPTIONS = ["Attack", "Ambush", "Intercept"];
-const OTHER_STATUS_OPTIONS = ["Holding", "Called off", "Stopped"];
-const OTHER_STATUS_RANK = { Holding: 0, Stopped: 1, "Called off": 2 };
+const OTHER_KIND_OPTIONS = ["Attack", "Ambush", "Intercept", "Portrait"];
+const OTHER_STATUS_OPTIONS = ["Holding", "Called off", "Stopped", "New"];
+// New sorts with Holding, at the top: a picture waiting on a GM is the one
+// kind of Other row that is asking to be DONE rather than read.
+const OTHER_STATUS_RANK = { Holding: 0, New: 0, Stopped: 1, "Called off": 2 };
 const OTHER_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.zoneName },
   { key: "kind", label: "Kind", value: (r) => r.kindLabel, options: OTHER_KIND_OPTIONS },
@@ -135,7 +141,7 @@ const otherSearchMap = (r) => ({
   status: r.statusLabel,
 });
 // A live hold is the only one a GM can still do anything about.
-const OTHER_TONES = { Holding: "bad", Stopped: "neutral", "Called off": "neutral" };
+const OTHER_TONES = { Holding: "bad", New: "warn", Stopped: "neutral", "Called off": "neutral" };
 
 // The keyboard lens flips, and what ⏎ selects in each lens. The History
 // lens over the OPEN turn selects a live "move" — see historyIsOpenTurn.
@@ -276,8 +282,91 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
 // One held pair. It opens the INSPECTOR on the person being held rather than a
 // desk, because there is no desk for a fight — what a GM wants next is that
 // person's sheet, their band, and what they filed.
+// A picture waiting on a GM (docs/systemdocs/PORTRAITS.md §1a). The odd row in
+// this lens: every other one is a thing that happened and is read, and this one
+// is a thing to DO, so it is the only row carrying its own buttons.
+//
+// WHY IT IS NOT ONE BUTTON. .desk-queue-row IS a <button> — the whole row opens
+// the inspector. Keep and Reject cannot nest inside that, so the row and its
+// actions are siblings inside .desk-queue-rowset, which takes over the border
+// and the layout. Scoped to this row: five other surfaces draw .desk-queue-row.
+function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
+  const [refresh] = useRefresh();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  const answer = async (fn) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const result = await fn({ characterId: row.characterId });
+    // A second GM answering the same row first is the ordinary case here, not
+    // an exception: both of them are looking at the same queue. Refresh either
+    // way, so the row that is already dealt with leaves the screen.
+    if (result?.error) setError(result.error);
+    setBusy(false);
+    refresh();
+  };
+
+  return (
+    <div className="desk-queue-rowset" data-active={active} data-kbd={kbd ? "" : undefined}>
+      <button
+        type="button"
+        className="desk-queue-row"
+        data-row-key={row.id}
+        onClick={() => onInspect?.(row.characterId, row.characterName, row.id)}
+      >
+        <span className="flex items-center gap-2">
+          <CharacterAvatar
+            characterId={row.characterId}
+            name={row.characterName}
+            version={row.avatarVersion}
+            catatonic={row.catatonic}
+            size={40}
+          />
+          <span className="min-w-0 flex-1">
+            <span className="flex items-center gap-1.5 truncate font-medium">
+              <span className="truncate">{row.characterName}</span>
+              <MatchHint match={matchFor(row)} />
+            </span>
+            <span className="block truncate text-xs text-muted">
+              {error ?? "Uploaded a portrait ‡"}
+            </span>
+          </span>
+        </span>
+      </button>
+      <span className="desk-queue-actions">
+        <IconButton
+          icon={CheckIcon}
+          label="Keep"
+          disabled={busy}
+          onClick={() => answer(keepAvatar)}
+        />
+        <IconButton
+          icon={CloseIcon}
+          label="Reject"
+          disabled={busy}
+          onClick={() => answer(rejectAvatar)}
+        />
+      </span>
+    </div>
+  );
+}
+
 function OtherRows({ rows, matchFor, onInspect, kbdId, kbdLens, openRowId }) {
   return rows.map((row) => {
+    if (row.kind === "AVATAR") {
+      return (
+        <AvatarReviewRow
+          key={row.id}
+          row={row}
+          matchFor={matchFor}
+          onInspect={onInspect}
+          active={openRowId === row.id}
+          kbd={kbdLens === "other" && kbdId === row.id}
+        />
+      );
+    }
     // Keyed to the ROW, not the person being held: in a three-way brawl every
     // row naming that target would light up at once, which reads as three
     // selections.
@@ -815,7 +904,9 @@ export default function QueueRail({
               kbdId={kbdId}
               kbdLens={lens}
             />
-            {otherTable.total === 0 && <p className="p-3 text-sm text-muted">Nobody is being held.</p>}
+            {otherTable.total === 0 && (
+              <p className="p-3 text-sm text-muted">Nobody is being held, and no portraits are waiting. ‡</p>
+            )}
           </div>
         </>
       ) : lens === "caving" ? (

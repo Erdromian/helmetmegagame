@@ -113,6 +113,13 @@ export async function updateCharacterProfile(_prevState, formData) {
         .webp({ quality: 85 })
         .toBuffer();
       data.avatarMimeType = "image/webp";
+      // What puts them in the GM's review queue (db/lib/avatarReview.js).
+      // Stamped HERE and nowhere else: not by setPortraitAvatar, whose faces
+      // are assembled from committed sheets and have nothing to review, and
+      // not off `updatedAt`, which every rename and appearance edit bumps.
+      // Re-uploading after a GM kept the last one stamps it again, which is
+      // what brings the row back.
+      data.avatarSetAt = new Date();
     } catch (err) {
       // sharp throws on anything it can't decode, and the file picker's
       // accept="image/*" is a hint rather than a guarantee. Nothing has been
@@ -195,6 +202,12 @@ export async function setPortraitAvatar(rawSelection) {
       avatarData,
       avatarMimeType: "image/webp",
       portrait: JSON.stringify(selection),
+      // A built face replaces whatever upload was there, so it takes that
+      // upload out of the review queue with it. A non-null `portrait` already
+      // excludes this row (db/lib/avatarReview.js), but leaving a stale
+      // timestamp behind would make the queue's state depend on two columns
+      // agreeing rather than one saying it.
+      avatarSetAt: null,
     },
   });
 
@@ -218,7 +231,10 @@ export async function resetAvatarToDefault() {
 
   await prisma.character.update({
     where: { id: character.id },
-    data: { avatarData: null, avatarMimeType: null, portrait: null },
+    // avatarSetAt goes with the picture: a player who takes their own upload
+    // down has left the GM nothing to review, and a row pointing at a face
+    // that is gone would be a queue item nobody can act on.
+    data: { avatarData: null, avatarMimeType: null, portrait: null, avatarSetAt: null },
   });
 
   revalidatePath("/character");

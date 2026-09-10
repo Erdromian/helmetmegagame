@@ -330,6 +330,51 @@ export function interceptHitRow(h, { usernameById, catatonicIds }) {
   };
 }
 
+// A picture waiting to be looked at (docs/systemdocs/PORTRAITS.md §1a).
+//
+// Not a fight, and that is the point — the lens is named for its shape rather
+// than its contents, and this is the next thing that is neither a Move nor a
+// die. It shares the row DTO so the lens's search, filters and sort need no
+// second vocabulary.
+//
+// NO ZONE, on purpose. inVisibleZones keeps a row with no zone visible to
+// every GM ("better seen twice than by nobody"), which is the right answer for
+// a portrait: it belongs to nobody's patch of map, and a picture only the
+// Marshes GM can see is a picture nobody reviews.
+//
+// `avatarData` is never selected into this — it is ~145KB a piece, and the
+// browser fetches each face itself through /api/avatar/[characterId].
+export const AVATAR_REVIEW_SELECT = {
+  id: true,
+  name: true,
+  discordUserId: true,
+  updatedAt: true,
+  roleTitle: true,
+  avatarSetAt: true,
+};
+
+export function avatarReviewRow(c, { usernameById, catatonicIds }) {
+  return {
+    // Prefixed so it can never collide with an Attack or InterceptHit id in a
+    // lens that merges all three into one keyed list.
+    id: `avatar:${c.id}`,
+    kind: "AVATAR",
+    kindLabel: "Portrait",
+    characterId: c.id,
+    characterName: c.name,
+    avatarVersion: c.updatedAt.getTime(),
+    catatonic: catatonicIds?.has(c.id) ?? false,
+    discordUsername: usernameById.get(c.discordUserId) ?? c.discordUserId ?? "",
+    roleTitle: c.roleTitle ?? "",
+    targetCharacterId: c.id,
+    targetName: c.name,
+    zoneName: "",
+    locationName: null,
+    statusLabel: "New",
+    createdAtMs: c.avatarSetAt.getTime(),
+  };
+}
+
 export function cavingRollRow(c, { usernameById, catatonicIds }) {
   const nameFor = usernameById.get(c.character.discordUserId) ?? c.character.discordUserId;
   return {

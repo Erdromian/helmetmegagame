@@ -2072,6 +2072,21 @@ model Character {
   avatarData     Bytes?
   avatarMimeType String?
 
+  // The uploaded-avatar review queue (docs/systemdocs/PORTRAITS.md §1a).
+  //
+  // `avatarSetAt` is stamped by the UPLOAD branch of updateCharacterProfile
+  // and by nothing else — not the portrait maker, which cannot produce
+  // anything to review, and not `updatedAt`, which every rename and
+  // appearance edit bumps and so cannot say "they changed their picture".
+  //
+  // A picture is waiting when it is an upload and `avatarSetAt` is newer than
+  // `avatarReviewedAt` — so a player who uploads again after a GM kept the
+  // last one comes back into the queue, which is the behaviour you want and
+  // is free. Both nullable: null `avatarReviewedAt` means never looked at.
+  // db/lib/avatarReview.js is the only place that spells the comparison out.
+  avatarSetAt      DateTime?
+  avatarReviewedAt DateTime?
+
   // The portrait maker's selection as JSON — part indices and palette indices,
   // never pixels. avatarData holds the render; this holds what it was built
   // from, so reopening the modal resumes where the player left off instead of

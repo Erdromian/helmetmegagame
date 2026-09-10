@@ -185,7 +185,9 @@ Safe intercepts — because to a GM reading the queue those are one question: wh
 cannot leave, and who is standing over them.
 
 Named for the shape rather than the contents. It is where the next thing that is
-neither a Move nor a die goes.
+neither a Move nor a die goes — and the first thing to take that up is the
+uploaded-portrait review queue (`PORTRAITS.md` §1a), which is the one row here
+that carries its own buttons rather than opening the inspector alone.
 
 A row has no desk. Clicking one, or ⏎ on it, opens the **inspector** on the
 person being held — their sheet, their band, and what they filed is what a GM

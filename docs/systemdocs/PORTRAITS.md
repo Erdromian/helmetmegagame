@@ -30,16 +30,66 @@ They are independent. With uploads off and no picture on file, the field
 reads "Using your letter plaque", exactly as it did before this existed.
 
 **Browse carries a hover note reading "Requires GM approval, run your art by
-the GM."** That approval is a conversation, not a queue: the upload lands
-immediately and a GM resets it if it doesn't fit. Saying so on the control is
-the whole enforcement, deliberately — a real approval queue would need a
-review surface, a pending state and a notification, for a case that comes up a
-handful of times a game.
+the GM."** There is now a queue behind that sentence — see §1a. The upload
+still lands immediately; what changed is that a GM can see it and take it down.
 
-**Reset to Default** clears `avatarData`, `avatarMimeType` and `portrait`, and
-that is all it does. The letter plaque is derived from `firstName` at read time
+**Reset to Default** clears `avatarData`, `avatarMimeType`, `portrait` and
+`avatarSetAt`, and that is all it does. The timestamp goes with the picture:
+somebody who takes their own upload down has left nothing to review, and a
+queue row pointing at a face that is gone is a row nobody can act on. The letter plaque is derived from `firstName` at read time
 by the avatar route, so there is nothing to restore — see the comment at the
 top of `web/scripts/generate-letters.js`.
+
+## 1a. Reviewing an upload
+
+The queue lives on `/gm/turns`, as a fourth kind on the **Other** lens —
+the lens named for its shape rather than its contents, "where the next thing
+that is neither a Move nor a die goes" (`ATTACK.md` §7). The row shows the
+picture at 40px, the character's name, and two buttons.
+
+**Uploads only.** The portrait maker cannot produce anything to review: the
+client posts part and palette indices, never pixels, and they are re-rendered
+server-side from the committed sheets (§4). Putting maker faces in the queue
+would bury the handful of real uploads under a hundred jaws off the artist's
+own art. `Character.portrait` is what tells the two apart and needs no new
+column to do it — the maker stores its selection there, and an upload leaves it
+null.
+
+**It is not a gate.** The picture is live from the moment it is saved, exactly
+as before. Keep and Reject decide whether it stays.
+
+| Button | What it does |
+|---|---|
+| **Keep** | Stamps `avatarReviewedAt`. No audit row — nothing about the game changed, and `/gm/audit` should not fill with "a GM looked at a picture". |
+| **Reject** | Clears the picture the way the player's own Reset to Default does, writes one `gm_avatar_rejected` audit row, and DMs them. |
+
+Two columns carry the state, both nullable:
+
+- **`avatarSetAt`** — stamped by the **upload branch** of
+  `updateCharacterProfile` and by nothing else. Not by the maker, and not off
+  `updatedAt`, which every rename and appearance edit bumps and so cannot say
+  "they changed their picture".
+- **`avatarReviewedAt`** — stamped by Keep and by Reject.
+
+A picture is waiting when it is an upload and `avatarSetAt` is newer than
+`avatarReviewedAt`, which makes **a re-upload after a Keep come back** for
+free. `db/lib/avatarReview.js` is the only place that sentence is written: a
+pure `avatarNeedsReview` for the tests, and the Prisma `where` beside it.
+
+**The null arm of that query is not optional.** A comparison never matches a
+NULL column, so `avatarReviewedAt: { lt: … }` on its own would silently drop
+every picture nobody has looked at yet — which is the entire queue. Both arms
+are spelled out, and `db/test/avatarReview.test.js` fails if one goes missing.
+
+Nothing here is scoped to the open turn, unlike every other Other row: a
+portrait is not a thing that happened this turn, it is a thing that is still
+true. It carries no zone either, so it stays visible to every GM whatever they
+have ticked in "Zones I see" — a picture belongs to nobody's patch of map, and
+one only the Marshes GM can see is one nobody reviews.
+
+Rejecting relies on the plaque being derived from `firstName` at read time, so
+there is nothing to restore, and on `updatedAt` bumping by itself, which is
+what retires the immutably-cached image URL every surface is holding.
 
 ## 2. The art
 

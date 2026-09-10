@@ -15,6 +15,7 @@ import {
   User,
   Users,
   ScrollText,
+  Check,
   ShieldCheck,
   Scale,
   MessageSquare,
@@ -119,6 +120,11 @@ export const SearchIcon = lucide(Search, "SearchIcon");
 // TrashIcon says the person is being thrown away, which is the wrong
 // sentence for "they may not come in here any more".
 export const CloseIcon = lucide(X, "CloseIcon");
+
+// The uploaded-portrait queue on /gm/turns: this face is fine, keep it. Paired
+// with CloseIcon for the other answer, and a plain tick rather than a
+// thumbs-up because the GM is signing something off, not liking it.
+export const CheckIcon = lucide(Check, "CheckIcon");
 // The Chat page: a doorway you speak through. A plain speech bubble would have
 // read as MessageIcon at rail size, which is the GM's inbox.
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");

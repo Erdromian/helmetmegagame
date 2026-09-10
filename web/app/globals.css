@@ -3557,6 +3557,45 @@ input[type="radio"]:disabled {
 
 /* An auto-filed row (a travel Move) — already solved and never needs a GM's
    attention, so it reads quieter than a row someone actually has to work. */
+/* A queue row that carries its own buttons — today the uploaded-portrait
+   review on the Other lens (docs/systemdocs/PORTRAITS.md §1a).
+
+   .desk-queue-row is itself a <button>, so an action inside it would be a
+   button nested in a button. The row and its actions are siblings instead,
+   and this wrapper takes over the two things the row was doing for the whole
+   width: the bottom rule, and the row states. Every rule is scoped under the
+   wrapper, because .desk-queue-row is shared with /gm/players, /gm/oracle,
+   /gm/audit and the other three lenses here. */
+.desk-queue-rowset {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  padding-right: var(--sp-2);
+}
+
+.desk-queue-rowset > .desk-queue-row {
+  flex: 1;
+  min-width: 0;
+  border-bottom: none;
+}
+
+.desk-queue-rowset[data-active="true"] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.desk-queue-rowset[data-kbd] {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.desk-queue-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+}
+
 .desk-queue-row[data-auto] {
   opacity: 0.6;
 }

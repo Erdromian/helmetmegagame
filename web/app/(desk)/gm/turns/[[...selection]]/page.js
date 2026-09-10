@@ -10,6 +10,7 @@ import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { avatarReviewWhere } from "@lifeweb/db/lib/avatarReview";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { placementOf } from "@lifeweb/db/lib/structures";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
@@ -22,12 +23,14 @@ import {
   CAVING_ROLL_INCLUDE,
   ATTACK_INCLUDE,
   INTERCEPT_HIT_INCLUDE,
+  AVATAR_REVIEW_SELECT,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
   attackRow,
   interceptHitRow,
+  avatarReviewRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
 
@@ -102,6 +105,7 @@ async function FreshTurnsWorkspace({ params, userId }) {
     cavingRolls,
     attacks,
     interceptHits,
+    avatarsToReview,
     stagedEffects,
     stagedMessages,
     roster,
@@ -154,6 +158,16 @@ async function FreshTurnsWorkspace({ params, userId }) {
           include: INTERCEPT_HIT_INCLUDE,
         })
       : [],
+    // Uploaded portraits nobody has looked at yet (PORTRAITS.md §1a). NOT
+    // scoped to the open turn, unlike everything above it: a picture is not a
+    // thing that happened this turn, it is a thing that is still true — and a
+    // queue that emptied itself at every turn end would be a review surface
+    // that reviewed nothing.
+    prisma.character.findMany({
+      where: avatarReviewWhere(prisma),
+      orderBy: { avatarSetAt: "desc" },
+      select: AVATAR_REVIEW_SELECT,
+    }),
     // Open-turn staging plus every unapplied stray from earlier turns —
     // the strays feed the missed-push banner.
     prisma.stagedEffect.findMany({
@@ -278,6 +292,7 @@ async function FreshTurnsWorkspace({ params, userId }) {
   const otherRows = [
     ...attacks.map((a) => attackRow(a, { usernameById, catatonicIds })),
     ...interceptHits.map((h) => interceptHitRow(h, { usernameById, catatonicIds })),
+    ...avatarsToReview.map((c) => avatarReviewRow(c, { usernameById, catatonicIds })),
   ];
 
   const locationRows = stagingLocations.map((l) => ({
