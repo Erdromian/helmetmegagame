@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A GM's message rail says where somebody is, and stops losing people who moved
+
+✎ The zone on a person in the message list is now where they are standing, not where their faction is seated — those disagree for ten of the seventy living characters  
+✎ A GM watching some zones sees a person if their faction is seated there OR they are standing there; before, a Town player who walked into the Forest fell off the Town GM's rail while the chip beside the gap still said Town
+
 ## 2026-09-10 · Traits you were born with can be bought during play
 
 ✎ Eagle Eyes, Keen Hearing, Brave, Giant, Pretty, Beautiful, Ambidextrous, Light Sleeper, Knighted, Old Blood, Kleptomaniac, Pacifist and Mime's Vow were shut out of the shop by mistake, so a character who did not take sharp eyes at the start could never get them  
