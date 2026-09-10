@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · An uploaded portrait now waits for a GM to look at it
+
+✚ A portrait a player uploads now waits on the Other lens of the adjudication desk, with the picture shown  
+✚ Keep and Reject on that row. Reject puts the character back to their letter plaque and tells the player why  
+✎ The Browse control's promise that art needs GM approval is now a thing the game actually does  
+✎ Portraits built in the appearance maker are not queued. They are assembled from art that was already approved
+
 ## 2026-09-10 · The faction roster's lines are straight again
 
 ✎ The rules under a faction's Members table were drawn at different heights per row, worst on your own row where the buttons are hidden
