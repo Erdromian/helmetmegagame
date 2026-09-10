@@ -911,7 +911,7 @@ Four things worth knowing before changing it:
   are the same three `web/app/actions.js#startAsLocalPlayer` makes, the other
   programmatic character creator: a uniform gender from `GENDERS`
   (`db/lib/titles.js`), then a name out of `db/lib/nameCorpus.js` from the pool
-  that gender names, and an age uniform across `AGE_MIN`–`AGE_MAX`. There is no
+  that gender names, and an age uniform across 18–65. There is no
   name-collision check because the game has none — `Character.name` is a
   denormalized display mirror, not a key, and the wizard already lets two
   players be Otto.
@@ -925,10 +925,13 @@ Four things worth knowing before changing it:
   supplies it — no living Baron, or one who never chose a name, means no last
   name, the same answer `web/lib/dynasty.js#dynastyLastName` gives.
 
-  One consequence worth knowing: a uniform age averages 54, and
-  `db/lib/concealedIdentity.js` reads 55 and over as "Old", so about half of
-  all reincarnations wake up old where players choosing for themselves rarely
-  do. Narrowing the band is one line in `rollIdentity`.
+  **The age band stops at `REINCARNATION_AGE_MAX` (65), short of the catalog's
+  own `AGE_MAX` of 90**, which stays what the wizard lets a player type. A roll
+  uniform across the full 18–90 averages 54, and `db/lib/concealedIdentity.js`
+  reads 55 and over as "Old" — so half of every reincarnation would have woken
+  up elderly, where players choosing for themselves almost never do. 18–65
+  averages 41 and puts most souls in the broad middle band that gets no age
+  adjective at all.
 
 `db/lib/curse.js` is untouched: the new character is `ALIVE`, so `isCursedIn`
 already returns not-cursed and the −6 and the Migrant/Bum restriction never

@@ -18,7 +18,7 @@ const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
 const { heldSeatsByRole } = require("./seatCount");
 const { effectivePlayerCount } = require("./gameState");
 const { parseStartingTag } = require("./startingTags");
-const { formatCharacterName, AGE_MIN, AGE_MAX } = require("./characterName");
+const { formatCharacterName, AGE_MIN } = require("./characterName");
 const { randomCharacterName } = require("./nameCorpus");
 const { GENDERS } = require("./titles");
 const { isDynastyMember, DYNASTY_HEAD_SLUG } = require("./dynasty");
@@ -29,6 +29,15 @@ const { sendDm } = require("./dm");
 // default `startingTagPoints` of 12 rather than a second full budget: coming
 // back is meant to be a second life, not a better one.
 const REINCARNATION_BONUS_POINTS = 6;
+
+// The oldest a rolled body comes out. Deliberately SHORT of the catalog's own
+// AGE_MAX of 90, which stays what the wizard allows a player to type: a roll
+// uniform across the full 18-90 averages 54, and db/lib/concealedIdentity.js
+// reads 55 and over as "Old", so half of all reincarnations would have woken
+// up elderly where players choosing for themselves almost never do. 18-65
+// averages 41 and lands most souls in the broad middle band that gets no age
+// adjective at all.
+const REINCARNATION_AGE_MAX = 65;
 
 // The points arrive UNSPENT, on Character.tagPoints, because skipping the
 // wizard means there is no menu in which to spend them. /store is that menu
@@ -71,12 +80,7 @@ async function rollIdentity(prisma, role) {
     surname = baron?.lastName ?? null;
   }
 
-  // Uniform across the range the wizard itself validates. Worth knowing that
-  // this averages 54 and db/lib/concealedIdentity.js reads 55 and over as
-  // "Old", so about half of all reincarnations wake up old — which players
-  // choosing for themselves rarely do. Narrow the band here if that plays
-  // badly; it is one line.
-  const age = AGE_MIN + Math.floor(Math.random() * (AGE_MAX - AGE_MIN + 1));
+  const age = AGE_MIN + Math.floor(Math.random() * (REINCARNATION_AGE_MAX - AGE_MIN + 1));
 
   // No honorific: one is earned, never rolled.
   return {
@@ -232,4 +236,4 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   return created;
 }
 
-module.exports = { reincarnate, holdsMetempsychosis, REINCARNATION_BONUS_POINTS };
+module.exports = { reincarnate, holdsMetempsychosis, REINCARNATION_BONUS_POINTS, REINCARNATION_AGE_MAX };

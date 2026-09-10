@@ -134,6 +134,7 @@ const { randomCharacterName, NAME_CORPUS } = require("../lib/nameCorpus");
 const { GENDERS } = require("../lib/titles");
 const { isDynastyMember } = require("../lib/dynasty");
 const { AGE_MIN, AGE_MAX } = require("../lib/characterName");
+const { REINCARNATION_AGE_MAX } = require("../lib/reincarnate");
 
 const namesIn = (...pools) => new Set(pools.flat().map((n) => n.name));
 const MALE_OK = namesIn(NAME_CORPUS.medieval.male, NAME_CORPUS.flavour.male, NAME_CORPUS.flavour.witcher);
@@ -174,18 +175,25 @@ test("isDynastyMember covers exactly the three seats that inherit the name", () 
   for (const slug of ["baron", "migrant", "bum"]) assert.equal(isDynastyMember(slug), false, slug);
 });
 
-test("a rolled age stays inside the bounds the wizard validates, and reaches both ends", () => {
-  const roll = () => AGE_MIN + Math.floor(Math.random() * (AGE_MAX - AGE_MIN + 1));
+test("a rolled age spans 18-65 and reaches both ends", () => {
+  const roll = () => AGE_MIN + Math.floor(Math.random() * (REINCARNATION_AGE_MAX - AGE_MIN + 1));
   let lo = Infinity;
   let hi = -Infinity;
   for (let i = 0; i < 20000; i++) {
     const age = roll();
-    assert.ok(Number.isInteger(age) && age >= AGE_MIN && age <= AGE_MAX, `out of range: ${age}`);
+    assert.ok(Number.isInteger(age) && age >= AGE_MIN && age <= REINCARNATION_AGE_MAX, `out of range: ${age}`);
     lo = Math.min(lo, age);
     hi = Math.max(hi, age);
   }
   assert.equal(lo, AGE_MIN);
-  assert.equal(hi, AGE_MAX);
+  assert.equal(hi, REINCARNATION_AGE_MAX);
+});
+
+// A reincarnated body is rolled SHORT of what a player may type, so most souls
+// land in the middle band db/lib/concealedIdentity.js gives no age word to.
+test("the rolled band stops well below the catalog age ceiling", () => {
+  assert.ok(REINCARNATION_AGE_MAX < AGE_MAX, "a roll must not reach the wizard's ceiling");
+  assert.equal(REINCARNATION_AGE_MAX, 65);
 });
 
 test("GENDERS is the three-value set the roll picks from", () => {
