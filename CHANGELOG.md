@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Being hurt costs less in a fight, and being clumsy is no longer Pitiful
+
+✎ Missing Fingers cost more of your fighting skill than a Peg Leg did, while being cheaper to take. It is now the smaller of the two  
+✎ Every drawback you can buy at creation now costs about as much fighting skill as a bonus of the same price pays for. Most were charging double  
+✎ Wounds and illnesses hurt less across the board. Two mortal wounds still leave you helpless; one no longer does it on its own  
+✎ Pitiful now takes a real injury to reach. A single trait like Clumsy or Fat used to put a healthy person in the same band as somebody tied to a chair  
+✎ Eleven of the sixty living characters were Pitiful in melee and fifteen in ranged. It is three and three now, and nobody came out worse
+
 ## 2026-09-10 · A forger can copy the Merchant’s stamp too
 
 ✎ The Merchant’s Wax Stamp was the one office stamp a Forger could not make. Now they all are
