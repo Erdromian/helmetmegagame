@@ -1060,7 +1060,13 @@ tags:
     name: Iron Constitution
     category: general
     group: general-traits
-    resists: [poisoned, vomiting, nauseous, parasites, cave-fever, choking, asleep]
+    # `nauseous` belongs on this list and is deliberately absent: the tag
+    # arrives with the cooking rework (PR #37), and the sync refuses a
+    # resists entry naming a tag the catalog does not have yet. Add it back
+    # in the same commit that merges cooking — Iron Constitution already
+    # resists Vomiting, and the flesh ingredients roll one or the other, so
+    # without it the trait works half the time at random.
+    resists: [poisoned, vomiting, parasites, cave-fever, choking, asleep]
     description: "Bad food and the weaker poisons don't bother you."
     fighting: { situational: true }
     pointCost: 5
