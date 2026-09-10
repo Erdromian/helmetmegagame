@@ -66,26 +66,30 @@ Who this is, where they stand, and:
   tiles, so it keeps them. On the sheet the strip takes `onPick`, and a
   clicked chip opens the tag's `TagDetails` under it. The rail has no Status
   card for that reason.
-- **Six tiles, in two ranks.** The top is what you *have* — free moves, ⬢
-  against the cap, carrying with its meter. The bottom is what you *are* — the
-  **Combat tile** (`COMBAT.md`), the **Mood box** (`MOOD.md` §4) and the Gambit
-  modifier (`db/lib/gambitModifier.js`, the same call the bot makes). Two ranks
-  rather than one wrapping row: Combat spans two tracks, so a single row of
-  seven slots folded one orphan tile onto a line of its own at most widths.
-- **A tile with something to say SWAPS ITS OWN FACE for it.** Hover, focus or
+- **Five tiles, one row** — free moves, ⬢ against the cap, carrying with its
+  meter, the **Mood box** (`MOOD.md` §4) and the Gambit modifier
+  (`db/lib/gambitModifier.js`, the same call the bot makes). `.ledger-tiles`'
+  `max-width` fits exactly five: a sixth needs 856px, so anything else goes on
+  the row below rather than into this row.
+- **The row below is This turn · Combat · Turn Effects** — three boxes of the
+  same build, reading as what you are doing, what you can do (`COMBAT.md`) and
+  what the turn will do to you. It is `auto-fit`, so Turn Effects simply
+  narrows from half the band to a third when Combat is there, and Combat takes
+  half again on a quiet turn when the forecast renders nothing.
+- **A box with something to say SWAPS ITS OWN FACE for it.** Hover, focus or
   click and the value is replaced by the breakdown, inside the same box. The
-  detail is absolutely positioned inside the tile, so the tile is sized by its
-  resting face alone and **opening one cannot move anything** — which is the
-  whole point. It used to append a block under the whole row and shove the rest
-  of the sheet down; floating it instead would have made it a tooltip, and this
-  sheet has none (§3). Swapping in place is the third answer.
-- **Five of the six press**, and that is what fixed the sixth. Free moves (why
-  it is 0), Carrying (what holds the cap up), Combat, Mood and the Gambit die
-  (which modifiers, by name) all have something to say; only ⬢ does not. The
-  Carrying breakdown had come off precisely because *one* pressable tile in a
-  row of read-only ones read as a bug — `db/lib/carry.js#carryBreakdown` has
-  said "for the hover breakdown on /character" the whole time — and that reason
-  is gone now they nearly all press.
+  detail is absolutely positioned inside it, so the box is sized by its resting
+  face alone and **opening one cannot move anything** — which is the whole
+  point. It used to append a block under the row and shove the rest of the
+  sheet down; floating it instead would have made it a tooltip, and this sheet
+  has none (§3). Swapping in place is the third answer.
+- **Nearly all of them press**, and that is what fixed the one that did not.
+  Free moves (why it is 0), Carrying (what holds the cap up), Combat, Mood and
+  the Gambit die (which modifiers, by name) all have something to say; only ⬢
+  does not. The Carrying breakdown had come off precisely because *one*
+  pressable tile in a row of read-only ones read as a bug —
+  `db/lib/carry.js#carryBreakdown` has said "for the hover breakdown on
+  /character" the whole time — and that reason is gone.
 - **Three ways in, and all three are needed.** A mouse opens on
   `pointerenter` and closes on leave. A **tap** is the click path: touch fires
   a synthesised `mouseenter` before its click, so the pointer handlers ignore

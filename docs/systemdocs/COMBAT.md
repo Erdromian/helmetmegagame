@@ -55,7 +55,11 @@ Four rules fall out of that, and each one is load-bearing:
   whether a slot is filled, never what is in it.
 - **A situational may carry no number at all.** Camouflage, Iron Constitution,
   a Hound: real weight in a fight, no tier. They render in the same strip as
-  the numbered ones, so a GM reads one list instead of two.
+  the numbered ones, so a GM reads one list instead of two. And it is a
+  **flag**, not a sentence — `situational: true`. It used to carry the
+  condition as prose ("when dueling", "at long range") and that came back out:
+  which moment a tag is for is already in the tag's own description, and two
+  copies of one fact are two things to keep in step.
 - **Some things are a floor or a cap, not a number.** Apex Form *is* Legendary
   — it "removes almost all of your other tags", so there is nothing left to add
   to. Bound, Paralyzed and Asleep *are* Pitiful. A floor never caps and a cap
@@ -197,13 +201,10 @@ One nullable column, `Tag.fighting`, normalised and validated by
     fighting: { tree: both, cap: pitiful }
 
   melee-duelist:                      # Situational — never summed
-    fighting:
-      tree: melee
-      tiers: 2
-      situational: "one-on-one, especially with swords, rapiers and knives"
+    fighting: { tree: melee, tiers: 2, situational: true }
 
   camouflage:                         # Situational with no number at all
-    fighting: { note: "blends into the forest, so hard to spot first" }
+    fighting: { situational: true }
 ```
 
 `rung:` is a position, not a score — `fightingSkill.js` owns the `15 + 10 ×
@@ -287,13 +288,15 @@ goes is the job the number is withheld from players for.
 
 - **`web/app/components/LedgerBand.js`** — the Combat tile, spanning two
   tracks of the band's lower rank. Resting it shows the two bands, the combined
-  armour under them, and one quiet 11px line naming the situational tags —
-  names only, because what each one *means* needs room the tile does not have.
-  Hover, focus or click and the tile **swaps its own face** for the breakdown:
-  the two halves of the tree side by side, and what a GM might apply spanning
-  both underneath. Sized by the resting face, so opening it moves nothing.
-  **Not a tooltip** — `SHEET.md` §3 is the rule for that surface, and swapping
-  in place is what keeps it.
+  armour **beside them on one line**, and one quiet 11px line naming the
+  situational tags. Hover, focus or click and it **swaps its own face** for the
+  breakdown: MELEE and RANGED as full-width stacked rows. Sized by the resting
+  face, so opening it moves nothing. **Not a tooltip** — `SHEET.md` §3 is the
+  rule for that surface, and swapping in place is what keeps it.
+
+  It lives in the **band row** beside This turn and Turn Effects, not in the
+  tile row. That row's `max-width` fits exactly five tiles and a sixth needs
+  856px; putting Combat there broke a line that had never wrapped.
 - **`web/app/components/InspectorColumn.js`** — the GM's Fighting fact.
 - **`web/app/components/TagDetails.js`** — one tag's own "In a fight" line.
 

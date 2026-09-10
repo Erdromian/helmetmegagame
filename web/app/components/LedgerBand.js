@@ -46,7 +46,6 @@ function Tile({
   open = false,
   onOpen = null,
   children = null,
-  wide = false,
 }) {
   // Whether a MOUSE is currently over this tile. A touch tap fires a
   // synthesised mouseenter before its click, so without this the enter opened
@@ -54,7 +53,7 @@ function Tile({
   // looked like it did nothing. Declared before the early return below,
   // because a hook may not be called conditionally.
   const hovering = useRef(false);
-  const className = `ledger-tile${wide ? " ledger-tile-wide" : ""}`;
+  const className = "ledger-tile";
   if (!detail) {
     return (
       <div className={className}>
@@ -164,19 +163,11 @@ function shortName(label, tree) {
 // takes; a total here would turn a fight into arithmetic and hand somebody a
 // way to measure themselves against a person they should not be able to read.
 function CombatDetail({ combat }) {
-  // One list, not two: a tag's condition is the same kind of fact whichever
-  // half of the tree it lands on, and two columns of near-identical rows read
-  // as a bug rather than as a distinction.
-  const situational = [];
-  const seen = new Set();
-  for (const tree of TREES) {
-    for (const entry of combat[tree].situational) {
-      if (seen.has(entry.label)) continue;
-      seen.add(entry.label);
-      situational.push(entry);
-    }
-  }
-
+  // Two full-width rows rather than two columns. Combat has real width in the
+  // band row now, and stacking also removes the thing that was wrong with the
+  // columns: a `> * + *` margin meant to space Mood's paragraph was pushing
+  // the second grid item down, so RANGED sat four pixels below MELEE and the
+  // pair bottom-aligned. There is no second column left to misalign.
   return (
     <>
       {TREES.map((tree) => (
@@ -193,53 +184,44 @@ function CombatDetail({ combat }) {
           {combat[tree].floor && ` · ${combat[tree].floor}`}
         </span>
       ))}
-      {situational.length > 0 && (
-        <span className="combat-line combat-line-span">
-          <span className="field-label">If it fits</span>{" "}
-          {situational
-            .map((s) => `${shortName(shortName(s.label, "melee"), "ranged")}${s.tiers ? ` ${tierLabel(s.tiers)}` : ""}, ${s.when}`)
-            .join(" · ")}
-        </span>
-      )}
     </>
   );
 }
 
-// Combat's resting face: the two fighting bands, the armour under them, and
-// one quiet line naming what a GM might apply. One tile rather than two,
-// because a player deciding whether to walk into something is asking one
-// question — how does this go for me? — and the answer is how hard you hit and
-// what happens when you are hit.
+// Combat's resting face. It has a third of the band row to itself now, so the
+// two facts a player wants before walking into something — how hard you hit,
+// and what happens when you are hit — sit side by side on one line rather than
+// stacked. The situational names go underneath, where a wrap costs nothing.
 function CombatFace({ combat, armor }) {
   // Names only, and only once each: a tag on both halves of the tree would
   // otherwise be printed twice on a line whose whole job is being small.
   const names = [...new Set(TREES.flatMap((t) => combat[t].situational.map((s) => s.label)))];
   return (
     <>
-      <span className="combat-bands">
-        {TREES.map((tree) => (
-          <span key={tree} className="combat-band" data-band={combat[tree].band.key}>
-            {combat[tree].band.label}
-          </span>
-        ))}
+      <span className="combat-head">
+        <span className="combat-bands">
+          {TREES.map((tree) => (
+            <span key={tree} className="combat-band" data-band={combat[tree].band.key}>
+              {combat[tree].band.label}
+            </span>
+          ))}
+        </span>
+        {/* Armour is a separate system with separate words
+            (db/lib/armorValue.js) and is never summed into the bands beside
+            it. It is here so a player does not have to scroll to the rig. */}
+        <span className="combat-armor">
+          <span aria-hidden="true">⛊</span> {armor}
+        </span>
       </span>
-      {/* Armour rides along as its own small line and is never summed into the
-          bands above it — a separate system with separate words
-          (db/lib/armorValue.js). The only reason it is here is that a player
-          should not have to scroll to the rig to read it. */}
-      <span className="combat-armor">
-        <span aria-hidden="true">⛊</span> {armor}
-      </span>
-      {/* A footnote, not a row of controls. These are not clickable and never
-          were, so the bordered chips they used to be were lying about what
-          they are. What each one MEANS is in the swapped face; this line only
-          says that there is something to ask about. */}
+      {/* A footnote, not controls: these are not clickable, and what each one
+          is for is in the tag's own description. This line only says there is
+          something here to ask a gamemaster about. */}
       {names.length > 0 && <span className="combat-situational">{names.join(" · ")}</span>}
     </>
   );
 }
 
-// The band across the top of the sheet — it scrolls away with the rest of the
+// The band across the top of the sheet// The band across the top of the sheet — it scrolls away with the rest of the
 // page: who this is and where they stand, the five things a player checks
 // before doing anything, then the pieces of the Chat's YOU column that belong
 // on a sheet too — the turn card with its Move, the status strip — and under
@@ -369,101 +351,100 @@ export default function LedgerBand({
           </div>
         </div>
 
-        {/* Two ranks, deliberately, rather than one row left to wrap where it
-            likes. The top is what you HAVE and the bottom is what you ARE —
-            and the split is also what stops a seven-slot row (Combat spans
-            two of them) from folding one orphan tile onto a line of its own at
-            every width that is not quite wide enough for all seven. */}
+        {/* Five tiles, one row, as they have always been. The Combat readout
+            lives on the row below instead of squeezing a sixth (and a
+            double-width one at that) into a grid whose max-width fits exactly
+            five. */}
         <div className="ledger-tiles">
-          <div className="ledger-rank">
-            {/* One open slot across both ranks, so two tiles are never showing
-                their detail at once — a row where three boxes had all swapped
-                their faces would read as a different row rather than as one
-                tile answering a question. */}
-            <Tile
-              label="Free moves"
-              value={zoneMoves != null ? zoneMoves : "—"}
-              over={zoneMoves === 0}
-              detail={zoneMovesReason || null}
-              open={tileOpen === "moves"}
-              onOpen={(want) => setTileOpen(want ? "moves" : null)}
-            />
-            <Tile
-              label="Resources"
-              value={carry ? `${carry.resources} / ${carry.resourcesCap} ⬢` : `${character.resources} ⬢`}
-              over={Boolean(carry && carry.resources > carry.resourcesCap)}
-            />
-            {/* What holds the cap up, back on the sheet. carryBreakdown has
-                said "for the hover breakdown on /character" in db/lib/carry.js
-                the whole time — it came off only because ONE pressable tile in
-                a row of read-only ones read as a bug, and that reason is gone
-                now they all press. */}
-            <Tile
-              label="Carrying"
-              value={carrying ? `${carrying} lb` : "—"}
-              over={Boolean(carry && carry.weightUsed > carry.weightCap)}
-              detail={carryDetail}
-              open={tileOpen === "carrying"}
-              onOpen={(want) => setTileOpen(want ? "carrying" : null)}
-            >
-              {carry && (
-                <span
-                  className="depot-meter"
-                  role="img"
-                  aria-label={`${carry.weightUsed} of ${carry.weightCap} pounds carried`}
-                >
-                  <span className="depot-meter-fill" style={{ width: `${loadPct}%` }} />
-                </span>
-              )}
-            </Tile>
-          </div>
-
-          <div className="ledger-rank">
-            {combat && (
-              <Tile
-                label="Combat"
-                wide
-                value={<CombatFace combat={combat} armor={armorLine} />}
-                detail={<CombatDetail combat={combat} />}
-                open={tileOpen === "combat"}
-                onOpen={(want) => setTileOpen(want ? "combat" : null)}
-              />
+          {/* One open slot across the band, so two boxes are never showing
+              their detail at once — a row where three had all swapped faces
+              would read as a different row rather than as one answering a
+              question. */}
+          <Tile
+            label="Free moves"
+            value={zoneMoves != null ? zoneMoves : "—"}
+            over={zoneMoves === 0}
+            detail={zoneMovesReason || null}
+            open={tileOpen === "moves"}
+            onOpen={(want) => setTileOpen(want ? "moves" : null)}
+          />
+          <Tile
+            label="Resources"
+            value={carry ? `${carry.resources} / ${carry.resourcesCap} ⬢` : `${character.resources} ⬢`}
+            over={Boolean(carry && carry.resources > carry.resourcesCap)}
+          />
+          {/* What holds the cap up, back on the sheet. carryBreakdown has said
+              "for the hover breakdown on /character" in db/lib/carry.js the
+              whole time — it came off only because ONE pressable tile in a row
+              of read-only ones read as a bug, and that reason is gone now they
+              nearly all press. */}
+          <Tile
+            label="Carrying"
+            value={carrying ? `${carrying} lb` : "—"}
+            over={Boolean(carry && carry.weightUsed > carry.weightCap)}
+            detail={carryDetail}
+            open={tileOpen === "carrying"}
+            onOpen={(want) => setTileOpen(want ? "carrying" : null)}
+          >
+            {carry && (
+              <span
+                className="depot-meter"
+                role="img"
+                aria-label={`${carry.weightUsed} of ${carry.weightCap} pounds carried`}
+              >
+                <span className="depot-meter-fill" style={{ width: `${loadPct}%` }} />
+              </span>
             )}
-            {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md) — never the
-                number, which is the whole point of the dial. Fine is grey,
-                Ecstatic is green and Panicking is red; the tone picks the
-                token. */}
-            <Tile
-              label="Mood"
-              value={moodBand?.label ?? "Fine"}
-              tone={moodBand?.tone ?? "muted"}
-              word
-              detail={MOOD_DETAIL}
-              open={tileOpen === "mood"}
-              onOpen={(want) => setTileOpen(want ? "mood" : null)}
-            />
-            {/* The modifier the bot actually rolls the Gambit die against, not
-                a second opinion: same module, same arguments as the bot's own
-                call — and now it says WHICH modifiers, which is the question a
-                player looking at a bare −3 was always about to ask. */}
-            <Tile
-              label="Gambit die"
-              value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
-              over={Boolean(gambit)}
-              detail={gambitDetail}
-              open={tileOpen === "gambit"}
-              onOpen={(want) => setTileOpen(want ? "gambit" : null)}
-            />
-          </div>
+          </Tile>
+          {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md) — never the
+              number, which is the whole point of the dial. Fine is grey,
+              Ecstatic is green and Panicking is red; the tone picks the
+              token. */}
+          <Tile
+            label="Mood"
+            value={moodBand?.label ?? "Fine"}
+            tone={moodBand?.tone ?? "muted"}
+            word
+            detail={MOOD_DETAIL}
+            open={tileOpen === "mood"}
+            onOpen={(want) => setTileOpen(want ? "mood" : null)}
+          />
+          {/* The modifier the bot actually rolls the Gambit die against, not a
+              second opinion: same module, same arguments as the bot's own call
+              — and now it says WHICH modifiers, which is the question a player
+              looking at a bare −3 was always about to ask. */}
+          <Tile
+            label="Gambit die"
+            value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
+            over={Boolean(gambit)}
+            detail={gambitDetail}
+            open={tileOpen === "gambit"}
+            onOpen={(want) => setTileOpen(want ? "gambit" : null)}
+          />
         </div>
       </div>
 
+      {/* This turn · Combat · Turn Effects. Three boxes of the same build
+          (.ledger-turn and .ledger-tile share their background, border, radius
+          and padding), reading as what you are doing, what you can do, and
+          what the turn will do to you. The grid is auto-fit, so Turn Effects
+          simply narrows from half the band to a third to make room — and on a
+          quiet turn it renders nothing and Combat takes half. */}
       <div className="sheet-band-row">
         {isSelf && (
           <div className="ledger-turn">
             <span className="field-label">This turn</span>
             <SheetTurn moveState={moveState} pendingOffers={pendingOffers} />
           </div>
+        )}
+        {combat && (
+          <Tile
+            label="Combat"
+            value={<CombatFace combat={combat} armor={armorLine} />}
+            detail={<CombatDetail combat={combat} />}
+            open={tileOpen === "combat"}
+            onOpen={(want) => setTileOpen(want ? "combat" : null)}
+          />
         )}
         <TurnForecast
           tags={character.tags}

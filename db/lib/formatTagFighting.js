@@ -90,17 +90,15 @@ function formatTagFighting(tag) {
   if (f.floor) return `You fight as ${nameFromSlug(f.floor)} at worst ‡`;
   if (f.cap) return "You cannot fight";
   if (f.cancels?.length) return `Cancels the penalty from ${nameList(f.cancels, ", ")} ‡`;
-  if (f.note && f.points == null) return f.note;
 
-  if (f.points == null) return null;
+  // A situational says only that a gamemaster decides it. WHICH moment it is
+  // for is the tag's own description's job, and the catalog no longer keeps a
+  // second copy of it here.
+  if (f.points == null) return f.situational ? "Situational" : null;
   const tree = TREE_WORDS[f.tree] ?? "Fighting";
   const clause = conditionOf(f.when);
-  // A situational is written as a phrase in the catalog ("one-on-one", "at
-  // long range"), so it takes "when"; a machine condition already carries its
-  // own preposition.
   if (clause) return `${tree} ${shift(f.points)} ${clause}`;
-  const said = f.situational ?? f.note;
-  return said ? `${tree} ${shift(f.points)} when ${said}` : `${tree} ${shift(f.points)}`;
+  return f.situational ? `${tree} ${shift(f.points)} · situational` : `${tree} ${shift(f.points)}`;
 }
 
 module.exports = { formatTagFighting };

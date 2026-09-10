@@ -735,15 +735,16 @@ function normalizeFighting(raw, label = "docs/tags.yaml") {
   const when = normalizeFightingWhen(raw.when, label);
   if (when) out.when = when;
 
-  for (const key of ["situational", "note"]) {
-    if (raw[key] == null) continue;
-    if (typeof raw[key] !== "string" || !raw[key].trim()) {
-      throw new Error(`${label}: fighting.${key} must be a non-empty string`);
+  // A FLAG, not a sentence. It used to carry the condition as prose ("when
+  // dueling", "at long range") and that came back out of the catalog: which
+  // moment a tag is for is already in the tag's own description, and saying it
+  // twice is two things to keep in step. All this says now is: a gamemaster
+  // decides this one, so it never enters the number.
+  if (raw.situational != null) {
+    if (raw.situational !== true) {
+      throw new Error(`${label}: fighting.situational is a flag — write \`true\` or leave it out`);
     }
-    out[key] = raw[key].trim();
-  }
-  if (out.situational && out.note) {
-    throw new Error(`${label}: fighting names both situational and note — a note is a situational with no number`);
+    out.situational = true;
   }
 
   const cancels = normalizeStringList(raw.cancels, "fighting.cancels", label);
@@ -768,7 +769,10 @@ function validateFighting(normalized, { selfSlug, tagSlugs, equippable, label = 
     normalized.floor ||
     normalized.cap ||
     normalized.weaponClass ||
-    normalized.note ||
+    // `situational: true` on its own is a real answer: Camouflage has no tier
+    // and no tree, and still has to reach the sheet's situational list. That
+    // list is the whole reason such a tag carries a block at all.
+    normalized.situational ||
     normalized.cancels;
   if (!saysSomething) {
     throw new Error(`${label}: "${selfSlug}" fighting has a condition but nothing to apply — add tiers, a floor, or a note`);
