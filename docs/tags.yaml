@@ -5063,6 +5063,90 @@ tags:
       examine: "anvil set, bellows hung."
       provides: [workshop-equipment]
 
+  # Bascinet's three, 2026-09-10. Each one is the first user of a new
+  # placement key; the keys themselves are documented on Tag.placement.
+
+  # Buildable only at the inn, because that is where the cellar it fills is.
+  # `locations` naming exactly one Location is also what makes it one-of-a-kind
+  # — `unique` is per-Location, so a single legal site means a single brewery.
+  brewery:
+    catalog: all
+    name: Brewery
+    category: assets
+    group: assets-structures
+    description: "A brewery. It automatically produces one {tag:alcohol} per turn, to the inn's cellar."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 15
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      # Unlike the forge, no workshop is needed. The forge's exemption is a
+      # bootstrap — you cannot build the first forge without one — and there
+      # is no such loop here.
+      fieldwork: true
+      locations: [old-cock-inn]
+      examine: "the mash is working. \u2021"
+      yields: { tag: alcohol, room: inn-cellar, quantity: 1 }
+
+  rookery:
+    catalog: all
+    name: Rookery
+    category: assets
+    group: assets-structures
+    description: "A rookery. It allows you to send many messages."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "the birds shift and mutter on their perches. \u2021"
+      # Six is the number of bird-reachable zones, deliberately: a holder CAN
+      # find any one person in a day, by spending every flight they have on it
+      # and writing to nobody. A trade, not a free lookup. The likeliest knob
+      # to want retuning once it has been seen in play.
+      birdSendsPerDay: 6
+
+  makeshift-stage:
+    catalog: all
+    name: Makeshift Stage
+    category: assets
+    group: assets-structures
+    description: "Plays music, making people happy. Only works as long as there is a {tag:boombox} somewhere on the ground in the location."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      # One turn, so openBuildSiteImpl births it COMPLETE in the opening
+      # transaction. No skill: it is planks and trestles.
+      turnsCost: 1
+      resourceCost: 10
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "planks and trestles, waiting on a crowd. \u2021"
+      # The boombox is a RUNNING requirement, not a build cost — which is why
+      # this carries no requirement.items, a pairing the sync refuses outright
+      # for a placement recipe ("a build site never spends an ingredient").
+      music: { mood: 8, needs: boombox }
+
   palisade:
     catalog: all
     name: Palisade

@@ -189,8 +189,14 @@ import {
   researchableHeld,
 } from "@lifeweb/db/lib/research";
 import {
+  BASE_BIRD_SENDS_PER_DAY,
+  birdAllowanceFrom,
+  rookeryCooldown,
+} from "@lifeweb/db/lib/rookery";
+import {
   placementOf,
   structuresAt,
+  WORKING_STATUSES,
   canBuildHere,
   PRESENT_STATUSES,
   siteOpenedLine,
@@ -1551,6 +1557,9 @@ async function loadBuildGround(locationId) {
     select: {
       id: true,
       name: true,
+      // The site gate matches on this (placement.locations) — a Brewery
+      // belongs at the inn and nowhere else.
+      slug: true,
       indoors: true,
       attributes: true,
       discordChannelId: true,
@@ -1680,7 +1689,7 @@ async function openBuildSiteImpl(
     ? cleanCustomText(inscription, INSCRIPTION_MAX)
     : "";
   const location = await loadBuildGround(character.locationId);
-  const ground = canBuildHere(location);
+  const ground = canBuildHere(location, placement);
   if (!ground.ok) throw new UserError(ground.reason);
 
   await refuseSameTypeHere(prisma, location, tag, placement);
@@ -5112,17 +5121,55 @@ async function birdMessageRequestImpl({
   // until it became a per-turn allowance — CARRY.md §2a.)
   const dayKey = String(describeTurn(openTurn).day);
 
+  // A Rookery standing where they are raises the day's allowance and puts a
+  // three-minute clock between flights (db/lib/rookery.js). No literacy check
+  // here: canSendBird above already requires it, so an illiterate character
+  // never reaches this line at all.
+  const allowance = birdAllowanceFrom(
+    await structuresAt(prisma, character.locationId, { statuses: WORKING_STATUSES }),
+  );
+  // Only consulted when a building is doing something. The ordinary
+  // once-a-day bird needs no cooldown — the day IS the cooldown.
+  if (allowance > BASE_BIRD_SENDS_PER_DAY) {
+    const cooling = rookeryCooldown(character.birdLastSentAt);
+    if (!cooling.ok) {
+      throw new UserError(
+        `The birds are still settling. Try again <t:${cooling.readyAt}:R>. \u2021`,
+      );
+    }
+  }
+
   let birdMessageId = null;
   await prisma.$transaction(async (tx) => {
-    const claimed = await tx.character.updateMany({
+    // The claim, in the shape it has always had: a conditional updateMany
+    // whose WHERE is the check, so two tabs racing cannot both spend the last
+    // flight. It is two writes now rather than one because the day has a
+    // COUNT against it — the first resets a stale day, the second spends
+    // inside a live one, and exactly one of them can match.
+    const opened = await tx.character.updateMany({
       where: {
         id: character.id,
         OR: [{ birdTurnId: null }, { birdTurnId: { not: dayKey } }],
       },
-      data: { birdTurnId: dayKey },
+      data: { birdTurnId: dayKey, birdDaySends: 1, birdLastSentAt: new Date() },
     });
-    if (claimed.count === 0)
-      throw new UserError("Your bird has already flown today.");
+    if (opened.count === 0) {
+      const spent = await tx.character.updateMany({
+        where: {
+          id: character.id,
+          birdTurnId: dayKey,
+          birdDaySends: { lt: allowance },
+        },
+        data: { birdDaySends: { increment: 1 }, birdLastSentAt: new Date() },
+      });
+      if (spent.count === 0) {
+        throw new UserError(
+          allowance > BASE_BIRD_SENDS_PER_DAY
+            ? "The birds have all flown for today. \u2021"
+            : "Your bird has already flown today.",
+        );
+      }
+    }
 
     const row = await tx.birdMessage.create({
       data: {

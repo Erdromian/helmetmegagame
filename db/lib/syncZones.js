@@ -1028,7 +1028,7 @@ async function syncZonesFromYaml(prisma) {
         console.warn(`zones.yaml: location "${location.slug}" structures names "${slug}", which has no placement: block — skipped.`);
         continue;
       }
-      const ground = canBuildHere({ ...location, zone: { kind: zone.kind } });
+      const ground = canBuildHere({ ...location, zone: { kind: zone.kind } }, tag.placement);
       if (!ground.ok) {
         console.warn(`zones.yaml: "${slug}" seeded at "${location.slug}", where players could not build one (${ground.reason}) — authored on purpose?`);
       }

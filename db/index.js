@@ -23,6 +23,7 @@ const {
 } = require("./lib/turnSideEffects");
 const { expiryFrom } = require("./lib/turnFormat");
 const { runCorpseRotPass } = require("./lib/corpseRotPass");
+const { runStructureYieldPass } = require("./lib/structureYieldPass");
 const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
@@ -251,6 +252,11 @@ const TURN_PASSES = [
   // writes is what the next turn's labor is worth.
   "laborYield",
   "lifewebDecay",
+  // What the buildings MAKE (db/lib/structureYieldPass.js). Late, and after
+  // "carry" in particular: the pour lands on a Room's floor, so it must not
+  // happen before the overflow drop that may already be putting things there.
+  // Nothing above reads a stash, so nothing above can see it.
+  "structureYield",
   // The Depot's hardware: the generator burns a turn of fuel, the shuttle's
   // six-turn clock runs out, and the turret sweeps whoever is standing in the
   // room. Last, so the turret fires on the sheet everything else left behind —
@@ -998,6 +1004,30 @@ async function resolveNeeds(turn, config) {
   } else {
     const fresh = await readGameState(prisma, { lifewebBlood: true });
     lifewebBlood = fresh?.lifewebBlood ?? lifewebBlood;
+  }
+
+  // What the buildings make. Claims each structure's turn on its own row
+  // (Structure.lastUpkeepTurnId), so a resume that re-enters this cannot pour
+  // twice — which is why it needs nothing from `done` beyond the usual skip.
+  if (!done.has("structureYield")) {
+    const yielded = await runStructureYieldPass(prisma, turn).catch(async (err) => {
+      await passFailed("Structure yield", err);
+      return null;
+    });
+    if (yielded) {
+      await markDone("structureYield");
+      if (yielded.poured > 0 || yielded.skipped > 0) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "structures_yielded",
+              details: { poured: yielded.poured, skipped: yielded.skipped },
+            },
+          })
+          .catch((err) => console.error("Structure yield audit log failed:", err));
+      }
+    }
   }
 
   // The Depot's hardware. Returns the ambient lines and DMs it owes rather

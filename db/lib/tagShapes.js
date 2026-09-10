@@ -428,6 +428,68 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.inscribable != null && typeof raw.inscribable !== "boolean") {
     throw new Error(`${label}: placement.inscribable must be a boolean`);
   }
+  // Where this type may be raised at all, by Location slug. ABSENT means
+  // anywhere the ground rules allow — the gate is opt-in, so the twelve
+  // structures written before it keep working untouched. A slug list rather
+  // than a zone list because it is the more precise tool and because
+  // `unique` is already per-Location: naming exactly one Location is how a
+  // type becomes one-of-a-kind without a game-wide uniqueness rule, which
+  // does not exist.
+  if (
+    raw.locations != null &&
+    (!Array.isArray(raw.locations) || raw.locations.some((s) => typeof s !== "string" || !s.trim()))
+  ) {
+    throw new Error(`${label}: placement.locations must be a list of location slugs`);
+  }
+  // What this structure PRODUCES every turn, into a Room's floor rather than
+  // into anybody's pockets (db/lib/structureYieldPass.js). The room is named
+  // by slug and need not be at the structure's own Location — the Brewery
+  // stands at the inn and pours into its cellar.
+  let yields = null;
+  if (raw.yields != null) {
+    if (typeof raw.yields !== "object" || Array.isArray(raw.yields)) {
+      throw new Error(`${label}: placement.yields must be a mapping`);
+    }
+    const tag = String(raw.yields.tag ?? "").trim();
+    const room = String(raw.yields.room ?? "").trim();
+    if (!tag) throw new Error(`${label}: placement.yields.tag must be a tag slug`);
+    if (!room) throw new Error(`${label}: placement.yields.room must be a room slug`);
+    const quantity = raw.yields.quantity == null ? 1 : Number(raw.yields.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new Error(`${label}: placement.yields.quantity must be a positive integer`);
+    }
+    yields = { tag, room, quantity };
+  }
+  // How many bird flights a day standing here is worth (BIRD.md). The Bird's
+  // own allowance is 1; a structure raises it, and the biggest one at the
+  // Location wins — the same best-wins posture structureTools keeps for
+  // laborBonus, so two rookeries are not twice a rookery.
+  let birdSendsPerDay = null;
+  if (raw.birdSendsPerDay != null) {
+    const n = Number(raw.birdSendsPerDay);
+    if (!Number.isInteger(n) || n < 1) {
+      throw new Error(`${label}: placement.birdSendsPerDay must be a positive integer`);
+    }
+    birdSendsPerDay = n;
+  }
+  // Music: what the six-hourly sweep pays a listener, and the item that has
+  // to be lying about for any of it to happen (bot/src/lib/stagePlay.js).
+  let music = null;
+  if (raw.music != null) {
+    if (typeof raw.music !== "object" || Array.isArray(raw.music)) {
+      throw new Error(`${label}: placement.music must be a mapping`);
+    }
+    const mood = Number(raw.music.mood);
+    // Positive only, and for the reason laborBonus.amount gives: relief is
+    // never multiplied (MOOD.md §7), so a negative here would be a harm term
+    // wearing a relief's clothes and would skip every phobia it should read.
+    if (!Number.isInteger(mood) || mood < 1) {
+      throw new Error(`${label}: placement.music.mood must be a positive integer`);
+    }
+    const needs = String(raw.music.needs ?? "").trim();
+    if (!needs) throw new Error(`${label}: placement.music.needs must be a tag slug`);
+    music = { mood, needs };
+  }
   let laborBonus = null;
   if (raw.laborBonus != null) {
     if (typeof raw.laborBonus !== "object" || Array.isArray(raw.laborBonus)) {
@@ -452,6 +514,10 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     examine: raw.examine ?? null,
     defenseNote: raw.defenseNote ?? null,
     laborBonus,
+    locations: raw.locations ?? [],
+    yields,
+    birdSendsPerDay,
+    music,
     provides: raw.provides ?? [],
     // The builder may write a line on the finished thing
     // (Structure.inscription) — their words replace `examine` in the
@@ -518,6 +584,20 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
       throw new Error(`${label}: tag "${slug}" placement.provides references unknown tag "${provided}"`);
     }
   }
+  if (placement.yields && !knownSlugs.has(placement.yields.tag)) {
+    throw new Error(`${label}: tag "${slug}" placement.yields.tag references unknown tag "${placement.yields.tag}"`);
+  }
+  if (placement.music && !knownSlugs.has(placement.music.needs)) {
+    throw new Error(`${label}: tag "${slug}" placement.music.needs references unknown tag "${placement.music.needs}"`);
+  }
+  // `placement.locations` and `placement.yields.room` name LOCATIONS and
+  // ROOMS, which live in docs/zones.yaml behind a different sync — knownSlugs
+  // holds tag slugs and nothing else, so there is nothing here to check them
+  // against. Same reasoning syncZones.js keeps for the tag slugs it cannot
+  // see (SYNC.md): the two masters sync independently, so a cross-master
+  // reference is resolved at RUNTIME and must fail soft. It does — the yield
+  // pass logs and skips a room it cannot find, and the build gate refuses a
+  // Location that does not match rather than throwing.
   // A 0-turn placement would be born finished with turnsDone above
   // turnsNeeded — a build takes at least one crew-turn, always.
   const turns = tag.requirement?.turnsCost ?? 1;

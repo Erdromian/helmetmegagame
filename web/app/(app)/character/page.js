@@ -1178,6 +1178,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       craftAllowances: craftAllowances,
       sitesHere: sitesHere,
       buildable: buildable,
+      locationSlug: character.location?.slug ?? null,
       teachers: teachers,
       learners: learners,
       confessors: confessors,

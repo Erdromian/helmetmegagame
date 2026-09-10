@@ -54,9 +54,25 @@ export function craftableTags(tags, heldTagIds = [], knownRecipeIds = null) {
 // openBuildSiteImpl refuses the same three cases server-side. Pure, so this
 // module stays importable from a client component: `sites` are the structures
 // standing here as { typeSlug, status }, resolved in character/page.js.
-export function placementOfferedHere(tag, { buildable = false, sites = [] } = {}) {
+export function placementOfferedHere(tag, { buildable = false, sites = [], locationSlug = null } = {}) {
   if (!tag?.placement) return true;
-  if (!buildable) return false;
+  // The per-type site gate, mirroring db/lib/structures.js#canBuildHere's
+  // `locations` clause. Menu hygiene only, like the rest of this function —
+  // openBuildSiteImpl refuses it server-side too. Fails OPEN on a missing
+  // locationSlug so a caller that has not been taught to pass one shows the
+  // recipe and lets the server do the refusing, rather than silently hiding
+  // every gated structure everywhere.
+  const gate = tag.placement.locations;
+  const named = Array.isArray(gate) && gate.length > 0;
+  if (named && locationSlug && !gate.includes(locationSlug)) return false;
+  // `buildable` is the GROUND question and nothing else — canBuildHere with
+  // no placement, computed once per page. A type that names this very
+  // Location has already passed the stricter server-side test, indoors
+  // included, so the blanket flag must not hide it: the Brewery belongs at
+  // the Old Cock Inn, and the inn is indoors, so `buildable` is false there
+  // for everything and would have hidden the one recipe that works.
+  const namedHere = named && Boolean(locationSlug) && gate.includes(locationSlug);
+  if (!buildable && !namedHere) return false;
   // The statuses that OCCUPY the ground, mirroring
   // db/lib/structures.js#PRESENT_STATUSES as the same INCLUSION list (kept
   // local so a client bundle never pulls the db module in). Inclusion on

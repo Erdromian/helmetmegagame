@@ -1931,6 +1931,23 @@ model Character {
   // character row. See docs/systemdocs/BIRD.md.
   birdTurnId String?
 
+  // How many of that day's flights are spent. The Bird's own allowance is 1,
+  // and a Rookery standing where the sender is raises it
+  // (Tag.placement.birdSendsPerDay, db/lib/structures.js). Written by the
+  // same conditional updateMany that claims birdTurnId, so the WHERE is
+  // still the check and two tabs racing cannot both spend the last flight.
+  // Reset, not cleared, when the day key moves: there is no sweep, and a
+  // stale count against yesterday's key would refuse a flight nobody took.
+  birdDaySends Int @default(0)
+
+  // The wall clock between Rookery flights (db/lib/rookery.js). A DateTime
+  // column rather than an in-memory Map because a bot restart must not hand
+  // somebody a free flight and because the web face — which is where the
+  // Bird is actually sent from — cannot see the bot's memory at all. Null
+  // for anyone who has never sent one. Only consulted when the allowance is
+  // above 1; the ordinary once-a-day bird needs no cooldown, the day is one.
+  birdLastSentAt DateTime?
+
   // Consecutive turns' worth of hunger this character is carrying — written
   // only by db/lib/hungerPass.js. Each hungry turn increments it; a fed turn
   // (paid or Ate Meal) only sheds ONE tick, not the whole streak, so it takes
@@ -2803,8 +2820,23 @@ model Tag {
   //   { unique: Bool (default true),
   //     fieldwork: Bool (default false — true skips needsWorkshop()),
   //     examine: String, defenseNote: String,
+  //     inscribable: Bool (the builder may write a line on it),
   //     laborBonus: { kind: "hunting"|"farming"|"fishing", amount: Int },
-  //     provides: [tagSlug, ...] }
+  //     provides: [tagSlug, ...],
+  //     locations: [locationSlug, ...] — where it may be raised at all;
+  //       absent means anywhere the ground rules allow (canBuildHere),
+  //     yields: { tag: slug, room: roomSlug, quantity: Int } — poured into
+  //       that room's floor every turn (db/lib/structureYieldPass.js); the
+  //       room need NOT be at the structure's own Location,
+  //     birdSendsPerDay: Int — the Bird allowance standing here is worth
+  //       (BIRD.md); biggest at the Location wins,
+  //     music: { mood: Int, needs: tagSlug } — what the six-hourly sweep
+  //       pays each listener, and what must lie in a Room here for any of it
+  //       to happen (bot/src/lib/stagePlay.js) }
+  //
+  // `locations`, `yields.room` and `music.needs`'s ROOM/LOCATION slugs name
+  // docs/zones.yaml, which syncs independently of docs/tags.yaml — so those
+  // are resolved at runtime and fail soft, never at sync time.
   //
   // A tag carrying this must be craftable and must NOT be tradeable,
   // stackable, equippable, or carry a carryBonus — db:sync-tags throws on
