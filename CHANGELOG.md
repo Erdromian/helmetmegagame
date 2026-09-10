@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Oracle sees hoods, disguises and the intercom; Kiss someone is tier 1
+
+✎ The chronicle now reports someone pulling a hood up or letting it down, putting on a disguise, and anything said over the intercom — all three were invisible to it before  
+✎ Kiss someone is a tier 1 Desire on a 3 turn cooldown, down from tier 3 on 4
+
 ## 2026-09-10 · The Oracle's zone rail is the same rail as the other desks'
 
 ✎ The Oracle's zone buttons fill the rail and sit flush, instead of floating as centered bubbles — they now use the same rail row the adjudication and player desks do  
