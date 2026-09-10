@@ -162,7 +162,8 @@ The word lives in its own tile on `/character`, between **Carrying** and
 **Gambit die** (`web/app/components/LedgerBand.js`, `SHEET.md` §2). It is one
 of the tiles with something to say, so it opens a line under the row of tiles —
 **on hover as well as on click**, because that is what Bascinet asked for and
-because `SHEET.md`'s rule still holds: nothing on that sheet is a tooltip.
+because a readout this long belongs on the page rather than in a floating box
+(`SHEET.md` §2).
 What it says is Bascinet's own wording, verbatim (`MOOD_DETAIL`):
 
 > Certain things, like spending time in the wilderness without the Rough Camper

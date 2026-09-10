@@ -62,6 +62,19 @@ import {
 export const ACTION_HELP = {
   examine:
     "Look at someone.",
+  craft:
+    "Make something from a recipe you know, with the ingredients in your hands. ‡",
+  destroy:
+    "Break something you're carrying. A few things leave a remnant behind. ‡",
+  transfer:
+    "Move things or Resources between you, the people standing here, and the floor. ‡",
+  loot:
+    "Take what's on a body, or on somebody here who can't stop you. ‡",
+  free: "Cut somebody loose who is bound here. ‡",
+  butcher:
+    "Cut up a body for what it yields. You have to be a Butcher. ‡",
+  write:
+    "Add a line to a sheet of paper you're carrying. Writing only ever appends. ‡",
   heal: "Heal yourself or someone nearby. Gated by your Medical skill.",
   consume:
     "Use something up. You can also just click on the tag on your sheet.",

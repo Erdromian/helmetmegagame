@@ -155,9 +155,9 @@ function shortName(label, tree) {
 
 // What the Combat tile opens: every contributor behind the two bands, and then
 // the things a GM has to decide. Written into the shared detail slot under the
-// row of tiles rather than floating over anything — this sheet has no tooltips
-// (SHEET.md §3), and the Mood box set the precedent that a tile with something
-// to say says it on the page.
+// row of tiles rather than floating over anything — it is far too long for a
+// tooltip, and the Mood box set the precedent that a tile with something to
+// say says it on the page (SHEET.md §2).
 //
 // The SCORE is never printed, only the names and their shifts. Working out
 // that Seasoned beats Capable is the player's job, the same posture armour
@@ -292,8 +292,8 @@ export default function LedgerBand({
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
-  // The status chip a player clicked open, read inline under the strip — the
-  // sheet has no tooltips, so a chip's wording has to be reachable by a tap.
+  // The status chip a player clicked open, read inline under the strip — a
+  // chip's wording has to be reachable by a tap, and hover is not one.
   const [picked, setPicked] = useState(null);
   // Free moves is the only tile with anything to say. Carrying used to open a
   // breakdown of what holds its cap up; that came off on purpose — the tile is
