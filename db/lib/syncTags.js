@@ -13,6 +13,8 @@ const { PAPER_GROUP_SLUG } = require("./paper");
 const {
   normalizeRequirementItems,
   validateRequirementItems,
+  normalizeFighting,
+  validateFighting,
   normalizeLaborBonus,
   validateLaborBonus,
   normalizeExpiresInto,
@@ -581,6 +583,18 @@ async function syncTagsFromYaml(prisma) {
       tagSlugs: allTagSlugs,
       equippable: t.equippable ?? false,
     });
+    // fighting — the combat catalog (docs/systemdocs/COMBAT.md,
+    // db/lib/fightingSkill.js is the read side). Every failure mode this
+    // catches is a SILENT one at runtime: a shift with no tree lands on
+    // neither half, a condition naming a misspelled tag never fires, and a
+    // weaponClass on something nobody can draw is worth nothing. None of them
+    // would throw in play — they would just quietly do nothing — so the door
+    // is the only place they can be caught.
+    validateFighting(normalizeFighting(t.fighting), {
+      selfSlug: t.slug,
+      tagSlugs: allTagSlugs,
+      equippable: t.equippable ?? false,
+    });
     // placement — the building system's catalog half (db/lib/structures.js is
     // the read side). Validated up front like requirement.items: craftable
     // only, never tradeable/stackable/equippable/carryBonus, and provides
@@ -733,6 +747,7 @@ async function syncTagsFromYaml(prisma) {
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
+      fighting: normalizeFighting(entry.fighting),
       placement: normalizePlacement(entry.placement),
       // Membership of the corpse group IS being a corpse, so the flag is
       // derived here rather than hand-written on three entries that could

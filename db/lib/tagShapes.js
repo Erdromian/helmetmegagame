@@ -528,8 +528,208 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
   }
 }
 
+// ─── fighting ───────────────────────────────────────────────────────────────
+// The `fighting:` block — what a tag does in a fight (docs/systemdocs/COMBAT.md).
+// Normalised here, same posture as laborBonus and placement above:
+// db/lib/fightingSkill.js is the read side and trusts this shape rather than
+// re-deriving it.
+//
+// The one thing worth knowing before reading the code: the YAML authors TIERS
+// and this stores POINTS. Tiers are what twenty tag descriptions already say
+// ("counts as 2 tiers higher"), so authoring in anything else would make the
+// catalog and its own prose disagree. Points are what the arithmetic wants,
+// because a tier takes decimals and a running total should not.
+const { BANDS, POINTS_PER_TIER, WEAPON_CLASSES } = require("./fightingSkill");
+
+const FIGHTING_TREES = new Set(["melee", "ranged", "both"]);
+const FIGHTING_BAND_KEYS = new Set(BANDS.map((b) => b.key));
+const FIGHTING_WHEN_KEYS = new Set(["weaponClass", "holds", "equipped", "unarmoured"]);
+
+// A tier is authored to one decimal place and nothing finer. The check is not
+// fussiness: `tiers: 0.25` would silently become 2.5 points, round somewhere,
+// and land as a value nobody authored. Refusing it means a typo fails the sync
+// instead of quietly changing a tag.
+function tiersToPoints(value, label, what) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) throw new Error(`${label}: ${what} must be a number`);
+  const points = n * POINTS_PER_TIER;
+  if (!Number.isInteger(Math.round(points * 1000) / 1000)) {
+    throw new Error(`${label}: ${what} must be a multiple of 0.1 tiers, got ${n}`);
+  }
+  return Math.round(points);
+}
+
+function normalizeStringList(raw, field, label) {
+  if (raw == null) return null;
+  const list = Array.isArray(raw) ? raw : [raw];
+  if (!list.length) return null;
+  return list.map((entry) => {
+    if (typeof entry !== "string" || !entry.trim()) {
+      throw new Error(`${label}: ${field} entries must be non-empty strings`);
+    }
+    return entry.trim();
+  });
+}
+
+function normalizeFightingWhen(raw, label) {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${label}: fighting.when must be a mapping`);
+  }
+  for (const key of Object.keys(raw)) {
+    if (!FIGHTING_WHEN_KEYS.has(key)) {
+      throw new Error(`${label}: fighting.when has unknown key "${key}" — expected ${[...FIGHTING_WHEN_KEYS].join(", ")}`);
+    }
+  }
+  const when = {};
+  for (const key of FIGHTING_WHEN_KEYS) {
+    const list = normalizeStringList(raw[key], `fighting.when.${key}`, label);
+    if (list) when[key] = list;
+  }
+  if (!Object.keys(when).length) {
+    throw new Error(`${label}: fighting.when is empty — drop it rather than writing a condition that is always true`);
+  }
+  for (const cls of when.weaponClass ?? []) {
+    if (!WEAPON_CLASSES.has(cls)) {
+      throw new Error(`${label}: fighting.when.weaponClass has unknown class "${cls}"`);
+    }
+  }
+  return when;
+}
+
+function normalizeFighting(raw, label = "docs/tags.yaml") {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${label}: fighting must be a mapping`);
+  }
+
+  const out = {};
+
+  if (raw.tree != null) {
+    const tree = String(raw.tree).toLowerCase();
+    if (!FIGHTING_TREES.has(tree)) {
+      throw new Error(`${label}: fighting.tree must be one of ${[...FIGHTING_TREES].join(", ")}`);
+    }
+    out.tree = tree;
+  }
+
+  // Rungs are 1-indexed: Basic is the first rung of the ladder, not the
+  // zeroth. Rung 0 would mean "on the ladder at the height of somebody who
+  // isn't", which is a block that says nothing — and saying nothing is spelt
+  // by leaving the block off.
+  if (raw.rung != null) {
+    if (!Number.isInteger(raw.rung) || raw.rung < 1) {
+      throw new Error(`${label}: fighting.rung must be an integer of at least 1 — Basic is rung 1`);
+    }
+    out.rung = raw.rung;
+  }
+
+  // `tiers` and `points` are the same field in two units. Authoring both would
+  // be two answers to one question, so it is refused rather than picked between.
+  if (raw.tiers != null && raw.points != null) {
+    throw new Error(`${label}: fighting names both tiers and points — write one`);
+  }
+  if (raw.tiers != null) out.points = tiersToPoints(raw.tiers, label, "fighting.tiers");
+  if (raw.points != null) {
+    if (!Number.isInteger(raw.points)) throw new Error(`${label}: fighting.points must be an integer`);
+    out.points = raw.points;
+  }
+
+  for (const key of ["floor", "cap"]) {
+    if (raw[key] == null) continue;
+    const band = String(raw[key]).toLowerCase();
+    if (!FIGHTING_BAND_KEYS.has(band)) {
+      throw new Error(`${label}: fighting.${key} must be a band key — ${[...FIGHTING_BAND_KEYS].join(", ")}`);
+    }
+    out[key] = band;
+  }
+
+  if (raw.weaponClass != null) {
+    const cls = String(raw.weaponClass).toLowerCase();
+    if (!WEAPON_CLASSES.has(cls)) {
+      throw new Error(`${label}: fighting.weaponClass must be one of ${[...WEAPON_CLASSES].join(", ")}`);
+    }
+    out.weaponClass = cls;
+  }
+
+  const when = normalizeFightingWhen(raw.when, label);
+  if (when) out.when = when;
+
+  for (const key of ["situational", "note"]) {
+    if (raw[key] == null) continue;
+    if (typeof raw[key] !== "string" || !raw[key].trim()) {
+      throw new Error(`${label}: fighting.${key} must be a non-empty string`);
+    }
+    out[key] = raw[key].trim();
+  }
+  if (out.situational && out.note) {
+    throw new Error(`${label}: fighting names both situational and note — a note is a situational with no number`);
+  }
+
+  const cancels = normalizeStringList(raw.cancels, "fighting.cancels", label);
+  if (cancels) out.cancels = cancels;
+
+  if (!Object.keys(out).length) {
+    throw new Error(`${label}: fighting is empty — drop the block rather than writing one that says nothing`);
+  }
+  return out;
+}
+
+// What the shape alone cannot catch: a block that says nothing the resolver
+// will ever read, a condition naming a tag that is not in the catalog, and a
+// weapon that cannot be equipped. Each of these is a SILENT no-op at runtime
+// rather than a crash, which is exactly why they are caught at the door.
+function validateFighting(normalized, { selfSlug, tagSlugs, equippable, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+
+  const saysSomething =
+    normalized.rung != null ||
+    normalized.points != null ||
+    normalized.floor ||
+    normalized.cap ||
+    normalized.weaponClass ||
+    normalized.note ||
+    normalized.cancels;
+  if (!saysSomething) {
+    throw new Error(`${label}: "${selfSlug}" fighting has a condition but nothing to apply — add tiers, a floor, or a note`);
+  }
+
+  // A shift needs to know which half of the tree it lands on. A weapon is the
+  // exception: its class already answers that, and saying it twice invites the
+  // two to disagree.
+  if (normalized.points != null && !normalized.tree && !normalized.weaponClass) {
+    throw new Error(`${label}: "${selfSlug}" fighting has tiers but no tree — write melee, ranged, or both`);
+  }
+  if (normalized.weaponClass && normalized.tree) {
+    throw new Error(`${label}: "${selfSlug}" fighting names a weaponClass and a tree — the class already decides the tree`);
+  }
+  if (normalized.weaponClass && !equippable) {
+    throw new Error(`${label}: "${selfSlug}" fighting names a weaponClass, but the tag is not equippable — a weapon nobody can draw is worth nothing`);
+  }
+
+  // Every condition and cancellation names a real tag. A typo here would read
+  // as a bonus that simply never fires.
+  for (const field of ["holds", "equipped"]) {
+    for (const slug of normalized.when?.[field] ?? []) {
+      if (!tagSlugs.has(slug)) {
+        throw new Error(`${label}: "${selfSlug}" fighting.when.${field} names unknown tag "${slug}"`);
+      }
+    }
+  }
+  for (const slug of normalized.cancels ?? []) {
+    if (!tagSlugs.has(slug)) {
+      throw new Error(`${label}: "${selfSlug}" fighting.cancels names unknown tag "${slug}"`);
+    }
+    if (slug === selfSlug) {
+      throw new Error(`${label}: "${selfSlug}" fighting.cancels itself — a tag cannot undo its own contribution`);
+    }
+  }
+}
+
 module.exports = {
   LABOR_BONUS_KINDS,
+  normalizeFighting,
+  validateFighting,
   normalizeLaborBonus,
   validateLaborBonus,
   normalizeExpiresInto,

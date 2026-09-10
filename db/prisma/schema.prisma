@@ -2750,6 +2750,33 @@ model Tag {
   // and because `requiresTag` (the Plow needs a horse) has no column shape.
   laborBonus Json?
 
+  // What this tag does in a fight, from docs/tags.yaml's `fighting:` block.
+  // Normalised by db/lib/tagShapes.js and read by db/lib/fightingSkill.js,
+  // which owns the band words and the stacking rule the way
+  // db/lib/armorValue.js owns armour's. Same Json-rather-than-columns posture
+  // as laborBonus above: most of the catalog has no block at all, and `when`
+  // has no column shape.
+  //
+  // Shape, every key optional: { tree: "melee"|"ranged"|"both",
+  //   rung: Int, points: Int, floor: BandKey, cap: BandKey,
+  //   weaponClass: String, when: { weaponClass: [String], holds: [String],
+  //   equipped: [String], unarmoured: [EquipSlot] }, situational: String,
+  //   note: String, cancels: [String] }.
+  //
+  // AUTHORED IN TIERS, STORED IN POINTS. docs/tags.yaml writes `tiers: -0.5`
+  // because that is the unit twenty tag descriptions already speak ("counts
+  // as 2 tiers higher"); tagShapes.js multiplies by POINTS_PER_TIER so every
+  // number in the database and in the arithmetic is an integer. Nothing reads
+  // `tiers` back out of here.
+  //
+  // NEVER shown to a player as the number, exactly like meleeArmor above.
+  // A fighting skill reads as a word — Pitiful, Weak, Mediocre, Capable,
+  // Seasoned, Dangerous, Lethal, Legendary — and the breakdown behind it
+  // names contributors in tiers. A score on a tile would turn a fight into
+  // arithmetic, and would also hand players a way to compare themselves to
+  // somebody they should not be able to measure at all.
+  fighting Json?
+
   // Structure type data, from docs/tags.yaml's `placement:` block —
   // normalised and validated by db/lib/tagShapes.js, same posture as
   // laborBonus above. Its PRESENCE is what makes a craftable BUILD ON SITE
