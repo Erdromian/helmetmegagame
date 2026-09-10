@@ -110,13 +110,21 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
         stackable: t.stackable,
         // Assets weigh nothing on your back (CARRY.md §1).
         weightLbs: t.category === "Assets" ? 0 : (t.weightLbs ?? 0),
+        // Detector surface (M4 fix round) — only meaningful from YOUR own
+        // stack (own-sheet detection is the design); a room's own tags or a
+        // person's own pockets below carry no such field and render nothing.
+        poisonMarker: Boolean(t.poisonMarker),
       }))
     : fromPerson
       ? fromPerson.tags.map((t) => ({ id: t.tagId, name: t.tagName, held: t.quantity, stackable: t.stackable, weightLbs: null }))
       : (fromRoom?.tags ?? []).map((t) => ({ id: t.tagId, name: t.name, held: t.quantity, stackable: t.stackable, weightLbs: t.weightLbs ?? 0 }));
   // A non-stackable tag pins at one per character, so a pull out of a room
   // to a person is one at a time.
-  const rows = offered.map((t) => ({ ...t, max: t.stackable || !toIsCharacter ? t.held : 1 }));
+  const rows = offered.map((t) => ({
+    ...t,
+    max: t.stackable || !toIsCharacter ? t.held : 1,
+    note: t.poisonMarker ? "smells wrong" : null,
+  }));
   const balance = fromSelf ? (carry?.resources ?? pools.resources ?? 0) : fromRoom ? fromRoom.resources : fromPerson ? fromPerson.resources : null;
 
   const lines = pickedLines(picks).filter((l) => rows.some((r) => r.id === l.tagId));

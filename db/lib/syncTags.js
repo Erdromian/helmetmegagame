@@ -27,6 +27,13 @@ const {
   validatePlacement,
   validateCustomizable,
   normalizeTurnsCost,
+  normalizeCures,
+  validateCures,
+  normalizeCuresInto,
+  validateCuresInto,
+  validateAdministerSkill,
+  normalizeResists,
+  validateResists,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -251,6 +258,12 @@ async function syncTagsFromYaml(prisma) {
   // well as at validation time. Built from the YAML, not the DB — every slug a
   // recipe may name has to be in these files anyway.
   const allGroupSlugs = new Set(groupEntries.map((g) => g.slug));
+  // For `cures`: every cured slug has to resolve to the Health category's
+  // DISPLAY name, the same value Tag.category is written as below — never
+  // the YAML category slug, which the GM tag form's rows don't carry at all.
+  const categoryNameByTagSlug = new Map(
+    tagEntries.map((t) => [t.slug, categoryNameBySlug.get(t.category)]),
+  );
   const tagNameBySlug = new Map(tagEntries.map((t) => [t.slug, t.name]));
   const groupNameBySlug = new Map(groupEntries.map((g) => [g.slug, g.name]));
   const allRoleSlugs = roleSlugsFromYaml();
@@ -583,6 +596,23 @@ async function syncTagsFromYaml(prisma) {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
     });
+    // cures/curesInto — the medical-pass item-cure mechanic (TAGS.md §5c).
+    // Shared shape and rules in db/lib/tagShapes.js, same posture as
+    // expiresInto/removesInto above.
+    const normalizedCures = normalizeCures(t.cures);
+    validateCures(normalizedCures, {
+      selfSlug: t.slug,
+      knownSlugs: allTagSlugs,
+      categoryBySlug: categoryNameByTagSlug,
+      consumable: t.consumable ?? false,
+    });
+    validateCuresInto(normalizeCuresInto(t.curesInto), {
+      selfSlug: t.slug,
+      knownSlugs: allTagSlugs,
+      cures: normalizedCures,
+    });
+    validateAdministerSkill(t.administerSkill, { selfSlug: t.slug, knownSlugs: allTagSlugs });
+    validateResists(normalizeResists(t.resists), { selfSlug: t.slug, knownSlugs: allTagSlugs });
     // requirement.items — the enforced ingredient block: spent by default,
     // held where the entry says `keep` (docs/systemdocs/CORPSES.md §8).
     validateRequirementItems(
@@ -776,10 +806,18 @@ async function syncTagsFromYaml(prisma) {
       expiresInto: normalizeExpiresInto(entry.expiresInto),
       escalatesInto: entry.escalatesInto ?? null,
       removesInto: normalizeRemovesInto(entry.removesInto),
+      cures: normalizeCures(entry.cures),
+      curesInto: normalizeCuresInto(entry.curesInto),
+      administerable: entry.administerable ?? false,
+      administerSkill: entry.administerSkill ?? null,
+      poison: entry.poison ?? false,
+      resists: normalizeResists(entry.resists),
       // turnsCost "1/N" lands as requirementTurns 1 + requirementPerTurn N
       // (the work fraction); an authored perTurn survives only on a 0-turn
-      // ration — normalizeTurnsCost refuses every other pairing.
-      ...normalizeTurnsCost(entry.requirement, { slug: entry.slug }),
+      // ration — normalizeTurnsCost refuses every other pairing. `healable`
+      // rides along so a healable tag with no turnsCost at all is refused
+      // too (review fix, round 3).
+      ...normalizeTurnsCost(entry.requirement, { slug: entry.slug, healable: entry.healable ?? false }),
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),

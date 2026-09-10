@@ -23,6 +23,12 @@ export default function TagChip({
   // (db/lib/nuke.js). Armed state is world state rather than a tag, so the
   // chip has to be told; null means not armed and the row simply isn't there.
   armedTurn = null,
+  // "· smells wrong" (the medical pass, M4) — whether THIS held stack is
+  // actually poisoned, already gated server-side to poison-sense holders /
+  // poison-snooper holders before it ever reaches this component (see
+  // TagRail.js). Never the raw poisonedCount or which poison — this prop
+  // carries only the yes/no doctor's-eye reads.
+  poisonMarker = false,
 }) {
   const duration = tagDurationFor({ tag, expiresTurn, currentTurn, armedTurn });
 
@@ -33,11 +39,15 @@ export default function TagChip({
       expiresTurn={expiresTurn}
       currentTurn={currentTurn}
       armedTurn={armedTurn}
+      poisonMarker={poisonMarker}
       inTooltip
     >
       {typeof onConsume === "function" && (
         <button type="button" className="btn-quiet" onClick={onConsume} disabled={consumeBusy}>
-          Consume
+          {/* A poison opens its own three-option dialog (lace it, dose
+              someone, drink it), so the button must not promise "Consume"
+              — the click routes on Tag.poison in the caller. */}
+          {tag.poison ? "Poison" : "Consume"}
         </button>
       )}
       {consumeError && <p className="text-muted text-xs">{consumeError}</p>}

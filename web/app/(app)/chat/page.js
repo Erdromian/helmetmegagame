@@ -15,8 +15,10 @@ import { loadMentionDirectory } from "@/lib/mentionDirectory";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
+import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
@@ -176,6 +178,10 @@ async function FreshChat({ userId }) {
               // `tag.group` rides along for researchableHeld's `group`-kind
               // ingredient entries (a held corpse, matched by GROUP rather
               // than slug) — nothing else here read it before Research did.
+              // `poisonedCount`/`poisonPayload` (M4) are read here ONLY to
+              // derive `poisonMarker` below — they are stripped from
+              // `clientSheet` before it crosses into a client component, the
+              // same leak point character/page.js's own comment explains.
               tags: {
                 select: {
                   id: true,
@@ -183,7 +189,20 @@ async function FreshChat({ userId }) {
                   quantity: true,
                   equipped: true,
                   equippedQuantity: true,
-                  tag: { include: { group: { select: { slug: true } } } },
+                  poisonedCount: true,
+                  poisonPayload: true,
+                  // requirementSkills named explicitly for the same reason
+                  // the sheet's own query names it (character/page.js): these
+                  // rows are the SELF patient in loadPeoplePools' heal roster,
+                  // and `include` does not pull an unnamed relation — without
+                  // it every cure here reads as Routine, above-tier ones
+                  // included, which is the wrong direction to be silent in.
+                  tag: {
+                    include: {
+                      group: { select: { slug: true } },
+                      requirementSkills: { select: HEAL_SKILL_SELECT },
+                    },
+                  },
                 },
               },
               role: { select: { slug: true } },
@@ -209,12 +228,35 @@ async function FreshChat({ userId }) {
         // illiterate, which is the one thing the whole paperwork system exists
         // to prevent (character/page.js strips it the same way). The dialogs
         // fetch the text on demand instead.
+        //
+        // `poisonedCount`/`poisonPayload` (M4, detector-surface fix round) get
+        // the same treatment as the sheet page: stripped raw, replaced with a
+        // plain `poisonMarker` yes/no gated on canDetectPoison — this is the
+        // Things drawer's own detection surface (the sheet's own is
+        // character/page.js), so the two can no longer disagree about
+        // whether a viewer smells anything.
+        const canSmellPoison = canDetectPoison(sheet?.tags ?? []);
         const clientSheet = {
           ...sheet,
           tags: (sheet?.tags ?? []).map((ct) => {
-            if (ct.tag?.paperText == null) return ct;
-            const { paperText, ...tag } = ct.tag;
-            return { ...ct, tag };
+            const { poisonedCount, poisonPayload, ...ctRest } = ct;
+            // Crate-manifest leak (fix round M4b, fix 1): same nested-Tag
+            // gap as character/page.js's own strip — `ct.tag.crateContents`
+            // carries per-line poisonedCount/poisonPayload for a
+            // player-packed crate, and `tag: true` above hands back the
+            // whole row with nothing stripped yet.
+            const { crateContents, ...tagRest } = ctRest.tag ?? {};
+            const stripped = {
+              ...ctRest,
+              // The manifest goes, but WHETHER this is a crate has to survive it: the
+              // Consume dialog suppresses its "Becomes:" line for a crate, and Package
+              // refuses to pack one, and both ask on the client.
+              tag: ctRest.tag ? { ...tagRest, crate: Boolean(crateContents) } : ctRest.tag,
+              poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0,
+            };
+            if (stripped.tag?.paperText == null) return stripped;
+            const { paperText, ...tag } = stripped.tag;
+            return { ...stripped, tag };
           }),
         };
 
@@ -450,10 +492,13 @@ async function FreshChat({ userId }) {
         examineBlocked: aside.pools.examineBlocked,
         canHeal: aside.pools.canHeal,
         healsLeft: aside.pools.healsLeft,
+        hasSurgicalSite: aside.pools.hasSurgicalSite,
+        surgicalSitePenalty: aside.pools.surgicalSitePenalty,
         healTargets: aside.pools.healTargets,
         healParties: { characters: aside.pools.peopleParties, rooms: [] },
         transferParties: { characters: aside.pools.transferParties, rooms: aside.stashRooms },
         lootTargets: aside.pools.lootTargets,
+        consumeTargets: aside.pools.consumeTargets,
         bindTargets: aside.pools.bindTargets,
         harmTargets: aside.pools.harmTargets,
         harmTags: aside.pools.harmTags,

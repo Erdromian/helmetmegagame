@@ -16,6 +16,14 @@ derived from the category (§5).
 | `removable` | Destroy | `destroyTagRequest` (derived, §5) |
 | `healable` | Heal | `healCharacterRequest` via `web/lib/healRequests.js#isHealable` |
 | `teachable` | Learn / Teach | `db/lib/lessons.js#teachableSkills` (LESSONS.md) |
+| `cures` / `administerable` | Consume, with a target | `consumeTagRequestImpl` (`MEDICAL.md` §1) |
+
+The last row is not a fifth menu flag the way the first four are — every
+item already sits in Consume, whatever its `cures` list says. What `cures`/
+`administerable` decide is narrower: whether Consume's target picker may
+post to someone OTHER than the actor at all (an item curing nothing the
+target holds, and not `administerable`, refuses the targeted branch outright,
+same server-side re-check posture as the four flags above).
 
 The 9/2026 sweep set `healable: true` on every health tag with a cure and
 `teachable: true` on every skill. Health is not `removable` — a wound is
@@ -107,10 +115,13 @@ and the auto-labor pass pays only characters with **no** Action
 (`autoLaborPass.js`, `LABORING.md`). Four free knives leave the day's labor
 untouched; the fifth costs it.
 
-**The family.** `craftFamily()` (`web/lib/tagRequests.js`) is the recipe's
-first `requirementSkills` slug whose prefix is one of `brewing`, `cooking`,
-`smithing`, `builder`, `crafting` — barbed-net's `fundamentalist` sits
-beside `crafting` and the recipe is crafting. A recipe gated outside the
+**The family.** `craftFamily()` (`web/lib/tagRequests.js`) takes the first of
+`brewing`, `cooking`, `smithing`, `builder`, `crafting` that any of the
+recipe's `requirementSkills` prefixes match — that fixed precedence, not the
+order the skills come back in, since Prisma returns the relation unordered
+and a two-trade recipe's family would otherwise depend on row order.
+Barbed-net's `fundamentalist` sits beside `crafting` and the recipe is
+crafting. A recipe gated outside the
 five trades takes its first skill prefix AS its family (bone-mask is
 `butcher` work, holy water `blessing` work), and one with no skill at all is
 generic `craft` — so EVERY recipe Move-prices by the same arithmetic (Chris
@@ -121,6 +132,31 @@ A turn's Routine commits to one family. Half a Routine at the still and half
 at the anvil is not a thing, and that includes the Dead Simple pool: spill a
 work knife (`smithing`) into the Move and a sling (`crafting`) is refused for
 the rest of the turn.
+
+**`medical` is a family too, but it is never derived — it is always passed
+explicitly.** A routine Heal or an `administerSkill`-gated Consume
+(`MEDICAL.md` §2–3) bills through this same arithmetic, but the tag being
+priced is an AFFLICTION or a fitted ITEM, not a recipe with
+`requirementSkills` for `craftFamily()` to read a trade prefix off — a
+skill-less cure like Choking would otherwise fall through to the generic
+`craft` family and share a Routine with actual crafting. Every medical
+caller says `family: "medical"` up front instead of asking `craftFamily` to
+guess, which is also why a Routine already committed to treating somebody
+refuses a Broadsword for the rest of the turn, same as any two families
+would.
+
+**The eight medicines (`antidote`, `fever-draught`, `burn-dressing`,
+`autoinjector`, `portable-surgical-pack`, `last-breath`, `cybernetic-arm`,
+`cybernetic-leg`) are ordinary recipes now, not afflictions or fitted
+items** — they carry `requirementSkills: [brewing-skilled]` or
+`[brewing-expert]`, so `craftFamily()` derives them as `brewing` by the
+ordinary rule above, the same as any other brew. They no longer share a
+family with Heal at all: `medical` bills healing and `administerSkill`
+fittings only now, and brewing a batch of Antidote is a `brewing`-family
+craft that a Routine already spent on Healing someone would refuse, same as
+any Broadsword. One Action per character per turn still carries only one
+family, so a medic can no longer heal a patient and brew their own
+medicine in the same turn.
 
 **The ledger.** `Action.craftBudget` on the `auto:craft` Action:
 

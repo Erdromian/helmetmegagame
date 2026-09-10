@@ -74,6 +74,15 @@ export function healCost(tag) {
   return tag?.requirementResources ?? 0;
 }
 
+// What a `requirementSkills` row has to carry for the predicates below to
+// answer correctly. Every query whose tags reach isGambitHeal() or
+// needsSurgicalSite() must select THIS, not a subset: `name` alone renders a
+// correct requirement label while silently breaking both — a row with no `id`
+// matches nothing in `satisfied`, so every cure reads as a Gambit, and a row
+// with no `slug` never matches medical-expert, so surgery stops asking for a
+// site. Neither failure is visible in the label the player reads beside it.
+export const HEAL_SKILL_SELECT = { id: true, name: true, slug: true };
+
 // The requirementSkills rows still missing — [] when qualified.
 export function missingSkillsFor(tag, satisfied) {
   return (tag?.requirementSkills ?? []).filter((skill) => !satisfied.has(skill.id));
@@ -94,21 +103,50 @@ export function isGambitHeal(tag, satisfied) {
   return Boolean(tag.requirementGambit) || missingSkillsFor(tag, satisfied).length > 0;
 }
 
-// A 0-turn cure is a free action and never counts against the per-turn
-// allowance. See MEDICAL_TIER_CAPS in web/lib/requests.js.
-export function countsAgainstHealCap(tag) {
-  return (tag?.requirementTurns ?? 0) > 0;
+// Non-minor surgery needs a site (M3, TAGS.md §5c) — the medical mirror of
+// needsWorkshop's forge rule (web/lib/tagRequests.js, SMITHING.md §2a). Tier
+// 6 and 7 are the two rungs the cure ladder prices on Medical (Expert); tier
+// 5 ("very minor surgery") stays site-free. Read off the CURE's own
+// required skill, not the treating medic's — a Skilled medic reaching above
+// their tier for a tier-6/7 cure still needs the site, same as an Expert
+// doing it as routine work. Pure and shared, so the dialog and the server
+// cannot disagree.
+export function needsSurgicalSite(tag) {
+  return (tag?.requirementSkills ?? []).some((skill) => skill.slug === "medical-expert");
 }
 
-// The medic's own allowance: the cap of the HIGHEST medical tier they hold.
-// Tiers replace each other up Tag.parentTagId, so an Expert is not also
-// spending a Basic's two — they simply get four.
+// Does this cure draw on the medic's shared free pool (M2,
+// docs/systemdocs/TAGS.md §5c)? Only a 0-turn cure does — a turns-costing
+// cure is billed the Move's own fraction instead (CRAFTING.md §2a) and
+// never touches this pool at all. See MEDICAL_SIMPLE_PER_TURN in
+// web/lib/requests.js. The 0-turn half of the check is INVERTED from the
+// pre-M2 predicate (`turns > 0`), which counted turn-costing cures against
+// a per-tier daily cap — that cap is gone, replaced by the Move economy.
 //
-// `heldSlugs` is a Set of the character's tag slugs; `caps` is
-// MEDICAL_TIER_CAPS, passed in so this module stays free of that import and
-// the client and the server cannot disagree about the numbers.
-export function healCapFor(heldSlugs, caps) {
+// `gambit` is defense-in-depth here, not load-bearing (review fix, round
+// 3): both current callers already exclude a Gambit before this ever runs
+// — a Gambit files a Move of its own and never reaches the pool question at
+// all — so the parameter mostly guards a future caller that forgets to,
+// rather than changing today's answer.
+export function countsAgainstHealCap(tag, gambit = false) {
+  return (tag?.requirementTurns ?? 0) === 0 && !gambit;
+}
+
+// The medic's own allowance: MEDICAL_SIMPLE_PER_TURN if they hold any
+// medical tier at all, 0 otherwise (M2 dropped the old per-tier scaling — an
+// Expert's edge is the Move fractions they can afford on turns-costing cures,
+// not a bigger free pool).
+//
+// `heldSlugs` is a Set of the character's tag slugs; `pool` is
+// MEDICAL_SIMPLE_PER_TURN, passed in so this module stays free of that
+// import. Unlike `canHeal` (satisfiedSkillIds' ancestry walk, which is what
+// the server actually gates on), this checks the three tier slugs literally
+// — today's catalog has no other medical tier, so the two answers agree, but
+// a future tier the ladder doesn't literally name would make this the
+// STRICTER of the two: it could show 0 healsLeft for a medic the server
+// would still let treat. Fails closed, not open, but it is a real gap, not
+// a guarantee the client and server can never disagree.
+export function healCapFor(heldSlugs, pool) {
   const ladder = ["medical-expert", "medical-skilled", "medical-basic"];
-  for (const slug of ladder) if (heldSlugs.has(slug)) return caps[slug] ?? 0;
-  return 0;
+  return ladder.some((slug) => heldSlugs.has(slug)) ? pool : 0;
 }

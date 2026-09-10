@@ -378,7 +378,19 @@ function woundRungOf(tag) {
   if (r >= 6) return 5;
   if (r >= 4) return 4;
   if (r === 3) return 3.5;
-  if (r === 2) return turns >= 1 ? 3 : 2;
+  // 2-⬢ wounds split three ways since M2a (turnsCost repricing put Simple
+  // and Moderate on the same requirementResources: 2/requirementTurns: 1
+  // shape, differing only in requirementPerTurn): a legacy/GM-authored
+  // zero-turn wound (or unset, coalesced the same way as before this
+  // milestone) and the new Simple (perTurn 4, i.e. turnsCost 1/4) both stay
+  // at rung 2; anything else with a nonzero turn cost (a Moderate wound's
+  // turnsCost 1/3, or a GM-authored whole turn with no fraction at all — the
+  // Dev Panel form cannot author one) is rung 3.
+  if (r === 2) {
+    if (turns === 0) return 2;
+    if (tag.requirementPerTurn === 4) return 2;
+    return 3;
+  }
   if (r === 1) return 1;
   return 0.5;
 }
@@ -680,6 +692,7 @@ async function applyWoundMood(tx, characterId, tagIds, opts = {}) {
       category: true,
       requirementResources: true,
       requirementTurns: true,
+      requirementPerTurn: true,
       requirementGambit: true,
       group: { select: { slug: true } },
     },

@@ -68,11 +68,14 @@ const EXAMINE_SUBJECT_SELECT = {
           inspectVisibility: true,
           forcedName: true,
           ...CONCEALMENT_TAG_FIELDS,
-          // The five formatTagRequirement() reads. It renders no ingredient
+          // The six formatTagRequirement() reads. It renders no ingredient
           // line rather than throwing when requirementItems is missing, which
-          // is the quiet failure this shared select exists to prevent.
+          // is the quiet failure this shared select exists to prevent — and
+          // without requirementPerTurn a `turnsCost: 1/N` cure showed as a
+          // flat "1 turn" instead of its real fraction (review fix, M2).
           requirementGambit: true,
           requirementTurns: true,
+          requirementPerTurn: true,
           requirementResources: true,
           requirementItems: true,
           requirementSkills: { select: { id: true, name: true } },
@@ -200,6 +203,15 @@ function examineReadout({
     appearance: subject.appearance || null,
     ailments: [],
     equipment: [],
+    // Poison detection (M4) does NOT live here: medicallyVisibleTags only
+    // ever returns a row that's either bystander-visible equipment or a
+    // Health-category affliction, and a poisoned stack is neither (it's a
+    // food/drink row, category `items`) — the marker this readout used to
+    // compute was dead on arrival, since no row it could ever attach to was
+    // reachable in the first place. The real, reachable detection surfaces
+    // are the sheet (character/page.js) and /play's own (thingRows.js) —
+    // both read the CHARACTER'S OWN held tags directly, which is the design
+    // (own-sheet detection, not examining someone else's pockets).
     tags: [
       ...medicallyVisibleTags(subject.tags, satisfied, identityVisible).map((entry) =>
         describeTag(entry, openTurnNumber),

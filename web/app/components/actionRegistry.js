@@ -53,6 +53,7 @@ import {
   QuillIcon,
   SealIcon,
   CharacterIcon,
+  SkullIcon,
   InterceptIcon,
   KissIcon,
 } from "./icons";
@@ -63,6 +64,8 @@ export const ACTION_HELP = {
   heal: "Heal yourself or someone nearby. Gated by your Medical skill.",
   consume:
     "Use something up. You can also just click on the tag on your sheet.",
+  poison:
+    "Lace a meal or drink you're holding, dose someone that's helpless, or drink it yourself.",
   learn:
     "Learning a skill is a Gambit. It succeeds on a 5 or a 6. It also takes the teacher's turn.",
   teach:
@@ -138,6 +141,12 @@ export const ACTION_SECTIONS = [
         gate: "canConsume",
         gateReason: "Nothing you're carrying can be used up.",
       },
+      // HIDDEN rather than greyed, same reasoning as Disguise just below:
+      // whether YOU are holding a poison is a fact about your own sheet, and
+      // a dead icon on everybody else's grid would only teach them poisons
+      // exist. Reachable either way by clicking the poison chip itself on
+      // your own sheet.
+      { mode: "poison", icon: SkullIcon, label: "Poison", show: "canPoison" },
       // No gate: you can always move ⬢ or put something down.
       { mode: "transfer", icon: HandOffIcon, label: "Transfer" },
       // HIDDEN rather than greyed, the same reasoning Crucify and the Factory

@@ -283,6 +283,12 @@ async function FreshDocuments() {
     consumesInto: t.consumesInto,
     expiresInto: t.expiresInto,
     removesInto: t.removesInto,
+    // The medical pass's item-cure fields (TAGS.md §5c): what a consumable
+    // cures, the per-item aftermath override, and who may administer it.
+    cures: t.cures,
+    curesInto: t.curesInto,
+    administerable: t.administerable,
+    administerSkill: t.administerSkill,
     requirementTurns: t.requirementTurns,
     requirementResources: t.requirementResources,
     requirementGambit: t.requirementGambit,

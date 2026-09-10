@@ -194,13 +194,19 @@ read off its requirement block by `woundRungOf`. `woundMoodFor` returns it
 | 0 | no requirement block at all | 0 |
 | ½ | 0 ⬢ (minor-bleeding, dislocated-shoulder) | −4 |
 | 1 | 1 ⬢ | −8 |
-| 2 | 2 ⬢, 0 turns (frostbite) | −15 |
-| 3 | 2 ⬢, 1 turn (choking) | −30 |
+| 2 | 2 ⬢, 1/4 Move (burned, frostbite, choking...) or a legacy/GM-authored 0-turn 2 ⬢ wound | −15 |
+| 3 | 2 ⬢, 1/3 Move (deep-wound, broken-bone...) | −30 |
 | 3½ | 3 ⬢ (severe-bleeding, arterial-bleed, parasites) | −35 |
 | 4 | 4–5 ⬢ | −40 |
 | 5 | 6–7 ⬢ | −45 |
-| 6 | 8 ⬢, no Gambit | −55 |
-| 7 | `requirementGambit` | −65 |
+| 6 | 8+ ⬢ (14 ⬢ today), no Gambit | −55 |
+| 7 | `requirementGambit` (14 ⬢ today) | −65 |
+
+Rung 2 and rung 3 now share the same ⬢ (2) and the same `requirementTurns`
+(both bill a fraction of a Move, not a flat turn any more) — `woundRungOf`
+tells them apart by `requirementPerTurn` instead: 4 (a 1/4 Move, the Simple
+rung) reads as rung 2, anything else nonzero (a 1/3 Move, the Moderately
+Severe rung) reads as rung 3.
 
 Illness, mind, minor and recovery tags cost nothing — a cold is not a wound. A
 tier-0 wound (no block) is real, untreatable and too small to matter. So the

@@ -43,86 +43,6 @@ documents:
       **Transferring Resources**
 
       You may transfer Resources from any source to any recipient, provided you are in the same Location as both.
-  medical:
-    name: Medical
-    public: true
-    tags:
-      - Medical (Basic)
-      - Medical (Skilled)
-      - Medical (Expert)
-    description: |-
-      Health and injuries are tags. The price to treat them is measured in
-      Resources, your turns, and a skill.
-
-      **What you can do in a day.** Treating a case within your skill is
-      Routine. You get 2 of them a turn with {tag:medical-basic}, 3 with
-      {tag:medical-skilled}, 4 with {tag:medical-expert}. First aid — anything
-      the table below lists at 0 turns — costs you nothing at all and never
-      counts against that, so bandage as many people as you like.
-
-      **Reaching past your skill.** You can attempt any cure, including ones
-      well above your training. That's a Gambit: it spends your Move for the
-      turn, a die is rolled, and you'll both find out at the end of it. A bad
-      roll can leave the patient worse than you found them. The top of the
-      table is a Gambit even for an Esculap.
-
-      **Surgery needs instruments.** Hold {tag:surgical-equipment}, or stand
-      somewhere a set is already laid out — the Sanctuary's operating theatre
-      has one. It adds +1 to every medical Gambit you roll.
-
-      {tag:medical-basic} · {tag:medical-skilled} · {tag:medical-expert}
-
-      | Tier | ⬢ | Turns | Skill |
-      |---|---|---|---|
-      | Free | 0 | 0 | Medical (Basic) |
-      | Very minor — first aid | 1 | 0 | Medical (Basic) |
-      | Minor | 2 | 0 | Medical (Basic) |
-      | Moderately severe | 2 | 1 | Medical (Skilled) |
-      | Severe | 4 | 1 | Medical (Skilled) |
-      | Very minor surgery | 6 | 1 | Medical (Skilled) |
-      | Severe surgery | 8 | 1 | Medical (Expert) |
-      | Complex surgery | 8 | 1 | Medical (Expert) + Gambit |
-
-      **Free — 0 ⬢, no turn**
-
-      - {tag:minor-bleeding}, {tag:dislocated-shoulder}
-
-      **Very minor — 1 ⬢, no turn**
-
-      - {tag:bruised}, {tag:severe-pain}
-
-      **Minor — 2 ⬢, no turn**
-
-      - {tag:minor-wound}, {tag:burned}, {tag:sprained-ankle}, {tag:infected},
-        {tag:frostbite}
-
-      **Moderately severe — 2 ⬢, 1 turn**
-
-      - {tag:deep-wound}, {tag:broken-bone}, {tag:cracked-ribs},
-        {tag:poisoned}, {tag:heatstroke}, {tag:pain-shock}, {tag:choking},
-        {tag:blunt-force-trauma}
-
-      **Severe — 3–4 ⬢, 1 turn**
-
-      - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites},
-        {tag:severe-burns}, {tag:broken-jaw}, {tag:mangled-hand},
-        {tag:festering}, {tag:rot-lung}, {tag:pox}
-
-      **Very minor surgery — 6 ⬢, 1 turn**
-
-      - {tag:grievous-wound}, {tag:feverish}, {tag:necrosis}
-
-      **Severe surgery — 8 ⬢, 1 turn**
-
-      - {tag:punctured-lung}, {tag:gut-wound}, {tag:appendicitis},
-        {tag:envenomated}, {tag:disfigured}
-
-      **Complex surgery — 8 ⬢, 1 turn, Gambit**
-
-      - {tag:sepsis}, {tag:dying}, {tag:consumptive}, {tag:blind},
-        {tag:crippled-leg}, {tag:phrygian-toxin}
-
-      Tonics (see {document:alcoholdrugs}) cure some tags outright.
   sanctuary:
     name: Sanctuary
     public: true
@@ -304,56 +224,6 @@ documents:
     tags: []
     description: |-
       The Charon is a one-way spaceship. It'll take its passengers out into space, where a passenger liner called the Leviathan is allegedly waiting for refugees. The Charon's hatch can be accessed through the Undercroft.
-  alcoholdrugs:
-    name: Alcohol & Drugs
-    public: true
-    tags:
-      - Brewing (Basic)
-      - Brewing (Skilled)
-      - Alcoholic
-    description: |-
-      Like cooking or smithing, brewing costs Resources, turns, and is gated
-      by a skill. Many brews also need special ingredients.
-
-      {tag:brewing-basic} — alcohol and the simple tonics.
-      {tag:brewing-skilled} — wine and everything that needs a hard-to-find
-      ingredient. Requires Brewing (Basic).
-
-      Every ingredient below is a real thing you have to be holding, and the
-      brewing uses it up unless the row says otherwise.
-
-      **Brewing (Basic)**
-
-      | Brew | ⬢ | Turns | Needs |
-      |---|---|---|---|
-      | {tag:bliss} | 0 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:cave-fungus} |
-      | {tag:feces} | 0 | — (yields up to 2 per turn) | — |
-      | {tag:alcohol} | 2 | 1 (yields up to 3 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-      | {tag:miasma} | 2 | 1 | a corpse {info:You must be holding one. It is not used up.} |
-      | {tag:poppy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:poppy-pods} |
-      | {tag:molotov-cocktail} | 2 | — (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:alcohol} |
-      | {tag:cleaning-powder} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | — |
-      | {tag:cat} | 3 | 1 | {tag:alcohol} |
-      | {tag:nightshade} | 3 | 1 | {tag:nightshade-herb} |
-      | {tag:moonshine} | 0 | 1 | {tag:godflesh} |
-
-      **Brewing (Skilled)**
-
-      | Brew | ⬢ | Turns | Needs |
-      |---|---|---|---|
-      | {tag:deadeye-drops} | 2 | 1 | {tag:cave-fungus} |
-      | {tag:mercy} | 2 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:cave-fungus} |
-      | {tag:mindbreaker-toxin} | 2 | 1 | {tag:cave-fungus} |
-      | {tag:ravenheart-red} | 4 | 1 (yields up to 2 per turn) {info:Multiply the amount of resources by the units you choose to make.} | {tag:alcohol} |
-      | {tag:distilled-coca} | 4 | 1 | {tag:coca-leaves} |
-      | {tag:advanced-poppy} | 4 | 1 | {tag:poppy} |
-      | {tag:phrygian-tears} | 4 | 2 | {tag:nightshade} and {tag:cave-fungus} |
-      | {tag:purifier} | 6 | 1 | {tag:cave-fungus} |
-      | {tag:forgiveness} | 8 | 1 | {tag:poppy} |
-      | {tag:mulligan-potion} | 8 | 2 | — |
-      | {tag:flawless-skin} | 8 | 1 | — |
-
-      Rumor has it the skilled brewers of past generations knew recipes beyond these — worked from stranger ingredients than any listed here. If something rare and organic finds its way into your hands, a still is one way to ask it questions.
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser
@@ -414,6 +284,9 @@ documents:
       | {tag:graga-hide-cloak} | Crafting | 6 | {tag:graga-sac} | butchered from a {tag:graga-corpse} |
       | {tag:minted-charm} | Smithing | 15, 3-turn project | {tag:old-coin} | caving loot |
       | {tag:musk-lure} | Butcher | 2 | {tag:nekker-pheromones} | butchered from a {tag:nekker-corpse} |
+      | {tag:autoinjector} | Brewing (Expert) | 3, 1 turn | {tag:antidote}, {tag:fever-draught} and {tag:brackenmoss} | foraged — GM-granted until the loot pass wires it |
+      | {tag:last-breath} | Brewing (Expert) | 12, 3-turn project | {tag:aberrant-heart} | a fallen Aberrant — GM-granted until the loot pass wires it |
+      | {tag:cybernetic-arm}, {tag:cybernetic-leg} | Brewing (Expert) | 16, 3-turn project each | {tag:cybernetic-core} | GM-granted only, nothing drops it yet |
       | {tag:chrism} | Blessing | 2 | {tag:holy-water} and {tag:honey} | the Cathedral's still and the Depot's shelf |
       | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |

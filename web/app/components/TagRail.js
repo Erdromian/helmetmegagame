@@ -99,11 +99,20 @@ export default function TagRail({
       researchable: ct.tag.slug === RESEARCH_TAG_SLUG && canResearch,
     };
     const isPotion = v.consumable && ct.tag.id === identity?.tagId;
+    // A poison opens its own three-option dialog (lace it, dose someone, or
+    // drink it) instead of the one-click straight-to-server path — it needs
+    // an answer the quick Use can't ask for. Routes on Tag.poison, the one
+    // catalog fact that's always safe to read straight off the tag.
+    const isPoison = v.consumable && Boolean(ct.tag.poison);
     return (
       <RowVerbs
         verbs={v}
         pending={pending}
-        onUse={v.consumable ? () => (isPotion ? setIdentityOpen(true) : consume(ct.tag.id)) : null}
+        onUse={
+          v.consumable && (!isPoison || open)
+            ? () => (isPoison ? open("poison", ct.tag.id) : isPotion ? setIdentityOpen(true) : consume(ct.tag.id))
+            : null
+        }
         onEquip={v.equippable && ct.id ? () => equip(ct) : null}
         onGive={open ? () => open("transfer", ct.tag.id) : null}
         onDestroy={open ? () => open("destroy", ct.tag.id) : null}

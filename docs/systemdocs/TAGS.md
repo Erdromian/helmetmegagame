@@ -1174,14 +1174,17 @@ Five rules carry it:
   point one at `ate-meal`, which is deliberately never swept because the
   Hunger pass consumes it explicitly.
 
-Consuming is a **Request** (`CONSUME_TAG`), so it lands immediately, carries
-a reason, and a GM can Undo it — see `REQUESTS.md` §3. The undo snapshot
-records what was *actually* added per slug (`added: 0` for a grant that was
-skipped as already-held), because Undo may only take back what this request
-really put there.
+Consuming applies and writes one `AuditLog` row in the same transaction —
+there is no approval step, no reason, and **no Undo** any more (`REQUESTS.md`
+§1). What replaced Undo is the Dev Panel: a GM repairs a sheet by hand off
+the audit row's own `restore` snapshot, which is why the row records what was
+*actually* granted per slug (`added: 0` for a grant that was skipped as
+already-held) — a GM can only put back what the row tells them was really
+there.
 
-`grantTagSlugs()` in `web/lib/tagEffects.js` is the single writer, a
-fourth sibling to the three stack primitives in §5a.
+`grantTagSlugs()` (`db/lib/tagWrites.js`, re-exported by
+`web/lib/tagEffects.js`) is the single writer, a fourth sibling to the three
+stack primitives in §5a.
 
 **This replaced the old `grantsOnExpiry` field**, which did the same
 conversion on a timer instead of on demand: letting a player choose *when* to
@@ -1204,8 +1207,8 @@ Purse/Supply Kit/Skinned Cave Rat tags that use them):
 - **`consumesIntoResources`** (`Int?`) — the Resources half of a grant.
   `Purse` consumes into nothing but 3 ⬢ (`consumesInto: []`); `Supply Kit`
   combines both, 8 ⬢ plus one Alcohol. Applied by `consumeTagRequest` through
-  the ordinary `creditResources` primitive, snapshotted into `Request.effect`
-  so Undo debits it back exactly.
+  the ordinary `creditResources` primitive, recorded in the audit row's
+  `details` for a GM to read back.
 - **`consumesIntoOneOf`** (`Json?`) — a parallel array to `consumesInto`,
   same length and order, for an even random pick between alternatives —
   `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto` (§5c)
@@ -1231,16 +1234,32 @@ Every Health tag is priced off one of eight rungs. **Pick a rung and copy its
 block. Do not invent numbers.** The whole point of a ladder is that a player
 learns it once and can then read any affliction they meet.
 
-| Tier | Reads as | ⬢ | turns | skill | Gambit |
+**The `turns` column is a Move fraction now (the medical pass, M2), not a
+literal turn count.** `craftMoveCost` (`web/lib/craftBudget.js`, `CRAFTING.md`
+§2a) is what actually bills it — a rung's `turnsCost: 0` never touches a
+Move at all (it draws on the shared free pool below instead), `1/3`/`1/2`
+spend that fraction of the medic's one Routine, and `1` spends the whole
+thing. See "The Move economy" below for how that bills and what it replaced.
+
+| Tier | Reads as | ⬢ | turns (Move) | skill | Gambit |
 |---|---|---|---|---|---|
 | 0 | Untreatable | — | — | — | — |
-| 1 | Very minor — first aid | 1 | 0 | Basic | no |
-| 2 | Minor | 2 | 0 | Basic | no |
-| 3 | Moderately severe | 2 | 1 | Skilled | no |
-| 4 | Severe | 4 | 1 | Skilled | no |
-| 5 | Very minor surgery | 6 | 1 | Skilled | no |
-| 6 | Severe surgery | 8 | 1 | Expert | no |
-| 7 | Complex surgery | 8 | 1 | Expert | yes |
+| 1 | Dead Simple | 1 | 0 | Basic | no |
+| 2 | Simple | 2 | 1/4 | Basic | no |
+| 3 | Moderate | 2 | 1/3 | Skilled | no |
+| 4 | Severe | 4 | 1/3 | Skilled | no |
+| 5 | Very minor surgery | 7 | 1/2 | Skilled | no |
+| 6 | Severe surgery | 14 | 1 | Expert | no |
+| 7 | Complex surgery | 14 | 1 | Expert | yes |
+
+Tiers 5–7 were repriced by the medical pass (M2 — 6→7, 8→9, 8→14) precisely
+because a whole Move stopped being what any of them actually cost once the
+lower rungs moved onto fractions; the ⬢ went up with the tier's now-relative
+weight rather than staying pinned to the old flat 6/8/8. Tier 6 has since
+been repriced again, 9→14 and 1/2→1 Move, so it now costs exactly what tier
+7 does — see below. Tiers 1 and 3–4 kept their ⬢ and their Move billing
+exactly; tier 2 kept its ⬢ but lost its free ride — it now bills a flat 1/4
+Move like tiers 3–4's fractions, never touching the pool below.
 
 The ladder now runs in both directions. `HARM_CHARACTER` (`REQUESTS.md` §5b)
 puts a Health tag **on** somebody — offered from `isInflictable()`'s curated
@@ -1271,7 +1290,7 @@ rolling — that is tier 5, and it is all the surgery they get. Anything that
 means opening a chest or a belly is Esculap's work at tier 6; a Serpent may
 still attempt it, but they roll. Tier 7 is the rung even Esculap rolls for,
 which is why it shares tier 6's price: what separates the two is the Gambit,
-not the bill. Only eleven tags sit above tier 5, and that scarcity is the point —
+not the bill. Only twelve tags sit above tier 5, and that scarcity is the point —
 Esculap's time should be a thing players negotiate over.
 
 **Realism sets the rung, not severity.** Severity and duration matter, but the
@@ -1307,39 +1326,108 @@ them worse. The shape is copied from a learner's Lesson Gambit
 (`db/lib/lessons.js`), and `Action @@unique([characterId, turnId])` is what
 makes it one gambit heal a turn without a second check.
 
-**Routine cures are rationed by tier**: 2 a turn on Basic, 3 on Skilled, 4 on
-Expert (`MEDICAL_TIER_CAPS`, `web/lib/requests.js`). A cure costing **0 turns**
-is a free action and never counts — first aid, bandaging, setting a simple
-break are the things you do between patients, and rationing them would make a
-nurse refuse a bandage.
+### The Move economy (M2)
 
-**Surgical Equipment is +1 on a medical Gambit**, satisfied by holding one or
-by standing in a room that has one (`db/lib/equipmentReach.js`). There is a set
-in the Sanctuary's operating theatre, seeded from `docs/zones.yaml`; the old
-"procedures in the Sanctuary automatically qualify" line was prose that no code
-ever read, and it is gone.
+A routine cure spends the same Move a craft does — `MEDICAL.md` §3 owns the
+full mechanism (the shared `craft` family arithmetic, the ledger, the
+`billedSeen` re-check); this is the tag-side summary.
+
+**A 0-turn cure is free, up to a shared daily pool.** Only tier 1 and the
+two 0-⬢ named exceptions below (`dislocated-shoulder`, `minor-bleeding`)
+still price at `turnsCost: 0` — tier 2 no longer does (below) — and that
+rung draws on `MEDICAL_SIMPLE_PER_TURN = 4` (`web/lib/requests.js`) — 4
+first-aids a day for a medic of ANY tier, counted per medic (not per
+patient) off that turn's `request_heal_character` audit rows. This
+replaced the old per-tier daily ration (2 a turn on Basic, 3 on Skilled, 4
+on Expert, `MEDICAL_TIER_CAPS` — deleted); the Expert's edge is now what
+they can afford on the turns-costing rungs, not a bigger free allowance.
+Past the 4th, each additional 0-turn cure spills into the medical family's
+Move at **1/4** rather than refusing outright, the same "allowance free,
+past it costs the Move" rule Dead Simple crafting uses.
+
+**Everything at tier 2+ bills the Move directly and never touches that
+pool** — tier 2 (and its named-exception siblings `frostbite`, `choking`,
+`hypothermia`) is a flat 1/4 now rather than drawing on the pool at all, a
+1/3 or 1/2 rung spends that fraction of the medic's Routine, and tier 6 or
+7 (a full Move, tier 7 always a Gambit) spends the whole thing. The family is hardcoded
+`"medical"` on every caller that bills one of these, never derived from
+`craftFamily(tag)`'s guess — a skill-less cure like Choking would otherwise
+fall into the generic `craft` family and share a Routine with actual
+crafting.
+
+**Reaching above your tier — or a cure whose own `requirementGambit` is set,
+which is the whole of what separates tier 7 from tier 6 since they share a
+price — files a GAMBIT Move** instead of curing anything (`isGambitHeal()`,
+`web/lib/healRequests.js`). It spends the medic's Move, the die is rolled at
+file time, and the **affliction is left on the patient** until a GM reads
+the roll on `/gm/turns`: an attempt that has not been resolved cannot have
+cured anything, and a failed one is supposed to be able to leave them worse.
+The shape is copied from a learner's Lesson Gambit (`db/lib/lessons.js`), and
+`Action @@unique([characterId, turnId])` is what makes it one gambit heal a
+turn without a second check.
+
+**Tier 6 and 7 need a surgical site** (M3, the medical mirror of Smithing's
+forge rule; reworked M6b): `needsSurgicalSite()` refuses one outright without
+a site — Surgical Equipment in reach (held, or already laid out in the room,
+`db/lib/equipmentReach.js`), a Surgical Theater structure, or a Portable
+Surgical Pack. There is a Theater in the Sanctuary's operating theatre,
+seeded from `docs/zones.yaml`; the old "procedures in the Sanctuary
+automatically qualify" line was prose that no code ever read, and it is gone.
+None of the three is consumed. The pack is the lesser site of the three: a
+Gambit takes a **−1** exactly when the pack is the only thing enabling the
+site (no Surgical Equipment, no Theater, also in reach) — Surgical Equipment
+or a Theater in reach cancels the penalty outright, and neither ever grants a
+bonus.
 
 So `requirementResources`, `requirementSkills` and `requirementGambit` are all
 enforced now. `requirementTurns` remains reference for the *length* of a
-course of treatment, but its zero/non-zero split does real work: it is what
-decides whether a cure counts against the day's allowance.
+course of treatment, but its zero/non-zero split does real work: it decides
+whether a cure draws on the free pool at all, or bills a Move fraction
+outright.
 
-### Six named exceptions
+### Curing by item, not by medic (M1)
+
+A health tag can also be cured with no medic and no Move involved: an item
+carrying `Tag.cures` (a list of health-tag slugs) cures every one of those
+its target holds, through Consume rather than Heal — `MEDICAL.md` §1 owns
+the mechanism. `Tag.administerable` is the one-item exception (Mercy): it
+always succeeds regardless of `cures`, because it stabilizes rather than
+naming a fixed list. `Tag.curesInto` is a per-item override
+(`{ curedSlug: aftermathSlug }`) for when the item's own aftermath should
+differ from the cured tag's ordinary `removesInto` — the four visible
+prosthetics use it (Wooden Leg's cure leaves `peg-leg`, not whatever Missing
+Leg's own `removesInto` would have said). None of these three fields is
+validated against `healable` — a cure item reaching a tag `healable: false`
+(Forgiveness → Shell Shocked, which no medic can treat) is deliberate, not a
+gap.
+
+`Tag.administerSkill` is a different gate, and it sits on the CURING ITEM,
+not the cured tag: the skill required to apply that item to **anyone,
+including the actor's own self** (a prosthetic fitting is surgery even on
+your own leg). It is the one exception to §5f's "self-consume is never
+ACT-gated" — see §5f. `MEDICAL.md` §2 has the full mechanism, including the
+flat 1/2 Move fee it bills through the same medical family as above.
+
+### Named exceptions
 
 A handful of Health tags sit off the standard rungs on purpose — priced by
-Kata's 8/28 review rather than a copy-pasted block. They are exceptions to
-"pick a rung," not new reusable rungs; don't copy their numbers onto anything
-else.
+Kata's 8/28 review rather than a copy-pasted block, with `hypothermia`
+joining them at M6. They are exceptions to "pick a rung," not new reusable
+rungs; don't copy their numbers onto anything else.
 
 - **`minor-bleeding`, `dislocated-shoulder`** — 0 ⬢, 0 turns, Medical
   (Basic). Below tier 1: a bandage or a shoulder pop is real medical
   knowledge, but it costs the doctor nothing to do.
-- **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 1 turn, Medical
-  (Skilled). Sits between tiers 3 and 4: stopping blood loss is urgent but
-  simpler than the rest of what "Severe" covers.
-- **`choking`** — 2 ⬢, 1 turn, no skill. A Heimlich needs no training at
-  all — the ⬢ buys the doctor's time, not their expertise.
-- **`frostbite`** — 2 ⬢, 0 turns, Medical (Skilled). Also gained
+- **`severe-bleeding`, `arterial-bleed`, `parasites`** — 3 ⬢, 1/3 Move,
+  Medical (Skilled). Sits between tiers 3 and 4: stopping blood loss is
+  urgent but simpler than the rest of what "Severe" covers.
+- **`choking`, `hypothermia`** — 2 ⬢, 1/4 Move, no skill. A Heimlich (or
+  warming somebody back up) needs no training at all — the ⬢ buys the
+  doctor's time, not their expertise. Choking was repriced onto this shape
+  by M2 (it used to cost a whole turn); Hypothermia was untreatable at all
+  until M6 gave it the identical shape; both now bill the same flat 1/4 Move
+  every other rung-2 tag does, never the free pool.
+- **`frostbite`** — 2 ⬢, 1/4 Move, Medical (Skilled). Also gained
   `expiresInto: [necrosis]` — it now progresses like an untreated wound
   instead of sitting inert.
 
@@ -1444,7 +1532,7 @@ carries `durationTurns: 1`: one turn on death's door, then
 
 That turn is the whole design. `dying` is visible and carries a tier-7 cure,
 so a heroic save is still on the table — a medic with Medical (Expert), a
-Gambit, 8 ⬢ and one turn can pull someone back. What went away is the version
+Gambit, 14 ⬢ and one turn can pull someone back. What went away is the version
 where a character sat on death's door indefinitely because no GM had got to
 the Kill button. The pass is also careful in one direction: a `dying` row with
 a **null** `expiresTurn` is stamped for the next close and its holder warned
@@ -1562,7 +1650,15 @@ of who is qualified; `healRequests.js` re-exports it.
    from everyone on the /documents Tag Catalog, GMs included), `all` if it
    is public knowledge, `gm` otherwise. The field is required on every tag;
    the sync throws without it.
-7. `npm run db:sync-tags`.
+7. If some ITEM should cure this tag (rather than, or alongside, a medic's
+   Heal), that goes on the ITEM's own entry, not this one: add this tag's
+   slug to the item's `cures:` list, give it `curesInto:` only if the
+   aftermath should differ from this tag's own `removesInto`, and set
+   `administerSkill:` on the item if applying it — self included — should
+   need a skill. None of the three is validated against this tag's own
+   `healable` value; see "Curing by item, not by medic" above and
+   `MEDICAL.md` §1–2 for the mechanism.
+8. `npm run db:sync-tags`.
 
 ## 5d. GM-authored tags
 
@@ -1657,7 +1753,12 @@ hover-tooltip chip that renders group color, and the "Becomes" row from §5c),
 `db/lib/inspectVision.js` (Seductive, §5),
 `db/lib/medicalVision.js` (the cure-skill walk and the doctor's eye, §5c),
 `db/lib/tagExpiryPass.js` (the `expiresInto` progression, §5c), and
-`web/lib/healRequests.js` (what a medic may treat, `REQUESTS.md` §5c).
+`web/lib/healRequests.js` (what a medic may treat, `REQUESTS.md` §5c). Curing
+by item, poisoning, resistance and the prosthetics have their own doc,
+[`MEDICAL.md`](MEDICAL.md) — this section keeps the tag-side rules (the
+ladder, `expiresInto`/`removesInto`, `cures`/`curesInto`/`administerSkill`
+as catalog fields) and MEDICAL.md owns the mechanism each of those fields
+drives.
 
 **Tag descriptions carry `{tag:…}`/`{resource:…}` tokens
 too**, not just documents — that's how a True Form names the {tag} it inflicts. The three
@@ -2218,3 +2319,10 @@ reading, examining, the point-buy store, and consuming. Faction paperwork has
 no in-world moment — a bound player unable to accept a membership application
 filed three days ago is a paperwork outage, not a hostage situation. And
 somebody can always pour a drink into you.
+
+**One exception to consuming's own exemption: `Tag.administerSkill`.** An
+item gated this way (a prosthetic fitting, `MEDICAL.md` §2) DOES need ACT to
+consume, even on your own sheet — not because administering is gated (it
+isn't, any more than an ordinary consume is), but because a gated consume
+files a Move, and a Bound or Paralyzed character cannot file a Move for
+themselves either. The gate sits on the Move, not on the medicine.

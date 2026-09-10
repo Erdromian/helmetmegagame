@@ -185,7 +185,7 @@ async function spawnRemains(db, room, { flesh = true, resources = true } = {}) {
 }
 
 // Take the one thing a rite spends off whoever is holding it, and REFUSE if it
-// is not there any more. dropRoomTag returns false rather than throwing when
+// is not there any more. dropRoomTag reports `ok: false` rather than throwing when
 // the stack no longer covers the take (db/lib/tagWrites.js) — deliberately, so
 // a caller can decide. Every rite that spends a print or a weapon wants the
 // same decision: the resolve ran two minutes ago and somebody may have picked
@@ -194,9 +194,11 @@ async function spawnRemains(db, room, { flesh = true, resources = true } = {}) {
 // transaction rolls the whole effect back.
 async function spendFromHolder(tx, holder, tagId, what) {
   if (holder.kind === "room") {
-    // dropRoomTag already answers the question: false means the stack no
+    // dropRoomTag already answers the question: ok:false means the stack no
+    // longer covers the take. It returns an OBJECT — testing the call itself is
+    // always truthy, which silently disables this refusal.
     // longer covers the take.
-    if (!(await dropRoomTag(tx, holder.id, tagId, 1))) throw new Error(`the ${what} is gone`);
+    if (!(await dropRoomTag(tx, holder.id, tagId, 1)).ok) throw new Error(`the ${what} is gone`);
     return;
   }
   // dropCharacterTag returns nothing at all — it is a fire-and-forget drop —

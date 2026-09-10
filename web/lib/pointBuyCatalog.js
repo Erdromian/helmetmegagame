@@ -14,6 +14,9 @@ function recipeFields(t) {
       craftable: false,
       requirementSkills: [],
       requirementTurns: null,
+      // Redacted alongside requirementTurns: the pair encodes one price
+      // ("1/N of a Move"), so dropping only half prints a nonsense cost.
+      requirementPerTurn: null,
       requirementResources: null,
       requirementGambit: false,
     };
@@ -22,6 +25,10 @@ function recipeFields(t) {
     craftable: t.craftable,
     requirementSkills: skills.map(({ id, slug, name }) => ({ id, slug, name })),
     requirementTurns: t.requirementTurns,
+    // Without this a fraction-priced purchasable drawback (appendicitis,
+    // disfigured) shows a flat "1 turn" cure cost on its point-buy chip
+    // instead of the real fraction.
+    requirementPerTurn: t.requirementPerTurn,
     requirementResources: t.requirementResources,
     requirementGambit: t.requirementGambit,
   };

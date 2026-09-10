@@ -290,7 +290,8 @@ async function purchaseGearImpl({ items, currency, purse }) {
         });
         if (count === 0) throw new UserError("Not enough there.");
       } else if (key === "room:obols") {
-        if (!obolTag || !(await dropRoomTag(tx, hideout.id, obolTag.id, amount))) {
+        // `.ok` — dropRoomTag returns an object, so testing the call is always truthy.
+        if (!obolTag || !(await dropRoomTag(tx, hideout.id, obolTag.id, amount)).ok) {
           throw new UserError("Not enough there.");
         }
       } else if (!obolTag || !(await spendCharacterTag(tx, me.id, obolTag.id, amount))) {

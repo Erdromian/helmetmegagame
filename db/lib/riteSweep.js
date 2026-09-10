@@ -30,7 +30,8 @@ async function consumeFloor(tx, rite, roomId) {
     if (need.tag) {
       const tag = await tx.tag.findUnique({ where: { slug: need.tag }, select: { id: true } });
       if (!tag) return false;
-      if (!(await dropRoomTag(tx, roomId, tag.id, need.count ?? 1))) return false;
+      // `.ok` — dropRoomTag returns an object, so testing the call is always truthy.
+      if (!(await dropRoomTag(tx, roomId, tag.id, need.count ?? 1)).ok) return false;
     }
   }
   return true;

@@ -34,6 +34,8 @@ const BEHAVIOUR_FIELDS = [
   ["tradeable", "Tradeable (can be handed over, or looted off a body)"],
   ["healable", "Healable"],
   ["teachable", "Teachable (Learn and Teach can move it)"],
+  ["administerable", "Administerable (may be given to someone with no cures overlap, like Mercy)"],
+  ["poison", "Poison (may be dosed into a held food or drink)"],
 ];
 
 const ECONOMY_FLAGS = [
@@ -62,6 +64,8 @@ export const BLANK_TAG = {
   tradeable: false,
   healable: false,
   teachable: false,
+  administerable: false,
+  poison: false,
   purchasable: false,
   purchasableAfterStart: false,
   mastery: false,

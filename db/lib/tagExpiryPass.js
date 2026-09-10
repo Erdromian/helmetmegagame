@@ -10,10 +10,23 @@
 
 const { expiryFrom } = require("./turnFormat");
 const { applyWoundMood } = require("./mood");
+const { DYING_SLUG } = require("./constants");
 
 // Stackable tags are deliberately out of scope. A stack doesn't expire, it
 // SHEDS (sweepExpiredStacks in db/index.js), so "what does it turn into" has
 // no single answer — and nothing stackable is an affliction anyway.
+// increased-recovery (M3, TAGS.md §5c): held, it pushes a row's clock one
+// turn rather than letting it progress — one more day to find a doctor.
+// Infection/Wounds only (its group scoping), and never the step that would
+// actually GRANT Dying: Mercy can slow the march there, not cancel the
+// arrival. `expiresInto` entries are already normalised to `{ oneOf: [...] }`
+// by the time they're stored (db/lib/tagShapes.js), so a flat scan for the
+// slug covers a bare successor and a coin flip alike.
+function chainReachesDying(expiresInto) {
+  return (expiresInto ?? []).some((entry) => (entry?.oneOf ?? []).includes(DYING_SLUG));
+}
+const STALLABLE_GROUP_SLUGS = new Set(["health-infection", "health-wounds"]);
+
 async function runTagExpiryPass(prisma, turn) {
   const expiring = await prisma.characterTag.findMany({
     where: {
@@ -21,15 +34,27 @@ async function runTagExpiryPass(prisma, turn) {
       tag: { stackable: false, NOT: { expiresInto: { equals: null } } },
     },
     select: {
+      id: true,
       characterId: true,
       character: { select: { status: true, discordUserId: true } },
-      tag: { select: { slug: true, name: true, expiresInto: true } },
+      tag: {
+        select: { slug: true, name: true, expiresInto: true, group: { select: { slug: true } } },
+      },
     },
   });
   // An object, not null: db/index.js reads null as "this pass failed, retry
   // it next advance" and gates markDone on truthiness. hungerPass.js keeps
   // its null, because there the pass genuinely did not run and needs retrying.
   if (expiring.length === 0) return { turnNumber: turn.number, progressed: 0, dms: [] };
+
+  // Who holds increased-recovery, among the characters this pass is even
+  // considering — one query rather than one per row.
+  const candidateCharacterIds = [...new Set(expiring.map((ct) => ct.characterId))];
+  const recoveryHolders = await prisma.characterTag.findMany({
+    where: { characterId: { in: candidateCharacterIds }, tag: { slug: "increased-recovery" } },
+    select: { characterId: true },
+  });
+  const recoverySet = new Set(recoveryHolders.map((r) => r.characterId));
 
   // Only the successors actually named, rather than the whole catalog.
   const successorSlugs = new Set();
@@ -48,11 +73,28 @@ async function runTagExpiryPass(prisma, turn) {
   // characterId -> { discordUserId, lines: ["Infected → Festering", ...] }
   const progressions = new Map();
   const missing = new Set();
+  // CharacterTag ids whose progression this pass is postponing rather than
+  // granting — pushed a turn below, BEFORE the blind sweep would otherwise
+  // delete them for having already reached their old expiresTurn.
+  const stalledIds = [];
 
   for (const ct of expiring) {
     // A dead character's sheet stops moving. Their rows still get swept by
     // the deleteMany that follows; they just don't progress into anything.
     if (ct.character?.status !== "ALIVE") continue;
+
+    // increased-recovery: postpone this row's clock instead of letting it
+    // progress — checked BEFORE the grant, per the plan. Exempted whenever
+    // the chain could hand over Dying itself, so Mercy slows the march but
+    // never cancels the arrival.
+    if (
+      recoverySet.has(ct.characterId) &&
+      STALLABLE_GROUP_SLUGS.has(ct.tag.group?.slug) &&
+      !chainReachesDying(ct.tag.expiresInto)
+    ) {
+      stalledIds.push(ct.id);
+      continue;
+    }
 
     const gained = [];
     for (const entry of ct.tag.expiresInto ?? []) {
@@ -92,6 +134,16 @@ async function runTagExpiryPass(prisma, turn) {
 
   for (const slug of missing) {
     console.error(`Tag expiry pass: no "${slug}" tag — run npm run db:sync-tags.`);
+  }
+
+  // The postponed rows: written BEFORE the caller's blind sweep runs
+  // (this whole function returns first), or it would delete them right back
+  // out for still reading an overdue expiresTurn.
+  if (stalledIds.length) {
+    await prisma.characterTag.updateMany({
+      where: { id: { in: stalledIds } },
+      data: { expiresTurn: turn.number + 1 },
+    });
   }
 
   // skipDuplicates is the "already holds it" rule, not just a safety net:

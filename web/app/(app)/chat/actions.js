@@ -425,10 +425,17 @@ export async function myThings() {
         tagId: true,
         quantity: true,
         equipped: true,
+        // M4 fix round: thingGroups derives its own poisonMarker off this —
+        // never returned raw, see thingGroups' own comment.
+        poisonedCount: true,
         equippedQuantity: true,
         tag: {
           select: {
             id: true,
+            // canDetectPoison reads slugs (thingRows.js), so the drawer's own
+            // re-read has to carry them or a detector's marker survives the
+            // first paint and vanishes on the next refresh.
+            slug: true,
             name: true,
             description: true,
             category: true,

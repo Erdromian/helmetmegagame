@@ -3,6 +3,7 @@ import {
   destroyableTags,
   transferableTags,
 } from "@/lib/tagRequests";
+import { canDetectPoison } from "@lifeweb/db/lib/poison";
 
 // THE THINGS DRAWER's rows, built once so the first paint (play/page.js) and
 // the re-read after an action (./actions.js#myThings) can never disagree about
@@ -66,6 +67,12 @@ export function thingVerbs(ct, sets) {
 
 export function thingGroups(characterTags = []) {
   const sets = thingVerbSets(characterTags);
+  // Detector surface (M4 fix round): the drawer never spreads a CharacterTag
+  // row raw, so this is the one place it needs to derive its own
+  // poisonMarker rather than getting a stripped one handed down — computed
+  // once, off the viewer's OWN held tags, same rule character/page.js's
+  // sheet-row marker and the sheet's own TagRail/TagRow use.
+  const canSmellPoison = canDetectPoison(characterTags);
 
   const rows = characterTags
     .filter((ct) => GROUPS.includes(ct.tag?.category))
@@ -86,6 +93,7 @@ export function thingGroups(characterTags = []) {
       equippedQuantity: ct.equippedQuantity ?? 0,
       weightLbs: rowWeightLbs(ct),
       ...thingVerbs(ct, sets),
+      poisonMarker: canSmellPoison && (ct.poisonedCount ?? 0) > 0,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 

@@ -90,6 +90,11 @@ export default function CharacterSheet({
   desireAddiction = null,
   canHeal = false,
   healsLeft = null,
+  // Surgery's site (the medical pass, M3, reworked M6b): whether one is in
+  // reach at all, and whether the only thing standing in for it is a
+  // Portable Surgical Pack, which the Gambit takes a −1 for.
+  hasSurgicalSite = false,
+  surgicalSitePenalty = false,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
   hasMoved = false,
   // Research (CRAFTING.md §2b), same posture: three facts built
@@ -142,6 +147,11 @@ export default function CharacterSheet({
   extractBlocked = null,
   canSeePackage = false,
   lootTargets = [],
+  // Who a cure or an administerable item could be given to (the medical
+  // pass), and who is helpless enough to be dosed directly (M4). Both built
+  // server-side in web/lib/peoplePools.js.
+  consumeTargets = [],
+  doseTargets = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
@@ -201,6 +211,8 @@ export default function CharacterSheet({
         hasWorkshop={hasWorkshop}
         canHeal={canHeal}
         healsLeft={healsLeft}
+        hasSurgicalSite={hasSurgicalSite}
+        surgicalSitePenalty={surgicalSitePenalty}
         hasMoved={hasMoved}
         holdsResearch={holdsResearch}
         atCathedral={atCathedral}
@@ -239,6 +251,8 @@ export default function CharacterSheet({
         extractBlocked={extractBlocked}
         canSeePackage={canSeePackage}
         lootTargets={lootTargets}
+        consumeTargets={consumeTargets}
+        doseTargets={doseTargets}
         bindTargets={bindTargets}
         harmTargets={harmTargets}
         harmTags={harmTags}

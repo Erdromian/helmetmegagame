@@ -142,6 +142,27 @@ test("wound rungs read the cure ladder, and a wound is signed negative", () => {
   assert.equal(woundRungOf(wound({ requirementResources: 0 })), 0.5);
   assert.equal(woundRungOf(wound({ requirementResources: 1 })), 1);
   assert.equal(woundRungOf(wound({ requirementResources: 2 })), 2);
+  // The four 2-⬢ shapes since M2a (turnsCost repricing put Simple and
+  // Moderate on the same requirementResources: 2/requirementTurns: 1 shape,
+  // differing only in requirementPerTurn — db/lib/mood.js's woundRungOf):
+  // legacy zero-turn, the new Simple (1/4), the new Moderate (1/3), and a
+  // GM-authored whole turn (the Dev Panel form cannot author a fraction, so
+  // it lands with a null denominator). Only the new Simple may stay at rung
+  // 2 alongside the legacy zero-turn case; everything else with a nonzero
+  // turn cost stays rung 3, exactly as it did before this milestone.
+  assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0 })), 2);
+  assert.equal(
+    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: 4 })),
+    2,
+  );
+  assert.equal(
+    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: 3 })),
+    3,
+  );
+  assert.equal(
+    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: null })),
+    3,
+  );
   assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 1 })), 3);
   assert.equal(woundRungOf(wound({ requirementResources: 3 })), 3.5);
   assert.equal(woundRungOf(wound({ requirementResources: 5 })), 4);

@@ -252,12 +252,12 @@
 #
 #   Tier 0  untreatable            no requirement block at all
 #   Tier 1  very minor, first aid  1 ⬢,  0 turns, medical-basic
-#   Tier 2  minor                  2 ⬢,  0 turns, medical-basic
-#   Tier 3  moderately severe      2 ⬢,  1 turn,  medical-skilled
-#   Tier 4  severe                 4 ⬢,  1 turn,  medical-skilled
-#   Tier 5  very minor surgery     6 ⬢,  1 turn,  medical-skilled
-#   Tier 6  severe surgery         8 ⬢,  1 turn,  medical-expert
-#   Tier 7  complex surgery        8 ⬢,  1 turn,  medical-expert, gambit
+#   Tier 2  minor                  2 ⬢,  1/4 turn, medical-basic
+#   Tier 3  moderately severe      2 ⬢,  1/3 turn, medical-skilled
+#   Tier 4  severe                 4 ⬢,  1/3 turn, medical-skilled
+#   Tier 5  very minor surgery     7 ⬢,  1/2 turn, medical-skilled
+#   Tier 6  severe surgery         14 ⬢, 1 turn,   medical-expert
+#   Tier 7  complex surgery        14 ⬢, 1 turn,   medical-expert, gambit
 #
 # The top three rungs are the surgical ones, and they are where the ladder
 # does its real work. A Serpent closes an arterial bleed and cuts away dead
@@ -1060,7 +1060,8 @@ tags:
     name: Iron Constitution
     category: general
     group: general-traits
-    description: "Poisons and diseases have less effect on you."
+    resists: [poisoned, vomiting, nauseous, parasites, cave-fever, choking, asleep]
+    description: "Bad food and the weaker poisons don't bother you."
     fighting: { situational: true }
     pointCost: 5
     purchasable: true
@@ -1264,7 +1265,7 @@ tags:
     name: Poison Sense
     category: general
     group: general-traits
-    description: "You have a sensitive palate: you can tell when a dish is poisoned."
+    description: "You can immediately tell when a meal is poisoned."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -3249,6 +3250,19 @@ tags:
     purchasableAfterStart: true
     mastery: true
 
+  brewing-expert:
+    catalog: all
+    name: Brewing (Expert)
+    category: skills
+    group: skills-brewing
+    teachable: true
+    description: "You're a master alchemist."
+    pointCost: 5
+    parentTag: brewing-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
   #Cooking
   cooking-basic:
     catalog: all
@@ -3557,7 +3571,7 @@ tags:
     name: Increased Recovery
     category: status
     group: status-buffs
-    description: "Your body heals faster than it normally should."
+    description: "Your body heals faster than it normally should, and infections take longer to hurt you."
     pointCost: 0
     visible: false
     purchasable: false
@@ -3857,6 +3871,7 @@ tags:
     expiresInto: [festering]
     healable: true
     requirement:
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3876,7 +3891,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -3896,8 +3911,8 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   necrosis:
@@ -3917,8 +3932,8 @@ tags:
     removesInto: [cauterized]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   sepsis:
@@ -3938,7 +3953,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -3962,7 +3977,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -3998,6 +4013,7 @@ tags:
     durationTurns: 2
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 1
       skills: [medical-basic]
 
@@ -4017,6 +4033,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -4037,6 +4054,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -4057,7 +4075,7 @@ tags:
     removesInto: [bandaged, scarred]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4076,6 +4094,7 @@ tags:
     expiresInto: [drained]
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 0
       skills: [medical-basic]
 
@@ -4096,7 +4115,7 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4116,7 +4135,7 @@ tags:
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -4136,7 +4155,7 @@ tags:
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -4155,7 +4174,7 @@ tags:
     removesInto: [splinted]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4173,7 +4192,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4193,7 +4212,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4211,6 +4230,7 @@ tags:
     purchasableAfterStart: false
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 0
       skills: [medical-basic]
 
@@ -4231,7 +4251,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4253,7 +4273,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
 
   gut-wound:
@@ -4274,7 +4294,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
 
   broken-jaw:
@@ -4291,7 +4311,7 @@ tags:
     removesInto: [wired-jaw]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4313,7 +4333,7 @@ tags:
     removesInto: [splinted]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4334,7 +4354,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
 
   rot-lung:
@@ -4351,7 +4371,7 @@ tags:
     removesInto: [persistent-cough]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4370,7 +4390,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -4390,7 +4410,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4411,7 +4431,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
 
   pox:
@@ -4430,7 +4450,7 @@ tags:
     removesInto: [scarred]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4463,7 +4483,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills:
         - medical-expert
       gambit: true
@@ -4481,6 +4501,10 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
     expiresInto: [dying]
+    healable: true
+    requirement:
+      turnsCost: 1/4
+      resourceCost: 2
 
   heatstroke:
     catalog: all
@@ -4498,7 +4522,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4549,8 +4573,8 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   exploded-chest:
@@ -4570,7 +4594,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4669,7 +4693,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4756,7 +4780,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: false
 
@@ -4772,6 +4796,34 @@ tags:
     carryBonus: -0.05
     visible: true
     purchasable: true
+    purchasableAfterStart: false
+
+  # {tag:iron-hook}'s aftermath (medical pass, M5) — cosmetic only, no
+  # mechanical effect of its own: missing-arm's own carryBonus is dropped
+  # along with the tag itself the moment this is granted. Not purchasable —
+  # reached only by curing missing-arm.
+  hook-hand:
+    catalog: all
+    name: Hook Hand
+    category: health
+    group: health-maiming
+    description: "You have a fitted iron hook."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # {tag:prosthetic-hand}'s aftermath (medical pass, M5) — cosmetic only,
+  # same shape as {tag:hook-hand} above.
+  prosthetic-hand-worn:
+    catalog: all
+    name: Prosthetic Hand (Worn)
+    category: health
+    group: health-maiming
+    description: "A carved hand where fingers used to be missing."
+    pointCost: 0
+    visible: true
+    purchasable: false
     purchasableAfterStart: false
 
   crippled-leg:
@@ -4790,7 +4842,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4860,6 +4912,20 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # {tag:glass-eye}'s aftermath (medical pass, M5) — cosmetic only, same
+  # shape as {tag:hook-hand}/{tag:prosthetic-hand-worn}. Not purchasable —
+  # reached only by curing missing-eye.
+  glass-eye-worn:
+    catalog: all
+    name: Glass Eye (Worn)
+    category: health
+    group: health-maiming
+    description: "A painted glass eye."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   night-blind:
     catalog: all
     name: Night Blind
@@ -4923,7 +4989,7 @@ tags:
     name: Severe Pain
     category: health
     group: health-minor
-    description: "Your mind can't escape the pain. Writhe around or take the {tag:poppy}."
+    description: "Your mind can't escape the pain—you are writhing, unfocused."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
@@ -4932,6 +4998,7 @@ tags:
     durationTurns: 2
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 1
       skills: [medical-basic]
 
@@ -4949,7 +5016,7 @@ tags:
     durationTurns: 1
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4965,12 +5032,12 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [dying]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 2
+      turnsCost: 1/3
+      resourceCost: 4
       gambit: false
 
   phrygian-toxin:
@@ -4990,7 +5057,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -6053,9 +6120,32 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  # Fished up by the labor loot pass. The bruise cure is their whole trade
-  # until the medical rework gives them more — enforced on consume by
-  # HIDDEN_CURES in db/lib/hiddenCures.js.
+  # {tag:autoinjector}'s third ingredient (M6c). catalog: gm, same shape as
+  # {tag:aberrant-heart}/{tag:cybernetic-core}: a GM can look it up granting
+  # one, but it never shows in the public Tag Catalog, which is what keeps
+  # its actual use a discovery — the flavor text is written the way a hunter
+  # or a farmhand would actually describe it, not the way a brewer would.
+  # NOTHING DROPS THIS YET. The laboring loot-table pass (hunting/fishing/
+  # farming yields) wires acquisition; a GM grants it meanwhile.
+  brackenmoss:
+    catalog: gm
+    name: Brackenmoss
+    category: items
+    group: items-gear
+    description: "A dense, springy moss that grows thickly on fallen trees."
+    pointCost: 0
+    tradeable: true
+    weight: 0.3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+
+  # Fished up by the labor loot pass. The bruise cure is now the `cures:`
+  # field below rather than the old HIDDEN_CURES entry in
+  # db/lib/hiddenCures.js, which the medical pass migrated it off of.
   leeches:
     catalog: all
     name: Leeches
@@ -6073,6 +6163,7 @@ tags:
     sellablePrice: 2
     consumable: true
     consumesInto: []
+    cures: [bruised]
 
   # The generator's proper fuel. Imported, so the Merchant has to buy it off
   # the station with the profit he makes selling everything else — which is the
@@ -7274,12 +7365,18 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # SECRET, cave-drop only (M6c, Chris 2026-09-07): no recipe any more — it
+  # used to be a graga-sac craft, medical-expert, but that door is
+  # {tag:autoinjector}'s now. This is the rarer, no-questions-asked version:
+  # found, not made, already in db/lib/cavingLoot.js's "extremely-rare" tier
+  # (no wiring needed, it was already there). catalog: secret rather than gm,
+  # because a cave drop is exactly what TAGS.md §5d scopes that band to.
   military-autoinjector:
-    catalog: gm
+    catalog: secret
     name: Military Autoinjector
     category: items
     group: items-gear
-    description: "A thin piece of equipment with a needle inside."
+    description: "A field trauma kit that immediately heals minor wounds, up to broken bones."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -7287,8 +7384,67 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    consumable: true
+    cures:
+      [
+        bruised,
+        sprained-ankle,
+        burned,
+        minor-bleeding,
+        minor-wound,
+        dislocated-shoulder,
+        deep-wound,
+        broken-bone,
+        cracked-ribs,
+        blunt-force-trauma,
+        frostbite,
+      ]
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 38
+
+  # The craftable civilian door onto the same idea (M6c): medical-expert can
+  # brew one instead of finding one. Lighter than the military version —
+  # cracked ribs and a beating, not a set bone or a wound down to bone —
+  # because those two heavier rung-3 wounds stay the military kit's own
+  # edge. HIDDEN recipe: {tag:brackenmoss} is non-public (catalog: gm), so
+  # this only shows in a medical-expert's Craft menu while they hold one,
+  # same door as {tag:white-honey} — see docs/documents.yaml's
+  # withheldrecipes.
+  autoinjector:
+    catalog: all
+    name: Autoinjector
+    category: items
+    group: items-gear
+    description: "A compact medical injector that immediately heals minor wounds, up to broken bones."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures:
+      [
+        bruised,
+        sprained-ankle,
+        burned,
+        minor-bleeding,
+        minor-wound,
+        dislocated-shoulder,
+        cracked-ribs,
+        blunt-force-trauma,
+        frostbite,
+      ]
+    requirement:
+      turnsCost: 1
+      resourceCost: 3
+      skills: [brewing-expert]
+      gambit: false
+      items: [antidote, fever-draught, brackenmoss]
+    sellable: true
+    sellablePrice: 28
 
   # A creation-only bundle rather than a thing you carry: it sits on the sheet
   # until the player unpacks it from their own character sheet (see consumable
@@ -9603,8 +9759,7 @@ tags:
     catalog: all
     name: Surgical Equipment
     category: items
-    description: |-
-      A set of advanced medical equipment. It allows for on-the-go surgery and complex procedures. Hold it, or stand somewhere it's already set up, and every medical Gambit you roll gets +1.
+    description: "A set of advanced medical equipment. It allows you to perform complex surgeries without penalty."
     pointCost: 9
     visible: true
     purchasable: true
@@ -11546,7 +11701,7 @@ tags:
     name: Poison Snooper
     category: items
     group: items-gear
-    description: "A thin metal tube that can be applied into food or drink to detect poisons. Multi-use."
+    description: "You can immediately tell when a meal is poisoned. This item is reusable."
     pointCost: 9
     depotPrice: 22
     sellable: true
@@ -11703,6 +11858,7 @@ tags:
     name: Soporific
     category: items
     group: items-drink
+    poison: true
     description: "A small vial of a clear substance."
     pointCost: 0
     depotPrice: 45
@@ -11716,7 +11872,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto: []
+    consumesInto:
+      - asleep
 
   amoeba-vial:
     catalog: gm
@@ -11791,6 +11948,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
+    cures: [feverish, sepsis]
     consumesInto: []
 
   # Hardware. The wall. A gun costs more than a house and that is the point.
@@ -12159,6 +12317,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [infected]
     requirement:
       turnsCost: 1/2
       resourceCost: 2
@@ -12252,6 +12411,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
+    poison: true
     description: "A draught refined from {tag:nightshade-herb}. Inflicts {tag:choking as the consumer begins to perish."
     pointCost: 0
     tradeable: true
@@ -12262,6 +12422,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    consumesInto:
+      - choking
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -12275,9 +12437,10 @@ tags:
   # Smith's work now, not a brew (Chris 2026-09-05): a powder device coming
   # out of a still was always odd, and Smithing (Gunpowder) is where every
   # other powder item lives. The group moved with the skill — items-weapons
-  # is what routes it to the Smithing paper (db/scripts/ops/audit-craft-docs
-  # assigns papers by group). Still spends RAW saltpeter; only the bigger
-  # {tag:bomb} wants the refined {tag:black-powder}.
+  # is the Smithing-family group (the Recipes tab renders by group; the
+  # retired hand-written papers used to route the same way). Still spends
+  # RAW saltpeter; only the bigger {tag:bomb} wants the refined
+  # {tag:black-powder}.
   # Renamed from Gunpowder Grenade (Chris 2026-09-06): it packs raw saltpeter,
   # not powder, so it neither claims the name nor needs the Gunpowder rung.
   # The slug stays — the papers' {tag:...} tokens and any held rows follow the
@@ -12315,6 +12478,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
+    poison: true
     description: "A powerful draught that requires two turns to create. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
@@ -12325,6 +12489,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    consumesInto:
+      - phrygian-toxin
     requirement:
       turnsCost: 2
       resourceCost: 4
@@ -12405,6 +12571,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [infected, festering, feverish]
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12419,7 +12586,7 @@ tags:
     name: White Honey
     category: items
     group: items-drink
-    description: "A substance boiled pale and thick. Can be consumed to cure a poisoning of any kind."
+    description: "It's boiled into a pale syrupy mix, capable of neutralizing even exotic poisons and venoms."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -12441,8 +12608,9 @@ tags:
       skills: [brewing-skilled]
       gambit: false
       items: [honey, trout-heart]
+    cures: [poisoned, envenomated, phrygian-toxin, choking]
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 26
 
   deadeye-drops:
     catalog: all
@@ -12475,7 +12643,7 @@ tags:
     name: Mercy
     category: items
     group: items-drink
-    description: "A draught brewed from {tag:cave-fungus}. Can be consumed to gain {tag:increased-recovery}."
+    description: "Increases recovery. Brewed from {tag:cave-fungus}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -12485,16 +12653,17 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    administerable: true
     consumesInto:
       - increased-recovery
     requirement:
       turnsCost: 1/2
-      resourceCost: 2
+      resourceCost: 3
       skills: [brewing-skilled]
       gambit: false
       items: [cave-fungus]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 12
 
   distilled-coca:
     catalog: all
@@ -12528,6 +12697,7 @@ tags:
     name: Mindbreaker Toxin
     category: items
     group: items-drink
+    poison: true
     description: "A vial full of a clear acid drawn from cave fungus. Inflicts {tag:hallucinating}."
     pointCost: 0
     tradeable: true
@@ -12726,6 +12896,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [shell-shocked]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -12736,6 +12907,436 @@ tags:
       items: [poppy]
     sellable: true
     sellablePrice: 18
+
+  # --- Medical pass: the item roster (M3) -----------------------------
+
+  antidote:
+    catalog: all
+    name: Antidote
+    category: items
+    group: items-drink
+    description: "A bitter draught that clears the basic poisons."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [poisoned, envenomated]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 10
+
+  fever-draught:
+    catalog: all
+    name: Fever Draught
+    category: items
+    group: items-drink
+    description: "A bitter draught that clears fevers."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [feverish, heatstroke, cave-fever]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 3
+      skills: [brewing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 9
+
+  burn-dressing:
+    catalog: all
+    name: Burn Dressing
+    category: items
+    group: items-gear
+    description: "A cooling salve to treat burns."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [burned, severe-burns]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 10
+
+  # No `cures:` — it doesn't treat anything. It substitutes for Surgical
+  # Reworked M6b: no longer a single-use +1 stand-in. It's a standing site
+  # enabler now, same as Surgical Equipment for the site GATE — but a worse
+  # one: when it's the ONLY thing enabling the site (no real equipment or
+  # Theater in reach), the surgery Gambit takes a −1. Never consumed; held
+  # or room-stashed like any other kit. See healCharacterRequestImpl.
+  portable-surgical-pack:
+    catalog: all
+    name: Portable Surgical Pack
+    category: items
+    group: items-gear
+    description: "A barber-surgeon's kit, containing clamps, needles and sutures. It allows you to perform surgeries, but with a -1 to the Gambit die."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [brewing-expert]
+      gambit: false
+    sellable: true
+    sellablePrice: 20
+
+  # HIDDEN recipe (aberrant-heart is non-public; medical pass, 2026-09-08),
+  # and the tag itself is secret on top of that: unlike {tag:white-honey},
+  # this one isn't public knowledge with a hidden ingredient, it's a genuine
+  # secret. Nothing drops aberrant-heart yet (loot-table pass) — buildable
+  # the day that lands, inert until then. The one item door onto a tier-7
+  # cure that isn't a Gambit: Dying is always a roll through Heal, but an
+  # item cure never rolls, the same way White Honey bypasses envenomated's
+  # own tier. Chris 2026-09-08: this is a FULL cure, not a mere improvement.
+  last-breath:
+    catalog: secret
+    name: Last Breath
+    category: items
+    group: items-drink
+    description: "Rendered from an aberrant heart, black and thick. A lifesaving coagulation."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [dying]
+    requirement:
+      turnsCost: 3
+      resourceCost: 12
+      skills: [brewing-expert]
+      gambit: false
+      items: [aberrant-heart]
+    sellable: true
+    sellablePrice: 100
+
+  # The medical mirror of {tag:forge} (SMITHING.md §2a): a standing site
+  # rather than a kit you haul. Satisfies the surgery-site rule the same way
+  # a forge satisfies Workshop Equipment — `provides: [surgical-equipment]`
+  # is read by the same hasEquipmentInReach() check the portable kit uses,
+  # so nothing in the heal path has to know the two apart. Gate and cost are
+  # a default, flagged TBD for Gunboat to price (medical-pass plan, M3).
+  surgical-theater:
+    catalog: all
+    name: Surgical Theater
+    category: assets
+    group: assets-structures
+    description: "A dedicated surgery theater featuring scrubbed tables, hung lamps, and a dizzying variety of instruments. This allows successful surgery."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 30
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      examine: "instruments laid out, lamps hung."
+      provides: [surgical-equipment]
+
+  # --- Medical pass: prosthetics (M5) ----------------------------------
+  # All five are `consumable: true` with `administerSkill: medical-expert`
+  # (fitting is surgery — the Expert's own 1/2 Move billing, M1/M2
+  # machinery — there is no separate fitting fee). Each cures a maiming into
+  # its own cosmetic aftermath via `curesInto`, never the tag's own
+  # `removesInto` (none of the four maimings below has one).
+  #
+  # PRICING IS DELIBERATE, and it is NOT the smithing markup ladder: sell
+  # prices here (17/17/29/31) come from the cure-value side — TAGS.md §5c's
+  # drawback-erasure anchor (≥2 ⬢ per drawback point erased, plan §M5) —
+  # because what's being sold is the cure, not the smithing labor. Deriving
+  # these from DEPOT.md §4's resourceCost+rate formula would land near 9/19
+  # and undervalue them; don't "fix" them down to it.
+
+  wooden-leg:
+    catalog: all
+    name: Wooden Leg
+    category: items
+    group: items-gear
+    description: "A carved peg buckled tight with leather straps. You can walk again."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-leg]
+    curesInto:
+      missing-leg: peg-leg
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 17
+
+  iron-hook:
+    catalog: all
+    name: Iron Hook
+    category: items
+    group: items-gear
+    description: "A fitted iron hook."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-arm]
+    curesInto:
+      missing-arm: hook-hand
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 17
+
+  prosthetic-hand:
+    catalog: all
+    name: Prosthetic Hand
+    category: items
+    group: items-gear
+    description: "A prosthetic hand."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-fingers]
+    curesInto:
+      missing-fingers: prosthetic-hand-worn
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 29
+
+  glass-eye:
+    catalog: all
+    name: Glass Eye
+    category: items
+    group: items-gear
+    description: "A painted glass sphere."
+    pointCost: 0
+    tradeable: true
+    weight: 0.2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-eye]
+    curesInto:
+      missing-eye: glass-eye-worn
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 31
+
+  # Same shape as {tag:aberrant-heart}: an ingredient and nothing else,
+  # `catalog: gm` exactly like the heart (medical-pass plan, M5) — players
+  # never see it in the Tag Catalog, but a GM deciding whether to grant one
+  # can still look it up there. SECRET would hide it from the GM view too,
+  # and TAGS.md scopes that band to cave/antagonist content besides.
+  # NOTHING DROPS THIS YET. The laboring loot-table pass wires acquisition;
+  # our job was to make the slug exist. Until then a GM grants it.
+  cybernetic-core:
+    catalog: gm
+    name: Cybernetic Core
+    category: items
+    group: items-gear
+    description: "Salvaged machinery that works just as well as the real thing."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 20
+
+  # HIDDEN recipes, same door as {tag:last-breath}: the tag's own
+  # catalogVisibility (not just the ingredient's) withholds it from the
+  # Craft menu until the crafter is BOTH medical-expert AND already holding
+  # a {tag:cybernetic-core} (web/lib/tagRequests.js#computeKnownRecipeIds).
+  # A flat cures list rather than a chain — one both-limbed graft would cure
+  # both at once, if a character somehow held both maimings. No `curesInto`:
+  # missing-arm/missing-leg have no `removesInto` of their own, so the
+  # default aftermath is nothing — the graft leaves no mark at all.
+  cybernetic-arm:
+    catalog: secret
+    name: Cybernetic Arm
+    category: items
+    group: items-gear
+    description: "Salvaged machinery that works just as well as the real thing."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-arm]
+    requirement:
+      turnsCost: 3
+      resourceCost: 16
+      skills: [brewing-expert]
+      gambit: false
+      items: [cybernetic-core]
+    sellable: true
+    sellablePrice: 90
+
+  cybernetic-leg:
+    catalog: secret
+    name: Cybernetic Leg
+    category: items
+    group: items-gear
+    description: "Salvaged machinery that works just as well as the real thing."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-leg]
+    requirement:
+      turnsCost: 3
+      resourceCost: 16
+      skills: [brewing-expert]
+      gambit: false
+      items: [cybernetic-core]
+    sellable: true
+    sellablePrice: 90
+
+  # --- Medical pass: new ailments (M3) --------------------------------
+
+  lockjaw:
+    catalog: all
+    name: Lockjaw
+    category: health
+    group: health-infection
+    description: "Your jaw is seizing shut. You can't breathe."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+    expiresInto: [choking]
+    removesInto: [recovering]
+    healable: true
+    requirement:
+      turnsCost: 1/3
+      resourceCost: 4
+      skills: [medical-skilled]
+      gambit: false
+
+  cave-fever:
+    catalog: all
+    name: Cave Fever
+    category: health
+    group: health-illness
+    description: "A shivering fever. It's getting worse."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    expiresInto: [feverish]
+    removesInto: [recovering]
+    healable: true
+    requirement:
+      turnsCost: 1/3
+      resourceCost: 2
+      skills: [medical-skilled]
+      gambit: false
+
+  crush-injury:
+    catalog: all
+    name: Crush Injury
+    category: health
+    group: health-wounds
+    description: "The tissue is steadily dying."
+    pointCost: 0
+    carryBonus: -0.1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+    expiresInto: [necrosis]
+    removesInto: [stitched-up]
+    healable: true
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 7
+      skills: [medical-skilled]
+      gambit: false
 
   flawless-skin:
     catalog: all
@@ -14024,8 +14625,8 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
       gambit: false
 
@@ -14047,6 +14648,7 @@ tags:
       - oneOf: [infected, recovering]
     healable: true
     requirement:
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 

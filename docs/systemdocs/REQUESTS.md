@@ -43,7 +43,7 @@ state, so the row has to be written for the rule to work at all:
 
 | Ration | Counts | Written by |
 |---|---|---|
-| A medic's Routine cures a turn (`MEDICAL_TIER_CAPS`) | `request_heal_character` rows for the open turn | `healCharacterRequestImpl` |
+| A medic's free 0-turn cures a day (`MEDICAL_SIMPLE_PER_TURN`, `TAGS.md` §5c / `MEDICAL.md` §3) | `request_heal_character` rows for the open turn, filtered to `!gambit && turns === 0` | `healCharacterRequestImpl` |
 | Dead Simple units a turn (`DEAD_SIMPLE_PER_TURN`) | `request_craft_tag` rows for the open turn | `grantCrafted` |
 | A single recipe's own `requirementPerTurn` | the same craft rows, filtered to one `tagId` | `grantCrafted` |
 
@@ -651,8 +651,12 @@ must be satisfied —
 a Deep Wound names Medical (Skilled), so a character with only the Basic tier
 sees it in the menu labelled "— Gambit" and may still attempt it — it files a
 GAMBIT Move rather than curing anything, and the GM resolves the roll
-(TAGS.md §5c). Routine cures are additionally rationed 2/3/4 a turn by the
-medic's tier, and a 0-turn cure never counts against that. The menu is
+(TAGS.md §5c). A cure costing any fraction of a turn — including the 2 ⬢
+Simple rung, which now always bills 1/4 rather than drawing on the pool —
+bills the medical family's Move directly instead of any ration; only a
+0-turn cure draws on a shared daily pool of 4 first-aids a medic — of any
+tier — instead (`MEDICAL_SIMPLE_PER_TURN`, `MEDICAL.md` §3), replacing the
+older per-tier 2/3/4 daily cap. The menu is
 advisory as always: `healCharacterRequestImpl` re-derives every one of those
 from the database before it writes anything.
 

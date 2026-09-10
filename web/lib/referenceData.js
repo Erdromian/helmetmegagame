@@ -118,7 +118,11 @@ export const TAG_CHIP_FIELDS = {
   healable: true,
   teachable: true,
   // Minified via formatTagRequirement wherever a description renders.
+  // requirementPerTurn is what tells a `turnsCost: 1/N` cure apart from a
+  // flat "1 turn" (review fix, M2 — the Tag Catalog showed the wrong number
+  // for every fraction-priced medical cure without it).
   requirementTurns: true,
+  requirementPerTurn: true,
   requirementResources: true,
   requirementGambit: true,
   requirementSkills: { select: { id: true, slug: true, name: true } },

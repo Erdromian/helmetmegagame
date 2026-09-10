@@ -377,6 +377,11 @@ zones:
         attributes:
           haven: true
         indoors: true
+        # It's the hospital — the operating theater standing there always did
+        # (medical pass, M3). The Structure itself is Location-scoped, not
+        # Room-scoped, but its narrative home is the operating theater room
+        # below, which already stashes the portable surgical-equipment.
+        structures: [surgical-theater]
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works — the wooden contraptions are more reliable.
         rooms:

@@ -14,6 +14,14 @@ import {
   validateExpiresInto,
   normalizeRemovesInto,
   validateRemovesInto,
+  normalizeCures,
+  validateCures,
+  normalizeCuresInto,
+  validateCuresInto,
+  validateAdministerSkill,
+  normalizeResists,
+  validateResists,
+  validateHealableRequirement,
 } from "@lifeweb/db/lib/tagShapes";
 import { TURNS_PATH } from "@/lib/routes";
 
@@ -150,6 +158,8 @@ function scalarsFrom(input) {
     tradeable: Boolean(input.tradeable),
     healable: Boolean(input.healable),
     teachable: Boolean(input.teachable),
+    administerable: Boolean(input.administerable),
+    poison: Boolean(input.poison),
     purchasable: Boolean(input.purchasable),
     purchasableAfterStart: Boolean(input.purchasableAfterStart),
     mastery: Boolean(input.mastery),
@@ -185,10 +195,21 @@ function scalarsFrom(input) {
 // interchangeable: Prisma rejects `set` inside a create, and `connect` on an
 // update would only ever add, so emptying the picker would silently keep the
 // old skills attached.
-async function relationsFrom(input, { selfId, selfSlug, durationTurns }) {
-  const catalog = await prisma.tag.findMany({ select: { id: true, slug: true } });
+async function relationsFrom(input, { selfId, selfSlug, durationTurns, consumable, healable, requirementTurns }) {
+  const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, category: true } });
   const knownSlugs = new Set(catalog.map((t) => t.slug));
   const knownIds = new Set(catalog.map((t) => t.id));
+  const categoryBySlug = new Map(catalog.map((t) => [t.slug, t.category]));
+
+  // Same rule docs/tags.yaml's own door enforces (db/lib/tagShapes.js#
+  // normalizeTurnsCost, review fix round 3): a healable tag needs
+  // requirementTurns authored, or the medical Move economy's client and
+  // server read the blank differently (0 vs 1).
+  try {
+    validateHealableRequirement(requirementTurns, { healable, selfSlug, label: "This tag" });
+  } catch (err) {
+    throw new UserError(err.message);
+  }
 
   let expiresInto = null;
   try {
@@ -230,7 +251,35 @@ async function relationsFrom(input, { selfId, selfSlug, durationTurns }) {
     if (id === selfId) throw new UserError("A tag can't be its own cure requirement.");
   }
 
-  return { expiresInto, removesInto, skillTagIds };
+  // cures/curesInto/administerSkill/resists — the medical-pass fields, same
+  // shared pair as expiresInto/removesInto above (db/lib/tagShapes.js), so a
+  // shape this door would accept is one the YAML sync would too. No picker
+  // in this form yet — every current cure/administer item is authored in
+  // docs/tags.yaml — but a value posted here is still refused rather than
+  // silently trusted.
+  let cures = null;
+  let curesInto = null;
+  try {
+    cures = normalizeCures(input.cures, "This tag");
+    validateCures(cures, { selfSlug, knownSlugs, categoryBySlug, consumable, label: "This tag" });
+    curesInto = normalizeCuresInto(input.curesInto, "This tag");
+    validateCuresInto(curesInto, { selfSlug, knownSlugs, cures, label: "This tag" });
+  } catch (err) {
+    throw new UserError(err.message);
+  }
+
+  let administerSkill = null;
+  let resists = null;
+  try {
+    administerSkill = input.administerSkill || null;
+    validateAdministerSkill(administerSkill, { selfSlug, knownSlugs, label: "This tag" });
+    resists = normalizeResists(input.resists, "This tag");
+    validateResists(resists, { selfSlug, knownSlugs, label: "This tag" });
+  } catch (err) {
+    throw new UserError(err.message);
+  }
+
+  return { expiresInto, removesInto, skillTagIds, cures, curesInto, administerSkill, resists };
 }
 
 // The custom-tag dialog's door on every desk — see
@@ -254,10 +303,13 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
   const slug = customSlug(data.name);
   // Validated before the tag row exists, like everything else that can refuse
   // below — a bad expiry chain must not leave an orphan behind.
-  const { expiresInto, removesInto, skillTagIds } = await relationsFrom(input, {
+  const { expiresInto, removesInto, skillTagIds, cures, curesInto, administerSkill, resists } = await relationsFrom(input, {
     selfId: null,
     selfSlug: slug,
     durationTurns: data.defaultDurationTurns,
+    consumable: data.consumable,
+    healable: data.healable,
+    requirementTurns: data.requirementTurns,
   });
   const targets = [...new Set((assignCharacterIds ?? []).filter(Boolean))];
   // Same cap as bulkTagCharacters (web/app/(app)/gm/actions.js).
@@ -283,6 +335,10 @@ async function createCustomTagAndAssignImpl({ assignCharacterIds, stage, ...inpu
         custom: true,
         expiresInto,
         removesInto,
+        cures,
+        curesInto,
+        administerSkill,
+        resists,
         // `connect`, not `set` — Prisma rejects `set` inside a create.
         requirementSkills: { connect: skillTagIds.map((id) => ({ id })) },
       },
@@ -382,10 +438,13 @@ async function updateCustomTagImpl({ tagId, ...input }) {
   }
 
   const data = scalarsFrom(input);
-  const { expiresInto, removesInto, skillTagIds } = await relationsFrom(input, {
+  const { expiresInto, removesInto, skillTagIds, cures, curesInto, administerSkill, resists } = await relationsFrom(input, {
     selfId: tagId,
     selfSlug: existing.slug,
     durationTurns: data.defaultDurationTurns,
+    consumable: data.consumable,
+    healable: data.healable,
+    requirementTurns: data.requirementTurns,
   });
   if (data.name !== existing.name) {
     const clash = await prisma.tag.findFirst({ where: { name: data.name, id: { not: tagId } } });
@@ -400,6 +459,10 @@ async function updateCustomTagImpl({ tagId, ...input }) {
       ...data,
       expiresInto,
       removesInto,
+      cures,
+      curesInto,
+      administerSkill,
+      resists,
       // `set`, not `connect` — emptying the picker has to actually detach the
       // old skills, and `connect` only ever adds.
       requirementSkills: { set: skillTagIds.map((id) => ({ id })) },
@@ -432,14 +495,35 @@ async function deleteCustomTagImpl({ tagId }) {
   // The same reference checks db:prune-tags makes, for the same reason: a
   // deleted tag someone still holds is a foreign-key violation, and a deleted
   // group gate silently opens a hidden category to everyone.
-  const [held, parentOf, requiredBy, gates, skillOf] = await Promise.all([
+  //
+  // Poison references (fix round M4b, fix 6): a poison tag can carry zero
+  // ordinary CharacterTag rows (nobody holds the VIAL any more) while still
+  // tainting a stack elsewhere as poisonPayload — db:prune-tags' own
+  // heldCount check misses exactly this, so this delete would otherwise
+  // orphan a live dose the same way an unchecked prune would.
+  const [held, parentOf, requiredBy, gates, skillOf, poisonedChar, poisonedRoom, crateCarriers] = await Promise.all([
     prisma.characterTag.count({ where: { tagId } }),
     prisma.tag.count({ where: { parentTagId: tagId } }),
     prisma.tag.count({ where: { requiredTagId: tagId } }),
     prisma.tagGroup.count({ where: { requiredTagId: tagId } }),
     prisma.tag.count({ where: { requirementSkills: { some: { id: tagId } } } }),
+    // `{ equals: … }` is required, not shorthand: poisonPayload is a Json
+    // column, and Prisma's Json filter has no bare-scalar form — the naked
+    // `{ poisonPayload: tagId }` shape throws PrismaClientValidationError
+    // on every call, taking the whole delete button down with it.
+    prisma.characterTag.count({ where: { poisonPayload: { equals: tagId } } }),
+    prisma.roomTag.count({ where: { poisonPayload: { equals: tagId } } }),
+    prisma.tag.findMany({ where: { crateContents: { not: null } }, select: { crateContents: true } }),
   ]);
   if (held) throw new UserError(`${held} character${held === 1 ? "" : "s"} still hold that tag.`);
+  const crateReferences = crateCarriers.some((t) =>
+    (Array.isArray(t.crateContents) ? t.crateContents : []).some(
+      (entry) => entry?.poisonPayload === tagId,
+    ),
+  );
+  if (poisonedChar || poisonedRoom || crateReferences) {
+    throw new UserError("A held or stashed stack is still poisoned. Cure or clear it first.");
+  }
   if (parentOf || requiredBy || gates || skillOf) {
     throw new UserError("Another tag or group references that one.");
   }

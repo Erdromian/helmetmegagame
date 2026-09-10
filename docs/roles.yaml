@@ -696,7 +696,7 @@ zones:
               - Sanctuary Key
               - Ravenhearter
               - Medical (Expert)
-              - Brewing (Skilled)
+              - Brewing (Expert)
               - Literate
               - Esculap's Vest
               - Obol x10
@@ -713,7 +713,7 @@ zones:
               - >-
                 How you view your task — whether you're a savior or a businessman — is up to you. However, medicine is costly, so consider following tradition and only treating those with coin (or those with noble blood). It wouldn't do for the Sanctuary to rack up high debts just to save some peasants. The Sanctuary operates independently. However, it is protected by the Baron.
               - >-
-                With science, the sky's the limit. You can brew medicines and potions, install implants and body-modifications, and even experiment for the good of science.
+                With science, the sky's the limit. You can brew medicines and potions, and even experiment for the good of science.
               - >-
                 If there's no wounded, get creative. Offer clinical trials; go foraging for unique ingredients and try to brew new potions; ask if the Incarn will let you experiment on his prisoners. Brewing potions is especially worthwhile; it can really help when you get a wave of inmates. Just throw out a few {tag:cleaning-powder}, a few {tag:mercy}, some {tag:poppy}…
               - >-
@@ -728,7 +728,7 @@ zones:
               - Sanctuary Key
               - Ravenhearter
               - Medical (Skilled)
-              - Brewing (Basic)
+              - Brewing (Skilled)
               - Literate
             doc_elements:
               - townstarting
