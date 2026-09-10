@@ -96,7 +96,11 @@ silently.
   Logistics Room serves the whole floor and nobody hauls a 28 lb lump around
   all day to prove they own it.
 - **The output** is 8 Squeeze, and the Godflesh is consumed.
-- No Laboring tag, no shift. It is work.
+- **No Laboring tag needed.** It wanted one until 2026-09-10, on the grounds
+  that the floor is work rather than a vending machine. The trouble is that the
+  Laboring ladder prices ⬢ and a shift here pays none, so the gate bought
+  nothing and stood the Factory's own people off its floor. Anybody who can get
+  in can work it (`LABORING.md` §3b). ‡
 - No `laborBonus` applies. A refinery is not a coefficient.
 
 **Auto-labor picks this up for free.** A refugee who files nothing refines,

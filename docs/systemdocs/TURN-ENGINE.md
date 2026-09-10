@@ -707,8 +707,12 @@ Action, no Resources, no DM:
   try. The tag itself is the explanation, and this is why binding someone
   actually costs them their next turn rather than just their ability to defend
   themselves (`REQUESTS.md` §5b).
-- **No Laboring tag at all.** Labor is a skill now, not a floor — a character
-  without one who does nothing has simply done nothing.
+- **No Laboring tag at all** — **unless they are standing in the Factory**,
+  where a shift pays in Squeeze rather than ⬢ and needs no skill. Anywhere else
+  an unskilled Labor earns nothing (it is allowed, just unpaid —
+  `LABORING.md` §1), so filing one for somebody who never asked would hand them
+  a `tired` for a day that bought them nothing. A character without a skill who
+  does nothing has simply done nothing. ‡
 - **Exhausted.** They've worked two turns running (or a bad night's sleep
   pushed them there) and need to rest — `tired`, the rung below it, does not
   block Labor (`LABORING.md` §4).

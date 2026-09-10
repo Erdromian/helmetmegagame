@@ -22,8 +22,14 @@ Three things changed at once, and they only make sense together:
 - **Labor is a third `MoveKind`**, alongside `ROUTINE` and `GAMBIT`. A turn
   buys one of the three, so filing a Routine or a Gambit *costs* you the day's
   labor. There is no checkbox any more.
-- **Laboring is a skill, not a floor.** Hold no Laboring tag and you cannot
-  labor at all. The old `base` tier is deleted.
+- **Laboring is a skill, not a floor.** The old `base` tier is deleted, so a
+  Laboring tag is what makes a day pay. It is **not** a gate: since 2026-09-10,
+  a character holding no Laboring tag — or none that reaches the ground they
+  stand on — files a Labor like anybody else and earns **nothing** for it. The
+  tier is `unskilled`, the range is a real `0-0`, and every surface prints an
+  em dash rather than a range, because there is no range. The day is still
+  spent: it steps the fatigue ladder below, and it draws no drop die
+  (`LABORDROPS.md`), which stays something a skill earns. ‡
 
 ## 2. The tag ladder
 
@@ -203,8 +209,13 @@ on a failed parse and does so silently.
 
 It is the only exception to "the row IS the gate", and it is a second gate
 beside the rows rather than a hole in them: everything without the attribute
-still needs its row. It still wants a Laboring tag, and it still steps the
-character up the fatigue ladder below. See `FACTORY.md` §4.
+still needs its row. It still steps the character up the fatigue ladder below.
+
+**It wanted a Laboring tag until 2026-09-10, and that was the bug the fix
+above came from.** The skill ladder exists to price ⬢, and a refining shift
+pays none — so the gate bought nothing, and meanwhile it stood the Factory's
+own people off its floor. Anybody standing there works it now. See
+`FACTORY.md` §4. ‡
 
 ## 4. Resolving one labor
 
@@ -406,8 +417,14 @@ sends nothing for anyone who:
 - already has an Action this turn (a travel stub counts — crossing zones spends
   the day),
 - holds an `INCAPACITATING_SLUGS` tag,
-- holds **no Laboring tag**,
-- is Exhausted, or is standing where none of their skills reach.
+- holds **no Laboring tag** — **unless they are standing in the Factory**,
+  which is the one place a day is worth something without one. Everywhere else
+  an unskilled Labor pays nothing, so filing one for somebody who never asked
+  would buy them a `tired` for a day that bought them nothing. They can still
+  file one by hand any turn they like,
+- is Exhausted, or is standing where none of their skills reach — the pass
+  keeps skipping this case, even though the resolver would now hand back an
+  `unskilled` 0 ⬢ rate for it, and for the same reason as the bullet above.
 
 Everyone else gets a `LABOR` Action, `CONFIRMED` / `PASSED`, `gmNotes:
 "auto:labor"`, effects applied and snapshotted onto `appliedEffects` (which is

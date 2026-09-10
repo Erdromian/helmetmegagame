@@ -87,10 +87,21 @@ export function moveStatusLabel(a, now) {
 
 // "+3 ⬢" / "rolled 5–12 ⬢ → +8". Takes anything carrying the two columns, so
 // a raw Action row works as well as a mapped one.
+//
+// "0-0" is the machine expression for a Labor that was never going to pay ⬢ —
+// a shift on the Factory floor, or a day worked with no skill that reaches
+// this ground (db/lib/laborAccess.js). Printing "rolled 0–0 ⬢" for those said
+// nothing twice, so they fall through to null and the desks render their own
+// em dash.
 export function declaredLabel(a) {
+  // A 0-0 Labor rolls a real 0, so the payout it carries is 0 ⬢ — the range
+  // and the value have to drop together or "→ 0 ⬢" is left standing alone.
+  const unpaid = a.resourceRollExpression === "0-0";
   const parts = [];
-  if (a.resourceRollExpression) parts.push(`rolled ${a.resourceRollExpression.replace("-", "–")} ⬢`);
-  if (a.resourceDelta != null) parts.push(`${a.resourceDelta > 0 ? "+" : ""}${a.resourceDelta} ⬢`);
+  if (a.resourceRollExpression && !unpaid)
+    parts.push(`rolled ${a.resourceRollExpression.replace("-", "–")} ⬢`);
+  if (a.resourceDelta != null && !(unpaid && a.resourceDelta === 0))
+    parts.push(`${a.resourceDelta > 0 ? "+" : ""}${a.resourceDelta} ⬢`);
   return parts.length ? parts.join(" → ") : null;
 }
 

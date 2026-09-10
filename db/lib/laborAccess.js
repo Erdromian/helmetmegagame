@@ -83,8 +83,9 @@ const WEAPON_GROUP = "items-weapons";
 // with extra steps.
 const LIFEWEB_FAILURE_MULTIPLIER = 0.05;
 
-// The two general tiers, best first. Unlike the old ladder there is no `base`
-// rung underneath: hold neither tag and you cannot labor.
+// The two general tiers, best first. There is no `base` rung underneath them:
+// hold neither tag and you labor for nothing, which is not the same as being
+// refused (see the "unskilled" return in resolveLaborRateFrom).
 const GENERAL_TIERS = [
   { slug: LABORING_SKILLED_SLUG, tier: "skilled" },
   { slug: LABORING_BASIC_SLUG, tier: "basic" },
@@ -239,8 +240,10 @@ function computeLaborAccess(ctx) {
   return { ok: true };
 }
 
-// Does this character hold any Laboring tag at all? The auto-labor pass asks
-// before filing anything, and the Move modal asks before offering the kind.
+// Does this character hold any Laboring tag at all? One caller left: the
+// auto-labor pass, deciding whether a day nobody filed is worth filing for
+// them. Nothing GATES on this any more — a skill-less character labors like
+// anyone else, for nothing (resolveLaborRateFrom's "unskilled" tier).
 function canLaborAtAll(ctx) {
   return GENERAL_TIERS.some((t) => ctx.tagSlugs.has(t.slug));
 }
@@ -290,13 +293,14 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
   if (!access.ok) return access;
 
   // A refinery pays in goods, not ⬢, and it is the one place a Labor resolves
-  // with no LocationYield row behind it. It still wants a Laboring tag: the
-  // Factory floor is work, not a vending machine. The range is a real 0-0 so
+  // with no LocationYield row behind it. It asked for a Laboring tag until
+  // 2026-09-10, which bought nothing — the skill ladder prices ⬢, and a
+  // refining shift pays none — while locking the Factory's own people off its
+  // floor. Anybody standing here can work it. The range is a real 0-0 so
   // db/lib/resourceDelta.js#rollResourceRange still parses it — everything
   // downstream assumes an expression, and "" would silently pay nothing while
   // looking like a bug. See docs/systemdocs/FACTORY.md.
   if (ctx.refinery) {
-    if (!canLaborAtAll(ctx)) return { ok: false, reason: "You don't know how to labor." };
     if (!ctx.refineryInput) {
       return { ok: false, reason: "There's no Godflesh here to refine." };
     }
@@ -334,13 +338,29 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
     candidates.push(scoreCandidate(ctx, tier, coefficient, locationCoefficient));
   }
 
+  // Nothing you hold pays here — no Laboring tag at all, or none that reaches
+  // this ground. It is still a day's work, so it files: the Move stands, the
+  // fatigue ladder steps, and it pays nothing. This used to be a refusal, and
+  // the refusal was the bug — it was the skill ladder, which exists to price
+  // ⬢, deciding who is allowed to be somewhere. The surfaces print an em dash
+  // rather than a range, because there is no range to print.
+  //
+  // Deliberately NOT a tier the drop die knows (db/lib/laborDrops.js maps the
+  // six real ones and returns nothing for anything else): a labor drop is
+  // something a skill earns.
   const scored = candidates.filter(Boolean);
   if (scored.length === 0) {
     return {
-      ok: false,
-      reason: canLaborAtAll(ctx)
-        ? "You have no Laboring skill that works where you're standing."
-        : "You don't know how to labor.",
+      ok: true,
+      tier: "unskilled",
+      min: 0,
+      max: 0,
+      bonus: 0,
+      tools: [],
+      halvedBy: [],
+      lifewebFailing,
+      locationCoefficient: 1,
+      expression: "0-0",
     };
   }
 
