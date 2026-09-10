@@ -11,6 +11,9 @@ const test = require("node:test");
 const assert = require("node:assert");
 
 const { auditLinesFor, INCLUDED } = require("../lib/oracleAudit");
+const { windowBetween } = require("../lib/oracleInput");
+const { moveCutoffAt } = require("../lib/turnClock");
+const { cutoffDecision } = require("../lib/oracleCutoff");
 const { splitEditorReply, correspondentPrompt, editorPrompt } = require("../lib/oraclePrompts");
 
 function namesFixture() {
@@ -133,4 +136,97 @@ test("a blank stored prompt falls back to the shipped default", () => {
   assert.strictEqual(correspondentPrompt({ oracleCorrespondentPrompt: "   " }), correspondentPrompt({}));
   assert.strictEqual(editorPrompt({ oracleEditorPrompt: "" }), editorPrompt({}));
   assert.strictEqual(correspondentPrompt({ oracleCorrespondentPrompt: "Custom." }), "Custom.");
+});
+
+// The window, lock to lock. The Oracle runs at the Move cutoff, so a page can
+// only see as far as its own cutoff, and the floor is the last turn that was
+// actually WRITTEN rather than simply the last turn. Getting either wrong loses
+// a day quietly, which is the expensive kind of wrong for a record.
+
+// 13:00 Chicago on consecutive days: an ordinary turn, ending at the coming
+// midnight and cutting off at 21:00.
+const turnAt = (iso) => ({ startedAt: new Date(iso) });
+const DAY_ONE = turnAt("2026-09-08T18:00:00Z");
+const DAY_TWO = turnAt("2026-09-09T18:00:00Z");
+
+test("an ordinary turn runs cutoff to cutoff", () => {
+  const { from, to } = windowBetween(DAY_ONE, DAY_TWO);
+  assert.strictEqual(to.getTime(), moveCutoffAt(DAY_TWO).getTime());
+  assert.strictEqual(from.getTime(), moveCutoffAt(DAY_ONE).getTime());
+  // Exactly a day apart, no gap and no overlap.
+  assert.strictEqual(to.getTime() - from.getTime(), 24 * 60 * 60 * 1000);
+});
+
+test("the first turn of a game is its own floor", () => {
+  const { from, to } = windowBetween(null, DAY_ONE);
+  assert.strictEqual(from.getTime(), DAY_ONE.startedAt.getTime());
+  assert.strictEqual(to.getTime(), moveCutoffAt(DAY_ONE).getTime());
+});
+
+test("a short turn cannot pull the floor back before it began", () => {
+  // A GM opening a turn at 23:00 gets an endsAt of midnight, so its DERIVED
+  // cutoff is 21:00 — two hours before the turn existed. Anchored on that
+  // unclamped, two pages would chronicle the same evening twice.
+  const short = turnAt("2026-09-09T04:00:00Z"); // 23:00 Chicago on the 8th
+  assert.ok(moveCutoffAt(short) < short.startedAt, "the premise: a cutoff before the start");
+  const { from } = windowBetween(short, DAY_TWO);
+  assert.strictEqual(from.getTime(), short.startedAt.getTime());
+});
+
+test("a skipped turn is covered by the next page, not lost", () => {
+  // Anchoring on the previous turn would start day three at day two's 21:00 and
+  // nobody would ever have written day two. The anchor is the last turn with a
+  // page, so its whole day falls inside this window.
+  const dayThree = turnAt("2026-09-10T18:00:00Z");
+  const { from, to } = windowBetween(DAY_ONE, dayThree);
+  assert.strictEqual(from.getTime(), moveCutoffAt(DAY_ONE).getTime());
+  assert.strictEqual(to.getTime() - from.getTime(), 2 * 24 * 60 * 60 * 1000);
+});
+
+// When the Oracle fires. Every branch but one is a REFUSAL, and a refusal that
+// fires by mistake costs a turn its page without saying anything.
+
+test("it drafts once the cutoff has passed and settled", () => {
+  const turn = DAY_TWO;
+  const now = new Date(moveCutoffAt(turn).getTime() + 3 * 60 * 1000);
+  assert.strictEqual(cutoffDecision(turn, { now }).draft, true);
+});
+
+test("it does not draft before the cutoff", () => {
+  const turn = DAY_TWO;
+  const now = new Date(moveCutoffAt(turn).getTime() - 60 * 1000);
+  const { draft, reason } = cutoffDecision(turn, { now });
+  assert.strictEqual(draft, false);
+  assert.strictEqual(reason, "before the cutoff");
+});
+
+test("it keeps out of the minute the stage sweep holds", () => {
+  // 21:00 exactly. The Makeshift Stage fires on that same minute, and the
+  // Oracle opening seven model calls beside it is the contention the stage
+  // sweep's own hours were chosen to avoid.
+  const turn = DAY_TWO;
+  const { draft, reason } = cutoffDecision(turn, { now: moveCutoffAt(turn) });
+  assert.strictEqual(draft, false);
+  assert.strictEqual(reason, "settling");
+});
+
+test("a frozen clock never reaches a cutoff", () => {
+  const turn = DAY_TWO;
+  const now = new Date(moveCutoffAt(turn).getTime() + 60 * 60 * 1000);
+  assert.strictEqual(cutoffDecision(turn, { now, clockFrozen: true }).draft, false);
+});
+
+test("a turn that outlived its end is left to Run now", () => {
+  // A missed advance cron. moveWindow reopens the window rather than leaving it
+  // shut forever, so `locked` reads false again — which must not be mistaken
+  // for "not yet".
+  const turn = DAY_TWO;
+  const now = new Date(moveCutoffAt(turn).getTime() + 5 * 60 * 60 * 1000);
+  const { draft, reason } = cutoffDecision(turn, { now });
+  assert.strictEqual(draft, false);
+  assert.strictEqual(reason, "past the turn's end");
+});
+
+test("no open turn is an ordinary answer, not a fault", () => {
+  assert.strictEqual(cutoffDecision(null, {}).draft, false);
 });

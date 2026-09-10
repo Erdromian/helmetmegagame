@@ -1477,7 +1477,7 @@ tags:
     description: "You're loud and lack grace."
     fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
-    conflictsWith: [stealth]
+    conflictsWith: [stealth, steady]
     purchasable: true
     purchasableAfterStart: false
 
@@ -8541,7 +8541,7 @@ tags:
     name: "Prospector's Pick"
     category: items
     group: items-gear
-    description: "A short-handled pick, good for breaking rock or worrying at a lock. While equipped, Prospecting produces an additional 1 ⬢. ‡"
+    description: "A short-handled pick. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 2
     laborBonus: { kind: prospecting, amount: 1 }
     equippable: true

@@ -130,9 +130,16 @@ export async function testOracleConnection() {
 
 // Draft the chronicle for a turn on demand.
 //
-// Defaults to the turn BEFORE the open one: the open turn's moves are still
-// being filed, so a synopsis of it would be a synopsis of a half-written turn.
-// A GM can still ask for any turn by number.
+// Defaults to the OPEN turn. It used to default to the turn before it, because
+// the open turn's moves were still being filed and a synopsis of it would have
+// been a synopsis of a half-written turn — which was right while the Oracle ran
+// at turn close, and is wrong now that it runs at the Move cutoff. The open
+// turn is the one a GM is adjudicating, so it is the one this button is for.
+// Any turn can still be asked for by number.
+//
+// This is also the recovery path when the automatic run never happened: a bot
+// down across the whole three-hour window, or a provider outage that ate its
+// attempts. Nothing revisits a turn once it has closed.
 export async function runOracleNow(turnNumber = null) {
   await requireDev("super");
 
@@ -140,12 +147,9 @@ export async function runOracleNow(turnNumber = null) {
   if (turnNumber != null) {
     turn = await prisma.turn.findUnique({ where: { number: Number(turnNumber) }, select: { id: true } });
   } else {
-    const open = await getOpenTurn();
-    turn = await prisma.turn.findFirst({
-      where: open ? { number: { lt: open.number } } : {},
-      orderBy: { number: "desc" },
-      select: { id: true },
-    });
+    turn =
+      (await getOpenTurn()) ??
+      (await prisma.turn.findFirst({ orderBy: { number: "desc" }, select: { id: true } }));
   }
   if (!turn) return { ok: false, error: "No turn to write about yet." };
 

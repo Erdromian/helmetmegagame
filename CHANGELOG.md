@@ -6,6 +6,28 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Steady hands and Clumsy are mutually exclusive
+
+✎ Steady and Clumsy can no longer be held together
+
+## 2026-09-10 · The Oracle is written when the Moves lock, not after the push
+
+✎ The turn's chronicle is now drafted a couple of minutes after Moves lock, so a GM has it in front of them for the whole adjudication window instead of after the rulings are over  
+✎ An Oracle page now runs lock to lock, so the late chat, the GM's own adjudications and everything the midnight push fires appear on the next turn's page  
+✎ The Oracle desk shows the open turn, and opens on the newest turn that has actually been written  
+✎ Auto-labor Moves reach the chronicle again — filed at the push, they belonged to no page at all  
+✚ Draft this turn, on the Oracle panel, replacing Draft the last turn
+
+## 2026-09-10 · The verb tooltips say it in your words now
+
+✎ Craft, Destroy, Transfer, Loot, Free and Butcher read the way you wrote them, and Learn Skill's greyed reason is shorter
+
+## 2026-09-10 · Two performing Desires repriced
+
+✎ Perform for at least 5 people is worth 2 points now, not 3, and comes back after 4 turns instead of 3  
+✎ Perform for at least 15 people asks for 20 now, and can only be claimed once ever  
+− The Prospector's Pick claiming to be good for breaking rock or worrying at a lock
+
 ## 2026-09-10 · A kiss is nobody else's business
 
 − The line the room used to hear when two people kissed. Nobody is told now but the two of them
