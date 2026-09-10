@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The verb tooltips say it in your words now
+
+✎ Craft, Destroy, Transfer, Loot, Free and Butcher read the way you wrote them, and Learn Skill's greyed reason is shorter
+
 ## 2026-09-10 · Two performing Desires repriced
 
 ✎ Perform for at least 5 people is worth 2 points now, not 3, and comes back after 4 turns instead of 3  
