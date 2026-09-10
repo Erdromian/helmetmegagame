@@ -213,7 +213,7 @@ the 10-char cap holds with the catalog as it stands.
 | Nobility | tag `nobility` | Lord / Lady / Noble |
 | The Baron's seat | roles `baron` `baroness` | Baron / Baroness / Baron |
 | Ordination | tag `chaplain` | Father / Mother / Reverend |
-| The Mortii | tag `mortus` | Brother / Sister / Sibling |
+| Monastic | tag `mortus`, role `incarn` | Brother / Sister / Sibling |
 | Bishop | role `bishop` | one word |
 | Doctor | tag `medical-skilled`, roles `esculap` `serpent` | one word |
 | Professor | role `scholastic` | one word |
