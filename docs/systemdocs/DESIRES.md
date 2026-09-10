@@ -608,3 +608,24 @@ The section number is kept rather than renumbering everything below it.
 | `web/app/(app)/character/requestActions.js` | Player-facing `claimDesire` — the one player action. Gates enforced via `evaluateDesireCatalog`/`slotStates`, re-validated inside the transaction under a `FOR UPDATE` row lock |
 | `web/lib/tagEffects.js` | `FULFILL_DESIRE` re-score (`applyEdit`) and undo — the undo clears `endedTurnNumber`, releasing the slot |
 | `bot/src/events/messageReactionAdd.js` | The 🔍/⚜️ embeds' `Last Desire` field — the most recent `FULFILLED` row, gated by `db/lib/inspectVision.js` |
+
+
+## Manic
+
+A `mastery` tag (`TAGS.md` §4a): the **slot** lock never applies. Each Desire's
+own cooldown (§ the per-template table) is untouched — a Manic character may
+refill a slot the instant it empties, but still cannot re-claim the same Desire
+early.
+
+It is a real bypass (`noLock` on `slotStates`), **not `lockTurns: 0`**, and the
+difference matters. A `Desire` row is born ended — `setTurnNumber` and
+`endedTurnNumber` are both stamped at claim — so at 0 the test still reads
+`openTurnNumber <= maxEnded`, which is TRUE on the turn of the claim and shuts
+the slot until the next one. Zero means "reopens tomorrow"; the tag says "no
+cooldown". `db/test/masteryTags.test.js` pins that distinction.
+
+`desireSlotsNeverLock()` is the one helper, called from all four places that
+compute slot state — the claim action in `requestActions.js` (the only one that
+*enforces*), plus `selfPools.js`, `devPanelData.js` and the sheet's own view.
+They have to agree: a UI that offers a slot the action then refuses is the
+failure this exists to prevent.

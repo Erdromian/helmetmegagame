@@ -474,6 +474,12 @@ async function depotSendShuttleImpl() {
 
   await prisma.$transaction(async (tx) => {
     for (const rt of room.tags) {
+      // The `{ ok, poisonedTaken, poisonPayload }` return is deliberately
+      // ignored here (spec review nit, M4 fix round) — this is a pure
+      // destroy, quantity null, and the shuttle takes the whole stack
+      // whatever the landing pad held a moment ago; there is no recipient on
+      // the other end to carry poison state onward to. Don't "fix" this into
+      // threading poison through a payout that's about to vanish.
       await dropRoomTag(tx, room.id, rt.tagId, null);
       // A runtime crate tag with nothing left pointing at it is litter. The
       // catalog row goes with the last instance.

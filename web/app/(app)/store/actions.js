@@ -10,6 +10,8 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { METEMPSYCHOSIS_SLUG } from "@lifeweb/db/lib/constants";
+import { sendDm } from "@/lib/discordGuild";
 import {
   tagsById as buildTagsById,
   requirementSatisfied,
@@ -125,7 +127,16 @@ async function buyTagsImpl({ tagIds }) {
     // `removable` on one — but the check stays for the two rows that dodge
     // the sync: a GM-authored custom tag, and a live catalog only as current
     // as the last db:sync-tags.
-    if (effectiveCost(tag, byId, heldIds) < 0 && (tag.removable || tag.consumable)) {
+    //
+    // Widened from "negative AND sheddable" to negative FULL STOP. Shedding was
+    // only ever half the exploit: a drawback bought mid-game pays out Tag
+    // Points the moment it is bought, and points are the scarce thing — being
+    // stuck with Frail afterwards is a price some players will happily pay for
+    // eight points they can spend today. Desires are meant to be the only
+    // mid-game faucet, and this is what makes that true rather than merely
+    // documented. `Corrupt` is why it is not hypothetical: it sat in the
+    // catalog at −2 with purchasableAfterStart: true.
+    if (effectiveCost(tag, byId, heldIds) < 0) {
       throw new UserError(`${tag.name} can't be bought mid-game.`);
     }
     //
@@ -219,6 +230,22 @@ async function buyTagsImpl({ tagIds }) {
       },
     });
   });
+
+  // Metempsychosis tells you it is there, and nothing else does: its catalog
+  // line is deliberately vague ("You know something very, very important"),
+  // so without this the player has bought 12 points of a tag they cannot see
+  // working until the one moment it fires. `-#` subtext, since the world is
+  // saying it rather than a person.
+  if (selected.some((tag) => tag.slug === METEMPSYCHOSIS_SLUG) && session.discordUserId) {
+    // Plain, not `-#`: sendDm prefixes every DM with `»` (CLAUDE.md), and a
+    // `» -#` line renders as neither — Discord only reads subtext at the very
+    // start of a line. The chevron IS the DM convention, so the sentence goes
+    // out bare and gets it.
+    await sendDm(
+      session.discordUserId,
+      "You awake! Whenever you die, something interesting will happen.",
+    ).catch(() => {});
+  }
 
   // A bought tag can open a narrowcast channel (#cerberon) or a
   // private room the same way a granted one does.

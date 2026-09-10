@@ -15,6 +15,7 @@ import {
   User,
   Users,
   ScrollText,
+  Check,
   ShieldCheck,
   Scale,
   MessageSquare,
@@ -62,6 +63,7 @@ import {
   Camera,
   Search,
   OctagonMinus,
+  Swords,
   X,
 } from "lucide-react";
 
@@ -118,6 +120,11 @@ export const SearchIcon = lucide(Search, "SearchIcon");
 // TrashIcon says the person is being thrown away, which is the wrong
 // sentence for "they may not come in here any more".
 export const CloseIcon = lucide(X, "CloseIcon");
+
+// The uploaded-portrait queue on /gm/turns: this face is fine, keep it. Paired
+// with CloseIcon for the other answer, and a plain tick rather than a
+// thumbs-up because the GM is signing something off, not liking it.
+export const CheckIcon = lucide(Check, "CheckIcon");
 // The Chat page: a doorway you speak through. A plain speech bubble would have
 // read as MessageIcon at rail size, which is the GM's inbox.
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
@@ -173,6 +180,11 @@ export const ShackleIcon = lucide(Link, "ShackleIcon");
 // Link that Bind wears: laying in wait is neither taking nor tying, it is
 // standing in somebody's way (docs/systemdocs/INTERCEPT.md).
 export const InterceptIcon = lucide(OctagonMinus, "InterceptIcon");
+// Attack — crossed blades. Not the Wound that Harm wears (that is damage
+// already done) and not the halt sign Intercept wears (that is waiting for
+// somebody): this is the moment two people are locked together
+// (docs/systemdocs/ATTACK.md).
+export const AttackIcon = lucide(Swords, "AttackIcon");
 // Free — the key that opens it.
 export const KeyIcon = lucide(KeyRound, "KeyIcon");
 // A bird in flight, for the Bird's letter.

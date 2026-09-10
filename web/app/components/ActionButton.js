@@ -3,14 +3,14 @@
 import IconButton from "./IconButton";
 import Tooltip from "./Tooltip";
 
-// The one player-action button, in the three frames the app draws it in:
+// The one player-action button, in the four frames the app draws it in:
 //
 //   icon  — a framed glyph (IconButton), the /character rack.
 //   tile  — glyph and name as a full-width row, a labelled column of verbs.
 //   menu  — a plain verb in a .chat-menu, the /chat person and thing menus.
-//   strip — glyph and name, small, in the /ledger band's one wrapping row.
+//   strip — glyph and name, small, in the ledger band's one wrapping row.
 //
-// All three share the tooltip: the label, then the sentence explaining what
+// All four share the tooltip: the label, then the sentence explaining what
 // the verb does, then — when the button is greyed — the reason. Tooltip wraps
 // the button rather than sitting on it, so unlike a native title= it still
 // fires on a disabled element, which is exactly the case that most needs an
@@ -19,10 +19,11 @@ import Tooltip from "./Tooltip";
 //
 // `busy` is for an instant verb in flight: the button disables and says so.
 //
-// `strip` is the one variant with NO tooltip, because the sheet it belongs to
-// has none at all (docs/systemdocs/SHEET.md): a greyed verb there is drawn
-// muted but still clickable, and the click hands its reason back to the caller
-// to print on the page. Everything else about it is this same button.
+// `strip` used to be the one variant with no tooltip, on a rule that the sheet
+// had none at all, and a greyed verb there printed its reason on a line under
+// the strip instead. Nobody found the line, and an ungated verb like Attack
+// explained itself nowhere: hovering it did nothing. It hovers like the rest
+// now, and the line is gone.
 function tooltipFor(label, help, reason) {
   if (!help && !reason) return label;
   return (
@@ -65,18 +66,20 @@ export default function ActionButton({
 
   if (variant === "strip") {
     return (
-      <button
-        type="button"
-        className="action-strip-item"
-        aria-disabled={disabled || undefined}
-        aria-busy={busy || undefined}
-        data-muted={disabled ? "true" : undefined}
-        disabled={busy}
-        onClick={onClick}
-      >
-        {Icon ? <Icon width="15" height="15" /> : null}
-        <span>{busy ? "Working…" : label}</span>
-      </button>
+      <Tooltip text={tooltip} pinnable={false}>
+        <button
+          type="button"
+          className="action-strip-item"
+          aria-busy={busy || undefined}
+          data-muted={disabled ? "true" : undefined}
+          data-busy={busy ? "true" : undefined}
+          disabled={off}
+          onClick={onClick}
+        >
+          {Icon ? <Icon width="15" height="15" /> : null}
+          <span>{busy ? "Working…" : label}</span>
+        </button>
+      </Tooltip>
     );
   }
 

@@ -6,6 +6,7 @@ import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiA
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
 import { extractGodfleshRequest, healCharacterRequest } from "@/app/(app)/character/requestActions";
+import { formatMoveFraction } from "@/lib/craftBudget";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
 import HarmDialog from "./HarmDialog";
 import MutilateDialog from "./MutilateDialog";
@@ -13,8 +14,10 @@ import BodyDialog from "./BodyDialog";
 import EngraveDialog from "./EngraveDialog";
 import WarrantDialog from "./WarrantDialog";
 import InterceptDialog from "./InterceptDialog";
+import AttackDialog from "./AttackDialog";
 import DisguiseDialog from "./DisguiseDialog";
 import ConsumeDialog from "./ConsumeDialog";
+import PoisonDialog from "./PoisonDialog";
 import HideoutDialog from "./HideoutDialog";
 import MoveThingsDialog from "./MoveThingsDialog";
 import DestroyDialog from "./DestroyDialog";
@@ -92,8 +95,10 @@ export const DIALOGS = {
   engrave: EngraveDialog,
   warrant: WarrantDialog,
   intercept: InterceptDialog,
+  attack: AttackDialog,
   disguise: DisguiseDialog,
   consume: ConsumeDialog,
+  poison: PoisonDialog,
   hideout: HideoutDialog,
   transfer: MoveThingsDialog,
   loot: MoveThingsDialog,
@@ -144,15 +149,23 @@ export const FAST_PATHS = {
     if (!patient || (patient.healable ?? []).length !== 1) return null;
     const affliction = patient.healable[0];
     const self = patient.id === bag.selfId;
+    // What this confirm is about to quote as costing the Move — the same
+    // reading HealDialog.js makes, off `moveCost` (web/lib/peoplePools.js).
+    // It has to be BOTH the sentence below and `billedSeen`: the server
+    // refuses outright when it would bill a Move the player was not shown
+    // paying (requestActions.js#healCharacterRequestImpl, review fix M2),
+    // so a shortcut that quotes a price without acknowledging it can never
+    // succeed for anything above the free rung.
+    const billed = !affliction.gambit && affliction.moveCost?.kind !== "free";
     return {
       ask: {
         title: self ? `Treat your ${affliction.tagName}?` : `Treat ${patient.name}'s ${affliction.tagName}?`,
         message: `Costs ${affliction.cost ?? 0} ⬢, paid by you.${
           affliction.gambit
-            ? " This is beyond routine, so it counts as a Gambit: it uses your Move, a die is rolled, and a poor result can leave them worse off."
-            : affliction.counts
-              ? ` One of the ${bag.healsLeft ?? "few"} cases you can work this turn.`
-              : " First aid doesn't cost a Move."
+            ? " This is a Gambit."
+            : billed
+              ? ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", past this turn's free first aid" : ""}.`
+              : ` First aid doesn't cost a Move — ${bag.healsLeft === 1 ? "1 free treatment" : `${bag.healsLeft ?? "a few"} free treatments`} left this turn.`
         }`,
         confirmLabel: "Treat",
       },
@@ -161,6 +174,7 @@ export const FAST_PATHS = {
           targetCharacterId: patient.id,
           tagId: affliction.tagId,
           payerKey: `character:${bag.selfId}`,
+          billedSeen: String(billed ? 1 : 0),
         }),
       ctx: { name: self ? "You" : patient.name, self },
     };

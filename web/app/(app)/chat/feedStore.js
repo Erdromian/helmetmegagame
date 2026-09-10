@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
-import { mentionsCharacter } from "@/app/components/richTokens";
 
 // The Chat page's message store, modelled on the GM inbox's
 // web/app/(desk)/gm/players/liveInbox.js: module-level state read through
@@ -352,27 +351,38 @@ export function isOwnRow(row, selfId, selfKey = null) {
   return false;
 }
 
-// Is this row ABOUT the viewer, rather than just near them?
+// Did somebody SAY something here?
 //
-// What the unread dot draws off. Two ways to qualify, and one disqualifier:
+// What the unread mark draws off. Two conditions, and that is the whole rule:
+// the row is not yours, and it is not the game talking to itself.
 //
-//   - it is in a conversation, which has no scenery in it; or
-//   - it carries this character's {char:…} token, which is what a mention is
-//     made of on both faces (CHAT.md §5), so a Discord ping counts too;
-//   - unless they wrote it themselves, because your own words are not news.
+// It used to be narrower — a row in a conversation, or one carrying your
+// {char:…} token, and nothing else. That meant ordinary roleplay in a Room
+// moved no mark at all, and a GM (who is in GM mode precisely BECAUSE they
+// have no character) had no token and sat in no conversations, so nothing in
+// Chat ever lit for them and the only way to find a scene was to open every
+// channel in turn. Widening it to "somebody spoke" subsumes both of the old
+// arms — a conversation row is a person speaking, and so is a mention.
 //
-// `place` is the placeKey, which is where the conversation test comes from —
-// the store is keyed by it and needs no place object to ask.
+// SYSTEM is the line that keeps this from being the failure the narrow rule
+// was avoiding. A gate crossing, a smell in a Location, somebody shifting a
+// stash, the turn banner: all scenery, all `source: "SYSTEM"`, none of it
+// worth lighting a channel for. Real speech is DISCORD (proxied) or WEB
+// (typed here), and `source` already rides on every row.
 //
-// The CHIME is deliberately narrower: Chat.js rings only on the mention half,
-// because a busy conversation ringing on every line is a reason to mute the
-// Chat rather than a reason to look at it. A dot is patient; a sound is not.
+// `place` is the placeKey. It is no longer read — kept in the signature
+// because every caller passes it and the store is keyed by it.
+//
+// The CHIME is deliberately narrower and did NOT move: Chat.js rings only on
+// a mention, because a busy room ringing on every line is a reason to mute
+// the Chat rather than a reason to look at it. A mark is patient; a sound is
+// not.
 export function isNotableRow(place, row, selfId, selfKey = null) {
-  if (!selfId || !row) return false;
-  // Your own words are not news, whichever handle the row carries.
-  if (isOwnRow(row, selfId, selfKey)) return false;
-  if (typeof place === "string" && place.startsWith("conv:")) return true;
-  return mentionsCharacter(row.content, selfId);
+  if (!row) return false;
+  // Your own words are not news, whichever handle the row carries. A GM has
+  // no character, so there is nothing of theirs to exclude.
+  if (selfId && isOwnRow(row, selfId, selfKey)) return false;
+  return row.source !== "SYSTEM";
 }
 
 // The newest NOTABLE seq this tab holds for a place, as a string, or null.

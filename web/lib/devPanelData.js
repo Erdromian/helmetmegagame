@@ -1,5 +1,5 @@
 import { prisma, isDynastyMember, gambitModifierTotal } from "@lifeweb/db";
-import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
+import { evaluateDesireCatalog, slotStates, desireSlotsNeverLock } from "@lifeweb/db/lib/desireGates";
 import { desireFamilies } from "@lifeweb/db/lib/desireFamilies";
 import { getGuildMember } from "@/lib/discordGuild";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
@@ -102,6 +102,8 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
         requirementSkills: { select: { id: true } },
         meleeArmor: true,
         ballisticArmor: true,
+        // ChipLabel's mastery star.
+        mastery: true,
         group: { select: { name: true, color: true } },
       },
     }),
@@ -238,6 +240,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
     openTurnNumber: openTurn?.number ?? 0,
     desireSlots: desireSlotsConfig,
     lockTurns: desireSlotLockTurns,
+    noLock: desireSlotsNeverLock(heldTags),
   }).map((slot) => ({
     slotIndex: slot.slotIndex,
     lockedUntilTurn: slot.lockedUntilTurn,

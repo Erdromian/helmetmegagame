@@ -154,15 +154,22 @@ async function runAutoLaborPass(prisma, turn) {
       continue;
     }
 
-    // No Laboring tag at all: nothing is filed and nothing is sent. This is
-    // the whole point of the rework — labor is a skill now, not a floor, and
-    // a character without one who does nothing has simply done nothing.
-    if (!canLaborAtAll({ tagSlugs })) {
+    const refinery = isRefinery(character.location);
+
+    // No Laboring tag at all: nothing is filed and nothing is sent. A
+    // skill-less character CAN labor now (db/lib/laborAccess.js), but it pays
+    // nothing, so filing it for somebody who never asked would cost them a
+    // Tired for a day that bought them nothing — worse than the nothing they
+    // already did. They can still file one by hand any turn they want to.
+    //
+    // The Factory is the exception, because it is the one place the day is
+    // worth something without a skill: a shift on that floor turns Godflesh
+    // into Squeeze whoever works it (FACTORY.md).
+    if (!canLaborAtAll({ tagSlugs }) && !refinery) {
       skipped += 1;
       continue;
     }
 
-    const refinery = isRefinery(character.location);
     const ctx = {
       tagSlugs,
       tools: [

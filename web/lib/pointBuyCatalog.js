@@ -1,5 +1,5 @@
 import { prisma, startingTagSlugs } from "@lifeweb/db";
-import { TAG_CHIP_FIELDS, stripEmptyUnlocks } from "@/lib/referenceData";
+import { TAG_CHIP_FIELDS, stripEmptyUnlocks, cookedTasteOnly } from "@/lib/referenceData";
 
 // A buy menu is not a recipe book. It prints a recipe only where the trade
 // that gates it is public knowledge — every wax seal in the game is made by a
@@ -14,6 +14,9 @@ function recipeFields(t) {
       craftable: false,
       requirementSkills: [],
       requirementTurns: null,
+      // Redacted alongside requirementTurns: the pair encodes one price
+      // ("1/N of a Move"), so dropping only half prints a nonsense cost.
+      requirementPerTurn: null,
       requirementResources: null,
       requirementGambit: false,
     };
@@ -22,6 +25,10 @@ function recipeFields(t) {
     craftable: t.craftable,
     requirementSkills: skills.map(({ id, slug, name }) => ({ id, slug, name })),
     requirementTurns: t.requirementTurns,
+    // Without this a fraction-priced purchasable drawback (appendicitis,
+    // disfigured) shows a flat "1 turn" cure cost on its point-buy chip
+    // instead of the real fraction.
+    requirementPerTurn: t.requirementPerTurn,
     requirementResources: t.requirementResources,
     requirementGambit: t.requirementGambit,
   };
@@ -101,10 +108,14 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
   // and shipping a tag's own catalog gate to the browser tells a reader which
   // rows are secret.
   return tags.map(({ conflictsWith, catalogVisibility, ...t }) =>
-    stripEmptyUnlocks({
-      ...t,
-      conflictsWithIds: conflictsWith.map((c) => c.id),
-      ...recipeFields(t),
-    }),
+    // cookedTasteOnly for the reason referenceData.js gives: an ingredient's
+    // mood and its hidden effects must not cross, only its taste.
+    cookedTasteOnly(
+      stripEmptyUnlocks({
+        ...t,
+        conflictsWithIds: conflictsWith.map((c) => c.id),
+        ...recipeFields(t),
+      }),
+    ),
   );
 }

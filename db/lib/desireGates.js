@@ -268,7 +268,18 @@ function unlockedBy(template, { heldTagIds, roleSlug }) {
 // A turn is one real day; the phases still alternate, so an in-game day is two
 // of them. `lastEnded` is the slot's most recent
 // FULFILLED row; a row with null endedTurnNumber counts toward neither.
-function slotStates({ history, openTurnNumber, desireSlots, lockTurns = 2 }) {
+//
+// `noLock` is Manic (a mastery, TAGS.md 4a) and is a real bypass rather than
+// `lockTurns: 0`. A Desire row is born ended — setTurnNumber and
+// endedTurnNumber are both stamped at claim — so at 0 the test below still
+// reads `openTurnNumber <= maxEnded`, which is TRUE on the turn of the claim
+// and shuts the slot until the next one. Zero means "reopens tomorrow", not
+// "no cooldown", and the tag says the latter.
+//
+// This is the SLOT lock only. Each Desire's own cooldown
+// (evaluateDesireCatalog above) is untouched: a Manic character may refill a
+// slot the instant it empties, but still cannot re-claim the same Desire early.
+function slotStates({ history, openTurnNumber, desireSlots, lockTurns = 2, noLock = false }) {
   const hist = history || [];
   const slots = [];
   for (let slotIndex = 0; slotIndex < desireSlots; slotIndex++) {
@@ -282,7 +293,7 @@ function slotStates({ history, openTurnNumber, desireSlots, lockTurns = 2 }) {
     let lastEnded = null;
     if (endedRows.length > 0) {
       const maxEnded = Math.max(...endedRows.map((h) => h.endedTurnNumber));
-      if (openTurnNumber <= maxEnded + lockTurns) {
+      if (!noLock && openTurnNumber <= maxEnded + lockTurns) {
         lockedUntilTurn = maxEnded + lockTurns + 1;
         lockedTurnsLeft = Math.max(1, lockedUntilTurn - openTurnNumber);
       }
@@ -296,7 +307,30 @@ function slotStates({ history, openTurnNumber, desireSlots, lockTurns = 2 }) {
   return slots;
 }
 
+// Manic's slug, spelled out rather than imported from db/lib/constants.js.
+// This file has no imports on purpose — it is deep-imported by CLIENT
+// components — which is the same reason web/lib/consumeGrants.js keeps its own
+// copy of the drinking-ladder slugs (CLAUDE.md). Keep it in step with
+// MANIC_SLUG there.
+const MANIC_SLUG = "manic";
+
+// Whether this character's Desire SLOTS lock at all. One helper, so the claim
+// action and the three surfaces that draw the slots cannot disagree — a UI
+// offering a slot the action then refuses is the failure this exists to stop.
+// Takes CharacterTag rows, bare Tags, or a Set of slugs.
+function desireSlotsNeverLock(heldTags) {
+  if (heldTags instanceof Set) return heldTags.has(MANIC_SLUG);
+  return (heldTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === MANIC_SLUG);
+}
+
 module.exports = {
+  desireSlotsNeverLock,
+  // The two lock primitives, exported for db/lib/seatConflicts.js — a seat
+  // strips a Personality tag by asking this same evaluator whether the tag
+  // would lock one of the seat's own Desires, rather than restating the
+  // clause precedence a second time and letting the two drift.
+  unionLockClauses,
+  lockedReasonForTemplate,
   evaluateDesireCatalog,
   slotStates,
   describeDesireLocks,

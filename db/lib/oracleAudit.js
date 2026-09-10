@@ -36,6 +36,7 @@ const INCLUDED = new Set([
   "request_crucify_character",
   "request_intercept_fired",
   "request_intercept_released",
+  "request_attack_filed",
   "request_loot_resources",
   "request_transfer_resources",
   "request_loot_tag",
@@ -56,6 +57,12 @@ const INCLUDED = new Set([
   "request_fulfill_desire",
   "desire_set",
   "request_change_name",
+  "request_disguise_self",
+  "character_conceal_toggled",
+
+  // Said to a whole zone at once. A PA is not scenery — it carries an @here
+  // and everybody hears it, so it belongs in the record of what happened.
+  "intercom_broadcast",
   "faction_leader_set",
   "faction_treasurer_assigned",
   "faction_treasurer_revoked",
@@ -107,7 +114,23 @@ const DETAIL_KEYS = [
   "blood",
   "died",
   "result",
+  // A hood going on, or coming off. See MEANINGFUL_WHEN_FALSE below.
+  "concealed",
+  // What the intercom actually said. Truncated like any other long string —
+  // the point is that a zone was addressed and roughly about what.
+  "body",
 ];
+
+// Keys whose FALSE is a fact rather than an absence.
+//
+// Every other detail is skipped when false, which is right for a flag that
+// merely failed to apply (`moodApplied: false` is noise on a line that already
+// says what happened). It is wrong for a flag that IS the event: a hood going
+// ON and a hood coming OFF are both things a GM wants to read, and they arrive
+// as the same key with opposite values. Without this, `concealed: false` was
+// dropped and the line read "conceal_toggled | Ada" either way — ambiguous in
+// the one direction the reader cares about.
+const MEANINGFUL_WHEN_FALSE = new Set(["concealed"]);
 
 // "request_heal_character" -> "heal_character". The prefix outlived the Request
 // table and is noise to a reader who is not grepping the log.
@@ -129,7 +152,11 @@ function auditLine(row, names) {
   const target = row.targetCharacterId ? (names.byCharacterId?.get(row.targetCharacterId) ?? null) : null;
 
   const parts = [verb(row.actionType)];
-  if (actor && target) parts.push(`${actor} -> ${target}`);
+  // A row where somebody acted on THEMSELVES — pulling a hood up, putting on a
+  // disguise, keying the intercom — stamps its own character as the target, and
+  // "Ada Vance -> Ada Vance" is a token spent to say nothing twice.
+  if (actor && target && actor === target) parts.push(actor);
+  else if (actor && target) parts.push(`${actor} -> ${target}`);
   else if (actor) parts.push(actor);
   else if (target) parts.push(target);
 
@@ -137,7 +164,8 @@ function auditLine(row, names) {
   const kv = [];
   for (const key of DETAIL_KEYS) {
     const value = details[key];
-    if (value == null || value === "" || value === false) continue;
+    if (value == null || value === "") continue;
+    if (value === false && !MEANINGFUL_WHEN_FALSE.has(key)) continue;
     // A quantity of 1 is the default and saying so is noise on every line.
     if (key === "quantity" && Number(value) <= 1) continue;
     kv.push(`${key}: ${typeof value === "string" ? truncate(value, 120) : value}`);

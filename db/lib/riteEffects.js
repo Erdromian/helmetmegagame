@@ -25,7 +25,7 @@ const { HUNGERLESS_SLUG } = require("./constants");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquippedQuantity } = require("./tagWrites");
 const { createWithRetry } = require("./paperMint");
-const { resolveSeatConflicts } = require("./seatConflicts");
+const { resolveSeatConflicts, describeSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
 const { setMood, MOOD_MIN } = require("./mood");
 const { normalizeChant, containsPhrase } = require("./rites");
@@ -185,7 +185,7 @@ async function spawnRemains(db, room, { flesh = true, resources = true } = {}) {
 }
 
 // Take the one thing a rite spends off whoever is holding it, and REFUSE if it
-// is not there any more. dropRoomTag returns false rather than throwing when
+// is not there any more. dropRoomTag reports `ok: false` rather than throwing when
 // the stack no longer covers the take (db/lib/tagWrites.js) — deliberately, so
 // a caller can decide. Every rite that spends a print or a weapon wants the
 // same decision: the resolve ran two minutes ago and somebody may have picked
@@ -194,9 +194,11 @@ async function spawnRemains(db, room, { flesh = true, resources = true } = {}) {
 // transaction rolls the whole effect back.
 async function spendFromHolder(tx, holder, tagId, what) {
   if (holder.kind === "room") {
-    // dropRoomTag already answers the question: false means the stack no
+    // dropRoomTag already answers the question: ok:false means the stack no
+    // longer covers the take. It returns an OBJECT — testing the call itself is
+    // always truthy, which silently disables this refusal.
     // longer covers the take.
-    if (!(await dropRoomTag(tx, holder.id, tagId, 1))) throw new Error(`the ${what} is gone`);
+    if (!(await dropRoomTag(tx, holder.id, tagId, 1)).ok) throw new Error(`the ${what} is gone`);
     return;
   }
   // dropCharacterTag returns nothing at all — it is a fire-and-forget drop —
@@ -230,15 +232,22 @@ const EFFECTS = {
   async conversion({ db, room, resolved, openTurn }) {
     const target = resolved.boundPerson;
     const thanati = await db.tag.findUnique({ where: { slug: THANATI_SLUG }, select: { id: true } });
+    // The rite is an Assign by another road, so it gets the same clear-out
+    // (THREATS.md §3) — and has to TELL them, or a convert finds Alcoholic
+    // gone and four tag points missing with nothing anywhere saying why.
+    let conflicts = null;
     await db.$transaction(async (tx) => {
       await grantTagSlugs(tx, target.id, [THANATI_SLUG], openTurn?.number ?? null);
-      if (thanati) await resolveSeatConflicts(tx, target.id, [thanati.id]);
+      if (thanati) conflicts = await resolveSeatConflicts(tx, target.id, [thanati.id]);
       await fulfillObjectives(tx, { partyKey: "thanati", kinds: ["convert-character", "convert-leader"], targetCharacterId: target.id });
     });
     await sendDm(
       db,
       target.discordUserId,
-      "This reality is cursed! You are now loyal to the Thanati and must follow the cult’s orders. Read your Documents for more information.",
+      [
+        "This reality is cursed! You are now loyal to the Thanati and must follow the cult’s orders. Read your Documents for more information.",
+        conflicts && describeSeatConflicts(conflicts),
+      ].filter(Boolean).join("\n"),
       { source: "rite" },
     ).catch(log(`conversion DM to ${target.name}`));
     await roomLine(db, room, `${aliasSubject(target)}’s eyes widen as they begin to understand...`);

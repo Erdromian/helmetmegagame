@@ -9,8 +9,8 @@ import ConversationPane from "./ConversationPane";
 // only reason it was a client component at all. The dossier is gone — the
 // shared inspector (components/InspectorColumn.js, mounted by the desk
 // layout's InspectorHost) covers it on both desks now, and the Canon tab
-// writes the draft through localStorage (players/dmDraft.js) instead of a ref
-// across a tree the two no longer share.
+// writes the draft through the shared module store (players/dmDraft.js)
+// instead of a ref across a tree the two no longer share.
 //
 // The component stays as the one place that names the person view's layout
 // class, so the route's loading.js and this render the same wrapper.

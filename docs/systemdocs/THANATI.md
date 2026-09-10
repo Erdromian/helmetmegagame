@@ -43,6 +43,7 @@ Recall Comrades, the hideout is a pointer on `GameState`.
 | `adders-bite` | A phial, consumed into `phrygian-toxin`. |
 | `dynamite-stick` / `dynamite-bundle` | The bundle is an ordinary Craft recipe with an enforced ingredient: five sticks, no skill. |
 | `sacrificial-knife` | A knife. Shelf only. |
+| `radio-27065` | Shelf only, at 20. Not a weapon but a channel: holding one opens `#27.065`, and everyone else holding one hears you (`CHANNELS.md` §7). Tradeable, so a radio that leaves the cult takes the frequency with it. |
 
 The Basements stash (`docs/zones.yaml`) starts with one robe, four daggers and
 nineteen sheets of paper.

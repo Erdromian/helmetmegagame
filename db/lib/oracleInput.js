@@ -6,11 +6,12 @@
 // and it should be answerable by reading one file.
 //
 // Three things here are easy to get wrong and are each commented where they
-// happen: the turn window is derived from startedAt and NOT from AuditLog's
-// turnId, tags are filtered to the two categories that actually move, and a
-// concealed character is written with both faces rather than one.
+// happen: the turn window runs lock to lock and is derived rather than read off
+// AuditLog's turnId, tags are filtered to the two categories that actually
+// move, and a concealed character is written with both faces rather than one.
 
 const { auditLinesFor } = require("./oracleAudit");
+const { moveCutoffAt } = require("./turnClock");
 const {
   CONCEALMENT_TAG_FIELDS,
   forcedNameFrom,
@@ -32,20 +33,62 @@ const LIVE_TAG_CATEGORIES = ["health", "status"];
 // turn-stamped, which AuditLog rows are not.
 const BEAT_KINDS = ["DEATH", "CHARACTER_CREATED", "DESIRE_FULFILLED", "LIFEWEB", "TRAVEL"];
 
-// The turn's wall-clock window.
+// The turn's wall-clock window, LOCK TO LOCK.
 //
 // It has to be derived, because AuditLog.turnId is NULL on most rows: the
 // column exists for the per-turn rations and is not a general "which turn was
 // this" stamp. /gm/audit derives the same way. Filtering audit rows on turnId
 // would silently return almost nothing, which reads as a quiet turn rather than
 // as the bug it is.
+//
+// Cutoff to cutoff rather than start to end, because that is when the Oracle
+// now runs. Turn N's page is written at N's Move cutoff, so it can only see as
+// far as that; the three hours after it — the late chat, the GM's own
+// adjudications, and everything the midnight push fires — belong to N+1's page,
+// which is the first one written after they happened. Windowing on startedAt
+// instead would ask each page for three hours that did not exist yet when it
+// was drafted, and no page would ever carry them.
+//
+// The floor is the last turn that was actually CHRONICLED, not simply the last
+// turn. Those differ, and using the wrong one loses days.
+//
+// A turn with a frozen clock or one shorter than the lock gets no page at all,
+// and moveCutoffAt() cannot tell you that: it is a pure function of startedAt
+// and hands back a 21:00 for every turn that has one, lock or no lock. Anchor
+// on the previous turn and a frozen Tuesday reads as covered when nothing ever
+// covered it. Anchor on the last turn that has a page and the frozen days fall
+// inside the next real page's window, which is where they belong.
+//
+// The clamp is the other half. A turn a GM opens at 23:00 ends at midnight, so
+// its derived cutoff is 21:00 — two hours BEFORE it began. Left alone that
+// pulls the floor backwards and two pages chronicle the same evening twice.
+//
+// Pure, so all of that is testable without a database.
+function windowBetween(anchorTurn, turn) {
+  const to = moveCutoffAt(turn) ?? new Date();
+  if (!anchorTurn) return { from: turn.startedAt, to };
+  const cutoff = moveCutoffAt(anchorTurn);
+  const startedAt = new Date(anchorTurn.startedAt);
+  const from = cutoff && cutoff > startedAt ? cutoff : startedAt;
+  return { from, to };
+}
+
 async function turnWindow(prisma, turn) {
-  const next = await prisma.turn.findFirst({
-    where: { number: { gt: turn.number } },
-    orderBy: { number: "asc" },
-    select: { startedAt: true },
-  });
-  return { from: turn.startedAt, to: next?.startedAt ?? new Date() };
+  // The newest earlier turn that has a page. Falls through to the newest
+  // earlier turn of any kind when the Oracle has never run — enabling it
+  // mid-game should not make its first page a chronicle of the entire game.
+  const anchor =
+    (await prisma.turn.findFirst({
+      where: { number: { lt: turn.number }, oraclePages: { some: {} } },
+      orderBy: { number: "desc" },
+      select: { number: true, startedAt: true },
+    })) ??
+    (await prisma.turn.findFirst({
+      where: { number: { lt: turn.number } },
+      orderBy: { number: "desc" },
+      select: { number: true, startedAt: true },
+    }));
+  return windowBetween(anchor, turn);
 }
 
 // How the Oracle refers to somebody.
@@ -120,8 +163,19 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
   });
 
   const [actions, auditRows, beats, chat] = await Promise.all([
+    // Moves go by the WINDOW too, not by turnId, and for a reason that only
+    // shows up once the run moved to the cutoff: the auto-labor pass files a
+    // Move for everybody who filed none, and it does that at the PUSH — three
+    // hours after this turn's page is written (db/lib/autoLaborPass.js, a
+    // TURN_PASS). Stamped turnId N, created after N's page exists. On the FK
+    // they would appear in no page ever, and in a hundred-player game they are
+    // most of the Moves there are. The window catches them in N+1, beside the
+    // audit lines that say what they paid.
+    //
+    // A player's own Move is unaffected: it can only be filed before the lock,
+    // so it lands in its own turn's window either way.
     prisma.action.findMany({
-      where: { turnId: turn.id },
+      where: { createdAt: { gte: window.from, lt: window.to } },
       select: {
         id: true,
         characterId: true,
@@ -146,14 +200,24 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         details: true,
       },
     }),
+    // Beats and chat go by the WINDOW, not by turnNumber, and the difference
+    // matters now that the run happens at the cutoff. An entry stamped
+    // turnNumber N but sent after N's lock does not exist yet when N's page is
+    // written, and a page keyed on turnNumber N+1 would never look for it —
+    // so the last three hours of every day would fall out of the record
+    // entirely. The window is the authority; the stamp is not.
+    //
+    // sentAt rather than createdAt: the table carries both, and every index is
+    // on sentAt. createdAt has none, so filtering on it would put a sequential
+    // scan of the whole transcript on this path once a turn.
     prisma.archiveEntry.findMany({
-      where: { turnNumber: turn.number, kind: { in: BEAT_KINDS } },
+      where: { sentAt: { gte: window.from, lt: window.to }, kind: { in: BEAT_KINDS } },
       orderBy: { sentAt: "asc" },
       select: { kind: true, zoneId: true, content: true, characterName: true },
     }),
     includeChat
       ? prisma.archiveEntry.findMany({
-          where: { turnNumber: turn.number, kind: "MESSAGE" },
+          where: { sentAt: { gte: window.from, lt: window.to }, kind: "MESSAGE" },
           orderBy: { sentAt: "asc" },
           select: { zoneId: true, characterName: true, concealedAlias: true, content: true },
         })
@@ -253,16 +317,28 @@ function linkCharacterTokens(text, characters) {
 
   return String(text).replace(NAME_TOKEN_RE, (raw, inner) => {
     const name = inner.trim();
-    // Already canonical — an id, no spaces. Leave it exactly as it is.
-    if (/^[A-Za-z0-9_-]{1,64}$/.test(name)) return raw;
+    // The roster is asked FIRST, and the order is the whole point. A MONONYM —
+    // Adeliz, Grendel, Weasel — is a real character name that also looks
+    // exactly like a cuid to a shape test: letters, no spaces. Checking the
+    // id-shape first therefore mistook every single-word name for an id
+    // already resolved and handed it back untouched, so `{char:Adeliz}` was
+    // stored as a token pointing at nobody, and the one name in the sentence a
+    // GM most wants to click was the one that could never be clicked.
     const id = byName.get(name.toLowerCase());
-    return id ? `{char:${id}|${name}}` : name;
+    if (id) return `{char:${id}|${name}}`;
+    // Nobody answers to it. Either it is already a canonical id, which is left
+    // exactly as it is, or the model invented a person — and an invented name
+    // loses its braces and becomes ordinary prose rather than a live link to
+    // the wrong character (ORACLE.md §5).
+    if (/^[A-Za-z0-9_-]{1,64}$/.test(name)) return raw;
+    return name;
   });
 }
 
 module.exports = {
   LIVE_TAG_CATEGORIES,
   BEAT_KINDS,
+  windowBetween,
   turnWindow,
   displayName,
   loadTurnMaterial,

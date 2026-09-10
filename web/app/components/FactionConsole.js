@@ -10,6 +10,7 @@ import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import { useConfirm } from "./ConfirmProvider";
 import { useTableState, SortHeader, FilterBar } from "./DataTable";
+import SiloLedger from "./SiloLedger";
 import Pager from "./Pager";
 import FormError from "./FormError";
 import { useRefresh } from "./useRefresh";
@@ -89,34 +90,42 @@ function RosterTab({ faction, isOfficer, isLeader, meId, run, pending }) {
               <td>{c.roleTitle ?? "—"}</td>
               {isOfficer && <td className="mono">{c.resources} ⬢</td>}
               {isOfficer && (
-                <td className="flex gap-2">
-                  {isLeader && c.id !== meId && (
-                    <button
-                      type="button"
-                      className="btn-quiet"
-                      disabled={pending}
-                      onClick={() => run(() => setMemberTreasurer({ characterId: c.id, grant: !c.isTreasurer }))}
-                    >
-                      {c.isTreasurer ? "Revoke Treasurer" : "Make Treasurer"}
-                    </button>
-                  )}
-                  {c.id !== meId && !(c.isLeader && !isLeader) && (
-                    <button
-                      type="button"
-                      className="btn-quiet"
-                      disabled={pending}
-                      onClick={async () => {
-                        const ok = await confirm({
-                          title: `Remove ${c.name}?`,
-                          message: `They go back to Unaffiliated and lose any office they hold here. They keep everything they are carrying.`,
-                          confirmLabel: "Remove them",
-                        });
-                        if (ok) run(() => removeMember({ characterId: c.id }));
-                      }}
-                    >
-                      Remove
-                    </button>
-                  )}
+                // The flex goes on a wrapper, never on the <td>. A cell made
+                // into a flex container drops out of the row's layout, so its
+                // border-bottom lands at its own content height rather than
+                // the row's — which draws the rules under a members table as
+                // a staircase, a different offset per row depending on how
+                // many buttons the row happens to have.
+                <td>
+                  <div className="flex gap-2">
+                    {isLeader && c.id !== meId && (
+                      <button
+                        type="button"
+                        className="btn-quiet"
+                        disabled={pending}
+                        onClick={() => run(() => setMemberTreasurer({ characterId: c.id, grant: !c.isTreasurer }))}
+                      >
+                        {c.isTreasurer ? "Revoke Treasurer" : "Make Treasurer"}
+                      </button>
+                    )}
+                    {c.id !== meId && !(c.isLeader && !isLeader) && (
+                      <button
+                        type="button"
+                        className="btn-quiet"
+                        disabled={pending}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: `Remove ${c.name}?`,
+                            message: `They go back to Unaffiliated and lose any office they hold here. They keep everything they are carrying.`,
+                            confirmLabel: "Remove them",
+                          });
+                          if (ok) run(() => removeMember({ characterId: c.id }));
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </td>
               )}
             </tr>
@@ -193,6 +202,12 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
             {silo.tags.length === 0 && <EmptyRow cols={2}>Nothing but the ⬢.</EmptyRow>}
           </tbody>
         </table>
+      ) : null}
+
+      {/* The books. Officer with the key only, and the rows never left the
+          server without both (FACTIONS.md §4c). */}
+      {isOfficer && silo.canOpen ? (
+        <SiloLedger rows={silo.ledger ?? []} blocked={silo.ledgerBlocked === true} />
       ) : null}
 
       <p className="text-sm text-muted">
@@ -307,31 +322,33 @@ function ApplicationsTab({ faction, applications, invites, siloKeys, candidates,
                   <CharacterLink characterId={a.characterId} name={a.characterName} />
                 </td>
                 <td className="text-muted">{a.note || "—"}</td>
-                <td className="flex gap-2">
-                  <button
-                    type="button"
-                    className="btn-quiet"
-                    disabled={pending}
-                    onClick={() =>
-                      run(() =>
-                        decideApplication({
-                          applicationId: a.id,
-                          accept: true,
-                          grantTagSlug: grantKey || null,
-                        }),
-                      )
-                    }
-                  >
-                    Accept
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-quiet"
-                    disabled={pending}
-                    onClick={() => run(() => decideApplication({ applicationId: a.id, accept: false }))}
-                  >
-                    Decline
-                  </button>
+                <td>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="btn-quiet"
+                      disabled={pending}
+                      onClick={() =>
+                        run(() =>
+                          decideApplication({
+                            applicationId: a.id,
+                            accept: true,
+                            grantTagSlug: grantKey || null,
+                          }),
+                        )
+                      }
+                    >
+                      Accept
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-quiet"
+                      disabled={pending}
+                      onClick={() => run(() => decideApplication({ applicationId: a.id, accept: false }))}
+                    >
+                      Decline
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -482,36 +499,38 @@ function StandingTab({ faction, isLeader, myApplications, run, pending }) {
                 <tr key={a.id}>
                   <td>{a.factionName}</td>
                   <td className="text-muted">{a.note || "—"}</td>
-                  <td className="flex gap-2">
-                    {a.kind === "INVITE" ? (
-                      <>
+                  <td>
+                    <div className="flex gap-2">
+                      {a.kind === "INVITE" ? (
+                        <>
+                          <button
+                            type="button"
+                            className="btn-quiet"
+                            disabled={pending}
+                            onClick={() => run(() => decideApplication({ applicationId: a.id, accept: true }))}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-quiet"
+                            disabled={pending}
+                            onClick={() => run(() => decideApplication({ applicationId: a.id, accept: false }))}
+                          >
+                            Decline
+                          </button>
+                        </>
+                      ) : (
                         <button
                           type="button"
                           className="btn-quiet"
                           disabled={pending}
-                          onClick={() => run(() => decideApplication({ applicationId: a.id, accept: true }))}
+                          onClick={() => run(() => withdrawApplication({ applicationId: a.id }))}
                         >
-                          Accept
+                          Withdraw
                         </button>
-                        <button
-                          type="button"
-                          className="btn-quiet"
-                          disabled={pending}
-                          onClick={() => run(() => decideApplication({ applicationId: a.id, accept: false }))}
-                        >
-                          Decline
-                        </button>
-                      </>
-                    ) : (
-                      <button
-                        type="button"
-                        className="btn-quiet"
-                        disabled={pending}
-                        onClick={() => run(() => withdrawApplication({ applicationId: a.id }))}
-                      >
-                        Withdraw
-                      </button>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -667,31 +686,33 @@ function Directory({ directory, myApplications, run, pending }) {
                 <tr key={a.id}>
                   <td>{a.factionName}</td>
                   <td className="text-muted">{a.kind === "INVITE" ? "They invited you" : "You applied"}</td>
-                  <td className="flex gap-2">
-                    {a.kind === "INVITE" && (
+                  <td>
+                    <div className="flex gap-2">
+                      {a.kind === "INVITE" && (
+                        <button
+                          type="button"
+                          className="btn-quiet"
+                          disabled={pending}
+                          onClick={() => run(() => decideApplication({ applicationId: a.id, accept: true }))}
+                        >
+                          Accept
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="btn-quiet"
                         disabled={pending}
-                        onClick={() => run(() => decideApplication({ applicationId: a.id, accept: true }))}
+                        onClick={() =>
+                          run(() =>
+                            a.kind === "INVITE"
+                              ? decideApplication({ applicationId: a.id, accept: false })
+                              : withdrawApplication({ applicationId: a.id }),
+                          )
+                        }
                       >
-                        Accept
+                        {a.kind === "INVITE" ? "Decline" : "Withdraw"}
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      className="btn-quiet"
-                      disabled={pending}
-                      onClick={() =>
-                        run(() =>
-                          a.kind === "INVITE"
-                            ? decideApplication({ applicationId: a.id, accept: false })
-                            : withdrawApplication({ applicationId: a.id }),
-                        )
-                      }
-                    >
-                      {a.kind === "INVITE" ? "Decline" : "Withdraw"}
-                    </button>
+                    </div>
                   </td>
                 </tr>
               ))}

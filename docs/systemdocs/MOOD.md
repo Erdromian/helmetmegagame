@@ -162,7 +162,8 @@ The word lives in its own tile on `/character`, between **Carrying** and
 **Gambit die** (`web/app/components/LedgerBand.js`, `SHEET.md` §2). It is one
 of the tiles with something to say, so it opens a line under the row of tiles —
 **on hover as well as on click**, because that is what Bascinet asked for and
-because `SHEET.md`'s rule still holds: nothing on that sheet is a tooltip.
+because a readout this long belongs on the page rather than in a floating box
+(`SHEET.md` §2).
 What it says is Bascinet's own wording, verbatim (`MOOD_DETAIL`):
 
 > Certain things, like spending time in the wilderness without the Rough Camper
@@ -194,13 +195,19 @@ read off its requirement block by `woundRungOf`. `woundMoodFor` returns it
 | 0 | no requirement block at all | 0 |
 | ½ | 0 ⬢ (minor-bleeding, dislocated-shoulder) | −4 |
 | 1 | 1 ⬢ | −8 |
-| 2 | 2 ⬢, 0 turns (frostbite) | −15 |
-| 3 | 2 ⬢, 1 turn (choking) | −30 |
+| 2 | 2 ⬢, 1/4 Move (burned, frostbite, choking...) or a legacy/GM-authored 0-turn 2 ⬢ wound | −15 |
+| 3 | 2 ⬢, 1/3 Move (deep-wound, broken-bone...) | −30 |
 | 3½ | 3 ⬢ (severe-bleeding, arterial-bleed, parasites) | −35 |
 | 4 | 4–5 ⬢ | −40 |
 | 5 | 6–7 ⬢ | −45 |
-| 6 | 8 ⬢, no Gambit | −55 |
-| 7 | `requirementGambit` | −65 |
+| 6 | 8+ ⬢ (14 ⬢ today), no Gambit | −55 |
+| 7 | `requirementGambit` (14 ⬢ today) | −65 |
+
+Rung 2 and rung 3 now share the same ⬢ (2) and the same `requirementTurns`
+(both bill a fraction of a Move, not a flat turn any more) — `woundRungOf`
+tells them apart by `requirementPerTurn` instead: 4 (a 1/4 Move, the Simple
+rung) reads as rung 2, anything else nonzero (a 1/3 Move, the Moderately
+Severe rung) reads as rung 3.
 
 Illness, mind, minor and recovery tags cost nothing — a cold is not a wound. A
 tier-0 wound (no block) is real, untreatable and too small to matter. So the
@@ -247,9 +254,8 @@ they did before.
 | End the turn INDOORS | +6 **to Fine only** | mood pass |
 | End the turn in a HAVEN | +12 **to Fine only** | mood pass |
 | Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | +30 | `consumeTagRequestImpl` |
-| Consume a `lavish-meal` | +30 | same |
 | Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +15 | same |
-| Consume a `fine-meal` | +15 | same |
+| Eat a **cooked dish** | its own small figure plus its ingredients', §6a | `dishMoodTerms` |
 | Consume a treat — `sweets`, `honey`, `honeyed-cakes`, `fish-roe`, `pumpkin` | +8 | same |
 | Consume a `cigarette`, a `sky-lantern` or a `firecracker` | +8 | same |
 | Consume anything at all that grants `ate-meal` | +5 | same |
@@ -267,8 +273,48 @@ Fine Meal 15 rather than 15+5, and Bliss (which lands two statuses) one drink.
 An Instant Camera is deliberately worth nothing.
 
 A Fine Meal used to be worth nothing at all, on the argument that it only fed a
-noble. It is +15 now — "makes an ordinary person happy" is its own catalog
-line — and it still feeds the noble besides (§7).
+noble. It was +15 for a while — "makes an ordinary person happy" is its own
+catalog line — and it still feeds the noble besides (§7). Both meals left this
+table entirely with the cooking rework; §6a is where they went.
+
+### 6a. A cooked dish
+
+`fine-meal: 15` and `lavish-meal: 30` are **gone** from `CONSUME_RELIEF`. A
+dish is a MINTED row (docs/systemdocs/COOKING.md) whose slug is
+`custom-craft-…`, so it could never have matched a table keyed by slug — and
+a flat figure could not have said what a dish is now for. `ate-meal: 5` stays
+and is genuinely the floor under every meal.
+
+`dishMoodTerms(mealMood, ingredientMoods)` prices one instead, and differs
+from `consumeReliefFor` in three ways that are the whole reason it is a
+separate function:
+
+- It **sums**. A drink is one drink however many statuses it lands, but two
+  delicacies in a Lavish Meal are worth both — otherwise the second slot means
+  nothing.
+- It can be **negative**. A dish made of feces is the worst thing in the game
+  and has to be able to say so.
+- It returns the halves as **two terms, never netted**: `MEAL` for the
+  positive, `DISGUST` for the negative. Only harm is scaled, so netting +45 of
+  saffron against −55 of feces first would charge a scaled −10 instead of an
+  unscaled +45 and an unscaled −55. They are two things that happened at one
+  meal.
+
+The recipe's own figure is deliberately tiny beside its ingredients' — **5**
+for a Fine Meal and **8** for a Lavish, against a range of +45 (saffron) to
+−55 (feces).
+
+**`DISGUST` carries `noMultiplier: true`**, the way `DRIFT` does, so nothing
+in §7 touches it. Three of those rules apply to `kinds: "*"`, and while "Brave
+halves your disgust at eating a liver" is arguable, "the Rite of Rage makes
+feces free" and "holding the right sword makes you immune to disgust" are not.
+Revulsion at what you just swallowed is not a fright.
+
+**Eating is not rationed, and that is deliberate.** `MOVE_MOOD_TURN_CAP`
+counts only terms flagged `move: true`, so three bad meals in one turn land in
+full (clamped at `MOOD_MIN`). The ingredients are the ration: you have to
+*find* three lots of feces, and each dish costs a fraction of a cooking
+Routine. Don't "fix" this.
 
 **The nightly drift** replaced the old one-way decay. Every mood slides back
 toward Fine at every close, from *both* sides, never overshooting 0 — but not at
@@ -443,3 +489,68 @@ hooks in the same tick cannot race a stale read past either end.
   because this schema drops nothing.
 - `settleFearTag` is gone entirely. So are `UNCOMFORTABLE_SLUG` … `PANIC_SLUG`
   in `db/lib/constants.js`.
+
+
+## The two mastery tags that own the dial
+
+Both are `mastery` tags (`TAGS.md` §4a), and they `conflictsWith` each other —
+one says every blow lifts you, the other says nothing moves you at all.
+
+**Amor Fati** is the one rule in this file that is deliberately **not** a
+multiplier, and it has to stay that way.
+
+It reads like a factor of `-0.5`, and it was one for a day. But `multiplierFor`
+MULTIPLIES every applicable rule together, so a negative factor composed with
+the vulnerability rows and **inverted** them:
+
+| held | was | should be |
+|---|---|---|
+| Amor Fati alone, cave trouble | +5 | +5 |
+| Amor Fati **+ Teratophobia** (×3) | **+15** | +5 |
+| Amor Fati **+ Hemophobia** (×2), a wound | **+30** | +15 |
+| Amor Fati **+ Brave** (×0.5), a wound | **+7.5** | +15 |
+
+The phobias *refund* points, so stacking one was strictly better **and**
+strictly cheaper, while Brave — which costs points — punished you. Backwards in
+both directions.
+
+So for a kind it owns, Amor Fati **replaces** the multiplier chain rather than
+joining it (`amorFatiHarm`, applied in `resolveDelta`): the gift is half of what
+the event costs *anybody*, and what you happen to fear does not change it.
+Reordering alone would not have fixed this — multiplication commutes, so
+`base × phobia × -0.5` is the same number whichever way round you write it.
+What had to go was the phobia's involvement at all.
+
+The kinds are split on purpose. Misfortune that *happens* to you — a shock with
+an author and a moment — pays half back: `WOUND`, `DYING`, `CRUCIFIED`,
+`TORTURED`, `MUTILATED`, `BOUND`, `ROBBED`, `TURRET`, `CAVE_TROUBLE`,
+`DEATH_SEEN`. The weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `CORPSE`,
+`NOBLE_MEAL` simply stop landing rather than becoming a pleasure, because nobody
+would call an ever-present cost an incident. `DRIFT` needs no entry (it carries
+`noMultiplier`), `PLACE` harm is already capped at Fine, and relief is untouched
+throughout — this is not a damper on good things.
+
+**Imperturbable** rides on `intensity`, **not** on a multiplier row, and the
+reason is the same asymmetry: a multiplier is only ever read for `base < 0`, so
+a row there would have left the holder free to climb to Ecstatic while immune
+to everything below Fine. `k === 0` is a case `resolveDelta` already handled
+(it returns 0 for either sign), so the tag adds no new arithmetic. It also
+costs the Ecstatic Gambit bonus, which is the price of never taking the Afraid
+one.
+
+`applyMoodTerms` additionally **pins the stored value to 0** for a holder, so
+"always at Fine" is true of a mood the character already had when they bought
+the tag and not only of the events that stop landing afterwards. The nightly
+pass reaches every living character, so it settles within a turn at the
+outside.
+
+One trap, and it is why BOTH `imperturbable` and `amor-fati` sit in
+`MULTIPLIER_SLUGS` despite neither being a multiplier any more: `db/lib/moodPass.js` **filters its tag query** to that list.
+A slug missing from it is not selected, and the whole night is then computed as
+though the holder were ordinary. Anything the dial reads belongs on that list,
+multiplier or not.
+
+Imperturbable also refuses **Torture** outright
+(`requestActions.js#tortureCharacterRequestImpl`) rather than sitting at an
+unreachable threshold — the torturer is told why instead of spending a Move on
+a roll that could never land.

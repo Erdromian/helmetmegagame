@@ -363,8 +363,17 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
         // away from spilling again, and re-dropping every turn.
         const tags = load > hard.weight && weightGrew ? drawDrops(character.tags, load - caps.weight) : [];
         for (const t of tags) {
-          await dropCharacterTag(tx, character.id, t.tagId, t.quantity);
-          await addToRoomStack(tx, room.id, t.tagId, t.quantity, { expiresTurn: t.expiresTurn });
+          // LAUNDERING CLASS (fix round, M4): the spill is an ordinary
+          // stack move, same Transfer pattern as everywhere else a stack
+          // changes hands — thread dropCharacterTag's poison draw straight
+          // into the room the same way, or the Overburdened shed would
+          // bleach a poisoned stack clean on its way to the ground.
+          const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, character.id, t.tagId, t.quantity);
+          await addToRoomStack(tx, room.id, t.tagId, t.quantity, {
+            expiresTurn: t.expiresTurn,
+            poisonedCount: poisonedTaken,
+            poisonPayload,
+          });
         }
         if (tags.length) load = carryWeight(applyDrops(character.tags, tags));
 

@@ -53,16 +53,28 @@ import {
   QuillIcon,
   SealIcon,
   CharacterIcon,
+  SkullIcon,
   InterceptIcon,
+  AttackIcon,
   KissIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
   examine:
     "Look at someone.",
+  craft: "Smith, craft, brew, or cook.",
+  destroy: "Destroy an item.",
+  transfer: "Exchange resources or tags.",
+  loot: "Loot somebody that's bound or helpless.",
+  free: "Cut somebody loose.",
+  butcher: "Butcher a body.",
+  write:
+    "Add a line to a sheet of paper you're carrying. Writing only ever appends.",
   heal: "Heal yourself or someone nearby. Gated by your Medical skill.",
   consume:
     "Use something up. You can also just click on the tag on your sheet.",
+  poison:
+    "Lace a meal or drink you're holding, dose someone that's helpless, or drink it yourself.",
   learn:
     "Learning a skill is a Gambit. It succeeds on a 5 or a 6. It also takes the teacher's turn.",
   teach:
@@ -106,6 +118,9 @@ export const ACTION_HELP = {
   hideout: "Set your hideout room, determining where you can purchase things from.",
   // Bascinet's words, verbatim.
   intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
+  // Bascinet's words, verbatim.
+  attack:
+    "Attack someone, forcing them to stay in place until the turn ends and the combat is adjudicated. Attacking is permanent for the turn—you can, however, cancel it.",
   // The Cerberon's two. The first is Bascinet's own words, verbatim.
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:
@@ -138,6 +153,12 @@ export const ACTION_SECTIONS = [
         gate: "canConsume",
         gateReason: "Nothing you're carrying can be used up.",
       },
+      // HIDDEN rather than greyed, same reasoning as Disguise just below:
+      // whether YOU are holding a poison is a fact about your own sheet, and
+      // a dead icon on everybody else's grid would only teach them poisons
+      // exist. Reachable either way by clicking the poison chip itself on
+      // your own sheet.
+      { mode: "poison", icon: SkullIcon, label: "Poison", show: "canPoison" },
       // No gate: you can always move ⬢ or put something down.
       { mode: "transfer", icon: HandOffIcon, label: "Transfer" },
       // HIDDEN rather than greyed, the same reasoning Crucify and the Factory
@@ -157,7 +178,7 @@ export const ACTION_SECTIONS = [
         icon: DocumentsIcon,
         label: "Learn Skill",
         gate: "canLearn",
-        gateReason: "Nobody here can teach you anything you haven't got.",
+        gateReason: "Nobody here can teach you.",
       },
       {
         mode: "teach",
@@ -324,6 +345,13 @@ export const ACTION_SECTIONS = [
       // has nothing to bite on, and there is no fact about your own sheet
       // that could grey it either.
       { mode: "intercept", icon: InterceptIcon, label: "Intercept" },
+      // NO gate and NO show, the Intercept reasoning taken one step further.
+      // Whether anybody standing near you is out of your league is a fact
+      // about the ROOM, and greying on it would be free scouting every time
+      // the page loaded — the metagaming rule at the top of this file. You
+      // find out by opening the dialog and pressing it (docs/systemdocs/
+      // ATTACK.md).
+      { mode: "attack", icon: AttackIcon, label: "Attack" },
       // HIDDEN rather than greyed, the Extract rule: whether YOU are a
       // Fundamentalist standing at a Cross is your own fact, and a dead
       // Crucify icon on every other sheet would teach nothing.

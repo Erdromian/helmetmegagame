@@ -87,10 +87,21 @@ export function moveStatusLabel(a, now) {
 
 // "+3 ⬢" / "rolled 5–12 ⬢ → +8". Takes anything carrying the two columns, so
 // a raw Action row works as well as a mapped one.
+//
+// "0-0" is the machine expression for a Labor that was never going to pay ⬢ —
+// a shift on the Factory floor, or a day worked with no skill that reaches
+// this ground (db/lib/laborAccess.js). Printing "rolled 0–0 ⬢" for those said
+// nothing twice, so they fall through to null and the desks render their own
+// em dash.
 export function declaredLabel(a) {
+  // A 0-0 Labor rolls a real 0, so the payout it carries is 0 ⬢ — the range
+  // and the value have to drop together or "→ 0 ⬢" is left standing alone.
+  const unpaid = a.resourceRollExpression === "0-0";
   const parts = [];
-  if (a.resourceRollExpression) parts.push(`rolled ${a.resourceRollExpression.replace("-", "–")} ⬢`);
-  if (a.resourceDelta != null) parts.push(`${a.resourceDelta > 0 ? "+" : ""}${a.resourceDelta} ⬢`);
+  if (a.resourceRollExpression && !unpaid)
+    parts.push(`rolled ${a.resourceRollExpression.replace("-", "–")} ⬢`);
+  if (a.resourceDelta != null && !(unpaid && a.resourceDelta === 0))
+    parts.push(`${a.resourceDelta > 0 ? "+" : ""}${a.resourceDelta} ⬢`);
   return parts.length ? parts.join(" → ") : null;
 }
 
@@ -261,6 +272,120 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
 }
 
 // ctx: { usernameById, catatonicIds }
+// ─── The Other lens ─────────────────────────────────────────────────────────
+//
+// Everything that pins somebody in place this turn, in one shape: an Attack
+// somebody filed (docs/systemdocs/ATTACK.md), and a Safe intercept that fired
+// (docs/systemdocs/INTERCEPT.md). Neither is a Move and neither has a desk —
+// the row's job is to tell a GM two people are locked together before they
+// read the Gambits, and clicking it opens the inspector on the target.
+//
+// An Ambush shows up here as an Attack, because it IS one now.
+export const ATTACK_INCLUDE = {
+  attacker: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, zone: { select: { name: true } } } },
+  targetCharacter: { select: { id: true, name: true, discordUserId: true, updatedAt: true, zone: { select: { name: true } } } },
+  location: { select: { name: true, zone: { select: { name: true } } } },
+};
+
+export const INTERCEPT_HIT_INCLUDE = {
+  interceptor: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, zone: { select: { name: true } } } },
+  targetCharacter: { select: { id: true, name: true, discordUserId: true, updatedAt: true, zone: { select: { name: true } } } },
+};
+
+// REAL names on both sides. This is the GM desk, which already prints a
+// character's fighting band (COMBAT.md §5) — the presented-face rule the DMs
+// run under is about players, not about the people adjudicating.
+export function attackRow(a, { usernameById, catatonicIds }) {
+  const kindLabel = a.fromAmbush ? "Ambush" : "Attack";
+  return {
+    id: a.id,
+    kind: a.fromAmbush ? "AMBUSH" : "ATTACK",
+    kindLabel,
+    characterId: a.attackerId,
+    characterName: a.attacker.name,
+    avatarVersion: a.attacker.updatedAt.getTime(),
+    catatonic: catatonicIds?.has(a.attackerId) ?? false,
+    discordUsername: usernameById.get(a.attacker.discordUserId) ?? a.attacker.discordUserId ?? "",
+    roleTitle: a.attacker.roleTitle ?? "",
+    targetCharacterId: a.targetCharacterId,
+    targetName: a.targetCharacter.name,
+    // Where it happened first, the seat second — the cavingRollRow reasoning:
+    // a fight is in the room it is in, not in whichever zone the attacker
+    // holds a chair in.
+    zoneName: a.location?.zone?.name ?? a.attacker.zone?.name ?? "",
+    locationName: a.location?.name ?? null,
+    statusLabel: a.cancelledAt ? "Called off" : "Holding",
+    createdAtMs: a.createdAt.getTime(),
+  };
+}
+
+export function interceptHitRow(h, { usernameById, catatonicIds }) {
+  return {
+    id: h.id,
+    kind: "INTERCEPT",
+    kindLabel: "Intercept",
+    characterId: h.interceptorId,
+    characterName: h.interceptor.name,
+    avatarVersion: h.interceptor.updatedAt.getTime(),
+    catatonic: catatonicIds?.has(h.interceptorId) ?? false,
+    discordUsername: usernameById.get(h.interceptor.discordUserId) ?? h.interceptor.discordUserId ?? "",
+    roleTitle: h.interceptor.roleTitle ?? "",
+    targetCharacterId: h.targetCharacterId,
+    targetName: h.targetCharacter.name,
+    zoneName: h.interceptor.zone?.name ?? "",
+    locationName: null,
+    // A Safe stop is two minutes and is long over by the time a GM reads it;
+    // saying "Holding" would be a lie the row cannot check.
+    statusLabel: "Stopped",
+    createdAtMs: h.createdAt.getTime(),
+  };
+}
+
+// A picture waiting to be looked at (docs/systemdocs/PORTRAITS.md §1a).
+//
+// Not a fight, and that is the point — the lens is named for its shape rather
+// than its contents, and this is the next thing that is neither a Move nor a
+// die. It shares the row DTO so the lens's search, filters and sort need no
+// second vocabulary.
+//
+// NO ZONE, on purpose. inVisibleZones keeps a row with no zone visible to
+// every GM ("better seen twice than by nobody"), which is the right answer for
+// a portrait: it belongs to nobody's patch of map, and a picture only the
+// Marshes GM can see is a picture nobody reviews.
+//
+// `avatarData` is never selected into this — it is ~145KB a piece, and the
+// browser fetches each face itself through /api/avatar/[characterId].
+export const AVATAR_REVIEW_SELECT = {
+  id: true,
+  name: true,
+  discordUserId: true,
+  updatedAt: true,
+  roleTitle: true,
+  avatarSetAt: true,
+};
+
+export function avatarReviewRow(c, { usernameById, catatonicIds }) {
+  return {
+    // Prefixed so it can never collide with an Attack or InterceptHit id in a
+    // lens that merges all three into one keyed list.
+    id: `avatar:${c.id}`,
+    kind: "AVATAR",
+    kindLabel: "Portrait",
+    characterId: c.id,
+    characterName: c.name,
+    avatarVersion: c.updatedAt.getTime(),
+    catatonic: catatonicIds?.has(c.id) ?? false,
+    discordUsername: usernameById.get(c.discordUserId) ?? c.discordUserId ?? "",
+    roleTitle: c.roleTitle ?? "",
+    targetCharacterId: c.id,
+    targetName: c.name,
+    zoneName: "",
+    locationName: null,
+    statusLabel: "New",
+    createdAtMs: c.avatarSetAt.getTime(),
+  };
+}
+
 export function cavingRollRow(c, { usernameById, catatonicIds }) {
   const nameFor = usernameById.get(c.character.discordUserId) ?? c.character.discordUserId;
   return {

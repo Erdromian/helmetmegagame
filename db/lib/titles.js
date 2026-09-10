@@ -33,7 +33,12 @@ const TITLES = Object.freeze([
   // Clerical. The `bishop` role grants the `chaplain` tag, so a Bishop is
   // offered Father/Mother/Reverend too.
   { words: { MAN: "Father", WOMAN: "Mother", NEUTRAL: "Reverend" }, tags: ["chaplain"] },
-  { words: { MAN: "Brother", WOMAN: "Sister", NEUTRAL: "Sibling" }, tags: ["mortus"] },
+  // Monastic, and two institutions share the word: the Mortii by tag, and the
+  // Incarn — a warrior monk — by role. One entry rather than two, because a
+  // second entry spelling Brother again would trip assertTitlesResolve's
+  // listed-twice check, and because it is genuinely the same title. Same shape
+  // as Doctor below, which is earned by a tag or either of two roles.
+  { words: { MAN: "Brother", WOMAN: "Sister", NEUTRAL: "Sibling" }, tags: ["mortus"], roles: ["incarn"] },
   { words: "Bishop", roles: ["bishop"] },
 
   // Learned. Doctor comes from the middle rung of the medical chain rather

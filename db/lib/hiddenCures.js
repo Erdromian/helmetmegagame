@@ -11,13 +11,13 @@
 //
 // Takes a tx as a parameter, the db/lib/dm.js convention, and stays off the
 // @lifeweb/db barrel.
+//
+// leeches' entry moved onto Tag.cures (the medical pass's item-cure field,
+// TAGS.md §5c) — it was the one ADVERTISED entry here, so it belongs on the
+// mechanism a player can actually read rather than this hidden one.
 
 const HIDDEN_CURES = {
   bliss: ["depressed"],
-  // The one ADVERTISED entry — the leeches' description says what they do,
-  // so nothing is discovered here; this is just the only consume hook that
-  // takes a tag off the eater. The medical rework owns the proper home.
-  leeches: ["bruised"],
 };
 
 // Drops whatever the consumed slug cures, if the character is holding it.

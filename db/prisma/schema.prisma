@@ -518,13 +518,17 @@ model GameConfig {
   // makes a role in the YAML unpickable.
   playerCount Int @default(80)
 
-  // The narrowcast channel (#cerberon) lives under a shared Discord "radio"
-  // category — see db/lib/specialChannels.js. Provisioned once by
+  // The narrowcast channels (#cerberon, #27.065) live under a shared Discord
+  // "radio" category — see db/lib/specialChannels.js. Provisioned once by
   // npm run db:sync-narrowcast-channels; never touched again after that.
   // #intercom used to be the second one; it is a button on the Council Room
   // table now, so its column is gone with it.
-  radioCategoryId   String?
-  cerberonChannelId String?
+  radioCategoryId    String?
+  cerberonChannelId  String?
+  // The second net (2026-09-10): an open frequency anyone holding a
+  // Radio (27.065) both hears and speaks on. Column name can't lead with a
+  // digit; the channel itself is named after the frequency.
+  freq27065ChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
@@ -1169,11 +1173,34 @@ enum LaborDropKind {
   NOTHING
 }
 
+// How rare a TAG entry is within its pool. The same six names
+// db/lib/cavingLoot.js uses, deliberately — two loot systems in one game
+// should not speak two vocabularies. The NUMBERS are not shared: the
+// probability each name carries lives in db/lib/labordropsRarity.js, keyed by
+// die face, and a cave 6 and a labor 6 are different events.
+//
+// Only TAG rows carry one. A NOTHING pad and a RESOURCES delta are not items
+// and sit in their own bands, outside the ladder — the sync refuses a rarity
+// on either.
+enum LaborDropRarity {
+  ULTRACOMMON
+  COMMON
+  UNCOMMON
+  RARE
+  EXTREMELY_RARE
+  NEARLY_IMPOSSIBLE
+}
+
 // One entry in one pool. A "table" is never its own row: it is every
-// LaborDropOption sharing one (roll, laborType, zoneId, locationId) scope,
-// drawn from uniformly — repeat an entry to weight it, the way
-// docs/labordrops.yaml's own examples do. Combining several scopes at once
-// (LABORDROPS.md §2) is a query over this table, not a join anywhere else.
+// LaborDropOption sharing one (roll, laborType, zoneId, locationId) scope.
+// Combining several scopes at once (LABORDROPS.md §2) is a query over this
+// table, not a join anywhere else.
+//
+// The draw is TWO-STAGE now, not uniform: land on a rarity band by the die
+// face's column, then pick evenly among that band's members
+// (db/lib/labordropsRarity.js), the same shape db/lib/cavingLoot.js has
+// always had. Repeat-to-weight is gone with it — a repeated entry is now
+// just a duplicate, and the sync says so.
 model LaborDropOption {
   id String @id @default(cuid())
 
@@ -1193,6 +1220,16 @@ model LaborDropOption {
   location   Location? @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   kind LaborDropKind
+
+  // TAG only, and required on every TAG row (the sync enforces both).
+  // Authored as `rarity:` in docs/labordrops.yaml.
+  //
+  // This replaced repeat-to-weight, which was the only lever the old uniform
+  // draw had: 87 of the file's 180 lines were duplicates, 53 more were
+  // `nothing` pads, and nothing could be rarer than 1/poolsize. See
+  // db/lib/labordropsRarity.js for what each name is worth and why the
+  // column is keyed by face.
+  rarity LaborDropRarity?
 
   // TAG only. Cascades on delete rather than blocking a tag prune — the sync
   // fully rebuilds this table from docs/labordrops.yaml on every run, so a
@@ -1299,6 +1336,7 @@ model Location {
   // when its owner leaves it (docs/systemdocs/INTERCEPT.md §1), so a Location
   // that goes away takes them with it.
   interceptWatches InterceptWatch[]
+  attacks          Attack[]
   laborDropOptions LaborDropOption[]
 
   @@index([zoneId])
@@ -1553,6 +1591,12 @@ model RoomTag {
 
   quantity    Int  @default(1)
   expiresTurn Int?
+
+  // Same pair as CharacterTag's, and the reason a room stash isn't a
+  // laundering hole by accident: dropping a poisoned meal here and picking
+  // it up carries the count and payload with it. Schema only for now.
+  poisonedCount Int   @default(0)
+  poisonPayload Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2028,6 +2072,21 @@ model Character {
   avatarData     Bytes?
   avatarMimeType String?
 
+  // The uploaded-avatar review queue (docs/systemdocs/PORTRAITS.md §1a).
+  //
+  // `avatarSetAt` is stamped by the UPLOAD branch of updateCharacterProfile
+  // and by nothing else — not the portrait maker, which cannot produce
+  // anything to review, and not `updatedAt`, which every rename and
+  // appearance edit bumps and so cannot say "they changed their picture".
+  //
+  // A picture is waiting when it is an upload and `avatarSetAt` is newer than
+  // `avatarReviewedAt` — so a player who uploads again after a GM kept the
+  // last one comes back into the queue, which is the behaviour you want and
+  // is free. Both nullable: null `avatarReviewedAt` means never looked at.
+  // db/lib/avatarReview.js is the only place that spells the comparison out.
+  avatarSetAt      DateTime?
+  avatarReviewedAt DateTime?
+
   // The portrait maker's selection as JSON — part indices and palette indices,
   // never pixels. avatarData holds the render; this holds what it was built
   // from, so reopening the modal resumes where the player left off instead of
@@ -2126,11 +2185,24 @@ model Character {
   heldBy    Character?  @relation("InterceptHold", fields: [heldById], references: [id])
   holding   Character[] @relation("InterceptHold")
 
+  // WHICH of the two things is holding them — "intercept" or "attack" — so
+  // that db/lib/intercept.js#heldReasonFor can name the right one while
+  // staying PURE. That predicate is read by the mover's own gate and by every
+  // picker that draws a way out, and a query inside it would have to be
+  // awaited at eight call sites. A column is the cheaper half of that trade.
+  heldReason String?
+
   interceptWatch   InterceptWatch?
   // Caught by somebody, and the catches they made. Two relations to the same
   // table, so both ends are named.
   interceptHits    InterceptHit[]  @relation("InterceptCaught")
   interceptCatches InterceptHit[]  @relation("InterceptCatcher")
+
+  // Fights this character started, and fights started on them
+  // (docs/systemdocs/ATTACK.md). Two relations to the same table, so both
+  // ends are named.
+  attacksMade  Attack[] @relation("AttackMade")
+  attacksTaken Attack[] @relation("AttackTaken")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2440,6 +2512,17 @@ model Tag {
   purchasable           Boolean @default(false)
   purchasableAfterStart Boolean @default(true)
 
+  // A MASTERY tag: the third state the two flags above could not express.
+  // `purchasable` says "buyable at all" and `purchasableAfterStart` says "still
+  // buyable mid-game"; there was no way to say "buyable ONLY once play has
+  // started". This is that — a capstone bought with points earned in play
+  // rather than out of a starting budget, which is why it is also the one
+  // deliberate exception to the 14-point ceiling (TAGS.md 4a). The web draws a
+  // star beside the name of one. Implies purchasableAfterStart: a mastery tag
+  // that left the store would be buyable nowhere, and db/lib/syncTags.js
+  // throws on that pairing rather than letting it go quiet.
+  mastery Boolean @default(false)
+
   // Tag Catalog tier (see the CatalogVisibility enum above). Defaults GM,
   // not ALL, so a row the sync never touches — a GM-authored tag, a minted
   // headstone — can never land fully public by omission.
@@ -2674,6 +2757,55 @@ model Tag {
   // left alone, matching the expiry pass.
   removesInto Json?
 
+  // --- The medical pass: item cures (docs/systemdocs/TAGS.md §5c) --------
+  //
+  // The health-tag slugs this CONSUMABLE cures — explicit catalog slugs, no
+  // rung selector. Every slug must exist and be category Health; the carrier
+  // must itself be `consumable`. Deliberately NOT validated against
+  // `healable` — Forgiveness cures the untreatable Shell Shocked, which is
+  // the whole point: medicine can do what no medic can. Validated by
+  // db/lib/tagShapes.js on both authoring doors (docs/tags.yaml's sync and
+  // the GM tag form), applied by `consumeTagRequestImpl`
+  // (web/app/(app)/character/requestActions.js), which fires `removesInto`
+  // (or the `curesInto` override right below) and half fear relief per
+  // cured tag — the same aftermath a Heal leaves.
+  cures Json?
+
+  // Per-item aftermath override for a cured slug: `{ <cured-slug>:
+  // <aftermath-slug> }`. What a cure leaves behind can depend on the ITEM
+  // rather than the wound alone — a crafted peg-leg cures Missing Leg into
+  // Peg Leg, while a cybernetic leg leaves nothing at all. Keys must be a
+  // subset of this tag's own `cures`; values are any catalog slug. A cured
+  // slug with no entry here falls back to its own `removesInto`, same as an
+  // ordinary Heal.
+  curesInto Json?
+
+  // An item may be administered to someone else even with no `cures`
+  // intersection at all — Mercy grants increased-recovery, which stabilizes
+  // rather than curing anything on a list. "May this be applied to someone
+  // else?" is `cures` non-empty OR this flag; see consumeTagRequestImpl.
+  administerable Boolean @default(false)
+
+  // The skill required to APPLY this item to anyone — the actor's own self
+  // included (fitting a prosthetic needs medical-expert even on your own
+  // leg). A catalog slug, the same single-slug convention `escalatesInto`
+  // uses rather than a relation; null means anyone may administer it. This
+  // gates EVERY consume of the item, self or targeted — a different question
+  // from ACT, which self-consume stays exempt from (TAGS.md §5f) and this
+  // never is.
+  administerSkill String?
+
+  // Whether this tag is a POISON that can be dosed into a held food/drink
+  // stack. Schema only for now — the Poison action that reads it is a later
+  // milestone of the medical pass.
+  poison Boolean @default(false)
+
+  // Slugs whose consume/poison-path grant this trait shrugs off — Iron
+  // Constitution's eventual `resists: [poisoned, ...]`. Meant to live on the
+  // consume/poison path only, never in `grantTagSlugs` itself, so a GM's
+  // `/heal` grant is never filtered by it. Schema only for now.
+  resists Json?
+
   // The drinking ladder (docs/systemdocs/BREWING.md). A STATUS tag names the
   // rung above it, so consuming something that grants a rung you already hold
   // moves you up instead of doing nothing: tipsy -> wasted -> unconscious.
@@ -2782,6 +2914,65 @@ model Tag {
   // through this instead. Null on every catalog row and on the other four
   // runtime authoring doors.
   customOfSlug String?
+  // What a customizable recipe charges for the player's words, and whether it
+  // takes a description at all. Both authored under `custom:` in
+  // docs/tags.yaml and only legal beside `customizable: true`.
+  //
+  // NULL cost means CUSTOM_SURCHARGE (web/lib/customCraft.js) — the painting,
+  // the sketch, the badge, the hat. `0` means free, which is what the two
+  // meals are: a cook naming their own dish is the whole point of the cooking
+  // rework, not an upsell. surchargeFor() is the one verdict both the dialog
+  // and the server action read, so the ⬢ shown is always the ⬢ billed.
+  customCost Int?
+
+  // False hides the description box and refuses a posted description. The
+  // Fine Meal takes a name and nothing else; the Lavish Meal takes both.
+  customDescribable Boolean @default(true)
+
+  // --- Cooking (docs/systemdocs/COOKING.md) -------------------------------
+  //
+  // What this tag contributes AS AN INGREDIENT, once it has been cooked into
+  // something. Authored as the `cooked:` block in docs/tags.yaml, normalized
+  // and validated by db/lib/tagShapes.js#normalizeCooked.
+  //
+  //   { taste: String, mood: Float, into: [<consumesInto entry>, ...]? }
+  //
+  // The presence of this block is the ONLY thing that makes a tag a legal
+  // ingredient — there is no separate flag and no per-recipe list, so adding
+  // a fourteenth thing you can cook with is one YAML entry and a sync.
+  //
+  // `into` is OPTIONAL, and its absence is not "nothing" — it means "use my
+  // own consumesInto, live". That is the raw/cooked split, and the medical
+  // rework's whole hand-off rests on it: COOKING.md §4-5, and the block
+  // comment on db/lib/tagShapes.js#normalizeCooked.
+  cooked Json?
+
+  // The ingredient slugs that went into THIS dish, in the order the cook
+  // slotted them. Written only on rows minted by a cooking craft
+  // (mintCustomCraft), empty on every catalog row and every other mint.
+  //
+  // Load-bearing twice over. It is what consumeTagRequestImpl reads to work
+  // out what a dish does, and it is part of the mint's REUSE KEY: two cooks
+  // who type the same words over different ingredients must get two rows, or
+  // one of them is eating the other's feces.
+  //
+  // NEVER ship it to a browser. It is deliberately absent from
+  // TAG_CHIP_FIELDS (web/lib/referenceData.js) — a dish says what it tastes
+  // of and never what it was made with, and a column in a flight payload
+  // would undo that in one dev-tools inspection.
+  cookedFrom String[] @default([])
+
+  // A meal recipe's own small mood, before its ingredients. Copied onto the
+  // minted dish row. Small on purpose (5 and 8): the ingredient is meant to
+  // do the work, which it cannot do if the plate it arrives on is already
+  // worth +30. See MOOD.md §6.
+  mealMood Float?
+
+  // How many ingredients this recipe takes: `{ min, max }`, authored as
+  // `requirement.ingredientSlots`. A sibling of requirementItems below rather
+  // than a second `anyOf` entry — the legal set is "any tag with a `cooked`
+  // block", which no authored list could keep up with.
+  requirementIngredientSlots Json?
 
   // The INGREDIENT half of a recipe — BREWING.md's "no code enforces a
   // recipe, least of all the ingredient" is no longer true of any entry that
@@ -2999,6 +3190,15 @@ model CharacterTag {
   // below 1 — the row is deleted instead. Point-buy never sets this: the
   // wizard is a toggle-set, so a bought tag lands on the default.
   quantity Int @default(1)
+
+  // Poison state on this REAL food/drink row (never a minted clone — a
+  // poisoned meal is the same row a bystander sees, so there is no name/leak
+  // problem to solve). How many of the held `quantity` units are dosed, and
+  // the payload identifying which poison (its Tag id) produced them. Schema
+  // only for now — the Poison action that reads/writes this is a later
+  // milestone of the medical pass.
+  poisonedCount Int   @default(0)
+  poisonPayload Json?
 
   @@unique([characterId, tagId])
 }
@@ -3837,6 +4037,51 @@ model InterceptHit {
 
   @@unique([interceptorId, targetCharacterId, turnId])
   @@index([targetCharacterId])
+}
+
+// A fight somebody started (docs/systemdocs/ATTACK.md). One row per attacker
+// per target per turn, and the unique below IS the "attacking is permanent for
+// the turn" rule — the same shape as InterceptHit above, and for the same
+// reason: the insert is what claims the act, so nothing has to be counted.
+//
+// Attack does not RESOLVE a fight. Nothing in this codebase does — a fight is
+// a Gambit and a GM's ruling (docs/systemdocs/COMBAT.md). What this row buys
+// is that neither side can walk out of the scene before the GM reads it: both
+// Character.heldUntil are stamped with the turn's own end, so the turn advance
+// frees everybody for free and nothing sweeps.
+model Attack {
+  id String @id @default(cuid())
+
+  attackerId String
+  attacker   Character @relation("AttackMade", fields: [attackerId], references: [id], onDelete: Cascade)
+
+  targetCharacterId String
+  targetCharacter   Character @relation("AttackTaken", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  // Not a foreign key, the InterceptHit.turnId reasoning: it is a claim token,
+  // and deleting a turn must never cascade into somebody's fight.
+  turnId String
+
+  // An ambush that fired rather than a button somebody pressed. The strength
+  // gate does not apply to one — you set a watch blind and do not get to pick
+  // who walks into it.
+  fromAmbush Boolean @default(false)
+
+  // Where it happened, for the GM's Other lens. Nullable and SetNull: a fight
+  // outliving its Location by a zone resync is a stale label, not a lost row.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  // Cancelled, NEVER deleted. Breaking off is meant to be final for the turn,
+  // and a deleted row would hand the unique back and let somebody attack the
+  // same person all afternoon. It is also what the GM reads.
+  cancelledAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([attackerId, targetCharacterId, turnId])
+  @@index([targetCharacterId])
+  @@index([turnId])
 }
 
 // A multi-turn craft in progress (docs/systemdocs/CRAFTING.md). A table, not

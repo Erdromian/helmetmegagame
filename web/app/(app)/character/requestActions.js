@@ -26,12 +26,17 @@ import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import {
+  presentedIdentity,
+  forcedNameFrom,
+  concealmentFrom,
+} from "@lifeweb/db/lib/presentedIdentity";
+import {
   logAudit,
   MAX_REASON_LENGTH,
   craftAllowance,
   unitsOfTagThisTurn,
   deadSimpleUnitsThisTurn,
-  MEDICAL_TIER_CAPS,
+  MEDICAL_SIMPLE_PER_TURN,
 } from "@/lib/requests";
 import {
   WHOLE_MOVE,
@@ -85,11 +90,11 @@ import {
   HEAL_SKILL_SLUG,
   buildSkillAncestry,
   countsAgainstHealCap,
-  healCapFor,
   healCost,
   isGambitHeal,
   isHealable,
   isInflictable,
+  needsSurgicalSite,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
 import {
@@ -110,7 +115,8 @@ import {
 import { createLessonOffer } from "@lifeweb/db/lib/lessons";
 import { createConfessionOffer } from "@lifeweb/db/lib/confession";
 import { createKissOffer, KISS_SELECT } from "@lifeweb/db/lib/kiss";
-import { resolveConsumeGrants, heldSlugsOf } from "@/lib/consumeGrants";
+import { resolveConsumeGrants, heldSlugsOf, resistSlugsOf } from "@/lib/consumeGrants";
+import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   syncCharacterNarrowcastAccess,
@@ -126,7 +132,7 @@ import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 // refuses an underground target now, so this can no longer fire from one —
 // it stays because every writer of locationId owes the roll, and loosening
 // the refusal must not silently drop it.
-import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
+import { rollCavingOnArrival, cavingHoldFor } from "@lifeweb/db/lib/cavingPass";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
@@ -134,13 +140,14 @@ import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { partFor, resolveMutilation } from "@lifeweb/db/lib/mutilate";
 import { mintHeadstone } from "@lifeweb/db/lib/headstone";
-import { dropRoomTag, clampEquippedQuantity } from "@lifeweb/db/lib/tagWrites";
+import { dropRoomTag, clampEquippedQuantity, lockRoom } from "@lifeweb/db/lib/tagWrites";
 import { WANTED_SLUG } from "@lifeweb/db/lib/wanted";
 import {
   BUTCHER_SLUG,
   ENGRAVE_RESOURCE_COST,
   WORKSHOP_EQUIPMENT_SLUG,
   SURGICAL_EQUIPMENT_SLUG,
+  PORTABLE_SURGICAL_PACK_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
   MUTILATE_GATE_SLUGS,
@@ -149,6 +156,8 @@ import {
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
   WHISPER_MAX,
+  IMPERTURBABLE_SLUG,
+  BREWING_DISTILLING_SLUG,
 } from "@lifeweb/db/lib/constants";
 import {
   resolveTorture,
@@ -169,7 +178,7 @@ import {
 } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
-import { rollDie } from "@lifeweb/db/lib/moveEffects";
+import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { gambitModifierTotal, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { createWithRetry } from "@lifeweb/db/lib/paperMint";
 import {
@@ -178,8 +187,10 @@ import {
   cleanCustomText,
   customCraftFields,
   mayCustomize,
+  customCraftFor,
   customCraftName,
 } from "@/lib/customCraft";
+import { mergeDishGrants, mergeDishCures, tasteLine } from "@/lib/cooking";
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
@@ -209,7 +220,7 @@ import {
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
-import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
+import { evaluateDesireCatalog, slotStates, desireSlotsNeverLock } from "@lifeweb/db/lib/desireGates";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -222,7 +233,14 @@ import {
   ACT,
   SPEAK,
 } from "@lifeweb/db/lib/incapacitation";
-import { applyMood, consumeReliefFor, woundMoodFor, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
+import {
+  applyMood,
+  applyMoodTerms,
+  consumeReliefFor,
+  dishMoodTerms,
+  woundMoodFor,
+  DESIRE_RELIEF_PER_POINT,
+} from "@lifeweb/db/lib/mood";
 import {
   NAME_LIMITS,
   FULL_NAME_LIMIT,
@@ -308,12 +326,16 @@ function resolveParty(key, opts) {
 // `craftAllowance`, because character/page.js has to read the same numbers to
 // tell the Craft dialog how many free units are left.
 
-// Routine cures already worked this turn, against MEDICAL_TIER_CAPS.
+// 0-turn cures already worked this turn, against MEDICAL_SIMPLE_PER_TURN
+// (M2, docs/systemdocs/TAGS.md §5c) — the shared free-first-aid pool.
 //
 // Counts REQUESTS, not units — one heal is one patient — and only the ones
-// that cost a turn of work: a 0-turn cure is a free action (healRequests.js).
-// A gambit heal is never in here, because it files a Move instead and the
-// Action unique constraint rations those on its own.
+// that cost NO turn of work: a turns-costing cure never draws on this pool at
+// all any more, it bills the medical family's Move instead
+// (healCharacterRequestImpl below). A gambit heal is never in here either,
+// because it files a Move and the Action unique constraint rations those on
+// its own. INVERTED from the pre-M2 predicate (`turns > 0`), which counted
+// this pool's opposite against the old per-tier daily cap.
 // Keyed on the MEDIC — actorDiscordUserId — and NOT on targetCharacterId,
 // which is the patient the row is about. Counting the patient's axis caps the
 // wrong person: a medic treating other people would never be counted at all,
@@ -325,7 +347,7 @@ async function routineHealsThisTurn(db, discordUserId, turnId) {
     select: { details: true },
   });
   return filed.filter(
-    (r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) > 0,
+    (r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) === 0,
   ).length;
 }
 
@@ -406,6 +428,63 @@ async function requireWorkshop(character, tag) {
 // once, when the work STARTS: a multi-turn project pays its ingredients up
 // front, the rule its ⬢ already lived under, so a continue re-checks nothing
 // about them.
+// INGREDIENT SLOTS (docs/systemdocs/COOKING.md) ride alongside `items` rather
+// than inside it. `ingredientChoices` is the array the cooking dialog posts:
+// the slugs the cook slotted, in order.
+//
+// Membership is not a list on the recipe — it is "any tag carrying a `cooked`
+// block", which is why the caller resolves the rows and hands them in as
+// `cookableBySlug`. A recipe never has to be edited to accept a new
+// ingredient, and this function never has to know what any of them are.
+// `ingredientChoices` arrives ALREADY cleaned (trimmed, blanks dropped) — the
+// caller has to clean it anyway to look the rows up, and cleaning it twice is
+// how the two copies drift.
+function resolveIngredientSlots(character, tag, quantity, ingredientChoices, cookableBySlug) {
+  const slots = tag.requirementIngredientSlots;
+  const plan = { spend: [], cookedFrom: [] };
+  const picks = ingredientChoices ?? [];
+  if (!slots) {
+    // Picks posted at a recipe with no slots are ignored rather than refused,
+    // the same posture quantity takes on a non-stackable.
+    return plan;
+  }
+  if (picks.length < slots.min) {
+    throw new UserError(
+      slots.min === 1
+        ? "That needs ingredients."
+        : `That needs ${slots.min} ingredients.`,
+    );
+  }
+  if (picks.length > slots.max) {
+    throw new UserError(`That takes at most ${slots.max}.`);
+  }
+  // No slug twice. It keeps "it tastes like onion and onion" off the notice,
+  // and it keeps the spend honest: two slots naming one stack would plan two
+  // independent draws against it and the second refusal would name a count
+  // nobody could make sense of.
+  if (new Set(picks).size !== picks.length) {
+    throw new UserError("You've put the same ingredient in twice.");
+  }
+  const bySlug = new Map(character.tags.filter((ct) => ct.tag).map((ct) => [ct.tag.slug, ct]));
+  for (const slug of picks) {
+    if (!cookableBySlug?.has(slug)) {
+      throw new UserError("That isn't something you can cook with.");
+    }
+    const ct = bySlug.get(slug);
+    const name = cookableBySlug.get(slug).name;
+    if (!ct || ct.quantity < quantity) {
+      throw new UserError(
+        quantity > 1
+          ? `Making ${quantity} of those takes ${quantity} × ${name}. You have ${ct?.quantity ?? 0}.`
+          : `Making that needs ${name}.`,
+      );
+    }
+    plan.spend.push({ tagId: ct.tagId, tagName: name, quantity });
+    plan.cookedFrom.push(slug);
+  }
+  return plan;
+}
+
 function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
   const items = Array.isArray(tag.requirementItems) ? tag.requirementItems : [];
   const plan = { spend: [], hold: [] };
@@ -459,11 +538,24 @@ function lockCharacter(tx, characterId) {
 // Spends what resolveRecipeItems planned, inside the SAME transaction as the
 // payment and under the row lock above.
 //
-// **The write is the check.** A conditional `updateMany` matches only while
-// the stack still covers the draw, and a count of 0 refuses the craft.
-// `dropCharacterTag` is deliberately not used here: it silently deletes the
-// row on an overdraw rather than refusing (db/lib/tagWrites.js), which would
-// turn "make 3 off a stack of 2" into a free third one.
+// **The check is still separate from the write.** The row is read first and
+// a short stack refuses the craft outright — `dropCharacterTag`'s own
+// decrement is unconditional (it deletes whatever exists rather than
+// refusing an overdraw), so this function keeps the refusal in front of it
+// rather than after. What changed (fix round M4b, fix 4): the actual spend
+// now goes through `dropCharacterTag` instead of a hand-rolled
+// decrement/delete, because a manual write here knew nothing about
+// `poisonedCount`/`poisonPayload` — crafting off a poisoned stack used to
+// leave the row's poison columns untouched while quantity shrank under
+// them, eventually driving poisonedCount above quantity. Safe to do
+// unconditionally here specifically because every caller already holds the
+// character row lock (taken above, or by the caller per its own comment)
+// before this runs, so nothing can shrink the row between the check and the
+// drop. The draw itself — whether any of the units actually spent were
+// tainted — is discarded on purpose: a poisoned ingredient's dose is lost
+// in the crafting rather than carried into the output (that's as far as
+// this fix goes; whether a crafted item should ever inherit input taint is
+// a product question for later, not answered here).
 //
 // Returns the `replaced`-shaped snapshot the audit row records as
 // `details.consumed` — the one record of the spend a GM repairs from.
@@ -485,22 +577,10 @@ async function consumeRecipeItems(tx, characterId, plan) {
     const row = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId, tagId } },
     });
-    const short = () =>
-      new UserError(`You don't have enough ${tagName} left for that.`);
-    if (!row || row.quantity < quantity) throw short();
-    if (row.quantity === quantity) {
-      const { count } = await tx.characterTag.deleteMany({
-        where: { id: row.id, quantity },
-      });
-      if (count === 0) throw short();
-    } else {
-      const { count } = await tx.characterTag.updateMany({
-        where: { characterId, tagId, quantity: { gte: quantity } },
-        data: { quantity: { decrement: quantity } },
-      });
-      if (count === 0) throw short();
-      await clampEquippedQuantity(tx, characterId, tagId);
+    if (!row || row.quantity < quantity) {
+      throw new UserError(`You don't have enough ${tagName} left for that.`);
     }
+    await dropCharacterTag(tx, characterId, tagId, quantity);
     consumed.push({
       tagId,
       tagName,
@@ -636,6 +716,17 @@ function craftLedgerDescription(entries) {
   return `Crafting this turn: ${made.join(", ")}.`;
 }
 
+// Heal's own ledger line (M2, docs/systemdocs/CRAFTING.md §2a /
+// TAGS.md §5c) — same shape as craftLedgerDescription, but "Treating" is the
+// medic's verb, and a fresh string rather than a parameter on that one so the
+// existing crafting copy stays exactly as it was. spendCraftMove picks
+// between the two by family, since a turn's Routine is always one or the
+// other and never both.
+function healLedgerDescription(entries) {
+  const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
+  return `Treating this turn: ${made.join(", ")}.`;
+}
+
 function craftLedgerEntry(tag, cost) {
   return {
     tagId: tag.id,
@@ -698,13 +789,13 @@ function checkCraftMove(action, need) {
 // whole clean Move and keep it.
 async function resolveCraftMove(character, openTurn, need) {
   if (!openTurn) throw new UserError("No turn is open.");
-  const config = await prisma.gameConfig.findUnique({
-    where: { id: 1 },
-    select: { autoTurnAdvanceDisabled: true },
-  });
-  const { locked } = moveWindow(openTurn, {
-    autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-  });
+  // Same source requireFreeMove reads (review fix, M2): moveWindow() takes
+  // `clockFrozen`, not `autoTurnAdvanceDisabled` — the two prior reads here
+  // built an options object moveWindow never destructured, so the lock check
+  // silently always ran with clockFrozen defaulted false. clockFrozen(prisma)
+  // is the one real answer (db/lib/gameState.js): phase !== RUNNING OR the
+  // config flag, in one round trip.
+  const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(prisma) });
   if (locked) throw new UserError("Moves are locked for this turn.");
   const action = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
@@ -755,7 +846,11 @@ async function spendCraftMove(
     usedDen: used.den,
     entries,
   };
-  const line = description ?? craftLedgerDescription(entries);
+  // Medical shares this exact ledger (M2) but reads "Treating", not
+  // "Crafting" — the family already says which, since a turn commits to one.
+  const line =
+    description ??
+    (need.family === "medical" ? healLedgerDescription(entries) : craftLedgerDescription(entries));
   if (!existing) {
     return {
       action: await fileAutoRoutine(
@@ -801,19 +896,71 @@ async function spendCraftMove(
 // player's words — its query also filters `ephemeral` as a second lock),
 // and catalogVisibility (the GM default keeps a mint out of the public
 // catalog; referenceData ships an ephemeral row only to who holds it).
-async function mintCustomCraft(db, baseTag, { name, description, literal = false }) {
+// "(rich spices)" for a dish nobody named, or "" when it has no ingredients
+// or none of them taste of anything. `cookedTastes` is the caller's lookup,
+// already loaded — this runs outside the craft transaction and must not
+// query.
+function cookedTasteSuffix(cookedFrom, cookedTastes) {
+  const tastes = cookedFrom.map((slug) => cookedTastes?.get(slug) ?? "").filter(Boolean);
+  return tastes.length ? ` (${tastes.join(", ")})` : "";
+}
+
+async function mintCustomCraft(
+  db,
+  baseTag,
+  { name, description, literal = false, cookedFrom = [], cookedTastes = null },
+) {
   // `literal` is the Death Mask's door: the name arrives finished ("Death
   // Mask of Ada" — stamped from the corpse, never typed) and must not gain
   // the "(Death Mask)" suffix a player-worded custom wears, because the base
   // identity is already the first two words.
-  const composedName = literal ? name : customCraftName(baseTag.name, name);
+  // An unnamed dish is named after what it TASTES of: "Lavish Meal (rich
+  // spices)". Tag.name is NOT unique (schema.prisma says so at the column),
+  // so this sits happily beside the catalog's own "Lavish Meal".
+  //
+  // Without it a cook's own pantry is unreadable. Every Lavish Meal has an
+  // ingredient, so every one of them mints; two unnamed dishes — one built on
+  // saffron, one on feces — would be two rows with the same name and the same
+  // stock description, and their cook would have no way to tell which was
+  // which before biting. "Nothing tells them apart" is the right rule for two
+  // DIFFERENT cooks and a bad joke inside one kitchen.
+  //
+  // A taste is coarser than an ingredient ("meat" covers a boar loin and a
+  // human foot), and the two undetectable poisons have no taste at all, so
+  // this gives away less than it looks. A cook who wants to hide something
+  // types a name, which is what a name is for.
+  const tasteSuffix = literal ? "" : cookedTasteSuffix(cookedFrom, cookedTastes);
+  const composedName = literal
+    ? name
+    : name || description
+      ? customCraftName(baseTag.name, name)
+      : `${baseTag.name}${tasteSuffix}`;
   const composedDescription = description || baseTag.description;
+  // THE INGREDIENTS ARE PART OF THE IDENTITY. Reuse used to key on the words
+  // alone, which was right when the words were all a mint carried. A dish
+  // carries what went into it, so two cooks who both type "Steak Dinner" —
+  // one over saffron, one over feces — must NOT land on one row, or one of
+  // them is serving the other's dinner. Sorted, so [onion, saffron] and
+  // [saffron, onion] are one dish rather than two.
+  //
+  // Nothing on any surface tells the two rows apart, which is deliberate
+  // (Bascinet, 2026-09-09): a dish says what it tastes of and never what it
+  // was made with.
+  //
+  // STORED sorted, not just compared sorted, because Postgres array equality
+  // is order-sensitive and a key that did not match what was written would
+  // reuse nothing and mint a row per craft. The cost is that the taste
+  // sentence reads alphabetically rather than in the order the cook slotted
+  // them, which is a fair trade for two cooks who picked the same two things
+  // in different orders landing on one dish.
+  const key = [...cookedFrom].sort();
   const existing = await db.tag.findFirst({
     where: {
       custom: true,
       ephemeral: true,
       name: composedName,
       description: composedDescription,
+      cookedFrom: { equals: key },
     },
   });
   if (existing) return { tag: existing, minted: false };
@@ -864,6 +1011,16 @@ async function mintCustomCraft(db, baseTag, { name, description, literal = false
     consumesIntoUnless: baseTag.consumesIntoUnless ?? undefined,
     consumesIntoDurations: baseTag.consumesIntoDurations ?? undefined,
     consumesIntoResources: baseTag.consumesIntoResources,
+    // What this dish was made of, and its recipe's own small mood. Everything
+    // else about a dish is derived from these two at the moment somebody eats
+    // it (web/lib/cooking.js) — deliberately, so an ingredient retuned in the
+    // catalog retunes the dinners already in people's pockets.
+    //
+    // `cooked` is NOT copied: it says what a tag contributes as an
+    // INGREDIENT, and a dish is not one. Cooking a stew into a second stew is
+    // not a thing.
+    cookedFrom: key,
+    mealMood: baseTag.mealMood,
     sellable: baseTag.sellable,
     sellablePrice: baseTag.sellablePrice,
     defaultDurationTurns: baseTag.defaultDurationTurns,
@@ -910,7 +1067,21 @@ async function grantCrafted(
 ) {
   for (const snapshot of replaced)
     await dropCharacterTag(tx, character.id, snapshot.tagId);
-  await addToStack(tx, character.id, tag.id, quantity, {
+  // Brewing (Distilling): two items for the same cost. The doubling lives
+  // HERE, at the single grant every craft path funnels through, rather than
+  // beside the three callers — and deliberately downstream of the ingredient
+  // plan and the ⬢ spend, which are both computed from `quantity` and must
+  // stay that way. Doubling the cost as well would make the tag do nothing.
+  //
+  // The family is read off `baseTag ?? tag`, not `tag`: when a recipe mints a
+  // custom row the minted tag carries no requirementSkills, so craftFamily()
+  // would read it as the generic "craft" and quietly stop doubling.
+  const recipeTag = baseTag ?? tag;
+  const distilled =
+    craftFamily(recipeTag) === "brewing" &&
+    (character.tags ?? []).some((ct) => ct.tag?.slug === BREWING_DISTILLING_SLUG);
+  const granted = distilled ? quantity * 2 : quantity;
+  await addToStack(tx, character.id, tag.id, granted, {
     source: "CRAFT",
     // Must arrive already stamped or it never expires — resolveNeeds()'s
     // sweep matches on expiresTurn and nothing backfills it.
@@ -931,7 +1102,16 @@ async function grantCrafted(
     details: {
       tagId: tag.id,
       tagName: tag.name,
+      // RECIPE RUNS, not units granted — the per-turn rations in
+      // web/lib/requests.js count this, so a Distilling brewer must not have
+      // their Dead Simple allowance halved by their own doubled output.
+      // What actually landed is recorded beside it when the two differ.
       quantity,
+      // Only when the doubling actually landed. addToStack pins a
+      // non-stackable tag at quantity 1 however many are granted, so a
+      // non-stackable brew doubles to nothing — and a row claiming otherwise
+      // is a lie in the GM ledger rather than a rounding error.
+      ...(distilled && tag.stackable ? { granted, distilled: true } : {}),
       resourcesSpent: cost,
       payer: payerParty,
       projectId: project?.id ?? null,
@@ -1029,6 +1209,13 @@ async function craftRequestImpl({
   // re-checked for membership and possession like everything else a client
   // sends.
   ingredientChoice,
+  // The slugs a cook slotted, in order, on a recipe with `ingredientSlots`
+  // (docs/systemdocs/COOKING.md). A separate channel from `ingredientChoice`
+  // above because they answer different questions: that one picks a member of
+  // a list the recipe named, this one is an ordered set out of a catalog the
+  // recipe says nothing about. Re-checked here for membership, possession and
+  // count, so the chip list is a hint like every other disabled control.
+  ingredientChoices,
   // The custom-item fields (CRAFTING.md), honored only on a `customizable`
   // recipe. cleanCustomText decides what survives — the same shared helper
   // the dialog priced the +1 ⬢ with, so client and server cannot disagree
@@ -1074,6 +1261,40 @@ async function craftRequestImpl({
     quantity,
     ingredientChoice,
   );
+  // Ingredient slots, on top of `items` (COOKING.md). The legal set is every
+  // tag carrying a `cooked` block, so it is read here rather than named on
+  // the recipe — one query, narrowed to what was actually posted, and the
+  // `cooked: { not: null }` is the membership check itself.
+  const posted = (Array.isArray(ingredientChoices) ? ingredientChoices : [])
+    .map((s) => (typeof s === "string" ? s.trim() : ""))
+    .filter(Boolean);
+  const cookableRows =
+    posted.length && tag.requirementIngredientSlots
+      ? await prisma.tag.findMany({
+          where: { slug: { in: posted }, cooked: { not: null } },
+          select: { slug: true, name: true, cooked: true },
+        })
+      : [];
+  const cookableBySlug = new Map(cookableRows.map((t) => [t.slug, t]));
+  // Just the tastes, for naming a dish nobody named (mintCustomCraft). Read
+  // here because the mint runs outside the craft transaction and must not
+  // open a query of its own.
+  const cookedTastes = new Map(cookableRows.map((t) => [t.slug, t.cooked?.taste ?? ""]));
+  const slotPlan = resolveIngredientSlots(character, tag, quantity, posted, cookableBySlug);
+  // One plan from here on: the ingredients a dish spends are spent the same
+  // way, under the same lock, and land in the same `details.consumed`.
+  //
+  // MERGED BY TAG, not concatenated. No recipe today carries both an `items`
+  // block and slots, but nothing stops one, and two entries naming the same
+  // stack would have consumeRecipeItems draw against it twice off two
+  // independent re-reads — the second refusal quoting a count nobody could
+  // make sense of, and `details.consumed` showing two rows for one spend.
+  for (const line of slotPlan.spend) {
+    const existing = itemPlan.spend.find((s) => s.tagId === line.tagId);
+    if (existing) existing.quantity += line.quantity;
+    else itemPlan.spend.push(line);
+  }
+  const cookedFrom = slotPlan.cookedFrom;
   // The Death Mask binds a SPECIFIC corpse (the group entry above only
   // proved one is held) — resolved out here for the fast fail, marked
   // inside the transaction by takeFace.
@@ -1081,22 +1302,27 @@ async function craftRequestImpl({
     tag.slug === DEATH_MASK_SLUG
       ? resolveDeathMaskSource(character, ingredientChoice)
       : null;
-  // Customizing is +CUSTOM_SURCHARGE ⬢ a unit, like every other per-unit
-  // cost. Fields posted against a recipe this character may not customize are
-  // ignored, not refused — the same posture as quantity on a non-stackable.
-  // `mayCustomize` reads BOTH halves: the recipe's flag, and the rung the
-  // recipe names (Tag.customizableSkillSlug — `smithing-skilled` on the arms
-  // and armour). The sheet already hides the fields, but a sheet is a hint.
+  // The one shared verdict the dialog prices with (web/lib/customCraft.js):
+  // what the words amount to after cleaning, and what this recipe charges for
+  // them — usually CUSTOM_SURCHARGE, zero on the two meals, which buy them
+  // out (COOKING.md). Fields posted against a non-customizable recipe, and a
+  // description posted at a recipe that takes none, are dropped rather than
+  // refused — the same posture as quantity on a non-stackable.
   //
-  // The one gate point for both paths: an instant craft mints below, and a
-  // multi-turn project carries this same verdict onto CraftProject.custom.
-  const custom = mayCustomize(tag, heldSlugsOf(character.tags))
-    ? customCraftFields({ customName, customDescription })
-    : { name: "", description: "", active: false };
+  // `mayCustomize` is the second half of the gate and reads the rung the
+  // recipe names (Tag.customizableSkillSlug — `smithing-skilled` on the arms
+  // and armour), so an apprentice cannot sign a cudgel. The sheet already
+  // hides the fields, but a sheet is a hint. Failing the rung drops the words
+  // AND the surcharge: nobody pays for a name they did not get.
+  const { custom: customWanted, surcharge: customSurcharge } = customCraftFor(tag, {
+    customName,
+    customDescription,
+  });
+  const mayCustom = mayCustomize(tag, heldSlugsOf(character.tags));
+  const custom = mayCustom ? customWanted : { name: "", description: "", active: false };
+  const surcharge = mayCustom ? customSurcharge : 0;
   const turns = tag.requirementTurns ?? 1;
-  const cost =
-    ((tag.requirementResources ?? 0) + (custom.active ? CUSTOM_SURCHARGE : 0)) *
-    quantity;
+  const cost = ((tag.requirementResources ?? 0) + surcharge) * quantity;
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
 
@@ -1151,7 +1377,16 @@ async function craftRequestImpl({
       await resolveCraftMove(character, openTurn, moveCost);
     // Minted before the transaction (see mintCustomCraft for why), unwound
     // after it only if the transaction fails and the row was fresh.
-    const grant = custom.active ? await mintCustomCraft(prisma, tag, custom) : null;
+    //
+    // A DISH ALWAYS MINTS, words or no words: what went in is what it does,
+    // so it needs a row of its own even from a cook who named nothing. A meal
+    // with no ingredient and no words has nothing to carry and stays the
+    // plain catalog row, which keeps it Depot-listable and out of the way of
+    // the Restart Game ephemeral sweep.
+    const grant =
+      custom.active || cookedFrom.length
+        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom, cookedTastes })
+        : null;
     try {
     await prisma.$transaction(async (tx) => {
       // One lock for all the racy things: the ration counts, the ingredient
@@ -1170,13 +1405,7 @@ async function craftRequestImpl({
         // window itself — a craft submitted after Moves lock must not write
         // a ledger no matter how the race fell.
         if (moveCost.kind !== "spill") {
-          const config = await tx.gameConfig.findUnique({
-            where: { id: 1 },
-            select: { autoTurnAdvanceDisabled: true },
-          });
-          const { locked } = moveWindow(openTurn, {
-            autoTurnAdvanceDisabled: config?.autoTurnAdvanceDisabled ?? false,
-          });
+          const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
           if (locked)
             throw new UserError("Moves are locked for this turn.");
         }
@@ -1264,8 +1493,8 @@ async function craftRequestImpl({
           description: "",
           literal: true,
         })
-      : custom.active
-        ? await mintCustomCraft(prisma, tag, custom)
+      : custom.active || cookedFrom.length
+        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom, cookedTastes })
         : null
     : null;
   try {
@@ -2278,6 +2507,9 @@ async function photographNothingImpl({ session, character, held }) {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
       targetCharacterId: character.id,
+      // REQUESTS.md §1a — its sibling consume audit row carries this now
+      // (review fix, round 3); this one was the one place it didn't.
+      turnId: openTurn?.id ?? null,
       details: effect,
     });
   });
@@ -2287,13 +2519,20 @@ async function photographNothingImpl({ session, character, held }) {
   return { ok: true, name: photo.name };
 }
 
-// Cracking a Depot crate. It used to be a button on /depot; it is a Consume
-// now, which is both one verb fewer to learn and the only thing that made
-// sense once a crate walked out of the landing pad and got carried somewhere
-// else entirely. See docs/systemdocs/DEPOT.md §0e.
+// Cracking a crate — a Depot shipment, or one a player packed themselves
+// (packageItemsRequestImpl). It used to be a button on /depot; it is a
+// Consume now, which is both one verb fewer to learn and the only thing that
+// made sense once a crate walked out of the landing pad and got carried
+// somewhere else entirely. See docs/systemdocs/DEPOT.md §0e.
 //
 // A SEALED crate still wants the keycard, checked here rather than trusted
 // from whatever surface offered the button.
+//
+// A crate's real contents live in `crateContents`, not `consumesInto`: the
+// ordinary consume path resolves a grant through resolveConsumeGrants and
+// grantTagSlugs, and grantTagSlugs knows nothing whatsoever about poison. A
+// poisoned line item packed into a crate has to come back out poisoned
+// (LAUNDERING CLASS, fix round M4), or packing it was a free bleach.
 async function openCrateRequestImpl({ session, character, held }) {
   const crate = held.tag;
   const contents = Array.isArray(crate.crateContents) ? crate.crateContents : null;
@@ -2316,6 +2555,18 @@ async function openCrateRequestImpl({ session, character, held }) {
   // on the effect so the Ledger and a GM can see what the crate really gave.
   const skipped = [];
   await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    // Double-fire guard (gate review): a crate is always quantity 1, and two
+    // concurrent opens would otherwise both grant contents before the
+    // second's own crate-row delete aborts the whole transaction on a raw
+    // engine error. Same re-read-under-the-lock shape the poison actions
+    // use, and the same refusal they give.
+    const freshCrate = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: character.id, tagId: held.tagId } },
+    });
+    if (!freshCrate || freshCrate.quantity < 1) {
+      throw new UserError("You don't have that any more.");
+    }
     for (const line of contents) {
       const tag = byId.get(line.tagId);
       // A ware pruned out of the catalog between landing and opening is gone.
@@ -2336,6 +2587,12 @@ async function openCrateRequestImpl({ session, character, held }) {
           characterId: character.id,
           where: "openCrate",
         }),
+        // The laundering fix itself: what packageItemsRequestImpl's own
+        // manifest stored for this line, carried straight onto the landing
+        // row. Absent (undefined) on a clean line, same as addToStack's own
+        // no-poison default.
+        poisonedCount: line.poisonedCount ?? 0,
+        poisonPayload: line.poisonPayload ?? null,
       });
       const landed = tag.stackable ? line.quantity : before ? 0 : 1;
       if (landed > 0) granted.push({ tagId: tag.id, name: tag.name, quantity: landed });
@@ -2376,12 +2633,12 @@ async function openCrateRequestImpl({ session, character, held }) {
     }
   });
 
-  await afterInventoryChange(character.id);
+  await afterInventoryChange([character.id]);
   revalidateAll();
   return { granted, skipped, resourcesGranted };
 }
 
-async function consumeTagRequestImpl({ tagId }) {
+async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   const { session, character } = await requireCharacter();
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
@@ -2402,10 +2659,14 @@ async function consumeTagRequestImpl({ tagId }) {
     return photographNothingImpl({ session, character, held });
   }
 
-  // And a Depot crate, for the same reason again: what falls out of one is a
-  // list of tag IDs printed on the crate at landing, not catalog slugs. It
-  // also has a lock the ordinary path knows nothing about.
-  if (Array.isArray(held.tag.crateContents)) {
+  // And a crate, for the same reason again: what falls out of one is a list
+  // of tag IDs printed on the crate at packing or landing, not catalog slugs,
+  // and it also has a lock the ordinary path knows nothing about. Only for
+  // opening it yourself — administering a crate to someone else is not a
+  // thing (it has no `cures` and isn't `administerable`), so that case falls
+  // through to the ordinary path below, which already refuses it with the
+  // same message any other non-curative item gets.
+  if (isCrate(held.tag) && (!targetCharacterId || targetCharacterId === character.id)) {
     return openCrateRequestImpl({ session, character, held });
   }
 
@@ -2431,7 +2692,133 @@ async function consumeTagRequestImpl({ tagId }) {
     throw new UserError("Use the Stepstone button.");
   }
 
+  // Administerable: the item's `cures` intersects what a target holds, or
+  // it's flagged `administerable` outright (Mercy, which cures nothing on a
+  // list but stabilizes all the same) — never a bare force-feed. Hoisted
+  // once here: the targeted-administer gate below and the cure-application
+  // pass further down both read this same list, and used to compute it
+  // twice.
+
+  // A COOKED DISH (docs/systemdocs/COOKING.md) is the one consumable whose
+  // effects are not written on its own row. It carries `cookedFrom` — the
+  // ingredient slugs the cook slotted — and what it does is worked out from
+  // those NOW, off the live catalog, rather than from a snapshot taken when
+  // it was cooked. web/lib/cooking.js says why at length.
+  //
+  // findMany does not preserve the order it was asked for, and slot order is
+  // what the taste sentence reads in, so the rows are put back in
+  // `cookedFrom` order by hand. A slug that no longer resolves (an ingredient
+  // pruned out of the catalog) is dropped rather than throwing: the dish is
+  // already in somebody's hands and refusing to let them eat it would be the
+  // worse answer.
+  const cookedFrom = held.tag.cookedFrom ?? [];
+  let ingredientTags = [];
+  if (cookedFrom.length) {
+    const rows = await prisma.tag.findMany({ where: { slug: { in: cookedFrom } } });
+    const bySlug = new Map(rows.map((t) => [t.slug, t]));
+    ingredientTags = cookedFrom.map((slug) => bySlug.get(slug)).filter(Boolean);
+  }
+  // ONE call, never one per ingredient: resolveConsumeGrants tracks what the
+  // eater WILL hold across the list it is handed, which is how the drinking
+  // ladder resolves against a rung the same swallow just granted. Two calls
+  // would each resolve against a stale sheet and double-grant.
+  const resolveAgainst = ingredientTags.length
+    ? { ...held.tag, ...mergeDishGrants(held.tag, ingredientTags) }
+    : held.tag;
+  // What the dish CURES, unioned across the ingredients that opted in with
+  // `cooked.cures: true` — a drunk tonic works in a stew, a dressing does
+  // not. See web/lib/cooking.js#mergeDishCures and COOKING.md §5.
+  const dishCures = mergeDishCures(held.tag, ingredientTags);
+
+  // For a dish this is the INGREDIENTS' cure list, not the plate's — the
+  // administerable gate below and the cure pass further down both read it.
+  const curesList = dishCures.cures;
+
+  // Administering to someone else (the medical pass, TAGS.md §5c): the item
+  // leaves the ACTOR's hand, but every grant it makes — the cure below
+  // included — lands on `target`, which defaults to the actor. Self-consume
+  // is deliberately not ACT-gated (TAGS.md §5f); administering someone else
+  // is, since it's an act done TO them rather than to your own sheet.
+  const administered = Boolean(targetCharacterId) && targetCharacterId !== character.id;
+  let target = character;
+  if (administered) {
+    const blocker = blockerFor(character.tags, ACT);
+    if (blocker) {
+      throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
+    }
+    if (!character.locationId) {
+      throw new UserError("You aren't anywhere you could treat someone.");
+    }
+    const found = await prisma.character.findFirst({
+      where: { id: targetCharacterId, status: "ALIVE" },
+      include: {
+        // `resists` (M4): resolveConsumeGrants below needs the TARGET's own
+        // resist-traits, administered or self — Iron Constitution shrugging
+        // off a poison lands on whoever holds it, not whoever swallowed it.
+        tags: { include: { tag: { select: { id: true, slug: true, name: true, resists: true } } } },
+      },
+    });
+    if (!found || !isHere(character, found)) throw new UserError(notHereMessage(found));
+    const targetSlugs = new Set(found.tags.map((ct) => ct.tag.slug));
+    const intersects = curesList.some((slug) => targetSlugs.has(slug));
+    if (!intersects && !held.tag.administerable) {
+      throw new UserError(`${found.name} doesn't have anything that ${held.tag.name} can treat.`);
+    }
+    target = found;
+  }
+
   const openTurn = await getOpenTurn();
+
+  // administerSkill gates EVERY consume of the item — self included
+  // (fitting a prosthetic needs medical-expert even on your own leg). A
+  // different question from the ACT gate above, which self stays exempt
+  // from and this never is — except here: this consume FILES A MOVE (below),
+  // and a Bound or Paralyzed character cannot file one even for themselves
+  // (review fix, M2). `administered`'s own ACT check above already covers
+  // the targeted branch; self needs its own, checked only once (an
+  // administered consume never reaches this un-ACT-gated by definition).
+  //
+  // M2 lands the fee: a gated consume also costs 1/2 Move from the medical
+  // family (fitting is surgery, and the Expert's scarce Move is the fee —
+  // this replaces any separate fitting ⬢). A synthetic tag prices the fixed
+  // half, since the fee is a flat administer cost, never the ITEM's own
+  // craft requirementTurns (Mercy's craft cost has nothing to do with
+  // fitting it onto somebody). Priced and checked here for a fast fail, and
+  // spent for real inside the transaction below, same as every other budget
+  // craft. With no turn open there is nothing to bill and nothing to file —
+  // same posture as a heal's priceHeal returning null — so the fee simply
+  // does not apply rather than refusing "No turn is open."
+  let administerMoveCost = null;
+  if (held.tag.administerSkill) {
+    const catalog = await prisma.tag.findMany({
+      select: { id: true, slug: true, name: true, parentTagId: true },
+    });
+    const skillTag = catalog.find((t) => t.slug === held.tag.administerSkill);
+    const ancestry = buildSkillAncestry(catalog);
+    const satisfied = satisfiedSkillIds(character.tags.map((ct) => ct.tagId), ancestry);
+    if (!skillTag || !satisfied.has(skillTag.id)) {
+      throw new UserError(`You need ${skillTag?.name ?? "the right training"} to use ${held.tag.name}.`);
+    }
+    if (openTurn) {
+      // The ACT gate belongs exactly here, not outside this branch (review
+      // fix, round 3): it exists because filing the Move below is what a
+      // Bound or Paralyzed character can't do even to themselves — self-
+      // consume is otherwise ACT-exempt (TAGS.md §5f). With no turn open,
+      // nothing files, so the gate has nothing to be about.
+      if (!administered) {
+        const blocker = blockerFor(character.tags, ACT);
+        if (blocker) {
+          throw new UserError(`You can't do that right now. You're ${blocker.name}.`);
+        }
+      }
+      administerMoveCost = craftMoveCost(
+        { requirementTurns: 1, requirementPerTurn: 2 },
+        { quantity: 1, family: "medical" },
+      );
+      await resolveCraftMove(character, openTurn, administerMoveCost);
+    }
+  }
+
   const restore = {
     tagId: held.tagId,
     source: held.source,
@@ -2450,72 +2837,516 @@ async function consumeTagRequestImpl({ tagId }) {
   });
   const ladder = new Map(ladderRows.map((t) => [t.slug, t.escalatesInto]));
 
+  // Iron Constitution's sidecar (M4): every `resists` slug the TARGET's own
+  // held tags carry, so a grant that lands on that list shrugs off — the
+  // trait is about the constitution swallowing it, not who administered it.
+  const resistSlugs = resistSlugsOf(target.tags);
+
+
   const {
     slugs: grantSlugs,
     removes: climbedFrom,
+    resisted: resistedSlugs,
     durations: grantDurations,
     resources: resourcesGranted,
-  } = resolveConsumeGrants(held.tag, heldSlugsOf(character.tags), ladder);
+  } = resolveConsumeGrants(resolveAgainst, heldSlugsOf(target.tags), ladder, resistSlugs);
 
-  // The rungs the climb clears — Tipsy coming off as Wasted goes on.
-  // Snapshotted the same way `cleared` below is, so an Undo puts the drinker
-  // back exactly where they were rather than leaving them Wasted with no
-  // Tipsy underneath.
-  const climbed = climbedFrom
-    .map((slug) => character.tags.find((ct) => ct.tag.slug === slug))
-    .filter(Boolean)
-    .map((ct) => ({
-      tagId: ct.tagId,
-      tagName: ct.tag.name,
-      source: ct.source,
-      expiresTurn: ct.expiresTurn,
-      quantity: 1,
-    }));
+  // The rungs the climb clears — Tipsy coming off as Wasted goes on. Built
+  // INSIDE the transaction below, once the poisoned draw is known (fix
+  // round, M4: the poison's own `removes` merges in there too) — snapshotted
+  // the same way `cleared` normally is, so an Undo puts the drinker back
+  // exactly where they were rather than leaving them Wasted with no Tipsy
+  // underneath.
 
-  // What this lifts (docs/systemdocs/MOOD.md): a drink or a drug by the state
-  // it lands you in, a meal, a treat, a hot drink or a smoke by what it is.
-  // The largest single figure, never a sum — Bliss is one drink, and Sweets
-  // is a treat rather than a treat plus a meal.
-  const moodRelief = consumeReliefFor(held.tag.slug, grantSlugs);
+  // What this does to the dial (docs/systemdocs/MOOD.md), and the two rules
+  // are different enough to be two functions.
+  //
+  // A DISH sums: its own small figure plus every ingredient's, harm and
+  // relief kept apart so only the harm half is ever scaled. Saffron makes the
+  // best thing in Ravenheart and feces the worst, and both are the
+  // ingredient's doing rather than the recipe's.
+  //
+  // EVERYTHING ELSE takes the largest single figure, never a sum — Bliss is
+  // one drink, and Sweets is a treat rather than a treat plus a meal.
+  const isDish = ingredientTags.length > 0 || held.tag.mealMood != null;
+  const moodTerms = isDish
+    ? dishMoodTerms(held.tag.mealMood, ingredientTags.map((t) => t.cooked?.mood ?? 0))
+    : null;
+  const moodRelief = isDish ? 0 : consumeReliefFor(held.tag.slug, grantSlugs);
+
+  // What the eater is told, and the only thing they are told: a dish names
+  // its tastes and never its ingredients. `line` is returned to the client,
+  // which prefers it over the generic "It used up." (noticeLines.js).
+  const line = isDish ? tasteLine(ingredientTags.map((t) => t.cooked?.taste ?? "")) : null;
+
+  // Cure application (the medical pass, TAGS.md §5c): every cured slug the
+  // TARGET actually holds — not just the first, since one item (white-honey,
+  // eventually) can cure several things a patient holds at once. `curesList`
+  // itself was hoisted above, at the administer gate.
+  const curedHeld = curesList.length
+    ? target.tags.filter((ct) => curesList.includes(ct.tag.slug))
+    : [];
 
   await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, character.id, tagId, 1);
-    for (const rung of climbed) await dropCharacterTag(tx, character.id, rung.tagId, 1);
+    // Deadlock avoidance (review fix, round 3): this transaction can lock
+    // both the actor's row (the Move billing below) and the target's (the
+    // patient-race re-check further down) — lock them in sorted-id order up
+    // front, not actor-then-target, or two actors administering to each
+    // other at the same instant lock in opposite orders and deadlock
+    // (Postgres surfaces an unresolved cycle as a raw 40P01, not a
+    // UserError).
+    const lockIds =
+      administered && target.id !== character.id
+        ? [character.id, target.id].sort()
+        : [character.id];
+    for (const id of lockIds) await lockCharacter(tx, id);
+
+    if (administerMoveCost) {
+      // Re-checked here (review fix, round 3 — this was the one billed path
+      // without an in-transaction window check): resolveCraftMove checked it
+      // outside, but that read and this spend are not atomic with each
+      // other, the same reasoning craftRequestImpl's spill path and
+      // healCharacterRequestImpl's own in-tx checks already act on.
+      const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
+      if (locked) throw new UserError("Moves are locked for this turn.");
+      // The Move is claimed first: it is the contended thing, and a refusal
+      // here rolls back everything below it (craftRequestImpl's project path
+      // does the same).
+      await spendCraftMove(tx, {
+        character,
+        openTurn,
+        need: administerMoveCost,
+        entry: craftLedgerEntry(held.tag, administerMoveCost),
+      });
+    }
+
+    // Patient-side race (review fix, M2, same shape as
+    // healCharacterRequestImpl's): two actors administering to the same
+    // target in the same instant both pass the outside intersects gate,
+    // both would spend ⬢ and (if administerSkill-gated) a Move fraction, and
+    // dropCharacterTag on an already-gone row is a silent no-op — the loser
+    // would look successful and cure nothing. The target row is already
+    // locked, above; re-read its held tags under that lock before touching
+    // them. Only re-verified when this item's own gate depended on the
+    // intersection — an `administerable` item like Mercy has nothing to
+    // lose by curing nothing, race or not, so it never refuses here.
+    let curedHeldNow = curedHeld;
+    if (administered) {
+      const freshTags = await tx.characterTag.findMany({
+        where: { characterId: target.id },
+        select: {
+          tagId: true,
+          source: true,
+          expiresTurn: true,
+          quantity: true,
+          tag: { select: { slug: true } },
+        },
+      });
+      const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
+      const stillIntersects = curesList.some((slug) => freshSlugs.has(slug));
+      if (!stillIntersects && !held.tag.administerable) {
+        throw new UserError(`${target.name} was already treated for that.`);
+      }
+      curedHeldNow = curesList.length
+        ? freshTags.filter((ct) => curesList.includes(ct.tag.slug))
+        : [];
+    }
+
+    // The poisoned-draw odds (M4): dropCharacterTag draws this specific unit
+    // against the row's own poisonedCount/quantity as it stands right now,
+    // under this same lock — a Consume of a stack the poisoner tainted is
+    // exactly the hypergeometric draw a Transfer/Loot move uses, just at
+    // quantity 1. A poisoned draw applies the POISON's own consumesInto on
+    // top of the food's — resolved through the very same resolveConsumeGrants
+    // (and the very same resists filter) rather than a second mechanism, so
+    // Iron Constitution shrugs off a forced poison exactly like it shrugs off
+    // a food's own grant.
+    const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, character.id, tagId, 1);
+    let poisonDraw = null;
+    if (poisonedTaken > 0 && poisonPayload) {
+      const poisonTag = await tx.tag.findUnique({
+        where: { id: poisonPayload },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          consumesInto: true,
+          consumesIntoUnless: true,
+          consumesIntoDurations: true,
+          consumesIntoOneOf: true,
+          consumesIntoResources: true,
+        },
+      });
+      if (poisonTag) {
+        poisonDraw = {
+          tag: poisonTag,
+          grants: resolveConsumeGrants(poisonTag, heldSlugsOf(target.tags), ladder, resistSlugs),
+        };
+      }
+    }
+    const allGrantSlugs = poisonDraw ? [...grantSlugs, ...poisonDraw.grants.slugs] : grantSlugs;
+    // A collision here is the food's own duration override against the
+    // poison's — spread order means the POISON wins (it's applied last),
+    // which is deliberate: a poison landing on top of a food grant is the
+    // more dangerous half of the two, and its own timing should be the one
+    // that sticks rather than getting silently overridden by whatever the
+    // meal itself happened to specify for the same slug.
+    const allGrantDurations = poisonDraw
+      ? { ...grantDurations, ...poisonDraw.grants.durations }
+      : grantDurations;
+    const allResisted = poisonDraw ? [...resistedSlugs, ...poisonDraw.grants.resisted] : resistedSlugs;
+    // Grant asymmetry (fix round, M4): the merge above used to drop the
+    // poison's own `removes` (ladder rungs ITS consumesInto clears) and
+    // `resources` (flat ⬢ it grants) on the floor — honored below, the same
+    // way the food's own halves already are.
+    const allClimbedFrom = poisonDraw ? [...climbedFrom, ...poisonDraw.grants.removes] : climbedFrom;
+    const allResourcesGranted = resourcesGranted + (poisonDraw?.grants.resources ?? 0);
+
+    const climbed = allClimbedFrom
+      .map((slug) => target.tags.find((ct) => ct.tag.slug === slug))
+      .filter(Boolean)
+      .map((ct) => ({
+        tagId: ct.tagId,
+        tagName: ct.tag.name,
+        source: ct.source,
+        expiresTurn: ct.expiresTurn,
+        quantity: 1,
+      }));
+
+    for (const rung of climbed) await dropCharacterTag(tx, target.id, rung.tagId, 1);
     const granted = await grantTagSlugs(
       tx,
-      character.id,
-      grantSlugs,
+      target.id,
+      allGrantSlugs,
       openTurn?.number ?? null,
-      grantDurations,
+      allGrantDurations,
     );
     // The Resources half — Purse and Supply Kit (CAVING.md). Most
     // consumables grant none, so this is usually a no-op.
-    if (resourcesGranted) {
+    if (allResourcesGranted) {
       await creditResources(
         tx,
-        { kind: "character", id: character.id, name: character.name },
-        resourcesGranted,
+        { kind: "character", id: target.id, name: target.name },
+        allResourcesGranted,
       );
     }
     // db/lib/hiddenCures.js. Runs after the ordinary grants and records
-    // nothing on the request, on purpose.
-    await applyHiddenCures(tx, character.id, held.tag.slug);
-    if (moodRelief) await applyMood(tx, character.id, { kind: "DRINK", base: moodRelief });
+    // nothing on the request, on purpose. A dish runs it for each INGREDIENT
+    // too, so a pie made with leeches still takes the bruise off — the cure
+    // is a property of the leeches, not of eating them whole.
+    await applyHiddenCures(tx, target.id, held.tag.slug);
+    for (const ing of ingredientTags) await applyHiddenCures(tx, target.id, ing.slug);
+    if (moodTerms?.length) await applyMoodTerms(tx, target.id, moodTerms);
+    else if (moodRelief) await applyMood(tx, target.id, { kind: "DRINK", base: moodRelief });
+
+    // Per held cured tag: drop it, grant the aftermath (the item's own
+    // `curesInto` override if it names this slug, else the cured tag's own
+    // `removesInto` — same as an ordinary Heal), and ease half the wound's
+    // mood cost. Re-read WITH group each time — the target load above omits
+    // it, the same trap healCharacterRequestImpl already dodges, and
+    // woundMoodFor needs it.
+    const cured = [];
+    for (const ct of curedHeldNow) {
+      await dropCharacterTag(tx, target.id, ct.tagId);
+      const curedTag = await tx.tag.findUnique({
+        where: { id: ct.tagId },
+        select: {
+          slug: true,
+          name: true,
+          removesInto: true,
+          requirementResources: true,
+          requirementTurns: true,
+          requirementPerTurn: true,
+          requirementGambit: true,
+          group: { select: { slug: true } },
+        },
+      });
+      const override = dishCures.curesInto?.[curedTag.slug];
+      const aftermathSlugs = override ? [override] : rollTagChain(curedTag.removesInto);
+      const grantedAftermath = await grantTagSlugs(tx, target.id, aftermathSlugs, openTurn?.number ?? null);
+      // woundMoodFor is signed (MOOD.md), hence the minus — the same
+      // shape healCharacterRequestImpl uses.
+      const relief = -woundMoodFor(curedTag) / 2;
+      if (relief > 0) await applyMood(tx, target.id, { kind: "HEALED", base: relief });
+      cured.push({
+        tagId: ct.tagId,
+        tagName: curedTag.name,
+        aftermath: grantedAftermath.map((g) => g.tagName),
+        restore: {
+          tagId: ct.tagId,
+          source: ct.source,
+          expiresTurn: ct.expiresTurn,
+          quantity: ct.quantity ?? 1,
+        },
+      });
+    }
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_consume_tag",
-      targetCharacterId: character.id,
+      targetCharacterId: target.id,
+      // REQUESTS.md §1a: a row a future ration might count must carry
+      // turnId — this one already feeds routineHealsThisTurn-shaped counters
+      // once administerSkill bills a Move (review fix, M2).
+      turnId: openTurn?.id ?? null,
       details: {
         tagId,
         tagName: held.tag.name,
+        restore,
         granted: granted.map((g) => g.tagName),
-        resourcesGranted,
+        resourcesGranted: allResourcesGranted,
         moodRelief: moodRelief || undefined,
+        // The GM's copy of what a dish was, which is the only place the
+        // ingredients are ever written down after the craft — the eater is
+        // told the taste and nothing else.
+        cookedFrom: cookedFrom.length ? cookedFrom : undefined,
+        moodTerms: moodTerms?.length ? moodTerms : undefined,
         climbed: climbed.map((c) => c.tagName),
+        cured: cured.length ? cured : undefined,
+        administered: administered || undefined,
+        targetName: administered ? target.name : undefined,
+        // M4: what Iron Constitution shrugged off, and whether this draw came
+        // up poisoned. The audit desk is a GM-only surface (web/app/(desk)/gm)
+        // — this never rides along on a player-facing response.
+        resisted: allResisted.length ? allResisted : undefined,
+        poisoned: poisonDraw
+          ? { poisonTagId: poisonDraw.tag.id, poisonName: poisonDraw.tag.name }
+          : undefined,
       },
     });
   });
+  await afterInventoryChange([character.id, administered ? target.id : null]);
+  if (administered) {
+    notifyCharacter(target, `${character.name} used ${held.tag.name} on you.`);
+  }
+  revalidateAll();
+  // The taste sentence, which is the whole point of cooking — the one-click
+  // Consume on the tag rail raises it too (COOKING.md §8).
+  return line ? { line } : {};
+}
+
+// --- Poisoning (the medical pass, M4) ----------------------------------
+//
+// Dosing a meal or drink you're already holding. The poison-use dialog's
+// other two options need no server logic of their own: drinking it yourself
+// is the ordinary Consume path above (poisons are consumable, with a wired
+// `consumesInto`), and dosing a helpless person is poisonCharacterRequestImpl
+// below — its own deliberate door, not a loosening of the M1 medicine-
+// administer gate, which stays cures-locked.
+async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const heldPoison = character.tags.find((ct) => ct.tagId === poisonTagId);
+  if (!heldPoison) throw new UserError("You don't have that.");
+  if (!heldPoison.tag.poison) throw new UserError("That isn't a poison.");
+
+  const heldFood = character.tags.find((ct) => ct.tagId === targetTagId);
+  if (!heldFood) throw new UserError("You don't have that.");
+  if (!heldFood.tag.consumable || heldFood.tag.poison) {
+    throw new UserError("That isn't something you can lace.");
+  }
+  // A food or drink, per the plan (items-food/items-drink) — not gear, not
+  // the poison bottle itself (caught above), not a skill or a status.
+  const foodGroup = heldFood.tag.group?.slug;
+  if (foodGroup !== "items-food" && foodGroup !== "items-drink") {
+    throw new UserError("That isn't something you can lace.");
+  }
+
+  const openTurn = await getOpenTurn();
+  // THE ORACLE (fix round, M4): the refusals below used to fire for anyone,
+  // which made lacing a stack a free, repeatable poison detector — the
+  // dialog even advertised it (see poisonUse === "food"'s help text). Gated
+  // on canDetectPoison now: a detector's own sense really would notice the
+  // stack before committing the dose, so they keep the refusal (and the
+  // vial); anyone else's dose is silently accepted and lost in the mix
+  // instead of teaching them anything. Computed off the pre-transaction
+  // snapshot like every other gate in this file — a trait or gadget held a
+  // moment ago is not the kind of thing that changes mid-click.
+  const canDetect = canDetectPoison(character.tags);
+
+  await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    // Double-fire (fix round, M4): re-verify the vial itself is still held
+    // under the lock — dropCharacterTag below is a silent no-op on a gone
+    // row, so without this a second tab could dose the same stack a second
+    // time for free once the first tab's vial is already spent (the file's
+    // own craftRequestImpl comments document this exact trap).
+    const freshPoison = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
+    });
+    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
+    // Re-read the food's row fresh under the lock — the same patient-side
+    // race shape consumeTagRequestImpl already guards: the stack may have
+    // been eaten, transferred away, or already tainted between the load
+    // above and this lock.
+    const freshFood = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: character.id, tagId: targetTagId } },
+    });
+    if (!freshFood) throw new UserError("You don't have that any more.");
+    // Poisoner-side only (the plan is explicit): a poisoner learning their
+    // OWN stack is already tainted with something else is acceptable — it's
+    // never disclosed to whoever eventually eats it, and it never refuses on
+    // the eating end (that would be the recipient-side leak the merge rule
+    // below exists to avoid).
+    const taintedDifferently = Boolean(
+      freshFood.poisonPayload && freshFood.poisonPayload !== poisonTagId,
+    );
+    if (taintedDifferently && canDetect) {
+      throw new UserError("That's already tainted with something else.");
+    }
+    // Over-lacing (fix round, M4): same gate as the oracle above. The stack
+    // is already fully poisoned, so one more dose has nowhere to land — a
+    // detector is told outright and keeps the vial; anyone else just wastes
+    // it, same silent-loss shape as dosing a differently-tainted stack.
+    const stackFull = freshFood.poisonedCount > 0 && freshFood.poisonedCount >= freshFood.quantity;
+    if (stackFull && !taintedDifferently && canDetect) {
+      throw new UserError("It can't hold any more poison than that.");
+    }
+    const wasted = taintedDifferently || (stackFull && !taintedDifferently);
+    const poisonedCount = wasted
+      ? freshFood.poisonedCount
+      : Math.min(freshFood.poisonedCount + 1, freshFood.quantity);
+    if (!wasted) {
+      await tx.characterTag.update({
+        where: { id: freshFood.id },
+        data: { poisonedCount, poisonPayload: poisonTagId },
+      });
+    }
+    await dropCharacterTag(tx, character.id, poisonTagId, 1);
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_poison_item",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        poisonTagId,
+        poisonName: heldPoison.tag.name,
+        foodTagId: targetTagId,
+        foodName: heldFood.tag.name,
+        poisonedCount,
+        quantity: freshFood.quantity,
+        // GM-only detail (see the audit-desk comment on consumeTagRequestImpl's
+        // own `poisoned` field) — never surfaced to the actor, whose own
+        // response is identical whether this landed or was silently lost.
+        wasted: wasted || undefined,
+      },
+    });
+  });
+
   await afterInventoryChange(character.id);
+  revalidateAll();
+  return {};
+}
+
+// Dosing a helpless person standing here. Poison's own deliberate door
+// (Chris, 2026-09-08): the target must be in INCAPACITATING_SLUGS (bound,
+// dying, paralyzed, unconscious, crucified, catatonic — the same class
+// HARM/LOOT use) and co-located; a conscious victim is never dosable this
+// way, which is exactly what poisoned food is for. Grants land through the
+// same resolveConsumeGrants the Consume path uses, resists filter included,
+// so a forced dose is countered by Iron Constitution exactly like a
+// swallowed one — the trait is about the constitution, not the consent.
+async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
+  const { session, character } = await requireCharacter({ needs: ACT });
+
+  const heldPoison = character.tags.find((ct) => ct.tagId === poisonTagId);
+  if (!heldPoison) throw new UserError("You don't have that.");
+  if (!heldPoison.tag.poison) throw new UserError("That isn't a poison.");
+
+  if (!character.locationId)
+    throw new UserError("You aren't anywhere you could do that.");
+  if (targetCharacterId === character.id)
+    throw new UserError("Pick someone else.");
+
+  const target = await prisma.character.findFirst({
+    where: { id: targetCharacterId ?? "", status: "ALIVE" },
+    include: {
+      tags: { include: { tag: { select: { id: true, slug: true, name: true, resists: true } } } },
+    },
+  });
+  if (!target || !isHere(character, target))
+    throw new UserError(notHereMessage(target));
+
+  const heldSlugs = new Set(target.tags.map((ct) => ct.tag.slug));
+  if (![...heldSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
+    throw new UserError(
+      "You can't poison a conscious, able person.",
+    );
+  }
+
+  const openTurn = await getOpenTurn();
+  const resistSlugs = resistSlugsOf(target.tags);
+  // No ladder walk here, unlike Consume's: every catalog item with
+  // `poison: true` is a status vial, never a drinking-ladder rung, so the
+  // extra query the ordinary Consume path always pays for would resolve
+  // nothing. Caveat: that is a fact about today's catalog, not something
+  // this call enforces — if a future poison's own consumesInto ever named a
+  // slug that IS a ladder rung, passing `null` here would silently skip the
+  // climb (consumeGrants.js's own comment on this same assumption).
+  const grants = resolveConsumeGrants(heldPoison.tag, heldSlugsOf(target.tags), null, resistSlugs);
+
+  await prisma.$transaction(async (tx) => {
+    // Deadlock avoidance, same shape as consumeTagRequestImpl's administered
+    // branch: lock in sorted-id order, never actor-then-target.
+    const lockIds = [character.id, target.id].sort();
+    for (const id of lockIds) await lockCharacter(tx, id);
+
+    // Double-fire (fix round, M4): re-verify the vial itself is still held
+    // under the lock, same reasoning as poisonItemRequestImpl's own re-check
+    // — dropCharacterTag below is a silent no-op on a gone row, so two tabs
+    // firing at once would otherwise force two doses out of one vial.
+    const freshPoison = await tx.characterTag.findUnique({
+      where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
+    });
+    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
+
+    // Patient-side race: re-verify helplessness under the lock. Somebody
+    // could have freed, healed or revived them between the load above and
+    // this lock.
+    const freshTags = await tx.characterTag.findMany({
+      where: { characterId: target.id },
+      select: { tag: { select: { slug: true } } },
+    });
+    const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
+    if (![...freshSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
+      throw new UserError("They're no longer helpless.");
+    }
+
+    await dropCharacterTag(tx, character.id, poisonTagId, 1);
+    const granted = await grantTagSlugs(
+      tx,
+      target.id,
+      grants.slugs,
+      openTurn?.number ?? null,
+      grants.durations,
+    );
+    if (grants.resources) {
+      await creditResources(
+        tx,
+        { kind: "character", id: target.id, name: target.name },
+        grants.resources,
+      );
+    }
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_poison_character",
+      targetCharacterId: target.id,
+      turnId: openTurn?.id ?? null,
+      details: {
+        poisonTagId,
+        poisonName: heldPoison.tag.name,
+        targetName: target.name,
+        granted: granted.map((g) => g.tagName),
+        resisted: grants.resisted.length ? grants.resisted : undefined,
+      },
+    });
+  });
+
+  await afterInventoryChange([character.id, target.id]);
+  // Anonymous, same posture as harmCharacterRequestImpl's "Someone hurt
+  // you." — the target learns something happened, not who did it. What
+  // actually landed is right there on their sheet once they can read it
+  // again.
+  notifyCharacter(target, "Someone forced something down your throat.");
   revalidateAll();
   return {};
 }
@@ -2740,6 +3571,23 @@ async function transferRequestImpl({
   };
   const fromParty = { kind: from.kind, id: from.id, name: from.name };
   const toParty = { kind: to.kind, id: to.id, name: to.name };
+  // Two fields the silo ledger reads back (FACTIONS.md §4c), and the reason
+  // both are written HERE rather than resolved when the ledger is drawn.
+  //
+  // `by` is the name the room saw, frozen the way ArchiveEntry.concealedAlias
+  // is: resolving it live would unmask every deposit somebody ever made the
+  // moment the hood came off. No extra query — requireCharacter already loads
+  // whole Tag rows with `equipped`, which is all forcedNameFrom and
+  // concealmentFrom read.
+  //
+  // `moveId` ties one act together. This writes one audit row per tag stack
+  // plus one for the ⬢, so handing in two stacks and 30 ⬢ is three rows; the
+  // ledger groups on this to print it as the one thing it was.
+  const by = presentedIdentity(character, {
+    forcedName: forcedNameFrom(character.tags),
+    concealment: concealmentFrom(character.tags),
+  }).name;
+  const moveId = crypto.randomUUID();
   // The Spillway (Room.destroysContents). Nothing is written on the receiving
   // end — giveTagTo and moveParty both refuse — so the effect has to say so,
   // or a GM repairing this by hand goes looking for goods never stored.
@@ -2754,6 +3602,16 @@ async function transferRequestImpl({
   const toCharacterId = to.kind === "character" ? to.id : null;
 
   await prisma.$transaction(async (tx) => {
+    // A room-to-room move (two public rooms at one Location — the Keep alone
+    // has five) would otherwise lock from-room then to-room in request order
+    // inside the primitives, and the reverse-direction transfer locks them
+    // the other way round — the same 40P01 AB-BA trap the character locks
+    // below this file already defend against with a sorted order. Pre-lock
+    // both rooms sorted; the primitives' own lockRoom re-acquisitions inside
+    // this transaction are then no-ops.
+    if (from.kind === "room" && to.kind === "room") {
+      for (const roomId of [from.id, to.id].sort()) await lockRoom(tx, roomId);
+    }
     for (const move of moves) {
       const { tagId, quantity, held } = move;
       const restore = {
@@ -2761,12 +3619,22 @@ async function transferRequestImpl({
         expiresTurn: held.expiresTurn ?? null,
         quantity,
       };
-      await takeTagFrom(tx, from, tagId, quantity);
+      // Poison state (M4) rides along on the same primitive an ordinary
+      // hand-over uses: what leaves is a hypergeometric draw against the
+      // source row (takeTagFrom/dropCharacterTag/dropRoomTag), and what
+      // lands merges into the recipient row under the "poisons don't mix"
+      // dilution rule (giveTagTo/restoreCharacterTag/addToRoomStack). Never
+      // surfaced in the audit `details` below — that would tell whoever can
+      // read this row back (a GM, but also a stale-tab replay) something the
+      // plain manifest never has.
+      const { poisonedTaken, poisonPayload } = await takeTagFrom(tx, from, tagId, quantity);
       await giveTagTo(tx, to, {
         tagId,
         quantity,
         expiresTurn: held.expiresTurn ?? null,
         source: "EVENT",
+        poisonedCount: poisonedTaken,
+        poisonPayload,
       });
       await logAudit(tx, {
         actorDiscordUserId: session.discordUserId,
@@ -2778,6 +3646,8 @@ async function transferRequestImpl({
           quantity,
           from: fromParty,
           to: toParty,
+          by,
+          moveId,
           direction: "SEND",
           restore,
         },
@@ -2795,6 +3665,8 @@ async function transferRequestImpl({
         amount,
         from: fromParty,
         to: toParty,
+        by,
+        moveId,
         direction: "SEND",
         destroyed,
       };
@@ -2854,6 +3726,12 @@ async function healCharacterRequestImpl({
   targetCharacterId,
   tagId,
   payerKey,
+  // Mirrors craftRequestImpl's billedSeen contract (CRAFTING.md §2a): 1 if
+  // the dialog showed this as costing the Move, 0 if it showed free. The
+  // server never bills more than the dialog acknowledged — a stale pool
+  // reading that would silently spend a Move gets the "reload" refusal
+  // instead (review fix, M2).
+  billedSeen: rawBilledSeen,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
@@ -2894,37 +3772,92 @@ async function healCharacterRequestImpl({
   // than a refusal (docs/systemdocs/TAGS.md §5c). Nothing is out of reach any
   // more; what changes is whether you roll for it.
   const gambit = isGambitHeal(held.tag, satisfied);
-  // +1 on the die for a set of instruments in reach — held, or standing in a
-  // room that has one (db/lib/equipmentReach.js). Only ever asked for a
-  // Gambit, since a routine cure never rolls.
-  const surgical = gambit
+  // Surgery needs a site (M3, TAGS.md §5c; reworked M6b): a tier-6/7 cure —
+  // read off the cure's own required skill, needsSurgicalSite — refuses
+  // outright without SOMETHING enabling the site. Two things can enable it
+  // now: the fixed Surgical Equipment kit (or a COMPLETE Surgical Theater,
+  // which hasEquipmentInReach already treats as satisfying the same reach —
+  // the same way a Forge satisfies Workshop Equipment), or, failing that, a
+  // Portable Surgical Pack. Neither is consumed; both are ordinary standing
+  // held/room-stashed gear.
+  //
+  // The two are NOT equivalent. A real site (fixed kit or Theater) carries no
+  // penalty at all — it is simply what surgery is supposed to look like. The
+  // portable pack is a worse stand-in: when it's the ONLY thing enabling the
+  // site, the Gambit rolls at −1. Reaching for the fixed kit or a Theater
+  // always wins outright and erases the penalty; the portable never adds a
+  // bonus of its own.
+  const needsSite = needsSurgicalSite(held.tag);
+  const fixedSiteReach = needsSite
     ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
     : false;
+  const portablePackReach =
+    needsSite && !fixedSiteReach
+      ? await hasEquipmentInReach(prisma, character, PORTABLE_SURGICAL_PACK_SLUG)
+      : false;
+  if (needsSite && !fixedSiteReach && !portablePackReach) {
+    throw new UserError(
+      "You need surgical equipment to proceed.",
+    );
+  }
+  // The die penalty only ever applies to a surgery Gambit resting on the
+  // portable pack alone — a non-site-gated Gambit (reaching above your tier
+  // on an ordinary cure) never touches either kit, and a fixed site or
+  // Theater in reach cancels the penalty outright, pack or no pack.
+  const surgicalPenalty = gambit && needsSite && !fixedSiteReach && portablePackReach;
 
   const openTurn = await getOpenTurn();
+
+  // The medical Move budget (M2, docs/systemdocs/CRAFTING.md §2a /
+  // TAGS.md §5c): a routine cure joins the same craft-budget arithmetic
+  // crafting uses. Family is hardcoded "medical" and passed as an override —
+  // never derived via craftFamily, which would drop a skill-less cure like
+  // choking into the generic `craft` family. Returns null for a free cure:
+  // no turn open at all (the pre-M2 posture — no turn, no Move economy,
+  // nothing to bill and nothing rationed), or a 0-turn cure still inside the
+  // day's shared MEDICAL_SIMPLE_PER_TURN pool. A turns-costing cure is never
+  // free; the old per-tier daily case cap it used to be checked against is
+  // gone, replaced entirely by the Move fraction.
+  //
+  // Priced twice, like every other budget craft: here for a fast fail, and
+  // again inside the transaction under the row lock, since two simultaneous
+  // heals would otherwise both read the same pool count and pass.
+  const priceHeal = async (db) => {
+    if (!openTurn) return null;
+    if (countsAgainstHealCap(held.tag, gambit)) {
+      const already = await routineHealsThisTurn(db, session.discordUserId, openTurn.id);
+      if (already < MEDICAL_SIMPLE_PER_TURN) return null;
+      return craftMoveCost(
+        { requirementTurns: 1, requirementPerTurn: MEDICAL_SIMPLE_PER_TURN },
+        { quantity: 1, family: "medical" },
+      );
+    }
+    return craftMoveCost(held.tag, { quantity: 1, family: "medical" });
+  };
+
+  // The player is never billed more than the dialog showed them (review fix,
+  // M2 — mirrors craftRequestImpl's acknowledgeBill). Priced here for the
+  // fast fail, and AGAIN inside the transaction, where a concurrent heal may
+  // have eaten the free pool between the two — the in-tx copy is what
+  // actually holds.
+  const billedSeen = parseCount(rawBilledSeen, { min: 0, max: 1 }) ?? 0;
+  const acknowledgeBill = (moveCost) => {
+    if ((moveCost ? 1 : 0) > billedSeen) {
+      throw new UserError(
+        "Your free allowance changed since this page loaded — reload to see the new cost.",
+      );
+    }
+  };
+
+  let outsideMoveCost = null;
   if (gambit) {
     // A roll costs the Move, and Action's @@unique([characterId, turnId]) is
     // what makes it one gambit heal a turn — no separate check needed.
     await requireFreeMove(character, openTurn);
-  } else if (openTurn && countsAgainstHealCap(held.tag)) {
-    // A doctor's day has a ceiling. Checked here for a fast fail and again
-    // inside the transaction under a row lock, since two simultaneous
-    // requests would otherwise both read the same count and pass — the same
-    // shape the Dead Simple cap uses.
-    const heldSlugs = new Set(
-      character.tags.map((ct) => ct.tag?.slug).filter(Boolean),
-    );
-    const allowance = healCapFor(heldSlugs, MEDICAL_TIER_CAPS);
-    const already = await routineHealsThisTurn(
-      prisma,
-      session.discordUserId,
-      openTurn.id,
-    );
-    if (already >= allowance) {
-      throw new UserError(
-        `You've treated ${already} ${already === 1 ? "case" : "cases"} this turn, which is all you can manage. First aid still costs you nothing.`,
-      );
-    }
+  } else {
+    outsideMoveCost = await priceHeal(prisma);
+    acknowledgeBill(outsideMoveCost);
+    if (outsideMoveCost) await resolveCraftMove(character, openTurn, outsideMoveCost);
   }
 
   const payer = await resolveParty(payerKey);
@@ -2968,11 +3901,12 @@ async function healCharacterRequestImpl({
     // afterwards is their own edit, with its own audit row and its own undo.
     gambit,
     pending: gambit,
-    surgical,
+    surgicalPenalty,
     // What the catalog charged at the time, so a later review sees the
     // price actually quoted rather than today's tags.yaml.
     requirement: {
       turns: held.tag.requirementTurns,
+      perTurn: held.tag.requirementPerTurn,
       resources: held.tag.requirementResources,
       gambit: held.tag.requirementGambit,
       skills: held.tag.requirementSkills.map((t) => t.name),
@@ -2984,20 +3918,42 @@ async function healCharacterRequestImpl({
   const aftermathSlugs = gambit ? [] : rollTagChain(held.tag.removesInto);
 
   await prisma.$transaction(async (tx) => {
-    // Re-check the day's allowance under a row lock. Two tabs would otherwise
-    // both read the same count and both pass (requestActions.js's Dead Simple
-    // cap has the same pair of checks for the same reason).
-    if (!gambit && openTurn && countsAgainstHealCap(held.tag)) {
-      await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${character.id} FOR UPDATE`;
-      const heldSlugs = new Set(
-        character.tags.map((ct) => ct.tag?.slug).filter(Boolean),
-      );
-      const allowance = healCapFor(heldSlugs, MEDICAL_TIER_CAPS);
-      const already = await routineHealsThisTurn(tx, session.discordUserId, openTurn.id);
-      if (already >= allowance) {
-        throw new UserError(
-          "You've treated all the cases you can manage this turn.",
-        );
+    // Re-priced under a row lock. Two tabs would otherwise both read the same
+    // pool count or ledger and both pass (requestActions.js's Dead Simple cap
+    // has the same pair of checks for the same reason). The lock is taken
+    // here rather than left to spendCraftMove alone, because a heal that
+    // re-prices to FREE under lock (the pool had room a moment ago and still
+    // does) still needs the lock to hold across that re-read.
+    if (!gambit) {
+      // Deadlock avoidance (review fix, round 3): the medic and the patient
+      // are two different Character rows once this is an administered heal,
+      // and this transaction locks both (Move billing here, the patient
+      // re-check further down) — lock them in sorted-id order, not
+      // medic-then-patient, or two medics treating each other at the same
+      // instant lock in opposite orders and deadlock (Postgres surfaces an
+      // unresolved cycle as a raw 40P01, not a UserError).
+      const lockIds =
+        target.id !== character.id ? [character.id, target.id].sort() : [character.id];
+      for (const id of lockIds) await lockCharacter(tx, id);
+
+      const moveCost = await priceHeal(tx);
+      acknowledgeBill(moveCost);
+      if (moveCost) {
+        // The fast fail only ran resolveCraftMove — which checks the Move
+        // window itself — when the OUTSIDE price already billed. A heal that
+        // goes from free to billed only here (the pool filled between the two
+        // reads) must re-check the window before writing a ledger, the same
+        // race craftRequestImpl's spill re-check guards (review fix, M2).
+        if (!outsideMoveCost) {
+          const { locked } = moveWindow(openTurn, { clockFrozen: await clockFrozen(tx) });
+          if (locked) throw new UserError("Moves are locked for this turn.");
+        }
+        await spendCraftMove(tx, {
+          character,
+          openTurn,
+          need: moveCost,
+          entry: craftLedgerEntry(held.tag, moveCost),
+        });
       }
     }
 
@@ -3027,12 +3983,13 @@ async function healCharacterRequestImpl({
             moveKind: "GAMBIT",
             moveReviewStatus: "OPEN",
             description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}.`,
-            diceRoll: rollDie(),
+            // Lucky keeps the better of two dice (db/lib/advantage.js).
+            diceRoll: rollWithAdvantage(character.tags).die,
             diceModifier:
               gambitModifierTotal(character.tags, {
                 hungerStreak: character.hungerStreak,
                 mood: character.mood,
-              }) + (surgical ? 1 : 0),
+              }) + (surgicalPenalty ? -1 : 0),
             zoneId: character.zoneId ?? null,
             gmNotes: "auto:heal_gambit",
           },
@@ -3044,6 +4001,29 @@ async function healCharacterRequestImpl({
       }
       effect.actionId = action.id;
     } else {
+      // Patient-side race (review fix, M2): two medics treating the same
+      // wound in the same instant both pass the outside gates, both bill ⬢
+      // and a Move fraction, and dropCharacterTag on an already-gone row is
+      // a silent no-op — the loser would look successful and cure nothing.
+      // The TARGET row is already locked (self-heal's own row, via the
+      // sorted-order lock above); re-read the held row under that lock.
+      // Whoever loses the race gets a clean refusal instead of a phantom
+      // success, and the whole transaction — the ⬢ and the Move it already
+      // claimed included — rolls back with it.
+      const heldNow = await tx.characterTag.findUnique({
+        where: { characterId_tagId: { characterId: target.id, tagId: held.tagId } },
+      });
+      if (!heldNow) {
+        throw new UserError(
+          `${target.id === character.id ? "You've" : `${target.name} has`} already been treated for that.`,
+        );
+      }
+      effect.restore = {
+        tagId: held.tagId,
+        source: heldNow.source,
+        expiresTurn: heldNow.expiresTurn,
+        quantity: heldNow.quantity ?? 1,
+      };
       await dropCharacterTag(tx, target.id, held.tagId);
       effect.granted = await grantTagSlugs(
         tx,
@@ -3058,7 +4038,14 @@ async function healCharacterRequestImpl({
       // it is re-read here rather than trusted.
       const woundTag = await tx.tag.findUnique({
         where: { id: held.tagId },
-        select: { slug: true, requirementResources: true, requirementTurns: true, requirementGambit: true, group: { select: { slug: true } } },
+        select: {
+          slug: true,
+          requirementResources: true,
+          requirementTurns: true,
+          requirementPerTurn: true,
+          requirementGambit: true,
+          group: { select: { slug: true } },
+        },
       });
       const relief = -woundMoodFor(woundTag) / 2;
       if (relief > 0) await applyMood(tx, target.id, { kind: "HEALED", base: relief });
@@ -3097,7 +4084,6 @@ async function healCharacterRequestImpl({
     tagName: held.tag.name,
     cost,
     gambit,
-    surgical,
   };
 }
 
@@ -3167,7 +4153,8 @@ async function researchRequestImpl({ ingredientSlug }) {
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
           description: `Researching ${ingredient.tag.name} in the Cathedral.`,
-          diceRoll: rollDie(),
+          // Lucky keeps the better of two dice (db/lib/advantage.js).
+          diceRoll: rollWithAdvantage(character.tags).die,
           diceModifier: gambitModifierTotal(character.tags, {
             hungerStreak: character.hungerStreak,
             mood: character.mood,
@@ -3274,12 +4261,55 @@ async function lootCharacterRequestImpl({
   const openTurn = await getOpenTurn();
 
   await prisma.$transaction(async (tx) => {
+    // Loot lock (fix round M4b, fix 3): unlike Transfer and Heal, this used
+    // to take no lock at all — two looters racing the same helpless target
+    // would both run dropCharacterTag's absolute writes against the same
+    // unlocked stack (duplicated units, or a poisoned split counted twice).
+    // Same sorted-id lock the heal and poison paths use, for the same
+    // deadlock-avoidance reason (a simultaneous cross-loot would otherwise
+    // lock actor-then-target and target-then-actor at once).
+    const lockIds = [character.id, target.id].sort();
+    for (const id of lockIds) await lockCharacter(tx, id);
+
+    // Race re-check under the lock: `takenTags`/`amount` were priced against
+    // a read taken before the lock, so a concurrent loot (or anything else
+    // that shrank the target's stack or purse since) needs a fresh look
+    // before anything is actually taken. Refusing beats granting the SECOND
+    // looter the full originally-requested amount regardless of what the
+    // body still has — dropCharacterTag quietly takes less (or nothing) off
+    // a shrunk row, but this loop would otherwise still hand the requester
+    // the untouched request quantity.
     for (const t of takenTags) {
-      await dropCharacterTag(tx, target.id, t.tagId, t.quantity);
+      const freshHeld = await tx.characterTag.findUnique({
+        where: { characterId_tagId: { characterId: target.id, tagId: t.tagId } },
+      });
+      if (!freshHeld || freshHeld.quantity < t.quantity) {
+        throw new UserError(`Someone already took that.`);
+      }
+    }
+    let freshResources = target.resources;
+    if (amount > 0) {
+      const freshTarget = await tx.character.findUnique({
+        where: { id: target.id },
+        select: { resources: true },
+      });
+      freshResources = freshTarget?.resources ?? 0;
+      if (freshResources < amount) {
+        throw new UserError(`${target.name} only has ${freshResources} ⬢ left.`);
+      }
+    }
+
+    for (const t of takenTags) {
+      // Same poison hand-off as Transfer (M4): a body's held stack draws its
+      // poisoned units proportionally, and they land on the looter under the
+      // same "poisons don't mix" dilution addToStack enforces.
+      const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, target.id, t.tagId, t.quantity);
       await addToStack(tx, character.id, t.tagId, t.quantity, {
         source: "EVENT",
         expiresTurn: t.expiresTurn,
         stackable: t.stackable,
+        poisonedCount: poisonedTaken,
+        poisonPayload,
       });
     }
     if (amount > 0) {
@@ -3606,9 +4636,20 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
     throw new UserError(notHereMessage(target));
   if (!isBoundTarget(target))
     throw new UserError(`${target.name} isn't tied up.`);
-
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
+
+  // Imperturbable: there is nothing in there to break.
+  //
+  // BELOW requireFreeMove on purpose, so the attempt costs the torturer their
+  // Move. Above it, this was a free probe: anyone could test a bound target for
+  // a hidden tag (`visible: false`) at no cost at all and read the answer off
+  // the refusal. Spending the Move matches pain-immunity, which lets the
+  // torturer roll and waste it. The target's mood and the −40 are still spared.
+  if (target.tags.some((ct) => ct.tag.slug === IMPERTURBABLE_SLUG))
+    throw new UserError(
+      `${target.name} looks back at you, entirely unbothered. There is nothing here to break.`,
+    );
 
   const equipmentInReach = await hasEquipmentInReach(
     prisma,
@@ -3616,8 +4657,13 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
     TORTURING_EQUIPMENT_SLUG,
   );
   const targetSlugs = target.tags.map((ct) => ct.tag.slug);
+  // The TORTURER's die, so it is the torturer's Lucky that bends it — the same
+  // side gambitMods below are computed for. Both dice are carried through, so
+  // the roll line can show the one that was thrown away.
+  const tortureRoll = rollWithAdvantage(character.tags);
   const result = resolveTorture({
-    die: rollDie(),
+    die: tortureRoll.die,
+    rolls: tortureRoll.rolls,
     torturerSlugs,
     targetSlugs,
     equipmentInReach,
@@ -4021,6 +5067,9 @@ async function claimDesireImpl({
       openTurnNumber,
       desireSlots,
       lockTurns,
+      // Manic: the slot never shuts. Same helper the three display surfaces
+      // call, so what the sheet offers is what this accepts.
+      noLock: desireSlotsNeverLock(character.tags),
     });
     const slot = slots[slotIndex];
     if (slot?.lockedUntilTurn != null) {
@@ -4266,7 +5315,7 @@ async function resolveCorpseSource(character, { tagId, sourceKey }) {
 // (CARRY.md §5), and two of your own tabs can race just as well.
 async function takeCorpse(tx, corpse) {
   if (corpse.source.kind === "room") {
-    const ok = await dropRoomTag(tx, corpse.source.id, corpse.tagId, 1);
+    const { ok } = await dropRoomTag(tx, corpse.source.id, corpse.tagId, 1);
     if (!ok) throw new UserError("That body isn't there any more.");
     return;
   }
@@ -4885,6 +5934,35 @@ async function packageItemsRequestImpl({
 
   let crate;
   await prisma.$transaction(async (tx) => {
+    // Single-actor lock (fix round M4b, fix 3 sibling check): packing is
+    // always the actor's own stacks, so there's no cross-character deadlock
+    // order to reason about — just the same "two tabs packing at once"
+    // shape the loot lock above guards against, on one row instead of two.
+    await lockCharacter(tx, character.id);
+
+    // Laundering fix (M4): drop the contents FIRST and capture what actually
+    // left as poisoned — dropCharacterTag's own return, previously discarded
+    // here, which is exactly how packing a poisoned item into a crate used
+    // to launder it clean. Per-entry, carried on the manifest below, so
+    // openCrateRequestImpl re-applies it on the unpack side rather than
+    // silently dropping it a second time. One road now: the Depot's own
+    // opener is gone and a crate is cracked through Consume wherever it is
+    // carried.
+    const poisonedContents = [];
+    for (const c of contents) {
+      const { poisonedTaken, poisonPayload } = await dropCharacterTag(
+        tx,
+        character.id,
+        c.tagId,
+        c.quantity,
+      );
+      poisonedContents.push({
+        ...c,
+        poisonedCount: poisonedTaken,
+        poisonPayload: poisonedTaken > 0 ? poisonPayload : null,
+      });
+    }
+
     crate = await tx.tag.create({
       data: {
         slug,
@@ -4910,20 +5988,27 @@ async function packageItemsRequestImpl({
         consumable: true,
         // Repeated per unit — that is how consumesInto expresses a quantity
         // (docs/tags.yaml header), and every packable thing worth crating in
-        // bulk is stackable.
+        // bulk is stackable. Left in place for the crate's printed
+        // description and as a fallback; the actual unpack (below) reads
+        // crateContents instead so the poison state on each line survives —
+        // grantTagSlugs (what consumesInto ultimately resolves through)
+        // knows nothing about poison at all.
         consumesInto: contents.flatMap((c) => Array(c.quantity).fill(c.slug)),
         // Carried too, for parity with a Depot crate, so anything that reads
-        // one manifest reads both.
-        crateContents: contents.map((c) => ({
+        // one manifest reads both. `poisonedCount`/`poisonPayload` per line
+        // (M4) — omitted (not written as 0/null) for a clean line, so an
+        // ordinary crate's manifest looks exactly as it always has.
+        crateContents: poisonedContents.map((c) => ({
           tagId: c.tagId,
           name: c.name,
           quantity: c.quantity,
+          ...(c.poisonedCount > 0
+            ? { poisonedCount: c.poisonedCount, poisonPayload: c.poisonPayload }
+            : {}),
         })),
       },
     });
 
-    for (const c of contents)
-      await dropCharacterTag(tx, character.id, c.tagId, c.quantity);
     await addToStack(tx, character.id, crate.id, 1, {
       source: "EVENT",
       stackable: false,
@@ -5003,6 +6088,14 @@ export async function transferRequest(input) {
 
 export async function consumeTagRequest(input) {
   return guarded(() => consumeTagRequestImpl(input));
+}
+
+export async function poisonItemRequest(input) {
+  return guarded(() => poisonItemRequestImpl(input));
+}
+
+export async function poisonCharacterRequest(input) {
+  return guarded(() => poisonCharacterRequestImpl(input));
 }
 
 export async function healCharacterRequest(input) {
@@ -5159,9 +6252,7 @@ async function birdMessageRequestImpl({
   if (allowance > BASE_BIRD_SENDS_PER_DAY) {
     const cooling = rookeryCooldown(character.birdLastSentAt);
     if (!cooling.ok) {
-      throw new UserError(
-        `The birds are still settling. Try again <t:${cooling.readyAt}:R>. \u2021`,
-      );
+      throw new UserError(`Try again <t:${cooling.readyAt}:R>.`);
     }
   }
 
@@ -5191,7 +6282,7 @@ async function birdMessageRequestImpl({
       if (spent.count === 0) {
         throw new UserError(
           allowance > BASE_BIRD_SENDS_PER_DAY
-            ? "The birds have all flown for today. \u2021"
+            ? "The birds have all flown today."
             : "Your bird has already flown today.",
         );
       }
@@ -5402,6 +6493,13 @@ async function stepstoneRequestImpl({ locationId }) {
   // of an intercept in the game.
   const heldBy = heldReasonFor(character);
   if (heldBy) throw new UserError(heldBy);
+
+  // And an unresolved Caving 1 stops it for the same reason one step further
+  // on (docs/systemdocs/CAVING.md §2c). The stone only ever lands on the
+  // SURFACE, so used from underground it is exactly the crossing the hold
+  // exists to refuse — without this it is the one way out of the dark.
+  const cavingHold = await cavingHoldFor(prisma, character.id, character.zoneId);
+  if (cavingHold) throw new UserError(cavingHold);
 
   const targetId = String(locationId ?? "");
   if (!targetId) throw new UserError("Pick somewhere.");

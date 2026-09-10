@@ -256,12 +256,33 @@ rider could bank the mount's bonus crossing on a ride that never survives the
 threshold (`MAP.md` §2c).
 
 A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
-Sanctuary, the Inn, the Keep, the Undercroft, the Factory — is a place you walk
+Sanctuary, the Inn, the Keep, the Undercroft — is a place you walk
 into, and you do not bring a horse into a chapel. On arrival
 `db/lib/indoors.js#parkMountsIndoors` unequips them and DMs the character;
 `equipOne` refuses to put them back on while they stand there. The anchor
 message says so in its own `-#` line, written by `syncZones` and hashed with
 the rest of the body, so it appears once and never again.
+
+**`wheels: true` is the exception, and it is authored.** `indoors` was
+answering two questions with one column — is there a roof over this place (the
+mood dial, Sun Sensitivity, whether a palisade can be raised in it) and do
+wheels stay outside — and a warehouse is a yes to the first and a no to the
+second. So a Location may carry the `wheels` attribute (`MAP.md` §1b) and admit
+a cart and a horse while keeping its roof for everything else. Three places
+have it: the **Godard Factory**, whose Logistics Room has a ramp down to dry
+ground and whose whole business is loading crates of Squeeze onto a wagon;
+**Customs**, a gate built to be driven through; and the **Depot**, a shop that
+ships by the wagonload. Without it the last hundred feet of every Squeeze run
+were done on foot, one 68 lb crate a trip, because an unequipped cap is 71 lb.
+
+Every reader that asks "may a mount be out here" goes through
+`locationAttributes.js#parksMounts(location)` rather than the column — the
+arrival parking, the equip refusal, the sheet's equip board, and the `·
+indoors` marks on the /map and /chat travel pickers. Reading the column
+directly in a new caller is how the Factory would come to admit a wagon on one
+surface and refuse it on another. The readers that ask about the **roof** —
+`examineVision.js`, `paper.js`, `mood.js#placeClassOf`, `structures.js` — keep
+reading `indoors` straight, which is the entire point of the split.
 
 The parking happens **before** the settle, so the reduced cap is what the
 settle sees, and Overburdened goes on in the same pass. Nothing is dropped for
@@ -429,7 +450,21 @@ modes `transfer` and `loot`) — is Transfer, Loot, Take, Drop and Give. Two
 chip rows say the direction (From: you, a Room here, or somebody helpless;
 To: you, a person here, a Room, your silo), then every stack the source
 offers is a row with a count (`StackRow.js`: name · − n + · All), plus a ⬢
-box. It replaced two dropdowns, a checkbox list with a "How many?" field per
+box.
+
+**The name is a `TagChip`, and the weight sits beside it** (2026-09-10). This
+dialog was the one list in the app showing a bare name, and a player said what
+that cost: *"Right now I have to pick up equipment and try putting it on to
+figure out where it goes."* The chip's hover is the same card the Depot, the
+Tag Catalog and the sheet's own rail already show — In a fight, Armour, Weight,
+**Worn** (`describeEquipFit`: "Held · takes two", "Head · Liner"), Cost. The
+weight is inline rather than on the hover because it is the fact that decides
+the answer while the dialog is open, with the carry cap in the projection line
+below. **A helpless person's pockets are the exception**: those rows keep a
+plain name and a weight and get no chip, because the loot filter is `tradeable`
+rather than `catalogVisibility`, so a secret tag somebody is carrying is already
+named there and handing over its description, recipe and cost too would be a
+second leak (`REQUESTS.md` §5b). It replaced two dropdowns, a checkbox list with a "How many?" field per
 tick, and a separate Loot dialog that was a third dropdown over the same body.
 The people are the same roster every picker uses (web/lib/peopleHere.js), and
 the whole thing is re-read the moment the dialog opens

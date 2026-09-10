@@ -47,7 +47,8 @@
 // No require of ./tagWrites here, on purpose: tagWrites requires THIS module
 // for applyWoundMood, and a cycle would hand one of them a half-built export.
 const { hasAttribute, SAFE_ATTRIBUTE, WILDERNESS_ATTRIBUTE, HAVEN_ATTRIBUTE } = require("./locationAttributes");
-const { DYING_SLUG } = require("./constants");
+const { DYING_SLUG, IMPERTURBABLE_SLUG, AMOR_FATI_SLUG, WOUND_TAG_GROUPS } = require("./constants");
+
 
 // Still asymmetric, but by one band rather than by a whole half: Ecstatic
 // mirrors Afraid exactly — same width, same distance from Fine, +1 against its
@@ -154,6 +155,14 @@ const DRINK_RELIEF = 30;
 // consumeReliefFor takes the MAX across all of it, never a sum: Bliss lands
 // both euphoric and high and is one drink, and Sweets is a treat rather than
 // a treat plus a meal.
+//
+// A COOKED MEAL IS NOT IN HERE, and cannot be. `fine-meal: 15` and
+// `lavish-meal: 30` sat in this table until the cooking rework; they were
+// flat, they were the largest single figures a meal could reach, and the
+// moment every meal became a MINTED row (COOKING.md) their slugs stopped
+// matching anything — a dish's slug is `custom-craft-…`. A dish is priced by
+// dishMoodTerms below instead, off its own `mealMood` and what went into it.
+// `ate-meal: 5` stays and is now genuinely the floor under every meal.
 const CONSUME_RELIEF = Object.freeze({
   tipsy: DRINK_RELIEF,
   wasted: DRINK_RELIEF,
@@ -161,14 +170,10 @@ const CONSUME_RELIEF = Object.freeze({
   "blind-drunk": DRINK_RELIEF,
   high: DRINK_RELIEF,
   euphoric: DRINK_RELIEF,
-  "lavish-meal": 30,
   // A hot drink. Keyed on the status rather than the bean, same as the drinks.
   tea: 15,
   caffeinated: 15,
   "maggot-milk": 15,
-  // "Makes an ordinary person happy", says its own catalog line. It used to be
-  // worth nothing, on the argument that it only fed a noble.
-  "fine-meal": 15,
   // The treats. Sugar does not grow in Ravenheart.
   sweets: 8,
   honey: 8,
@@ -185,7 +190,7 @@ const CONSUME_RELIEF = Object.freeze({
 
 // Which Health groups sink a mood when they land. Illness, mind, minor and
 // recovery do not — a cold is not a wound.
-const WOUND_GROUPS = new Set(["health-wounds", "health-maiming", "health-infection"]);
+const WOUND_GROUPS = new Set(WOUND_TAG_GROUPS);
 const BURN_SLUGS = new Set(["burned", "severe-burns"]);
 // Cure-ladder rung (TAGS.md §5c) -> what it costs the mood, signed. The half
 // rungs are the six named exceptions the ladder documents.
@@ -232,9 +237,58 @@ const MULTIPLIERS = Object.freeze([
   // cannot simply never applies them, which fails safe — no free immunity.
   { slug: "heartforged-blade", kinds: "*", factor: 0, equipped: true },
 ]);
-// Every slug the tables above read, so a caller loading a sheet knows what to
-// select — and so the turn pass can filter its candidate query.
-const MULTIPLIER_SLUGS = MULTIPLIERS.map((m) => m.slug);
+// Amor Fati (a mastery, TAGS.md 4a) — the one rule that is NOT a multiplier,
+// and it has to stay that way.
+//
+// It reads like a factor of -0.5, and it was one for a day. But `multiplierFor`
+// MULTIPLIES every applicable rule together, so a negative factor composed with
+// the vulnerability rows and inverted them: Teratophobia's ×3 turned cave
+// trouble into +15 rather than +5, Hemophobia's ×2 paid a wound back at FULL
+// value instead of half, and Brave's ×0.5 — a tag you pay points for — HALVED
+// the relief. Since the phobias refund points, stacking one was strictly better
+// and strictly cheaper. Backwards in both directions.
+//
+// So for a kind it owns, Amor Fati REPLACES the multiplier chain rather than
+// joining it: the gift is half of what the event costs anybody, and what you
+// happen to fear or how brave you are does not change it. Nothing can compose
+// with it, so nothing can invert it.
+//
+// Split in two on purpose. SHOCK is misfortune that HAPPENS to you — an author
+// and a moment — and pays back half of what it cost. AMBIENT is the weather:
+// ever-present costs nobody would call an incident, which simply stop landing
+// rather than becoming a pleasure. WILDERNESS and CAVE cover both the arrival
+// hit and the nightly one, since the kind is the same for each. DRIFT needs no
+// entry (it carries noMultiplier) and PLACE harm is already capped at Fine.
+const AMOR_FATI_SHOCK = Object.freeze(
+  new Set(["WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BOUND", "ROBBED", "TURRET", "CAVE_TROUBLE", "DEATH_SEEN"]),
+);
+const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "CORPSE", "NOBLE_MEAL"]));
+const AMOR_FATI_SHARE = -0.5;
+
+// Takes the RAW base, not the multiplied harm, and that is the fix rather than
+// an implementation detail. Reordering alone changes nothing — multiplication
+// commutes, so `base × phobia × -0.5` is the same number either way. What has
+// to go is the phobia's involvement at all: the gift is half of what the event
+// COSTS, not half of what it would have cost this particular sufferer.
+//
+// Returns `{ handled, value }`. `handled: false` means Amor Fati has no opinion
+// about this kind and the ordinary multiplied path should run.
+function amorFatiHarm(kind, base, heldSlugs) {
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  if (!held.has(AMOR_FATI_SLUG)) return { handled: false, value: 0 };
+  if (AMOR_FATI_AMBIENT.has(kind)) return { handled: true, value: 0 };
+  if (AMOR_FATI_SHOCK.has(kind)) return { handled: true, value: base * AMOR_FATI_SHARE };
+  return { handled: false, value: 0 };
+}
+
+// Every slug the mood system reads, so a caller loading a sheet knows what to
+// select — and so the turn pass can filter its candidate query. Imperturbable
+// is on the list without being in the table above: it works through
+// `intensity` rather than a multiplier (see applyMoodTerms), but a pass that
+// did not SELECT it would compute the whole night as though the holder were
+// ordinary. That is exactly the silent kind of miss this list exists to stop,
+// so anything the dial reads belongs here whether or not it is a multiplier.
+const MULTIPLIER_SLUGS = [...new Set([...MULTIPLIERS.map((m) => m.slug), IMPERTURBABLE_SLUG, AMOR_FATI_SLUG])];
 
 // --- the pure half --------------------------------------------------------
 
@@ -328,7 +382,19 @@ function woundRungOf(tag) {
   if (r >= 6) return 5;
   if (r >= 4) return 4;
   if (r === 3) return 3.5;
-  if (r === 2) return turns >= 1 ? 3 : 2;
+  // 2-⬢ wounds split three ways since M2a (turnsCost repricing put Simple
+  // and Moderate on the same requirementResources: 2/requirementTurns: 1
+  // shape, differing only in requirementPerTurn): a legacy/GM-authored
+  // zero-turn wound (or unset, coalesced the same way as before this
+  // milestone) and the new Simple (perTurn 4, i.e. turnsCost 1/4) both stay
+  // at rung 2; anything else with a nonzero turn cost (a Moderate wound's
+  // turnsCost 1/3, or a GM-authored whole turn with no fraction at all — the
+  // Dev Panel form cannot author one) is rung 3.
+  if (r === 2) {
+    if (turns === 0) return 2;
+    if (tag.requirementPerTurn === 4) return 2;
+    return 3;
+  }
   if (r === 1) return 1;
   return 0.5;
 }
@@ -374,8 +440,14 @@ function resolveDelta({
   const k = Number.isFinite(intensity) && intensity > 0 ? intensity : 0;
   if (!base || k === 0) return 0;
   const harm = base < 0 && !noMultiplier;
-  const raw = harm ? base * multiplierFor(kind, heldSlugs, ctx, equippedSlugs) * k : base / k;
-  return Math.round(raw * 100) / 100;
+  const amor = harm ? amorFatiHarm(kind, base, heldSlugs) : { handled: false, value: 0 };
+  const raw = harm
+    ? (amor.handled ? amor.value : base * multiplierFor(kind, heldSlugs, ctx, equippedSlugs)) * k
+    : base / k;
+  // `|| 0` folds -0 back to 0. A zeroing multiplier on a negative base
+  // produces it (Outsider in the wilderness, Amor Fati on any of the ambient
+  // costs), and while -0 adds like 0 it PRINTS like "-0" in a readout.
+  return Math.round(raw * 100) / 100 || 0;
 }
 
 // Plain, as asked: the band's name and nothing about the number. Only the two
@@ -454,8 +526,16 @@ async function applyMoodTerms(
   let delta = 0;
   let moveApplied = 0;
   let restorativeApplied = 0;
+  // Imperturbable (a mastery, TAGS.md 4a) is the dial's own off switch. It
+  // rides on `intensity` rather than on a MULTIPLIERS row because intensity is
+  // the one lever that zeroes RELIEF as well as harm — a multiplier is only
+  // ever consulted for base < 0, so a row there would have left the holder
+  // free to climb to Ecstatic while immune to everything below Fine. `k === 0`
+  // is already a case resolveDelta handles (it returns 0 for either sign), so
+  // this adds no new arithmetic.
+  const unshakable = heldSlugs.has(IMPERTURBABLE_SLUG);
   if (character.status === "ALIVE" && terms?.length) {
-    const k = intensity ?? (await loadIntensity(tx));
+    const k = unshakable ? 0 : intensity ?? (await loadIntensity(tx));
     let moveDelta = 0;
     let restorativeDelta = 0;
     for (const term of terms) {
@@ -490,7 +570,16 @@ async function applyMoodTerms(
   }
 
   let after = before;
-  if (delta !== 0) {
+  // "Always at 0, Fine" has to hold for a mood the character ALREADY had when
+  // they took the tag, not just for the events that stop landing afterwards.
+  // Nothing moves an Imperturbable dial, so the correction is a one-time
+  // write back to 0 the next time anything asks — the nightly pass reaches
+  // every living character, so it settles within a turn at the outside.
+  if (unshakable && before !== 0 && character.status === "ALIVE") {
+    await tx.character.update({ where: { id: characterId }, data: { mood: 0 } });
+    after = 0;
+    delta = 0;
+  } else if (delta !== 0) {
     // Clamped in the database, so two hooks in the same tick cannot race a
     // stale read past either end.
     const rows = await tx.$queryRaw`
@@ -607,6 +696,7 @@ async function applyWoundMood(tx, characterId, tagIds, opts = {}) {
       category: true,
       requirementResources: true,
       requirementTurns: true,
+      requirementPerTurn: true,
       requirementGambit: true,
       group: { select: { slug: true } },
     },
@@ -706,6 +796,41 @@ function consumeReliefFor(itemSlug, grantedSlugs = []) {
   return best;
 }
 
+// What a COOKED DISH is worth (docs/systemdocs/COOKING.md): the meal's own
+// small figure plus every ingredient's, as terms for applyMoodTerms.
+//
+// Three deliberate differences from consumeReliefFor above, each of which is
+// the reason this is a separate function rather than another branch of it:
+//
+//   It SUMS. A drink is one drink however many statuses it lands, but "the
+//   ingredient does most of the work" only means anything if a second slot
+//   adds to the first. Two delicacies in a Lavish Meal are worth both.
+//
+//   It can be NEGATIVE. Relief is a max over a table of positives; a dish
+//   made of feces is the worst thing in the game and has to be able to say so.
+//
+//   It returns the two halves SEPARATELY, never netted. Only harm is ever
+//   scaled — by k, and by the multiplier stack — so netting +45 of saffron
+//   against -55 of feces first would quietly charge the eater a scaled -10
+//   instead of an unscaled +45 and a scaled -55. They are two things that
+//   happened at one meal, not one thing.
+//
+// DISGUST carries noMultiplier, the way DRIFT does. Three of the rules in
+// MULTIPLIERS apply to `kinds: "*"`, and while "Brave halves your disgust at
+// eating a liver" is arguable, "the Rite of Rage makes feces free" and
+// "holding the right sword makes you immune to disgust" are not. Revulsion at
+// what you just swallowed is not a fright, and nothing in the fright table
+// has an opinion about it.
+function dishMoodTerms(mealMood, ingredientMoods = []) {
+  const moods = ingredientMoods.filter((m) => Number.isFinite(m));
+  const relief = (mealMood ?? 0) + moods.filter((m) => m > 0).reduce((a, m) => a + m, 0);
+  const harm = moods.filter((m) => m < 0).reduce((a, m) => a + m, 0);
+  const terms = [];
+  if (relief) terms.push({ kind: "MEAL", base: relief });
+  if (harm) terms.push({ kind: "DISGUST", base: harm, noMultiplier: true });
+  return terms;
+}
+
 module.exports = {
   // Tables and pure functions: the turn pass, the hooks and the test read these.
   MOOD_BANDS,
@@ -735,6 +860,7 @@ module.exports = {
   loadIntensity,
   applyMoodTerms,
   applyMood,
+  dishMoodTerms,
   applyKissMood,
   KISS_AUDIT_ACTION,
   setMood,

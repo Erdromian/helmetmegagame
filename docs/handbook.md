@@ -30,9 +30,10 @@
     - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
     - [Examining Tags](#examining-tags)  
     - [Health Tags](#health-tags)  
-10. [Building](#building)  
-11. [Character Page](#character-page)  
-12. [Death](#death)  
+10. [Crafting](#crafting)  
+11. [Building](#building)  
+12. [Character Page](#character-page)  
+13. [Death](#death)  
 
 
 ## About Bascinet
@@ -289,7 +290,7 @@ After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review
 
 Your character has a mood, and there is a box for it on your sheet that says it in one word. From best to worst: Ecstatic, Happy, Pleased, Content, **Fine**, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Most people sit at Fine.
 
-Things wear on a character — nights spent out in the wilderness or down in the caves, a wound, going hungry, being tied up, seeing somebody die, worse. Shelter mends that: a roof over your head, and the Inn, the Keep or the Sanctuary more so than an ordinary room. But shelter only ever brings you back up to Fine. A bed will not make you happy, however long you lie in it — for that you need something you actually wanted: a drink, a meal, a treat, a pot of tea, a coffee, a smoke, hearing a Musician play, a confession, or getting what you asked for from a Desire. Nothing stays extreme for long — every night your mood slides a little back toward Fine, from either direction. ‡
+Things wear on a character — nights spent out in the wilderness or down in the caves, a wound, going hungry, being tied up, seeing somebody die, worse. Shelter mends that: a roof over your head, and the Inn, the Keep or the Sanctuary more so than an ordinary room. But shelter only ever brings you back up to Fine. A bed will not make you happy, however long you lie in it — for that you need something you actually wanted: a drink, a meal, a treat, a pot of tea, a coffee, a smoke, hearing a Musician play, a confession, or getting what you asked for from a Desire. Nothing stays extreme for long — every night your mood slides a little back toward Fine, from either direction.
 
 Only the three at the ends do anything to the dice. **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2 — and at the other end, **Ecstatic** gives you +1. The five in the middle are their own reward and change no roll. You are told when you reach any of those three, and otherwise the box on your sheet is the only place your mood is written down.
 
@@ -405,21 +406,33 @@ Equipping is also a public act. Some gear — a dagger, a pistol, a badge — is
 
 ### How Good You Are In A Fight
 
-Your sheet carries a **Combat** box, and it says two words: how you do up close, and how you do at range. Those are separate — a Legendary archer is no better with a knife than anyone else. ‡
+Your sheet carries a **Combat** box, and it says two words: how you do up close, and how you do at range. Those are separate — a Legendary archer is no better with a knife than anyone else.
 
-The words run **Pitiful · Weak · Mediocre · Capable · Seasoned · Dangerous · Lethal · Legendary**, and they are coloured to match, red through grey to green. ‡
+The words run **Pitiful · Weak · Mediocre · Capable · Seasoned · Dangerous · Lethal · Legendary**, and they are coloured to match, red through grey to green.
 
-**Almost everyone in Ravenheart is Weak.** Most people have never been trained to fight, and that is the honest word for it. One rung of Melee or Ranged makes you Mediocre, and each rung after that moves you one word along. Pitiful is not where you start — it is where you end up, with a hangover, a bad wound, or a limb missing. Legendary is real but very nearly out of reach: it takes the top of a specialism *and* the right weapon in your hands. ‡
+**Almost everyone in Ravenheart is Weak.** Most people have never been trained to fight, and that is the honest word for it. One rung of Melee or Ranged makes you Mediocre, and each rung after that moves you one word along. Pitiful is not where you start — it is where you end up, with a hangover, a bad wound, or a limb missing. Legendary is real but very nearly out of reach: it takes the top of a specialism *and* the right weapon in your hands.
 
-Three kinds of thing move the number, and the box tells you which is which when you hover it: ‡
+Three kinds of thing move the number, and the box tells you which is which when you hover it:
 
-- **What you are.** Being Strong, being Old, having a hand that no longer closes properly. These always count. ‡
-- **What you are holding.** A sword in your hand is worth something on its own, and a great deal more if you have trained with swords. **You only ever swing one weapon**, so carrying a sword *and* an axe is not worth more than carrying the better of the two — but the weapon, your training, and the specialism for that weapon all stack. ‡
-- **The moment.** Duelling, a shield wall, a surprise in rough ground, a shot at long range, something inhuman across from you. No system can know whether this fight is one of those, so these are **listed rather than counted** — bring them up with your GM when they apply. ‡
+- **What you are.** Being Strong, being Old, having a hand that no longer closes properly. These always count.
+- **What you are holding.** A sword in your hand is worth something on its own, and a great deal more if you have trained with swords. **You only ever swing one weapon**, so carrying a sword *and* an axe is not worth more than carrying the better of the two — but the weapon, your training, and the specialism for that weapon all stack.
+- **The moment.** Duelling, a shield wall, a surprise in rough ground, a shot at long range, something inhuman across from you. No system can know whether this fight is one of those, so these are **listed rather than counted** — bring them up with your GM when they apply.
 
-You will never be shown this for anybody else, and nobody will be shown it for you. Working out how dangerous somebody is, is meant to be something you do by watching them, asking around, or finding out the hard way. ‡
+You will never be shown this for anybody else, and nobody will be shown it for you. Working out how dangerous somebody is, is meant to be something you do by watching them, asking around, or finding out the hard way.
 
-**Armor is separate**, and rides in the same box underneath. It does not make you better at fighting; it decides what happens when you are hit. Both numbers are there because the two things that hurt you in Ravenheart are nothing alike — a breastplate is excellent against a sword and paper against a rifle. ‡
+**Armor is separate**, and rides in the same box underneath. It does not make you better at fighting; it decides what happens when you are hit. Both numbers are there because the two things that hurt you in Ravenheart are nothing alike — a breastplate is excellent against a sword and paper against a rifle.
+
+### Attacking Somebody
+
+Press **Attack** on somebody standing with you and neither of you goes anywhere. You are both held where you are until the turn ends and a Gamemaster reads what you each filed — so nobody starts a fight and then wanders off to have a nice afternoon. Make a Gambit declaring what you are actually trying to do.
+
+It costs nothing. The Gambit is what costs your Move.
+
+You can **break it off** at any point before the turn ends, from the Attack panel or from the button on your own DM, and that frees you both. But you only get one attack on a given person per turn, so breaking off is the end of it for today.
+
+Some people are simply out of your league, and the button will say so rather than let you freeze somebody far above you for a whole day. It will not tell you how far above you they are, or anything at all about the people it lets you attack.
+
+An **ambush** is the same thing sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too.
 
 **Teaching:** Most skills can be taught by someone standing with you who holds them. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, teaching becomes their Routine for the turn, and learning becomes your Gambit — you succeed on a roll of 5 or 6, or 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill. A teacher with the Lecturing tag can teach up to three students on one Routine.
 
@@ -429,15 +442,32 @@ When you 🔍 a character you will see tags marked as visible, such as clearly w
 
 ### Health Tags
 
-Health tags are your wounds, illnesses, and other ailments. Removing them typically requires someone medically skilled, based on how severe the tag is. Removing health tags costs Resources, and anything worse than a Minor tag also requires a turn spent by the person doing the removing.
+Health tags are your wounds, illnesses, and other ailments. A doctor treats them with Heal, based on how severe the tag is and their own Medical skill. The most trivial injuries are free, up to 4 a turn for any doctor; anything else always costs at least a quarter of their Move, and the gravest surgeries take a whole Move and 14 ⬢ — the very worst of them on a roll of the dice.
 
-You can see the costs and skills required in the Medical Document: {document:medical}.
+Some items cure a specific ailment outright the moment you Consume them, no doctor needed — a tonic, a dressing, a prosthetic fitted onto a lost limb. A few of those still need someone medically trained to apply, even to their own body.
+
 
 **Untreated wounds often get worse.**
 
 When a health tag worsens, the bot will DM you. Find a doctor before the tag shows `· last` if you want to stay alive.
 
-Even if you don't possess the skills needed to heal an injury or ailment, you may always *attempt* something above your tier. That requires a Gambit, and you stand a very real chance of making it worse.
+Even if a doctor doesn't possess the skills needed to heal an injury or ailment, they may always *attempt* something above their tier. That requires a Gambit, and there's a very real chance of making it worse. The most serious surgeries also need a site — Surgical Equipment in reach, a Surgical Theater, or a Portable Surgical Pack — before anyone can attempt them at all. Bring the real kit or work in a Theater and there's no downside; lean on the pack alone and the roll takes a −1 for it.
+
+## Crafting
+
+Press **Craft** on your [Character](https://ravenheart.quest/character) page, pick a recipe you already hold the skills for, and it pays its ⬢ cost right away — from your own purse, a room stash you're in, or someone standing with you who agrees to pay. It files as your Routine for the turn. A **Dead Simple** recipe needs no Move at all, just a cap of 4 a turn; anything past that becomes a real Move, and a long recipe becomes a multi-turn **project** you keep working at from the same button turn after turn — or cancel outright, with no refund for what's already gone in.
+
+**What you can make depends on your skills.** A handful of skill families gate crafting, each opening a different slice of the world's recipes:
+
+- **Crafting** — tailoring, woodwork, and the simplest metalwork (Dead Simple tier), no forge needed.
+- **Smithing**, **Smithing (Skilled)**, and **Smithing (Gunpowder)** — proper metalwork, each rung opening heavier and more expensive gear than the last. Anything past Dead Simple metalwork needs a **forge**: Workshop Equipment held, sitting in a room you can get into where you stand, or a forge standing at the place. Work you can do with your hands alone needs nothing.
+- **Cooking (Basic)** and **Cooking (Skilled)** — meals. Fine and Lavish meals each have their own cap per Routine, and a Lavish meal wants a delicacy off the Depot's shelf besides its ⬢.
+- **Brewing (Basic)**, **Brewing (Skilled)**, and **Brewing (Expert)** — alcohol, tonics, poisons, and now the medicines too: three plain remedies brew at Skilled, the rest — five more, including the field's rarest recipes — brew at Expert. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise.
+- **Medical (Skilled)** and **Medical (Expert)** — no medicine-making left in this trade. Heal treats a patient, and fitting a prosthetic onto a maiming (even your own) still needs Medical (Expert), whoever crafted the prosthetic itself.
+
+**Make it your own.** A few crafts — a badge, a hat, a painting, a sketch, and a cook's meals — can be made as truly YOURS: pay 1 ⬢ extra and give it your own name and description. A named piece always still plainly shows what it is underneath, so a "Dockers' Mark (Badge)" reads as a badge regardless of what you called it.
+
+**Finding a recipe.** Every recipe the world knows how to make — priced, skill-gated, and always current — lists on the **Recipes tab** of the [Documents](https://ravenheart.quest/documents) page, whether or not you personally hold the skills or ⬢ for it yet. A few recipes are withheld from that list on purpose: they only appear in your own Craft menu once you're already holding the rare ingredient they need. That's deliberate — finding the thing is how you learn the recipe, not the other way around.
 
 ## Building
 

@@ -43,8 +43,12 @@ it undercutting the Factory's refining.
 
 | Slug | Name | pt | Gate |
 |---|---|---|---|
-| `brewing-basic` | Brewing (Basic) | 2 | none |
-| `brewing-skilled` | Brewing (Skilled) | 2 | `parentTag: brewing-basic` (cumulative, total 4) |
+| `brewing-basic` | Brewing (Basic) | 5 | none |
+| `brewing-skilled` | Brewing (Skilled) | 5 | `parentTag: brewing-basic` (cumulative, total 10) |
+| `brewing-expert` | Brewing (Expert) | 5 | `parentTag: brewing-skilled` (cumulative, total 15) |
+
+Brewing (Expert) is new with the medical pass — it exists to gate the five
+medicines below that used to be a Medical crafter's work (§3a).
 
 ## 2. Brewing (Basic)
 
@@ -89,7 +93,7 @@ kind (CRAFTING.md §2).
 | `flawless-skin` | 8 | 1 | — | `otherworldly-beauty` |
 
 Three recipes lost a prose ingredient and pay in ⬢ instead, because the
-ingredient was the whole gate: `white-honey` 2 → **6** (it cures any poisoning),
+ingredient was the whole gate: `white-honey` 2 → **6** (it cures a poisoning),
 and `forgiveness` /
 `flawless-skin` keep their 8, which was already doing the work. White Honey
 has since regained a real gate twice over — it spends a `honey` (a gm-catalog
@@ -97,8 +101,12 @@ Depot import, which also makes it one of the HIDDEN recipes: off the Recipes
 tab, out of the Craft menu until the brewer holds the ingredients) and, since
 the trout's heart came back as a loot-pass fishing find, a `trout-heart` too.
 Its ⬢ eased 6 → **3** with the second ingredient (Chris 2026-09-07): the rare
-catch is most of the price of a cure-all now, and 6 on top of both was a
-triple gate.
+catch is most of the price of the cure now, and 6 on top of both was a
+triple gate. Its own `cures:` list (the medical pass, TAGS.md §5c) is
+`poisoned`, `envenomated`, `phrygian-toxin` — not literally every poison in
+the catalog (nightshade's choking and soporific's asleep aren't on it). Its
+player-facing description says as much ("not every toxin bends to it") since
+the medical pass truthed it.
 `phrygian-tears` is the most potent poison in the game and brews from
 poisons now: a bottle of `nightshade` distilled further, cut with
 `cave-fungus` — both public, so the recipe stays in the book.
@@ -117,6 +125,45 @@ An empty **Consumes into** cell is not an oversight. `consumable` with no
 `consumesInto` is set where the brew is spent *by a Move* rather than by the
 drinker — a poison you administer, a flask you throw, a powder worked into
 someone else's wound — so the GM applies the result to whoever it happened to.
+
+## 3a. The medicines (medical pass)
+
+Eight recipes moved in from the old Medical craft when the medical pass split
+crafting the medicine from treating the patient with it: three price at
+Skilled, five at Expert — four of those hidden or secret, the Portable
+Surgical Pack plainly visible. Brewing them is a `brewing`
+craft now, billed off `craftFamily()` like any other brew (`CRAFTING.md`
+§2a); Healing a patient with a Heal request, and fitting the two prosthetics
+below with `administerSkill`, are still Medical (Expert)'s job
+(`MEDICAL.md` §2, `TAGS.md` §5c) — one Action carries one family, so a medic
+can't brew a batch and heal a patient in the same turn.
+
+These don't fit the **Consumes into** shape above — they're `Tag.cures`
+items (`MEDICAL.md` §1), not status brews — so the last column is **Cures**
+instead.
+
+| Brew (Skilled) | ⬢ | Turns | Cures |
+|---|---|---|---|
+| `antidote` | 4 | 1/2 | poisoned, envenomated |
+| `fever-draught` | 3 | 1/2 | feverish, heatstroke, cave-fever |
+| `burn-dressing` | 4 | 1/2 | burned, severe-burns |
+
+| Brew (Expert) | ⬢ | Turns | Ingredient | Cures |
+|---|---|---|---|---|
+| `autoinjector` | 3 | 1 | `antidote` + `fever-draught` + `brackenmoss` (HIDDEN — needs the brewer to hold all three) | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
+| `portable-surgical-pack` | 8 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
+| `last-breath` | 12 | 3 (project) | `aberrant-heart` (secret) | dying |
+| `cybernetic-arm` | 16 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
+| `cybernetic-leg` | 16 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
+
+`last-breath` and the two cybernetics are `catalog: secret` and hidden by
+conjunction — the Craft menu only shows them to a `brewing-expert` already
+holding the named ingredient (`MEDICAL.md` §6). `autoinjector` is `catalog:
+all` but HIDDEN the ordinary way: off the Recipes tab until the brewer holds
+`brackenmoss`, the non-public ingredient (`CRAFTING.md` §2b). Neither
+cybernetic has an aftermath — the graft leaves no mark — while `last-breath`
+cures Dying outright with no die, the one item door onto a tier-7 cure that
+isn't a Gambit.
 
 ## 4. Ingredients
 
@@ -278,3 +325,29 @@ the description plus a **Recipe** line built by
 `formatTagRequirement` (`db/lib/formatTagRequirement.js`) from the same
 `requirement` block these tables come from. Don't restate an effect in the
 document; it is already two places.
+
+
+## Brewing (Distilling)
+
+A `mastery` tag (`TAGS.md` §4a) gated on Brewing (Skilled): every brewing
+recipe yields **two** of its item for the price of one.
+
+The doubling lives in `grantCrafted` (`web/app/(app)/character/requestActions.js`),
+the single grant every craft path funnels through, rather than beside its three
+callers — and deliberately **downstream of the ingredient plan and the ⬢
+spend**, both of which are computed from `quantity` and must stay that way.
+Doubling the cost as well would make the tag do nothing.
+
+Two details that are easy to get wrong:
+
+- **The family is read off `baseTag ?? tag`, not `tag`.** When a recipe mints a
+  custom row the minted tag carries no `requirementSkills`, so `craftFamily()`
+  would read it as the generic `craft` and quietly stop doubling.
+- **The audit row's `quantity` stays the RECIPE RUNS**, not the units granted.
+  The per-turn rations in `web/lib/requests.js` count that field, so billing
+  the doubled output would halve a Distilling brewer's own Dead Simple
+  allowance. What actually landed is recorded beside it as `granted` when the
+  two differ.
+
+A non-stackable brew is unaffected: `addToStack` pins one to quantity 1 however
+many times it is granted.

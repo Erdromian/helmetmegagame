@@ -685,6 +685,19 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
     }
 
     // Narrowcast member overwrites vs the rules, channel-major.
+    //
+    // The context is built ONCE per character, not once per character per
+    // channel: it is two queries and it does not depend on the entry. With one
+    // special channel the difference was invisible; each new entry used to
+    // multiply the whole sweep by another 2N queries.
+    const accessByCharacter = new Map();
+    if (SPECIAL_CHANNELS.some((entry) => config?.[entry.configKey])) {
+      for (const c of alive) {
+        if (c.webOnly) continue;
+        accessByCharacter.set(c, computeNarrowcastAccess(await buildNarrowcastContext(prisma, c.id)));
+      }
+    }
+
     for (const entry of SPECIAL_CHANNELS) {
       const channelId = config?.[entry.configKey];
       if (!channelId) continue;
@@ -698,10 +711,8 @@ async function runChannelDoctor(prisma, { apply = false, scope = "cheap", actorD
       if (!live) continue;
 
       const wantByUser = new Map();
-      for (const c of alive) {
-        if (c.webOnly) continue;
-        const ctx = await buildNarrowcastContext(prisma, c.id);
-        const grant = computeNarrowcastAccess(ctx)[entry.slug];
+      for (const [c, access] of accessByCharacter) {
+        const grant = access[entry.slug];
         if (grant) wantByUser.set(c.discordUserId, grant);
       }
 

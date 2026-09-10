@@ -21,7 +21,7 @@ system.
 |---|---|---|
 | A zone's `#summary` | yes | yes — adjudication results and staged public declarations post here |
 | A Location channel (surface or cave level) | yes | no |
-| `#cerberon` | yes | no — it is tied to no place, so there is no adjudication result to post there |
+| `#cerberon`, `#27.065` | yes | no — they are tied to no place, so there is no adjudication result to post there |
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, refreshed on ready and every 5 minutes) and
@@ -31,10 +31,12 @@ Keep them in sync if the rule changes.
 The same refresh builds `channelContexts`: channel id → `{ zoneId, zoneName,
 locationId, locationName, channelKind }`, so the proxy can stamp an archive
 row with where a message was said without a DB round trip per message.
-`channelKind` is one of `summary | location | watch | intercom` (a plain
-string field, not a Prisma enum — see `ARCHIVE.md`). `intercom` no longer means
-the channel of that name, which is gone: it is now what a PA broadcast is
-filed as in the archive (§7a). A Room thread or a
+`channelKind` is one of `summary | location | intercom` or a special channel's
+own slug — `cerberon`, `27.065` (a plain string field, not a Prisma enum — see
+`ARCHIVE.md`). `intercom` no longer means the channel of that name, which is
+gone: it is now what a PA broadcast is filed as in the archive (§7a). `watch`
+is the Cerberon net's old name and survives only on rows written before the
+rename, which is why the `net:` backfill migration maps it too. A Room thread or a
 Conversation reports its parent Location
 channel's context and keeps its own name as the scene.
 
@@ -685,10 +687,10 @@ Every check is independently caught and the whole run is persisted as a
 answer to the old wipe-time complaint: instead of hoping every removal in a
 hundred-call loop lands, a miss becomes visible and repairable.
 
-## 7. Special channels (`#cerberon`)
+## 7. Special channels (`#cerberon`, `#27.065`)
 
 Standing channels outside the zone system, under one `radio` category (id on
-`GameConfig.radioCategoryId`). There is one of them left.
+`GameConfig.radioCategoryId`). Both are radio nets.
 `db/lib/specialChannels.js` is a **registry**:
 one entry fully describes a channel — its `GameConfig` id columns, topic,
 tupper routing, wipe behaviour, ghost visibility, static role grants, an
@@ -704,9 +706,24 @@ two access twins and the wipe.
 | Channel | Who sees it | Who speaks |
 |---|---|---|
 | `#cerberon` | **Radio Bracelet (Cerberon)** or **Radio System (Cerberon)** holders (per-member overwrite) | Radio System (Cerberon) holders only |
+| `#27.065` | **Radio (27.065)** holders (per-member overwrite) | the same — everyone who hears may answer |
 
 The Radio tags are transferable, so possession is what matters — a bracelet
-handed to a character outside the Cerberon still opens `#cerberon`.
+handed to a character outside the Cerberon still opens `#cerberon`. Nobody
+buys a **Radio (27.065)** in point-buy either; the Thanati shelf is the only
+source, at 20 (`db/lib/thanati.js`). The two nets are separate frequencies
+and never mix.
+
+Both are **also places on `/chat`**, as the `net:<slug>` place kind — see
+`CHAT.md` §5d. The rule there is this same `member` function, so the two faces
+cannot disagree about who hears what, and a web-only character finally hears
+their own radio.
+
+The **name is reconciled on every sync**, not just written at provisioning.
+That is new, and it is why `#cerberon` spent two migrations still called
+`#watch`: the name was set once, nothing ever read it back, and the doctor
+checks member overwrites only. A rename keeps the channel's id and its
+history.
 
 The sync still enforces `roleViewZones` in both directions: it grants the
 listed zone roles view *and* deletes any zone-role grant the registry no longer
@@ -715,7 +732,7 @@ that deletion half is why dropping the channel really silenced it.
 
 ### `#intercom` is gone; the PA is a button now
 
-There used to be a second entry. `#intercom` was a standing channel every
+There used to be a third entry. `#intercom` was a standing channel every
 above-ground zone role could see, and that a holder of the **Intercom** tag
 could type into while standing in the Fortress.
 

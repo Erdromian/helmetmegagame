@@ -37,6 +37,7 @@ const { announceTurretBurst } = require("./turretBurst");
 const { ambientLine } = require("./ambientLine");
 const { deliverCarryDrop } = require("./carry");
 const { revokeAllCharacterAccess } = require("./accessSweep");
+const { stillAlive } = require("./deathTeardown");
 const { reconcileCharacterRoleNames } = require("./characterRoleNames");
 const { refreshLiveRooms } = require("./syncZones");
 const { broadcastToZones } = require("./worldBroadcast");
@@ -311,7 +312,14 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
       // clear private-Room door grants. Without it that deleteMany matched
       // nothing and a corpse kept every door somebody had held open for them —
       // silently, since the rest of the revoke worked fine.
-      const revoked = await revokeAllCharacterAccess(prisma, {
+      // A player who is alive again already — Metempsychosis put them in a new
+      // body a moment ago (db/lib/reincarnate.js) — must not be stripped by
+      // their own corpse's teardown. Everything below keys on discordUserId, so
+      // it reaches the person rather than the body. Same guard, same reason, as
+      // db/lib/deathTeardown.js#stillAlive.
+      const reborn = await stillAlive(prisma, death.discordUserId);
+
+      const revoked = reborn ? { failed: 0, attempted: 0 } : await revokeAllCharacterAccess(prisma, {
         ...death,
         id: death.id ?? death.characterId,
       }).catch((err) => {
@@ -349,7 +357,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
         );
       }
 
-      if (member) {
+      if (member && !reborn) {
         await addMemberRole(death.discordUserId, GHOST_ROLE_ID).catch((err) =>
           console.error(
             `Failed to grant the ghost seat to ${death.discordUserId}:`,
@@ -482,8 +490,8 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
       // is a graph link between the two places, and there almost never is one
       // here — without this the character simply materialises with nothing
       // said, at either end.
-      const gone = `${move.name} is not here any more. ‡`;
-      const come = `${move.name} is here, and was not a moment ago. ‡`;
+      const gone = `${move.name} is not here any more.`;
+      const come = `${move.name} is here, and was not a moment ago.`;
       for (const [locationId, text] of [
         [move.fromLocationId, gone],
         [move.toLocationId, come],
@@ -501,7 +509,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
       }
 
       if (move.discordUserId) {
-        await sendDm(prisma, move.discordUserId, "The floor changes under you. ‡", {
+        await sendDm(prisma, move.discordUserId, "The floor changes under you.", {
           kind: DM_KIND.NOTICE,
         }).catch((err) => console.error(`Xom teleport DM to ${move.discordUserId} failed:`, err));
       }
@@ -867,20 +875,13 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
     ),
   );
 
-  // The Oracle (docs/systemdocs/ORACLE.md) — the turn's chronicle, six zone
-  // pages and a front page, drafted by a model.
-  //
-  // LAST, and deliberately so. It is the slowest thing in the thunk by an order
-  // of magnitude and the only part nobody is waiting on: a DM that arrives late
-  // is a bug, a synopsis that arrives late is a synopsis. Anything a player
-  // notices has already gone out by the time this starts.
-  //
-  // It takes `step` rather than being wrapped in one, so each zone gets its own
-  // key and a crash re-runs only the pages that never finished. It never
-  // throws: runOracle returns a reason instead, and step() swallows what it
-  // cannot.
-  const { runOracle } = require("./oracle");
-  await runOracle(prisma, { turnId, step }).catch((err) => console.error("The Oracle failed:", err));
+  // The Oracle is NOT here any more (docs/systemdocs/ORACLE.md). It used to be
+  // this thunk's last step, on the argument that a synopsis arriving late costs
+  // nothing. True, and beside the point: it is written FOR the gamemasters
+  // adjudicating, and they do that in the three hours between the Move cutoff
+  // and this push. A chronicle drafted here arrived after the rulings it was
+  // meant to inform. It fires at the cutoff now — db/lib/oracleCutoff.js, off
+  // the bot's minute cron — so nothing below should call it.
 
   // Only now is the turn's Discord half actually finished, which is what the
   // resume query selects on.

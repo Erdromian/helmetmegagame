@@ -87,13 +87,27 @@ export function sortZones(zones) {
 //
 // `visibleZoneNames` null means every zone — see web/lib/gmZoneView.js. Rows
 // carry `factionZoneName` on every desk, which is the SEAT zone (the zone
-// their faction answers to), not where they happen to be standing.
+// their faction answers to), not where they happen to be standing. A row that
+// knows where it PHYSICALLY is says so in `zoneName`.
 //
-// A row that knows where it PHYSICALLY happened says so in `zoneName`, and
-// that wins. Only the Caving lens carries one: a roll in the Caves by somebody
-// seated in the Marshes belongs to the Caves GM, and gating it on the seat put
-// it in front of the wrong person and hid it from the right one. A Move row
-// has no `zoneName` and keeps the seat rule untouched.
+// EITHER one reaching the view is enough. That used to be a precedence —
+// `zoneName || factionZoneName`, standing zone wins — written when the Caving
+// lens was the only thing carrying a `zoneName` at all: a roll in the Caves by
+// somebody seated in the Marshes belongs to the Caves GM, and gating it on the
+// seat put it in front of the wrong person and hid it from the right one.
+//
+// Character rows then started carrying `zoneName` too (the players desk sets it
+// on every row), and the precedence quietly became a standing-zone-only rule
+// for the whole roster. Which is how a GM holding Town lost somebody in the
+// Town faction the moment he walked into the Forest — while every chip on the
+// desk still called him Town, because the chips read the seat. Ten of seventy
+// living characters were in that state.
+//
+// So: a union, not a precedence. Nothing that is visible can become hidden by
+// widening, you follow your faction's people when they wander AND you see who
+// is standing in your zone, and the two vocabularies stop disagreeing about the
+// same row. It is the same instinct as the no-zone case just below — better
+// seen twice than by nobody.
 //
 // A row names the zone it is IN; a GM ticks a zone that has a SEAT. Those two
 // vocabularies are not the same list, and comparing them by name silently hid
@@ -112,13 +126,16 @@ export function inVisibleZones(rows, visibleZoneNames) {
   if (!visibleZoneNames) return rows ?? [];
   const allowedNames = new Set(visibleZoneNames);
   const allowedSeats = new Set(visibleZoneNames.map(seatKey).filter(Boolean));
-  // A row with no zone at all stays visible to everyone. Better seen twice
-  // than by nobody.
-  return (rows ?? []).filter((r) => {
-    const zone = r.zoneName || r.factionZoneName;
-    if (!zone) return true;
+  const reaches = (zone) => {
+    if (!zone) return false;
     if (allowedNames.has(zone)) return true;
     const seat = seatKey(zone);
     return Boolean(seat) && allowedSeats.has(seat);
+  };
+  return (rows ?? []).filter((r) => {
+    // A row with no zone at all stays visible to everyone. Better seen twice
+    // than by nobody.
+    if (!r.zoneName && !r.factionZoneName) return true;
+    return reaches(r.zoneName) || reaches(r.factionZoneName);
   });
 }

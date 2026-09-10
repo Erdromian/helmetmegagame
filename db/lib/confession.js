@@ -15,7 +15,7 @@
 //
 // Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
 // NOT on the @lifeweb/db barrel; require it by path.
-const { rollDie } = require("./moveEffects");
+const { rollWithAdvantage } = require("./advantage");
 const { gambitModifierTotal } = require("./gambitModifier");
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
@@ -311,7 +311,8 @@ async function acceptConfession(prisma, offer, responder) {
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
           description: `Confessing ${tag.name} to ${chaplain.name}.`,
-          diceRoll: rollDie(),
+          // Lucky keeps the better of two dice (db/lib/advantage.js).
+          diceRoll: rollWithAdvantage(penitent.tags).die,
           diceModifier: gambitModifierTotal(penitent.tags, {
             hungerStreak: penitent.hungerStreak,
             mood: penitent.mood,

@@ -33,12 +33,13 @@ const RECOVERABLE_SLUGS = Object.freeze([BLACK_ROBES_SLUG, THANATI_MASK_SLUG]);
 // This list is also what "Thanati equipment" means for the Black Robes'
 // combat line.
 const THANATI_WARES = Object.freeze([
-  { slug: "paper", price: 1 },
+  { slug: "stack-of-paper", price: 3 },
   { slug: "black-robes", price: 3 },
   { slug: "instant-camera", price: 3 },
   { slug: "sacrificial-knife", price: 4 },
   { slug: "dagger", price: 6 },
   { slug: "thanati-mask", price: 10 },
+  { slug: "radio-27065", price: 20 },
   { slug: "adders-bite", price: 30 },
   { slug: "dynamite-stick", price: 30 },
   { slug: "poison-tooth", price: 40 },

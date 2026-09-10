@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -22,22 +22,8 @@ import {
   claimConversation,
   releaseConversation,
 } from "../actions";
-import { dmDraftKey, writeDmDraft } from "../dmDraft";
+import { useDmDraft, writeDmDraft } from "../dmDraft";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
-
-// Per-conversation draft persistence, read through useSyncExternalStore —
-// same discipline as the shared pins (usePins.js): the textarea's value IS
-// the store's value (no parallel useState to seed via an effect, which is
-// what react-hooks/set-state-in-effect exists to catch), and writing to it is
-// a direct localStorage write + a manual `storage` dispatch (the event
-// doesn't fire in the tab that wrote it).
-function subscribeDraft(callback) {
-  window.addEventListener("storage", callback);
-  return () => window.removeEventListener("storage", callback);
-}
-function serverDraft() {
-  return "";
-}
 
 // The centre column: a real chat pane rather than a thread block sitting in
 // document flow. The transcript takes the height that's left and scrolls
@@ -73,14 +59,9 @@ export default function ConversationPane({
   // never navigates away from the conversation.
   const [devPanelOpen, setDevPanelOpen] = useState(false);
 
-  const readDraft = useCallback(() => {
-    try {
-      return window.localStorage.getItem(dmDraftKey(discordUserId)) ?? "";
-    } catch {
-      return "";
-    }
-  }, [discordUserId]);
-  const content = useSyncExternalStore(subscribeDraft, readDraft, serverDraft);
+  // Held in memory, mirrored to localStorage where there is room (../dmDraft).
+  // Typing never depends on the mirror succeeding.
+  const content = useDmDraft(discordUserId);
 
   // What the live poll has brought in for this conversation since the page
   // was seeded (liveInbox.js), unioned with the server page during render —
@@ -236,7 +217,8 @@ export default function ConversationPane({
   // Unlike /gm/turns, leaving here is a step back to the list rather than off
   // the whole desk — the rail never leaves the screen — which is why this one
   // navigates where that one deliberately doesn't. Non-destructive either way:
-  // the composer draft is already persisted per conversation (dmDraft.js).
+  // the composer draft is held per conversation in memory, and mirrored to
+  // storage where there is room (dmDraft.js).
   const router = useRouter();
   const coarse = useIsCoarsePointer();
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
+import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import {
   LESSON_CATALOG_SELECT,
   teachableSkills,
@@ -44,6 +45,7 @@ import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
+import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import {
   freeMovesLeft,
   freeZoneMovesReason,
@@ -73,9 +75,11 @@ import {
   DEFAULT_MAX_DRAWBACK_POINTS,
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
+import { cookedTasteOnly } from "@/lib/referenceData";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
+import { computeKnownRecipeIds } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
 import {
   RESEARCH_TAG_SLUG,
@@ -268,13 +272,16 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       role: { select: { slug: true } },
       // requirementSkills must be named explicitly: `include` doesn't pull
       // unnamed relations, and formatTagRequirement's `?.length` guard would
-      // silently drop it rather than fail.
+      // silently drop it rather than fail. HEAL_SKILL_SELECT rather than
+      // `name` alone: these rows are the SELF patient in loadPeoplePools'
+      // heal roster, where isGambitHeal() needs the id and needsSurgicalSite()
+      // needs the slug.
       tags: {
         include: {
           tag: {
             include: {
               group: true,
-              requirementSkills: { select: { name: true } },
+              requirementSkills: { select: HEAL_SKILL_SELECT },
             },
           },
         },
@@ -383,7 +390,14 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         // addableTags' purchasable branch requires this or it reads
         // undefined and drops purchasable-only tags from the Add Tag menu.
         purchasableAfterStart: true,
+        // ChipLabel's mastery star.
+        mastery: true,
         craftable: true,
+        // A SECRET recipe's own discovery gate (M3 review, last-breath):
+        // `isNonPublicRecipe` below reads this so a secret recipe is
+        // withheld on the tag's OWN say-so, not only by accident of
+        // whatever its ingredient's catalog happens to be today.
+        catalogVisibility: true,
         // The custom-item opt-in (CRAFTING.md): the Craft dialog shows its
         // name/description fields only when this crosses — and it crosses
         // resolved against the rung below, not as authored.
@@ -424,6 +438,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         // renders a Recipe line has to select this or it silently renders none
         // (CORPSES.md §8).
         requirementItems: true,
+        // Cooking (docs/systemdocs/COOKING.md). The slot count draws the
+        // dialog's slots; the two custom columns decide whether it shows a
+        // description box and what the words cost.
+        requirementIngredientSlots: true,
+        customCost: true,
+        customDescribable: true,
         // So the Craft menu can say what a piece of armour is worth before
         // somebody spends two turns and 26 ⬢ finding out.
         meleeArmor: true,
@@ -502,10 +522,14 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     canHeal,
     healTargets,
     healsLeft,
+    hasSurgicalSite,
+    surgicalSitePenalty,
     lootTargets,
+    consumeTargets,
     bindTargets,
     harmTargets,
     harmTags,
+    doseTargets,
     kissTargets,
     kissBlocked,
   } = await loadPeoplePools(character, {
@@ -670,11 +694,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // reader was not sent (web/lib/recipeCatalog.js), and hidden-recipe tag
   // descriptions no longer name their ingredients. Here it keeps a recipe you
   // have no path to yet out of the picker, so a fresh crafter isn't offered
-  // Miasma before they've ever seen a corpse. The tagCatalog query above
-  // never selects `catalogVisibility` (it isn't craftable/purchasable itself,
-  // and an ingredient tag usually is neither), so the slugs and groups a
-  // craftable recipe's requirementItems name are resolved with one more
-  // targeted query.
+  // Miasma before they've ever seen a corpse. An ingredient tag's own
+  // catalogVisibility isn't on the tagCatalog query above (it usually isn't
+  // craftable/purchasable itself), so the slugs and groups a craftable
+  // recipe's requirementItems name are resolved with one more targeted
+  // query.
   const restrictedTagSlugs = new Set();
   const restrictedGroupSlugs = new Set();
   for (const t of tagCatalog) {
@@ -719,13 +743,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       .filter((r) => r.group && r.catalogVisibility !== "ALL")
       .map((r) => r.group.slug),
   );
-  function isNonPublicRecipe(tag) {
-    return (tag.requirementItems ?? []).some((item) => {
-      if (item.kind === "group") return nonAllGroupSlugs.has(item.slug);
-      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
-      return slugs.some((s) => visibilityBySlug.get(s) !== "ALL");
-    });
-  }
   // The Death Mask's corpse picker (CraftDialog via RequestActionsProvider):
   // which held corpses still have their face. Server-computed here so the
   // list and its face-taken filter can never drift from the craft's own
@@ -737,27 +754,13 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         !(ct.tag.description ?? "").includes("The face has been taken."),
     )
     .map((ct) => ({ slug: ct.tag.slug, name: ct.tag.name }));
-  // Mirrors resolveRecipeItems' HOLD semantics (requestActions.js), at
-  // quantity 1 — a hidden recipe only has to prove itself known, not
-  // affordable, so this checks "holds one" rather than resolving a spend
-  // plan or an anyOf choice.
-  function satisfiesIngredientsAtQuantityOne(tag) {
-    return (tag.requirementItems ?? []).every((item) => {
-      if (item.kind === "group") {
-        return character.tags.some((ct) => ct.tag.group?.slug === item.slug);
-      }
-      const slugs = item.kind === "anyOf" ? item.slugs : [item.slug];
-      return character.tags.some((ct) => slugs.includes(ct.tag.slug));
-    });
-  }
-  const knownRecipeIds = tagCatalog
-    .filter(
-      (t) =>
-        t.craftable &&
-        (t.requirementSkills ?? []).every((skill) => satisfied.has(skill.id)) &&
-        (!isNonPublicRecipe(t) || satisfiesIngredientsAtQuantityOne(t)),
-    )
-    .map((t) => t.id);
+  // computeKnownRecipeIds is the shared, pure verdict (web/lib/tagRequests.js)
+  // — last-breath's "brewing-expert AND holds an aberrant-heart" discovery
+  // gate lives there, directly testable, rather than inlined here.
+  const knownRecipeIds = computeKnownRecipeIds(tagCatalog, satisfied, character.tags, {
+    visibilityBySlug,
+    nonAllGroupSlugs,
+  });
 
   // What the Add-tag and Craft menus may PRINT, as opposed to what the server
   // reasons with. A recipe gated on a trade the catalog hides is stripped for
@@ -993,17 +996,63 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     phase: openTurn?.phase ?? null,
     indoors: character.location?.indoors ?? true,
   };
+  // Poison state (the medical pass, M4): CharacterTag.poisonedCount/
+  // poisonPayload are secret, and this loader's `tags: { include: { tag:
+  // {...} } }` above has no per-field select, so Prisma hands back both
+  // scalar columns on every row whether or not this character can smell a
+  // thing. They must NEVER reach the client raw — this is that surface's
+  // exact leak point, so the strip happens right here rather than trusting
+  // every future reader of `sheetCharacter` to remember not to spread `ct`.
+  // What crosses instead is `poisonMarker`, a plain yes/no — never the count,
+  // never which poison — and only a "yes" for a character holding
+  // poison-sense or a poison-snooper (canDetectPoison), computed ONCE for
+  // this viewer looking at their OWN sheet (the only mode this page renders;
+  // there is no "view someone else's held items" surface). Everyone else's
+  // row is the plain row, exactly as if the columns were never selected.
+  const canSmellPoison = canDetectPoison(character.tags);
+
   // The mood dial rides along as a number (docs/systemdocs/MOOD.md) because
   // the sheet needs it for two things — the Mood box's word and the Gambit
   // tile's modifier — and both are computed client-side. Nothing renders the
   // figure itself; LedgerBand only ever prints bandOf()'s label.
+  //
+  // COOKING (docs/systemdocs/COOKING.md): the held tags come down with a bare
+  // `include`, which takes every column on Tag — so `cooked` is cut to its
+  // taste and `cookedFrom` is dropped HERE rather than left to a select. A
+  // cook is told what an ingredient tastes of and nothing else, and a dish
+  // never says what it was made with; both would otherwise be one dev-tools
+  // inspection away for every tag on the sheet.
   const sheetCharacter = {
     ...character,
     tags: character.tags.map((ct) => {
-      if (!isPaper(ct.tag)) return ct;
-      const { paperText, ...tag } = ct.tag;
+      const { poisonedCount, poisonPayload, ...ctRest } = ct;
+      // Cooking's cut runs first (docs/systemdocs/COOKING.md): `cooked` is
+      // narrowed to its taste and `cookedFrom` dropped, so a dish never says
+      // what it was made with. Everything below works on the narrowed tag.
+      const tagRow = cookedTasteOnly(ctRest.tag);
+      // Crate-manifest leak (fix round M4b, fix 1): `ct.tag.crateContents`
+      // carries the SAME two secret columns per line item, for a crate a
+      // player packed themselves (packageItemsRequestImpl) — the outer
+      // strip above only ever touched the CharacterTag row, never the
+      // nested Tag one, so a non-detector holding a crate could read its
+      // own crate's exact poison state straight out of this page's RSC
+      // payload. Stripped whole, not just its poisoned half: the rest of a
+      // crate's manifest (names/quantities of what's inside) is
+      // server-only bookkeeping too — nothing on this page renders it, and
+      // the crate's own printed description already says what it contains.
+      const { crateContents, ...ctTagRest } = tagRow ?? {};
+      const stripped = {
+        ...ctRest,
+        // The manifest goes, but WHETHER this is a crate has to survive it: the
+        // Consume dialog suppresses its "Becomes:" line for a crate, and Package
+        // refuses to pack one, and both ask on the client.
+        tag: ctRest.tag ? { ...ctTagRest, crate: Boolean(crateContents) } : ctRest.tag,
+        poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0,
+      };
+      if (!isPaper(ct.tag)) return stripped;
+      const { paperText, ...tag } = stripped.tag;
       return {
-        ...ct,
+        ...stripped,
         tag: { ...tag, description: paperDescription(ct.tag, viewer), paper: paperView(ct.tag, viewer) },
       };
     }),
@@ -1177,6 +1226,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       desireLockNotes: desireLockNotes,
       canHeal: canHeal,
       healsLeft: healsLeft,
+      hasSurgicalSite: hasSurgicalSite,
+      surgicalSitePenalty: surgicalSitePenalty,
       hasMoved: Boolean(currentAction),
       holdsResearch: holdsResearch,
       atCathedral: atCathedral,
@@ -1215,6 +1266,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       extractBlocked: extractBlocked,
       canSeePackage: canSeePackage,
       lootTargets: lootTargets,
+      consumeTargets: consumeTargets,
       bindTargets: bindTargets,
       canCrucify: canCrucify,
       canDisguise: canDisguise,
@@ -1236,6 +1288,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       deployVersion: deployVersion(),
       harmTargets: harmTargets,
       harmTags: harmTags,
+      doseTargets: doseTargets,
+      lastNameLocked: isDynastyMember(character.role?.slug),
       kissTargets: kissTargets,
       kissBlocked: kissBlocked,
       storeTags: storeTags,

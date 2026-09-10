@@ -20,8 +20,9 @@ two things at once:
   that role is what opens the zone's category, its `#summary` and every one of
   its Location channels. The global Gamemaster role no longer opens any of
   them. See §6.
-- **The desks.** `/gm/turns` and `/gm/players` show only rows whose faction sits
-  in a chosen zone. Their own Zone dropdowns still narrow *within* that.
+- **The desks.** `/gm/turns` and `/gm/players` show a row whose faction seat
+  sits in a chosen zone **or** whose character is standing in one. Their own
+  Zone dropdowns still narrow *within* that.
 
 **The Discord half is the gate; the desk half is a view.** The desks still
 fetch every row and filter in the client, so a direct link to a hidden Move
@@ -29,12 +30,23 @@ opens it. That is deliberate — an Opposed Move crosses zones by nature, and a
 GM who cannot reach a row mid-turn is a worse failure than one who scrolled too
 far. What the desk filter buys is a workable queue, not a secret.
 
-One asymmetry worth knowing: the desks filter on a character's **faction** zone
-(`GAMEMASTERS.md` §2b), while the Discord roles gate the **Location channel**.
-A Town-faction player who walks into the Marshes stays on the Town GM's queue
-while that GM cannot open the channel it happens in. Both answers are the right
-one for their own question — the queue is about whose player it is, the channel
-about where the scene is — but they will not always agree.
+One asymmetry worth knowing: the desks filter on **either** of a character's two
+zones (§2b), while the Discord roles gate the **Location channel**. A
+Town-faction player who walks into the Marshes stays on the Town GM's queue —
+and joins the Marshes GM's — while neither GM's channel access necessarily
+follows. The queue is about whose player it is *and* where the scene is; the
+channel is only about the latter, so the two will not always agree.
+
+**Either, not one or the other**, and that is a repair rather than a design.
+`inVisibleZones` used to read `zoneName || factionZoneName`: a precedence,
+written when the Caving lens was the only thing that carried a `zoneName` at
+all. Character rows on `/gm/players` then started carrying one too, so the
+precedence silently became a standing-zone-only rule for the whole roster —
+while every Zone chip on that desk went on reading the faction seat. A GM
+holding Town lost a Town-faction player the moment he walked into the Forest,
+and the chip beside the empty space still said Town. Ten of seventy living
+characters were in that state when it was found. A union cannot hide anything
+that a precedence showed, which is why it is the safe direction to fix it in.
 
 **No rows means every zone.** A GM who has never touched the control, or who
 unticks the lot, sees the whole game. That is the only safe default: the
@@ -113,11 +125,15 @@ Two zone fields exist on a character and they mean different things:
 | Field | Meaning | Used by |
 |---|---|---|
 | `Character.faction.zoneId` | The zone seat. Which GM this person is *for*. | Every Zone column and filter; the seat default |
-| `Character.zoneId` | Where they are physically standing — a presence zone, possibly a cave level | Travel, the map, `/gm/players`' **Standing in** column |
+| `Character.zoneId` | Where they are physically standing — a presence zone, possibly a cave level | Travel, the map, `/gm/players`' **Standing in** column and its message rail |
 
-Every GM page flattens the first onto its rows as a plain string,
-**`factionZoneName`** (`""` when the character has no faction at all), because
-these all cross a server→client boundary.
+Every GM page flattens both onto its rows as plain strings,
+**`factionZoneName`** (`""` when the character has no faction at all) and
+**`zoneName`**, because these all cross a server→client boundary. The visibility
+gate reads both; **the message rail's chip shows `zoneName`**, since a rail
+sorted by conversation is asking where somebody *is*, and a chip that named the
+seat instead was the thing that made a hidden row impossible to explain. The
+roster keeps both, in its **Zone** and **Standing in** columns.
 
 All 13 factions in `docs/roles.yaml` are nested under a zone — `unaligned`
 included, which sits in Caves. So the neutral chip only ever appears for a

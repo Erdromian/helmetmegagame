@@ -96,7 +96,11 @@ silently.
   Logistics Room serves the whole floor and nobody hauls a 28 lb lump around
   all day to prove they own it.
 - **The output** is 8 Squeeze, and the Godflesh is consumed.
-- No Laboring tag, no shift. It is work.
+- **No Laboring tag needed.** It wanted one until 2026-09-10, on the grounds
+  that the floor is work rather than a vending machine. The trouble is that the
+  Laboring ladder prices ⬢ and a shift here pays none, so the gate bought
+  nothing and stood the Factory's own people off its floor. Anybody who can get
+  in can work it (`LABORING.md` §3b).
 - No `laborBonus` applies. A refinery is not a coefficient.
 
 **Auto-labor picks this up for free.** A refugee who files nothing refines,
@@ -196,6 +200,13 @@ the target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes
 five-turn run in one trip**. It takes about 41 cubes, a bit over three turns'
 worth; the rest waits in the Logistics Room for the next wagon.
 
+**The wagon comes inside.** The Factory is `indoors: true`, which would
+otherwise park it at the door and leave a 71 lb carrier shuttling one 68 lb
+crate at a time down to the marsh. It carries the `wheels` attribute instead
+(`CARRY.md` §3), so the cart stays equipped on the factory floor and loads
+where the crates are. The roof is untouched — the mood dial, Sun Sensitivity
+and the no-building rule all still read the column.
+
 Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate, and
 355/68 ≈ 5.2 crates ≈ 41 cubes.
 
@@ -207,10 +218,12 @@ Overburdened. They stash the rest in the Logistics Room and the carry pass
 handles the overflow. The cart and the silo are the business; that is
 deliberate, not an oversight.
 
-**A cube sells for 4 ⬢.** Farming at coefficient 1.0 with
-`productionCoefficient` 0.93 pays 11–15 ⬢, midpoint 13; a factory day at the
-authored 2.2× is ~28.6 ⬢ for 8 cubes, so 3.6 each, rounded to 4. A full wagon is
-240 ⬢ — and since obols went 1:1 in 9/2026, 240 ¢.
+**A cube sells for 7 ⬢.** (It was 4, then 5, then this, all on 2026-09-10 and
+all Bascinet's call.) Farming at coefficient 1.0 with `productionCoefficient`
+0.93 pays 11–15 ⬢, midpoint 13; a factory day is now 56 ⬢ for 8 cubes, about
+4.3× a good farming day, up from the 2.2× the original 4 ⬢ price was derived
+from. A full 60-cube wagon is 420 ⬢ — and since obols went 1:1 in 9/2026,
+420 ¢.
 
 Squeeze has no `depotPrice`. The station sells nobody a cube.
 

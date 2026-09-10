@@ -22,9 +22,8 @@ const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { blockerFor, KISS } = require("./incapacitation");
 const { KISS_BLOCKING_SLUGS } = require("./constants");
-const { concealmentFrom, presentedIdentity, CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
+const { concealmentFrom, CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const { applyKissMood } = require("./mood");
-const { roomLine, locationLine } = require("./placeLine");
 
 // Two hours, the same clock db/lib/webOnly.js runs on. It is spent by the
 // ASK, not by the answer: a decline does not refund it, which is the whole
@@ -191,33 +190,6 @@ async function createKissOffer(prisma, { actor, target, turn }) {
   };
 }
 
-// Where the room hears about it. Both are standing at one Location; a Room is
-// a thread inside one, and a character can be a guest of several. The room
-// they SHARE is the one the kiss happened in.
-//
-// Nobody's room means the Location's own channel hears it instead — the line
-// is scenery about a place, and standing in the open street is a place.
-async function placeForKiss(prisma, locationId, aId, bId) {
-  const [rooms, location] = await Promise.all([
-    prisma.room.findMany({
-      where: {
-        locationId,
-        // Two separate `some`s, not one with an OR inside: this has to be a
-        // room they are BOTH in, and a single clause would match a room
-        // either of them is in.
-        AND: [{ guests: { some: { characterId: aId } } }, { guests: { some: { characterId: bId } } }],
-      },
-      select: { id: true, name: true, discordThreadId: true },
-      orderBy: { id: "asc" },
-    }),
-    prisma.location.findUnique({
-      where: { id: locationId },
-      select: { id: true, name: true, discordChannelId: true },
-    }),
-  ]);
-  return { room: rooms[0] ?? null, location };
-}
-
 // The Accept click. Returns { ok, line, dms } or { ok: false, reason, dms },
 // the shape db/lib/dmAnswer.js#answerOffer hands back to both faces.
 async function acceptKiss(prisma, offer, responder) {
@@ -287,13 +259,6 @@ async function acceptKiss(prisma, offer, responder) {
     data: { status: "RESOLVED", resolvedAt: new Date(), outcome: { kissed: true, ...moved } },
   });
 
-  // The room hears it. Presented names, not raw ones: a kiss is not a place to
-  // out somebody the room is seeing as a stranger. Best-effort — a line nobody
-  // heard must never undo two dials that already moved.
-  await sayItHappened(prisma, actor, target).catch((err) =>
-    console.error("Kiss scene line failed:", err?.message ?? err),
-  );
-
   return {
     ok: true,
     line: `You kissed ${target.name}.`,
@@ -303,18 +268,14 @@ async function acceptKiss(prisma, offer, responder) {
   };
 }
 
-// Bascinet's own wording, like every other line this module speaks — all of
-// it signed off, so none of it carries the marker. ambientLine() puts the
-// `-#` on it.
-async function sayItHappened(prisma, actor, target) {
-  if (!actor?.locationId) return;
-  const a = presentedIdentity(actor, { concealment: concealmentFrom(actor.tags) }).name;
-  const b = presentedIdentity(target, { concealment: concealmentFrom(target.tags) }).name;
-  const text = `${a} and ${b} kissed.`;
-  const { room, location } = await placeForKiss(prisma, actor.locationId, actor.id, target.id);
-  if (room) return roomLine(prisma, room, text);
-  if (location) return locationLine(prisma, location, text);
-}
+// Nothing is said in the room, the Location, the feed or the archive. A kiss
+// is private: the only two people told are the two people who agreed to it,
+// each by DM. There WAS a `-# Ada and Celeste kissed.` line here, posted into
+// whichever room or Location the two shared — it went out on 2026-09-10 and
+// the lines it had already written were deleted from the live game with it.
+//
+// Bascinet's call, and it is the reason `presentedIdentity` no longer appears
+// in this file: with no line to write, there is no name to present.
 
 module.exports = {
   KISS_COOLDOWN_MS,

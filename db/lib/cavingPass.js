@@ -19,7 +19,8 @@ const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
 const { addToStack, clampEquippedQuantity } = require("./tagWrites");
 const { applyMood } = require("./mood");
-const { rollDie } = require("./moveEffects");
+const { rollWithAdvantage } = require("./advantage");
+const { LUCKY_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 
 // Every DM leads with the face, so a player sees their own roll and not just
@@ -52,7 +53,16 @@ function findDm(die, tagName) {
 async function rollCaving(prisma, character, turn, location) {
   const zone = location.zone;
   const trigger = "ARRIVAL";
-  const die = rollDie(6);
+  // Lucky rolls the Caving Die twice and keeps the better one, which turns
+  // the dark from a coin-flip into a prospecting trip. `character` is not
+  // guaranteed to arrive with its tags loaded (rollCavingOnArrival is called
+  // straight off a move), so the holding is asked for here — the same one-row
+  // lookup the Musk Lure below already does rather than trusting the caller.
+  const lucky = await prisma.characterTag.findFirst({
+    where: { characterId: character.id, tag: { slug: LUCKY_SLUG } },
+    select: { id: true },
+  });
+  const { die } = rollWithAdvantage(lucky ? [{ tag: { slug: LUCKY_SLUG } }] : []);
   const kind = die === 1 ? "TROUBLE" : die === 6 ? "FIND" : "QUIET";
 
   return await prisma.$transaction(async (tx) => {
@@ -204,4 +214,39 @@ async function rollCavingOnArrival(prisma, character, location) {
   }
 }
 
-module.exports = { rollCavingOnArrival };
+// ---- The hold a 1 puts on you --------------------------------------------
+//
+// A TROUBLE row lands unresolved and waits for a GM. Until this existed the
+// caver did not wait with it — they walked out of the caves and a GM ended up
+// adjudicating a monster in the dark for somebody standing in Town.
+//
+// Unlike heldReasonFor (db/lib/intercept.js) this is a QUERY rather than a
+// pure comparison, because the answer lives in CavingRoll and nowhere on
+// Character. It is scoped to the roll's own zone snapshot for two reasons: it
+// is a hold on LEAVING one zone, not on walking, and a GM who relocates
+// somebody out of the caves has then not also stranded them wherever they
+// land. Marking the roll resolved is the only other thing that clears it.
+const CAVING_HOLD_REASON =
+  "You rolled a 1, so you can't leave the zone until your caving die are adjudicated.";
+
+async function cavingHoldFor(prisma, characterId, zoneId) {
+  if (!characterId || !zoneId) return null;
+  const open = await prisma.cavingRoll.findFirst({
+    where: { characterId, zoneId, kind: "TROUBLE", resolvedAt: null },
+    select: { id: true },
+  });
+  return open ? CAVING_HOLD_REASON : null;
+}
+
+// The same question for a whole party at once, so an escort's follower loop
+// asks it in one query instead of one per follower. Returns a Set of ids.
+async function cavingHeldIds(prisma, characterIds, zoneId) {
+  if (!zoneId || !characterIds?.length) return new Set();
+  const rows = await prisma.cavingRoll.findMany({
+    where: { characterId: { in: characterIds }, zoneId, kind: "TROUBLE", resolvedAt: null },
+    select: { characterId: true },
+  });
+  return new Set(rows.map((r) => r.characterId));
+}
+
+module.exports = { rollCavingOnArrival, cavingHoldFor, cavingHeldIds, CAVING_HOLD_REASON };

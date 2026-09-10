@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
+import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
@@ -90,6 +91,11 @@ export default function CharacterSheet({
   desireAddiction = null,
   canHeal = false,
   healsLeft = null,
+  // Surgery's site (the medical pass, M3, reworked M6b): whether one is in
+  // reach at all, and whether the only thing standing in for it is a
+  // Portable Surgical Pack, which the Gambit takes a −1 for.
+  hasSurgicalSite = false,
+  surgicalSitePenalty = false,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
   hasMoved = false,
   // Research (CRAFTING.md §2b), same posture: three facts built
@@ -142,6 +148,11 @@ export default function CharacterSheet({
   extractBlocked = null,
   canSeePackage = false,
   lootTargets = [],
+  // Who a cure or an administerable item could be given to (the medical
+  // pass), and who is helpless enough to be dosed directly (M4). Both built
+  // server-side in web/lib/peoplePools.js.
+  consumeTargets = [],
+  doseTargets = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
@@ -173,9 +184,10 @@ export default function CharacterSheet({
     (ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG,
   );
   // The two facts the rig needs beyond the slot rule, because equipActions.js
-  // refuses on them too: a cart is not set up indoors, and a queasy stomach
+  // refuses on them too: a cart is not set up indoors — bar the places built
+  // to be driven into (locationAttributes.js#parksMounts) — and a queasy stomach
   // rules out riding anything at all.
-  const indoors = Boolean(character.location?.indoors);
+  const indoors = parksMounts(character.location);
   const motionSick = Boolean(
     character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === MOTION_SICKNESS_SLUG),
   );
@@ -201,6 +213,8 @@ export default function CharacterSheet({
         hasWorkshop={hasWorkshop}
         canHeal={canHeal}
         healsLeft={healsLeft}
+        hasSurgicalSite={hasSurgicalSite}
+        surgicalSitePenalty={surgicalSitePenalty}
         hasMoved={hasMoved}
         holdsResearch={holdsResearch}
         atCathedral={atCathedral}
@@ -239,6 +253,8 @@ export default function CharacterSheet({
         extractBlocked={extractBlocked}
         canSeePackage={canSeePackage}
         lootTargets={lootTargets}
+        consumeTargets={consumeTargets}
+        doseTargets={doseTargets}
         bindTargets={bindTargets}
         harmTargets={harmTargets}
         harmTags={harmTags}
@@ -347,6 +363,10 @@ export default function CharacterSheet({
               isSelf={isSelf}
               indoors={indoors}
               motionSick={motionSick}
+              // The same rooms the Transfer dialog offers, so the board's empty
+              // cells can hold out what a stash here is keeping. One list, one
+              // reach rule: a door locked to the dialog is locked to the board.
+              stash={transferParties?.rooms ?? []}
             />
 
             {isSelf && (

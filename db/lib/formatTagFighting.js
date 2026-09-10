@@ -83,13 +83,13 @@ function formatTagFighting(tag) {
   // say where it sits. Repeating it as a number would be noise.
   if (f.rung != null && f.points == null) return null;
 
-  // Two drafted sentences, so they carry the ‡ (CLAUDE.md). "You cannot
+  // Two drafted sentences, so they carry the (CLAUDE.md). "You cannot
   // fight" and "Counts as a sword" are four words or fewer and take none —
   // there is one way to write either. A `note:` passed through below already
   // carries its own from docs/tags.yaml, so nothing is marked twice.
-  if (f.floor) return `You fight as ${nameFromSlug(f.floor)} at worst ‡`;
+  if (f.floor) return `You fight as ${nameFromSlug(f.floor)} at worst`;
   if (f.cap) return "You cannot fight";
-  if (f.cancels?.length) return `Cancels the penalty from ${nameList(f.cancels, ", ")} ‡`;
+  if (f.cancels?.length) return `Cancels the penalty from ${nameList(f.cancels, ", ")}`;
 
   // A situational says only that a gamemaster decides it. WHICH moment it is
   // for is the tag's own description's job, and the catalog no longer keeps a

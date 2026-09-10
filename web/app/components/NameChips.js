@@ -18,8 +18,8 @@ import { nameKey } from "@/lib/characterName";
 //   - A token carries `data-active` but NO `aria-pressed`. A chip there is a
 //     TOGGLE; a token here is a REMOVE control, and saying "pressed" about it
 //     would tell a screen reader the wrong thing.
-//   - No `title=`. This mounts on the character sheet, and nothing on that
-//     sheet is a tooltip (SHEET.md §3).
+//   - No `title=`. The sheet's own tooltip is the shared Tooltip/HoverCard,
+//     which a native title= would sit under and duplicate.
 //
 // Blur commits a half-typed name on purpose. Losing what you just typed
 // because you reached for Save is the one thing a control like this must not

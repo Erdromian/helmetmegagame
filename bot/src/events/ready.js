@@ -15,6 +15,7 @@ const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
+const { runOracleAtCutoff } = require("@lifeweb/db/lib/oracleCutoff");
 const { runStagePlay } = require("../lib/stagePlay");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
@@ -295,6 +296,31 @@ module.exports = {
         .catch((err) => console.error("Rite sweep failed:", err))
         .finally(() => {
           riteSweepRunning = false;
+        });
+    });
+
+    // The Oracle, once a turn, a couple of minutes after the Move cutoff
+    // (db/lib/oracleCutoff.js). Every minute rather than on a fixed hour: the
+    // cutoff is derived from the turn's own startedAt, so a turn a GM opened
+    // by hand does not lock at 21:00 and a frozen clock never locks at all.
+    // Ticking is also what makes it self-healing — a bot that was down at the
+    // cutoff drafts the moment it is back, as long as the turn is still open.
+    // The check is two cheap queries and declines on all but one tick a day;
+    // the run itself only happens once, because the pages it writes are what
+    // tell the next tick there is nothing left to do.
+    // One run in flight at a time, the rite sweep's guard — seven model calls
+    // can outlast a minute several times over.
+    let oracleRunning = false;
+    cron.schedule("* * * * *", () => {
+      if (oracleRunning) return;
+      oracleRunning = true;
+      runOracleAtCutoff(prisma)
+        .then(({ ran, turnNumber, zones }) => {
+          if (ran) console.log(`Oracle: drafted turn #${turnNumber} across ${zones} zones.`);
+        })
+        .catch((err) => console.error("Oracle cutoff check failed:", err))
+        .finally(() => {
+          oracleRunning = false;
         });
     });
 

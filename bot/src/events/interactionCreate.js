@@ -28,7 +28,7 @@ const {
   stowedMounts,
   performMove,
 } = require("../lib/locationTravel");
-const { applyMood } = require("@lifeweb/db/lib/mood");
+const { applyMood, EVENTS } = require("@lifeweb/db/lib/mood");
 const {
   travelOptions,
   gateOperable,
@@ -37,6 +37,7 @@ const {
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
+const { ATTACK_CANCEL_PREFIX } = require("@lifeweb/db/lib/attack");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
@@ -145,10 +146,14 @@ const {
   READ_PREFIX: NOTICE_READ_PREFIX,
   TEAR_PREFIX: NOTICE_TEAR_PREFIX,
   PIN_PREFIX: NOTICE_PIN_PREFIX,
+  POST_PREFIX: NOTICE_POST_PREFIX,
+  POST_MODAL_PREFIX: NOTICE_POST_MODAL_PREFIX,
   handleNoticeboardOpen,
   handleNoticeRead,
   handleNoticeTear,
   handleNoticePin,
+  handleNoticePost,
+  handleNoticePostSubmit,
 } = require("../lib/noticeboardPanel");
 const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
 const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
@@ -637,7 +642,7 @@ async function handlePrayOpen(interaction, roomId) {
   await respond(interaction, {
     content:
       "The face is waiting. Praying here is permanent, it takes whatever you believed in now, " +
-      "and what happens to you afterwards is not up to you. ‡",
+      "and what happens to you afterwards is not up to you.",
     components: [
       new ActionRowBuilder().addComponents(
         new ButtonBuilder()
@@ -660,15 +665,15 @@ async function handlePrayConfirm(interaction, roomId) {
 
   const result = await grantXom(prisma, { characterId: character.id });
   if (result.already) {
-    await respond(interaction, "The face is already watching you. ‡");
+    await respond(interaction, "The face is already watching you.");
     return;
   }
   if (result.spoken) {
-    await respond(interaction, "Something else has you already, and it does not share. ‡");
+    await respond(interaction, "Something else has you already, and it does not share.");
     return;
   }
   if (!result.ok) {
-    await respond(interaction, "Nothing answers. Tell a GM. ‡");
+    await respond(interaction, "Nothing answers. Tell a GM.");
     return;
   }
 
@@ -686,7 +691,7 @@ async function handlePrayConfirm(interaction, roomId) {
   // Anybody else standing in the shrine sees it happen, and nothing leaves the
   // room — the tag is `catalog: secret` and this is the only place it is ever
   // announced at all.
-  const witnessed = `${character.name} kneels, and the face seems to lean down. ‡`;
+  const witnessed = `${character.name} kneels, and the face seems to lean down.`;
   await sceneLineAt(prisma, { roomId: room.id, text: witnessed }).catch(() => {});
   const thread = await prisma.room
     .findUnique({ where: { id: room.id }, select: { discordThreadId: true } })
@@ -698,8 +703,8 @@ async function handlePrayConfirm(interaction, roomId) {
   await respond(
     interaction,
     result.replaced
-      ? `It takes your ${result.replaced} off you and does not offer anything back. ‡`
-      : "Something old and amused turns its attention on you. ‡",
+      ? `It takes your ${result.replaced} off you and does not offer anything back.`
+      : "Something old and amused turns its attention on you.",
   );
 }
 
@@ -1037,16 +1042,17 @@ async function handleKeyedPrompt(interaction, payload) {
   });
 }
 
-// Letting a prisoner go, from the Release button on the ambusher's own DM
-// (docs/systemdocs/INTERCEPT.md). The handleKeyedPrompt shape: update IS the
-// ack, and the buttons come off whatever the answer was. The shared half —
-// who may release whom, and the word owed to the person let go — is
-// db/lib/dmAnswer.js, so the web's Release cannot drift from this one.
-async function handleInterceptRelease(interaction, targetId) {
+// Ending a hold you imposed, from the button on your own DM: Release for an
+// old intercept (docs/systemdocs/INTERCEPT.md), Cancel attack for a fight
+// (docs/systemdocs/ATTACK.md). The handleKeyedPrompt shape: update IS the ack,
+// and the buttons come off whatever the answer was. The shared half — who may
+// end whose hold, and the word owed to the other person — is
+// db/lib/dmAnswer.js, so the web's own button cannot drift from this one.
+async function handleHoldEnd(interaction, kind, targetId) {
   await ack(interaction, { update: true });
 
   const result = await answerDmAction(prisma, {
-    action: { kind: DM_ACTION.INTERCEPT_HOLD, id: targetId },
+    action: { kind, id: targetId },
     choice: DM_CHOICE.ACCEPT,
     discordUserId: interaction.user.id,
   });
@@ -1057,7 +1063,7 @@ async function handleInterceptRelease(interaction, targetId) {
     const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
     if (!user) continue;
     await sendDm(user, `» ${dm.content}`).catch((err) =>
-      console.error(`Intercept release DM to ${dm.discordUserId} failed:`, err.message ?? err),
+      console.error(`Hold release DM to ${dm.discordUserId} failed:`, err.message ?? err),
     );
   }
 }
@@ -1842,6 +1848,8 @@ async function handleRollCommand(interaction) {
 // feature.
 const INSTRUMENT_SLUG = "instrument";
 const MUSICIAN_SLUG = "musician";
+// The Pythagorean mastery — triples what a performance is worth to the room.
+const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
 const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
 
 // In-memory, keyed by character id, volatile across a bot restart — the same
@@ -1858,7 +1866,7 @@ const PLAY_SOOTHE_AUDIT_ACTION = "mood_soothed_play";
 // set (REQUESTS.md §1a); /play is rate-limited to one a few minutes and a
 // room holds a dozen people at most, so the rows stay few. The band DM goes
 // out through the sender db/index.js registered.
-async function sootheListeners(musician) {
+async function sootheListeners(musician, { triple = false } = {}) {
   if (!musician.locationId) return;
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
   if (!openTurn) return;
@@ -1881,7 +1889,11 @@ async function sootheListeners(musician) {
   for (const { id } of listeners) {
     if (soothedAlready.has(id)) continue;
     await prisma.$transaction(async (tx) => {
-      await applyMood(tx, id, { kind: "MUSIC" });
+      // Musician (Pythagorean) triples it. Passed as an explicit `base`
+      // rather than added to mood.js's MULTIPLIERS: that table is only
+      // consulted for harm, and it keys on the LISTENER's tags — this is the
+      // player's own doing, and it lands on everyone in the room.
+      await applyMood(tx, id, { kind: "MUSIC", base: EVENTS.MUSIC * (triple ? 3 : 1) });
       await tx.auditLog.create({
         data: {
           actorDiscordUserId: musician.discordUserId ?? "system",
@@ -1960,7 +1972,7 @@ async function handlePlayCommand(interaction) {
   // turn (docs/systemdocs/MOOD.md). Only a MUSICIAN's: a bad performance calms
   // nobody. Wrapped, so the dial can never swallow the performance.
   if (held(MUSICIAN_SLUG)) {
-    await sootheListeners(character).catch((err) =>
+    await sootheListeners(character, { triple: held(MUSICIAN_PYTHAGOREAN_SLUG) }).catch((err) =>
       console.error(`/play: soothing failed for ${character.id}:`, err.message ?? err),
     );
   }
@@ -2162,9 +2174,17 @@ module.exports = {
           return void (await handleKeyedPrompt(interaction, interaction.customId.slice(KEYED_PREFIX.length)));
         }
         if (interaction.customId.startsWith(INTERCEPT_RELEASE_PREFIX)) {
-          return void (await handleInterceptRelease(
+          return void (await handleHoldEnd(
             interaction,
+            DM_ACTION.INTERCEPT_HOLD,
             interaction.customId.slice(INTERCEPT_RELEASE_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(ATTACK_CANCEL_PREFIX)) {
+          return void (await handleHoldEnd(
+            interaction,
+            DM_ACTION.ATTACK_HOLD,
+            interaction.customId.slice(ATTACK_CANCEL_PREFIX.length),
           ));
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
@@ -2209,6 +2229,12 @@ module.exports = {
         if (interaction.customId.startsWith(NOTICEBOARD_PREFIX)) {
           return void (await handleNoticeboardOpen(interaction, interaction.customId.slice(NOTICEBOARD_PREFIX.length)));
         }
+        // The GM's third row: a button where a player gets the Pin select,
+        // because a GM holds no paper and writes the notice on the spot. It
+        // opens a modal, so the handler must NOT be acked first.
+        if (interaction.customId.startsWith(NOTICE_POST_PREFIX)) {
+          return void (await handleNoticePost(interaction, interaction.customId.slice(NOTICE_POST_PREFIX.length)));
+        }
         if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
         if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
         // Arrives in a DM; must NOT be acked first since it opens a modal.
@@ -2246,6 +2272,12 @@ module.exports = {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
         if (interaction.customId.startsWith(CONVERSE_MODAL_PREFIX)) {
           return void (await handleConverseCreate(interaction, interaction.customId.slice(CONVERSE_MODAL_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(NOTICE_POST_MODAL_PREFIX)) {
+          return void (await handleNoticePostSubmit(
+            interaction,
+            interaction.customId.slice(NOTICE_POST_MODAL_PREFIX.length),
+          ));
         }
         if (interaction.customId.startsWith(INTERCOM_MODAL_PREFIX)) {
           return void (await handleIntercomSubmit(

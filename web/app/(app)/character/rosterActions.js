@@ -7,7 +7,9 @@ import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { cookedTasteOnly } from "@/lib/referenceData";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
+import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 
 // "What can I see from here" — the reads a player-action dialog makes the
 // moment it opens (web/app/components/actions/useRoster.js), so the roster it
@@ -28,7 +30,11 @@ async function me() {
       role: { select: { slug: true } },
       tags: {
         include: {
-          tag: { include: { group: true, requirementSkills: { select: { name: true } } } },
+          // HEAL_SKILL_SELECT, not `name` alone: this is the query the Heal
+          // dialog actually paints from (useRoster refetches through here on
+          // open and overwrites the page's seed), so a subset here breaks the
+          // dialog even when the sheet's own query is right.
+          tag: { include: { group: true, requirementSkills: { select: HEAL_SKILL_SELECT } } },
         },
       },
     },
@@ -85,7 +91,12 @@ export async function loadActionRoster({ need = [] } = {}) {
   }
   if (wants.has("self")) {
     out.self = {
-      characterTags: character.tags,
+      // Same include as the sheet's, so the same cut: `cooked` down to its
+      // taste, `cookedFrom` gone (docs/systemdocs/COOKING.md).
+      characterTags: character.tags.map((ct) => {
+        const tag = cookedTasteOnly(ct.tag);
+        return tag === ct.tag ? ct : { ...ct, tag };
+      }),
       resources: character.resources,
       carry: carryStatus(character, gameConfig),
     };

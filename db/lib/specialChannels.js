@@ -7,7 +7,7 @@
 // Access rules stay CODE: they're real logic over tags and zones, not data a
 // YAML mini-language could express cleanly.
 //
-// #cerberon is the only entry left. #intercom used to be the second: a standing
+// #cerberon and #27.065 are the two radio nets. #intercom used to be a third: a standing
 // channel a tag-holder typed into, viewable by every above-ground zone role.
 // It is now a button on the table in the Council Room (db/lib/intercom.js),
 // which broadcasts into each zone's own #summary — so the PA is a thing in a
@@ -31,6 +31,20 @@ const SPECIAL_CHANNELS = [
       if (ctx.tagSlugs.has("radio-bracelet-cerberon")) return { view: true, send: false };
       return null;
     },
+  },
+  {
+    slug: "27.065",
+    configKey: "freq27065ChannelId",
+    categoryConfigKey: "radioCategoryId",
+    topic:
+      "An open frequency. Everyone holding a radio tuned to it hears everything said, and anyone who hears may answer.",
+    tupper: true,
+    wipe: "clear",
+    ghostsMaySee: true,
+    roleViewZones: [],
+    // No listener-only half here the way the Cerberon net has one: there is a
+    // single radio, and it both hears and speaks.
+    member: (ctx) => (ctx.tagSlugs.has("radio-27065") ? { view: true, send: true } : null),
   },
 ];
 

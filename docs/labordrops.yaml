@@ -5,14 +5,39 @@
 # Six top-level buckets, one per legal scope. Each nests roll face (1-6) ->
 # a pool (a plain list). A combined draw for one Labor payout pulls from
 # whichever of the six buckets actually name that labor type/zone/location,
-# all at the SAME roll face, and picks one entry uniformly from all of them
-# pooled together — repeat an entry to weight it, the way the good tables
-# below repeat "nothing" rather than carrying a weight field.
+# all at the SAME roll face, and draws from them pooled together.
+#
+# THE DRAW IS TWO-STAGE, the shape db/lib/cavingLoot.js has always had: land
+# on a rarity band by the die face's column, then pick evenly among that
+# band's members. db/lib/labordropsRarity.js owns the columns.
 #
 # One pool entry is one of three things:
-#   - a Tag slug (docs/tags.yaml)              -> grants the tag
+#   - { slug: rope, rarity: uncommon }         -> grants the tag
 #   - "+N" / "-N"                               -> a ⬢ delta
-#   - nothing                                   -> an explicit no-result pad
+#   - nothing                                   -> the pool can miss
+#
+# EVERY FIND CARRIES A RARITY, one of, commonest first:
+#
+#   ultracommon  common  uncommon  rare  extremely-rare  nearly-impossible
+#
+# The same six names cavingLoot.js uses — two loot systems in one game should
+# not speak two vocabularies — though not the same numbers, because a cave 6
+# and a labor 6 are different events.
+#
+# RARITY IS ABSOLUTE. A `rare` entry is worth its band's share whatever else
+# sits beside it, and the bands nobody authored give their share to the
+# commonest TIER present (never to a ⬢ delta, which would otherwise become the
+# likeliest outcome of half these pools). That is what stops one bucket
+# diluting another: adding a local table no longer steals probability from the
+# global one.
+#
+# `nothing` IS NOT A PAD ANY MORE — it is one line saying "this pool can
+# miss", and how often is the face's column, not how many times you wrote it.
+# 53 pad lines and 87 duplicate lines came out of this file when that landed,
+# along with the footgun LABORDROPS.md used to warn about: adding a wound no
+# longer raises the wound rate everywhere the bucket applies. Say `nothing`
+# once or not at all; the sync refuses a second, and refuses a repeated tag
+# for the same reason (a repeat is a copy-paste now, not a weight).
 #
 # laborType keys: basic, skilled, hunting, farming, fishing — the five
 # Laboring tiers db/lib/laborAccess.js resolves a Labor payout to
@@ -62,736 +87,446 @@
 # `laborDrop` in db/lib/moveEffects.js stamps the catalog's durationTurns onto
 # the grant, so they really do tick.
 global:
-  1:  # EV 0.00 ⬢ · hit 70%
-    - bruised  # an ordinary knock, nothing dramatic — not sellable
-    - bruised  # not sellable
-    - bruised  # not sellable
-    - vomiting  # something you ate, or just a bad morning — not sellable
-    - vomiting  # not sellable
-    - aching  # a long day, nothing more — not sellable
-    - aching  # not sellable
+  1:
+    - { slug: bruised, rarity: ultracommon }  # an ordinary knock, nothing dramatic — not sellable
+    - { slug: vomiting, rarity: ultracommon }  # something you ate, or just a bad morning — not sellable
+    - { slug: aching, rarity: ultracommon }  # a long day, nothing more — not sellable
     - nothing
-    - nothing
-    - nothing
-  6:  # EV 1.00 ⬢ · hit 100%
-    - obol  # someone dropped it and never noticed — the coin itself, worth 1 ⬢
-
+  6:
+    - { slug: obol, rarity: ultracommon }  # someone dropped it and never noticed — the coin itself, worth 1 ⬢
 laborType:
-  hunting:  # ⬢ EV/labor 0.33 · hit 27%
-    # A boar doesn't go down quietly, and neither does anything bigger.
-    # Minor, self-limiting, medical-basic-or-free injuries only — the
-    # zone-specific hunting tables below (laborTypeZone.hunting.*) are
-    # where the genuinely dangerous game lives (LABORDROPS.md §2a-adjacent).
-    1:  # own EV 0.00 ⬢ · hit 60% · combined EV 0.00 ⬢ · hit 65%
-      - minor-bleeding  # a snare wire or a blade gets away from you — not sellable
-      - minor-bleeding  # not sellable
-      - minor-wound  # the animal gets one good hit in before it goes down — not sellable
-      - minor-wound  # not sellable
-      - sprained-ankle  # a bad step chasing something faster than you — not sellable
-      - sprained-ankle  # not sellable
+  hunting:
+    1:
+      - { slug: minor-bleeding, rarity: ultracommon }  # a snare wire or a blade gets away from you — not sellable
+      - { slug: minor-wound, rarity: common }  # the animal gets one good hit in before it goes down — not sellable
+      - { slug: sprained-ankle, rarity: common }  # a bad step chasing something faster than you — not sellable
       - nothing
+    6:
+      - { slug: nightshade-herb, rarity: common }  # a coil left behind at an old camp — sells 2 ⬢
+      - { slug: poppy-pods, rarity: common }  # sells 2 ⬢
+      - { slug: coca-leaves, rarity: common }  # sells 2 ⬢
+      - { slug: ravens-eye, rarity: uncommon }  # sells 4 ⬢
+      - { slug: leeches, rarity: common }  # sells 2 ⬢
+      - { slug: boar-loin, rarity: uncommon }  # the best cut off the day's kill — sells 4 ⬢
+      - { slug: deer-liver, rarity: common }  # what a hunter eats first, or sells to somebody who will — sells 3 ⬢
+      - { slug: goose-fat, rarity: uncommon }  # rendered off a bird nobody else wanted — sells 5 ⬢
+      - "+1"
+      - "+2"
+      - { slug: old-coin, rarity: uncommon }  # a coin the kill had swallowed, or a trapper lost — sells 1 ⬢
+  fishing:
+    6:
+      - { slug: trout-heart, rarity: uncommon }  # sells 4 ⬢
+      - { slug: poppy-pods, rarity: common }  # sells 2 ⬢
+      - { slug: leeches, rarity: common }  # sells 2 ⬢
+      - { slug: fish-roe, rarity: common }  # sells 2 ⬢
+      - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
+      - { slug: crayfish, rarity: common }  # a bucket of them off the shallows — sells 3 ⬢
       - nothing
+      - "+1"
+      - "+2"
+      - { slug: tea, rarity: uncommon }  # steeped from something pulled off a snag — sells 1 ⬢
+    4:
+      - { slug: netted-lockbox, rarity: uncommon }  # netted up along with everything else — worth 18 ⬢ opened (sells 9 ⬢ locked)
+      - { slug: fish-roe, rarity: uncommon }  # sells 2 ⬢
+  farming:
+    6:
+      - { slug: nightshade-herb, rarity: common }  # sells 2 ⬢
+      - { slug: poppy-pods, rarity: common }  # sells 2 ⬢
+      - { slug: coca-leaves, rarity: common }  # sells 2 ⬢
+      - { slug: honey, rarity: common }  # sells 2 ⬢
+      - { slug: onion, rarity: common }  # a good day in the beds — sells 2 ⬢
       - nothing
-      - nothing
-    6:  # own EV 2.14 ⬢ · hit 100% · combined EV 2.00 ⬢ · hit 100%
-      - nightshade-herb  # a coil left behind at an old camp — sells 2 ⬢
-      - poppy-pods  # sells 2 ⬢
-      - coca-leaves  # sells 2 ⬢
-      - ravens-eye  # sells 4 ⬢
-      - leeches  # sells 2 ⬢
-      - old-coin  # a coin the kill had swallowed, or a trapper lost — sells 1 ⬢
-      - poppy-pods  # sells 2 ⬢
-  fishing:  # ⬢ EV/labor 1.92 · hit 42%
-    # Anyone's net can turn one up, not just one Location's — a Lockbox
-    # belongs where every Fishing draw in the game can reach it (Bascinet,
-    # 2026-09-10).
-    4:  # EV 10.00 ⬢ · hit 100%
-      - netted-lockbox  # netted up along with everything else — worth 18 ⬢ opened (sells 9 ⬢ locked)
-      - fish-roe  # sells 2 ⬢
-    6:  # own EV 1.56 ⬢ · hit 78% · combined EV 1.50 ⬢ · hit 80%
-      - trout-heart  # sells 4 ⬢
-      - poppy-pods  # sells 2 ⬢
-      - leeches  # sells 2 ⬢
-      - fish-roe  # sells 2 ⬢
-      - old-coin  # sells 1 ⬢
-      - nothing
-      - nothing
-      - tea  # steeped from something pulled off a snag — sells 1 ⬢
-      - leeches  # sells 2 ⬢
-  farming:  # ⬢ EV/labor 0.20 · hit 23%
-    6:  # own EV 1.22 ⬢ · hit 67% · combined EV 1.20 ⬢ · hit 70%
-      - nightshade-herb  # sells 2 ⬢
-      - poppy-pods  # sells 2 ⬢
-      - coca-leaves  # sells 2 ⬢
-      - honey  # sells 2 ⬢
-      - nothing
-      - nothing
-      - nothing
-      - old-coin  # turned up by the plow — sells 1 ⬢
-      - sweets  # a jar someone forgot in the field — sells 2 ⬢
-  # Anywhere-and-everywhere Prospecting finds — the same forage herbs
-  # Hunting/Farming already pay in (LABORDROPS.md §2b: searching is
-  # searching, wherever it turns up plant matter) plus the general run of
-  # small salvage a search anywhere might turn up. Faces 3-6 all pay, not
-  # just 6, per §2b's design; the zone/location tables layer mining and
-  # region-specific finds on top of this.
-  prospecting:  # ⬢ EV/labor 3.22 · hit 78%
-    # The cheap stuff lives on 2 now, not spread across 3-5 — every regional
-    # and location table pools with this one, so a 1-2 ⬢ scrap dragged
-    # EVERY Prospecting draw in the game down with it. 2 is still a real
-    # face (nine chances at something), it's just the face that isn't
-    # pretending to be worth rolling for (Bascinet, 2026-09-10).
-    2:  # EV 1.70 ⬢ · hit 100%
-      - sweets  # a rarity, tucked away and forgotten — sells 2 ⬢
-      - old-coin  # dropped, lost, or never spent — sells 1 ⬢
-      - bone  # sells 1 ⬢
-      - nightshade-herb  # sells 2 ⬢
-      - poppy-pods  # sells 2 ⬢
-      - coca-leaves  # sells 2 ⬢
-      - honey  # sells 2 ⬢
-      - tea  # sells 1 ⬢
-      - wild-mushroom  # sells 2 ⬢
-      - faded-photograph  # whoever's in it isn't anymore — sells 2 ⬢
-    4:  # EV 4.00 ⬢ · hit 100%
-      - foot  # sells 4 ⬢
-    5:  # EV 8.00 ⬢ · hit 100%
-      - jewelry  # sells 8 ⬢
-      - eye  # sells 8 ⬢
-    6:  # own EV 6.75 ⬢ · hit 100% · combined EV 5.60 ⬢ · hit 100%
-      - purse  # somebody's, once — worth 3 ⬢ consumed
-      # Not held to the Caving Die's own rarity for this one — Prospecting's
-      # its own structure, not bound by another table's tiers (Bascinet,
-      # 2026-09-09).
-      - salvage-plate  # scrap turns up anywhere something's been dug through — sells 3 ⬢
-      - saltpeter  # a pinch swept up with the rest — sells 3 ⬢
-      - silt-lockbox  # turns up wherever the digging is good — worth 18 ⬢ opened (sells 9 ⬢ locked)
-    # Keen Eye (LABORDROPS.md §2a) — a WIDER pool at the same draw, not a
-    # second roll: every ungated entry above still applies to a holder too,
-    # this just adds one more good find at every real face. Face 2 is
-    # deliberately untouched — Keen Eye finds better ground, not more junk.
-    #
-    # Reaches every Prospecting location in the game (this is the global
-    # bucket), which is exactly why a modest addition doesn't work here — the
-    # first pass (Silver/Heirloom/Jewelry) measurably DILUTED the richest
-    # per-location tables (forest-east-river's own face 5 already averages
-    # 19.75) while only helping the thinnest ones, a net -0.10 EV/labor
-    # across all 29 locations. Each value below is set at or above the
-    # single richest existing pool at that face anywhere in the game (4: 14,
-    # 5: 19.75, 6: 8, per a full survey run 2026-09-10), so Keen Eye is a
-    # true floor-raiser — it cannot make any location worse, only better or
-    # unchanged. Crafting inputs rather than curios (2026-09-10 revision) —
-    # Keen Eye is a Prospecting skill, so what it turns up should feed
-    # Smithing the way the rest of this session's work does, not just sell
-    # for ⬢ (Bascinet, 2026-09-10).
+      - "+1"
+      - "+2"
+      - { slug: old-coin, rarity: common }  # turned up by the plow — sells 1 ⬢
+      - { slug: sweets, rarity: common }  # a jar someone forgot in the field — sells 2 ⬢
+  basic:
+  skilled:
+  prospecting:
+    2:
+      - { slug: sweets, rarity: common }  # a rarity, tucked away and forgotten — sells 2 ⬢
+      - { slug: old-coin, rarity: common }  # dropped, lost, or never spent — sells 1 ⬢
+      - { slug: bone, rarity: common }  # sells 1 ⬢
+      - { slug: nightshade-herb, rarity: common }  # sells 2 ⬢
+      - { slug: poppy-pods, rarity: common }  # sells 2 ⬢
+      - { slug: coca-leaves, rarity: common }  # sells 2 ⬢
+      - { slug: honey, rarity: common }  # sells 2 ⬢
+      - { slug: tea, rarity: common }  # sells 1 ⬢
+      - { slug: wild-mushroom, rarity: common }  # sells 2 ⬢
+      - { slug: faded-photograph, rarity: common }  # whoever's in it isn't anymore — sells 2 ⬢
+    4:
+      - { slug: foot, rarity: uncommon }  # sells 4 ⬢
+    5:
+      - { slug: jewelry, rarity: rare }  # sells 8 ⬢
+      - { slug: eye, rarity: rare }  # sells 8 ⬢
+    6:
+      - { slug: purse, rarity: uncommon }  # somebody's, once — worth 3 ⬢ consumed
+      - { slug: salvage-plate, rarity: uncommon }  # scrap turns up anywhere something's been dug through — sells 3 ⬢
+      - { slug: saltpeter, rarity: uncommon }  # a pinch swept up with the rest — sells 3 ⬢
+      - { slug: silt-lockbox, rarity: uncommon }  # turns up wherever the digging is good — worth 18 ⬢ opened (sells 9 ⬢ locked)
     requiresTag:
-      keen-eye:  # ⬢ EV/labor 5.53 · hit 78%
-        4:  # own EV 18.00 ⬢ · hit 100% · combined EV 11.00 ⬢ · hit 100%
-          - steel  # you spot the good ground — sells 18 ⬢
-        5:  # own EV 27.00 ⬢ · hit 100% · combined EV 14.33 ⬢ · hit 100%
-          - ore-package  # sorted and ready for the forge — sells 27 ⬢
-        6:  # own EV 9.00 ⬢ · hit 100% · combined EV 6.17 ⬢ · hit 100%
-          - ore-chunk  # sells 9 ⬢
-  basic: {}
-  skilled: {}
-
+      keen-eye:
+        4:
+          - { slug: steel, rarity: rare }  # you spot the good ground — sells 8 ⬢
+        5:
+          - { slug: ore-package, rarity: extremely-rare }  # sorted and ready for the forge — sells 27 ⬢
+        6:
+          - { slug: ore-chunk, rarity: rare }  # sells 9 ⬢
 zone:
-  # Forester's own catalog line is "gaining an advantage in finding food,
-  # water, or shelter" (docs/tags.yaml) — nothing read it before this. A
-  # Forester working the Forest zone (any labor type — Basic and Skilled
-  # included, same as Global) now draws from this pool ON TOP OF whatever
-  # their labor type's own table already gives them. The Forest carries NO
-  # ungated zone-wide entry of its own, on purpose: it's the safest zone to
-  # work, so nothing extra applies to an ordinary character standing in it —
-  # `laborTypeLocation.hunting.forest-cliffs` below is the one deliberate
-  # exception, a single dangerous spot inside an otherwise uneventful zone.
-  forest:  # ⬢ EV/labor 0.17 · hit 28%
+  forest:
     requiresTag:
-      forester:  # ⬢ EV/labor 0.25 · hit 28%
-        6:  # own EV 1.67 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
-          - rope  # a coil left behind at an old camp — sells 4 ⬢
-          - trail-ration  # provisions someone else didn't need any more — not sellable
-          - old-coin  # a Forester's eye finds what others miss — sells 1 ⬢
-
-  # Six of the marsh's seven locations carry `attributes.godflesh` in
-  # zones.yaml — the whole zone sits on it, not one Location's labor, so the
-  # find lives here rather than under laborTypeZone. "Thick reeds crowd
-  # open-ended ponds... an endless landscape of purple wetness" (zones.yaml,
-  # the zone's own words) is also where the two bad entries below come from:
-  # a mire that hides more than mud (marshes-woods' sleeping thing, the
-  # north marshes' scratched-up cages).
-  marshes:  # ⬢ EV/labor 0.50 · hit 27%
-    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
-      - minor-bleeding  # the reeds and the leeches both bite — not sellable
-      - minor-bleeding  # not sellable
-      - minor-bleeding  # not sellable
-      - deep-wound  # something under the water was not a root — not sellable
-      - deep-wound  # not sellable
+      forester:
+        6:
+          - { slug: rope, rarity: uncommon }  # a coil left behind at an old camp — sells 4 ⬢
+          - { slug: trail-ration, rarity: ultracommon }  # provisions someone else didn't need any more — not sellable
+          - "+1"
+          - { slug: old-coin, rarity: common }  # a Forester's eye finds what others miss — sells 1 ⬢
+  marshes:
+    1:
+      - { slug: minor-bleeding, rarity: ultracommon }  # the reeds and the leeches both bite — not sellable
+      - { slug: deep-wound, rarity: uncommon }  # something under the water was not a root — not sellable
       - nothing
+    6:
+      - { slug: godflesh, rarity: ultracommon }  # the mud gives up a piece of what it's fed on — not sellable
+      - "+1"
+      - "+2"
+      - { slug: old-coin, rarity: ultracommon }  # lost in the mud, long before you got here — sells 1 ⬢
+      - { slug: fish-roe, rarity: ultracommon }  # scraped off a rock at the waterline — sells 2 ⬢
+  hills:
+    1:
+      - { slug: sprained-ankle, rarity: common }  # the ground here doesn't forgive a bad step — not sellable
+      - { slug: bruised, rarity: ultracommon }  # loose stone, and a long way down to the next ledge — not sellable
       - nothing
+  depths:
+    1:
+      - { slug: deep-wound, rarity: uncommon }  # the dark gets a piece of you before you see what did it — not sellable
+      - { slug: minor-wound, rarity: common }  # you find the low ceiling with your head, again — not sellable
       - nothing
-      - nothing
-      - nothing
-    6:  # own EV 3.67 ⬢ · hit 100% · combined EV 3.00 ⬢ · hit 100%
-      - godflesh  # the mud gives up a piece of what it's fed on — assumed 8 ⬢ (not actually sellable yet)
-      - old-coin  # lost in the mud, long before you got here — sells 1 ⬢
-      - fish-roe  # scraped off a rock at the waterline — sells 2 ⬢
-
-  # "Ancient buildings layer atop craggy, mossy rocks" (zones.yaml) — old
-  # stonework, sheer drops (the Hanging Steps, the Grand Ravine), and a
-  # brigand camp sharing the high ground. Danger only; the zone's own name
-  # never promised a bonus for it.
-  hills:  # ⬢ EV/labor 0.17 · hit 27%
-    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
-      - sprained-ankle  # the ground here doesn't forgive a bad step — not sellable
-      - sprained-ankle  # not sellable
-      - sprained-ankle  # not sellable
-      - bruised  # loose stone, and a long way down to the next ledge — not sellable
-      - bruised  # not sellable
-      - nothing
-      - nothing
-      - nothing
-      - nothing
-      - nothing
-
-  # "A place of true darkness. The end of the world." (zones.yaml) — the
-  # zone-wide entry is deliberately the only thing authored for Depths
-  # outside the labor-specific hunting table below; nothing about working
-  # here is meant to feel safe.
-  depths:  # ⬢ EV/labor 0.17 · hit 27%
-    1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
-      - deep-wound  # the dark gets a piece of you before you see what did it — not sellable
-      - deep-wound  # not sellable
-      - minor-wound  # you find the low ceiling with your head, again — not sellable
-      - minor-wound  # not sellable
-      - minor-wound  # not sellable
-      - nothing
-      - nothing
-      - nothing
-      - nothing
-      - nothing
-
 location:
-  # "A walled garden for growing herbs" behind "ornate galleries" (zones.yaml,
-  # manors / manors-garden) — old money, and old money misplaces things.
-  # Deliberately not laborType-scoped: whatever work brings you to the
-  # Manors, someone here dropped something worth finding.
-  manors:  # ⬢ EV/labor 0.47 · hit 25%
-    6:  # own EV 3.25 ⬢ · hit 75% · combined EV 2.80 ⬢ · hit 80%
-      - purse  # tucked behind a hedge, forgotten mid-errand — worth 3 ⬢ consumed
-      - jewelry  # a stray earring, or worse, nobody's come looking for — sells 8 ⬢
+  manors:
+    6:
+      - { slug: purse, rarity: ultracommon }  # tucked behind a hedge, forgotten mid-errand — not sellable
+      - { slug: jewelry, rarity: rare }  # a stray earring, or worse, nobody's come looking for — sells 8 ⬢
       - nothing
-      - art-supplies  # abandoned mid-project, in the garden shed — sells 2 ⬢
-
+      - "+2"
+      - { slug: art-supplies, rarity: uncommon }  # abandoned mid-project, in the garden shed — sells 2 ⬢
 laborTypeZone:
   hunting:
-    # cliffs-den (forest-cliffs' own room, zones.yaml) — "damp fur, old
-    # blood, and wet leaves. Bones have been pushed toward the edges" — is
-    # the reason forest-cliffs gets its own laborTypeLocation table below
-    # instead of a zone-wide entry; this section is the OTHER three zones,
-    # where the danger is the whole place rather than one den in it.
-    marshes:  # ⬢ EV/labor 0.41 · hit 26%
-      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
-        - grievous-wound  # whatever sleeps in the mire wakes up wrong — not sellable
-        - deep-wound  # it had hold of you before the water gave it away — not sellable
-        - deep-wound  # not sellable
-        - minor-wound  # you got clear, mostly — not sellable
-        - minor-wound  # not sellable
+    marshes:
+      1:
+        - { slug: grievous-wound, rarity: extremely-rare }  # whatever sleeps in the mire wakes up wrong — not sellable
+        - { slug: deep-wound, rarity: uncommon }  # it had hold of you before the water gave it away — not sellable
+        - { slug: minor-wound, rarity: common }  # you got clear, mostly — not sellable
         - nothing
+    hills:
+      1:
+        - { slug: blunt-force-trauma, rarity: uncommon }  # gored, thrown, or both, before the kill lands — not sellable
+        - { slug: sprained-ankle, rarity: common }  # it went uphill, and you followed — not sellable
+        - { slug: minor-wound, rarity: common }  # it turned on you once and then ran — not sellable
         - nothing
+      4:
+        - { slug: old-coin, rarity: common }  # dropped chasing something faster than you — sells 1 ⬢
+        - { slug: ravens-eye, rarity: common }  # sells 4 ⬢
+      5:
+        - { slug: jewelry, rarity: uncommon }  # a poacher's ring, lost setting a snare — sells 8 ⬢
+        - { slug: silver, rarity: uncommon }  # a poacher's own take, never spent — sells 5 ⬢
+    depths:
+      1:
+        - { slug: grievous-wound, rarity: extremely-rare }  # something down here hunts back — not sellable
+        - { slug: deep-wound, rarity: uncommon }  # it got a piece of you on the way down — not sellable
+        - { slug: minor-wound, rarity: common }  # you heard it before it reached you — not sellable
         - nothing
+      5:
+        - { slug: skinless-corpse, rarity: common }  # pink and slimy, and still warm — not sellable
+        - { slug: nekker-corpse, rarity: common }  # spindly, and lighter than it looked — not sellable
+        - { slug: graga-corpse, rarity: common }  # bloated, and it will not be carried far — not sellable
+        - { slug: aberrant-heart, rarity: extremely-rare }  # an Aberrant fell here, and this is what was worth taking — sells 55 ⬢
+      6:
+        - { slug: skinless-corpse, rarity: common }  # not sellable
+        - { slug: nekker-corpse, rarity: common }  # not sellable
+        - { slug: graga-corpse, rarity: common }  # not sellable
+        - { slug: aberrant-heart, rarity: extremely-rare }  # sells 55 ⬢
+  fishing:
+    forest:
+      6:
+        - { slug: river-eel, rarity: common }  # slow water under the trees — sells 3 ⬢
         - nothing
+        - "+1"
+    marshes:
+      6:
+        - { slug: lamprey, rarity: common }  # the mire's own fish, and it fastens on — sells 3 ⬢
         - nothing
-    hills:  # ⬢ EV/labor 1.83 · hit 60%
-      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
-        - blunt-force-trauma  # gored, thrown, or both, before the kill lands — not sellable
-        - sprained-ankle  # it went uphill, and you followed — not sellable
-        - sprained-ankle  # not sellable
-        - sprained-ankle  # not sellable
-        - minor-wound  # it turned on you once and then ran — not sellable
-        - nothing
-        - nothing
-        - nothing
-        - nothing
-        - nothing
-      # The Hills aren't only hunted by people with a Location role — the
-      # brigand camp at Grand Ravine (laborTypeLocation.prospecting) proves
-      # poachers and snare-lines work this ground too, and a hunter's trail
-      # crosses theirs often enough to be worth a face of its own.
-      4:  # EV 2.50 ⬢ · hit 100%
-        - old-coin  # dropped chasing something faster than you — sells 1 ⬢
-        - ravens-eye  # sells 4 ⬢
-      5:  # EV 6.50 ⬢ · hit 100%
-        - jewelry  # a poacher's ring, lost setting a snare — sells 8 ⬢
-        - silver  # a poacher's own take, never spent — sells 5 ⬢
-    # Faces 5 and 6 are where the Depths pays for itself: something down here
-    # is worth killing, and what you carry out is a body. Zone-scoped rather
-    # than repeated across six Locations on purpose — laborAccess.js refuses a
-    # tier whose location coefficient is missing, and depths-crystal-chambers
-    # is the only Depths Location with no `yield:` block, so hunting is already
-    # impossible there. "Zone-wide" and "every Depths Location with a yield"
-    # are the same set.
-    #
-    # Deliberately NOT scaled to a Location's own hunting coefficient — the
-    # corpse table prices what's down there in the dark, not how good the
-    # hunting ground is. A 0.6-coefficient Depths Location pooling the same
-    # table as depths-obelisk (1.8) is correct: the monsters don't care what
-    # the yield says, and this is a different value philosophy than the
-    # coefficient-scaled tables elsewhere (Bascinet, 2026-09-10).
-    #
-    # Face 5 is otherwise unconfigured everywhere, so a 5 is a clean draw from
-    # this pool alone. A 6 pools with the global obol and the hunting table,
-    # which halves it — deliberate: a 6 in the Depths is a body or an ordinary
-    # find, a 5 is always a body.
-    depths:  # ⬢ EV/labor 4.53 · hit 43%
-      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 57%
-        - grievous-wound  # something down here hunts back — not sellable
-        - deep-wound  # it got a piece of you on the way down — not sellable
-        - deep-wound  # not sellable
-        - minor-wound  # you heard it before it reached you — not sellable
-        - minor-wound  # not sellable
-        - nothing
-        - nothing
-        - nothing
-        - nothing
-        - nothing
-      5:  # EV 16.90 ⬢ · hit 100%
-        - skinless-corpse  # pink and slimy, and still warm — assumed 25 ⬢ (not actually sellable yet)
-        - skinless-corpse  # assumed 25 ⬢ (not actually sellable yet)
-        - skinless-corpse  # assumed 25 ⬢ (not actually sellable yet)
-        - nekker-corpse  # spindly, and lighter than it looked — assumed 5 ⬢ (not actually sellable yet)
-        - nekker-corpse  # assumed 5 ⬢ (not actually sellable yet)
-        - nekker-corpse  # assumed 5 ⬢ (not actually sellable yet)
-        - graga-corpse  # bloated, and it will not be carried far — assumed 8 ⬢ (not actually sellable yet)
-        - graga-corpse  # assumed 8 ⬢ (not actually sellable yet)
-        - graga-corpse  # assumed 8 ⬢ (not actually sellable yet)
-        - aberrant-heart  # an Aberrant fell here, and this is what was worth taking — sells 55 ⬢
-      6:  # own EV 16.90 ⬢ · hit 100% · combined EV 10.28 ⬢ · hit 100%
-        - skinless-corpse  # assumed 25 ⬢ (not actually sellable yet)
-        - skinless-corpse  # assumed 25 ⬢ (not actually sellable yet)
-        - skinless-corpse  # assumed 25 ⬢ (not actually sellable yet)
-        - nekker-corpse  # assumed 5 ⬢ (not actually sellable yet)
-        - nekker-corpse  # assumed 5 ⬢ (not actually sellable yet)
-        - nekker-corpse  # assumed 5 ⬢ (not actually sellable yet)
-        - graga-corpse  # assumed 8 ⬢ (not actually sellable yet)
-        - graga-corpse  # assumed 8 ⬢ (not actually sellable yet)
-        - graga-corpse  # assumed 8 ⬢ (not actually sellable yet)
-        - aberrant-heart  # sells 55 ⬢
-
-  # The ore side of Prospecting (LABORDROPS.md §2b) — Caves and Depths are
-  # where the game's mining fiction already lives (the Baron's old mines,
-  # the Charred Lair's own cache, `chasm-ore-vein`), and cave-fungus grows
-  # in both. Deliberately spread across faces 3-5, not stacked on 6 — a dig
-  # here is meant to pay off more often than it doesn't.
+        - "+1"
+    caves:
+      6:
+        - { slug: blind-fish, rarity: common }  # pale, eyeless, and perfectly good cooked — sells 3 ⬢
+        - { slug: fragmentation-grenade, rarity: nearly-impossible }  # somebody lost it in the water a long time ago — sells 24 ⬢
   prospecting:
-    # Faces 3-5 also carry the Caving Die's own Ultracommon/Common/Uncommon
-    # tiers (`db/lib/cavingLoot.js`, CAVING.md §3) — the same ground the
-    # delve loot table already covers, without its Rare tier and up: Caves
-    # sits at 1.95% Rare on that die, near enough to never, so this die
-    # doesn't offer one here either. Depths, below, is where Rare joins.
-    # Trimmed 2026-09-10 — several faces had the same value sitting under two
-    # or three different slugs (Cudgel/Sling/Coal all at 4 ⬢, Cave Fungus
-    # doubled against itself), which reads as more variety than it is. Cut
-    # down to one representative per value tier, and put the weight that
-    # freed up into more Coal and Ore Chunk instead (Bascinet's call).
-    caves:  # ⬢ EV/labor 4.46 · hit 95%
-      2:  # own EV 0.67 ⬢ · hit 100% · combined EV 1.46 ⬢ · hit 100%
-        - leeches  # the same still water everything else here drinks from — sells 2 ⬢
-        - rock  # the caves are made of it — not sellable
-        - bear-trap  # still sprung, still sharp — not sellable
-      3:  # EV 3.50 ⬢ · hit 100%
-        - cave-fungus  # "a winding forest of mushrooms" — sells 3 ⬢
-        - coal  # a seam still worth digging, in mines the Baron left behind — sells 4 ⬢
-      4:  # own EV 5.33 ⬢ · hit 100% · combined EV 5.00 ⬢ · hit 100%
-        - coal  # sells 4 ⬢
-        - cave-fungus  # sells 3 ⬢
-        - ore-chunk  # the seam and a paler vein, still stuck together — sells 9 ⬢
-      5:  # own EV 9.33 ⬢ · hit 100% · combined EV 8.80 ⬢ · hit 100%
-        - saltpeter  # sells 3 ⬢
-        - cleaning-powder  # sells 4 ⬢
-        - knuckle-duster  # sells 21 ⬢
-      6:  # own EV 12.00 ⬢ · hit 100% · combined EV 8.00 ⬢ · hit 100%
-        - buried-lockbox  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
-        - cave-fungus  # sells 3 ⬢
-        - ore-chunk  # sells 9 ⬢
-    # Richer than the Caves at every face — Depths already pays better for
-    # everything else (LABORING.md §3a), and its Prospecting locations skew
-    # higher too. Steel joins face 5 (2026-09-10) — it was Chasm-only before,
-    # which made the whole Depths run thin on the one ingot Smithing actually
-    # spends; the general table is where every plain Depths Location without
-    # its own table draws from, so this is the real fix, not a one-off.
-    depths:  # ⬢ EV/labor 4.48 · hit 93%
-      2:  # own EV 0.00 ⬢ · hit 100% · combined EV 1.42 ⬢ · hit 100%
-        - rock  # not sellable
-        - bear-trap  # not sellable
-      3:  # EV 3.50 ⬢ · hit 100%
-        - cave-fungus  # sells 3 ⬢
-        - coal  # sells 4 ⬢
-      4:  # own EV 5.33 ⬢ · hit 100% · combined EV 5.00 ⬢ · hit 100%
-        - coal  # sells 4 ⬢
-        - cave-fungus  # sells 3 ⬢
-        - ore-chunk  # richer down here than the Caves, same as everything else — sells 9 ⬢
-      5:  # own EV 10.20 ⬢ · hit 100% · combined EV 9.57 ⬢ · hit 100%
-        - saltpeter  # sells 3 ⬢
-        - silver  # a real vein down here, same as the one at Chasm — sells 5 ⬢
-        - cleaning-powder  # sells 4 ⬢
-        - knuckle-duster  # sells 21 ⬢
-        - steel  # not just Chasm's anymore — sells 18 ⬢
-      # Depths carries the delve loot table's Rare tier too (25% on the
-      # Caving Die, versus Caves' 1.95%) — Salvage Plate, Supply Kit and
-      # Mining Helmet all stay off the Caves table above for the same reason.
-      6:  # own EV 8.83 ⬢ · hit 100% · combined EV 7.36 ⬢ · hit 100%
-        - silver  # sells 5 ⬢
-        - coal  # sells 4 ⬢
-        - salvage-plate  # sells 3 ⬢
-        - supply-kit  # not sellable, but worth it opened — worth 8 ⬢ consumed
-        - mining-helmet  # sells 9 ⬢
-        - buried-lockbox  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
-    # "Ancient buildings layer atop craggy, mossy rocks" (zones.yaml) — rock
-    # worth panning, not the mine shafts Caves/Depths have. Silver's the
-    # headline, but not the only thing worth bending over for — and it's a
-    # bigger headline now (2026-09-10): a second seam at every real face,
-    # not just the one.
-    hills:  # ⬢ EV/labor 4.07 · hit 77%
-      2:  # own EV 0.50 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
-        - rock  # not sellable
-        - old-coin  # sells 1 ⬢
-      4:  # own EV 14.50 ⬢ · hit 100% · combined EV 11.00 ⬢ · hit 100%
-        - buried-lockbox  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
-        - silver  # sells 5 ⬢
-      5:  # own EV 6.00 ⬢ · hit 100% · combined EV 6.80 ⬢ · hit 100%
-        - silver  # sells 5 ⬢
-        - silver  # a second seam, same wall — sells 5 ⬢
-        - jewelry  # dropped by whoever built these walls, once — sells 8 ⬢
-      6:  # own EV 4.33 ⬢ · hit 100% · combined EV 5.13 ⬢ · hit 100%
-        - silver  # sells 5 ⬢
-        - silver  # sells 5 ⬢
-        - hat  # someone's lost hat, snagged on a rock — sells 3 ⬢
-    # Every mushroom-flavored Forest location (forest-creekside's colonies,
-    # forest-sparse-field's fungus-crowned stumps) grants this rather than
-    # cave-fungus, which reads as the underground half of the same idea.
-    # Trimmed 2026-09-10 — Wild Mushroom was doubled against itself and
-    # Trail Ration sat at the same 0 ⬢ as Rock; one of each says the same
-    # thing without the padding.
-    forest:  # ⬢ EV/labor 4.87 · hit 78%
-      2:  # own EV 1.33 ⬢ · hit 100% · combined EV 1.62 ⬢ · hit 100%
-        - wild-mushroom  # sells 2 ⬢
-        - honey  # a wild hive, not a farmer's — sells 2 ⬢
-        - rock  # not sellable
-      4:  # own EV 24.00 ⬢ · hit 100% · combined EV 14.00 ⬢ · hit 100%
-        - buried-lockbox  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
-
+    caves:
+      2:
+        - { slug: leeches, rarity: ultracommon }  # the same still water everything else here drinks from — sells 2 ⬢
+        - { slug: rock, rarity: ultracommon }  # the caves are made of it — not sellable
+        - { slug: bear-trap, rarity: ultracommon }  # still sprung, still sharp — not sellable
+      3:
+        - { slug: cave-fungus, rarity: uncommon }  # "a winding forest of mushrooms" — sells 3 ⬢
+        - { slug: coal, rarity: uncommon }  # a seam still worth digging, in mines the Baron left behind — sells 4 ⬢
+      4:
+        - { slug: coal, rarity: uncommon }  # sells 4 ⬢
+        - { slug: cave-fungus, rarity: uncommon }  # sells 3 ⬢
+        - { slug: ore-chunk, rarity: uncommon }  # the seam and a paler vein, still stuck together — sells 9 ⬢
+      5:
+        - { slug: saltpeter, rarity: rare }  # sells 3 ⬢
+        - { slug: cleaning-powder, rarity: rare }  # sells 4 ⬢
+        - { slug: knuckle-duster, rarity: rare }  # sells 21 ⬢
+      6:
+        - { slug: buried-lockbox, rarity: rare }  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
+        - { slug: cave-fungus, rarity: rare }  # sells 3 ⬢
+        - { slug: ore-chunk, rarity: rare }  # sells 9 ⬢
+    depths:
+      2:
+        - { slug: rock, rarity: ultracommon }  # not sellable
+        - { slug: bear-trap, rarity: ultracommon }  # not sellable
+      3:
+        - { slug: cave-fungus, rarity: uncommon }  # sells 3 ⬢
+        - { slug: coal, rarity: uncommon }  # sells 4 ⬢
+      4:
+        - { slug: coal, rarity: uncommon }  # sells 4 ⬢
+        - { slug: cave-fungus, rarity: uncommon }  # sells 3 ⬢
+        - { slug: ore-chunk, rarity: uncommon }  # richer down here than the Caves, same as everything else — sells 9 ⬢
+      5:
+        - { slug: saltpeter, rarity: rare }  # sells 3 ⬢
+        - { slug: silver, rarity: rare }  # a real vein down here, same as the one at Chasm — sells 5 ⬢
+        - { slug: cleaning-powder, rarity: rare }  # sells 4 ⬢
+        - { slug: knuckle-duster, rarity: rare }  # sells 21 ⬢
+        - { slug: steel, rarity: rare }  # not just Chasm's anymore — sells 8 ⬢
+      6:
+        - { slug: silver, rarity: uncommon }  # sells 5 ⬢
+        - { slug: coal, rarity: uncommon }  # sells 4 ⬢
+        - { slug: salvage-plate, rarity: uncommon }  # sells 3 ⬢
+        - { slug: supply-kit, rarity: uncommon }  # not sellable, but worth it opened — worth 8 ⬢ consumed
+        - { slug: mining-helmet, rarity: uncommon }  # sells 9 ⬢
+        - { slug: buried-lockbox, rarity: uncommon }  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
+    hills:
+      2:
+        - { slug: rock, rarity: ultracommon }  # not sellable
+        - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
+      4:
+        - { slug: buried-lockbox, rarity: rare }  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
+        - { slug: silver, rarity: rare }  # sells 5 ⬢
+      5:
+        - { slug: silver, rarity: ultracommon }  # sells 5 ⬢
+        - { slug: jewelry, rarity: ultracommon }  # dropped by whoever built these walls, once — sells 8 ⬢
+      6:
+        - { slug: silver, rarity: ultracommon }  # sells 5 ⬢
+        - { slug: hat, rarity: ultracommon }  # someone's lost hat, snagged on a rock — sells 3 ⬢
+    forest:
+      2:
+        - { slug: wild-mushroom, rarity: ultracommon }  # sells 2 ⬢
+        - { slug: honey, rarity: ultracommon }  # a wild hive, not a farmer's — sells 2 ⬢
+        - { slug: rock, rarity: ultracommon }  # not sellable
+      4:
+        - { slug: buried-lockbox, rarity: rare }  # wedged in wherever the digging turned it up — worth 24 ⬢ opened (sells 12 ⬢ locked)
 laborTypeLocation:
   hunting:
-    # The Cliffs' own den (zones.yaml room `cliffs-den`, under this
-    # Location): "damp fur, old blood, and wet leaves... bones pushed
-    # toward the edges." Forest stays the safe zone in general (see the
-    # `zone.forest` comment above) — this is the one named exception, a
-    # single dangerous den inside it, with the payout to match the risk.
-    forest-cliffs:  # ⬢ EV/labor 0.38 · hit 27%
-      1:  # own EV 0.00 ⬢ · hit 50% · combined EV 0.00 ⬢ · hit 60%
-        - deep-wound  # whatever denned here doesn't share — not sellable
-        - deep-wound  # not sellable
-        - minor-wound  # it was home, and it made that clear — not sellable
-        - minor-wound  # not sellable
-        - sprained-ankle  # the scree above the den goes out from under you — not sellable
+    forest-cliffs:
+      1:
+        - { slug: deep-wound, rarity: uncommon }  # whatever denned here doesn't share — not sellable
+        - { slug: minor-wound, rarity: common }  # it was home, and it made that clear — not sellable
+        - { slug: sprained-ankle, rarity: common }  # the scree above the den goes out from under you — not sellable
         - nothing
-        - nothing
-        - nothing
-        - nothing
-        - nothing
-      6:  # own EV 3.50 ⬢ · hit 100% · combined EV 2.30 ⬢ · hit 100%
-        - hat  # a hunter's hat, dropped and not gone back for — sells 3 ⬢
-        - cudgel  # someone else who came looking for this den didn't leave with it — sells 4 ⬢
+      6:
+        - "+3"
+        - "+4"
+        - { slug: hat, rarity: uncommon }  # a hunter's hat, dropped and not gone back for — sells 3 ⬢
+        - { slug: cudgel, rarity: uncommon }  # someone else who came looking for this den didn't leave with it — sells 4 ⬢
   fishing:
-    # hills-waterway / "Fracturing Waterway" (zones.yaml): its own bridge
-    # "fallen into disrepair," patched scaffolding over a collapsed arch —
-    # decayed infrastructure over real fishing water (`yield.fishing: 0.8`).
-    # Salvage Plate and a Bastard Sword are both real catalog items
-    # (CAVING.md's own Rare/Extremely-rare loot tiers), heavily padded with
-    # `nothing` so a fishing trip here is ordinary nine times in ten and a
-    # real find the rest.
-    hills-waterway:  # ⬢ EV/labor 2.31 · hit 40%
-      6:  # own EV 7.83 ⬢ · hit 50% · combined EV 3.88 ⬢ · hit 69%
-        - salvage-plate  # scrap metal, snagged off the collapsed scaffolding — sells 3 ⬢
-        - bastard-sword  # someone went into that water and didn't come out for it — sells 42 ⬢
+    hills-waterway:
+      6:
+        - { slug: salvage-plate, rarity: common }  # scrap metal, snagged off the collapsed scaffolding — sells 3 ⬢
+        - { slug: bastard-sword, rarity: extremely-rare }  # someone went into that water and didn't come out for it — sells 42 ⬢
         - nothing
-        - nothing
-        - nothing
-        - fish-roe  # sells 2 ⬢
+        - "+2"
+        - { slug: fish-roe, rarity: rare }  # sells 2 ⬢
   prospecting:
-    # The Forgotten Gallows (zones.yaml `west-hills-gallows`) is a real
-    # grave, not milder ground like the rest of the Black Hills — the first
-    # table built to LABORDROPS.md §2b's shape: faces 3-6 all pay, rising
-    # toward the two tags minted for this spot alone (LABORDROPS.md §2b).
-    hills-west:  # ⬢ EV/labor 6.08 · hit 95%
-      2:  # own EV 0.00 ⬢ · hit 100% · combined EV 1.55 ⬢ · hit 100%
-        - cross  # left where it was set down, or where it fell — not sellable
-      3:  # EV 2.67 ⬢ · hit 100%
-        - bone  # a bone out of the pile below, worth more whole than broken — sells 1 ⬢
-        - foot  # a foot still in its boot — sells 4 ⬢
-        - warding-bead  # didn't work, or the strand would still be whole — sells 3 ⬢
-      4:  # own EV 6.67 ⬢ · hit 100% · combined EV 6.00 ⬢ · hit 100%
-        - rope  # cut down from the tree itself — sells 4 ⬢
-        - eye  # sells 8 ⬢
-        - eye  # sells 8 ⬢
-      # Two different prizes now, not two copies of the one — a labourer
-      # camping this spot gets one or the other, never a guaranteed ring.
-      # 5, not 6, is where a Prospecting table's great item lives from here
-      # on — the global table only pays the Obol on a 6, and a 1 ⬢ coin
-      # dragging a 35 ⬢ ring's average down was never the point (Bascinet,
-      # 2026-09-09). Every big-ticket table below follows the same rule.
-      5:  # own EV 26.50 ⬢ · hit 100% · combined EV 17.25 ⬢ · hit 100%
-        - burial-ring  # the one real prize this grave has to give — sells 35 ⬢
-        - gallows-charm  # sells 18 ⬢
-      6:  # own EV 14.67 ⬢ · hit 100% · combined EV 9.00 ⬢ · hit 100%
-        - gallows-charm  # a ward worn by someone it didn't save — sells 18 ⬢
-        - gallows-charm  # sells 18 ⬢
-        - eye  # sells 8 ⬢
-
-    # Two rooms, two different finds — the Burial Mound's own crosses
-    # (zones.yaml: "dozens of small wooden crosses"), and the brigand camp's
-    # armory (grand-ravine-camp's stash, drawn on for flavor rather than
-    # requiring the camp's own access gate).
-    hills-grand-ravine:  # ⬢ EV/labor 4.78 · hit 78%
-      2:  # own EV 0.00 ⬢ · hit 100% · combined EV 1.55 ⬢ · hit 100%
-        - cross  # one of dozens on the mound above — not sellable
-      4:  # own EV 6.33 ⬢ · hit 100% · combined EV 5.75 ⬢ · hit 100%
-        - work-knife  # a brigand's, left behind — sells 4 ⬢
-        - spear  # sells 7 ⬢
-        - wedding-ring  # taken off someone who didn't need it anymore — sells 8 ⬢
-      5:  # own EV 23.00 ⬢ · hit 100% · combined EV 15.50 ⬢ · hit 100%
-        - brigandine  # the camp's best coat, and whoever wore it isn't asking for it back — sells 42 ⬢
-        - shortbow  # sells 4 ⬢
-      6:  # own EV 6.50 ⬢ · hit 100% · combined EV 5.86 ⬢ · hit 100%
-        - buckler  # sells 4 ⬢
-        - mace  # sells 9 ⬢
-
-    # The Lower Baths' ruin (zones.yaml `headwaters-lower-baths`, an ancient
-    # bathhouse) already stashes both one-time — this is the repeatable half
-    # of the same find.
-    forest-headwaters:  # ⬢ EV/labor 4.27 · hit 78%
-      # Two outcomes, not one guaranteed helmet — the rest of that 32-obol
-      # stash, or the helmet itself.
-      5:  # own EV 21.00 ⬢ · hit 100% · combined EV 14.50 ⬢ · hit 100%
-        - gladiator-helmet  # sells 27 ⬢
-        - spectacles  # left on the bath's edge, lenses still clear — sells 15 ⬢
-      6:  # own EV 5.00 ⬢ · hit 100% · combined EV 5.43 ⬢ · hit 100%
-        - gladius  # left where the water took whoever carried it — sells 9 ⬢
-        - old-coin  # a piece of the 32 obol still down there — sells 1 ⬢
-
-    # Graywall's Property Room (zones.yaml `sparse-field-property`) held
-    # what the prison confiscated — this is what's left scattered outside
-    # the locked room itself.
-    forest-sparse-field:  # ⬢ EV/labor 5.39 · hit 78%
-      4:  # own EV 7.33 ⬢ · hit 100% · combined EV 6.50 ⬢ · hit 100%
-        - work-knife  # sells 4 ⬢
-        - jewelry  # confiscated and never returned — sells 8 ⬢
-        - military-autoinjector  # confiscated medical kit, still sealed — sells 10 ⬢
-      5:  # own EV 25.00 ⬢ · hit 100% · combined EV 16.50 ⬢ · hit 100%
-        - brigandine  # sells 42 ⬢
-        - jewelry  # a second confiscated piece, still tagged and shelved — sells 8 ⬢
-      6:  # own EV 11.00 ⬢ · hit 100% · combined EV 7.63 ⬢ · hit 100%
-        - trench-knife  # sells 12 ⬢
-        - supply-kit  # confiscated stores, still packed — worth 8 ⬢ consumed
-        - black-body-bag  # confiscated evidence, still tagged — sells 13 ⬢
-
-    # "The mines laid by the Baron" (zones.yaml, the location's own words) —
-    # the Old Mineshaft's own stash already has coal; the Nekker Den's has a
-    # dagger the last person through here didn't keep.
-    caves-approach:  # ⬢ EV/labor 2.84 · hit 95%
-      3:  # EV 0.00 ⬢ · hit 100%
-        - rock  # not sellable
-      4:  # own EV 2.50 ⬢ · hit 100% · combined EV 3.00 ⬢ · hit 100%
-        - coal  # sells 4 ⬢
-        - old-coin  # sells 1 ⬢
-      5:  # own EV 5.50 ⬢ · hit 100% · combined EV 6.75 ⬢ · hit 100%
-        - dagger  # a Nekker didn't leave much else worth taking — sells 7 ⬢
-        - coal  # sells 4 ⬢
-
-    # The Charred Lair (zones.yaml `fork-charred-lair`) already stashes coal,
-    # black-powder AND saltpeter one-time, at unusually generous quantities
-    # for a single room — the richest Prospecting ground outside Chasm
-    # itself, and it plays that way here too.
-    depths-fork:  # ⬢ EV/labor 2.65 · hit 95%
-      3:  # EV 0.00 ⬢ · hit 100%
-        - rock  # not sellable
-      4:  # own EV 2.50 ⬢ · hit 100% · combined EV 3.00 ⬢ · hit 100%
-        - coal  # sells 4 ⬢
-        - old-coin  # sells 1 ⬢
-      5:  # own EV 3.50 ⬢ · hit 100% · combined EV 5.75 ⬢ · hit 100%
-        - saltpeter  # sells 3 ⬢
-        - coal  # sells 4 ⬢
-      6:  # own EV 5.00 ⬢ · hit 100% · combined EV 5.43 ⬢ · hit 100%
-        - black-powder  # sells 6 ⬢
-        - coal  # sells 4 ⬢
-
-    # The six locations below are the coefficient-1.0+ ground: the six 1.0s
-    # and Chasm at 1.4. Each got its own table (2026-09-09) rather than
-    # leaning on the zone/global pools alone — that's the gap a location
-    # this good is meant to close on its own. Two distinct outcomes at the
-    # top of each, never a repeated single item, so nobody camps one spot
-    # for a guaranteed prize (Bascinet's call). And the great item sits on
-    # a 5, not a 6 (same rule as hills-west above) — 5 is now the one face
-    # reserved for a table's high-EV zone-specific prize, kept clear of the
-    # global table's 1 ⬢ Obol, which only pays on a 6 and would otherwise
-    # drag every big number down toward it (Bascinet, 2026-09-09).
-
-    # Split Rock's mushroom colonies and the Waystation's "old pans and
-    # tools" (zones.yaml) are the everyday half; the "ancient swords…
-    # stabbed into the ground" beside a desiccated corpse are the rare one.
-    forest-creekside:  # ⬢ EV/labor 6.13 · hit 95%
-      2:  # own EV 0.50 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
-        - rock  # not sellable
-        - old-coin  # sells 1 ⬢
-      3:  # EV 5.00 ⬢ · hit 100%
-        - wild-mushroom  # sells 2 ⬢
-        - jewelry  # the colonies aren't the only thing worth stooping for — sells 8 ⬢
-      4:  # own EV 9.00 ⬢ · hit 100% · combined EV 7.33 ⬢ · hit 100%
-        - wild-mushroom  # sells 2 ⬢
-        - trapping-gear  # a trapper's kit, left by the old pans and tools — sells 16 ⬢
-      # Two of the swords "stabbed into the ground" (zones.yaml) — most are
-      # ordinary, one is worth a real trip to the Merchant.
-      5:  # own EV 25.50 ⬢ · hit 100% · combined EV 16.75 ⬢ · hit 100%
-        - gladius  # one of the swords stabbed in the ground, still good — sells 9 ⬢
-        - bastard-sword  # the other one, and it's the better blade — sells 42 ⬢
-      6:  # own EV 7.00 ⬢ · hit 100% · combined EV 6.22 ⬢ · hit 100%
-        - rope  # pulled off the old pans and tools left to rust — sells 4 ⬢
-        - jewelry  # sells 8 ⬢
-        - pocket-watch  # stopped, among the old pans and tools — sells 4 ⬢
-        - heirloom  # something the desiccated corpse was still holding onto — sells 12 ⬢
-
-    # "Ruined masonry, rusted weapons, and pieces of worked metal frequently
-    # wash from upstream" — the location's own description (zones.yaml).
-    forest-east-river:  # ⬢ EV/labor 6.26 · hit 95%
-      2:  # own EV 0.50 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
-        - rock  # not sellable
-        - old-coin  # sells 1 ⬢
-      3:  # EV 4.00 ⬢ · hit 100%
-        - work-knife  # sells 4 ⬢
-        - coal  # sells 4 ⬢
-      4:  # own EV 7.50 ⬢ · hit 100% · combined EV 6.33 ⬢ · hit 100%
-        - salvage-plate  # more of what washes down from upstream — sells 3 ⬢
-        - trench-knife  # a rusted weapon that cleaned up better than most — sells 12 ⬢
-      5:  # own EV 31.50 ⬢ · hit 100% · combined EV 19.75 ⬢ · hit 100%
-        - broadsword  # sells 21 ⬢
-        - bastard-sword  # a better one than usually washes up — sells 42 ⬢
-      6:  # own EV 6.67 ⬢ · hit 100% · combined EV 6.00 ⬢ · hit 100%
-        - salvage-plate  # sells 3 ⬢
-        - jewelry  # sells 8 ⬢
-        - mining-helmet  # more worked metal, dented but whole — sells 9 ⬢
-
-    # "Whatever missed morsels have yet to be plundered" (zones.yaml,
-    # Heaping Trash) — the local wildlife already picks through this, and
-    # sometimes what's tossed from the fortress walls is worth more than
-    # the toss suggests.
-    hills-underlocks:  # ⬢ EV/labor 6.57 · hit 95%
-      2:  # own EV 0.50 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
-        - old-coin  # sells 1 ⬢
-        - rock  # not sellable
-      3:  # EV 8.00 ⬢ · hit 100%
-        - jewelry  # more of what's tossed from the walls above — sells 8 ⬢
-      4:  # own EV 10.50 ⬢ · hit 100% · combined EV 8.33 ⬢ · hit 100%
-        - jewelry  # tossed out with the rest, by mistake — sells 8 ⬢
-        - poison-snooper  # a gadget somebody tossed rather than fixed — sells 13 ⬢
-      5:  # own EV 24.00 ⬢ · hit 100% · combined EV 16.00 ⬢ · hit 100%
-        - jewelry  # sells 8 ⬢
-        - overspill-lockbox  # locked, and pitched over the wall along with everything else — worth 40 ⬢ opened (sells 20 ⬢ locked)
-      6:  # own EV 5.50 ⬢ · hit 100% · combined EV 5.57 ⬢ · hit 100%
-        - purse  # worth 3 ⬢ consumed
-        - supply-kit  # worth 8 ⬢ consumed
-
-    # The Abandoned Homestead's hidden hatch leads to a Basement full of
-    # unlabelled tinctures (zones.yaml `north-hills-basement`) — most of it
-    # unidentifiable, some of it not.
-    hills-north:  # ⬢ EV/labor 6.37 · hit 95%
-      2:  # own EV 0.50 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
-        - old-coin  # sells 1 ⬢
-        - rock  # not sellable
-      3:  # EV 3.00 ⬢ · hit 100%
-        - bliss  # a second jar off the same shelf — sells 3 ⬢
-      4:  # own EV 7.50 ⬢ · hit 100% · combined EV 6.33 ⬢ · hit 100%
-        - tea  # sells 1 ⬢
-        - purifier  # half-assembled, whatever it was meant to purify — sells 14 ⬢
-      5:  # own EV 34.50 ⬢ · hit 100% · combined EV 21.25 ⬢ · hit 100%
-        - invisibility-potion  # unlabelled, and it works — sells 8 ⬢
-        - basement-lockbox  # shelved in with the rest of the unlabelled tinctures — worth 61 ⬢ opened (sells 31 ⬢ locked)
-      6:  # own EV 7.00 ⬢ · hit 100% · combined EV 6.13 ⬢ · hit 100%
-        - bliss  # sells 3 ⬢
-        - jewelry  # sells 8 ⬢
-        - distilled-coca  # one more distillation, cooling on the shelf — sells 10 ⬢
-
-    # The Black Hills' one real river (`yield.fishing: 0.8`) — panned the
-    # same way a Forest stream is, but with its own finds: the fishing
-    # table here already claims Salvage Plate and a Bastard Sword
-    # (`laborTypeLocation.fishing.hills-waterway`), so Prospecting gets a
-    # different pair.
-    hills-waterway:  # ⬢ EV/labor 6.57 · hit 95%
-      2:  # own EV 0.50 ⬢ · hit 100% · combined EV 1.50 ⬢ · hit 100%
-        - rock  # gravel the current never bothered to sort — not sellable
-        - old-coin  # green with verdigris, worn past reading — sells 1 ⬢
-      3:  # EV 5.00 ⬢ · hit 100%
-        - silver  # a second seam, thinner than the one at 4 — sells 5 ⬢
-      4:  # own EV 9.50 ⬢ · hit 100% · combined EV 7.67 ⬢ · hit 100%
-        - silver  # panned straight out of the current — sells 5 ⬢
-        - sword-cane  # an elegant thing, lost to the current — sells 14 ⬢
-      5:  # own EV 29.00 ⬢ · hit 100% · combined EV 18.50 ⬢ · hit 100%
-        - dagger  # sells 7 ⬢
-        - waterlogged-lockbox  # rusted shut, but still holding what someone locked inside — worth 51 ⬢ opened (sells 26 ⬢ locked)
-      6:  # own EV 8.67 ⬢ · hit 100% · combined EV 6.75 ⬢ · hit 100%
-        - silver  # sells 5 ⬢
-        - jewelry  # sells 8 ⬢
-        - monkey  # someone's pet, swept downstream and somehow still holding on — sells 13 ⬢
-
-    # The one real vein (`chasm-ore-vein`, a secret room gated on
-    # `prospectors-notes`) — rare ground stays rare by what it can find,
-    # not by a bigger number (LABORDROPS.md §2b). No new EV ceiling here,
-    # just better odds at the same ore the rest of the Depths already pays.
-    depths-chasm:  # ⬢ EV/labor 5.58 · hit 78%
-      4:  # own EV 9.00 ⬢ · hit 100% · combined EV 6.50 ⬢ · hit 100%
-        - ore-chunk  # sells 9 ⬢
-      # The one true gem, not another guaranteed metal — the vein gives up
-      # ore reliably (4 and 6, one guaranteed each), but on a 5 it's steel
-      # or the one stone worth a trip to the Baron himself.
-      5:  # own EV 31.50 ⬢ · hit 100% · combined EV 19.75 ⬢ · hit 100%
-        - steel  # sells 18 ⬢
-        - flawless-gem  # fit for a king. Or a Baron — sells 45 ⬢
-      6:  # own EV 5.00 ⬢ · hit 100% · combined EV 5.50 ⬢ · hit 100%
-        - silver  # sells 5 ⬢
-
-    # Prospecting's first City ground (2026-09-10) — not rich, just an
-    # interesting option to work while you're already in Town. "Squat
-    # buildings, piled into discomfort" (zones.yaml) — scrap shacks, an
-    # abandoned theater running a gambling den, a public bathhouse charging
-    # by the coin. The Organ Shop and Pusher's Room are drawn on for flavor
-    # rather than requiring their own gates (same convention as
-    # hills-grand-ravine's brigand camp above); the Sewers and Basements
-    # stay untouched — one's an access-gated stash, the other is Thanati's.
-    underquarter:  # ⬢ EV/labor 3.88 · hit 95%
-      3:  # EV 2.00 ⬢ · hit 100%
-        - salvage-plate  # scrap off a Shack nobody's claimed this week — sells 3 ⬢
-        - old-coin  # dropped somewhere in the Alleyways' dark — sells 1 ⬢
-        - pawn-ticket  # a stub for something nobody came back to claim — sells 2 ⬢
-      4:  # own EV 4.00 ⬢ · hit 100% · combined EV 4.00 ⬢ · hit 100%
-        - cleaning-powder  # the Organ Shop keeps a shelf of it — sells 4 ⬢
-        - sweets  # sold at the den's counter, same as everything else — sells 2 ⬢
-        - music-box  # the Abandoned Theater's, still playing the same few bars — sells 6 ⬢
-      5:  # own EV 12.00 ⬢ · hit 100% · combined EV 10.00 ⬢ · hit 100%
-        - till-lockbox  # the gambling den's own cashbox, still locked — worth 16 ⬢ opened (sells 8 ⬢ locked)
-        - jewelry  # a patron's ring, lost to the tables — sells 8 ⬢
-
-    # "Pillars uphold the keep from collapsing onto the barrels of wine and
-    # antiquities" (zones.yaml) — the Cistern's coin-flecked shallows and the
-    # Ancient Shrine's own offerings, not the Vault down the hall. Not rich,
-    # same as the Underquarter above; it's the Baron's basement, not his
-    # treasury.
-    undercroft:  # ⬢ EV/labor 4.55 · hit 95%
-      3:  # EV 3.00 ⬢ · hit 100%
-        - old-coin  # settled in the Cistern's shallows — sells 1 ⬢
-        - silver  # fished up from beneath the starry mosaic — sells 5 ⬢
-      4:  # own EV 5.33 ⬢ · hit 100% · combined EV 5.00 ⬢ · hit 100%
-        - silver  # pried loose from a Tomb's own fittings — sells 5 ⬢
-        - jewelry  # a shrine offering nobody's claimed — sells 8 ⬢
-        - prayer-beads  # worn smooth by someone else's thumb, once — sells 3 ⬢
-      5:  # own EV 16.00 ⬢ · hit 100% · combined EV 12.00 ⬢ · hit 100%
-        - reliquary-lockbox  # left at the Ancient Shrine, still sealed — worth 20 ⬢ opened (sells 10 ⬢ locked)
-        - heirloom  # a burial offering, taken anyway — sells 12 ⬢
+    hills-west:
+      2:
+        - { slug: cross, rarity: ultracommon }  # left where it was set down, or where it fell — not sellable
+      3:
+        - { slug: bone, rarity: common }  # a bone out of the pile below, worth more whole than broken — sells 1 ⬢
+        - { slug: foot, rarity: common }  # a foot still in its boot — sells 4 ⬢
+        - { slug: warding-bead, rarity: common }  # didn't work, or the strand would still be whole — sells 3 ⬢
+      4:
+        - { slug: rope, rarity: ultracommon }  # cut down from the tree itself — sells 4 ⬢
+        - { slug: eye, rarity: ultracommon }  # sells 8 ⬢
+      5:
+        - { slug: burial-ring, rarity: extremely-rare }  # the one real prize this grave has to give — sells 35 ⬢
+        - { slug: gallows-charm, rarity: extremely-rare }  # sells 18 ⬢
+      6:
+        - { slug: gallows-charm, rarity: ultracommon }  # a ward worn by someone it didn't save — sells 18 ⬢
+        - { slug: eye, rarity: ultracommon }  # sells 8 ⬢
+    hills-grand-ravine:
+      2:
+        - { slug: cross, rarity: ultracommon }  # one of dozens on the mound above — not sellable
+      4:
+        - { slug: work-knife, rarity: uncommon }  # a brigand's, left behind — sells 4 ⬢
+        - { slug: spear, rarity: uncommon }  # sells 7 ⬢
+        - { slug: wedding-ring, rarity: uncommon }  # taken off someone who didn't need it anymore — sells 8 ⬢
+      5:
+        - { slug: brigandine, rarity: extremely-rare }  # the camp's best coat, and whoever wore it isn't asking for it back — sells 42 ⬢
+        - { slug: shortbow, rarity: extremely-rare }  # sells 4 ⬢
+      6:
+        - { slug: buckler, rarity: uncommon }  # sells 4 ⬢
+        - { slug: mace, rarity: uncommon }  # sells 9 ⬢
+    forest-headwaters:
+      5:
+        - { slug: gladiator-helmet, rarity: extremely-rare }  # sells 27 ⬢
+        - { slug: spectacles, rarity: extremely-rare }  # left on the bath's edge, lenses still clear — sells 15 ⬢
+      6:
+        - { slug: gladius, rarity: uncommon }  # left where the water took whoever carried it — sells 9 ⬢
+        - { slug: old-coin, rarity: uncommon }  # a piece of the 32 obol still down there — sells 1 ⬢
+    forest-sparse-field:
+      4:
+        - { slug: work-knife, rarity: extremely-rare }  # sells 4 ⬢
+        - { slug: jewelry, rarity: extremely-rare }  # confiscated and never returned — sells 8 ⬢
+        - { slug: military-autoinjector, rarity: extremely-rare }  # confiscated medical kit, still sealed — sells 10 ⬢
+      5:
+        - { slug: brigandine, rarity: extremely-rare }  # sells 42 ⬢
+        - { slug: jewelry, rarity: extremely-rare }  # a second confiscated piece, still tagged and shelved — sells 8 ⬢
+      6:
+        - { slug: trench-knife, rarity: rare }  # sells 12 ⬢
+        - { slug: supply-kit, rarity: rare }  # confiscated stores, still packed — worth 8 ⬢ consumed
+        - { slug: black-body-bag, rarity: rare }  # confiscated evidence, still tagged — sells 13 ⬢
+    caves-approach:
+      3:
+        - { slug: rock, rarity: ultracommon }  # not sellable
+      4:
+        - { slug: coal, rarity: common }  # sells 4 ⬢
+        - { slug: old-coin, rarity: common }  # sells 1 ⬢
+      5:
+        - { slug: dagger, rarity: uncommon }  # a Nekker didn't leave much else worth taking — sells 7 ⬢
+        - { slug: coal, rarity: uncommon }  # sells 4 ⬢
+    depths-fork:
+      3:
+        - { slug: rock, rarity: ultracommon }  # not sellable
+      4:
+        - { slug: coal, rarity: common }  # sells 4 ⬢
+        - { slug: old-coin, rarity: common }  # sells 1 ⬢
+      5:
+        - { slug: saltpeter, rarity: uncommon }  # sells 3 ⬢
+        - { slug: coal, rarity: uncommon }  # sells 4 ⬢
+      6:
+        - { slug: black-powder, rarity: uncommon }  # sells 6 ⬢
+        - { slug: coal, rarity: uncommon }  # sells 4 ⬢
+    forest-creekside:
+      2:
+        - { slug: rock, rarity: ultracommon }  # not sellable
+        - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
+      3:
+        - { slug: wild-mushroom, rarity: uncommon }  # sells 2 ⬢
+        - { slug: jewelry, rarity: uncommon }  # the colonies aren't the only thing worth stooping for — sells 8 ⬢
+      4:
+        - { slug: wild-mushroom, rarity: rare }  # sells 2 ⬢
+        - { slug: trapping-gear, rarity: rare }  # a trapper's kit, left by the old pans and tools — sells 16 ⬢
+      5:
+        - { slug: gladius, rarity: extremely-rare }  # one of the swords stabbed in the ground, still good — sells 9 ⬢
+        - { slug: bastard-sword, rarity: extremely-rare }  # the other one, and it's the better blade — sells 42 ⬢
+      6:
+        - { slug: rope, rarity: uncommon }  # pulled off the old pans and tools left to rust — sells 4 ⬢
+        - { slug: jewelry, rarity: uncommon }  # sells 8 ⬢
+        - { slug: pocket-watch, rarity: uncommon }  # stopped, among the old pans and tools — sells 4 ⬢
+        - { slug: heirloom, rarity: uncommon }  # something the desiccated corpse was still holding onto — sells 12 ⬢
+    forest-east-river:
+      2:
+        - { slug: rock, rarity: ultracommon }  # not sellable
+        - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
+      3:
+        - { slug: work-knife, rarity: uncommon }  # sells 4 ⬢
+        - { slug: coal, rarity: uncommon }  # sells 4 ⬢
+      4:
+        - { slug: salvage-plate, rarity: rare }  # more of what washes down from upstream — sells 3 ⬢
+        - { slug: trench-knife, rarity: rare }  # a rusted weapon that cleaned up better than most — sells 12 ⬢
+      5:
+        - { slug: broadsword, rarity: extremely-rare }  # sells 21 ⬢
+        - { slug: bastard-sword, rarity: extremely-rare }  # a better one than usually washes up — sells 42 ⬢
+      6:
+        - { slug: salvage-plate, rarity: uncommon }  # sells 3 ⬢
+        - { slug: jewelry, rarity: uncommon }  # sells 8 ⬢
+        - { slug: mining-helmet, rarity: uncommon }  # more worked metal, dented but whole — sells 9 ⬢
+    hills-underlocks:
+      2:
+        - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
+        - { slug: rock, rarity: ultracommon }  # not sellable
+      3:
+        - { slug: jewelry, rarity: rare }  # more of what's tossed from the walls above — sells 8 ⬢
+      4:
+        - { slug: jewelry, rarity: rare }  # tossed out with the rest, by mistake — sells 8 ⬢
+        - { slug: poison-snooper, rarity: rare }  # a gadget somebody tossed rather than fixed — sells 13 ⬢
+      5:
+        - { slug: jewelry, rarity: rare }  # sells 8 ⬢
+        - { slug: overspill-lockbox, rarity: rare }  # locked, and pitched over the wall along with everything else — worth 40 ⬢ opened (sells 20 ⬢ locked)
+      6:
+        - { slug: purse, rarity: ultracommon }  # worth 3 ⬢ consumed
+        - { slug: supply-kit, rarity: ultracommon }  # worth 8 ⬢ consumed
+    hills-north:
+      2:
+        - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
+        - { slug: rock, rarity: ultracommon }  # not sellable
+      3:
+        - { slug: bliss, rarity: common }  # a second jar off the same shelf — sells 3 ⬢
+      4:
+        - { slug: tea, rarity: rare }  # sells 1 ⬢
+        - { slug: purifier, rarity: rare }  # half-assembled, whatever it was meant to purify — sells 14 ⬢
+      5:
+        - { slug: invisibility-potion, rarity: extremely-rare }  # unlabelled, and it works — sells 8 ⬢
+        - { slug: basement-lockbox, rarity: extremely-rare }  # shelved in with the rest of the unlabelled tinctures — worth 61 ⬢ opened (sells 31 ⬢ locked)
+      6:
+        - { slug: bliss, rarity: uncommon }  # sells 3 ⬢
+        - { slug: jewelry, rarity: uncommon }  # sells 8 ⬢
+        - { slug: distilled-coca, rarity: uncommon }  # one more distillation, cooling on the shelf — sells 10 ⬢
+    hills-waterway:
+      2:
+        - { slug: rock, rarity: ultracommon }  # gravel the current never bothered to sort — not sellable
+        - { slug: old-coin, rarity: ultracommon }  # green with verdigris, worn past reading — sells 1 ⬢
+      3:
+        - { slug: silver, rarity: uncommon }  # a second seam, thinner than the one at 4 — sells 5 ⬢
+      4:
+        - { slug: silver, rarity: rare }  # panned straight out of the current — sells 5 ⬢
+        - { slug: sword-cane, rarity: rare }  # an elegant thing, lost to the current — sells 14 ⬢
+      5:
+        - { slug: dagger, rarity: rare }  # sells 7 ⬢
+        - { slug: waterlogged-lockbox, rarity: rare }  # rusted shut, but still holding what someone locked inside — worth 51 ⬢ opened (sells 26 ⬢ locked)
+      6:
+        - { slug: silver, rarity: rare }  # sells 5 ⬢
+        - { slug: jewelry, rarity: rare }  # sells 8 ⬢
+        - { slug: monkey, rarity: rare }  # someone's pet, swept downstream and somehow still holding on — sells 13 ⬢
+    depths-chasm:
+      4:
+        - { slug: ore-chunk, rarity: rare }  # sells 9 ⬢
+      5:
+        - { slug: steel, rarity: extremely-rare }  # sells 8 ⬢
+        - { slug: flawless-gem, rarity: extremely-rare }  # fit for a king. Or a Baron — sells 45 ⬢
+      6:
+        - { slug: silver, rarity: uncommon }  # sells 5 ⬢
+    underquarter:
+      3:
+        - { slug: salvage-plate, rarity: common }  # scrap off a Shack nobody's claimed this week — sells 3 ⬢
+        - { slug: old-coin, rarity: common }  # dropped somewhere in the Alleyways' dark — sells 1 ⬢
+        - { slug: pawn-ticket, rarity: common }  # a stub for something nobody came back to claim — sells 2 ⬢
+      4:
+        - { slug: cleaning-powder, rarity: uncommon }  # the Organ Shop keeps a shelf of it — sells 4 ⬢
+        - { slug: sweets, rarity: uncommon }  # sold at the den's counter, same as everything else — sells 2 ⬢
+        - { slug: music-box, rarity: uncommon }  # the Abandoned Theater's, still playing the same few bars — sells 6 ⬢
+      5:
+        - { slug: till-lockbox, rarity: rare }  # the gambling den's own cashbox, still locked — worth 16 ⬢ opened (sells 8 ⬢ locked)
+        - { slug: jewelry, rarity: rare }  # a patron's ring, lost to the tables — sells 8 ⬢
+    undercroft:
+      3:
+        - { slug: old-coin, rarity: common }  # settled in the Cistern's shallows — sells 1 ⬢
+        - { slug: silver, rarity: common }  # fished up from beneath the starry mosaic — sells 5 ⬢
+      4:
+        - { slug: silver, rarity: uncommon }  # pried loose from a Tomb's own fittings — sells 5 ⬢
+        - { slug: jewelry, rarity: uncommon }  # a shrine offering nobody's claimed — sells 8 ⬢
+        - { slug: prayer-beads, rarity: uncommon }  # worn smooth by someone else's thumb, once — sells 3 ⬢
+      5:
+        - { slug: reliquary-lockbox, rarity: rare }  # left at the Ancient Shrine, still sealed — worth 20 ⬢ opened (sells 10 ⬢ locked)
+        - { slug: heirloom, rarity: rare }  # a burial offering, taken anyway — sells 12 ⬢

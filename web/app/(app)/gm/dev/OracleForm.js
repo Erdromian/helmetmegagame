@@ -45,7 +45,7 @@ export default function OracleForm({ settings }) {
   function onRun() {
     startBusy(async () => {
       // Real money and a few minutes of wall clock, so it asks first.
-      if (!(await confirm({ title: "Draft the last turn?" }))) return;
+      if (!(await confirm({ title: "Draft this turn?" }))) return;
       setNote({ ok: true, text: "Drafting…" });
       const res = await runOracleNow();
       setNote(
@@ -57,7 +57,7 @@ export default function OracleForm({ settings }) {
   return (
     <form action={onSave} className="flex flex-col gap-4">
       {/* Two separate questions, so two separate switches: whether a chronicle
-          gets written at turn close, and who is allowed to read one. */}
+          gets written at the Move cutoff, and who is allowed to read one. */}
       <div className="ops-toggle">
         <Switch name="oracleEnabled" defaultChecked={settings.oracleEnabled}>
           Enable
@@ -181,7 +181,7 @@ export default function OracleForm({ settings }) {
           Test connection
         </button>
         <button type="button" className="btn-quiet" onClick={onRun} disabled={busy || !settings.hasApiKey}>
-          Draft the last turn
+          Draft this turn
         </button>
         {note ? <span className={note.ok ? "text-sm text-muted" : "text-sm text-danger"}>{note.text}</span> : null}
       </div>

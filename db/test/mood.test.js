@@ -142,6 +142,27 @@ test("wound rungs read the cure ladder, and a wound is signed negative", () => {
   assert.equal(woundRungOf(wound({ requirementResources: 0 })), 0.5);
   assert.equal(woundRungOf(wound({ requirementResources: 1 })), 1);
   assert.equal(woundRungOf(wound({ requirementResources: 2 })), 2);
+  // The four 2-⬢ shapes since M2a (turnsCost repricing put Simple and
+  // Moderate on the same requirementResources: 2/requirementTurns: 1 shape,
+  // differing only in requirementPerTurn — db/lib/mood.js's woundRungOf):
+  // legacy zero-turn, the new Simple (1/4), the new Moderate (1/3), and a
+  // GM-authored whole turn (the Dev Panel form cannot author a fraction, so
+  // it lands with a null denominator). Only the new Simple may stay at rung
+  // 2 alongside the legacy zero-turn case; everything else with a nonzero
+  // turn cost stays rung 3, exactly as it did before this milestone.
+  assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 0 })), 2);
+  assert.equal(
+    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: 4 })),
+    2,
+  );
+  assert.equal(
+    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: 3 })),
+    3,
+  );
+  assert.equal(
+    woundRungOf(wound({ requirementResources: 2, requirementTurns: 1, requirementPerTurn: null })),
+    3,
+  );
   assert.equal(woundRungOf(wound({ requirementResources: 2, requirementTurns: 1 })), 3);
   assert.equal(woundRungOf(wound({ requirementResources: 3 })), 3.5);
   assert.equal(woundRungOf(wound({ requirementResources: 5 })), 4);
@@ -326,12 +347,18 @@ test("a consume is worth its largest single figure, never a sum", () => {
   // A treat is a treat, not a treat plus a meal.
   assert.equal(consumeReliefFor("sweets", ["ate-meal"]), 8);
   assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 8);
-  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 15);
-  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 30);
   assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 15);
   assert.equal(consumeReliefFor("sky-lantern", []), 8);
   // Any proper meal at all is the floor under the food.
   assert.equal(consumeReliefFor("trail-ration", ["ate-meal"]), 5);
   // And a plain thing is worth nothing.
   assert.equal(consumeReliefFor("stepstone", []), 0);
+});
+
+test("a cooked meal is priced by dishMoodTerms, not by this table", () => {
+  // The two rows that used to sit here are gone: a dish is a minted row, so
+  // its slug never matches a table keyed by slug (COOKING.md). Both fall
+  // through to the ate-meal floor if anything ever asks.
+  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 5);
+  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 5);
 });

@@ -10,6 +10,7 @@ import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { sortZones } from "@/lib/zones";
+import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import {
   PAGE_SIZE,
   buildAuditWhere,
@@ -58,7 +59,7 @@ async function FreshAudit({ params, searchParams, userId }) {
   const selectedId = routeParams?.entryId?.[0] ?? null;
   const filters = parseAuditParams(rawSearch);
 
-  const [guildMembers, gmProfiles, openTurn, zones, factions] = await Promise.all([
+  const [guildMembers, gmProfiles, openTurn, zones, factions, visibleZones, selectableZones] = await Promise.all([
     listGuildMembers(),
     getGmProfiles(),
     getOpenTurn(),
@@ -66,6 +67,13 @@ async function FreshAudit({ params, searchParams, userId }) {
     // levels would be four filter options nothing ever matches.
     prisma.zone.findMany({ where: { kind: { not: "CAVE_LEVEL" } }, select: { id: true, name: true } }),
     prisma.faction.findMany({ select: { id: true, name: true } }),
+    // The zone picker at the foot of the inspector. The audit log itself is
+    // not filtered by it — a GM reading the log is answering "who did this",
+    // and hiding rows would answer it wrongly — but the control belongs
+    // wherever a GM sits, because it is also what grants their "GM: <Zone>"
+    // Discord roles.
+    getVisibleZones(),
+    listSelectableZones(),
   ]);
 
   const gmIds = gmProfiles.map((p) => p.discordUserId);
@@ -199,6 +207,8 @@ async function FreshAudit({ params, searchParams, userId }) {
         factions: factions.sort((a, b) => a.name.localeCompare(b.name)),
         zones: sortZones(zones),
         turnNumbers: ctx.turns.map((t) => t.number),
+        selectableZones: selectableZones,
+        visibleZoneIds: visibleZones?.map((zone) => zone.id) ?? [],
       }}
     />
   );

@@ -33,6 +33,19 @@ import { transferRequest, lootCharacterRequest } from "@/app/(app)/character/req
 // Transfer names the person. Loot's button opens it with nothing assumed but
 // the direction.
 
+// formatTagWeight's wording, over the per-row number this dialog has already
+// normalised for all three sources — the Assets rule included, which is why it
+// cannot just call formatTagWeight(tag) and get the same answer for a horse.
+// Null when a thing weighs nothing against the cap, so the row says nothing
+// rather than "0 lb".
+function weightNote(each, quantity = 1) {
+  const per = Number(each) || 0;
+  if (per <= 0) return null;
+  const n = Math.max(1, Number(quantity) || 1);
+  const total = Math.round(per * n * 100) / 100;
+  return n === 1 ? `${per} lb` : `${per} lb each · ${total} lb`;
+}
+
 function stackLabel(name, quantity) {
   return quantity > 1 ? `${name} ×${quantity}` : name;
 }
@@ -102,21 +115,52 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
       ];
 
   // What the source has on offer, as StackRow rows.
+  //
+  // `tag` is what makes the row a chip you can ask questions of. Your own
+  // stack IS the tag (transferableTags spreads it), a room hands one over
+  // beside the counts, and a helpless person's pockets deliberately hand over
+  // none — those stay a name and a weight (REQUESTS.md §5b).
   const offered = fromSelf
     ? mine.map((t) => ({
         id: t.id,
         name: t.name,
+        tag: t,
         held: t.quantity,
         stackable: t.stackable,
         // Assets weigh nothing on your back (CARRY.md §1).
         weightLbs: t.category === "Assets" ? 0 : (t.weightLbs ?? 0),
+        // Detector surface (M4 fix round) — only meaningful from YOUR own
+        // stack (own-sheet detection is the design); a room's own tags or a
+        // person's own pockets below carry no such field and render nothing.
+        poisonMarker: Boolean(t.poisonMarker),
       }))
     : fromPerson
-      ? fromPerson.tags.map((t) => ({ id: t.tagId, name: t.tagName, held: t.quantity, stackable: t.stackable, weightLbs: null }))
-      : (fromRoom?.tags ?? []).map((t) => ({ id: t.tagId, name: t.name, held: t.quantity, stackable: t.stackable, weightLbs: t.weightLbs ?? 0 }));
+      ? fromPerson.tags.map((t) => ({
+          id: t.tagId,
+          name: t.tagName,
+          held: t.quantity,
+          stackable: t.stackable,
+          weightLbs: t.weightLbs ?? 0,
+        }))
+      : (fromRoom?.tags ?? []).map((t) => ({
+          id: t.tagId,
+          name: t.name,
+          tag: t.tag ?? null,
+          held: t.quantity,
+          stackable: t.stackable,
+          weightLbs: t.weightLbs ?? 0,
+        }));
   // A non-stackable tag pins at one per character, so a pull out of a room
   // to a person is one at a time.
-  const rows = offered.map((t) => ({ ...t, max: t.stackable || !toIsCharacter ? t.held : 1 }));
+  const rows = offered.map((t) => ({
+    ...t,
+    max: t.stackable || !toIsCharacter ? t.held : 1,
+    // The poison marker keeps the front: it is a warning, and the weight is a
+    // fact. Both, when both apply.
+    note: [t.poisonMarker ? "smells wrong" : null, weightNote(t.weightLbs, t.held)]
+      .filter(Boolean)
+      .join(" · ") || null,
+  }));
   const balance = fromSelf ? (carry?.resources ?? pools.resources ?? 0) : fromRoom ? fromRoom.resources : fromPerson ? fromPerson.resources : null;
 
   const lines = pickedLines(picks).filter((l) => rows.some((r) => r.id === l.tagId));

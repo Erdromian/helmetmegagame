@@ -67,9 +67,13 @@ function messageLink(guildId, channelId, messageId) {
 // can open that place; the desk never shows the row (db/lib/dmKinds.js).
 async function notifyMentioned(client, character, context, link, { placeKey = null } = {}) {
   const place = context.locationName ?? context.zoneName ?? null;
+  // A special channel has no place at all (db/lib/specialChannels.js), so the
+  // channel's own name is the answer. It used to say "the Watch's radio" flat,
+  // which was one net's old name — and with two of them it named the wrong one.
+  const nowhere = context.channelKind ? `#${context.channelKind}` : "somewhere";
   const where = context.threadName
     ? `${place ?? "somewhere"} · ${context.threadName}`
-    : (place ?? "the Watch's radio");
+    : (place ?? nowhere);
 
   const user = await client.users.fetch(character.discordUserId).catch(() => null);
   if (!user) return;

@@ -36,6 +36,8 @@ export default function AuditDesk({
   factions,
   zones,
   turnNumbers,
+  selectableZones,
+  visibleZoneIds,
 }) {
   const router = useRouter();
   const [refresh] = useRefresh();
@@ -206,7 +208,13 @@ export default function AuditDesk({
           <Pager page={page} totalPages={totalPages} total={total} unit="entries" onPage={goToPage} />
         </main>
 
-        <AuditInspector entry={current} names={names} onFilter={set} />
+        <AuditInspector
+          entry={current}
+          names={names}
+          onFilter={set}
+          selectableZones={selectableZones}
+          visibleZoneIds={visibleZoneIds}
+        />
       </div>
     </div>
   );

@@ -7,6 +7,20 @@ const nextConfig = {
   // 'node:fs'" at runtime in the browser.
   serverExternalPackages: ["sharp"],
 
+  // Avatar uploads (AvatarField -> updateCharacterProfile) post a whole image
+  // through a Server Action, and Next's default action body limit is 1 MB.
+  // Without this, a normal phone photo was killed by the framework BEFORE the
+  // action ran: our own 5 MB check never spoke, useActionState never got an
+  // { error } to render, and the player watched Save come back having done
+  // nothing at all. Two uploads in the game's whole history got through.
+  //
+  // The number is deliberately ABOVE the 5 MB file cap in
+  // app/(app)/character/actions.js. Multipart framing plus the other Bio
+  // fields ride along in the same body, so a file just under 5 MB makes a body
+  // just over it — and a body over this limit is the silent 413 again. The
+  // headroom keeps OUR message ("It has to be under 5MB.") the one that fires.
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
+
   // /gm/messages and the old /gm/players table merged into one desk at
   // /gm/players. Both old URLs are in GMs' history, in audit-log links and in
   // Discord scrollback, so they redirect rather than 404.

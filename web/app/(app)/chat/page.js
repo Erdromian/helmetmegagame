@@ -15,8 +15,11 @@ import { loadMentionDirectory } from "@/lib/mentionDirectory";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
+import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
+import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import { waitingOnYou, myMove } from "./actions";
 import { loadDesireView, loadLettersView, loadFactionView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
@@ -25,6 +28,7 @@ import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
+import { cookedTasteOnly } from "@/lib/referenceData";
 import {
   RESEARCH_TAG_SLUG,
   CATHEDRAL_LOCATION_SLUG,
@@ -109,6 +113,18 @@ async function FreshChat({ userId }) {
   const places = await placesFor(prisma, viewer.character, viewer.options);
   const first = places[0] ?? null;
 
+  // The "Zones I see" picker, at the foot of the right column. A GM reading
+  // Chat is reading the zones they hold, so the control that decides that
+  // belongs on the page rather than three clicks away on a desk — it is the
+  // same control the GM desks carry, writing the same GmZoneView rows. Nobody
+  // else has one: a player's places come from where they are standing.
+  const gmZones = viewer.gm
+    ? await (async () => {
+        const [visible, selectable] = await Promise.all([getVisibleZones(), listSelectableZones()]);
+        return { selectable, selectedIds: visible?.map((zone) => zone.id) ?? [] };
+      })()
+    : null;
+
   if (!first) {
     return <SnapshotFresh scope="play" userId={userId} data={{ kind: "nowhere" }} />;
   }
@@ -176,6 +192,10 @@ async function FreshChat({ userId }) {
               // `tag.group` rides along for researchableHeld's `group`-kind
               // ingredient entries (a held corpse, matched by GROUP rather
               // than slug) — nothing else here read it before Research did.
+              // `poisonedCount`/`poisonPayload` (M4) are read here ONLY to
+              // derive `poisonMarker` below — they are stripped from
+              // `clientSheet` before it crosses into a client component, the
+              // same leak point character/page.js's own comment explains.
               tags: {
                 select: {
                   id: true,
@@ -183,7 +203,20 @@ async function FreshChat({ userId }) {
                   quantity: true,
                   equipped: true,
                   equippedQuantity: true,
-                  tag: { include: { group: { select: { slug: true } } } },
+                  poisonedCount: true,
+                  poisonPayload: true,
+                  // requirementSkills named explicitly for the same reason
+                  // the sheet's own query names it (character/page.js): these
+                  // rows are the SELF patient in loadPeoplePools' heal roster,
+                  // and `include` does not pull an unnamed relation — without
+                  // it every cure here reads as Routine, above-tier ones
+                  // included, which is the wrong direction to be silent in.
+                  tag: {
+                    include: {
+                      group: { select: { slug: true } },
+                      requirementSkills: { select: HEAL_SKILL_SELECT },
+                    },
+                  },
                 },
               },
               role: { select: { slug: true } },
@@ -209,12 +242,43 @@ async function FreshChat({ userId }) {
         // illiterate, which is the one thing the whole paperwork system exists
         // to prevent (character/page.js strips it the same way). The dialogs
         // fetch the text on demand instead.
+        //
+        // `poisonedCount`/`poisonPayload` (M4, detector-surface fix round) get
+        // the same treatment as the sheet page: stripped raw, replaced with a
+        // plain `poisonMarker` yes/no gated on canDetectPoison — this is the
+        // Things drawer's own detection surface (the sheet's own is
+        // character/page.js), so the two can no longer disagree about
+        // whether a viewer smells anything.
+        //
+        // The same cut is made for cooking (docs/systemdocs/COOKING.md), and
+        // for the same reason: this select is a bare `include` on Tag, so it
+        // takes `cooked` and `cookedFrom` whole. A cook is told what an
+        // ingredient tastes of and nothing else, and a dish never says what
+        // it was made with. cookedTasteOnly runs FIRST, so everything below
+        // is working on the already-narrowed tag.
+        const canSmellPoison = canDetectPoison(sheet?.tags ?? []);
         const clientSheet = {
           ...sheet,
           tags: (sheet?.tags ?? []).map((ct) => {
-            if (ct.tag?.paperText == null) return ct;
-            const { paperText, ...tag } = ct.tag;
-            return { ...ct, tag };
+            const { poisonedCount, poisonPayload, ...ctRest } = ct;
+            const cut = cookedTasteOnly(ctRest.tag);
+            // Crate-manifest leak (fix round M4b, fix 1): same nested-Tag
+            // gap as character/page.js's own strip — `ct.tag.crateContents`
+            // carries per-line poisonedCount/poisonPayload for a
+            // player-packed crate, and `tag: true` above hands back the
+            // whole row with nothing stripped yet.
+            const { crateContents, ...tagRest } = cut ?? {};
+            const stripped = {
+              ...ctRest,
+              // The manifest goes, but WHETHER this is a crate has to survive it: the
+              // Consume dialog suppresses its "Becomes:" line for a crate, and Package
+              // refuses to pack one, and both ask on the client.
+              tag: ctRest.tag ? { ...tagRest, crate: Boolean(crateContents) } : ctRest.tag,
+              poisonMarker: canSmellPoison && (poisonedCount ?? 0) > 0,
+            };
+            if (stripped.tag?.paperText == null) return stripped;
+            const { paperText, ...tag } = stripped.tag;
+            return { ...stripped, tag };
           }),
         };
 
@@ -409,6 +473,7 @@ async function FreshChat({ userId }) {
     // A GM with no living character reads every zone they may see and may
     // take a line down (web/app/api/feed/delete/route.js).
     gm: Boolean(viewer.gm),
+    gmZones,
     // The 📷 on somebody else's line, only for a character actually
     // carrying one. photographRow() re-checks the sheet, so this is the
     // hint and never the lock.
@@ -450,10 +515,13 @@ async function FreshChat({ userId }) {
         examineBlocked: aside.pools.examineBlocked,
         canHeal: aside.pools.canHeal,
         healsLeft: aside.pools.healsLeft,
+        hasSurgicalSite: aside.pools.hasSurgicalSite,
+        surgicalSitePenalty: aside.pools.surgicalSitePenalty,
         healTargets: aside.pools.healTargets,
         healParties: { characters: aside.pools.peopleParties, rooms: [] },
         transferParties: { characters: aside.pools.transferParties, rooms: aside.stashRooms },
         lootTargets: aside.pools.lootTargets,
+        consumeTargets: aside.pools.consumeTargets,
         bindTargets: aside.pools.bindTargets,
         harmTargets: aside.pools.harmTargets,
         harmTags: aside.pools.harmTags,

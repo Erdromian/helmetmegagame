@@ -164,7 +164,7 @@ call site follows success with `refresh()` and the pair meant rendering
 ┌ header: turn chip · push times · Preview push ─────────────────────┐
 │ QUEUE RAIL      │  ARBITRATION DESK          │  INSPECTOR          │
 │ Moves/Caving/   │  the selected Move or      │  Sheet · Tags ·     │
-│ Caving/History  │  Request: result box,      │  Moves · Archive ·  │
+│ Other/History   │  Request: result box,      │  Moves · Archive ·  │
 │ lens, zone-seat │  staged items, composers   │  DMs for the last-  │
 │ filters, search │                            │  clicked one + pins │
 ├ PUSH TRAY: counts · every staged row · missed-push banner ─────────┤
@@ -205,6 +205,14 @@ call site follows success with `refresh()` and the pair meant rendering
   Routine/Gambit to review) render as "Travel" and stay hidden by default
   behind a "Show N travel" toggle beside the Kind dropdown; picking Travel
   from that dropdown always overrides the hide.
+- **Other lens** — everything holding somebody in place this turn: attacks,
+  ambushes and Safe intercepts in one list (`ATTACK.md` §7). To a GM reading
+  the queue those are one question — who cannot leave, and who is standing over
+  them — and knowing it before reading the Gambits is the point. Named for the
+  shape rather than the contents; it is where the next thing that is neither a
+  Move nor a die goes. A row has **no desk**: clicking one, or `⏎`, opens the
+  inspector on the person being held, which is where their sheet, their band
+  and what they filed already are.
 - **History lens** — the same rail over any turn, the open one included,
   picked from a Turn dropdown above the filters (the open turn first, marked
   `· open`, then the resolved ones newest first). A GM used to have to go to
@@ -310,7 +318,7 @@ keeps itself current and stays reachable from the keyboard:
   and have its `refresh()` trip the reload; the persisted view state is what
   makes that survivable.
 - **Keyboard**: `↑↓` / `j k` walk the rail, `⏎` opens the focused row,
-  `m`/`r`/`c`/`h` flip the lens, Escape peels the layers below. All of it stands down while a
+  `m`/`r`/`c`/`o`/`h` flip the lens, Escape peels the layers below. All of it stands down while a
   field has focus or a modal is open.
 - **GM identity** shows as a small avatar (`GmAvatar.js`, roster from
   `web/lib/gmProfiles.js`) wherever a GM is named: the lock holder on an
@@ -365,8 +373,8 @@ guarantees: `TURN-ENGINE.md` §2–3). What a GM needs to know:
 
 ## 5. Where player actions went
 
-**There is no Requests lens any more.** The desk carries Moves, Caving and
-History; a player action files no `Request` row, asks for no reason, and
+**There is no Requests lens any more.** The desk carries Moves, Caving, Other
+and History; a player action files no `Request` row, asks for no reason, and
 cannot be undone (`REQUESTS.md` §1).
 
 What a GM watches instead is **`/gm/audit`**, which now defaults to the player
@@ -405,6 +413,14 @@ Request.** The GM resolves the die, stages the public outcome through the
 ordinary composer (§1), and clicks Destroy (or Damage, for a lesser outcome)
 on `/gm/structures` in the same sitting — the ruling and its mechanical
 consequence happen together, by hand.
+
+**The Oracle is waiting when you sit down.** Moves lock at 21:00 CT, and a
+couple of minutes later the chronicle for the turn is drafted onto `/gm/oracle`
+— six zone pages and a front page, covering the day up to the lock. It is meant
+to be read *before* working the desk, which is the whole reason it stopped being
+written at turn close. One thing to know while cross-checking: an Oracle page
+runs lock to lock, so the last three hours of a day appear on the next turn's
+page rather than that turn's. `ORACLE.md` §3.
 
 **The two-turn siege.** An assault on a structure or a shut gate is staged as
 a PUBLIC declaration into the defenders' `#summary` on turn N; it can only

@@ -61,6 +61,15 @@ export default function RequestActionsProvider({
   hasWorkshop = false,
   canHeal = false,
   healsLeft = null,
+  // Surgery needs a site (M3, TAGS.md §5c; reworked M6b) — whether Surgical
+  // Equipment, a Surgical Theater, or a Portable Surgical Pack is in reach
+  // right now, resolved server-side (web/lib/peoplePools.js). A hint for the
+  // tier-6/7 rows below; the server re-checks it under lock either way.
+  hasSurgicalSite = false,
+  // True only when a Portable Surgical Pack is the ONE thing making
+  // hasSurgicalSite true — the fixed kit or a real Theater in reach cancels
+  // this outright. That's the only case a surgery Gambit takes its −1.
+  surgicalSitePenalty = false,
   healTargets = [],
   // Who can pay for a treatment or a craft: you, anyone here, rooms here.
   healParties = null,
@@ -110,9 +119,16 @@ export default function RequestActionsProvider({
   researchOptions = [],
   // Built once in character/page.js so the four target menus can't disagree.
   lootTargets = [],
+  // Consume's optional administer target: everyone alive on this roster, a
+  // corpse being nobody to hand a cure to. Empty selection means self.
+  consumeTargets = [],
   bindTargets = [],
   harmTargets = [],
   harmTags = [],
+  // Poison's own dose-a-helpless-person roster (M4) — the same helpless class
+  // HARM/LOOT use, built once server-side (web/lib/peoplePools.js) so this
+  // menu and the server's own re-check can't disagree.
+  doseTargets = [],
   // Kiss (docs/systemdocs/KISS.md). `kissTargets` is who you could ask;
   // `kissBlocked` is why YOU can't ask anybody, or null — your own broken jaw,
   // your own hood. Both resolved server-side in web/lib/peoplePools.js so the
@@ -240,6 +256,18 @@ export default function RequestActionsProvider({
     () => consumableTags(characterTags),
     [characterTags],
   );
+  // The poison-use dialog's own two narrowed views over `consumable` (M4):
+  // held poisons (what the chip click and the grid button both offer), and
+  // held food/drink a poison could lace — never another poison (you can't
+  // lace the bottle itself), and only the two groups the plan names.
+  const poisonable = useMemo(() => consumable.filter((t) => t.poison), [consumable]);
+  const foodTargets = useMemo(
+    () =>
+      consumable.filter(
+        (t) => !t.poison && (t.group?.slug === "items-food" || t.group?.slug === "items-drink"),
+      ),
+    [consumable],
+  );
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
   // Which of the robes and the mask are NOT on this sheet — what Recover
   // Equipment would hand back, and the label the button wears
@@ -261,15 +289,19 @@ export default function RequestActionsProvider({
     transferParties,
     transferSilo,
     lootTargets,
+    consumeTargets,
     bindTargets,
     harmTargets,
     harmTags,
+    doseTargets,
     kissTargets,
     kissBlocked,
     corpses,
     healTargets,
     healParties,
     healsLeft,
+    hasSurgicalSite,
+    surgicalSitePenalty,
     hasMoved,
     canTeach,
     teachers,
@@ -287,6 +319,9 @@ export default function RequestActionsProvider({
     thanatiWares,
     atHideout,
     researchOptions,
+    // Poison's own two narrowed views over `consumable` (actions/PoisonDialog.js).
+    poisonable,
+    foodTargets,
     // Craft's slice (actions/CraftAction.js).
     craftable,
     gateById,
@@ -391,6 +426,7 @@ export default function RequestActionsProvider({
         buildSites.length > 0,
       canDestroy: removable.length > 0,
       canConsume: consumable.length > 0,
+      canPoison: poisonable.length > 0,
       canHeal,
       // Research's two, composed here rather than at either call site so the
       // sheet row and the place card can never disagree. `canResearch` is
@@ -451,6 +487,7 @@ export default function RequestActionsProvider({
       buildSites,
       removable,
       consumable,
+      poisonable,
       canHeal,
       canResearch,
       researchHint,
@@ -510,7 +547,14 @@ export default function RequestActionsProvider({
     <RequestActionsContext.Provider value={value}>
       {children}
       {enabled && Dialog && (
-        <ActionPoolsContext.Provider value={bag}>
+        // `open` rides along here rather than through a second context: a
+        // dialog that wants to switch to another mode — HealDialog's "or
+        // use: …" item-cure shortcut (actions/HealDialog.js) — would
+        // otherwise have to import this module to reach it, which is
+        // exactly the import loop components/actions/poolsContext.js exists
+        // to avoid (this file imports every dialog through
+        // components/actions/index.js).
+        <ActionPoolsContext.Provider value={{ ...bag, open }}>
           <Dialog mode={mode} presets={presets ?? {}} onDone={done} onClose={() => setMode(null)} />
         </ActionPoolsContext.Provider>
       )}

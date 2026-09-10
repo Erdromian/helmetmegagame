@@ -99,7 +99,34 @@ the `thanati` Belief against those and Pilgrim, plus every other Belief by
 the group's `exclusive` rule). That is what makes the store and Add Tag refuse
 them for a holder without knowing what a threat is. What the character
 *already* holds is settled by `db/lib/seatConflicts.js#resolveSeatConflicts`,
-in the same transaction:
+in the same transaction, in **two sweeps**.
+
+**Sweep 1 — what the seat clears out of its own way.** Nothing here consults
+`conflictsWith` at all, and nothing here is grandfathered:
+
+- **every Addiction goes**, on every seat. The group is `general-addictions`,
+  and the reason is the bottom Desire slot: an Addiction's `desireLocks`
+  clause is `slot: bottom`, so a cultist's last slot is spoken for by the next
+  drink rather than by the Dark Lord.
+- **a Personality tag goes only where it actually locks one of the seat's own
+  Desires.** "The seat's own Desires" is every non-retired `DesireTemplate`
+  whose `requiresAnyTags` names a seat tag; whether a held tag locks one is
+  asked of `db/lib/desireGates.js#lockedReasonForTemplate` — the same
+  evaluator the catalog itself draws with, rather than a per-seat list
+  somebody has to keep. So for the Thanati, **Pacifist** (`violence`),
+  **Devoted Follower** (`scheming`), **Depressed** (`all`) and **Nobility**
+  (by tier) go, while **Kleptomaniac** stays: it locks `wealth`, and no
+  Thanati Desire is in that family. A seat that opens no Desires of its own
+  therefore strips Addictions and nothing else.
+
+Both take their points **back with them**. `pointCost` on a drawback is
+negative, so the same `increment` that refunds a purchase charges for a flaw:
+the player banked 4 for Alcoholic, and the seat has just deleted Alcoholic.
+`Character.tagPoints` **may go negative** — deliberately, since the store's
+check is `cost > tagPoints`, so a character in debt simply buys nothing until
+they have worked it off. A floor at zero would quietly forgive the difference.
+
+**Sweep 2 — the older pairwise and exclusive rules**, unchanged:
 
 - a pairwise conflict that **cost points** is removed and its `pointCost`
   goes back to `Character.tagPoints` — refunded;
@@ -107,8 +134,21 @@ in the same transaction:
   drawback would be a farmed one;
 - a second **Belief** always goes, refunding `max(cost, 0)`.
 
-The DM lists what was refunded, dropped and kept; the audit row carries the
-same three lists.
+**Sweep 1 runs first, and the order is load-bearing.** Pacifist is both a
+`conflictsWith` edge on the `thanati` tag *and* a `violence` lock. Taken by
+sweep 2 first it would land in the "kept, drawbacks and all" list, in the same
+DM that says it was stripped.
+
+The DM leads with the sweep-1 sentence, because it is the one that costs the
+player points — "Your role conflicted with Alcoholic and Pacifist, so 4 tag
+points have been taken back with them." — then lists what was refunded,
+dropped and kept. The audit row carries all four lists plus `clawedBack`.
+
+**The conversion rite is an Assign by another road.** `db/lib/riteEffects.js`'s
+`conversion` handler grants the `thanati` tag and calls the same function, so a
+convert loses their Addictions exactly like an assigned cultist — and is sent
+the same sentence, since otherwise they would find four tag points missing with
+nothing anywhere saying why.
 
 The DM goes out **post-commit**, in `after()`, so a Discord outage can never
 cost the grant:

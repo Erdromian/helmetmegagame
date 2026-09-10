@@ -8,8 +8,17 @@ import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { isTradeable } from "@/lib/tagRequests";
+import {
+  TAG_CHIP_FIELDS,
+  cookedTasteOnly,
+  stripEmptyUnlocks,
+  stripWeightless,
+} from "@/lib/referenceData";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
-import { MEDICAL_TIER_CAPS } from "@/lib/requests";
+import { craftMoveCost } from "@/lib/craftBudget";
+import { MEDICAL_SIMPLE_PER_TURN } from "@/lib/requests";
+import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
+import { SURGICAL_EQUIPMENT_SLUG, PORTABLE_SURGICAL_PACK_SLUG } from "@lifeweb/db/lib/constants";
 import {
   HEALABLE_CATEGORY,
   HEAL_SKILL_SLUG,
@@ -18,9 +27,11 @@ import {
   isHealable,
   isInflictable,
   isGambitHeal,
+  needsSurgicalSite,
   countsAgainstHealCap,
   healCapFor,
   satisfiedSkillIds,
+  HEAL_SKILL_SELECT,
 } from "@/lib/healRequests";
 
 // Everything the PEOPLE dialogs need — Look at, Heal, Transfer's recipient
@@ -65,9 +76,13 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
                 slug: true,
                 healable: true,
                 requirementTurns: true,
+                requirementPerTurn: true,
                 requirementResources: true,
                 requirementGambit: true,
-                requirementSkills: { select: { id: true, name: true } },
+                // HEAL_SKILL_SELECT: the id qualifies the medic, and the slug is
+                // what needsSurgicalSite() matches medical-expert on — without it
+                // a patient standing here never warns that their wound needs a site.
+                requirementSkills: { select: HEAL_SKILL_SELECT },
                 concealsIdentity: true,
                 concealSprite: true,
                 forcesConceal: true,
@@ -98,6 +113,14 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
                 category: true,
                 stackable: true,
                 tradeable: true,
+                // Weight, and DELIBERATELY nothing more. A room's stash rows
+                // carry a whole chip; pockets do not. The loot filter below is
+                // `tradeable`, not catalogVisibility, so a secret tag somebody
+                // is carrying is already named here — adding its description,
+                // its recipe and its cost to that would hand a looter the
+                // catalog entry as well (REQUESTS.md §5b). What it weighs is
+                // not a secret from the person about to pick it up.
+                weightLbs: true,
               },
             },
           },
@@ -159,6 +182,55 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
 
+  // Surgery needs a site (M3, TAGS.md §5c; reworked M6b): resolved once,
+  // server-side, so a tier-6/7 row can quote it the same way CraftDialog
+  // quotes hasWorkshop — a hint, never the gate; healCharacterRequestImpl
+  // re-checks it under lock. A Portable Surgical Pack also counts as a site
+  // now, but a worse one: `surgicalSitePenalty` tells the dialog when the
+  // pack is doing that job alone, which is the only case that costs the
+  // Gambit a −1.
+  const fixedSurgicalSiteReach = canHeal
+    ? await hasEquipmentInReach(prisma, character, SURGICAL_EQUIPMENT_SLUG)
+    : false;
+  const portableSurgicalPackReach =
+    canHeal && !fixedSurgicalSiteReach
+      ? await hasEquipmentInReach(prisma, character, PORTABLE_SURGICAL_PACK_SLUG)
+      : false;
+  const hasSurgicalSite = fixedSurgicalSiteReach || portableSurgicalPackReach;
+  const surgicalSitePenalty = !fixedSurgicalSiteReach && portableSurgicalPackReach;
+
+  // Routine cures left in the medic's shared free pool (M2,
+  // web/lib/requests.js MEDICAL_SIMPLE_PER_TURN). The predicate MUST match
+  // routineHealsThisTurn in requestActions.js exactly — a Gambit never draws
+  // on it, and a number that disagreed with the one the action enforces
+  // would grey out (or wrongly free) a treatment the server would price
+  // differently. Resolved server-side, and ahead of healTargets below so
+  // each affliction row can quote what it would actually cost THIS medic
+  // right now; the action re-checks under a row lock either way.
+  const heldSlugSet = new Set(character.tags.map((ct) => ct.tag.slug));
+  // canHeal short-circuits the audit query (review fix, M2 — it ran for
+  // every /character and /play load regardless of whether the loader could
+  // even heal, until this hoist dropped the guard the pre-M2 nested ternary
+  // had for free).
+  const simpleCuresThisTurn =
+    canHeal && openTurn && discordUserId
+      ? (
+          await prisma.auditLog.findMany({
+            where: {
+              // The MEDIC's axis, matching routineHealsThisTurn exactly.
+              // targetCharacterId here is the patient.
+              actorDiscordUserId: discordUserId,
+              actionType: "request_heal_character",
+              turnId: openTurn.id,
+            },
+            select: { details: true },
+          })
+        ).filter((r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) === 0).length
+      : 0;
+  const healsLeft = canHeal
+    ? Math.max(0, healCapFor(heldSlugSet, MEDICAL_SIMPLE_PER_TURN) - simpleCuresThisTurn)
+    : 0;
+
   // Patients: yourself and everyone here, filtered to treatable tags HERE,
   // not the client, so nobody else's full sheet crosses the wire. Skipped for
   // the majority who aren't medics.
@@ -174,49 +246,56 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       healable: t.tags
         .map((ct) => ct.tag)
         .filter(isHealable)
-        .map((tag) => ({
-          tagId: tag.id,
-          tagName: tag.name,
-          cost: healCost(tag),
-          requirementLabel: formatTagRequirement(tag),
+        .map((tag) => {
           // Above your tier, or the ladder's top rung, and it's a roll rather
           // than a refusal — so the picker offers it, labelled, instead of
-          // greying it out (docs/systemdocs/TAGS.md §5c).
-          gambit: isGambitHeal(tag, satisfied),
-          // A 0-turn cure is a free action and never counts against the day's
-          // allowance (web/lib/requests.js MEDICAL_TIER_CAPS).
-          counts: countsAgainstHealCap(tag),
-        })),
+          // greying it out (docs/systemdocs/TAGS.md §5c). Computed once —
+          // countsAgainstHealCap's own gambit exclusion reads this same
+          // answer rather than a second call (review fix, M2).
+          const gambit = isGambitHeal(tag, satisfied);
+          return {
+            tagId: tag.id,
+            tagName: tag.name,
+            // Lets the Heal dialog match this row against the medic's own held
+            // items' `cures` lists (medical pass, TAGS.md §5c) for the "or use:
+            // …" affordance — Tag.cures names slugs, not ids.
+            slug: tag.slug,
+            cost: healCost(tag),
+            requirementLabel: formatTagRequirement(tag),
+            gambit,
+            // Tier 6/7 only (M3) — the dialog greys out nothing on this, since
+            // a Gambit is always offered rather than refused; it just warns.
+            needsSite: needsSurgicalSite(tag),
+            // What this heal would cost the medical Move RIGHT NOW, family
+            // hardcoded "medical" like the server bills (never derived —
+            // craftFamily would drop a skill-less cure like choking into the
+            // generic `craft` family): `free` inside today's pool, `spill` at
+            // 1/MEDICAL_SIMPLE_PER_TURN past it, `share` for a fraction/whole
+            // turns-costing cure. Gambits never price here — they're a Move of
+            // their own, not this ledger.
+            //
+            // The `kind` label for "past the pool" does NOT match the
+            // server's own for that same case — this reads the real tag
+            // (requirementTurns 0) with an allowance, landing on "spill";
+            // priceHeal (requestActions.js) prices a SYNTHETIC 1/4-turn tag
+            // there instead, landing on "share". Cosmetic only: both compute
+            // the identical num/den fraction, and nothing branches on `kind`
+            // except this dialog's own "past today's free first aid" wording,
+            // which reads its own client-side answer.
+            moveCost: gambit
+              ? null
+              : countsAgainstHealCap(tag, gambit)
+                ? craftMoveCost(tag, {
+                    quantity: 1,
+                    allowance: MEDICAL_SIMPLE_PER_TURN,
+                    freeLeft: healsLeft,
+                    family: "medical",
+                  })
+                : craftMoveCost(tag, { quantity: 1, family: "medical" }),
+          };
+        }),
     }))
     .filter((t) => t.healable.length > 0);
-
-  // Routine cures left in the medic's day (web/lib/requests.js
-  // MEDICAL_TIER_CAPS). The predicate MUST match routineHealsThisTurn in
-  // requestActions.js exactly — a first-aid cure and a Gambit both cost
-  // nothing here, and a number that disagreed with the one the action
-  // enforces would grey out a treatment the server would have accepted.
-  // Resolved server-side; the action re-checks under a row lock either way.
-  const heldSlugSet = new Set(character.tags.map((ct) => ct.tag.slug));
-  const healsLeft = canHeal
-    ? Math.max(
-        0,
-        healCapFor(heldSlugSet, MEDICAL_TIER_CAPS) -
-          (openTurn && discordUserId
-            ? (
-                await prisma.auditLog.findMany({
-                  where: {
-                    // The MEDIC's axis, matching routineHealsThisTurn exactly.
-                    // targetCharacterId here is the patient.
-                    actorDiscordUserId: discordUserId,
-                    actionType: "request_heal_character",
-                    turnId: openTurn.id,
-                  },
-                  select: { details: true },
-                })
-              ).filter((r) => !r.details?.gambit && (r.details?.requirement?.turns ?? 0) > 0).length
-            : 0),
-      )
-    : 0;
 
   // The catalog name of whichever incapacitating tag they hold.
   function conditionOf(c) {
@@ -238,6 +317,9 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         tagName: ct.tag.name,
         stackable: ct.tag.stackable,
         quantity: ct.quantity ?? 1,
+        // Assets weigh nothing on your back (CARRY.md §1), the same rule the
+        // room rows and the sheet's own source apply.
+        weightLbs: ct.tag.category === "Assets" ? 0 : (ct.tag.weightLbs ?? 0),
       })),
   }));
 
@@ -246,6 +328,15 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // candidates off db/lib/escort.js#escortCandidates — a Location roster
   // rather than a zone one, with a verdict per row (docs/systemdocs/MAP.md
   // §3a).
+
+  // Consume's optional administer target (medical pass, TAGS.md §5c): who a
+  // cure or an administerable item may be given to. Its own pool rather than
+  // a share of a neighbour's — it used to ride on the Move Player dialog's
+  // roster, which went away with that dialog, and the two questions were
+  // never the same one.
+  const consumeTargets = zoneRoster
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({ id: c.id, name: c.name }));
 
   // Bind and Free split this one list on `bound`; Crucify on `crucified`.
   const bindTargets = zoneRoster
@@ -267,6 +358,13 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
     }));
 
+  // Poison's own dose-a-helpless-person roster (M4) — the same helpless
+  // class Harm and Loot use, minus the dead (a poison lands on a body's
+  // living owner or not at all — there's nobody home to dose).
+  const doseTargets = helpless
+    .filter((c) => c.status === "ALIVE")
+    .map((c) => ({ id: c.id, name: c.name, condition: conditionOf(c) }));
+
   // Not the whole Health category (TAGS.md §5c) — isInflictable narrows it to
   // wounds and maiming. Filtered in JS so this and the server action's
   // re-check share the same predicate.
@@ -283,6 +381,8 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         custom: true,
         pointCost: true,
         stackable: true,
+        // ChipLabel's mastery star.
+        mastery: true,
         group: { select: { slug: true, name: true, color: true } },
       },
     })
@@ -312,10 +412,14 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     canHeal,
     healTargets,
     healsLeft,
+    hasSurgicalSite,
+    surgicalSitePenalty,
     lootTargets,
+    consumeTargets,
     bindTargets,
     harmTargets,
     harmTags,
+    doseTargets,
   };
 }
 
@@ -345,7 +449,13 @@ export async function loadStashRooms(character) {
           select: {
             tagId: true,
             quantity: true,
-            tag: { select: { name: true, stackable: true, weightLbs: true, category: true } },
+            // The whole chip shape, not the four columns this used to take.
+            // Pulling something out of a stash is the one moment a player has
+            // to decide whether they want it, and until 2026-09-10 the row was
+            // a bare name — so the only way to learn where a helmet went was to
+            // carry it home and try it on. Spread it, don't retype it: that is
+            // the drift TAG_CHIP_FIELDS exists to stop.
+            tag: { select: { ...TAG_CHIP_FIELDS, stackable: true, equippable: true } },
           },
         },
       },
@@ -363,6 +473,10 @@ export async function loadStashRooms(character) {
       quantity: rt.quantity,
       stackable: rt.tag.stackable,
       weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
+      // The chip's own copy, through the same two filters every other
+      // TAG_CHIP_FIELDS caller runs: a dish names its taste and not its
+      // ingredients, and a weightless tag ships neither weight column.
+      tag: stripWeightless(stripEmptyUnlocks(cookedTasteOnly(rt.tag))),
     })),
   }));
 }

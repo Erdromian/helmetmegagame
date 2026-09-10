@@ -73,17 +73,17 @@ const CLERGY_FACTION_SLUGS =
 // of names.
 const NOTICES = {
   feces: XOM_FECES_LINE,
-  rats: "Your pack is heavier. Five skinned cave rats, still warm. ‡",
-  red: "Two bottles of **Ravenheart Red** you did not buy. ‡",
-  grenade: "There is a **Fragmentation Grenade** in your hand. ‡",
-  seizure: "The world goes white and comes back wrong. You are having a **Seizure**. ‡",
-  rage: "Something opens behind your eyes and does not close. **Rage**. ‡",
-  melee: "Your hands know things they were never taught. **Melee (Legendary)**. ‡",
-  lonely: "You blink, and you are somewhere else entirely. ‡",
-  shout: "You hear your own voice before you decide to use it. ‡",
+  rats: "Your pack is heavier. Five skinned cave rats, still warm.",
+  red: "Two bottles of **Ravenheart Red** you did not buy.",
+  grenade: "There is a **Fragmentation Grenade** in your hand.",
+  seizure: "The world goes white and comes back wrong. You are having a **Seizure**.",
+  rage: "Something opens behind your eyes and does not close. **Rage**.",
+  melee: "Your hands know things they were never taught. **Melee (Legendary)**.",
+  lonely: "You blink, and you are somewhere else entirely.",
+  shout: "You hear your own voice before you decide to use it.",
 };
 
-const GIB_REASON = "Xom took an interest. ‡";
+const GIB_REASON = "Xom took an interest.";
 
 async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
   const empty = {
@@ -240,7 +240,7 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
         const { claimed } = await applyDeathToRow(prisma, character, {
           turn,
           gib: true,
-          content: `${character.name} came apart. ‡`,
+          content: `${character.name} came apart.`,
         }).catch((err) => {
           console.error(`runXomPass: gib failed for ${character.id}:`, err.message ?? err);
           return { claimed: false };

@@ -24,11 +24,19 @@ works — and that was wrong for a sheet: nothing on it arrives while you read,
 so nothing had to be pinned. The shell class is gone entirely.
 
 `web/app/(app)/character/layout.js` draws the shared `AppHeader`
-(`web/app/components/AppHeader.js`) and nothing else around `{children}`. The
-header is a person rather than a page name — titled with the character's name,
-their role and faction as the meta line — and its actions are the avatar plus
-**← Back to the game · Esc**, a link to `/chat`. The turn chip is `AppHeader`'s
-own `TurnMeta`, the same one every other page gets.
+(`web/app/components/AppHeader.js`) and nothing else around `{children}`. It is
+an **ordinary page name**: the title is the word `Character`, there is no meta
+line, and the one action is **← Back to the game · Esc**, a link to `/chat`.
+The turn chip is `AppHeader`'s own `TurnMeta`, the same one every other page
+gets.
+
+It was a *person* until 2026-09-10 — the character's name as the title, their
+role and faction as the meta line, their face as a 24px avatar beside the Back
+link. All four moved down into the band (§2), where they sit next to a face big
+enough to be worth looking at; saying them again 40px above only made the page
+name the person twice. The layout still asks `loadHeaderIdentity()`, because
+whether there **is** a living character is what gates the Back link and the
+Escape listener.
 
 The Back link and the Escape listener are drawn **only when there is a living
 `ALIVE` character** (`loadHeaderIdentity()`, the same question that decides
@@ -58,6 +66,19 @@ change at those breakpoints — the scrolling is the same at every size.
 
 Who this is, where they stand, and:
 
+- **The identity cluster** (`.ledger-identity`) — the face, then the name as an
+  `h2`, the role and faction on one muted line (the faction a link to
+  `/faction`), where they stand on the next, and the status strip under that.
+  These are the page's only statement of who you are, now that the header is a
+  page name again (§1).
+- **The face has no size of its own.** The column beside it sets the height and
+  the face matches it, square — a floor of `6rem` so it can never come out
+  smaller than the 64px it replaced, a ceiling of `9rem` so a dozen status tags
+  cannot turn somebody's portrait into a wall. `.ledger-identity` also *grows*
+  (`flex: 1 1 22rem`) rather than shrink-wrapping: `.ledger-tiles` caps at
+  `47rem`, and before this the leftover width simply became a gap in the middle
+  of the band.
+
 - **The status strip** — Chat's own `play/StatusStrip.js`, minus its two
   leading chips: every Status and Health tag, and no ⬢ or carry line. The
   sheet passes `numbers={false}`, because the tiles a few inches to the right
@@ -81,8 +102,8 @@ Who this is, where they stand, and:
   detail is absolutely positioned inside it, so the box is sized by its resting
   face alone and **opening one cannot move anything** — which is the whole
   point. It used to append a block under the row and shove the rest of the
-  sheet down; floating it instead would have made it a tooltip, and this sheet
-  has none (§3). Swapping in place is the third answer.
+  sheet down; floating it instead would have put a panel over the thing you
+  were reading. Swapping in place is the third answer.
 - **Nearly all of them press**, and that is what fixed the one that did not.
   Free moves (why it is 0), Carrying (what holds the cap up), Combat, Mood and
   the Gambit die (which modifiers, by name) all have something to say; only ⬢
@@ -125,9 +146,10 @@ Who this is, where they stand, and:
   nothing on a quiet turn.
 - **The verb strip** — `ActionGrid variant="strip"`: every action in
   `actionRegistry.js` as one wrapping row of small labelled buttons, sections
-  split by a hairline. A gated verb is muted but clickable: clicking it writes
-  the pool's `gateReason` (or "not now" plus the help sentence) to a line
-  under the strip. The Trumpet joins the row when held.
+  split by a hairline. **Every button hovers**, the same tooltip the verb wears
+  everywhere else: its name, the sentence saying what it does, and — when it is
+  greyed — the pool's `gateReason`. A gated verb is dashed and does not press.
+  The Trumpet joins the row when held.
 
 ## 3. The rail (`TagRail.js`)
 
@@ -148,9 +170,11 @@ stack count.
 
 `TagRow.js` is the row: click it and `TagDetails.js` opens inline beneath —
 the same block `TagChip.js` shows on hover everywhere else, lifted out of it
-so the two cannot drift. **Nothing on this sheet is a tooltip.** Bascinet's
-rule for the surface, and the reason the strip, the tiles, the rows and the
-rig all put their words on the page.
+so the two cannot drift. The rows, the tiles and the rig still put their words
+**on the page** rather than in a floating box, because a panel that opens where
+you are reading beats one that opens over it. The strip is the exception: it is
+a row of small buttons with no room to say anything, so it hovers like the same
+buttons do everywhere else in the app.
 
 `RowVerbs.js` are the small buttons beside an Items, Assets or Health row —
 Use, Equip/Unequip, Give, Destroy, Heal. The predicates are Chat's
@@ -175,7 +199,20 @@ cell per place, a two-hander spanning two hand cells, `Ride` only when
 something to ride is held. A filled cell says the one fact worth a glance
 (the armour words, "conceals you", a carry bonus, pounds) and carries ✕. An
 empty cell is dashed and named; clicking it is a `ClickMenu` of what you
-carry that fits there, and nothing fitting says so. The header is the
+carry that fits there **and what a Room stash here is holding that fits there**,
+and nothing fitting says where it looked ("Nothing you carry or in the
+Waystation fits here.").
+
+The stash half arrived 2026-09-10, from a player: *"If I'm in a room with stuff
+stored in it, I should be able to click on this and see what I can take from
+that room that would fit in this slot."* A stash row names its room and sits
+under a hairline below the carried ones; picking it runs
+`equipActions.js#takeAndEquip`, which is the ordinary `transferRequest` — the
+audit row and the room's own "a young man takes a Padded Cap" line both still
+fire (`CARRY.md` §7) — and then equips what it took. **A refusal on the wearing
+half leaves the take standing**, says so, and the thing is in your pack. The
+rooms are the ones `loadStashRooms` already offers the Transfer dialog, so a
+door locked to one is locked to the other. The header is the
 combined armour as words (`armorValue.js#combineArmor` → `armorWord`).
 
 The rows are only as good as the catalog: slots and layers reach the database

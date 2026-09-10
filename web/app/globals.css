@@ -516,6 +516,16 @@ h3 {
   color: var(--text);
 }
 
+/* The first row that came out of a room stash rather than off your own back
+   (EquipBoard.js). A hairline instead of a heading: the rows below it already
+   name their room, and a "In the Chest" label over one item was a line of
+   words to say what one word already said. */
+.menu-item[data-rule] {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
 .menu-item:hover,
 .menu-item:focus-visible {
   color: var(--accent-text);
@@ -529,6 +539,7 @@ h3 {
    in the whole stylesheet before, and each merely changed a colour — so the
    app had no visible focus ring at all, including on all 156 .field inputs. */
 .btn:focus-visible,
+.slot-clear:focus-visible,
 .btn-secondary:focus-visible,
 .btn-danger:focus-visible,
 .btn-quiet:focus-visible,
@@ -3556,6 +3567,45 @@ input[type="radio"]:disabled {
 
 /* An auto-filed row (a travel Move) — already solved and never needs a GM's
    attention, so it reads quieter than a row someone actually has to work. */
+/* A queue row that carries its own buttons — today the uploaded-portrait
+   review on the Other lens (docs/systemdocs/PORTRAITS.md §1a).
+
+   .desk-queue-row is itself a <button>, so an action inside it would be a
+   button nested in a button. The row and its actions are siblings instead,
+   and this wrapper takes over the two things the row was doing for the whole
+   width: the bottom rule, and the row states. Every rule is scoped under the
+   wrapper, because .desk-queue-row is shared with /gm/players, /gm/oracle,
+   /gm/audit and the other three lenses here. */
+.desk-queue-rowset {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  padding-right: var(--sp-2);
+}
+
+.desk-queue-rowset > .desk-queue-row {
+  flex: 1;
+  min-width: 0;
+  border-bottom: none;
+}
+
+.desk-queue-rowset[data-active="true"] {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.desk-queue-rowset[data-kbd] {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.desk-queue-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+}
+
 .desk-queue-row[data-auto] {
   opacity: 0.6;
 }
@@ -3864,6 +3914,114 @@ label.chip {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-1);
+}
+
+/* The cooking bench's ingredient slots (IngredientSlots.js,
+   docs/systemdocs/COOKING.md). A row of boxes above the .chip-row that fills
+   them.
+
+   Drawn as .control surfaces rather than as cards: a slot is a form field
+   with a value in it, not an object in its own right, and giving each one a
+   border-radius and a shadow would have made two empty boxes look like the
+   most important thing on the dialog. Dashed while empty, solid once filled,
+   which is the whole state language — an empty required slot and an empty
+   optional one differ by border colour alone. */
+.slot-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.slot {
+  position: relative;
+  flex: 1 1 10rem;
+  min-height: 3.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  background: var(--field-bg);
+}
+
+/* A Lavish Meal's first slot. Solid rather than a second colour: the dash is
+   already saying "optional", so taking it away is enough. */
+.slot[data-required] {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Where the next chip will land. Without it two identical empty boxes leave
+   the cook guessing which one they are filling. */
+.slot[data-next] {
+  border-color: var(--accent-text);
+}
+
+.slot[data-filled] {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.slot-tag {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.slot[data-filled] .slot-tag {
+  text-transform: none;
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.slot-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* What it tastes of, and the only thing the cook is told (COOKING.md). The
+   speech token because it is the words the eater will read, quoted back. */
+.slot-taste {
+  font-size: var(--fs-xs);
+  color: var(--speech);
+}
+
+.slot-clear {
+  all: unset;
+  cursor: pointer;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+
+.slot-clear:hover {
+  color: var(--danger);
+  background: var(--row-hover);
+}
+
+
+/* The cooking bench's pantry: ChipPicker's own row, boxed and bounded. 58
+   tags in the catalog carry a `cooked` block, so a hoarder's chip row would
+   otherwise push the slots and the Craft button off the bottom of the modal —
+   which is the failure ChipPicker's header warns about. Drawn as a recessed
+   .control surface so it reads as one field rather than as loose chips. */
+.pantry {
+  max-height: 9.5rem;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--field-bg);
 }
 
 /* A chip's aside — a corpse's yield, "✓ current", a price — in the muted
@@ -5555,6 +5713,17 @@ label.chip {
   overflow-y: auto;
 }
 
+/* The GM zone picker at the foot of the right column. It wears the desks'
+   .desk-inspector-zones, which brings its own side padding — and .chat-aside
+   is already padded, so the chips would sit two insets deep and the rule
+   above them would stop short of the column's edges. Pull the padding back to
+   vertical only and let the border run the full width, the way it does in an
+   inspector that has no padding of its own. */
+.chat-aside-tabs > .desk-inspector-zones {
+  padding-inline: 0;
+  margin-top: auto;
+}
+
 /* The "Playing from the web" chip, in the foot beside the chime toggle. The
    foot is a flex row and carries the padding now, so the chip carries none. */
 .chat-webonly {
@@ -5706,6 +5875,22 @@ label.chip {
   line-clamp: 6;
   overflow: hidden;
   color: var(--muted);
+}
+
+/* Something has been said here that this browser has not read. Full-strength
+   against a column whose rows are all var(--muted), which is the same move
+   .desk-body--players makes on its own rail — "unread reads bright, the way an
+   unread channel does". The dot stays beside it: brightness alone is one cue,
+   and on a dim screen it is not always the one that lands.
+
+   Under :hover and [data-active] in the cascade on purpose, so hovering an
+   unread row and opening one both still look like what they are. */
+.chat-place[data-unread="true"] {
+  color: var(--text);
+}
+
+.tab-item[data-unread="true"] {
+  color: var(--text);
 }
 
 .chat-place:hover {
@@ -7120,7 +7305,21 @@ label.chip {
 /* The foot of the places column: the chime toggle and the web-only chip. The
    column's rows draw their own side padding and the column has none, so the
    foot supplies its own or the button clips against the border. */
+/* PINNED, because the column it sits in is the scroller. A GM reads every
+   place in the game — 278 of them on a full map — so the foot was landing
+   8,000px below the fold and the chime, the push toggle and the mark-all tick
+   were all unreachable without scrolling past every room in Ravenheart.
+
+   position: sticky rather than restructuring the column into a scrolling body
+   plus a fixed foot: the same result, no markup change, and margin-top: auto
+   still puts it at the bottom when the list is short enough not to scroll. The
+   background is what stops the rows sliding under it. */
 .chat-places-foot {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding-bottom: var(--sp-2);
   margin-top: auto;
   display: flex;
   align-items: center;
@@ -7205,6 +7404,84 @@ label.chip {
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--sp-4);
+}
+
+/* The identity half GROWS now. It was flex-initial until 2026-09-10, so on a
+   wide screen `space-between` opened a gap in the middle of the band and the
+   face sat small at the far left of it. `.ledger-tiles` still caps at 47rem,
+   so this soaks up whatever is left over rather than the gap doing it. */
+.ledger-identity {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  flex: 1 1 22rem;
+  min-width: 0;
+}
+
+/* Grows into whatever the face leaves. Without the grow it sat at its own
+   152px shrink-to-fit width inside a 590px cluster, and every line in it
+   wrapped. */
+.ledger-who {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The one heading on the sheet that is somebody's name. Serif comes from the
+   h2 itself (DESIGN-SYSTEM.md) — this only takes the margin off and pins the
+   size, so the four lines beside the face stay a block rather than a column
+   with a gap at the top of it. */
+.ledger-name {
+  margin: 0;
+  font-size: var(--fs-xl);
+  line-height: 1.2;
+}
+
+/* 9rem square, up from the 64px it was. The number is not arbitrary: it is
+   what the column beside it comes out at — the name, the role and faction, the
+   place, and the status chips under them — so the face fills the row instead
+   of sitting small at the top of it. It stays put when that column runs taller
+   (somebody wearing a lot of status tags); a face that grew with the chip
+   count would be a portrait that changes size as you get hungry.
+
+   `.avatar-zoom` is `all: unset`, so the size has to be said again through the
+   zoom button rather than only on the <img> inside it.
+
+   Every selector here is a DIRECT-CHILD chain, and that is load-bearing:
+   AvatarZoom renders its open Modal as a sibling of the button, INSIDE this
+   div (Modal.js does not portal). A loose `.ledger-face img` therefore also
+   caught `.avatar-zoom-full` and shrank the zoomed face from its stored 256
+   to 9rem — which is the one thing the zoom exists to avoid. */
+.ledger-face,
+.ledger-face > .avatar-zoom,
+.ledger-face > .avatar-zoom > img,
+.ledger-face > .ledger-face-blank {
+  flex: 0 0 auto;
+  width: 9rem;
+  height: 9rem;
+}
+
+.ledger-face > .avatar-zoom > img,
+.ledger-face > .ledger-face-blank {
+  object-fit: cover;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.ledger-face-blank {
+  background: var(--field-bg);
+}
+
+/* The faction is a link to /faction, but on a muted line rather than in a
+   menu — FactionLink's own default is .menu-item, which is the header's look
+   and reads as a control here. */
+.ledger-faction {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ledger-faction:hover {
+  color: var(--accent-text);
 }
 
 .ledger-tiles {
@@ -7382,40 +7659,31 @@ label.chip {
   align-self: stretch;
 }
 
-/* The two bands and the armour on one line — there is width for it here, and
-   two facts read at a glance beat a column of three. They wrap to their own
-   lines when the row folds to one column on a narrow window. */
-.combat-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-1) var(--sp-3);
-  margin-top: var(--sp-1);
-}
-
 /* ── The Combat readout ────────────────────────────────────────────────────
    Two fighting bands and the armour on one line, and one quiet line naming
    what a gamemaster might apply. It lives in the band row rather than the tile
    row: the tile row's max-width fits exactly five, and this needs the width of
    a third of the band. */
-.combat-bands {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-2);
-  line-height: 1.2;
+/* Three columns — label, band, armour — shared by both rows, so the bands sit
+   under each other and the armour does too. `justify-content: start` keeps
+   them together at the left rather than spread across whatever width the box
+   happens to have. */
+.combat-rows {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  justify-content: start;
+  align-items: baseline;
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-1);
+  margin-top: var(--sp-1);
 }
 
-/* A word, not a number, so it drops --font-mono the way the Mood box does. */
+/* The band word itself. A word, not a number, so it drops --font-mono the way
+   the Mood box does. */
 .combat-band {
   font-size: var(--fs-lg);
+  line-height: 1.2;
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-}
-
-.combat-band + .combat-band::before {
-  content: "·";
-  color: var(--muted);
-  margin-inline-end: var(--sp-2);
-  font-weight: 400;
 }
 
 /* Eight steps from red through grey to green, mixed from the theme's own
@@ -7601,14 +7869,9 @@ label.chip {
 
 /* ── The action strip (ActionGrid variant="strip") ──
    One wrapping row of small labelled buttons, the sections split by a
-   hairline. A gated verb is muted, not disabled: clicking it writes its
-   reason to the line under the strip, since the sheet has no tooltips. */
-.action-strip-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-
+   hairline. A gated verb is drawn dashed and greyed and does not press; its
+   reason is in the tooltip, which fires on the disabled button because
+   Tooltip wraps it rather than sitting on it (ActionButton.js). */
 .action-strip {
   display: flex;
   flex-wrap: wrap;
@@ -7635,6 +7898,9 @@ label.chip {
 .action-strip-item {
   all: unset;
   cursor: pointer;
+  /* Pinned, not inherited: the .tag-hover wrapper the tooltip brings with it
+     hands down the mono face, and these are labels, not data. */
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -7648,7 +7914,7 @@ label.chip {
   white-space: nowrap;
 }
 
-.action-strip-item:hover {
+.action-strip-item:hover:not(:disabled) {
   border-color: var(--accent-text);
 }
 
@@ -7660,12 +7926,12 @@ label.chip {
 .action-strip-item[data-muted="true"] {
   color: var(--muted);
   border-style: dashed;
+  cursor: not-allowed;
 }
 
-.action-strip-why {
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--muted);
+.action-strip-item[data-busy] {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 /* ── The tag rail (TagRail.js / TagRow.js) ──

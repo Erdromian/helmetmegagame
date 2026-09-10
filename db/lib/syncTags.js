@@ -27,6 +27,18 @@ const {
   validatePlacement,
   validateCustomizable,
   normalizeTurnsCost,
+  normalizeCures,
+  validateCures,
+  normalizeCuresInto,
+  validateCuresInto,
+  validateAdministerSkill,
+  normalizeResists,
+  validateResists,
+  normalizeCooked,
+  validateCooked,
+  normalizeIngredientSlots,
+  validateIngredientSlots,
+  normalizeCustom,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -251,6 +263,12 @@ async function syncTagsFromYaml(prisma) {
   // well as at validation time. Built from the YAML, not the DB — every slug a
   // recipe may name has to be in these files anyway.
   const allGroupSlugs = new Set(groupEntries.map((g) => g.slug));
+  // For `cures`: every cured slug has to resolve to the Health category's
+  // DISPLAY name, the same value Tag.category is written as below — never
+  // the YAML category slug, which the GM tag form's rows don't carry at all.
+  const categoryNameByTagSlug = new Map(
+    tagEntries.map((t) => [t.slug, categoryNameBySlug.get(t.category)]),
+  );
   const tagNameBySlug = new Map(tagEntries.map((t) => [t.slug, t.name]));
   const groupNameBySlug = new Map(groupEntries.map((g) => [g.slug, g.name]));
   const allRoleSlugs = roleSlugsFromYaml();
@@ -279,6 +297,48 @@ async function syncTagsFromYaml(prisma) {
       throw new Error(
         `docs/tags.yaml: tag "${t.slug}" is named "${t.name}", so its slug should be "${allowed.join('" or "')}" — rename the slug with the name, fix the name, or mark the rename deliberate with keepSlug: true`,
       );
+    }
+    // A mastery tag is only ever bought mid-game, so the store is the ONLY
+    // menu that offers it. Both of these would leave it quietly unbuyable
+    // rather than visibly broken, which is why they throw here.
+    if (t.mastery) {
+      if (t.purchasable === false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is mastery but not purchasable — mastery narrows WHEN a tag can be bought, it cannot make an unbuyable one buyable`,
+        );
+      }
+      if (t.purchasableAfterStart === false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is mastery but purchasableAfterStart: false — creation already refuses a mastery tag, so it could be bought nowhere at all`,
+        );
+      }
+      if ((t.pointCost ?? 0) < 0) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is mastery with a negative pointCost — a drawback you can only take mid-game is a point farm (TAGS.md 4a)`,
+        );
+      }
+    }
+    // The two invariants TAGS.md 4 states and nothing used to enforce. Both
+    // are about the SAME door — what /store may offer once play has begun —
+    // and both drifted quietly, in both directions, because the doc was the
+    // only thing holding them: 24 rows were wrong when this was written, among
+    // them Eagle Eyes and Keen Hearing, two 2-point senses a character could
+    // never acquire, and Corrupt, a −2 drawback anybody could take for points.
+    //
+    // Scoped to `purchasable` rows on purpose. A tag nobody can buy at all is
+    // not governed by WHEN it may be bought, and demanding the line on all 380
+    // unbuyable items would be noise standing in for a rule.
+    if (t.purchasable) {
+      if ((t.pointCost ?? 0) < 0 && t.purchasableAfterStart !== false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" has a negative pointCost but is buyable after start — a drawback bought mid-game pays out Tag Points, which is a farm (TAGS.md §4). Set purchasableAfterStart: false`,
+        );
+      }
+      if ((t.category === "items" || t.category === "assets") && t.purchasableAfterStart !== false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is an ${t.category === "items" ? "item" : "asset"} but is buyable after start — an object enters play by being crafted, found, traded or granted, never off the points menu (TAGS.md §4). Set purchasableAfterStart: false`,
+        );
+      }
     }
     // concealsIdentity requires equippable — a typo guard, not a rule.
     if (t.concealsIdentity && !t.equippable) {
@@ -563,6 +623,23 @@ async function syncTagsFromYaml(prisma) {
       selfSlug: t.slug,
       knownSlugs: allTagSlugs,
     });
+    // cures/curesInto — the medical-pass item-cure mechanic (TAGS.md §5c).
+    // Shared shape and rules in db/lib/tagShapes.js, same posture as
+    // expiresInto/removesInto above.
+    const normalizedCures = normalizeCures(t.cures);
+    validateCures(normalizedCures, {
+      selfSlug: t.slug,
+      knownSlugs: allTagSlugs,
+      categoryBySlug: categoryNameByTagSlug,
+      consumable: t.consumable ?? false,
+    });
+    validateCuresInto(normalizeCuresInto(t.curesInto), {
+      selfSlug: t.slug,
+      knownSlugs: allTagSlugs,
+      cures: normalizedCures,
+    });
+    validateAdministerSkill(t.administerSkill, { selfSlug: t.slug, knownSlugs: allTagSlugs });
+    validateResists(normalizeResists(t.resists), { selfSlug: t.slug, knownSlugs: allTagSlugs });
     // requirement.items — the enforced ingredient block: spent by default,
     // held where the entry says `keep` (docs/systemdocs/CORPSES.md §8).
     validateRequirementItems(
@@ -622,6 +699,25 @@ async function syncTagsFromYaml(prisma) {
     // stackable only, never alongside placement, and a customizableSkill that
     // names a real tag.
     validateCustomizable(t, { slug: t.slug, knownSlugs: allTagSlugs });
+    // custom.cost / custom.describable — what the player's words cost, and
+    // whether the recipe takes a description at all (COOKING.md).
+    normalizeCustom(t.custom, { slug: t.slug, customizable: t.customizable ?? false });
+    // cooked — what this tag contributes as an INGREDIENT. Every slug it
+    // grants must be real, and `cooked.cures` has to agree with the entry's
+    // own cure columns, so the whole entry goes in. See COOKING.md.
+    validateCooked(normalizeCooked(t.cooked, { slug: t.slug, normalizeInto: normalizeConsumesInto }), {
+      selfSlug: t.slug,
+      tagSlugs: allTagSlugs,
+      entry: t,
+    });
+    // requirement.ingredientSlots — how many ingredients a recipe takes.
+    // Craftable only, never on a placement, never on a multi-turn project.
+    validateIngredientSlots(normalizeIngredientSlots(t.requirement?.ingredientSlots, { slug: t.slug }), {
+      selfSlug: t.slug,
+      craftable: t.craftable ?? false,
+      placement: t.placement ?? null,
+      turnsCost: t.requirement?.turnsCost ?? null,
+    });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -736,6 +832,7 @@ async function syncTagsFromYaml(prisma) {
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,
       purchasableAfterStart: entry.purchasableAfterStart ?? true,
+      mastery: entry.mastery ?? false,
       excludedRoleSlugs: entry.excludedRoles ?? [],
       onlyRoleSlugs: entry.onlyRoles ?? [],
       sellable: entry.sellable ?? false,
@@ -755,13 +852,30 @@ async function syncTagsFromYaml(prisma) {
       expiresInto: normalizeExpiresInto(entry.expiresInto),
       escalatesInto: entry.escalatesInto ?? null,
       removesInto: normalizeRemovesInto(entry.removesInto),
+      cures: normalizeCures(entry.cures),
+      curesInto: normalizeCuresInto(entry.curesInto),
+      administerable: entry.administerable ?? false,
+      administerSkill: entry.administerSkill ?? null,
+      poison: entry.poison ?? false,
+      resists: normalizeResists(entry.resists),
       // turnsCost "1/N" lands as requirementTurns 1 + requirementPerTurn N
       // (the work fraction); an authored perTurn survives only on a 0-turn
-      // ration — normalizeTurnsCost refuses every other pairing.
-      ...normalizeTurnsCost(entry.requirement, { slug: entry.slug }),
+      // ration — normalizeTurnsCost refuses every other pairing. `healable`
+      // rides along so a healable tag with no turnsCost at all is refused
+      // too (review fix, round 3).
+      ...normalizeTurnsCost(entry.requirement, { slug: entry.slug, healable: entry.healable ?? false }),
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
+      // Cooking (COOKING.md). `cooked` is what this tag contributes as an
+      // ingredient; `ingredientSlots` is how many a recipe takes; `mealMood`
+      // is a meal's own small buff before its ingredients. `cookedFrom` is
+      // deliberately absent — only a mint ever writes that, and this sync
+      // never sees a minted row.
+      cooked: normalizeCooked(entry.cooked, { slug: entry.slug, normalizeInto: normalizeConsumesInto }),
+      requirementIngredientSlots: normalizeIngredientSlots(entry.requirement?.ingredientSlots, { slug: entry.slug }),
+      mealMood: entry.mealMood ?? null,
+      ...normalizeCustom(entry.custom, { slug: entry.slug, customizable: entry.customizable ?? false }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
       fighting: normalizeFighting(entry.fighting),
       handsLost: entry.handsLost ?? null,

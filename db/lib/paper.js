@@ -160,26 +160,38 @@ function paperView(tag, viewer = null) {
   return { kind, text, plain: false };
 }
 
-// The title a freshly written sheet wears.
+// The title a freshly written sheet wears — what the writer chose to call it,
+// or "A Note" if they called it nothing.
 //
-// DELIBERATELY ANONYMOUS. Tag.name travels everywhere a tag does — the Transfer
-// dialog, the Loot panel, a room's Storage readout, the bot's inspect embed —
-// and none of those surfaces knows anything about literacy. A title reading
-// "hand of Ada" would therefore hand every one of them the one fact the whole
-// system exists to protect, to readers and illiterates alike, and would gut
-// both anonymous notice-pinning and any future use of the Forger tag.
+// ANONYMOUS BY DEFAULT, NOT BY FORCE. Tag.name travels everywhere a tag does —
+// the Transfer dialog, the Loot panel, a room's Storage readout, the bot's
+// inspect embed — and none of those surfaces knows anything about literacy. So
+// whatever goes here is read by everybody who handles the sheet, illiterates
+// included, and the CONTENT stays behind the literacy gate either way
+// (paperDescription above is the field composed per viewer).
 //
-// So the name says nothing and the DESCRIPTION says everything, because the
-// description is the one field composed per viewer (paperDescription above).
+// This used to return "A Note" flat, on the argument that any title at all
+// would leak. The book has always worked the other way — it wears the name its
+// binder gave it — and a letter now does too: a title is what the writer chose
+// to advertise on the outside, which is a different act from what they wrote
+// inside. Leave it blank and nothing is advertised, exactly as before.
 //
-// It used to say "A Note (XY-1234)" — a waybill code, and the only reason for
-// it was that Tag.name was @unique, so every sheet needed a title no other tag
-// had. That made the object's own name into its database key, which is what a
-// slug is for and what `slug` on this row already is. The constraint is gone
-// and so is the code. Ada tells her two notes apart by reading them, which is
-// the only way anybody was ever meant to.
-function paperName() {
-  return "A Note";
+// Bare, with no suffix. bookName appends "(a book)" because a book is a kind
+// of object you name; a letter called "Orders for the Watch" is just called
+// that.
+//
+// The caller cleans the text (web/lib/customCraft.js#cleanCustomText) before it
+// arrives — a name reaches Discord through the noticeboard and the Bird, where
+// an unscrubbed "@everyone" would be a mention.
+//
+// It also used to say "A Note (XY-1234)" — a waybill code, and the only reason
+// for it was that Tag.name was @unique, so every sheet needed a title no other
+// tag had. That made the object's own name into its database key, which is what
+// a slug is for and what `slug` on this row already is. The constraint is gone
+// and so is the code — which is also why two letters may now share a title.
+function paperName(title) {
+  const clean = (title ?? "").trim();
+  return clean || "A Note";
 }
 
 // Two letters, four digits — the same shape as a Depot shipment id, and for

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { armorWord, combineArmor } from "@/lib/armorValue";
 import { fightingSkill, TREES } from "@/lib/fightingSkill";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
@@ -8,6 +8,7 @@ import { bandOf } from "@lifeweb/db/lib/mood";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
+import FactionLink from "./FactionLink";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import TagDetails from "./TagDetails";
@@ -154,9 +155,9 @@ function shortName(label, tree) {
 
 // What the Combat tile opens: every contributor behind the two bands, and then
 // the things a GM has to decide. Written into the shared detail slot under the
-// row of tiles rather than floating over anything — this sheet has no tooltips
-// (SHEET.md §3), and the Mood box set the precedent that a tile with something
-// to say says it on the page.
+// row of tiles rather than floating over anything — it is far too long for a
+// tooltip, and the Mood box set the precedent that a tile with something to
+// say says it on the page (SHEET.md §2).
 //
 // The SCORE is never printed, only the names and their shifts. Working out
 // that Seasoned beats Capable is the player's job, the same posture armour
@@ -188,30 +189,42 @@ function CombatDetail({ combat }) {
   );
 }
 
-// Combat's resting face. It has a third of the band row to itself now, so the
-// two facts a player wants before walking into something — how hard you hit,
-// and what happens when you are hit — sit side by side on one line rather than
-// stacked. The situational names go underneath, where a wrap costs nothing.
+// Combat's resting face: a row per dimension, each carrying its own band and
+// its own armour.
+//
+// It used to be two unlabelled PAIRS — "Pitiful · Pitiful" over "⛊ None ·
+// None" — and nobody could read the second half of either. One shield in front
+// of two words says nothing about which word it belongs to, and a player had
+// to open the box to learn that the first band was melee. Turning it ninety
+// degrees answers both at once: each line is one question, "how do I fare up
+// close" and "how do I fare at range", and the label sits at the head of it.
+//
+// One honest approximation lives here. The Ranged row pairs ranged SKILL with
+// BALLISTIC armour, and those are not quite the same axis — ballistic is what
+// guns roll against (db/lib/depotTurret.js), while ranged skill covers bows
+// too. Bascinet's call, made knowingly: two labelled lines that are roughly
+// right beat four values nobody can attribute at all.
 function CombatFace({ combat, armor }) {
   // Names only, and only once each: a tag on both halves of the tree would
   // otherwise be printed twice on a line whose whole job is being small.
   const names = [...new Set(TREES.flatMap((t) => combat[t].situational.map((s) => s.label)))];
   return (
     <>
-      <span className="combat-head">
-        <span className="combat-bands">
-          {TREES.map((tree) => (
-            <span key={tree} className="combat-band" data-band={combat[tree].band.key}>
+      {/* A grid rather than two flex rows, so the bands line up under each
+          other and the armour does too — three columns read as three columns
+          only if they actually share an edge. */}
+      <span className="combat-rows">
+        {TREES.map((tree) => (
+          <Fragment key={tree}>
+            <span className="field-label">{tree === "melee" ? "Melee" : "Ranged"}</span>
+            <span className="combat-band" data-band={combat[tree].band.key}>
               {combat[tree].band.label}
             </span>
-          ))}
-        </span>
-        {/* Armour is a separate system with separate words
-            (db/lib/armorValue.js) and is never summed into the bands beside
-            it. It is here so a player does not have to scroll to the rig. */}
-        <span className="combat-armor">
-          <span aria-hidden="true">⛊</span> {armor}
-        </span>
+            <span className="combat-armor">
+              <span aria-hidden="true">⛊</span> {armor[tree]}
+            </span>
+          </Fragment>
+        ))}
       </span>
       {/* A footnote, not controls: these are not clickable, and what each one
           is for is in the tag's own description. This line only says there is
@@ -221,7 +234,7 @@ function CombatFace({ combat, armor }) {
   );
 }
 
-// The band across the top of the sheet// The band across the top of the sheet — it scrolls away with the rest of the
+// The band across the top of the sheet// The band across the top of the sheet// The band across the top of the sheet — it scrolls away with the rest of the
 // page: who this is and where they stand, the five things a player checks
 // before doing anything, then the pieces of the Chat's YOU column that belong
 // on a sheet too — the turn card with its Move, the status strip — and under
@@ -250,9 +263,12 @@ export default function LedgerBand({
   // should be able to read off somebody they might have to fight, and every
   // fighting tag in the catalog is `visible: false` for the same reason.
   const combat = isSelf ? fightingSkill(character.tags) : null;
-  const armorLine = `${armorWord(combineArmor(character.tags, "meleeArmor"))} · ${armorWord(
-    combineArmor(character.tags, "ballisticArmor"),
-  )}`;
+  // Kept apart rather than pre-joined: the readout puts each half on the row
+  // it belongs to, and a joined string could only be split again.
+  const armorWords = {
+    melee: armorWord(combineArmor(character.tags, "meleeArmor")),
+    ranged: armorWord(combineArmor(character.tags, "ballisticArmor")),
+  };
   const carrying = carry ? `${carry.weightUsed} / ${carry.weightCap}` : null;
   // Both of these are already computed by db/lib — carryStatus returns
   // `breakdown` and gambitModifiers returns its named list — so neither tile
@@ -276,8 +292,8 @@ export default function LedgerBand({
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
-  // The status chip a player clicked open, read inline under the strip — the
-  // sheet has no tooltips, so a chip's wording has to be reachable by a tap.
+  // The status chip a player clicked open, read inline under the strip — a
+  // chip's wording has to be reachable by a tap, and hover is not one.
   const [picked, setPicked] = useState(null);
   // Free moves is the only tile with anything to say. Carrying used to open a
   // breakdown of what holds its cap up; that came off on purpose — the tile is
@@ -291,37 +307,36 @@ export default function LedgerBand({
   return (
     <section className="sheet-band panel">
       <div className="ledger-band">
-        <div className="flex items-start gap-3 min-w-0">
-          {avatarSrc ? (
-            // The one face on the sheet that is actually yours, so it is the
-            // one most worth opening: 64px here, 256 stored. `avatarSrc` is
-            // already whatever presentedIdentity resolved for the person
-            // looking, so the zoom shows that and never rebuilds a URL.
-            <AvatarZoom src={avatarSrc} name={character.name}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={avatarSrc}
-                alt={character.name}
-                className="h-16 w-16 object-cover"
-                style={{ borderRadius: "var(--radius)", border: "1px solid var(--border)" }}
+        <div className="ledger-identity">
+          <div className="ledger-face">
+            {avatarSrc ? (
+              // The one face on the sheet that is actually yours, so it is the
+              // one most worth opening: whatever height the column beside it
+              // comes out at here, 256 stored. `avatarSrc` is already whatever
+              // presentedIdentity resolved for the person looking, so the zoom
+              // shows that and never rebuilds a URL.
+              <AvatarZoom src={avatarSrc} name={character.name}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={avatarSrc} alt={character.name} />
+              </AvatarZoom>
+            ) : (
+              <div className="ledger-face-blank" aria-hidden="true" />
+            )}
+          </div>
+          {/* Who this is, and where they stand. The name, the role and the
+              faction lived in the page's header until 2026-09-10 — the header
+              says "Character" now, and this is the only place on the page that
+              names the person. */}
+          <div className="ledger-who">
+            <h2 className="ledger-name">{character.name}</h2>
+            <p className="m-0 text-sm text-muted">
+              {character.roleTitle ?? "No role"} ·{" "}
+              <FactionLink
+                factionId={character.faction?.id ?? null}
+                name={character.faction?.name ?? "No faction"}
+                className="ledger-faction"
               />
-            </AvatarZoom>
-          ) : (
-            <div
-              aria-hidden="true"
-              className="h-16 w-16"
-              style={{
-                background: "var(--field-bg)",
-                borderRadius: "var(--radius)",
-                border: "1px solid var(--border)",
-              }}
-            />
-          )}
-          {/* The name, the role and the faction used to be repeated here. They
-              are the page's header now (ledger/layout.js), and saying them
-              twice, 40px apart, only made the band look like a second title.
-              Where you STAND is not up there, so it stays. */}
-          <div className="min-w-0">
+            </p>
             <p className="m-0 text-sm text-muted">
               {character.zone?.name ?? "Unassigned"} · {character.location?.name ?? "Nowhere"}
             </p>
@@ -440,7 +455,7 @@ export default function LedgerBand({
         {combat && (
           <Tile
             label="Combat"
-            value={<CombatFace combat={combat} armor={armorLine} />}
+            value={<CombatFace combat={combat} armor={armorWords} />}
             detail={<CombatDetail combat={combat} />}
             open={tileOpen === "combat"}
             onOpen={(want) => setTileOpen(want ? "combat" : null)}

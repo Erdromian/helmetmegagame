@@ -39,7 +39,7 @@ unbounded.
 
 | `Tag.paperKind` | What it is |
 |---|---|
-| *null*, slug `paper` | **Blank stock.** One stackable catalog tag. `depotPrice: 1`, the cheapest thing the Depot sells. |
+| *null*, slug `paper` | **Blank stock.** One stackable catalog tag. Not stocked loose — the Depot sells `stack-of-paper`, a 3 ⬢ ream that consumes into twenty sheets. |
 | `PAPER` | **A written sheet.** Carries `paperText`. |
 | `SEALED` | **A closed letter.** Same row, renamed in place. Carries `sealMark`. |
 | `BROKEN_SEAL` | **A spent envelope.** Evidence somebody opened it, and whose wax it was. |
@@ -129,10 +129,9 @@ book** rather than ten sheets, because the sheets were spent at the craft.
 - **Binding needs no letters any more.** Craft has no notion of literacy, and
   that turned out to be right: sewing pages together is not writing. The gate
   is where the writing is — `writePaperImpl`'s `readBlock` check.
-- **A book wears its title**, unlike a note's anonymous name (below). A title
-  is what the binder chose to advertise, and a shelf of books all called
-  `A Note` would be useless. The contents still sit
-  behind the literacy gate. Same reason its `inspectVisibility` is `ALWAYS`
+- **A book wears its title**, and must be given one — a shelf of books all
+  called `A Note` would be useless. A letter may be given one and need not be
+  (below). The contents of either still sit behind the literacy gate. Same reason its `inspectVisibility` is `ALWAYS`
   where a note's is `HIDDEN`: carrying a book is visible, reading it is not.
 - **Authored books** — the Keep's Library, the Meister's Office — are declared
   in `docs/tags.yaml` with `bookText:`, the same shape `sealMark:` has:
@@ -146,14 +145,40 @@ book** rather than ten sheets, because the sheets were spent at the craft.
   everyone else reads `CLOSED_BOOK_LINE` and has to go and find it. Without
   that, one literate character would publish the whole Library.
 
-**A note's name is deliberately anonymous** — every written sheet in the game
-is called `A Note`, and nothing else. `Tag.name` travels everywhere a tag does
-(Transfer, Loot, a room's Storage readout, the bot's inspect embed) and none of
-those surfaces knows anything about literacy, so a title reading "hand of Ada"
-would hand every one of them the one fact this system protects. The writer is
-kept on `Tag.paperAuthor` for the GM and nothing else.
+**A note's name is anonymous unless the writer names it.** The Write dialog
+offers a title on a **blank** sheet — optional, and left empty the sheet is
+called `A Note`, which is what every sheet in the game was called before this
+existed. `paperName(title)` in `db/lib/paper.js` is the whole rule.
 
-It used to read `A Note (TG-4596)` — a waybill code in the Depot's house
+Know what a title costs, because it is not nothing. `Tag.name` travels
+everywhere a tag does (Transfer, Loot, a room's Storage readout, the bot's
+inspect embed, a noticeboard listing) and **none of those surfaces knows
+anything about literacy** — so a title is read by every hand the sheet passes
+through, illiterate ones included, while the text stays gated. That is the same
+bargain a book has always made: a title is what the writer chose to advertise
+on the outside, and it is a different act from what they wrote inside. A writer
+who wants to advertise nothing leaves it blank. The writer's own name is still
+kept on `Tag.paperAuthor` for the GM and nothing else, and is never composed
+into the title.
+
+**Set once, on the first write.** Writing on a sheet that already has words
+appends and shows no title field, so a second hand cannot rename what a first
+hand called it. Sheets written before this existed therefore stay `A Note`
+permanently — there is no retitle path, deliberately.
+
+**Sealing is untouched.** A `SEALED` row is still named `Sealed Letter
+(<wax>)` and a `BROKEN_SEAL` row `Broken Seal (<wax>)`, so the outside of a
+sealed letter tells a courier whose wax is on it and nothing else. A title does
+not survive the seal, and does not come back when it is broken.
+
+**A title is scrubbed, not just trimmed.** It goes through
+`cleanCustomText` (`web/lib/customCraft.js`), the custom-craft mint's own
+scrubber, which takes out `@`, `{` and `}` — a paper's name is interpolated
+straight into bot messages (`You put ${name} up.` on a noticeboard, the Bird's
+`The bird is away with ${name}.`), so an unscrubbed `@everyone` would be a real
+mention. The book title never ran through it and now does.
+
+The name used to read `A Note (TG-4596)` — a waybill code in the Depot's house
 style — and that was never a design choice, only a constraint showing through:
 `Tag.name` was `@unique`, so every new sheet needed a title no other tag had.
 Naming an object after its own database key is what `slug` is for, and
@@ -303,6 +328,47 @@ five action rows would overflow the board at three papers.
 A pin and a tear each raise an ambient `-#` line naming the **paper and never
 the person**. Anonymous notice-pinning is the point of a public board.
 
+### A GM works the same board
+
+A GM presses the same Noticeboard button and gets the same panel, with the one
+control that needs a body swapped out. **One rule decides which panel you get,
+and it is the same rule on both faces:**
+
+```
+an alive character standing here  ->  you act as that character
+otherwise, and you are a GM       ->  you act as a GM
+otherwise                         ->  "You're not here."
+```
+
+So a GM who is playing somebody works the board through that body when they are
+standing at it, and as a GM everywhere else — which is also why a GM never meets
+"You're not here." on a board any more. On Discord the board is the one whose
+channel the anchor sits in; on the web it is the Location the GM has open in
+`/chat`, and the button lives in the zone rail's column because GM mode has no
+right column of its own (it is built from a character, and GM mode is the
+absence of one).
+
+Three differences, each a consequence of having no body:
+
+- **Post a notice**, where a player gets Pin. A GM carries no paper, so the
+  notice is written on the spot — Title and Body — and minted through
+  `mintUnownedPaper`, the one minter that needs no character. `postedById` is
+  null, the shape a Wanted poster already lands in.
+- **Read** skips `readBlock` entirely, wax seals included. A GM holds no tags,
+  so the ordinary gate would call them illiterate and refuse every notice on
+  every board.
+- **Tear down** destroys the paper with the post (`destroyNotice`), because
+  there are no hands to take it into. Exactly what the expiry sweep does.
+
+**The ambient line is deliberately identical.** A GM's pin and a GM's tear raise
+the same anonymous `-#` line a player's does, naming the paper and never the
+person, so nobody in the room can tell one from the other. The only record of
+who posted a notice is the `AuditLog` row (`gm_post_notice` / `gm_tear_notice`)
+— `paperAuthor` carries the GM's Discord id and nothing renders it anywhere.
+
+A GM notice takes the same `noticeExpiryTurns` clock as everyone else's; there
+is no field for it.
+
 `GameConfig.noticeExpiryTurns` (default 10, live on `/gm/dev`) is how long one
 stays up, counting the turn it went up in. **An expired notice is destroyed,
 paper and all** — it blew away, which is what makes tearing one down worth
@@ -325,12 +391,14 @@ the point of it.
 
 `db/lib/reading.js` (the gate), `db/lib/paper.js` (names, descriptions, the
 per-viewer composition), `db/lib/paperMint.js` (the four writes),
-`db/lib/noticeboard.js` (board copy and the attribute),
+`db/lib/noticeboard.js` (board copy, the attribute, and `destroyNotice`),
 `db/lib/merchantSeal.js` (his initials),
 `web/app/(app)/character/paperActions.js` (Write and Seal),
-`bot/src/lib/noticeboardPanel.js` (the board), `bot/src/lib/birdReply.js` (the
-answer), `docs/tags.yaml` + `docs/zones.yaml` (the catalog and where the
-stamps start).
+`bot/src/lib/noticeboardPanel.js` (the board, players' and GMs' alike),
+`web/app/(app)/chat/GmNoticeboardDialog.js` (the GM's board on the web),
+`bot/src/lib/birdReply.js` (the answer),
+`db/lib/customText.js` (what an authored title may contain),
+`docs/tags.yaml` + `docs/zones.yaml` (the catalog and where the stamps start).
 
 ## 9. What this does not do
 

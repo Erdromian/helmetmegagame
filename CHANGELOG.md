@@ -6,6 +6,275 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Uploading your own picture works again
+
+✎ It has been failing for almost everyone since the game opened. A photo over about a megabyte vanished on Save with no error at all — only two players ever got one through, both tiny files.  
+✚ A picture that is too big now says so the moment you pick it, and names its size  
+✎ The note on Browse no longer reads as a queue you wait in. Your picture is live the moment you save it; a GM reviews it afterwards.
+
+## 2026-09-10 · A caving 1 keeps you in the zone until a GM has looked at it
+
+✎ Rolling a 1 in the caves now holds you in that zone until a GM adjudicates the roll. You can still walk the level — camp, regroup, push deeper — you just cannot leave until somebody has dealt with what found you.  
+✎ Nobody can escort you out of it either; a held caver is left standing and the party goes on without them.  
+✎ The Stepstone will not carry you out of it.  
+✎ Marking the roll resolved on the Caving lens is what frees them, and nothing resolves on its own at turn end.
+
+## 2026-09-10 · A GM's message rail says where somebody is, and stops losing people who moved
+
+✎ The zone on a person in the message list is now where they are standing, not where their faction is seated — those disagree for ten of the seventy living characters  
+✎ A GM watching some zones sees a person if their faction is seated there OR they are standing there; before, a Town player who walked into the Forest fell off the Town GM's rail while the chip beside the gap still said Town
+
+## 2026-09-10 · Traits you were born with can be bought during play
+
+✎ Eagle Eyes, Keen Hearing, Brave, Giant, Pretty, Beautiful, Ambidextrous, Light Sleeper, Knighted, Old Blood, Kleptomaniac, Pacifist and Mime's Vow were shut out of the shop by mistake, so a character who did not take sharp eyes at the start could never get them  
+✎ Corrupt could be bought mid-game for points, which was a way of printing them; it is closed, along with eleven items and assets that had drifted into the shop — six wax seals, two hoods, the Cerberon radio, the Fishing Boat and the Cart  
+✚ The shop now refuses any tag that pays you points at all, and the tag sync refuses to load a catalogue that breaks either rule, so neither can drift again  
+✎ The Oracle's pages are laid out now — the main thing, what is going on, what needs a ruling — instead of a list of who arrived and what they were handed
+
+## 2026-09-10 · A full browser cache can no longer stop a GM typing
+
+✎ Typing to a player no longer stops working when the browser's storage fills up
+
+## 2026-09-10 · The Oracle cannot write half a page any more
+
+✎ A page that runs past its length limit is now an error rather than a page that quietly stops mid-sentence and reads as the whole account of the turn  
+✚ More room for a long turn's page, and longer to wait for a slow model
+
+## 2026-09-10 · You can see what a thing is before you pick it up
+
+✎ Moving things now shows each item as a chip with its weight, and hovering one tells you where it is worn, what it stops and what it does in a fight  
+✚ An empty equipment slot now also offers what a room here is storing that fits it. Picking one takes it and puts it on in a single click  
+✎ The Tag Catalog was never showing In a fight, Armour or Worn on any tag at all. All three are there now  
+✎ Two-handed weapons said they took one hand, and layered armour never said which layer it sat at  
+✎ A helpless person's pockets deliberately stay a name and a weight, with no card
+
+## 2026-09-10 · A channel somebody has spoken in reads bright
+
+✚ A channel somebody has spoken in now reads bright in the places column, not just a small dot  
+✎ Gamemasters get unread marks at all. They had none, because the mark only ever lit for a conversation or a mention of your own character, and a GM has neither  
+✎ Scenery still lights nothing. A gate crossing, a smell, a turn banner is the game talking to itself  
+✚ A tick at the foot of the places column marks everything read at once. That foot no longer scrolls out of reach
+
+## 2026-09-10 · The Incarn may be styled Brother
+
+✎ The Incarn is a warrior monk, so the role now earns the monk's title — Brother, Sister or Sibling, whichever their gender picks — the same word the Mortii already wear
+
+## 2026-09-10 · The Oracle page fills the screen again
+
+✎ The Oracle's three columns each scroll on their own now, so the page stops ending halfway down with dead space under it  
+✎ A synopsis reads as prose again — paragraphs, headings and lists are spaced, and a long page keeps a readable line width instead of running the full width  
+✎ The zone counts in the rail sit at the right edge instead of running into the zone name
+
+## 2026-09-10 · The Squeeze briefing says what a cube is worth
+
+✚ A line on the Squeeze document giving the 7 ⬢ Depot price and the cut the Merchant has traditionally taken
+
+## 2026-09-10 · A cube of Squeeze sells for 7
+
+✎ Up from 5. A factory day is 56 ⬢ for eight cubes, about four times a good farming day, and a full wagon is 420 ⬢
+
+## 2026-09-10 · A letter can be given a name
+
+✚ A letter can be given a name when you first write it. Leave it blank and it is A Note, the way every sheet was  
+✎ A name is set once, on the first write. Adding to a sheet later cannot rename it, and the letters already written stay A Note  
+✎ Sealing still replaces the name with whose wax is on it, so a sealed letter tells a courier nothing  
+✎ A book or letter called @everyone can no longer ping the server from a noticeboard
+
+## 2026-09-10 · The Browse note says what actually happens to an upload
+
+✎ The hover on Browse now reads “Your image may be approved or denied.” It used to promise approval before the picture went live, which was never how it worked
+
+## 2026-09-10 · Being hurt costs less in a fight, and being clumsy is no longer Pitiful
+
+✎ Missing Fingers cost more of your fighting skill than a Peg Leg did, while being cheaper to take. It is now the smaller of the two  
+✎ Every drawback you can buy at creation now costs about as much fighting skill as a bonus of the same price pays for. Most were charging double  
+✎ Wounds and illnesses hurt less across the board. Two mortal wounds still leave you helpless; one no longer does it on its own  
+✎ Pitiful now takes a real injury to reach. A single trait like Clumsy or Fat used to put a healthy person in the same band as somebody tied to a chair  
+✎ Eleven of the sixty living characters were Pitiful in melee and fifteen in ranged. It is three and three now, and nobody came out worse
+
+## 2026-09-10 · A forger can copy the Merchant’s stamp too
+
+✎ The Merchant’s Wax Stamp was the one office stamp a Forger could not make. Now they all are
+
+## 2026-09-10 · Anyone can work the Factory floor, skill or no skill
+
+✎ A Laboring skill is no longer needed to Labor — without one the day earns nothing, and the readouts show a dash instead of a range  
+✎ The Godard Factory works for anybody standing on it, which is what was stopping the Banneret  
+✎ Nobody is auto-assigned an unpaid day, except in the Factory where the shift is worth something  
+✚ Prospecting shows up in the Move dialog's labor readout, which it had been missing since it was added
+
+## 2026-09-10 · The draft marks come off, and the rule goes with them
+
+− The little double daggers that marked drafted prose. They are gone from the handbook, the tag descriptions, every DM and every screen  
+✎ The Other lens's empty line reads No miscellaneous requests
+
+## 2026-09-10 · A cart can come into the Factory, Customs and the Depot
+
+✎ The Godard Factory, Customs and the Depot no longer park your horse and cart at the door, so a wagon can be loaded where the crates are  
+− Shuttling crates out to the marsh one at a time before the cart could be hitched
+
+## 2026-09-10 · An uploaded portrait now waits for a GM to look at it
+
+✚ A portrait a player uploads now waits on the Other lens of the adjudication desk, with the picture shown  
+✚ Keep and Reject on that row. Reject puts the character back to their letter plaque and tells the player why  
+✎ The Browse control's promise that art needs GM approval is now a thing the game actually does  
+✎ Portraits built in the appearance maker are not queued. They are assembled from art that was already approved
+
+## 2026-09-10 · The faction roster's lines are straight again
+
+✎ The rules under a faction's Members table were drawn at different heights per row, worst on your own row where the buttons are hidden
+
+## 2026-09-10 · Earning a compliment is worth one point now
+
+✎ Earn a compliment drops from 3 points to 1, and comes back every 5 turns instead of every 3
+
+## 2026-09-10 · The Oracle sees hoods, disguises and the intercom; Kiss someone is tier 1
+
+✎ The chronicle now reports someone pulling a hood up or letting it down, putting on a disguise, and anything said over the intercom — all three were invisible to it before  
+✎ Kiss someone is a tier 1 Desire on a 3 turn cooldown, down from tier 3 on 4
+
+## 2026-09-10 · The Oracle's zone rail is the same rail as the other desks'
+
+✎ The Oracle's zone buttons fill the rail and sit flush, instead of floating as centered bubbles — they now use the same rail row the adjudication and player desks do  
+✎ The Turn dropdown on the Oracle desk follows the theme again
+
+## 2026-09-10 · The Oracle's front page can be written at all, and one-word names link
+
+✎ The Oracle's front page is written again — it never could be, so every turn's chronicle was six zone pages and nothing tying them together  
+✎ A character with a one-word name is a link in the chronicle again, instead of a dead mention
+
+## 2026-09-10 · Watching Underground finally hands over the caves
+
+✎ A GM watching Underground now reads the Caves and the Depths. Every cave Location and room was invisible to them, on Chat and to the ambient line both  
+✚ Zones I see, at the foot of the audit desk and of Chat's right column  
+✎ The picker stops forgetting which zones you ticked when a page paints from its saved copy  
+− The bare Underground row in a GM's place list, which opened nothing
+
+## 2026-09-10 · The loot table's resource finds work again
+
+✎ Finding 1 or 2 loose Resources on a labor roll had never actually reached the game — the entries were written in a shape the table could not read, and the whole loot sync refused to run because of it  
+✎ Fixed and synced: 287 draws live, 15 of them resource finds
+
+## 2026-09-10 · Rejecting a Move no longer asks for a reason it cannot take
+
+✎ Reject on the turns desk fires straight away instead of opening a dialog that always refused
+
+## 2026-09-10 · Steady hands and Clumsy are mutually exclusive
+
+✎ Steady and Clumsy can no longer be held together
+
+## 2026-09-10 · The Oracle is written when the Moves lock, not after the push
+
+✎ The turn's chronicle is now drafted a couple of minutes after Moves lock, so a GM has it in front of them for the whole adjudication window instead of after the rulings are over  
+✎ An Oracle page now runs lock to lock, so the late chat, the GM's own adjudications and everything the midnight push fires appear on the next turn's page  
+✎ The Oracle desk shows the open turn, and opens on the newest turn that has actually been written  
+✎ Auto-labor Moves reach the chronicle again — filed at the push, they belonged to no page at all  
+✚ Draft this turn, on the Oracle panel, replacing Draft the last turn
+
+## 2026-09-10 · The verb tooltips say it in your words now
+
+✎ Craft, Destroy, Transfer, Loot, Free and Butcher read the way you wrote them, and Learn Skill's greyed reason is shorter
+
+## 2026-09-10 · Two performing Desires repriced
+
+✎ Perform for at least 5 people is worth 2 points now, not 3, and comes back after 4 turns instead of 3  
+✎ Perform for at least 15 people asks for 20 now, and can only be claimed once ever  
+− The Prospector's Pick claiming to be good for breaking rock or worrying at a lock
+
+## 2026-09-10 · A kiss is nobody else's business
+
+− The line the room used to hear when two people kissed. Nobody is told now but the two of them
+
+## 2026-09-10 · The verbs on the sheet explain themselves on hover again
+
+✎ Every button on the verb strip now tells you what it does when you point at it, the same as everywhere else in the app  
+− The line under the strip that a greyed verb used to print its reason on: the reason is in the hover now  
+✚ A sentence for Craft, Destroy, Transfer, Loot, Free, Butcher and Write, which had none written for them
+
+## 2026-09-10 · The 100-coin Desire asks for obols, not goods
+
+✎ Have 100 ¢ in your inventory at once — obols are weightless, so the goal is reachable; 100 ⬢ of carried goods was not, at a cap of 84
+
+## 2026-09-10 · The cult buys paper by the ream too
+
+✎ The Thanati shelf sells a Stack of Paper at 3 ⬢ instead of single sheets at 1
+
+## 2026-09-10 · The Merchant sells paper by the ream
+
+✚ The Depot stocks a Stack of Paper at 3 ⬢, which unpacks into twenty sheets  
+− Loose single sheets are off the Merchant's shelf
+
+## 2026-09-10 · The radios work on the web now
+
+✚ A Radio section on Chat: the frequencies you are carrying a radio for, sitting under Summary  
+✚ Speaking on a radio from the web reaches Discord, and a line typed on Discord reaches the web  
+✎ A radio you can only listen on says so, instead of telling you that you are a ghost  
+✎ The radio channels get their names put right on the next sync, so #watch stops being called that
+
+## 2026-09-10 · Tell the two radio nets apart
+
+✎ The archive keeps the two radio nets as separate scenes instead of pooling both under one "Elsewhere"  
+✎ A mention on a radio net now says which frequency it was on, instead of always naming the Watch  
+✎ The channel doctor stopped rebuilding each character's access once per channel
+
+## 2026-09-10 · Nine masteries: capstone tags you can only buy once the game is running
+
+✚ A new kind of tag, a mastery: never available at character creation, only from the store once play has started. They wear a star  
+✚ Lucky — you roll every Gambit twice and keep the better die, the Caving Die and the laboring die included  
+✚ Manic — your Desire slots never need a rest between claims  
+✚ Metempsychosis — when you die your soul wakes in a new body: a random open seat, a new name, face and age, six extra tag points and no Curse  
+✚ Amor Fati — being crucified, wounded or tortured lifts your mood by half what it would have cost you, and the everyday miseries stop touching you  
+✚ Imperturbable — nothing moves your mood off Fine, and there is nothing in you for a torturer to break  
+✚ Second Wind — wounds, maimings and infections cost you nothing in a fight, though illness and blindness still do, and death's door still ends one  
+✚ Brewing (Distilling) — every brewing recipe yields two for the price of one  
+✚ Laboring (Scavenging) — your laboring turns something up far more often, and a good day never hands you an injury  
+✚ Laboring (Tireless) — you can work through exhaustion at half yield, so you can labor every turn  
+✚ Musician (Pythagorean) — your playing lifts everyone in the room three times as much
+
+## 2026-09-10 · A second radio net: 27.065
+
+✚ Radio (27.065), 20 off the Thanati shelf — a radio hardset to one frequency, and everyone holding one both hears and speaks on it  
+✚ Its own channel, separate from the Cerberon's net and cleared at Dawn like the rest  
+✎ The radio category is no longer cut twice when a fresh guild provisions both nets at once
+
+## 2026-09-10 · The sheet says who you are where the face is
+
+✚ Your name, your role and your faction sit in the character sheet's top row now, beside a face three times the size it was
+✎ The page header above it just says Character
+
+## 2026-09-10 · Guns beat bows, and the crossbow stops being the best ranged weapon
+
+✎ Every firearm now counts for more in a fight than every bow — the powder half of the ranged ladder starts where the bows stop  
+✎ The Kpfw-6 Avtomat is the best gun in the game, then the CTT4&3 Rifle  
+✎ The Crossbow drops from a full tier to half a tier, and its description says so  
+✎ The Disabler stays where it was — it is a tool, not a gun
+
+## 2026-09-10 · Prospecting brings up ore, and steel is a quick smelt
+
+✚ Prospecting, a fourth kind of labor — two new places to work it, the Underquarter and the Undercroft  
+✚ Silver and Steel are real things now: the silver and steel weapons and armour each spend one  
+✎ Steel is a quick smelt — 4 ⬢ and a third of a turn, so three ingots fit in one Routine  
+✎ A steel weapon or piece of armour costs the same ⬢ it always did, but takes a turn less at the anvil  
+✚ Lockboxes turn up in the drop die, and Lockpicking finally does something  
+✎ The drop die pays out real things now instead of bare Resources
+
+## 2026-09-10 · Equipping works again
+
+✎ Equipping anything threw an error instead of equipping it. A variable inside the equip transaction was shadowing the row being equipped, so the write blew up before it ran
+
+## 2026-09-10 · A cube of Squeeze is worth 5
+
+✎ A cube of Squeeze now sells for 5 ⬢ at the Depot, up from 4 — a factory day is about three times a good farming day
+
+## 2026-09-10 · Built, not build
+
+✎ The brewery's refusal reads properly
+
+## 2026-09-10 · Bascinet's words for the three buildings, and a brewery needs a brewer
+
+✎ A brewery only works while someone who can brew is standing in the inn  
+✎ Bascinet's own wording on the three new buildings and their refusals
+
 ## 2026-09-10 · A smith can sign their work
 
 ✚ A smith can put their own name and words on a piece they make, for 1 ⬢ more  

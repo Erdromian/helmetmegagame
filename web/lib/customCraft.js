@@ -7,27 +7,50 @@
 // on "is this name blank" the way billedSeen exists to prevent for the Move.
 // Pure — no prisma, no React — importable from either side.
 
+import { cleanCustomText } from "@lifeweb/db/lib/customText";
+
 export const CUSTOM_SURCHARGE = 1; // ⬢ per unit, on top of the recipe's own
+
+// What THIS recipe charges for the player's words. A recipe may buy them out
+// with `custom: { cost: 0 }` in docs/tags.yaml, and both meals do: a cook
+// naming their own dish is the point of the cooking rework (COOKING.md), not
+// an upsell, and charging for it made every meal in the game anonymous.
+//
+// One verdict, both sides — the dialog prices what it shows with this and
+// craftRequestImpl prices what it charges with this, the same way
+// customCraftFields below is the one verdict on "is this name blank".
+export function surchargeFor(tag) {
+  return tag?.customCost ?? CUSTOM_SURCHARGE;
+}
+
+// The whole custom-words verdict for one recipe: what the words amount to
+// after cleaning, and what they cost. Four call sites priced this by hand —
+// the dialog's readout, its canSubmit, the confirm prompt and the server —
+// and each had to remember the same two rules (a recipe that takes no
+// description must not count one; the surcharge is the recipe's own). Four
+// copies of a price is how a confirm ends up quoting less than the bill.
+export function customCraftFor(tag, fields) {
+  const custom = tag?.customizable
+    ? customCraftFields({
+        customName: fields?.customName,
+        // A recipe may take a name and no words — the Fine Meal does
+        // (COOKING.md). A description posted at one is dropped rather than
+        // refused: a hidden textarea is a hint, and a stale client is not an
+        // attack.
+        customDescription: tag.customDescribable === false ? "" : fields?.customDescription,
+      })
+    : { name: "", description: "", active: false };
+  return { custom, surcharge: custom.active ? surchargeFor(tag) : 0 };
+}
 export const CUSTOM_NAME_MAX = 30;
 export const CUSTOM_DESCRIPTION_MAX = 300;
 export const INSCRIPTION_MAX = 200;
 
-// Player-authored text, defanged. Three removals, each closing a real hole:
-// `{` `}` so a description can never form a rich token ({tag:…}/{resource:…}
-// render as REAL chips via richTokens.js — a player must not be able to
-// forge one); `@` because item names travel into Discord messages that
-// default to parsing mentions; and control characters.
-export function cleanCustomText(raw, max) {
-  if (typeof raw !== "string") return "";
-  const printable = [...raw]
-    .map((ch) => {
-      const code = ch.charCodeAt(0);
-      if (code < 32 || code === 127) return " ";
-      return "{}@".includes(ch) ? " " : ch;
-    })
-    .join("");
-  return printable.replace(/\s+/g, " ").trim().slice(0, max).trim();
-}
+// Player-authored text, defanged — see db/lib/customText.js for what it takes
+// out and why. It lives down there rather than here because the bot needs the
+// same scrubber for the GM's noticeboard modal and cannot reach into web/.
+// Re-exported so every caller this module already had is untouched.
+export { cleanCustomText };
 
 // The single verdict both sides use: the cleaned fields, and whether this
 // craft is customized at all (either field non-empty after cleaning).

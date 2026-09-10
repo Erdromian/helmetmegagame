@@ -195,7 +195,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
   }
 
   const zoneOptions = useMemo(
-    () => [...new Set(inView.map((c) => c.factionZoneName).filter(Boolean))].sort(),
+    () => [...new Set(inView.map((c) => c.zoneName).filter(Boolean))].sort(),
     [inView],
   );
 
@@ -222,7 +222,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
     // with them — otherwise the seat-seeded zone filter would silently hide
     // a cross-zone search hit, which is exactly the case search exists for.
     if (!q) {
-      if (zoneFilter) list = list.filter((c) => c.factionZoneName === zoneFilter);
+      if (zoneFilter) list = list.filter((c) => c.zoneName === zoneFilter);
       if (needsReplyOnly) {
         list = list.filter(
           (c) => !isHandled(c) && (c.unreadCount > 0 || c.lastDirection === "INBOUND"),
@@ -240,7 +240,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
             role: c.roleTitle,
             faction: c.factionName,
             username: [c.username, c.globalName].filter(Boolean).join(" "),
-            zone: c.factionZoneName,
+            zone: `${c.zoneName ?? ""} ${c.factionZoneName ?? ""}`.trim(),
             tag: c.tag,
             preview: c.preview,
           }),
@@ -425,7 +425,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                   />
                   <span className="desk-queue-name">{row.name}</span>
                   {row.username && <span className="text-xs text-muted">@{row.username}</span>}
-                  {row.factionZoneName ? <ZoneChip zoneName={row.factionZoneName} /> : null}
+                  {row.zoneName ? <ZoneChip zoneName={row.zoneName} /> : null}
                   {row.status && row.status !== "ALIVE" && (
                     <EnumPill map={CHARACTER_STATUS} value={row.status} />
                   )}
@@ -453,7 +453,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                   <div className="desk-queue-reason">
                     {match.matchedField === "role" && row.roleTitle}
                     {match.matchedField === "faction" && row.factionName}
-                    {match.matchedField === "zone" && row.factionZoneName}
+                    {match.matchedField === "zone" && row.zoneName}
                     {match.matchedField === "tag" && matchedTagNames(row.tagNames, query)}
                     {match.matchedField === "preview" && "matched message text"}
                   </div>

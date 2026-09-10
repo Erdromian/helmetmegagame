@@ -163,6 +163,7 @@ export default function Workspace({
   factions,
   moves,
   cavingRolls,
+  otherRows,
   stagedEffects,
   stagedMessages,
   gmProfiles,
@@ -205,7 +206,7 @@ export default function Workspace({
   }
   // A tab open across the deploy can still hold the deleted "requests" lens
   // in sessionStorage, which would render an empty rail until it was clicked.
-  const LENSES = ["moves", "caving", "history"];
+  const LENSES = ["moves", "caving", "other", "history"];
   const lens = LENSES.includes(rail.lens) ? rail.lens : "moves";
   const setLens = useCallback((l) => setRail((r) => ({ ...r, lens: l })), [setRail]);
   const historyKind = rail.historyKind ?? "moves";
@@ -584,6 +585,8 @@ export default function Workspace({
         <QueueRail
           moves={moves}
           cavingRolls={cavingRolls}
+          otherRows={otherRows}
+          onInspect={inspect}
           visibleZoneNames={visibleZoneNames}
           stagedByMove={stagedByMove}
           selected={selected}

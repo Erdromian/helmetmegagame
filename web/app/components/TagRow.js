@@ -39,6 +39,11 @@ export default function TagRow({
             {tag.name}
             {stack && <span className="text-muted"> ×{stack}</span>}
             {worn && <span className="text-muted"> · worn</span>}
+            {/* "· smells wrong" (M4) — already a stripped, gated boolean by
+                the time it reaches here (character/page.js): present ONLY
+                when this row is actually poisoned AND this viewer holds
+                poison-sense or a poison-snooper. */}
+            {Boolean(ct.poisonMarker) && <span className="text-muted"> · smells wrong</span>}
           </span>
           {note && <span className="sheet-row-note">{note}</span>}
         </button>
@@ -59,6 +64,9 @@ export default function TagRow({
             armedTurn={armedTurn}
             showName={false}
             inTooltip={false}
+            // "· smells wrong" (M4) — already a stripped, gated boolean by
+            // the time it reaches here (character/page.js).
+            poisonMarker={Boolean(ct.poisonMarker)}
           />
         </div>
       )}

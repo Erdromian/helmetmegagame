@@ -28,6 +28,8 @@ const SAFE_ATTRIBUTE = "safe";
 // The two the mood dial reads (db/lib/mood.js#placeClassOf).
 const WILDERNESS_ATTRIBUTE = "wilderness";
 const HAVEN_ATTRIBUTE = "haven";
+// The one db/lib/indoors.js reads, alongside the `indoors` column.
+const WHEELS_ATTRIBUTE = "wheels";
 
 // key -> { describe(value, ctx) -> string|null }
 //
@@ -88,6 +90,18 @@ const ATTRIBUTES = {
     describe: () => "**Haven**: ending your turn here calms your nerves.",
   },
 
+  // An indoors place a cart or a horse may come into anyway: a warehouse with
+  // a loading ramp, a shop with a bay, a gate wide enough to drive through.
+  // `indoors` answers two questions at once — is there a roof (the mood dial,
+  // Sun Sensitivity, whether you can raise a palisade in here) and do wheels
+  // stay outside — and those two are not the same question. This key splits
+  // them, so the Factory keeps its roof and still admits the wagon its own
+  // Logistics Room says is staged at the ramp. Means nothing outdoors, where
+  // wheels were never in question.
+  wheels: {
+    describe: () => "**Wheels**: you can bring a cart or a horse in here.",
+  },
+
   // A public board somebody can pin a paper to. What the Noticeboard button on
   // this Location's anchor matches on, so no board has to be named by slug.
   // See docs/systemdocs/PAPERWORK.md.
@@ -110,13 +124,28 @@ function authoredLines(location, ctx = {}) {
   return lines;
 }
 
-// The one fact that is a real column rather than an attribute, because
-// db/lib/indoors.js and db/lib/mounts.js both act on it. It reads as an
-// attribute here even though it is not stored as one.
+// Does arriving here park a mount at the door? A real column rather than an
+// attribute, because db/lib/indoors.js and db/lib/mounts.js both act on it —
+// with the `wheels` key above as the one authored exception to it.
+//
+// Every reader that asks "may a cart be out here" goes through this rather
+// than the column, so the Factory, Customs and the Depot cannot admit a wagon
+// on one surface and refuse it on another. The readers that ask about the
+// ROOF — the mood dial, Sun Sensitivity, whether anything can be built — keep
+// reading `indoors` straight, which is the whole point of the split.
+function parksMounts(location) {
+  return Boolean(location?.indoors) && !hasAttribute(location, WHEELS_ATTRIBUTE);
+}
+
+// The placement half of the Examine readout. It reads as an attribute here
+// even though the column is not stored as one.
 //
 // Both halves print. Silence outdoors would have meant the rule was only ever
-// stated in the place it bites, which is the worst moment to learn it.
+// stated in the place it bites, which is the worst moment to learn it. A
+// `wheels` Location says nothing at all: the attribute line above has already
+// said it, and saying it twice would read as an argument.
 function placementLine(location) {
+  if (hasAttribute(location, WHEELS_ATTRIBUTE)) return null;
   return location?.indoors
     ? "**Indoors**: you can't equip a cart or horse here."
     : "**Outdoors**: you can use your horse or cart here.";
@@ -265,6 +294,8 @@ module.exports = {
   SAFE_ATTRIBUTE,
   WILDERNESS_ATTRIBUTE,
   HAVEN_ATTRIBUTE,
+  WHEELS_ATTRIBUTE,
+  parksMounts,
   depotLines,
   structureLines,
   ATTRIBUTES,

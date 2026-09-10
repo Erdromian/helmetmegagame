@@ -14,12 +14,12 @@
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
 const { seatZoneIdFor } = require("./seatZone");
-const { rollCavingOnArrival } = require("./cavingPass");
+const { rollCavingOnArrival, cavingHoldFor, cavingHeldIds } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
 const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, STOWABLE_SLUGS } = require("./mounts");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
-const { heldReasonFor, fireWatches } = require("./intercept");
+const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
 const { linkBetween, crossingCheck } = require("./locationGraph");
 const { dismountForNarrowWay } = require("./indoors");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
@@ -48,8 +48,11 @@ const CHARACTER_SELECT = {
   travelToLocationId: true,
   travelTurnId: true,
   // The hold. One timestamp, read by heldReasonFor() at the top of
-  // performLocationMove and again per follower (INTERCEPT.md).
+  // performLocationMove and again per follower (INTERCEPT.md), and the word
+  // for WHICH thing has hold of them — a select carrying one without the
+  // other tells an attacked player they were ambushed (ATTACK.md §1).
   heldUntil: true,
+  heldReason: true,
   // `name` rides along for stowedMounts(), which puts it in a sentence.
   tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
 };
@@ -326,6 +329,14 @@ async function performLocationMove(prisma, character, targetLocation) {
 
   let openTurn = null;
   if (crossedZone) {
+    // An unresolved 1 on the Caving Die pins them where it happened until a GM
+    // has adjudicated it (docs/systemdocs/CAVING.md §2c). Inside this branch
+    // and not beside the heldReasonFor gate above, because this one takes the
+    // way OUT of the zone and nothing else — walking the level is still free,
+    // which is also what lets a party regroup while they wait.
+    const cavingHold = await cavingHoldFor(prisma, character.id, currentLocation.zoneId);
+    if (cavingHold) return { ok: false, reason: cavingHold };
+
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
   }
@@ -394,6 +405,12 @@ async function performLocationMove(prisma, character, targetLocation) {
       const party = await partyOf(prisma, character.id, { tx });
       if (party.length > 0) {
         const mover = await tx.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });
+        // Which of them the Caving Die has hold of. One query for the whole
+        // party rather than one per follower, and only on a crossing, since
+        // that is the only thing the hold takes.
+        const cavingHeld = crossedZone
+          ? await cavingHeldIds(tx, party.map((row) => row.id), currentLocation.zoneId)
+          : new Set();
         const coming = [];
         for (const row of party) {
           // Held where they stand. A follower is walked by an updateMany and
@@ -407,6 +424,17 @@ async function performLocationMove(prisma, character, targetLocation) {
           // plain to see. Ordered the other way, they never hear it.
           if (heldReasonFor(row)) {
             outcome.leftBehind.push({ row, reason: "held" });
+            continue;
+          }
+          // The Die has hold of them, same shape and the same reason: a
+          // follower never comes past the mover's own gate, so without this
+          // line a friend carries the caver out of their own unadjudicated
+          // encounter. Its own reason rather than "held", which is the
+          // intercept's word and buys a line of copy this does not need — an
+          // unknown reason falls through to the plain "couldn't follow"
+          // everywhere it is read.
+          if (cavingHeld.has(row.id)) {
+            outcome.leftBehind.push({ row, reason: "caving" });
             continue;
           }
           if (!escortAuthority(mover, row)) {
@@ -568,9 +596,17 @@ async function performLocationMove(prisma, character, targetLocation) {
       // hand on a shoulder (INTERCEPT.md); you cannot keep one from the next
       // zone. One of the three writers that ends a hold early — the other two
       // are the holder's own Release and their death.
+      //
+      // A FIGHT is not this clear's to end, the releaseHeldBy rule: heldById
+      // names one opponent and a brawl has several, so a blind clear would
+      // free somebody out of a fight that is still going. A held character
+      // cannot walk anyway, so this never has a fight in front of it — the
+      // guard is here because the day it does, it must not fire.
+      // db/lib/attack.js#closeFightsFor is the writer for that, off every
+      // relocation (db/lib/locationMove.js).
       await tx.character.updateMany({
-        where: { heldById: character.id, heldUntil: { gt: now } },
-        data: { heldUntil: null, heldById: null },
+        where: { heldById: character.id, heldUntil: { gt: now }, ...NOT_A_FIGHT },
+        data: { heldUntil: null, heldById: null, heldReason: null },
       });
 
       if (outcome.partyRows.length > 0 || outcome.leftBehind.length > 0) {

@@ -20,7 +20,7 @@ import {
   unitsAffordable,
 } from "@/lib/craftBudget";
 import { heldSlugsOf } from "@/lib/consumeGrants";
-import { CUSTOM_SURCHARGE, customCraftFields } from "@/lib/customCraft";
+import { customCraftFor } from "@/lib/customCraft";
 import {
   craftRequest,
   continueCraft,
@@ -69,6 +69,12 @@ export default function CraftAction({ presets, onDone, onClose }) {
   const [projectChoice, setProjectChoice] = useState("continue");
   // Which member of a recipe's `anyOf` ingredient goes in.
   const [ingredientChoice, setIngredientChoice] = useState("");
+  // The slugs a cook slotted, in order, on a recipe with `ingredientSlots`
+  // (docs/systemdocs/COOKING.md). Deliberately NOT folded into
+  // ingredientChoice above: that one is a single pick from a list the recipe
+  // wrote down, and this is an ordered set out of a catalog the recipe says
+  // nothing about. A recipe never carries both.
+  const [ingredientChoices, setIngredientChoices] = useState([]);
   // The custom-item fields on a `customizable` recipe, and the builder's
   // line on an inscribable placement (CRAFTING.md). Raw as typed — the
   // shared cleaner (web/lib/customCraft.js) decides what they amount to, on
@@ -117,6 +123,32 @@ export default function CraftAction({ presets, onDone, onClose }) {
     (ingredientPick?.options.length === 1
       ? ingredientPick.options[0].slug
       : "");
+
+  // COOKING (docs/systemdocs/COOKING.md). Deliberately NOT given the auto-pick
+  // above: slotting a cook's only onion into a Fine Meal because it was the
+  // only thing they were carrying would spend it without being asked. An
+  // optional slot has to stay empty until somebody clicks it.
+  const ingredientSlots = chosen?.requirementIngredientSlots ?? null;
+  // Everything on this sheet that can go in a pot: a `cooked` block is the
+  // whole membership rule, and the block reaching the browser has already
+  // been cut to its taste server-side (web/lib/referenceData.js).
+  //
+  // Computed off the sheet rather than off the chosen recipe, because
+  // recipeBlocked below has to answer for EVERY recipe in the menu, including
+  // the ones nobody has clicked yet.
+  const cookables = useMemo(
+    () =>
+      characterTags
+        .filter((ct) => ct.tag?.cooked && ct.tag.slug)
+        .map((ct) => ({
+          slug: ct.tag.slug,
+          name: ct.tag.name,
+          taste: ct.tag.cooked.taste ?? "",
+          held: ct.quantity ?? 1,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [characterTags],
+  );
 
   // --- Craft's Move budget ------------------------------------------------
   //
@@ -192,6 +224,12 @@ export default function CraftAction({ presets, onDone, onClose }) {
         if (!held)
           return `You don't have the ${item.label || "ingredients"} it uses.`;
       }
+      // A recipe that REQUIRES an ingredient is unpickable with an empty
+      // pantry. One that merely offers a slot never is — a Fine Meal with
+      // nothing in it is still a Fine Meal.
+      if ((tag.requirementIngredientSlots?.min ?? 0) > 0 && !cookables.length) {
+        return "You don't have any ingredients.";
+      }
       if (!hasMoved) return null;
       const cost = priceRecipe(tag, 1);
       if (cost.kind === "free" || affordsMove(cost)) return null;
@@ -206,7 +244,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
       if (!craftBudget) return "You've already used your Move this turn.";
       return "There isn't enough of your Move left for that.";
     },
-    [hasMoved, craftBudget, priceRecipe, affordsMove, heldBySlug],
+    [hasMoved, craftBudget, priceRecipe, affordsMove, heldBySlug, cookables],
   );
   const craftQuantityMax = useMemo(() => {
     if (mode !== "craft" || !chosen) return 99;
@@ -216,6 +254,12 @@ export default function CraftAction({ presets, onDone, onClose }) {
       const slug = item.kind === "anyOf" ? ingredientChoiceValue : item.slug;
       if (!slug) continue;
       max = Math.min(max, Math.floor((heldBySlug.get(slug) ?? 0) / (item.count ?? 1)));
+    }
+    // A slotted ingredient is spent once per unit of the batch, so a stack of
+    // two caps the order at two. Duplicate slots are refused server-side, so
+    // each slug counts once.
+    for (const slug of ingredientChoices) {
+      max = Math.min(max, heldBySlug.get(slug) ?? 0);
     }
     const per = craftAllowances[chosen.id]?.per ?? null;
     const left = craftAllowances[chosen.id]?.left ?? 0;
@@ -247,6 +291,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
     chosen,
     heldBySlug,
     ingredientChoiceValue,
+    ingredientChoices,
     craftAllowances,
     craftRemaining,
   ]);
@@ -255,6 +300,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
     setTagId(nextTagId);
     setQuantity("1");
     setIngredientChoice("");
+    setIngredientChoices([]);
     setCustomName("");
     setCustomDescription("");
     setInscription("");
@@ -266,13 +312,9 @@ export default function CraftAction({ presets, onDone, onClose }) {
     if (!projectId && !siteId && chosen) {
       const turns = chosen.requirementTurns ?? 1;
       const qty = craftQty;
-      // The same price craftRequestImpl charges: custom words are
-      // +CUSTOM_SURCHARGE ⬢ a unit, and the confirm must not quote less.
-      const surcharge =
-        chosen.customizable &&
-        customCraftFields({ customName, customDescription }).active
-          ? CUSTOM_SURCHARGE
-          : 0;
+      // The same price craftRequestImpl charges, so the confirm can never
+      // quote less than the bill (web/lib/customCraft.js).
+      const { surcharge } = customCraftFor(chosen, { customName, customDescription });
       const cost = ((chosen.requirementResources ?? 0) + surcharge) * qty;
       const what = qty > 1 ? `${qty}× ${chosen.name}` : chosen.name;
       // What this costs of the Move, in the player's words. Three shapes: it
@@ -387,6 +429,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
       customDescription,
       inscription,
       ingredientChoice: ingredientChoiceValue,
+      ingredientChoices,
       // What the confirm just showed as billable against the Move — 0
       // when it read as free. The server refuses to bill past this, so a
       // stale tab gets a retry instead of a silent Move charge.
@@ -412,13 +455,11 @@ export default function CraftAction({ presets, onDone, onClose }) {
     if (!chosen) return false;
     // A recipe with a pick and nothing to pick from cannot be made at all.
     if (ingredientPick && !ingredientChoiceValue) return false;
-    // Custom words are +CUSTOM_SURCHARGE ⬢ a unit — the same shared
-    // verdict the server bills by (web/lib/customCraft.js).
-    const surcharge =
-      chosen.customizable &&
-      customCraftFields({ customName, customDescription }).active
-        ? CUSTOM_SURCHARGE
-        : 0;
+    // A Lavish Meal needs something in it. A Fine Meal's slot is optional, so
+    // min 0 never blocks (docs/systemdocs/COOKING.md).
+    if (ingredientChoices.length < (ingredientSlots?.min ?? 0)) return false;
+    // Same verdict again (web/lib/customCraft.js).
+    const { surcharge } = customCraftFor(chosen, { customName, customDescription });
     const cost = ((chosen.requirementResources ?? 0) + surcharge) * craftQty;
     // A 0-turn craft inside its free allowance never needed a Move and
     // still doesn't; everything else has to fit in what the turn has left
@@ -480,6 +521,16 @@ export default function CraftAction({ presets, onDone, onClose }) {
           // and 1 honey), so switching resets the count rather than
           // stranding a 5 over a max of 1.
           setIngredientChoice(slug);
+          setQuantity("1");
+        }}
+        ingredientSlots={ingredientSlots}
+        cookables={cookables}
+        ingredientChoices={ingredientChoices}
+        onIngredientChoices={(slugs) => {
+          // Same reasoning as the pick above: the count is capped by the
+          // scarcest thing in the pot, so slotting resets it rather than
+          // stranding a 5 over a stack of 1.
+          setIngredientChoices(slugs);
           setQuantity("1");
         }}
         customName={customName}

@@ -113,6 +113,8 @@ const R = {
   request_destroy_tag: (d) => [actor(), t("destroyed"), chip(d.tagName), qty(d.quantity)],
   request_consume_tag: (d) => [
     actor(), t("consumed"), chip(d.tagName),
+    ...(d.administered ? [t("on"), target()] : []),
+    ...(d.cured?.length ? [t("curing"), ...joinChips(d.cured.map((c) => c.tagName))] : []),
     ...(d.granted?.length ? [t("for"), ...joinChips(d.granted)] : []),
     ...(d.resourcesGranted ? [t("and"), res(d.resourcesGranted)] : []),
   ],
@@ -154,6 +156,11 @@ const R = {
     ...(d?.locationName ? [t("at"), em(d.locationName)] : []),
   ],
   request_intercept_released: () => [actor(), t("let"), target(), t("go")],
+  // Attack (docs/systemdocs/ATTACK.md). An ambush that fired writes its own
+  // request_intercept_fired row above and no second one here, so these two are
+  // the button only.
+  request_attack_filed: () => [actor(), t("attacked"), target()],
+  request_attack_cancelled: () => [actor(), t("broke off from"), target()],
   request_loot_resources: (d) => [actor(), t("looted"), res(d.amount ?? d.resources), t("from"), target()],
   request_transfer_resources: (d) => [actor(), t("sent"), res(d.amount ?? d.resources), t("to"), target()],
   request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName), qty(d.quantity), t("from"), em(d.fromName)],

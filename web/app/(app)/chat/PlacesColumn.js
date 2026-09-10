@@ -3,7 +3,7 @@
 import { memo, useEffect, useRef } from "react";
 import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
-import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
+import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 import { useFolded } from "./sectionFold";
 
@@ -12,6 +12,7 @@ import { useFolded } from "./sectionFold";
 //
 //   MESSAGES       Bascinet — the DM conversation, a pseudo-place (./DmPane.js)
 //   SUMMARY        the zone's own channel — the widest room
+//   RADIO          the frequencies you are carrying a radio for
 //   HERE           the Location you are standing in — scenery, not speech
 //   ROOMS          the public rooms off it, then the private ones you can open
 //   CONVERSATIONS  the private threads you are in
@@ -27,6 +28,8 @@ function glyph(place) {
   if (place.kind === "loc") return "▸";
   if (place.kind === "conv") return "»";
   if (place.kind === "zone") return "▤";
+  // A radio net: nowhere at all, carried in your pack (db/lib/specialChannels.js).
+  if (place.kind === "net") return "∿";
   // The faction is a pseudo-place: a banner, not a door. It has no channel —
   // the panel it opens is a roster (./FactionPanel.js).
   if (place.kind === "faction") return "⚑";
@@ -49,6 +52,7 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
       type="button"
       className="chat-place"
       data-active={active ? "true" : "false"}
+      data-unread={unread ? "true" : undefined}
       onClick={() => onSelect(place.placeKey)}
     >
       <span className="chat-glyph" aria-hidden="true">
@@ -130,11 +134,14 @@ export default function PlacesColumn({
   // The push toggle beside the bell. Null on a browser with no PushManager,
   // and on a deployment with no VAPID keys set (CHAT.md §5a).
   push = null,
+  // The tick beside them: everything caught up at once. Null hides it.
+  onMarkAllSeen = null,
 }) {
   const here = places.filter((p) => p.kind === "loc");
   const rooms = places.filter((p) => p.kind === "room");
   const conversations = places.filter((p) => p.kind === "conv");
   const summary = places.filter((p) => p.kind === "zone");
+  const nets = places.filter((p) => p.kind === "net");
   const faction = places.filter((p) => p.kind === "faction");
   const messages = places.filter((p) => p.kind === "dm");
 
@@ -145,6 +152,10 @@ export default function PlacesColumn({
           lands, so it sits where a glance finds it (CHAT.md §2b). */}
       <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Summary" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      {/* The frequencies, beside the other channel that is not a room you are
+          standing in. A radio goes where you go, so it sits above the street
+          rather than inside it. */}
+      <Section title="Radio" places={nets} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Here" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Rooms" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section
@@ -184,6 +195,15 @@ export default function PlacesColumn({
             onClick={push.onToggle}
           />
         )}
+        {onMarkAllSeen && (
+          /* A bare .icon-btn rather than IconButton: that wrapper draws a
+             Tooltip from its label, and this column carries none. The
+             aria-label is the button's accessible NAME — without it a screen
+             reader announces an empty button — and is not copy anybody sees. */
+          <button type="button" className="icon-btn" aria-label="Mark all read" onClick={onMarkAllSeen}>
+            <CheckIcon width="15" height="15" />
+          </button>
+        )}
         {webOnly && <span className="chip chat-webonly">Playing from the web</span>}
       </div>
     </nav>
@@ -211,22 +231,26 @@ export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
   }, [selected]);
   return (
     <div ref={stripRef} className="tab-bar chat-tabs" role="tablist" aria-label="Places">
-      {places.map((place) => (
-        <button
-          key={place.placeKey}
-          type="button"
-          role="tab"
-          className="tab-item"
-          aria-selected={place.placeKey === selected}
-          data-active={place.placeKey === selected ? "true" : "false"}
-          onClick={() => onSelect(place.placeKey)}
-        >
-          {place.name}
-          {place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place)) && (
-            <span className="chat-dot" aria-label="Unread" />
-          )}
-        </button>
-      ))}
+      {places.map((place) => {
+        // Computed once so the attribute and the dot cannot disagree — the
+        // column's own rows read the same pair off `unreadOf`.
+        const unread = place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place));
+        return (
+          <button
+            key={place.placeKey}
+            type="button"
+            role="tab"
+            className="tab-item"
+            aria-selected={place.placeKey === selected}
+            data-active={place.placeKey === selected ? "true" : "false"}
+            data-unread={unread ? "true" : undefined}
+            onClick={() => onSelect(place.placeKey)}
+          >
+            {place.name}
+            {unread && <span className="chat-dot" aria-label="Unread" />}
+          </button>
+        );
+      })}
     </div>
   );
 }

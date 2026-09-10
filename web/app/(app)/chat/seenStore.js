@@ -140,14 +140,42 @@ export function seedSeenIfFresh(entries) {
     for (let i = 0; i < window.localStorage.length; i += 1) {
       if (window.localStorage.key(i)?.startsWith(PREFIX)) return;
     }
+  } catch {
+    return;
+  }
+  markAllSeen(entries);
+}
+
+// Everything caught up at once, off the tick in the places column's foot.
+//
+// The same write seedSeenIfFresh makes, without its empty-slate guard —
+// coming back to a hundred lit channels you do not intend to open one by one
+// is the case this exists for.
+//
+// FORWARD ONLY, per place, the rule markSeen states: a caller handing over a
+// stale seq for one place must not un-read it. One emit at the end rather
+// than one per place, so a hundred rows repaint once.
+export function markAllSeen(entries) {
+  if (!Array.isArray(entries) || entries.length === 0) return;
+  let wrote = false;
+  try {
     for (const entry of entries) {
       if (!entry?.placeKey || !entry.seq) continue;
-      window.localStorage.setItem(`${PREFIX}${entry.placeKey}`, String(entry.seq));
+      const key = `${PREFIX}${entry.placeKey}`;
+      const current = window.localStorage.getItem(key);
+      try {
+        if (current && BigInt(current) >= BigInt(entry.seq)) continue;
+      } catch {
+        // An unparseable mark left by an older build is not a reason to
+        // refuse the write; overwrite it with something that does parse.
+      }
+      window.localStorage.setItem(key, String(entry.seq));
+      wrote = true;
     }
   } catch {
     return;
   }
-  emit();
+  if (wrote) emit();
 }
 
 export function useSeen() {

@@ -66,13 +66,31 @@ Farming in a zone with no location-specific table still draws from Global,
 `db/lib/laborDrops.js#scopeFilters` is the one place this is expressed, and
 `db/test/laborDrops.test.js` pins its exact output.
 
-The combined pool is drawn from **uniformly** — every entry has the same
-chance, whatever scope it came from. There is no separate weight field;
-**repeat an entry to weight it**, the way the seeded fishing and farming
-tables repeat `nothing` to make a miss more likely than a find. This is a
-deliberate simplicity choice: a weight column is easy to add later
-(`LaborDropOption.weight` alongside a change to `pickLaborDropOption`'s draw)
-if repetition ever stops being expressive enough.
+The combined pool is drawn from in **two stages**, the shape
+`db/lib/cavingLoot.js` has always had: land on a **rarity band** by the die
+face's column, then pick evenly among that band's members.
+`db/lib/labordropsRarity.js` owns the columns and the arithmetic.
+
+Every find carries a rarity — `ultracommon`, `common`, `uncommon`, `rare`,
+`extremely-rare`, `nearly-impossible`, the same six names caving uses, though
+not the same numbers. Two structural bands sit outside the ladder: `nothing`
+(the pool missed) and `resources` (a ⬢ delta, which is not an item and has no
+business competing on a rarity scale).
+
+**Rarity is absolute.** A `rare` entry is worth its band's share whatever else
+happens to be authored beside it. The bands nobody authored hand their share
+to the commonest *tier* present — never to `resources`, which would otherwise
+become the likeliest outcome of half the table. That is what stops one bucket
+diluting another: adding a local table no longer steals probability from the
+global one, which is why the obol is now a real chance for a cave fisher
+instead of a 1-in-23.
+
+This replaced **repeat-to-weight**, where an entry's odds came from how many
+times it had been copy-pasted. That cost three things: nothing could be rarer
+than 1/poolsize (a 0.1% find needed ~150 duplicate lines), every bucket had to
+carry its own `nothing` pad or stacking raised the wound rate, and 87 of the
+file's 180 lines were duplicates. A repeated entry is now simply a mistake and
+the sync refuses it.
 
 ### 2a. The seventh gate: `requiredTag`
 
@@ -334,8 +352,8 @@ always 2-5) is a real, counted **zero** in that sum, not a face left out of
 it. A pool authored only at rolls 1 and 6 does NOT average those two
 numbers together; four of the six faces produce nothing, and they belong in
 the denominator. `hills-waterway`'s fishing table is the worked example:
-roll 6 alone pools to `EV 3.88 ⬢`, but the actual value of fishing there is
-`3.88 / 6 ≈ 0.65 ⬢` per Labor, because five of every six attempts land on a
+roll 6 alone pools to `EV 2.31 ⬢`, but the actual value of fishing there is
+`2.31 / 6 ≈ 0.38 ⬢` per Labor, because five of every six attempts land on a
 face (1-5) that gives nothing or (on this table) only the Global roll-1
 mishaps. Hit rate in the rollup is the same kind of number: the share of
 **all six faces**, not just the configured ones, that produce something.
@@ -380,35 +398,42 @@ written, or the tool's own prior output) is left alone rather than wrapped
 into a fake blurb, which is what stops a plain refresh from ever duplicating
 itself into `sells 4 ⬢ — sells 4 ⬢`.
 
-## 7. The pads on face 1
+## 7. Missing on face 1
 
-Every roll-1 bucket carries its own `nothing` entries, and the fraction
-deepens as buckets stack: `global` 30%, `laborType.hunting` 40%, every zone
-and cross bucket 50%.
+**The pads are gone.** Every roll-1 bucket used to carry its own `nothing`
+entries, deepening as buckets stacked — `global` 30%, `laborType.hunting` 40%,
+every zone and cross bucket 50% — because the draw was uniform over the
+concatenation and the pooled no-wound rate was the size-weighted average of
+whatever happened to be stacked. That made "add a wound and you must add pad
+with it" a real rule, and forgetting it quietly raised the wound rate
+everywhere the bucket applied. 53 of the file's 180 entries were pad.
 
-This is not decoration, and it is the thing most easily broken by a
-well-meaning edit. The draw is uniform over the **concatenation** of whichever
-buckets match (§2), so the pooled no-wound rate is the size-weighted average of
-the contributing buckets' own rates. Pad only `global` and a hunter in the
-Depths — who pools four buckets — is back to "a 1 always hurts", which is
-exactly the character who least deserves it. The deepening pads are why a
-Depths hunter is slightly *safer* per 1 (42% clean) than a labourer in Town
-(30%): the dangerous places add more entries, so they need more silence in them
-to stay level.
+How often a roll misses is now **one number in the face's column**
+(`db/lib/labordropsRarity.js`): 45% on a 1, 15% on a 6, never on a 5. A pool
+says `nothing` once to opt in, or leaves it out to say a roll here always
+lands. The sync refuses a second one.
 
-**Adding a wound to a roll-1 bucket means adding pad with it.** Otherwise you
-have quietly raised the wound rate everywhere that bucket applies.
+The trade, made deliberately: **a zone can no longer be more dangerous than
+another by missing less often.** The Marshes and the Forest miss equally; what
+distinguishes them is *which* wound they deal — the Marshes reach for
+`deep-wound` and `grievous-wound`, the Forest for a sprained ankle. Severity
+carries the danger now, not frequency.
 
 Where it currently lands, per Labor:
 
 | Situation | No wound on a 1 | Wound | Severe | Grievous |
 |---|---|---|---|---|
-| Basic/Skilled, quiet zone | 30% | 11.7% | — | — |
-| Hunting, Forest | 35% | 10.8% | — | — |
-| Hunting, Forest Cliffs | 40% | 10.0% | 1.1% | — |
-| Hunting, Marshes / Depths | 42% | 9.6% | 2.1% | 0.42% |
-| Hunting, Black Hills | 42% | 9.6% | 0.4% | — |
-| Basic labor, Marshes / Depths | 40% | 10.0% | 1.7% | — |
+| Basic/Skilled, quiet zone | 45% | 9.2% | — | — |
+| Hunting, Forest | 45% | 9.2% | — | — |
+| Hunting, Forest Cliffs | 45% | 7.6% | 1.6% | — |
+| Hunting, Marshes / Depths | 45% | 7.4% | 1.6% | 0.2% |
+| Hunting, Black Hills | 45% | 7.6% | 1.6% | — |
+| Basic labor, Marshes / Depths | 45% | 7.6% | 1.6% | — |
+
+The clean column is **45% everywhere now**, where it used to run 30-42% and
+rise with how many buckets you stacked. That is the pads going: the miss rate
+is the face's, not an emergent average of whatever was authored. Standing
+somewhere dangerous no longer changes how *often* a 1 bites, only how hard.
 
 Every wound carries the catalog's `durationTurns` (2-4) onto the grant, so
 these all clear on their own — see `laborDrop.apply`'s own comment for why
@@ -417,7 +442,10 @@ that has to be stamped at grant time rather than read back from the catalog.
 ## 8. The Depths corpse table
 
 `laborTypeZone.hunting.depths` configures faces **5 and 6** with one pool:
-`skinless-corpse` ×3, `nekker-corpse` ×3, `graga-corpse` ×3, `aberrant-heart` ×1.
+three `common` corpses — `skinless-corpse`, `nekker-corpse`, `graga-corpse` —
+and an `extremely-rare` `aberrant-heart`. It used to say the same thing by
+writing each corpse three times and the heart once; the rarity says it in a
+word, and the heart is properly rare now rather than one line in ten.
 
 Zone-scoped rather than repeated across six Locations because
 `laborAccess.js#resolveLaborRate` refuses a tier whose location coefficient is
@@ -453,3 +481,33 @@ turn close (`TURN-ENGINE.md` §8b), shedding to a Depths room only past the
 | The auto-refresh hook | `.claude/hooks/labordrops-value-hint.py` |
 | Combine-scope tests | `db/test/laborDrops.test.js` |
 | Cascading-EV / annotator tests | `db/test/labordropsAnnotate.test.js` |
+
+
+## 8. Laboring (Scavenging) redraws an empty face
+
+Laboring (Scavenging) (a mastery, `TAGS.md` §4a) redraws on the **6's pool**
+when a rolled 4 or 5 finds **an empty one** — `pickLaborDropOption` in
+`db/lib/laborDrops.js`, where the pool is already in hand.
+
+The empty-pool test is the rule, not a detail. This shipped first as a blanket
+`4/5 → 6` remap, which was written when faces **1 and 6 were the only ones
+configured anywhere**. Prospecting (2026-09-19) filled in 2, 4 and 5, and the
+blanket remap immediately became a **downgrade**:
+
+| labor type | configured faces | what a blanket remap cost |
+|---|---|---|
+| hunting | 1, 6 | nothing |
+| farming | 6 | nothing |
+| fishing | **4** (EV 10 ⬢), 6 (EV 1.56) | traded 10 ⬢ for 1.56 |
+| prospecting | **2, 4, 5**, 6 | traded face 5's 8 ⬢ for 6.75 |
+
+Falling back only from a face that would otherwise pay **nothing** gives the
+same answer as the old rule everywhere the old rule was right, can never take a
+configured payout away, and stays true on its own as the rest of the table gets
+built out — no per-face bookkeeping to keep in step.
+
+**A 1 is still left alone.** The tag says a *good* day is never an injury, not
+that a bad one stops happening.
+
+Lucky stacks on top and is applied first (`db/lib/advantage.js`): two dice,
+better one kept, and only then the fallback.

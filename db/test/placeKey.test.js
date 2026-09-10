@@ -1,0 +1,51 @@
+// The place-key grammar, and the one kind whose id is not a row id.
+//
+// WHAT A FAILURE HERE MEANS. A place key is the string both faces agree on for
+// WHERE something was said. If `net:` stops parsing, a radio net silently
+// leaves the /chat column, the feed stops subscribing to it, and — worst — the
+// outbox stops relaying a web-typed line to Discord, so half a conversation
+// happens on each face and nobody is told.
+//
+// `net:27.065` is the case worth pinning: every other kind's id is a cuid, and
+// this one is a registry slug WITH A DOT IN IT. parsePlaceKey splits on the
+// FIRST colon precisely so an id may contain anything but that.
+const test = require("node:test");
+const assert = require("node:assert/strict");
+
+const {
+  placeKeyForNet,
+  placeKeyForZone,
+  parsePlaceKey,
+  isScenePlaceKey,
+} = require("../lib/placeKey");
+const { SPECIAL_CHANNELS } = require("../lib/specialChannels");
+
+test("a net key round-trips, dot and all", () => {
+  const key = placeKeyForNet("27.065");
+  assert.equal(key, "net:27.065");
+  assert.deepEqual(parsePlaceKey(key), { kind: "net", id: "27.065" });
+});
+
+test("every registered special channel has a parseable key", () => {
+  for (const entry of SPECIAL_CHANNELS) {
+    const parsed = parsePlaceKey(placeKeyForNet(entry.slug));
+    assert.ok(parsed, `${entry.slug} produced an unparseable place key`);
+    assert.equal(parsed.kind, "net");
+    assert.equal(parsed.id, entry.slug, "the id must be the slug the registry uses");
+  }
+});
+
+test("the four older kinds still parse, and a bogus kind still does not", () => {
+  assert.deepEqual(parsePlaceKey("zone:abc123"), { kind: "zone", id: "abc123" });
+  assert.equal(parsePlaceKey("nets:abc"), null);
+  assert.equal(parsePlaceKey("net:"), null);
+  assert.equal(parsePlaceKey("net"), null);
+  assert.equal(parsePlaceKey(null), null);
+});
+
+test("a radio net is not a scene", () => {
+  // shout, play and roll are things you do in a room you are standing in.
+  // You cannot shout across a frequency.
+  assert.equal(isScenePlaceKey(placeKeyForNet("27.065")), false);
+  assert.equal(isScenePlaceKey(placeKeyForZone("abc123")), false);
+});

@@ -50,6 +50,14 @@ const SEEN_BY_OTHERS = {
   ALWAYS: "Yes",
 };
 
+// Tag.cures — a flat list of slugs, not the { oneOf } chain shape chainTokens
+// takes: an item cures everything on the list that the target happens to hold,
+// not a random pick between them (the medical pass, TAGS.md §5c).
+function curesTokens(cures) {
+  if (!Array.isArray(cures) || !cures.length) return null;
+  return cures.map((slug) => `{tag:${slug}}`).join(" and ");
+}
+
 function Meta({ label, children }) {
   return (
     <>
@@ -74,6 +82,11 @@ export default function TagDetails({
   children = null,
   // The name row is the chip's own face on a row, so the row can drop it.
   showName = true,
+  // "· smells wrong" (the medical pass, M4) — whether THIS held stack is
+  // actually poisoned, already gated server-side to poison-sense / poison-
+  // snooper holders before it reaches a client. Never the raw poisonedCount
+  // or which poison: only the yes/no doctor's-eye read.
+  poisonMarker = false,
 }) {
   const stack = quantity > 1 ? quantity : null;
   const requirement = formatTagRequirement(tag);
@@ -84,6 +97,7 @@ export default function TagDetails({
   const fit = describeEquipFit(tag);
   const becomes = chainTokens(tag.expiresInto);
   const treated = chainTokens(tag.removesInto);
+  const cures = curesTokens(tag.cures);
 
   return (
     <>
@@ -92,6 +106,7 @@ export default function TagDetails({
           <strong>
             {tag.name}
             {stack ? ` ×${stack}` : ""}
+            {poisonMarker && <span className="text-muted"> · smells wrong</span>}
           </strong>
           {(tag.group?.name || tag.category) && (
             <span className="text-muted whitespace-nowrap text-xs">
@@ -116,6 +131,13 @@ export default function TagDetails({
         {treated && (
           <Meta label="Treated">
             <ChipText text={treated} inTooltip={inTooltip} />
+          </Meta>
+        )}
+        {/* What this item cures when consumed or administered (the medical
+            pass, TAGS.md §5c). */}
+        {cures && (
+          <Meta label="Cures">
+            <ChipText text={cures} inTooltip={inTooltip} />
           </Meta>
         )}
         {/* Labelled, not bare: formatTagRequirement's leading "1t" is turns of

@@ -10,9 +10,11 @@
 const { recordArchiveEvent } = require("./archive");
 const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
-const { CATATONIC_SLUG, GIBBED_SLUG } = require("./constants");
 const { SEAT_TAG_SLUGS } = require("./threats");
 const { applyMood } = require("./mood");
+const { CATATONIC_SLUG, GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
+const { NOT_A_FIGHT } = require("./intercept");
+const { closeFightsFor } = require("./attack");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
 // was no longer ALIVE, in which case NOTHING else was written: the update's
@@ -89,6 +91,14 @@ async function vaporizeTags(prisma, characterId) {
 }
 
 async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE", gib = false } = {}) {
+  // Read BEFORE the claim, and off the database rather than off `character`:
+  // callers pass rows of every shape (most carry no tags at all), and a gib
+  // deletes the rows outright a few lines below, so asking afterwards would
+  // find nothing. One count, on the one tag that changes what a death means.
+  const reborn = await prisma.characterTag
+    .count({ where: { characterId: character.id, tag: { slug: METEMPSYCHOSIS_SLUG } } })
+    .catch(() => 0);
+
   const claimed = await prisma.character.updateMany({
     where: { id: character.id, status: expectStatus },
     // travelTo* cleared with it: dying on the road ends the journey, and the
@@ -137,10 +147,22 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   // holder's own Release and the holder walking away. Their OWN heldUntil is
   // deliberately left alone, for the same reason escortedById is: it costs a
   // corpse nothing, and it lapses on its own anyway.
+  // A FIGHT comes off first, and it comes off through the row rather than
+  // through heldById (docs/systemdocs/ATTACK.md §2). Both ends of it: a dead
+  // attacker holds nobody, and a dead target is holding nobody either — and a
+  // row left live on the far side would go on pinning the survivor for the
+  // rest of the turn, because settleHold would keep finding it. Stamped rather
+  // than deleted, the same as breaking off: it happened.
+  await closeFightsFor(prisma, character.id).catch((err) =>
+    console.error(`Failed to close fights on death for ${character.id}:`, err),
+  );
+  // The intercept holds. Guarded away from a fight for the reason
+  // releaseHeldBy is: heldById names one opponent and a brawl has several, so
+  // a blind clear here would free somebody out of a fight that is still going.
   await prisma.character
     .updateMany({
-      where: { heldById: character.id },
-      data: { heldUntil: null, heldById: null },
+      where: { heldById: character.id, ...NOT_A_FIGHT },
+      data: { heldUntil: null, heldById: null, heldReason: null },
     })
     .catch((err) => console.error(`Failed to release held characters on death for ${character.id}:`, err));
   await prisma.character
@@ -218,6 +240,20 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     zoneId: character.zoneId ?? null,
     content: content ?? `${character.name} died.`,
   });
+
+  // The soul does not wait for a body (db/lib/reincarnate.js). Last, and
+  // wrapped: everything above is what a death IS, and a failure to find the
+  // new life must not leave the old one half-buried. A null return is the
+  // ordinary outcome when no seat is free.
+  if (reborn > 0) {
+    // Required HERE, not at the top: reincarnate -> locationMove -> ... loops
+    // back to this file, and a top-level require resolves to a half-built
+    // exports object whose applyDeathToRow is undefined.
+    const { reincarnate } = require("./reincarnate");
+    await reincarnate(prisma, character, { turn }).catch(
+      (err) => console.error(`Reincarnation failed for ${character.id}:`, err.message ?? err),
+    );
+  }
 
   return { claimed: true, corpse };
 }

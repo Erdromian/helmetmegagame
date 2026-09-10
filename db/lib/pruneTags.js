@@ -50,9 +50,33 @@ function expiresIntoSlugs(entries) {
 // again (its m2m join rows cascade when the tag goes). Counting either would
 // let a retired catalog pin its own gate tag forever.
 async function collectReferences(prisma, liveGroupSlugs) {
-  const [held, parents, required, groupGates, skills, roles, documents, conflicts, desireTags, consumers, structures] =
+  const [held, poisonedCharacterCounts, poisonedRoomCounts, crateCarriers, parents, required, groupGates, skills, roles, documents, conflicts, desireTags, consumers, structures] =
     await Promise.all([
       prisma.characterTag.groupBy({ by: ["tagId"], _count: { tagId: true } }),
+      // Poison references (fix round M4b, fix 6): a poison Tag can sit at
+      // poisonedCount 0 on the sheet where it was FIRST granted (or not be
+      // held as an item at all any more) while still tainting a stack
+      // elsewhere as poisonPayload — pruning it there would leave a live
+      // dose pointing at a catalog row that no longer exists, which reads to
+      // consume/drop-path code as "not poisoned" the next time anything
+      // touches that row (a silent no-op cure, not a loud failure).
+      prisma.characterTag.groupBy({
+        by: ["poisonPayload"],
+        where: { poisonPayload: { not: null } },
+        _count: { poisonPayload: true },
+      }),
+      prisma.roomTag.groupBy({
+        by: ["poisonPayload"],
+        where: { poisonPayload: { not: null } },
+        _count: { poisonPayload: true },
+      }),
+      // A packed crate's manifest (Tag.crateContents) carries poison state
+      // per line item (packageItemsRequestImpl) — the same live-dose case,
+      // one JSON hop further away.
+      prisma.tag.findMany({
+        where: { crateContents: { not: null } },
+        select: { id: true, crateContents: true },
+      }),
       prisma.tag.findMany({ where: { parentTagId: { not: null } }, select: { id: true, parentTagId: true } }),
       prisma.tag.findMany({ where: { requiredTagId: { not: null } }, select: { id: true, requiredTagId: true } }),
       prisma.tagGroup.findMany({
@@ -108,6 +132,20 @@ async function collectReferences(prisma, liveGroupSlugs) {
   const from = (sourceId, targets) => targets.map((target) => ({ sourceId, target }));
   return {
     heldCount: new Map(held.map((h) => [h.tagId, h._count.tagId])),
+    poisonedCharacterCount: new Map(
+      poisonedCharacterCounts.map((h) => [h.poisonPayload, h._count.poisonPayload]),
+    ),
+    poisonedRoomCount: new Map(
+      poisonedRoomCounts.map((h) => [h.poisonPayload, h._count.poisonPayload]),
+    ),
+    cratePoisonRefs: crateCarriers.flatMap((t) =>
+      from(
+        t.id,
+        (Array.isArray(t.crateContents) ? t.crateContents : [])
+          .map((entry) => entry?.poisonPayload)
+          .filter(Boolean),
+      ),
+    ),
     parentOf: parents.map((t) => ({ sourceId: t.id, target: t.parentTagId })),
     requiredBy: required.map((t) => ({ sourceId: t.id, target: t.requiredTagId })),
     gates: new Set(groupGates.map((g) => g.requiredTagId)),
@@ -147,6 +185,23 @@ function blockersFor(tag, refs, survivorIds) {
   const blockers = [];
   const held = refs.heldCount.get(tag.id) ?? 0;
   if (held > 0) blockers.push(held === 1 ? "1 character holds it" : `${held} characters hold it`);
+  const poisonedChar = refs.poisonedCharacterCount.get(tag.id) ?? 0;
+  if (poisonedChar > 0) {
+    blockers.push(
+      poisonedChar === 1
+        ? "1 stack carries it as a live poison dose"
+        : `${poisonedChar} stacks carry it as a live poison dose`,
+    );
+  }
+  const poisonedRoom = refs.poisonedRoomCount.get(tag.id) ?? 0;
+  if (poisonedRoom > 0) {
+    blockers.push(
+      poisonedRoom === 1
+        ? "1 room stash carries it as a live poison dose"
+        : `${poisonedRoom} room stashes carry it as a live poison dose`,
+    );
+  }
+  if (live(refs.cratePoisonRefs, tag.id)) blockers.push("a packed crate's manifest carries it as a live poison dose");
   if (live(refs.parentOf, tag.id)) blockers.push("another tag upgrades from it (parentTag)");
   if (live(refs.requiredBy, tag.id)) blockers.push("another tag requires it (requiredTag)");
   if (refs.gates.has(tag.id)) blockers.push("it gates a TagGroup (hidden category)");

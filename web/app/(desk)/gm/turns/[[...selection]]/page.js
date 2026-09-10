@@ -10,6 +10,7 @@ import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { avatarReviewWhere } from "@lifeweb/db/lib/avatarReview";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { placementOf } from "@lifeweb/db/lib/structures";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
@@ -20,10 +21,16 @@ import {
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
   CAVING_ROLL_INCLUDE,
+  ATTACK_INCLUDE,
+  INTERCEPT_HIT_INCLUDE,
+  AVATAR_REVIEW_SELECT,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
+  attackRow,
+  interceptHitRow,
+  avatarReviewRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
 
@@ -96,6 +103,9 @@ async function FreshTurnsWorkspace({ params, userId }) {
   const [
     actions,
     cavingRolls,
+    attacks,
+    interceptHits,
+    avatarsToReview,
     stagedEffects,
     stagedMessages,
     roster,
@@ -127,6 +137,37 @@ async function FreshTurnsWorkspace({ params, userId }) {
           include: CAVING_ROLL_INCLUDE,
         })
       : [],
+    // The Other lens — everything holding somebody in place this turn
+    // (docs/systemdocs/ATTACK.md). Turn-scoped like the Caving lens above, and
+    // cancelled rows ride along rather than being filtered out: a fight
+    // somebody started and called off is still something a GM may need to know
+    // happened.
+    openTurn
+      ? prisma.attack.findMany({
+          where: { turnId: openTurn.id },
+          orderBy: { createdAt: "desc" },
+          include: ATTACK_INCLUDE,
+        })
+      : [],
+    // Its intercept half. An AMBUSH files an Attack above, so what is left
+    // here is the two-minute Safe stops.
+    openTurn
+      ? prisma.interceptHit.findMany({
+          where: { turnId: openTurn.id },
+          orderBy: { createdAt: "desc" },
+          include: INTERCEPT_HIT_INCLUDE,
+        })
+      : [],
+    // Uploaded portraits nobody has looked at yet (PORTRAITS.md §1a). NOT
+    // scoped to the open turn, unlike everything above it: a picture is not a
+    // thing that happened this turn, it is a thing that is still true — and a
+    // queue that emptied itself at every turn end would be a review surface
+    // that reviewed nothing.
+    prisma.character.findMany({
+      where: avatarReviewWhere(prisma),
+      orderBy: { avatarSetAt: "desc" },
+      select: AVATAR_REVIEW_SELECT,
+    }),
     // Open-turn staging plus every unapplied stray from earlier turns —
     // the strays feed the missed-push banner.
     prisma.stagedEffect.findMany({
@@ -245,6 +286,14 @@ async function FreshTurnsWorkspace({ params, userId }) {
 
 
   const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds }));
+
+  // The Other lens's one merged list. An Ambush is already an Attack row, so
+  // the two halves never name the same event twice.
+  const otherRows = [
+    ...attacks.map((a) => attackRow(a, { usernameById, catatonicIds })),
+    ...interceptHits.map((h) => interceptHitRow(h, { usernameById, catatonicIds })),
+    ...avatarsToReview.map((c) => avatarReviewRow(c, { usernameById, catatonicIds })),
+  ];
 
   const locationRows = stagingLocations.map((l) => ({
     id: l.id,
@@ -376,6 +425,7 @@ async function FreshTurnsWorkspace({ params, userId }) {
         stagingLocations: locationRows,
         moves: moves,
         cavingRolls: cavingRows,
+        otherRows: otherRows,
         stagedEffects: effects,
         stagedMessages: messages,
         gmProfiles: gmProfilesById,

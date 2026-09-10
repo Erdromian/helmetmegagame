@@ -89,6 +89,12 @@ Marshes Location except the factory, the farms and the marshes village), and
 `haven` marks a Location whose roof gives extra relief at turn close — the
 Inn, the Keep and the Sanctuary.
 
+A third, `wheels`, is the one authored exception to the `indoors` column: an
+indoors Location wearing it admits a cart and a horse anyway (`CARRY.md` §3).
+The Godard Factory, Customs and the Depot carry it. It changes nothing else —
+those three keep their roof for the mood dial, for Sun Sensitivity and for
+whether anything can be built in them.
+
 Every key must exist in the registry in `db/lib/locationAttributes.js`, which
 is the only module that reads the column. An unknown key is reported as a sync
 **problem** rather than dropped, because a typo would otherwise be a place that

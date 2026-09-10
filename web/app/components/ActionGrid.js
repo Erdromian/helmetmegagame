@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import ActionButton from "./ActionButton";
 import { useRequestActions } from "./RequestActionsProvider";
 import { ACTION_SECTIONS, ACTION_HELP, labelFor, reasonFor } from "./actionRegistry";
@@ -25,8 +24,6 @@ import { ACTION_SECTIONS, ACTION_HELP, labelFor, reasonFor } from "./actionRegis
 // spot rather than opening a dialog, and so is not in the registry.
 export default function ActionGrid({ variant = "rack", children = null }) {
   const actions = useRequestActions();
-  // Before the early return, so the hook count never changes between renders.
-  const [why, setWhy] = useState(null);
   if (!actions) return null;
   const { open, pools, busy } = actions;
   const columns = variant === "columns";
@@ -36,10 +33,14 @@ export default function ActionGrid({ variant = "rack", children = null }) {
     visible: section.actions.filter((a) => (a.show ? pools[a.show] : true)),
   })).filter((s) => s.visible.length > 0);
 
+  // One builder for all three frames: only the frame differs, and every one of
+  // them carries the same tooltip (label, what the verb does, why it is greyed).
+  const frame = variant === "strip" ? "strip" : columns ? "tile" : "icon";
+
   const button = (a) => (
     <ActionButton
       key={a.mode}
-      variant={columns ? "tile" : "icon"}
+      variant={frame}
       icon={a.icon}
       label={labelFor(a, pools)}
       help={ACTION_HELP[a.mode] ?? null}
@@ -52,46 +53,18 @@ export default function ActionGrid({ variant = "rack", children = null }) {
 
   if (variant === "strip") {
     return (
-      <div className="action-strip-wrap">
-        <div className="action-strip">
-          {sections.map((section) => (
-            <div
-              key={section.key}
-              className="action-strip-group"
-              role="group"
-              aria-label={section.label}
-            >
-              {section.visible.map((a) => {
-                const disabled = a.gate ? !pools[a.gate] : false;
-                const label = labelFor(a, pools);
-                return (
-                  <ActionButton
-                    key={a.mode}
-                    variant="strip"
-                    icon={a.icon}
-                    label={label}
-                    disabled={disabled}
-                    busy={busy === a.mode}
-                    onClick={() =>
-                      disabled
-                        ? setWhy({
-                            label,
-                            text: reasonFor(a, pools) ?? ACTION_HELP[a.mode] ?? null,
-                          })
-                        : (setWhy(null), open(a.mode))
-                    }
-                  />
-                );
-              })}
-            </div>
-          ))}
-          {children && <div className="action-strip-group">{children}</div>}
-        </div>
-        {why && (
-          <p className="action-strip-why" role="status">
-            <strong>{why.label}:</strong> {why.text ?? "Not something you can do right now."}
-          </p>
-        )}
+      <div className="action-strip">
+        {sections.map((section) => (
+          <div
+            key={section.key}
+            className="action-strip-group"
+            role="group"
+            aria-label={section.label}
+          >
+            {section.visible.map(button)}
+          </div>
+        ))}
+        {children && <div className="action-strip-group">{children}</div>}
       </div>
     );
   }

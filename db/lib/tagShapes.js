@@ -99,6 +99,106 @@ function validateEscalatesInto(value, { selfSlug, knownSlugs, label = "docs/tags
   }
 }
 
+// cures — the medical pass's item-cure list (TAGS.md §5c). A flat list of
+// health-tag slugs, deliberately NOT the { oneOf } chain shape expiresInto
+// and removesInto use: an item cures everything in its list that the target
+// happens to hold, not a random pick between them.
+function normalizeCures(entries, label = "docs/tags.yaml") {
+  if (entries == null) return null;
+  if (!Array.isArray(entries) || entries.some((s) => typeof s !== "string" || !s)) {
+    throw new Error(`${label}: cures must be a list of tag slugs`);
+  }
+  if (entries.length === 0) return null;
+  return [...new Set(entries)];
+}
+
+// Every cured slug has to exist and be category Health, and the carrier has
+// to be consumable — nothing else ever reaches the Consume door. Deliberately
+// NOT checked against `healable`: Forgiveness cures the untreatable
+// Shell Shocked, and that gap is the point (medicine can do what no medic
+// can).
+function validateCures(normalized, { selfSlug, knownSlugs, categoryBySlug, consumable, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  if (!consumable) {
+    throw new Error(`${label}: tag "${selfSlug}" declares cures but is not consumable — nothing would ever apply it`);
+  }
+  for (const slug of normalized) {
+    if (!knownSlugs.has(slug)) {
+      throw new Error(`${label}: tag "${selfSlug}" cures references unknown tag "${slug}"`);
+    }
+    if (categoryBySlug?.get(slug) !== "Health") {
+      throw new Error(`${label}: tag "${selfSlug}" cures "${slug}", which isn't a Health tag`);
+    }
+  }
+}
+
+// curesInto — the per-item aftermath override sidecar (prosthetics: a
+// crafted peg-leg cures missing-leg into peg-leg, a cybernetic leg leaves
+// nothing). A mapping, not a chain: { <cured-slug>: <aftermath-slug> }.
+function normalizeCuresInto(raw, label = "docs/tags.yaml") {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${label}: curesInto must be a mapping of cured slug -> aftermath slug`);
+  }
+  const entries = Object.entries(raw);
+  if (entries.length === 0) return null;
+  for (const [key, value] of entries) {
+    if (!key || typeof value !== "string" || !value) {
+      throw new Error(`${label}: curesInto entries must map a cured slug to an aftermath slug`);
+    }
+  }
+  return { ...raw };
+}
+
+// Keys must be a subset of this tag's own `cures` — an override for a slug
+// the item doesn't even cure would never fire. Values are any catalog slug,
+// same as removesInto (a prosthetic aftermath doesn't have to be Health).
+function validateCuresInto(normalized, { selfSlug, knownSlugs, cures, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  const curesSet = new Set(cures ?? []);
+  for (const [curedSlug, aftermathSlug] of Object.entries(normalized)) {
+    if (!curesSet.has(curedSlug)) {
+      throw new Error(`${label}: tag "${selfSlug}" curesInto key "${curedSlug}" isn't in its own cures list`);
+    }
+    if (!knownSlugs.has(aftermathSlug)) {
+      throw new Error(`${label}: tag "${selfSlug}" curesInto references unknown tag "${aftermathSlug}"`);
+    }
+  }
+}
+
+// administerSkill — a single catalog slug, the same convention
+// escalatesInto uses rather than a relation. Existence only; it names a
+// skill tag but doesn't have to be one of requirementSkills' rows.
+function validateAdministerSkill(value, { knownSlugs, selfSlug, label = "docs/tags.yaml" }) {
+  if (value == null) return;
+  if (typeof value !== "string" || !value) {
+    throw new Error(`${label}: tag "${selfSlug}" administerSkill must be a single tag slug`);
+  }
+  if (!knownSlugs.has(value)) {
+    throw new Error(`${label}: tag "${selfSlug}" administerSkill references unknown tag "${value}"`);
+  }
+}
+
+// resists — Iron Constitution's eventual sidecar (a later medical-pass
+// milestone). A flat list of slugs, same shape as cures; existence is the
+// only rule.
+function normalizeResists(entries, label = "docs/tags.yaml") {
+  if (entries == null) return null;
+  if (!Array.isArray(entries) || entries.some((s) => typeof s !== "string" || !s)) {
+    throw new Error(`${label}: resists must be a list of tag slugs`);
+  }
+  if (entries.length === 0) return null;
+  return [...new Set(entries)];
+}
+
+function validateResists(normalized, { selfSlug, knownSlugs, label = "docs/tags.yaml" }) {
+  for (const slug of normalized ?? []) {
+    if (!knownSlugs.has(slug)) {
+      throw new Error(`${label}: tag "${selfSlug}" resists references unknown tag "${slug}"`);
+    }
+  }
+}
+
 // The whole-document half of the check. A per-tag rule can catch a tag
 // pointing at itself, but not tipsy -> wasted -> tipsy, and the resolver
 // walks this chain in a loop — so a cycle there would hang the request rather
@@ -195,8 +295,23 @@ function joinWithOr(names) {
 // on a 0-turn recipe, where it is a RATION (a hard daily cap below the Dead
 // Simple pool's 4); writing it on anything that costs a Move is refused,
 // because that is the double-duty this function exists to end.
-function normalizeTurnsCost(requirement, { slug }, label = "docs/tags.yaml") {
+function normalizeTurnsCost(requirement, { slug, healable = false }, label = "docs/tags.yaml") {
   const raw = requirement?.turnsCost;
+  // A healable tag's turnsCost has to be authored explicitly (review fix,
+  // round 3, closing an authoring trap the M2 Move economy opened):
+  // countsAgainstHealCap (web/lib/healRequests.js) reads a MISSING
+  // turnsCost as 0 (free, inside the day's pool), craftMoveCost
+  // (web/lib/craftBudget.js) reads the same missing value as 1 (a whole
+  // Move) — a healable tag authored with no turnsCost at all would silently
+  // split what the Heal dialog shows from what the server actually bills.
+  // validateHealableRequirement (below) is this same rule for the GM tag
+  // form's door, which has no fraction picker and so checks its own
+  // already-parsed requirementTurns instead of this raw field.
+  if (raw == null && healable) {
+    throw new Error(
+      `${label}: tag "${slug}" is healable but requirement.turnsCost is missing — author it explicitly (0, a whole number, or "1/N", TAGS.md §5c)`,
+    );
+  }
   const perTurn = requirement?.perTurn ?? null;
   let turns = null;
   let workDen = null;
@@ -226,6 +341,20 @@ function normalizeTurnsCost(requirement, { slug }, label = "docs/tags.yaml") {
     requirementTurns: turns,
     requirementPerTurn: workDen ?? perTurn,
   };
+}
+
+// The GM tag form's counterpart to normalizeTurnsCost's healable check above
+// (review fix, round 3): same rule — a healable tag needs turnsCost
+// authored, never inferred — read off the form's own already-parsed
+// `requirementTurns` instead of a raw YAML `turnsCost` string, since the
+// form has no fraction picker to author one with yet (db/lib/syncTags.js's
+// `normalizeTurnsCost` is still the only door onto a fractional cure).
+function validateHealableRequirement(requirementTurns, { healable, selfSlug, label = "docs/tags.yaml" }) {
+  if (healable && requirementTurns == null) {
+    throw new Error(
+      `${label}: tag "${selfSlug}" is healable but requirementTurns is blank — author it explicitly (0 or a whole number of turns)`,
+    );
+  }
 }
 
 function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameBySlug = null } = {}, label = "docs/tags.yaml") {
@@ -458,7 +587,17 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     if (!Number.isInteger(quantity) || quantity < 1) {
       throw new Error(`${label}: placement.yields.quantity must be a positive integer`);
     }
-    yields = { tag, room, quantity };
+    // Who has to be MINDING it. A skill slug: the structure produces nothing
+    // on a turn that closes with nobody standing at its Location who counts
+    // as having that skill — "counts as" meaning the tier ladder, so a
+    // Brewing (Skilled) brewer satisfies a `brewing-basic` requirement
+    // (db/lib/medicalVision.js#satisfiedSkillIds). Absent means the thing
+    // runs itself.
+    const skill = raw.yields.skill == null ? null : String(raw.yields.skill).trim();
+    if (raw.yields.skill != null && !skill) {
+      throw new Error(`${label}: placement.yields.skill must be a tag slug`);
+    }
+    yields = { tag, room, quantity, skill };
   }
   // How many bird flights a day standing here is worth (BIRD.md). The Bird's
   // own allowance is 1; a structure raises it, and the biggest one at the
@@ -567,6 +706,215 @@ function validateCustomizable(entry, { slug, knownSlugs = null, label = "docs/ta
   }
 }
 
+// --- Cooking (docs/systemdocs/COOKING.md) ---------------------------------
+
+// Longer than a taste needs and shorter than a sentence. The string is
+// dropped into the middle of one line a player reads once, so anything past
+// this is prose that belongs in the tag's own description instead.
+const COOKED_TASTE_MAX = 40;
+
+// What a tag contributes AS AN INGREDIENT, from its `cooked:` block. The
+// presence of the block is the only thing that makes a tag cookable — there
+// is no `ingredient: true` flag and no per-recipe list of legal slugs, so
+// adding a fourteenth thing you can cook with is one entry and a sync.
+//
+//     cooked:
+//       taste: "little crunchies"
+//       mood: 28
+//       into: [nauseous]        # optional — see below
+//
+// IF YOU ARE HERE FROM THE MEDICAL REWORK: `into` needs no hook and never
+// did — omitting it means "contribute my own `consumesInto`", looked up when
+// somebody eats the dish rather than frozen in when it was cooked, so
+// changing what a medicine does changes what it does in a stew, for every
+// dish already in every pocket, with no code here.
+//
+// `cures` is the half that DOES need a hook, because the medical pass put
+// cures on their own `Tag.cures` column rather than on `consumesInto`, and
+// nothing about a separate column travels for free. It is opt-in per
+// ingredient and defaults to OFF, because not every cure is swallowed:
+//
+//     cooked:
+//       taste: "medicine"
+//       mood: 15
+//       cures: true             # this one is drunk, so it works in a stew
+//
+// Write `cures: true` on a tonic somebody drinks — White Honey, Antidote,
+// Fever Draught, Purifier, Antibiotics, Forgiveness. Leave it off anything
+// injected, applied or strapped on: a Burn Dressing, Leeches, Cleaning
+// Powder, an autoinjector, a prosthetic. Those cure a person, not a stew,
+// and cooking one into dinner should do nothing but ruin the dinner.
+// COOKING.md §4-5 has the reasoning and the raw-vs-cooked table.
+//
+// `into` is parsed by the caller's own consumesInto normalizer (passed in as
+// `normalizeInto`), so every shape that works there works here for free
+// rather than through a second parser that drifts from the first.
+function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml" }) {
+  if (cooked == null) return null;
+  if (typeof cooked !== "object" || Array.isArray(cooked)) {
+    throw new Error(`${label}: tag "${slug}" cooked must be a block with a taste and a mood`);
+  }
+  const taste = cooked.taste;
+  // The key is required; its VALUE may be empty. An empty taste is the
+  // undetectable poison — Phrygian Tears, Adder's Bite — and a dish carrying
+  // one reads exactly like a dish that is not, because web/lib/cooking.js
+  // drops an empty fragment from the line rather than printing a gap.
+  // Requiring the key is what keeps that a deliberate claim rather than a
+  // forgotten field: `taste: ""` says tasteless, an absent `taste:` is a slip.
+  if (typeof taste !== "string") {
+    throw new Error(
+      `${label}: tag "${slug}" cooked needs a taste — write taste: "" if it is deliberately undetectable`,
+    );
+  }
+  if (taste.trim().length > COOKED_TASTE_MAX) {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.taste is ${taste.trim().length} characters — keep it under ${COOKED_TASTE_MAX}, it sits mid-sentence`,
+    );
+  }
+  const mood = cooked.mood ?? 0;
+  if (!Number.isFinite(mood)) {
+    throw new Error(`${label}: tag "${slug}" cooked.mood must be a number`);
+  }
+  // The dial itself. A single ingredient past either end is always an
+  // authoring slip, and clamping it silently would hide one. Required lazily:
+  // mood.js does not require this file, so there is no cycle, but keeping the
+  // require inside the function makes that hard to break by accident.
+  const { MOOD_MAX, MOOD_MIN } = require("./mood");
+  if (mood > MOOD_MAX || mood < MOOD_MIN) {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.mood is ${mood} — the dial runs +${MOOD_MAX} to ${MOOD_MIN}`,
+    );
+  }
+  const into = cooked.into == null ? null : normalizeInto(cooked.into);
+  // Opt-in, and stored only when true — an absent key and `cures: false` are
+  // the same claim, so writing the false out would put a column of noise in
+  // every one of the fifty-odd blocks that will never carry a cure.
+  if (cooked.cures != null && typeof cooked.cures !== "boolean") {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.cures must be true or false — it says whether this ingredient's OWN cures list survives the pot, not which cures`,
+    );
+  }
+  const cures = cooked.cures === true;
+  return { taste: taste.trim(), mood, into, ...(cures ? { cures: true } : {}) };
+}
+
+// `cooked` deliberately does NOT require `consumable`. Being cookable and
+// being edible are different claims, and the six body parts are the case that
+// proves it: nobody gnaws a raw hand, and a hand in a stew is very much a
+// thing that can happen. The cooking path reads this block; the consume path
+// never sees it.
+//
+// The inverse is worth writing out too, because it looks like an omission and
+// is not: an ingredient that does nothing RAW says so with `consumable: true`
+// and an empty `consumesInto`. That is the honest way to write an onion —
+// you can put one in your mouth and the game lets you, and then nothing
+// happens — and it keeps "nothing happened" a real answer rather than a
+// missing one.
+function validateCooked(normalized, { selfSlug, tagSlugs, entry: tagEntry, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  // `cures: true` says "what I cure, I cure through the pot". Two shapes make
+  // that a nonsense claim and both are authoring slips rather than choices:
+  // a tag with nothing to cure, and a tag whose cure has to be FITTED. The
+  // second is the one worth a hard refusal — `administerSkill` is exactly the
+  // set of cures a doctor puts on or into somebody (the prosthetics, the
+  // autoinjectors), and none of those is a thing you eat.
+  if (normalized.cures) {
+    if (tagEntry && tagEntry.administerSkill) {
+      throw new Error(
+        `${label}: tag "${selfSlug}" is cooked.cures true and carries administerSkill — a cure a doctor has to fit or inject does not travel in a stew`,
+      );
+    }
+    if (tagEntry && !(tagEntry.cures ?? []).length) {
+      throw new Error(
+        `${label}: tag "${selfSlug}" is cooked.cures true but cures nothing — drop the line`,
+      );
+    }
+  }
+  for (const entry of normalized.into ?? []) {
+    for (const target of entry.oneOf ?? [entry.slug]) {
+      if (!tagSlugs?.has(target)) {
+        throw new Error(`${label}: tag "${selfSlug}" cooked.into references unknown tag "${target}"`);
+      }
+    }
+  }
+}
+
+// How many ingredients a recipe takes, from `requirement.ingredientSlots`.
+// A sibling of requirement.items rather than a second `anyOf`: the legal set
+// is "any tag carrying a cooked block", which no authored list could keep up
+// with, and validateRequirementItems' one-picker cap stays exactly where it
+// is, still guarding the Death Mask and the Dreamer's Draught.
+const INGREDIENT_SLOTS_MAX = 4;
+
+function normalizeIngredientSlots(slots, { slug, label = "docs/tags.yaml" }) {
+  if (slots == null) return null;
+  if (typeof slots !== "object" || Array.isArray(slots)) {
+    throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots must be a { min, max } block`);
+  }
+  const min = slots.min ?? 0;
+  const max = slots.max ?? min;
+  for (const [key, value] of [["min", min], ["max", max]]) {
+    if (!Number.isInteger(value) || value < 0) {
+      throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots.${key} must be a whole number`);
+    }
+  }
+  if (max < min) {
+    throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots.max (${max}) is below its min (${min})`);
+  }
+  if (max < 1) {
+    throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots.max is 0 — a recipe that takes no ingredient should not declare slots`);
+  }
+  if (max > INGREDIENT_SLOTS_MAX) {
+    throw new Error(`${label}: tag "${slug}" requirement.ingredientSlots.max is ${max} — the dialog draws at most ${INGREDIENT_SLOTS_MAX}`);
+  }
+  return { min, max };
+}
+
+function validateIngredientSlots(normalized, { selfSlug, craftable, placement = null, turnsCost = null, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+  // Same reasoning as requirement.items: the Craft path is the only place
+  // slots are ever read, so declaring them anywhere else is a lie.
+  if (!craftable) {
+    throw new Error(`${label}: tag "${selfSlug}" declares ingredientSlots but is not craftable — nothing would ever check them`);
+  }
+  if (placement) {
+    throw new Error(`${label}: tag "${selfSlug}" declares ingredientSlots and placement — a build site never spends an ingredient`);
+  }
+  // A multi-turn project mints on the FINISHING turn, days after the cook
+  // picked their ingredients, so the slugs would have to ride on
+  // CraftProject.custom to survive the wait. Nothing needs that today, and a
+  // recipe that quietly forgot what went into it is a worse bug than a sync
+  // that refuses to ship one.
+  if (Number.isInteger(turnsCost) && turnsCost >= 2) {
+    throw new Error(
+      `${label}: tag "${selfSlug}" declares ingredientSlots on a ${turnsCost}-turn project — the picked slugs would not survive to the finishing turn`,
+    );
+  }
+}
+
+// What a customizable recipe charges for the player's words, and whether it
+// takes a description at all. Only legal beside `customizable: true`.
+//
+//     custom: { cost: 0, describable: false }
+//
+// An absent `cost` means the standard surcharge (web/lib/customCraft.js). `0`
+// is the meals: a cook naming their own dish is the point of the cooking
+// rework, not an upsell.
+function normalizeCustom(custom, { slug, customizable, label = "docs/tags.yaml" }) {
+  if (custom == null) return { customCost: null, customDescribable: true };
+  if (!customizable) {
+    throw new Error(`${label}: tag "${slug}" declares a custom block but is not customizable`);
+  }
+  if (typeof custom !== "object" || Array.isArray(custom)) {
+    throw new Error(`${label}: tag "${slug}" custom must be a block`);
+  }
+  const cost = custom.cost ?? null;
+  if (cost != null && (!Number.isInteger(cost) || cost < 0)) {
+    throw new Error(`${label}: tag "${slug}" custom.cost must be 0 or a positive whole number of ⬢`);
+  }
+  return { customCost: cost, customDescribable: custom.describable !== false };
+}
+
 // Two things the shape alone can't catch: a placement block on a tag nothing
 // would ever build (the Craft path is the only enforcement point, same
 // reasoning as validateRequirementItems), and a placement block on a tag that
@@ -606,6 +954,9 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
   if (placement.yields && !knownSlugs.has(placement.yields.tag)) {
     throw new Error(`${label}: tag "${slug}" placement.yields.tag references unknown tag "${placement.yields.tag}"`);
   }
+  if (placement.yields?.skill && !knownSlugs.has(placement.yields.skill)) {
+    throw new Error(`${label}: tag "${slug}" placement.yields.skill references unknown tag "${placement.yields.skill}"`);
+  }
   if (placement.music && !knownSlugs.has(placement.music.needs)) {
     throw new Error(`${label}: tag "${slug}" placement.music.needs references unknown tag "${placement.music.needs}"`);
   }
@@ -642,7 +993,10 @@ const { BANDS, POINTS_PER_TIER, WEAPON_CLASSES } = require("./fightingSkill");
 
 const FIGHTING_TREES = new Set(["melee", "ranged", "both"]);
 const FIGHTING_BAND_KEYS = new Set(BANDS.map((b) => b.key));
-const FIGHTING_WHEN_KEYS = new Set(["weaponClass", "holds", "equipped", "unarmoured"]);
+// `holds` is AND — every slug must be held. `holdsAny` is OR, for a condition
+// that spans rungs of one ladder: the drinking rungs replace each other, so a
+// tag keyed to "being drunk at all" can never name them with `holds`.
+const FIGHTING_WHEN_KEYS = new Set(["weaponClass", "holds", "holdsAny", "equipped", "unarmoured"]);
 
 // A tier is authored to one decimal place and nothing finer. The check is not
 // fussiness: `tiers: 0.25` would silently become 2.5 points, round somewhere,
@@ -812,7 +1166,7 @@ function validateFighting(normalized, { selfSlug, tagSlugs, equippable, label = 
 
   // Every condition and cancellation names a real tag. A typo here would read
   // as a bonus that simply never fires.
-  for (const field of ["holds", "equipped"]) {
+  for (const field of ["holds", "holdsAny", "equipped"]) {
     for (const slug of normalized.when?.[field] ?? []) {
       if (!tagSlugs.has(slug)) {
         throw new Error(`${label}: "${selfSlug}" fighting.when.${field} names unknown tag "${slug}"`);
@@ -841,11 +1195,26 @@ module.exports = {
   validateRemovesInto,
   validateEscalatesInto,
   validateEscalationChains,
+  normalizeCures,
+  validateCures,
+  normalizeCuresInto,
+  validateCuresInto,
+  validateAdministerSkill,
+  normalizeResists,
+  validateResists,
   rollTagChain,
   normalizeTurnsCost,
+  validateHealableRequirement,
   normalizeRequirementItems,
   validateRequirementItems,
   normalizePlacement,
   validatePlacement,
   validateCustomizable,
+  COOKED_TASTE_MAX,
+  INGREDIENT_SLOTS_MAX,
+  normalizeCooked,
+  validateCooked,
+  normalizeIngredientSlots,
+  validateIngredientSlots,
+  normalizeCustom,
 };

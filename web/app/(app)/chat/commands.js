@@ -49,7 +49,7 @@ import {
 // with most of the letters knocked out.
 export const SHOUT_LIMIT = 300;
 
-const EVERYWHERE = ["loc", "room", "conv", "zone"];
+const EVERYWHERE = ["loc", "room", "conv", "zone", "net"];
 
 export const COMMANDS = [
   {

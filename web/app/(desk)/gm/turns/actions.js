@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { after } from "next/server";
-import { prisma, rollDie, Prisma } from "@lifeweb/db";
+import { prisma, Prisma } from "@lifeweb/db";
+import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { dropCharacterTag } from "@/lib/tagEffects";
-import { requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -591,8 +591,10 @@ function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
       data.diceModifier = null;
     } else {
       // Rolled from the character's current tags/hungerStreak/mood, not
-      // whatever was true when the player submitted.
-      data.diceRoll = rollDie();
+      // whatever was true when the player submitted. That includes Lucky:
+      // a GM switching a Routine to a Gambit must roll the same die the
+      // player's own submit path would have (db/lib/advantage.js).
+      data.diceRoll = rollWithAdvantage(characterTags).die;
       data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak, mood });
     }
   }
@@ -718,9 +720,8 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
 // "Reject" on the desk. Deletes the Action outright, since the turn-economy
 // checks look for any Action on the open turn — only deletion frees the
 // player to act again. Staged rows detach via SetNull.
-async function rejectMoveImpl({ actionId, reason: rawReason }) {
+async function rejectMoveImpl({ actionId }) {
   const session = await requireGm();
-  const reason = requireReason(rawReason);
 
   const action = await prisma.action.findUnique({ where: { id: actionId }, include: { character: true } });
   if (!action) throw new UserError("Move not found.");
@@ -738,7 +739,6 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
         actorDiscordUserId: session.discordUserId,
         actionType: "move_rejected",
         targetCharacterId: action.characterId,
-        reason,
         details: {
           actionId,
           description: action.description,
@@ -758,13 +758,14 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
   try {
     await sendDm(
       action.character.discordUserId,
-      `Your Move was returned to you — you can act again this turn.\n${reason}`,
-      // The GM's typed reason rides in the body, so this is a person
-      // writing even though the wrapper around it is canned.
+      "Your Move was returned to you — you can act again this turn.",
+      // Canned all the way through now that Reject carries no typed reason,
+      // but it is still a GM handing somebody their turn back, so it belongs
+      // in the conversation rather than sinking into the notices.
       { authorDiscordUserId: session.discordUserId, source: "move_unlock", kind: DM_KIND.CONVERSATION },
     );
   } catch (err) {
-    console.error(`Failed to DM the reject reason to ${action.character.discordUserId}:`, err);
+    console.error(`Failed to DM the rejection to ${action.character.discordUserId}:`, err);
     deliveryFailed = true;
   }
 
@@ -1139,6 +1140,96 @@ async function undoCavingFindImpl({ rollId }) {
   return { ok: true };
 }
 
+// ─── The uploaded-portrait queue (docs/systemdocs/PORTRAITS.md §1a) ─────────
+//
+// The Browse control tells players "Your image may be approved or denied."
+// These two are what stands behind that sentence. The picture
+// is live from the moment it is saved — Keep and Reject decide whether it
+// stays, they do not gate it.
+//
+// requireGm() first in both: the id below is posted by a client, and a server
+// action is a public endpoint.
+
+// Looked at, and fine. Nothing about the game changes, so nothing is written
+// to the audit log — /gm/audit is the record of what was DONE to the game, and
+// filling it with "a GM looked at a picture" would cost the log its signal.
+async function keepAvatarImpl({ characterId }) {
+  await requireGm();
+  const character = await prisma.character.findUnique({
+    where: { id: String(characterId ?? "") },
+    select: { id: true, name: true, avatarData: true, portrait: true },
+  });
+  if (!character) throw new UserError("That character is gone.");
+  // Another GM got here first and rejected it. Say so rather than stamping a
+  // review onto a picture that is no longer there.
+  if (!character.avatarData || character.portrait) {
+    throw new UserError("That picture is already gone.");
+  }
+
+  await prisma.character.update({
+    where: { id: character.id },
+    data: { avatarReviewedAt: new Date() },
+  });
+
+  revalidatePath("/gm/turns");
+  return { name: character.name };
+}
+
+// Not fine. Clears the picture exactly as the player's own Reset to Default
+// does — there is nothing to restore, because the letter plaque is derived
+// from firstName at read time by /api/avatar/[characterId].
+//
+// `updatedAt` bumps on its own, which is what retires the immutably-cached
+// image URL every surface is holding.
+async function rejectAvatarImpl({ characterId }) {
+  const session = await requireGm();
+  const character = await prisma.character.findUnique({
+    where: { id: String(characterId ?? "") },
+    select: { id: true, name: true, discordUserId: true, status: true, avatarData: true, portrait: true },
+  });
+  if (!character) throw new UserError("That character is gone.");
+  if (!character.avatarData || character.portrait) {
+    throw new UserError("That picture is already gone.");
+  }
+
+  await prisma.character.update({
+    where: { id: character.id },
+    data: {
+      avatarData: null,
+      avatarMimeType: null,
+      portrait: null,
+      avatarSetAt: null,
+      avatarReviewedAt: new Date(),
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_avatar_rejected",
+      targetCharacterId: character.id,
+      details: { characterName: character.name },
+    },
+  });
+
+  // The third thing a queue needs, after the surface and the state: telling
+  // them. A NOTICE rather than a CONVERSATION — the wording is canned, and a
+  // canned line sitting at the top of the GM inbox as mail is the exact
+  // pattern DM_KIND was built to stop. A GM who wants to talk about it writes.
+  if (character.discordUserId && character.status === "ALIVE") {
+    await sendDm(
+      character.discordUserId,
+      "Your portrait has been taken down, and your character is back to their default face. Have a word with a GM before putting up another one.",
+      { kind: DM_KIND.NOTICE },
+    ).catch((err) => console.error("Avatar rejection DM failed:", err));
+  }
+
+  revalidatePath("/gm/turns");
+  revalidatePath("/character");
+  return { name: character.name };
+}
+
+
 export async function resolveCavingRoll(input) {
   return guarded(() => resolveCavingRollImpl(input));
 }
@@ -1162,4 +1253,11 @@ export async function getCharacterMoveHistory(input) {
 }
 export async function getArchiveContext(input) {
   return guarded(() => getArchiveContextImpl(input));
+}
+
+export async function keepAvatar(input) {
+  return guarded(() => keepAvatarImpl(input));
+}
+export async function rejectAvatar(input) {
+  return guarded(() => rejectAvatarImpl(input));
 }

@@ -18,7 +18,7 @@ import {
 import { armorWord, combineArmor } from "@lifeweb/db/lib/armorValue";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { carryBonusLabel } from "@/lib/sheetCards";
-import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
+import { equipOne, takeAndEquip, unequipOne } from "@/app/(app)/character/equipActions";
 import ClickMenu from "./ClickMenu";
 import FormError from "./FormError";
 
@@ -27,7 +27,11 @@ import FormError from "./FormError";
 // head layers, three body layers, four hands, a ride and what it tows, and up
 // to MAX_ACCESSORIES accessories. A filled cell names the thing and the one
 // fact about it worth a glance; an empty cell is dashed and named, and
-// clicking it lists what you carry that fits there.
+// clicking it lists what you carry that fits there — and, since 2026-09-10,
+// what is sitting in a room stash here that fits there too. A player asked for
+// that one directly: "If I'm in a room with stuff stored in it, I should be
+// able to click on this and see what I can take from that room that would fit
+// in this slot." Picking a stash row takes it and wears it in one gesture.
 //
 // A slot holds one PHYSICAL unit, not a stack — CharacterTag.equippedQuantity
 // says how many of a held stack are out, so a cell here is one unit of it,
@@ -107,12 +111,37 @@ function mountMenu(fits, wornRows, { indoors, motionSick }) {
   return { options, note };
 }
 
+// "Nothing here fits." / "Nothing here or in the Chest fits." The rooms are
+// named so a player can tell an empty menu from one that never looked — the
+// board searches a stash only when the character can actually open it, and
+// silence about that would read as a bug on the one turn it matters.
+function nothingFits(searched) {
+  if (!searched.length) return "Nothing you carry fits here.";
+  return `Nothing you carry or in ${listRooms(searched)} fits here.`;
+}
+
+function listRooms(names) {
+  if (names.length === 1) return names[0];
+  return `${names.slice(0, -1).join(", ")} or ${names[names.length - 1]}`;
+}
+
 // A dashed, named empty place. Its click menu lists the carried things that
 // fit; nothing fits and it says so. `note` is the MOUNT row's reason for
 // having left something out — never a silent omission. A row with room left
 // in a partly-equipped stack still offers it here, alongside whatever else is
 // carried — Equip pulls one more unit out, same gesture either way.
-function EmptyCell({ label, options, onPick, pending, span = 1, note = null, state = "empty" }) {
+function EmptyCell({
+  label,
+  options,
+  onPick,
+  pending,
+  span = 1,
+  note = null,
+  state = "empty",
+  // The rooms the options were gathered from, so "nothing fits" can say where
+  // it looked. Empty when the character is standing nowhere with a stash.
+  searched = [],
+}) {
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
   return (
@@ -135,14 +164,18 @@ function EmptyCell({ label, options, onPick, pending, span = 1, note = null, sta
       {open && (
         <ClickMenu triggerRef={ref} onClose={() => setOpen(false)} ariaLabel={label}>
           {options.length === 0 && !note ? (
-            <span className="chat-quiet-line">You don’t have anything that goes in this slot.</span>
+            <span className="chat-quiet-line">{nothingFits(searched)}</span>
           ) : (
-            options.map((ct) => (
+            options.map((ct, i) => (
               <button
                 key={ct.id}
                 type="button"
                 role="menuitem"
                 className="menu-item"
+                // A rule where the carried things stop and the room's begin,
+                // rather than a heading nobody needs: the row already names
+                // its room.
+                data-rule={i > 0 && ct.stash && !options[i - 1].stash ? "true" : undefined}
                 onClick={() => {
                   setOpen(false);
                   onPick(ct);
@@ -150,6 +183,7 @@ function EmptyCell({ label, options, onPick, pending, span = 1, note = null, sta
               >
                 {ct.tag.name}
                 {ct.tag.twoHanded ? " (two hands)" : ""}
+                {ct.stash ? <span className="text-muted"> · {ct.roomName}</span> : null}
               </button>
             ))
           )}
@@ -186,7 +220,17 @@ function WornCell({ unit, onUnequip, pending, span = 1, canAct }) {
   );
 }
 
-export default function EquipBoard({ characterTags, isSelf, indoors = false, motionSick = false }) {
+export default function EquipBoard({
+  characterTags,
+  isSelf,
+  indoors = false,
+  motionSick = false,
+  // Every room stash at this Location the character can actually open, from
+  // the same loader the Transfer dialog reads (web/lib/peoplePools.js), so a
+  // locked door is absent here for exactly the reason it is absent there.
+  // Never passed for somebody else's sheet: the board only acts when isSelf.
+  stash = [],
+}) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState(null);
 
@@ -198,12 +242,46 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
   const carried = equippable.filter((ct) => (ct.quantity ?? 1) - (ct.equippedQuantity ?? 0) > 0);
   const worn = equippedUnits(wornRows);
 
+  // The room's equippables, in the shape the cells already expect: an id, a
+  // `.tag`, and a flag saying which of the two pick paths to take. The id is
+  // namespaced because a stash row and a carried row can be the same tag, and
+  // React keys and menu clicks both have to tell them apart.
+  const stashOffers = isSelf
+    ? stash.flatMap((room) =>
+        (room.tags ?? [])
+          .filter((rt) => rt.tag?.equippable)
+          .map((rt) => ({
+            id: `stash:${room.id}:${rt.tagId}`,
+            tag: rt.tag,
+            stash: true,
+            roomId: room.id,
+            roomName: room.name,
+            tagId: rt.tagId,
+          })),
+      )
+    : [];
+  const searched = stashOffers.length ? [...new Set(stashOffers.map((o) => o.roomName))] : [];
+
+  // Carried first, then the room's. Ordering is the whole grouping: what you
+  // already have costs nothing to put on, and what is in a box costs a
+  // transfer everybody in the room hears about.
+  function offersFor(predicate) {
+    return [...carried.filter(predicate), ...stashOffers.filter(predicate)];
+  }
+
   function equip(ct) {
     if (!isSelf || !ct.id) return;
     setError(null);
     startTransition(async () => {
       try {
-        const res = await equipOne(ct.id);
+        // Out of a box: one gesture, two acts. takeAndEquip files the transfer
+        // through the ordinary path — so the audit row and the room's own
+        // "someone takes a Padded Cap" line both still happen — and then wears
+        // it. A refusal on the wearing half leaves it in your pack, which is
+        // recoverable and is what the sentence below says.
+        const res = ct.stash
+          ? await takeAndEquip({ roomId: ct.roomId, tagId: ct.tagId })
+          : await equipOne(ct.id);
         if (res?.error) setError(res.error);
       } catch {
         setError("Could not reach the server. Nothing was changed.");
@@ -232,7 +310,10 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
   const rows = rowsFor(handCap);
   const freeHands = Math.max(0, handCap - hands);
 
-  if (equippable.length === 0) {
+  // Nothing on you AND nothing in a box you can open. The stash half matters:
+  // a character who put their whole kit in the Armoury used to get this dead
+  // end, which is the exact person the room menu exists for.
+  if (equippable.length === 0 && stashOffers.length === 0) {
     return (
       <section className="panel p-4">
         <div className="section-title">
@@ -256,7 +337,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
 
       {rows.map(({ slot, cells }) => {
         const inSlot = worn.filter((unit) => unit.tag.equipSlot === slot);
-        const fits = carried.filter((ct) => ct.tag.equipSlot === slot);
+        const fits = offersFor((ct) => ct.tag.equipSlot === slot);
         const layered = Boolean(LAYER_NAMES[slot]);
         let drawn;
         if (layered) {
@@ -279,6 +360,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
                 options={fits.filter((row) => row.tag.equipLayer === layer)}
                 onPick={equip}
                 pending={pending}
+                searched={searched}
               />
             );
           });
@@ -323,6 +405,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
                 options={fits.filter((row) => handsOf(row.tag) <= freeHands)}
                 onPick={equip}
                 pending={pending}
+                searched={searched}
               />,
             );
           }
@@ -348,6 +431,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
               note={menu.note}
               onPick={equip}
               pending={pending}
+              searched={searched}
             />
           );
         }
@@ -391,7 +475,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
 
       {(() => {
         const inSlot = worn.filter((unit) => unit.tag.equipSlot === "ACCESSORY");
-        const fits = carried.filter((ct) => ct.tag.equipSlot === "ACCESSORY");
+        const fits = offersFor((ct) => ct.tag.equipSlot === "ACCESSORY");
         if (inSlot.length === 0 && fits.length === 0) return null;
         return (
           <div className="equip-row">
@@ -420,7 +504,13 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
                 />
               ))}
               {isSelf && fits.length > 0 && inSlot.length < MAX_ACCESSORIES && (
-                <EmptyCell label="Add" options={fits} onPick={equip} pending={pending} />
+                <EmptyCell
+                  label="Add"
+                  options={fits}
+                  onPick={equip}
+                  pending={pending}
+                  searched={searched}
+                />
               )}
             </div>
           </div>

@@ -21,14 +21,24 @@
 // tier and the arithmetic still never touches a float. docs/tags.yaml speaks
 // tiers (`tiers: -0.5`); db/lib/tagShapes.js multiplies by this on the way in
 // and every number below here is an integer.
+const { SECOND_WIND_SLUG, WOUND_TAG_GROUPS } = require("./constants");
+const { HEALTH_CATEGORY } = require("./medicalVision");
+
+const SECOND_WIND_LABEL = "Second Wind";
+
 const POINTS_PER_TIER = 10;
 
-// Where somebody with no fighting skill at all stands: the middle of Weak.
-// 15 rather than 16 so that this and every rung above it land DEAD CENTRE of
-// their band (15, 25, 35, 45, 55, 65). Mid-band matters because it is what
-// makes the words stable: a peasant picking up a knife, or taking one
-// half-tier knock, stays what they were. Off-centre by even a point and the
-// smallest trait in the catalog starts changing what people are called.
+// Where somebody with no fighting skill at all stands. 15 rather than 16 so
+// that every RUNG above it lands dead centre of its band (25, 35, 45, 55, 65).
+// Mid-band matters because it is what makes the words stable: a peasant picking
+// up a knife, or taking one half-tier knock, stays what they were. Off-centre by
+// even a point and the smallest trait in the catalog starts changing what people
+// are called.
+//
+// Untrained itself is the exception, and knowingly: Weak runs 5-19 rather than
+// 10-19 (see BANDS), so 15 sits high in it rather than at its centre. That is
+// the whole point of the widening — the room is under the base, where the
+// injuries are, not over it.
 const UNTRAINED = 15;
 
 // What one rung of melee-*/ranged-* is worth. Equal to a tier on purpose:
@@ -36,14 +46,26 @@ const UNTRAINED = 15;
 // "counts as 2 tiers higher" in a tag description stay literally true.
 const RUNG_STEP = POINTS_PER_TIER;
 
-// Eight bands, ten points each, so every rung lands in the middle of one.
+// Eight bands, ten points each — except the bottom one, below — so every rung
+// lands in the middle of one.
 // `key` is what the stylesheet colours off (.fighting-band[data-band="..."]).
 // Words, never the number — the posture Tag.meleeArmor's comment sets for
 // armour and db/lib/laborYield.js#qualityWord sets for Laboring. Working out
 // that Seasoned beats Capable is the player's job; a score on a tile would
 // turn a fight into a spreadsheet.
+//
+// PITIFUL IS THE ONE THAT IS NOT TEN WIDE, and it is deliberate. It ended at 9
+// until 2026-09-10, six points under an untrained 15 — so a single ordinary
+// drawback (Clumsy, Fat, Dwarf, all -0.7) put a healthy person in the same word
+// as somebody tied to a chair, and a fifth of the living roster was in it. The
+// bands measure SKILL, and below untrained there is no skill left to measure,
+// only injury; so the bottom band should take a real injury to reach. Weak
+// widens downward to 5-19 instead, which costs the "untrained lands dead
+// centre" property below and buys the asymmetry the setting actually wants:
+// five points up to Mediocre, eleven down to Pitiful, in a valley where almost
+// nobody has been trained.
 const BANDS = Object.freeze([
-  { max: 9, key: "pitiful", label: "Pitiful" },
+  { max: 4, key: "pitiful", label: "Pitiful" },
   { max: 19, key: "weak", label: "Weak" },
   { max: 29, key: "mediocre", label: "Mediocre" },
   { max: 39, key: "capable", label: "Capable" },
@@ -86,6 +108,15 @@ function bandOfScore(score) {
 
 function bandByKey(key) {
   return BANDS.find((b) => b.key === key) ?? null;
+}
+
+// Where a band sits on the ladder: 0 for Pitiful, 7 for Legendary. The unit a
+// GAP between two people is measured in, and the reason db/lib/attack.js reads
+// bands rather than scores — floor:/cap: tags (Apex Form, Bound, Paralyzed)
+// move the band index after the points are summed, so a tied-up Expert still
+// scores 55 and only the band knows they are Pitiful.
+function bandRank(key) {
+  return BANDS.findIndex((b) => b.key === key);
 }
 
 // The one place a score becomes a word.
@@ -139,6 +170,8 @@ function servesTree(block, tree) {
 function whenHolds(when, ctx) {
   if (!when) return true;
   if (when.holds?.length && !when.holds.every((s) => ctx.held.has(s))) return false;
+  // OR, unlike `holds` above — see FIGHTING_WHEN_KEYS in db/lib/tagShapes.js.
+  if (when.holdsAny?.length && !when.holdsAny.some((s) => ctx.held.has(s))) return false;
   if (when.equipped?.length && !when.equipped.every((s) => ctx.equipped.has(s))) return false;
   if (when.unarmoured?.length && when.unarmoured.some((slot) => ctx.armouredSlots.has(slot))) return false;
   // weaponClass is deliberately NOT tested here. It is resolved per weapon in
@@ -166,6 +199,39 @@ function rungBase(rows, tree) {
   return { points: UNTRAINED + RUNG_STEP * best.rung, label: best.label };
 }
 
+// A wound rather than a state of mind — what Second Wind waives outright.
+// Health-category AND one of the three wound groups; a tag whose group was not
+// selected reads as not-a-wound, which fails SAFE (the penalty still counts).
+function isWoundRow(row) {
+  const tag = tagOf(row);
+  return tag?.category === HEALTH_CATEGORY && WOUND_TAG_GROUPS.includes(tag?.group?.slug);
+}
+
+// Illnesses are waived too (Bascinet, 2026-09-10), but only up to a point:
+// "wounds and illnesses don't affect your combat score, except the really
+// really bad ones". This is where "really really bad" is drawn, and it is a
+// THRESHOLD rather than a list of slugs on purpose — the same reasoning the
+// wound rule uses. A named list would be true on the day it was written and
+// quietly wrong for the next illness somebody adds.
+//
+// The catalog draws the line for us: the eighteen illnesses run -0.3 to -1.5
+// and then jump straight to -2, with nothing in between. Everything at or
+// above the floor is something you can fight through — a cough, boils, gut
+// worms, a fever. Everything past it is actively killing you: Choking,
+// Envenomated, Phrygian Toxin, an Exploded Chest, Appendicitis. Grit does not
+// answer those.
+// In STORED points, not authored tiers: normalizeFighting multiplies by 10,
+// so -1.5 tiers is -15 here. Comparing against -1.5 would have waived every
+// illness in the catalog, including the ones that are killing you.
+const SECOND_WIND_ILLNESS_FLOOR = -15;
+
+function isWaivedIllnessRow(row, points) {
+  const tag = tagOf(row);
+  if (tag?.category !== HEALTH_CATEGORY) return false;
+  if (tag?.group?.slug !== "health-illness") return false;
+  return points >= SECOND_WIND_ILLNESS_FLOOR;
+}
+
 // Everything programmatic that is not about a weapon. These SUM: a maiming and
 // a hangover both land, the way docs/handbook.md:350 says a weapon, a set of
 // gear and a skill all stack.
@@ -178,6 +244,29 @@ function modifiers(rows, tree, ctx) {
     if (!servesTree(block, tree)) continue;
     if (block.when?.weaponClass?.length) continue;
     const slug = slugOf(row);
+    // A wound the holder fights straight through. Named at 0 rather than
+    // dropped, exactly like a cancelled maiming below and for the same
+    // reason: a player should be able to read why their broken arm costs
+    // nothing instead of assuming the system lost it.
+    //
+    // WOUNDS ONLY, not the whole Health category. It waived every Health tag
+    // for a day, which at 6 points bought off Blind, Cripple, every illness and
+    // every maiming at once — sixty-odd tags, stacking, on a tag buyable at
+    // character creation. The three wound groups are what "you fight through
+    // it" can honestly mean; a cold is not a wound, and neither is blindness.
+    //
+    // Two further limits: only PENALTIES are waived — a Health tag that
+    // somehow helped keeps helping — and the band CAPS (Dying, Paralyzed,
+    // Seizure) are untouched on purpose, since those take you out of a fight
+    // rather than making you worse at one.
+    if (
+      ctx.secondWind &&
+      block.points < 0 &&
+      (isWoundRow(row) || isWaivedIllnessRow(row, block.points))
+    ) {
+      out.push({ label: nameOf(row), points: 0, cancelledBy: SECOND_WIND_LABEL });
+      continue;
+    }
     if (ctx.cancelled.has(slug)) {
       // Named rather than dropped. A player wondering why their missing hand
       // costs nothing should be able to read the answer instead of assuming
@@ -314,7 +403,12 @@ function contextOf(rows) {
       if (!cancelledBy.has(slug)) cancelledBy.set(slug, tag.name ?? tag.slug);
     }
   }
-  return { held, equipped, armouredSlots, cancelled, cancelledBy };
+  // Second Wind cancels what a Health tag TAKES OFF a rating, and nothing
+  // else. It rides here rather than as a `cancels:` list in the catalog
+  // because the thing it cancels is a category, not a set of slugs — every
+  // wound, illness and maiming there is now and every one added later.
+  const secondWind = held.has(SECOND_WIND_SLUG);
+  return { held, equipped, armouredSlots, cancelled, cancelledBy, secondWind };
 }
 
 // One half of the tree, resolved. Returns the score, its band, the named
@@ -381,7 +475,22 @@ function formatFightingSkill(resolved) {
 // discipline as ARMOR_TAG_FIELDS in db/lib/armorValue.js: miss one and combat
 // silently stops working at that surface only. `equipSlot` is here because
 // Flamboyant asks whether a body slot is filled.
-const FIGHTING_TAG_FIELDS = { fighting: true, equipSlot: true };
+// `category` is here because Second Wind asks whether a penalty is a Health
+// one; drop it and every wound quietly starts costing a Second Wind holder
+// again, at that surface only.
+// `category` is here because Second Wind asks whether a penalty is a Health
+// one. It also needs the tag's GROUP slug — but that is deliberately NOT in
+// this object, because every caller spreads this into a wider select that
+// already asks for `group` with more fields (web/lib/referenceData.js's
+// TAG_CHIP_FIELDS wants name and colour too), and a narrower `group` spread in
+// afterwards would silently overwrite theirs and strip the colour off every
+// chip in the app.
+//
+// So the contract is: a caller resolving a whole character's fighting rating
+// must select `group: { select: { slug: true } }` itself. Both do today, via
+// TAG_CHIP_FIELDS. A row whose group is missing reads as not-a-wound, which
+// fails safe — the penalty still counts.
+const FIGHTING_TAG_FIELDS = { fighting: true, equipSlot: true, category: true };
 
 module.exports = {
   BANDS,
@@ -393,6 +502,7 @@ module.exports = {
   WEAPON_CLASSES,
   FIGHTING_TAG_FIELDS,
   bandByKey,
+  bandRank,
   fightingSkill,
   fightingSkillFor,
   fightingWord,

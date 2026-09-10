@@ -226,6 +226,7 @@ zones:
             stash:
               resources: 4
               items:
+                hard-cheese: 1
                 paper: 12
                 hatchet: 1
           square-smithery-storeroom:
@@ -276,6 +277,7 @@ zones:
             stash:
               resources: 3
               items:
+                hard-cheese: 1
                 alcohol: 1
                 cigarette: 3
           inn-room-a:
@@ -377,6 +379,11 @@ zones:
         attributes:
           haven: true
         indoors: true
+        # It's the hospital — the operating theater standing there always did
+        # (medical pass, M3). The Structure itself is Location-scoped, not
+        # Room-scoped, but its narrative home is the operating theater room
+        # below, which already stashes the portable surgical-equipment.
+        structures: [surgical-theater]
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works — the wooden contraptions are more reliable.
         rooms:
@@ -1638,9 +1645,14 @@ zones:
           A huge, wooden warehouse elevated above a shallow lake. Rickety bridges connect the various sheds, barrels, and winches. Electric lamps hang overhead, holding back the darkness. You can hear the insects and frogs every night. `GODARD FACTORY` is printed in white. Raven banners hang over the entrance.
         # No `yield:` — refining is not a labor coefficient. `refinery` is what
         # makes laboring legal here at all, and what it pays in.
+        #
+        # `wheels` keeps the wagon: this is a warehouse with a ramp down to dry
+        # ground, and the Logistics Room's own description says the cart is
+        # staged there. It still counts as under a roof for everything else.
         attributes:
           refinery: true
           noticeboard: true
+          wheels: true
         rooms:
           factory-logistics-room:
             name: Logistics Room
@@ -1845,9 +1857,12 @@ zones:
           customs:
             name: Customs
             indoors: true
+            # A gate wide enough to drive a laden cart through — checking it is
+            # most of what the post is for. See the Factory above on `wheels`.
             attributes:
               noticeboard: true
               safe: true
+              wheels: true
             description: >-
               Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. It's all illuminated by a pair of floodlights, connected by a suspended cable.
             rooms:
@@ -1874,10 +1889,13 @@ zones:
           depot:
             name: Depot
             indoors: true
+            # A shop that ships crates by the wagonload, over a bridge built to
+            # carry them. See the Factory on `wheels`.
             attributes:
               depot: true
               noticeboard: true
               safe: true
+              wheels: true
             description: >-
               Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
             rooms:
@@ -1909,6 +1927,7 @@ zones:
                 stash:
                   resources: 4
                   items:
+                    hard-cheese: 1
                     obol: 10
                     cargo-crate: 1
                     paper: 6
@@ -1939,6 +1958,10 @@ zones:
                 name: Abandoned Hut
                 description: >-
                   A small structure, once built by someone exiled from Ravenheart. It now serves as a rest stop for migrants on their way through the caves.
+                # One of five wheels of Hard Cheese put away across the game's cellars and stores (docs/systemdocs/COOKING.md). A seed, not a supply: db/lib/syncZones.js#seedRoomStash never tops a room up, so once these five are eaten there are no more.
+                stash:
+                  items:
+                    hard-cheese: 1
               approach-mineshaft:
                 name: Old Mineshaft
                 description: >-
@@ -2009,6 +2032,10 @@ zones:
                 name: Dense Mycelium
                 description: >-
                   A thick overgrowth of mycelial threads flow from the ceiling. You can barely see more than five feet ahead and moving through the dense fungi is a struggle.
+                # Deep Morels, scattered by hand (docs/systemdocs/COOKING.md). Raw they are a bad night; cooked they are one of the better things in the game, and they only grow down here.
+                stash:
+                  items:
+                    deep-morel: 1
               brooding-picnic-table:
                 name: Picnic Table
                 description: >-
@@ -2024,6 +2051,7 @@ zones:
                 access: [forester, animal-friend]
                 stash:
                   items:
+                    deep-morel: 4
                     cave-fungus: 6
           caves-abandoned-camp:
             name: Abandoned Camp
@@ -2045,6 +2073,10 @@ zones:
                 name: Shroom Mound
                 description: >-
                   Nearby to the former campsite are mounds of Earth have been piled up, with colonies of bright red mushrooms flourishing atop them. Clearly whatever is buried here is greatly to the mushroom's preference.
+                # Deep Morels, scattered by hand (docs/systemdocs/COOKING.md). Raw they are a bad night; cooked they are one of the better things in the game, and they only grow down here.
+                stash:
+                  items:
+                    deep-morel: 1
               abandoned-camp-stash:
                 name: Stash
                 description: >-
@@ -2053,6 +2085,7 @@ zones:
                 stash:
                   resources: 3
                   items:
+                    hard-cheese: 1
                     alcohol: 3
                     ravenheart-red: 1
                     moonshine: 3
@@ -2202,6 +2235,7 @@ zones:
                 stash:
                   resources: 9
                   items:
+                    deep-morel: 1
                     fishing-rod: 1
           depths-crystal-chambers:
             name: Crystal Chambers

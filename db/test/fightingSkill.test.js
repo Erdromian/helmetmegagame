@@ -27,6 +27,7 @@ const {
   formatFightingSkill,
 } = require("../lib/fightingSkill");
 const { normalizeFighting, validateFighting } = require("../lib/tagShapes");
+const { HEALTH_CATEGORY } = require("../lib/medicalVision");
 
 // A held row in the shape every surface passes: `{ tag, equipped }`.
 function row(slug, fighting, extra = {}) {
@@ -302,3 +303,114 @@ test("a stack fills hands per unit, and sheds per unit", () => {
   const swords = { id: "swords", equippedQuantity: 3, tag: { name: "Sword", equipSlot: "WEAPON" } };
   assert.equal(shedForHands([swords], 2).length, 1, "the whole stack comes off, since it is one row");
 });
+
+// --- Second Wind ----------------------------------------------------------
+
+// "Wounds and illnesses don't affect your combat score" — except the really
+// bad illnesses. Wounds, maimings and infections are waived whatever they
+// cost; an illness is waived only down to -1.5 tiers, which is where the
+// catalog itself breaks (nothing sits between -1.5 and -2).
+const secondWind = { equipped: true, tag: { slug: "second-wind", name: "Second Wind" } };
+function ail(slug, tiers, group) {
+  return {
+    equipped: true,
+    tag: {
+      slug,
+      name: slug,
+      category: HEALTH_CATEGORY,
+      group: { slug: group },
+      fighting: normalizeFighting({ tree: "both", tiers }),
+    },
+  };
+}
+
+test("Second Wind waives a wound whatever it costs", () => {
+  for (const [slug, tiers, group] of [
+    ["minor-wound", -1, "health-wounds"],
+    ["missing-arm", -3, "health-maiming"],
+    ["festering", -2, "health-infection"],
+  ]) {
+    const r = ail(slug, tiers, group);
+    assert.ok(melee([r]).score < melee([]).score, `${slug} should cost something`);
+    assert.equal(melee([r, secondWind]).score, melee([]).score, `${slug} should be waived`);
+  }
+});
+
+test("Second Wind waives an ordinary illness but not one that is killing you", () => {
+  const waived = [["leper", -0.3], ["pox", -1], ["heatstroke", -1.5]];
+  for (const [slug, tiers] of waived) {
+    const r = ail(slug, tiers, "health-illness");
+    assert.equal(melee([r, secondWind]).score, melee([]).score, `${slug} should be waived`);
+  }
+  const kept = [["consumptive", -2], ["appendicitis", -2.5], ["choking", -3]];
+  for (const [slug, tiers] of kept) {
+    const r = ail(slug, tiers, "health-illness");
+    assert.equal(melee([r, secondWind]).score, melee([r]).score, `${slug} must still bite`);
+    assert.ok(melee([r, secondWind]).score < melee([]).score);
+  }
+});
+
+test("Second Wind leaves a state of mind alone", () => {
+  const r = ail("shell-shocked", -1, "health-mind");
+  assert.equal(melee([r, secondWind]).score, melee([r]).score);
+});
+
+// --- Drunken Master -------------------------------------------------------
+
+// The drink costs everyone something and costs a Drunken Master nothing — it
+// makes them BETTER, by the same amount on every rung. That flatness is the
+// point: the tag used to cancel Tipsy exactly and do nothing at all past it,
+// so a second drink fell off a cliff, while the description promised Wasted
+// was free. Now the penalty is cancelled outright and a flat tier added on
+// top, which is why the block needs `holdsAny` — the rungs replace each
+// other, so `holds` (AND) could never match more than one of them.
+const drunkenMaster = {
+  equipped: true,
+  tag: {
+    slug: "drunken-master",
+    name: "Drunken Master",
+    fighting: normalizeFighting({
+      tree: "both",
+      tiers: 1,
+      cancels: ["tipsy", "wasted", "blind-drunk"],
+      when: { holdsAny: ["tipsy", "wasted", "blind-drunk"] },
+    }),
+  },
+};
+const drink = (slug, tiers) => row(slug, normalizeFighting({ tree: "both", tiers }));
+
+test("a drink costs everyone else something", () => {
+  const sober = melee([]).score;
+  assert.equal(melee([drink("tipsy", -0.8)]).score - sober, -8);
+  assert.equal(melee([drink("wasted", -1.2)]).score - sober, -12);
+  assert.equal(melee([drink("blind-drunk", -1.2)]).score - sober, -12);
+});
+
+test("a Drunken Master is one tier up on every rung, and sober is still sober", () => {
+  const sober = melee([]).score;
+  for (const [slug, tiers] of [["tipsy", -0.8], ["wasted", -1.2], ["blind-drunk", -1.2]]) {
+    const score = melee([drink(slug, tiers), drunkenMaster]).score;
+    assert.equal(score - sober, POINTS_PER_TIER, `${slug} should be +1 tier`);
+  }
+  // No drink, no bonus — the tag is worth nothing to somebody who stays dry.
+  assert.equal(melee([drunkenMaster]).score, sober);
+});
+
+test("holdsAny is OR where holds is AND", () => {
+  // The whole reason holdsAny exists: one rung at a time is all anybody holds.
+  const anyBlock = normalizeFighting({
+    tree: "both",
+    tiers: 1,
+    when: { holdsAny: ["tipsy", "wasted"] },
+  });
+  const allBlock = normalizeFighting({
+    tree: "both",
+    tiers: 1,
+    when: { holds: ["tipsy", "wasted"] },
+  });
+  const sober = melee([]).score;
+  const tipsy = drink("tipsy", -0.8);
+  assert.equal(melee([tipsy, row("any", anyBlock)]).score - sober, -8 + POINTS_PER_TIER);
+  assert.equal(melee([tipsy, row("all", allBlock)]).score - sober, -8);
+});
+

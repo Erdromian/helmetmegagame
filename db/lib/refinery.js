@@ -153,7 +153,7 @@ async function applyRefinery(tx, characterId, locationId) {
 
   if (source.kind === "held") {
     await dropCharacterTag(tx, characterId, input.id, 1);
-  } else if (!(await dropRoomTag(tx, source.roomId, input.id, 1))) {
+  } else if (!(await dropRoomTag(tx, source.roomId, input.id, 1)).ok) {
     // Somebody else's shift took the last lump between the bulk read and this
     // write — the auto-labor pass resolves everyone against one snapshot, so
     // this is a race the design invites rather than an anomaly.

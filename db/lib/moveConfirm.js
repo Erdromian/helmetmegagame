@@ -1,5 +1,5 @@
 const { gambitModifiers, gambitModifierTotal } = require("./gambitModifier");
-const { rollDie } = require("./moveEffects");
+const { rollWithAdvantage } = require("./advantage");
 const { formatLaborBonusNote, lazyYield, lazyExpression } = require("./laborAccess");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 
@@ -27,7 +27,12 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 // `roll` is the same facts unformatted, for a surface that renders plain
 // text instead.
 async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = null } = {}) {
-  const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
+  // Lucky rolls this twice and keeps the better die (db/lib/advantage.js).
+  // `diceRoll` stays the die that COUNTS, so everything downstream — the
+  // stored column, the threshold checks, the reveal DM — is unchanged; the
+  // discarded die rides along in `advantage` for the roll line alone.
+  const advantage = action.moveKind === "GAMBIT" ? rollWithAdvantage(action.character.tags) : null;
+  const diceRoll = advantage ? advantage.die : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
   // the RAW roll and the SUM of every contributor (Hunger scaled to the
   // streak, and the bottom two mood bands) is stored beside it — see the
@@ -56,7 +61,13 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
     ? (action.resourceDelta ?? 0) + rollResult.value
     : (action.resourceDelta ?? null);
 
-  const isRoutine = action.moveKind === "ROUTINE";
+  // A Move no GM has to touch. Labor belongs here beside Routine: its payout
+  // is a die the turn close rolls, not a judgement anybody makes, which is
+  // why db/lib/autoLaborPass.js has always filed its own as PASSED. A
+  // player-submitted Labor was the one that came out OPEN, so it sat in the
+  // desk's queue asking for an adjudication that has no verb, and the sheet
+  // read it as a turn still unspent.
+  const needsNoGm = action.moveKind === "ROUTINE" || action.moveKind === "LABOR";
 
   const updated = await prisma.action.update({
     where: { id: action.id },
@@ -69,7 +80,7 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
         : {}),
       // PASSED means "no GM needs to touch this", not "paid" — appliedEffects
       // stays null until the staged push claims it at rollover.
-      ...(isRoutine ? { moveReviewStatus: "PASSED" } : {}),
+      ...(needsNoGm ? { moveReviewStatus: "PASSED" } : {}),
     },
   });
 

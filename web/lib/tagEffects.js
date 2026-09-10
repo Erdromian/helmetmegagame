@@ -53,17 +53,29 @@ export { addToStack };
 // upsert since the player may have re-acquired it elsewhere; the update
 // branch INCREMENTS rather than overwrites, since the snapshot quantity is
 // what this request took away, not the character's total.
+//
+// `snapshot.poisonedCount`/`poisonPayload` (M4): merging into a row that
+// already carries a DIFFERENT payload dilutes the incoming units clean
+// rather than refusing — "poisons don't mix", same rule addToStack enforces
+// for a Craft/Grant path; this is Transfer and Loot's landing side.
 export async function restoreCharacterTag(tx, characterId, snapshot) {
   const n = Math.max(1, Math.trunc(snapshot.quantity ?? 1));
+  const incomingPoisoned =
+    snapshot.poisonedCount > 0 ? Math.min(Math.trunc(snapshot.poisonedCount), n) : 0;
+  const incomingPayload = snapshot.poisonPayload ?? null;
   const existing = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId, tagId: snapshot.tagId } },
   });
   if (existing) {
+    const samePoison =
+      !existing.poisonPayload || !incomingPayload || existing.poisonPayload === incomingPayload;
     return tx.characterTag.update({
       where: { id: existing.id },
       data: {
         quantity: existing.quantity + n,
         expiresTurn: snapshot.expiresTurn ?? null,
+        poisonedCount: samePoison ? existing.poisonedCount + incomingPoisoned : existing.poisonedCount,
+        poisonPayload: existing.poisonPayload ?? (samePoison ? incomingPayload : null),
       },
     });
   }
@@ -74,6 +86,8 @@ export async function restoreCharacterTag(tx, characterId, snapshot) {
       source: snapshot.source ?? "GM_GRANT",
       expiresTurn: snapshot.expiresTurn ?? null,
       quantity: n,
+      poisonedCount: incomingPoisoned,
+      poisonPayload: incomingPoisoned > 0 ? incomingPayload : null,
     },
   });
 }
@@ -89,19 +103,27 @@ export { addToRoomStack, dropRoomTag };
 // Takes `quantity` of a tag off a party. A room's decrement is the check
 // (two players can pull the same stack in the same tick); a character's
 // holding was snapshotted when the request was filed.
+//
+// Returns `{ poisonedTaken, poisonPayload }` (M4) — how many of the units
+// leaving were drawn poisoned, and with what, so a caller moving a stack
+// (Transfer, Loot) can carry that state onward through `giveTagTo` below.
+// Ignored by every caller that doesn't need it.
 export async function takeTagFrom(tx, party, tagId, quantity) {
-  if (!party?.id || !tagId) return;
+  if (!party?.id || !tagId) return { poisonedTaken: 0, poisonPayload: null };
   if (party.kind === "room") {
-    const ok = await dropRoomTag(tx, party.id, tagId, quantity);
+    const { ok, poisonedTaken, poisonPayload } = await dropRoomTag(tx, party.id, tagId, quantity);
     if (!ok) throw new UserError(`${party.name ?? "That room"} no longer holds that.`);
-    return;
+    return { poisonedTaken, poisonPayload };
   }
-  await dropCharacterTag(tx, party.id, tagId, quantity);
+  return dropCharacterTag(tx, party.id, tagId, quantity);
 }
 
-// Puts a snapshot { tagId, quantity, expiresTurn, source } back on a party.
-// Both branches INCREMENT and re-assert the snapshot's clock, so a stash-
-// then-undo can't launder an expiry.
+// Puts a snapshot { tagId, quantity, expiresTurn, source, poisonedCount,
+// poisonPayload } back on a party. Both branches INCREMENT and re-assert the
+// snapshot's clock, so a stash-then-undo can't launder an expiry — and, as of
+// M4, addToStack/addToRoomStack apply the same "poisons don't mix" dilution
+// on the poisoned half: a merge into a row already carrying a DIFFERENT
+// payload arrives clean, silently, rather than refusing.
 export async function giveTagTo(tx, party, snapshot) {
   if (!party?.id || !snapshot?.tagId) return;
   if (party.kind === "room") {
@@ -121,6 +143,8 @@ export async function giveTagTo(tx, party, snapshot) {
     }
     await addToRoomStack(tx, party.id, snapshot.tagId, snapshot.quantity ?? 1, {
       expiresTurn: snapshot.expiresTurn ?? null,
+      poisonedCount: snapshot.poisonedCount ?? 0,
+      poisonPayload: snapshot.poisonPayload ?? null,
     });
     return;
   }

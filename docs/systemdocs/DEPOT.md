@@ -199,9 +199,9 @@ item — and `MAX_CRATES` (12), past which a huge order simply means fuller
 crates rather than a landing pad buried in tag rows.
 
 There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`
-(200). The weight cap does not bound the weightless, and eight Depot wares
-weigh 0 lb — `paper`, `cigarette`, `jewelry`, `spectacles` and the four animals
-— so without it a paper order packs into one crate however large it is.
+(200). The weight cap does not bound the weightless, and seven Depot wares
+weigh 0 lb — `cigarette`, `jewelry`, `spectacles` and the four animals — so
+without it a weightless order packs into one crate however large it is.
 
 **A crate is a `Tag` row created at runtime** with `custom: true`, so
 `db:prune-tags` skips it (`db/lib/pruneTags.js`). Being a tag means crates get
@@ -568,11 +568,14 @@ sell price, no amount of round-tripping prints an obol — the same invariant
 `db/lib/syncTags.js` enforces for every priced tag, just held by hand here
 since there is no row to check.
 
-**Paper undercuts everything at 1 ⬢**, on purpose. It has to be something a
-scribe buys by the ream without thinking about it, or nobody writes and the
-whole of `PAPERWORK.md` is a menu people look at once. It is also the only ware
+**Paper undercuts everything, and the station sells it by the ream.** A
+`stack-of-paper` is 3 ⬢ and consumes into twenty sheets, so writing costs a
+scribe almost nothing — which it has to, or nobody writes and the whole of
+`PAPERWORK.md` is a menu people look at once. Loose `paper` is no longer on the
+shelf: a weightless 1 ⬢ line was a thing every order padded itself out with,
+and the ream is the same paper at a fifth the price. It is also the only ware
 with no sell-back price at all: a resale market in blank paper is not a thing
-anybody needs, and 1 ⬢ leaves no room under it anyway.
+anybody needs.
 
 **Sell-back is 60% of the buy price**, rounded, with a floor of 1 ⬢. It used to
 be ~44%, and the counter was a bad place to stand: the spread ate so much of a
@@ -608,10 +611,10 @@ buying one mid-game is still a real decision.
 
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
-| `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
 | `coffee` | 2 | 1 | Consumes into `caffeinated` (2t) |
 | `tea` | 2 | 1 | +15 mood (`MOOD.md` §5), the same as Maggot Milk |
 | `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
+| `stack-of-paper` | 3 | — | **The cheapest paper on the shelf**, deliberately. A ream: consumes into twenty blank sheets, and writing on one mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. Loose `paper` is not stocked. |
 | `firecracker` | 3 | 2 | |
 | `honey` | 4 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 4 | 2 | |
@@ -627,6 +630,7 @@ buying one mid-game is still a real decision.
 | `whip` | 11 | 7 | Equippable |
 | `censer` | 12 | 7 | |
 | `jewelry` | 13 | 8 | Also a 2-pt creation pick |
+| `steel` | 13 | 8 | Craftable (`smithing`, spends `coal` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. |
 | `mining-helmet` | 14 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
 | `black-body-bag` | 22 | 13 | |
 | `monkey` | 22 | 13 | |
@@ -634,7 +638,6 @@ buying one mid-game is still a real decision.
 | `sword-cane` | 23 | 14 | Also a 7-pt creation pick |
 | `instant-camera` | 26 | 16 | Also a 2-pt creation pick |
 | `microscope` | 29 | 17 | |
-| `steel` | 30 | 18 | Craftable (`smithing`, spends `coal` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. |
 | `surgical-equipment` | 31 | 19 | Also a 9-pt creation pick |
 | `light-infantry-armour` | 34 | 20 | Stops a bullet. Nothing forged here does. |
 | `phrygian-tears` | 36 | 22 | Also a Skilled brew, at 4 ⬢ — see §4 |
@@ -683,7 +686,7 @@ make it, importing it would be pointless. The three exceptions are all brews —
 Merchant who would rather not wait on a brewer. Each is priced well above what
 brewing one costs, and that gap is the market a brewer sells into (§4).
 
-**`steel` (2026-09-09) is the fourth**, and the first that isn't a brew — a
+**`steel` (2026-09-09, repriced 2026-09-10) is the fourth**, and the first that isn't a brew — a
 smith with no Prospector bringing up ore can buy the ingot outright instead
 of smelting it himself. Same reasoning as the three brews: priced above what
 the `smithing` recipe itself costs (`SMITHING.md`), so the Merchant is a
@@ -716,7 +719,7 @@ Four bands, about 106 tags in total:
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 1/3-turn pieces 7), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
-| Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
+| Factory goods | a day's output at ~3× a good farming day | `squeeze` 5 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
 | Body parts | low, on purpose | `eye` 8, `heart` 8, `hand` 5, `foot` 4, `stomach` 4, `tongue` 3 |
 

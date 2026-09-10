@@ -327,8 +327,9 @@ desires:
 
   win-a-compliment:
     name: Earn a compliment.
-    tier: 3
+    tier: 1
     families: [vanity, social]
+    cooldownTurns: 5
 
   drink-alcohol:
     name: Drink alcohol
@@ -387,9 +388,9 @@ desires:
 
   kiss-someone:
     name: Kiss someone
-    tier: 3
+    tier: 1
     families: [romance]
-    cooldownTurns: 4
+    cooldownTurns: 3
 
   kill-someone-you-hate:
     name: Kill someone you hate
@@ -467,7 +468,7 @@ desires:
     families: [scheming, feud]
 
   hold-100:
-    name: Have 100 ⬢/¢ in your inventory at once
+    name: Have 100 ¢ in your inventory at once
     tier: 4
     families: [wealth]
 
@@ -1115,16 +1116,20 @@ desires:
 
   perform-for-5:
     name: Perform for at least 5 people
-    tier: 3
+    tier: 2
+    # The ladder at the top of this file: a Desire that costs nothing but
+    # other people's attention takes the inverted cooldown, not the tier.
+    cooldownTurns: 4
     families: [craft, social]
     requires:
       anyRoles: [minstrel]
       anyTags: [musician, artist]
       combine: or
 
-  perform-for-15:
-    name: Perform for at least 15 people
+  perform-for-20:
+    name: Perform for at least 20 people
     tier: 5
+    oncePerLife: true
     families: [craft, social]
     requires:
       anyRoles: [minstrel]

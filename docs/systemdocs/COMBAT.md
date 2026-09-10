@@ -30,9 +30,11 @@ Four of those are load-bearing enough to name, because the prose and the
 | `hangover` | "Your fighting skill counts as 1 tier lower." |
 | `opium-high` | "Your fighting skill counts as 1 tier lower." |
 
-A fifth is the `crossbow`: *"your Ranged Fighting skill counts as one tier
-higher due to its ease of use"* — which is why it is the only ordinary weapon
-in the catalog worth a full tier. `db/test/fightingSkill.test.js` pins these.
+A fifth is the `crossbow`: *"your Ranged Fighting skill counts as half a tier
+higher due to its ease of use"* — the prose carries the number, so the two move
+together or not at all. It read *one tier* until 2026-09-10, when the ranged
+rebalance (§4, The ranged ladder) dropped it to 0.5 and the description was edited to match.
+`db/test/fightingSkill.test.js` pins these.
 
 ## 2. The four classes
 
@@ -98,10 +100,20 @@ rung lands dead centre of its band. That centring is what makes the words
 stable: a peasant picking up a knife, or taking one half-tier knock, stays what
 they were.
 
+**Pitiful is the one band that is not ten wide** (2026-09-10). It ended at 9,
+six points under an untrained 15, so a single ordinary drawback — Clumsy, Fat or
+Dwarf, all −0.7 — put a healthy person in the same word as somebody tied to a
+chair, and a fifth of the living roster was in it. The bands measure *skill*,
+and below untrained there is no skill left to measure, only injury, so the
+bottom band should take a real injury to reach. Weak widens downward instead.
+The trade is that untrained is no longer dead centre of its own band: five
+points up to Mediocre, eleven down to Pitiful. That asymmetry is the point in a
+valley where almost nobody has been trained.
+
 | Score | Band | | Held | Score | Band |
 |---|---|---|---|---|---|
-| ≤9 | Pitiful | | nothing | 15 | **Weak** |
-| 10–19 | Weak | | Basic | 25 | Mediocre |
+| ≤4 | Pitiful | | nothing | 15 | **Weak** |
+| 5–19 | Weak | | Basic | 25 | Mediocre |
 | 20–29 | Mediocre | | Trained | 35 | Capable |
 | 30–39 | Capable | | Skilled | 45 | Seasoned |
 | 40–49 | Seasoned | | Expert | 55 | Dangerous |
@@ -145,9 +157,38 @@ that is a **ceiling, not a formula**:
 Relentless (7 pts, pure nerve) takes its full +1. Eagle Eyes (2 pts) also helps
 you spot things and read at distance, so combat takes part of its 0.3.
 
-Health tags are not priced this way, because almost all of them cost 0 — a
-wound is not bought. Those are priced off **each other**: the ladder from
-Bruised (−0.5) to Arterial Bleed (−3) has to read as one ladder.
+### Pricing a drawback
+
+**The same ceiling, pointed the other way** (2026-09-10). A drawback bought for
+points is a bargain the game struck with the player, so it owes the same rate a
+bonus pays:
+
+> A drawback's combat penalty is at most `|pointCost| × 0.14` tiers, and less
+> when the drawback costs you things outside a fight too.
+
+0.14 is a rung: +1 tier for 7 points. Tough, Relentless and Giant all sit
+exactly on it, and Strong is deliberately under it at 0.10 because it also does
+carry.
+
+The negatives did not. They ran 0.20 to 0.375 — Missing Fingers worst of all at
+−1.5 tiers for a −4 drawback, **2.7× what a bonus pays**, with a hand slot taken
+on top, and worse than a Peg Leg that cost more. Losing fingers outranked losing
+a leg. Every bought drawback was re-rated to the ceiling above.
+
+**Two deliberate deviations**, both louder here than in a diff:
+
+- **Blind** rates to −1.1 at −8 points, which is absurd for blindness. It sits
+  at −2.0. What is wrong is the −8 price, and repricing a tag is a `TAGS.md`
+  §4a call rather than this ladder's.
+- **Old** went the other way, −0.5 → −0.7. It was the one bought drawback
+  already *under* the rate, and leaving it would have left Old and Frail four
+  points apart at the same price.
+
+Health tags are mostly **not** priced this way, because almost all of them cost
+0 — a wound is not bought. Those are priced off **each other**: the ladder from
+Bruised (−0.3) to Arterial Bleed (−2) has to read as one ladder. It ran −0.5 to
+−3 until 2026-09-10 and was compressed one notch, so that two mortal wounds
+still floor a character but one no longer does it alone.
 
 **The smallest step is 0.1 tiers**, and that is what makes the small traits
 worth authoring at all. Steady costs 1 point and would round to nothing on a
@@ -243,6 +284,37 @@ list anywhere — that is the mistake `armorValue.js` was written to undo, and
 its own comment says why: *"A number on the tag cannot go stale the way a list
 in a file did the moment somebody added a helmet to the catalog."*
 
+### The ranged ladder
+
+**Firearms sit above bows, and every firearm above every bow.** A gun is the
+newer technology and the catalog says so: the pre-gunpowder half of the ranged
+tree caps at 0.5, and the powder half starts at 0.6. Set 2026-09-10.
+
+| Weapon | Class | Tiers |
+|---|---|---|
+| Kpfw-6 Avtomat | firearm | 1.2 |
+| CTT4&3 Rifle | firearm | 1 |
+| ML-23 | firearm | 0.8 |
+| Sawn-Off Double Barrel | firearm | 0.8 |
+| Neoclassic R&W10 | firearm | 0.7 |
+| Neoclassic Duelista | firearm | 0.7 |
+| Musketoon | firearm | 0.6 |
+| Bore Pistol | firearm | 0.6 |
+| Crossbow | crossbow | 0.5 |
+| Longbow | bow | 0.5 |
+| Shortbow | bow | 0.4 |
+| Javelin | thrown | 0.4 |
+| Bomb | thrown | 0.4 |
+| Sling | thrown | 0.3 |
+
+Within the powder half the axis is rate of fire first, power second: full auto,
+then semi-automatic rifle, then a magazine pistol and a two-shot shotgun, then
+a revolver, then the single-shot black-powder pieces a player can actually
+craft. The **Disabler** stays at 0.3 and off this ladder — it is non-lethal and
+"only useful against unarmed people", so it is a tool, not a gun. The BB Pistol
+(0.1) and the Whip (0.2) are `exotic`, which `fightingSkill.js` does not count
+as ranged at all.
+
 ### What the door refuses
 
 Every one of these is a **silent** no-op at runtime rather than a crash, which
@@ -275,6 +347,16 @@ surface has to keep all four:
   Armour is public by design — you can see what somebody is wearing. Putting a
   number on a stranger's missing arm is a different thing.
 
+**One deliberate exception, and it is one bit.** The Attack button refuses a
+target more than two bands above you and says so — *"This opponent is too strong
+to attack."* Press it and you have learned that somebody is three or more bands
+above you, and nothing else: not their band, not their score, not which half of
+the tree it came from, and nothing at all about anybody two bands up or less.
+That is the price of the verb existing at all (`ATTACK.md` §3), and it is why
+the picker in that dialog lists the people it will refuse rather than filtering
+them out — a picker that hid them would answer the same question for free, for
+everybody in the room, on every page load.
+
 `formatTagFighting` (`db/lib/formatTagFighting.js`) says what **one tag** does,
 not what a person is, and that is why it is safe on a chip: the tags carrying a
 real shift are invisible to strangers in the first place.
@@ -286,17 +368,27 @@ goes is the job the number is withheld from players for.
 
 ## 6. The surfaces
 
-- **`web/app/components/LedgerBand.js`** — the Combat tile, spanning two
-  tracks of the band's lower rank. Resting it shows the two bands, the combined
-  armour **beside them on one line**, and one quiet 11px line naming the
-  situational tags. Hover, focus or click and it **swaps its own face** for the
-  breakdown: MELEE and RANGED as full-width stacked rows. Sized by the resting
-  face, so opening it moves nothing. **Not a tooltip** — `SHEET.md` §3 is the
-  rule for that surface, and swapping in place is what keeps it.
+- **`web/app/components/LedgerBand.js`** — the Combat readout, in the **band
+  row** beside This turn and Turn Effects rather than in the tile row. That
+  row's `max-width` fits exactly five tiles and a sixth needs 856px; putting
+  Combat there broke a line that had never wrapped.
 
-  It lives in the **band row** beside This turn and Turn Effects, not in the
-  tile row. That row's `max-width` fits exactly five tiles and a sixth needs
-  856px; putting Combat there broke a line that had never wrapped.
+  Resting, it is **a row per dimension** — Melee and Ranged, each with its own
+  band and its own armour. It was two unlabelled *pairs* first ("Pitiful ·
+  Pitiful" over "⛊ None · None") and nobody could read the second half of
+  either: one shield in front of two words says nothing about which word it
+  belongs to. Turning it ninety degrees answers both at once.
+
+  One honest approximation is baked in: the Ranged row pairs ranged **skill**
+  with **ballistic** armour, and those are not quite the same axis — ballistic
+  is what guns roll against, while ranged skill covers bows too. Bascinet's
+  call, made knowingly, on the grounds that two labelled lines roughly right
+  beat four values nobody can attribute at all.
+
+  Hover, focus or click and it **swaps its own face** for the breakdown: MELEE
+  and RANGED as full-width stacked rows. Sized by the resting face, so opening
+  it moves nothing. **Not a tooltip** — `SHEET.md` §3 is the rule for that
+  surface, and swapping in place is what keeps it.
 - **`web/app/components/InspectorColumn.js`** — the GM's Fighting fact.
 - **`web/app/components/TagDetails.js`** — one tag's own "In a fight" line.
 
@@ -338,3 +430,40 @@ an event when somebody does.
   character's own tags can never know who that is. It rides as a `note:` on its
   holder, where the GM adjudicating the fight will see it. Making it a real
   modifier would mean resolving fights in code, which this system does not do.
+
+
+## Second Wind
+
+An ordinary 6-point tag (**not** a mastery, despite reading like one): a
+**wound's** penalty stops counting toward the rating.
+
+It works through `contextOf`'s new `secondWind` flag and reuses the branch in
+`modifiers()` that already exists for a cancelled maiming — the contributor is
+pushed at **`points: 0` with a `cancelledBy` label, not dropped**, so a player
+wondering why their broken arm costs nothing can read the answer instead of
+assuming the system lost it.
+
+Three things it deliberately does **not** do:
+
+- **It never lifts a band CAP.** Dying, Paralyzed and Seizure keep
+  `cap: pitiful`. Those take you *out* of a fight rather than making you worse
+  at one, which is exactly what the cap mechanism is for (§2).
+- **It only waives penalties.** A Health tag with positive `points` keeps
+  helping.
+- **It is WOUNDS only** — the three groups in `WOUND_TAG_GROUPS`
+  (`db/lib/constants.js`): `health-wounds`, `health-maiming`,
+  `health-infection`. 33 tags, against 30 Health tags that still cost you:
+  every illness, Blind, Concussed, Envenomated, Choking, and the aches. It
+  waived the whole Health category for a day, which at 6 points bought off
+  sixty-odd stacking penalties on a tag buyable at creation. A cold is not a
+  wound, and neither is blindness.
+- **A Status penalty** — Bound, a hangover, Wasted — is untouched.
+
+`FIGHTING_TAG_FIELDS` gained `category: true` for this. The group slug it also
+needs is deliberately **not** in that object: every caller spreads it into a
+wider select that already asks for `group` with more fields, and a narrower
+`group` spread in afterwards would silently strip the colour off every chip in
+the app. So the contract is that a caller resolving a whole character selects
+`group: { select: { slug: true } }` itself — both do today. A row arriving
+without its group reads as not-a-wound, which fails **safe**: the penalty still
+counts.

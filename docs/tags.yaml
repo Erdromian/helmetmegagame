@@ -106,6 +106,19 @@
 #   teachable       - Learn / Teach can move this tag between characters
 #                     (docs/systemdocs/LESSONS.md). Every skill sets it.
 #                     Default false.
+#   mastery         - a MASTERY tag: buyable ONLY once play has started, never
+#                     at character creation. The third state `purchasable` and
+#                     `purchasableAfterStart` could not express between them
+#                     ("buyable at all" and "still buyable mid-game"; neither
+#                     says "not yet"). Bought with points earned in play rather
+#                     than out of a starting budget, which is why the mastery
+#                     tags are the deliberate exception to the 14-point ceiling
+#                     — see TAGS.md 4a. Renders a ★ beside the name wherever
+#                     the name is drawn. Default false.
+#                     db/lib/syncTags.js THROWS on `mastery` with
+#                     `purchasableAfterStart: false` (buyable nowhere at all)
+#                     and on `mastery` with a negative pointCost (a drawback
+#                     you can only take mid-game is a point farm).
 #   stackable       - whether a character can hold more than one at a time
 #                     (meals, ammunition, anything a crafting Move makes in a
 #                     batch). Default false. A stack is one CharacterTag row
@@ -239,12 +252,12 @@
 #
 #   Tier 0  untreatable            no requirement block at all
 #   Tier 1  very minor, first aid  1 ⬢,  0 turns, medical-basic
-#   Tier 2  minor                  2 ⬢,  0 turns, medical-basic
-#   Tier 3  moderately severe      2 ⬢,  1 turn,  medical-skilled
-#   Tier 4  severe                 4 ⬢,  1 turn,  medical-skilled
-#   Tier 5  very minor surgery     6 ⬢,  1 turn,  medical-skilled
-#   Tier 6  severe surgery         8 ⬢,  1 turn,  medical-expert
-#   Tier 7  complex surgery        8 ⬢,  1 turn,  medical-expert, gambit
+#   Tier 2  minor                  2 ⬢,  1/4 turn, medical-basic
+#   Tier 3  moderately severe      2 ⬢,  1/3 turn, medical-skilled
+#   Tier 4  severe                 4 ⬢,  1/3 turn, medical-skilled
+#   Tier 5  very minor surgery     7 ⬢,  1/2 turn, medical-skilled
+#   Tier 6  severe surgery         14 ⬢, 1 turn,   medical-expert
+#   Tier 7  complex surgery        14 ⬢, 1 turn,   medical-expert, gambit
 #
 # The top three rungs are the surgical ones, and they are where the ladder
 # does its real work. A Serpent closes an arterial bleed and cuts away dead
@@ -443,7 +456,7 @@ tags:
     pointCost: 1
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
   # Learn Skill / Teach Skill on the sheet. Teaching is the door; Lecturing
@@ -482,7 +495,7 @@ tags:
     description: "Your family has been around a long time."
     pointCost: 1
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   dancer:
     catalog: gm
@@ -801,7 +814,7 @@ tags:
     pointCost: 14
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
     carryBonus: 0.75
     # Giant, Strong and Pack Mule are one fiction — a big body that hauls —
     # so they never stack. Authored here and on Strong; db:sync-tags mirrors
@@ -847,7 +860,7 @@ tags:
     category: general
     group: general-traits
     description: "Elderly. You're slower and fight slightly worse."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
     carryBonus: -0.05
     visible: true
@@ -869,7 +882,7 @@ tags:
     category: health
     group: health-illness
     description: "Covered in sores."
-    fighting: { tree: both, tiers: -0.3 }
+    fighting: { tree: both, tiers: -0.1 }
     pointCost: -1
     conflictsWith: [pretty, beautiful, ugly, disfigured]
     visible: true
@@ -882,7 +895,7 @@ tags:
     category: general
     group: general-traits
     description: "You are physically weak and fragile. Mustering strength to fight back is almost impossible."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [pack-mule, strong, tough]
     carryBonus: -0.1
@@ -942,7 +955,7 @@ tags:
     category: general
     group: general-traits
     description: "You can read and write, something most people in Ravenheart cannot do."
-    pointCost: 5
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
@@ -955,7 +968,7 @@ tags:
     fighting: { situational: true }
     pointCost: 1
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # A drawback, so it GIVES a point back rather than costing one — same
   # posture as Frail and Old above.
@@ -1047,7 +1060,14 @@ tags:
     name: Iron Constitution
     category: general
     group: general-traits
-    description: "Poisons and diseases have less effect on you."
+    # `nauseous` belongs on this list and is deliberately absent: the tag
+    # arrives with the cooking rework (PR #37), and the sync refuses a
+    # resists entry naming a tag the catalog does not have yet. Add it back
+    # in the same commit that merges cooking — Iron Constitution already
+    # resists Vomiting, and the flesh ingredients roll one or the other, so
+    # without it the trait works half the time at random.
+    resists: [poisoned, vomiting, parasites, cave-fever, choking, asleep]
+    description: "Bad food and the weaker poisons don't bother you."
     fighting: { situational: true }
     pointCost: 5
     purchasable: true
@@ -1144,7 +1164,7 @@ tags:
     fighting: { tree: both, tiers: 0.5 }
     pointCost: 5
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # Granted as a starting tag to the Censor. Left purchasable so anyone
   # else can buy their way into the trait too.
@@ -1210,7 +1230,7 @@ tags:
     fighting: { tree: both, tiers: 0.3 }
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   eagle-eyes:
     catalog: all
@@ -1221,7 +1241,7 @@ tags:
     fighting: { tree: ranged, tiers: 0.3 }
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   ambidextrous:
     catalog: all
@@ -1232,7 +1252,7 @@ tags:
     fighting: { cancels: [missing-arm, missing-fingers, mangled-hand] }
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # Scripted: every rung above Tipsy takes two drinks, tracked by the hidden
   # `holding-it-down` marker; web/lib/consumeGrants.js.
@@ -1251,7 +1271,7 @@ tags:
     name: Poison Sense
     category: general
     group: general-traits
-    description: "You have a sensitive palate: you can tell when a dish is poisoned."
+    description: "You can immediately tell when a meal is poisoned."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1355,7 +1375,7 @@ tags:
     pointCost: 3
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   beautiful:
     catalog: all
@@ -1367,7 +1387,7 @@ tags:
     parentTag: pretty
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # Drawbacks, so they GIVE points back — same posture as Frail and Old above,
   # and all creation-only per TAGS.md §4.
@@ -1423,7 +1443,7 @@ tags:
     description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it! Locks Desires about wealth, but unlocks Desires about thievery."
     pointCost: 0
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
     desires:
       locks:
         - families: [wealth]
@@ -1495,7 +1515,7 @@ tags:
     category: general
     group: general-traits
     description: "Eh? What's that? You can't hear very well."
-    fighting: { tree: both, tiers: -0.6 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: -4
     purchasable: true
     purchasableAfterStart: false
@@ -1552,7 +1572,7 @@ tags:
     fighting: { situational: true }
     pointCost: 0
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
     desires:
       locks:
         - families: [violence, feud]
@@ -1629,7 +1649,7 @@ tags:
     conflictsWith: [stutter]
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # Slug kept deliberately (see this file's header) — renamed Gambler.
   gambler:
@@ -1721,7 +1741,7 @@ tags:
     category: general
     group: general-personality
     description: "Blood, especially your own blood, makes you dizzy..."
-    fighting: { tree: both, tiers: -0.6, situational: true }
+    fighting: { tree: both, tiers: -0.5, situational: true }
     pointCost: -4
     visible: false
     purchasable: true
@@ -2195,7 +2215,7 @@ tags:
     # flag is written out.
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   houndmaster:
     catalog: gm
@@ -2239,6 +2259,106 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     teachable: false
+
+  # --- The general MASTERIES -------------------------------------------------
+  # Five capstones, none of them buyable at character creation (TAGS.md 4a on
+  # the mastery band and why it sits above the ordinary 14-point ceiling).
+  # Second Wind is filed with them because it reads like one, but it is a plain
+  # 6-point tag and is deliberately NOT `mastery` — it can be bought at
+  # creation like anything else.
+
+  # Advantage is a re-roll, not a modifier, so it does not live in
+  # db/lib/gambitModifier.js — db/lib/advantage.js is the whole mechanic, and
+  # every d6 a CHARACTER rolls goes through it.
+  lucky:
+    catalog: all
+    name: Lucky
+    category: general
+    group: general-traits
+    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the laboring die included."
+    pointCost: 15
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # The SLOT lock only (GameConfig.desireSlotLockTurns), never a Desire's own
+  # cooldown — a Manic character may refill a slot the turn it empties, but
+  # each individual Desire still waits out its own timer (DESIRES.md).
+  manic:
+    catalog: all
+    name: Manic
+    category: general
+    group: general-personality
+    psychological: true
+    description: "You want the next thing before the last one has finished. Your Desire slots take no rest between claims."
+    pointCost: 13
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # On death this rolls the holder straight into a new body: a random role with
+  # a free seat, the starting budget plus 6, and no Curse. See CHARACTERS.md.
+  # The description is deliberately vague — the player is told what it does by
+  # DM when they take it, not by the catalog line.
+  metempsychosis:
+    catalog: all
+    name: Metempsychosis
+    category: general
+    group: general-traits
+    description: "You know something very, very important."
+    pointCost: 12
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # A negative factor in db/lib/mood.js MULTIPLIERS, which flips harm into
+  # relief. Shocks pay HALF their sting back as mood; the ever-present costs
+  # (wilderness, caves, hunger) simply stop landing.
+  amor-fati:
+    catalog: all
+    name: Amor Fati
+    category: general
+    group: general-beliefs
+    description: "Unfortunate incidents only serve to make you pleased. What would wound another man's spirits lifts yours instead, and the ordinary miseries do not touch you at all."
+    pointCost: 12
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+    conflictsWith: [imperturbable]
+
+  # Pinned at Fine: the mood dial cannot move at all, in either direction. That
+  # costs the Ecstatic Gambit bonus as well as sparing the Afraid penalty.
+  # Torture refuses outright rather than rolling and always failing.
+  imperturbable:
+    catalog: all
+    name: Imperturbable
+    category: general
+    group: general-traits
+    description: "Your mind is unshakable. Nothing moves your mood from Fine, and there is nothing in you for a torturer to break."
+    pointCost: 12
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # NOT a mastery: an ordinary tag, buyable at creation. Cancels the point
+  # penalty a Health tag lays on a fighting rating. It does NOT lift the three
+  # Health tags that CAP the band (Dying, Paralyzed, Seizure) — those take you
+  # out of a fight rather than making you worse at one (COMBAT.md).
+  second-wind:
+    catalog: all
+    name: Second Wind
+    category: general
+    group: general-traits
+    description: "You fight through it. Wounds and illness cost you nothing at all in a fight, though being at death's door still ends one."
+    pointCost: 6
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
 
   # --- Brigands -------------------------------------------------------------
   brigand:
@@ -2456,6 +2576,48 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # The two Laboring MASTERIES. Both need Laboring (Skilled) behind them and
+  # neither can be bought at creation — see TAGS.md 4a on the mastery band.
+  # Neither is teachable: a capstone bought only after the game starts must not
+  # be obtainable for the price of one Lesson Move.
+  #
+  # Scavenging redraws on the 6's pool when a 4 or a 5 finds an EMPTY one
+  # (db/lib/laborDrops.js) rather than remapping every 4 and 5, which would take
+  # a fisherman's 10 ⬢ face away and hand him a 1.56 ⬢ one. A 1 still hurts.
+  laboring-scavenging:
+    catalog: all
+    name: Laboring (Scavenging)
+    category: skills
+    group: skills-labor
+    teachable: false
+    description: "You have an eye for what a day's work turns up. Your laboring finds something far more often, and what a good day turns up is never an injury."
+    pointCost: 12
+    requiredTag: laboring-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # Tireless does two things, and the second is the one that matters. The gate
+  # in db/lib/laborAccess.js lets the holder work while Exhausted at half yield;
+  # the fatigue ladder then needs NO special case, because
+  # db/lib/laborFatigue.js#nextLaborFatigueSlug already returns null for anybody
+  # who is Exhausted — so the work neither escalates nor refreshes the tag, and
+  # the holder can labor every turn instead of one turn in three.
+  laboring-tireless:
+    catalog: all
+    name: Laboring (Tireless)
+    category: skills
+    group: skills-labor
+    teachable: false
+    description: "You can work through exhaustion. While {tag:exhausted} you still labor, at half of what you would otherwise make."
+    pointCost: 14
+    requiredTag: laboring-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
   # Joined 2026-09-09. Pays the least ⬢ of the four on purpose — a labor drop
   # (LABORDROPS.md) is meant to make up the difference in items rather than
   # coin, once that table is built out.
@@ -2465,7 +2627,7 @@ tags:
     category: skills
     group: skills-labor
     teachable: true
-    description: "While laboring somewhere worth searching — a stream, a ruin, the undergrowth — you turn up {resource:labor:prospecting}: thin pay in Resources, but plenty else comes up with it. ‡"
+    description: "While laboring somewhere worth searching — a stream, a ruin, the undergrowth — you turn up {resource:labor:prospecting}: thin pay in Resources, but plenty else comes up with it."
     pointCost: 7
     requiredTag: laboring-skilled
     purchasable: true
@@ -2490,6 +2652,23 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
+
+  # A Musician MASTERY: triples what /play is worth to everyone who hears it.
+  # Gated on Musician because the mood half of /play already lives inside that
+  # check (bot/src/events/interactionCreate.js) — without the parent, playing
+  # badly soothes nobody and this would be worth nothing.
+  musician-pythagorean:
+    catalog: all
+    name: Musician (Pythagorean)
+    category: skills
+    teachable: false
+    description: "Your music is complex and absorbing. It lifts everyone who hears it three times as much."
+    pointCost: 14
+    requiredTag: musician
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
 
   # Smithing is split into two rungs, gating the Dead Simple / Simple recipes
   # against the Moderate / High Quality / Exceptional ones. Full price and
@@ -2560,7 +2739,7 @@ tags:
     name: Keen Eye
     category: skills
     teachable: true
-    description: "You know good ground when you see it. Prospecting turns up more than it does for anyone else. ‡"
+    description: "You know good ground when you see it. Prospecting turns up more than it does for anyone else."
     pointCost: 4
     requiredTag: laboring-prospecting
     purchasable: true
@@ -3059,6 +3238,38 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # A Brewing MASTERY. requiredTag rather than parentTag: this is a sidegrade
+  # off Skilled, not a rung above it, so buying it must not replace the tier
+  # underneath (TAGS.md 3, the Melee (Flamboyant) precedent). The doubling is
+  # output only — ingredients and the resource cost are still charged on the
+  # number of units actually brewed, which is what "for the same cost" means.
+  brewing-distilling:
+    catalog: all
+    name: Brewing (Distilling)
+    category: skills
+    group: skills-brewing
+    teachable: false
+    description: "You draw twice as much out of the same mash. Every brewing recipe you follow yields two of its item for the price of one."
+    pointCost: 14
+    requiredTag: brewing-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  brewing-expert:
+    catalog: all
+    name: Brewing (Expert)
+    category: skills
+    group: skills-brewing
+    teachable: true
+    description: "You're a master alchemist."
+    pointCost: 5
+    parentTag: brewing-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
   #Cooking
   cooking-basic:
     catalog: all
@@ -3367,7 +3578,7 @@ tags:
     name: Increased Recovery
     category: status
     group: status-buffs
-    description: "Your body heals faster than it normally should."
+    description: "Your body heals faster than it normally should, and infections take longer to hurt you."
     pointCost: 0
     visible: false
     purchasable: false
@@ -3658,7 +3869,7 @@ tags:
     category: health
     group: health-infection
     description: "Your wound is hot and draining pus. You could amputate it."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3667,6 +3878,7 @@ tags:
     expiresInto: [festering]
     healable: true
     requirement:
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3676,7 +3888,7 @@ tags:
     category: health
     group: health-infection
     description: "The flesh around your wound has gone soft and gives off an odor. You could amputate it."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3686,7 +3898,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -3696,7 +3908,7 @@ tags:
     category: health
     group: health-infection
     description: "You're burning up. The infection is in your blood…"
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3706,8 +3918,8 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   necrosis:
@@ -3716,7 +3928,7 @@ tags:
     category: health
     group: health-infection
     description: "It's gone."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3727,8 +3939,8 @@ tags:
     removesInto: [cauterized]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   sepsis:
@@ -3737,7 +3949,7 @@ tags:
     category: health
     group: health-infection
     description: "Your body is shutting down. You're not lucid."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3748,7 +3960,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -3772,7 +3984,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -3800,7 +4012,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your wound is tender and purple, but it'll heal."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3808,6 +4020,7 @@ tags:
     durationTurns: 2
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 1
       skills: [medical-basic]
 
@@ -3817,7 +4030,7 @@ tags:
     category: health
     group: health-wounds
     description: "You can walk, but it's a struggle. Wrapping your wound with a splint would help."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3827,6 +4040,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3836,7 +4050,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your skin is bubbling from a burn."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3847,6 +4061,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -3856,7 +4071,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your skin is destroyed and will scar if healed."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3867,7 +4082,7 @@ tags:
     removesInto: [bandaged, scarred]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -3877,7 +4092,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your wound is nothing a bandage can't stop."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3886,6 +4101,7 @@ tags:
     expiresInto: [drained]
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 0
       skills: [medical-basic]
 
@@ -3895,7 +4111,7 @@ tags:
     category: health
     group: health-wounds
     description: "You can see bone or deep tissue."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3906,7 +4122,7 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3916,7 +4132,7 @@ tags:
     category: health
     group: health-wounds
     description: "You're bleeding fast. You need medical attention to stop the flow."
-    fighting: { tree: both, tiers: -2.5 }
+    fighting: { tree: both, tiers: -1.8 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3926,7 +4142,7 @@ tags:
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -3936,7 +4152,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your blood is spurting three feet out. You need immediate medical attention to survive."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3946,7 +4162,7 @@ tags:
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -3956,7 +4172,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your bone is fractured. You need medical attention or your body will heal crooked."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -3965,7 +4181,7 @@ tags:
     removesInto: [splinted]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3975,7 +4191,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your breathing hurts. Hopefully there's nothing else under the surface."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     carryBonus: -0.1
     purchasable: false
@@ -3983,7 +4199,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -3993,7 +4209,7 @@ tags:
     category: health
     group: health-wounds
     description: "You're badly beat and in pain."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4003,7 +4219,7 @@ tags:
     removesInto: [recovering]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4013,7 +4229,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your arm is hanging out. Someone with experience can push it back in."
-    fighting: { tree: melee, tiers: -1.5 }
+    fighting: { tree: melee, tiers: -1 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4021,6 +4237,7 @@ tags:
     purchasableAfterStart: false
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 0
       skills: [medical-basic]
 
@@ -4030,7 +4247,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your fingers and toes have turned pale and cold. They'll fall off without proper care."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4041,7 +4258,7 @@ tags:
     removesInto: [bandaged]
     healable: true
     requirement:
-      turnsCost: 0
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4051,7 +4268,7 @@ tags:
     category: health
     group: health-wounds
     description: "Something broke past your ribs. Your breathing is shallow and labored. You will die without expert medical attention."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4063,7 +4280,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
 
   gut-wound:
@@ -4072,7 +4289,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your intestines aren't currently completely inside you. You need expert medical attention or you will get sepsis."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4084,7 +4301,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
 
   broken-jaw:
@@ -4093,7 +4310,7 @@ tags:
     category: health
     group: health-wounds
     description: "The swelling makes it hard to eat or speak."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4101,7 +4318,7 @@ tags:
     removesInto: [wired-jaw]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4111,7 +4328,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your fingers are pointing in random directions."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     handsLost: 1
     pointCost: 0
     carryBonus: -0.05
@@ -4123,7 +4340,7 @@ tags:
     removesInto: [splinted]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4134,7 +4351,7 @@ tags:
     category: health
     group: health-illness
     description: "You've had a hot pain on your lower right side since last night."
-    fighting: { tree: both, tiers: -2.5 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: -11
     purchasable: false
     purchasableAfterStart: false
@@ -4144,7 +4361,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
 
   rot-lung:
@@ -4153,7 +4370,7 @@ tags:
     category: health
     group: health-illness
     description: "Your lungs are damaged by dust and spores."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -4161,7 +4378,7 @@ tags:
     removesInto: [persistent-cough]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4171,7 +4388,7 @@ tags:
     category: health
     group: health-illness
     description: "Little animals are living in your gut, draining your nutrients. It takes someone skilled in medicine to identify the core issue."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4180,7 +4397,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 3
       skills: [medical-skilled]
 
@@ -4190,7 +4407,7 @@ tags:
     category: health
     group: health-illness
     description: "You're sweating profusely."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4200,7 +4417,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4210,7 +4427,7 @@ tags:
     category: health
     group: health-illness
     description: "Venom has entered your body, causing massive swelling and pain. You will die without prompt medical attention."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4221,7 +4438,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
 
   pox:
@@ -4230,7 +4447,7 @@ tags:
     category: health
     group: health-illness
     description: "Your skin burns, itches, and bubbles with boils. It will scar if untreated."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4240,7 +4457,7 @@ tags:
     removesInto: [scarred]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 4
       skills: [medical-skilled]
 
@@ -4250,7 +4467,7 @@ tags:
     category: health
     group: health-illness
     description: "Your joints are achy and stiff. It can't be treated."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
     carryBonus: -0.05
     visible: true
@@ -4263,7 +4480,7 @@ tags:
     category: health
     group: health-illness
     description: "Your cough's gotten worse over the years. It will take an expert to cure you."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.2 }
     pointCost: -9
     carryBonus: -0.05
     visible: true
@@ -4273,7 +4490,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills:
         - medical-expert
       gambit: true
@@ -4284,13 +4501,17 @@ tags:
     category: health
     group: health-illness
     description: "You've stopped shivering. It's not unpleasant."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 2
     expiresInto: [dying]
+    healable: true
+    requirement:
+      turnsCost: 1/4
+      resourceCost: 2
 
   heatstroke:
     catalog: all
@@ -4298,7 +4519,7 @@ tags:
     category: health
     group: health-illness
     description: "You can't focus."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4308,7 +4529,7 @@ tags:
     removesInto: [drained]
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4321,7 +4542,7 @@ tags:
     category: health
     group: health-illness
     description: "Something is wrong with your body. You may want to seek medical attention."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4333,7 +4554,7 @@ tags:
     category: health
     group: health-illness
     description: "You're coughing every couple minutes. You may want to seek medical attention."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4349,7 +4570,7 @@ tags:
     category: health
     group: health-illness
     description: "You feel bloated and full."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4359,8 +4580,8 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
 
   exploded-chest:
@@ -4369,7 +4590,7 @@ tags:
     category: health
     group: health-illness
     description: "Your chest exploded."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4380,7 +4601,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4391,7 +4612,7 @@ tags:
     category: health
     group: health-mind
     description: "Lights and sound bombard your senses."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4405,7 +4626,7 @@ tags:
     category: health
     group: health-mind
     description: "You are traumatized."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4439,7 +4660,7 @@ tags:
     category: health
     group: health-mind
     description: "Nothing makes sense. What is happening?! Oh my God!"
-    fighting: { tree: both, tiers: -2.5 }
+    fighting: { tree: both, tiers: -1.8 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4469,7 +4690,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: -8
     conflictsWith: [nearsighted, eagle-eyes]
     visible: true
@@ -4479,7 +4700,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4515,7 +4736,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your leg ends above the knee."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4528,7 +4749,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your arm is gone at the shoulder."
-    fighting: { tree: both, tiers: -2.5 }
+    fighting: { tree: both, tiers: -1.8 }
     handsLost: 2
     pointCost: 0
     carryBonus: -0.1
@@ -4542,7 +4763,7 @@ tags:
     category: health
     group: health-maiming
     description: "You have a wooden leg."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [quick-footed]
     carryBonus: -0.05
@@ -4566,7 +4787,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: false
 
@@ -4576,12 +4797,40 @@ tags:
     category: health
     group: health-maiming
     description: "One of your hands is missing several fingers."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -0.5 }
     handsLost: 1
     pointCost: -4
     carryBonus: -0.05
     visible: true
     purchasable: true
+    purchasableAfterStart: false
+
+  # {tag:iron-hook}'s aftermath (medical pass, M5) — cosmetic only, no
+  # mechanical effect of its own: missing-arm's own carryBonus is dropped
+  # along with the tag itself the moment this is granted. Not purchasable —
+  # reached only by curing missing-arm.
+  hook-hand:
+    catalog: all
+    name: Hook Hand
+    category: health
+    group: health-maiming
+    description: "You have a fitted iron hook."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # {tag:prosthetic-hand}'s aftermath (medical pass, M5) — cosmetic only,
+  # same shape as {tag:hook-hand} above.
+  prosthetic-hand-worn:
+    catalog: all
+    name: Prosthetic Hand (Worn)
+    category: health
+    group: health-maiming
+    description: "A carved hand where fingers used to be missing."
+    pointCost: 0
+    visible: true
+    purchasable: false
     purchasableAfterStart: false
 
   crippled-leg:
@@ -4590,7 +4839,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your leg is in constant pain: you can hardly walk on it. Expert medical attention could fix it. Or they could just put on a wooden leg — a lot easier."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: -7
     carryBonus: -0.1
     visible: true
@@ -4600,7 +4849,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4610,7 +4859,7 @@ tags:
     category: health
     group: health-maiming
     description: "An old injury never healed quite right. You can walk okay, but people know you're coming."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: -2
     visible: true
     purchasable: true
@@ -4626,7 +4875,7 @@ tags:
     category: health
     group: health-maiming
     description: "The legs were cruelly removed."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     conflictsWith: [quick-footed, peg-leg]
     carryBonus: -0.2
@@ -4640,7 +4889,7 @@ tags:
     category: health
     group: health-maiming
     description: "The stomach was cruelly ripped out."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4663,11 +4912,25 @@ tags:
     category: health
     group: health-maiming
     description: "You've lost all depth perception."
-    fighting: { tree: ranged, tiers: -1.5 }
+    fighting: { tree: ranged, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [eagle-eyes, blind]
     visible: true
     purchasable: true
+    purchasableAfterStart: false
+
+  # {tag:glass-eye}'s aftermath (medical pass, M5) — cosmetic only, same
+  # shape as {tag:hook-hand}/{tag:prosthetic-hand-worn}. Not purchasable —
+  # reached only by curing missing-eye.
+  glass-eye-worn:
+    catalog: all
+    name: Glass Eye (Worn)
+    category: health
+    group: health-maiming
+    description: "A painted glass eye."
+    pointCost: 0
+    visible: true
+    purchasable: false
     purchasableAfterStart: false
 
   night-blind:
@@ -4676,7 +4939,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see in dim light or darkness."
-    fighting: { tree: both, tiers: -1, situational: true }
+    fighting: { tree: both, tiers: -0.4, situational: true }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -4707,7 +4970,7 @@ tags:
     category: health
     group: health-minor
     description: "You're vomiting fairly often."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4721,7 +4984,7 @@ tags:
     category: health
     group: health-minor
     description: "You're in pain."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -4733,8 +4996,8 @@ tags:
     name: Severe Pain
     category: health
     group: health-minor
-    description: "Your mind can't escape the pain. Writhe around or take the {tag:poppy}."
-    fighting: { tree: both, tiers: -1.5 }
+    description: "Your mind can't escape the pain—you are writhing, unfocused."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4742,6 +5005,7 @@ tags:
     durationTurns: 2
     healable: true
     requirement:
+      turnsCost: 0
       resourceCost: 1
       skills: [medical-basic]
 
@@ -4751,7 +5015,7 @@ tags:
     category: health
     group: health-minor
     description: "You're … Off in la-la-land."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4759,7 +5023,7 @@ tags:
     durationTurns: 1
     healable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 1/3
       resourceCost: 2
       skills: [medical-skilled]
 
@@ -4770,17 +5034,17 @@ tags:
     category: health
     group: health-illness
     description: "You're choking to death! Frothing, clawing at your collar. You can't speak!"
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [dying]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 2
+      turnsCost: 1/3
+      resourceCost: 4
       gambit: false
 
   phrygian-toxin:
@@ -4789,7 +5053,7 @@ tags:
     category: health
     group: health-illness
     description: "Your body is rapidly shutting down, but you're clear-headed. Blood is dripping from your mouth."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4800,7 +5064,7 @@ tags:
     healable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 14
       skills: [medical-expert]
       gambit: true
 
@@ -4810,7 +5074,7 @@ tags:
     category: health
     group: health-minor
     description: "Only time can cure your headache now."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4822,7 +5086,7 @@ tags:
     category: health
     group: health-minor
     description: "There's pain behind your eye and bright lights that come and go. It's incurable."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -4995,7 +5259,7 @@ tags:
     equipLayer: 1
     laborBonus: { kind: fishing, amount: 1 }
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -5018,7 +5282,7 @@ tags:
     # ×5 on both carry caps; stacks with Pack Mule (docs/systemdocs/CARRY.md).
     carryBonus: 4
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -5104,7 +5368,7 @@ tags:
     name: Claim Stake
     category: assets
     group: assets-structures
-    description: "A stake driven into the ground, marking a claim. Gives an additional 1 ⬢ when Prospecting where erected. ‡"
+    description: "A stake driven into the ground, marking a claim. Gives an additional 1 ⬢ when Prospecting where erected."
     pointCost: 0
     visible: false
     tradeable: false
@@ -5118,7 +5382,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "a stake driven deep, claiming this ground. ‡"
+      examine: "a stake driven deep, claiming this ground."
       laborBonus: { kind: prospecting, amount: 1 }
 
   forge:
@@ -5176,8 +5440,8 @@ tags:
       # is no such loop here.
       fieldwork: true
       locations: [old-cock-inn]
-      examine: "the mash is working. \u2021"
-      yields: { tag: alcohol, room: inn-cellar, quantity: 1 }
+      examine: "it'll actively produce alcohol as long as a brewer is around."
+      yields: { tag: alcohol, room: inn-cellar, quantity: 1, skill: brewing-basic }
 
   rookery:
     catalog: all
@@ -5198,7 +5462,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "the birds shift and mutter on their perches. \u2021"
+      examine: "birds await to be sent with letters."
       # Six is the number of bird-reachable zones, deliberately: a holder CAN
       # find any one person in a day, by spending every flight they have on it
       # and writing to nobody. A trade, not a free lookup. The likeliest knob
@@ -5225,7 +5489,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "planks and trestles, waiting on a crowd. \u2021"
+      examine: "a haphazard construction waiting for a boombox."
       # The boombox is a RUNNING requirement, not a build cost — which is why
       # this carries no requirement.items, a pairing the sync refuses outright
       # for a placement recipe ("a build site never spends an ingredient").
@@ -5612,7 +5876,7 @@ tags:
     name: Silver
     category: items
     group: items-gear
-    description: "Raw silver ore, ready for the forge. ‡"
+    description: "Raw silver ore, ready for the forge."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -5624,21 +5888,23 @@ tags:
     sellable: true
     sellablePrice: 5
 
-  # Coal and a forge turn folded into a usable ingot, same shape as
-  # {tag:black-powder} below: priced at cost, resourceCost (14) over a 4-⬢
+  # Coal and a spell at the forge folded into a usable ingot, same shape as
+  # {tag:black-powder} below: priced at cost, resourceCost (4) over a 4-⬢
   # coal, no smith's margin baked in. Gated at plain smithing rather than
   # Skilled — smelting ore is basic forge work, it's shaping it into
   # {tag:katana}/{tag:rapier}/{tag:brigandine}/{tag:plate-armor} that needs
-  # the higher skill. Each of those recipes lost 1 turn and 18 ⬢ of
-  # resourceCost (2026-09-09) — the turn this recipe now spends instead, and
+  # the higher skill. It runs under the Simple rung's Turns column at
+  # `turnsCost: 1/3` for the same reason the Spear and the Silver Knife do
+  # (SMITHING.md §1) — an ingot is not a day at the anvil, and three fit in
+  # one Routine. Each of those four recipes subtracts 8 ⬢ (2026-09-10):
   # steel's own sellablePrice, the "value" DEPOT.md §3-§4 says an ingredient
-  # subtracts at. Numbers are drafted, not signed off.
+  # comes off at. Numbers are drafted, not signed off.
   steel:
     catalog: all
     name: Steel
     category: items
     group: items-gear
-    description: "A workable ingot, smelted from ore. ‡"
+    description: "A workable ingot, smelted from ore."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -5648,14 +5914,14 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 14
+      turnsCost: 1/3
+      resourceCost: 4
       skills: [smithing]
       gambit: false
       items: [coal]
-    depotPrice: 30
+    depotPrice: 13
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 8
 
   # Refined saltpeter, and the one ingredient that is itself CRAFTED — the
   # gunpowder smith's intermediate step on the way to a {tag:bomb}. Public
@@ -5861,9 +6127,32 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  # Fished up by the labor loot pass. The bruise cure is their whole trade
-  # until the medical rework gives them more — enforced on consume by
-  # HIDDEN_CURES in db/lib/hiddenCures.js.
+  # {tag:autoinjector}'s third ingredient (M6c). catalog: gm, same shape as
+  # {tag:aberrant-heart}/{tag:cybernetic-core}: a GM can look it up granting
+  # one, but it never shows in the public Tag Catalog, which is what keeps
+  # its actual use a discovery — the flavor text is written the way a hunter
+  # or a farmhand would actually describe it, not the way a brewer would.
+  # NOTHING DROPS THIS YET. The laboring loot-table pass (hunting/fishing/
+  # farming yields) wires acquisition; a GM grants it meanwhile.
+  brackenmoss:
+    catalog: gm
+    name: Brackenmoss
+    category: items
+    group: items-gear
+    description: "A dense, springy moss that grows thickly on fallen trees."
+    pointCost: 0
+    tradeable: true
+    weight: 0.3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+
+  # Fished up by the labor loot pass. The bruise cure is now the `cures:`
+  # field below rather than the old HIDDEN_CURES entry in
+  # db/lib/hiddenCures.js, which the medical pass migrated it off of.
   leeches:
     catalog: all
     name: Leeches
@@ -5881,6 +6170,7 @@ tags:
     sellablePrice: 2
     consumable: true
     consumesInto: []
+    cures: [bruised]
 
   # The generator's proper fuel. Imported, so the Merchant has to buy it off
   # the station with the profit he makes selling everything else — which is the
@@ -5914,7 +6204,7 @@ tags:
     name: Ore Chunk
     category: items
     group: items-gear
-    description: "A fist-sized chunk of rock, coal and a paler vein running through it together. ‡"
+    description: "A fist-sized chunk of rock, coal and a paler vein running through it together."
     pointCost: 0
     tradeable: true
     weight: 4
@@ -5932,13 +6222,14 @@ tags:
   # A whole haul, sorted rather than raw — one Coal, one Silver, one Steel
   # already smelted, bundled the way the Depot's own crates are (`DEPOT.md`
   # §0e), not picked apart one seam at a time. Priced at the sum of its
-  # contents, same convention as Ore Chunk above (Bascinet, 2026-09-10).
+  # contents (4 + 5 + 8), same convention as Ore Chunk above (Bascinet,
+  # 2026-09-10).
   ore-package:
     catalog: all
     name: Ore Package
     category: items
     group: items-gear
-    description: "A crate of ore, sorted and ready for the forge — Coal, Silver, and an ingot of Steel already smelted. ‡"
+    description: "A crate of ore, sorted and ready for the forge — Coal, Silver, and an ingot of Steel already smelted."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -5947,7 +6238,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 27
+    sellablePrice: 17
     consumable: true
     consumesInto:
       - coal
@@ -6008,7 +6299,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   radio-bracelet-cerberon:
     catalog: gm
@@ -6023,6 +6314,24 @@ tags:
     visible: worn
     equippable: true
     equipSlot: ACCESSORY
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The other net. Sold only off the Thanati shelf (db/lib/thanati.js), and
+  # unlike the Cerberon's pair there is no listener-only half: one radio, and
+  # everyone holding one both hears and speaks. Opens #27.065
+  # (db/lib/specialChannels.js).
+  radio-27065:
+    catalog: gm
+    name: Radio (27.065)
+    category: items
+    group: items-gear
+    description: "A radio hardset to a certain frequency."
+    pointCost: 20
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: true
     purchasable: false
     purchasableAfterStart: false
 
@@ -6345,7 +6654,7 @@ tags:
     name: Gallows Charm
     category: items
     group: items-gear
-    description: "Carved bone strung on old cord — a dead man's luck, worn as a ward against the same rope. ‡"
+    description: "Carved bone strung on old cord — a dead man's luck, worn as a ward against the same rope."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6361,7 +6670,7 @@ tags:
     name: Burial Ring
     category: items
     group: items-gear
-    description: "A ring, still on the hand that was buried with it. ‡"
+    description: "A ring, still on the hand that was buried with it."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6520,7 +6829,7 @@ tags:
     name: Overspill Lockbox
     category: items
     group: items-gear
-    description: "A small locked box, pitched over the fortress walls with the rest of the trash — whoever tossed it clearly wanted it gone, lock and all. ‡"
+    description: "A small locked box, pitched over the fortress walls with the rest of the trash — whoever tossed it clearly wanted it gone, lock and all."
     pointCost: 0
     tradeable: true
     weight: 8
@@ -6528,19 +6837,20 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    # Half of what's inside (40 ⬢, see docs/labordrops.yaml's LOCKBOX_CONTENTS_VALUES)
+    # Half of what's inside (30 ⬢ — the sum of {tag:overspill-spoils}'s own
+    # consumesInto list, repriced 2026-09-10 when steel dropped to 8)
     # — a locked box is worth less to sell whole than to actually open, on
     # purpose, so selling it unpicked is a real but lesser option rather than
     # a way to skip the lock entirely (Bascinet, 2026-09-10).
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 15
 
   overspill-spoils:
     catalog: gm
     name: Overspill Spoils
     category: items
     group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -6567,7 +6877,7 @@ tags:
     name: Basement Lockbox
     category: items
     group: items-gear
-    description: "A locked box from the Abandoned Homestead's basement, shelved in with the rest of the unlabelled tinctures. ‡"
+    description: "A locked box from the Abandoned Homestead's basement, shelved in with the rest of the unlabelled tinctures."
     pointCost: 0
     tradeable: true
     weight: 8
@@ -6584,7 +6894,7 @@ tags:
     name: Basement Spoils
     category: items
     group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -6610,7 +6920,7 @@ tags:
     name: Waterlogged Lockbox
     category: items
     group: items-gear
-    description: "A strongbox the current finally gave up, rusted shut but still holding what someone locked inside. ‡"
+    description: "A strongbox the current finally gave up, rusted shut but still holding what someone locked inside."
     pointCost: 0
     tradeable: true
     weight: 8
@@ -6618,16 +6928,16 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    # Half of what's inside (51 ⬢) — see overspill-lockbox's own note above.
+    # Half of what's inside (41 ⬢) — see overspill-lockbox's own note above.
     sellable: true
-    sellablePrice: 26
+    sellablePrice: 21
 
   waterlogged-spoils:
     catalog: gm
     name: Waterlogged Spoils
     category: items
     group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -6660,7 +6970,7 @@ tags:
     name: Silt Lockbox
     category: items
     group: items-gear
-    description: "A small lockbox, silted over and forgotten — the kind of thing that turns up wherever the digging is good, not just one place in particular. ‡"
+    description: "A small lockbox, silted over and forgotten — the kind of thing that turns up wherever the digging is good, not just one place in particular."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -6677,7 +6987,7 @@ tags:
     name: Silt Spoils
     category: items
     group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
     tradeable: true
     weight: 4
@@ -6704,7 +7014,7 @@ tags:
     name: Buried Lockbox
     category: items
     group: items-gear
-    description: "A lockbox, wedged in wherever the digging turned it up — nobody buries something like this on purpose and forgets it. ‡"
+    description: "A lockbox, wedged in wherever the digging turned it up — nobody buries something like this on purpose and forgets it."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -6721,7 +7031,7 @@ tags:
     name: Buried Spoils
     category: items
     group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
     tradeable: true
     weight: 4
@@ -6748,7 +7058,7 @@ tags:
     name: Netted Lockbox
     category: items
     group: items-gear
-    description: "A small lockbox, netted up along with everything else — whatever sank it isn't telling. ‡"
+    description: "A small lockbox, netted up along with everything else — whatever sank it isn't telling."
     pointCost: 0
     tradeable: true
     weight: 6
@@ -6765,7 +7075,7 @@ tags:
     name: Netted Spoils
     category: items
     group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
     tradeable: true
     weight: 4
@@ -6795,7 +7105,7 @@ tags:
     name: Till Lockbox
     category: items
     group: items-gear
-    description: "A gambling den's cashbox, small enough to walk off with if you're quick about it. Still locked. ‡"
+    description: "A gambling den's cashbox, small enough to walk off with if you're quick about it. Still locked."
     pointCost: 0
     tradeable: true
     weight: 5
@@ -6812,7 +7122,7 @@ tags:
     name: Till Spoils
     category: items
     group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
     tradeable: true
     weight: 3
@@ -6840,7 +7150,7 @@ tags:
     name: Reliquary Lockbox
     category: items
     group: items-gear
-    description: "A small reliquary box, left at the Ancient Shrine — an offering, or something somebody hid there and never came back for. ‡"
+    description: "A small reliquary box, left at the Ancient Shrine — an offering, or something somebody hid there and never came back for."
     pointCost: 0
     tradeable: true
     weight: 5
@@ -6857,7 +7167,7 @@ tags:
     name: Reliquary Spoils
     category: items
     group: items-gear
-    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    description: "The lock finally gives. Whatever's left inside is yours to sort through."
     pointCost: 0
     tradeable: true
     weight: 3
@@ -6888,7 +7198,7 @@ tags:
     name: Faded Photograph
     category: items
     group: items-gear
-    description: "A photograph, sun-bleached almost to nothing. Whoever's in it isn't anymore. ‡"
+    description: "A photograph, sun-bleached almost to nothing. Whoever's in it isn't anymore."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6904,7 +7214,7 @@ tags:
     name: Pocket Watch
     category: items
     group: items-gear
-    description: "Stopped at whatever hour it was dropped. Still a fine watch. ‡"
+    description: "Stopped at whatever hour it was dropped. Still a fine watch."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -6920,7 +7230,7 @@ tags:
     name: Music Box
     category: items
     group: items-gear
-    description: "Wind it and it still plays — a few bars, then the same few bars again. ‡"
+    description: "Wind it and it still plays — a few bars, then the same few bars again."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -6936,7 +7246,7 @@ tags:
     name: Warding Bead
     category: items
     group: items-gear
-    description: "A single bead off a longer strand, worn against something. Didn't work, or the strand would still be whole. ‡"
+    description: "A single bead off a longer strand, worn against something. Didn't work, or the strand would still be whole."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6952,7 +7262,7 @@ tags:
     name: Wedding Ring
     category: items
     group: items-gear
-    description: "Someone's, once. Still engraved on the inside. ‡"
+    description: "Someone's, once. Still engraved on the inside."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6968,7 +7278,7 @@ tags:
     name: Pawn Ticket
     category: items
     group: items-gear
-    description: "A numbered stub for something nobody came back to claim. Might still be behind the counter. ‡"
+    description: "A numbered stub for something nobody came back to claim. Might still be behind the counter."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -6984,7 +7294,7 @@ tags:
     name: Prayer Beads
     category: items
     group: items-gear
-    description: "Worn smooth by someone else's thumb, once, at the Shrine. ‡"
+    description: "Worn smooth by someone else's thumb, once, at the Shrine."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -7007,7 +7317,7 @@ tags:
     name: Flawless Gem
     category: items
     group: items-gear
-    description: "A stone without a single flaw — the kind that ends up on a crown, not a merchant's scale. Fit for a king. Or a Baron. ‡"
+    description: "A stone without a single flaw — the kind that ends up on a crown, not a merchant's scale. Fit for a king. Or a Baron."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -7062,12 +7372,18 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # SECRET, cave-drop only (M6c, Chris 2026-09-07): no recipe any more — it
+  # used to be a graga-sac craft, medical-expert, but that door is
+  # {tag:autoinjector}'s now. This is the rarer, no-questions-asked version:
+  # found, not made, already in db/lib/cavingLoot.js's "extremely-rare" tier
+  # (no wiring needed, it was already there). catalog: secret rather than gm,
+  # because a cave drop is exactly what TAGS.md §5d scopes that band to.
   military-autoinjector:
-    catalog: gm
+    catalog: secret
     name: Military Autoinjector
     category: items
     group: items-gear
-    description: "A thin piece of equipment with a needle inside."
+    description: "A field trauma kit that immediately heals minor wounds, up to broken bones."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -7075,8 +7391,67 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    consumable: true
+    cures:
+      [
+        bruised,
+        sprained-ankle,
+        burned,
+        minor-bleeding,
+        minor-wound,
+        dislocated-shoulder,
+        deep-wound,
+        broken-bone,
+        cracked-ribs,
+        blunt-force-trauma,
+        frostbite,
+      ]
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 38
+
+  # The craftable civilian door onto the same idea (M6c): medical-expert can
+  # brew one instead of finding one. Lighter than the military version —
+  # cracked ribs and a beating, not a set bone or a wound down to bone —
+  # because those two heavier rung-3 wounds stay the military kit's own
+  # edge. HIDDEN recipe: {tag:brackenmoss} is non-public (catalog: gm), so
+  # this only shows in a medical-expert's Craft menu while they hold one,
+  # same door as {tag:white-honey} — see docs/documents.yaml's
+  # withheldrecipes.
+  autoinjector:
+    catalog: all
+    name: Autoinjector
+    category: items
+    group: items-gear
+    description: "A compact medical injector that immediately heals minor wounds, up to broken bones."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures:
+      [
+        bruised,
+        sprained-ankle,
+        burned,
+        minor-bleeding,
+        minor-wound,
+        dislocated-shoulder,
+        cracked-ribs,
+        blunt-force-trauma,
+        frostbite,
+      ]
+    requirement:
+      turnsCost: 1
+      resourceCost: 3
+      skills: [brewing-expert]
+      gambit: false
+      items: [antidote, fever-draught, brackenmoss]
+    sellable: true
+    sellablePrice: 28
 
   # A creation-only bundle rather than a thing you carry: it sits on the sheet
   # until the player unpacks it from their own character sheet (see consumable
@@ -7864,7 +8239,7 @@ tags:
     group: items-weapons
     description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 14
     equippable: true
     equipSlot: WEAPON
@@ -7907,7 +8282,7 @@ tags:
     group: items-weapons
     description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -8064,7 +8439,7 @@ tags:
     name: "Prospector's Pick"
     category: items
     group: items-gear
-    description: "A short-handled pick, good for breaking rock or worrying at a lock. While equipped, Prospecting produces an additional 1 ⬢. ‡"
+    description: "A short-handled pick. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 2
     laborBonus: { kind: prospecting, amount: 1 }
     equippable: true
@@ -8706,11 +9081,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
-      # {tag:steel} joined 2026-09-09: 1 turn and 18 ⬢ of the old 2-turn,
-      # 26 ⬢ recipe moved into steel's own recipe instead.
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
       items: [steel]
     sellable: true
     sellablePrice: 42
@@ -8761,11 +9137,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
-      # {tag:steel} joined 2026-09-09: 1 turn and 18 ⬢ of the old 2-turn,
-      # 26 ⬢ recipe moved into steel's own recipe instead.
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
       items: [steel]
     sellable: true
     sellablePrice: 42
@@ -8889,9 +9266,9 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as one tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢."
+    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as half a tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
-    fighting: { tiers: 1, weaponClass: crossbow }
+    fighting: { tiers: 0.5, weaponClass: crossbow }
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
@@ -8920,7 +9297,7 @@ tags:
     group: items-weapons
     description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 18
     requiredTag: ranged-basic
     equippable: true
@@ -8948,7 +9325,7 @@ tags:
     group: items-weapons
     description: "A powerful single-shot pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 14
     requiredTag: ranged-basic
     equippable: true
@@ -9389,8 +9766,7 @@ tags:
     catalog: all
     name: Surgical Equipment
     category: items
-    description: |-
-      A set of advanced medical equipment. It allows for on-the-go surgery and complex procedures. Hold it, or stand somewhere it's already set up, and every medical Gambit you roll gets +1.
+    description: "A set of advanced medical equipment. It allows you to perform complex surgeries without penalty."
     pointCost: 9
     visible: true
     purchasable: true
@@ -9661,7 +10037,7 @@ tags:
     category: items
     group: items-special
     description: "A two-shot shotgun that is more easily concealable than its normal counterpart."
-    fighting: { tiers: 0.6, weaponClass: firearm }
+    fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -10068,6 +10444,9 @@ tags:
 
   # The cheapest thing the Depot sells, on purpose. Paper has to be something
   # a scribe buys by the ream without thinking about it, or nobody writes.
+  # The Depot stocks the REAM, not the sheet: 3 ⬢ for twenty sheets is the
+  # same paper at a fifth the price, and it stops the shelf carrying a
+  # weightless 1 ⬢ line that every order padded itself out with.
   # A ream, bought once at creation and unpacked when you need it. The twenty
   # repeats are the mechanism, not a mistake: repeating a slug is the only way
   # consumesInto asks for several of something, and it multiplies here because
@@ -10079,6 +10458,7 @@ tags:
     group: items-paper
     description: "A ream of blank sheets. It can be consumed into paper."
     pointCost: 1
+    depotPrice: 3
     tradeable: true
     weight: 2
     stackable: true
@@ -10115,7 +10495,6 @@ tags:
     group: items-paper
     description: "*Blank paper.*"
     pointCost: 0
-    depotPrice: 1
     tradeable: true
     weight: 0
     stackable: true
@@ -10772,7 +11151,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -10793,7 +11172,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -10814,7 +11193,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -10835,7 +11214,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -10856,7 +11235,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -10877,7 +11256,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -11083,6 +11462,17 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    # Forgeable like the other eight. It was the one stamp the 2026-09-08 pass
+    # missed, because the comment above it separates this block from the run
+    # the six new lines were pasted down. A forger copying an unreadable smudge
+    # is fine: the mark is written at creation, so a forgery made before there
+    # is a Merchant is as blank as his own.
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   coffee:
     catalog: gm
@@ -11154,7 +11544,7 @@ tags:
     name: Wild Mushroom
     category: items
     group: items-food
-    description: "A cluster of wild mushrooms, still damp with dew. ‡"
+    description: "A cluster of wild mushrooms, still damp with dew."
     pointCost: 0
     sellable: true
     sellablePrice: 2
@@ -11329,7 +11719,7 @@ tags:
     name: Poison Snooper
     category: items
     group: items-gear
-    description: "A thin metal tube that can be applied into food or drink to detect poisons. Multi-use."
+    description: "You can immediately tell when a meal is poisoned. This item is reusable."
     pointCost: 9
     depotPrice: 22
     sellable: true
@@ -11486,6 +11876,7 @@ tags:
     name: Soporific
     category: items
     group: items-drink
+    poison: true
     description: "A small vial of a clear substance."
     pointCost: 0
     depotPrice: 45
@@ -11499,7 +11890,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto: []
+    consumesInto:
+      - asleep
 
   amoeba-vial:
     catalog: gm
@@ -11574,6 +11966,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
+    cures: [feverish, sepsis]
     consumesInto: []
 
   # Hardware. The wall. A gun costs more than a house and that is the point.
@@ -11584,7 +11977,7 @@ tags:
     group: items-weapons
     description: "A 9mm pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.6, weaponClass: firearm }
+    fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
     depotPrice: 149
     sealedShipping: true
@@ -11610,7 +12003,7 @@ tags:
     category: items
     group: items-weapons
     description: "A semi-automatic rifle chambered in .308."
-    fighting: { tiers: 0.7, weaponClass: firearm }
+    fighting: { tiers: 1, weaponClass: firearm }
     pointCost: 0
     depotPrice: 213
     sealedShipping: true
@@ -11631,7 +12024,7 @@ tags:
     category: items
     group: items-weapons
     description: "An experimental fully automatic rifle that belongs to the past."
-    fighting: { tiers: 1, weaponClass: firearm }
+    fighting: { tiers: 1.2, weaponClass: firearm }
     pointCost: 0
     depotPrice: 443
     sealedShipping: true
@@ -11942,6 +12335,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [infected]
     requirement:
       turnsCost: 1/2
       resourceCost: 2
@@ -12035,6 +12429,7 @@ tags:
     name: Nightshade
     category: items
     group: items-drink
+    poison: true
     description: "A draught refined from {tag:nightshade-herb}. Inflicts {tag:choking as the consumer begins to perish."
     pointCost: 0
     tradeable: true
@@ -12045,6 +12440,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    consumesInto:
+      - choking
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -12058,9 +12455,10 @@ tags:
   # Smith's work now, not a brew (Chris 2026-09-05): a powder device coming
   # out of a still was always odd, and Smithing (Gunpowder) is where every
   # other powder item lives. The group moved with the skill — items-weapons
-  # is what routes it to the Smithing paper (db/scripts/ops/audit-craft-docs
-  # assigns papers by group). Still spends RAW saltpeter; only the bigger
-  # {tag:bomb} wants the refined {tag:black-powder}.
+  # is the Smithing-family group (the Recipes tab renders by group; the
+  # retired hand-written papers used to route the same way). Still spends
+  # RAW saltpeter; only the bigger {tag:bomb} wants the refined
+  # {tag:black-powder}.
   # Renamed from Gunpowder Grenade (Chris 2026-09-06): it packs raw saltpeter,
   # not powder, so it neither claims the name nor needs the Gunpowder rung.
   # The slug stays — the papers' {tag:...} tokens and any held rows follow the
@@ -12098,6 +12496,7 @@ tags:
     name: Phrygian Tears
     category: items
     group: items-drink
+    poison: true
     description: "A powerful draught that requires two turns to create. Inflicts {tag:phrygian-toxin}."
     pointCost: 0
     tradeable: true
@@ -12108,6 +12507,8 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    consumesInto:
+      - phrygian-toxin
     requirement:
       turnsCost: 2
       resourceCost: 4
@@ -12188,6 +12589,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [infected, festering, feverish]
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12202,7 +12604,7 @@ tags:
     name: White Honey
     category: items
     group: items-drink
-    description: "A substance boiled pale and thick. Can be consumed to cure a poisoning of any kind."
+    description: "It's boiled into a pale syrupy mix, capable of neutralizing even exotic poisons and venoms."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -12224,8 +12626,9 @@ tags:
       skills: [brewing-skilled]
       gambit: false
       items: [honey, trout-heart]
+    cures: [poisoned, envenomated, phrygian-toxin, choking]
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 26
 
   deadeye-drops:
     catalog: all
@@ -12258,7 +12661,7 @@ tags:
     name: Mercy
     category: items
     group: items-drink
-    description: "A draught brewed from {tag:cave-fungus}. Can be consumed to gain {tag:increased-recovery}."
+    description: "Increases recovery. Brewed from {tag:cave-fungus}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -12268,16 +12671,17 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    administerable: true
     consumesInto:
       - increased-recovery
     requirement:
       turnsCost: 1/2
-      resourceCost: 2
+      resourceCost: 3
       skills: [brewing-skilled]
       gambit: false
       items: [cave-fungus]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 12
 
   distilled-coca:
     catalog: all
@@ -12311,6 +12715,7 @@ tags:
     name: Mindbreaker Toxin
     category: items
     group: items-drink
+    poison: true
     description: "A vial full of a clear acid drawn from cave fungus. Inflicts {tag:hallucinating}."
     pointCost: 0
     tradeable: true
@@ -12509,6 +12914,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
+    cures: [shell-shocked]
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -12519,6 +12925,436 @@ tags:
       items: [poppy]
     sellable: true
     sellablePrice: 18
+
+  # --- Medical pass: the item roster (M3) -----------------------------
+
+  antidote:
+    catalog: all
+    name: Antidote
+    category: items
+    group: items-drink
+    description: "A bitter draught that clears the basic poisons."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [poisoned, envenomated]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 10
+
+  fever-draught:
+    catalog: all
+    name: Fever Draught
+    category: items
+    group: items-drink
+    description: "A bitter draught that clears fevers."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [feverish, heatstroke, cave-fever]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 3
+      skills: [brewing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 9
+
+  burn-dressing:
+    catalog: all
+    name: Burn Dressing
+    category: items
+    group: items-gear
+    description: "A cooling salve to treat burns."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [burned, severe-burns]
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 4
+      skills: [brewing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 10
+
+  # No `cures:` — it doesn't treat anything. It substitutes for Surgical
+  # Reworked M6b: no longer a single-use +1 stand-in. It's a standing site
+  # enabler now, same as Surgical Equipment for the site GATE — but a worse
+  # one: when it's the ONLY thing enabling the site (no real equipment or
+  # Theater in reach), the surgery Gambit takes a −1. Never consumed; held
+  # or room-stashed like any other kit. See healCharacterRequestImpl.
+  portable-surgical-pack:
+    catalog: all
+    name: Portable Surgical Pack
+    category: items
+    group: items-gear
+    description: "A barber-surgeon's kit, containing clamps, needles and sutures. It allows you to perform surgeries, but with a -1 to the Gambit die."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 8
+      skills: [brewing-expert]
+      gambit: false
+    sellable: true
+    sellablePrice: 20
+
+  # HIDDEN recipe (aberrant-heart is non-public; medical pass, 2026-09-08),
+  # and the tag itself is secret on top of that: unlike {tag:white-honey},
+  # this one isn't public knowledge with a hidden ingredient, it's a genuine
+  # secret. Nothing drops aberrant-heart yet (loot-table pass) — buildable
+  # the day that lands, inert until then. The one item door onto a tier-7
+  # cure that isn't a Gambit: Dying is always a roll through Heal, but an
+  # item cure never rolls, the same way White Honey bypasses envenomated's
+  # own tier. Chris 2026-09-08: this is a FULL cure, not a mere improvement.
+  last-breath:
+    catalog: secret
+    name: Last Breath
+    category: items
+    group: items-drink
+    description: "Rendered from an aberrant heart, black and thick. A lifesaving coagulation."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    cures: [dying]
+    requirement:
+      turnsCost: 3
+      resourceCost: 12
+      skills: [brewing-expert]
+      gambit: false
+      items: [aberrant-heart]
+    sellable: true
+    sellablePrice: 100
+
+  # The medical mirror of {tag:forge} (SMITHING.md §2a): a standing site
+  # rather than a kit you haul. Satisfies the surgery-site rule the same way
+  # a forge satisfies Workshop Equipment — `provides: [surgical-equipment]`
+  # is read by the same hasEquipmentInReach() check the portable kit uses,
+  # so nothing in the heal path has to know the two apart. Gate and cost are
+  # a default, flagged TBD for Gunboat to price (medical-pass plan, M3).
+  surgical-theater:
+    catalog: all
+    name: Surgical Theater
+    category: assets
+    group: assets-structures
+    description: "A dedicated surgery theater featuring scrubbed tables, hung lamps, and a dizzying variety of instruments. This allows successful surgery."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 30
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      examine: "instruments laid out, lamps hung."
+      provides: [surgical-equipment]
+
+  # --- Medical pass: prosthetics (M5) ----------------------------------
+  # All five are `consumable: true` with `administerSkill: medical-expert`
+  # (fitting is surgery — the Expert's own 1/2 Move billing, M1/M2
+  # machinery — there is no separate fitting fee). Each cures a maiming into
+  # its own cosmetic aftermath via `curesInto`, never the tag's own
+  # `removesInto` (none of the four maimings below has one).
+  #
+  # PRICING IS DELIBERATE, and it is NOT the smithing markup ladder: sell
+  # prices here (17/17/29/31) come from the cure-value side — TAGS.md §5c's
+  # drawback-erasure anchor (≥2 ⬢ per drawback point erased, plan §M5) —
+  # because what's being sold is the cure, not the smithing labor. Deriving
+  # these from DEPOT.md §4's resourceCost+rate formula would land near 9/19
+  # and undervalue them; don't "fix" them down to it.
+
+  wooden-leg:
+    catalog: all
+    name: Wooden Leg
+    category: items
+    group: items-gear
+    description: "A carved peg buckled tight with leather straps. You can walk again."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-leg]
+    curesInto:
+      missing-leg: peg-leg
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 17
+
+  iron-hook:
+    catalog: all
+    name: Iron Hook
+    category: items
+    group: items-gear
+    description: "A fitted iron hook."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-arm]
+    curesInto:
+      missing-arm: hook-hand
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 17
+
+  prosthetic-hand:
+    catalog: all
+    name: Prosthetic Hand
+    category: items
+    group: items-gear
+    description: "A prosthetic hand."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-fingers]
+    curesInto:
+      missing-fingers: prosthetic-hand-worn
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 29
+
+  glass-eye:
+    catalog: all
+    name: Glass Eye
+    category: items
+    group: items-gear
+    description: "A painted glass sphere."
+    pointCost: 0
+    tradeable: true
+    weight: 0.2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-eye]
+    curesInto:
+      missing-eye: glass-eye-worn
+    requirement:
+      turnsCost: 1
+      resourceCost: 12
+      skills: [smithing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 31
+
+  # Same shape as {tag:aberrant-heart}: an ingredient and nothing else,
+  # `catalog: gm` exactly like the heart (medical-pass plan, M5) — players
+  # never see it in the Tag Catalog, but a GM deciding whether to grant one
+  # can still look it up there. SECRET would hide it from the GM view too,
+  # and TAGS.md scopes that band to cave/antagonist content besides.
+  # NOTHING DROPS THIS YET. The laboring loot-table pass wires acquisition;
+  # our job was to make the slug exist. Until then a GM grants it.
+  cybernetic-core:
+    catalog: gm
+    name: Cybernetic Core
+    category: items
+    group: items-gear
+    description: "Salvaged machinery that works just as well as the real thing."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 20
+
+  # HIDDEN recipes, same door as {tag:last-breath}: the tag's own
+  # catalogVisibility (not just the ingredient's) withholds it from the
+  # Craft menu until the crafter is BOTH medical-expert AND already holding
+  # a {tag:cybernetic-core} (web/lib/tagRequests.js#computeKnownRecipeIds).
+  # A flat cures list rather than a chain — one both-limbed graft would cure
+  # both at once, if a character somehow held both maimings. No `curesInto`:
+  # missing-arm/missing-leg have no `removesInto` of their own, so the
+  # default aftermath is nothing — the graft leaves no mark at all.
+  cybernetic-arm:
+    catalog: secret
+    name: Cybernetic Arm
+    category: items
+    group: items-gear
+    description: "Salvaged machinery that works just as well as the real thing."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-arm]
+    requirement:
+      turnsCost: 3
+      resourceCost: 16
+      skills: [brewing-expert]
+      gambit: false
+      items: [cybernetic-core]
+    sellable: true
+    sellablePrice: 90
+
+  cybernetic-leg:
+    catalog: secret
+    name: Cybernetic Leg
+    category: items
+    group: items-gear
+    description: "Salvaged machinery that works just as well as the real thing."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    consumable: true
+    administerSkill: medical-expert
+    cures: [missing-leg]
+    requirement:
+      turnsCost: 3
+      resourceCost: 16
+      skills: [brewing-expert]
+      gambit: false
+      items: [cybernetic-core]
+    sellable: true
+    sellablePrice: 90
+
+  # --- Medical pass: new ailments (M3) --------------------------------
+
+  lockjaw:
+    catalog: all
+    name: Lockjaw
+    category: health
+    group: health-infection
+    description: "Your jaw is seizing shut. You can't breathe."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+    expiresInto: [choking]
+    removesInto: [recovering]
+    healable: true
+    requirement:
+      turnsCost: 1/3
+      resourceCost: 4
+      skills: [medical-skilled]
+      gambit: false
+
+  cave-fever:
+    catalog: all
+    name: Cave Fever
+    category: health
+    group: health-illness
+    description: "A shivering fever. It's getting worse."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+    expiresInto: [feverish]
+    removesInto: [recovering]
+    healable: true
+    requirement:
+      turnsCost: 1/3
+      resourceCost: 2
+      skills: [medical-skilled]
+      gambit: false
+
+  crush-injury:
+    catalog: all
+    name: Crush Injury
+    category: health
+    group: health-wounds
+    description: "The tissue is steadily dying."
+    pointCost: 0
+    carryBonus: -0.1
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+    expiresInto: [necrosis]
+    removesInto: [stitched-up]
+    healable: true
+    requirement:
+      turnsCost: 1/2
+      resourceCost: 7
+      skills: [medical-skilled]
+      gambit: false
 
   flawless-skin:
     catalog: all
@@ -13045,7 +13881,7 @@ tags:
     tradeable: true
     weight: 0.5
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   lepers-hood:
     catalog: all
@@ -13064,7 +13900,7 @@ tags:
     tradeable: true
     weight: 0.5
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   padded-cap:
     catalog: all
@@ -13181,7 +14017,7 @@ tags:
     name: Mining Helmet
     category: items
     group: items-headgear
-    description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢. ‡"
+    description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 5
     depotPrice: 14
     equippable: true
@@ -13458,10 +14294,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 18
       skills: [smithing-skilled]
-      # {tag:steel} joined 2026-09-09: 1 turn and 18 ⬢ of the old 2-turn,
-      # 26 ⬢ recipe moved into steel's own recipe instead.
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
       items: [steel]
     sellable: true
     sellablePrice: 42
@@ -13536,10 +14373,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 16
+      resourceCost: 26
       skills: [smithing-skilled]
-      # {tag:steel} joined 2026-09-09: 1 turn and 18 ⬢ of the old 3-turn,
-      # 34 ⬢ recipe moved into steel's own recipe instead.
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 3-turn, 34 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
       items: [steel]
     sellable: true
     sellablePrice: 61
@@ -13794,7 +14632,7 @@ tags:
     category: health
     group: health-wounds
     description: "No… It can't be— A dangerous injury that will turn {tag:infected} without treatment."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -13805,8 +14643,8 @@ tags:
     removesInto: [stitched-up]
     healable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 6
+      turnsCost: 1/2
+      resourceCost: 7
       skills: [medical-skilled]
       gambit: false
 
@@ -13818,7 +14656,7 @@ tags:
     category: health
     group: health-wounds
     description: "It hurts, but it wouldn't be hard to treat. Left alone it may turn {tag:infected}."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -13828,6 +14666,7 @@ tags:
       - oneOf: [infected, recovering]
     healable: true
     requirement:
+      turnsCost: 1/4
       resourceCost: 2
       skills: [medical-basic]
 
@@ -13870,9 +14709,9 @@ tags:
     consumesInto: [seizure]
     # Nothing in Ravenheart wants a cube. The Depot buys every one of them,
     # which is the whole reason the Factory exists — 8 cubes is a day's work
-    # and pays about 2.2 times a good farming day.
+    # and pays about four times a good farming day.
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 7
 
   # UNTRADEABLE on purpose, which is the only thing that actually pins it down:
   # `removable: false` blocks the Destroy menu and nothing else, so while this
@@ -14030,7 +14869,7 @@ tags:
     category: health
     group: health-mind
     description: "Your vision is slowly getting worse."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     stackable: true
     visible: false
@@ -14062,7 +14901,7 @@ tags:
     category: health
     group: health-mind
     description: "Gghhhh?"
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false

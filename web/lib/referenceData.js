@@ -88,10 +88,38 @@ export function stripWeightless(tag) {
 
 // Exactly the Tag columns TagChip reads. Shared so every TagChip caller
 // (this module, /gm/turns) uses the same shape instead of a copy that drifts.
+// Cooking (docs/systemdocs/COOKING.md). A cook is told what an ingredient
+// TASTES of and nothing else — not its mood, not what it will do to whoever
+// eats it. You learn an ingredient by using it, and poisoning somebody is
+// meant to be a gamble the poisoner takes too (Bascinet, 2026-09-09).
+//
+// Prisma cannot select one key out of a Json column, so the whole `cooked`
+// block comes back and is cut down here, on the server, before it crosses.
+// Shipping it whole would put every mood figure and every hidden effect one
+// dev-tools inspection away, which is the entire secret.
+//
+// `Tag.cookedFrom` is dropped outright by the same pass, and is not in
+// TAG_CHIP_FIELDS either: a dish says what it tastes of and never what it was
+// made with. It is cut here as well as left out of the select because the
+// character sheet loads its held tags with a bare `include: { tag: … }`,
+// which takes every column there is — a rule that lives only in a select is
+// a rule the next `include` quietly breaks.
+export function cookedTasteOnly(tag) {
+  if (!tag?.cooked && !tag?.cookedFrom?.length) return tag;
+  const { cooked, cookedFrom, ...rest } = tag;
+  return cooked ? { ...rest, cooked: { taste: cooked.taste ?? "" } } : rest;
+}
+
 export const TAG_CHIP_FIELDS = {
   id: true,
   slug: true,
   name: true,
+  // ChipLabel draws the mastery star off this. Drop it and the star silently
+  // stops appearing on every chip in the app rather than erroring anywhere.
+  mastery: true,
+  // Read and cut down to its taste by cookedTasteOnly before it ships — see
+  // above. Every caller that spreads TAG_CHIP_FIELDS must map through it.
+  cooked: true,
   description: true,
   pointCost: true,
   category: true,
@@ -115,7 +143,11 @@ export const TAG_CHIP_FIELDS = {
   healable: true,
   teachable: true,
   // Minified via formatTagRequirement wherever a description renders.
+  // requirementPerTurn is what tells a `turnsCost: 1/N` cure apart from a
+  // flat "1 turn" (review fix, M2 — the Tag Catalog showed the wrong number
+  // for every fraction-priced medical cure without it).
   requirementTurns: true,
+  requirementPerTurn: true,
   requirementResources: true,
   requirementGambit: true,
   requirementSkills: { select: { id: true, slug: true, name: true } },
@@ -147,6 +179,15 @@ export const TAG_CHIP_FIELDS = {
   // rows. equipSlot rides along because that resolution asks whether a body
   // slot is filled (Flamboyant) and whether a weapon is drawn.
   ...FIGHTING_TAG_FIELDS,
+  // TagChip's "Worn" line, via describeEquipFit. All THREE columns or the line
+  // lies: FIGHTING_TAG_FIELDS brings equipSlot only, and without these two the
+  // helper reads `undefined` for both — so every two-hander in the catalog said
+  // "Held · takes one" (22 of them) and every layered piece said bare "Head"
+  // instead of "Head · Liner" (52 of them), which is the single fact that line
+  // exists to carry. The same shape of gap as the armour columns above, found
+  // 2026-09-10.
+  equipLayer: true,
+  twoHanded: true,
   // TagChip's "Weight" line, via formatTagWeight. Both halves: an untradeable
   // tag weighs nothing against the cap no matter what the column says, so a
   // weight shown without `tradeable` would contradict the sheet's total.
@@ -216,7 +257,8 @@ export async function getVisibleTags() {
       .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
       .map(composePaper(viewer, held))
       .map(stripEmptyUnlocks)
-      .map(stripWeightless),
+      .map(stripWeightless)
+      .map(cookedTasteOnly),
     { visibleSlugs: readableSlugs },
   );
 }

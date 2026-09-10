@@ -33,6 +33,7 @@ const PLACE_HINTS = {
   room: "room",
   conv: "conversation",
   zone: "summary",
+  net: "radio",
 };
 
 const GM_PAGES = [

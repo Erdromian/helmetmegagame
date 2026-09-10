@@ -50,6 +50,9 @@ const LINES = {
   // The server action returns its own `line`, which noticeLine prefers. This
   // is the fallback.
   intercept: () => `You lie in wait.`,
+  // The server action returns its own `line` (it names who), which noticeLine
+  // prefers. These are the fallbacks.
+  attack: () => `You attack.`,
   recover: (res) => (res.granted?.length ? `${res.granted.join(" and ")} back in your hands.` : `Recovered.`),
   pointer: (res) => res.line ?? `The card swings.`,
   arm: () => `The count has begun.`,

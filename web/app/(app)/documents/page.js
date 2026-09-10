@@ -258,6 +258,21 @@ async function FreshDocuments() {
     inspectVisibility: t.inspectVisibility,
     stackable: t.stackable,
     equippable: t.equippable,
+    // The two lines this tab has never drawn, and the reason a player had to
+    // pick a helmet up and try it on to find out where it went: TagChip's
+    // "In a fight" (formatTagFighting) and "Worn" (describeEquipFit). This map
+    // is the fourth hand-written copy of the chip's shape TAG_CHIP_FIELDS's own
+    // comment warns about, and these four columns are what fell out of it.
+    // All three equip columns or the Worn line lies — equipSlot alone reads a
+    // two-hander as one-handed and drops the layer entirely.
+    fighting: t.fighting,
+    equipSlot: t.equipSlot,
+    equipLayer: t.equipLayer,
+    twoHanded: t.twoHanded,
+    // TagChip's Armour line. Both halves, always: a chip showing only the
+    // strong number hides that a breastplate is paper against a rifle.
+    meleeArmor: t.meleeArmor,
+    ballisticArmor: t.ballisticArmor,
     concealsIdentity: t.concealsIdentity,
     forcedName: t.forcedName,
     consumable: t.consumable,
@@ -272,6 +287,7 @@ async function FreshDocuments() {
     teachable: t.teachable,
     purchasable: t.purchasable,
     purchasableAfterStart: t.purchasableAfterStart,
+    mastery: t.mastery,
     catalogVisibility: t.catalogVisibility,
     depotPrice: t.depotPrice,
     defaultDurationTurns: t.defaultDurationTurns,
@@ -282,6 +298,12 @@ async function FreshDocuments() {
     consumesInto: t.consumesInto,
     expiresInto: t.expiresInto,
     removesInto: t.removesInto,
+    // The medical pass's item-cure fields (TAGS.md §5c): what a consumable
+    // cures, the per-item aftermath override, and who may administer it.
+    cures: t.cures,
+    curesInto: t.curesInto,
+    administerable: t.administerable,
+    administerSkill: t.administerSkill,
     requirementTurns: t.requirementTurns,
     requirementResources: t.requirementResources,
     requirementGambit: t.requirementGambit,
