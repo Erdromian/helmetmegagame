@@ -58,10 +58,14 @@ change at those breakpoints — the scrolling is the same at every size.
 
 Who this is, where they stand, and:
 
-- **The status strip** — Chat's own `play/StatusStrip.js`: ⬢, the carry
-  line, every Status and Health tag. On the sheet it takes `onPick`, and a
-  clicked chip opens the tag's `TagDetails` under the strip. The rail has no
-  Status card for that reason.
+- **The status strip** — Chat's own `play/StatusStrip.js`, minus its two
+  leading chips: every Status and Health tag, and no ⬢ or carry line. The
+  sheet passes `numbers={false}`, because the tiles a few inches to the right
+  say both with the caps and the load meter the chips could only half-say, and
+  printing the same two numbers twice on one band read as a bug. Chat has no
+  tiles, so it keeps them. On the sheet the strip takes `onPick`, and a
+  clicked chip opens the tag's `TagDetails` under it. The rail has no Status
+  card for that reason.
 - **Five tiles** — free moves, ⬢ against the cap, carrying with the meter,
   the **Mood box** (`MOOD.md` §4), the Gambit modifier
   (`db/lib/gambitModifier.js`, the same call the bot makes). Two of them have
@@ -166,7 +170,13 @@ portaled click menu that used to live inside `play/ThingsDrawer.js`.
 
 ## 5. What is not here
 
-- **The Bio form is the form** (`BioForm.js`), unchanged, in the left column.
+- **The Bio form is the form** (`BioForm.js`), unchanged, in the left column,
+  with `LedgerWork.js` — Crafting & building, the clock on a half-finished
+  project or build site — under it. That panel sat in the middle column beside
+  the rig until the sheet read as a tall middle between two short sides; it is
+  a readout and nothing on it presses, so it belongs with the Bio rather than
+  with the verbs. Below 820px that also moves it from the **Do** tab to
+  **You**.
 - No collapsing cards, no Traits/Drawbacks split — both were put to Bascinet
   and skipped.
 

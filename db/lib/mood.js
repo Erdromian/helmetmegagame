@@ -11,9 +11,11 @@
 //   −64…−82 Afraid (−1)     −82…−100 Panicking (−2)
 //
 // The world drags it down: a night in the wilderness or the caves, a wound, a
-// bad Caving Die, hunger, being bound or crucified, a death nearby. Comfort
-// lifts it: a roof, a haven, a drink, a good meal, tea, a smoke, music, a
-// confession, a fulfilled Desire — and past 0 into an actually good mood.
+// bad Caving Die, hunger, being bound or crucified, a death nearby. Shelter
+// brings it back: a roof, a haven, the Cathedral — but only ever back up to
+// Fine and never past it, which is what `capAtFine` on a term means. Going
+// higher takes something a character DOES: a drink, a good meal, tea, a smoke,
+// music, a confession, a fulfilled Desire.
 // Held tags scale the HARM — Brave halves everything, Rough Camper / Outsider
 // / Spelunker / Pale soften the outdoors and the caves, the phobias sharpen
 // one kind each — and GameConfig.moodIntensity (k) scales both directions:
@@ -256,10 +258,13 @@ function placeClassOf(location) {
 }
 
 // The turn-end term for a place class: { kind, base }. Harm carries its own
-// kind so Rough Camper and friends can find it; comfort is plain PLACE.
+// kind so Rough Camper and friends can find it; comfort is plain PLACE and
+// carries `capAtFine`, because OPEN, INDOORS and HAVEN are all degrees of
+// "nothing is hurting me" rather than degrees of delight.
 function placeTermFor(placeClass) {
   const base = PLACE_TERMS[placeClass];
-  return { kind: base < 0 ? placeClass : "PLACE", base };
+  if (base < 0) return { kind: placeClass, base };
+  return { kind: "PLACE", base, capAtFine: true };
 }
 
 // The overnight slide back toward Fine, or null for somebody already there.
@@ -269,6 +274,21 @@ function driftTermFor(mood) {
   if (v === 0) return null;
   const base = v < 0 ? Math.min(MOOD_DRIFT, -v) : -Math.min(MOOD_DRIFT, v);
   return { kind: "DRIFT", base, noMultiplier: true };
+}
+
+// How much of a restorative term actually lands. Shelter and the Cathedral mend
+// a bad day; they are not a good one, so they fill the hole up to Fine and stop
+// there. Where a character merely IS cannot make them happy — only what they
+// do, eat or want does that.
+//
+// `otherDelta` is everything ELSE the same write is about to do, which is what
+// makes the answer order-independent: the nightly pass hands all six of its
+// terms to ONE applyMoodTerms call, so a rule that read term order would be
+// deciding by array position. A character at −5 who goes hungry (−5) and sleeps
+// in a Haven (+12) therefore wakes at exactly 0 — the bed absorbs the hunger.
+function restorativeRoom(before, otherDelta = 0) {
+  const floor = (Number.isFinite(before) ? before : 0) + (Number.isFinite(otherDelta) ? otherDelta : 0);
+  return Math.max(0, -floor);
 }
 
 // What walking INTO a place costs, or null when it costs nothing.
@@ -386,11 +406,14 @@ async function loadIntensity(tx) {
 }
 
 // Moves one character's dial by several terms at once, on `tx`.
-// terms: [{ kind, base, ctx?, move?, noMultiplier? }]. Returns null for an
-// unknown character, otherwise
-//   { characterId, before, after, delta, moveApplied, band, previousBand, dm }
-// where `dm` is { discordUserId, content } or null and `moveApplied` is the
-// positive magnitude the movement ration just spent. A character who is not
+// terms: [{ kind, base, ctx?, move?, noMultiplier?, capAtFine? }]. Returns null
+// for an unknown character, otherwise
+//   { characterId, before, after, delta, moveApplied, restorativeApplied,
+//     band, previousBand, dm }
+// where `dm` is { discordUserId, content } or null, `moveApplied` is the
+// positive magnitude the movement ration just spent, and `restorativeApplied`
+// is how much of the `capAtFine` relief actually landed — which answers "why
+// didn't my Haven night help". A character who is not
 // ALIVE takes nothing.
 //
 // `character` may be passed in already loaded — { id, status, mood,
@@ -422,9 +445,11 @@ async function applyMoodTerms(
   const before = character.mood ?? 0;
   let delta = 0;
   let moveApplied = 0;
+  let restorativeApplied = 0;
   if (character.status === "ALIVE" && terms?.length) {
     const k = intensity ?? (await loadIntensity(tx));
     let moveDelta = 0;
+    let restorativeDelta = 0;
     for (const term of terms) {
       if (!term || !term.base) continue;
       const resolved = resolveDelta({
@@ -436,7 +461,8 @@ async function applyMoodTerms(
         equippedSlugs,
         noMultiplier: term.noMultiplier,
       });
-      if (term.move) moveDelta += resolved;
+      if (term.capAtFine) restorativeDelta += resolved;
+      else if (term.move) moveDelta += resolved;
       else delta += resolved;
     }
     // The ration only ever bites on the way DOWN; walking into the Cathedral
@@ -445,7 +471,14 @@ async function applyMoodTerms(
       moveDelta = Math.max(moveDelta, -Math.max(0, moveCapRemaining));
     }
     moveApplied = moveDelta < 0 ? Math.round(-moveDelta * 100) / 100 : 0;
-    delta = Math.round((delta + moveDelta) * 100) / 100;
+    // Shelter fills whatever hole is left and stops at Fine. Measured against
+    // everything else this write does (restorativeRoom), so two arrivals or a
+    // whole night's worth of terms cannot be reordered into a different answer.
+    if (restorativeDelta > 0) {
+      const allowed = Math.min(restorativeDelta, restorativeRoom(before, delta + moveDelta));
+      restorativeApplied = Math.round(allowed * 100) / 100;
+    }
+    delta = Math.round((delta + moveDelta + restorativeApplied) * 100) / 100;
   }
 
   let after = before;
@@ -475,6 +508,7 @@ async function applyMoodTerms(
     after,
     delta: Math.round((after - before) * 100) / 100,
     moveApplied,
+    restorativeApplied,
     band,
     previousBand,
     dm,
@@ -610,7 +644,7 @@ async function applyArrivalMood(prisma, { characterId, fromLocationId, toLocatio
       where: { actionType: CATHEDRAL_AUDIT_ACTION, turnId: openTurn.id, targetCharacterId: characterId },
     });
     if (already === 0) {
-      terms.push({ kind: "CATHEDRAL", base: EVENTS.CATHEDRAL });
+      terms.push({ kind: "CATHEDRAL", base: EVENTS.CATHEDRAL, capAtFine: true });
       await prisma.auditLog.create({
         data: {
           actorDiscordUserId: "system",
@@ -680,6 +714,7 @@ module.exports = {
   placeClassOf,
   placeTermFor,
   driftTermFor,
+  restorativeRoom,
   arrivalTermFor,
   woundRungOf,
   woundMoodFor,

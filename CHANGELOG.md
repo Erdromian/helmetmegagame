@@ -6,6 +6,32 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Filing a Move now tells you what you need before you press it
+
+✚ The Move box shows how long is left to file, and what the ground under you is worth if you pick Labor  
+✚ A Move you cannot make — no Laboring skill that reaches where you stand — says so before you spend the press, not after  
+✚ What you type into the Move box is kept if you close it by accident, per character and per turn  
+✚ A confirm step on File it, because a filed Move is final  
+✎ Labor's help line now reads "Work the day using your best Labor skill", on Discord too
+
+## 2026-09-10 · A pass over the sheet, the map, the Depot and the Lifeweb
+
+✎ The sheet is squarer: Crafting & building moved under the Bio, and your ⬢ and your pounds are no longer printed twice on the band  
+✎ The map keeps where you were and how far in you were zoomed when you flip between the surface and underground — they are the same plate, so it is the same view. It only re-frames when the layer you switched to has nothing you know in sight  
+✎ The Depot opens from anywhere now, greyed, instead of throwing the Merchant back at their character sheet. Standing at the counter is still what works it  
+− The GM panel on the Lifeweb, and the page itself, for GMs. It is a Mortus surface; a superadmin still reads it and still moves the Blood  
+− "One turn of work — this is your Move for the turn" from the Craft dialog  
+− The line under "Destroy it?" naming the thing and saying it is not coming back  
+− The Desires note saying Nobility shuts every Desire at tier 1. The lock still holds, and each one still says "Locked by Nobility" on its own row  
+− The line in the Faction panel telling you which seat you hold in it
+
+## 2026-09-10 · Shelter brings you back to Fine, not past it
+
+✎ A roof only ever mends a mood as far as Fine. The Inn, the Keep, the Sanctuary and the Cathedral mend it faster, but none of them makes anybody happy  
+✎ Sleeping indoors used to be worth a net +8 every night forever, so a bed alone could carry somebody up to Ecstatic in about ten nights and hold them there. It can't now  
+✎ What still lifts a mood into the good bands: a drink, a meal, a treat, tea, a coffee, a smoke, music, an absolved confession, a kiss, being healed, or getting what you wanted from a Desire  
+✎ Climbing out of a bad mood is exactly as fast as it was — the cap only blocks crossing over into the good half
+
 ## 2026-09-10 · Bascinet's wording, and the draft marks are gone
 
 ✎ Your edits are in: the refusals, empty states, DMs and dialog copy across the game now read the way you rewrote them  

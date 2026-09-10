@@ -223,11 +223,29 @@ half of what that wound took.
 
 ## 6. What lifts a mood
 
+**Two kinds of good thing, and they are not interchangeable. Where a character
+merely IS can only mend them; what they DO, eat or want is what lifts them.**
+Shelter and the Cathedral carry `capAtFine` on their term: they fill whatever
+hole the dial is in, up to Fine, and stop there. A roof is not a joy — it is the
+absence of a bad night. Everything else below can carry somebody past 0 and on
+up into Content, Pleased, Happy and Ecstatic.
+
+This arrived on 2026-09-10, hours after Ecstatic, and it is the brake that band
+needed. A Haven night is +12 against a −4 drift, so a bed used to net +8 a night
+forever: about ten nights from Fine to the +82 ceiling and then a standing +1 on
+every Gambit, for no upkeep at all. The good half of the dial is meant to cost
+something. Now it does — a drink, a feast, music, a fulfilled Desire — and a bed
+buys only the right not to be miserable.
+
+Recovery is deliberately untouched. At −50 a Haven night still lands its full
++16; only *crossing* 0 is blocked, so nobody climbs out of a hole any slower than
+they did before.
+
 | Event | Base | Where |
 |---|---|---|
-| End the turn OPEN (a settled place, outdoors) | +4 | mood pass |
-| End the turn INDOORS | +6 | mood pass |
-| End the turn in a HAVEN | +12 | mood pass |
+| End the turn OPEN (a settled place, outdoors) | +4 **to Fine only** | mood pass |
+| End the turn INDOORS | +6 **to Fine only** | mood pass |
+| End the turn in a HAVEN | +12 **to Fine only** | mood pass |
 | Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | +30 | `consumeTagRequestImpl` |
 | Consume a `lavish-meal` | +30 | same |
 | Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +15 | same |
@@ -238,7 +256,7 @@ half of what that wound took.
 | Fulfil a Desire (player claim or GM award) | +10 per point | both award sites |
 | A confession the die absolved | +15 | `confessionPass.js` |
 | A **Musician's** `/play`, once per listener per turn | +10 to everyone at the Location | `handlePlayCommand` |
-| Walk into the Cathedral, once per turn | +10 | `applyArrivalMood` |
+| Walk into the Cathedral, once per turn | +10 **to Fine only** | `applyArrivalMood` |
 | Be healed of a wound | +½ what it took | `healCharacterRequestImpl` |
 
 The food rules are keyed on the *status* a consume grants where there is a
@@ -257,6 +275,23 @@ line — and it still feeds the noble besides (§7).
 overshooting 0: a fright wears off, and so does a good evening. It carries
 `noMultiplier: true`, so no tag scales it — Brave halving a happy person's
 decline would be nonsense.
+
+**How a capped term settles.** `restorativeRoom(before, otherDelta)` is the whole
+rule: a `capAtFine` term contributes at most the room left between the dial and
+0, measured **after** everything else the same write does. So a character at −5
+who goes hungry (−5) and sleeps in a Haven wakes at exactly **0** — the bed
+absorbs the hunger — while a character at +40 in that same Haven only drifts down
+to +36, because there is no room at all. Measuring against the other terms rather
+than against `before` alone is what makes it order-independent, and that matters:
+the nightly pass hands place, drift, HUNGER, BOUND, CORPSE and NOBLE_MEAL to
+**one** `applyMoodTerms` call, so a rule that read term order would be deciding
+by array position. What landed comes back as `restorativeApplied`, beside
+`moveApplied` — the answer to "why didn't my Haven night help".
+
+One known wart: `applyArrivalMood` writes the `mood_cathedral` audit row before
+the relief is computed, so somebody already above Fine spends their once-a-turn
+visit for nothing. Left alone — they went, they were already at peace — but
+written down here rather than left to be discovered.
 
 The two once-a-turn rations are `AuditLog` rows with `turnId` set
 (`mood_cathedral`, `mood_soothed_play` — `REQUESTS.md` §1a), both rare enough
@@ -328,7 +363,10 @@ transaction per character so one bad row cannot roll back a hundred good ones,
 and hands `applyMoodTerms` the row it already loaded (the multiplier slugs and
 this pass's own gates in one filtered read) rather than letting it read the
 sheet again. Somebody already at Fine, in a place that neither lifts nor
-lowers, is skipped without a write. The `dined` markers are eaten in one
+lowers, is skipped without a write — and a `capAtFine` term does not count as
+lifting for that test, because at 0 there is no hole for it to fill. Without
+that exemption every character standing at Fine under a roof would open a
+transaction to compute a delta of zero, which on a full roster is most of them. The `dined` markers are eaten in one
 `deleteMany` **after** the loop, not per character: a pass that dies half-way
 is re-run from the top, and a per-character delete would have charged the
 nobles it had already reached for a dinner they ate. A replay is therefore at
@@ -347,16 +385,15 @@ The designer's checks, all asserted in `db/test/mood.test.js`:
   wilderness night on top (−10 + 4) lands at −20, still Uncomfortable.
 - A moderately severe wound (rung 3, −30) on top of that is −50: **Anxious**.
 - At −20, two nights indoors (+6 +4 each) clear the dial; one night in a Haven
-  reaches Fine on its own.
-- **Ecstatic is cheaper to hold than Afraid is to escape, and that is known.** A
-  Haven night is +12 against a −4 drift, so anybody sleeping at the Inn, the Keep
-  or the Sanctuary nets +8 a night with no upkeep beyond a bed: roughly ten
-  nights from Fine to the +82 ceiling, and a standing +1 on every Gambit after
-  that. The bad half has no equivalent, because the wilderness charge needs
-  somebody to actually be out in it. Accepted as shipped, and watched. If it
-  wants a brake the levers are `MOOD_DRIFT`, `PLACE_TERMS.HAVEN` and
-  `GameConfig.moodIntensity` (which divides relief by k) — none of them in the
-  band table.
+  reaches Fine on its own. Both run through the cap in the test rather than
+  adding the constants up, because a plain sum would agree no matter what the
+  cap did.
+- **A bed cannot carry anybody to Ecstatic.** Thirty straight Haven nights from
+  Fine leave the dial at 0, not at +82. That was the one real hole Ecstatic
+  opened — +12 a night against a −4 drift, netting +8 forever — and §6's
+  `capAtFine` rule is what closed it. The test walks all thirty nights.
+- A Haven night from −50 still lands its full +16. The cap must never be
+  mistakable for slower recovery; it only ever blocks *crossing* 0.
 
 The dial is clamped in the database (`LEAST/GREATEST` in the UPDATE), so two
 hooks in the same tick cannot race a stale read past either end.
@@ -367,7 +404,7 @@ hooks in the same tick cannot race a stale read past either end.
   relief positive, so most callers name only the kind; `MOOD_BANDS`;
   `PLACE_TERMS`; `MOOD_DRIFT`; `DESIRE_RELIEF_PER_POINT`; the consume relief
   map), the pure functions (`bandOf`, `placeClassOf`, `placeTermFor`,
-  `driftTermFor`, `woundRungOf`, `woundMoodFor`, `multiplierFor`,
+  `driftTermFor`, `restorativeRoom`, `woundRungOf`, `woundMoodFor`, `multiplierFor`,
   `resolveDelta`, `moodBandDm`, `clampMood`), and the Prisma surface
   (`applyMood`, `applyMoodTerms`, `applyWoundMood`, `applyArrivalMood`,
   `setMood`, `consumeReliefFor`, `setMoodDmSender`, `loadIntensity`). Off the

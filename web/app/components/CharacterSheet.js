@@ -17,9 +17,9 @@ import TagRail from "./TagRail";
 // The character sheet, at /character. See docs/systemdocs/SHEET.md.
 //
 // A band of numbers across the top — the Move, the status strip and every
-// verb — over three columns: bio on the left, the rig and what you are
-// working on in the middle, and the tags down a rail on the right as one card
-// per kind. On a phone the three columns are three tabs. The whole thing
+// verb — over three columns: bio and what you have half-finished on the left,
+// the rig and the people around you in the middle, and the tags down a rail on
+// the right as one card per kind. On a phone the three columns are three tabs. The whole thing
 // scrolls as one ordinary page; nothing here scrolls inside itself.
 //
 // The props are built once in character/page.js#FreshCharacter, which is also
@@ -318,6 +318,13 @@ export default function CharacterSheet({
                 </section>
               )
             )}
+
+            {/* Under the Bio rather than beside the rig. It is a clock, not a
+                verb — nothing on it presses — and the Bio was the only card in
+                this column, which left the sheet a tall middle between two
+                short sides. On a phone this moves it from the Do tab to the
+                You tab, which is the same reasoning one size down. */}
+            {isSelf && <LedgerWork craftProjects={craftProjects} sitesHere={sitesHere} />}
           </div>
 
           <div className="ledger-col" data-col="do">
@@ -352,10 +359,6 @@ export default function CharacterSheet({
                 addiction={desireAddiction}
                 openTurnNumber={openTurn?.number ?? null}
               />
-            )}
-
-            {isSelf && (
-              <LedgerWork craftProjects={craftProjects} sitesHere={sitesHere} />
             )}
 
             <StandingHerePanel sites={sitesHere} />

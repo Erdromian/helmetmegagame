@@ -14,6 +14,7 @@ const {
   placeClassOf,
   placeTermFor,
   driftTermFor,
+  restorativeRoom,
   arrivalTermFor,
   MOVE_MOOD_TURN_CAP,
   woundRungOf,
@@ -34,6 +35,22 @@ const wound = (extra = {}) => ({
   requirementGambit: false,
   ...extra,
 });
+
+// applyMoodTerms' arithmetic without Prisma: resolve every term at k = 1, then
+// let the restorative ones fill whatever hole is left — up to Fine, no further.
+// Terms may be null (driftTermFor returns null at 0), same as the real caller.
+function settle(before, terms, heldSlugs = []) {
+  let other = 0;
+  let restorative = 0;
+  for (const term of terms) {
+    if (!term || !term.base) continue;
+    const resolved = resolveDelta({ ...term, heldSlugs });
+    if (term.capAtFine) restorative += resolved;
+    else other += resolved;
+  }
+  const applied = restorative > 0 ? Math.min(restorative, restorativeRoom(before, other)) : 0;
+  return clampMood(before + other + applied);
+}
 
 test("ten bands, gapless and symmetric about Fine but for Panicking", () => {
   assert.equal(MOOD_BANDS.length, 10);
@@ -157,10 +174,15 @@ test("place classes: a haven beats its own roof, a safe cave is a room", () => {
   assert.equal(placeClassOf({}), "OPEN");
 });
 
-test("a night somewhere: harm keeps its kind, comfort is plain PLACE", () => {
+test("a night somewhere: harm keeps its kind, comfort is plain PLACE and caps at Fine", () => {
+  // Harm carries its own kind so Rough Camper and the phobias can find it, and
+  // takes no cap — a bad night is a bad night however happy you were.
   assert.deepEqual(placeTermFor("CAVE"), { kind: "CAVE", base: PLACE_TERMS.CAVE });
-  assert.deepEqual(placeTermFor("HAVEN"), { kind: "PLACE", base: PLACE_TERMS.HAVEN });
-  assert.deepEqual(placeTermFor("OPEN"), { kind: "PLACE", base: PLACE_TERMS.OPEN });
+  assert.deepEqual(placeTermFor("WILDERNESS"), { kind: "WILDERNESS", base: PLACE_TERMS.WILDERNESS });
+  // All three comforts collapse to one kind and all three only ever mend.
+  assert.deepEqual(placeTermFor("HAVEN"), { kind: "PLACE", base: PLACE_TERMS.HAVEN, capAtFine: true });
+  assert.deepEqual(placeTermFor("INDOORS"), { kind: "PLACE", base: PLACE_TERMS.INDOORS, capAtFine: true });
+  assert.deepEqual(placeTermFor("OPEN"), { kind: "PLACE", base: PLACE_TERMS.OPEN, capAtFine: true });
 });
 
 // The designer's three checks, walked with the signs the mood dial uses.
@@ -179,15 +201,71 @@ test("seven wilderness walks and a night out land a character Uncomfortable", ()
 });
 
 test("two nights indoors clear a −20, and one in a Haven does better", () => {
+  // Through settle() rather than by adding the constants up: neither of these
+  // crosses 0, so the cap never bites, but it has to be the cap's arithmetic
+  // saying so and not a sum that would agree no matter what the cap did.
+  const night = (mood, cls) => settle(mood, [placeTermFor(cls), driftTermFor(mood)]);
   let mood = -20;
-  for (let i = 0; i < 2; i += 1) mood += PLACE_TERMS.INDOORS + driftTermFor(mood).base;
+  for (let i = 0; i < 2; i += 1) mood = night(mood, "INDOORS");
+  assert.equal(mood, 0);
+  assert.equal(bandOf(mood).label, "Fine");
+  assert.equal(PLACE_TERMS.INDOORS + MOOD_DRIFT, 10);
+
+  // A haven does it in one: −20 is Uncomfortable, and one night there is not.
+  const haven = night(-20, "HAVEN");
+  assert.equal(haven, -4);
+  assert.equal(bandOf(haven).label, "Fine");
+});
+
+test("shelter fills the hole and stops at Fine", () => {
+  assert.equal(restorativeRoom(-20), 20);
+  // The room is measured against everything else the same write does, so the
+  // answer cannot depend on the order the terms were pushed.
+  assert.equal(restorativeRoom(-20, 4), 16);
+  // Harm the same night deepens the hole, so the bed fills more of it.
+  assert.equal(restorativeRoom(-5, -5), 10);
+  // Nothing left to fill: already Fine, already happy, or carried past Fine by
+  // something that is not shelter.
+  assert.equal(restorativeRoom(0), 0);
+  assert.equal(restorativeRoom(40), 0);
+  assert.equal(restorativeRoom(-20, 30), 0);
+  // A missing reading is 0, never NaN.
+  assert.equal(restorativeRoom(undefined), 0);
+  assert.equal(restorativeRoom(null, null), 0);
+});
+
+test("a bed never makes anybody happy, however many nights they sleep in one", () => {
+  const night = (mood) => settle(mood, [placeTermFor("HAVEN"), driftTermFor(mood)]);
+  // The whole reason the rule exists: +12 a night against a −4 drift used to
+  // net +8, carrying somebody from Fine to the ceiling in about ten nights and
+  // handing them a standing +1 Gambit for the price of a bed.
+  let mood = 0;
+  for (let i = 0; i < 30; i += 1) mood = night(mood);
   assert.equal(mood, 0);
   assert.equal(bandOf(mood).label, "Fine");
 
-  // A haven does it in one: −20 is Uncomfortable, and one night there is not.
-  const haven = -20 + PLACE_TERMS.HAVEN + driftTermFor(-20).base;
-  assert.equal(haven, -4);
-  assert.equal(bandOf(haven).label, "Fine");
+  // Somebody already above Fine only drifts back down in one.
+  assert.equal(night(40), 36);
+  assert.equal(night(4), 0);
+
+  // Recovery from a bad mood is untouched — the full +16 still lands.
+  assert.equal(night(-50), -34);
+});
+
+test("a good bed absorbs the night's hunger and lands exactly on Fine", () => {
+  const hungry = { kind: "HUNGER", base: EVENTS.HUNGER };
+  assert.equal(settle(-5, [placeTermFor("HAVEN"), driftTermFor(-5), hungry]), 0);
+
+  // A fulfilled Desire is not shelter, so it carries past Fine on its own —
+  // and the bed adds nothing on top of it.
+  const desire = { kind: "DESIRE", base: 30 };
+  assert.equal(settle(-20, [placeTermFor("HAVEN"), driftTermFor(-20), desire]), 14);
+  assert.equal(bandOf(14).label, "Content");
+
+  // The Cathedral is a place like any other: it mends, it does not elate.
+  const cathedral = { kind: "CATHEDRAL", base: EVENTS.CATHEDRAL, capAtFine: true };
+  assert.equal(settle(-5, [cathedral]), 0);
+  assert.equal(settle(20, [cathedral]), 20);
 });
 
 test("the movement ration pools only move terms, and floors at −15", () => {

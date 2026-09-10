@@ -356,7 +356,11 @@ export default function CraftDialog({
                   : turns === 1
                     ? moveCost?.kind === "share" && moveCost.allowance > 1
                       ? `${formatMoveFraction(1, moveCost.allowance)} of a turn's work each — ${formatMoveFraction(moveCost.num, moveCost.den)} of your Move for this order, up to ${moveCost.allowance} a turn.`
-                      : "One turn of work — this is your Move for the turn."
+                      : // A plain one-turn craft says nothing here: "this is
+                        // your Move for the turn" is the rule for every craft
+                        // on the board, so saying it on this one recipe read
+                        // as a special condition of that recipe.
+                        ""
                     : chosen.placement
                       ? // The crew-turns pitch, said at the point of decision:
                         // a build site is anybody's to advance, which is the

@@ -594,6 +594,14 @@ GM**: it used to be the master's alone, on the argument that with five GMs the
 log is a record *of* them, but that left four people unable to answer "who
 changed this", which is what the log is for.
 
+`/lifeweb` is a **Mortus** surface, not a GM one. How much Blood is in the
+Tower is the secret that role exists to keep, so a plain GM gets no rail item
+and is bounced off the page — the same vague omen line in the turn
+announcement is what they and the players both get. A superadmin reads it and
+keeps the panel that moves the Blood, host access again rather than game
+permission, and `web/app/(app)/lifeweb/actions.js` gates on the same thing the
+page does.
+
 **Why these role IDs live in code instead of env vars:** a role ID is not a
 secret — anyone in the guild can read it. Bascinet runs in a single guild, so
 there is exactly one correct value, and it can never differ per environment.

@@ -242,6 +242,14 @@ lock similarly took a one-line data fix on two unrelated desires
 list, since a clause can't combine `families` and `exceptFamilies` in one
 breath (Ruling R7).
 
+**A whole-catalog tier lock is silent in the summary.** `describeDesireLocks`
+writes a sentence for every other clause shape, but not for `tiers` outside the
+bottom slot: Nobility is the only tag carrying one, and each tier-1 template in
+the catalog already reads `Locked by Nobility` on its own row, so the summary
+line at the top of the panel was the same fact twice. The **bottom-slot** tier
+clause keeps its sentence — an Addiction binds a slot rather than a row, and a
+slot has nowhere else to say so.
+
 ## 4. Hidden templates and the identical-error oracle defense
 
 A `requires.anyTags` gate whose gating tag is itself hidden (Demoness —

@@ -85,6 +85,14 @@ Everything except reading needs you **standing at the Depot**, and everything
 except the fuel hatch and the two generator switches needs the generator
 **running**.
 
+**Reading really does mean from anywhere.** The console opens for a licence or a
+keycard wherever its holder is standing, with every control greyed and the
+banner reading "You're not at the depot." It used to redirect to `/character`
+instead, which made the Depot rail item — the item follows the licence, not the
+location — behave like a broken link for most of a Merchant's day. The gate that
+stayed is the other one: somebody carrying neither the licence nor a keycard is
+still bounced off the page entirely.
+
 **The keycard used to operate nothing.** It read the console and cracked
 crates, and that was all. The turn length is what changed it: one turn is one
 real day, so "the Merchant will call the shuttle down when he wakes up" is a

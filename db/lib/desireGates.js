@@ -231,10 +231,13 @@ function describeDesireLocks(heldTags, familyNames) {
       notes.push(`${sourceName} shuts every Desire${except}.`);
     } else if (Array.isArray(clause.families)) {
       notes.push(`${sourceName} shuts ${list(clause.families)}.`);
-    } else if (Array.isArray(clause.tiers)) {
-      const tiers = clause.tiers.length === 1 ? `tier ${clause.tiers[0]}` : `tiers ${formatTiers(clause.tiers)}`;
-      notes.push(`${sourceName} shuts every Desire${except} at ${tiers}.`);
     }
+    // A whole-catalog TIER lock says nothing here on purpose. Nobility is the
+    // only carrier, and its own row in the catalog already reads "Locked by
+    // Nobility" (lockedReasonForTemplate below), so the summary line was the
+    // same fact a second time at the top of the panel. The bottom-slot tier
+    // clause above still speaks, because an Addiction binds a slot rather
+    // than a row and has nothing to say it on.
   }
   return notes;
 }

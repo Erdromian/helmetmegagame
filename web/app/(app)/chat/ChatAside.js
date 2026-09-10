@@ -69,6 +69,7 @@ export default function ChatAside({
   // The YOU column's own three: the open turn and this character's Move, the
   // sheet facts the status strip draws, and the Desire slots.
   turn,
+  moveCharacterId,
   move,
   sheet,
   carry,
@@ -242,6 +243,7 @@ export default function ChatAside({
             initialWaiting={waiting}
             turn={turn}
             move={move}
+            moveCharacterId={moveCharacterId}
             status={{ resources: sheet?.resources ?? 0, carry, tags: sheet?.tags ?? [] }}
             desires={desires}
             things={things}

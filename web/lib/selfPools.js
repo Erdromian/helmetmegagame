@@ -307,20 +307,15 @@ export async function loadFactionView(session, character) {
   const faction = await loadFaction(factionId);
   if (!faction || isUnaffiliated(faction)) return null;
 
-  const { isLeader, isTreasurer, isOfficer } = await getMyFactionRole(session.discordUserId, faction.id);
-
-  // What the viewer's own seat is, under the name. One line, because the
-  // column is narrow and the /faction page is one click away for the rest.
-  const roleLine = isLeader
-    ? "You lead it."
-    : isTreasurer
-      ? "You keep its purse."
-      : "You are a member.";
+  // Only the officer bit is read now. There used to be a line under the name
+  // saying which seat the VIEWER holds, and it is gone: the roster below
+  // already marks the Leader and the Treasurer, so it told an officer
+  // something they could read two rows down and everyone else nothing at all.
+  const { isOfficer } = await getMyFactionRole(session.discordUserId, faction.id);
 
   return {
     id: faction.id,
     name: faction.name,
-    roleLine,
     isOfficer,
     roster: faction.characters.map((c) => ({
       characterId: c.id,

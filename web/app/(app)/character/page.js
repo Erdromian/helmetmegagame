@@ -1142,7 +1142,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       // The turn card's first paint on /ledger: the same server action the
       // Chat's YOU column reads (play/actions.js#myMove), so the two cannot
       // disagree about the Move you filed.
-      moveState: mine.ok ? { turn: mine.turn, move: mine.move } : { turn: null, move: null },
+      moveState: mine.ok
+        ? { turn: mine.turn, move: mine.move, characterId: mine.characterId }
+        : { turn: null, move: null, characterId: null },
       avatarSrc: avatarSrc,
       forcedIdentity: forcedIdentity,
       concealGear: concealGear,
