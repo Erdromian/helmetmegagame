@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Built, not build
+
+✎ The brewery's refusal reads properly
+
 ## 2026-09-10 · Bascinet's words for the three buildings, and a brewery needs a brewer
 
 ✎ A brewery only works while someone who can brew is standing in the inn  

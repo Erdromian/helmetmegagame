@@ -89,7 +89,7 @@ function canBuildHere(location, placement = null) {
   // written before this key did by default.
   const sites = placement?.locations ?? [];
   if (sites.length && !sites.includes(location.slug)) {
-    return { ok: false, reason: "The brewery can only be build in the inn." };
+    return { ok: false, reason: "The brewery can only be built in the inn." };
   }
   // A NAMED SITE SATISFIES THE INDOORS DEFAULT, and this is the one rule here
   // worth arguing about. "You can't build indoors" is a blanket answer for a

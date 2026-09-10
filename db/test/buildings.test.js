@@ -128,7 +128,7 @@ const ANYWHERE = {};
 test("canBuildHere: a named site is the only place its type may stand", () => {
   assert.equal(canBuildHere(INN, BREWERY).ok, true);
   assert.equal(canBuildHere(SQUARE, BREWERY).ok, false);
-  assert.match(canBuildHere(SQUARE, BREWERY).reason, /only be build in the inn/);
+  assert.match(canBuildHere(SQUARE, BREWERY).reason, /only be built in the inn/);
 });
 
 // The rule worth pinning down: naming a site satisfies the INDOORS default
