@@ -136,6 +136,46 @@ export function mergeDishCures(mealTag, ingredientTags = []) {
   };
 }
 
+// Whether a dish should read as tainted to somebody who can tell — the
+// medical pass's Poison Sense and Poison Snooper (db/lib/poison.js).
+//
+// THE HOLE THIS FILLS. Poison reaches a meal by two completely separate
+// routes, and only one of them leaves a trace on the stack:
+//
+//   Somebody LACED the finished dish (poisonItemRequest), or laced an
+//   ingredient the cook then used. Both land `poisonedCount` on the row, and
+//   the existing marker already catches them.
+//
+//   The cook simply put something poisonous IN — nightshade, phrygian tears.
+//   That is not lacing at all: the poison rides through mergeDishGrants as
+//   the ingredient's own consumesInto, and no `poisonedCount` exists anywhere
+//   to notice. A palate that catches a laced bowl was missing a bowl that was
+//   poisonous straight out of the pot.
+//
+// So a dish is also tainted if any slug in its `cookedFrom` is flagged
+// `poison: true`. Read off `cookedFrom` rather than off a stored flag,
+// exactly like the grants and the cures: re-flag an ingredient in the catalog
+// and every dish ever made with it starts reading correctly on the next look,
+// with no re-mint.
+//
+// This DOES make Phrygian Tears visible in a dish, which the taste line
+// deliberately hides (its taste is authored empty, and it stays empty). That
+// is the right trade: the tell costs a 5-point trait or a held gadget, so the
+// dish still reads as an ordinary meal to everybody at the table who has not
+// paid for a palate.
+//
+// `poisonSlugs` is a Set (or a plain object) the caller builds once per
+// request off the catalog — never a per-row lookup. Pure and Prisma-free, so
+// a "use client" surface can import it without dragging @lifeweb/db into the
+// browser bundle.
+export function dishCarriesPoison(tag, poisonSlugs) {
+  const from = tag?.cookedFrom;
+  if (!from?.length || !poisonSlugs) return false;
+  const has =
+    poisonSlugs instanceof Set ? (s) => poisonSlugs.has(s) : (s) => Boolean(poisonSlugs[s]);
+  return from.some(has);
+}
+
 // The line the eater reads (NoticeProvider, bottom-right).
 //
 // If a ‡ ever belongs on this feature it belongs HERE, on the composed

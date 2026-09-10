@@ -166,6 +166,40 @@ That is the whole reason effects are derived late (§6). A *new* medical
 consumable wants a `cooked:` block with a taste and a mood, `into` left alone,
 and `cures: true` only if it is a thing you drink.
 
+## 5a. Poison in a dish
+
+Poison reaches a meal by two routes and they behave differently, which is
+worth holding in your head before changing either.
+
+**Laced.** Somebody ran `poisonItemRequest` over the finished dish, or over an
+ingredient the cook then used. Either way the taint rides the real stack as
+`poisonedCount` / `poisonPayload`, drawn hypergeometrically when units leave,
+and the medical pass's existing marker catches it.
+
+**Cooked in.** The cook simply used something poisonous — nightshade,
+phrygian tears. This is *not* lacing: the poison rides through
+`mergeDishGrants` as the ingredient's own `consumesInto`, and there is no
+`poisonedCount` anywhere to notice. This route used to be invisible to Poison
+Sense, so a palate that caught a laced bowl missed a bowl that came out of the
+pot poisonous.
+
+`dishCarriesPoison` closes that: a dish also reads as tainted when any slug in
+its `cookedFrom` is flagged `poison: true`. Derived off `cookedFrom` at read
+time like everything else here, so re-flagging an ingredient fixes every dish
+already in every pocket.
+
+**Phrygian Tears becomes visible in a dish**, which its authored-empty taste
+deliberately hides. That is the intended trade: the tell costs a 5-point trait
+or a held gadget (`db/lib/poison.js`), so a Phrygian dish still reads as an
+ordinary meal to everyone at the table who has not paid for a palate.
+
+**Iron Constitution shrugs off `nauseous`** alongside the `vomiting` it
+already resisted. The seven flesh ingredients roll `oneOf: [nauseous,
+vomiting]`, so before this the trait worked on exactly half of a mouthful of
+hand, at random — and a raw Deep Morel or Blind Fish got through it entirely.
+It stops there on purpose: `phrygian-toxin`, `seizure`, `hallucinating` and
+`damaged-vision` are what their items are *for*, not upset stomachs.
+
 ## 6. Eating one
 
 `consumeTagRequestImpl`, when the row has a `cookedFrom`:
