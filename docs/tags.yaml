@@ -955,7 +955,7 @@ tags:
     category: general
     group: general-traits
     description: "You can read and write, something most people in Ravenheart cannot do."
-    pointCost: 5
+    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
