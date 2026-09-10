@@ -126,3 +126,68 @@ test("Manic still leaves the last claim readable in the slot", () => {
   const slot = slotStates({ history, openTurnNumber: 5, desireSlots: 1, lockTurns: 1, noLock: true })[0];
   assert.equal(slot.lastEnded.id, "d1");
 });
+
+// --- Metempsychosis: who the new body turns out to be ---------------------
+// reincarnate() itself needs Prisma, so what is pinned here is the rolling —
+// the part that decides a person — not the transaction around it.
+const { randomCharacterName, NAME_CORPUS } = require("../lib/nameCorpus");
+const { GENDERS } = require("../lib/titles");
+const { isDynastyMember } = require("../lib/dynasty");
+const { AGE_MIN, AGE_MAX } = require("../lib/characterName");
+
+const namesIn = (...pools) => new Set(pools.flat().map((n) => n.name));
+const MALE_OK = namesIn(NAME_CORPUS.medieval.male, NAME_CORPUS.flavour.male, NAME_CORPUS.flavour.witcher);
+const FEMALE_OK = namesIn(NAME_CORPUS.medieval.female, NAME_CORPUS.flavour.female);
+
+test("a rolled MAN draws only from the male pools, a WOMAN only from the female", () => {
+  for (let i = 0; i < 300; i++) {
+    assert.ok(MALE_OK.has(randomCharacterName({ gender: "MAN" }).firstName));
+    assert.ok(FEMALE_OK.has(randomCharacterName({ gender: "WOMAN" }).firstName));
+  }
+});
+
+test("NEUTRAL draws from both, so over many rolls it reaches each side", () => {
+  let male = 0;
+  let female = 0;
+  for (let i = 0; i < 400; i++) {
+    const { firstName } = randomCharacterName({ gender: "NEUTRAL" });
+    if (MALE_OK.has(firstName)) male += 1;
+    if (FEMALE_OK.has(firstName)) female += 1;
+  }
+  assert.ok(male > 0 && female > 0, `neutral reached only one pool (${male}/${female})`);
+});
+
+// The three dynasty seats wear the living Baron's last name, so the corpus
+// must hand back none for them — reincarnate() then fetches it. Rolling one
+// would give the Heir a surname that isn't his family's.
+test("a dynasty seat gets no rolled surname", () => {
+  for (let i = 0; i < 50; i++) {
+    assert.equal(randomCharacterName({ gender: "MAN", lastNameLocked: true }).lastName, null);
+  }
+  assert.ok(randomCharacterName({ gender: "MAN" }).lastName, "an ordinary seat still gets one");
+});
+
+test("isDynastyMember covers exactly the three seats that inherit the name", () => {
+  for (const slug of ["baroness", "heir", "successor"]) assert.equal(isDynastyMember(slug), true, slug);
+  // The Baron is the SOURCE of the name, not an inheritor — and he is
+  // whitelisted, so a reincarnating soul never lands on him anyway.
+  for (const slug of ["baron", "migrant", "bum"]) assert.equal(isDynastyMember(slug), false, slug);
+});
+
+test("a rolled age stays inside the bounds the wizard validates, and reaches both ends", () => {
+  const roll = () => AGE_MIN + Math.floor(Math.random() * (AGE_MAX - AGE_MIN + 1));
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (let i = 0; i < 20000; i++) {
+    const age = roll();
+    assert.ok(Number.isInteger(age) && age >= AGE_MIN && age <= AGE_MAX, `out of range: ${age}`);
+    lo = Math.min(lo, age);
+    hi = Math.max(hi, age);
+  }
+  assert.equal(lo, AGE_MIN);
+  assert.equal(hi, AGE_MAX);
+});
+
+test("GENDERS is the three-value set the roll picks from", () => {
+  assert.deepEqual([...GENDERS].sort(), ["MAN", "NEUTRAL", "WOMAN"]);
+});

@@ -18,7 +18,10 @@ const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
 const { heldSeatsByRole } = require("./seatCount");
 const { effectivePlayerCount } = require("./gameState");
 const { parseStartingTag } = require("./startingTags");
-const { formatCharacterName } = require("./characterName");
+const { formatCharacterName, AGE_MIN, AGE_MAX } = require("./characterName");
+const { randomCharacterName } = require("./nameCorpus");
+const { GENDERS } = require("./titles");
+const { isDynastyMember, DYNASTY_HEAD_SLUG } = require("./dynasty");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { sendDm } = require("./dm");
 
@@ -30,19 +33,59 @@ const REINCARNATION_BONUS_POINTS = 6;
 // The points arrive UNSPENT, on Character.tagPoints, because skipping the
 // wizard means there is no menu in which to spend them. /store is that menu
 // mid-game, and it already spends exactly this column.
+
+// Who the new body turns out to be. A transmigrated soul wakes up as somebody
+// ELSE — nothing here is inherited from the corpse, which still has its own
+// name, age and gender on it and on its personal Discord role.
 //
-// The new body is named for its seat — "Migrant", "Bum" — because a skipped
-// wizard asks nobody for a name and the dead character's own is still on the
-// corpse and on its personal Discord role. The player renames themselves with
-// the ordinary CHANGE_NAME request, which is why no new surface is needed and
-// why the DM below points at it.
-function placeholderNameFor(role, existingNames) {
-  const base = role.name;
-  if (!existingNames.has(base)) return base;
-  for (let n = 2; n < 100; n++) {
-    if (!existingNames.has(`${base} ${n}`)) return `${base} ${n}`;
+// Same three rolls web/app/actions.js#startAsLocalPlayer makes, which is the
+// other programmatic character creator in the codebase: a uniform gender, then
+// a name from db/lib/nameCorpus.js drawn out of the pool that gender names
+// (NEUTRAL draws from both). No name-collision check, because the game has
+// none: Character.name is a denormalized display mirror rather than a key, and
+// the wizard lets two players be Otto today.
+//
+// Two things are NOT rolled, and both would be bugs if they were:
+//
+//   * `role.lockedGender` wins. Three reachable seats set it — Baroness
+//     (WOMAN), Heir (MAN) and Successor (WOMAN); only the Baron is whitelisted
+//     and already excluded by openRoles(). Roll over it and db/lib/titles.js
+//     styles a male Baroness off the wrong word.
+//   * The dynasty surname is FETCHED, not rolled. Those same three seats wear
+//     the living Baron's last name (db/lib/dynasty.js) — "not theirs to type"
+//     — so `lastNameLocked` makes the corpus return none and the Baron
+//     supplies it. No living Baron, or one who never chose a name, means no
+//     last name at all, which is what web/lib/dynasty.js#dynastyLastName
+//     already answers in the same situation.
+async function rollIdentity(prisma, role) {
+  const gender = role.lockedGender ?? GENDERS[Math.floor(Math.random() * GENDERS.length)];
+  const lastNameLocked = isDynastyMember(role.slug);
+  const { firstName, lastName } = randomCharacterName({ gender, lastNameLocked });
+
+  let surname = lastName;
+  if (lastNameLocked) {
+    const baron = await prisma.character.findFirst({
+      where: { status: "ALIVE", role: { slug: DYNASTY_HEAD_SLUG } },
+      select: { lastName: true },
+    });
+    surname = baron?.lastName ?? null;
   }
-  return `${base} ${Date.now()}`;
+
+  // Uniform across the range the wizard itself validates. Worth knowing that
+  // this averages 54 and db/lib/concealedIdentity.js reads 55 and over as
+  // "Old", so about half of all reincarnations wake up old — which players
+  // choosing for themselves rarely do. Narrow the band here if that plays
+  // badly; it is one line.
+  const age = AGE_MIN + Math.floor(Math.random() * (AGE_MAX - AGE_MIN + 1));
+
+  // No honorific: one is earned, never rolled.
+  return {
+    gender,
+    age,
+    firstName,
+    lastName: surname,
+    name: formatCharacterName({ honorific: null, firstName, title: null, lastName: surname }),
+  };
 }
 
 // Every role a soul could land in. Whitelisted seats are excluded (that gate is
@@ -104,11 +147,7 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
     ? await prisma.tag.findMany({ where: { slug: { in: [...wanted.keys()] } } })
     : [];
 
-  const taken = new Set(
-    (await prisma.character.findMany({ select: { name: true } })).map((c) => c.name),
-  );
-  const firstName = placeholderNameFor(role, taken);
-  const name = formatCharacterName({ honorific: null, firstName, title: null, lastName: null });
+  const identity = await rollIdentity(prisma, role);
 
   let created;
   try {
@@ -124,11 +163,13 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
       const character = await tx.character.create({
         data: {
           discordUserId,
-          firstName,
-          lastName: null,
-          name,
-          gender: role.lockedGender ?? deadCharacter.gender ?? null,
-          age: deadCharacter.age ?? null,
+          // A rolled name, gender and age — a new person, not the dead one
+          // renamed. See rollIdentity.
+          firstName: identity.firstName,
+          lastName: identity.lastName,
+          name: identity.name,
+          gender: identity.gender,
+          age: identity.age,
           roleId: role.id,
           roleTitle: role.name,
           factionId: role.factionId,
@@ -181,8 +222,8 @@ async function reincarnate(prisma, deadCharacter, { turn = null } = {}) {
   await sendDm(
     prisma,
     discordUserId,
-    `Your soul automatically found a new body. You feel blessed. You are ${role.name} now, ` +
-      `with ${budget} tag points to spend and no name of your own yet — pick one from your sheet. ‡`,
+    `Your soul automatically found a new body. You feel blessed. You wake as ${created.name}, ` +
+      `${identity.age}, the ${role.name} — with ${budget} tag points still to spend. ‡`,
   ).catch((err) => console.error(`Reincarnation DM failed for ${discordUserId}:`, err.message ?? err));
 
   console.log(

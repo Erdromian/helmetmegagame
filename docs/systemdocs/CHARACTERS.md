@@ -905,12 +905,30 @@ Four things worth knowing before changing it:
 - **The points arrive unspent**, on `Character.tagPoints`. Skipping the wizard
   means there is no menu in which to spend them, and `/store` is that menu
   mid-game — it already spends exactly this column. No new surface.
-- **The new body is named for its seat** ("Migrant", "Bum", de-duplicated),
-  because a skipped wizard asks nobody for a name and the dead character's own
-  is still on the corpse and on its personal Discord role. The player renames
-  themselves through the ordinary `CHANGE_NAME` request, which the arrival DM
-  points at. **This is the piece most likely to want changing** — it is a
-  default, not a considered design.
+- **The new body is a new person: name, gender and age are all rolled**
+  (`rollIdentity`), and nothing is inherited from the corpse — which still
+  carries its own name on itself and on its personal Discord role. The rolls
+  are the same three `web/app/actions.js#startAsLocalPlayer` makes, the other
+  programmatic character creator: a uniform gender from `GENDERS`
+  (`db/lib/titles.js`), then a name out of `db/lib/nameCorpus.js` from the pool
+  that gender names, and an age uniform across `AGE_MIN`–`AGE_MAX`. There is no
+  name-collision check because the game has none — `Character.name` is a
+  denormalized display mirror, not a key, and the wizard already lets two
+  players be Otto.
+
+  Two things are deliberately **not** rolled, and either would be a bug:
+  `role.lockedGender` wins over the gender roll, because three *reachable*
+  seats set it (Baroness, Heir, Successor — only the Baron is whitelisted and
+  already excluded), and rolling over it styles a male Baroness off the wrong
+  word in `db/lib/titles.js`. And those same three wear the living Baron's
+  surname, so `lastNameLocked` makes the corpus return none and the Baron
+  supplies it — no living Baron, or one who never chose a name, means no last
+  name, the same answer `web/lib/dynasty.js#dynastyLastName` gives.
+
+  One consequence worth knowing: a uniform age averages 54, and
+  `db/lib/concealedIdentity.js` reads 55 and over as "Old", so about half of
+  all reincarnations wake up old where players choosing for themselves rarely
+  do. Narrowing the band is one line in `rollIdentity`.
 
 `db/lib/curse.js` is untouched: the new character is `ALIVE`, so `isCursedIn`
 already returns not-cursed and the −6 and the Migrant/Bum restriction never
