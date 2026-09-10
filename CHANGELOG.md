@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Tell the two radio nets apart
+
+✎ The archive keeps the two radio nets as separate scenes instead of pooling both under one "Elsewhere"  
+✎ A mention on a radio net now says which frequency it was on, instead of always naming the Watch  
+✎ The channel doctor stopped rebuilding each character's access once per channel
+
 ## 2026-09-10 · Nine masteries: capstone tags you can only buy once the game is running
 
 ✚ A new kind of tag, a mastery: never available at character creation, only from the store once play has started. They wear a star  
