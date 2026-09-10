@@ -55,7 +55,11 @@ export function isTravelMove(gmNotes) {
 // Moves sit, and a table where every row is coloured reads as noise.
 export const MOVE_REVIEW_TONES = {
   Open: "neutral",
-  Passed: "neutral",
+  // Quieter than Open on purpose. Open is the one a GM still has to do
+  // something about, so it keeps the full-strength label; Passed is a Move
+  // that has already settled and should read as background on a desk full of
+  // them.
+  Passed: "muted",
   "Waiting for Opponents": "warn",
   "In Progress": "warn",
   Solved: "good",

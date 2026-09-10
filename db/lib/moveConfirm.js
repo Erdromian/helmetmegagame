@@ -61,7 +61,13 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
     ? (action.resourceDelta ?? 0) + rollResult.value
     : (action.resourceDelta ?? null);
 
-  const isRoutine = action.moveKind === "ROUTINE";
+  // A Move no GM has to touch. Labor belongs here beside Routine: its payout
+  // is a die the turn close rolls, not a judgement anybody makes, which is
+  // why db/lib/autoLaborPass.js has always filed its own as PASSED. A
+  // player-submitted Labor was the one that came out OPEN, so it sat in the
+  // desk's queue asking for an adjudication that has no verb, and the sheet
+  // read it as a turn still unspent.
+  const needsNoGm = action.moveKind === "ROUTINE" || action.moveKind === "LABOR";
 
   const updated = await prisma.action.update({
     where: { id: action.id },
@@ -74,7 +80,7 @@ async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = nul
         : {}),
       // PASSED means "no GM needs to touch this", not "paid" — appliedEffects
       // stays null until the staged push claims it at rollover.
-      ...(isRoutine ? { moveReviewStatus: "PASSED" } : {}),
+      ...(needsNoGm ? { moveReviewStatus: "PASSED" } : {}),
     },
   });
 
