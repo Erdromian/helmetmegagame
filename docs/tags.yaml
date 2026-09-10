@@ -1477,7 +1477,7 @@ tags:
     description: "You're loud and lack grace."
     fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
-    conflictsWith: [stealth]
+    conflictsWith: [stealth, steady]
     purchasable: true
     purchasableAfterStart: false
 
