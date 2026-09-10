@@ -133,13 +133,13 @@ function heldReasonFor(character, now = new Date()) {
   // because this function is pure and eight surfaces read it — see the
   // Character.heldReason comment in db/prisma/schema.prisma.
   if (character.heldReason === HELD_REASON.ATTACK) {
-    return "Somebody attacked you. You can't move until the end of the turn. ‡";
+    return "Somebody attacked you. You can't move until the end of the turn.";
   }
   // The other side of the same fight. They know perfectly well what is holding
   // them — they started it — and telling them they were attacked would be a
   // plain lie on every shut way and every banner.
   if (character.heldReason === HELD_REASON.ATTACKING) {
-    return "You're in a fight. You can't move until the end of the turn. ‡";
+    return "You're in a fight. You can't move until the end of the turn.";
   }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
   // Under five minutes it is worth counting down; a hold that runs to the end

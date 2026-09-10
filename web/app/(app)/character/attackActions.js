@@ -64,7 +64,7 @@ async function me({ needs = null } = {}) {
   if (!character) redirect("/character");
   if (needs) {
     const blocker = blockerFor(character.tags, needs);
-    if (blocker) throw new UserError(`You can't attack anybody — you're ${blocker.name}. ‡`);
+    if (blocker) throw new UserError(`You can't attack anybody — you're ${blocker.name}.`);
   }
   return { session, character };
 }
@@ -101,7 +101,7 @@ async function attackCharacterImpl({ targetCharacterId }) {
   if (targetCharacterId === character.id) throw new UserError("You can't attack yourself.");
 
   const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("There's no turn open right now. ‡");
+  if (!openTurn) throw new UserError("There's no turn open right now.");
 
   const target = await prisma.character.findUnique({
     where: { id: targetCharacterId },
@@ -157,7 +157,7 @@ async function attackCharacterImpl({ targetCharacterId }) {
 async function cancelAttackImpl({ targetCharacterId }) {
   const { session, character } = await me();
   const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("There's no turn open right now. ‡");
+  if (!openTurn) throw new UserError("There's no turn open right now.");
 
   const target = await prisma.character.findUnique({
     where: { id: targetCharacterId ?? "" },
@@ -185,7 +185,7 @@ async function cancelAttackImpl({ targetCharacterId }) {
     after(() => sendDm(target.discordUserId, ATTACK_CALLED_OFF_DM, { allowedMentions: { parse: [] } }).catch(() => {}));
   }
   revalidate();
-  return { ok: true, line: `You break off from ${seen}. ‡` };
+  return { ok: true, line: `You break off from ${seen}.` };
 }
 
 export async function loadAttacks() {

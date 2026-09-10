@@ -226,7 +226,7 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
   if (target?.discordUserId && target.status === "ALIVE") {
     dms.push({ discordUserId: target.discordUserId, content: ATTACK_CALLED_OFF_DM });
   }
-  return { ok: true, line: `You break off from ${seen}. ‡`, ...empty(), dms };
+  return { ok: true, line: `You break off from ${seen}.`, ...empty(), dms };
 }
 
 // The one entry point. `action` is the descriptor off DirectMessage.meta

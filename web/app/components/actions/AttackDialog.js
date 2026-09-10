@@ -15,8 +15,9 @@ import {
 // picked from a chip row — BindDialog's shape — plus the list of fights you
 // are already in, each with the button that calls it off.
 //
-// NOTHING HERE IS A TOOLTIP (SHEET.md §3). The sentence about what an attack
-// does prints on the page.
+// What an attack does is the verb's own help sentence (ACTION_HELP.attack)
+// and the confirm dialog's own line, not a second explanation here — the
+// dialog itself is just the picker and the list of fights already in progress.
 //
 // The picker lists everybody here, including the people the button will refuse.
 // That is deliberate: filtering them out would answer "who is out of my league"
@@ -56,7 +57,7 @@ export default function AttackDialog({ onDone, onClose }) {
     if (!target) return;
     const ok = await confirm({
       title: `Attack ${target.name}?`,
-      message: "Neither of you can move until the turn ends. ‡",
+      message: "Neither of you can move until the turn ends.",
       confirmLabel: "Attack them",
     });
     if (!ok) return;
@@ -72,7 +73,7 @@ export default function AttackDialog({ onDone, onClose }) {
       busy={busy}
       error={error}
       loading={loading && options.length === 0 && fighting.length === 0}
-      empty={!loading && options.length === 0 && fighting.length === 0 ? "There’s nobody here to attack. ‡" : null}
+      empty={!loading && options.length === 0 && fighting.length === 0 ? "There’s nobody here to attack." : null}
       canSubmit={Boolean(target)}
       onClose={onClose}
       onSubmit={onSubmit}
@@ -85,10 +86,6 @@ export default function AttackDialog({ onDone, onClose }) {
           onChange={setTargetId}
         />
       ) : null}
-
-      <p className="text-xs text-muted">
-        Neither of you can move until the turn ends and a Gamemaster reads it. Make a Gambit declaring your intent. ‡
-      </p>
 
       {fighting.length > 0 ? (
         <div className="field">

@@ -27,16 +27,14 @@ const MODES = [
   { id: "AMBUSH", label: "Ambush" },
 ];
 
-// Safe is Bascinet's words. Ambush was too, until an ambush became a real
-// attack (docs/systemdocs/ATTACK.md §4) and two things it said stopped being
-// true: the ambusher is held as well now, and calling it off is Break off in
-// the Attack dialog rather than a Release in this one. A player who sets an
-// Ambush believing it costs them nothing loses their own movement for the day,
-// so this sentence is the one that has to say so.
+// Bascinet's words, both of them. Ambush needed rewriting once it became a
+// real attack (docs/systemdocs/ATTACK.md §4): the ambusher is held too now,
+// and calling it off is Break off in the Attack dialog rather than a Release
+// in this one.
 const MODE_HELP = {
   SAFE: "Freezes them for two minutes and sends them the message.",
   AMBUSH:
-    "Attacks whoever walks in. Neither of you can move until the end of the turn, when the gambit is adjudicated — break it off from Attack if you change your mind. If you wish to harm them, make sure to enter a Gambit declaring your intention. ‡",
+    "You attack whoever enters the location. Neither of you can move until the end of the turn. Make sure to declare a Gambit with your intention.",
 };
 
 export default function InterceptDialog({ mode: verb, onDone, onClose }) {

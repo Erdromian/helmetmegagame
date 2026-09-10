@@ -267,7 +267,7 @@ function attackCancelRow(targetId, label) {
   ];
 }
 
-const ATTACK_CALLED_OFF_DM = "The fight is off. You can move again. ‡";
+const ATTACK_CALLED_OFF_DM = "The fight is off. You can move again.";
 
 // An ambush already says its own thing on the way in (fireWatches), so it
 // carries no second victim line — only the attacker's, which is where the
@@ -280,7 +280,7 @@ function attackDms({ attacker, target, fromAmbush }) {
   if (!fromAmbush && target.discordUserId) {
     dms.push({
       discordUserId: target.discordUserId,
-      content: `${attackerSeen} attacked you. You can't move until the end of the turn. Make a Gambit declaring your intent! ‡`,
+      content: `${attackerSeen} attacked you. You can't move until the end of the turn. Make a Gambit declaring your intent!`,
       kind: DM_KIND.NOTICE,
     });
   }
@@ -288,8 +288,8 @@ function attackDms({ attacker, target, fromAmbush }) {
     dms.push({
       discordUserId: attacker.discordUserId,
       content: fromAmbush
-        ? `You successfully ambushed ${targetSeen}. Neither of you can move until the turn ends. ‡`
-        : `You attacked ${targetSeen}. Neither of you can move until the turn ends. ‡`,
+        ? `You successfully ambushed ${targetSeen}. Neither of you can move until the turn ends.`
+        : `You attacked ${targetSeen}. Neither of you can move until the turn ends.`,
       kind: DM_KIND.NOTICE,
       components: attackCancelRow(target.id, "Cancel attack"),
       meta: dmAction(DM_ACTION.ATTACK_HOLD, target.id),

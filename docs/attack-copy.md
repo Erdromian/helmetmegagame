@@ -1,5 +1,9 @@
 # Attack — every line a player sees
 
+**Reviewed.** The marks below are stripped everywhere Bascinet signed off —
+sections 1–7 and 9. Section 8, the handbook, was left alone on request and
+still carries its marks; it wasn't part of this pass.
+
 A working file. Edit the text **inside the indented blocks**, leave the headings
 and the notes alone, hand it back and I'll put the edits into the source.
 
@@ -40,21 +44,17 @@ The picker's question, over the row of people standing here.
 
     Who are you attacking?
 
-The standing explanation, printed on the page under the picker. Not a tooltip.
-
-    Neither of you can move until the turn ends and a Gamemaster reads it. Make a Gambit declaring your intent. ‡
-
 The confirm, after they pick somebody. Three parts: title, body, button.
 
     Attack {name}?
 
-    Neither of you can move until the turn ends. ‡
+    Neither of you can move until the turn ends.
 
     Attack them
 
 Nobody here to attack, and no fights in progress.
 
-    There’s nobody here to attack. ‡
+    There’s nobody here to attack.
 
 The heading over the list of fights they are already in.
 
@@ -91,11 +91,11 @@ Pressed Break off on somebody they aren't fighting.
 
 Bound, dying, catatonic, crucified. `{state}` is the tag's own name.
 
-    You can't attack anybody — you're {state}. ‡
+    You can't attack anybody — you're {state}.
 
 Between turns.
 
-    There's no turn open right now. ‡
+    There's no turn open right now.
 
 Target walked off between the page loading and the press. This is the shared
 line every people-picker on the sheet uses — changing it changes all of them.
@@ -112,7 +112,7 @@ Under the verb strip, once the attack lands.
 
 Once they break off.
 
-    You break off from {name}. ‡
+    You break off from {name}.
 
 A fallback that only shows if the server answers without a line of its own.
 Nearly never seen.
@@ -126,26 +126,26 @@ Nearly never seen.
 **To the target**, the moment they are attacked. No button. Files as a
 notice, so it does not sit in the GM inbox as mail.
 
-    {attacker} attacked you. You can't move until the end of the turn. Make a Gambit declaring your intent! ‡
+    {attacker} attacked you. You can't move until the end of the turn. Make a Gambit declaring your intent!
 
 **To the attacker**, carrying a **Cancel attack** button.
 
-    You attacked {name}. Neither of you can move until the turn ends. ‡
+    You attacked {name}. Neither of you can move until the turn ends.
 
 **To the ambusher** when their Intercept fires — same button. The old line was
 yours; I added the second sentence, because an ambush holds the ambusher now
 too.
 
-    You successfully ambushed {name}. Neither of you can move until the turn ends. ‡
+    You successfully ambushed {name}. Neither of you can move until the turn ends.
 
 **To the target** when the attacker breaks off. Unattributed on purpose — they
 know perfectly well who it was.
 
-    The fight is off. You can move again. ‡
+    The fight is off. You can move again.
 
 **Back to the attacker** when they press the DM button.
 
-    You break off from {name}. ‡
+    You break off from {name}.
 
 The button's own label, on Discord and on the web.
 
@@ -161,12 +161,12 @@ travel picker, and the Stepstone. Short, and read often.
 
 The person who was attacked.
 
-    Somebody attacked you. You can't move until the end of the turn. ‡
+    Somebody attacked you. You can't move until the end of the turn.
 
 The person who started it. They need a different sentence — telling them they
 were attacked is a lie.
 
-    You're in a fight. You can't move until the end of the turn. ‡
+    You're in a fight. You can't move until the end of the turn.
 
 The two older intercept lines, unchanged, here for tone. `{n}` counts down.
 
@@ -178,11 +178,9 @@ The two older intercept lines, unchanged, here for tone. `{n}` counts down.
 
 ## 7 · Ambush
 
-The Ambush sentence in the Intercept dialog. Yours originally — I rewrote it,
-because two things it said stopped being true: the ambusher is held as well
-now, and calling it off moved to the Attack panel.
+The Ambush sentence in the Intercept dialog, as you rewrote it. **(yours)**
 
-    Attacks whoever walks in. Neither of you can move until the end of the turn, when the gambit is adjudicated — break it off from Attack if you change your mind. If you wish to harm them, make sure to enter a Gambit declaring your intention. ‡
+    You attack whoever enters the location. Neither of you can move until the end of the turn. Make sure to declare a Gambit with your intention.
 
 Safe, unchanged, for contrast. **(yours)**
 
