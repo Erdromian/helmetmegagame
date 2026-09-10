@@ -110,8 +110,8 @@ laborType:
       - { slug: boar-loin, rarity: uncommon }  # the best cut off the day's kill — sells 4 ⬢
       - { slug: deer-liver, rarity: common }  # what a hunter eats first, or sells to somebody who will — sells 3 ⬢
       - { slug: goose-fat, rarity: uncommon }  # rendered off a bird nobody else wanted — sells 5 ⬢
-      - { slug: +1, rarity: common }
-      - { slug: +2, rarity: common }
+      - "+1"
+      - "+2"
       - { slug: old-coin, rarity: uncommon }  # a coin the kill had swallowed, or a trapper lost — sells 1 ⬢
   fishing:
     6:
@@ -122,8 +122,8 @@ laborType:
       - { slug: old-coin, rarity: ultracommon }  # sells 1 ⬢
       - { slug: crayfish, rarity: common }  # a bucket of them off the shallows — sells 3 ⬢
       - nothing
-      - { slug: +1, rarity: common }
-      - { slug: +2, rarity: common }
+      - "+1"
+      - "+2"
       - { slug: tea, rarity: uncommon }  # steeped from something pulled off a snag — sells 1 ⬢
     4:
       - { slug: netted-lockbox, rarity: uncommon }  # netted up along with everything else — worth 18 ⬢ opened (sells 9 ⬢ locked)
@@ -136,8 +136,8 @@ laborType:
       - { slug: honey, rarity: common }  # sells 2 ⬢
       - { slug: onion, rarity: common }  # a good day in the beds — sells 2 ⬢
       - nothing
-      - { slug: +1, rarity: common }
-      - { slug: +2, rarity: common }
+      - "+1"
+      - "+2"
       - { slug: old-coin, rarity: common }  # turned up by the plow — sells 1 ⬢
       - { slug: sweets, rarity: common }  # a jar someone forgot in the field — sells 2 ⬢
   basic:
@@ -179,7 +179,7 @@ zone:
         6:
           - { slug: rope, rarity: uncommon }  # a coil left behind at an old camp — sells 4 ⬢
           - { slug: trail-ration, rarity: ultracommon }  # provisions someone else didn't need any more — not sellable
-          - { slug: +1, rarity: common }
+          - "+1"
           - { slug: old-coin, rarity: common }  # a Forester's eye finds what others miss — sells 1 ⬢
   marshes:
     1:
@@ -188,8 +188,8 @@ zone:
       - nothing
     6:
       - { slug: godflesh, rarity: ultracommon }  # the mud gives up a piece of what it's fed on — not sellable
-      - { slug: +1, rarity: common }
-      - { slug: +2, rarity: common }
+      - "+1"
+      - "+2"
       - { slug: old-coin, rarity: ultracommon }  # lost in the mud, long before you got here — sells 1 ⬢
       - { slug: fish-roe, rarity: ultracommon }  # scraped off a rock at the waterline — sells 2 ⬢
   hills:
@@ -208,7 +208,7 @@ location:
       - { slug: purse, rarity: ultracommon }  # tucked behind a hedge, forgotten mid-errand — not sellable
       - { slug: jewelry, rarity: rare }  # a stray earring, or worse, nobody's come looking for — sells 8 ⬢
       - nothing
-      - { slug: +2, rarity: common }
+      - "+2"
       - { slug: art-supplies, rarity: uncommon }  # abandoned mid-project, in the garden shed — sells 2 ⬢
 laborTypeZone:
   hunting:
@@ -251,12 +251,12 @@ laborTypeZone:
       6:
         - { slug: river-eel, rarity: common }  # slow water under the trees — sells 3 ⬢
         - nothing
-        - { slug: +1, rarity: common }
+        - "+1"
     marshes:
       6:
         - { slug: lamprey, rarity: common }  # the mire's own fish, and it fastens on — sells 3 ⬢
         - nothing
-        - { slug: +1, rarity: common }
+        - "+1"
     caves:
       6:
         - { slug: blind-fish, rarity: common }  # pale, eyeless, and perfectly good cooked — sells 3 ⬢
@@ -335,8 +335,8 @@ laborTypeLocation:
         - { slug: sprained-ankle, rarity: common }  # the scree above the den goes out from under you — not sellable
         - nothing
       6:
-        - { slug: +3, rarity: common }
-        - { slug: +4, rarity: common }
+        - "+3"
+        - "+4"
         - { slug: hat, rarity: uncommon }  # a hunter's hat, dropped and not gone back for — sells 3 ⬢
         - { slug: cudgel, rarity: uncommon }  # someone else who came looking for this den didn't leave with it — sells 4 ⬢
   fishing:
@@ -345,7 +345,7 @@ laborTypeLocation:
         - { slug: salvage-plate, rarity: common }  # scrap metal, snagged off the collapsed scaffolding — sells 3 ⬢
         - { slug: bastard-sword, rarity: extremely-rare }  # someone went into that water and didn't come out for it — sells 42 ⬢
         - nothing
-        - { slug: +2, rarity: common }
+        - "+2"
         - { slug: fish-roe, rarity: rare }  # sells 2 ⬢
   prospecting:
     hills-west:
