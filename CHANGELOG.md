@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The radios work on the web now
+
+✚ A Radio section on Chat: the frequencies you are carrying a radio for, sitting under Summary  
+✚ Speaking on a radio from the web reaches Discord, and a line typed on Discord reaches the web  
+✎ A radio you can only listen on says so, instead of telling you that you are a ghost  
+✎ The radio channels get their names put right on the next sync, so #watch stops being called that
+
 ## 2026-09-10 · Tell the two radio nets apart
 
 ✎ The archive keeps the two radio nets as separate scenes instead of pooling both under one "Elsewhere"  
