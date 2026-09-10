@@ -387,9 +387,9 @@ desires:
 
   kiss-someone:
     name: Kiss someone
-    tier: 3
+    tier: 1
     families: [romance]
-    cooldownTurns: 4
+    cooldownTurns: 3
 
   kill-someone-you-hate:
     name: Kill someone you hate

@@ -266,3 +266,51 @@ test("an id the model echoed back is left alone", () => {
 test("an invented person loses the braces", () => {
   assert.strictEqual(linkCharacterTokens("{char:Nobody At All} waited.", ROSTER), "Nobody At All waited.");
 });
+
+// Three actions the Oracle used to be blind to, and the two renderer rules
+// they needed.
+
+const AUDIT_NAMES = {
+  byDiscordUserId: new Map([["u1", "Ada Vance"]]),
+  byCharacterId: new Map([["c1", "Ada Vance"], ["c2", "Bram Holt"]]),
+};
+
+test("a hood coming OFF is reported, not swallowed", () => {
+  // `concealed: false` is the event, not an absent flag. Every other false
+  // detail is skipped as noise, so without an exception the line read
+  // "conceal_toggled | Ada Vance" whichever way the hood went.
+  const off = auditLinesFor(
+    [{ actionType: "character_conceal_toggled", actorDiscordUserId: "u1", targetCharacterId: "c1", details: { concealed: false } }],
+    AUDIT_NAMES,
+    new Set(),
+  );
+  assert.match(off.join("\n"), /concealed: false/);
+});
+
+test("a flag that merely failed to apply is still noise", () => {
+  const line = auditLinesFor(
+    [{ actionType: "request_heal_character", actorDiscordUserId: "u1", targetCharacterId: "c2", details: { tagName: "Splint", moodApplied: false } }],
+    AUDIT_NAMES,
+    new Set(),
+  );
+  assert.doesNotMatch(line.join("\n"), /moodApplied/);
+});
+
+test("acting on yourself is written once, not twice", () => {
+  const line = auditLinesFor(
+    [{ actionType: "request_disguise_self", actorDiscordUserId: "u1", targetCharacterId: "c1", details: { tagName: "Disguised (Terra Pointaseau)" } }],
+    AUDIT_NAMES,
+    new Set(),
+  );
+  assert.doesNotMatch(line.join("\n"), /Ada Vance -> Ada Vance/);
+  assert.match(line.join("\n"), /Disguised \(Terra Pointaseau\)/);
+});
+
+test("the intercom carries what it said", () => {
+  const line = auditLinesFor(
+    [{ actionType: "intercom_broadcast", actorDiscordUserId: "u1", targetCharacterId: "c1", details: { body: "Send me a letter by bird.", zonesReached: 4 } }],
+    AUDIT_NAMES,
+    new Set(),
+  );
+  assert.match(line.join("\n"), /Send me a letter by bird\./);
+});
