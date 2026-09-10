@@ -139,6 +139,14 @@ mover is about to refuse. Under five minutes it counts down; past that it says
 "until the end of the turn", because `43188s` would be worse than saying
 nothing.
 
+**It is not the only thing that stops a walk.** An unresolved 1 on the Caving
+Die pins a caver in the zone it happened in until a GM adjudicates it —
+`cavingHoldFor` (`CAVING.md` §2c), a separate predicate reading a separate
+table, and a narrower one: it takes the way out of the zone rather than every
+way out of the room. The two are deliberately not merged; a hold is a person's
+hand on you and lapses on a clock, and that one is a locked door waiting on a
+GM.
+
 **Three writers end a hold before its time**, and `heldById` is what lets each
 of them know whose holds to clear. All three are about an *intercept* hold:
 each carries `heldReason: { notIn: FIGHT_REASONS }`, because both sides of a

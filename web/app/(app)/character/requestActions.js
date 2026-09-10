@@ -127,7 +127,7 @@ import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 // refuses an underground target now, so this can no longer fire from one —
 // it stays because every writer of locationId owes the roll, and loosening
 // the refusal must not silently drop it.
-import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
+import { rollCavingOnArrival, cavingHoldFor } from "@lifeweb/db/lib/cavingPass";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { CAMERA_SLUG, attachPhoto, createBlankPhotoRow } from "@lifeweb/db/lib/photoMint";
@@ -6467,6 +6467,13 @@ async function stepstoneRequestImpl({ locationId }) {
   // of an intercept in the game.
   const heldBy = heldReasonFor(character);
   if (heldBy) throw new UserError(heldBy);
+
+  // And an unresolved Caving 1 stops it for the same reason one step further
+  // on (docs/systemdocs/CAVING.md §2c). The stone only ever lands on the
+  // SURFACE, so used from underground it is exactly the crossing the hold
+  // exists to refuse — without this it is the one way out of the dark.
+  const cavingHold = await cavingHoldFor(prisma, character.id, character.zoneId);
+  if (cavingHold) throw new UserError(cavingHold);
 
   const targetId = String(locationId ?? "");
   if (!targetId) throw new UserError("Pick somewhere.");

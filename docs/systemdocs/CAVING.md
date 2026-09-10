@@ -146,11 +146,55 @@ an encounter", and "hunkering down in a single location reduces your chances"
 Die became arrival-only have none; every new row sets it. It gates nothing —
 it is what lets the lens say *where*.
 
+### 2c. A 1 pins you in the zone
+
+**An unresolved `TROUBLE` row stops the caver leaving the zone it happened
+in.** Until this existed the row waited for a GM and the caver did not wait
+with it — they walked out of the Depths, and a GM ended up adjudicating a
+monster in the dark for somebody standing in Town.
+
+`cavingHoldFor(prisma, characterId, zoneId)` (`db/lib/cavingPass.js`) is the
+one predicate. It is the Caving twin of `heldReasonFor` (`INTERCEPT.md`) and
+deliberately not the same thing:
+
+- **It is a query, not a comparison.** The answer lives in `CavingRoll`
+  (`kind: TROUBLE`, `resolvedAt: null`) and nowhere on `Character`, so unlike
+  a hold it costs a lookup — which is why the picker asks only when there is a
+  zone crossing on offer to shut.
+- **It takes the way OUT and nothing else.** Walking the level is still free,
+  so a party can regroup, camp or push deeper while they wait. An intercept is
+  a hand on your shoulder; this is a locked door at the top of the stairs.
+- **It is scoped to the roll's own `zoneId` snapshot.** A GM who relocates
+  somebody out of the caves has therefore not also stranded them wherever
+  they land.
+
+Four gates read it, and all four are player paths:
+
+| Where | What it does |
+|---|---|
+| `db/lib/locationTravel.js#performLocationMove` | The authoritative refusal, inside the `crossedZone` branch |
+| the same function's escort loop | A held follower is detached and left standing, `leftBehind` reason `caving` |
+| `db/lib/locationGraph.js#resolveNeighbors` | Draws every zone crossing **shut** with the same sentence, so no picker offers a hop the mover will refuse |
+| the Stepstone (`web/app/(app)/character/requestActions.js`) | The stone only lands on the SURFACE, so from underground it is exactly this crossing |
+
+Every GM path is untouched on purpose — the Dev Panel's Teleport and Bulk
+Move and the staged **Relocate to** never call `performLocationMove`, and a GM
+moving somebody is the adjudication, not an escape from it. The Rite of
+Summoning (`db/lib/riteEffects.js`) is untouched too, for the reason it
+already ignores `heldUntil`: it is somebody else's act on the character, not a
+walk.
+
+**Nothing auto-resolves at turn end.** Only **Mark resolved** on the Caving
+desk clears the row, so a 1 nobody adjudicates holds a player in place
+indefinitely — which is the point, and is also new GM load on top of what §2a
+already added. The Caving lens' default "Needs attention" filter is now the
+list of people who cannot leave.
+
 ### What each face means
 
 | Die | Kind | What happens |
 |---|---|---|
-| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`). |
+| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`), **and cannot leave the zone until it is resolved** (§2c). |
 | 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record (so the lens' default filter, and a GM skimming the log, both read the truth). The player still gets one line: *"Caving Die: 3 — Nothing happens."* |
 | 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
 
@@ -373,6 +417,7 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | The die | `db/lib/cavingPass.js` |
 | The loot table | `db/lib/cavingLoot.js` |
 | The one trigger | `db/lib/cavingPass.js#rollCavingOnArrival` |
+| The zone hold a 1 puts on you | `db/lib/cavingPass.js#cavingHoldFor` (§2c) |
 | Its callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#bulkMoveCharacters` |
 | The safe-Location exemption | `db/lib/locationAttributes.js` (`safe`), authored in `docs/zones.yaml` |
 | Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |

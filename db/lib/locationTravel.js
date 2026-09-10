@@ -14,7 +14,7 @@
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
 const { seatZoneIdFor } = require("./seatZone");
-const { rollCavingOnArrival } = require("./cavingPass");
+const { rollCavingOnArrival, cavingHoldFor, cavingHeldIds } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
 const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, STOWABLE_SLUGS } = require("./mounts");
@@ -329,6 +329,14 @@ async function performLocationMove(prisma, character, targetLocation) {
 
   let openTurn = null;
   if (crossedZone) {
+    // An unresolved 1 on the Caving Die pins them where it happened until a GM
+    // has adjudicated it (docs/systemdocs/CAVING.md §2c). Inside this branch
+    // and not beside the heldReasonFor gate above, because this one takes the
+    // way OUT of the zone and nothing else — walking the level is still free,
+    // which is also what lets a party regroup while they wait.
+    const cavingHold = await cavingHoldFor(prisma, character.id, currentLocation.zoneId);
+    if (cavingHold) return { ok: false, reason: cavingHold };
+
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
   }
@@ -397,6 +405,12 @@ async function performLocationMove(prisma, character, targetLocation) {
       const party = await partyOf(prisma, character.id, { tx });
       if (party.length > 0) {
         const mover = await tx.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });
+        // Which of them the Caving Die has hold of. One query for the whole
+        // party rather than one per follower, and only on a crossing, since
+        // that is the only thing the hold takes.
+        const cavingHeld = crossedZone
+          ? await cavingHeldIds(tx, party.map((row) => row.id), currentLocation.zoneId)
+          : new Set();
         const coming = [];
         for (const row of party) {
           // Held where they stand. A follower is walked by an updateMany and
@@ -410,6 +424,17 @@ async function performLocationMove(prisma, character, targetLocation) {
           // plain to see. Ordered the other way, they never hear it.
           if (heldReasonFor(row)) {
             outcome.leftBehind.push({ row, reason: "held" });
+            continue;
+          }
+          // The Die has hold of them, same shape and the same reason: a
+          // follower never comes past the mover's own gate, so without this
+          // line a friend carries the caver out of their own unadjudicated
+          // encounter. Its own reason rather than "held", which is the
+          // intercept's word and buys a line of copy this does not need — an
+          // unknown reason falls through to the plain "couldn't follow"
+          // everywhere it is read.
+          if (cavingHeld.has(row.id)) {
+            outcome.leftBehind.push({ row, reason: "caving" });
             continue;
           }
           if (!escortAuthority(mover, row)) {

@@ -14,6 +14,7 @@
 const { heldTagSlugs } = require("./roomAccess");
 const { blocksOnFoot, equippedSlugs } = require("./mounts");
 const { heldReasonFor } = require("./intercept");
+const { cavingHoldFor } = require("./cavingPass");
 
 // The two endpoints of a link, oriented so `near` is the side you are
 // standing on. Callers only ever want `far`.
@@ -193,7 +194,7 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   // after a click.
   const heldReason = heldReasonFor(character, now);
 
-  return links
+  const rows = links
     .map((link) => {
       const { far } = endpoints(link, locationId);
       const row = {
@@ -220,6 +221,24 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
         x.location.sortOrder - y.location.sortOrder ||
         x.location.name.localeCompare(y.location.name),
     );
+
+  // An unresolved 1 on the Caving Die shuts the ways OUT of the zone and
+  // leaves the rest of the level open (CAVING.md §2c) — which is the whole
+  // difference between it and being held, and why it is applied here rather
+  // than in the block above. The query is skipped unless there is a crossing
+  // on offer to shut, so a picker anywhere but a cave mouth pays nothing.
+  if (character?.id && zoneId && rows.some((row) => row.crossesZone)) {
+    const cavingHold = await cavingHoldFor(prisma, character.id, zoneId);
+    if (cavingHold) {
+      for (const row of rows) {
+        if (!row.crossesZone) continue;
+        row.passable = false;
+        row.refusal = cavingHold;
+      }
+    }
+  }
+
+  return rows;
 }
 
 // Just the rows a player may be shown. The common case for a picker.
