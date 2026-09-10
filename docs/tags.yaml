@@ -2562,6 +2562,7 @@ tags:
     teachable: true
     description: "You know good ground when you see it. Prospecting turns up more than it does for anyone else. ‡"
     pointCost: 4
+    requiredTag: laboring-prospecting
     purchasable: true
     purchasableAfterStart: true
 
