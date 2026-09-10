@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The cult buys paper by the ream too
+
+✎ The Thanati shelf sells a Stack of Paper at 3 ⬢ instead of single sheets at 1
+
 ## 2026-09-10 · The Merchant sells paper by the ream
 
 ✚ The Depot stocks a Stack of Paper at 3 ⬢, which unpacks into twenty sheets  
