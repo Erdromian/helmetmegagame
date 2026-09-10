@@ -19,8 +19,14 @@ const {
   placeKeyForRoom,
   placeKeyForConversation,
   placeKeyForZone,
+  placeKeyForNet,
   parsePlaceKey,
 } = require("./placeKey");
+const {
+  SPECIAL_CHANNELS,
+  buildNarrowcastContext,
+  computeNarrowcastAccess,
+} = require("./specialChannels");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { conversationsFor } = require("./conversations");
 const { visibleZoneIds } = require("./gmZoneView");
@@ -82,12 +88,42 @@ function place({ placeKey, kind, name, description = "", roomKind = null, canSpe
 // LOCATION_MEMBER_ALLOW, so a player meets one rule on both faces.
 const LOCATION_CAN_SPEAK = false;
 
+// The radio nets this character is on. A net belongs to no Location and no
+// zone — it travels with whoever is carrying the radio — so it is built from
+// the character alone, and the rule is the SAME one that writes the Discord
+// overwrites (db/lib/specialChannels.js). One rule, two faces: a bracelet
+// that only receives is canSpeak false here for the same reason it holds no
+// Send bit there.
+async function netPlacesFor(prisma, characterId) {
+  if (!characterId) return [];
+  const access = computeNarrowcastAccess(await buildNarrowcastContext(prisma, characterId));
+  const out = [];
+  for (const entry of SPECIAL_CHANNELS) {
+    const grant = access[entry.slug];
+    if (!grant) continue;
+    out.push(
+      place({
+        placeKey: placeKeyForNet(entry.slug),
+        kind: "net",
+        name: entry.slug,
+        description: entry.topic ?? "",
+        canSpeak: Boolean(grant.send),
+      }),
+    );
+  }
+  return out;
+}
+
 // The places one living character may read, in the order the left column
 // draws them: where you are, the rooms off it, the conversations you are in,
-// then the zone's summary.
+// then the zone's summary — and the radio nets, which are nowhere.
 async function placesFor(prisma, character, { gm = false, discordUserId = null } = {}) {
   if (gm) return gmPlacesFor(prisma, discordUserId);
-  if (!character?.id || !character.locationId) return [];
+  if (!character?.id) return [];
+  // A radio works wherever you are, including nowhere: a character with no
+  // Location still hears their nets rather than getting an empty column.
+  const nets = await netPlacesFor(prisma, character.id);
+  if (!character.locationId) return nets;
 
   const location = await prisma.location.findUnique({
     where: { id: character.locationId },
@@ -185,6 +221,8 @@ async function placesFor(prisma, character, { gm = false, discordUserId = null }
     );
   }
 
+  list.push(...nets);
+
   return list;
 }
 
@@ -264,6 +302,23 @@ async function gmPlacesFor(prisma, discordUserId) {
       }
     }
   }
+
+  // The radio nets, flat and last. They belong to no zone, so GmZoneView has
+  // nothing to say about them and there is nowhere to nest them — but a GM
+  // holds both channels on Discord, so withholding them here would only make
+  // the desk the one place a GM cannot read a frequency.
+  for (const entry of SPECIAL_CHANNELS) {
+    list.push(
+      place({
+        placeKey: placeKeyForNet(entry.slug),
+        kind: "net",
+        name: entry.slug,
+        description: entry.topic ?? "",
+        canSpeak: false,
+      }),
+    );
+  }
+
   return list;
 }
 

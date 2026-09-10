@@ -1851,6 +1851,10 @@ export default function Feed({
                 </span>
               )}
             </>
+          ) : place.kind === "net" ? (
+            // A radio you can only listen on — the Cerberon bracelet. Not
+            // "you're a ghost": the set works, it just has no transmitter.
+            <p className="chat-quiet italic">This radio only receives.</p>
           ) : place.kind === "loc" ? (
             // The street. Not "you can only watch here" — that reads like a
             // refusal, and this is a signpost: the scene is one door away, and

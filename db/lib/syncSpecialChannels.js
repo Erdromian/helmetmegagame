@@ -11,8 +11,9 @@
 //
 // Unlike the pre-rework version this reconciles on every run, not just at
 // creation: topics drift, zone roles get recreated, and a channel that
-// misses its roleView grants is a channel nobody can hear. Channel identity
-// (name, id) stays one-time.
+// misses its roleView grants is a channel nobody can hear. The NAME is
+// reconciled too — see the patch below for why. Only the channel's ID is
+// one-time.
 const {
   getGuildChannels,
   createChannel,
@@ -127,10 +128,19 @@ async function syncSpecialChannels(prisma) {
     // ATTACH_FILES is denied and never granted back by any player-facing
     // overwrite. GM gets an explicit attach allow so moderation posts with
     // attachments still work.
+    // The NAME is reconciled too, not just the topic. It used not to be, and
+    // that is the whole reason #cerberon spent two migrations still called
+    // #watch: provisioning set the name once, nothing ever looked at it again,
+    // and no sweep could see the drift — the doctor checks member overwrites
+    // only. Renaming an existing channel keeps its id and its history.
     await patchChannel(channelId, {
+      name: entry.slug,
       topic: entry.topic,
       ...(entry.slowmode !== undefined ? { rate_limit_per_user: entry.slowmode } : {}),
     });
+    if (known && known.name !== entry.slug) {
+      console.log(`renamed #${known.name} -> #${entry.slug}`);
+    }
     await putChannelOverwrite(channelId, guildId, {
       deny: (PERM_VIEW_CHANNEL | PERM_SEND_MESSAGES | PERM_ATTACH_FILES).toString(),
     });

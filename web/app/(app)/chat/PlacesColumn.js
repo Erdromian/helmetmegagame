@@ -12,6 +12,7 @@ import { useFolded } from "./sectionFold";
 //
 //   MESSAGES       Bascinet — the DM conversation, a pseudo-place (./DmPane.js)
 //   SUMMARY        the zone's own channel — the widest room
+//   RADIO          the frequencies you are carrying a radio for
 //   HERE           the Location you are standing in — scenery, not speech
 //   ROOMS          the public rooms off it, then the private ones you can open
 //   CONVERSATIONS  the private threads you are in
@@ -27,6 +28,8 @@ function glyph(place) {
   if (place.kind === "loc") return "▸";
   if (place.kind === "conv") return "»";
   if (place.kind === "zone") return "▤";
+  // A radio net: nowhere at all, carried in your pack (db/lib/specialChannels.js).
+  if (place.kind === "net") return "∿";
   // The faction is a pseudo-place: a banner, not a door. It has no channel —
   // the panel it opens is a roster (./FactionPanel.js).
   if (place.kind === "faction") return "⚑";
@@ -135,6 +138,7 @@ export default function PlacesColumn({
   const rooms = places.filter((p) => p.kind === "room");
   const conversations = places.filter((p) => p.kind === "conv");
   const summary = places.filter((p) => p.kind === "zone");
+  const nets = places.filter((p) => p.kind === "net");
   const faction = places.filter((p) => p.kind === "faction");
   const messages = places.filter((p) => p.kind === "dm");
 
@@ -145,6 +149,10 @@ export default function PlacesColumn({
           lands, so it sits where a glance finds it (CHAT.md §2b). */}
       <Section title="Messages" places={messages} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Summary" places={summary} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
+      {/* The frequencies, beside the other channel that is not a room you are
+          standing in. A radio goes where you go, so it sits above the street
+          rather than inside it. */}
+      <Section title="Radio" places={nets} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Here" places={here} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section title="Rooms" places={rooms} selected={selected} seen={seen} newest={newest} onSelect={onSelect} />
       <Section

@@ -31,10 +31,12 @@ Keep them in sync if the rule changes.
 The same refresh builds `channelContexts`: channel id → `{ zoneId, zoneName,
 locationId, locationName, channelKind }`, so the proxy can stamp an archive
 row with where a message was said without a DB round trip per message.
-`channelKind` is one of `summary | location | watch | intercom` (a plain
-string field, not a Prisma enum — see `ARCHIVE.md`). `intercom` no longer means
-the channel of that name, which is gone: it is now what a PA broadcast is
-filed as in the archive (§7a). A Room thread or a
+`channelKind` is one of `summary | location | intercom` or a special channel's
+own slug — `cerberon`, `27.065` (a plain string field, not a Prisma enum — see
+`ARCHIVE.md`). `intercom` no longer means the channel of that name, which is
+gone: it is now what a PA broadcast is filed as in the archive (§7a). `watch`
+is the Cerberon net's old name and survives only on rows written before the
+rename, which is why the `net:` backfill migration maps it too. A Room thread or a
 Conversation reports its parent Location
 channel's context and keeps its own name as the scene.
 
@@ -711,6 +713,17 @@ handed to a character outside the Cerberon still opens `#cerberon`. Nobody
 buys a **Radio (27.065)** in point-buy either; the Thanati shelf is the only
 source, at 20 (`db/lib/thanati.js`). The two nets are separate frequencies
 and never mix.
+
+Both are **also places on `/chat`**, as the `net:<slug>` place kind — see
+`CHAT.md` §5d. The rule there is this same `member` function, so the two faces
+cannot disagree about who hears what, and a web-only character finally hears
+their own radio.
+
+The **name is reconciled on every sync**, not just written at provisioning.
+That is new, and it is why `#cerberon` spent two migrations still called
+`#watch`: the name was set once, nothing ever read it back, and the doctor
+checks member overwrites only. A rename keeps the channel's id and its
+history.
 
 The sync still enforces `roleViewZones` in both directions: it grants the
 listed zone roles view *and* deletes any zone-role grant the registry no longer

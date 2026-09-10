@@ -1288,14 +1288,15 @@ both call these; no route re-implements them.
 Each entry is:
 
 ```
-{ placeKey, kind: "loc" | "room" | "conv" | "zone", name, description,
+{ placeKey, kind: "loc" | "room" | "conv" | "zone" | "net", name, description,
   roomKind, canSpeak, slowmodeSeconds, newestSeq }
 ```
 
 in the order the column draws them: the Location, its public Rooms, the private
 Rooms `accessibleRooms` opens (keys **and** guest rows, the same door every
 other reader of that function sees), the conversations `conversationsFor` says
-you are in **at this Location**, then the zone Summary. `newestSeq` is added by
+you are in **at this Location**, then the zone Summary, then the **radio nets**
+(§5d), which the column lifts up under Summary. `newestSeq` is added by
 `web/lib/feedAccess.js`, not by the rules — the dot is a page concern.
 
 Two things are read-only:
@@ -1313,6 +1314,39 @@ enforced in `prepareSpeech` by the character's newest row there. Discord's
 channel slowmode is the same: five minutes on `#summary`, none on a Room
 thread, which `db:sync-zones` asserts as `rate_limit_per_user: 0` on every pass
 (§5b).
+
+### 5d. The radio nets are places
+
+`#cerberon` and `#27.065` (`CHANNELS.md` §7) are the fifth place kind,
+**`net:<slug>`** — and the slug, not a row id, because a special channel has no
+row. They were Discord-only until 2026-09-10, which meant a **web-only**
+character could hold a radio and never hear a word: no error, and nowhere on
+the page to look.
+
+The kind carries its own weight and almost nothing else changed:
+
+- `db/lib/placeKey.js` resolves the channel id both ways —
+  `resolveChannelKey` for a line typed on Discord, `discordTargetForPlaceKey`
+  for one typed here, which is the whole of the web→Discord relay because
+  `feedOutbox` already posts any `source: "WEB"` row whose key resolves.
+- **The access rule is not copied.** `feedAccess.js#netPlacesFor` asks
+  `computeNarrowcastAccess`, the same function that writes the Discord
+  overwrites, so a Cerberon bracelet is `canSpeak: false` here for the same
+  reason it holds no Send bit there. One rule, two faces.
+- A net belongs to no zone and no Location, so it is built from the character
+  alone and survives having nowhere to stand.
+- The stream, the typing store and ⌘K are keyed on placeKey strings and needed
+  no edit at all. `isSummaryPlace` is `startsWith("zone:")`, so a net takes the
+  **turn** floor — right, because `wipe: "clear"` empties the channel every
+  turn.
+
+It is **not** a scene: `isScenePlaceKey` excludes it, so `/shout`, `/play` and
+`/roll` are not offered. You cannot shout across a frequency.
+
+A GM reads both nets and speaks on neither, flat and last in `gmPlacesFor` —
+`GmZoneView` has nothing to say about a channel that is in no zone, and
+withholding them would make the desk the one place a GM cannot read a
+frequency.
 
 ### 5b. Decision 5: the Location channel is scenery
 
