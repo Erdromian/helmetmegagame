@@ -521,7 +521,7 @@ async function deleteCustomTagImpl({ tagId }) {
     ),
   );
   if (poisonedChar || poisonedRoom || crateReferences) {
-    throw new UserError("A held or stashed stack is still poisoned with that — cure or clear it first. ‡");
+    throw new UserError("A held or stashed stack is still poisoned. Cure or clear it first.");
   }
   if (parentOf || requiredBy || gates || skillOf) {
     throw new UserError("Another tag or group references that one.");

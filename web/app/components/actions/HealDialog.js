@@ -156,10 +156,10 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
       {affliction?.needsSite && (
         <p className={`text-xs ${hasSurgicalSite && !surgicalSitePenalty ? "text-muted" : "text-accent"}`}>
           {!hasSurgicalSite
-            ? "Surgery: you need Surgical Equipment, a Portable Surgical Pack, or a Surgical Theater in reach — held, or already standing where you are. ‡"
+            ? "Surgery: you need Surgical Equipment, a Portable Surgical Pack, or a Surgical Theater."
             : surgicalSitePenalty
-              ? "Surgery, with only a Portable Surgical Pack standing in for a proper site — the Gambit takes a −1 for it. ‡"
-              : "Surgery, and a proper site is in reach — Surgical Equipment to hand, or a Theater standing where you are. No penalty. ‡"}
+              ? "Surgery with only a Portable Surgical Pack lowers the Gambit die by 1."
+              : "Surgery with a proper site in reach. Your Gambit won't have a penalty."}
         </p>
       )}
       {affliction && (
@@ -168,16 +168,16 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
           <p className={`text-xs ${affliction.gambit ? "text-accent" : "text-muted"}`}>
             Costs <span className="mono">{affliction.cost} ⬢</span>.
             {affliction.gambit
-              ? " This is beyond routine, so it counts as a Gambit. It uses your Move, a die is rolled, and a poor result can leave them worse off. You'll both know the outcome at the end of the turn."
+              ? " This is beyond your routine capabilities. It will be a Gambit."
               : affliction.moveCost?.kind === "free"
-                ? ` First aid doesn't cost a Move — ${pools.healsLeft === 1 ? "1 free treatment" : `${pools.healsLeft ?? "a few"} free treatments`} left this turn. ‡`
-                : ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", past this turn's free first aid" : ""}. ‡`}
+                ? ` First aid doesn't cost a Move — ${pools.healsLeft === 1 ? "1 free treatment" : `${pools.healsLeft ?? "a few"} free treatments`} left this turn.`
+                : ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", over the free first aid" : ""}.`}
           </p>
           {/* Quiet, same weight as a Discord -# line: a billed cure files
               today's Move (review fix, round 3). */}
           {billed && (
             <p className="text-xs text-muted">
-              {`This spends today's Move — the auto-labor pass only pays a character with none. ‡`}
+              {`This will use your Move.`}
             </p>
           )}
           {/* Committed-Routine warning, same shape as the Craft dialog's
@@ -192,16 +192,16 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
             (craftBudget ? (
               craftBudget.family !== "medical" ? (
                 <p className="text-xs text-accent">
-                  {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and treating isn't. ‡`}
+                  {`You've used your turn on ${craftFamilyLabel(craftBudget.family)}.`}
                 </p>
               ) : !fitsInRemaining(
                   { num: affliction.moveCost.num, den: affliction.moveCost.den },
                   { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
                 ) ? (
-                <p className="text-xs text-accent">Your Move is spent for this turn. ‡</p>
+                <p className="text-xs text-accent">Your Move is spent for this turn.</p>
               ) : null
             ) : hasMoved ? (
-              <p className="text-xs text-accent">{`You've already used your Move this turn. ‡`}</p>
+              <p className="text-xs text-accent">{`You've already used your Move this turn.`}</p>
             ) : null)}
         </>
       )}

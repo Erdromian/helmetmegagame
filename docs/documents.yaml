@@ -54,24 +54,18 @@ documents:
       Health and injuries are tags. The price to treat them is measured in
       Resources, a fraction of your Move, and a skill.
 
-      **First aid is free, up to a point.** A cure the table below marks with
-      no Move cost at all is a free action — first aid, bandaging, setting a
-      simple break. Any medic can do 4 of them in one turn before it starts
-      costing anything; past that, each extra one spills into your Move at
-      ¼ apiece. ‡
-
       **Everything else spends a fraction of your Move — even Simple.** A
       Simple cure is a flat ¼, every time, however few you're doing that
       turn; it never dips into the free pool above. A ⅓ cure is a third of
       your turn's work — three fit in one Routine. A ½ cure is half — two
       fit. The heaviest tiers take the WHOLE Move, and Complex surgery is
-      also where you roll. ‡
+      also where you roll.
 
       **Reaching past your skill.** You can attempt any cure, including ones
       well above your training. That's a Gambit: it spends your Move for the
       turn, a die is rolled, and you'll both find out at the end of it. A bad
       roll can leave the patient worse than you found them. The heaviest tier
-      is a Gambit even for an Esculap. ‡
+      is a Gambit even for an Esculap.
 
       **Serious surgery needs a site.** Anything past "very minor surgery" in
       the table needs {tag:surgical-equipment} — held, or already laid out in
@@ -79,7 +73,7 @@ documents:
       one. A {tag:portable-surgical-pack} opens the same door when nothing
       better is around, but it's a lesser site: working off the pack alone
       costs the Gambit a −1. Bring real equipment, or work somewhere a
-      Theater already stands, and the penalty is gone. ‡
+      Theater already stands, and the penalty is gone.
 
       {tag:medical-basic} · {tag:medical-skilled} · {tag:medical-expert}
 
@@ -103,9 +97,9 @@ documents:
       - {tag:minor-wound}, {tag:burned}, {tag:sprained-ankle}, {tag:infected}
       - {tag:frostbite} — same price and the same quarter-Move as the rest
         of this rung, but it's the one that still needs Medical (Skilled)
-        hands. ‡
+        hands.
       - {tag:choking}, {tag:hypothermia} — same rung again, and the only
-        cures on this whole ladder that need no medical training at all. ‡
+        cures on this whole ladder that need no medical training at all.
 
       **Moderate — 2 ⬢, ⅓ Move**
 
@@ -119,7 +113,7 @@ documents:
         {tag:pox}, {tag:rot-lung}, {tag:severe-burns}
       - {tag:severe-bleeding}, {tag:arterial-bleed}, {tag:parasites} — 3 ⬢
         instead of 4, but otherwise this rung exactly: ⅓ Move, Medical
-        (Skilled). ‡
+        (Skilled).
 
       **Very minor surgery — 7 ⬢, ½ Move**
 
@@ -139,7 +133,7 @@ documents:
       Some tonics and dressings cure specific tags outright, no medic needed
       — see the Recipes tab on the Documents page for what's brewed or
       cooked. Anyone can hand one to a person standing with them, but a few —
-      the prosthetics — need Medical (Expert) to fit, even onto yourself. ‡
+      the prosthetics — need Medical (Expert) to fit, even onto yourself.
 
       **Prosthetics.** Four are public knowledge — fitted, not worn, and only
       by a hand with Medical (Expert):
@@ -151,11 +145,6 @@ documents:
       | {tag:prosthetic-hand} | {tag:missing-fingers} | {tag:prosthetic-hand-worn} | Smithing (Skilled) |
       | {tag:glass-eye} | {tag:missing-eye} | {tag:glass-eye-worn} | Smithing (Skilled) |
 
-      Fitting one is administering it — a ½ Move, the same as any other
-      administered cure. It doesn't erase what was lost so much as answer
-      it: the maiming is cured outright, but the cosmetic aftermath in the
-      table above stays with you. Nobody sells these off a shelf; a smith
-      has to make one first. ‡
   sanctuary:
     name: Sanctuary
     public: true

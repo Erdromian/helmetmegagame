@@ -111,18 +111,18 @@ export default function PoisonDialog({ mode, presets, onDone, onClose }) {
       onSubmit={onSubmit}
     >
       <ChipPicker
-        label="Which poison? ‡"
+        label="Which poison?"
         options={poisonable.map((t) => ({ id: t.id, label: t.name, note: stackNote(t) }))}
         value={tagId}
         onChange={pick}
       />
       {chosen && (
         <ChipPicker
-          label="What are you doing with it? ‡"
+          label="What are you doing with it?"
           options={[
-            { id: "food", label: "Lace a meal or drink ‡" },
-            { id: "person", label: "Dose someone helpless here ‡" },
-            { id: "self", label: "Drink it yourself ‡" },
+            { id: "food", label: "Lace a meal or drink" },
+            { id: "person", label: "Dose someone helpless here" },
+            { id: "self", label: "Drink it yourself" },
           ]}
           value={poisonUse}
           onChange={(next) => {
@@ -134,28 +134,25 @@ export default function PoisonDialog({ mode, presets, onDone, onClose }) {
       {chosen && poisonUse === "food" && (
         <>
           <ChipPicker
-            label="Lace what? ‡"
+            label="Lace what?"
             options={foodTargets.map((t) => ({ id: t.id, label: t.name, note: stackNote(t) }))}
             value={targetId}
             onChange={setTargetId}
             emptyLabel="You aren't holding anything it could go in."
           />
-          <p className="text-xs text-muted">
-            {`Only stops you if you'd notice — Poison Sense or a Snooper telling you it's already carrying something else, or that it can't hold any more. Otherwise it goes in anyway and is lost in the mix. Whoever eats it is never told, either way. ‡`}
-          </p>
         </>
       )}
       {chosen && poisonUse === "person" && (
         <>
           <ChipPicker
-            label="Dose who? ‡"
+            label="Who do you want to dose?"
             options={doseTargets.map((t) => ({ id: t.id, label: `${t.name} — ${t.condition}` }))}
             value={targetId}
             onChange={setTargetId}
             emptyLabel="Nobody here is helpless enough to dose directly."
           />
           <p className="text-xs text-muted">
-            {`They have to be helpless — bound, dying, paralyzed, unconscious, crucified or catatonic — and standing where you are. A conscious target can only be poisoned through what they eat or drink. ‡`}
+            {`They have to be helpless.`}
           </p>
         </>
       )}

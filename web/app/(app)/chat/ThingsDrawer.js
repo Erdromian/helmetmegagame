@@ -171,7 +171,7 @@ function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, pending
           {row.equipped ? " ·" : ""}
           {/* The doctor's-eye read (M4 fix round), same gate and same wording
               as the sheet's own TagChip. */}
-          {row.poisonMarker ? <span className="text-muted"> · smells wrong ‡</span> : null}
+          {row.poisonMarker ? <span className="text-muted"> · smells wrong</span> : null}
         </button>
       </HoverCard>
       {isOpen && (

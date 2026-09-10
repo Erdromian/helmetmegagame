@@ -1029,7 +1029,7 @@ tags:
     category: general
     group: general-traits
     resists: [poisoned, vomiting, parasites, cave-fever, choking, asleep]
-    description: "Your body shrugs off more than most people's. Raw godflesh never turns your stomach, and neither nightshade nor soporific gets its hooks into you — no choking fit, no creeping drowsiness. ‡"
+    description: "Bad food and the weaker poisons don't bother you."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1224,7 +1224,7 @@ tags:
     name: Poison Sense
     category: general
     group: general-traits
-    description: "You have a sensitive palate. A poisoned meal or drink on your own sheet reads off wrong to you at a glance. ‡"
+    description: "You can immediately tell when a meal is poisoned."
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -2929,7 +2929,7 @@ tags:
     category: skills
     group: skills-brewing
     teachable: true
-    description: "You are a master of the still and the mortar. The most demanding tonics and draughts are within your reach. ‡"
+    description: "You're a master alchemist."
     pointCost: 5
     parentTag: brewing-skilled
     visible: false
@@ -3232,7 +3232,7 @@ tags:
     name: Increased Recovery
     category: status
     group: status-buffs
-    description: "Your body heals faster than it normally should — an untreated infection or wound holds off one more turn before it worsens. It can't stop what's already reached death's door. ‡"
+    description: "Your body heals faster than it normally should, and infections take longer to hurt you."
     pointCost: 0
     visible: false
     purchasable: false
@@ -4111,7 +4111,7 @@ tags:
     name: Hypothermia
     category: health
     group: health-illness
-    description: "You've stopped shivering. It's not unpleasant. Warmth, dry clothes, and someone willing to sit with you bring you back. ‡"
+    description: "You've stopped shivering. It's not unpleasant."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4407,7 +4407,7 @@ tags:
     name: Hook Hand
     category: health
     group: health-maiming
-    description: "Where a hand used to be, now a fitted iron hook. ‡"
+    description: "You have a fitted iron hook."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4420,7 +4420,7 @@ tags:
     name: Prosthetic Hand (Worn)
     category: health
     group: health-maiming
-    description: "A carved hand where fingers used to be missing. Close up, you can tell. ‡"
+    description: "A carved hand where fingers used to be missing."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4515,7 +4515,7 @@ tags:
     name: Glass Eye (Worn)
     category: health
     group: health-maiming
-    description: "A painted glass eye, fitted where the real one was lost. ‡"
+    description: "A painted glass eye."
     pointCost: 0
     visible: true
     purchasable: false
@@ -4581,7 +4581,7 @@ tags:
     name: Severe Pain
     category: health
     group: health-minor
-    description: "Your mind can't escape the pain. Writhe around, or let the {tag:poppy} dull it for a while. ‡"
+    description: "Your mind can't escape the pain—you are writhing, unfocused."
     pointCost: 0
     visible: true
     purchasable: false
@@ -5550,7 +5550,7 @@ tags:
     name: Brackenmoss
     category: items
     group: items-gear
-    description: "A dense, springy moss that grows thick on the shaded side of a fallen log. Trappers and farmhands pinch off a handful without thinking twice — it's good for packing a gap or cushioning a load in a pack. ‡"
+    description: "A dense, springy moss that grows thickly on fallen trees."
     pointCost: 0
     tradeable: true
     weight: 0.3
@@ -6173,7 +6173,7 @@ tags:
     name: Military Autoinjector
     category: items
     group: items-gear
-    description: "A field trauma kit, self-triggering. One jab clears the small stuff at once — bruises, sprains, a shallow cut, a cracked rib, even a broken bone. Nothing past that; a punctured lung wants a real surgeon. ‡"
+    description: "A field trauma kit that immediately heals minor wounds, up to broken bones."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -6212,7 +6212,7 @@ tags:
     name: Autoinjector
     category: items
     group: items-gear
-    description: "A compact medical injector, quick to make from ordinary stock. One jab handles the small stuff — bruises, burns, a sprain, a bad beating — though it can't set a break or close a wound down to the bone. ‡"
+    description: "A compact medical injector that immediately heals minor wounds, up to broken bones."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -8446,8 +8446,7 @@ tags:
     catalog: all
     name: Surgical Equipment
     category: items
-    description: |-
-      A set of advanced medical equipment. Hold it, or stand somewhere it's already set up, and the deepest surgeries are open to you — no penalty, no fumbling for a lesser kit. ‡
+    description: "A set of advanced medical equipment. It allows you to perform complex surgeries without penalty."
     pointCost: 9
     visible: true
     purchasable: true
@@ -10357,7 +10356,7 @@ tags:
     name: Poison Snooper
     category: items
     group: items-gear
-    description: "Held, not spent: it does for you what a sensitive palate does. A poisoned meal or drink you're carrying reads off wrong to you at a glance. ‡"
+    description: "You can immediately tell when a meal is poisoned. This item is reusable."
     pointCost: 9
     depotPrice: 22
     sellable: true
@@ -11235,7 +11234,7 @@ tags:
     name: White Honey
     category: items
     group: items-drink
-    description: "Boiled pale and thick over a long afternoon. Draws the commoner poisons and venoms back out — not every toxin bends to it. ‡"
+    description: "It's boiled into a pale syrupy mix, capable of neutralizing even exotic poisons and venoms."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11292,7 +11291,7 @@ tags:
     name: Mercy
     category: items
     group: items-drink
-    description: "Brewed from {tag:cave-fungus}. Grants {tag:increased-recovery} — hold someone's head up and give it to them yourself, or drink it down for your own. Goes down smoothly. ‡"
+    description: "Increases recovery. Brewed from {tag:cave-fungus}."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11564,7 +11563,7 @@ tags:
     name: Antidote
     category: items
     group: items-drink
-    description: "A bitter draught that fights a poison already in the blood, however it got there. ‡"
+    description: "A bitter draught that clears the basic poisons."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11588,7 +11587,7 @@ tags:
     name: Fever Draught
     category: items
     group: items-drink
-    description: "Cool and bitter going down, it breaks a fever inside the hour — whatever's causing it. ‡"
+    description: "A bitter draught that clears fevers."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11612,7 +11611,7 @@ tags:
     name: Burn Dressing
     category: items
     group: items-gear
-    description: "A cooling salve pressed on and wrapped tight, taking the worst of the sting out of a burn. ‡"
+    description: "A cooling salve to treat burns."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11642,7 +11641,7 @@ tags:
     name: Portable Surgical Pack
     category: items
     group: items-gear
-    description: "A rolled kit of clamps, needles and sutures — not a proper theater, but enough to open one up all the same. Lighter and easier to carry than a full set of Surgical Equipment, but it shows: working off the pack alone, with nothing better in reach, costs the surgery a −1 on the die. ‡"
+    description: "A barber-surgeon's kit, containing clamps, needles and sutures. It allows you to perform surgeries, but with a -1 to the Gambit die."
     pointCost: 0
     tradeable: true
     weight: 3
@@ -11672,7 +11671,7 @@ tags:
     name: Last Breath
     category: items
     group: items-drink
-    description: "Rendered from an aberrant heart, black and thick. Poured past the lips of the dying, it does what no ordinary medicine can. ‡"
+    description: "Rendered from an aberrant heart, black and thick. A lifesaving coagulation."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11703,7 +11702,7 @@ tags:
     name: Surgical Theater
     category: assets
     group: assets-structures
-    description: "A dedicated surgery: scrubbed tables, hung lamps, instruments laid out and ready. Anyone working this ground can do the deepest medicine here without hauling a kit around. ‡"
+    description: "A dedicated surgery theater featuring scrubbed tables, hung lamps, and a dizzying variety of instruments. This allows successful surgery."
     pointCost: 0
     visible: false
     tradeable: false
@@ -11738,7 +11737,7 @@ tags:
     name: Wooden Leg
     category: items
     group: items-gear
-    description: "A carved peg fitted below the knee, buckled tight with worn leather straps. Fitted by a steady hand, you're up and walking again. ‡"
+    description: "A carved peg buckled tight with leather straps. You can walk again."
     pointCost: 0
     tradeable: true
     weight: 3
@@ -11765,7 +11764,7 @@ tags:
     name: Iron Hook
     category: items
     group: items-gear
-    description: "A curved iron hook, fitted where a hand used to be. It won't hold a coin, but it holds plenty else. ‡"
+    description: "A fitted iron hook."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -11792,7 +11791,7 @@ tags:
     name: Prosthetic Hand
     category: items
     group: items-gear
-    description: "Carved fingers on a jointed frame, laced into a leather glove. Not as quick as the real thing, but it closes a fist again. ‡"
+    description: "A prosthetic hand."
     pointCost: 0
     tradeable: true
     weight: 1
@@ -11819,7 +11818,7 @@ tags:
     name: Glass Eye
     category: items
     group: items-gear
-    description: "A painted glass sphere, fitted into the socket. It sees nothing, but nobody looking at you would guess. ‡"
+    description: "A painted glass sphere."
     pointCost: 0
     tradeable: true
     weight: 0.2
@@ -11853,7 +11852,7 @@ tags:
     name: Cybernetic Core
     category: items
     group: items-gear
-    description: "Salvaged machinery, still faintly warm. Nobody quite knows how it's meant to be grafted on — until somebody who does gets their hands on it. ‡"
+    description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -11877,7 +11876,7 @@ tags:
     name: Cybernetic Arm
     category: items
     group: items-gear
-    description: "Cold, quiet machinery, grafted straight to bone and nerve. Whatever was lost, this doesn't just replace it — there's nothing left to show for the wound. ‡"
+    description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -11903,7 +11902,7 @@ tags:
     name: Cybernetic Leg
     category: items
     group: items-gear
-    description: "Cold, quiet machinery, grafted straight to bone and nerve. Whatever was lost, this doesn't just replace it — there's nothing left to show for the wound. ‡"
+    description: "Salvaged machinery that works just as well as the real thing."
     pointCost: 0
     tradeable: true
     weight: 2
@@ -11931,7 +11930,7 @@ tags:
     name: Lockjaw
     category: health
     group: health-infection
-    description: "Your jaw has seized shut and every muscle is drawing tight. Left alone for 2 turns, it steals your breath entirely and you'll be {tag:choking}. ‡"
+    description: "Your jaw is seizing shut. You can't breathe."
     pointCost: 0
     visible: true
     purchasable: false
@@ -11951,7 +11950,7 @@ tags:
     name: Cave Fever
     category: health
     group: health-illness
-    description: "A shivering, cave-borne sickness that settles in the lungs. Left alone for 2 turns, it spikes into {tag:feverish}. ‡"
+    description: "A shivering fever. It's getting worse."
     pointCost: 0
     visible: true
     purchasable: false
@@ -11971,7 +11970,7 @@ tags:
     name: Crush Injury
     category: health
     group: health-wounds
-    description: "Something heavy came down on you, and the tissue underneath is already dying. Left alone for 2 turns, it turns to {tag:necrosis}. ‡"
+    description: "The tissue is steadily dying."
     pointCost: 0
     carryBonus: -0.1
     visible: true

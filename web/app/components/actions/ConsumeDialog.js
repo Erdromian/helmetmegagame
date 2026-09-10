@@ -69,7 +69,7 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
       {chosen && chosen.quantity > 1 && <p className="text-xs text-muted">Takes one of your {chosen.quantity}.</p>}
       {administerable && consumeTargets.length > 0 && (
         <ChipPicker
-          label="Give it to ‡"
+          label="Give it to"
           options={[{ id: "", label: "Yourself" }, ...consumeTargets.map((t) => ({ id: t.id, label: t.name }))]}
           value={targetId}
           onChange={setTargetId}
@@ -83,23 +83,23 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
           which files an Action but no craftBudget ledger at all. */}
       {chosen?.administerSkill && (
         <>
-          <p className="text-xs text-muted">Costs half your Move — the fitting is the skilled part. ‡</p>
+          <p className="text-xs text-muted">This costs half your Move.</p>
           <p className="text-xs text-muted">
-            {`This spends today's Move — the auto-labor pass only pays a character with none. ‡`}
+            {`This costs your Move.`}
           </p>
           {craftBudget ? (
             craftBudget.family !== "medical" ? (
               <p className="text-xs text-accent">
-                {`Your Routine this turn is ${craftFamilyLabel(craftBudget.family)} work, and this isn't. ‡`}
+                {`Your Routine was set to ${craftFamilyLabel(craftBudget.family)}.`}
               </p>
             ) : !fitsInRemaining(
                 { num: 1, den: 2 },
                 { num: craftBudget.remainingNum, den: craftBudget.remainingDen },
               ) ? (
-              <p className="text-xs text-accent">Your Move is spent for this turn. ‡</p>
+              <p className="text-xs text-accent">Your Move is spent for this turn.</p>
             ) : null
           ) : hasMoved ? (
-            <p className="text-xs text-accent">{`You've already used your Move this turn. ‡`}</p>
+            <p className="text-xs text-accent">{`You've already used your Move this turn.`}</p>
           ) : null}
         </>
       )}

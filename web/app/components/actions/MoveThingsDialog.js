@@ -123,7 +123,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   const rows = offered.map((t) => ({
     ...t,
     max: t.stackable || !toIsCharacter ? t.held : 1,
-    note: t.poisonMarker ? "smells wrong ‡" : null,
+    note: t.poisonMarker ? "smells wrong" : null,
   }));
   const balance = fromSelf ? (carry?.resources ?? pools.resources ?? 0) : fromRoom ? fromRoom.resources : fromPerson ? fromPerson.resources : null;
 

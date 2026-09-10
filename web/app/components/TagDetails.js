@@ -104,7 +104,7 @@ export default function TagDetails({
           <strong>
             {tag.name}
             {stack ? ` ×${stack}` : ""}
-            {poisonMarker && <span className="text-muted"> · smells wrong ‡</span>}
+            {poisonMarker && <span className="text-muted"> · smells wrong</span>}
           </strong>
           {(tag.group?.name || tag.category) && (
             <span className="text-muted whitespace-nowrap text-xs">

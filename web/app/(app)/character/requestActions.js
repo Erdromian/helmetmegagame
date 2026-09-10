@@ -643,7 +643,7 @@ function craftLedgerDescription(entries) {
 // other and never both.
 function healLedgerDescription(entries) {
   const made = entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name));
-  return `Treating this turn: ${made.join(", ")}. ‡`;
+  return `Treating this turn: ${made.join(", ")}.`;
 }
 
 function craftLedgerEntry(tag, cost) {
@@ -2316,7 +2316,7 @@ async function openCrateRequestImpl({ session, character, held }) {
       where: { characterId_tagId: { characterId: character.id, tagId: held.tagId } },
     });
     if (!freshCrate || freshCrate.quantity < 1) {
-      throw new UserError("You don't have that any more. ‡");
+      throw new UserError("You don't have that any more.");
     }
     for (const line of contents) {
       const tag = byId.get(line.tagId);
@@ -2479,7 +2479,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     const targetSlugs = new Set(found.tags.map((ct) => ct.tag.slug));
     const intersects = curesList.some((slug) => targetSlugs.has(slug));
     if (!intersects && !held.tag.administerable) {
-      throw new UserError(`${found.name} isn't holding anything ${held.tag.name} treats. ‡`);
+      throw new UserError(`${found.name} doesn't have anything that ${held.tag.name} can treat.`);
     }
     target = found;
   }
@@ -2514,7 +2514,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
     const ancestry = buildSkillAncestry(catalog);
     const satisfied = satisfiedSkillIds(character.tags.map((ct) => ct.tagId), ancestry);
     if (!skillTag || !satisfied.has(skillTag.id)) {
-      throw new UserError(`You need ${skillTag?.name ?? "the right training"} to use ${held.tag.name}. ‡`);
+      throw new UserError(`You need ${skillTag?.name ?? "the right training"} to use ${held.tag.name}.`);
     }
     if (openTurn) {
       // The ACT gate belongs exactly here, not outside this branch (review
@@ -2646,7 +2646,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
       const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
       const stillIntersects = curesList.some((slug) => freshSlugs.has(slug));
       if (!stillIntersects && !held.tag.administerable) {
-        throw new UserError(`${target.name} was already treated for that. ‡`);
+        throw new UserError(`${target.name} was already treated for that.`);
       }
       curedHeldNow = curesList.length
         ? freshTags.filter((ct) => curesList.includes(ct.tag.slug))
@@ -2808,7 +2808,7 @@ async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   });
   await afterInventoryChange([character.id, administered ? target.id : null]);
   if (administered) {
-    notifyCharacter(target, `${character.name} used ${held.tag.name} on you. ‡`);
+    notifyCharacter(target, `${character.name} used ${held.tag.name} on you.`);
   }
   revalidateAll();
   return {};
@@ -2832,13 +2832,13 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
   const heldFood = character.tags.find((ct) => ct.tagId === targetTagId);
   if (!heldFood) throw new UserError("You don't have that.");
   if (!heldFood.tag.consumable || heldFood.tag.poison) {
-    throw new UserError("That isn't something you can lace. ‡");
+    throw new UserError("That isn't something you can lace.");
   }
   // A food or drink, per the plan (items-food/items-drink) — not gear, not
   // the poison bottle itself (caught above), not a skill or a status.
   const foodGroup = heldFood.tag.group?.slug;
   if (foodGroup !== "items-food" && foodGroup !== "items-drink") {
-    throw new UserError("That isn't something you can lace. ‡");
+    throw new UserError("That isn't something you can lace.");
   }
 
   const openTurn = await getOpenTurn();
@@ -2863,7 +2863,7 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
     const freshPoison = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
     });
-    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more. ‡");
+    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
     // Re-read the food's row fresh under the lock — the same patient-side
     // race shape consumeTagRequestImpl already guards: the stack may have
     // been eaten, transferred away, or already tainted between the load
@@ -2871,7 +2871,7 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
     const freshFood = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId: character.id, tagId: targetTagId } },
     });
-    if (!freshFood) throw new UserError("You don't have that any more. ‡");
+    if (!freshFood) throw new UserError("You don't have that any more.");
     // Poisoner-side only (the plan is explicit): a poisoner learning their
     // OWN stack is already tainted with something else is acceptable — it's
     // never disclosed to whoever eventually eats it, and it never refuses on
@@ -2881,7 +2881,7 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
       freshFood.poisonPayload && freshFood.poisonPayload !== poisonTagId,
     );
     if (taintedDifferently && canDetect) {
-      throw new UserError("That's already tainted with something else. ‡");
+      throw new UserError("That's already tainted with something else.");
     }
     // Over-lacing (fix round, M4): same gate as the oracle above. The stack
     // is already fully poisoned, so one more dose has nowhere to land — a
@@ -2889,7 +2889,7 @@ async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
     // it, same silent-loss shape as dosing a differently-tainted stack.
     const stackFull = freshFood.poisonedCount > 0 && freshFood.poisonedCount >= freshFood.quantity;
     if (stackFull && !taintedDifferently && canDetect) {
-      throw new UserError("It can't hold any more poison than that. ‡");
+      throw new UserError("It can't hold any more poison than that.");
     }
     const wasted = taintedDifferently || (stackFull && !taintedDifferently);
     const poisonedCount = wasted
@@ -2959,7 +2959,7 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
   const heldSlugs = new Set(target.tags.map((ct) => ct.tag.slug));
   if (![...heldSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
     throw new UserError(
-      "They're conscious and can stop you — that's what poisoned food is for. ‡",
+      "You can't poison a conscious, able person.",
     );
   }
 
@@ -2987,7 +2987,7 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
     const freshPoison = await tx.characterTag.findUnique({
       where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
     });
-    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more. ‡");
+    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
 
     // Patient-side race: re-verify helplessness under the lock. Somebody
     // could have freed, healed or revived them between the load above and
@@ -2998,7 +2998,7 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
     });
     const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
     if (![...freshSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))) {
-      throw new UserError("They're no longer helpless. ‡");
+      throw new UserError("They're no longer helpless.");
     }
 
     await dropCharacterTag(tx, character.id, poisonTagId, 1);
@@ -3036,7 +3036,7 @@ async function poisonCharacterRequestImpl({ poisonTagId, targetCharacterId }) {
   // you." — the target learns something happened, not who did it. What
   // actually landed is right there on their sheet once they can read it
   // again.
-  notifyCharacter(target, "Someone forced something down your throat while you couldn't stop them. ‡");
+  notifyCharacter(target, "Someone forced something down your throat.");
   revalidateAll();
   return {};
 }
@@ -3466,7 +3466,7 @@ async function healCharacterRequestImpl({
       : false;
   if (needsSite && !fixedSiteReach && !portablePackReach) {
     throw new UserError(
-      "That's beyond a bedside treatment: hold Surgical Equipment or a Portable Surgical Pack, stand where a set is already put up, or work in a Surgical Theater. ‡",
+      "You need surgical equipment to proceed.",
     );
   }
   // The die penalty only ever applies to a surgery Gambit resting on the
@@ -3513,7 +3513,7 @@ async function healCharacterRequestImpl({
   const acknowledgeBill = (moveCost) => {
     if ((moveCost ? 1 : 0) > billedSeen) {
       throw new UserError(
-        "Your free allowance changed since this page loaded — reload to see the new cost. ‡",
+        "Your free allowance changed since this page loaded — reload to see the new cost.",
       );
     }
   };
@@ -3683,7 +3683,7 @@ async function healCharacterRequestImpl({
       });
       if (!heldNow) {
         throw new UserError(
-          `${target.id === character.id ? "You've" : `${target.name} has`} already been treated for that. ‡`,
+          `${target.id === character.id ? "You've" : `${target.name} has`} already been treated for that.`,
         );
       }
       effect.restore = {
@@ -3951,7 +3951,7 @@ async function lootCharacterRequestImpl({
         where: { characterId_tagId: { characterId: target.id, tagId: t.tagId } },
       });
       if (!freshHeld || freshHeld.quantity < t.quantity) {
-        throw new UserError(`Someone already took that. ‡`);
+        throw new UserError(`Someone already took that.`);
       }
     }
     let freshResources = target.resources;
@@ -3962,7 +3962,7 @@ async function lootCharacterRequestImpl({
       });
       freshResources = freshTarget?.resources ?? 0;
       if (freshResources < amount) {
-        throw new UserError(`${target.name} only has ${freshResources} ⬢ left. ‡`);
+        throw new UserError(`${target.name} only has ${freshResources} ⬢ left.`);
       }
     }
 

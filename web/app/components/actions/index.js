@@ -160,10 +160,10 @@ export const FAST_PATHS = {
         title: self ? `Treat your ${affliction.tagName}?` : `Treat ${patient.name}'s ${affliction.tagName}?`,
         message: `Costs ${affliction.cost ?? 0} ⬢, paid by you.${
           affliction.gambit
-            ? " This is beyond routine, so it counts as a Gambit: it uses your Move, a die is rolled, and a poor result can leave them worse off."
+            ? " This is a Gambit."
             : billed
-              ? ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", past this turn's free first aid" : ""}. ‡`
-              : ` First aid doesn't cost a Move — ${bag.healsLeft === 1 ? "1 free treatment" : `${bag.healsLeft ?? "a few"} free treatments`} left this turn. ‡`
+              ? ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveFraction(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", past this turn's free first aid" : ""}.`
+              : ` First aid doesn't cost a Move — ${bag.healsLeft === 1 ? "1 free treatment" : `${bag.healsLeft ?? "a few"} free treatments`} left this turn.`
         }`,
         confirmLabel: "Treat",
       },
