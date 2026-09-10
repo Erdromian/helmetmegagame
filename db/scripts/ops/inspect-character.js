@@ -22,7 +22,7 @@ const {
   forcedNameFrom,
   presentedIdentity,
 } = require("../../lib/presentedIdentity");
-const { findEquipProblem, handsUsed, WEAPON_HANDS } = require("../../lib/equipSlots");
+const { HANDS_TAG_FIELDS, findEquipProblem, handsFor, handsUsed } = require("../../lib/equipSlots");
 
 // db/lib/webOnly.js keeps this as its own constant rather than a config
 // column. Imported would be better, but it is not exported and this script
@@ -90,6 +90,7 @@ async function main() {
               equipSlot: true,
               twoHanded: true,
               ...CONCEALMENT_TAG_FIELDS,
+              ...HANDS_TAG_FIELDS,
             },
           },
         },
@@ -151,8 +152,9 @@ async function main() {
     }
 
     const equipped = c.tags.filter((ct) => ct.equipped);
-    const problem = findEquipProblem(equipped);
-    console.log(`\n  Equipped: ${equipped.length} · ${handsUsed(equipped)}/${WEAPON_HANDS} hands`);
+    const handCap = handsFor(character.tags);
+    const problem = findEquipProblem(equipped, handCap);
+    console.log(`\n  Equipped: ${equipped.length} · ${handsUsed(equipped)}/${handCap} hands`);
     if (problem) console.log(`    the slot rules would refuse this set: ${problem}`);
   }
 }

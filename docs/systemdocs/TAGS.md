@@ -947,7 +947,7 @@ them).
 - `laborBonus` — what this tag adds to one kind of Laboring, e.g.
   `laborBonus: { kind: hunting, amount: 3 }`. `equipped` defaults **true**;
   `requiresTag` gates it on holding something else (the Plow needs a horse).
-  Bonuses sum. The three hands cap readied WEAPONS only; accessories are
+  Bonuses sum. The hands cap readied WEAPONS only; accessories are
   uncapped, and the fishing rod and the trapping gear are accessories.
   Normalised and validated in `db/lib/tagShapes.js`, which throws on an
   unknown `kind`, on a bonus that requires equipping a tag that is not
@@ -1723,8 +1723,8 @@ full multiplier table.
 
 `equippable: true` marks a tag as something a character can wear or carry
 readied, and so occupies its `equipSlot` (next section). Each UNIT spends its
-own slot or hand: a stack of 5 swords, all equipped, is three hands full and
-two still in the pack, not one hand for "a stack of swords" — a stackable tag
+own slot or hand: a stack of 5 swords, all equipped, is four hands full and
+one still in the pack, not one hand for "a stack of swords" — a stackable tag
 with no `equipSlot` at all still takes no more room than any other equippable
 tag, since the slot (or the lack of one) is the only limit, never a flat count.
 
@@ -1798,9 +1798,41 @@ because a slot holds one physical thing however large the stack behind it is.
 |---|---|---|
 | `HEAD` | layers 1–3, one thing per layer | 1 liner (coif, cap, mask), 2 helm, 3 outer (hat, hood, bag) |
 | `BODY` | layers 1–3, one thing per layer | 1 clothes (padded armor, robes, garb), 2 mail (mail shirt, brigandine), 3 outer (breastplate, plate, cloak, longcoat) |
-| `WEAPON` | **four hands**; a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
+| `WEAPON` | **four hands**, fewer if maimed (below); a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
 | `ACCESSORY` | **four** | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
+
+### A maiming takes hands away
+
+`Tag.handsLost` is how many of the four hand slots a tag costs: **a whole arm
+is 2, a hand that no longer grips is 1** (Missing Arm, Mangled Hand, Missing
+Fingers). `db/lib/equipSlots.js#handsFor` is the only place that answers "how
+many hands does this character have", and every surface that shows or enforces
+the cap reads it — the equip board draws that many cells rather than four with
+some permanently dashed.
+
+Three rules hold it together:
+
+- **Counted while HELD, never equipped.** Nobody wears a missing arm. That is
+  the opposite of `carryBonus` and armour, and the reason this is its own
+  column rather than a negative carry bonus.
+- **Nobody falls below two** (`HANDS_FLOOR`), however much is missing. A
+  character who can hold nothing at all is a dead end rather than a drawback —
+  they cannot carry a torch, take a letter, or pick up the thing a scene is
+  about.
+- **Ambidextrous does not give one back.** It cancels the fighting penalty a
+  maiming carries (`COMBAT.md`), because *"losing a hand would only be a minor
+  inconvenience to you"* is about coping, and coping is not the same as having
+  the hand.
+
+**An involuntary loss SHEDS; a player's own toggle REFUSES.** Granting Missing
+Arm to somebody holding four weapons unequips the excess — fullest hands first,
+so one poleaxe goes before two knives — rather than failing, because refusing
+to cut a man's arm off on the grounds that his hands are full is the tail
+wagging the dog. `db/lib/tagOps.js` does the shedding, deliberately outside the
+equip-op block (a maiming carries no equip op, so anything inside it would
+never run). Reaching for a fifth weapon yourself is still a refusal that names
+what to put down, in `character/equipActions.js`.
 
 `equipLayer:` 1 is against the skin and 3 outermost, and **two equipped tags
 may not share a layer**. So a mail coif (`HEAD` 1) goes under a knight's helm

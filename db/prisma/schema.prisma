@@ -2303,6 +2303,21 @@ model Tag {
   // counts. ADDITIVE across held rows, floored at ×0.25; see db/lib/carry.js.
   carryBonus Float?
 
+  // How many of the four hand slots this tag takes away — a maiming, and only
+  // a maiming (docs/systemdocs/TAGS.md, "equipSlot / equipLayer / twoHanded").
+  // A whole arm is 2, a hand that no longer grips properly is 1.
+  //
+  // Counted while HELD, never while equipped: nobody wears a missing arm.
+  // That is the opposite of carryBonus above and the reason this is its own
+  // column rather than a negative carryBonus — the two caps are moved by
+  // different kinds of thing, under different conditions.
+  //
+  // The TOTAL loss is capped so a character never falls below two hand slots,
+  // whatever they have lost. See HANDS_FLOOR in db/lib/equipSlots.js: a
+  // character who could hold nothing at all is a dead end rather than a
+  // drawback, and the game has nowhere to put them.
+  handsLost Int?
+
   // How much this piece of gear turns a blow aside, 0.0 to 1.0. Two numbers
   // because the two things that hit you in Ravenheart are nothing alike: a
   // breastplate is excellent against a sword and paper against a rifle, and the

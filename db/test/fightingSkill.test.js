@@ -233,3 +233,67 @@ test("the door refuses the blocks that would silently do nothing", () => {
   assert.throws(() => normalizeFighting({ tree: "both", situational: "a", note: "b" }), /situational and note/);
   assert.throws(() => normalizeFighting({ tree: "both", tiers: 1, points: 10 }), /tiers and points/);
 });
+
+// ─── hands ──────────────────────────────────────────────────────────────────
+//
+// Not a fighting band, but the same catalog and the same maimings, and the
+// failure mode is identical: a surface that forgets to select Tag.handsLost
+// reads every maimed character as whole. These live here rather than in a file
+// of their own because the values are priced against the fighting ones — an
+// arm costs 2.5 tiers and both hands.
+
+const { HANDS_FLOOR, WEAPON_HANDS, handsFor, shedForHands } = require("../lib/equipSlots");
+
+const maim = (slug, handsLost) => ({ tag: { slug, name: slug, handsLost } });
+
+test("a whole person has every hand", () => {
+  assert.equal(handsFor([]), WEAPON_HANDS);
+  assert.equal(handsFor([{ tag: { slug: "brave" } }]), WEAPON_HANDS);
+});
+
+test("an arm costs two hands and a bad hand costs one", () => {
+  assert.equal(handsFor([maim("missing-arm", 2)]), 2);
+  assert.equal(handsFor([maim("mangled-hand", 1)]), 3);
+  assert.equal(handsFor([maim("missing-fingers", 1)]), 3);
+});
+
+test("nobody is reduced below two, however much is missing", () => {
+  // A character who can hold nothing at all is a dead end rather than a
+  // drawback — they cannot carry a torch or take a letter.
+  assert.equal(handsFor([maim("missing-arm", 2), maim("missing-arm", 2)]), HANDS_FLOOR);
+  assert.equal(handsFor([maim("missing-arm", 2), maim("missing-fingers", 1)]), HANDS_FLOOR);
+  assert.equal(handsFor([maim("x", 99)]), HANDS_FLOOR);
+});
+
+test("Ambidextrous cancels the fighting penalty but grows no hands", () => {
+  const maimed = [
+    maim("missing-fingers", 1),
+    { tag: { slug: "ambidextrous", name: "Ambidextrous", fighting: { cancels: ["missing-fingers"] } } },
+  ];
+  // The tier penalty is gone...
+  const withFighting = [{ tag: { ...maimed[0].tag, fighting: { tree: "both", points: -15 } } }, maimed[1]];
+  assert.equal(fightingSkillFor(withFighting, "melee").score, UNTRAINED);
+  // ...and the hand is still missing.
+  assert.equal(handsFor(maimed), 3);
+});
+
+test("an involuntary loss sheds the excess, fullest hands first", () => {
+  const w = (name, twoHanded = false, qty = 1) => ({
+    id: name,
+    equippedQuantity: qty,
+    tag: { name, equipSlot: "WEAPON", twoHanded },
+  });
+  assert.deepEqual(shedForHands([w("knife"), w("sword")], 4), [], "nothing to shed when it fits");
+
+  // Four hands' worth, cut to two: the two-hander goes first, because putting
+  // down one poleaxe beats putting down two knives.
+  const shed = shedForHands([w("knife"), w("poleaxe", true), w("dagger")], 2);
+  assert.equal(shed[0].id, "poleaxe");
+  const left = [w("knife"), w("poleaxe", true), w("dagger")].filter((r) => !shed.some((s) => s.id === r.id));
+  assert.ok(left.reduce((n, r) => n + (r.tag.twoHanded ? 2 : 1) * r.equippedQuantity, 0) <= 2);
+});
+
+test("a stack fills hands per unit, and sheds per unit", () => {
+  const swords = { id: "swords", equippedQuantity: 3, tag: { name: "Sword", equipSlot: "WEAPON" } };
+  assert.equal(shedForHands([swords], 2).length, 1, "the whole stack comes off, since it is one row");
+});

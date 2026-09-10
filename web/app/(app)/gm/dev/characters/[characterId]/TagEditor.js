@@ -1,6 +1,6 @@
 "use client";
 
-import { WEAPON_HANDS, handsUsed } from "@lifeweb/db/lib/equipSlots";
+import { handsFor, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tagsById as buildTagsById } from "@/lib/characterCreation";
 import { tagDuration, turnsLeft } from "@/lib/turnFormat";
@@ -169,6 +169,8 @@ export default function TagEditor({
   // handsUsed expands each row by its own equippedQuantity, so this counts
   // physical units the same way equippedCount above does.
   const hands = handsUsed(held.filter((h) => h.equippedQuantity > 0));
+  // The cap this character actually has — a maiming takes hands away.
+  const handCap = handsFor(held);
 
   return (
     <>
@@ -203,7 +205,7 @@ export default function TagEditor({
           </span>
         )}
         <span className="text-xs text-muted">
-          Equipped {equippedCount} · {hands} / {WEAPON_HANDS} hands
+          Equipped {equippedCount} · {hands} / {handCap} hands
         </span>
       </section>
 

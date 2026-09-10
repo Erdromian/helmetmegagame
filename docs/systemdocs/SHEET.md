@@ -163,8 +163,10 @@ set.
 ## 4. The rig (`EquipBoard.js`)
 
 The equipment rules are `TAGS.md`'s ("equipSlot / equipLayer /
-twoHanded"): one thing per layer of Head, Body and Ride, one shield, three
-hands, accessories uncapped. The board draws exactly that — a row per slot, a
+twoHanded"): one thing per layer of Head, Body and Ride, one shield, four
+hands — fewer if maimed, and the board draws only the cells you actually have
+(`TAGS.md`, "A maiming takes hands away") — accessories uncapped. The board draws
+exactly that — a row per slot, a
 cell per place, a two-hander spanning two hand cells, `Ride` only when
 something to ride is held. A filled cell says the one fact worth a glance
 (the armour words, "conceals you", a carry bonus, pounds) and carries ✕. An

@@ -296,6 +296,13 @@ goes is the job the number is withheld from players for.
   in place is what keeps it.
 - **`web/app/components/InspectorColumn.js`** — the GM's Fighting fact.
 - **`web/app/components/TagDetails.js`** — one tag's own "In a fight" line.
+
+**A maiming costs more than tiers.** Missing Arm, Mangled Hand and Missing
+Fingers also take hand slots away (`Tag.handsLost`, `TAGS.md`), so a one-armed
+character fights worse *and* has fewer hands to fight with. The two are priced
+together and read separately: `fightingSkill.js` never looks at `handsLost`,
+and `equipSlots.js` never looks at `fighting`. Ambidextrous cancels the tier
+penalty and not the slot — coping with one hand is not having two.
 - **`web/app/globals.css`** — the eight band colours, mixed from `--danger`,
   `--muted` and `--positive` with `color-mix(in oklab, …)` rather than written
   as hex, so the ramp follows every theme. `npm run audit:contrast` reproduces

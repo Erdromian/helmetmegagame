@@ -41,6 +41,40 @@
 // See docs/systemdocs/TAGS.md.
 
 const WEAPON_HANDS = 4;
+
+// The fewest hand slots anybody can be reduced to, however much of them is
+// missing. Two arms gone is 4 - 4 without this, and a character who can hold
+// nothing at all is not a drawback — it is a dead end the game has nowhere to
+// put. They cannot carry a torch, take a letter, or pick up the thing a scene
+// is about. So the losses stack up to here and stop.
+const HANDS_FLOOR = 2;
+
+// How many hands a character actually has, after what they have lost
+// (Tag.handsLost — a whole arm is 2, a hand that no longer grips is 1).
+//
+// Counted on tags HELD, not equipped, which is the opposite rule from armour
+// and carry bonuses: nobody wears a missing arm. Accepts the CharacterTag
+// shape used everywhere else and tolerates a bare Tag[], the same latitude
+// db/lib/gambitModifier.js#holds takes.
+//
+// Ambidextrous deliberately does NOT give a slot back. It cancels the fighting
+// penalty a maiming carries (docs/systemdocs/COMBAT.md), because "losing a
+// hand would only be a minor inconvenience to you" is about coping — and
+// coping is not the same as having the hand.
+function handsFor(characterTags = []) {
+  let lost = 0;
+  for (const entry of characterTags ?? []) {
+    const tag = entry?.tag ?? entry;
+    const n = tag?.handsLost;
+    if (typeof n === "number" && n > 0) lost += n;
+  }
+  return Math.max(HANDS_FLOOR, WEAPON_HANDS - lost);
+}
+
+// The Tag columns anything resolving a hand count must select, the discipline
+// ARMOR_TAG_FIELDS sets. Miss it and every maimed character quietly reads as
+// having four hands again.
+const HANDS_TAG_FIELDS = { handsLost: true };
 // A hard cap, not a GameConfig knob like the retired flat count: the number
 // is a rule about what a person can have about them, and the last thing this
 // file needs is a second limit a GM can set to disagree with the slots.
@@ -158,16 +192,16 @@ function describeSlotClash({ a, b }) {
  * that will not go in is what has to go. Expands by equippedQuantity, so
  * three swords from one stack fill three hands, not one.
  */
-function describeHandsOverflow(tags) {
+function describeHandsOverflow(tags, hands = WEAPON_HANDS) {
   const units = expandUnits(tags);
-  if (units.reduce((n, tag) => n + handsOf(tag), 0) <= WEAPON_HANDS) return null;
+  if (units.reduce((n, tag) => n + handsOf(tag), 0) <= hands) return null;
   const excess = [];
   let held = 0;
   for (const tag of units) {
     if (tag?.equipSlot !== "WEAPON") continue;
-    const hands = handsOf(tag);
-    if (held + hands <= WEAPON_HANDS) {
-      held += hands;
+    const n = handsOf(tag);
+    if (held + n <= hands) {
+      held += n;
       continue;
     }
     excess.push(tag);
@@ -226,14 +260,46 @@ function describeAccessoryOverflow(tags) {
  * The one question both write paths ask after writing: is this set wearable?
  * @returns {string|null} a player-facing refusal, or null when the set is fine
  */
-function findEquipProblem(tags) {
+function findEquipProblem(tags, hands = WEAPON_HANDS) {
   const clash = findSlotClash(tags);
   if (clash) return describeSlotClash(clash);
-  return describeHandsOverflow(tags) ?? describeAccessoryOverflow(tags);
+  return describeHandsOverflow(tags, hands) ?? describeAccessoryOverflow(tags);
+}
+
+/**
+ * What has to come off, for an INVOLUNTARY change that shrank the hands.
+ *
+ * A GM granting Missing Arm is the case this exists for. The gate above is
+ * right for a player reaching for a fifth weapon — refuse, and say which ones
+ * to put down — but wrong for a maiming: refusing to cut somebody's arm off
+ * because their hands are full is the tail wagging the dog. So an involuntary
+ * change sheds instead, the way db/lib/carry.js#settleCarry already sets down
+ * whatever will not fit when a payout lands.
+ *
+ * Returns the rows to unequip, fullest hands first, until what is left fits.
+ * Two-handers go before one-handers at equal cost, because putting down one
+ * poleaxe beats putting down two knives.
+ */
+function shedForHands(worn, hands) {
+  const rows = (worn ?? []).filter((r) => (r?.tag ?? r)?.equipSlot === "WEAPON");
+  let held = rows.reduce((n, r) => n + handsOf(r?.tag ?? r) * Math.max(1, r?.equippedQuantity ?? 1), 0);
+  if (held <= hands) return [];
+  const shed = [];
+  for (const row of [...rows].sort((a, b) => handsOf((b?.tag ?? b)) - handsOf((a?.tag ?? a)))) {
+    if (held <= hands) break;
+    const tag = row?.tag ?? row;
+    held -= handsOf(tag) * Math.max(1, row?.equippedQuantity ?? 1);
+    shed.push(row);
+  }
+  return shed;
 }
 
 module.exports = {
   WEAPON_HANDS,
+  HANDS_FLOOR,
+  HANDS_TAG_FIELDS,
+  handsFor,
+  shedForHands,
   MAX_ACCESSORIES,
   MAX_EQUIP_LAYER,
   LAYERED_SLOTS,

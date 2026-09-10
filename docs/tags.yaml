@@ -4053,6 +4053,7 @@ tags:
     group: health-wounds
     description: "Your fingers are pointing in random directions."
     fighting: { tree: both, tiers: -2 }
+    handsLost: 1
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4469,6 +4470,7 @@ tags:
     group: health-maiming
     description: "Your arm is gone at the shoulder."
     fighting: { tree: both, tiers: -2.5 }
+    handsLost: 2
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4516,6 +4518,7 @@ tags:
     group: health-maiming
     description: "One of your hands is missing several fingers."
     fighting: { tree: both, tiers: -1.5 }
+    handsLost: 1
     pointCost: -4
     carryBonus: -0.05
     visible: true
