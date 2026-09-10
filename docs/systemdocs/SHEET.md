@@ -24,11 +24,19 @@ works — and that was wrong for a sheet: nothing on it arrives while you read,
 so nothing had to be pinned. The shell class is gone entirely.
 
 `web/app/(app)/character/layout.js` draws the shared `AppHeader`
-(`web/app/components/AppHeader.js`) and nothing else around `{children}`. The
-header is a person rather than a page name — titled with the character's name,
-their role and faction as the meta line — and its actions are the avatar plus
-**← Back to the game · Esc**, a link to `/chat`. The turn chip is `AppHeader`'s
-own `TurnMeta`, the same one every other page gets.
+(`web/app/components/AppHeader.js`) and nothing else around `{children}`. It is
+an **ordinary page name**: the title is the word `Character`, there is no meta
+line, and the one action is **← Back to the game · Esc**, a link to `/chat`.
+The turn chip is `AppHeader`'s own `TurnMeta`, the same one every other page
+gets.
+
+It was a *person* until 2026-09-10 — the character's name as the title, their
+role and faction as the meta line, their face as a 24px avatar beside the Back
+link. All four moved down into the band (§2), where they sit next to a face big
+enough to be worth looking at; saying them again 40px above only made the page
+name the person twice. The layout still asks `loadHeaderIdentity()`, because
+whether there **is** a living character is what gates the Back link and the
+Escape listener.
 
 The Back link and the Escape listener are drawn **only when there is a living
 `ALIVE` character** (`loadHeaderIdentity()`, the same question that decides
@@ -57,6 +65,19 @@ change at those breakpoints — the scrolling is the same at every size.
 ## 2. The band (`LedgerBand.js`)
 
 Who this is, where they stand, and:
+
+- **The identity cluster** (`.ledger-identity`) — the face, then the name as an
+  `h2`, the role and faction on one muted line (the faction a link to
+  `/faction`), where they stand on the next, and the status strip under that.
+  These are the page's only statement of who you are, now that the header is a
+  page name again (§1).
+- **The face has no size of its own.** The column beside it sets the height and
+  the face matches it, square — a floor of `6rem` so it can never come out
+  smaller than the 64px it replaced, a ceiling of `9rem` so a dozen status tags
+  cannot turn somebody's portrait into a wall. `.ledger-identity` also *grows*
+  (`flex: 1 1 22rem`) rather than shrink-wrapping: `.ledger-tiles` caps at
+  `47rem`, and before this the leftover width simply became a gap in the middle
+  of the band.
 
 - **The status strip** — Chat's own `play/StatusStrip.js`, minus its two
   leading chips: every Status and Health tag, and no ⬢ or carry line. The

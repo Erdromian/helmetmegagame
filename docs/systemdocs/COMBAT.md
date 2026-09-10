@@ -329,17 +329,27 @@ goes is the job the number is withheld from players for.
 
 ## 6. The surfaces
 
-- **`web/app/components/LedgerBand.js`** — the Combat tile, spanning two
-  tracks of the band's lower rank. Resting it shows the two bands, the combined
-  armour **beside them on one line**, and one quiet 11px line naming the
-  situational tags. Hover, focus or click and it **swaps its own face** for the
-  breakdown: MELEE and RANGED as full-width stacked rows. Sized by the resting
-  face, so opening it moves nothing. **Not a tooltip** — `SHEET.md` §3 is the
-  rule for that surface, and swapping in place is what keeps it.
+- **`web/app/components/LedgerBand.js`** — the Combat readout, in the **band
+  row** beside This turn and Turn Effects rather than in the tile row. That
+  row's `max-width` fits exactly five tiles and a sixth needs 856px; putting
+  Combat there broke a line that had never wrapped.
 
-  It lives in the **band row** beside This turn and Turn Effects, not in the
-  tile row. That row's `max-width` fits exactly five tiles and a sixth needs
-  856px; putting Combat there broke a line that had never wrapped.
+  Resting, it is **a row per dimension** — Melee and Ranged, each with its own
+  band and its own armour. It was two unlabelled *pairs* first ("Pitiful ·
+  Pitiful" over "⛊ None · None") and nobody could read the second half of
+  either: one shield in front of two words says nothing about which word it
+  belongs to. Turning it ninety degrees answers both at once.
+
+  One honest approximation is baked in: the Ranged row pairs ranged **skill**
+  with **ballistic** armour, and those are not quite the same axis — ballistic
+  is what guns roll against, while ranged skill covers bows too. Bascinet's
+  call, made knowingly, on the grounds that two labelled lines roughly right
+  beat four values nobody can attribute at all.
+
+  Hover, focus or click and it **swaps its own face** for the breakdown: MELEE
+  and RANGED as full-width stacked rows. Sized by the resting face, so opening
+  it moves nothing. **Not a tooltip** — `SHEET.md` §3 is the rule for that
+  surface, and swapping in place is what keeps it.
 - **`web/app/components/InspectorColumn.js`** — the GM's Fighting fact.
 - **`web/app/components/TagDetails.js`** — one tag's own "In a fight" line.
 
@@ -381,3 +391,40 @@ an event when somebody does.
   character's own tags can never know who that is. It rides as a `note:` on its
   holder, where the GM adjudicating the fight will see it. Making it a real
   modifier would mean resolving fights in code, which this system does not do.
+
+
+## Second Wind
+
+An ordinary 6-point tag (**not** a mastery, despite reading like one): a
+**wound's** penalty stops counting toward the rating.
+
+It works through `contextOf`'s new `secondWind` flag and reuses the branch in
+`modifiers()` that already exists for a cancelled maiming — the contributor is
+pushed at **`points: 0` with a `cancelledBy` label, not dropped**, so a player
+wondering why their broken arm costs nothing can read the answer instead of
+assuming the system lost it.
+
+Three things it deliberately does **not** do:
+
+- **It never lifts a band CAP.** Dying, Paralyzed and Seizure keep
+  `cap: pitiful`. Those take you *out* of a fight rather than making you worse
+  at one, which is exactly what the cap mechanism is for (§2).
+- **It only waives penalties.** A Health tag with positive `points` keeps
+  helping.
+- **It is WOUNDS only** — the three groups in `WOUND_TAG_GROUPS`
+  (`db/lib/constants.js`): `health-wounds`, `health-maiming`,
+  `health-infection`. 33 tags, against 30 Health tags that still cost you:
+  every illness, Blind, Concussed, Envenomated, Choking, and the aches. It
+  waived the whole Health category for a day, which at 6 points bought off
+  sixty-odd stacking penalties on a tag buyable at creation. A cold is not a
+  wound, and neither is blindness.
+- **A Status penalty** — Bound, a hangover, Wasted — is untouched.
+
+`FIGHTING_TAG_FIELDS` gained `category: true` for this. The group slug it also
+needs is deliberately **not** in that object: every caller spreads it into a
+wider select that already asks for `group` with more fields, and a narrower
+`group` spread in afterwards would silently strip the colour off every chip in
+the app. So the contract is that a caller resolving a whole character selects
+`group: { select: { slug: true } }` itself — both do today. A row arriving
+without its group reads as not-a-wound, which fails **safe**: the penalty still
+counts.

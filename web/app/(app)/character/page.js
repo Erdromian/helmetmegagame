@@ -383,6 +383,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         // addableTags' purchasable branch requires this or it reads
         // undefined and drops purchasable-only tags from the Add Tag menu.
         purchasableAfterStart: true,
+        // ChipLabel's mastery star.
+        mastery: true,
         craftable: true,
         // The custom-item opt-in (CRAFTING.md): the Craft dialog shows its
         // name/description fields only when this crosses — and it crosses

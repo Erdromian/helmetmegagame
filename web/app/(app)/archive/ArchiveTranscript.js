@@ -48,11 +48,19 @@ function dayLabel(row) {
   return `Day ${Math.ceil(row.turnNumber / 2)}`;
 }
 
+// The channelKinds that mean "a place in the world", and so are already
+// covered by zoneName. Anything else with no zone is a standing channel
+// outside the zone system — a radio net — and the channel's own name is the
+// only thing that tells two of them apart. Without this both nets filed
+// under one "Elsewhere" scene, police traffic interleaved with the cult's.
+const PLACED_KINDS = new Set(["summary", "location", "scene", "intercom"]);
+
 // The place, as a key and as words. The KEY is placeKey where there is one —
 // the display string merges two rooms that happen to share a name and splits
 // one that got renamed, which is exactly the pair of bugs this avoids.
 function sceneOf(row) {
-  const place = row.zoneName ?? "Elsewhere";
+  const named = row.channelKind && !PLACED_KINDS.has(row.channelKind) ? `#${row.channelKind}` : null;
+  const place = row.zoneName ?? named ?? "Elsewhere";
   return {
     key: row.placeKey ?? (row.threadName ? `${place} · ${row.threadName}` : place),
     zoneName: row.zoneName ?? null,

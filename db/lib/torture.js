@@ -5,6 +5,7 @@
 //
 // Off the @lifeweb/db barrel on purpose; require it by path.
 const { TORTURER_SLUG, TORTURING_EQUIPMENT_SLUG } = require("./constants");
+const { formatAdvantage } = require("./advantage");
 const { HEALTH_CATEGORY } = require("./medicalVision");
 
 // die + bonuses must reach this. A 1 on the die always fails, whatever the
@@ -66,11 +67,11 @@ function tortureBonuses({ torturerSlugs = [], equipmentInReach = false } = {}) {
 // `gambitMods` is gambitModifiers(torturerTags, { hungerStreak, mood }) — Hungry,
 // Ecstatic, Afraid, Panicking — computed by the caller because those read Character columns
 // this file never sees. They count here exactly as they would on any Gambit.
-function resolveTorture({ die, torturerSlugs = [], targetSlugs = [], equipmentInReach = false, gambitMods = [] }) {
+function resolveTorture({ die, rolls = null, torturerSlugs = [], targetSlugs = [], equipmentInReach = false, gambitMods = [] }) {
   const modifiers = [...tortureBonuses({ torturerSlugs, equipmentInReach }), ...gambitMods];
   const total = die + modifiers.reduce((sum, m) => sum + m.value, 0);
   const threshold = thresholdFor(targetSlugs);
-  return { die, total, threshold, success: die !== 1 && total >= threshold, modifiers };
+  return { die, rolls, total, threshold, success: die !== 1 && total >= threshold, modifiers };
 }
 
 // Which of a subject's CharacterTag rows a break gives up.
@@ -80,9 +81,15 @@ function revealedTags(characterTags = []) {
 
 // "Rolled a 5 +1 Cruel −1 Hungry against 4" — U+2212 minus, matching the
 // bot's roll line and formatGambitModifiers.
-function formatTortureRoll({ die, modifiers, threshold }) {
+// `rolls` is every die actually thrown — two of them when the torturer holds
+// Lucky (db/lib/advantage.js), which is the ONE place in the game a player sees
+// that tag do its work. Everywhere else the die is either withheld until the
+// turn-end reveal or never printed at all, so a fifteen-point tag would
+// otherwise look exactly like ordinary good fortune.
+function formatTortureRoll({ die, modifiers, threshold, rolls = null }) {
   const mods = modifiers.map((m) => `${m.value > 0 ? "+" : "−"}${Math.abs(m.value)} ${m.label}`).join(" ");
-  return `Rolled a ${die}${mods ? ` ${mods}` : ""} against ${threshold}`;
+  const luck = formatAdvantage({ rolls, advantage: (rolls?.length ?? 0) > 1 });
+  return `Rolled a ${die}${luck ? ` ${luck}` : ""}${mods ? ` ${mods}` : ""} against ${threshold}`;
 }
 
 // Discord's field cap. Same trim the bot's examineEmbed applies.

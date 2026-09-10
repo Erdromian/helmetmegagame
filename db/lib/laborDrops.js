@@ -1,3 +1,4 @@
+const { LABORING_SCAVENGING_SLUG } = require("./constants");
 // The labor drop die: what a Labor payout can find, on top of its ⬢. See
 // docs/systemdocs/LABORDROPS.md.
 //
@@ -68,13 +69,56 @@ async function laborDropPool(tx, { roll, laborType = null, zoneId = null, locati
 // requiredTagId gate) — which is the deliberate default while most of the
 // table is still unbuilt (CLAUDE.md session note: "we don't have the full
 // loot table figured out yet").
-async function pickLaborDropOption(tx, { roll, laborType = null, zoneId = null, locationId = null, heldTagIds = new Set() }) {
-  const pool = await laborDropPool(tx, { roll, laborType, zoneId, locationId, heldTagIds });
+// The faces Laboring (Scavenging) may fall back FROM, and the one it falls back
+// TO. A 1 is deliberately not on the list: the tag says a GOOD day is never an
+// injury, not that a bad one stops happening, and moving 1 as well would delete
+// the only face that costs a labourer anything.
+const SCAVENGING_FALLBACK_FROM = Object.freeze([4, 5]);
+const SCAVENGING_FALLBACK_TO = 6;
+
+// Whether a Scavenger's roll is even a candidate for the fallback below. Pure,
+// so the rule is testable without a database; whether it actually FIRES depends
+// on the pool, which only pickLaborDropOption can see.
+function scavengingMayFallBack(roll, heldSlugs) {
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  return held.has(LABORING_SCAVENGING_SLUG) && SCAVENGING_FALLBACK_FROM.includes(roll);
+}
+
+// Draws one entry uniformly from the combined pool, or null when nothing is
+// configured for this roll at all (or nothing in it survives the
+// requiredTagId gate) — which is the deliberate default while most of the
+// table is still unbuilt.
+//
+// LABORING (SCAVENGING) is the one thing that can redraw. A 4 or a 5 that finds
+// an EMPTY pool is drawn again on the 6's instead, which is what "drops on 4
+// and 5 as well as 6" means for a table where those faces hold nothing.
+//
+// The empty-pool test is the whole point, and it is not a detail. This started
+// life as a blanket 4/5 -> 6 remap, written when faces 1 and 6 were the only
+// ones configured anywhere. Prospecting (2026-09-19) filled in 2, 4 and 5, and
+// a blanket remap immediately became a DOWNGRADE: a fisherman's 4 is worth
+// 10 ⬢ against face 6's 1.56, and a prospector's 5 is worth 8 against 6.75.
+// Falling back only from a face that would otherwise pay nothing can never take
+// a configured payout away, and it needs no per-face bookkeeping to stay true
+// as the rest of the table gets built out.
+async function pickLaborDropOption(tx, { roll, laborType = null, zoneId = null, locationId = null, heldTagIds = new Set(), heldSlugs = new Set() }) {
+  let pool = await laborDropPool(tx, { roll, laborType, zoneId, locationId, heldTagIds });
+  if (pool.length === 0 && scavengingMayFallBack(roll, heldSlugs)) {
+    pool = await laborDropPool(tx, {
+      roll: SCAVENGING_FALLBACK_TO,
+      laborType,
+      zoneId,
+      locationId,
+      heldTagIds,
+    });
+  }
   if (pool.length === 0) return null;
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
 module.exports = {
+  scavengingMayFallBack,
+  SCAVENGING_FALLBACK_TO,
   TIER_TO_LABOR_DROP_TYPE,
   scopeFilters,
   passesRequiredTag,

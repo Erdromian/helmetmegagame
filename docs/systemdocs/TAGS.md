@@ -383,6 +383,30 @@ A character's budget is
 tags (Courtier, Chaplain, Nobility) are `false`, so they arrive with the role
 and never through the menu.
 
+`mastery` is the third state those two flags could not express. `purchasable`
+says "buyable at all" and `purchasableAfterStart` says "still buyable
+mid-game"; neither says **"not yet"**. A mastery tag is refused by character
+creation and offered only by `/store`, so it is bought with points earned in
+play rather than out of a starting budget — a capstone you grow into instead
+of an opening pick. The web draws a **★** beside the name of one, everywhere a
+name is drawn (`web/app/components/ChipLabel.js` for the web,
+`db/lib/tagDisplayName.js` for Examine and the bot's 🔍 embed).
+
+Two pairings are refused by `db/lib/syncTags.js` outright, because both would
+leave a tag quietly unbuyable rather than visibly broken: `mastery` with
+`purchasableAfterStart: false` (the store is the only menu left, and it just
+shut), and `mastery` with a negative `pointCost` (a drawback you can only take
+mid-game is the point farm §4a exists to prevent). The gate itself is one line
+in `purchasableTags()` mirroring the `afterStartOnly` line beside it, and
+`createActions.js` re-checks it server-side with `mastery: false` in its own
+`where` — a hidden option is a hint, not a lock.
+
+The nine mastery tags today are Lucky (15), Manic (13), Metempsychosis (12),
+Amor Fati (12), Imperturbable (12), Brewing (Distilling) (14), Laboring
+(Scavenging) (12), Laboring (Tireless) (14) and Musician (Pythagorean) (14).
+Second Wind reads like one and deliberately is not: it is an ordinary 6-point
+tag, buyable at creation like anything else.
+
 `purchasableAfterStart` splits the two menus that share
 `web/app/components/PointBuy.js`: character creation offers every
 `purchasable` tag, while the mid-game store offers only those still marked
@@ -474,7 +498,17 @@ reason to price one at 5.
 | −11 | Removes a whole sense or capability, with no realistic cure. |
 
 14 is the ceiling and −11 the floor; nothing should be priced outside them
-without a deliberate decision recorded here. **Pilgrim is the first deliberate
+without a deliberate decision recorded here.
+
+**The mastery band is that decision, made once for a whole class rather than
+per tag.** A `mastery` tag (§4) is bought mid-game with points a character
+earned, never out of the 12 a build opens with, so the ceiling that keeps one
+tag from eating a whole starting budget is not the constraint on it. They are
+priced 12–15 and are meant to be: a capstone should cost about what a
+character's whole first sheet did. Lucky at 15 is the highest price in the
+catalog and the deliberate top of this band — it bends every die a character
+rolls. Do not read the mastery prices as a new general scale; an ordinary tag
+is still priced off the table above. **Pilgrim is the first deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call.
 **Instrument is the second, also at 1** — Bascinet's call: it buys no
 advantage whatsoever, only the `/play` line, and the Minstrel gets it free

@@ -159,6 +159,7 @@ const INTERNAL_KEYS = [
   "messageWipeEnabled",
   "radioCategoryId",
   "cerberonChannelId",
+  "freq27065ChannelId",
   // Retired 2026-09-13: the per-slot rules in db/lib/equipSlots.js are the
   // whole equipment limit. The column stays, unread, so nothing drops a value.
   "equipSlots",

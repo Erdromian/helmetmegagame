@@ -11,7 +11,7 @@
 // Takes `prisma` as the first parameter (the db/lib/dm.js convention) and is
 // NOT on the @lifeweb/db barrel; require it by path. Web files the offer and
 // the bot answers the click, so everything both sides check lives here.
-const { rollDie } = require("./moveEffects");
+const { rollWithAdvantage } = require("./advantage");
 const { gambitModifierTotal } = require("./gambitModifier");
 const { moveWindow } = require("./turnClock");
 const { clockFrozen } = require("./gameState");
@@ -427,7 +427,8 @@ async function acceptLesson(prisma, offer, responder) {
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
           description: `Learning ${tag.name} from ${teacher.name}.`,
-          diceRoll: rollDie(),
+          // Lucky keeps the better of two dice (db/lib/advantage.js).
+          diceRoll: rollWithAdvantage(learner.tags).die,
           diceModifier: gambitModifierTotal(learner.tags, {
             hungerStreak: learner.hungerStreak,
             mood: learner.mood,

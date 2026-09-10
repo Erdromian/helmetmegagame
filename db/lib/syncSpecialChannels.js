@@ -33,7 +33,18 @@ const CHANNEL_TYPE_CATEGORY = 4;
 
 const CATEGORY_NAME = "Radio";
 
-async function ensureCategory(prisma, config, guildChannels, categoryConfigKey) {
+// Memoized for the length of one run. Every entry shares the one "Radio"
+// category, and `guildChannels` was fetched BEFORE this run created anything —
+// so without the memo the second entry sees a category that is neither in its
+// stale config nor in the stale channel list, and cuts a duplicate.
+async function ensureCategory(prisma, config, guildChannels, categoryConfigKey, memo) {
+  if (memo.has(categoryConfigKey)) return memo.get(categoryConfigKey);
+  const id = await resolveCategory(prisma, config, guildChannels, categoryConfigKey);
+  memo.set(categoryConfigKey, id);
+  return id;
+}
+
+async function resolveCategory(prisma, config, guildChannels, categoryConfigKey) {
   const knownId = config[categoryConfigKey];
   if (knownId && guildChannels.some((c) => c.id === knownId && c.type === CHANNEL_TYPE_CATEGORY)) {
     return knownId;
@@ -62,6 +73,7 @@ async function syncSpecialChannels(prisma) {
   const config = await prisma.gameConfig.upsert({ where: { id: 1 }, update: {}, create: { id: 1 } });
   const guildChannels = await getGuildChannels();
   const stats = { provisioned: [], reparented: [], roleGrants: 0, roleRevokes: 0 };
+  const categoryIds = new Map();
 
   // Zone roles for the static roleView grants, resolved once by slug.
   const zones = await prisma.zone.findMany({
@@ -72,7 +84,13 @@ async function syncSpecialChannels(prisma) {
   const slugByRole = new Map(zones.map((z) => [z.discordRoleId, z.slug]));
 
   for (const entry of SPECIAL_CHANNELS) {
-    const categoryId = await ensureCategory(prisma, config, guildChannels, entry.categoryConfigKey);
+    const categoryId = await ensureCategory(
+      prisma,
+      config,
+      guildChannels,
+      entry.categoryConfigKey,
+      categoryIds,
+    );
 
     let channelId = config[entry.configKey];
     let known = channelId ? guildChannels.find((c) => c.id === channelId) : null;

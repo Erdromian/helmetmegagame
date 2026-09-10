@@ -93,6 +93,7 @@ async function FreshDevTags({ userId }) {
           teachable: t.teachable,
           purchasable: t.purchasable,
           purchasableAfterStart: t.purchasableAfterStart,
+          mastery: t.mastery,
           defaultDurationTurns: t.defaultDurationTurns,
           sellable: t.sellable,
           sellablePrice: t.sellablePrice,

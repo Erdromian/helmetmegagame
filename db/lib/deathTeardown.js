@@ -24,10 +24,35 @@ const { GHOST_ROLE_ID } = require("./roleIds");
 // `character` needs only { id, name, discordUserId, discordRoleId }. The role
 // id has to be READ BEFORE applyDeathToRow runs, which nulls the column — every
 // caller captures it first for exactly this reason.
+// Whether this PERSON still has a living character. Every step below — and the
+// automatic-death equivalent in db/lib/turnSideEffects.js — keys on
+// `discordUserId` rather than on the character row, so all of it reaches the
+// player rather than the corpse. That is right for an ordinary death and wrong
+// the moment somebody dies and is alive again in the same breath, which is what
+// Metempsychosis does (db/lib/reincarnate.js): the reborn character was placed
+// seconds earlier and would then be ghosted, un-nicknamed and locked out of the
+// zone it is standing in.
+//
+// Guarding on "is this player alive right now" rather than on the tag keeps it
+// true for anything else that ever brings somebody back inside one turn.
+async function stillAlive(prisma, discordUserId) {
+  if (!discordUserId) return false;
+  const living = await prisma.character
+    .count({ where: { discordUserId, status: "ALIVE" } })
+    .catch(() => 0);
+  return living > 0;
+}
+
 async function applyDeathTeardown(prisma, character) {
   const log = (what) => (err) => console.error(`Death teardown: ${what} failed:`, err?.message ?? err);
 
-  await revokeAllCharacterAccess(prisma, character).catch(log(`revoke for ${character.name}`));
+  // The corpse's own role still goes, but nothing that would strip the PERSON
+  // runs while the person is alive again — see stillAlive above.
+  const reborn = await stillAlive(prisma, character.discordUserId);
+
+  if (!reborn) {
+    await revokeAllCharacterAccess(prisma, character).catch(log(`revoke for ${character.name}`));
+  }
 
   if (character.discordRoleId) {
     await deleteGuildRole(character.discordRoleId).catch(log(`role delete for ${character.name}`));
@@ -38,9 +63,11 @@ async function applyDeathTeardown(prisma, character) {
   const member = await getGuildMember(character.discordUserId).catch(() => null);
   if (!member) return { member: false };
 
+  if (reborn) return { member: true, reborn: true };
+
   await setGuildNickname(character.discordUserId, null).catch(log(`nickname for ${character.name}`));
   await addMemberRole(character.discordUserId, GHOST_ROLE_ID).catch(log(`ghost seat for ${character.name}`));
   return { member: true };
 }
 
-module.exports = { applyDeathTeardown };
+module.exports = { applyDeathTeardown, stillAlive };

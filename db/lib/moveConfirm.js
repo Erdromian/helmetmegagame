@@ -1,5 +1,5 @@
 const { gambitModifiers, gambitModifierTotal } = require("./gambitModifier");
-const { rollDie } = require("./moveEffects");
+const { rollWithAdvantage } = require("./advantage");
 const { formatLaborBonusNote, lazyYield, lazyExpression } = require("./laborAccess");
 const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 
@@ -27,7 +27,12 @@ const { rollResourceRange, formatRangeExpression } = require("./resourceDelta");
 // `roll` is the same facts unformatted, for a surface that renders plain
 // text instead.
 async function confirmMove(prisma, action, actorDiscordUserId, { laborRate = null } = {}) {
-  const diceRoll = action.moveKind === "GAMBIT" ? rollDie() : null;
+  // Lucky rolls this twice and keeps the better die (db/lib/advantage.js).
+  // `diceRoll` stays the die that COUNTS, so everything downstream — the
+  // stored column, the threshold checks, the reveal DM — is unchanged; the
+  // discarded die rides along in `advantage` for the roll line alone.
+  const advantage = action.moveKind === "GAMBIT" ? rollWithAdvantage(action.character.tags) : null;
+  const diceRoll = advantage ? advantage.die : null;
   // Only a Gambit rolls, so only a Gambit can carry a modifier. diceRoll stays
   // the RAW roll and the SUM of every contributor (Hunger scaled to the
   // streak, and the bottom two mood bands) is stored beside it — see the

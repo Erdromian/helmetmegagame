@@ -280,6 +280,26 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" is named "${t.name}", so its slug should be "${allowed.join('" or "')}" — rename the slug with the name, fix the name, or mark the rename deliberate with keepSlug: true`,
       );
     }
+    // A mastery tag is only ever bought mid-game, so the store is the ONLY
+    // menu that offers it. Both of these would leave it quietly unbuyable
+    // rather than visibly broken, which is why they throw here.
+    if (t.mastery) {
+      if (t.purchasable === false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is mastery but not purchasable — mastery narrows WHEN a tag can be bought, it cannot make an unbuyable one buyable`,
+        );
+      }
+      if (t.purchasableAfterStart === false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is mastery but purchasableAfterStart: false — creation already refuses a mastery tag, so it could be bought nowhere at all`,
+        );
+      }
+      if ((t.pointCost ?? 0) < 0) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is mastery with a negative pointCost — a drawback you can only take mid-game is a point farm (TAGS.md 4a)`,
+        );
+      }
+    }
     // concealsIdentity requires equippable — a typo guard, not a rule.
     if (t.concealsIdentity && !t.equippable) {
       throw new Error(
@@ -736,6 +756,7 @@ async function syncTagsFromYaml(prisma) {
       stackable: entry.stackable ?? false,
       purchasable: entry.purchasable ?? false,
       purchasableAfterStart: entry.purchasableAfterStart ?? true,
+      mastery: entry.mastery ?? false,
       excludedRoleSlugs: entry.excludedRoles ?? [],
       onlyRoleSlugs: entry.onlyRoles ?? [],
       sellable: entry.sellable ?? false,

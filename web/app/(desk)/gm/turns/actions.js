@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { after } from "next/server";
-import { prisma, rollDie, Prisma } from "@lifeweb/db";
+import { prisma, Prisma } from "@lifeweb/db";
+import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
@@ -591,8 +592,10 @@ function normalizeEdits(action, edits, characterTags, hungerStreak, mood) {
       data.diceModifier = null;
     } else {
       // Rolled from the character's current tags/hungerStreak/mood, not
-      // whatever was true when the player submitted.
-      data.diceRoll = rollDie();
+      // whatever was true when the player submitted. That includes Lucky:
+      // a GM switching a Routine to a Gambit must roll the same die the
+      // player's own submit path would have (db/lib/advantage.js).
+      data.diceRoll = rollWithAdvantage(characterTags).die;
       data.diceModifier = gambitModifierTotal(characterTags, { hungerStreak, mood });
     }
   }

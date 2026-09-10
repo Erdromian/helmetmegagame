@@ -875,3 +875,85 @@ could not work: `createCharacter` resolves the list with `name: { in: [...] }`,
 a set lookup that collapses duplicates.
 
 See `docs/systemdocs/DEPOT.md` §0g.
+
+
+## Metempsychosis
+
+A `mastery` tag (`TAGS.md` §4a). A character holding it who dies is rolled
+straight into a new one instead of going back through the wizard as a Cursed
+re-roll: **a random role with a free seat, `startingTagPoints + 6`, and no
+Curse.** `db/lib/reincarnate.js`.
+
+It hangs off `db/lib/characterDeath.js#applyDeathToRow` rather than off the
+wizard, because **eight** callers kill people — the dying, catatonic,
+ascension, nuke and turret passes, the rites, and the web's own
+`killCharacter` — and all eight go through that one function. Hooking the
+wizard would have covered one of them.
+
+Four things worth knowing before changing it:
+
+- **The tag is read before the claim, and off the database.** Callers pass
+  `Character` rows of every shape and most carry no tags at all; a *gib*
+  deletes the tag rows outright a few lines later. Asking afterwards finds
+  nothing.
+- **The seat is claimed under the same `FOR UPDATE` row lock the wizard
+  takes** (§2). Two deaths resolving inside one turn pass must not both land
+  in the last free seat. `heldSeatsByRole` + `roleCapacity` decide "full", so
+  reincarnation and the assignment roll cannot disagree about it.
+  **Three** exclusions: whitelisted and spawn-only (the two the assignment roll
+  makes), plus the **dynasty seats**. Baroness, Heir and Successor are not
+  whitelisted, so without that third one a coin flip could seat a random dead
+  player in the ruling family with the Baron's surname and the seat's key —
+  the largest political event in the game, with no human in the loop.
+- **It builds the character the wizard would have built.** The role kit arrives
+  with `expiresTurn` **stamped** (nothing backfills it, so a timed kit tag
+  written without one is permanent), `Role.extraStartingPoints` counts toward
+  the budget, `seedMemories` runs so the new body is not standing in a town it
+  cannot see, and `webOnly` is carried across — read off the database, not off
+  the passed row, since the eight callers select whatever they happen to need.
+- **The player is not ghosted by their own corpse.** Both death teardowns key on
+  `discordUserId`, so they reach the *person*; both now skip somebody who is
+  alive again (`db/lib/deathTeardown.js#stillAlive`), and reincarnation lifts
+  the ghost role and sets the nickname itself, the way `db/lib/threatSpawn.js`
+  does when a spawn brings a dead player back.
+- **The points arrive unspent**, on `Character.tagPoints`. Skipping the wizard
+  means there is no menu in which to spend them, and `/store` is that menu
+  mid-game — it already spends exactly this column. No new surface.
+- **The new body is a new person: name, gender and age are all rolled**
+  (`rollIdentity`), and nothing is inherited from the corpse — which still
+  carries its own name on itself and on its personal Discord role. The rolls
+  are the same three `web/app/actions.js#startAsLocalPlayer` makes, the other
+  programmatic character creator: a uniform gender from `GENDERS`
+  (`db/lib/titles.js`), then a name out of `db/lib/nameCorpus.js` from the pool
+  that gender names, and an age uniform across 18–65. There is no
+  name-collision check because the game has none — `Character.name` is a
+  denormalized display mirror, not a key, and the wizard already lets two
+  players be Otto.
+
+  Two things are deliberately **not** rolled, and either would be a bug:
+  `role.lockedGender` wins over the gender roll, because three *reachable*
+  seats set it (Baroness, Heir, Successor — only the Baron is whitelisted and
+  already excluded), and rolling over it styles a male Baroness off the wrong
+  word in `db/lib/titles.js`. And those same three wear the living Baron's
+  surname, so `lastNameLocked` makes the corpus return none and the Baron
+  supplies it — no living Baron, or one who never chose a name, means no last
+  name, the same answer `web/lib/dynasty.js#dynastyLastName` gives.
+
+  **The age band stops at `REINCARNATION_AGE_MAX` (65), short of the catalog's
+  own `AGE_MAX` of 90**, which stays what the wizard lets a player type. A roll
+  uniform across the full 18–90 averages 54, and `db/lib/concealedIdentity.js`
+  reads 55 and over as "Old" — so half of every reincarnation would have woken
+  up elderly, where players choosing for themselves almost never do. 18–65
+  averages 41 and puts most souls in the broad middle band that gets no age
+  adjective at all.
+
+`db/lib/curse.js` is untouched: the new character is `ALIVE`, so `isCursedIn`
+already returns not-cursed and the −6 and the Migrant/Bum restriction never
+apply. The personal character role is deliberately not minted here — it is a
+mentionable name token that grants nothing (`PROXYING.md` §6), the placeholder
+name is about to change anyway, and the channel doctor mints any missing one on
+the next bot start.
+
+Every early return is a normal outcome, not an error: no tag, no Discord user,
+another living character already, or no free seat anywhere in the game. A
+player whose soul finds nowhere to go is simply dead the ordinary way.

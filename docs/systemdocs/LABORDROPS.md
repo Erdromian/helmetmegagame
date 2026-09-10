@@ -453,3 +453,33 @@ turn close (`TURN-ENGINE.md` §8b), shedding to a Depths room only past the
 | The auto-refresh hook | `.claude/hooks/labordrops-value-hint.py` |
 | Combine-scope tests | `db/test/laborDrops.test.js` |
 | Cascading-EV / annotator tests | `db/test/labordropsAnnotate.test.js` |
+
+
+## 8. Laboring (Scavenging) redraws an empty face
+
+Laboring (Scavenging) (a mastery, `TAGS.md` §4a) redraws on the **6's pool**
+when a rolled 4 or 5 finds **an empty one** — `pickLaborDropOption` in
+`db/lib/laborDrops.js`, where the pool is already in hand.
+
+The empty-pool test is the rule, not a detail. This shipped first as a blanket
+`4/5 → 6` remap, which was written when faces **1 and 6 were the only ones
+configured anywhere**. Prospecting (2026-09-19) filled in 2, 4 and 5, and the
+blanket remap immediately became a **downgrade**:
+
+| labor type | configured faces | what a blanket remap cost |
+|---|---|---|
+| hunting | 1, 6 | nothing |
+| farming | 6 | nothing |
+| fishing | **4** (EV 10 ⬢), 6 (EV 1.56) | traded 10 ⬢ for 1.56 |
+| prospecting | **2, 4, 5**, 6 | traded face 5's 8 ⬢ for 6.75 |
+
+Falling back only from a face that would otherwise pay **nothing** gives the
+same answer as the old rule everywhere the old rule was right, can never take a
+configured payout away, and stays true on its own as the rest of the table gets
+built out — no per-face bookkeeping to keep in step.
+
+**A 1 is still left alone.** The tag says a *good* day is never an injury, not
+that a bad one stops happening.
+
+Lucky stacks on top and is applied first (`db/lib/advantage.js`): two dice,
+better one kept, and only then the fallback.

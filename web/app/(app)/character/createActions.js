@@ -212,10 +212,12 @@ export async function createCharacter(formData) {
   const effectiveGender = role.lockedGender ?? gender;
 
   // Selected tags must actually be buyable — a hand-posted request could
-  // otherwise name a 0-cost, non-purchasable tag like Nobility.
+  // otherwise name a 0-cost, non-purchasable tag like Nobility, or a mastery
+  // tag the wizard never offered (purchasableTags hides those, but a hidden
+  // option is a hint and not a lock). Both fall out of the count check below.
   const selected = tagIds.length
     ? await prisma.tag.findMany({
-        where: { id: { in: tagIds }, purchasable: true },
+        where: { id: { in: tagIds }, purchasable: true, mastery: false },
         // requiredTagId is the hidden-category gate requirementSatisfied()
         // checks below.
         include: { group: { select: { requiredTagId: true } } },

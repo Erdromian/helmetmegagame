@@ -278,3 +278,29 @@ the description plus a **Recipe** line built by
 `formatTagRequirement` (`db/lib/formatTagRequirement.js`) from the same
 `requirement` block these tables come from. Don't restate an effect in the
 document; it is already two places.
+
+
+## Brewing (Distilling)
+
+A `mastery` tag (`TAGS.md` §4a) gated on Brewing (Skilled): every brewing
+recipe yields **two** of its item for the price of one.
+
+The doubling lives in `grantCrafted` (`web/app/(app)/character/requestActions.js`),
+the single grant every craft path funnels through, rather than beside its three
+callers — and deliberately **downstream of the ingredient plan and the ⬢
+spend**, both of which are computed from `quantity` and must stay that way.
+Doubling the cost as well would make the tag do nothing.
+
+Two details that are easy to get wrong:
+
+- **The family is read off `baseTag ?? tag`, not `tag`.** When a recipe mints a
+  custom row the minted tag carries no `requirementSkills`, so `craftFamily()`
+  would read it as the generic `craft` and quietly stop doubling.
+- **The audit row's `quantity` stays the RECIPE RUNS**, not the units granted.
+  The per-turn rations in `web/lib/requests.js` count that field, so billing
+  the doubled output would halve a Distilling brewer's own Dead Simple
+  allowance. What actually landed is recorded beside it as `granted` when the
+  two differ.
+
+A non-stackable brew is unaffected: `addToStack` pins one to quantity 1 however
+many times it is granted.

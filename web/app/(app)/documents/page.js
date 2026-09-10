@@ -272,6 +272,7 @@ async function FreshDocuments() {
     teachable: t.teachable,
     purchasable: t.purchasable,
     purchasableAfterStart: t.purchasableAfterStart,
+    mastery: t.mastery,
     catalogVisibility: t.catalogVisibility,
     depotPrice: t.depotPrice,
     defaultDurationTurns: t.defaultDurationTurns,

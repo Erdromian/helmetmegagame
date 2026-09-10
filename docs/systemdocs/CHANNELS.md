@@ -21,7 +21,7 @@ system.
 |---|---|---|
 | A zone's `#summary` | yes | yes — adjudication results and staged public declarations post here |
 | A Location channel (surface or cave level) | yes | no |
-| `#cerberon` | yes | no — it is tied to no place, so there is no adjudication result to post there |
+| `#cerberon`, `#27.065` | yes | no — they are tied to no place, so there is no adjudication result to post there |
 
 Two independent implementations check this: `bot/src/lib/channels.js`
 (gateway cache, refreshed on ready and every 5 minutes) and
@@ -685,10 +685,10 @@ Every check is independently caught and the whole run is persisted as a
 answer to the old wipe-time complaint: instead of hoping every removal in a
 hundred-call loop lands, a miss becomes visible and repairable.
 
-## 7. Special channels (`#cerberon`)
+## 7. Special channels (`#cerberon`, `#27.065`)
 
 Standing channels outside the zone system, under one `radio` category (id on
-`GameConfig.radioCategoryId`). There is one of them left.
+`GameConfig.radioCategoryId`). Both are radio nets.
 `db/lib/specialChannels.js` is a **registry**:
 one entry fully describes a channel — its `GameConfig` id columns, topic,
 tupper routing, wipe behaviour, ghost visibility, static role grants, an
@@ -704,9 +704,13 @@ two access twins and the wipe.
 | Channel | Who sees it | Who speaks |
 |---|---|---|
 | `#cerberon` | **Radio Bracelet (Cerberon)** or **Radio System (Cerberon)** holders (per-member overwrite) | Radio System (Cerberon) holders only |
+| `#27.065` | **Radio (27.065)** holders (per-member overwrite) | the same — everyone who hears may answer |
 
 The Radio tags are transferable, so possession is what matters — a bracelet
-handed to a character outside the Cerberon still opens `#cerberon`.
+handed to a character outside the Cerberon still opens `#cerberon`. Nobody
+buys a **Radio (27.065)** in point-buy either; the Thanati shelf is the only
+source, at 20 (`db/lib/thanati.js`). The two nets are separate frequencies
+and never mix.
 
 The sync still enforces `roleViewZones` in both directions: it grants the
 listed zone roles view *and* deletes any zone-role grant the registry no longer
@@ -715,7 +719,7 @@ that deletion half is why dropping the channel really silenced it.
 
 ### `#intercom` is gone; the PA is a button now
 
-There used to be a second entry. `#intercom` was a standing channel every
+There used to be a third entry. `#intercom` was a standing channel every
 above-ground zone role could see, and that a holder of the **Intercom** tag
 could type into while standing in the Fortress.
 

@@ -518,13 +518,17 @@ model GameConfig {
   // makes a role in the YAML unpickable.
   playerCount Int @default(80)
 
-  // The narrowcast channel (#cerberon) lives under a shared Discord "radio"
-  // category — see db/lib/specialChannels.js. Provisioned once by
+  // The narrowcast channels (#cerberon, #27.065) live under a shared Discord
+  // "radio" category — see db/lib/specialChannels.js. Provisioned once by
   // npm run db:sync-narrowcast-channels; never touched again after that.
   // #intercom used to be the second one; it is a button on the Council Room
   // table now, so its column is gone with it.
-  radioCategoryId   String?
-  cerberonChannelId String?
+  radioCategoryId    String?
+  cerberonChannelId  String?
+  // The second net (2026-09-10): an open frequency anyone holding a
+  // Radio (27.065) both hears and speaks on. Column name can't lead with a
+  // digit; the channel itself is named after the frequency.
+  freq27065ChannelId String?
 
   // The Catatonic (AFK) pass (db/lib/catatonicPass.js): any ALIVE character
   // with no player-filed Action and no in-character speech for
@@ -2453,6 +2457,17 @@ model Tag {
   // only, for a future store to read.
   purchasable           Boolean @default(false)
   purchasableAfterStart Boolean @default(true)
+
+  // A MASTERY tag: the third state the two flags above could not express.
+  // `purchasable` says "buyable at all" and `purchasableAfterStart` says "still
+  // buyable mid-game"; there was no way to say "buyable ONLY once play has
+  // started". This is that — a capstone bought with points earned in play
+  // rather than out of a starting budget, which is why it is also the one
+  // deliberate exception to the 14-point ceiling (TAGS.md 4a). The web draws a
+  // star beside the name of one. Implies purchasableAfterStart: a mastery tag
+  // that left the store would be buyable nowhere, and db/lib/syncTags.js
+  // throws on that pairing rather than letting it go quiet.
+  mastery Boolean @default(false)
 
   // Tag Catalog tier (see the CatalogVisibility enum above). Defaults GM,
   // not ALL, so a row the sync never touches — a GM-authored tag, a minted

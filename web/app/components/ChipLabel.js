@@ -10,12 +10,20 @@ export default function ChipLabel({ tag, quantity = 1, duration = null }) {
   // is every tag outside Items today.
   const stack = quantity > 1 ? quantity : null;
   const groupColor = tag.group?.color ?? null;
+  // A mastery tag wears a star wherever its name is drawn — the sheet and the
+  // store both, so the mark says "this one is a capstone" on a tag somebody
+  // already holds and not only on the offer. Kept out of Tag.name on purpose:
+  // the name is a match key in more than one place (purchasableTags compares
+  // granted tags by name, forcedName stands in for a first name), so a glyph
+  // living in it would break a lookup rather than decorate one.
+  const star = tag.mastery ? "★ " : null;
 
   return (
     <span
       className="chip"
       style={groupColor ? { borderLeftColor: groupColor, borderLeftWidth: 3 } : undefined}
     >
+      {star}
       {tag.name}
       {stack && <span className="text-muted"> &times;{stack}</span>}
       {/* Compact on the face, spelled out in TagChip's tooltip — a chip has no

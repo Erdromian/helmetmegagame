@@ -10,9 +10,9 @@
 const { recordArchiveEvent } = require("./archive");
 const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
-const { CATATONIC_SLUG, GIBBED_SLUG } = require("./constants");
 const { SEAT_TAG_SLUGS } = require("./threats");
 const { applyMood } = require("./mood");
+const { CATATONIC_SLUG, GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
 // was no longer ALIVE, in which case NOTHING else was written: the update's
@@ -89,6 +89,14 @@ async function vaporizeTags(prisma, characterId) {
 }
 
 async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE", gib = false } = {}) {
+  // Read BEFORE the claim, and off the database rather than off `character`:
+  // callers pass rows of every shape (most carry no tags at all), and a gib
+  // deletes the rows outright a few lines below, so asking afterwards would
+  // find nothing. One count, on the one tag that changes what a death means.
+  const reborn = await prisma.characterTag
+    .count({ where: { characterId: character.id, tag: { slug: METEMPSYCHOSIS_SLUG } } })
+    .catch(() => 0);
+
   const claimed = await prisma.character.updateMany({
     where: { id: character.id, status: expectStatus },
     // travelTo* cleared with it: dying on the road ends the journey, and the
@@ -228,6 +236,20 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
     zoneId: character.zoneId ?? null,
     content: content ?? `${character.name} died.`,
   });
+
+  // The soul does not wait for a body (db/lib/reincarnate.js). Last, and
+  // wrapped: everything above is what a death IS, and a failure to find the
+  // new life must not leave the old one half-buried. A null return is the
+  // ordinary outcome when no seat is free.
+  if (reborn > 0) {
+    // Required HERE, not at the top: reincarnate -> locationMove -> ... loops
+    // back to this file, and a top-level require resolves to a half-built
+    // exports object whose applyDeathToRow is undefined.
+    const { reincarnate } = require("./reincarnate");
+    await reincarnate(prisma, character, { turn }).catch(
+      (err) => console.error(`Reincarnation failed for ${character.id}:`, err.message ?? err),
+    );
+  }
 
   return { claimed: true, corpse };
 }

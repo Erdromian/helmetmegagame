@@ -6,6 +6,37 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Tell the two radio nets apart
+
+✎ The archive keeps the two radio nets as separate scenes instead of pooling both under one "Elsewhere"  
+✎ A mention on a radio net now says which frequency it was on, instead of always naming the Watch  
+✎ The channel doctor stopped rebuilding each character's access once per channel
+
+## 2026-09-10 · Nine masteries: capstone tags you can only buy once the game is running
+
+✚ A new kind of tag, a mastery: never available at character creation, only from the store once play has started. They wear a star  
+✚ Lucky — you roll every Gambit twice and keep the better die, the Caving Die and the laboring die included  
+✚ Manic — your Desire slots never need a rest between claims  
+✚ Metempsychosis — when you die your soul wakes in a new body: a random open seat, a new name, face and age, six extra tag points and no Curse  
+✚ Amor Fati — being crucified, wounded or tortured lifts your mood by half what it would have cost you, and the everyday miseries stop touching you  
+✚ Imperturbable — nothing moves your mood off Fine, and there is nothing in you for a torturer to break  
+✚ Second Wind — wounds, maimings and infections cost you nothing in a fight, though illness and blindness still do, and death's door still ends one  
+✚ Brewing (Distilling) — every brewing recipe yields two for the price of one  
+✚ Laboring (Scavenging) — your laboring turns something up far more often, and a good day never hands you an injury  
+✚ Laboring (Tireless) — you can work through exhaustion at half yield, so you can labor every turn  
+✚ Musician (Pythagorean) — your playing lifts everyone in the room three times as much
+
+## 2026-09-10 · A second radio net: 27.065
+
+✚ Radio (27.065), 20 off the Thanati shelf — a radio hardset to one frequency, and everyone holding one both hears and speaks on it  
+✚ Its own channel, separate from the Cerberon's net and cleared at Dawn like the rest  
+✎ The radio category is no longer cut twice when a fresh guild provisions both nets at once
+
+## 2026-09-10 · The sheet says who you are where the face is
+
+✚ Your name, your role and your faction sit in the character sheet's top row now, beside a face three times the size it was
+✎ The page header above it just says Character
+
 ## 2026-09-10 · Guns beat bows, and the crossbow stops being the best ranged weapon
 
 ✎ Every firearm now counts for more in a fight than every bow — the powder half of the ranged ladder starts where the bows stop  

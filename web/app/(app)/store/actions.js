@@ -10,6 +10,8 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { METEMPSYCHOSIS_SLUG } from "@lifeweb/db/lib/constants";
+import { sendDm } from "@/lib/discordGuild";
 import {
   tagsById as buildTagsById,
   requirementSatisfied,
@@ -219,6 +221,22 @@ async function buyTagsImpl({ tagIds }) {
       },
     });
   });
+
+  // Metempsychosis tells you it is there, and nothing else does: its catalog
+  // line is deliberately vague ("You know something very, very important"),
+  // so without this the player has bought 12 points of a tag they cannot see
+  // working until the one moment it fires. `-#` subtext, since the world is
+  // saying it rather than a person.
+  if (selected.some((tag) => tag.slug === METEMPSYCHOSIS_SLUG) && session.discordUserId) {
+    // Plain, not `-#`: sendDm prefixes every DM with `»` (CLAUDE.md), and a
+    // `» -#` line renders as neither — Discord only reads subtext at the very
+    // start of a line. The chevron IS the DM convention, so the sentence goes
+    // out bare and gets it.
+    await sendDm(
+      session.discordUserId,
+      "You awake! Whenever you die, something interesting will happen. ‡",
+    ).catch(() => {});
+  }
 
   // A bought tag can open a narrowcast channel (#cerberon) or a
   // private room the same way a granted one does.
