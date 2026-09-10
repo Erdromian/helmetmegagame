@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A channel somebody has spoken in reads bright
+
+✚ A channel somebody has spoken in now reads bright in the places column, not just a small dot  
+✎ Gamemasters get unread marks at all. They had none, because the mark only ever lit for a conversation or a mention of your own character, and a GM has neither  
+✎ Scenery still lights nothing. A gate crossing, a smell, a turn banner is the game talking to itself  
+✚ A tick at the foot of the places column marks everything read at once. That foot no longer scrolls out of reach
+
 ## 2026-09-10 · The Incarn may be styled Brother
 
 ✎ The Incarn is a warrior monk, so the role now earns the monk's title — Brother, Sister or Sibling, whichever their gender picks — the same word the Mortii already wear
