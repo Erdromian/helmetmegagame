@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A cart can come into the Factory, Customs and the Depot
+
+✎ The Godard Factory, Customs and the Depot no longer park your horse and cart at the door, so a wagon can be loaded where the crates are  
+− Shuttling crates out to the marsh one at a time before the cart could be hitched
+
 ## 2026-09-10 · An uploaded portrait now waits for a GM to look at it
 
 ✚ A portrait a player uploads now waits on the Other lens of the adjudication desk, with the picture shown  
