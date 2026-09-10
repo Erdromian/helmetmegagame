@@ -140,9 +140,19 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   await prisma.character
     .updateMany({
       where: { heldById: character.id },
-      data: { heldUntil: null, heldById: null },
+      data: { heldUntil: null, heldById: null, heldReason: null },
     })
     .catch((err) => console.error(`Failed to release held characters on death for ${character.id}:`, err));
+  // ...and a dead man is in no fight (docs/systemdocs/ATTACK.md). The hold is
+  // already gone above; this is the ROW, so the GM's Other lens does not sit
+  // there reading "Holding" over a corpse. Stamped rather than deleted, the
+  // same as breaking off: it happened.
+  await prisma.attack
+    .updateMany({
+      where: { attackerId: character.id, cancelledAt: null },
+      data: { cancelledAt: new Date() },
+    })
+    .catch((err) => console.error(`Failed to close attacks on death for ${character.id}:`, err));
   await prisma.character
     .update({
       where: { id: character.id },

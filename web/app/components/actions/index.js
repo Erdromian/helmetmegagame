@@ -13,6 +13,7 @@ import BodyDialog from "./BodyDialog";
 import EngraveDialog from "./EngraveDialog";
 import WarrantDialog from "./WarrantDialog";
 import InterceptDialog from "./InterceptDialog";
+import AttackDialog from "./AttackDialog";
 import DisguiseDialog from "./DisguiseDialog";
 import ConsumeDialog from "./ConsumeDialog";
 import HideoutDialog from "./HideoutDialog";
@@ -92,6 +93,7 @@ export const DIALOGS = {
   engrave: EngraveDialog,
   warrant: WarrantDialog,
   intercept: InterceptDialog,
+  attack: AttackDialog,
   disguise: DisguiseDialog,
   consume: ConsumeDialog,
   hideout: HideoutDialog,

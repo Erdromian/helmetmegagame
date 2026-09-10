@@ -48,8 +48,11 @@ const CHARACTER_SELECT = {
   travelToLocationId: true,
   travelTurnId: true,
   // The hold. One timestamp, read by heldReasonFor() at the top of
-  // performLocationMove and again per follower (INTERCEPT.md).
+  // performLocationMove and again per follower (INTERCEPT.md), and the word
+  // for WHICH thing has hold of them — a select carrying one without the
+  // other tells an attacked player they were ambushed (ATTACK.md §1).
   heldUntil: true,
+  heldReason: true,
   // `name` rides along for stowedMounts(), which puts it in a sentence.
   tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
 };
@@ -570,7 +573,7 @@ async function performLocationMove(prisma, character, targetLocation) {
       // are the holder's own Release and their death.
       await tx.character.updateMany({
         where: { heldById: character.id, heldUntil: { gt: now } },
-        data: { heldUntil: null, heldById: null },
+        data: { heldUntil: null, heldById: null, heldReason: null },
       });
 
       if (outcome.partyRows.length > 0 || outcome.leftBehind.length > 0) {

@@ -32,7 +32,6 @@ const { blockerFor, ACT } = require("./incapacitation");
 const { turnEndsAt } = require("./turnClock");
 const { reFor } = require("./discordMarkup");
 const { DM_KIND } = require("./dmKinds");
-const { DM_ACTION, dmAction } = require("./dmActions");
 
 // Two minutes, Bascinet's number. Long enough to say something and be
 // answered, short enough that walking into a checkpoint is not a punishment.
@@ -44,21 +43,11 @@ const SAFE_HOLD_MS = 2 * 60 * 1000;
 const MAX_NAMES = 12;
 const MESSAGE_LIMIT = 300;
 
-// The Release button on the ambusher's own DM. The prefix lives here, beside
-// the row builder, so the sender and the answerer cannot drift — the
-// db/lib/locationAnchorRow.js#keyedPromptRow precedent.
+// The Release button that used to ride the ambusher's DM. Nothing builds one
+// any more — an ambush files an Attack and wears Cancel attack instead
+// (db/lib/attack.js) — but the prefix and its answerer stay so that a button
+// already sitting in somebody's DMs when this shipped still does something.
 const INTERCEPT_RELEASE_PREFIX = "icept:release:";
-
-function interceptReleaseRow(targetId, label) {
-  return [
-    {
-      type: 1,
-      components: [
-        { type: 2, style: 2, custom_id: `${INTERCEPT_RELEASE_PREFIX}${targetId}`, label: label.slice(0, 80) },
-      ],
-    },
-  ];
-}
 
 // ---------------------------------------------------------------------------
 // The message a player typed
@@ -107,6 +96,12 @@ function cleanNames(names) {
 function heldReasonFor(character, now = new Date()) {
   const until = character?.heldUntil ? new Date(character.heldUntil) : null;
   if (!until || until.getTime() <= now.getTime()) return null;
+  // WHICH of the two things has hold of them. A column rather than a query,
+  // because this function is pure and eight surfaces read it — see the
+  // Character.heldReason comment in db/prisma/schema.prisma.
+  if (character.heldReason === "attack") {
+    return "Somebody attacked you. You can't move until the end of the turn. ‡";
+  }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
   // Under five minutes it is worth counting down; a hold that runs to the end
   // of the turn is not, and saying "43188s" would be worse than saying nothing.
@@ -121,7 +116,12 @@ function heldReasonFor(character, now = new Date()) {
 // somebody else's prisoner, and so a hold that has already lapsed or been
 // handed on is not clobbered.
 async function releaseHeldBy(db, holderId, { targetId = null } = {}) {
-  const where = { heldById: holderId, heldUntil: { gt: new Date() } };
+  // An ATTACK hold is not this function's to end. Both sides of a fight are
+  // held and each names the other, so letting the intercept Release touch one
+  // would free the victim, leave the Attack row live, and leave the attacker
+  // standing there held by a fight that no longer holds anybody. Breaking off
+  // is db/lib/attack.js#cancelAttack, and only that.
+  const where = { heldById: holderId, heldUntil: { gt: new Date() }, heldReason: { not: "attack" } };
   if (targetId) where.id = targetId;
   const freed = await db.character.findMany({
     where,
@@ -130,7 +130,7 @@ async function releaseHeldBy(db, holderId, { targetId = null } = {}) {
   if (freed.length === 0) return [];
   await db.character.updateMany({
     where: { id: { in: freed.map((c) => c.id) } },
-    data: { heldUntil: null, heldById: null },
+    data: { heldUntil: null, heldById: null, heldReason: null },
   });
   return freed;
 }
@@ -369,12 +369,33 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
 
   if (hits.length === 0) return { dms, hits: [] };
 
+  // AN AMBUSH IS AN ATTACK (docs/systemdocs/ATTACK.md). It files a real Attack
+  // row and that is what holds both sides — the ambusher included, because
+  // springing the trap puts you in the fight too. No strength gate: you set a
+  // watch blind and do not get to pick who walks into it.
+  //
+  // Required lazily because db/lib/attack.js requires this module back for the
+  // hold's own vocabulary. A cycle resolved at call time rather than at load
+  // time, so neither half ever sees a partial exports object.
+  const { fileAttack } = require("./attack");
+  const attackDmsOut = [];
+  for (const hit of hits.filter((h) => h.ambush)) {
+    const filed = await fileAttack(db, {
+      attacker: hit.interceptor,
+      target: hit.target,
+      openTurn,
+      fromAmbush: true,
+      locationId,
+    });
+    attackDmsOut.push(...filed.dms);
+  }
+
   // ONE hold per person, however many people caught them: the longest wins, so
-  // an Ambush always beats a Safe stop and a second Safe stop cannot shorten
-  // the first. Conditional on the clock, so a hold already running longer than
-  // this one is left exactly where it is.
+  // a second Safe stop cannot shorten the first. Conditional on the clock, so
+  // a hold already running longer than this one — an Ambush's, above — is left
+  // exactly where it is.
   const longest = new Map();
-  for (const hit of hits) {
+  for (const hit of hits.filter((h) => !h.ambush)) {
     const best = longest.get(hit.target.id);
     if (!best || (hit.until && hit.until > best.until)) longest.set(hit.target.id, hit);
   }
@@ -382,7 +403,7 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
     if (!hit.until) continue;
     await db.character.updateMany({
       where: { id: hit.target.id, OR: [{ heldUntil: null }, { heldUntil: { lt: hit.until } }] },
-      data: { heldUntil: hit.until, heldById: hit.interceptor.id },
+      data: { heldUntil: hit.until, heldById: hit.interceptor.id, heldReason: "intercept" },
     });
   }
 
@@ -439,17 +460,11 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
         kind: DM_KIND.NOTICE,
       });
     }
-    for (const hit of group.filter((h) => h.ambush)) {
-      const name = seenAs(hit.presented);
-      dms.push({
-        discordUserId: who.discordUserId,
-        content: `You successfully ambushed ${name}.`,
-        kind: DM_KIND.NOTICE,
-        components: interceptReleaseRow(hit.target.id, `Release ${name}`),
-        meta: dmAction(DM_ACTION.INTERCEPT_HOLD, hit.target.id),
-      });
-    }
+    // The ambusher's own line is db/lib/attack.js's now, because the button on
+    // it calls off a fight rather than releasing a hold — one DM per victim
+    // still, since a button answers about exactly one person.
   }
+  dms.push(...attackDmsOut);
 
   return { dms, hits };
 }
@@ -459,7 +474,6 @@ module.exports = {
   MAX_NAMES,
   MESSAGE_LIMIT,
   INTERCEPT_RELEASE_PREFIX,
-  interceptReleaseRow,
   cleanMessage,
   cleanNames,
   heldReasonFor,

@@ -154,6 +154,11 @@ const R = {
     ...(d?.locationName ? [t("at"), em(d.locationName)] : []),
   ],
   request_intercept_released: () => [actor(), t("let"), target(), t("go")],
+  // Attack (docs/systemdocs/ATTACK.md). An ambush that fired writes its own
+  // request_intercept_fired row above and no second one here, so these two are
+  // the button only.
+  request_attack_filed: () => [actor(), t("attacked"), target()],
+  request_attack_cancelled: () => [actor(), t("broke off from"), target()],
   request_loot_resources: (d) => [actor(), t("looted"), res(d.amount ?? d.resources), t("from"), target()],
   request_transfer_resources: (d) => [actor(), t("sent"), res(d.amount ?? d.resources), t("to"), target()],
   request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName), qty(d.quantity), t("from"), em(d.fromName)],

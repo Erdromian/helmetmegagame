@@ -36,6 +36,7 @@ const INCLUDED = new Set([
   "request_crucify_character",
   "request_intercept_fired",
   "request_intercept_released",
+  "request_attack_filed",
   "request_loot_resources",
   "request_transfer_resources",
   "request_loot_tag",

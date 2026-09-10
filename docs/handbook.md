@@ -421,6 +421,18 @@ You will never be shown this for anybody else, and nobody will be shown it for y
 
 **Armor is separate**, and rides in the same box underneath. It does not make you better at fighting; it decides what happens when you are hit. Both numbers are there because the two things that hurt you in Ravenheart are nothing alike — a breastplate is excellent against a sword and paper against a rifle. ‡
 
+### Attacking Somebody
+
+Press **Attack** on somebody standing with you and neither of you goes anywhere. You are both held where you are until the turn ends and a Gamemaster reads what you each filed — so nobody starts a fight and then wanders off to have a nice afternoon. Make a Gambit declaring what you are actually trying to do. ‡
+
+It costs nothing. The Gambit is what costs your Move. ‡
+
+You can **break it off** at any point before the turn ends, from the Attack panel or from the button on your own DM, and that frees you both. But you only get one attack on a given person per turn, so breaking off is the end of it for today. ‡
+
+Some people are simply out of your league, and the button will say so rather than let you freeze somebody far above you for a whole day. It will not tell you how far above you they are, or anything at all about the people it lets you attack. ‡
+
+An **ambush** is the same thing sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too. ‡
+
 **Teaching:** Most skills can be taught by someone standing with you who holds them. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, teaching becomes their Routine for the turn, and learning becomes your Gambit — you succeed on a roll of 5 or 6, or 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill. A teacher with the Lecturing tag can teach up to three students on one Routine.
 
 ### Examining Tags

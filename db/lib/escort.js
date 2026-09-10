@@ -79,6 +79,7 @@ const ESCORT_SELECT = {
   // gap that fails silently at one surface only.
   heldUntil: true,
   heldById: true,
+  heldReason: true,
   tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
 };
 
