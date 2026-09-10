@@ -39,6 +39,7 @@ const BEHAVIOUR_FIELDS = [
 const ECONOMY_FLAGS = [
   ["purchasable", "Purchasable at creation"],
   ["purchasableAfterStart", "Still purchasable mid-game"],
+  ["mastery", "Mastery (mid-game only)"],
 ];
 
 // Every key the server's scalarsFrom reads. A door spreads this under an
@@ -63,6 +64,7 @@ export const BLANK_TAG = {
   teachable: false,
   purchasable: false,
   purchasableAfterStart: false,
+  mastery: false,
   sellable: false,
   sellablePrice: null,
   requirementTurns: "",

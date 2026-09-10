@@ -22,6 +22,7 @@ const { inRealFaction } = require("./factionConstants");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { formatTagArmor } = require("./formatTagArmor");
+const { tagDisplayName } = require("./tagDisplayName");
 const { ARMOR_TAG_FIELDS } = require("./armorValue");
 const { inspectVision } = require("./inspectVision");
 const {
@@ -99,7 +100,7 @@ function describeTag({ characterTag: ct, viaSkill }, openTurnNumber) {
     viaSkill ? "your diagnosis" : null,
   ].filter(Boolean);
   return {
-    name: ct.tag.name,
+    name: tagDisplayName(ct.tag),
     slug: ct.tag.slug ?? null,
     detail: bits.length > 0 ? bits.join(" · ") : null,
     viaSkill: Boolean(viaSkill),

@@ -231,11 +231,18 @@ export function isRoleSelectable({ role, cursed, leaderWhitelisted }) {
 // Which catalog tags the point-buy menu offers. `afterStartOnly` distinguishes
 // creation (every purchasable tag) from the mid-game store (purchasableAfterStart
 // only). Also excludes anything the role already grants.
+//
+// The two flag lines below are mirrors of each other, and between them they say
+// the three things a tag can be: creation-only (purchasableAfterStart: false),
+// both menus (neither flag), or store-only (mastery). A mastery tag is bought
+// with points earned in play rather than out of a starting budget, so the
+// wizard never offers one however affordable it looks.
 export function purchasableTags({ tags, afterStartOnly, grantedNames = [], roleSlug = null }) {
   const granted = new Set(grantedNames);
   return tags.filter((tag) => {
     if (!tag.purchasable) return false;
     if (afterStartOnly && !tag.purchasableAfterStart) return false;
+    if (!afterStartOnly && tag.mastery) return false;
     if (roleExcluded(tag, roleSlug)) return false;
     return !granted.has(tag.name);
   });

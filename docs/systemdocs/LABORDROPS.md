@@ -400,3 +400,28 @@ turn close (`TURN-ENGINE.md` §8b), shedding to a Depths room only past the
 | The auto-refresh hook | `.claude/hooks/labordrops-value-hint.py` |
 | Combine-scope tests | `db/test/laborDrops.test.js` |
 | Cascading-EV / annotator tests | `db/test/labordropsAnnotate.test.js` |
+
+
+## 8. Laboring (Scavenging) bends the die, not the table
+
+Laboring (Scavenging) (a mastery, `TAGS.md` §4a) maps a rolled **4 or 5 up to
+a 6** before the pool is drawn — `db/lib/laborDrops.js#effectiveDropRoll`, read
+by the `laborDrop` effect in `db/lib/moveEffects.js`.
+
+It is a remap rather than an edit to `docs/labordrops.yaml` because only faces
+**1 and 6** are configured at all: 2 through 5 draw from nothing. So "drops on
+4 and 5 as well as 6" and "4 and 5 read as a 6" are the same statement, and the
+second one touches no pool, no pad and none of the EV numbers
+`npm run db:audit-labor-drops` prints.
+
+**A 1 is deliberately left alone.** The tag says a *good* day is never an
+injury, not that a bad one stops happening — moving 1 as well would have
+deleted the only face that costs a labourer anything.
+
+Note what this does to §7's odds table: a Scavenger's chance of a find is **1
+in 2, not 1 in 6**, and their chance of a mishap is unchanged. The table there
+is written for an ordinary labourer and stays that way; read it against the
+remapped face for anyone holding this tag.
+
+Lucky stacks on top and is applied first (`db/lib/advantage.js`): two dice,
+better one kept, and only then the remap.

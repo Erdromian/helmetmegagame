@@ -21,6 +21,11 @@
 // tier and the arithmetic still never touches a float. docs/tags.yaml speaks
 // tiers (`tiers: -0.5`); db/lib/tagShapes.js multiplies by this on the way in
 // and every number below here is an integer.
+const { SECOND_WIND_SLUG } = require("./constants");
+const { HEALTH_CATEGORY } = require("./medicalVision");
+
+const SECOND_WIND_LABEL = "Second Wind";
+
 const POINTS_PER_TIER = 10;
 
 // Where somebody with no fighting skill at all stands: the middle of Weak.
@@ -178,6 +183,17 @@ function modifiers(rows, tree, ctx) {
     if (!servesTree(block, tree)) continue;
     if (block.when?.weaponClass?.length) continue;
     const slug = slugOf(row);
+    // A wound the holder fights straight through. Named at 0 rather than
+    // dropped, exactly like a cancelled maiming below and for the same
+    // reason: a player should be able to read why their broken arm costs
+    // nothing instead of assuming the system lost it. Only PENALTIES are
+    // waived — a Health tag that somehow helped would keep helping — and the
+    // band CAPS (Dying, Paralyzed, Seizure) are untouched on purpose: those
+    // take you out of a fight rather than making you worse at one.
+    if (ctx.secondWind && tagOf(row)?.category === HEALTH_CATEGORY && block.points < 0) {
+      out.push({ label: nameOf(row), points: 0, cancelledBy: SECOND_WIND_LABEL });
+      continue;
+    }
     if (ctx.cancelled.has(slug)) {
       // Named rather than dropped. A player wondering why their missing hand
       // costs nothing should be able to read the answer instead of assuming
@@ -311,7 +327,12 @@ function contextOf(rows) {
       if (!cancelledBy.has(slug)) cancelledBy.set(slug, tag.name ?? tag.slug);
     }
   }
-  return { held, equipped, armouredSlots, cancelled, cancelledBy };
+  // Second Wind cancels what a Health tag TAKES OFF a rating, and nothing
+  // else. It rides here rather than as a `cancels:` list in the catalog
+  // because the thing it cancels is a category, not a set of slugs — every
+  // wound, illness and maiming there is now and every one added later.
+  const secondWind = held.has(SECOND_WIND_SLUG);
+  return { held, equipped, armouredSlots, cancelled, cancelledBy, secondWind };
 }
 
 // One half of the tree, resolved. Returns the score, its band, the named
@@ -378,7 +399,10 @@ function formatFightingSkill(resolved) {
 // discipline as ARMOR_TAG_FIELDS in db/lib/armorValue.js: miss one and combat
 // silently stops working at that surface only. `equipSlot` is here because
 // Flamboyant asks whether a body slot is filled.
-const FIGHTING_TAG_FIELDS = { fighting: true, equipSlot: true };
+// `category` is here because Second Wind asks whether a penalty is a Health
+// one; drop it and every wound quietly starts costing a Second Wind holder
+// again, at that surface only.
+const FIGHTING_TAG_FIELDS = { fighting: true, equipSlot: true, category: true };
 
 module.exports = {
   BANDS,

@@ -28,7 +28,7 @@ const {
   stowedMounts,
   performMove,
 } = require("../lib/locationTravel");
-const { applyMood } = require("@lifeweb/db/lib/mood");
+const { applyMood, EVENTS } = require("@lifeweb/db/lib/mood");
 const {
   travelOptions,
   gateOperable,
@@ -1806,6 +1806,8 @@ async function handleRollCommand(interaction) {
 // feature.
 const INSTRUMENT_SLUG = "instrument";
 const MUSICIAN_SLUG = "musician";
+// The Pythagorean mastery — triples what a performance is worth to the room.
+const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
 const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
 
 // In-memory, keyed by character id, volatile across a bot restart — the same
@@ -1822,7 +1824,7 @@ const PLAY_SOOTHE_AUDIT_ACTION = "mood_soothed_play";
 // set (REQUESTS.md §1a); /play is rate-limited to one a few minutes and a
 // room holds a dozen people at most, so the rows stay few. The band DM goes
 // out through the sender db/index.js registered.
-async function sootheListeners(musician) {
+async function sootheListeners(musician, { triple = false } = {}) {
   if (!musician.locationId) return;
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
   if (!openTurn) return;
@@ -1845,7 +1847,11 @@ async function sootheListeners(musician) {
   for (const { id } of listeners) {
     if (soothedAlready.has(id)) continue;
     await prisma.$transaction(async (tx) => {
-      await applyMood(tx, id, { kind: "MUSIC" });
+      // Musician (Pythagorean) triples it. Passed as an explicit `base`
+      // rather than added to mood.js's MULTIPLIERS: that table is only
+      // consulted for harm, and it keys on the LISTENER's tags — this is the
+      // player's own doing, and it lands on everyone in the room.
+      await applyMood(tx, id, { kind: "MUSIC", base: EVENTS.MUSIC * (triple ? 3 : 1) });
       await tx.auditLog.create({
         data: {
           actorDiscordUserId: musician.discordUserId ?? "system",
@@ -1924,7 +1930,7 @@ async function handlePlayCommand(interaction) {
   // turn (docs/systemdocs/MOOD.md). Only a MUSICIAN's: a bad performance calms
   // nobody. Wrapped, so the dial can never swallow the performance.
   if (held(MUSICIAN_SLUG)) {
-    await sootheListeners(character).catch((err) =>
+    await sootheListeners(character, { triple: held(MUSICIAN_PYTHAGOREAN_SLUG) }).catch((err) =>
       console.error(`/play: soothing failed for ${character.id}:`, err.message ?? err),
     );
   }

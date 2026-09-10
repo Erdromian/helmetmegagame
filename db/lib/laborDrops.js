@@ -1,3 +1,4 @@
+const { LABORING_SCAVENGING_SLUG } = require("./constants");
 // The labor drop die: what a Labor payout can find, on top of its ⬢. See
 // docs/systemdocs/LABORDROPS.md.
 //
@@ -73,7 +74,24 @@ async function pickLaborDropOption(tx, { roll, laborType = null, zoneId = null, 
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+// Laboring (Scavenging) bends the drop die: a 4 or a 5 is drawn on the 6's
+// pool instead of its own. This is a REMAP rather than an edit to
+// docs/labordrops.yaml because only faces 1 and 6 are configured at all — 2
+// through 5 draw from nothing — so "drops on 4 and 5 as well as 6" is the same
+// statement as "4 and 5 read as a 6" without touching a single pool, a pad, or
+// any of the EV numbers the audit script prints.
+//
+// A 1 is deliberately left alone. The tag says a GOOD day is never an injury,
+// not that a bad one stops happening, and moving 1 as well would have deleted
+// the only face that costs a labourer anything.
+function effectiveDropRoll(roll, heldSlugs) {
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  if (!held.has(LABORING_SCAVENGING_SLUG)) return roll;
+  return roll === 4 || roll === 5 ? 6 : roll;
+}
+
 module.exports = {
+  effectiveDropRoll,
   TIER_TO_LABOR_DROP_TYPE,
   scopeFilters,
   passesRequiredTag,

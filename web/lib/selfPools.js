@@ -6,6 +6,7 @@ import {
   describeDesireLocks,
   bottomSlotAddiction,
   unlockedBy,
+  desireSlotsNeverLock,
 } from "@lifeweb/db/lib/desireGates";
 import { desireFamilies, desireFamilyGroups } from "@lifeweb/db/lib/desireFamilies";
 import { canRead } from "@lifeweb/db/lib/reading";
@@ -48,6 +49,9 @@ import {
 export async function loadDesireView(character, { openTurn, gameConfig, withCatalog = true } = {}) {
   const desireSlots = gameConfig?.desireSlots ?? 2;
   const desireSlotLockTurns = gameConfig?.desireSlotLockTurns ?? 1;
+  // Manic. Passed down to the client as well as used here, so the sheet's own
+  // "Locked (1t)" label agrees with what claimDesire will actually allow.
+  const slotsNeverLock = desireSlotsNeverLock(character.tags ?? []);
   const heldTags = (character.tags ?? []).map((ct) => ct.tag);
   const heldDesireTagIds = new Set((character.tags ?? []).map((ct) => ct.tagId));
   const openTurnNumber = openTurn?.number ?? 0;
@@ -71,11 +75,13 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
   const view = {
     desireSlots,
     desireSlotLockTurns,
+    slotsNeverLock,
     slotStates: slotStates({
       history,
       openTurnNumber,
       desireSlots,
       lockTurns: desireSlotLockTurns,
+      noLock: slotsNeverLock,
     }),
     lockNotes: describeDesireLocks(heldTags, new Map(desireFamilies().map((f) => [f.key, f.name]))),
     addiction: bottomSlotAddiction(heldTags),

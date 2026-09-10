@@ -149,6 +149,8 @@ import {
   PACKAGE_MAX_UNITS,
   PACKAGE_LABEL_MAX,
   WHISPER_MAX,
+  IMPERTURBABLE_SLUG,
+  BREWING_DISTILLING_SLUG,
 } from "@lifeweb/db/lib/constants";
 import {
   resolveTorture,
@@ -169,7 +171,7 @@ import {
 } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
-import { rollDie } from "@lifeweb/db/lib/moveEffects";
+import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { gambitModifierTotal, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { createWithRetry } from "@lifeweb/db/lib/paperMint";
 import {
@@ -202,7 +204,7 @@ import {
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
-import { evaluateDesireCatalog, slotStates } from "@lifeweb/db/lib/desireGates";
+import { evaluateDesireCatalog, slotStates, desireSlotsNeverLock } from "@lifeweb/db/lib/desireGates";
 import {
   projectDesireTemplateForGates,
   loadRoleBySlugForTemplates,
@@ -884,7 +886,21 @@ async function grantCrafted(
 ) {
   for (const snapshot of replaced)
     await dropCharacterTag(tx, character.id, snapshot.tagId);
-  await addToStack(tx, character.id, tag.id, quantity, {
+  // Brewing (Distilling): two items for the same cost. The doubling lives
+  // HERE, at the single grant every craft path funnels through, rather than
+  // beside the three callers — and deliberately downstream of the ingredient
+  // plan and the ⬢ spend, which are both computed from `quantity` and must
+  // stay that way. Doubling the cost as well would make the tag do nothing.
+  //
+  // The family is read off `baseTag ?? tag`, not `tag`: when a recipe mints a
+  // custom row the minted tag carries no requirementSkills, so craftFamily()
+  // would read it as the generic "craft" and quietly stop doubling.
+  const recipeTag = baseTag ?? tag;
+  const distilled =
+    craftFamily(recipeTag) === "brewing" &&
+    (character.tags ?? []).some((ct) => ct.tag?.slug === BREWING_DISTILLING_SLUG);
+  const granted = distilled ? quantity * 2 : quantity;
+  await addToStack(tx, character.id, tag.id, granted, {
     source: "CRAFT",
     // Must arrive already stamped or it never expires — resolveNeeds()'s
     // sweep matches on expiresTurn and nothing backfills it.
@@ -905,7 +921,12 @@ async function grantCrafted(
     details: {
       tagId: tag.id,
       tagName: tag.name,
+      // RECIPE RUNS, not units granted — the per-turn rations in
+      // web/lib/requests.js count this, so a Distilling brewer must not have
+      // their Dead Simple allowance halved by their own doubled output.
+      // What actually landed is recorded beside it when the two differ.
       quantity,
+      ...(distilled ? { granted, distilled: true } : {}),
       resourcesSpent: cost,
       payer: payerParty,
       projectId: project?.id ?? null,
@@ -2992,7 +3013,8 @@ async function healCharacterRequestImpl({
             moveKind: "GAMBIT",
             moveReviewStatus: "OPEN",
             description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}.`,
-            diceRoll: rollDie(),
+            // Lucky keeps the better of two dice (db/lib/advantage.js).
+            diceRoll: rollWithAdvantage(character.tags).die,
             diceModifier:
               gambitModifierTotal(character.tags, {
                 hungerStreak: character.hungerStreak,
@@ -3132,7 +3154,8 @@ async function researchRequestImpl({ ingredientSlug }) {
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
           description: `Researching ${ingredient.tag.name} in the Cathedral.`,
-          diceRoll: rollDie(),
+          // Lucky keeps the better of two dice (db/lib/advantage.js).
+          diceRoll: rollWithAdvantage(character.tags).die,
           diceModifier: gambitModifierTotal(character.tags, {
             hungerStreak: character.hungerStreak,
             mood: character.mood,
@@ -3571,6 +3594,14 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
     throw new UserError(notHereMessage(target));
   if (!isBoundTarget(target))
     throw new UserError(`${target.name} isn't tied up.`);
+  // Imperturbable: there is nothing in there to break. Refused outright rather
+  // than given a threshold of 7, so the torturer is told why instead of
+  // spending a Move on a roll that could never land — and so the target's
+  // Move, mood and the -40 are all left alone.
+  if (target.tags.some((ct) => ct.tag.slug === IMPERTURBABLE_SLUG))
+    throw new UserError(
+      `${target.name} looks back at you, entirely unbothered. There is nothing here to break. ‡`,
+    );
 
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
@@ -3582,7 +3613,9 @@ async function tortureCharacterRequestImpl({ targetCharacterId }) {
   );
   const targetSlugs = target.tags.map((ct) => ct.tag.slug);
   const result = resolveTorture({
-    die: rollDie(),
+    // The TORTURER's die, so it is the torturer's Lucky that bends it — the
+    // same side gambitMods below are computed for.
+    die: rollWithAdvantage(character.tags).die,
     torturerSlugs,
     targetSlugs,
     equipmentInReach,
@@ -3986,6 +4019,9 @@ async function claimDesireImpl({
       openTurnNumber,
       desireSlots,
       lockTurns,
+      // Manic: the slot never shuts. Same helper the three display surfaces
+      // call, so what the sheet offers is what this accepts.
+      noLock: desireSlotsNeverLock(character.tags),
     });
     const slot = slots[slotIndex];
     if (slot?.lockedUntilTurn != null) {

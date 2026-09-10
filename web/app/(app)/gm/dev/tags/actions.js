@@ -152,6 +152,7 @@ function scalarsFrom(input) {
     teachable: Boolean(input.teachable),
     purchasable: Boolean(input.purchasable),
     purchasableAfterStart: Boolean(input.purchasableAfterStart),
+    mastery: Boolean(input.mastery),
     sellable,
     sellablePrice,
     defaultDurationTurns: duration,

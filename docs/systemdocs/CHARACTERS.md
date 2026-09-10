@@ -875,3 +875,50 @@ could not work: `createCharacter` resolves the list with `name: { in: [...] }`,
 a set lookup that collapses duplicates.
 
 See `docs/systemdocs/DEPOT.md` §0g.
+
+
+## Metempsychosis
+
+A `mastery` tag (`TAGS.md` §4a). A character holding it who dies is rolled
+straight into a new one instead of going back through the wizard as a Cursed
+re-roll: **a random role with a free seat, `startingTagPoints + 6`, and no
+Curse.** `db/lib/reincarnate.js`.
+
+It hangs off `db/lib/characterDeath.js#applyDeathToRow` rather than off the
+wizard, because **eight** callers kill people — the dying, catatonic,
+ascension, nuke and turret passes, the rites, and the web's own
+`killCharacter` — and all eight go through that one function. Hooking the
+wizard would have covered one of them.
+
+Four things worth knowing before changing it:
+
+- **The tag is read before the claim, and off the database.** Callers pass
+  `Character` rows of every shape and most carry no tags at all; a *gib*
+  deletes the tag rows outright a few lines later. Asking afterwards finds
+  nothing.
+- **The seat is claimed under the same `FOR UPDATE` row lock the wizard
+  takes** (§2). Two deaths resolving inside one turn pass must not both land
+  in the last free seat. `heldSeatsByRole` + `roleCapacity` decide "full", so
+  reincarnation and the assignment roll cannot disagree about it.
+  Whitelisted and spawn-only roles are excluded — the same two exclusions the
+  roll makes.
+- **The points arrive unspent**, on `Character.tagPoints`. Skipping the wizard
+  means there is no menu in which to spend them, and `/store` is that menu
+  mid-game — it already spends exactly this column. No new surface.
+- **The new body is named for its seat** ("Migrant", "Bum", de-duplicated),
+  because a skipped wizard asks nobody for a name and the dead character's own
+  is still on the corpse and on its personal Discord role. The player renames
+  themselves through the ordinary `CHANGE_NAME` request, which the arrival DM
+  points at. **This is the piece most likely to want changing** — it is a
+  default, not a considered design.
+
+`db/lib/curse.js` is untouched: the new character is `ALIVE`, so `isCursedIn`
+already returns not-cursed and the −6 and the Migrant/Bum restriction never
+apply. The personal character role is deliberately not minted here — it is a
+mentionable name token that grants nothing (`PROXYING.md` §6), the placeholder
+name is about to change anyway, and the channel doctor mints any missing one on
+the next bot start.
+
+Every early return is a normal outcome, not an error: no tag, no Discord user,
+another living character already, or no free seat anywhere in the game. A
+player whose soul finds nowhere to go is simply dead the ordinary way.

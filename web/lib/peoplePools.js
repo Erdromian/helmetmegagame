@@ -283,6 +283,8 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         custom: true,
         pointCost: true,
         stackable: true,
+        // ChipLabel's mastery star.
+        mastery: true,
         group: { select: { slug: true, name: true, color: true } },
       },
     })

@@ -21,6 +21,7 @@ const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const { structuresAt } = require("./structures");
 const {
   EXHAUSTED_SLUG,
+  LABORING_TIRELESS_SLUG,
   LABORING_BASIC_SLUG,
   LABORING_SKILLED_SLUG,
   LABORING_FARMING_SLUG,
@@ -217,7 +218,9 @@ function structureTools(structures) {
 // underground is now most of the reason to go down there, and a location that
 // genuinely yields nothing simply has no LocationYield rows.
 function computeLaborAccess(ctx) {
-  if (ctx.tagSlugs.has(EXHAUSTED_SLUG)) {
+  // Laboring (Tireless) works through it, at half yield (the halving is
+  // applied with Soft Hands' below). Without the tag this is a hard stop.
+  if (ctx.tagSlugs.has(EXHAUSTED_SLUG) && !ctx.tagSlugs.has(LABORING_TIRELESS_SLUG)) {
     return { ok: false, reason: "You're **Exhausted**. Rest before you can Labor again." };
   }
   // Tied up, bleeding out, on the floor or out cold. This is the seam the
@@ -303,6 +306,7 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
       bonus: 0,
       tools: [],
       halved: false,
+      halvedBy: [],
       lifewebFailing,
       locationCoefficient: 1,
       refinery: true,
@@ -346,11 +350,20 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
 
   let { min, max } = best;
 
-  const halved = ctx.tagSlugs.has(SOFT_HANDS_SLUG);
-  if (halved) {
+  // Two independent halvings, and they compound: Soft Hands is who you are,
+  // Tireless-while-Exhausted is the state you are in, and someone who is both
+  // is working a soft-handed quarter-day. Each is named, because the note the
+  // player reads has to say which one cost them — a bare "halved" on a day
+  // they were merely tired reads as a bug.
+  const halvedBy = [];
+  if (ctx.tagSlugs.has(SOFT_HANDS_SLUG)) halvedBy.push("Soft Hands");
+  if (ctx.tagSlugs.has(EXHAUSTED_SLUG) && ctx.tagSlugs.has(LABORING_TIRELESS_SLUG))
+    halvedBy.push("working while Exhausted");
+  for (let i = 0; i < halvedBy.length; i++) {
     min = Math.floor(min / 2);
     max = Math.floor(max / 2);
   }
+  const halved = halvedBy.length > 0;
 
   if (lifewebFailing) {
     // Basic is not scaled, it stops. Everything else keeps a twentieth.
@@ -371,6 +384,7 @@ function resolveLaborRateFrom(ctx, coefficient, { lifewebFailing = false } = {})
     bonus: best.bonus,
     tools: best.tools,
     halved,
+    halvedBy,
     lifewebFailing,
     locationCoefficient: best.locationCoefficient,
     // A MACHINE format, parsed back by db/lib/resourceDelta.js#rollResourceRange
@@ -402,7 +416,7 @@ function laborTierLabel(tier) {
 // Returns null when there is nothing to explain, so a caller can spread it
 // straight into a lines array.
 function formatLaborBonusNote(
-  { tools = [], halved = false, lifewebFailing = false, refinery = false } = {},
+  { tools = [], halved = false, halvedBy = [], lifewebFailing = false, refinery = false } = {},
   { refined = true } = {},
 ) {
   // A refining shift has no tools and no dials — what it made is the whole
@@ -420,12 +434,16 @@ function formatLaborBonusNote(
   for (const tool of tools) {
     if (tool.amount) parts.push(`+${tool.amount} ⬢ from ${tool.name}`);
   }
-  if (halved) parts.push("halved by Soft Hands");
+  // `halvedBy` names each cut; the bare `halved` is the older shape and still
+  // reads as Soft Hands, so a caller that has not been updated says something
+  // true rather than nothing.
+  if (halvedBy.length > 0) parts.push(`halved by ${halvedBy.join(" and then by ")}`);
+  else if (halved) parts.push("halved by Soft Hands");
   if (lifewebFailing) parts.push("and the Lifeweb is failing, so almost nothing came of it");
   if (parts.length === 0) return null;
   const [first, ...rest] = parts;
   const sentence = `${first.charAt(0).toUpperCase()}${first.slice(1)}${rest.length ? `, ${rest.join(", ")}` : ""}`;
-  return `-# Includes ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}.`;
+  return `-# Includes ${sentence.charAt(0).toLowerCase()}${sentence.slice(1)}. ‡`;
 }
 
 // Async convenience for the one-character call sites (the Move modal and the

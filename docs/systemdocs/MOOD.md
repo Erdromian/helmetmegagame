@@ -443,3 +443,49 @@ hooks in the same tick cannot race a stale read past either end.
   because this schema drops nothing.
 - `settleFearTag` is gone entirely. So are `UNCOMFORTABLE_SLUG` … `PANIC_SLUG`
   in `db/lib/constants.js`.
+
+
+## The two mastery tags that own the dial
+
+Both are `mastery` tags (`TAGS.md` §4a), and they `conflictsWith` each other —
+one says every blow lifts you, the other says nothing moves you at all.
+
+**Amor Fati** is two rows in `MULTIPLIERS` (`db/lib/mood.js`) and introduces a
+**negative factor**, which is new to that table and is the whole trick.
+`resolveDelta` only consults the multipliers for harm (`base < 0`), so a factor
+of `-0.5` hands half the sting back as *relief* instead of taking it: being
+crucified is worth **+40** to a man who has decided to want whatever happens.
+
+The kinds are split on purpose. Misfortune that *happens* to you — a shock with
+an author and a moment — flips: `WOUND`, `DYING`, `CRUCIFIED`, `TORTURED`,
+`MUTILATED`, `BOUND`, `ROBBED`, `TURRET`, `CAVE_TROUBLE`, `DEATH_SEEN`. The
+weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `CORPSE`, `NOBLE_MEAL` simply
+stop landing rather than becoming a pleasure, because nobody would call an
+ever-present cost an incident. `DRIFT` needs no row (it carries
+`noMultiplier`), and `PLACE` harm is already capped at Fine. Relief is
+untouched in both lists — this is not a damper on good things.
+
+**Imperturbable** rides on `intensity`, **not** on a multiplier row, and the
+reason is the same asymmetry: a multiplier is only ever read for `base < 0`, so
+a row there would have left the holder free to climb to Ecstatic while immune
+to everything below Fine. `k === 0` is a case `resolveDelta` already handled
+(it returns 0 for either sign), so the tag adds no new arithmetic. It also
+costs the Ecstatic Gambit bonus, which is the price of never taking the Afraid
+one.
+
+`applyMoodTerms` additionally **pins the stored value to 0** for a holder, so
+"always at Fine" is true of a mood the character already had when they bought
+the tag and not only of the events that stop landing afterwards. The nightly
+pass reaches every living character, so it settles within a turn at the
+outside.
+
+One trap, and it is why `imperturbable` sits in `MULTIPLIER_SLUGS` despite not
+being a multiplier: `db/lib/moodPass.js` **filters its tag query** to that list.
+A slug missing from it is not selected, and the whole night is then computed as
+though the holder were ordinary. Anything the dial reads belongs on that list,
+multiplier or not.
+
+Imperturbable also refuses **Torture** outright
+(`requestActions.js#tortureCharacterRequestImpl`) rather than sitting at an
+unreachable threshold — the torturer is told why instead of spending a Move on
+a roll that could never land.

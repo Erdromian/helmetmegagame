@@ -67,6 +67,7 @@ function TagButton({ tag, onOpen }) {
 const FLAG_LABELS = [
   ["purchasable", "Purchasable"],
   ["purchasableAfterStart", "After-start"],
+  ["mastery", "Mastery"],
   ["craftable", "Craftable"],
   ["stackable", "Stackable"],
   ["equippable", "Equippable"],

@@ -49,9 +49,11 @@ async function addResources(tx, characterId, amount) {
 }
 
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
+const { rollDie } = require("./rollDie");
+const { rollWithAdvantage } = require("./advantage");
 const { expiryFrom } = require("./turnFormat");
 const { nextLaborFatigueSlug } = require("./laborFatigue");
-const { TIER_TO_LABOR_DROP_TYPE, pickLaborDropOption } = require("./laborDrops");
+const { TIER_TO_LABOR_DROP_TYPE, pickLaborDropOption, effectiveDropRoll } = require("./laborDrops");
 
 // One entry per pushable thing. `read` decides what this Move would push right
 // now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert` takes back
@@ -202,19 +204,25 @@ const MOVE_EFFECTS = {
     apply: async (tx, action) => {
       const laborType = TIER_TO_LABOR_DROP_TYPE[action.laborTier] ?? null;
       if (!laborType) return 0;
-      const roll = 1 + Math.floor(Math.random() * 6);
       // Skill-gated pools (Forester in the Forest, LABORDROPS.md §2a) need to
       // know what the character actually holds RIGHT NOW — a skill learned
       // since filing should count, the same live-state reasoning
-      // resolveLaborRate already uses for the tier itself.
-      const heldTagIds = new Set(
-        (
-          await tx.characterTag.findMany({
-            where: { characterId: action.characterId },
-            select: { tagId: true },
-          })
-        ).map((row) => row.tagId),
-      );
+      // resolveLaborRate already uses for the tier itself. Loaded BEFORE the
+      // roll now, because Lucky and Scavenging both bend the die.
+      const held = await tx.characterTag.findMany({
+        where: { characterId: action.characterId },
+        select: { tagId: true, tag: { select: { slug: true } } },
+      });
+      const heldTagIds = new Set(held.map((row) => row.tagId));
+      const heldSlugs = new Set(held.map((row) => row.tag?.slug).filter(Boolean));
+      // Lucky throws this die twice and keeps the better one; Scavenging then
+      // remaps a 4 or a 5 up to a 6 (db/lib/laborDrops.js#effectiveDropRoll),
+      // which is what "drops more often, and a good day is never an injury"
+      // means against a table that only configures faces 1 and 6. `roll` below
+      // is the face the pool is drawn on, and it is what gets snapshotted onto
+      // appliedEffects so Undo and the readout agree with what happened.
+      const { die } = rollWithAdvantage([...heldSlugs].map((slug) => ({ slug })));
+      const roll = effectiveDropRoll(die, heldSlugs);
       const option = await pickLaborDropOption(tx, {
         roll,
         laborType,
@@ -333,12 +341,9 @@ function describeMoveEffects(applied) {
   return parts.join(", ");
 }
 
-// The Move d6. Lives here rather than as a private helper in the bot's
-// interactionCreate.js because the adjudication panel rerolls it when a GM
-// switches a Routine to a Gambit, and the two must be the same die.
-function rollDie(sides = 6) {
-  return 1 + Math.floor(Math.random() * sides);
-}
+// The Move d6 moved to db/lib/rollDie.js so advantage.js could reach it
+// without requiring this file back (see the note there). Still re-exported
+// below, so every existing importer keeps working unchanged.
 
 // addResources is exported for db/lib/stagedPush.js, which pushes GM-staged
 // resource adjustments through the same clamp-and-report statement.

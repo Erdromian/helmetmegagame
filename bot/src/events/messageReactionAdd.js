@@ -28,6 +28,7 @@ function fitDescription(value) {
 const { sendDm } = require("../lib/dm");
 const { buildEditPrompt, stashEdit } = require("../lib/editModal");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
+const { tagDisplayName } = require("@lifeweb/db/lib/tagDisplayName");
 
 const DELETE_EMOJI = "❌";
 const EDIT_EMOJIS = ["✏️", "📝"];
@@ -176,7 +177,8 @@ async function handleDossierReaction(reaction, proxy, user) {
         ct.equipped ? "worn" : null,
         ct.quantity > 1 ? `x${ct.quantity}` : null,
       ].filter(Boolean);
-      return bits.length > 0 ? `${ct.tag.name} (${bits.join(" · ")})` : ct.tag.name;
+      const shown = tagDisplayName(ct.tag);
+      return bits.length > 0 ? `${shown} (${bits.join(" · ")})` : shown;
     });
     embed.addFields({ name: "Tags", value: fitField(rendered.join(", ")) });
   }

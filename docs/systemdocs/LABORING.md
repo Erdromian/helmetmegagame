@@ -436,3 +436,29 @@ At base, only `depths-obelisk` wears Bountiful. This button is the
 | `db/lib/locationAttributes.js` | The attribute registry and the prose it prints |
 | `docs/zones.yaml` | Every `yield:` block |
 | `docs/tags.yaml` | The five Laboring tags and every `laborBonus:` |
+
+
+## Laboring (Tireless)
+
+A `mastery` tag (`TAGS.md` §4a) gated on Laboring (Skilled): you can labor
+while **Exhausted**, at half yield.
+
+Two halves, and the second is the one that makes it worth 14 points:
+
+1. **The gate.** `computeLaborAccess`'s first step refuses a holder of
+   `exhausted`; Tireless passes it, and the yield is halved.
+2. **The fatigue ladder needs no change at all.**
+   `db/lib/laborFatigue.js#nextLaborFatigueSlug` already returns `null` for
+   somebody who is *already* Exhausted, so laboring in that state grants
+   nothing and — crucially — does not refresh the existing tag's clock. It
+   still degrades to Tired on its own schedule. That is what lets a Tireless
+   character work every turn instead of one turn in three.
+
+The auto-labor pass needs no change either: it skips on `!rate.ok` from this
+same resolver, so a Tireless character is picked up automatically.
+
+**The halving compounds with Soft Hands**, and each is named separately in the
+payout note (`halvedBy`). Someone who is both is working a soft-handed
+quarter-day. A bare "halved by Soft Hands" on a day the character was merely
+Exhausted would read as a bug, which is why the note lists reasons rather than
+carrying one boolean.

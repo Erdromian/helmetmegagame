@@ -98,6 +98,19 @@
 #   teachable       - Learn / Teach can move this tag between characters
 #                     (docs/systemdocs/LESSONS.md). Every skill sets it.
 #                     Default false.
+#   mastery         - a MASTERY tag: buyable ONLY once play has started, never
+#                     at character creation. The third state `purchasable` and
+#                     `purchasableAfterStart` could not express between them
+#                     ("buyable at all" and "still buyable mid-game"; neither
+#                     says "not yet"). Bought with points earned in play rather
+#                     than out of a starting budget, which is why the mastery
+#                     tags are the deliberate exception to the 14-point ceiling
+#                     — see TAGS.md 4a. Renders a ★ beside the name wherever
+#                     the name is drawn. Default false.
+#                     db/lib/syncTags.js THROWS on `mastery` with
+#                     `purchasableAfterStart: false` (buyable nowhere at all)
+#                     and on `mastery` with a negative pointCost (a drawback
+#                     you can only take mid-game is a point farm).
 #   stackable       - whether a character can hold more than one at a time
 #                     (meals, ammunition, anything a crafting Move makes in a
 #                     batch). Default false. A stack is one CharacterTag row
@@ -2206,6 +2219,106 @@ tags:
     purchasableAfterStart: true
     teachable: false
 
+  # --- The general MASTERIES -------------------------------------------------
+  # Five capstones, none of them buyable at character creation (TAGS.md 4a on
+  # the mastery band and why it sits above the ordinary 14-point ceiling).
+  # Second Wind is filed with them because it reads like one, but it is a plain
+  # 6-point tag and is deliberately NOT `mastery` — it can be bought at
+  # creation like anything else.
+
+  # Advantage is a re-roll, not a modifier, so it does not live in
+  # db/lib/gambitModifier.js — db/lib/advantage.js is the whole mechanic, and
+  # every d6 a CHARACTER rolls goes through it.
+  lucky:
+    catalog: all
+    name: Lucky
+    category: general
+    group: general-traits
+    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the laboring die included. \u2021"
+    pointCost: 15
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # The SLOT lock only (GameConfig.desireSlotLockTurns), never a Desire's own
+  # cooldown — a Manic character may refill a slot the turn it empties, but
+  # each individual Desire still waits out its own timer (DESIRES.md).
+  manic:
+    catalog: all
+    name: Manic
+    category: general
+    group: general-personality
+    psychological: true
+    description: "You want the next thing before the last one has finished. Your Desire slots take no rest between claims. \u2021"
+    pointCost: 13
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # On death this rolls the holder straight into a new body: a random role with
+  # a free seat, the starting budget plus 6, and no Curse. See CHARACTERS.md.
+  # The description is deliberately vague — the player is told what it does by
+  # DM when they take it, not by the catalog line.
+  metempsychosis:
+    catalog: all
+    name: Metempsychosis
+    category: general
+    group: general-traits
+    description: "You know something very, very important. \u2021"
+    pointCost: 12
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # A negative factor in db/lib/mood.js MULTIPLIERS, which flips harm into
+  # relief. Shocks pay HALF their sting back as mood; the ever-present costs
+  # (wilderness, caves, hunger) simply stop landing.
+  amor-fati:
+    catalog: all
+    name: Amor Fati
+    category: general
+    group: general-beliefs
+    description: "Unfortunate incidents only serve to make you pleased. What would wound another man's spirits lifts yours instead, and the ordinary miseries do not touch you at all. \u2021"
+    pointCost: 12
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+    conflictsWith: [imperturbable]
+
+  # Pinned at Fine: the mood dial cannot move at all, in either direction. That
+  # costs the Ecstatic Gambit bonus as well as sparing the Afraid penalty.
+  # Torture refuses outright rather than rolling and always failing.
+  imperturbable:
+    catalog: all
+    name: Imperturbable
+    category: general
+    group: general-traits
+    description: "Your mind is unshakable. Nothing moves your mood from Fine, and there is nothing in you for a torturer to break. \u2021"
+    pointCost: 12
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # NOT a mastery: an ordinary tag, buyable at creation. Cancels the point
+  # penalty a Health tag lays on a fighting rating. It does NOT lift the three
+  # Health tags that CAP the band (Dying, Paralyzed, Seizure) — those take you
+  # out of a fight rather than making you worse at one (COMBAT.md).
+  second-wind:
+    catalog: all
+    name: Second Wind
+    category: general
+    group: general-traits
+    description: "You fight through it. Wounds and illness cost you nothing at all in a fight, though being at death's door still ends one. \u2021"
+    pointCost: 6
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+
   # --- Brigands -------------------------------------------------------------
   brigand:
     catalog: gm
@@ -2422,6 +2535,42 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # The two Laboring MASTERIES. Both need Laboring (Skilled) behind them and
+  # neither can be bought at creation — see TAGS.md 4a on the mastery band.
+  # Scavenging remaps the drop die rather than editing docs/labordrops.yaml:
+  # only faces 1 and 6 are configured, so "drops on 4 and 5 too" is a 4/5 -> 6
+  # remap in db/lib/laborDrops.js. A 1 still hurts.
+  laboring-scavenging:
+    catalog: all
+    name: Laboring (Scavenging)
+    category: skills
+    group: skills-labor
+    teachable: true
+    description: "You have an eye for what a day's work turns up. Your laboring finds something far more often, and what a good day turns up is never an injury. \u2021"
+    pointCost: 12
+    requiredTag: laboring-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
+  # Tireless does two things, and the second is the one that matters: laboring
+  # while Exhausted does not step the fatigue ladder (db/lib/laborFatigue.js),
+  # so the holder can work every turn instead of one turn in three.
+  laboring-tireless:
+    catalog: all
+    name: Laboring (Tireless)
+    category: skills
+    group: skills-labor
+    teachable: true
+    description: "You can work through exhaustion. While {tag:exhausted} you still labor, at half of what you would otherwise make. \u2021"
+    pointCost: 14
+    requiredTag: laboring-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
+
   forester:
     catalog: all
     name: Forester
@@ -2441,6 +2590,23 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
+
+  # A Musician MASTERY: triples what /play is worth to everyone who hears it.
+  # Gated on Musician because the mood half of /play already lives inside that
+  # check (bot/src/events/interactionCreate.js) — without the parent, playing
+  # badly soothes nobody and this would be worth nothing.
+  musician-pythagorean:
+    catalog: all
+    name: Musician (Pythagorean)
+    category: skills
+    teachable: true
+    description: "Your music is complex and absorbing. It lifts everyone who hears it three times as much. \u2021"
+    pointCost: 14
+    requiredTag: musician
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
 
   # Smithing is split into two rungs, gating the Dead Simple / Simple recipes
   # against the Moderate / High Quality / Exceptional ones. Full price and
@@ -2999,6 +3165,25 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
+
+  # A Brewing MASTERY. requiredTag rather than parentTag: this is a sidegrade
+  # off Skilled, not a rung above it, so buying it must not replace the tier
+  # underneath (TAGS.md 3, the Melee (Flamboyant) precedent). The doubling is
+  # output only — ingredients and the resource cost are still charged on the
+  # number of units actually brewed, which is what "for the same cost" means.
+  brewing-distilling:
+    catalog: all
+    name: Brewing (Distilling)
+    category: skills
+    group: skills-brewing
+    teachable: true
+    description: "You draw twice as much out of the same mash. Every brewing recipe you follow yields two of its item for the price of one. \u2021"
+    pointCost: 14
+    requiredTag: brewing-skilled
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
+    mastery: true
 
   #Cooking
   cooking-basic:

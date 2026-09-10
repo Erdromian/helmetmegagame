@@ -19,7 +19,8 @@ const { drawLoot } = require("./cavingLoot");
 const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
 const { addToStack, clampEquippedQuantity } = require("./tagWrites");
 const { applyMood } = require("./mood");
-const { rollDie } = require("./moveEffects");
+const { rollWithAdvantage } = require("./advantage");
+const { LUCKY_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 
 // Every DM leads with the face, so a player sees their own roll and not just
@@ -52,7 +53,16 @@ function findDm(die, tagName) {
 async function rollCaving(prisma, character, turn, location) {
   const zone = location.zone;
   const trigger = "ARRIVAL";
-  const die = rollDie(6);
+  // Lucky rolls the Caving Die twice and keeps the better one, which turns
+  // the dark from a coin-flip into a prospecting trip. `character` is not
+  // guaranteed to arrive with its tags loaded (rollCavingOnArrival is called
+  // straight off a move), so the holding is asked for here — the same one-row
+  // lookup the Musk Lure below already does rather than trusting the caller.
+  const lucky = await prisma.characterTag.findFirst({
+    where: { characterId: character.id, tag: { slug: LUCKY_SLUG } },
+    select: { id: true },
+  });
+  const { die } = rollWithAdvantage(lucky ? [{ tag: { slug: LUCKY_SLUG } }] : []);
   const kind = die === 1 ? "TROUBLE" : die === 6 ? "FIND" : "QUIET";
 
   return await prisma.$transaction(async (tx) => {

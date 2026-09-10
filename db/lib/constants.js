@@ -175,6 +175,22 @@ const MOTION_SICKNESS_SLUG = "motion-sickness";
 // web/lib/consumeGrants.js — that file ships to the client, so it keeps its
 // own copies rather than importing from here.
 const DEBTOR_SLUG = "debtor";
+// The mastery tags (TAGS.md 4a). Each is read by exactly one mechanic:
+// Lucky by db/lib/advantage.js, Manic by the desire-slot lock, Amor Fati and
+// Imperturbable by db/lib/mood.js, Second Wind by db/lib/fightingSkill.js,
+// Scavenging by the labor drop die, Tireless by the fatigue ladder,
+// Distilling by Craft, and Pythagorean by /play. Metempsychosis is read on
+// death (db/lib/characterDeath.js).
+const LUCKY_SLUG = "lucky";
+const MANIC_SLUG = "manic";
+const METEMPSYCHOSIS_SLUG = "metempsychosis";
+const AMOR_FATI_SLUG = "amor-fati";
+const IMPERTURBABLE_SLUG = "imperturbable";
+const SECOND_WIND_SLUG = "second-wind";
+const BREWING_DISTILLING_SLUG = "brewing-distilling";
+const LABORING_SCAVENGING_SLUG = "laboring-scavenging";
+const LABORING_TIRELESS_SLUG = "laboring-tireless";
+const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
 // The phobias, Brave, Pale, Rough Camper and friends are read by slug inside
 // db/lib/mood.js's multiplier table rather than exported from here.
 
@@ -249,4 +265,14 @@ module.exports = {
   INSOMNIAC_SLUG,
   MOTION_SICKNESS_SLUG,
   DEBTOR_SLUG,
+  LUCKY_SLUG,
+  MANIC_SLUG,
+  METEMPSYCHOSIS_SLUG,
+  AMOR_FATI_SLUG,
+  IMPERTURBABLE_SLUG,
+  SECOND_WIND_SLUG,
+  BREWING_DISTILLING_SLUG,
+  LABORING_SCAVENGING_SLUG,
+  LABORING_TIRELESS_SLUG,
+  MUSICIAN_PYTHAGOREAN_SLUG,
 };

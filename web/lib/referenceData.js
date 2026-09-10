@@ -92,6 +92,9 @@ export const TAG_CHIP_FIELDS = {
   id: true,
   slug: true,
   name: true,
+  // ChipLabel draws the mastery star off this. Drop it and the star silently
+  // stops appearing on every chip in the app rather than erroring anywhere.
+  mastery: true,
   description: true,
   pointCost: true,
   category: true,

@@ -335,3 +335,30 @@ an event when somebody does.
   character's own tags can never know who that is. It rides as a `note:` on its
   holder, where the GM adjudicating the fight will see it. Making it a real
   modifier would mean resolving fights in code, which this system does not do.
+
+
+## Second Wind
+
+An ordinary 6-point tag (**not** a mastery, despite reading like one): a Health
+tag's *penalty* stops counting toward the rating.
+
+It works through `contextOf`'s new `secondWind` flag and reuses the branch in
+`modifiers()` that already exists for a cancelled maiming — the contributor is
+pushed at **`points: 0` with a `cancelledBy` label, not dropped**, so a player
+wondering why their broken arm costs nothing can read the answer instead of
+assuming the system lost it.
+
+Three things it deliberately does **not** do:
+
+- **It never lifts a band CAP.** Dying, Paralyzed and Seizure keep
+  `cap: pitiful`. Those take you *out* of a fight rather than making you worse
+  at one, which is exactly what the cap mechanism is for (§2).
+- **It only waives penalties.** A Health tag with positive `points` keeps
+  helping.
+- **It is Health only.** A Status penalty — Bound, a hangover, Wasted — is
+  untouched.
+
+`FIGHTING_TAG_FIELDS` gained `category: true` for this. Drop it and every wound
+quietly starts costing a Second Wind holder again, at that surface only — the
+same silent-per-surface failure the comment on that constant already warns
+about.

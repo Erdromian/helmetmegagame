@@ -48,6 +48,7 @@
 // for applyWoundMood, and a cycle would hand one of them a half-built export.
 const { hasAttribute, SAFE_ATTRIBUTE, WILDERNESS_ATTRIBUTE, HAVEN_ATTRIBUTE } = require("./locationAttributes");
 const { DYING_SLUG } = require("./constants");
+const { IMPERTURBABLE_SLUG } = require("./constants");
 
 // Still asymmetric, but by one band rather than by a whole half: Ecstatic
 // mirrors Afraid exactly — same width, same distance from Fine, +1 against its
@@ -231,10 +232,35 @@ const MULTIPLIERS = Object.freeze([
   // caller can say what is equipped (equippedSlugs below); a caller that
   // cannot simply never applies them, which fails safe — no free immunity.
   { slug: "heartforged-blade", kinds: "*", factor: 0, equipped: true },
+  // Amor Fati (a mastery, TAGS.md 4a). A NEGATIVE factor, which is new here
+  // and is the whole trick: `resolveDelta` only consults this table for harm
+  // (base < 0), so multiplying by -0.5 hands back half the sting as RELIEF
+  // instead of taking it. Being crucified is worth +40 to a man who has
+  // decided to want whatever happens.
+  //
+  // Split in two on purpose. The first list is misfortune that HAPPENS to
+  // you — a shock with an author and a moment. The second is the weather:
+  // ever-present costs nobody would call an incident, which simply stop
+  // landing rather than becoming a pleasure. WILDERNESS and CAVE cover both
+  // the arrival hit and the nightly one, since the kind is the same for each.
+  //
+  // DRIFT needs no row (it carries noMultiplier), and PLACE harm is already
+  // capped at Fine.
+  {
+    slug: "amor-fati",
+    kinds: ["WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BOUND", "ROBBED", "TURRET", "CAVE_TROUBLE", "DEATH_SEEN"],
+    factor: -0.5,
+  },
+  { slug: "amor-fati", kinds: ["WILDERNESS", "CAVE", "HUNGER", "CORPSE", "NOBLE_MEAL"], factor: 0 },
 ]);
-// Every slug the tables above read, so a caller loading a sheet knows what to
-// select — and so the turn pass can filter its candidate query.
-const MULTIPLIER_SLUGS = MULTIPLIERS.map((m) => m.slug);
+// Every slug the mood system reads, so a caller loading a sheet knows what to
+// select — and so the turn pass can filter its candidate query. Imperturbable
+// is on the list without being in the table above: it works through
+// `intensity` rather than a multiplier (see applyMoodTerms), but a pass that
+// did not SELECT it would compute the whole night as though the holder were
+// ordinary. That is exactly the silent kind of miss this list exists to stop,
+// so anything the dial reads belongs here whether or not it is a multiplier.
+const MULTIPLIER_SLUGS = [...new Set([...MULTIPLIERS.map((m) => m.slug), IMPERTURBABLE_SLUG])];
 
 // --- the pure half --------------------------------------------------------
 
@@ -375,7 +401,10 @@ function resolveDelta({
   if (!base || k === 0) return 0;
   const harm = base < 0 && !noMultiplier;
   const raw = harm ? base * multiplierFor(kind, heldSlugs, ctx, equippedSlugs) * k : base / k;
-  return Math.round(raw * 100) / 100;
+  // `|| 0` folds -0 back to 0. A zeroing multiplier on a negative base
+  // produces it (Outsider in the wilderness, Amor Fati on any of the ambient
+  // costs), and while -0 adds like 0 it PRINTS like "-0" in a readout.
+  return Math.round(raw * 100) / 100 || 0;
 }
 
 // Plain, as asked: the band's name and nothing about the number. Only the two
@@ -454,8 +483,16 @@ async function applyMoodTerms(
   let delta = 0;
   let moveApplied = 0;
   let restorativeApplied = 0;
+  // Imperturbable (a mastery, TAGS.md 4a) is the dial's own off switch. It
+  // rides on `intensity` rather than on a MULTIPLIERS row because intensity is
+  // the one lever that zeroes RELIEF as well as harm — a multiplier is only
+  // ever consulted for base < 0, so a row there would have left the holder
+  // free to climb to Ecstatic while immune to everything below Fine. `k === 0`
+  // is already a case resolveDelta handles (it returns 0 for either sign), so
+  // this adds no new arithmetic.
+  const unshakable = heldSlugs.has(IMPERTURBABLE_SLUG);
   if (character.status === "ALIVE" && terms?.length) {
-    const k = intensity ?? (await loadIntensity(tx));
+    const k = unshakable ? 0 : intensity ?? (await loadIntensity(tx));
     let moveDelta = 0;
     let restorativeDelta = 0;
     for (const term of terms) {
@@ -490,7 +527,16 @@ async function applyMoodTerms(
   }
 
   let after = before;
-  if (delta !== 0) {
+  // "Always at 0, Fine" has to hold for a mood the character ALREADY had when
+  // they took the tag, not just for the events that stop landing afterwards.
+  // Nothing moves an Imperturbable dial, so the correction is a one-time
+  // write back to 0 the next time anything asks — the nightly pass reaches
+  // every living character, so it settles within a turn at the outside.
+  if (unshakable && before !== 0) {
+    await tx.character.update({ where: { id: characterId }, data: { mood: 0 } });
+    after = 0;
+    delta = 0;
+  } else if (delta !== 0) {
     // Clamped in the database, so two hooks in the same tick cannot race a
     // stale read past either end.
     const rows = await tx.$queryRaw`
