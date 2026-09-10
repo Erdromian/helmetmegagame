@@ -2550,6 +2550,21 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # Prospecting's own advantage skill, same shape as Forester's — a wider
+  # pool at the SAME draw rather than a second roll, using the requiresTag
+  # gate LABORDROPS.md §2a already provides. No new engine code, and the
+  # balance is just "add a few more good entries," the same tuning this
+  # whole table has already had (Bascinet, 2026-09-10).
+  keen-eye:
+    catalog: all
+    name: Keen Eye
+    category: skills
+    teachable: true
+    description: "You know good ground when you see it. Prospecting turns up more than it does for anyone else. ‡"
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
   climbing:
     catalog: all
     name: Climbing
@@ -5080,6 +5095,31 @@ tags:
       examine: "its stakes wall the current."
       laborBonus: { kind: fishing, amount: 1 }
 
+  # Prospecting's own structure, same shape as the Fish Weir above — the one
+  # bonus category the specialization had no presence in at all until now
+  # (Bascinet, 2026-09-10).
+  claim-stake:
+    catalog: all
+    name: Claim Stake
+    category: assets
+    group: assets-structures
+    description: "A stake driven into the ground, marking a claim. Gives an additional 1 ⬢ when Prospecting where erected. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "a stake driven deep, claiming this ground. ‡"
+      laborBonus: { kind: prospecting, amount: 1 }
+
   forge:
     catalog: all
     name: Forge
@@ -5887,6 +5927,31 @@ tags:
     consumesInto:
       - coal
       - silver
+
+  # A whole haul, sorted rather than raw — one Coal, one Silver, one Steel
+  # already smelted, bundled the way the Depot's own crates are (`DEPOT.md`
+  # §0e), not picked apart one seam at a time. Priced at the sum of its
+  # contents, same convention as Ore Chunk above (Bascinet, 2026-09-10).
+  ore-package:
+    catalog: all
+    name: Ore Package
+    category: items
+    group: items-gear
+    description: "A crate of ore, sorted and ready for the forge — Coal, Silver, and an ingot of Steel already smelted. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 27
+    consumable: true
+    consumesInto:
+      - coal
+      - silver
+      - steel
 
   # Bought from the Depot rather than made: nothing in Ravenheart produces it,
   # which is what puts it on the shelf at all (TAGS.md §5, `depotPrice`). It is
@@ -6810,6 +6875,147 @@ tags:
     consumesInto:
       - heirloom
       - jewelry
+
+  # Flavor finds, not ore — Prospecting's own design note already says
+  # "searching is searching, wherever it turns up plant matter"
+  # (LABORDROPS.md §2b), so it was never meant to be mining alone. These
+  # widen what a search can turn up without adding any new mechanic — same
+  # shape as Sweets or Heirloom, just more of the game's existing texture
+  # for personal effects, curios and the occult (Bascinet's call, 2026-09-10).
+  faded-photograph:
+    catalog: all
+    name: Faded Photograph
+    category: items
+    group: items-gear
+    description: "A photograph, sun-bleached almost to nothing. Whoever's in it isn't anymore. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 2
+
+  pocket-watch:
+    catalog: all
+    name: Pocket Watch
+    category: items
+    group: items-gear
+    description: "Stopped at whatever hour it was dropped. Still a fine watch. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 4
+
+  music-box:
+    catalog: all
+    name: Music Box
+    category: items
+    group: items-gear
+    description: "Wind it and it still plays — a few bars, then the same few bars again. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 6
+
+  warding-bead:
+    catalog: all
+    name: Warding Bead
+    category: items
+    group: items-gear
+    description: "A single bead off a longer strand, worn against something. Didn't work, or the strand would still be whole. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+
+  wedding-ring:
+    catalog: all
+    name: Wedding Ring
+    category: items
+    group: items-gear
+    description: "Someone's, once. Still engraved on the inside. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 8
+
+  pawn-ticket:
+    catalog: all
+    name: Pawn Ticket
+    category: items
+    group: items-gear
+    description: "A numbered stub for something nobody came back to claim. Might still be behind the counter. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 2
+
+  prayer-beads:
+    catalog: all
+    name: Prayer Beads
+    category: items
+    group: items-gear
+    description: "Worn smooth by someone else's thumb, once, at the Shrine. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+
+  # The one true gem — as rare as depths-chasm's own philosophy demands
+  # (LABORDROPS.md §2b: "rare ground stays rare by what it can find, not by
+  # a bigger number"), and priced just under the game's existing ceiling
+  # (Aberrant Heart, 55 ⬢) rather than past it. "Fit for a king. Or a
+  # Baron." is doing the naming work here on purpose — Ravenheart has no
+  # king, only the Baron, and the stone doesn't know the difference
+  # (Bascinet, 2026-09-10).
+  flawless-gem:
+    catalog: gm
+    name: Flawless Gem
+    category: items
+    group: items-gear
+    description: "A stone without a single flaw — the kind that ends up on a crown, not a merchant's scale. Fit for a king. Or a Baron. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 45
 
   smoke-grenade:
     catalog: gm
@@ -7846,6 +8052,35 @@ tags:
     # Dead Simple convention (cost + 1), NOT the depot wage floor: at 0 turns
     # the free ration would mint the margin as a free action (4/turn on top of
     # an untouched labor day). The depot's 12 stays the impatience premium.
+    sellablePrice: 4
+    depotPrice: 12
+
+  # Prospecting's own tool, same shape as Fishing Rod above — every other
+  # specialization has one made for the work, this was the one gap
+  # (Bascinet, 2026-09-10).
+  prospectors-pick:
+    catalog: all
+    name: "Prospector's Pick"
+    category: items
+    group: items-gear
+    description: "A short-handled pick, good for breaking rock or worrying at a lock. While equipped, Prospecting produces an additional 1 ⬢. ‡"
+    pointCost: 2
+    laborBonus: { kind: prospecting, amount: 1 }
+    equippable: true
+    equipSlot: ACCESSORY
+    tradeable: true
+    weight: 4
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting]
+      gambit: false
+    sellable: true
     sellablePrice: 4
     depotPrice: 12
 
@@ -12945,7 +13180,7 @@ tags:
     name: Mining Helmet
     category: items
     group: items-headgear
-    description: "A cushioned helmet with a small light, useful in the caves."
+    description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢. ‡"
     pointCost: 5
     depotPrice: 14
     equippable: true
@@ -12960,6 +13195,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 9
+    laborBonus: { kind: prospecting, amount: 1 }
 
   knights-helmet:
     catalog: all

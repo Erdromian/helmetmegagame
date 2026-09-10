@@ -292,6 +292,8 @@ that doesn't exist.
 | Pitchfork | farming | +1 | equipped |
 | Plow | farming | +3 | not equipped; needs a `horse` |
 | Fishing Rod | fishing | +1 | equipped |
+| Mining Helmet | prospecting | +1 | equipped (2026-09-10) — Prospecting's first tool; also armor and Caving Rare loot, so it pays three ways at once |
+| Prospector's Pick | prospecting | +1 | equipped (2026-09-10) — a dedicated hand tool, craftable, modeled on the Fishing Rod |
 
 **The hunting tools were flattened on 2026-09-06.** Every bow and the Trapping
 Gear pay +1, and Butcher pays +1, where the ladder used to run +1 to +3 and
