@@ -2079,6 +2079,33 @@ tags:
     purchasableAfterStart: true
     exclusive: true
 
+  # The fifth Old Way, and the only one nobody can buy: it is handed out by the
+  # Pray button in the Shrine of an Old Man (docs/zones.yaml, depths-chasm) and
+  # by nothing else. Holding it puts the character on db/lib/xomPass.js's
+  # weighted table, once per turn close, for the rest of their life —
+  # see docs/systemdocs/TURN-ENGINE.md.
+  #
+  # `visible` stays at its default (hidden), unlike {tag:rage}, which is
+  # visible because Rage is plainly happening to you. This is a secret, and one
+  # inspect reaction would be the end of it.
+  #
+  # The lock leaves exactly one Desire standing, the way {tag:stupid} and
+  # {tag:thanati} do — see the `chaos` family in docs/desires.yaml.
+  old-ways-xom:
+    catalog: secret
+    name: Old Ways (Xom)
+    category: general
+    group: general-beliefs
+    description: "The patron god of chance and disorder, as mad as those who willingly become his playthings."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    exclusive: true
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [chaos]
+
   # Pilgrim is deliberately off the point scale at 1 — Gunboat's call.
   pilgrim:
     catalog: all

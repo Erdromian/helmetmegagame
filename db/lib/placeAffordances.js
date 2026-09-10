@@ -21,6 +21,7 @@
 const { hasNoticeboard } = require("./noticeboard");
 const { INTERCOM_ROOM_SLUG } = require("./intercom");
 const { BELL_ROOM_SLUG } = require("./bell");
+const { XOM_SHRINE_ROOM_SLUG } = require("./xom");
 const { linksFor, gateOperable, endpoints, isHeldOpen } = require("./locationGraph");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
@@ -57,6 +58,7 @@ const ROOM_STORAGE_PREFIX = "room:storage:";
 const ROOM_INTERCOM_PREFIX = "room:intercom:";
 const ROOM_TURRET_PREFIX = "room:turret:";
 const ROOM_BELL_PREFIX = "room:bell:";
+const ROOM_PRAY_PREFIX = "room:pray:";
 
 // `tone` is what the affordance MEANS, never a colour: Discord maps it to a
 // button style and the web maps it to a .btn variant, so neither face reaches
@@ -105,6 +107,16 @@ const ROOM_AFFORDANCES = [
     tone: PLAIN,
     prefix: ROOM_BELL_PREFIX,
     when: (room) => room?.slug === BELL_ROOM_SLUG,
+  },
+  // The Shrine of an Old Man, at the bottom of the Chasm. Danger, and not
+  // because it is loud: it is the only button in the game that hands you a
+  // permanent tag which can kill you, and there is no way back off it.
+  {
+    id: "pray",
+    label: "Pray",
+    tone: DANGER,
+    prefix: ROOM_PRAY_PREFIX,
+    when: (room) => room?.slug === XOM_SHRINE_ROOM_SLUG,
   },
 ];
 
@@ -242,6 +254,7 @@ module.exports = {
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
+  ROOM_PRAY_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
   WATCHTOWER_ROOM_SLUGS,
   LOCATION_AFFORDANCES,

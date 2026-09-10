@@ -31,6 +31,7 @@ const { runHungerPass } = require("./lib/hungerPass");
 const { runCarryPass } = require("./lib/carryPass");
 const { runMoodPass } = require("./lib/moodPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
+const { runXomPass } = require("./lib/xomPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { getGameState, readGameState } = require("./lib/gameState");
@@ -235,6 +236,14 @@ const TURN_PASSES = [
   // Guilt Ridden and Insomniac's nightly chance of waking Exhausted. After
   // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
   "dawnAfflictions",
+  // The god of chance and disorder collects. Every holder of
+  // {tag:old-ways-xom} rolls once on a weighted table that can hand out a tag,
+  // a corpse's worth of rats, a teleport, a scream, or a death. AFTER the
+  // expiry sweep, or the timed tags it grants would be swept the moment they
+  // landed; BEFORE carry, which has to weigh what it handed out, and before
+  // mood, which pays the night wherever it left somebody standing. See
+  // db/lib/xomPass.js.
+  "xom",
   "carry",
   // The mood dial's nightly settle: the place each character sleeps in, the
   // drift back toward Fine, hunger, a body in the room, a noble's missed
@@ -886,6 +895,38 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Dawn afflictions audit log failed:", err));
   }
 
+  // Xom's table. See db/lib/xomPass.js for why it sits exactly here.
+  let xom = null;
+  if (!done.has("xom")) {
+    xom = await runXomPass(prisma, turn).catch(async (err) => {
+      await passFailed("Xom", err);
+      return null;
+    });
+    if (xom) await markDone("xom");
+  }
+  const {
+    notices: xomNotices = [],
+    deaths: xomDeaths = [],
+    teleports: xomTeleports = [],
+    conversations: xomConversations = [],
+    shouts: xomShouts = [],
+    ...xomSummary
+  } = xom ?? {};
+  if (xom) {
+    // Same channel the dawn afflictions ride: every one of these is "a tag on
+    // your sheet changed", even when something louder happened as well.
+    tagExpiryDms.push(...xomNotices);
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "xom_resolved",
+          details: xomSummary,
+        },
+      })
+      .catch((err) => console.error("Xom audit log failed:", err));
+  }
+
   // Carry caps: Overburdened on and off, and overflow drops for anyone whose
   // Cart or Pack Mule left during the turn. After hunger so it sees the
   // final sheet. See db/lib/carryPass.js, CARRY.md.
@@ -1159,6 +1200,10 @@ async function resolveNeeds(turn, config) {
     publicPosts,
     zoneMoves,
     travelArrivals,
+    xomDeaths,
+    xomTeleports,
+    xomConversations,
+    xomShouts,
     routineNotices,
     gambitRollNotices,
     depotLines: depot?.lines ?? [],
@@ -1316,6 +1361,10 @@ async function advanceTurn() {
   let publicPosts = [];
   let zoneMoves = [];
   let travelArrivals = [];
+  let xomDeaths = [];
+  let xomTeleports = [];
+  let xomConversations = [];
+  let xomShouts = [];
   let routineNotices = [];
   let gambitRollNotices = [];
   // Which row carries this fan-out's payload: always the turn that just
@@ -1367,6 +1416,10 @@ async function advanceTurn() {
       publicPosts,
       zoneMoves,
       travelArrivals,
+      xomDeaths,
+      xomTeleports,
+      xomConversations,
+      xomShouts,
       routineNotices,
       gambitRollNotices,
       depotLines,
@@ -1459,6 +1512,10 @@ async function advanceTurn() {
         publicPosts,
         zoneMoves,
         travelArrivals,
+        xomDeaths,
+        xomTeleports,
+        xomConversations,
+        xomShouts,
         routineNotices,
         gambitRollNotices,
         depotLines,
@@ -1560,6 +1617,10 @@ async function advanceTurn() {
     hungerNotices,
     zoneMoves,
     travelArrivals,
+    xomDeaths,
+    xomTeleports,
+    xomConversations,
+    xomShouts,
     privateDeliveries,
     routineNotices,
     gambitRollNotices,

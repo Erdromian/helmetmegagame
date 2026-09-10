@@ -2211,6 +2211,23 @@ zones:
                 access: [laboring-skilled, caving, prospectors-notes]
                 stash:
                   resources: 95
+              # The Pray button lives here and nowhere else — its slug is
+              # hardcoded in db/lib/xom.js the way the bell's and the turret's
+              # are, and db/lib/placeAffordances.js hangs the affordance off
+              # it. Renaming this id moves the shrine to a room nobody can
+              # reach; keep them in step.
+              #
+              # Deliberately not in the Crystal Chambers beside the
+              # Manifestation of Eusoch: two god-faces in one Location teaches
+              # players that the pantheon lives in exactly one room, and the
+              # two shrines are inverses worth keeping apart — Eusoch's admits
+              # only people who already believe, this one admits any caver and
+              # hands the belief out.
+              chasm-shrine-of-an-old-man:
+                name: Shrine of an Old Man
+                description: >-
+                  A shrine of a twisted-looking, aged face. It brims with crazed power.
+                access: [caving]
 
 connections:
   # --- Fortress ---------------------------------------------------------

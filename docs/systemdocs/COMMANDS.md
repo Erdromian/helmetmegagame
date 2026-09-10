@@ -297,6 +297,34 @@ Map, so it survives a bot restart and the two faces share one throat — and it 
 which is exactly long enough for a second `/shout` to slip past a cooldown
 stamped at the end.
 
+### 2d-bis. Pray, at the Shrine of an Old Man
+
+One room button, in `chasm-shrine-of-an-old-man` at the bottom of the Chasm
+(`docs/zones.yaml`, gated `access: [caving]`). It grants `{tag:old-ways-xom}`
+and is the only way into that tag — nothing else in the game hands it out.
+Declared like every other room-bound button, as one `ROOM_AFFORDANCES` entry in
+`db/lib/placeAffordances.js` with a `when:` on the room slug, and the shared
+domain half lives in `db/lib/xom.js#grantXom` so the two faces cannot drift.
+
+**A plain confirm, not the bell's type-the-word modal**, and the difference is
+the point. `RING` is a speed bump on a **loud** act: typing a word says "you
+are about to disturb a hundred people". Pressing Pray disturbs nobody. What it
+does is hand you a permanent tag that puts you on a weighted table once per
+turn close for the rest of your life (`TURN-ENGINE.md` §8a-bis), take whatever
+you believed in before, and shut every goal on your sheet but one. The friction
+that fits *that* is being told what the bargain is, so the dialog says it and
+then offers a Danger button. Bot: `handlePrayOpen` → an ephemeral confirm →
+`handlePrayConfirm`, which **re-runs every gate**, because the ephemeral
+outlives somebody climbing back out of the Chasm. Web: `pray({ roomId })` in
+`chat/actions.js`, gated the same way — a server action is a public endpoint.
+
+Two refusals worth knowing. Somebody who already holds it is told the face is
+already watching them. A **Thanati** cultist is refused outright rather than
+converted: dropping `{tag:thanati}` would quietly pull them out of their
+objectives, rites and hideout with nothing said to anybody, so the cult simply
+got there first. Every other Belief comes off (all of them — Fundamentalist
+stacks on Post-Christian, so two is a legitimate state).
+
 ### 2e. The bell and the trumpet
 
 The two things that are *loud* rather than spoken. They share one machine,

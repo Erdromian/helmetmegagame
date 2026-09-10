@@ -47,7 +47,7 @@ import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { sceneLineAt } from "@lifeweb/db/lib/scene";
-import { postMessage, startPrivateThread, addThreadMember } from "@lifeweb/db/lib/discordRest";
+import { postMessage, addThreadMember } from "@lifeweb/db/lib/discordRest";
 import {
   addConversationMember,
   removeConversationMember,
@@ -55,6 +55,8 @@ import {
 } from "@lifeweb/db/lib/conversations";
 import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout } from "@lifeweb/db/lib/shout";
+import { XOM_SHRINE_ROOM_SLUG, grantXom } from "@lifeweb/db/lib/xom";
+import { openConversationThread } from "@lifeweb/db/lib/conversationOpen";
 import { castDie } from "@lifeweb/db/lib/roll";
 import { addRoomGuest, removeRoomGuest, roomGuests } from "@lifeweb/db/lib/roomGuests";
 import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMembers";
@@ -966,36 +968,18 @@ export async function openConversation({ roomId, name, inviteIds = [] } = {}) {
     return { ok: false, error: "You can't get in there." };
   }
 
-  // The thread hangs off the LOCATION channel, not the room thread: Discord
-  // has no threads inside threads. The room is the link the whisper poll
-  // reads, nothing more.
-  let thread;
-  try {
-    thread = await startPrivateThread(room.location.discordChannelId, trimmed);
-    // A "web only" creator stays out of their own thread's member list
-    // (docs/systemdocs/CHAT.md §6); the membership row below is the truth.
-    if (me.character.discordUserId && !me.character.webOnly) {
-      await addThreadMember(thread.id, me.character.discordUserId);
-    }
-  } catch {
-    return { ok: false, error: "Couldn't open that — try again, or tell a GM." };
-  }
-
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
-  const conversation = await prisma.playerThread.create({
-    data: {
-      threadId: thread.id,
-      name: trimmed,
-      locationId: room.locationId,
-      roomId: room.id,
-      creatorCharacterId: me.character.id,
-      creatorDiscordUserId: me.character.discordUserId,
-      lastActivityTurn: openTurn?.number ?? null,
-    },
+  // The one copy of the open sequence, shared with the bot's Converse modal
+  // and with Xom's turn pass — see db/lib/conversationOpen.js.
+  const opened = await openConversationThread(prisma, {
+    locationId: room.locationId,
+    roomId: room.id,
+    name: trimmed,
+    characterIds: [me.character.id],
+    creatorCharacterId: me.character.id,
   });
-  // The creator is a member like anybody else — the thread add above is only
-  // Discord's copy of that fact (db/lib/conversations.js).
-  await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: me.character.id });
+  if (!opened.ok) return { ok: false, error: opened.error };
+  const { conversation } = opened;
+  const thread = { id: opened.threadId };
 
   // Anybody the dialog was opened ON. Converse hangs off a person's row, so
   // the person whose row it was is ticked when it opens — and this is where
@@ -1035,6 +1019,63 @@ export async function openConversation({ roomId, name, inviteIds = [] } = {}) {
 }
 
 // ------------------------------------------------------- bell, PA, the gun
+
+// Pray, at the Shrine of an Old Man. A confirm rather than the bell's
+// type-the-word dialog, and the difference is the point: RING is a speed bump
+// on a LOUD act, and this disturbs nobody — it hands you a permanent tag that
+// can kill you and shuts every goal on your sheet but one. The friction that
+// suits that is being told what the bargain is, which the dialog does.
+export async function pray({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, XOM_SHRINE_ROOM_SLUG, "There's no shrine here.");
+  if (found.error) return { ok: false, error: found.error };
+
+  // The same locked-door rule Discord applies. A server action is a public
+  // endpoint, so the door is re-checked here and not trusted from the panel
+  // that drew the button.
+  const keys = await roomAccessKeys(prisma, me.character.id);
+  if (accessibleRooms([found.room], keys.heldSlugs, keys.guestRoomIds).length === 0) {
+    return { ok: false, error: "You can't get in there." };
+  }
+
+  const result = await grantXom(prisma, { characterId: me.character.id });
+  if (result.already) return { ok: false, error: "The face is already watching you. ‡" };
+  if (result.spoken) {
+    return { ok: false, error: "Something else has you already, and it does not share. ‡" };
+  }
+  if (!result.ok) return { ok: false, error: "Nothing answers. Tell a GM. ‡" };
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: me.discordUserId,
+        actionType: "xom_prayed",
+        targetCharacterId: me.character.id,
+        details: { characterName: me.character.name, room: found.room.name, replaced: result.replaced },
+      },
+    })
+    .catch(() => {});
+
+  // Anybody else standing in the shrine sees it. Nothing leaves the room —
+  // the tag is `catalog: secret`, and this is the only place it is ever
+  // announced at all.
+  const witnessed = `${me.character.name} kneels, and the face seems to lean down. ‡`;
+  await sceneLineAt(prisma, { roomId: found.room.id, text: witnessed }).catch(() => {});
+  const thread = await prisma.room
+    .findUnique({ where: { id: found.room.id }, select: { discordThreadId: true } })
+    .catch(() => null);
+  if (thread?.discordThreadId) {
+    await postMessage(thread.discordThreadId, ambientLine(witnessed)).catch(() => {});
+  }
+
+  return {
+    ok: true,
+    line: result.replaced
+      ? `It takes your ${result.replaced} off you and does not offer anything back. ‡`
+      : "Something old and amused turns its attention on you. ‡",
+  };
+}
 
 export async function ringBell({ roomId, word } = {}) {
   const me = await actor();
