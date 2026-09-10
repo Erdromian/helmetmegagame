@@ -39,6 +39,7 @@ const THANATI_WARES = Object.freeze([
   { slug: "sacrificial-knife", price: 4 },
   { slug: "dagger", price: 6 },
   { slug: "thanati-mask", price: 10 },
+  { slug: "radio-27065", price: 20 },
   { slug: "adders-bite", price: 30 },
   { slug: "dynamite-stick", price: 30 },
   { slug: "poison-tooth", price: 40 },

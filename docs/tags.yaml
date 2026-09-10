@@ -6028,6 +6028,24 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # The other net. Sold only off the Thanati shelf (db/lib/thanati.js), and
+  # unlike the Cerberon's pair there is no listener-only half: one radio, and
+  # everyone holding one both hears and speaks. Opens #27.065
+  # (db/lib/specialChannels.js).
+  radio-27065:
+    catalog: gm
+    name: Radio (27.065)
+    category: items
+    group: items-gear
+    description: "A radio hardset to a certain frequency."
+    pointCost: 20
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
   # Cave loot, ultracommon, and seeded by hand across the caves, the depths and
   # the Black Hills (docs/zones.yaml) so the ground itself is a source.
   rock:

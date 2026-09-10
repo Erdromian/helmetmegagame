@@ -48,7 +48,10 @@ The Basements stash (`docs/zones.yaml`) starts with one robe, four daggers and
 nineteen sheets of paper.
 
 "Thanati equipment", for the robes' combat line, means whatever
-`THANATI_WARES` in `db/lib/thanati.js` sells. That list carries ONE price per
+`THANATI_WARES` in `db/lib/thanati.js` sells. The shelf's odd one out is
+**Radio (27.065)** at 20: not a weapon but a channel, opening `#27.065`
+for as long as the cultist holds it (`CHANNELS.md` §7). It is tradeable,
+so a radio that leaves the cult takes the frequency with it. That list carries ONE price per
 ware now, not an obol column and a ⬢ column: an obol is one ⬢ (`DEPOT.md`), the
 two were always equal, and Purchase Gear spends both together.
 
