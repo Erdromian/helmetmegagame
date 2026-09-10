@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Three new buildings: a brewery, a rookery and a stage
+
+✚ A Brewery at the Old Cock Inn, racking one Alcohol a turn into the cellar  
+✚ A Rookery, worth six bird flights a day instead of one  
+✚ A Makeshift Stage, which plays every six hours and cheers up whoever is there  
+✎ A building can now name the one place it belongs, and be raised indoors there
+
 ## 2026-09-10 · Your words for the Move dialog, and File it becomes Lock In
 
 ✎ The Move button reads Lock In, and so does the confirm  
