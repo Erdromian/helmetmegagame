@@ -7867,7 +7867,7 @@ tags:
     group: items-weapons
     description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 14
     equippable: true
     equipSlot: WEAPON
@@ -7910,7 +7910,7 @@ tags:
     group: items-weapons
     description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -8894,9 +8894,9 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as one tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢."
+    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as half a tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢. ‡"
     laborBonus: { kind: hunting, amount: 1 }
-    fighting: { tiers: 1, weaponClass: crossbow }
+    fighting: { tiers: 0.5, weaponClass: crossbow }
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
@@ -8925,7 +8925,7 @@ tags:
     group: items-weapons
     description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 18
     requiredTag: ranged-basic
     equippable: true
@@ -8953,7 +8953,7 @@ tags:
     group: items-weapons
     description: "A powerful single-shot pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 14
     requiredTag: ranged-basic
     equippable: true
@@ -9666,7 +9666,7 @@ tags:
     category: items
     group: items-special
     description: "A two-shot shotgun that is more easily concealable than its normal counterpart."
-    fighting: { tiers: 0.6, weaponClass: firearm }
+    fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -11589,7 +11589,7 @@ tags:
     group: items-weapons
     description: "A 9mm pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.6, weaponClass: firearm }
+    fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
     depotPrice: 149
     sealedShipping: true
@@ -11615,7 +11615,7 @@ tags:
     category: items
     group: items-weapons
     description: "A semi-automatic rifle chambered in .308."
-    fighting: { tiers: 0.7, weaponClass: firearm }
+    fighting: { tiers: 1, weaponClass: firearm }
     pointCost: 0
     depotPrice: 213
     sealedShipping: true
@@ -11636,7 +11636,7 @@ tags:
     category: items
     group: items-weapons
     description: "An experimental fully automatic rifle that belongs to the past."
-    fighting: { tiers: 1, weaponClass: firearm }
+    fighting: { tiers: 1.2, weaponClass: firearm }
     pointCost: 0
     depotPrice: 443
     sealedShipping: true

@@ -30,9 +30,11 @@ Four of those are load-bearing enough to name, because the prose and the
 | `hangover` | "Your fighting skill counts as 1 tier lower." |
 | `opium-high` | "Your fighting skill counts as 1 tier lower." |
 
-A fifth is the `crossbow`: *"your Ranged Fighting skill counts as one tier
-higher due to its ease of use"* — which is why it is the only ordinary weapon
-in the catalog worth a full tier. `db/test/fightingSkill.test.js` pins these.
+A fifth is the `crossbow`: *"your Ranged Fighting skill counts as half a tier
+higher due to its ease of use"* — the prose carries the number, so the two move
+together or not at all. It read *one tier* until 2026-09-10, when the ranged
+rebalance (§4, The ranged ladder) dropped it to 0.5 and the description was edited to match.
+`db/test/fightingSkill.test.js` pins these.
 
 ## 2. The four classes
 
@@ -242,6 +244,37 @@ crossbow, firearm and thrown are the ranged half. There is deliberately no slug
 list anywhere — that is the mistake `armorValue.js` was written to undo, and
 its own comment says why: *"A number on the tag cannot go stale the way a list
 in a file did the moment somebody added a helmet to the catalog."*
+
+### The ranged ladder
+
+**Firearms sit above bows, and every firearm above every bow.** A gun is the
+newer technology and the catalog says so: the pre-gunpowder half of the ranged
+tree caps at 0.5, and the powder half starts at 0.6. Set 2026-09-10.
+
+| Weapon | Class | Tiers |
+|---|---|---|
+| Kpfw-6 Avtomat | firearm | 1.2 |
+| CTT4&3 Rifle | firearm | 1 |
+| ML-23 | firearm | 0.8 |
+| Sawn-Off Double Barrel | firearm | 0.8 |
+| Neoclassic R&W10 | firearm | 0.7 |
+| Neoclassic Duelista | firearm | 0.7 |
+| Musketoon | firearm | 0.6 |
+| Bore Pistol | firearm | 0.6 |
+| Crossbow | crossbow | 0.5 |
+| Longbow | bow | 0.5 |
+| Shortbow | bow | 0.4 |
+| Javelin | thrown | 0.4 |
+| Bomb | thrown | 0.4 |
+| Sling | thrown | 0.3 |
+
+Within the powder half the axis is rate of fire first, power second: full auto,
+then semi-automatic rifle, then a magazine pistol and a two-shot shotgun, then
+a revolver, then the single-shot black-powder pieces a player can actually
+craft. The **Disabler** stays at 0.3 and off this ladder — it is non-lethal and
+"only useful against unarmed people", so it is a tool, not a gun. The BB Pistol
+(0.1) and the Whip (0.2) are `exotic`, which `fightingSkill.js` does not count
+as ranged at all.
 
 ### What the door refuses
 
