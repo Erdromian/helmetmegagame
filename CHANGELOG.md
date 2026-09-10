@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Bascinet's words for the three buildings, and a brewery needs a brewer
+
+✎ A brewery only works while someone who can brew is standing in the inn  
+✎ Bascinet's own wording on the three new buildings and their refusals
+
 ## 2026-09-10 · A smith can sign their work
 
 ✚ A smith can put their own name and words on a piece they make, for 1 ⬢ more  
