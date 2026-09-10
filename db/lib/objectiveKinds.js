@@ -67,16 +67,6 @@ const OBJECTIVE_KINDS = [
     script: null,
   },
   {
-    key: "sacrifice-item",
-    pick: "Perform a sacrifice rite with [Stolen item]",
-    label: "Perform a sacrifice rite with {text}",
-    parties: ["thanati"],
-    weight: "MINOR",
-    target: "text",
-    script: null,
-    placeholder: true,
-  },
-  {
     key: "sacrifice-corpse",
     pick: "Perform a sacrifice rite with [Character’s] corpse",
     label: "Perform a sacrifice rite with {target}’s corpse",
