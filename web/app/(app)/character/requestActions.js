@@ -430,32 +430,32 @@ function resolveIngredientSlots(character, tag, quantity, ingredientChoices, coo
   if (picks.length < slots.min) {
     throw new UserError(
       slots.min === 1
-        ? "That needs something cooked into it. ‡"
-        : `That needs ${slots.min} ingredients. ‡`,
+        ? "That needs ingredients."
+        : `That needs ${slots.min} ingredients.`,
     );
   }
   if (picks.length > slots.max) {
-    throw new UserError(`That takes at most ${slots.max}. ‡`);
+    throw new UserError(`That takes at most ${slots.max}.`);
   }
   // No slug twice. It keeps "it tastes like onion and onion" off the notice,
   // and it keeps the spend honest: two slots naming one stack would plan two
   // independent draws against it and the second refusal would name a count
   // nobody could make sense of.
   if (new Set(picks).size !== picks.length) {
-    throw new UserError("You've put the same thing in twice. ‡");
+    throw new UserError("You've put the same ingredient in twice.");
   }
   const bySlug = new Map(character.tags.filter((ct) => ct.tag).map((ct) => [ct.tag.slug, ct]));
   for (const slug of picks) {
     if (!cookableBySlug?.has(slug)) {
-      throw new UserError("That isn't something you can cook with. ‡");
+      throw new UserError("That isn't something you can cook with.");
     }
     const ct = bySlug.get(slug);
     const name = cookableBySlug.get(slug).name;
     if (!ct || ct.quantity < quantity) {
       throw new UserError(
         quantity > 1
-          ? `Making ${quantity} of those takes ${quantity} × ${name}, and you have ${ct?.quantity ?? 0}. ‡`
-          : `Making that needs ${name}. ‡`,
+          ? `Making ${quantity} of those takes ${quantity} × ${name}. You have ${ct?.quantity ?? 0}.`
+          : `Making that needs ${name}.`,
       );
     }
     plan.spend.push({ tagId: ct.tagId, tagName: name, quantity });

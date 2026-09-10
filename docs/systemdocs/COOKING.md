@@ -208,10 +208,11 @@ One sentence, in the bottom-right notice (`NoticeProvider`). Composed by
 `tasteLine` in `web/lib/cooking.js`; empty tastes are dropped rather than
 printed as a gap.
 
-The **‡ sits on the sentence and nowhere else**. A taste is a fragment, and
-marking each one would print "honey ‡ and onions ‡" —
-`db/lib/tagShapes.js#normalizeCooked` refuses a ‡ in a `taste` to keep it that
-way.
+Bascinet has signed off on this copy, so **none of it carries a ‡**. If a
+drafted taste ever needs one, the mark goes on the **composed sentence and
+nowhere else** — a taste is a fragment, and marking each one would print
+"honey ‡ and onions ‡". `db/lib/tagShapes.js#normalizeCooked` refuses a ‡ in a
+`taste` to keep it that way.
 
 **Both eating paths raise it.** The one-click Consume on the tag rail is how
 people actually eat; it used to throw the server's result away, which would

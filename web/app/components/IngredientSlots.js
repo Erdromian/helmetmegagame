@@ -59,7 +59,7 @@ export default function IngredientSlots({
                 // identical boxes is next.
                 data-next={i === picked.length ? "true" : undefined}
               >
-                <span className="slot-tag">{required ? "Needed ‡" : "Optional ‡"}</span>
+                <span className="slot-tag">{required ? "Needed" : "Optional"}</span>
                 <span className="slot-empty">—</span>
               </div>
             );
@@ -101,7 +101,7 @@ export default function IngredientSlots({
         onChange={(slug) => {
           if (slug && !full && !picked.includes(slug)) onChange([...picked, slug]);
         }}
-        emptyLabel="You have nothing to cook with. ‡"
+        emptyLabel="You don't have any ingredients."
       />
       </div>
     </>

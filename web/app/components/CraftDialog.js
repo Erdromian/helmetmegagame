@@ -293,7 +293,7 @@ export default function CraftDialog({
               {ingredientSlots && (
                 <div className="field">
                   <span className="field-label">
-                    {ingredientSlots.min > 0 ? "What goes in ‡" : "Anything going in? ‡"}
+                    {ingredientSlots.min > 0 ? "Ingredients" : "Ingredients (optional)"}
                   </span>
                   <IngredientSlots
                     min={ingredientSlots.min}

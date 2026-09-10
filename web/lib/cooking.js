@@ -138,17 +138,18 @@ export function mergeDishCures(mealTag, ingredientTags = []) {
 
 // The line the eater reads (NoticeProvider, bottom-right).
 //
-// The ‡ sits here and nowhere else. A taste is a FRAGMENT dropped into the
-// middle of this sentence, so marking each one would print "honey ‡ and
-// onions ‡" — one mark per message, at the very end, is the convention
-// (CLAUDE.md), and db/lib/tagShapes.js#normalizeCooked refuses a ‡ in a taste
-// to keep it that way.
+// If a ‡ ever belongs on this feature it belongs HERE, on the composed
+// sentence, and nowhere else. A taste is a FRAGMENT dropped into the middle
+// of it, so marking each one would print "honey ‡ and onions ‡" — one mark
+// per message, at the very end, is the convention (CLAUDE.md), and
+// db/lib/tagShapes.js#normalizeCooked refuses a ‡ in a taste to keep it that
+// way. Bascinet has signed off on the wording below, so it carries none.
 // An empty taste is dropped rather than printed as a gap — that is Phrygian
 // Tears and Adder's Bite, the two things a cook can hide in a meal with no
 // tell at all.
 export function tasteLine(tastes = []) {
   tastes = tastes.filter(Boolean);
-  if (!tastes.length) return "You ate a meal. ‡";
-  if (tastes.length === 1) return `You ate a meal. It tastes like ${tastes[0]}. ‡`;
-  return `You ate a meal. It tastes like ${tastes.slice(0, -1).join(", ")} and ${tastes[tastes.length - 1]}. ‡`;
+  if (!tastes.length) return "You ate a meal.";
+  if (tastes.length === 1) return `You ate a meal. It tastes like ${tastes[0]}.`;
+  return `You ate a meal. It tastes like ${tastes.slice(0, -1).join(", ")} and ${tastes[tastes.length - 1]}.`;
 }

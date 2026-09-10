@@ -4554,11 +4554,11 @@ tags:
   # (docs/systemdocs/COOKING.md): what a body part or a raw cave mushroom does
   # to somebody half the time, where Vomiting is the other half. Shaped
   # exactly like Vomiting above and priced the same way — no requirement
-  # block, so cure tier 0: real, untreatable, and over in two turns. ‡
+  # block, so cure tier 0: real, untreatable, and over in two turns.
   nauseous:
     catalog: all
     name: Nauseous
-    description: "Something you ate is not sitting right. ‡"
+    description: "Something you ate is not sitting right."
     category: health
     group: health-minor
     pointCost: 0
@@ -8185,7 +8185,7 @@ tags:
     # shape Skinned Cave Rat has used for its own coin flip since the caves
     # update. Cooking hides what it was; it does not settle the stomach.
     # A hand is a limb rather than an organ, so it tastes of meat like the
-    # foot does. Bascinet named the foot and 'all other organs'. ‡
+    # foot does. Bascinet named the foot and 'all other organs'.
     cooked:
       taste: "meat"
       mood: -40
@@ -8292,8 +8292,8 @@ tags:
   # the same claim as `consumable: false`, which would refuse the bite. The
   # two cave finds are worse than nothing raw and say so with `nauseous`.
   #
-  # Bascinet's own wording is unmarked; the four descriptions and the tastes
-  # they have not written yet carry a ‡ and a note.
+  # The four descriptions and the five tastes Bascinet has not written yet
+  # each carry a note saying so.
 
   onion:
     catalog: all
@@ -8319,8 +8319,8 @@ tags:
   boar-loin:
     catalog: all
     name: Boar Loin
-    # Bascinet's format, not their words. ‡
-    description: "A cut of boar. You could cook with it. ‡"
+    # Bascinet's format, not their words.
+    description: "A cut of boar. You could cook with it."
     category: items
     group: items-food
     pointCost: 0
@@ -8427,8 +8427,8 @@ tags:
   lamprey:
     catalog: all
     name: Lamprey
-    # Bascinet's format, not their words. ‡
-    description: "A lamprey. You could cook with it. ‡"
+    # Bascinet's format, not their words.
+    description: "A lamprey. You could cook with it."
     category: items
     group: items-food
     pointCost: 0
@@ -8442,7 +8442,7 @@ tags:
     consumesInto: []
     cooked:
       # Bascinet gave "eel" for the river eel and nothing for this one; a
-      # lamprey is close enough to share it until they say otherwise. ‡
+      # lamprey is close enough to share it until they say otherwise.
       taste: "eel"
       mood: 8
     sellable: true
@@ -8451,8 +8451,8 @@ tags:
   crayfish:
     catalog: all
     name: Crayfish
-    # Bascinet's format, not their words. ‡
-    description: "A crayfish. You could cook with it. ‡"
+    # Bascinet's format, not their words.
+    description: "A crayfish. You could cook with it."
     category: items
     group: items-food
     pointCost: 0
@@ -8465,7 +8465,7 @@ tags:
     consumable: true
     consumesInto: []
     cooked:
-      taste: "crayfish"   # Bascinet has not written this one. ‡
+      taste: "crayfish"   # Bascinet has not written this one.
       mood: 12
     sellable: true
     sellablePrice: 3
@@ -8473,8 +8473,8 @@ tags:
   blind-fish:
     catalog: all
     name: Blind Fish
-    # Bascinet's format, not their words. ‡
-    description: "A pale, eyeless fish. You could cook with it. ‡"
+    # Bascinet's format, not their words.
+    description: "A pale, eyeless fish. You could cook with it."
     category: items
     group: items-food
     pointCost: 0
@@ -8488,7 +8488,7 @@ tags:
     # Raw it is a bad idea and no dinner. Cooked it is a fish.
     consumesInto: [nauseous]
     cooked:
-      taste: "pale fish"   # Bascinet has not written this one. ‡
+      taste: "pale fish"   # Bascinet has not written this one.
       mood: 8
       # The override that makes the raw/cooked split real: cooking takes the
       # nausea off, so `into` is empty rather than absent.
@@ -8512,7 +8512,7 @@ tags:
     consumable: true
     consumesInto: [nauseous]
     cooked:
-      taste: "cave mushroom"   # Bascinet has not written this one. ‡
+      taste: "cave mushroom"   # Bascinet has not written this one.
       mood: 18
       into: []
     sellable: true
@@ -8534,7 +8534,7 @@ tags:
     consumable: true
     consumesInto: []
     cooked:
-      taste: "salt"   # Bascinet has not written this one. ‡
+      taste: "salt"   # Bascinet has not written this one.
       # Ultracommon in the caves, so it has to stay small — it is the floor
       # under a meal, not a reason to cook one.
       mood: 6
@@ -8584,7 +8584,7 @@ tags:
     consumable: true
     consumesInto: []
     cooked:
-      taste: "butter"   # Bascinet has not written this one. ‡
+      taste: "butter"   # Bascinet has not written this one.
       mood: 30
     sellable: true
     sellablePrice: 6
@@ -11120,7 +11120,7 @@ tags:
         durationTurns: 2
     sellable: true
     sellablePrice: 3
-    # Taste is mine. ‡ `into` unauthored, so a fungus dish still gets you High
+    # Taste is mine. `into` unauthored, so a fungus dish still gets you High
     # for two turns — the same thing eating it raw does.
     cooked:
       taste: "cave mushroom"

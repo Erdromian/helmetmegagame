@@ -228,7 +228,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
       // pantry. One that merely offers a slot never is — a Fine Meal with
       // nothing in it is still a Fine Meal.
       if ((tag.requirementIngredientSlots?.min ?? 0) > 0 && !cookables.length) {
-        return "You have nothing to cook with. ‡";
+        return "You don't have any ingredients.";
       }
       if (!hasMoved) return null;
       const cost = priceRecipe(tag, 1);
