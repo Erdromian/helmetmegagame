@@ -10,8 +10,9 @@
 // Discord is on the hot path of every request the game serves. This runs seven
 // times a day. A breaker for a job that fires thirty times a game would be more
 // state to get wrong than it could ever save, so: a timeout, one retry, and an
-// honest error otherwise. The caller (db/lib/turnSideEffects.js) wraps each call
-// in step(), which is where the real durability lives.
+// honest error otherwise. The caller (db/lib/oracleCutoff.js) logs and swallows
+// per zone, and the pages already written are what make a retry cheap — that is
+// where the real durability lives.
 
 const DEFAULT_TIMEOUT_MS = 180_000;
 

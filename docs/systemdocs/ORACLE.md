@@ -1,10 +1,10 @@
 # The Oracle — a written record of each turn
 
-At turn close a gamemaster has no readable account of what just happened. What
-exists is the raw material: ninety-odd `Action` rows, a few hundred `AuditLog`
-gestures and thousands of chat lines spread across Location channels. Nobody
-reads that, so most of what players did is never seen by the people
-adjudicating.
+When the Moves lock, a gamemaster has no readable account of what just
+happened. What exists is the raw material: ninety-odd `Action` rows, a few
+hundred `AuditLog` gestures and thousands of chat lines spread across Location
+channels. Nobody reads that, so most of what players did is never seen by the
+people adjudicating.
 
 The Oracle writes it down. Six correspondents, one per zone, each handed only
 their own zone's material; then an editor, which reads all six and writes the
@@ -63,20 +63,54 @@ times over:
 Discord; nothing below it touches the database.* Passes return data and never
 make network calls, precisely so none can hold a turn advance open.
 
-**It runs in the side-effect thunk** (`db/lib/turnSideEffects.js`), last, after
-everything a player might notice has already gone out. A DM that arrives late
-is a bug; a synopsis that arrives late is a synopsis.
+**It runs at the Move cutoff** (`db/lib/oracleCutoff.js`), a couple of minutes
+after the Moves lock — 21:00 CT on a normal turn, three hours before the push.
 
-The grain there is already right. `step(key, fn)` records a key only once its
-function returns, so **one key per zone** — `oracle:town`, `oracle:fortress`, …
-plus `oracle:editor` — means a crash re-runs only the pages that never
-finished. `resumeTurnSideEffects()` is called both by the thunk itself and by
-the bot on every reconnect, so a dead deploy retries with no new machinery.
+That is the whole point of it, and it took a move to get right. The Oracle used
+to run in the side-effect thunk at turn close, on the reasoning that a synopsis
+arriving late costs nothing: a DM that arrives late is a bug, a synopsis that
+arrives late is a synopsis. True, and beside the point. It is written **for the
+gamemasters adjudicating**, and they adjudicate in the three hours between the
+lock and the push — so the chronicle was arriving after the rulings it was
+meant to inform. Now it is waiting for them when the window opens.
 
-**A failure there can never fail the turn.** `runOracle` returns a reason
-rather than throwing, `step()` swallows what it cannot, and the call site adds
-a `.catch` on top of both. That belt-and-braces is deliberate: the turn's
-correctness must not depend on the Oracle's error handling being right.
+**There is no lock event, so this is a per-minute check, not a subscription.**
+`moveCutoffAt()` is derived from `turn.startedAt` and `moveWindow()` only
+answers when something asks (`TURN-ENGINE.md` §6a). The bot ticks once a minute,
+loads the open turn, and asks; `cutoffDecision()` is the pure half of that and
+every branch of it is tested. A fixed `0 21 * * *` cron would be wrong for a
+turn a GM opened by hand and would fire during a frozen clock when no turn is
+moving. Ticking is also what makes it self-healing: a bot that was down at the
+cutoff drafts as soon as it is back, provided the turn is still open.
+
+It fires two minutes after the cutoff rather than on it, because the Makeshift
+Stage sweep holds `0 3,9,15,21` in the same timezone, and those hours were
+themselves chosen to keep a sweep clear of a turn close.
+
+**The written pages are the ledger.** Leaving the thunk meant leaving
+`step()`'s `Turn.sideEffectSteps` behind, so `runOracle`'s `skipIfComplete` asks
+the database instead: all seven rows present and there is nothing to do. It is
+**all seven or none** — a half-finished run is redone whole rather than patched
+zone by zone — because six zone pages are one document, not six jobs:
+
+- the editor writes the front page over whatever zone pages it finds, so
+  filling a missing zone in later leaves a front page that summarises the set
+  without it, permanently and silently;
+- `aggregatesSeen` keeps a once-a-turn line in exactly one zone's input, and a
+  second pass starts with an empty set and skips the zone that already consumed
+  the line — so the same fact gets reported twice.
+
+**A failure can never fail a turn**, and now it cannot even reach one.
+`runOracle` returns a reason rather than throwing, the cutoff run's `step`
+logs and swallows per zone so one dead zone does not cost the five behind it,
+and three failed attempts on a turn stop the retries rather than spending the
+whole window on a provider that is down.
+
+**What is not covered: a turn that closes without a page.** Once the turn ends,
+`moveWindow().locked` is false again and nothing revisits it — a bot down for
+the whole three hours, or a provider outage that ate its attempts, leaves a
+hole. **Run now** on `/gm/dev` is the recovery, and it now defaults to the open
+turn for exactly that reason.
 
 ## 3. What it is allowed to see
 
@@ -94,11 +128,53 @@ answerable by reading one file.
 
 Three things there are easy to get wrong.
 
-**The turn window is derived, not read.** `AuditLog.turnId` is NULL on most
-rows — the column exists for the per-turn rations and is not a general "which
-turn was this" stamp. `/gm/audit` derives the same way. Filtering audit rows on
-`turnId` would return almost nothing, and read as a quiet turn rather than as
-the bug it is.
+**The turn window is derived, not read, and it runs LOCK TO LOCK.** Turn N's
+page covers turn N−1's cutoff through turn N's — not midnight to midnight. It
+has to: the page is written at the cutoff, so the three hours after it do not
+exist yet, and they belong to N+1's page, which is the first one drafted after
+they happened. That is where the GM's own adjudications, the late chat, and
+everything the midnight push fires (hunger, deaths, labor drops) get written
+down. Nothing is lost; it shifts one turn.
+
+Two consequences worth knowing before reading a page:
+
+- **"Turn 12" here is not "turn 12" on the other desks.** `/gm/audit` windows
+  midnight to midnight and `/archive` filters on `ArchiveEntry.turnNumber`. A GM
+  cross-checking a page against either will find the last three hours of the day
+  filed one turn later. That is inherent to drafting at the lock.
+- **The floor is the last turn that was WRITTEN, not the last turn.**
+  `moveCutoffAt()` is a pure function of `startedAt` and hands back a 21:00 for
+  every turn that has one, lock or no lock — so anchoring on the previous turn
+  would make a frozen Tuesday *read* as covered when nothing ever covered it.
+  Anchoring on the last turn with a page puts the skipped days inside the next
+  real page's window instead. `windowBetween()` is pure and tested, including
+  the clamp that stops a turn a GM opened at 23:00 — whose derived cutoff is two
+  hours before it began — from dragging the floor backwards and having two pages
+  chronicle the same evening.
+
+`AuditLog.turnId` is no help here and never was: it is NULL on most rows, since
+the column exists for the per-turn rations and is not a general "which turn was
+this" stamp. `/gm/audit` derives the same way. Filtering audit rows on `turnId`
+would return almost nothing, and read as a quiet turn rather than as the bug it
+is.
+
+**Moves, beats and chat go by the window too, not by their turn stamp.** Each
+carries one — `Action.turnId`, `ArchiveEntry.turnNumber` — and each stamp lies
+about a page drafted at the cutoff:
+
+- the **auto-labor pass** files a Move for everybody who filed none, and it does
+  that at the *push* (`db/lib/autoLaborPass.js`, a `TURN_PASS`). Those rows are
+  stamped turn N and created after N's page exists, so on the FK they would
+  appear in no page ever — and in a hundred-player game they are most of the
+  Moves there are;
+- an `ArchiveEntry` sent after N's lock is stamped N, so N's page cannot see it
+  and N+1's would never look for it.
+
+A player's own Move is unaffected either way: it can only be filed before the
+lock. `ArchiveEntry` is windowed on **`sentAt`**, not `createdAt` — every index
+on that table is on `sentAt`, `createdAt` has none, and `sentAt` is also the
+honest column, since the message catch-up sweep writes rows hours late carrying
+the time the line was really said.
 
 **Only two tag categories.** A character's Beliefs and Skills are bought at
 creation and never move, so shipping all of them every turn pays repeatedly for
@@ -123,11 +199,13 @@ time, deliberately, so a Labor filed on the Factory floor pays for the Factory
 floor even if its author walked out afterwards. It is the **roster** and the
 **audit lines** that are placed by current position.
 
-At turn close, minutes after the turn ended, that is very nearly exact and is
-the right trade against building a position log. It gets worse the further back
-you go: a **Run now** over a turn from last week will group people by where
-they stand today. Re-running an old turn is a debugging convenience, not a
-supported way to backfill a chronicle.
+At the cutoff, minutes after the Moves locked, that is very nearly exact and is
+the right trade against building a position log — and it is if anything a
+better moment for it than turn close was, since the roster then shows where
+people stand for the rulings a GM is about to make rather than where the push
+left them. It gets worse the further back you go: a **Run now** over a turn from
+last week will group people by where they stand today. Re-running an old turn is
+a debugging convenience, not a supported way to backfill a chronicle.
 
 ## 4. The audit filter
 
@@ -267,7 +345,7 @@ to keep true when it lives alone.
 | `db/lib/oracleAudit.js` | Which audit rows are story facts, and how one is written |
 | `db/lib/oraclePrompts.js` | The two default prompts and the editor-reply parser |
 | `db/lib/oracleClient.js` | The one outbound call — a timeout and a single retry |
-| `db/lib/turnSideEffects.js` | Calls `runOracle`, last, passing its own `step` |
+| `db/lib/oracleCutoff.js` | The trigger: when to draft, and the attempt cap |
 | `web/app/(desk)/gm/oracle/` | The desk, its markdown renderer, and the edit |
 | `web/app/(app)/gm/dev/oracleActions.js` | Settings, the key, Test connection, Run now |
 | `web/app/(app)/gm/dev/OracleForm.js` | The panel |
@@ -291,8 +369,8 @@ to keep true when it lives alone.
 
 They answer different questions, which is why they are two columns and not one.
 
-- **Enable** (`oracleEnabled`) — whether a chronicle is **written** at turn
-  close. Off, the run returns a reason and no rows are created.
+- **Enable** (`oracleEnabled`) — whether a chronicle is **written** at the Move
+  cutoff. Off, the run returns a reason and no rows are created.
 - **Playtest** (`oraclePlaytest`) — who may **read** one. On, `/gm/oracle` is
   superadmin-only.
 

@@ -765,6 +765,12 @@ otherwise lock the whole turn the moment it opened. `locked` is true only
 *between* the cutoff and the end, so a turn that outlives its derived end (a
 missed cron) reopens rather than staying shut forever.
 
+**One thing now fires on the cutoff itself.** The Oracle drafts the turn's
+chronicle a couple of minutes after the lock, off the bot's minute cron
+(`db/lib/oracleCutoff.js`), so a GM has it in front of them for the whole
+adjudication window rather than after the push. It used to run at turn close.
+See `ORACLE.md` §2.
+
 Enforced in the bot at both `move:open` (the `#turns` button and `/move`) and
 on modal submit — a modal can sit open on screen across the cutoff — with an
 ephemeral refusal naming both times. **Travel, Speak, requests, GM edits and

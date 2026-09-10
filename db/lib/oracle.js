@@ -1,16 +1,21 @@
 // The Oracle's run: six correspondents and an editor, once per turn.
 // See docs/systemdocs/ORACLE.md.
 //
-// Called from db/lib/turnSideEffects.js, NOT from a TURN_PASSES entry. That is
-// load-bearing and the reason is worth keeping next to the code: a pass runs
-// inside resolveNeeds()'s serial loop, gates needsResolvedAt, and is awaited
-// inline by the bot's cron, so a pass that spends two minutes on an HTTP call
-// holds the whole turn advance open and blows the 15s transaction timeout on
-// the way. TURN-ENGINE.md states the rule outright — passes return data and
-// never make network calls.
+// Called from db/lib/oracleCutoff.js at the Move cutoff, NOT from a TURN_PASSES
+// entry and no longer from the turn's side-effect thunk. Both halves of that are
+// load-bearing and worth keeping next to the code.
 //
-// The thunk is where slow, retryable, non-database work belongs, and its step()
-// gives this run per-zone resumability for free.
+// Never a pass: a pass runs inside resolveNeeds()'s serial loop, gates
+// needsResolvedAt, and is awaited inline by the bot's cron, so one that spends
+// two minutes on an HTTP call holds the whole turn advance open and blows the
+// 15s transaction timeout on the way. TURN-ENGINE.md states the rule outright —
+// passes return data and never make network calls.
+//
+// No longer the thunk either, which ran at turn close. That was three hours too
+// late to be read by the people it is written for: gamemasters adjudicate
+// between the Moves locking and the push, and the chronicle was arriving after
+// the rulings. The thunk's step() ledger went with it, so skipIfComplete below
+// asks the written rows instead.
 
 const { complete } = require("./oracleClient");
 const { correspondentPrompt, editorPrompt, splitEditorReply } = require("./oraclePrompts");
@@ -83,6 +88,37 @@ async function isEdited(prisma, turnId, zoneId) {
     select: { editedAt: true },
   });
   return Boolean(row?.editedAt);
+}
+
+// Is the whole set present — every seat zone plus the front page?
+//
+// This is the resume ledger for the cutoff run. The turn thunk used to supply
+// one (Turn.sideEffectSteps, via step()); firing on the Move cutoff means there
+// is no thunk to borrow it from, so the written rows are the ledger instead.
+//
+// ALL SEVEN OR NONE, deliberately — a half-finished run is redone whole rather
+// than patched zone by zone, and both reasons are about the front page and the
+// once-a-turn lines:
+//
+//   * runEditor reads the zone pages back out of the database and writes the
+//     front page over whatever it finds. Fill in a missing zone on a later pass
+//     and the front page still summarises the set WITHOUT it, permanently and
+//     silently, because a front page now exists.
+//   * aggregatesSeen is an in-process Set that keeps a once-per-turn line
+//     ("hunger was charged") in exactly one zone's input. A second pass starts
+//     with an empty Set and skips the zone that already consumed the line, so
+//     the next zone consumes it again and the same fact is reported twice.
+//
+// Both bugs come from treating six zone pages as six independent jobs. They are
+// one document. Re-running the whole turn costs a handful of model calls on the
+// rare bad night and keeps the output coherent.
+async function isComplete(prisma, turnId, zones) {
+  const rows = await prisma.oracleSynopsis.findMany({
+    where: { turnId },
+    select: { zoneId: true },
+  });
+  const written = new Set(rows.map((row) => row.zoneId));
+  return written.has(null) && zones.every((zone) => written.has(zone.id));
 }
 
 // One zone's page. Returns nothing useful — the row is the output.
@@ -163,7 +199,7 @@ async function runEditor(prisma, { turn, config, characters }) {
 //
 // Every failure path here is a return, never a throw: step() already swallows,
 // but a turn must not depend on that for its correctness.
-async function runOracle(prisma, { turnId, step }) {
+async function runOracle(prisma, { turnId, step, skipIfComplete = false }) {
   const config = await prisma.gameConfig.findFirst();
   if (!oracleReady(config)) return { ran: false, reason: "The Oracle is off or unconfigured." };
 
@@ -175,6 +211,14 @@ async function runOracle(prisma, { turnId, step }) {
 
   const zones = await seatZones(prisma);
   if (zones.length === 0) return { ran: false, reason: "No seat zones." };
+
+  // Nothing left to write? Say so before loading anything. The cutoff check
+  // runs once a minute for the whole three-hour window, and the material load
+  // is half a dozen queries over every living character and the turn's whole
+  // transcript — far too much to spend on discovering there is no work.
+  if (skipIfComplete && (await isComplete(prisma, turn.id, zones))) {
+    return { ran: false, reason: "Every page for this turn is already written." };
+  }
 
   const material = await loadTurnMaterial(prisma, turn, { includeChat: config.oracleIncludeChat });
 
@@ -188,7 +232,9 @@ async function runOracle(prisma, { turnId, step }) {
     );
   }
 
-  await step("oracle:editor", () => runEditor(prisma, { turn, config, characters: material.characters }));
+  await step("oracle:editor", () =>
+    runEditor(prisma, { turn, config, characters: material.characters }),
+  );
   return { ran: true, zones: zones.length };
 }
 

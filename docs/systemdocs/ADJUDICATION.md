@@ -414,6 +414,14 @@ ordinary composer (§1), and clicks Destroy (or Damage, for a lesser outcome)
 on `/gm/structures` in the same sitting — the ruling and its mechanical
 consequence happen together, by hand.
 
+**The Oracle is waiting when you sit down.** Moves lock at 21:00 CT, and a
+couple of minutes later the chronicle for the turn is drafted onto `/gm/oracle`
+— six zone pages and a front page, covering the day up to the lock. It is meant
+to be read *before* working the desk, which is the whole reason it stopped being
+written at turn close. One thing to know while cross-checking: an Oracle page
+runs lock to lock, so the last three hours of a day appear on the next turn's
+page rather than that turn's. `ORACLE.md` §3.
+
 **The two-turn siege.** An assault on a structure or a shut gate is staged as
 a PUBLIC declaration into the defenders' `#summary` on turn N; it can only
 resolve turn N+1, never the same turn — Moves lock at 21:00 CT and a sleeping

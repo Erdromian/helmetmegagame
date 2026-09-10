@@ -875,20 +875,13 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
     ),
   );
 
-  // The Oracle (docs/systemdocs/ORACLE.md) — the turn's chronicle, six zone
-  // pages and a front page, drafted by a model.
-  //
-  // LAST, and deliberately so. It is the slowest thing in the thunk by an order
-  // of magnitude and the only part nobody is waiting on: a DM that arrives late
-  // is a bug, a synopsis that arrives late is a synopsis. Anything a player
-  // notices has already gone out by the time this starts.
-  //
-  // It takes `step` rather than being wrapped in one, so each zone gets its own
-  // key and a crash re-runs only the pages that never finished. It never
-  // throws: runOracle returns a reason instead, and step() swallows what it
-  // cannot.
-  const { runOracle } = require("./oracle");
-  await runOracle(prisma, { turnId, step }).catch((err) => console.error("The Oracle failed:", err));
+  // The Oracle is NOT here any more (docs/systemdocs/ORACLE.md). It used to be
+  // this thunk's last step, on the argument that a synopsis arriving late costs
+  // nothing. True, and beside the point: it is written FOR the gamemasters
+  // adjudicating, and they do that in the three hours between the Move cutoff
+  // and this push. A chronicle drafted here arrived after the rulings it was
+  // meant to inform. It fires at the cutoff now — db/lib/oracleCutoff.js, off
+  // the bot's minute cron — so nothing below should call it.
 
   // Only now is the turn's Discord half actually finished, which is what the
   // resume query selects on.

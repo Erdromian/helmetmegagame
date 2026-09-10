@@ -29,14 +29,21 @@ export default async function OraclePage({ searchParams }) {
     if (!isSuperadmin(session?.discordUserId)) redirect("/gm/players");
   }
 
-  // Newest first: a GM opening this desk almost always wants the turn that
-  // just ended. Only RESOLVED turns are offered — the open turn's moves are
-  // still being filed, so there is nothing complete to have written about.
+  // Newest first, and the OPEN turn is offered like any other. It used to be
+  // excluded, on the argument that its moves were still being filed and there
+  // was nothing complete to have written about — true while the Oracle ran at
+  // turn close, and backwards now that it runs at the Move cutoff. The open
+  // turn's page is the whole point: it is what a gamemaster reads while they
+  // adjudicate, in the three hours before the push.
   const turns = await prisma.turn.findMany({
-    where: { status: { not: "OPEN" } },
     orderBy: { number: "desc" },
     take: 60,
-    select: { id: true, number: true, phase: true },
+    select: {
+      id: true,
+      number: true,
+      phase: true,
+      _count: { select: { oraclePages: true } },
+    },
   });
 
   if (turns.length === 0) {
@@ -46,14 +53,19 @@ export default async function OraclePage({ searchParams }) {
           <h1 className="section-title">Oracle</h1>
         </header>
         <div className="desk-empty">
-          <p>No turn has finished yet.</p>
+          <p>No turn has begun yet. ‡</p>
         </div>
       </>
     );
   }
 
+  // Default to the newest turn that has actually been written, not simply the
+  // newest turn. Between midnight and the cutoff the open turn has no page, and
+  // landing a GM on an empty one would hide yesterday's chronicle behind a
+  // "nothing written" panel for twenty-one hours of every day.
   const wanted = Number.parseInt(params?.turn, 10);
-  const turn = turns.find((t) => t.number === wanted) ?? turns[0];
+  const turn =
+    turns.find((t) => t.number === wanted) ?? turns.find((t) => t._count.oraclePages > 0) ?? turns[0];
 
   const [rows, zones, characters, visibleZones, selectableZones] = await Promise.all([
     prisma.oracleSynopsis.findMany({
