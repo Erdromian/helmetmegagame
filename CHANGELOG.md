@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Equipping works again
+
+✎ Equipping anything threw an error instead of equipping it. A variable inside the equip transaction was shadowing the row being equipped, so the write blew up before it ran
+
 ## 2026-09-10 · A cube of Squeeze is worth 5
 
 ✎ A cube of Squeeze now sells for 5 ⬢ at the Depot, up from 4 — a factory day is about three times a good farming day
