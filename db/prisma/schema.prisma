@@ -308,8 +308,8 @@ model GameConfig {
   // Provider is a label; baseUrl is what actually gets called, so a
   // self-hosted or proxied endpoint needs no code change. Model is passed
   // through verbatim.
-  oracleProvider String @default("openrouter")
-  oracleBaseUrl  String @default("https://openrouter.ai/api/v1")
+  oracleProvider String @default("nanogpt")
+  oracleBaseUrl  String @default("https://nano-gpt.com/api/v1")
   oracleModel    String @default("deepseek/deepseek-v4-flash")
 
   // WRITE-ONLY. Set from the panel, masked afterwards, never returned to a

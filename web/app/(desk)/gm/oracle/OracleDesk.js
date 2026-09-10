@@ -39,7 +39,7 @@ function EditBox({ page, onDone, onCancel }) {
           rows={18}
           maxLength={20000}
           onChange={(event) => setText(event.target.value)}
-          aria-label="The page"
+          aria-label="Page"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -61,9 +61,6 @@ function EditBox({ page, onDone, onCancel }) {
           Cancel
         </button>
         {error ? <span className="text-sm text-danger">{error}</span> : null}
-        <span className="text-sm text-muted">
-          Your version is what later turns are told, and a later run will not overwrite it.
-        </span>
       </div>
     </div>
   );
@@ -146,7 +143,7 @@ export default function OracleDesk({
   return (
     <>
       <header className="desk-header">
-        <h1 className="section-title">The Oracle</h1>
+        <h1 className="section-title">Oracle</h1>
         <div className="flex items-center gap-2">
           <label className="field-label" htmlFor="oracle-turn">
             Turn
@@ -209,9 +206,8 @@ export default function OracleDesk({
           {!page ? (
             <div className="desk-empty">
               <p>Nothing written for this turn yet.</p>
-              <p className="text-sm text-muted">
-                A chronicle is drafted when a turn ends. Turn it on, or draft one by hand, in{" "}
-                <Link href="/gm/dev?s=oracle">the Oracle settings</Link>.
+              <p className="text-sm">
+                <Link href="/gm/dev?s=oracle">Settings</Link>
               </p>
             </div>
           ) : (
@@ -225,15 +221,6 @@ export default function OracleDesk({
                 )}
               </div>
 
-              <p className="text-sm text-muted">
-                {page.editedAt ? (
-                  <>Rewritten by a gamemaster.</>
-                ) : (
-                  <>
-                    Drafted by <span className="mono">{page.model}</span>.
-                  </>
-                )}
-              </p>
 
               {editing ? (
                 <EditBox
@@ -264,7 +251,7 @@ export default function OracleDesk({
           pendingByCharacter={new Map()}
           onOpenDev={(characterId, name) => setDevPanel({ characterId, name })}
           requestedTab={tabRequest}
-          emptyHint="Click a name in the record to pull that character up beside it."
+          emptyHint="Click a name to pull that character up here."
           footer={<GmZoneRail zones={selectableZones} selectedIds={visibleZoneIds} />}
         />
       </div>

@@ -866,12 +866,8 @@ export default async function DevPanelPage({ searchParams }) {
           {section === "oracle" ? (
             <section className="ops-section">
               <div className="ops-section-head">
-                <h2 className="section-title">The Oracle</h2>
+                <h2 className="section-title">Oracle</h2>
               </div>
-              <p className="text-sm text-muted">
-                A record of each turn, written per zone and pulled together into a front page. Read it at{" "}
-                <Link href="/gm/oracle">the Oracle desk</Link>.
-              </p>
               <OracleForm settings={await loadOracleSettings()} />
             </section>
           ) : null}

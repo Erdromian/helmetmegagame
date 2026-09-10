@@ -13,13 +13,6 @@ import InfoIcon from "@/app/components/InfoIcon";
 import { saveOracleSettings, clearOracleApiKey, testOracleConnection, runOracleNow } from "./oracleActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 
-// A date is data, so it gets .mono (DESIGN-SYSTEM.md). Rendered in the
-// reader's own locale rather than a format picked here.
-function When({ at }) {
-  if (!at) return null;
-  return <span className="mono">{new Date(at).toLocaleDateString()}</span>;
-}
-
 export default function OracleForm({ settings }) {
   const confirm = useConfirm();
   const [saving, startSave] = useTransition();
@@ -52,8 +45,8 @@ export default function OracleForm({ settings }) {
   function onRun() {
     startBusy(async () => {
       // Real money and a few minutes of wall clock, so it asks first.
-      if (!(await confirm({ title: "Draft the last turn?", message: "This calls the provider once per zone." }))) return;
-      setNote({ ok: true, text: "Drafting. This takes a few minutes." });
+      if (!(await confirm({ title: "Draft the last turn?" }))) return;
+      setNote({ ok: true, text: "Drafting…" });
       const res = await runOracleNow();
       setNote(
         res.ok ? { ok: true, text: `Wrote ${res.zones} zones and a front page.` } : { ok: false, text: res.error },
@@ -122,7 +115,7 @@ export default function OracleForm({ settings }) {
               type="button"
               className="btn-quiet"
               onClick={async () => {
-                if (await confirm({ title: "Remove the API key?", message: "The Oracle stops running until a new one is set." })) {
+                if (await confirm({ title: "Remove the API key?" })) {
                   await clearOracleApiKey();
                   setReplacingKey(true);
                 }
@@ -132,16 +125,6 @@ export default function OracleForm({ settings }) {
             </button>
           </div>
         )}
-        <p className="text-sm text-muted">
-          {settings.hasApiKey && !replacingKey ? (
-            <>
-              Set <When at={settings.oracleApiKeySetAt} />. The key is never shown again, and leaving this alone keeps
-              it.
-            </>
-          ) : (
-            "Stored in the database so the provider can be swapped without a deploy. It is included in database backups."
-          )}
-        </p>
       </div>
 
       <div className="field">
@@ -156,9 +139,6 @@ export default function OracleForm({ settings }) {
           max={10}
           defaultValue={settings.oracleMemoryTurns}
         />
-        <p className="text-sm text-muted">
-          How many previous turns each writer is shown. At 0 every turn is written blind.
-        </p>
       </div>
 
       <div className="ops-toggle">
@@ -191,9 +171,6 @@ export default function OracleForm({ settings }) {
           maxLength={8000}
           defaultValue={settings.editorPrompt}
         />
-        <p className="text-sm text-muted">
-          Clearing either box restores the one the game ships with.
-        </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">

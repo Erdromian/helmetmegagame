@@ -43,7 +43,7 @@ export default async function OraclePage({ searchParams }) {
     return (
       <>
         <header className="desk-header">
-          <h1 className="section-title">The Oracle</h1>
+          <h1 className="section-title">Oracle</h1>
         </header>
         <div className="desk-empty">
           <p>No turn has finished yet.</p>
