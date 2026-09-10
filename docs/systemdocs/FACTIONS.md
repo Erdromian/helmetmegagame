@@ -214,6 +214,57 @@ One function carries the whole rule.
 Location check and `accessibleRooms`. Every other caller leaves `direction`
 unset and gets the strict, pre-silo answer.
 
+### 4c. The ledger
+
+The Silo tab carries a **Ledger** under the contents: what went in and out of
+the silo room, newest first. It answers the question the tab could not before —
+the treasury dropped 80 ⬢ overnight and nobody could say whose hands did it.
+
+**Two conditions, both required: an officer, and the key.** A keyless officer
+is already told they cannot see inside (§4a), and a ledger would contradict
+that banner; a member with the key is not the faction's bookkeeper. Neither
+gets it.
+
+**It is reading, so it reads like reading.** `db/lib/reading.js#readBlock`
+gates it exactly as it gates a letter or a noticeboard — the `literate` tag,
+plus eyes: blind, blind drunk, nearsighted with your spectacles in a sack,
+sun-sensitive outdoors at Dawn. A blocked officer gets the one line every
+unreadable thing gets and is never told which of those stopped them. The rows
+are withheld **server-side** rather than hidden in the browser, so the gate is
+a lock and not a hint.
+
+**A view over `AuditLog`, not a table of its own** — the same call the Depot's
+ledger makes. Those rows already snapshot what moved; a second ledger would be
+a second thing to keep in step with the first. `web/lib/siloLedger.js` holds
+the whole query.
+
+Four things about it that will look like bugs and are not:
+
+- **A rolling seven turns.** Not the whole game. The `createdAt` bound is also
+  what keeps this off a full scan of the app's biggest table — `details` has no
+  expression index, and the trigram one over `details::text` does not serve an
+  equality path filter.
+- **Player hands only.** `request_transfer_tag` and `request_transfer_resources`
+  and nothing else. `gm_transfer_resources` shares the exact same party shape
+  and is deliberately left out, so the ledger will **not** always reconcile
+  against the balance: a GM correction moves ⬢ the books never mention. A
+  staged effect applied at turn close writes no audit row at all
+  (`db/lib/stagedPush.js`), so there is nothing to show for those either.
+- **Names are frozen at deposit time**, in `details.by`, written by the
+  transfer in `web/app/(app)/character/requestActions.js`. Somebody who
+  deposited under a hood stays under it in the books forever. Resolving the
+  name when the ledger is drawn would unmask every deposit they ever made the
+  moment the mask came off — the reason `ArchiveEntry.concealedAlias` is frozen
+  too. `details.from.name` beside it is the real name and the ledger never
+  renders it. A row written before this existed has no `by` and prints `—`.
+- **One line per act, not per row.** A transfer writes one audit row per tag
+  stack plus one for the ⬢, all sharing a `details.moveId`; the ledger groups
+  on it. Rows older than `moveId` have none and stand alone.
+
+**A Restart Game wipe takes the ledger with it.** `wipeGameData` deletes every
+`AuditLog` row unconditionally — archive or discard, there is no branch. Say so
+before anybody relies on these books across a restart.
+
 ## 5. Role is same-faction knowledge, not officer authority
 
 Role (`Character.roleTitle`) is visible on both faces of the game, gated on
@@ -298,6 +349,8 @@ view.
 | `web/lib/transferReach.js` | `canReachParty`'s `direction` and the silo rule — §4b |
 | `web/app/(app)/faction/page.js` | The server half: loads and shapes, GM detail view |
 | `web/app/(app)/faction/actions.js` | Every verb in §3, plus `setSiloRoom` |
+| `web/lib/siloLedger.js` | The ledger query and its window — §4c |
+| `web/app/components/SiloLedger.js` | The ledger table inside the Silo tab — §4c |
 | `web/app/components/FactionConsole.js` | The console — §6 |
 | `web/app/(app)/gm/dev/factions/` | The GM toolkit |
 | `docs/roles.yaml` | The master: `parent:` and `silo:`, both create-only (`SYNC.md`) |

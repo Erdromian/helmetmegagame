@@ -7,6 +7,7 @@ import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { getMyFactionRole } from "@/lib/factionPermissions";
 import { loadFaction } from "@/lib/factionView";
+import { loadSiloLedger } from "@/lib/siloLedger";
 import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 import PageShell from "@/app/components/PageShell";
 import AppHeader from "@/app/components/AppHeader";
@@ -171,7 +172,27 @@ async function buildPlayerProps(session, me) {
             .filter((rt) => rt.quantity > 0)
             .map((rt) => ({ id: rt.id, name: rt.tag.name, quantity: rt.quantity }))
         : [],
+      ledger: [],
+      ledgerBlocked: false,
     };
+    // The books, for an officer who can open the door — both halves required.
+    // A keyless officer is already told they cannot see inside; a ledger would
+    // contradict the banner. Reading them is reading, so it answers to the
+    // literacy and eyesight rules every other written thing does, and the rows
+    // are withheld server-side rather than hidden in the browser.
+    if (isOfficer && canOpen) {
+      const openTurn = await prisma.turn.findFirst({
+        where: { status: "OPEN" },
+        select: { phase: true },
+      });
+      const { rows, blocked } = await loadSiloLedger(room.id, {
+        tags: me.tags,
+        phase: openTurn?.phase ?? null,
+        indoors: me.location?.indoors ?? true,
+      });
+      silo.ledger = rows;
+      silo.ledgerBlocked = blocked;
+    }
   }
 
   const officerExtras = isOfficer
@@ -291,7 +312,16 @@ export default async function FactionPage({ searchParams }) {
     getGmSession(),
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
-      select: { id: true, factionId: true, zoneId: true },
+      select: {
+        id: true,
+        factionId: true,
+        zoneId: true,
+        // Both only for the silo ledger's reading gate (db/lib/reading.js):
+        // the held tags answer literacy and eyes, and indoors is half of what
+        // Sun Sensitivity needs.
+        location: { select: { indoors: true } },
+        tags: { select: { equipped: true, tag: { select: { slug: true } } } },
+      },
     }),
   ]);
 

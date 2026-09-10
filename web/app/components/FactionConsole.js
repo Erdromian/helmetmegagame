@@ -10,6 +10,7 @@ import RequestDialog from "./RequestDialog";
 import CheckField from "./CheckField";
 import { useConfirm } from "./ConfirmProvider";
 import { useTableState, SortHeader, FilterBar } from "./DataTable";
+import SiloLedger from "./SiloLedger";
 import Pager from "./Pager";
 import FormError from "./FormError";
 import { useRefresh } from "./useRefresh";
@@ -201,6 +202,12 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
             {silo.tags.length === 0 && <EmptyRow cols={2}>Nothing but the ⬢.</EmptyRow>}
           </tbody>
         </table>
+      ) : null}
+
+      {/* The books. Officer with the key only, and the rows never left the
+          server without both (FACTIONS.md §4c). */}
+      {isOfficer && silo.canOpen ? (
+        <SiloLedger rows={silo.ledger ?? []} blocked={silo.ledgerBlocked === true} />
       ) : null}
 
       <p className="text-sm text-muted">

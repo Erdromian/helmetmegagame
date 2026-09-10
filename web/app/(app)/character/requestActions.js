@@ -26,6 +26,11 @@ import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import {
+  presentedIdentity,
+  forcedNameFrom,
+  concealmentFrom,
+} from "@lifeweb/db/lib/presentedIdentity";
+import {
   logAudit,
   MAX_REASON_LENGTH,
   craftAllowance,
@@ -3566,6 +3571,23 @@ async function transferRequestImpl({
   };
   const fromParty = { kind: from.kind, id: from.id, name: from.name };
   const toParty = { kind: to.kind, id: to.id, name: to.name };
+  // Two fields the silo ledger reads back (FACTIONS.md §4c), and the reason
+  // both are written HERE rather than resolved when the ledger is drawn.
+  //
+  // `by` is the name the room saw, frozen the way ArchiveEntry.concealedAlias
+  // is: resolving it live would unmask every deposit somebody ever made the
+  // moment the hood came off. No extra query — requireCharacter already loads
+  // whole Tag rows with `equipped`, which is all forcedNameFrom and
+  // concealmentFrom read.
+  //
+  // `moveId` ties one act together. This writes one audit row per tag stack
+  // plus one for the ⬢, so handing in two stacks and 30 ⬢ is three rows; the
+  // ledger groups on this to print it as the one thing it was.
+  const by = presentedIdentity(character, {
+    forcedName: forcedNameFrom(character.tags),
+    concealment: concealmentFrom(character.tags),
+  }).name;
+  const moveId = crypto.randomUUID();
   // The Spillway (Room.destroysContents). Nothing is written on the receiving
   // end — giveTagTo and moveParty both refuse — so the effect has to say so,
   // or a GM repairing this by hand goes looking for goods never stored.
@@ -3624,6 +3646,8 @@ async function transferRequestImpl({
           quantity,
           from: fromParty,
           to: toParty,
+          by,
+          moveId,
           direction: "SEND",
           restore,
         },
@@ -3641,6 +3665,8 @@ async function transferRequestImpl({
         amount,
         from: fromParty,
         to: toParty,
+        by,
+        moveId,
         direction: "SEND",
         destroyed,
       };
