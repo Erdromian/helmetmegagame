@@ -177,7 +177,7 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Shortbow | Dead Simple | `crafting` |
 | Spear | Simple | 1/3 turn — three to a Routine (§2) |
 | Dagger | Simple | 1/3 turn — three to a Routine (§2) |
-| Silver Knife | Simple | 1/3 turn — three to a Routine (§2) |
+| Silver Knife | Simple | 1/3 turn — three to a Routine (§2). Spends one `silver` — its 6 ⬢ total is unchanged, the resourceCost is just 1 ⬢ of it now (2026-09-09). |
 | Gladius | Simple | |
 | Phrygian Spear | Simple | 1/3 turn — three to a Routine (§2) |
 | Javelin | Simple | `ranged-basic` — it is thrown, not held. |
@@ -189,10 +189,10 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
 | Bastard Sword | High Quality | |
-| Rapier | High Quality | |
+| Rapier | High Quality | Spends one `steel`. 1 turn / 8 ⬢ now, not the tier's 2 / 26 — the other turn and 18 ⬢ moved into steel's own recipe (2026-09-09). |
 | Sabre | High Quality | |
-| Katana | High Quality | |
-| Silver Spear | High Quality | |
+| Katana | High Quality | Spends one `steel`. 1 turn / 8 ⬢ now, not the tier's 2 / 26 — same move as Rapier (2026-09-09). |
+| Silver Spear | High Quality | Spends one `silver` — its 26 ⬢ total is unchanged, the resourceCost is just 21 ⬢ of it now (2026-09-09). |
 | Lucerne | High Quality | |
 | Zweihander | High Quality | |
 | Crossbow | High Quality | |
@@ -200,7 +200,7 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Bore Pistol | Gunpowder | Materials cost 20 ⬢, not the tier's 31 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
 | Bomb | Gunpowder | `purchasable: false` (craft-only). Spends one `black-powder` per unit on top of its 31 ⬢ — the one ladder recipe with an ingredient. |
 
-**Off-tier recipes with ingredients.** Two smaller recipes sit under their
+**Off-tier recipes with ingredients.** Three smaller recipes sit under their
 own prices, each spending an ingredient (`requirement.items`, enforced and
 consumed like any brew's):
 
@@ -208,6 +208,7 @@ consumed like any brew's):
 |---|---|---|---|---|
 | `black-powder` | `smithing-gunpowder` | 3 | 1 | `saltpeter` (raw, mined) |
 | `gunpowder-grenade` (**Crude Grenade**) | `smithing-skilled` | 6 | 1 | `saltpeter` (raw, mined) |
+| `steel` | `smithing` | 14 | 1 | `coal` (Merchant stock or mined) |
 
 The grenade came over from Brewing (Skilled) on 2026-09-05 — a powder device
 out of a still was always odd — and its group moved to `items-weapons` with
@@ -218,6 +219,19 @@ the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 `gunpowder-grenade`. `black-powder` is the refining step between mined
 saltpeter and the Bomb; its numbers (3 ⬢, sells 6) are drafted, not signed
 off.
+
+**`steel`** (2026-09-09) is the same shape as `black-powder` — priced at
+cost, no smith's margin, `sellablePrice` (18) equal to its own `resourceCost`
+(14) plus coal's (4). Gated at plain `smithing` rather than `smithing-skilled`
+on purpose: smelting ore into a usable ingot is basic forge work, and it's
+only the four recipes that SPEND it — `katana`, `rapier`, `brigandine`,
+`plate-armor` — that need the higher skill to shape it into something fine.
+Each of those recipes gave up 1 turn and 18 ⬢ of its own `resourceCost` (the
+old High Quality/Exceptional numbers minus what `steel`'s own recipe now
+costs) — see the Weapons and Armor tables above. `{tag:silver}` got the same
+`Prospecting`-sourced treatment the same day, but stays a raw material with
+no recipe of its own — silver needs no smelting, so there was nothing to
+split out of `silver-knife`/`silver-spear` beyond the ingredient itself.
 
 Off the ladder — no recipe, no smithing gate:
 
@@ -271,9 +285,9 @@ pair still counts at the Spillway (`CRAFTING.md` §4a).
 | Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
 | Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
 | Censor's Helmet | High Quality | Force conceal |
-| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. |
+| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `steel`. 1 turn / 8 ⬢ now, not the tier's 2 / 26 (2026-09-09). |
 | Breastplate | High Quality | |
-| Plate Armor | Exceptional | |
+| Plate Armor | Exceptional | Spends one `steel`. 2 turns / 16 ⬢ now, not the tier's 3 / 34 (2026-09-09). |
 
 Off the ladder:
 

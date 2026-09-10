@@ -4,7 +4,7 @@
 // auto-labor pass (db/lib/autoLaborPass.js) and the Labor? button
 // (db/lib/locationAnchorRow.js's handler).
 //
-// Two general tiers and three location-scaled specialisations. A character
+// Two general tiers and four location-scaled specialisations. A character
 // holding several of them does not choose — resolveLaborRateFrom scores every
 // candidate they qualify for and pays the best one, so "I forgot to switch to
 // Fishing" is not a way to lose a day. See docs/systemdocs/LABORING.md.
@@ -26,6 +26,7 @@ const {
   LABORING_FARMING_SLUG,
   LABORING_HUNTING_SLUG,
   LABORING_FISHING_SLUG,
+  LABORING_PROSPECTING_SLUG,
   LAZY_SLUG,
 } = require("./constants");
 
@@ -88,13 +89,14 @@ const GENERAL_TIERS = [
   { slug: LABORING_BASIC_SLUG, tier: "basic" },
 ];
 
-// The three side-grades. Each needs its own tag AND a LocationYield row of the
+// The four side-grades. Each needs its own tag AND a LocationYield row of the
 // matching kind where the character is standing — the row IS the gate, which
 // is why no Location carries a "wilderness" or "water" flag anywhere.
 const SPECIALISATIONS = [
   { slug: LABORING_HUNTING_SLUG, tier: "hunting" },
   { slug: LABORING_FARMING_SLUG, tier: "farming" },
   { slug: LABORING_FISHING_SLUG, tier: "fishing" },
+  { slug: LABORING_PROSPECTING_SLUG, tier: "prospecting" },
 ];
 
 // Loads everything the rules need for one character: the tags they hold, where
@@ -389,6 +391,7 @@ const TIER_LABELS = {
   hunting: "Hunting",
   farming: "Farming",
   fishing: "Fishing",
+  prospecting: "Prospecting",
   refining: "Refining",
 };
 

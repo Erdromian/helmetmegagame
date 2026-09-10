@@ -25,6 +25,7 @@ const TIER_TO_LABOR_DROP_TYPE = {
   hunting: "HUNTING",
   farming: "FARMING",
   fishing: "FISHING",
+  prospecting: "PROSPECTING",
 };
 
 // The six legal scope combinations a pool can be authored under (LABORDROPS.md

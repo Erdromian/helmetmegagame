@@ -146,6 +146,7 @@ documents:
       - Laboring (Hunting)
       - Laboring (Farming)
       - Laboring (Fishing)
+      - Laboring (Prospecting)
     description: |-
       Labor is how Resources are produced, and it needs one of the tags below.
 
@@ -158,8 +159,9 @@ documents:
       | {tag:laboring-hunting} | {resource:labor:hunting} | Wilderness, scaled by the place |
       | {tag:laboring-farming} | {resource:labor:farming} | Fields and worked ground, scaled by the place |
       | {tag:laboring-fishing} | {resource:labor:fishing} | Water, scaled by the place |
+      | {tag:laboring-prospecting} | {resource:labor:prospecting} | Somewhere worth searching, scaled by the place |
 
-      The bottom three need {tag:laboring-skilled} behind them and are side-grades. There is no limit on the number of Labor tags a Character may hold. Laboring always pays the best result for where you stand.
+      The bottom four need {tag:laboring-skilled} behind them and are side-grades. There is no limit on the number of Labor tags a Character may hold. Laboring always pays the best result for where you stand. ‡
 
       The Per Turn ranges are what an ordinary spot pays. What a Location pays **changes over the course of the game**. Press **Examine** in any Location's channel to see what it yields right now. Hunting is typically the most variable; Farming the most steady.
 

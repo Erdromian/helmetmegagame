@@ -62,8 +62,8 @@ of its `starting_zone`.
 
 ### 1a. What a Location is worth
 
-A Location also carries up to three `LocationYield` rows — one per `LaborKind`
-(HUNTING / FARMING / FISHING) — authored as a `yield:` block in
+A Location also carries up to four `LocationYield` rows — one per `LaborKind`
+(HUNTING / FARMING / FISHING / PROSPECTING) — authored as a `yield:` block in
 `docs/zones.yaml` and drifted every turn. **No row means that labor is
 impossible there**, which is why no Location needs a "wilderness" or "water"
 boolean anywhere in the schema: the row is the gate. See `LABORING.md`.

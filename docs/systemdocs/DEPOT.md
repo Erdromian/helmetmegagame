@@ -619,6 +619,8 @@ buying one mid-game is still a real decision.
 | `alcohol` | 5 | 4 | He stocks the local brew too |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. Cut from 12 ⬢: at that price it was competing with real gear, and a paper-thin disguise is not real gear. |
 | `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
+| `coal` | 7 | 4 | The generator's own fuel (§2) — missing from this table until 2026-09-09, though it has always had this `depotPrice`. |
+| `silver` | 8 | 5 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source cheaper (`LABORDROPS.md` §2b); this is the fallback. |
 | `boombox` | 11 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
 | `sake` | 11 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
@@ -632,6 +634,7 @@ buying one mid-game is still a real decision.
 | `sword-cane` | 23 | 14 | Also a 7-pt creation pick |
 | `instant-camera` | 26 | 16 | Also a 2-pt creation pick |
 | `microscope` | 29 | 17 | |
+| `steel` | 30 | 18 | Craftable (`smithing`, spends `coal` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. |
 | `surgical-equipment` | 31 | 19 | Also a 9-pt creation pick |
 | `light-infantry-armour` | 34 | 20 | Stops a bullet. Nothing forged here does. |
 | `phrygian-tears` | 36 | 22 | Also a Skilled brew, at 4 ⬢ — see §4 |
@@ -679,6 +682,13 @@ make it, importing it would be pointless. The three exceptions are all brews —
 `alcohol`, `distilled-coca` and `phrygian-tears` — which he stocks for a
 Merchant who would rather not wait on a brewer. Each is priced well above what
 brewing one costs, and that gap is the market a brewer sells into (§4).
+
+**`steel` (2026-09-09) is the fourth**, and the first that isn't a brew — a
+smith with no Prospector bringing up ore can buy the ingot outright instead
+of smelting it himself. Same reasoning as the three brews: priced above what
+the `smithing` recipe itself costs (`SMITHING.md`), so the Merchant is a
+faster source, not a cheaper one. `silver` is not craftable at all, so it
+never faced this question — it is simply stocked, the same as `coal`.
 
 ### Laboring tools
 

@@ -51,6 +51,66 @@ function withComment(code, comment) {
 // but returns just the fragment, since the entry line doesn't need the name
 // repeated.
 const OBOL_SLUG = "obol";
+
+// EV overrides: the number a loot table's balance math should use for this
+// tag, INSTEAD of whatever priceEntry's real-value branches below would
+// otherwise find — checked first, ahead of sellable/consumesIntoResources,
+// so it wins even when a real (lower) price also exists. Two different
+// reasons a tag ends up here:
+//
+// 1. No real price yet (godflesh, the three monster corpses) — a stand-in so
+//    a table can be balanced BEFORE the tag is actually made sellable.
+//    godflesh becoming Depot-sellable would undercut the whole Factory
+//    (FACTORY.md §1), so this is planning-only, never written to the tag.
+//    The three corpses aren't a guess: Butchering is a free, 0-turn craft
+//    that consumes the body for exactly one of its named yield (CORPSES.md
+//    §6), so a corpse in a loot table is worth precisely what that yield
+//    sells for — Skinless Corpse -> Skinless Brain (25 ⬢), Graga Corpse ->
+//    Graga Sac (8 ⬢), Nekker Corpse -> Nekker Pheromones (5 ⬢). A human
+//    corpse's own yield, human-flesh, is deliberately excluded — CORPSES.md
+//    §6 prices it at 0 on purpose ("a priced Human Flesh would be a
+//    code-enforced ⬢ faucet hanging off a free action"), so it gets no
+//    override either (Bascinet, 2026-09-10).
+//
+// 2. A real price exists, but it's deliberately LESS than the tag is
+//    actually worth (the three Lockboxes) — Bascinet's call: a locked box
+//    should sell for half its contents, not the full amount, so opening it
+//    (Lockpicking-gated) always beats fencing it whole. The loot table's own
+//    balance math still needs the FULL contents value — that's the number a
+//    player who actually opens it realizes, and it's what these tables have
+//    been tuned against — so the override here is the sum of each box's own
+//    Spoils `consumesInto` list, kept in sync by hand:
+//      Overspill Lockbox: jewelry(8) + steel(18) + silver(5) + mace(9) = 40
+//      Basement Lockbox: soporific(27) + amoeba-vial(31) + bliss(3) = 61
+//      Waterlogged Lockbox: steel(18) + jewelry(8) + trench-knife(12) +
+//        silver(5) + dagger(7) + old-coin(1) = 51
+//    Three smaller lockboxes joined 2026-09-10, spread across global and
+//    regional Prospecting plus Fishing rather than one-off location
+//    specials, so the mechanic is something most labourers actually run
+//    into:
+//      Silt Lockbox: jewelry(8) + silver(5) + coal(4) + old-coin(1) = 18
+//      Buried Lockbox: dagger(7) + jewelry(8) + silver(5) + coal(4) = 24
+//      Netted Lockbox: trout-heart(4) + silver(5) + jewelry(8) + old-coin(1) = 18
+//    Two more for Prospecting's first City ground — the Underquarter and the
+//    Undercroft — smaller again, since neither location is rich:
+//      Till Lockbox: obol(1) + obol(1) + silver(5) + jewelry(8) + old-coin(1) = 16
+//      Reliquary Lockbox: heirloom(12) + jewelry(8) = 20
+//    (Bascinet, 2026-09-10).
+const ASSUMED_VALUES = {
+  godflesh: 8,
+  "skinless-corpse": 25,
+  "graga-corpse": 8,
+  "nekker-corpse": 5,
+  "overspill-lockbox": 40,
+  "basement-lockbox": 61,
+  "waterlogged-lockbox": 51,
+  "silt-lockbox": 18,
+  "buried-lockbox": 24,
+  "netted-lockbox": 18,
+  "till-lockbox": 16,
+  "reliquary-lockbox": 20,
+};
+
 function mechanicalValue(rawValue, tagsById) {
   const value = String(rawValue).trim();
   if (/^nothing$/i.test(value)) return null; // no comment needed
@@ -58,7 +118,18 @@ function mechanicalValue(rawValue, tagsById) {
   const tag = [...tagsById.values()].find((t) => t.slug === value);
   if (!tag) return null; // unknown to the catalog — sync will throw on this, not our job to comment
   if (tag.slug === OBOL_SLUG) return "the coin itself, worth 1 ⬢";
+  if (ASSUMED_VALUES[tag.slug] != null) {
+    const overrideValue = ASSUMED_VALUES[tag.slug];
+    // A tag with a real (lower, deliberate) price still shows it, so the
+    // discount reads as intentional rather than a stale/wrong number.
+    return tag.sellable && tag.sellablePrice
+      ? `worth ${overrideValue} ⬢ opened (sells ${tag.sellablePrice} ⬢ locked)`
+      : `assumed ${overrideValue} ⬢ (not actually sellable yet)`;
+  }
   if (tag.sellable && tag.sellablePrice) return `sells ${tag.sellablePrice} ⬢`;
+  // Not sellable, but consuming it pays out anyway (Purse, Supply Kit) —
+  // mirrors audit-labor-drops.js#priceEntry's own fallback.
+  if (tag.consumesIntoResources) return `worth ${tag.consumesIntoResources} ⬢ consumed`;
   return "not sellable";
 }
 
@@ -119,7 +190,9 @@ function priceRows(rows, tagsById) {
     if (r.kind === "TAG") {
       const tag = tagsById.get(r.tagId);
       if (tag?.slug === OBOL_SLUG) return { ...withTagId, evValue: 1 };
+      if (tag && ASSUMED_VALUES[tag.slug] != null) return { ...withTagId, evValue: ASSUMED_VALUES[tag.slug] };
       if (tag?.sellable && tag.sellablePrice) return { ...withTagId, evValue: tag.sellablePrice };
+      if (tag?.consumesIntoResources) return { ...withTagId, evValue: tag.consumesIntoResources };
       return { ...withTagId, evValue: 0 };
     }
     return { ...withTagId, evValue: 0 };
@@ -364,4 +437,4 @@ function annotateLines(lines, ctx) {
   return out;
 }
 
-module.exports = { annotateLines, priceRows, mechanicalValue, splitBlurb };
+module.exports = { annotateLines, priceRows, mechanicalValue, splitBlurb, ASSUMED_VALUES };

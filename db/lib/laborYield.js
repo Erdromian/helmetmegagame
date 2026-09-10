@@ -1,6 +1,6 @@
 // What a place is worth to labor in, and how that changes.
 //
-// Every Location carries at most three LocationYield rows, one per LaborKind.
+// Every Location carries at most four LocationYield rows, one per LaborKind.
 // `base` is what docs/zones.yaml authored; `current` is where the world has
 // drifted it to, and `current` is the only number a payout or the Labor?
 // button ever reads. No row for a (location, kind) pair means that labor is
@@ -33,9 +33,10 @@ const YIELD_FLOOR = 0;
 // walk is roughly sigma / sqrt(2 * reversion), which is the number that
 // actually shows up in play:
 //
-//   HUNTING  0.12 / sqrt(0.60) ~ +/-0.16   game is thick with it
-//   FISHING  0.07 / sqrt(0.40) ~ +/-0.11   the river is the river, mostly
-//   FARMING  0.025 / sqrt(0.24) ~ +/-0.05  a field is a field
+//   HUNTING      0.12  / sqrt(0.60) ~ +/-0.16   game is thick with it
+//   FISHING      0.07  / sqrt(0.40) ~ +/-0.11   the river is the river, mostly
+//   FARMING      0.025 / sqrt(0.24) ~ +/-0.05   a field is a field
+//   PROSPECTING  0.13  / sqrt(0.44) ~ +/-0.20   a vein runs dry or it doesn't
 //
 // `eventChance` is per row per turn, except FARMING's, which is rolled ONCE
 // for the whole world (see rollEvents) — a blight takes every field at once,
@@ -72,6 +73,18 @@ const KIND_PARAMS = {
       { multiplier: 0.55, weight: 60 },
     ],
     global: true,
+  },
+  // DRAFT — Bascinet's to retune once Prospecting has played out a bit.
+  // Modelled closest to Hunting (a vein is luck the way a game trail is),
+  // but with a wider magnitude: a strike is worth more than an ordinary
+  // hunting swing, and running dry hurts more too.
+  PROSPECTING: {
+    reversion: 0.22,
+    sigma: 0.13,
+    eventChance: 0.05,
+    eventLength: [3, 9],
+    magnitude: [0.2, 2],
+    global: false,
   },
 };
 
