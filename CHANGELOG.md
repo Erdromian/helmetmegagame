@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Earning a compliment is worth one point now
+
+✎ Earn a compliment drops from 3 points to 1, and comes back every 5 turns instead of every 3
+
 ## 2026-09-10 · The Oracle sees hoods, disguises and the intercom; Kiss someone is tier 1
 
 ✎ The chronicle now reports someone pulling a hood up or letting it down, putting on a disguise, and anything said over the intercom — all three were invisible to it before  
