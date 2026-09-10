@@ -787,7 +787,15 @@ model Depot {
   // NOT on the Merchant's character on purpose: the licence is tradeable, so
   // handing it over hands over the money too, which is what makes the card
   // worth stealing.
-  accountObols Int @default(0)
+  //
+  // The default is the station's OPENING FLOAT, and it is the only place that
+  // number lives: Restart Game deletes this row and recreates it bare
+  // (web/app/(app)/gm/dev/actions.js), so every new game starts here. It is
+  // deliberately separate from the Merchant's own purse, which is 20 ¢ of
+  // physical obol tags granted by docs/roles.yaml — the station having a
+  // float of its own does not mean he does, and spending one never touches
+  // the other.
+  accountObols Int @default(20)
 
   // Drawn against the Company's line, in obols. Repaying frees the room back
   // up immediately. Kept separate from accountObols so a Merchant deep in debt
