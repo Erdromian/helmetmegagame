@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The loot table's resource finds work again
+
+✎ Finding 1 or 2 loose Resources on a labor roll had never actually reached the game — the entries were written in a shape the table could not read, and the whole loot sync refused to run because of it  
+✎ Fixed and synced: 287 draws live, 15 of them resource finds
+
 ## 2026-09-10 · Rejecting a Move no longer asks for a reason it cannot take
 
 ✎ Reject on the turns desk fires straight away instead of opening a dialog that always refused
