@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Steady hands and Clumsy are mutually exclusive
+
+✎ Steady and Clumsy can no longer be held together
+
 ## 2026-09-10 · The Oracle is written when the Moves lock, not after the push
 
 ✎ The turn's chronicle is now drafted a couple of minutes after Moves lock, so a GM has it in front of them for the whole adjudication window instead of after the rulings are over  
