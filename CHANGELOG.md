@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Guns beat bows, and the crossbow stops being the best ranged weapon
+
+✎ Every firearm now counts for more in a fight than every bow — the powder half of the ranged ladder starts where the bows stop  
+✎ The Kpfw-6 Avtomat is the best gun in the game, then the CTT4&3 Rifle  
+✎ The Crossbow drops from a full tier to half a tier, and its description says so  
+✎ The Disabler stays where it was — it is a tool, not a gun
+
 ## 2026-09-10 · Prospecting brings up ore, and steel is a quick smelt
 
 ✚ Prospecting, a fourth kind of labor — two new places to work it, the Underquarter and the Undercroft  
