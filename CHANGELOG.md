@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A second radio net: 27.065
+
+✚ Radio (27.065), 20 off the Thanati shelf — a radio hardset to one frequency, and everyone holding one both hears and speaks on it  
+✚ Its own channel, separate from the Cerberon's net and cleared at Dawn like the rest  
+✎ The radio category is no longer cut twice when a fresh guild provisions both nets at once
+
 ## 2026-09-10 · The sheet says who you are where the face is
 
 ✚ Your name, your role and your faction sit in the character sheet's top row now, beside a face three times the size it was
