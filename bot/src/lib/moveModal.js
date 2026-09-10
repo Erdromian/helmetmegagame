@@ -58,7 +58,7 @@ function buildMoveModal() {
             .addOptions(
               { label: "Routine", value: "ROUTINE", description: "Easy — it resolves itself." },
               { label: "Gambit", value: "GAMBIT", description: "Could go either way — rolls a die." },
-              { label: "Labor", value: "LABOR", description: "Work the day. Your best skill, where you stand." },
+              { label: "Labor", value: "LABOR", description: "Work the day using your best Labor skill." },
             ),
         ),
     )

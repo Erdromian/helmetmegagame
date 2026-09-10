@@ -7,6 +7,8 @@ import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/li
 import { fileMove } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { resolveLaborRate } from "@lifeweb/db/lib/laborAccess";
+import { qualityWord } from "@lifeweb/db/lib/laborYield";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
@@ -1223,7 +1225,7 @@ export async function myMove() {
     where: { status: "OPEN" },
     select: { id: true, number: true, phase: true, startedAt: true },
   });
-  if (!openTurn) return { ok: true, turn: null, move: null };
+  if (!openTurn) return { ok: true, turn: null, move: null, characterId: me.character.id };
 
   const [frozen, action] = await Promise.all([
     clockFrozen(prisma),
@@ -1253,6 +1255,71 @@ export async function myMove() {
       hasLock,
     },
     move: action ? { id: action.id, kind: action.moveKind, description: action.description } : null,
+    // Whose Move this is. The dialog keys its unfiled draft on it, so two
+    // characters signed in from the same browser never inherit each other's
+    // half-written day.
+    characterId: me.character.id,
+  };
+}
+
+// What the Move dialog shows before a Labor is committed, and nothing more.
+//
+// The player used to learn that they cannot labor where they stand by pressing
+// File it and reading the refusal afterwards — on the one action a turn that
+// is final. resolveLaborRate already knows; this just asks it early.
+//
+// WORDS, never numbers. `qualityWord` is the same function the Examine button
+// prints (db/lib/examineLocation.js), so this says exactly what anybody
+// standing here can already read, and the min/max the rate resolver also
+// returns is deliberately dropped on the floor: Examine is the only surface
+// allowed to show a coefficient at all (docs/systemdocs/LABORING.md), and a
+// range is that number with the disguise off.
+const LABOR_TIER_LABELS = {
+  basic: "Laboring",
+  skilled: "Skilled Laboring",
+  hunting: "Hunting",
+  farming: "Farming",
+  fishing: "Fishing",
+  refining: "Refining",
+};
+
+// The same fixed order the bot's Examine uses, so a player who has learned the
+// shape in Discord reads it the same way here.
+const LABOR_CONTEXT_KINDS = [
+  { kind: "HUNTING", label: "Hunting" },
+  { kind: "FARMING", label: "Farming" },
+  { kind: "FISHING", label: "Fishing" },
+];
+
+export async function moveContext() {
+  const me = await actor({ id: true, locationId: true });
+  if (me.error) return { ok: false, error: me.error };
+
+  const [location, rate] = await Promise.all([
+    me.character.locationId
+      ? prisma.location.findUnique({
+          where: { id: me.character.locationId },
+          select: { name: true, yields: { select: { kind: true, current: true } } },
+        })
+      : null,
+    resolveLaborRate(prisma, me.character.id),
+  ]);
+
+  const byKind = new Map((location?.yields ?? []).map((row) => [row.kind, row.current]));
+
+  return {
+    ok: true,
+    locationName: location?.name ?? null,
+    yields: LABOR_CONTEXT_KINDS.map(({ kind, label }) => ({
+      label,
+      word: qualityWord(byKind.get(kind) ?? null),
+    })),
+    // The tier that would win, as its own name — "you would work Fishing".
+    // Absent when the rate refuses, in which case `refusal` carries the why.
+    tier: rate.ok ? (LABOR_TIER_LABELS[rate.tier] ?? null) : null,
+    // Named, not summed: the number is the coefficient's cousin and stays out.
+    tools: rate.ok ? (rate.tools ?? []).map((tool) => tool.name).filter(Boolean) : [],
+    refusal: rate.ok ? null : (rate.reason ?? null),
   };
 }
 

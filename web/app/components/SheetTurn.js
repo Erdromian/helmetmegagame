@@ -16,7 +16,7 @@ import { useRefresh } from "./useRefresh";
 // the old sheet's "This turn" row always used — they are why a Move may not be
 // filed yet, and the card alone would not say so.
 export default function SheetTurn({ moveState, pendingOffers = [] }) {
-  const state = useMyMove(moveState ?? { turn: null, move: null });
+  const state = useMyMove(moveState ?? { turn: null, move: null, characterId: null });
   const [dialog, setDialog] = useState(null);
   const [refresh] = useRefresh();
 
@@ -43,7 +43,9 @@ export default function SheetTurn({ moveState, pendingOffers = [] }) {
     <div className="sheet-turn">
       <TurnCard turn={state.turn} move={state.move} onFile={() => setDialog("move")} />
       {waiting}
-      {dialog === "move" && <MoveDialog onClose={() => setDialog(null)} onDone={done} />}
+      {dialog === "move" && (
+        <MoveDialog turn={state.turn} characterId={state.characterId} onClose={() => setDialog(null)} onDone={done} />
+      )}
     </div>
   );
 }

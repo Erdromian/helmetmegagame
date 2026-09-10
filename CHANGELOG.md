@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Filing a Move now tells you what you need before you press it
+
+✚ The Move box shows how long is left to file, and what the ground under you is worth if you pick Labor  
+✚ A Move you cannot make — no Laboring skill that reaches where you stand — says so before you spend the press, not after  
+✚ What you type into the Move box is kept if you close it by accident, per character and per turn  
+✚ A confirm step on File it, because a filed Move is final  
+✎ Labor's help line now reads "Work the day using your best Labor skill", on Discord too
+
 ## 2026-09-10 · A pass over the sheet, the map, the Depot and the Lifeweb
 
 ✎ The sheet is squarer: Crafting & building moved under the Bio, and your ⬢ and your pounds are no longer printed twice on the band  

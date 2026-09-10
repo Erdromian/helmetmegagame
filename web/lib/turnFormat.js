@@ -10,6 +10,27 @@
 // web-only: themes and the turn label a page renders.
 export { turnsLeft, formatTurnsLeft, tagDuration, expiryFrom, expiryFor } from "@lifeweb/db/lib/turnFormat";
 
+// How long is left to file a Move, as the one sentence both surfaces that ask
+// the question use: the turn card in Chat's YOU column and the sheet's band,
+// and now the Move dialog's own header.
+//
+// It counts to the CUTOFF, not to the turn's end. Moves stop three hours
+// before midnight (MOVE_LOCK_HOURS), so counting to the end told a player they
+// had three hours they did not have.
+//
+// Computed in the browser off the ISO string so it cannot go stale on a page
+// left open, and null when moveWindow says there is no lock at all — a frozen
+// clock or a short manual turn has no honest time to count to
+// (db/lib/turnClock.js).
+export function untilLabel(closesAt, now) {
+  if (!closesAt) return null;
+  const ms = new Date(closesAt).getTime() - now;
+  if (ms <= 0) return "locked";
+  const hours = Math.floor(ms / 3_600_000);
+  if (hours >= 1) return `closes in ${hours} h`;
+  return `closes in ${Math.max(1, Math.round(ms / 60_000))} m`;
+}
+
 export function describeTurn(turn) {
   if (!turn) return { day: null, phase: null, label: "NO TURN OPEN" };
   const day = Math.ceil(turn.number / 2);

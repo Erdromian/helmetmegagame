@@ -669,6 +669,92 @@ input[type="radio"]:focus-visible,
   padding: 7px 14px;
 }
 
+/* ---- The Move dialog ----------------------------------------------------
+   Filing a Move is the one irreversible thing a player does in a day, so the
+   dialog carries three things a bare textarea never did: what the ground here
+   is worth, how much room is left in the box, and how long is left to use it.
+   All of it sits on the page — nothing in this dialog is a tooltip. */
+
+/* The chosen kind's own sentence, under the chips. It needs air beneath it:
+   flush against WHAT DO YOU DO? it read as that field's label rather than as
+   the answer to which chip is lit. */
+.move-help {
+  margin: var(--sp-2) 0 var(--sp-3);
+}
+
+/* The guidance line and the character count share a baseline under the box.
+   The sentence takes the width and the count keeps its own end of the line;
+   on a phone the sentence wraps to its own rows and the count follows under
+   it, still to the right, rather than the two crushing into each other. */
+.move-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.move-foot > :first-child {
+  flex: 1 1 16rem;
+}
+
+.move-count {
+  margin-left: auto;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* --danger, not --accent: this is the box filling up, which is a thing going
+   wrong (DESIGN-SYSTEM.md §2). */
+.move-count[data-tone="danger"] {
+  color: var(--danger);
+}
+
+/* The labor readout, between the help line and the box. Inset rather than
+   panelled: it is an answer about where you are standing, not a card. */
+.move-labor {
+  margin: var(--sp-3) 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border);
+  background: var(--surface-raised);
+  border-radius: var(--r-sm);
+}
+
+.move-labor-where {
+  margin: 0;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.move-labor-best {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-sm);
+}
+
+.move-labor > .form-error {
+  margin-bottom: 0;
+}
+
+/* Hunting / Farming / Fishing on one line, wrapping to two on a phone. */
+.move-labor-yields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin: var(--sp-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+/* The word IS the value, so it reads as one — but it is a word, not a number,
+   so it never takes .mono. */
+.move-labor-word {
+  color: var(--text);
+}
+
 .btn-quiet:hover {
   color: var(--accent-text);
 }

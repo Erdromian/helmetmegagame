@@ -75,6 +75,7 @@ export default function YouPanel({
   initialWaiting = [],
   turn = null,
   move = null,
+  moveCharacterId = null,
   status = null,
   desires = null,
   // What is in this character's pockets, grouped Items then Assets
@@ -86,7 +87,7 @@ export default function YouPanel({
   const [waiting, setWaiting] = useState(initialWaiting);
   // The Move half of the poll lives in useMyMove, which the sheet's band
   // shares (web/app/components/SheetTurn.js).
-  const moveState = useMyMove({ turn, move });
+  const moveState = useMyMove({ turn, move, characterId: moveCharacterId });
   const refreshMove = moveState.refresh;
 
   const refresh = useCallback(() => {
@@ -146,7 +147,9 @@ export default function YouPanel({
 
       <WaitingList rows={waiting} onAnswered={say} />
 
-      {dialog === "move" && <MoveDialog onClose={() => setDialog(null)} onDone={say} />}
+      {dialog === "move" && (
+        <MoveDialog turn={moveState.turn} characterId={moveState.characterId} onClose={() => setDialog(null)} onDone={say} />
+      )}
     </div>
   );
 }

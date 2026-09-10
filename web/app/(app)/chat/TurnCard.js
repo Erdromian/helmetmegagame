@@ -1,30 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { describeTurn } from "@/lib/turnFormat";
+import { describeTurn, untilLabel } from "@/lib/turnFormat";
 import { moveKindLabel } from "./MoveDialog";
 
 // When it is, when Moves stop being accepted, and what this character has
 // already said they are doing. The one card at the top of the YOU column,
 // because everything under it is answered by "have you moved yet".
 //
-// The countdown is computed in the browser off the ISO time so it cannot go
-// stale on a page left open, and it is absent entirely when moveWindow says
-// there is no lock — a frozen clock or a short manual turn has no honest time
-// to count to (db/lib/turnClock.js).
-//
-// It counts to the CUTOFF, not to the turn's end. Moves stop three hours
-// before midnight (MOVE_LOCK_HOURS), so counting to the end told a player
-// they had three hours they did not have.
-function untilLabel(closesAt, now) {
-  if (!closesAt) return null;
-  const ms = new Date(closesAt).getTime() - now;
-  if (ms <= 0) return "locked";
-  const hours = Math.floor(ms / 3_600_000);
-  if (hours >= 1) return `closes in ${hours} h`;
-  return `closes in ${Math.max(1, Math.round(ms / 60_000))} m`;
-}
-
+// The countdown and the cutoff it counts to are shared with the Move dialog,
+// which asks the same question in its own header — so untilLabel lives in
+// web/lib/turnFormat.js and both read the one copy.
 export default function TurnCard({ turn, move, onFile }) {
   const [now, setNow] = useState(() => Date.now());
   const [open, setOpen] = useState(false);

@@ -279,6 +279,9 @@ async function FreshChat({ userId }) {
           hasBoard: hasNoticeboard(boardLocation),
           turn: mine.ok ? mine.turn : null,
           move: mine.ok ? mine.move : null,
+          // Seeded alongside the Move so the dialog can key its unfiled draft
+          // on the first paint rather than waiting out a poll.
+          moveCharacterId: mine.ok ? mine.characterId : null,
           desires,
           letters,
           // What is in this character's pockets, for the Things drawer under
