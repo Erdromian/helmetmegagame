@@ -1,6 +1,7 @@
 import { formatCost, costColor, prerequisiteNames } from "@/lib/characterCreation";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { formatTagArmor } from "@/lib/formatTagArmor";
+import { formatTagFighting } from "@/lib/formatTagFighting";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { turnsLeft, tagDuration } from "@/lib/turnFormat";
 import { chainTokens } from "@/lib/tagChains";
@@ -77,6 +78,7 @@ export default function TagDetails({
   const stack = quantity > 1 ? quantity : null;
   const requirement = formatTagRequirement(tag);
   const armor = formatTagArmor(tag);
+  const fighting = formatTagFighting(tag);
   const weight = formatTagWeight(tag, quantity);
   const duration = tagDurationFor({ tag, expiresTurn, currentTurn, armedTurn });
   const fit = describeEquipFit(tag);
@@ -126,6 +128,11 @@ export default function TagDetails({
             {requirement}
           </Meta>
         )}
+        {/* What this ONE tag does in a fight — never the holder's band, which
+            is a different question and deliberately not readable off a chip
+            (COMBAT.md). Above Armour because the two answer the same worry in
+            order: how you hit, then what happens when you are hit. */}
+        {fighting && <Meta label="In a fight">{fighting}</Meta>}
         {armor && <Meta label="Armour">{armor}</Meta>}
         {weight && <Meta label="Weight">{weight}</Meta>}
         {/* Where it goes and what it costs to put there. This used to say

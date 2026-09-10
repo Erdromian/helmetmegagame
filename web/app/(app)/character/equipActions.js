@@ -10,7 +10,7 @@ import {
   FAST_TRAVEL_SLUGS,
 } from "@lifeweb/db/lib/mounts";
 import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
-import { findEquipProblem } from "@lifeweb/db/lib/equipSlots";
+import { HANDS_TAG_FIELDS, findEquipProblem, handsFor } from "@lifeweb/db/lib/equipSlots";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
@@ -151,7 +151,16 @@ export async function equipOne(characterTagId) {
           tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } },
         },
       });
-      const problem = findEquipProblem(worn);
+      // The player's own toggle REFUSES rather than sheds — reaching for a
+      // fifth weapon is a choice, and the refusal names which ones to put
+      // down. Only an involuntary change sheds (db/lib/tagOps.js).
+      //
+      // Hands come from everything HELD, since a maiming is never equipped.
+      const held = await tx.characterTag.findMany({
+        where: { characterId: character.id, quantity: { gt: 0 } },
+        select: { tag: { select: HANDS_TAG_FIELDS } },
+      });
+      const problem = findEquipProblem(worn, handsFor(held));
       if (problem) throw new EquipRefusalError(problem);
     });
   } catch (err) {

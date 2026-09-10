@@ -22,6 +22,9 @@ export const SECTION_TIER = {
   turn: "super",
   config: "super",
   depot: "super",
+  // The Oracle carries a live API key and two editable prompts, so it sits
+  // with the superadmin sections rather than the GM ones.
+  oracle: "super",
 
   bulk: "gm",
   letters: "gm",

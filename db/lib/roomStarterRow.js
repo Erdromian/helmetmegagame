@@ -31,6 +31,7 @@ const {
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
+  ROOM_PRAY_PREFIX,
   roomAffordances,
 } = require("./placeAffordances");
 
@@ -58,6 +59,7 @@ module.exports = {
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
+  ROOM_PRAY_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
   roomStarterRow,
 };

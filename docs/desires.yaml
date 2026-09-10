@@ -297,6 +297,13 @@ families:
     # tag's `desires.locks` has something to except besides alcohol — a
     # character with no reachable Desire at all has been benched rather than
     # changed. Nothing but Squeeze puts anybody in it.
+  chaos:
+    name: Chaos
+    group: mind
+    color: "#8f86cf"
+    # The same job for {tag:old-ways-xom}: the one family Xom does not lock,
+    # holding the one goal a plaything of that god has left. Only `cause-chaos`
+    # is in it, and only a Xom-holder can pick that.
   # Deliberate adjacencies (not bugs — see content-spec.md §1):
   #   - violence and bravery overlap on duels/tournaments/battles (both
   #     keys on the same desire), so Craven and Pacifist bite differently.
@@ -2352,6 +2359,32 @@ desires:
     families: [stupidity]
     requires:
       anyTags: [stupid]
+
+  # XOM. The only Desire a plaything of Xom has left — {tag:old-ways-xom}
+  # locks every family but `chaos`.
+  #
+  # The extra families are LOCK-SURVIVAL KEYS, not taxonomy, and removing them
+  # would bench somebody. unionLockClauses unions every held tag's clauses, so
+  # a holder who also carries {tag:rage} (exceptFamilies: [cruelty]) has this
+  # locked too unless it also sits in `cruelty` — and one who carries
+  # {tag:stupid} (exceptFamilies: [alcohol, stupidity]) needs `stupidity` for
+  # the same reason. Xom inflicts BOTH on itself: `rage` is one of its
+  # outcomes, and its `seizure` outcome expires into `stupid`. The
+  # requires.anyTags gate keeps the goal out of everyone else's picker
+  # regardless, so the extra families cost nothing and are the only thing
+  # standing between a Rage+Xom character and a sheet with no reachable goal.
+  #
+  # cooldownTurns is 2, not the tier's own 2 by accident: it is written down so
+  # nobody "tidies" it up the free-social ladder to 4. This is the character's
+  # ONLY goal, and a 4-turn cooldown benches them three turns in four — the
+  # exact failure the `stupidity` family exists to prevent.
+  cause-chaos:
+    name: Cause Chaos
+    tier: 2
+    cooldownTurns: 2
+    families: [chaos, cruelty, stupidity]
+    requires:
+      anyTags: [old-ways-xom]
 
   # THE THANATI (docs/systemdocs/THANATI.md). All gated on the Belief, and
   # all in the cult's own family, because {tag:thanati} locks nearly

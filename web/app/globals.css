@@ -682,24 +682,13 @@ input[type="radio"]:focus-visible,
   margin: var(--sp-2) 0 var(--sp-3);
 }
 
-/* The guidance line and the character count share a baseline under the box.
-   The sentence takes the width and the count keeps its own end of the line;
-   on a phone the sentence wraps to its own rows and the count follows under
-   it, still to the right, rather than the two crushing into each other. */
-.move-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-2);
-  margin-top: var(--sp-2);
-}
-
-.move-foot > :first-child {
-  flex: 1 1 16rem;
-}
-
+/* The character count, alone under the box and against its right edge. It used
+   to sit in a flex row beside a line of guidance; the guidance is gone and the
+   row went with it, since one item does not need a layout. */
 .move-count {
-  margin-left: auto;
+  display: block;
+  margin-top: var(--sp-2);
+  text-align: right;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -7222,8 +7211,8 @@ label.chip {
   display: grid;
   /* auto-fit rather than a fixed five, so the row folds before any tile is
      narrow enough to wrap "30.5 / 71 lb" onto a second line. The max-width
-     fits all five across when there is room — it was 40rem for the four
-     before the Mood box, which left the Gambit die orphaned on its own row. */
+     fits all five across when there is room — and exactly five: a sixth needs
+     856px, which is why the Combat readout lives on the row below instead. */
   grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: var(--sp-2);
   flex: 1 1 26rem;
@@ -7238,8 +7227,86 @@ label.chip {
   min-width: 0;
 }
 
-/* A tile with something to say when clicked (why the moves are 0, what moves
-   a mood). Same box, a cursor, and the accent rule while it is open.
+/* The two faces of a tile that has something to say. Both are always in the
+   DOM — `hidden` toggles which one shows — and they are stacked in the SAME
+   grid cell, so the tile is sized by the taller of the two and opening it
+   cannot change its height by a pixel. That is the whole point: the detail
+   used to be appended under the row and shoved the rest of the sheet down.
+
+   A grid of one column rather than absolute positioning, because absolute
+   would take the taller face out of flow and hand the sizing problem straight
+   back. */
+/* The box both faces share. Relative, because the detail is absolute inside
+   it. `min-height: 0` lets the detail scroll rather than push. */
+/* Both of these are <span>s, so they need saying out loud: an inline box
+   cannot hold the Carrying meter or size the tile, and left inline the meter
+   spilled out of the tile entirely. */
+.ledger-tile-faces {
+  display: block;
+  position: relative;
+  min-width: 0;
+  /* Grow into whatever the tile has left under its label, but never shrink
+     below the resting face. The detail is `inset: 0` inside this box, so a box
+     that only took its own content height gave Mood's paragraph two lines and
+     a scrollbar it could not use, with the rest of the tile blank beneath it.
+     `0 auto` on the shrink is the other half: the row is sized by the tallest
+     tile, and letting this collapse under a shorter neighbour is what pushed
+     the Carrying meter out through the bottom border. */
+  flex: 1 0 auto;
+}
+
+.ledger-tile-face {
+  display: block;
+  min-width: 0;
+}
+
+.ledger-tile-face[data-open="true"] {
+  visibility: hidden;
+}
+
+/* The opened face: absolute, so the tile's height never depends on how much
+   there is to say. Small and quiet, and scrollable in the one case that
+   overruns — the Mood box, whose paragraph is Bascinet's own words and not
+   mine to shorten. Every other tile's detail is a line or two. */
+.ledger-tile-detail {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  visibility: hidden;
+  font-size: var(--fs-2xs);
+  line-height: 1.45;
+  color: var(--muted);
+  /* Block flow, NOT a flex column. A bare string child of a flex column is an
+     anonymous item that shrinks below its content, so Mood's paragraph was
+     clipped after two lines with empty box beneath it and no scrollbar. In
+     normal flow it fills the box and then scrolls, which is the point. */
+  display: block;
+  /* The last few pixels fade out, so a line cut off at the bottom edge reads
+     as "there is more" rather than as a rendering fault. Costs nothing when
+     the detail fits: there is no content down there to fade. */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 0.7rem), transparent);
+}
+
+/* Spacing between the runs of a detail that has several. Deliberately NOT a
+   margin when the detail is anything but block flow: a `> * + *` margin also
+   applies to the second item of a grid, which is what put RANGED four pixels
+   below MELEE and bottom-aligned the pair. Gap is the grid's own job. */
+.ledger-tile-detail > * + * {
+  margin-top: var(--sp-1);
+}
+
+
+.ledger-tile-detail[data-open="true"] {
+  visibility: visible;
+}
+
+
+.ledger-tile-detail .field-label {
+  display: inline;
+}
+
+/* A tile with something to say. Same box, a cursor, and the accent rule while
+   it is open.
 
    The column flexbox is not decoration. A <button> centres its own content
    vertically whatever its `display` is, so on a stretched grid row — one made
@@ -7308,18 +7375,118 @@ label.chip {
   color: var(--danger);
 }
 
+/* Combat sits in the band row beside This turn and Turn Effects, all three the
+   same build. It is a <button> rather than a <div>, so it needs the row's own
+   stretch to match its neighbours' heights. */
+.sheet-band-row > .ledger-tile {
+  align-self: stretch;
+}
+
+/* The two bands and the armour on one line — there is width for it here, and
+   two facts read at a glance beat a column of three. They wrap to their own
+   lines when the row folds to one column on a narrow window. */
+.combat-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+/* ── The Combat readout ────────────────────────────────────────────────────
+   Two fighting bands and the armour on one line, and one quiet line naming
+   what a gamemaster might apply. It lives in the band row rather than the tile
+   row: the tile row's max-width fits exactly five, and this needs the width of
+   a third of the band. */
+.combat-bands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  line-height: 1.2;
+}
+
+/* A word, not a number, so it drops --font-mono the way the Mood box does. */
+.combat-band {
+  font-size: var(--fs-lg);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.combat-band + .combat-band::before {
+  content: "·";
+  color: var(--muted);
+  margin-inline-end: var(--sp-2);
+  font-weight: 400;
+}
+
+/* Eight steps from red through grey to green, mixed from the theme's own
+   tokens rather than written as hex — so the ramp follows dusk and dawn
+   instead of fighting one of them, and `npm run audit:contrast` has real
+   colours to judge. The keys are db/lib/fightingSkill.js's band keys; adding
+   a band there without adding it here renders unstyled, which is visible
+   rather than silent. */
+.combat-band[data-band="pitiful"] {
+  color: var(--danger);
+}
+.combat-band[data-band="weak"] {
+  color: color-mix(in oklab, var(--danger) 50%, var(--muted));
+}
+.combat-band[data-band="mediocre"] {
+  color: var(--muted);
+}
+.combat-band[data-band="capable"] {
+  color: color-mix(in oklab, var(--positive) 25%, var(--muted));
+}
+.combat-band[data-band="seasoned"] {
+  color: color-mix(in oklab, var(--positive) 50%, var(--muted));
+}
+.combat-band[data-band="dangerous"] {
+  color: color-mix(in oklab, var(--positive) 75%, var(--muted));
+}
+.combat-band[data-band="lethal"] {
+  color: var(--positive);
+}
+
+/* Legendary is the one band that looks different rather than just greener.
+   Practically nobody reaches it — a specialism at its peak with the right
+   thing in hand — and it should read as an event when somebody does. This is
+   the "handful of thematic moments" --font-display exists for. */
+.combat-band[data-band="legendary"] {
+  color: var(--positive);
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: 0.01em;
+}
+
+/* Armour, deliberately quieter than the bands above it: it is a second system
+   riding along, not half of the number. */
+.combat-armor {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* A footnote under the armour line. Names only, no borders, no boxes: these
+   are not clickable and never were, and the bordered chips they used to be
+   read as controls that did nothing when pressed. */
+.combat-situational {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* The meter is a <span> on the sheet, because it sits inside the tile's own
+   <span> faces and a <button> may only contain phrasing content. So its
+   display has to be said out loud here — left inline it drew nothing at all. */
 .ledger-tile .depot-meter,
 .ledger-tile-button .depot-meter {
+  display: block;
   margin-top: var(--sp-2);
 }
 
-/* The opened tile's words, under the whole row of tiles. */
-.sheet-tile-detail {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  white-space: pre-line;
+/* Combat's opened face writes several short runs; each is its own line. */
+.combat-line {
+  display: block;
 }
 
 /* The strip under the tiles: the Move as filed, on the recessed surface
@@ -8268,4 +8435,31 @@ button.equip-cell-face:focus-visible {
   .map-shell {
     height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
   }
+}
+
+/* A character's name inside an Oracle page (docs/systemdocs/ORACLE.md).
+
+   A real <button>, not a styled span: clicking one pulls that character into
+   the inspector beside the prose, so it is a control and has to be reachable
+   by keyboard and announced as one. It is drawn as part of the sentence rather
+   than as a chip — a synopsis is prose, and a paragraph studded with pills
+   stops reading like one. The underline is what says it can be clicked. */
+.oracle-name {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--muted);
+}
+
+.oracle-name:hover,
+.oracle-name:focus-visible {
+  text-decoration-style: solid;
+  text-decoration-color: var(--accent-text);
 }

@@ -232,6 +232,22 @@ locks only ever add, never subtract (`unionLockClauses` in
 `desireGates.js`). There's no way for one held tag's lock to loosen
 another's.
 
+**A corollary that has already bitten: extra `families` on a template can be
+LOCK-SURVIVAL KEYS rather than taxonomy.** Because the union only ever adds, a
+character holding two all-but-one locks has *everything* shut unless some one
+template sits in both exceptions. `cause-chaos` is the case to copy. It is the
+only Desire `{tag:old-ways-xom}` leaves open (`exceptFamilies: [chaos]`), and
+Xom's own turn table can hand its holder `{tag:rage}` (`exceptFamilies:
+[cruelty]`) and, through Seizure's `expiresInto`, `{tag:stupid}`
+(`exceptFamilies: [alcohol, stupidity]`). So the template carries
+`families: [chaos, cruelty, stupidity]` — three families for a goal that is
+plainly one thing — and its `requires.anyTags: [old-ways-xom]` keeps it out of
+everyone else's picker regardless, so the extras cost nothing. Take one away
+and a Rage+Xom character has a sheet with no reachable goal at all: benched
+rather than changed, which is the failure the `stupidity` family was invented
+to prevent. **If you add a tag with an all-but-one lock, check it against every
+other one already in the catalog.**
+
 The grammar can't express every intent. Nobility's "closed to Desires below
 tier 1" plus "cheap standard food doesn't count" collapses to `tiers: [1]`
 in the YAML with the second half left as a GM-adjudicated prose line in the

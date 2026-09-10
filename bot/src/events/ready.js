@@ -15,6 +15,7 @@ const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
+const { runStagePlay } = require("../lib/stagePlay");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
 const { registerCommands } = require("../lib/commands");
@@ -296,6 +297,29 @@ module.exports = {
           riteSweepRunning = false;
         });
     });
+
+    // The Makeshift Stage, four times a day (bot/src/lib/stagePlay.js). The
+    // hours are OFFSET off midnight on purpose: advanceTurn holds 0 0 in this
+    // same timezone, and a music sweep must not race a turn close. One sweep
+    // in flight at a time, the rite sweep's guard — a slow one walking every
+    // listener must not overlap the next.
+    let stagePlayRunning = false;
+    cron.schedule(
+      "0 3,9,15,21 * * *",
+      () => {
+        if (stagePlayRunning) return;
+        stagePlayRunning = true;
+        runStagePlay(prisma)
+          .then(({ played, soothed }) => {
+            if (played || soothed) console.log(`Stage sweep: ${played} playing, ${soothed} cheered.`);
+          })
+          .catch((err) => console.error("Stage sweep failed:", err))
+          .finally(() => {
+            stagePlayRunning = false;
+          });
+      },
+      { timezone: "America/Chicago" },
+    );
 
     cron.schedule("*/15 * * * *", () => {
       runWhisperPoll(prisma)

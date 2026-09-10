@@ -1,4 +1,5 @@
 import SubmitButton from "@/app/components/SubmitButton";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma, loadDepot } from "@lifeweb/db";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -34,6 +35,8 @@ import {
   defuseNukeAction,
   cancelAscensionAction,
 } from "@/app/(app)/gm/dev/actions";
+import OracleForm from "@/app/(app)/gm/dev/OracleForm";
+import { loadOracleSettings } from "@/app/(app)/gm/dev/oracleActions";
 import EndTurnButton from "@/app/(app)/gm/dev/EndTurnButton";
 import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ArchiveGameButton from "@/app/(app)/gm/dev/ArchiveGameButton";
@@ -857,6 +860,15 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Configuration</h2>
               </div>
               <ConfigForm config={config} />
+            </section>
+          ) : null}
+
+          {section === "oracle" ? (
+            <section className="ops-section">
+              <div className="ops-section-head">
+                <h2 className="section-title">Oracle</h2>
+              </div>
+              <OracleForm settings={await loadOracleSettings()} />
             </section>
           ) : null}
 

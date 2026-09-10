@@ -5,7 +5,7 @@ import {
   LAYER_NAMES,
   MAX_ACCESSORIES,
   SLOT_TITLES,
-  WEAPON_HANDS,
+  handsFor,
   handsOf,
   handsUsed,
 } from "@lifeweb/db/lib/equipSlots";
@@ -37,12 +37,19 @@ import FormError from "./FormError";
 // tooltips on this surface.
 
 // Cell counts come from equipSlots.js rather than being written out again: a
-// layered slot has one cell per layer name, the hands have WEAPON_HANDS of
-// them, and anything else holds exactly one.
-const ROWS = ["HEAD", "BODY", "WEAPON", "MOUNT"].map((slot) => ({
-  slot,
-  cells: LAYER_NAMES[slot]?.length ?? (slot === "WEAPON" ? WEAPON_HANDS : 1),
-}));
+// layered slot has one cell per layer name, and anything but the hands holds
+// exactly one.
+//
+// The hands are a function rather than a constant because a maiming takes
+// them away (Tag.handsLost) — a one-armed character's board draws two cells,
+// not four with two of them permanently dashed and empty, which would have
+// read as room they do not have.
+function rowsFor(hands) {
+  return ["HEAD", "BODY", "WEAPON", "MOUNT"].map((slot) => ({
+    slot,
+    cells: LAYER_NAMES[slot]?.length ?? (slot === "WEAPON" ? hands : 1),
+  }));
+}
 
 // One row per PHYSICAL unit a CharacterTag row has equipped, not one per row
 // — a stack with equippedQuantity 3 draws three cells. Each unit still points
@@ -220,7 +227,10 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
   const melee = combineArmor(wornRows, "meleeArmor");
   const ballistic = combineArmor(wornRows, "ballisticArmor");
   const hands = handsUsed(wornRows);
-  const freeHands = Math.max(0, WEAPON_HANDS - hands);
+  // What this character HAS, not what a whole person has.
+  const handCap = handsFor(characterTags);
+  const rows = rowsFor(handCap);
+  const freeHands = Math.max(0, handCap - hands);
 
   if (equippable.length === 0) {
     return (
@@ -244,7 +254,7 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
         </span>
       </div>
 
-      {ROWS.map(({ slot, cells }) => {
+      {rows.map(({ slot, cells }) => {
         const inSlot = worn.filter((unit) => unit.tag.equipSlot === slot);
         const fits = carried.filter((ct) => ct.tag.equipSlot === slot);
         const layered = Boolean(LAYER_NAMES[slot]);
@@ -348,9 +358,9 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
             <span className="field-label equip-row-title">
               {SLOT_TITLES[slot]}
               {slot === "WEAPON" ? (
-                <span className="mono" data-over={hands > WEAPON_HANDS ? "true" : undefined}>
+                <span className="mono" data-over={hands > handCap ? "true" : undefined}>
                   {" "}
-                  {hands}/{WEAPON_HANDS}
+                  {hands}/{handCap}
                 </span>
               ) : null}
             </span>
@@ -369,9 +379,9 @@ export default function EquipBoard({ characterTags, isSelf, indoors = false, mot
                 existed can equip nothing at all until they put something
                 down, and the refusal they would otherwise meet arrives from
                 the server on an unrelated click. Say it here instead. */}
-            {slot === "WEAPON" && hands > WEAPON_HANDS && (
+            {slot === "WEAPON" && hands > handCap && (
               <span className="chat-quiet-line">
-                You are holding more than {WEAPON_HANDS} hands&apos; worth — put something away
+                You are holding more than {handCap} hands&apos; worth — put something away
                 before you ready anything else.
               </span>
             )}

@@ -187,9 +187,11 @@ async function FreshChat({ userId }) {
                 },
               },
               role: { select: { slug: true } },
-              // Which in-game DAY the bird last left on
-              // (docs/systemdocs/PAPERWORK.md §Bird).
+              // Which in-game DAY the bird last left on, and how many of that
+              // day's flights are spent — a Rookery is worth several
+              // (db/lib/rookery.js). (docs/systemdocs/PAPERWORK.md §Bird.)
               birdTurnId: true,
+              birdDaySends: true,
             },
           }),
           prisma.turn.findFirst({

@@ -177,6 +177,7 @@ import {
   INSCRIPTION_MAX,
   cleanCustomText,
   customCraftFields,
+  mayCustomize,
   customCraftName,
 } from "@/lib/customCraft";
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
@@ -189,8 +190,14 @@ import {
   researchableHeld,
 } from "@lifeweb/db/lib/research";
 import {
+  BASE_BIRD_SENDS_PER_DAY,
+  birdAllowanceFrom,
+  rookeryCooldown,
+} from "@lifeweb/db/lib/rookery";
+import {
   placementOf,
   structuresAt,
+  WORKING_STATUSES,
   canBuildHere,
   PRESENT_STATUSES,
   siteOpenedLine,
@@ -831,6 +838,15 @@ async function mintCustomCraft(db, baseTag, { name, description, literal = false
     equipSlot: baseTag.equipSlot,
     equipLayer: baseTag.equipLayer,
     twoHanded: baseTag.twoHanded,
+    // What this is a copy of. A mint's slug is fresh, so every rule that reads
+    // a held tag's slug back — the Spillway's cutting tools and body armour
+    // (db/lib/godflesh.js), a weapon's torture bonus (db/lib/torture.js) —
+    // resolves through this or stops seeing the thing entirely.
+    customOfSlug: baseTag.slug,
+    // The weapon's own combat block: its class and what it is worth in a
+    // fight (db/lib/fightingSkill.js). Without it a custom sword counts as
+    // nothing at all — cosmetic, which is not what the smith paid for.
+    fighting: baseTag.fighting ?? undefined,
     // Combat/utility stats a customizable weapon or armor piece carries —
     // missing these meant a "Custom Breastplate" minted with zero armor and
     // a "Custom Knight's Helmet" that no longer concealed anyone.
@@ -1066,9 +1082,15 @@ async function craftRequestImpl({
       ? resolveDeathMaskSource(character, ingredientChoice)
       : null;
   // Customizing is +CUSTOM_SURCHARGE ⬢ a unit, like every other per-unit
-  // cost. Fields posted against a non-customizable recipe are ignored, not
-  // refused — the same posture as quantity on a non-stackable.
-  const custom = tag.customizable
+  // cost. Fields posted against a recipe this character may not customize are
+  // ignored, not refused — the same posture as quantity on a non-stackable.
+  // `mayCustomize` reads BOTH halves: the recipe's flag, and the rung the
+  // recipe names (Tag.customizableSkillSlug — `smithing-skilled` on the arms
+  // and armour). The sheet already hides the fields, but a sheet is a hint.
+  //
+  // The one gate point for both paths: an instant craft mints below, and a
+  // multi-turn project carries this same verdict onto CraftProject.custom.
+  const custom = mayCustomize(tag, heldSlugsOf(character.tags))
     ? customCraftFields({ customName, customDescription })
     : { name: "", description: "", active: false };
   const turns = tag.requirementTurns ?? 1;
@@ -1561,6 +1583,9 @@ async function loadBuildGround(locationId) {
     select: {
       id: true,
       name: true,
+      // The site gate matches on this (placement.locations) — a Brewery
+      // belongs at the inn and nowhere else.
+      slug: true,
       indoors: true,
       attributes: true,
       discordChannelId: true,
@@ -1690,7 +1715,7 @@ async function openBuildSiteImpl(
     ? cleanCustomText(inscription, INSCRIPTION_MAX)
     : "";
   const location = await loadBuildGround(character.locationId);
-  const ground = canBuildHere(location);
+  const ground = canBuildHere(location, placement);
   if (!ground.ok) throw new UserError(ground.reason);
 
   await refuseSameTypeHere(prisma, location, tag, placement);
@@ -5122,17 +5147,55 @@ async function birdMessageRequestImpl({
   // until it became a per-turn allowance — CARRY.md §2a.)
   const dayKey = String(describeTurn(openTurn).day);
 
+  // A Rookery standing where they are raises the day's allowance and puts a
+  // three-minute clock between flights (db/lib/rookery.js). No literacy check
+  // here: canSendBird above already requires it, so an illiterate character
+  // never reaches this line at all.
+  const allowance = birdAllowanceFrom(
+    await structuresAt(prisma, character.locationId, { statuses: WORKING_STATUSES }),
+  );
+  // Only consulted when a building is doing something. The ordinary
+  // once-a-day bird needs no cooldown — the day IS the cooldown.
+  if (allowance > BASE_BIRD_SENDS_PER_DAY) {
+    const cooling = rookeryCooldown(character.birdLastSentAt);
+    if (!cooling.ok) {
+      throw new UserError(
+        `The birds are still settling. Try again <t:${cooling.readyAt}:R>. \u2021`,
+      );
+    }
+  }
+
   let birdMessageId = null;
   await prisma.$transaction(async (tx) => {
-    const claimed = await tx.character.updateMany({
+    // The claim, in the shape it has always had: a conditional updateMany
+    // whose WHERE is the check, so two tabs racing cannot both spend the last
+    // flight. It is two writes now rather than one because the day has a
+    // COUNT against it — the first resets a stale day, the second spends
+    // inside a live one, and exactly one of them can match.
+    const opened = await tx.character.updateMany({
       where: {
         id: character.id,
         OR: [{ birdTurnId: null }, { birdTurnId: { not: dayKey } }],
       },
-      data: { birdTurnId: dayKey },
+      data: { birdTurnId: dayKey, birdDaySends: 1, birdLastSentAt: new Date() },
     });
-    if (claimed.count === 0)
-      throw new UserError("Your bird has already flown today.");
+    if (opened.count === 0) {
+      const spent = await tx.character.updateMany({
+        where: {
+          id: character.id,
+          birdTurnId: dayKey,
+          birdDaySends: { lt: allowance },
+        },
+        data: { birdDaySends: { increment: 1 }, birdLastSentAt: new Date() },
+      });
+      if (spent.count === 0) {
+        throw new UserError(
+          allowance > BASE_BIRD_SENDS_PER_DAY
+            ? "The birds have all flown for today. \u2021"
+            : "Your bird has already flown today.",
+        );
+      }
+    }
 
     const row = await tx.birdMessage.create({
       data: {

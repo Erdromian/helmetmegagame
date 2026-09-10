@@ -289,6 +289,56 @@ model GameConfig {
   // either way: the GM desk's Scene tab streams from it.
   playPanelEnabled Boolean @default(true)
 
+  // THE ORACLE (docs/systemdocs/ORACLE.md). Every one of these is edited from
+  // /gm/dev?s=oracle rather than the generic Configuration form, so all of
+  // them sit in gameConfigFields.js's INTERNAL_KEYS: an API key rendered as a
+  // generic text box would be readable, and a prompt is a textarea the
+  // registry has no field type for.
+  //
+  // Off by default. A turn with the Oracle disabled skips the whole thing and
+  // writes no rows.
+  oracleEnabled Boolean @default(false)
+
+  // Narrows the desk to superadmins while the Oracle is being tried out. The
+  // toggle above decides whether it RUNS; this one decides who may READ it, so
+  // a turn can be drafted and reviewed before the other gamemasters ever see a
+  // page. Enforced in web/app/(desk)/gm/oracle/page.js, not just in the rail.
+  oraclePlaytest Boolean @default(false)
+
+  // Provider is a label; baseUrl is what actually gets called, so a
+  // self-hosted or proxied endpoint needs no code change. Model is passed
+  // through verbatim.
+  oracleProvider String @default("nanogpt")
+  oracleBaseUrl  String @default("https://nano-gpt.com/api/v1")
+  oracleModel    String @default("deepseek/deepseek-v4-flash")
+
+  // WRITE-ONLY. Set from the panel, masked afterwards, never returned to a
+  // client — see web/app/(app)/gm/dev/oracleActions.js, which is the only
+  // reader outside the run itself.
+  //
+  // A real credential in a database column is a deliberate departure from
+  // DISCORD_TOKEN's env-var handling, taken so the provider can be swapped
+  // without a deploy. The cost is that it lands in every pg_dump in the backup
+  // bucket, and it must never enter an archive packet (ARCHIVE.md).
+  oracleApiKey      String?
+  oracleApiKeySetAt DateTime?
+  oracleApiKeySetBy String?
+
+  // How many previous turns' synopses ride along as context. This is the whole
+  // of the Oracle's memory: at 0 each turn is written blind.
+  oracleMemoryTurns Int @default(3)
+
+  // Whether the chat transcript joins the moves/tags/audit input. Off is about
+  // 34K tokens a turn; on is closer to 650K and costs roughly ten times as
+  // much, which is still cents.
+  oracleIncludeChat Boolean @default(false)
+
+  // NULL means "use the built-in default in db/lib/oraclePrompts.js". Stored
+  // rather than hardcoded so voice can be tuned without a deploy, the way
+  // docs/handbook.md is read at runtime.
+  oracleCorrespondentPrompt String?
+  oracleEditorPrompt        String?
+
   // The anchor message in #turns carrying the Travel / Move / Speak buttons
   // (see bot/src/lib/turnsConsole.js) — same tracked-message pattern as
   // turnsAnnouncement* above, but reused across restarts rather than
@@ -737,7 +787,15 @@ model Depot {
   // NOT on the Merchant's character on purpose: the licence is tradeable, so
   // handing it over hands over the money too, which is what makes the card
   // worth stealing.
-  accountObols Int @default(0)
+  //
+  // The default is the station's OPENING FLOAT, and it is the only place that
+  // number lives: Restart Game deletes this row and recreates it bare
+  // (web/app/(app)/gm/dev/actions.js), so every new game starts here. It is
+  // deliberately separate from the Merchant's own purse, which is 20 ¢ of
+  // physical obol tags granted by docs/roles.yaml — the station having a
+  // float of its own does not mean he does, and spending one never touches
+  // the other.
+  accountObols Int @default(20)
 
   // Drawn against the Company's line, in obols. Repaying frees the room back
   // up immediately. Kept separate from accountObols so a Merchant deep in debt
@@ -988,6 +1046,7 @@ model Zone {
   startingForRoles Role[]            @relation("RoleStartingZone")
   cavingRolls      CavingRoll[]
   laborDropOptions LaborDropOption[]
+  oraclePages      OracleSynopsis[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1883,6 +1942,23 @@ model Character {
   // character row. See docs/systemdocs/BIRD.md.
   birdTurnId String?
 
+  // How many of that day's flights are spent. The Bird's own allowance is 1,
+  // and a Rookery standing where the sender is raises it
+  // (Tag.placement.birdSendsPerDay, db/lib/structures.js). Written by the
+  // same conditional updateMany that claims birdTurnId, so the WHERE is
+  // still the check and two tabs racing cannot both spend the last flight.
+  // Reset, not cleared, when the day key moves: there is no sweep, and a
+  // stale count against yesterday's key would refuse a flight nobody took.
+  birdDaySends Int @default(0)
+
+  // The wall clock between Rookery flights (db/lib/rookery.js). A DateTime
+  // column rather than an in-memory Map because a bot restart must not hand
+  // somebody a free flight and because the web face — which is where the
+  // Bird is actually sent from — cannot see the bot's memory at all. Null
+  // for anyone who has never sent one. Only consulted when the allowance is
+  // above 1; the ordinary once-a-day bird needs no cooldown, the day is one.
+  birdLastSentAt DateTime?
+
   // Consecutive turns' worth of hunger this character is carrying — written
   // only by db/lib/hungerPass.js. Each hungry turn increments it; a fed turn
   // (paid or Ate Meal) only sheds ONE tick, not the whole streak, so it takes
@@ -2254,6 +2330,21 @@ model Tag {
   // trait like Pack Mule or Frail is not equippable at all, so it always
   // counts. ADDITIVE across held rows, floored at ×0.25; see db/lib/carry.js.
   carryBonus Float?
+
+  // How many of the four hand slots this tag takes away — a maiming, and only
+  // a maiming (docs/systemdocs/TAGS.md, "equipSlot / equipLayer / twoHanded").
+  // A whole arm is 2, a hand that no longer grips properly is 1.
+  //
+  // Counted while HELD, never while equipped: nobody wears a missing arm.
+  // That is the opposite of carryBonus above and the reason this is its own
+  // column rather than a negative carryBonus — the two caps are moved by
+  // different kinds of thing, under different conditions.
+  //
+  // The TOTAL loss is capped so a character never falls below two hand slots,
+  // whatever they have lost. See HANDS_FLOOR in db/lib/equipSlots.js: a
+  // character who could hold nothing at all is a dead end rather than a
+  // drawback, and the game has nowhere to put them.
+  handsLost Int?
 
   // How much this piece of gear turns a blow aside, 0.0 to 1.0. Two numbers
   // because the two things that hit you in Ravenheart are nothing alike: a
@@ -2671,6 +2762,27 @@ model Tag {
   // (db/lib/tagShapes.js). See CRAFTING.md.
   customizable Boolean @default(false)
 
+  // WHO may open that door. A tag slug the character has to hold before the
+  // name/description fields are offered at all — `smithing-skilled` on the
+  // arms and armour, so signing your work is a skilled smith's privilege and
+  // not something an apprentice does to a cudgel. Null means anyone who can
+  // make the thing may customize it, which is the meals, the painting, the
+  // sketch, the badge and the hat. YAML `customizableSkill:`; the sync
+  // refuses one that names no real tag, or one without `customizable`
+  // (db/lib/tagShapes.js). Deliberately NOT derived from the recipe's own
+  // skills: a padded cap is `crafting` work and still wants the smith's
+  // rung, and the hat is `crafting` work that must stay open to everyone.
+  customizableSkillSlug String?
+
+  // What this row is a COPY of, on a mint from the door above — the base
+  // recipe's slug. A mint gets a fresh `custom-craft-*` slug, so every rule
+  // that reads a held tag's slug back (db/lib/godflesh.js's cutting tools and
+  // body armour, db/lib/torture.js's bonuses) would stop seeing it: a custom
+  // Breastplate would protect nobody at the Spillway. Those rules resolve
+  // through this instead. Null on every catalog row and on the other four
+  // runtime authoring doors.
+  customOfSlug String?
+
   // The INGREDIENT half of a recipe — BREWING.md's "no code enforces a
   // recipe, least of all the ingredient" is no longer true of any entry that
   // carries this. Authored in docs/tags.yaml as `requirement.items`,
@@ -2702,6 +2814,33 @@ model Tag {
   // and because `requiresTag` (the Plow needs a horse) has no column shape.
   laborBonus Json?
 
+  // What this tag does in a fight, from docs/tags.yaml's `fighting:` block.
+  // Normalised by db/lib/tagShapes.js and read by db/lib/fightingSkill.js,
+  // which owns the band words and the stacking rule the way
+  // db/lib/armorValue.js owns armour's. Same Json-rather-than-columns posture
+  // as laborBonus above: most of the catalog has no block at all, and `when`
+  // has no column shape.
+  //
+  // Shape, every key optional: { tree: "melee"|"ranged"|"both",
+  //   rung: Int, points: Int, floor: BandKey, cap: BandKey,
+  //   weaponClass: String, when: { weaponClass: [String], holds: [String],
+  //   equipped: [String], unarmoured: [EquipSlot] }, situational: String,
+  //   note: String, cancels: [String] }.
+  //
+  // AUTHORED IN TIERS, STORED IN POINTS. docs/tags.yaml writes `tiers: -0.5`
+  // because that is the unit twenty tag descriptions already speak ("counts
+  // as 2 tiers higher"); tagShapes.js multiplies by POINTS_PER_TIER so every
+  // number in the database and in the arithmetic is an integer. Nothing reads
+  // `tiers` back out of here.
+  //
+  // NEVER shown to a player as the number, exactly like meleeArmor above.
+  // A fighting skill reads as a word — Pitiful, Weak, Mediocre, Capable,
+  // Seasoned, Dangerous, Lethal, Legendary — and the breakdown behind it
+  // names contributors in tiers. A score on a tile would turn a fight into
+  // arithmetic, and would also hand players a way to compare themselves to
+  // somebody they should not be able to measure at all.
+  fighting Json?
+
   // Structure type data, from docs/tags.yaml's `placement:` block —
   // normalised and validated by db/lib/tagShapes.js, same posture as
   // laborBonus above. Its PRESENCE is what makes a craftable BUILD ON SITE
@@ -2713,8 +2852,23 @@ model Tag {
   //   { unique: Bool (default true),
   //     fieldwork: Bool (default false — true skips needsWorkshop()),
   //     examine: String, defenseNote: String,
+  //     inscribable: Bool (the builder may write a line on it),
   //     laborBonus: { kind: "hunting"|"farming"|"fishing", amount: Int },
-  //     provides: [tagSlug, ...] }
+  //     provides: [tagSlug, ...],
+  //     locations: [locationSlug, ...] — where it may be raised at all;
+  //       absent means anywhere the ground rules allow (canBuildHere),
+  //     yields: { tag: slug, room: roomSlug, quantity: Int } — poured into
+  //       that room's floor every turn (db/lib/structureYieldPass.js); the
+  //       room need NOT be at the structure's own Location,
+  //     birdSendsPerDay: Int — the Bird allowance standing here is worth
+  //       (BIRD.md); biggest at the Location wins,
+  //     music: { mood: Int, needs: tagSlug } — what the six-hourly sweep
+  //       pays each listener, and what must lie in a Room here for any of it
+  //       to happen (bot/src/lib/stagePlay.js) }
+  //
+  // `locations`, `yields.room` and `music.needs`'s ROOM/LOCATION slugs name
+  // docs/zones.yaml, which syncs independently of docs/tags.yaml — so those
+  // are resolved at runtime and fail soft, never at sync time.
   //
   // A tag carrying this must be craftable and must NOT be tradeable,
   // stackable, equippable, or carry a carryBonus — db:sync-tags throws on
@@ -3146,6 +3300,7 @@ model Turn {
   stagedEffects  StagedEffect[]
   cavingRolls    CavingRoll[]
   offers         Offer[]
+  oraclePages    OracleSynopsis[]
 }
 
 model Action {
@@ -4273,6 +4428,60 @@ model ArchiveEntry {
   @@index([characterId, sentAt])
   @@index([discordChannelId, sentAt])
   @@index([placeKey, seq])
+}
+
+/// One page of the Oracle's chronicle: what happened in one zone during one
+/// turn, or — when zoneId is NULL — the editor's front page over all of them.
+/// See docs/systemdocs/ORACLE.md.
+///
+/// Deliberately NOT an ArchiveKind. ArchiveEntry is the players' transcript and
+/// ships inside an archive packet; this is a GM work product, drafted by a
+/// model and rewritten by hand, and it has no business in a game's permanent
+/// record of what players said.
+model OracleSynopsis {
+  id String @id @default(cuid())
+
+  turnId String
+  turn   Turn   @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  // NULL is the front page. Every other row is one zone's page.
+  zoneId String?
+  zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  // Markdown, carrying {char:Full Name} tokens that
+  // web/app/components/DocumentMarkdown.js resolves against the turn's roster.
+  body String
+
+  // Front-page rows only: [{ name, state }], two to five of them. The
+  // STRUCTURED half of the rolling memory — an ongoing situation carried
+  // forward by name rather than left for the model to re-notice in three turns
+  // of prose.
+  threads Json?
+
+  // A GM rewrote it. The edited body is what feeds the next turns' context,
+  // which is the whole correction mechanism: there is no regenerate.
+  editedByDiscordUserId String?
+  editedAt              DateTime?
+
+  // What produced this text, snapshot rather than a pointer to live config —
+  // the same reasoning as the log tables (ARCHITECTURE.md). A prompt or model
+  // swap must not rewrite the provenance of pages already written.
+  provider     String
+  model        String
+  inputTokens  Int?
+  outputTokens Int?
+
+  createdAt DateTime @default(now())
+
+  // NOT a substitute for uniqueness. Postgres treats NULLs as distinct in a
+  // unique index, so @@unique([turnId, zoneId]) would happily allow two front
+  // pages for one turn. The real guard is a PARTIAL unique index added in raw
+  // migration SQL — `WHERE "zoneId" IS NULL` — the same shape as
+  // FactionApplication_pending_unique and ThreatSpawn_pending_unique, and it
+  // comes with the same warning: `prisma migrate diff` cannot express it, will
+  // propose dropping it, and the drop must be declined (CLAUDE.md).
+  @@unique([turnId, zoneId])
+  @@index([turnId])
 }
 
 // A GM's own notes about a player, on the player desk's dossier.

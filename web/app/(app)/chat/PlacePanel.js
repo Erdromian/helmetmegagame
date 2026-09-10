@@ -19,6 +19,7 @@ import {
   converseRooms,
   openConversation,
   ringBell,
+  pray,
   turretState,
   toggleTurret,
   speakOnIntercom,
@@ -141,6 +142,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
         <ConverseDialog person={dialog.person} onClose={close} onDone={say} />
       )}
       {dialog?.kind === "bell" && <BellDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "pray" && <PrayDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "intercom" && <IntercomDialog entry={dialog.entry} onClose={close} onDone={say} />}
     </>
@@ -417,6 +419,41 @@ function BellDialog({ entry, onClose, onDone }) {
         })
       }
     />
+  );
+}
+
+// Pray, at the Shrine of an Old Man. A plain confirm rather than the bell's
+// WordDialog, on purpose: typing RING is a speed bump on a LOUD act, and this
+// one disturbs nobody. What it does is permanent, takes whatever the character
+// believed in, and puts them on a table that can kill them — so the friction
+// that fits is being TOLD that, which is all this dialog is.
+function PrayDialog({ entry, onClose, onDone }) {
+  const { run, pending, error } = useActionRunner();
+  return (
+    <Modal open title="Pray" onClose={onClose}>
+      <p className="text-sm text-muted">
+        The face is waiting. Praying here is permanent, it takes whatever you believed in now, and
+        what happens to you afterwards is not up to you. ‡
+      </p>
+      <FormError>{error}</FormError>
+      <div className="modal-actions">
+        <button
+          type="button"
+          className="btn-danger"
+          disabled={pending}
+          onClick={() =>
+            run(pray, { roomId: entry.roomId }, {
+              onOk: (res) => {
+                onDone(res);
+                onClose();
+              },
+            })
+          }
+        >
+          Pray
+        </button>
+      </div>
+    </Modal>
   );
 }
 

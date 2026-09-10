@@ -428,6 +428,68 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.inscribable != null && typeof raw.inscribable !== "boolean") {
     throw new Error(`${label}: placement.inscribable must be a boolean`);
   }
+  // Where this type may be raised at all, by Location slug. ABSENT means
+  // anywhere the ground rules allow — the gate is opt-in, so the twelve
+  // structures written before it keep working untouched. A slug list rather
+  // than a zone list because it is the more precise tool and because
+  // `unique` is already per-Location: naming exactly one Location is how a
+  // type becomes one-of-a-kind without a game-wide uniqueness rule, which
+  // does not exist.
+  if (
+    raw.locations != null &&
+    (!Array.isArray(raw.locations) || raw.locations.some((s) => typeof s !== "string" || !s.trim()))
+  ) {
+    throw new Error(`${label}: placement.locations must be a list of location slugs`);
+  }
+  // What this structure PRODUCES every turn, into a Room's floor rather than
+  // into anybody's pockets (db/lib/structureYieldPass.js). The room is named
+  // by slug and need not be at the structure's own Location — the Brewery
+  // stands at the inn and pours into its cellar.
+  let yields = null;
+  if (raw.yields != null) {
+    if (typeof raw.yields !== "object" || Array.isArray(raw.yields)) {
+      throw new Error(`${label}: placement.yields must be a mapping`);
+    }
+    const tag = String(raw.yields.tag ?? "").trim();
+    const room = String(raw.yields.room ?? "").trim();
+    if (!tag) throw new Error(`${label}: placement.yields.tag must be a tag slug`);
+    if (!room) throw new Error(`${label}: placement.yields.room must be a room slug`);
+    const quantity = raw.yields.quantity == null ? 1 : Number(raw.yields.quantity);
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new Error(`${label}: placement.yields.quantity must be a positive integer`);
+    }
+    yields = { tag, room, quantity };
+  }
+  // How many bird flights a day standing here is worth (BIRD.md). The Bird's
+  // own allowance is 1; a structure raises it, and the biggest one at the
+  // Location wins — the same best-wins posture structureTools keeps for
+  // laborBonus, so two rookeries are not twice a rookery.
+  let birdSendsPerDay = null;
+  if (raw.birdSendsPerDay != null) {
+    const n = Number(raw.birdSendsPerDay);
+    if (!Number.isInteger(n) || n < 1) {
+      throw new Error(`${label}: placement.birdSendsPerDay must be a positive integer`);
+    }
+    birdSendsPerDay = n;
+  }
+  // Music: what the six-hourly sweep pays a listener, and the item that has
+  // to be lying about for any of it to happen (bot/src/lib/stagePlay.js).
+  let music = null;
+  if (raw.music != null) {
+    if (typeof raw.music !== "object" || Array.isArray(raw.music)) {
+      throw new Error(`${label}: placement.music must be a mapping`);
+    }
+    const mood = Number(raw.music.mood);
+    // Positive only, and for the reason laborBonus.amount gives: relief is
+    // never multiplied (MOOD.md §7), so a negative here would be a harm term
+    // wearing a relief's clothes and would skip every phobia it should read.
+    if (!Number.isInteger(mood) || mood < 1) {
+      throw new Error(`${label}: placement.music.mood must be a positive integer`);
+    }
+    const needs = String(raw.music.needs ?? "").trim();
+    if (!needs) throw new Error(`${label}: placement.music.needs must be a tag slug`);
+    music = { mood, needs };
+  }
   let laborBonus = null;
   if (raw.laborBonus != null) {
     if (typeof raw.laborBonus !== "object" || Array.isArray(raw.laborBonus)) {
@@ -452,6 +514,10 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     examine: raw.examine ?? null,
     defenseNote: raw.defenseNote ?? null,
     laborBonus,
+    locations: raw.locations ?? [],
+    yields,
+    birdSendsPerDay,
+    music,
     provides: raw.provides ?? [],
     // The builder may write a line on the finished thing
     // (Structure.inscription) — their words replace `examine` in the
@@ -462,14 +528,33 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
 
 // `customizable:` — the recipe may be crafted as a player-named custom item
 // (CRAFTING.md; the craft mints a custom+ephemeral row via the paperMint.js
-// door). Three rules, each closing a real hole rather than expressing taste:
+// door), and `customizableSkill:` is the tag somebody has to hold to do it —
+// `smithing-skilled` on the arms and armour. A typo there would open the door
+// to nobody at all rather than fail loudly, which is why the slug is checked
+// against the catalog the way excludedRoles is. Four rules, each closing a
+// real hole rather than expressing taste:
 // not craftable and nothing would ever mint one; not stackable and the
 // one-per-character checks (craftGrantChecks, tier replacement) compare the
 // BASE tag's id against held ids, which a minted row never matches — so a
 // non-stackable custom would dodge its own exclusivity; and a `placement:`
 // recipe is a Structure with its own words (placement.inscribable), not a
 // pocket item to rename.
-function validateCustomizable(entry, { slug, label = "docs/tags.yaml" }) {
+function validateCustomizable(entry, { slug, knownSlugs = null, label = "docs/tags.yaml" }) {
+  // The skill gate is authored on the recipe, so it is checked even when the
+  // recipe is not customizable at all — a `customizableSkill` left behind on a
+  // row whose flag came off would otherwise sit there gating nothing.
+  const gate = entry?.customizableSkill;
+  if (gate !== undefined && gate !== null) {
+    if (typeof gate !== "string" || !gate.trim()) {
+      throw new Error(`${label}: tag "${slug}" customizableSkill must be a tag slug`);
+    }
+    if (knownSlugs && !knownSlugs.has(gate)) {
+      throw new Error(`${label}: tag "${slug}" customizableSkill references unknown tag "${gate}"`);
+    }
+    if (!entry.customizable) {
+      throw new Error(`${label}: tag "${slug}" has customizableSkill but is not customizable — the gate would guard a door that isn't there`);
+    }
+  }
   if (!entry?.customizable) return;
   if (!entry.craftable) {
     throw new Error(`${label}: tag "${slug}" is customizable but not craftable — nothing would ever mint one`);
@@ -518,6 +603,20 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
       throw new Error(`${label}: tag "${slug}" placement.provides references unknown tag "${provided}"`);
     }
   }
+  if (placement.yields && !knownSlugs.has(placement.yields.tag)) {
+    throw new Error(`${label}: tag "${slug}" placement.yields.tag references unknown tag "${placement.yields.tag}"`);
+  }
+  if (placement.music && !knownSlugs.has(placement.music.needs)) {
+    throw new Error(`${label}: tag "${slug}" placement.music.needs references unknown tag "${placement.music.needs}"`);
+  }
+  // `placement.locations` and `placement.yields.room` name LOCATIONS and
+  // ROOMS, which live in docs/zones.yaml behind a different sync — knownSlugs
+  // holds tag slugs and nothing else, so there is nothing here to check them
+  // against. Same reasoning syncZones.js keeps for the tag slugs it cannot
+  // see (SYNC.md): the two masters sync independently, so a cross-master
+  // reference is resolved at RUNTIME and must fail soft. It does — the yield
+  // pass logs and skips a room it cannot find, and the build gate refuses a
+  // Location that does not match rather than throwing.
   // A 0-turn placement would be born finished with turnsDone above
   // turnsNeeded — a build takes at least one crew-turn, always.
   const turns = tag.requirement?.turnsCost ?? 1;
@@ -528,8 +627,212 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
   }
 }
 
+// ─── fighting ───────────────────────────────────────────────────────────────
+// The `fighting:` block — what a tag does in a fight (docs/systemdocs/COMBAT.md).
+// Normalised here, same posture as laborBonus and placement above:
+// db/lib/fightingSkill.js is the read side and trusts this shape rather than
+// re-deriving it.
+//
+// The one thing worth knowing before reading the code: the YAML authors TIERS
+// and this stores POINTS. Tiers are what twenty tag descriptions already say
+// ("counts as 2 tiers higher"), so authoring in anything else would make the
+// catalog and its own prose disagree. Points are what the arithmetic wants,
+// because a tier takes decimals and a running total should not.
+const { BANDS, POINTS_PER_TIER, WEAPON_CLASSES } = require("./fightingSkill");
+
+const FIGHTING_TREES = new Set(["melee", "ranged", "both"]);
+const FIGHTING_BAND_KEYS = new Set(BANDS.map((b) => b.key));
+const FIGHTING_WHEN_KEYS = new Set(["weaponClass", "holds", "equipped", "unarmoured"]);
+
+// A tier is authored to one decimal place and nothing finer. The check is not
+// fussiness: `tiers: 0.25` would silently become 2.5 points, round somewhere,
+// and land as a value nobody authored. Refusing it means a typo fails the sync
+// instead of quietly changing a tag.
+function tiersToPoints(value, label, what) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) throw new Error(`${label}: ${what} must be a number`);
+  const points = n * POINTS_PER_TIER;
+  if (!Number.isInteger(Math.round(points * 1000) / 1000)) {
+    throw new Error(`${label}: ${what} must be a multiple of 0.1 tiers, got ${n}`);
+  }
+  return Math.round(points);
+}
+
+function normalizeStringList(raw, field, label) {
+  if (raw == null) return null;
+  const list = Array.isArray(raw) ? raw : [raw];
+  if (!list.length) return null;
+  return list.map((entry) => {
+    if (typeof entry !== "string" || !entry.trim()) {
+      throw new Error(`${label}: ${field} entries must be non-empty strings`);
+    }
+    return entry.trim();
+  });
+}
+
+function normalizeFightingWhen(raw, label) {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${label}: fighting.when must be a mapping`);
+  }
+  for (const key of Object.keys(raw)) {
+    if (!FIGHTING_WHEN_KEYS.has(key)) {
+      throw new Error(`${label}: fighting.when has unknown key "${key}" — expected ${[...FIGHTING_WHEN_KEYS].join(", ")}`);
+    }
+  }
+  const when = {};
+  for (const key of FIGHTING_WHEN_KEYS) {
+    const list = normalizeStringList(raw[key], `fighting.when.${key}`, label);
+    if (list) when[key] = list;
+  }
+  if (!Object.keys(when).length) {
+    throw new Error(`${label}: fighting.when is empty — drop it rather than writing a condition that is always true`);
+  }
+  for (const cls of when.weaponClass ?? []) {
+    if (!WEAPON_CLASSES.has(cls)) {
+      throw new Error(`${label}: fighting.when.weaponClass has unknown class "${cls}"`);
+    }
+  }
+  return when;
+}
+
+function normalizeFighting(raw, label = "docs/tags.yaml") {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${label}: fighting must be a mapping`);
+  }
+
+  const out = {};
+
+  if (raw.tree != null) {
+    const tree = String(raw.tree).toLowerCase();
+    if (!FIGHTING_TREES.has(tree)) {
+      throw new Error(`${label}: fighting.tree must be one of ${[...FIGHTING_TREES].join(", ")}`);
+    }
+    out.tree = tree;
+  }
+
+  // Rungs are 1-indexed: Basic is the first rung of the ladder, not the
+  // zeroth. Rung 0 would mean "on the ladder at the height of somebody who
+  // isn't", which is a block that says nothing — and saying nothing is spelt
+  // by leaving the block off.
+  if (raw.rung != null) {
+    if (!Number.isInteger(raw.rung) || raw.rung < 1) {
+      throw new Error(`${label}: fighting.rung must be an integer of at least 1 — Basic is rung 1`);
+    }
+    out.rung = raw.rung;
+  }
+
+  // `tiers` and `points` are the same field in two units. Authoring both would
+  // be two answers to one question, so it is refused rather than picked between.
+  if (raw.tiers != null && raw.points != null) {
+    throw new Error(`${label}: fighting names both tiers and points — write one`);
+  }
+  if (raw.tiers != null) out.points = tiersToPoints(raw.tiers, label, "fighting.tiers");
+  if (raw.points != null) {
+    if (!Number.isInteger(raw.points)) throw new Error(`${label}: fighting.points must be an integer`);
+    out.points = raw.points;
+  }
+
+  for (const key of ["floor", "cap"]) {
+    if (raw[key] == null) continue;
+    const band = String(raw[key]).toLowerCase();
+    if (!FIGHTING_BAND_KEYS.has(band)) {
+      throw new Error(`${label}: fighting.${key} must be a band key — ${[...FIGHTING_BAND_KEYS].join(", ")}`);
+    }
+    out[key] = band;
+  }
+
+  if (raw.weaponClass != null) {
+    const cls = String(raw.weaponClass).toLowerCase();
+    if (!WEAPON_CLASSES.has(cls)) {
+      throw new Error(`${label}: fighting.weaponClass must be one of ${[...WEAPON_CLASSES].join(", ")}`);
+    }
+    out.weaponClass = cls;
+  }
+
+  const when = normalizeFightingWhen(raw.when, label);
+  if (when) out.when = when;
+
+  // A FLAG, not a sentence. It used to carry the condition as prose ("when
+  // dueling", "at long range") and that came back out of the catalog: which
+  // moment a tag is for is already in the tag's own description, and saying it
+  // twice is two things to keep in step. All this says now is: a gamemaster
+  // decides this one, so it never enters the number.
+  if (raw.situational != null) {
+    if (raw.situational !== true) {
+      throw new Error(`${label}: fighting.situational is a flag — write \`true\` or leave it out`);
+    }
+    out.situational = true;
+  }
+
+  const cancels = normalizeStringList(raw.cancels, "fighting.cancels", label);
+  if (cancels) out.cancels = cancels;
+
+  if (!Object.keys(out).length) {
+    throw new Error(`${label}: fighting is empty — drop the block rather than writing one that says nothing`);
+  }
+  return out;
+}
+
+// What the shape alone cannot catch: a block that says nothing the resolver
+// will ever read, a condition naming a tag that is not in the catalog, and a
+// weapon that cannot be equipped. Each of these is a SILENT no-op at runtime
+// rather than a crash, which is exactly why they are caught at the door.
+function validateFighting(normalized, { selfSlug, tagSlugs, equippable, label = "docs/tags.yaml" }) {
+  if (!normalized) return;
+
+  const saysSomething =
+    normalized.rung != null ||
+    normalized.points != null ||
+    normalized.floor ||
+    normalized.cap ||
+    normalized.weaponClass ||
+    // `situational: true` on its own is a real answer: Camouflage has no tier
+    // and no tree, and still has to reach the sheet's situational list. That
+    // list is the whole reason such a tag carries a block at all.
+    normalized.situational ||
+    normalized.cancels;
+  if (!saysSomething) {
+    throw new Error(`${label}: "${selfSlug}" fighting has a condition but nothing to apply — add tiers, a floor, or a note`);
+  }
+
+  // A shift needs to know which half of the tree it lands on. A weapon is the
+  // exception: its class already answers that, and saying it twice invites the
+  // two to disagree.
+  if (normalized.points != null && !normalized.tree && !normalized.weaponClass) {
+    throw new Error(`${label}: "${selfSlug}" fighting has tiers but no tree — write melee, ranged, or both`);
+  }
+  if (normalized.weaponClass && normalized.tree) {
+    throw new Error(`${label}: "${selfSlug}" fighting names a weaponClass and a tree — the class already decides the tree`);
+  }
+  if (normalized.weaponClass && !equippable) {
+    throw new Error(`${label}: "${selfSlug}" fighting names a weaponClass, but the tag is not equippable — a weapon nobody can draw is worth nothing`);
+  }
+
+  // Every condition and cancellation names a real tag. A typo here would read
+  // as a bonus that simply never fires.
+  for (const field of ["holds", "equipped"]) {
+    for (const slug of normalized.when?.[field] ?? []) {
+      if (!tagSlugs.has(slug)) {
+        throw new Error(`${label}: "${selfSlug}" fighting.when.${field} names unknown tag "${slug}"`);
+      }
+    }
+  }
+  for (const slug of normalized.cancels ?? []) {
+    if (!tagSlugs.has(slug)) {
+      throw new Error(`${label}: "${selfSlug}" fighting.cancels names unknown tag "${slug}"`);
+    }
+    if (slug === selfSlug) {
+      throw new Error(`${label}: "${selfSlug}" fighting.cancels itself — a tag cannot undo its own contribution`);
+    }
+  }
+}
+
 module.exports = {
   LABOR_BONUS_KINDS,
+  normalizeFighting,
+  validateFighting,
   normalizeLaborBonus,
   validateLaborBonus,
   normalizeExpiresInto,

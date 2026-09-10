@@ -92,6 +92,14 @@
 #                     `requirement:` block below, and every listed skill must
 #                     be held. Setting it true puts the tag in the Craft menu
 #                     of everyone who holds its skills. Default false.
+#   customizable    - the maker may put their own name and words on it, for
+#                     +1 ⬢ a unit (CRAFTING.md §4a). Craftable and stackable
+#                     only. Default false.
+#   customizableSkill - a tag slug the maker must HOLD to do that. The arms
+#                     and armour all name `smithing-skilled`, so signing a
+#                     piece is a skilled smith's privilege whatever tier the
+#                     piece itself is. Omit it and anyone who can make the
+#                     thing may customize it.
 #   healable        - the Heal menu (HEAL_CHARACTER): a cure exists. Its cost
 #                     is the `requirement:` block and the medic must hold its
 #                     skills. Default false.
@@ -731,6 +739,7 @@ tags:
     category: general
     group: general-traits
     description: "A pallid corpse, stumbling over its own broken body."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -742,6 +751,7 @@ tags:
     category: general
     group: general-traits
     description: "You serve the Dark Lord now; you are unable to attack his servants or perform anything other than violence."
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -756,6 +766,7 @@ tags:
     category: general
     group: general-traits
     description: "Inhumanly strong, fast, tough, and intelligent, but completely consumed by bloodlust. You are impatient and are uninterested in anything but killing people."
+    fighting: { tree: both, tiers: 2.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -786,6 +797,7 @@ tags:
     category: general
     group: general-traits
     description: "You are a behemoth among humanity and struggle to fit into confined spaces. However, you could easily crush anyone. {carry:giant}"
+    fighting: { tree: both, tiers: 2 }
     pointCost: 14
     visible: true
     purchasable: true
@@ -835,6 +847,7 @@ tags:
     category: general
     group: general-traits
     description: "Elderly. You're slower and fight slightly worse."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: -5
     carryBonus: -0.05
     visible: true
@@ -856,6 +869,7 @@ tags:
     category: health
     group: health-illness
     description: "Covered in sores."
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: -1
     conflictsWith: [pretty, beautiful, ugly, disfigured]
     visible: true
@@ -868,6 +882,7 @@ tags:
     category: general
     group: general-traits
     description: "You are physically weak and fragile. Mustering strength to fight back is almost impossible."
+    fighting: { tree: both, tiers: -1 }
     pointCost: -5
     conflictsWith: [pack-mule, strong, tough]
     carryBonus: -0.1
@@ -890,6 +905,7 @@ tags:
     category: general
     group: general-traits
     description: "A reflection of your soul, with your choice of name. It can appear and disappear at will, and punch things hard and fast. Beware! Any damage it takes is reflected onto you."
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -902,6 +918,7 @@ tags:
     category: general
     group: general-traits
     description: "Once per day, you can stop time in a 10-foot radius around you. This lasts 10 seconds."
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -935,6 +952,7 @@ tags:
     category: general
     group: general-traits
     description: "You wake up to noise readily, such as footsteps in the night."
+    fighting: { situational: true }
     pointCost: 1
     purchasable: true
     purchasableAfterStart: false
@@ -948,6 +966,7 @@ tags:
     category: general
     group: general-traits
     description: "Not a good thing to be in Ravenheart."
+    fighting: { situational: true }
     pointCost: -2
     conflictsWith: [light-sleeper]
     purchasable: true
@@ -1029,6 +1048,7 @@ tags:
     category: general
     group: general-traits
     description: "Poisons and diseases have less effect on you."
+    fighting: { situational: true }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1064,6 +1084,7 @@ tags:
     category: general
     group: general-traits
     description: "You're unusually awake and alert. Very little gets past you."
+    fighting: { tree: both, tiers: 0.7 }
     pointCost: 5
     visible: false
     purchasable: true
@@ -1120,6 +1141,7 @@ tags:
     category: general
     group: general-traits
     description: "Fearlessness isn't a choice. It's the natural state of your mind. It takes a lot for you to become Afraid."
+    fighting: { tree: both, tiers: 0.5 }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: false
@@ -1132,6 +1154,7 @@ tags:
     category: general
     group: general-traits
     description: "Whenever you lead a group in battle, you tend to come out ahead."
+    fighting: { tree: both, tiers: 0.7, situational: true }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1142,6 +1165,7 @@ tags:
     category: general
     group: general-traits
     description: "Your battle plans go particularly well when you're on the defense."
+    fighting: { tree: both, tiers: 0.3, situational: true }
     pointCost: 2
     requiredTag: tactician
     purchasable: true
@@ -1153,6 +1177,7 @@ tags:
     category: general
     group: general-traits
     description: "You possess high functional strength. {carry:strong}."
+    fighting: { tree: both, tiers: 0.5 }
     pointCost: 5
     # A body, not a vehicle, so it needs no equipping — unlike Cart and Horse
     # below (docs/systemdocs/CARRY.md §1).
@@ -1182,6 +1207,7 @@ tags:
     category: general
     group: general-traits
     description: "You hear like a bat."
+    fighting: { tree: both, tiers: 0.3 }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: false
@@ -1192,6 +1218,7 @@ tags:
     category: general
     group: general-traits
     description: "You see like a hawk. Or an eagle, you suppose."
+    fighting: { tree: ranged, tiers: 0.3 }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: false
@@ -1202,6 +1229,7 @@ tags:
     category: general
     group: general-traits
     description: "Losing a hand would only be a minor inconvenience to you."
+    fighting: { cancels: [missing-arm, missing-fingers, mangled-hand] }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: false
@@ -1234,6 +1262,7 @@ tags:
     category: general
     group: general-traits
     description: "You know the Undercroft and the Underquarter very well. You're hard to follow there."
+    fighting: { tree: both, tiers: 0.3, situational: true }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1244,6 +1273,7 @@ tags:
     category: general
     group: general-traits
     description: "Pain doesn't stop you."
+    fighting: { tree: both, tiers: 1 }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -1254,6 +1284,7 @@ tags:
     category: general
     group: general-traits
     description: "Blows to the head don't put you out."
+    fighting: { tree: melee, tiers: 0.3 }
     pointCost: 2
     conflictsWith: [glass-jaw]
     purchasable: true
@@ -1265,6 +1296,7 @@ tags:
     category: general
     group: general-traits
     description: "You can feel when you're being watched."
+    fighting: { tree: both, tiers: 0.7 }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1305,6 +1337,7 @@ tags:
     category: general
     group: general-traits
     description: "Ropes, chains, and cells barely hold you."
+    fighting: { tree: both, tiers: 0.6, situational: true }
     pointCost: 4
     purchasable: true
     purchasableAfterStart: true
@@ -1345,6 +1378,7 @@ tags:
     category: general
     group: general-personality
     description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. Locks all courage-related Desires. If you act bravely, a GM may bonk you."
+    fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
     conflictsWith: [brave]
     purchasable: true
@@ -1359,6 +1393,7 @@ tags:
     category: general
     group: general-traits
     description: "You are very short. You fight at a disadvantage and find some places less accessible."
+    fighting: { tree: melee, tiers: -0.7 }
     pointCost: -5
     carryBonus: -0.1
     visible: true
@@ -1373,6 +1408,7 @@ tags:
     category: general
     group: general-traits
     description: "You're loud and lack grace."
+    fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [stealth]
     purchasable: true
@@ -1432,6 +1468,7 @@ tags:
     category: general
     group: general-traits
     description: "Things get blurry past arm's length. Forget aiming! Make sure you have {tag:spectacles}."
+    fighting: { tree: ranged, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [eagle-eyes]
     purchasable: true
@@ -1445,6 +1482,7 @@ tags:
     category: general
     group: general-traits
     description: "You can barely see when it's bright outside. You prefer Dusk or the Caves."
+    fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
     visible: true
     purchasable: true
@@ -1457,6 +1495,7 @@ tags:
     category: general
     group: general-traits
     description: "Eh? What's that? You can't hear very well."
+    fighting: { tree: both, tiers: -0.6 }
     pointCost: -4
     purchasable: true
     purchasableAfterStart: false
@@ -1467,6 +1506,7 @@ tags:
     category: general
     group: general-traits
     description: "One good hit to the head and you're down."
+    fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -1509,6 +1549,7 @@ tags:
     category: general
     group: general-personality
     description: "You will never attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you. Locks all violent Desires, but unlocks a few of its own."
+    fighting: { situational: true }
     pointCost: 0
     purchasable: true
     purchasableAfterStart: false
@@ -1539,6 +1580,7 @@ tags:
     category: general
     group: general-traits
     description: "You are less mobile and more easily tired out by physical activity."
+    fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
     carryBonus: -0.05
     visible: true
@@ -1664,6 +1706,7 @@ tags:
     category: general
     group: general-personality
     description: "You possess an intense fear of uncontrolled fire."
+    fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
     visible: false
     purchasable: true
@@ -1678,6 +1721,7 @@ tags:
     category: general
     group: general-personality
     description: "Blood, especially your own blood, makes you dizzy..."
+    fighting: { tree: both, tiers: -0.6, situational: true }
     pointCost: -4
     visible: false
     purchasable: true
@@ -1711,6 +1755,7 @@ tags:
     category: general
     group: general-personality
     description: "You possess an intense fear of monsters and unnatural creatures."
+    fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
     visible: false
     purchasable: true
@@ -1842,6 +1887,7 @@ tags:
     category: general
     group: general-traits
     description: "You have an incurable shake in your hands, making it difficult to wield writing implements, delicate weapons, or precise tools."
+    fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
     visible: true
     purchasable: true
@@ -1868,6 +1914,7 @@ tags:
     category: general
     group: general-traits
     description: "You move very deliberately, especially with your hands. Work that needs real precision comes easier to you."
+    fighting: { tree: ranged, tiers: 0.1 }
     pointCost: 1
     conflictsWith: [tremor]
     visible: false
@@ -1893,6 +1940,7 @@ tags:
     category: general
     group: general-traits
     description: "Get up, get up, it's not over yet — you must get up! You won't give up in a fight, no matter what, until the Lifeweb itself swallows you."
+    fighting: { tree: both, tiers: 1 }
     pointCost: 7
     visible: false
     purchasable: true
@@ -1904,6 +1952,7 @@ tags:
     category: general
     group: general-traits
     description: "You run for fun; you run for sport; you run to flee your pursuers. Do your legs know the difference? You can outpace most anybody who doesn't have this trait."
+    fighting: { tree: both, tiers: 0.3 }
     pointCost: 2
     visible: false
     purchasable: true
@@ -1916,6 +1965,7 @@ tags:
     category: general
     group: general-personality
     description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary. Unlocks Desires related to picking fights."
+    fighting: { situational: true }
     pointCost: 2
     visible: false
     purchasable: true
@@ -2037,6 +2087,33 @@ tags:
     purchasableAfterStart: true
     exclusive: true
 
+  # The fifth Old Way, and the only one nobody can buy: it is handed out by the
+  # Pray button in the Shrine of an Old Man (docs/zones.yaml, depths-chasm) and
+  # by nothing else. Holding it puts the character on db/lib/xomPass.js's
+  # weighted table, once per turn close, for the rest of their life —
+  # see docs/systemdocs/TURN-ENGINE.md.
+  #
+  # `visible` stays at its default (hidden), unlike {tag:rage}, which is
+  # visible because Rage is plainly happening to you. This is a secret, and one
+  # inspect reaction would be the end of it.
+  #
+  # The lock leaves exactly one Desire standing, the way {tag:stupid} and
+  # {tag:thanati} do — see the `chaos` family in docs/desires.yaml.
+  old-ways-xom:
+    catalog: secret
+    name: Old Ways (Xom)
+    category: general
+    group: general-beliefs
+    description: "The patron god of chance and disorder, as mad as those who willingly become his playthings."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    exclusive: true
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [chaos]
+
   # Pilgrim is deliberately off the point scale at 1 — Gunboat's call.
   pilgrim:
     catalog: all
@@ -2054,6 +2131,7 @@ tags:
     category: general
     group: general-beliefs
     description: "You are at peace. Once per day, you can instantly cure a Moderately Severe or lesser wound (refer to the Medical document). You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
+    fighting: { situational: true }
     pointCost: 14
     visible: true
     # Migrants only: Pale is the Migrant role's starting tag and is
@@ -2125,6 +2203,7 @@ tags:
     category: general
     group: general-cerberon
     description: "You're excellent at handling dogs. Under your usage, the kennel's {tag:hound}s fight and track even better."
+    fighting: { situational: true }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2183,6 +2262,7 @@ tags:
     category: general
     group: general-brigand
     description: "You are a ferocious and uninhibited biter. It works even when you're {tag:bound}."
+    fighting: { tree: melee, tiers: 0.3 }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2194,6 +2274,7 @@ tags:
     group: general-brigand
     teachable: true
     description: "You blend into the forest. Useful for ambushes."
+    fighting: { situational: true }
     pointCost: 3
     purchasable: true
     purchasableAfterStart: true
@@ -2530,6 +2611,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You can hold a weapon and defend yourself in a pinch."
+    fighting: { tree: melee, rung: 1 }
     pointCost: 7
     visible: false
     purchasable: true
@@ -2542,6 +2624,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You have been trained how to fight."
+    fighting: { tree: melee, rung: 2 }
     pointCost: 7
     parentTag: melee-basic
     visible: false
@@ -2555,6 +2638,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You've actually fought before. You're a grizzled presence on the battlefield."
+    fighting: { tree: melee, rung: 3 }
     pointCost: 7
     parentTag: melee-trained
     visible: false
@@ -2568,6 +2652,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You've survived many fights. Almost no one matches you."
+    fighting: { tree: melee, rung: 4 }
     pointCost: 7
     parentTag: melee-skilled
     visible: false
@@ -2581,6 +2666,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "The peak of your generation."
+    fighting: { tree: melee, rung: 5 }
     pointCost: 7
     parentTag: melee-expert
     visible: false
@@ -2594,6 +2680,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You can hold a weapon and defend yourself in a pinch."
+    fighting: { tree: ranged, rung: 1 }
     pointCost: 7
     visible: false
     purchasable: true
@@ -2606,6 +2693,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You have been trained how to fight."
+    fighting: { tree: ranged, rung: 2 }
     pointCost: 7
     parentTag: ranged-basic
     visible: false
@@ -2619,6 +2707,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You've actually fought before. You're a grizzled presence on the battlefield."
+    fighting: { tree: ranged, rung: 3 }
     pointCost: 7
     parentTag: ranged-trained
     visible: false
@@ -2632,6 +2721,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You've survived many fights. Almost no one matches you."
+    fighting: { tree: ranged, rung: 4 }
     pointCost: 7
     parentTag: ranged-skilled
     visible: false
@@ -2645,6 +2735,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "The peak of your generation."
+    fighting: { tree: ranged, rung: 5 }
     pointCost: 7
     parentTag: ranged-expert
     visible: false
@@ -2658,6 +2749,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You have practiced forming a shield wall. When standing within reach of 2 or more other Cerberi, your melee skill counts as 2 tiers higher."
+    fighting: { tree: melee, tiers: 2, situational: true }
     pointCost: 8
     requiredTag: melee-basic
     visible: false
@@ -2671,6 +2763,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You're particularly good at fighting people one-on-one — especially with swords, rapiers, and knives. When dueling, your melee skill counts as 2 tiers higher."
+    fighting: { tree: melee, tiers: 2, situational: true }
     pointCost: 9
     requiredTag: melee-basic
     visible: false
@@ -2684,6 +2777,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "While using polearms, your melee skill counts as 2 tiers higher."
+    fighting: { tree: melee, tiers: 2, when: { weaponClass: [polearm] } }
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -2697,6 +2791,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "Versatile. You half-sword, pommel strike, shove them into visors, and, of course, cut through the unarmored. Your melee skill counts as 2 tiers higher while using swords."
+    fighting: { tree: melee, tiers: 2, when: { weaponClass: [sword] } }
     pointCost: 10
     requiredTag: melee-basic
     visible: false
@@ -2711,6 +2806,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "While using clubs, your melee skill counts as 2 tiers higher."
+    fighting: { tree: melee, tiers: 2, when: { weaponClass: [club] } }
     pointCost: 8
     requiredTag: melee-basic
     visible: false
@@ -2724,6 +2820,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "While fighting without armor, your melee skill counts as 2 tiers higher."
+    fighting: { tree: melee, tiers: 2, when: { unarmoured: [BODY] } }
     pointCost: 7
     requiredTag: melee-basic
     visible: false
@@ -2737,6 +2834,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When using bows, your ranged skill counts as 2 tiers higher."
+    fighting: { tree: ranged, tiers: 2, when: { weaponClass: [bow] } }
     pointCost: 10
     requiredTag: ranged-basic
     visible: false
@@ -2750,6 +2848,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You're a master with firearms and disablers. When using them, your ranged skill counts as 2 tiers higher."
+    fighting: { tree: ranged, tiers: 2, when: { weaponClass: [firearm] } }
     pointCost: 10
     requiredTag: ranged-basic
     visible: false
@@ -2763,6 +2862,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You can grapple enemies bare handed. Useful for regular weapon fighting too — lots of fights end up on the ground."
+    fighting: { tree: melee, tiers: 0.5 }
     pointCost: 5
     visible: false
     purchasable: true
@@ -2775,6 +2875,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
+    fighting: { tree: both, tiers: 2, situational: true }
     pointCost: 5
     visible: false
     purchasable: true
@@ -2787,6 +2888,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You fight better with a drink in you. While {tag:tipsy}, your fighting skill counts as 1 tier higher, and being {tag:wasted} costs you nothing at all."
+    fighting: { tree: both, tiers: 1, when: { holds: [tipsy] } }
     pointCost: 5
     requiredTag: alcoholic
     visible: false
@@ -2800,6 +2902,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When throwing axes, javelins, or even stones, your ranged skill counts as 2 tiers higher."
+    fighting: { tree: ranged, tiers: 2, when: { weaponClass: [thrown] } }
     pointCost: 4
     requiredTag: ranged-basic
     visible: false
@@ -2813,6 +2916,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You are at your best picking foes off from far away. At long range, your ranged skill counts as 2 tiers higher."
+    fighting: { tree: ranged, tiers: 2, situational: true }
     pointCost: 7
     requiredTag: ranged-basic
     visible: false
@@ -2828,6 +2932,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You put everything on the line in a fight, yielding your very flesh to claim victory. Your fighting skill always counts as 1 tier higher, and you are far likelier to come out of a fight badly hurt."
+    fighting: { tree: both, tiers: 1 }
     pointCost: 5
     visible: false
     purchasable: true
@@ -2841,6 +2946,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When fighting unnatural creatures, your fighting skill counts as 2 tiers higher."
+    fighting: { tree: both, tiers: 2, situational: true }
     pointCost: 5
     visible: false
     purchasable: true
@@ -3005,6 +3111,7 @@ tags:
     category: status
     group: status-debuffs
     description: "The stresses of Ravenheart have proven too much for this one. They have an empty look. If nothing stirs them, they will not last long."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3017,6 +3124,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You are restrained, meaning you can't use actions besides speaking, and can be looted or moved by others."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3036,6 +3144,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You are crucified."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3060,6 +3169,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You feel warm, but a bit uncoordinated. Your Fighting skill counts as 1 tier lower."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3072,6 +3182,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You are in a bit of a stupor and are having trouble controlling your body. Your Fighting skill counts as 2 tiers lower."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3090,6 +3201,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You drank yourself into unconsciousness."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3119,6 +3231,7 @@ tags:
     category: status
     group: status-debuffs
     description: "Ugh... Your fighting skill counts as 1 tier lower."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3143,6 +3256,7 @@ tags:
     category: status
     group: status-buffs
     description: "You can see in the dark as though it were an overcast day."
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3186,6 +3300,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You can't feel pain and can't think clearly. Your fighting skill counts as 1 tier lower."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3198,6 +3313,7 @@ tags:
     category: status
     group: status-buffs
     description: "You can't feel pain. What an odd sensation!"
+    fighting: { tree: both, tiers: 0.5 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3210,6 +3326,7 @@ tags:
     category: status
     group: status-buffs
     description: "You possess impossible strength."
+    fighting: { tree: melee, tiers: 2 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3222,6 +3339,7 @@ tags:
     category: status
     group: status-buffs
     description: "You have steady hands and sharper vision. It's easier for you to hit what you aim for."
+    fighting: { tree: ranged, tiers: 2 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3246,6 +3364,7 @@ tags:
     category: status
     group: status-buffs
     description: "This is so fun! You could do anything!"
+    fighting: { tree: both, tiers: 0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3258,6 +3377,7 @@ tags:
     category: status
     group: status-buffs
     description: "Light and eyes go right through you."
+    fighting: { tree: both, tiers: 2, situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3270,6 +3390,7 @@ tags:
     category: status
     group: status-buffs
     description: "Every Gambit you roll is an automatic 6."
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3312,6 +3433,7 @@ tags:
     category: status
     group: status-debuffs
     description: "Ow! What was that?! You're temporarily blinded!"
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3345,6 +3467,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You took a few disabler shots. It's hard to keep standing."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3356,6 +3479,7 @@ tags:
     category: status
     group: status-debuffs
     description: "Your muscles are cramping. You feel weak and dizzy, and you can't move."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3413,6 +3537,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You're weakened, unable to eat enough or push yourself physically."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     purchasable: false
     durationTurns: 3
@@ -3429,6 +3554,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You worked hard, or slept badly. Push yourself again and you'll wear yourself out."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     purchasable: false
     durationTurns: 1
@@ -3444,6 +3570,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You've pushed too far. You can't Labor again until you rest, and you won't fight well like this."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     purchasable: false
     durationTurns: 1
@@ -3473,6 +3600,7 @@ tags:
     category: status
     group: status-buffs
     description: "You're full of energy and always alert."
+    fighting: { tree: both, tiers: 0.5 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3485,6 +3613,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You're dreaming."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3513,6 +3642,7 @@ tags:
     category: health
     group: health-infection
     description: "Your wound is hot and draining pus. You could amputate it."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3530,6 +3660,7 @@ tags:
     category: health
     group: health-infection
     description: "The flesh around your wound has gone soft and gives off an odor. You could amputate it."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3549,6 +3680,7 @@ tags:
     category: health
     group: health-infection
     description: "You're burning up. The infection is in your blood…"
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3568,6 +3700,7 @@ tags:
     category: health
     group: health-infection
     description: "It's gone."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3588,6 +3721,7 @@ tags:
     category: health
     group: health-infection
     description: "Your body is shutting down. You're not lucid."
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3608,6 +3742,7 @@ tags:
     category: health
     group: health-infection
     description: "You're on death's door."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3649,6 +3784,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your wound is tender and purple, but it'll heal."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3665,6 +3801,7 @@ tags:
     category: health
     group: health-wounds
     description: "You can walk, but it's a struggle. Wrapping your wound with a splint would help."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3683,6 +3820,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your skin is bubbling from a burn."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3702,6 +3840,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your skin is destroyed and will scar if healed."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3722,6 +3861,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your wound is nothing a bandage can't stop."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3739,6 +3879,7 @@ tags:
     category: health
     group: health-wounds
     description: "You can see bone or deep tissue."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3759,6 +3900,7 @@ tags:
     category: health
     group: health-wounds
     description: "You're bleeding fast. You need medical attention to stop the flow."
+    fighting: { tree: both, tiers: -2.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3778,6 +3920,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your blood is spurting three feet out. You need immediate medical attention to survive."
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3797,6 +3940,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your bone is fractured. You need medical attention or your body will heal crooked."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -3815,6 +3959,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your breathing hurts. Hopefully there's nothing else under the surface."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.1
     purchasable: false
@@ -3832,6 +3977,7 @@ tags:
     category: health
     group: health-wounds
     description: "You're badly beat and in pain."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3851,6 +3997,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your arm is hanging out. Someone with experience can push it back in."
+    fighting: { tree: melee, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3867,6 +4014,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your fingers and toes have turned pale and cold. They'll fall off without proper care."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3887,6 +4035,7 @@ tags:
     category: health
     group: health-wounds
     description: "Something broke past your ribs. Your breathing is shallow and labored. You will die without expert medical attention."
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -3907,6 +4056,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your intestines aren't currently completely inside you. You need expert medical attention or you will get sepsis."
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -3927,6 +4077,7 @@ tags:
     category: health
     group: health-wounds
     description: "The swelling makes it hard to eat or speak."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3944,6 +4095,8 @@ tags:
     category: health
     group: health-wounds
     description: "Your fingers are pointing in random directions."
+    fighting: { tree: both, tiers: -2 }
+    handsLost: 1
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -3965,6 +4118,7 @@ tags:
     category: health
     group: health-illness
     description: "You've had a hot pain on your lower right side since last night."
+    fighting: { tree: both, tiers: -2.5 }
     pointCost: -11
     purchasable: false
     purchasableAfterStart: false
@@ -3983,6 +4137,7 @@ tags:
     category: health
     group: health-illness
     description: "Your lungs are damaged by dust and spores."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -4000,6 +4155,7 @@ tags:
     category: health
     group: health-illness
     description: "Little animals are living in your gut, draining your nutrients. It takes someone skilled in medicine to identify the core issue."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4018,6 +4174,7 @@ tags:
     category: health
     group: health-illness
     description: "You're sweating profusely."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4037,6 +4194,7 @@ tags:
     category: health
     group: health-illness
     description: "Venom has entered your body, causing massive swelling and pain. You will die without prompt medical attention."
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4056,6 +4214,7 @@ tags:
     category: health
     group: health-illness
     description: "Your skin burns, itches, and bubbles with boils. It will scar if untreated."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4075,6 +4234,7 @@ tags:
     category: health
     group: health-illness
     description: "Your joints are achy and stiff. It can't be treated."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: -3
     carryBonus: -0.05
     visible: true
@@ -4087,6 +4247,7 @@ tags:
     category: health
     group: health-illness
     description: "Your cough's gotten worse over the years. It will take an expert to cure you."
+    fighting: { tree: both, tiers: -2 }
     pointCost: -9
     carryBonus: -0.05
     visible: true
@@ -4107,6 +4268,7 @@ tags:
     category: health
     group: health-illness
     description: "You've stopped shivering. It's not unpleasant."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4120,6 +4282,7 @@ tags:
     category: health
     group: health-illness
     description: "You can't focus."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4142,6 +4305,7 @@ tags:
     category: health
     group: health-illness
     description: "Something is wrong with your body. You may want to seek medical attention."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4153,6 +4317,7 @@ tags:
     category: health
     group: health-illness
     description: "You're coughing every couple minutes. You may want to seek medical attention."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4168,6 +4333,7 @@ tags:
     category: health
     group: health-illness
     description: "You feel bloated and full."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4187,6 +4353,7 @@ tags:
     category: health
     group: health-illness
     description: "Your chest exploded."
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4208,6 +4375,7 @@ tags:
     category: health
     group: health-mind
     description: "Lights and sound bombard your senses."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4221,6 +4389,7 @@ tags:
     category: health
     group: health-mind
     description: "You are traumatized."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4241,6 +4410,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't move or talk."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4253,6 +4423,7 @@ tags:
     category: health
     group: health-mind
     description: "Nothing makes sense. What is happening?! Oh my God!"
+    fighting: { tree: both, tiers: -2.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4269,6 +4440,7 @@ tags:
     category: health
     group: health-mind
     description: "You no longer feel in control of your body! You must submit a gambit to attack those standing nearby, or if alone, yourself! You may not explicitly warn those around you, outside of acting very strange."
+    fighting: { situational: true }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4281,6 +4453,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see."
+    fighting: { tree: both, tiers: -3 }
     pointCost: -8
     conflictsWith: [nearsighted, eagle-eyes]
     visible: true
@@ -4326,6 +4499,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your leg ends above the knee."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4338,6 +4512,8 @@ tags:
     category: health
     group: health-maiming
     description: "Your arm is gone at the shoulder."
+    fighting: { tree: both, tiers: -2.5 }
+    handsLost: 2
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4350,6 +4526,7 @@ tags:
     category: health
     group: health-maiming
     description: "You have a wooden leg."
+    fighting: { tree: both, tiers: -1 }
     pointCost: -5
     conflictsWith: [quick-footed]
     carryBonus: -0.05
@@ -4383,6 +4560,8 @@ tags:
     category: health
     group: health-maiming
     description: "One of your hands is missing several fingers."
+    fighting: { tree: both, tiers: -1.5 }
+    handsLost: 1
     pointCost: -4
     carryBonus: -0.05
     visible: true
@@ -4395,6 +4574,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your leg is in constant pain: you can hardly walk on it. Expert medical attention could fix it. Or they could just put on a wooden leg — a lot easier."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: -7
     carryBonus: -0.1
     visible: true
@@ -4414,6 +4594,7 @@ tags:
     category: health
     group: health-maiming
     description: "An old injury never healed quite right. You can walk okay, but people know you're coming."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: -2
     visible: true
     purchasable: true
@@ -4429,6 +4610,7 @@ tags:
     category: health
     group: health-maiming
     description: "The legs were cruelly removed."
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     conflictsWith: [quick-footed, peg-leg]
     carryBonus: -0.2
@@ -4442,6 +4624,7 @@ tags:
     category: health
     group: health-maiming
     description: "The stomach was cruelly ripped out."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4464,6 +4647,7 @@ tags:
     category: health
     group: health-maiming
     description: "You've lost all depth perception."
+    fighting: { tree: ranged, tiers: -1.5 }
     pointCost: -5
     conflictsWith: [eagle-eyes, blind]
     visible: true
@@ -4476,6 +4660,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see in dim light or darkness."
+    fighting: { tree: both, tiers: -1, situational: true }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -4506,6 +4691,7 @@ tags:
     category: health
     group: health-minor
     description: "You're vomiting fairly often."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4519,6 +4705,7 @@ tags:
     category: health
     group: health-minor
     description: "You're in pain."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -4531,6 +4718,7 @@ tags:
     category: health
     group: health-minor
     description: "Your mind can't escape the pain. Writhe around or take the {tag:poppy}."
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4547,6 +4735,7 @@ tags:
     category: health
     group: health-minor
     description: "You're … Off in la-la-land."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4565,6 +4754,7 @@ tags:
     category: health
     group: health-illness
     description: "You're choking to death! Frothing, clawing at your collar. You can't speak!"
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4583,6 +4773,7 @@ tags:
     category: health
     group: health-illness
     description: "Your body is rapidly shutting down, but you're clear-headed. Blood is dripping from your mouth."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4603,6 +4794,7 @@ tags:
     category: health
     group: health-minor
     description: "Only time can cure your headache now."
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4614,6 +4806,7 @@ tags:
     category: health
     group: health-minor
     description: "There's pain behind your eye and bright lights that come and go. It's incurable."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -4912,6 +5105,90 @@ tags:
     placement:
       examine: "anvil set, bellows hung."
       provides: [workshop-equipment]
+
+  # Bascinet's three, 2026-09-10. Each one is the first user of a new
+  # placement key; the keys themselves are documented on Tag.placement.
+
+  # Buildable only at the inn, because that is where the cellar it fills is.
+  # `locations` naming exactly one Location is also what makes it one-of-a-kind
+  # — `unique` is per-Location, so a single legal site means a single brewery.
+  brewery:
+    catalog: all
+    name: Brewery
+    category: assets
+    group: assets-structures
+    description: "A brewery. It automatically produces one {tag:alcohol} per turn, to the inn's cellar."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 15
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      # Unlike the forge, no workshop is needed. The forge's exemption is a
+      # bootstrap — you cannot build the first forge without one — and there
+      # is no such loop here.
+      fieldwork: true
+      locations: [old-cock-inn]
+      examine: "the mash is working. \u2021"
+      yields: { tag: alcohol, room: inn-cellar, quantity: 1 }
+
+  rookery:
+    catalog: all
+    name: Rookery
+    category: assets
+    group: assets-structures
+    description: "A rookery. It allows you to send many messages."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "the birds shift and mutter on their perches. \u2021"
+      # Six is the number of bird-reachable zones, deliberately: a holder CAN
+      # find any one person in a day, by spending every flight they have on it
+      # and writing to nobody. A trade, not a free lookup. The likeliest knob
+      # to want retuning once it has been seen in play.
+      birdSendsPerDay: 6
+
+  makeshift-stage:
+    catalog: all
+    name: Makeshift Stage
+    category: assets
+    group: assets-structures
+    description: "Plays music, making people happy. Only works as long as there is a {tag:boombox} somewhere on the ground in the location."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      # One turn, so openBuildSiteImpl births it COMPLETE in the opening
+      # transaction. No skill: it is planks and trestles.
+      turnsCost: 1
+      resourceCost: 10
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "planks and trestles, waiting on a crowd. \u2021"
+      # The boombox is a RUNNING requirement, not a build cost — which is why
+      # this carries no requirement.items, a pairing the sync refuses outright
+      # for a placement recipe ("a build site never spends an ingredient").
+      music: { mood: 8, needs: boombox }
 
   palisade:
     catalog: all
@@ -7380,6 +7657,7 @@ tags:
     group: items-weapons
     description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
+    fighting: { tiers: 0.5, weaponClass: firearm }
     pointCost: 14
     equippable: true
     equipSlot: WEAPON
@@ -7404,6 +7682,7 @@ tags:
     category: items
     group: items-weapons
     description: "A femur wrapped in cord."
+    fighting: { tiers: 0.1, weaponClass: club }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -7421,6 +7700,7 @@ tags:
     group: items-weapons
     description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
+    fighting: { tiers: 0.5, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -7459,6 +7739,7 @@ tags:
     category: items
     group: items-weapons
     description: "A deadly knife with brass knuckles embedded on the grip. While equipped, torture-related Gambits gain +1."
+    fighting: { tiers: 0.3, weaponClass: knife }
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7477,21 +7758,20 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 12
-  # Trench Knife stays off the customizable list below: its torture bonus
-  # (db/lib/torture.js) checks the held tag's SLUG directly, which a custom
-  # mint never matches — a renamed one would silently lose the +1.
-
-  # Most of the ladder below is now customizable (CRAFTING.md §4a): +1 ⬢
-  # buys the smith's own name and words on the piece, same door as the Badge
-  # and Hat. mintCustomCraft now clones meleeArmor/ballisticArmor/
-  # concealsIdentity/forcesConceal/concealSprite/laborBonus too, so a custom
-  # weapon keeps its real stats and bonuses, not just its base identity.
+  # A `customizableSkill: smithing-skilled` below is the +1 ⬢ door onto a
+  # smith's own name and words (CRAFTING.md §4a), and the rung it names is
+  # who may open it — the top of the Smithing ladder, whatever tier the piece
+  # itself is. Only the plain arms carry it: a mace, a broadsword, a spear.
+  # The named and exotic pieces do not, and neither does anything whose slug
+  # some rule reads back — Trench Knife's torture bonus is keyed to its exact
+  # slug (db/lib/torture.js), which a mint never matches.
   work-knife:
     catalog: all
     name: Work Knife
     category: items
     group: items-weapons
     description: "A good knife, hard to handle in battle."
+    fighting: { tiers: 0.1, weaponClass: knife }
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7503,6 +7783,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7517,6 +7798,7 @@ tags:
     category: items
     group: items-weapons
     description: "A short single-bladed axe meant for cutting wood."
+    fighting: { tiers: 0.3, weaponClass: axe }
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7527,7 +7809,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7627,6 +7908,7 @@ tags:
     group: items-weapons
     description: "A small weapon made of rope and leather meant to injure people and animals. While equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
+    fighting: { tiers: 0.3, weaponClass: thrown }
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7637,7 +7919,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7652,6 +7933,7 @@ tags:
     category: items
     group: items-weapons
     description: "A wooden staff meant to be wielded as a weapon."
+    fighting: { tiers: 0.3, weaponClass: club }
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7663,7 +7945,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7678,6 +7959,7 @@ tags:
     category: items
     group: items-weapons
     description: "A heavy stick meant to hit people."
+    fighting: { tiers: 0.3, weaponClass: club }
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7689,6 +7971,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7704,6 +7987,7 @@ tags:
     category: items
     group: items-weapons
     description: "A short thick stiff made out of an unknown black material. Meant for hitting people?"
+    fighting: { tiers: 0.3, weaponClass: club }
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7723,6 +8007,7 @@ tags:
     group: items-weapons
     description: "A pronged agricultural tool used to move around loose materials. The traditional instrument of the discontented. While equipped, Farming produces an additional 1 ⬢."
     laborBonus: { kind: farming, amount: 1 }
+    fighting: { tiers: 0.2, weaponClass: polearm }
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7734,7 +8019,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7750,6 +8034,7 @@ tags:
     group: items-weapons
     description: "A small, quiet bow that's fast to draw, but sports less power against armored targets. While equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
+    fighting: { tiers: 0.4, weaponClass: bow }
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -7761,7 +8046,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7777,6 +8061,7 @@ tags:
     category: items
     group: items-weapons
     description: "A wooden staff with a sharp tip at the end that gives a longer reach."
+    fighting: { tiers: 0.4, weaponClass: polearm }
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7790,6 +8075,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7804,6 +8090,7 @@ tags:
     category: items
     group: items-weapons
     description: "A short blade made for stabbing."
+    fighting: { tiers: 0.3, weaponClass: knife }
     pointCost: 3
     requiredTag: melee-basic
     equippable: true
@@ -7816,6 +8103,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7830,6 +8118,7 @@ tags:
     category: items
     group: items-weapons
     description: "A short blade made of silver. For the superstitious."
+    fighting: { tiers: 0.3, weaponClass: knife }
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7841,7 +8130,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1/3
       resourceCost: 1
@@ -7859,6 +8147,7 @@ tags:
     category: items
     group: items-weapons
     description: "A short, broad stabbing sword."
+    fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7871,6 +8160,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7885,6 +8175,7 @@ tags:
     category: items
     group: items-weapons
     description: "A spear with a barbed end to cause more damage when pulled out."
+    fighting: { tiers: 0.4, weaponClass: polearm }
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7897,7 +8188,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7912,6 +8202,7 @@ tags:
     category: items
     group: items-weapons
     description: "A light spear designed to be thrown into one's enemies."
+    fighting: { tiers: 0.4, weaponClass: thrown }
     pointCost: 5
     requiredTag: ranged-basic
     equippable: true
@@ -7923,7 +8214,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7939,6 +8229,7 @@ tags:
     group: items-weapons
     description: "A large bow that requires strength to wield, but can pack a major punch. While equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
+    fighting: { tiers: 0.5, weaponClass: bow }
     pointCost: 5
     requiredTag: ranged-basic
     equippable: true
@@ -7951,7 +8242,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7966,6 +8256,7 @@ tags:
     category: items
     group: items-weapons
     description: "A flanged iron head on a stout haft."
+    fighting: { tiers: 0.4, weaponClass: club }
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -7978,6 +8269,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7992,6 +8284,7 @@ tags:
     category: items
     group: items-weapons
     description: "A haft with a sleek metal wedge and a spearhead on top."
+    fighting: { tiers: 0.5, weaponClass: axe }
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -8005,6 +8298,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -8020,6 +8314,7 @@ tags:
     category: items
     group: items-weapons
     description: "Connected metal rings meant to be worn on one's fingers to pack a heavier punch."
+    fighting: { tiers: 0.2, weaponClass: unarmed }
     pointCost: 3
     equippable: true
     equipSlot: WEAPON
@@ -8030,7 +8325,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -8046,6 +8340,7 @@ tags:
     category: items
     group: items-weapons
     description: "A polearm with a heavy blade and a spike. Cuts through armor and flesh alike."
+    fighting: { tiers: 0.6, weaponClass: polearm }
     pointCost: 7
     requiredTag: melee-basic
     equippable: true
@@ -8059,6 +8354,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -8073,6 +8369,7 @@ tags:
     category: items
     group: items-weapons
     description: "A standard slashing sword."
+    fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 7
     requiredTag: melee-basic
     equippable: true
@@ -8085,6 +8382,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -8099,6 +8397,7 @@ tags:
     category: items
     group: items-weapons
     description: "A small head. It concentrates force better than a mace."
+    fighting: { tiers: 0.4, weaponClass: club }
     pointCost: 7
     requiredTag: melee-basic
     equippable: true
@@ -8112,6 +8411,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -8127,6 +8427,7 @@ tags:
     category: items
     group: items-weapons
     description: "A large sword that requires 2 hands to use effectively."
+    fighting: { tiers: 0.6, weaponClass: sword }
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -8140,6 +8441,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8154,6 +8456,7 @@ tags:
     category: items
     group: items-weapons
     description: "An elegant steel rapier."
+    fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -8165,7 +8468,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -8183,6 +8485,7 @@ tags:
     category: items
     group: items-weapons
     description: "A refined slashing weapon."
+    fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -8194,7 +8497,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8209,6 +8511,7 @@ tags:
     category: items
     group: items-weapons
     description: "A curved blade folded from steel."
+    fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -8220,7 +8523,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -8238,6 +8540,7 @@ tags:
     category: items
     group: items-weapons
     description: "A silver spear."
+    fighting: { tiers: 0.4, weaponClass: polearm }
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -8250,7 +8553,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 21
@@ -8268,6 +8570,7 @@ tags:
     category: items
     group: items-weapons
     description: "A long and mean polearm combining the traits of a spear, pick, and hammer."
+    fighting: { tiers: 0.6, weaponClass: polearm }
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -8280,7 +8583,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8295,6 +8597,7 @@ tags:
     category: items
     group: items-weapons
     description: "A monstrously large double bladed sword."
+    fighting: { tiers: 0.6, weaponClass: sword }
     pointCost: 9
     requiredTag: melee-basic
     equippable: true
@@ -8307,7 +8610,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8327,6 +8629,7 @@ tags:
     category: items
     group: items-weapons
     description: "A blade that came out of its quenching with a warmth the forge cannot explain, and it has never quite cooled since. Its wielder's hands do not shake, steeled with a newfound steadiness. Anyone who examines it knows something terrible was done in the blade's making."
+    fighting: { tiers: 1, weaponClass: sword }
     pointCost: 14
     requiredTag: melee-basic
     equippable: true
@@ -8352,6 +8655,7 @@ tags:
     group: items-weapons
     description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as one tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢."
     laborBonus: { kind: hunting, amount: 1 }
+    fighting: { tiers: 1, weaponClass: crossbow }
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
@@ -8364,7 +8668,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8381,6 +8684,7 @@ tags:
     group: items-weapons
     description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
+    fighting: { tiers: 0.5, weaponClass: firearm }
     pointCost: 18
     requiredTag: ranged-basic
     equippable: true
@@ -8393,7 +8697,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 31
@@ -8409,6 +8712,7 @@ tags:
     group: items-weapons
     description: "A powerful single-shot pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
+    fighting: { tiers: 0.5, weaponClass: firearm }
     pointCost: 14
     requiredTag: ranged-basic
     equippable: true
@@ -8420,7 +8724,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 20
@@ -8435,6 +8738,7 @@ tags:
     category: items
     group: items-weapons
     description: "A large black sphere with a menacing fuse."
+    fighting: { tiers: 0.4, weaponClass: thrown }
     pointCost: 0
     requiredTag: ranged-basic
     equippable: true
@@ -8446,7 +8750,6 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 31
@@ -8466,6 +8769,7 @@ tags:
     category: items
     group: items-weapons
     description: "A gentleman's cane, filled with three feet of steel."
+    fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 7
     depotPrice: 23
     equippable: true
@@ -8489,6 +8793,7 @@ tags:
     category: items
     group: items-weapons
     description: "A non-lethal energy pistol, only useful against unarmed people. After enough shots, the target's muscles fail and they fall to the floor, cramping and groaning. Powered by disposable batteries imported by the Baron."
+    fighting: { tiers: 0.3, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -9044,6 +9349,7 @@ tags:
     category: items
     group: items-special
     description: "A group of metal wires grafted into the neck to transmit electric spasms. Allows the user to attain the speed of a galloping horse once per day."
+    fighting: { situational: true }
     pointCost: 0
     tradeable: false
     visible: false
@@ -9119,6 +9425,7 @@ tags:
     category: items
     group: items-special
     description: "A two-shot shotgun that is more easily concealable than its normal counterpart."
+    fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -9690,6 +9997,7 @@ tags:
     category: items
     group: items-weapons
     description: "A curved blade etched with all manner of heretical markings."
+    fighting: { tiers: 0.3, weaponClass: knife }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -9725,6 +10033,7 @@ tags:
     category: general
     group: general-traits
     description: "You have had a poisoned tooth installed. You can bite down on it at any time to release a deadly nerve agent into the room you are in, inflicting {tag:phrygian-toxin}. You will not survive."
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -10745,6 +11054,7 @@ tags:
     category: items
     group: items-weapons
     description: "A thin leather implement that can be used to punish heretics or those who have not paid their taxes."
+    fighting: { tiers: 0.2, weaponClass: exotic }
     pointCost: 0
     depotPrice: 11
     sellable: true
@@ -10924,6 +11234,7 @@ tags:
     category: assets
     group: assets-companions
     description: "A large, well-trained fighting dog ready to obey commands."
+    fighting: { situational: true }
     pointCost: 0
     depotPrice: 38
     sellable: true
@@ -11037,6 +11348,7 @@ tags:
     group: items-weapons
     description: "A 9mm pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
+    fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 0
     depotPrice: 149
     sealedShipping: true
@@ -11062,6 +11374,7 @@ tags:
     category: items
     group: items-weapons
     description: "A semi-automatic rifle chambered in .308."
+    fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 0
     depotPrice: 213
     sealedShipping: true
@@ -11082,6 +11395,7 @@ tags:
     category: items
     group: items-weapons
     description: "An experimental fully automatic rifle that belongs to the past."
+    fighting: { tiers: 1, weaponClass: firearm }
     pointCost: 0
     depotPrice: 443
     sealedShipping: true
@@ -11102,6 +11416,7 @@ tags:
     category: items
     group: items-weapons
     description: "A gleaming sword fit for the highest of nobility. Light, strong, and unimaginably sharp."
+    fighting: { tiers: 1, weaponClass: sword }
     pointCost: 0
     depotPrice: 189
     sealedShipping: true
@@ -11121,6 +11436,7 @@ tags:
     category: items
     group: items-weapons
     description: "A sword with a blade of pure silver. Might be useful…"
+    fighting: { tiers: 0.5, weaponClass: sword }
     pointCost: 0
     depotPrice: 123
     sellable: true
@@ -11139,6 +11455,7 @@ tags:
     category: items
     group: items-weapons
     description: "A small pistol that shoots nonlethal, but still painful, bullets."
+    fighting: { tiers: 0.1, weaponClass: exotic }
     pointCost: 0
     depotPrice: 61
     sellable: true
@@ -12073,6 +12390,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12102,6 +12420,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -12204,6 +12523,7 @@ tags:
     category: items
     group: items-armor
     description: "Dark brown robes drape the wearer. Gives bonuses to the servants of Tzchernobog in combat, and allows the use of Thanati enchanted items."
+    fighting: { tree: both, tiers: 2, when: { holds: [thanati], equipped: [black-robes] } }
     pointCost: 0
     tradeable: true
     weight: 2
@@ -12230,6 +12550,7 @@ tags:
     category: items
     group: items-armor
     description: "These robes glow with dark power! Their fabric is as hard as mail, and will deflect significant amounts of damage. They still function as normal robes. Their luminescence means they are visible upon inspection, even when not worn."
+    fighting: { tree: both, tiers: 2, when: { holds: [thanati], equipped: [shimmering-robes] } }
     pointCost: 0
     tradeable: true
     weight: 2
@@ -12529,6 +12850,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12558,6 +12880,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12607,6 +12930,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12660,6 +12984,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12719,6 +13044,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12745,6 +13071,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12759,6 +13086,7 @@ tags:
     category: items
     group: items-armor
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
+    fighting: { situational: true }
     pointCost: 5
     equippable: true
     equipSlot: WEAPON
@@ -12772,6 +13100,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12798,6 +13127,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12859,6 +13189,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -12887,6 +13218,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 8
@@ -12917,6 +13249,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12963,6 +13296,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 16
@@ -13062,6 +13396,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will: a beautiful, monstrous woman with a serpentine lower body, slitted eyes, and a tongue like a snake's. You can wrap around people, immobilizing them, and have fangs which inflict {tag:envenomated}."
+    fighting: { tree: both, tiers: 1, situational: true }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -13072,6 +13407,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. You become hard to see in the dark and can inflict {tag:paralyzed} and {tag:hallucinating}."
+    fighting: { tree: both, tiers: 1, situational: true }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -13082,6 +13418,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will: a beautiful, monstrous woman with a scaled face and a long, finned tail. You can swim expertly, and have a call that lures the weak-willed."
+    fighting: { tree: both, tiers: 1, situational: true }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -13093,6 +13430,7 @@ tags:
     group: demoness
     forcesName: Beast
     description: "Give in to the carnage. You permanently become a monstrously tall woman with hands like rakes. You can hide in the dark, sprint impossibly quickly, and heal from eating people unless hurt by silver or fire. You can no longer speak. Removes almost all of your other tags."
+    fighting: { tree: both, floor: legendary }
     pointCost: 9
     visible: true
     purchasable: true
@@ -13104,6 +13442,7 @@ tags:
     category: demoness
     group: demoness
     description: "Your True Form terrifies people, either making them Afraid or Panicking. Requires a True Form other than Apex."
+    fighting: { situational: true }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -13135,6 +13474,7 @@ tags:
     category: demoness
     group: demoness
     description: "While in your True Form, people struggle to raise a hand against you, having their fighting skill counts as 1 tier lower or 2 tiers lower if you are wearing a human face."
+    fighting: { situational: true }
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -13165,6 +13505,7 @@ tags:
     category: demoness
     group: demoness
     description: "Once per day you can let loose a shriek that stuns everyone around you."
+    fighting: { situational: true }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -13175,6 +13516,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can put out a set of dangerous claws at will, even while keeping a human face."
+    fighting: { tree: melee, tiers: 0.5 }
     pointCost: 5
     visible: false
     purchasable: true
@@ -13215,6 +13557,7 @@ tags:
     category: health
     group: health-wounds
     description: "No… It can't be— A dangerous injury that will turn {tag:infected} without treatment."
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -13238,6 +13581,7 @@ tags:
     category: health
     group: health-wounds
     description: "It hurts, but it wouldn't be hard to treat. Left alone it may turn {tag:infected}."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -13332,6 +13676,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -13432,6 +13777,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You can barely see. That drink is bad!"
+    fighting: { tree: both, tiers: -3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -13447,6 +13793,7 @@ tags:
     category: health
     group: health-mind
     description: "Your vision is slowly getting worse."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     stackable: true
     visible: false
@@ -13461,6 +13808,7 @@ tags:
     category: health
     group: health-mind
     description: "That was a bad idea."
+    fighting: { tree: both, cap: pitiful }
     pointCost: 0
     visible: true
     purchasable: false
@@ -13477,6 +13825,7 @@ tags:
     category: health
     group: health-mind
     description: "Gghhhh?"
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false

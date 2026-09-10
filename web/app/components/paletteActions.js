@@ -36,6 +36,7 @@ const PLACE_HINTS = {
 };
 
 const GM_PAGES = [
+  { label: "Oracle", href: "/gm/oracle" },
   { label: "Players", href: "/gm/players" },
   { label: "Adjudicate", href: "/gm/turns" },
   { label: "Structures", href: "/gm/structures" },

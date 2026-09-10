@@ -438,7 +438,7 @@ The Merchant is the only faucet of currency in the game.
 - **The ATM** moves obols between `Depot.accountObols` and physical `obol`
   tags. It is the only door coins enter and leave the world through, which is
   what makes lending something only he can do.
-- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 15)
+- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 75)
   is drawn and repaid in obols. Drawing puts money in the account. The cap is
   **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
   code punishes a standing balance — the Company is not code.
@@ -448,12 +448,26 @@ obols the same thing wearing two hats, and it meant importing food was free
 money. ⬢ are a **ware on the shuttle** instead (§3, §4) — the only place they
 change form, and never for nothing.
 
-Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
+**There are two pots, and they are not the same money.** The station's account
+is `Depot.accountObols`; the Merchant's purse is physical `obol` tags on his
+sheet. Spending one never touches the other, and the ATM is the only door
+between them — which is the point, because the licence is tradeable and handing
+it over hands over the account but not his pockets.
+
+The **station opens with 20 ¢**, and the only place that number lives is the
+`accountObols` default in `db/prisma/schema.prisma`. Restart Game deletes the
+Depot row and recreates it bare, so a new game picks the default up on its own
+and nothing has to remember to seed it.
+
+**Purses** are granted through `docs/roles.yaml` using a `Name xN` suffix
 (`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 20, Hand
-10, Esculap 10, Baroness / Heir / Meister 5 each — 80 ¢ across the whole cast.
+10, Esculap 10, Baroness / Heir / Meister 5 each, Arbiter 4, Censor 2,
+Cerberus 1 — 87 ¢ across ten roles.
+
 His float is deliberately thin, and thinner than the rest of the cast's scaled
-with it: the Company's line, 75 ¢, is nearly four times his own purse, and it
-is where most of his first order has to come from. It has to be paid back.
+with it: the Company's line, 75 ¢, is nearly four times the station's opening
+balance, and it is where most of his first order has to come from. It has to be
+paid back.
 
 **Debtor** is a separate faucet, off the drawback catalog rather than
 `docs/roles.yaml`: taking the tag grants 20 obols in the creation transaction

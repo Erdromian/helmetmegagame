@@ -13,6 +13,8 @@ const { PAPER_GROUP_SLUG } = require("./paper");
 const {
   normalizeRequirementItems,
   validateRequirementItems,
+  normalizeFighting,
+  validateFighting,
   normalizeLaborBonus,
   validateLaborBonus,
   normalizeExpiresInto,
@@ -581,6 +583,32 @@ async function syncTagsFromYaml(prisma) {
       tagSlugs: allTagSlugs,
       equippable: t.equippable ?? false,
     });
+    // handsLost — how many of the four hand slots a maiming takes away
+    // (db/lib/equipSlots.js#handsFor). Counted while HELD, so a value on a
+    // tag you equip would read as a permanent loss the moment it was picked
+    // up and is almost certainly a mistake.
+    if (t.handsLost != null) {
+      if (!Number.isInteger(t.handsLost) || t.handsLost < 1) {
+        throw new Error(`docs/tags.yaml: "${t.slug}" handsLost must be a positive integer`);
+      }
+      if (t.equippable) {
+        throw new Error(
+          `docs/tags.yaml: "${t.slug}" has handsLost but is equippable — a hand slot is lost by holding the tag, not by wearing it`,
+        );
+      }
+    }
+    // fighting — the combat catalog (docs/systemdocs/COMBAT.md,
+    // db/lib/fightingSkill.js is the read side). Every failure mode this
+    // catches is a SILENT one at runtime: a shift with no tree lands on
+    // neither half, a condition naming a misspelled tag never fires, and a
+    // weaponClass on something nobody can draw is worth nothing. None of them
+    // would throw in play — they would just quietly do nothing — so the door
+    // is the only place they can be caught.
+    validateFighting(normalizeFighting(t.fighting), {
+      selfSlug: t.slug,
+      tagSlugs: allTagSlugs,
+      equippable: t.equippable ?? false,
+    });
     // placement — the building system's catalog half (db/lib/structures.js is
     // the read side). Validated up front like requirement.items: craftable
     // only, never tradeable/stackable/equippable/carryBonus, and provides
@@ -591,8 +619,9 @@ async function syncTagsFromYaml(prisma) {
       knownSlugs: allTagSlugs,
     });
     // customizable — the custom-craft opt-in (CRAFTING.md): craftable and
-    // stackable only, and never alongside placement.
-    validateCustomizable(t, { slug: t.slug });
+    // stackable only, never alongside placement, and a customizableSkill that
+    // names a real tag.
+    validateCustomizable(t, { slug: t.slug, knownSlugs: allTagSlugs });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -717,6 +746,7 @@ async function syncTagsFromYaml(prisma) {
       removable: DESTROYABLE_CATEGORIES.has(entry.category) && entry.removable !== false,
       craftable: entry.craftable ?? false,
       customizable: entry.customizable ?? false,
+      customizableSkillSlug: entry.customizableSkill ?? null,
       healable: entry.healable ?? false,
       teachable: entry.teachable ?? false,
       psychological: entry.psychological ?? false,
@@ -733,6 +763,8 @@ async function syncTagsFromYaml(prisma) {
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
+      fighting: normalizeFighting(entry.fighting),
+      handsLost: entry.handsLost ?? null,
       placement: normalizePlacement(entry.placement),
       // Membership of the corpse group IS being a corpse, so the flag is
       // derived here rather than hand-written on three entries that could

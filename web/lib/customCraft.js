@@ -37,6 +37,22 @@ export function customCraftFields({ customName, customDescription } = {}) {
   return { name, description, active: Boolean(name || description) };
 }
 
+// WHO may customize this recipe. `Tag.customizableSkillSlug` names a tag the
+// character has to be holding — `smithing-skilled` on the arms and armour, so
+// putting your name on a breastplate is a skilled smith's privilege and not
+// something an apprentice does to a cudgel. A recipe with no gate (the meals,
+// the painting, the sketch, the badge, the hat) is open to anyone who can make
+// it, which is what the flag alone used to mean everywhere.
+//
+// No ancestry walk: the one rung above `smithing-skilled` is
+// `smithing-gunpowder`, which carries it as a requiredTag, so anybody further
+// up the ladder holds it already.
+export function mayCustomize(tag, heldSlugs) {
+  if (!tag?.customizable) return false;
+  if (!tag.customizableSkillSlug) return true;
+  return Boolean(heldSlugs?.has(tag.customizableSkillSlug));
+}
+
 // The displayed name always carries the base identity — "Steak Dinner
 // (Lavish Meal)" — so every surface (sheet, trades, 🔍 inspect, hovercards)
 // says what the thing IS with no per-surface work, and a custom name can

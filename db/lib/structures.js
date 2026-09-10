@@ -34,6 +34,10 @@ function placementOf(tag) {
     examine: typeof p.examine === "string" ? p.examine : null,
     defenseNote: typeof p.defenseNote === "string" ? p.defenseNote : null,
     laborBonus: p.laborBonus ?? null,
+    locations: Array.isArray(p.locations) ? p.locations : [],
+    yields: p.yields ?? null,
+    birdSendsPerDay: p.birdSendsPerDay ?? null,
+    music: p.music ?? null,
     provides: Array.isArray(p.provides) ? p.provides : [],
     inscribable: p.inscribable === true,
   };
@@ -71,14 +75,37 @@ async function structuresAt(prisma, locationId, { statuses = null } = {}) {
 // and the `noBuild` attribute for the genuine one-offs the registry names
 // (the Depot, the Lifeweb's ground). `location` needs
 // { indoors, attributes, zone: { kind } }.
-function canBuildHere(location) {
+function canBuildHere(location, placement = null) {
   if (!location) return { ok: false, reason: "You can't build here." };
   // Cave first: the cave levels are also authored `indoors: true`, and the
   // underground refusal is the truer sentence for them.
   if (location.zone?.kind === "CAVE_LEVEL") {
     return { ok: false, reason: "Nothing can be built down here." };
   }
-  if (location.indoors) {
+  // The per-TYPE gate, and the only rule here that needs to know what is
+  // being raised — everything above and below is a fact about the ground
+  // alone. Passing no placement asks the ground question only, which is what
+  // the sheet's "is there anywhere to build" flag wants and what every caller
+  // written before this key did by default.
+  const sites = placement?.locations ?? [];
+  if (sites.length && !sites.includes(location.slug)) {
+    return { ok: false, reason: "That belongs somewhere else. ‡" };
+  }
+  // A NAMED SITE SATISFIES THE INDOORS DEFAULT, and this is the one rule here
+  // worth arguing about. "You can't build indoors" is a blanket answer for a
+  // type that names nowhere — you do not raise a palisade in the Cathedral's
+  // nave, and nothing in the catalog said otherwise. But a type whose
+  // `locations` list names exactly where it may stand has already had that
+  // judgement made for it, by the person who wrote the list. The Brewery is
+  // the case that forced the question: it belongs at the Old Cock Inn,
+  // pouring into the cellar underneath, and the inn is `indoors: true`.
+  //
+  // The bypass is deliberately narrow. It covers the indoors DEFAULT only —
+  // the cave refusal above and `noBuild` below both stand whatever a type
+  // claims, because those two name real one-off ground (no #summary
+  // underground for anything to announce into; the Depot and the Lifeweb's
+  // own floor) rather than a general habit.
+  if (location.indoors && !sites.length) {
     return { ok: false, reason: "You can't build indoors." };
   }
   if (hasAttribute(location, "noBuild")) {

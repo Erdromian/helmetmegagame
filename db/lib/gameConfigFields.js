@@ -169,6 +169,22 @@ const INTERNAL_KEYS = [
   "leaderWhitelistEnabled",
   "portraitMakerEnabled",
   "portraitFantasyPartsEnabled",
+  // The Oracle (docs/systemdocs/ORACLE.md). Edited from its own section at
+  // /gm/dev?s=oracle, never from the generic Configuration form: the registry
+  // has no field type for a textarea, and rendering an API key as a text box
+  // would put a live credential on screen. See web/app/(app)/gm/dev/oracleActions.js.
+  "oracleEnabled",
+  "oraclePlaytest",
+  "oracleProvider",
+  "oracleBaseUrl",
+  "oracleModel",
+  "oracleApiKey",
+  "oracleApiKeySetAt",
+  "oracleApiKeySetBy",
+  "oracleMemoryTurns",
+  "oracleIncludeChat",
+  "oracleCorrespondentPrompt",
+  "oracleEditorPrompt",
 ];
 
 function fieldsInGroup(groupKey) {

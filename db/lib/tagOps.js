@@ -8,7 +8,7 @@
 // a stable address. Op shapes: DEV-PANEL.md §5. Every function takes a
 // transaction client (`tx`), so a caller composes them into its own.
 
-const { findEquipProblem } = require("./equipSlots");
+const { HANDS_TAG_FIELDS, findEquipProblem, handsFor, shedForHands } = require("./equipSlots");
 const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { rollTagChain } = require("./tagShapes");
 const { expiryForGrant } = require("./grantExpiry");
@@ -58,6 +58,16 @@ async function expiresTurnFor(tx, op, tag, openTurn, characterId) {
   // because openTurn is null for the whole of a turn advance (and for hours
   // after a wedged one); see db/lib/grantExpiry.js.
   return expiryForGrant(tx, tag, openTurn, { characterId, where: "tagOps" });
+}
+
+// How many hands this character has right now. Read from everything HELD,
+// never from what is worn: nobody wears a missing arm.
+async function handsInTx(tx, characterId) {
+  const held = await tx.characterTag.findMany({
+    where: { characterId, quantity: { gt: 0 } },
+    select: { tag: { select: HANDS_TAG_FIELDS } },
+  });
+  return handsFor(held);
 }
 
 // Applies staged tag changes inside a transaction. Order is load-bearing:
@@ -183,8 +193,44 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn }) {
         tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } },
       },
     });
-    const problem = findEquipProblem(worn);
+    const problem = findEquipProblem(worn, await handsInTx(tx, characterId));
     if (problem) throw new TagOpError(problem);
+  }
+
+  // A maiming SHEDS rather than refuses.
+  //
+  // This is deliberately OUTSIDE the equip block above, and that is the whole
+  // point: taking somebody's arm off carries no equip op, so anything living
+  // in there never ran for it. And refusing the grant instead — which is what
+  // the check above would have done — is the tail wagging the dog: you cannot
+  // cut a man's arm off because his hands are full.
+  //
+  // db/lib/carry.js#settleCarry already takes this line when a payout lands on
+  // somebody who cannot hold it. The player's own toggle still refuses
+  // (equipActions.js), because reaching for a fifth weapon is a choice.
+  const touched = [...new Set([...removes, ...adds].map((o) => o.tagId).filter(Boolean))];
+  if (touched.length) {
+    // One cheap count before the two real queries, and read from the database
+    // rather than from `tagsById` — a caller that built that map with a narrow
+    // select would otherwise turn this into a silent no-op.
+    const maimings = await tx.tag.count({ where: { id: { in: touched }, handsLost: { not: null } } });
+    if (maimings) {
+      const hands = await handsInTx(tx, characterId);
+      const worn = await tx.characterTag.findMany({
+        where: { characterId, equippedQuantity: { gt: 0 } },
+        select: {
+          id: true,
+          equippedQuantity: true,
+          tag: { select: { name: true, equipSlot: true, twoHanded: true } },
+        },
+      });
+      for (const row of shedForHands(worn, hands)) {
+        await tx.characterTag.update({
+          where: { id: row.id },
+          data: { equipped: false, equippedQuantity: 0 },
+        });
+      }
+    }
   }
 
   return applied;

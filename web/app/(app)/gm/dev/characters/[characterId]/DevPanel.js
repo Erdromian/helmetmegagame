@@ -1,6 +1,6 @@
 "use client";
 
-import { WEAPON_HANDS, handsUsed } from "@lifeweb/db/lib/equipSlots";
+import { handsFor, handsUsed } from "@lifeweb/db/lib/equipSlots";
 import { CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
@@ -435,6 +435,8 @@ function StateStrip({
   // (db/lib/equipSlots.js). The layered slots refuse on their own. handsUsed
   // expands each row by its own equippedQuantity, matching `equipped` above.
   const hands = handsUsed(held.filter((h) => h.equippedQuantity > 0));
+  // The cap this character actually has — a maiming takes hands away.
+  const handCap = handsFor(held);
   // Point-bought drawbacks only, matching the ceilings PointBuy enforces — a
   // GM-inflicted wound is not one of the player's tags. Shown as a fact, not
   // a limit: a GM grant deliberately ignores every gate, these included.
@@ -480,7 +482,7 @@ function StateStrip({
       [
         ["Resources", `${staged.resources} ⬢`],
         ["Tag points", <TagPointsValue key="tp" points={staged.tagPoints} />],
-        ["Equipped", `${equipped} · ${hands} / ${WEAPON_HANDS} hands`],
+        ["Equipped", `${equipped} · ${hands} / ${handCap} hands`],
         [
           "Drawbacks",
           <span key="db" className={overDrawbackCap ? "text-danger" : undefined}>

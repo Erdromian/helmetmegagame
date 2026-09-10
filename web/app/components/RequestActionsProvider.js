@@ -84,6 +84,10 @@ export default function RequestActionsProvider({
   // menu hygiene — openBuildSiteImpl re-checks each refusal.
   sitesHere = [],
   buildable = false,
+  // The Location's own slug, for the per-type site gate
+  // (Tag.placement.locations). Null just means the gate is left to the
+  // server — placementOfferedHere fails open on it.
+  locationSlug = null,
   // Lessons (LESSONS.md): who could teach you what, and whom you could teach.
   canTeach = false,
   teachers = [],
@@ -224,9 +228,9 @@ export default function RequestActionsProvider({
         // A placement you could not raise on this ground is dropped rather
         // than offered and refused.
         .filter((t) =>
-          placementOfferedHere(t, { buildable, sites: sitesHere }),
+          placementOfferedHere(t, { buildable, sites: sitesHere, locationSlug }),
         ),
-    [catalog, heldIds, knownRecipeIds, gateById, buildable, sitesHere],
+    [catalog, heldIds, knownRecipeIds, gateById, buildable, sitesHere, locationSlug],
   );
   const removable = useMemo(
     () => destroyableTags(characterTags),
