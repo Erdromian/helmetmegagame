@@ -144,7 +144,7 @@ export default function OracleDesk({
     <>
       <header className="desk-header">
         <h1 className="section-title">Oracle</h1>
-        <div className="flex items-center gap-2">
+        <div className="field">
           <label className="field-label" htmlFor="oracle-turn">
             Turn
           </label>
@@ -164,10 +164,18 @@ export default function OracleDesk({
       </header>
 
       <div className="desk-body">
+        {/* .desk-queue-row, the same rail row /gm/turns and /gm/players use —
+            this rail is the same tool as theirs and should look it. It used to
+            reach for .desk-card, which is the WIDE READING CARD for the main
+            column: max-width 52rem and margin 0 auto, so in a narrow rail every
+            row centred itself into a rounded bubble instead of filling the
+            width. The active row is data-active here rather than a border, so
+            it wears the inset accent bar the other two desks use. */}
         <aside className="desk-rail">
           <button
             type="button"
-            className={`desk-card ${selectedKey === FRONT_PAGE ? "is-selected" : ""}`}
+            className="desk-queue-row"
+            data-active={selectedKey === FRONT_PAGE ? "true" : "false"}
             onClick={() => select(FRONT_PAGE)}
           >
             Front page
@@ -179,7 +187,8 @@ export default function OracleDesk({
               <button
                 key={zone.id}
                 type="button"
-                className={`desk-card ${selectedKey === zone.slug ? "is-selected" : ""}`}
+                className="desk-queue-row flex items-center justify-between gap-2"
+                data-active={selectedKey === zone.slug ? "true" : "false"}
                 onClick={() => select(zone.slug)}
               >
                 <span>{zone.name}</span>
