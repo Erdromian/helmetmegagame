@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A forger can copy the Merchant’s stamp too
+
+✎ The Merchant’s Wax Stamp was the one office stamp a Forger could not make. Now they all are
+
 ## 2026-09-10 · Anyone can work the Factory floor, skill or no skill
 
 ✎ A Laboring skill is no longer needed to Labor — without one the day earns nothing, and the readouts show a dash instead of a range  

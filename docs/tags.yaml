@@ -11461,6 +11461,17 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    # Forgeable like the other eight. It was the one stamp the 2026-09-08 pass
+    # missed, because the comment above it separates this block from the run
+    # the six new lines were pasted down. A forger copying an unreadable smudge
+    # is fine: the mark is written at creation, so a forgery made before there
+    # is a Merchant is as blank as his own.
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 2
+      skills: [forger]
+      gambit: false
 
   coffee:
     catalog: gm
