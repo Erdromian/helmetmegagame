@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A full browser cache can no longer stop a GM typing
+
+✎ Typing to a player no longer stops working when the browser's storage fills up
+
 ## 2026-09-10 · The Oracle cannot write half a page any more
 
 ✎ A page that runs past its length limit is now an error rather than a page that quietly stops mid-sentence and reads as the whole account of the turn  
