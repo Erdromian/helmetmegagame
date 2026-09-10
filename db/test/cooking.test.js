@@ -105,6 +105,66 @@ test("every slug a cooked block grants must exist", () => {
   );
 });
 
+// --- cooked.cures (the medical hand-off, COOKING.md §5) --------------------
+
+test("cooked.cures is opt-in, stored only when true", () => {
+  // Absent and false are the same claim, so only true is written out — a
+  // column of `cures: false` across fifty blocks that will never carry a
+  // cure is noise.
+  assert.equal("cures" in cook({ taste: "x", mood: 0 }), false);
+  assert.equal("cures" in cook({ taste: "x", mood: 0, cures: false }), false);
+  assert.equal(cook({ taste: "medicine", mood: 15, cures: true }).cures, true);
+});
+
+test("cooked.cures must be a boolean, not a list of cures", () => {
+  // The near-miss worth catching: it says WHETHER this ingredient's own
+  // cures survive the pot, never WHICH — the cures themselves live on
+  // Tag.cures and are the medical pass's to author.
+  assert.throws(() => cook({ taste: "x", mood: 0, cures: ["poisoned"] }), /must be true or false/);
+});
+
+test("a cure a doctor has to fit does not travel in a stew", () => {
+  // administerSkill is exactly the set of cures somebody puts ON or INTO a
+  // patient — the prosthetics, the autoinjectors. Cooking a wooden leg into
+  // dinner ruins the dinner.
+  const c = cook({ taste: "wood", mood: -20, cures: true }, "wooden-leg");
+  assert.throws(
+    () =>
+      validateCooked(c, {
+        selfSlug: "wooden-leg",
+        tagSlugs: new Set(),
+        entry: { cures: ["missing-leg"], administerSkill: "medical-expert" },
+      }),
+    /does not travel in a stew/,
+  );
+});
+
+test("cooked.cures on something that cures nothing is a slip", () => {
+  const c = cook({ taste: "onions", mood: 5, cures: true }, "onion");
+  assert.throws(
+    () => validateCooked(c, { selfSlug: "onion", tagSlugs: new Set(), entry: {} }),
+    /cures nothing/,
+  );
+});
+
+test("a drunk tonic opts in cleanly", () => {
+  const c = cook({ taste: "medicine", mood: 15, cures: true }, "white-honey");
+  assert.doesNotThrow(() =>
+    validateCooked(c, {
+      selfSlug: "white-honey",
+      tagSlugs: new Set(),
+      entry: { cures: ["poisoned", "envenomated", "phrygian-toxin"] },
+    }),
+  );
+});
+
+test("an ingredient that never opts in is validated as before", () => {
+  // No `entry` at all is still legal — the body parts and every ordinary
+  // ingredient reach validateCooked with nothing to say about cures.
+  const c = cook({ taste: "leeches", mood: -10 }, "leeches");
+  assert.doesNotThrow(() => validateCooked(c, { selfSlug: "leeches", tagSlugs: new Set() }));
+});
+
 // --- ingredientSlots ------------------------------------------------------
 
 const slots = (s, slug = "lavish-meal") => normalizeIngredientSlots(s, { slug });

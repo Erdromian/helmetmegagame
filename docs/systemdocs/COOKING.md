@@ -115,20 +115,56 @@ nothing happens, which is a real answer rather than a missing one.
 consumable at all and carry `cooked` blocks: nobody gnaws a raw hand, and a
 hand in a stew is very much a thing that can happen.
 
-## 5. Deferred: medical consumables
+## 5. Medicine in a stew
 
-**If you are here from the medical rework: you probably need to do nothing.**
+Half of this needed no hook and half of it did. The half that did is the more
+interesting one, so it goes first.
+
+### `cooked.cures` — the opt-in
+
+The medical pass put cures on their own `Tag.cures` column rather than on
+`consumesInto`, and a separate column travels nowhere by itself. So an
+ingredient's cures ride through the pot only when the ingredient says so:
+
+```yaml
+white-honey:
+  cooked:
+    taste: "medicine"
+    mood: 15
+    cures: true
+```
+
+Default is **off**, because not every cure is swallowed. A tonic somebody
+drinks works in a stew; something injected, applied or strapped on does not,
+and cooking one into dinner ruins the dinner and cures nothing.
+
+| Rides through the pot | Does not |
+|---|---|
+| White Honey, Antidote, Fever Draught, Purifier, Antibiotics, Forgiveness | Burn Dressing, Leeches, Cleaning Powder, the two autoinjectors, all six prosthetics |
+
+`db/lib/tagShapes.js#validateCooked` refuses the two shapes that are always
+authoring slips: `cures: true` on a tag carrying `administerSkill` (that whole
+column is cures a doctor *fits*), and `cures: true` on a tag that cures
+nothing. `mergeDishCures` in `web/lib/cooking.js` does the union, and
+`curesInto` — the aftermath a cure leaves — merges beside it, last ingredient
+winning a collision.
+
+A **dish never carries cures of its own.** A Fine Meal is a minted custom
+craft off a recipe with no cure on it; the ingredients are the only place one
+can come from.
+
+### `into` — the half that was free
 
 White Honey, Mercy, Poppy, the Cat and the rest carry a `taste` and a `mood`
 and **no `into`**, deliberately. They therefore contribute their own live
 `consumesInto`, read at the moment somebody eats the dish rather than frozen
-in when it was cooked. Whatever the medical PR makes a medicine do, it does
-in a stew too — for every dish already sitting in every pocket, on the next
-bite, with no re-mint, no backfill and no code here.
+in when it was cooked. Whatever the medical pass makes a medicine *grant*, it
+grants in a stew too — for every dish already sitting in every pocket, on the
+next bite, with no re-mint, no backfill and no code here.
 
-That is the whole reason effects are derived late (§6). If the medical rework
-adds a *new* medical consumable, give it a `cooked:` block with a taste and a
-mood and leave `into` alone.
+That is the whole reason effects are derived late (§6). A *new* medical
+consumable wants a `cooked:` block with a taste and a mood, `into` left alone,
+and `cures: true` only if it is a thing you drink.
 
 ## 6. Eating one
 
@@ -144,10 +180,15 @@ mood and leave `into` alone.
    is how the drinking ladder resolves against a rung the same swallow just
    granted. Two calls would each resolve against a stale sheet and
    double-grant.
-3. `applyHiddenCures` for the meal **and each ingredient**, so a pie made with
-   leeches still takes the bruise off.
-4. Mood (§7).
-5. Return `{ line }` — the taste sentence.
+3. `mergeDishCures` unions the `cures` of every ingredient that opted in with
+   `cooked.cures: true` (§5), and the medical pass's cure loop reads that
+   merged list rather than the dish row's own.
+4. `applyHiddenCures` for the meal **and each ingredient**, so a pie made with
+   leeches still takes the bruise off. (Hidden cures are a separate, older
+   mechanism from `Tag.cures` — `db/lib/hiddenCures.js` — and they need no
+   opt-in.)
+5. Mood (§7).
+6. Return `{ line }` — the taste sentence.
 
 ## 7. Mood
 

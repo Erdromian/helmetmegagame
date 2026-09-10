@@ -11294,14 +11294,25 @@ tags:
   # of the rest) do, it does in a stew too — for every dish already sitting in
   # every pocket, on the next bite, with no re-mint and no code.
   #
-  # So: if you are here from the medical PR looking for the cooking hook,
-  # there isn't one and you probably need to do nothing. Change
-  # `consumesInto` as you were going to. Only two things need a thought:
+  # THE CURES ARE THE HALF THAT NEEDED A HOOK. This note used to say the
+  # medical pass could do nothing at all, and that was written before it
+  # existed: it put cures on their own `Tag.cures` column rather than on
+  # `consumesInto`, and a separate column travels nowhere by itself. So a
+  # cure rides into a stew only when the ingredient opts in:
   #
-  #   - A NEW medical consumable wants a `cooked:` block of its own — a
-  #     taste and a mood. Leave `into` out.
-  #   - A medicine whose COOKED effect should differ from its raw one is the
-  #     only case that needs `into`, and it is the exception, not the rule.
+  #     cooked:
+  #       cures: true
+  #
+  # Default off, because not every cure is swallowed. Write it on a tonic
+  # somebody drinks — White Honey, Antidote, Fever Draught, Purifier,
+  # Antibiotics, Forgiveness. Leave it off anything injected, applied or
+  # strapped on: a Burn Dressing, Leeches, Cleaning Powder, an autoinjector,
+  # a prosthetic. Those cure a person, not a stew.
+  #
+  # So, for a NEW medical consumable: give it a `cooked:` block with a taste
+  # and a mood, leave `into` out, and add `cures: true` only if it is a thing
+  # you drink. A medicine whose COOKED effect should differ from its raw one
+  # is the only case that needs `into`, and it is the exception, not the rule.
   #
   # The mood on these is 0 on purpose: a tonic contributes its effect and no
   # mood, because you do not enjoy or resent a taste you are being drugged
@@ -11715,8 +11726,10 @@ tags:
     sellablePrice: 6
     # MEDICAL REWORK: `into` is deliberately unauthored. This contributes
     # White Honey's own consumesInto, read when somebody eats the dish — so
-    # whatever the medical PR makes this cure, it cures in a stew too, with no
-    # change here. See db/lib/tagShapes.js#normalizeCooked.
+    # whatever the medical PR makes this GRANT, it grants in a stew too, with
+    # no change here. Its `cures` list is the half that needs the opt-in
+    # below: honey is drunk, so it takes the poison off in a stew as well.
+    # See db/lib/tagShapes.js#normalizeCooked.
     cooked:
       taste: "medicine"
       mood: 15

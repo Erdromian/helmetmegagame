@@ -14,11 +14,12 @@
 //   that omits `into` simply contributes its own. A deep morel is nausea raw
 //   and dinner in a stew.
 //
-//   A FREE HAND-OFF TO THE MEDICAL REWORK. Nothing here names a medicine.
-//   When that PR changes what White Honey's `consumesInto` does, every dish
-//   already sitting in somebody's pocket does the new thing on the next bite
-//   — no re-mint, no backfill, no code. If you are merging it and hunting for
-//   the cooking hook: there isn't one, and that is the design.
+//   A HAND-OFF TO THE MEDICAL REWORK, half of it free. When that pass changes
+//   what White Honey's `consumesInto` does, every dish already sitting in
+//   somebody's pocket does the new thing on the next bite — no re-mint, no
+//   backfill, no code. Its CURES are the half that needed wiring, because
+//   they live on their own `Tag.cures` column rather than on consumesInto,
+//   and a separate column travels nowhere by itself. See mergeDishCures.
 //
 //   TUNING. An ingredient's mood is a number in docs/tags.yaml. Changing it
 //   changes every dish ever made with it, including the ones already cooked.
@@ -95,6 +96,43 @@ export function mergeDishGrants(mealTag, ingredientTags = []) {
     // A dish never pays out ⬢ — that is the Purse and the Supply Kit, and an
     // ingredient's Resources half has no business surviving the pot.
     consumesIntoResources: null,
+  };
+}
+
+// What a dish CURES, and what it leaves behind — the medical pass's
+// `Tag.cures` / `Tag.curesInto`, unioned across the ingredients the same way
+// the grants above are.
+//
+// The one difference from the grants, and it is the whole rule: an
+// ingredient's cures ride through the pot only if the ingredient says so with
+// `cooked.cures: true`. Not every cure is swallowed. White Honey and an
+// Antidote are drunk and work in a stew; a Burn Dressing, Leeches, an
+// autoinjector and a wooden leg are put ON somebody, and cooking one into
+// dinner ruins the dinner and cures nothing. Opting in per ingredient keeps
+// that a decision an author makes rather than a guess this file makes, and
+// db/lib/tagShapes.js#validateCooked refuses the combination that is always
+// a slip — `cures: true` on something carrying `administerSkill`.
+//
+// The DISH's own row never carries cures: a Fine Meal is a minted custom
+// craft off a recipe with no cure of its own, and its ingredients are the
+// only place a cure can come from.
+//
+// `curesInto` is the aftermath a cure leaves — the medical pass reads the
+// item's override first and the cured tag's own `removesInto` second. Merged
+// last-wins on a collision, which only happens if a cook slots two things
+// that both cure the same wound into different aftermaths, and either answer
+// is defensible there.
+export function mergeDishCures(mealTag, ingredientTags = []) {
+  const cures = new Set(mealTag?.cures ?? []);
+  const curesInto = { ...(mealTag?.curesInto ?? {}) };
+  for (const ing of ingredientTags) {
+    if (!ing?.cooked?.cures) continue;
+    for (const slug of ing.cures ?? []) cures.add(slug);
+    Object.assign(curesInto, ing.curesInto ?? {});
+  }
+  return {
+    cures: [...cures],
+    curesInto: Object.keys(curesInto).length ? curesInto : null,
   };
 }
 

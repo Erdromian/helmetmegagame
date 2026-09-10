@@ -508,12 +508,27 @@ const COOKED_TASTE_MAX = 40;
 //       mood: 28
 //       into: [nauseous]        # optional — see below
 //
-// IF YOU ARE HERE FROM THE MEDICAL REWORK: there is no cooking hook, and that
-// is the design. `into` is optional, and omitting it means "contribute my own
-// `consumesInto`", looked up when somebody eats the dish rather than frozen
-// in when it was cooked — so changing what a medicine does changes what it
-// does in a stew, for every dish already in every pocket, with no code here.
-// Give a NEW medical consumable a taste and a mood, and leave `into` alone.
+// IF YOU ARE HERE FROM THE MEDICAL REWORK: `into` needs no hook and never
+// did — omitting it means "contribute my own `consumesInto`", looked up when
+// somebody eats the dish rather than frozen in when it was cooked, so
+// changing what a medicine does changes what it does in a stew, for every
+// dish already in every pocket, with no code here.
+//
+// `cures` is the half that DOES need a hook, because the medical pass put
+// cures on their own `Tag.cures` column rather than on `consumesInto`, and
+// nothing about a separate column travels for free. It is opt-in per
+// ingredient and defaults to OFF, because not every cure is swallowed:
+//
+//     cooked:
+//       taste: "medicine"
+//       mood: 15
+//       cures: true             # this one is drunk, so it works in a stew
+//
+// Write `cures: true` on a tonic somebody drinks — White Honey, Antidote,
+// Fever Draught, Purifier, Antibiotics, Forgiveness. Leave it off anything
+// injected, applied or strapped on: a Burn Dressing, Leeches, Cleaning
+// Powder, an autoinjector, a prosthetic. Those cure a person, not a stew,
+// and cooking one into dinner should do nothing but ruin the dinner.
 // COOKING.md §4-5 has the reasoning and the raw-vs-cooked table.
 //
 // `into` is parsed by the caller's own consumesInto normalizer (passed in as
@@ -565,7 +580,16 @@ function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml"
     );
   }
   const into = cooked.into == null ? null : normalizeInto(cooked.into);
-  return { taste: taste.trim(), mood, into };
+  // Opt-in, and stored only when true — an absent key and `cures: false` are
+  // the same claim, so writing the false out would put a column of noise in
+  // every one of the fifty-odd blocks that will never carry a cure.
+  if (cooked.cures != null && typeof cooked.cures !== "boolean") {
+    throw new Error(
+      `${label}: tag "${slug}" cooked.cures must be true or false — it says whether this ingredient's OWN cures list survives the pot, not which cures`,
+    );
+  }
+  const cures = cooked.cures === true;
+  return { taste: taste.trim(), mood, into, ...(cures ? { cures: true } : {}) };
 }
 
 // `cooked` deliberately does NOT require `consumable`. Being cookable and
@@ -580,8 +604,26 @@ function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml"
 // you can put one in your mouth and the game lets you, and then nothing
 // happens — and it keeps "nothing happened" a real answer rather than a
 // missing one.
-function validateCooked(normalized, { selfSlug, tagSlugs, label = "docs/tags.yaml" }) {
+function validateCooked(normalized, { selfSlug, tagSlugs, entry: tagEntry, label = "docs/tags.yaml" }) {
   if (!normalized) return;
+  // `cures: true` says "what I cure, I cure through the pot". Two shapes make
+  // that a nonsense claim and both are authoring slips rather than choices:
+  // a tag with nothing to cure, and a tag whose cure has to be FITTED. The
+  // second is the one worth a hard refusal — `administerSkill` is exactly the
+  // set of cures a doctor puts on or into somebody (the prosthetics, the
+  // autoinjectors), and none of those is a thing you eat.
+  if (normalized.cures) {
+    if (tagEntry && tagEntry.administerSkill) {
+      throw new Error(
+        `${label}: tag "${selfSlug}" is cooked.cures true and carries administerSkill — a cure a doctor has to fit or inject does not travel in a stew`,
+      );
+    }
+    if (tagEntry && !(tagEntry.cures ?? []).length) {
+      throw new Error(
+        `${label}: tag "${selfSlug}" is cooked.cures true but cures nothing — drop the line`,
+      );
+    }
+  }
   for (const entry of normalized.into ?? []) {
     for (const target of entry.oneOf ?? [entry.slug]) {
       if (!tagSlugs?.has(target)) {
