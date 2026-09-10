@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Incarn may be styled Brother
+
+✎ The Incarn is a warrior monk, so the role now earns the monk's title — Brother, Sister or Sibling, whichever their gender picks — the same word the Mortii already wear
+
 ## 2026-09-10 · The Oracle page fills the screen again
 
 ✎ The Oracle's three columns each scroll on their own now, so the page stops ending halfway down with dead space under it  
