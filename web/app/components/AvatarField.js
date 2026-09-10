@@ -79,11 +79,11 @@ export default function AvatarField({
           </button>
         )}
         {forcedIdentity ? null : uploadsEnabled ? (
-          // The GM approval this promises is a conversation, not a queue: the
-          // picture lands immediately and a GM can reset it. Saying so on the
-          // button is the whole enforcement, deliberately.
+          // The picture lands immediately; a GM sees it on the Other lens and
+          // keeps or rejects it (PORTRAITS.md §1a). The line says both may
+          // happen rather than promising a gate that isn't there.
           <HoverCard
-            panel="Requires GM approval, run your art by the GM."
+            panel="Your image may be approved or denied."
             // .tag-hover forces --font-mono, which is data-only per
             // DESIGN-SYSTEM.md §1 and wrong on a button label. Every other
             // HoverCard wraps a chip or a glyph, where mono is correct; this

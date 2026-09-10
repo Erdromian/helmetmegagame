@@ -1,8 +1,8 @@
 // Which uploaded portraits are still waiting on a GM.
 //
 // WHAT A FAILURE HERE MEANS. A player can put any image they like on their
-// character, and the only thing standing behind the "Requires GM approval"
-// note on the Browse control is this queue (docs/systemdocs/PORTRAITS.md §1a).
+// character, and the only thing standing behind the "may be approved or
+// denied" note on the Browse control is this queue (PORTRAITS.md §1a).
 // A predicate that is too narrow does not show an error — it shows an EMPTY
 // queue, which reads exactly like "nothing to review". The two ways to get
 // that wrong are both asserted below: dropping the never-reviewed rows, and

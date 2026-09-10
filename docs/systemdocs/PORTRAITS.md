@@ -29,9 +29,13 @@ from before the last rename or portrait change.
 They are independent. With uploads off and no picture on file, the field
 reads "Using your letter plaque", exactly as it did before this existed.
 
-**Browse carries a hover note reading "Requires GM approval, run your art by
-the GM."** There is now a queue behind that sentence — see §1a. The upload
-still lands immediately; what changed is that a GM can see it and take it down.
+**Browse carries a hover note reading "Your image may be approved or
+denied."** There is a queue behind that sentence — see §1a. The upload lands
+immediately either way; what the note promises is that somebody looks at it
+afterwards, which is what actually happens. It used to read "Requires GM
+approval, run your art by the GM", which described a gate the code does not
+have: nothing waits on a GM, and a player who read it literally would think
+their face was not live yet.
 
 **Reset to Default** clears `avatarData`, `avatarMimeType`, `portrait` and
 `avatarSetAt`, and that is all it does. The timestamp goes with the picture:

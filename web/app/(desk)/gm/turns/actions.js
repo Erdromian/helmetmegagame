@@ -1142,8 +1142,8 @@ async function undoCavingFindImpl({ rollId }) {
 
 // ─── The uploaded-portrait queue (docs/systemdocs/PORTRAITS.md §1a) ─────────
 //
-// The Browse control has always told players "Requires GM approval, run your
-// art by the GM". These two are what stands behind that sentence. The picture
+// The Browse control tells players "Your image may be approved or denied."
+// These two are what stands behind that sentence. The picture
 // is live from the moment it is saved — Keep and Reject decide whether it
 // stays, they do not gate it.
 //

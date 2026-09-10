@@ -3,9 +3,9 @@
 // A player can upload any image they like as their character's face. The
 // upload is capped at 5MB and re-encoded through sharp to a 256×256 WebP,
 // which guarantees valid image bytes and strips metadata — and says nothing at
-// all about what the picture IS. The Browse control has always carried the
-// note "Requires GM approval, run your art by the GM"; this is the half that
-// was missing behind it (docs/systemdocs/PORTRAITS.md §1a).
+// all about what the picture IS. The Browse control carries the note "Your
+// image may be approved or denied."; this is the half that stands behind it
+// (docs/systemdocs/PORTRAITS.md §1a).
 //
 // ONLY UPLOADS. The portrait maker never posts pixels — it posts part and
 // palette indices that are re-rendered server-side from the committed sprite
