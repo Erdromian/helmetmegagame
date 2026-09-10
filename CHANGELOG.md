@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Two performing Desires repriced
+
+✎ Perform for at least 5 people is worth 2 points now, not 3, and comes back after 4 turns instead of 3  
+✎ Perform for at least 15 people asks for 20 now, and can only be claimed once ever  
+− The Prospector's Pick claiming to be good for breaking rock or worrying at a lock
+
 ## 2026-09-10 · A kiss is nobody else's business
 
 − The line the room used to hear when two people kissed. Nobody is told now but the two of them
