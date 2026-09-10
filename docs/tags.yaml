@@ -5623,15 +5623,17 @@ tags:
     sellable: true
     sellablePrice: 5
 
-  # Coal and a forge turn folded into a usable ingot, same shape as
-  # {tag:black-powder} below: priced at cost, resourceCost (14) over a 4-⬢
+  # Coal and a spell at the forge folded into a usable ingot, same shape as
+  # {tag:black-powder} below: priced at cost, resourceCost (4) over a 4-⬢
   # coal, no smith's margin baked in. Gated at plain smithing rather than
   # Skilled — smelting ore is basic forge work, it's shaping it into
   # {tag:katana}/{tag:rapier}/{tag:brigandine}/{tag:plate-armor} that needs
-  # the higher skill. Each of those recipes lost 1 turn and 18 ⬢ of
-  # resourceCost (2026-09-09) — the turn this recipe now spends instead, and
+  # the higher skill. It runs under the Simple rung's Turns column at
+  # `turnsCost: 1/3` for the same reason the Spear and the Silver Knife do
+  # (SMITHING.md §1) — an ingot is not a day at the anvil, and three fit in
+  # one Routine. Each of those four recipes subtracts 8 ⬢ (2026-09-10):
   # steel's own sellablePrice, the "value" DEPOT.md §3-§4 says an ingredient
-  # subtracts at. Numbers are drafted, not signed off.
+  # comes off at. Numbers are drafted, not signed off.
   steel:
     catalog: all
     name: Steel
@@ -5647,14 +5649,14 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
-      resourceCost: 14
+      turnsCost: 1/3
+      resourceCost: 4
       skills: [smithing]
       gambit: false
       items: [coal]
-    depotPrice: 30
+    depotPrice: 13
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 8
 
   # Refined saltpeter, and the one ingredient that is itself CRAFTED — the
   # gunpowder smith's intermediate step on the way to a {tag:bomb}. Public
@@ -5931,7 +5933,8 @@ tags:
   # A whole haul, sorted rather than raw — one Coal, one Silver, one Steel
   # already smelted, bundled the way the Depot's own crates are (`DEPOT.md`
   # §0e), not picked apart one seam at a time. Priced at the sum of its
-  # contents, same convention as Ore Chunk above (Bascinet, 2026-09-10).
+  # contents (4 + 5 + 8), same convention as Ore Chunk above (Bascinet,
+  # 2026-09-10).
   ore-package:
     catalog: all
     name: Ore Package
@@ -5946,7 +5949,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 27
+    sellablePrice: 17
     consumable: true
     consumesInto:
       - coal
@@ -6527,12 +6530,13 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    # Half of what's inside (40 ⬢, see docs/labordrops.yaml's LOCKBOX_CONTENTS_VALUES)
+    # Half of what's inside (30 ⬢ — the sum of {tag:overspill-spoils}'s own
+    # consumesInto list, repriced 2026-09-10 when steel dropped to 8)
     # — a locked box is worth less to sell whole than to actually open, on
     # purpose, so selling it unpicked is a real but lesser option rather than
     # a way to skip the lock entirely (Bascinet, 2026-09-10).
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 15
 
   overspill-spoils:
     catalog: gm
@@ -6617,9 +6621,9 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    # Half of what's inside (51 ⬢) — see overspill-lockbox's own note above.
+    # Half of what's inside (41 ⬢) — see overspill-lockbox's own note above.
     sellable: true
-    sellablePrice: 26
+    sellablePrice: 21
 
   waterlogged-spoils:
     catalog: gm
@@ -8705,11 +8709,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
-      # {tag:steel} joined 2026-09-09: 1 turn and 18 ⬢ of the old 2-turn,
-      # 26 ⬢ recipe moved into steel's own recipe instead.
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
       items: [steel]
     sellable: true
     sellablePrice: 42
@@ -8760,11 +8765,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
-      # {tag:steel} joined 2026-09-09: 1 turn and 18 ⬢ of the old 2-turn,
-      # 26 ⬢ recipe moved into steel's own recipe instead.
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
       items: [steel]
     sellable: true
     sellablePrice: 42
@@ -13457,10 +13463,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 18
       skills: [smithing-skilled]
-      # {tag:steel} joined 2026-09-09: 1 turn and 18 ⬢ of the old 2-turn,
-      # 26 ⬢ recipe moved into steel's own recipe instead.
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
       items: [steel]
     sellable: true
     sellablePrice: 42
@@ -13535,10 +13542,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 16
+      resourceCost: 26
       skills: [smithing-skilled]
-      # {tag:steel} joined 2026-09-09: 1 turn and 18 ⬢ of the old 3-turn,
-      # 34 ⬢ recipe moved into steel's own recipe instead.
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 3-turn, 34 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
       items: [steel]
     sellable: true
     sellablePrice: 61

@@ -186,7 +186,7 @@ laborType:
     requiresTag:
       keen-eye:  # ⬢ EV/labor 5.53 · hit 78%
         4:  # own EV 18.00 ⬢ · hit 100% · combined EV 11.00 ⬢ · hit 100%
-          - steel  # you spot the good ground — sells 18 ⬢
+          - steel  # you spot the good ground — sells 8 ⬢
         5:  # own EV 27.00 ⬢ · hit 100% · combined EV 14.33 ⬢ · hit 100%
           - ore-package  # sorted and ready for the forge — sells 27 ⬢
         6:  # own EV 9.00 ⬢ · hit 100% · combined EV 6.17 ⬢ · hit 100%
@@ -435,7 +435,7 @@ laborTypeZone:
         - silver  # a real vein down here, same as the one at Chasm — sells 5 ⬢
         - cleaning-powder  # sells 4 ⬢
         - knuckle-duster  # sells 21 ⬢
-        - steel  # not just Chasm's anymore — sells 18 ⬢
+        - steel  # not just Chasm's anymore — sells 8 ⬢
       # Depths carries the delve loot table's Rare tier too (25% on the
       # Caving Die, versus Caves' 1.95%) — Salvage Plate, Supply Kit and
       # Mining Helmet all stay off the Caves table above for the same reason.
@@ -753,7 +753,7 @@ laborTypeLocation:
       # ore reliably (4 and 6, one guaranteed each), but on a 5 it's steel
       # or the one stone worth a trip to the Baron himself.
       5:  # own EV 31.50 ⬢ · hit 100% · combined EV 19.75 ⬢ · hit 100%
-        - steel  # sells 18 ⬢
+        - steel  # sells 8 ⬢
         - flawless-gem  # fit for a king. Or a Baron — sells 45 ⬢
       6:  # own EV 5.00 ⬢ · hit 100% · combined EV 5.50 ⬢ · hit 100%
         - silver  # sells 5 ⬢
