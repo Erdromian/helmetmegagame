@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Oracle page fills the screen again
+
+✎ The Oracle's three columns each scroll on their own now, so the page stops ending halfway down with dead space under it  
+✎ A synopsis reads as prose again — paragraphs, headings and lists are spaced, and a long page keeps a readable line width instead of running the full width  
+✎ The zone counts in the rail sit at the right edge instead of running into the zone name
+
 ## 2026-09-10 · The Squeeze briefing says what a cube is worth
 
 ✚ A line on the Squeeze document giving the 7 ⬢ Depot price and the cut the Merchant has traditionally taken
