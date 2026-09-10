@@ -2335,7 +2335,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # The three side-grades. Each needs Laboring (Skilled) behind it, each is
+  # The four side-grades. Each needs Laboring (Skilled) behind it, each is
   # scaled by where you are standing (docs/zones.yaml's per-location `yield:`
   # block), and holding several is fine — a Labor pays the best one you
   # qualify for, so there is nothing to switch and nothing to forget.
@@ -2370,6 +2370,21 @@ tags:
     group: skills-labor
     teachable: true
     description: "While laboring in a location with water, you produce {resource:labor:fishing}."
+    pointCost: 7
+    requiredTag: laboring-skilled
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Joined 2026-09-09. Pays the least ⬢ of the four on purpose — a labor drop
+  # (LABORDROPS.md) is meant to make up the difference in items rather than
+  # coin, once that table is built out.
+  laboring-prospecting:
+    catalog: all
+    name: Laboring (Prospecting)
+    category: skills
+    group: skills-labor
+    teachable: true
+    description: "While laboring somewhere worth searching — a stream, a ruin, the undergrowth — you turn up {resource:labor:prospecting}: thin pay in Resources, but plenty else comes up with it. ‡"
     pointCost: 7
     requiredTag: laboring-skilled
     purchasable: true
@@ -5894,6 +5909,41 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 1
+
+  # Two finds unique to hills-west (LABORDROPS.md), a grave beneath its own
+  # gallows: what the dead were buried wearing, and what the living left them
+  # for the walk after.
+  gallows-charm:
+    catalog: gm
+    name: Gallows Charm
+    category: items
+    group: items-gear
+    description: "Carved bone strung on old cord — a dead man's luck, worn as a ward against the same rope. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 18
+
+  burial-ring:
+    catalog: gm
+    name: Burial Ring
+    category: items
+    group: items-gear
+    description: "A ring, still on the hand that was buried with it. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 35
 
   # The Depot's currency, and worth exactly one ⬢. It does not compress value,
   # it makes value PHYSICAL: ⬢ are a number on a sheet that nobody can pick

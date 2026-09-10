@@ -356,7 +356,7 @@ function validateRequirementItems(normalized, { selfSlug, tagSlugs, groupSlugs, 
 //
 // { kind, amount, equipped, requiresTag } or null. `equipped` defaults TRUE —
 // nearly every tool is something you carry, and the two that aren't say so.
-const LABOR_BONUS_KINDS = new Set(["hunting", "farming", "fishing"]);
+const LABOR_BONUS_KINDS = new Set(["hunting", "farming", "fishing", "prospecting"]);
 
 function normalizeLaborBonus(entry, label = "docs/tags.yaml") {
   if (entry == null) return null;

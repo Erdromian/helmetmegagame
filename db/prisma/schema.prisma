@@ -1042,18 +1042,20 @@ model GmZoneView {
 /// zone is free (on the GameConfig.locationMoveCooldownSeconds cooldown); a
 /// hop whose edge crosses into another zone costs the Move, exactly as zone
 /// travel used to.
-// The three specialised labor types. A Location carries one LocationYield row
+// The four specialised labor types. A Location carries one LocationYield row
 // per kind it supports; no row at all means that kind is impossible there,
 // which is what the Labor? button prints as a bare "x".
 enum LaborKind {
   HUNTING
   FARMING
   FISHING
+  PROSPECTING
 }
 
 // What one Location yields for one labor type, and how far it has drifted from
-// what docs/zones.yaml authored. One row per (location, kind) - at most 168 of
-// them, and only for kinds the location actually supports.
+// what docs/zones.yaml authored. One row per (location, kind) - at most 224 of
+// them (56 Locations x 4 kinds), and only for kinds the location actually
+// supports.
 //
 // Split out of Location rather than added as columns because the drift pass
 // (db/lib/laborYield.js) wants one uniform row shape to walk, and nine columns
@@ -1099,6 +1101,7 @@ enum LaborDropLaborType {
   HUNTING
   FARMING
   FISHING
+  PROSPECTING
 }
 
 enum LaborDropKind {

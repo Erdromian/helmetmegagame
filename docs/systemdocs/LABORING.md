@@ -27,7 +27,7 @@ Three things changed at once, and they only make sense together:
 
 ## 2. The tag ladder
 
-All five cost **7** (`TAGS.md` §4a: significant — it reliably changes how a
+All six cost **7** (`TAGS.md` §4a: significant — it reliably changes how a
 month goes). Ranges live in `PRODUCTION_RATES` in `db/lib/production.js`,
 which is the single source for both the payout and the `{resource:labor:tier}`
 bubbles the tag descriptions render through.
@@ -39,6 +39,7 @@ bubbles the tag descriptions render through.
 | `laboring-hunting` | Laboring (Hunting) | 0–15 | `requiredTag: laboring-skilled` |
 | `laboring-farming` | Laboring (Farming) | 15–21 | `requiredTag: laboring-skilled` |
 | `laboring-fishing` | Laboring (Fishing) | 7–13 | `requiredTag: laboring-skilled` |
+| `laboring-prospecting` | Laboring (Prospecting) | 2–8 | `requiredTag: laboring-skilled` |
 
 The slugs were `laborer-*` before this rework and are `laboring-*` now, because
 `db/lib/syncTags.js` enforces that **a slug is always its name, slugified** — so
@@ -46,9 +47,18 @@ anyone reading a slug in code or in a Desire's `requires` knows which tag it is.
 Renaming the display name without the slug is a sync error, not a warning. The
 old rows are cleared by `db:prune-tags -- --apply`.
 
-The bottom two are general: they pay the same everywhere. The top three are
+The bottom two are general: they pay the same everywhere. The top four are
 **side-grades, not rungs**. Holding several is fine and normal, and there is
 nothing to switch between — §4 pays the best one you qualify for.
+
+**Prospecting joined 2026-09-09** and pays less ⬢ than the other three
+specialisations on purpose — its range is deliberately the thinnest, because
+the plan is for a Labor drop (`LABORDROPS.md`) to make up the rest of its
+value in items rather than coin once that table is built out. It follows
+every other rule on this page exactly like Hunting, Farming and Fishing do —
+same tag shape, same `LocationYield` gate, same tools mechanism (§5, unused
+by it so far) — there is nothing specialisation-specific left hardcoded to
+"three" anywhere in the code this rework touched.
 
 **Basic ignores `GameConfig.productionCoefficient`** (`UNSCALED_TIERS` in
 `production.js`). It is the floor of the whole economy, and a GM turning the
@@ -88,10 +98,15 @@ exactly, and 15–20 would have been only +6%.
 
 ## 3. What a place is worth
 
-Each Location carries up to three `LocationYield` rows, one per `LaborKind`.
+Each Location carries up to four `LocationYield` rows, one per `LaborKind`.
 **No row means that labor is impossible there** — that is what prints `×`, and
 it is why no Location needs a "wilderness" or "water" flag anywhere in the
 schema. The row is the gate.
+
+That's also why the Examine readout (§9) only ever names a kind the Location
+actually has a row for: a Location with no rows at all prints no labor line,
+and one with two of the four prints only those two. A permanent row of `×`
+for a kind that can never be worked there was clutter, not information.
 
 `base` is authored in `docs/zones.yaml`; `current` is where the world has
 drifted it, and `current` is the only number a payout or the Examine button
@@ -134,6 +149,40 @@ the marsh Village 1.0.
 **Hunting** — Forest 0.5 except `forest-west-riverbank` 0.8 · the five open
 Marshes 1.0 · Black Hills 1.0 throughout · the four Caves 0.4 · Depths 0.6
 except `depths-obelisk` 1.8.
+
+**Prospecting** — **not just mining.** A stream is panned, a wreck or a ruin
+is scavenged, the undergrowth is foraged for mushrooms — whichever of those a
+location's own fiction already supports. The four Caves 0.5 · Depths 0.7
+except `depths-chasm` 1.4, the one place with a real named vein
+(`chasm-ore-vein`, a `docs/zones.yaml` secret room gated on
+`prospectors-notes`) · eight of the twelve Forest locations, 0.4–1.0 (joined
+2026-09-09, alongside the surface's first rows at all). Three tie for the
+best Forest ground, at 1.0: `forest-creekside` (mushroom colonies, old pans
+already in the room stash), `forest-east-river` (its own description already
+says worked metal washes up and lodges there), and `forest-sparse-field` (an
+abandoned prison's worth of scavengeable scrap). The rest are milder —
+`forest-headwaters` 0.5 (cold streams), `forest-deep-forest` 0.5 (relics
+buried in the undergrowth), `forest-riverbend` 0.5 (an old, collapsed
+mineshaft), `forest-west-riverbank` 0.4, `forest-embankment` 0.4.
+
+Eight of the Black Hills' nine locations joined the same day. Three at 1.0:
+`hills-underlocks` (a trash heap the local wildlife already picks through —
+its own text says "whatever missed morsels have yet to be plundered"),
+`hills-north` (an abandoned homestead with a hidden hatch and a basement of
+tinctures), `hills-waterway` (the zone's one real river, panned the same way
+a Forest stream is). The rest are milder — `hills-gullies` 0.6 (a dry,
+ancient riverbed — placer ground even without running water), `hills-cliffs`
+0.6 (a cave mouth with an old camp scattered outside it), `hills-shadowed-grove`
+0.5, `hills-grand-ravine` 0.5. `hills-mountain` has no yield rows of any kind
+(a pass, not worked ground).
+
+`hills-west` — the Forgotten Gallows, a real grave — is the one genuinely
+unique spot: 0.8, and the first location with its own dedicated
+`laborTypeLocation.prospecting` table (LABORDROPS.md §2b), added
+2026-09-09 on Bascinet's call rather than joining the milder-tier crowd
+above.
+
+These numbers are a first cut (2026-09-09), not signed off.
 
 The marsh Village fishes at 1.0 and does nothing else; the Godard Factory has
 no rows at all and is worked anyway (§3b). The Fortress has neither hunting nor
@@ -318,6 +367,7 @@ no separate recovery path.
 | HUNTING | 0.30 | 0.12 | ≈ ±0.16 | 6% per location per turn | 2–8 turns | ×0.25 – ×2 |
 | FISHING | 0.20 | 0.07 | ≈ ±0.11 | 2.5% per location per turn | 3–10 turns | ×0.5 – ×1.6 |
 | FARMING | 0.12 | 0.025 | ≈ ±0.05 | 1.8% per turn, **once for the world** | 8–20 turns | ×1.5 (40%) or ×0.55 (60%) |
+| PROSPECTING | 0.22 | 0.13 | ≈ ±0.20 | 5% per location per turn | 3–9 turns | ×0.2 – ×2 |
 
 Farming's event is rolled once globally and applied to every farming row at
 once — a blight or a golden harvest, not one field having a bad week. Rolled
@@ -326,7 +376,9 @@ locations instead of the roughly once that was asked for.
 
 Measured over 200 simulated 60-turn games: hunting drifts ±0.16 from base with
 2.8 events per location, fishing ±0.10 with 1.3, farming ±0.06 with 0.9.
-Nothing ever left `[0, 2]`.
+Nothing ever left `[0, 2]`. Prospecting's row is a first cut, matched by feel
+to Hunting rather than simulated the same way — Bascinet's to retune once it
+has played out.
 
 Clamped hard at both ends. A row with `base` 0 cannot exist, so nothing ever
 drifts up from disabled.
@@ -368,7 +420,7 @@ The old summary-post machinery (`shareInSummary` / `summaryMessage`) died with
 Fourth button on every Location anchor, between Secret rooms? and Converse
 (`db/lib/locationAnchorRow.js`, prefix `loc:examine:`; handler `handleExamine`
 in `bot/src/events/interactionCreate.js`). It was the **Labor?** button until
-it grew the other two halves; the labor readout below is unchanged.
+it grew the other two halves.
 
 **Information only.** It files nothing, costs nothing, and anyone standing
 there can press it whether or not they hold a Laboring tag — scouting is the
@@ -383,9 +435,21 @@ under it used to be written in three or four different voices, so a player had
 to parse each line before knowing whether it mattered. Now the topic is the
 first thing on the line and the eye can skip what it does not need.
 
+The first part goes further than the other two: it drops each *kind*
+individually, not just the whole line. A `LaborKind` with no `LocationYield`
+row here (§3) never printed a useful `×` in the first place — it is a
+permanent fact about the place, not something worth checking back on — so it
+is left off the line entirely rather than clutter every readout with a kind
+that can never work there. Customs is a Cave location with no `yield:` block
+at all, so its labor line is dropped from the readout below — this is the
+one case where the "each dropped when it has nothing to say" rule applies to
+the whole first part, not just one kind inside it. A Location that supports
+some but not all four — `hills-waterway`, say — prints only
+`**Hunting**: Sufficient | **Fishing**: Modest`, with Farming and Prospecting
+left off rather than shown as a permanent `×`.
+
 ```
 » *Customs.*
-**Hunting**: × | **Farming**: × | **Fishing**: ×
 **Indoors**: you can't equip a cart or horse here.
 **Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place.
 **Noticeboard**: you can pin paper here.
@@ -411,7 +475,8 @@ job, and the numbers move anyway.
 
 | `current` | word |
 |---|---|
-| no row, or 0 | `×` |
+| no row | left off the line entirely (see above) |
+| 0 | `×` |
 | < 0.30 | Barren |
 | < 0.60 | Scarce |
 | < 0.90 | Modest |

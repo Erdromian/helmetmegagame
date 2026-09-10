@@ -32,8 +32,6 @@ const { applyMood } = require("@lifeweb/db/lib/mood");
 const {
   travelOptions,
   gateOperable,
-  endpoints,
-  linksFor,
   isHeldOpen,
   soundRange,
   KEYED_OPEN_MS,
@@ -65,7 +63,7 @@ const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
 const { placeKeyForChannel, isScenePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
-const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
+const { resolveLaborRate } = require("@lifeweb/db");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
@@ -91,9 +89,7 @@ const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syn
 const { GATE_CHARACTER_SELECT, toggleGate, holdKeyedOpen } = require("@lifeweb/db/lib/gates");
 const { fileMove } = require("@lifeweb/db/lib/moves");
 const { whosHere, whosHereLines } = require("@lifeweb/db/lib/whosHere");
-const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
-const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
-const { structuresAt } = require("@lifeweb/db/lib/structures");
+const { examineLines } = require("@lifeweb/db/lib/examineLocation");
 const { blockerFor, ACT } = require("@lifeweb/db/lib/incapacitation");
 const {
   ROOM_STORAGE_PREFIX,
@@ -1180,72 +1176,16 @@ async function handleWhosHere(interaction, locationId) {
 async function handleExamine(interaction, locationId) {
   await ack(interaction);
 
-  const location = await prisma.location.findUnique({
-    where: { id: locationId },
-    select: {
-      name: true,
-      indoors: true,
-      attributes: true,
-      yields: { select: { kind: true, current: true } },
-    },
-  });
-  if (!location) {
-    await respond(interaction, "That place is gone.");
+  // db/lib/examineLocation.js is the one composer — Chat's Examine dialog
+  // reads from the same function, so the two surfaces cannot drift apart.
+  const result = await examineLines(prisma, locationId);
+  if (!result.ok) {
+    await respond(interaction, result.error);
     return;
   }
-
-  // The gate state is read through the graph rather than off the anchor's
-  // buttons, because a GM can flip an edge without anyone refreshing a
-  // message and Examine must never be the stale one.
-  const links = await linksFor(prisma, locationId);
-  const gates = links
-    .filter((link) => link.modular)
-    .map((link) => ({
-      isOpen: link.isOpen,
-      farName: endpoints(link, locationId).far.name,
-    }));
-
-  const byKind = new Map(location.yields.map((row) => [row.kind, row.current]));
-  const laborLine = LABOR_QUERY_KINDS.map(
-    ({ kind, label }) => `**${label}**: ${qualityWord(byKind.get(kind) ?? null)}`,
-  ).join(" | ");
-
-  // The Depot's machinery is live state, so it is loaded here and handed to
-  // describeLocation as ctx rather than being authored on the Location. Only
-  // for the one room that has any — every other place gets no depot ctx and
-  // prints no depot lines.
-  let depot = null;
-  if (hasAttribute(location, "depot")) {
-    const row = await loadDepot(prisma);
-    depot = {
-      generatorOn: row.generatorOn,
-      powered: depotPowered(row),
-      fuelTurnsLeft: fuelTurnsLeft(row),
-      turretArmed: row.turretArmed,
-      shuttleDocked: row.shuttleState === "DOCKED",
-    };
-  }
-
-  // Structures are live state — built, rising or ruined — so they are loaded
-  // here and handed to describeLocation as ctx rather than being authored on
-  // the Location, the same reasoning as depot above.
-  const structures = await structuresAt(prisma, locationId);
-
-  const lines = [
-    `» *${location.name}.*`,
-    laborLine,
-    ...describeLocation(location, { gates, depot, structures }),
-  ];
+  const lines = [`» *${result.name}.*`, ...result.lines];
   await respond(interaction, lines.join("\n"));
 }
-
-// Fixed order, so the readout looks the same in every channel and a player can
-// learn the shape rather than reading the labels every time.
-const LABOR_QUERY_KINDS = [
-  { kind: "HUNTING", label: "Hunting" },
-  { kind: "FARMING", label: "Farming" },
-  { kind: "FISHING", label: "Fishing" },
-];
 
 async function handleSecretRooms(interaction, locationId) {
   await ack(interaction);

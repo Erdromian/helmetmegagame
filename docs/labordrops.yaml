@@ -330,3 +330,24 @@ laborTypeLocation:
         - nothing
         - nothing
         - "+2"
+  prospecting:
+    # The Forgotten Gallows (zones.yaml `west-hills-gallows`) is a real
+    # grave, not milder ground like the rest of the Black Hills — the first
+    # table built to LABORDROPS.md §2b's shape: faces 3-6 all pay, rising
+    # toward the two tags minted for this spot alone (LABORDROPS.md §2b).
+    hills-west:  # ⬢ EV/labor 7.78 · hit 73%
+      3:  # EV 1.67 ⬢ · hit 67%
+        - bone  # a bone out of the pile below, worth more whole than broken — sells 1 ⬢
+        - foot  # a foot still in its boot — sells 4 ⬢
+        - nothing
+      4:  # EV 6.67 ⬢ · hit 100%
+        - rope  # cut down from the tree itself — sells 4 ⬢
+        - eye  # sells 8 ⬢
+        - eye  # sells 8 ⬢
+      5:  # EV 14.67 ⬢ · hit 100%
+        - gallows-charm  # a ward worn by someone it didn't save — sells 18 ⬢
+        - gallows-charm  # sells 18 ⬢
+        - eye  # sells 8 ⬢
+      6:  # own EV 35.00 ⬢ · hit 100% · combined EV 23.67 ⬢ · hit 100%
+        - burial-ring  # the one real prize this grave has to give — sells 35 ⬢
+        - burial-ring  # sells 35 ⬢

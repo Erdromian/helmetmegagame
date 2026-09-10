@@ -128,6 +128,47 @@ from; omit it and the Combined section shows the baseline every other
 character gets, which is also exactly what the tool defaults to so a gated
 entry can never be mistaken for already-active.
 
+### 2b. Prospecting's tables lean different
+
+Hunting, Farming and Fishing pay their ⬢ mostly through `laborAccess.js`'s
+own range and treat this die as a bonus on top — most of their pools live on
+face 1 (a wound, padded) and face 6 (a modest find), with 2-5 usually empty.
+Prospecting pays less ⬢ than any of them on purpose
+(`db/lib/production.js` — 2-8, the thinnest range in the game): the plan is
+for THIS table to make up the difference, so a Prospecting pool needs to be
+worth noticeably more than the others', and it should **use faces 3, 4 and 5
+too**, not just 6 — a prospector finds something worth having more often
+than a hunter finds a body, even if any one find is smaller.
+
+**Target total EV/labor, by the location's own yield coefficient**
+(Bascinet, 2026-09-09) — a rule of thumb, not a formula to hit exactly:
+
+| coefficient | target EV/labor |
+|---|---|
+| 0.4 | ~4 ⬢ |
+| 0.6-0.7 | ~6-7 ⬢ |
+| 0.8-1.0 | ~8-10 ⬢ |
+
+Read this off `npm run db:audit-labor-drops`'s own combined EV/labor line
+for the table you're building (§6a), the same way every other table in this
+file was tuned — not by hand arithmetic. Since a Prospecting-specific
+`zone:`/`laborType:` bucket doesn't exist yet at most locations, a
+`laborTypeLocation` table is currently carrying its whole target alone; once
+a zone-wide or labor-type-wide Prospecting pool exists, a location's own
+table only needs to make up the remainder.
+
+**A genuinely rare spot — the Ore Vein, eventually — should NOT scale EV up
+with its rarity.** Keep the EV in the same 4-10 band as an ordinary location;
+what makes it rare is a pool entry (or a few) that exist NOWHERE else in the
+catalog — an ore type, a gem, whatever the fiction calls for — at a modest
+hit rate, not a bigger number on an ordinary item. A location is special
+because of what it can find, not because it pays better on average.
+
+`laborTypeLocation.prospecting.hills-west` is the first table built this
+way: the Forgotten Gallows is a real grave (`docs/zones.yaml`), so its pool
+draws on faces 3-6 with two tags minted for it alone (`gallows-charm`,
+`burial-ring`) rather than reusing the room's own one-time stash items.
+
 ## 3. Pool entries
 
 Authored in `docs/labordrops.yaml`, one list per (bucket, roll face). Three
