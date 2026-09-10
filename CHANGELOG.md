@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Oracle cannot write half a page any more
+
+✎ A page that runs past its length limit is now an error rather than a page that quietly stops mid-sentence and reads as the whole account of the turn  
+✚ More room for a long turn's page, and longer to wait for a slow model
+
 ## 2026-09-10 · You can see what a thing is before you pick it up
 
 ✎ Moving things now shows each item as a chip with its weight, and hovering one tells you where it is worn, what it stops and what it does in a fight  
