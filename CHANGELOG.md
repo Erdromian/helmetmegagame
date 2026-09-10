@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · There is a shrine at the bottom of the Chasm, and a god behind it
+
+✚ A Shrine of an Old Man in the Chasm, needing Caving to get in, with a Pray button  
+✚ Praying makes you a plaything of Xom: every turn something may happen to you, and about one turn in a hundred it kills you  
+✚ Cause Chaos, the only Desire a plaything of Xom has left  
+✎ Opening a conversation is one piece of code now instead of three
+
 ## 2026-09-10 · Three new buildings: a brewery, a rookery and a stage
 
 ✚ A Brewery at the Old Cock Inn, racking one Alcohol a turn into the cellar  
