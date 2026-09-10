@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { armorWord, combineArmor } from "@/lib/armorValue";
 import { fightingSkill, TREES } from "@/lib/fightingSkill";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
@@ -189,30 +189,42 @@ function CombatDetail({ combat }) {
   );
 }
 
-// Combat's resting face. It has a third of the band row to itself now, so the
-// two facts a player wants before walking into something — how hard you hit,
-// and what happens when you are hit — sit side by side on one line rather than
-// stacked. The situational names go underneath, where a wrap costs nothing.
+// Combat's resting face: a row per dimension, each carrying its own band and
+// its own armour.
+//
+// It used to be two unlabelled PAIRS — "Pitiful · Pitiful" over "⛊ None ·
+// None" — and nobody could read the second half of either. One shield in front
+// of two words says nothing about which word it belongs to, and a player had
+// to open the box to learn that the first band was melee. Turning it ninety
+// degrees answers both at once: each line is one question, "how do I fare up
+// close" and "how do I fare at range", and the label sits at the head of it.
+//
+// One honest approximation lives here. The Ranged row pairs ranged SKILL with
+// BALLISTIC armour, and those are not quite the same axis — ballistic is what
+// guns roll against (db/lib/depotTurret.js), while ranged skill covers bows
+// too. Bascinet's call, made knowingly: two labelled lines that are roughly
+// right beat four values nobody can attribute at all.
 function CombatFace({ combat, armor }) {
   // Names only, and only once each: a tag on both halves of the tree would
   // otherwise be printed twice on a line whose whole job is being small.
   const names = [...new Set(TREES.flatMap((t) => combat[t].situational.map((s) => s.label)))];
   return (
     <>
-      <span className="combat-head">
-        <span className="combat-bands">
-          {TREES.map((tree) => (
-            <span key={tree} className="combat-band" data-band={combat[tree].band.key}>
+      {/* A grid rather than two flex rows, so the bands line up under each
+          other and the armour does too — three columns read as three columns
+          only if they actually share an edge. */}
+      <span className="combat-rows">
+        {TREES.map((tree) => (
+          <Fragment key={tree}>
+            <span className="field-label">{tree === "melee" ? "Melee" : "Ranged"}</span>
+            <span className="combat-band" data-band={combat[tree].band.key}>
               {combat[tree].band.label}
             </span>
-          ))}
-        </span>
-        {/* Armour is a separate system with separate words
-            (db/lib/armorValue.js) and is never summed into the bands beside
-            it. It is here so a player does not have to scroll to the rig. */}
-        <span className="combat-armor">
-          <span aria-hidden="true">⛊</span> {armor}
-        </span>
+            <span className="combat-armor">
+              <span aria-hidden="true">⛊</span> {armor[tree]}
+            </span>
+          </Fragment>
+        ))}
       </span>
       {/* A footnote, not controls: these are not clickable, and what each one
           is for is in the tag's own description. This line only says there is
@@ -222,7 +234,7 @@ function CombatFace({ combat, armor }) {
   );
 }
 
-// The band across the top of the sheet// The band across the top of the sheet — it scrolls away with the rest of the
+// The band across the top of the sheet// The band across the top of the sheet// The band across the top of the sheet — it scrolls away with the rest of the
 // page: who this is and where they stand, the five things a player checks
 // before doing anything, then the pieces of the Chat's YOU column that belong
 // on a sheet too — the turn card with its Move, the status strip — and under
@@ -251,9 +263,12 @@ export default function LedgerBand({
   // should be able to read off somebody they might have to fight, and every
   // fighting tag in the catalog is `visible: false` for the same reason.
   const combat = isSelf ? fightingSkill(character.tags) : null;
-  const armorLine = `${armorWord(combineArmor(character.tags, "meleeArmor"))} · ${armorWord(
-    combineArmor(character.tags, "ballisticArmor"),
-  )}`;
+  // Kept apart rather than pre-joined: the readout puts each half on the row
+  // it belongs to, and a joined string could only be split again.
+  const armorWords = {
+    melee: armorWord(combineArmor(character.tags, "meleeArmor")),
+    ranged: armorWord(combineArmor(character.tags, "ballisticArmor")),
+  };
   const carrying = carry ? `${carry.weightUsed} / ${carry.weightCap}` : null;
   // Both of these are already computed by db/lib — carryStatus returns
   // `breakdown` and gambitModifiers returns its named list — so neither tile
@@ -440,7 +455,7 @@ export default function LedgerBand({
         {combat && (
           <Tile
             label="Combat"
-            value={<CombatFace combat={combat} armor={armorLine} />}
+            value={<CombatFace combat={combat} armor={armorWords} />}
             detail={<CombatDetail combat={combat} />}
             open={tileOpen === "combat"}
             onOpen={(want) => setTileOpen(want ? "combat" : null)}

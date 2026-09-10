@@ -7460,40 +7460,31 @@ label.chip {
   align-self: stretch;
 }
 
-/* The two bands and the armour on one line — there is width for it here, and
-   two facts read at a glance beat a column of three. They wrap to their own
-   lines when the row folds to one column on a narrow window. */
-.combat-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-1) var(--sp-3);
-  margin-top: var(--sp-1);
-}
-
 /* ── The Combat readout ────────────────────────────────────────────────────
    Two fighting bands and the armour on one line, and one quiet line naming
    what a gamemaster might apply. It lives in the band row rather than the tile
    row: the tile row's max-width fits exactly five, and this needs the width of
    a third of the band. */
-.combat-bands {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1) var(--sp-2);
-  line-height: 1.2;
+/* Three columns — label, band, armour — shared by both rows, so the bands sit
+   under each other and the armour does too. `justify-content: start` keeps
+   them together at the left rather than spread across whatever width the box
+   happens to have. */
+.combat-rows {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  justify-content: start;
+  align-items: baseline;
+  column-gap: var(--sp-3);
+  row-gap: var(--sp-1);
+  margin-top: var(--sp-1);
 }
 
-/* A word, not a number, so it drops --font-mono the way the Mood box does. */
+/* The band word itself. A word, not a number, so it drops --font-mono the way
+   the Mood box does. */
 .combat-band {
   font-size: var(--fs-lg);
+  line-height: 1.2;
   font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
-}
-
-.combat-band + .combat-band::before {
-  content: "·";
-  color: var(--muted);
-  margin-inline-end: var(--sp-2);
-  font-weight: 400;
 }
 
 /* Eight steps from red through grey to green, mixed from the theme's own
