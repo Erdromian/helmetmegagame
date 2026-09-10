@@ -174,6 +174,7 @@ const INTERNAL_KEYS = [
   // has no field type for a textarea, and rendering an API key as a text box
   // would put a live credential on screen. See web/app/(app)/gm/dev/oracleActions.js.
   "oracleEnabled",
+  "oraclePlaytest",
   "oracleProvider",
   "oracleBaseUrl",
   "oracleModel",

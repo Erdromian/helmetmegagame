@@ -5,7 +5,10 @@
 // action this desk has re-checks for itself regardless, because a layout gate
 // is presentation.
 
+import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
+import { auth } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/superadmin";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import OracleDesk from "./OracleDesk";
@@ -14,6 +17,17 @@ const FRONT_PAGE = "__front__";
 
 export default async function OraclePage({ searchParams }) {
   const params = await searchParams;
+
+  // The playtest switch, ENFORCED here and not merely hidden from the rail.
+  // Dropping the nav item is presentation; this is the lock, the same posture
+  // /chat takes with playPanelEnabled. Superadmin rather than GM because the
+  // point of the switch is to review the Oracle before the other gamemasters
+  // meet it.
+  const config = await prisma.gameConfig.findFirst({ select: { oraclePlaytest: true } });
+  if (config?.oraclePlaytest) {
+    const session = await auth();
+    if (!isSuperadmin(session?.discordUserId)) redirect("/gm/players");
+  }
 
   // Newest first: a GM opening this desk almost always wants the turn that
   // just ended. Only RESOLVED turns are offered — the open turn's moves are

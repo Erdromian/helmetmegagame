@@ -39,6 +39,7 @@ export async function loadOracleSettings() {
   const config = await prisma.gameConfig.findFirst({
     select: {
       oracleEnabled: true,
+      oraclePlaytest: true,
       oracleProvider: true,
       oracleBaseUrl: true,
       oracleModel: true,
@@ -73,6 +74,9 @@ export async function saveOracleSettings(formData) {
 
   const data = {
     oracleEnabled: formData.get("oracleEnabled") === "on",
+    // Whether a chronicle is WRITTEN and who may READ one are different
+    // questions, so they are different columns. See ORACLE.md §12.
+    oraclePlaytest: formData.get("oraclePlaytest") === "on",
     oracleIncludeChat: formData.get("oracleIncludeChat") === "on",
     oracleProvider: clean(formData.get("oracleProvider"), 60) || "openrouter",
     oracleBaseUrl: clean(formData.get("oracleBaseUrl"), MAX_URL) || "https://openrouter.ai/api/v1",

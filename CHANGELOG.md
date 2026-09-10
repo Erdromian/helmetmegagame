@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Oracle writes up each turn for the gamemasters
+
+✚ The Oracle: at the end of a turn, a plain written account of what happened in each zone, plus a front page pulling them together. Read it at the new Oracle desk  
+✚ Clicking anyone's name in an account pulls their sheet, their move and their messages up beside it  
+✚ Any gamemaster can rewrite a page they disagree with, and the rewrite is what later turns are told  
+✚ Two switches on the Dev panel: Enable turns the writing on, Playtest keeps the desk to superadmins while it is being tried out  
+✎ It knows what happened over the last three turns, so it can say what somebody has been up to rather than only what they did today
+
 ## 2026-09-10 · Filing a Move now tells you what you need before you press it
 
 ✚ The Move box shows how long is left to file, and what the ground under you is worth if you pick Labor  

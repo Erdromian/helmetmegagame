@@ -299,6 +299,12 @@ model GameConfig {
   // writes no rows.
   oracleEnabled Boolean @default(false)
 
+  // Narrows the desk to superadmins while the Oracle is being tried out. The
+  // toggle above decides whether it RUNS; this one decides who may READ it, so
+  // a turn can be drafted and reviewed before the other gamemasters ever see a
+  // page. Enforced in web/app/(desk)/gm/oracle/page.js, not just in the rail.
+  oraclePlaytest Boolean @default(false)
+
   // Provider is a label; baseUrl is what actually gets called, so a
   // self-hosted or proxied endpoint needs no code change. Model is passed
   // through verbatim.

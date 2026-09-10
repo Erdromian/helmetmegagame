@@ -12,7 +12,8 @@ front page. It costs about a cent a turn.
 
 It is **off by default** (`GameConfig.oracleEnabled`) and configured at
 `/gm/dev?s=oracle`, which is superadmin-only. The desk that reads it,
-`/gm/oracle`, is open to every GM.
+`/gm/oracle`, is open to every GM — unless the **Playtest** switch is on, which
+narrows it to superadmins while the thing is being tried out (§12).
 
 ## 1. Why it is shaped this way
 
@@ -285,3 +286,22 @@ to keep true when it lives alone.
   neither is in v1.
 - **No circuit breaker.** `db/lib/discordRest.js` has one because Discord is on
   the hot path of every request the game serves. This runs seven times a day.
+
+## 12. The two switches
+
+They answer different questions, which is why they are two columns and not one.
+
+- **Enable** (`oracleEnabled`) — whether a chronicle is **written** at turn
+  close. Off, the run returns a reason and no rows are created.
+- **Playtest** (`oraclePlaytest`) — who may **read** one. On, `/gm/oracle` is
+  superadmin-only.
+
+So a turn can be drafted and reviewed before the other gamemasters ever meet a
+page, which is the state this ships in: enable it, leave playtest on, read a
+few turns, then take playtest off.
+
+Playtest is **enforced in the page**, not merely hidden from the rail. Dropping
+the nav item is presentation; the redirect in
+`web/app/(desk)/gm/oracle/page.js` is the lock. That is the split
+`playPanelEnabled` already uses for `/chat`, and the reason is the one CLAUDE.md
+gives for every server action: a hidden control is a hint.

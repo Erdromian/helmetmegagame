@@ -97,7 +97,7 @@ export async function loadNavItems(discordUserId) {
     }),
     prisma.gameState.findUnique({ where: { id: 1 }, select: { archiveVisible: true } }),
     // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true } }),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true, oraclePlaytest: true } }),
     // A finished past game is everyone's to read, whatever the current one is.
     prisma.game.count({ where: { endedAt: { not: null } } }),
   ]);
@@ -113,8 +113,13 @@ export async function loadNavItems(discordUserId) {
   // isn't what this badge is for.
   const unreadCount = gm ? await loadUnreadConversationCount(discordUserId) : 0;
   const playEnabled = gameConfig?.playPanelEnabled ?? true;
+  // The Oracle's playtest switch (ORACLE.md 12): while it is on, only a
+  // superadmin gets the rail item. The page enforces it too — this is
+  // presentation, that is the lock, the same split playPanelEnabled uses.
+  const oracleHidden = (gameConfig?.oraclePlaytest ?? false) && !superadmin;
   const baseNav = (gm ? GM_NAV : PLAYER_NAV)
     .filter((item) => playEnabled || item.href !== "/chat")
+    .filter((item) => !oracleHidden || item.href !== "/gm/oracle")
     .map((item) =>
       item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
     );

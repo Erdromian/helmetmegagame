@@ -9,6 +9,7 @@
 
 import { useState, useTransition } from "react";
 import Switch from "@/app/components/Switch";
+import InfoIcon from "@/app/components/InfoIcon";
 import { saveOracleSettings, clearOracleApiKey, testOracleConnection, runOracleNow } from "./oracleActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 
@@ -62,9 +63,18 @@ export default function OracleForm({ settings }) {
 
   return (
     <form action={onSave} className="flex flex-col gap-4">
+      {/* Two separate questions, so two separate switches: whether a chronicle
+          gets written at turn close, and who is allowed to read one. */}
       <div className="ops-toggle">
         <Switch name="oracleEnabled" defaultChecked={settings.oracleEnabled}>
-          Draft a chronicle at the end of every turn
+          Enable
+        </Switch>
+      </div>
+
+      <div className="ops-toggle">
+        <Switch name="oraclePlaytest" defaultChecked={settings.oraclePlaytest}>
+          Playtest
+          <InfoIcon text="Makes it only visible to superadmins." />
         </Switch>
       </div>
 
