@@ -528,14 +528,33 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
 
 // `customizable:` — the recipe may be crafted as a player-named custom item
 // (CRAFTING.md; the craft mints a custom+ephemeral row via the paperMint.js
-// door). Three rules, each closing a real hole rather than expressing taste:
+// door), and `customizableSkill:` is the tag somebody has to hold to do it —
+// `smithing-skilled` on the arms and armour. A typo there would open the door
+// to nobody at all rather than fail loudly, which is why the slug is checked
+// against the catalog the way excludedRoles is. Four rules, each closing a
+// real hole rather than expressing taste:
 // not craftable and nothing would ever mint one; not stackable and the
 // one-per-character checks (craftGrantChecks, tier replacement) compare the
 // BASE tag's id against held ids, which a minted row never matches — so a
 // non-stackable custom would dodge its own exclusivity; and a `placement:`
 // recipe is a Structure with its own words (placement.inscribable), not a
 // pocket item to rename.
-function validateCustomizable(entry, { slug, label = "docs/tags.yaml" }) {
+function validateCustomizable(entry, { slug, knownSlugs = null, label = "docs/tags.yaml" }) {
+  // The skill gate is authored on the recipe, so it is checked even when the
+  // recipe is not customizable at all — a `customizableSkill` left behind on a
+  // row whose flag came off would otherwise sit there gating nothing.
+  const gate = entry?.customizableSkill;
+  if (gate !== undefined && gate !== null) {
+    if (typeof gate !== "string" || !gate.trim()) {
+      throw new Error(`${label}: tag "${slug}" customizableSkill must be a tag slug`);
+    }
+    if (knownSlugs && !knownSlugs.has(gate)) {
+      throw new Error(`${label}: tag "${slug}" customizableSkill references unknown tag "${gate}"`);
+    }
+    if (!entry.customizable) {
+      throw new Error(`${label}: tag "${slug}" has customizableSkill but is not customizable — the gate would guard a door that isn't there`);
+    }
+  }
   if (!entry?.customizable) return;
   if (!entry.craftable) {
     throw new Error(`${label}: tag "${slug}" is customizable but not craftable — nothing would ever mint one`);

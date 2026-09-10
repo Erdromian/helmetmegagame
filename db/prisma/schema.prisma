@@ -2759,6 +2759,27 @@ model Tag {
   // (db/lib/tagShapes.js). See CRAFTING.md.
   customizable Boolean @default(false)
 
+  // WHO may open that door. A tag slug the character has to hold before the
+  // name/description fields are offered at all — `smithing-skilled` on the
+  // arms and armour, so signing your work is a skilled smith's privilege and
+  // not something an apprentice does to a cudgel. Null means anyone who can
+  // make the thing may customize it, which is the meals, the painting, the
+  // sketch, the badge and the hat. YAML `customizableSkill:`; the sync
+  // refuses one that names no real tag, or one without `customizable`
+  // (db/lib/tagShapes.js). Deliberately NOT derived from the recipe's own
+  // skills: a padded cap is `crafting` work and still wants the smith's
+  // rung, and the hat is `crafting` work that must stay open to everyone.
+  customizableSkillSlug String?
+
+  // What this row is a COPY of, on a mint from the door above — the base
+  // recipe's slug. A mint gets a fresh `custom-craft-*` slug, so every rule
+  // that reads a held tag's slug back (db/lib/godflesh.js's cutting tools and
+  // body armour, db/lib/torture.js's bonuses) would stop seeing it: a custom
+  // Breastplate would protect nobody at the Spillway. Those rules resolve
+  // through this instead. Null on every catalog row and on the other four
+  // runtime authoring doors.
+  customOfSlug String?
+
   // The INGREDIENT half of a recipe — BREWING.md's "no code enforces a
   // recipe, least of all the ingredient" is no longer true of any entry that
   // carries this. Authored in docs/tags.yaml as `requirement.items`,

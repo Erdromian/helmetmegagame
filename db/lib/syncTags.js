@@ -619,8 +619,9 @@ async function syncTagsFromYaml(prisma) {
       knownSlugs: allTagSlugs,
     });
     // customizable — the custom-craft opt-in (CRAFTING.md): craftable and
-    // stackable only, and never alongside placement.
-    validateCustomizable(t, { slug: t.slug });
+    // stackable only, never alongside placement, and a customizableSkill that
+    // names a real tag.
+    validateCustomizable(t, { slug: t.slug, knownSlugs: allTagSlugs });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -745,6 +746,7 @@ async function syncTagsFromYaml(prisma) {
       removable: DESTROYABLE_CATEGORIES.has(entry.category) && entry.removable !== false,
       craftable: entry.craftable ?? false,
       customizable: entry.customizable ?? false,
+      customizableSkillSlug: entry.customizableSkill ?? null,
       healable: entry.healable ?? false,
       teachable: entry.teachable ?? false,
       psychological: entry.psychological ?? false,

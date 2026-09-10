@@ -151,12 +151,19 @@ Life) used to be the example; they're archived in
 
 ## 3. Weapons
 
-Every weapon below is `customizable:` (2026-09-09) except Trench Knife —
-+1 ⬢ lets the smith stamp their own name and words on the piece, the same
-door as the Badge and Hat (`CRAFTING.md` §4a). Trench Knife stays off the
-list because its torture bonus is keyed to the held tag's exact slug, which
-a customized mint never matches. Armor and headgear (§4) got the same
-treatment the same day, `stackable` and all — see the note there.
+**Eleven of the weapons below are `customizable:`** — the plain ones. Cudgel,
+Work Knife, Dagger, Spear, Gladius, Mace, Battle Axe, Halberd, Broadsword,
+War Hammer, Bastard Sword. +1 ⬢ lets the smith stamp their own name and
+words on the piece, the same door as the Badge and Hat (`CRAFTING.md` §4a),
+and it takes **Smithing (Skilled)** to open — whatever tier the piece itself
+is, so a basic smith forges a plain dagger and cannot sign it.
+
+Nothing else on this ladder carries the flag. The named and exotic pieces are
+somebody else's design already (Katana, Lucerne, Phrygian Spear, the silver
+pair), the bows and the sling are `crafting` work rather than smith work, the
+guns and the Bomb are Gunpowder, and the Pitchfork is a farm tool. Trench
+Knife has a harder reason: its torture bonus is keyed to the held tag's exact
+slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 
 | Weapon | Tier | Notes |
 |---|---|---|
@@ -234,17 +241,22 @@ bonus in the game, because two tags and a smith stand behind it
 
 ## 4. Armor
 
-Every piece below is `customizable:` (2026-09-09), same as the Weapons
-ladder (§3) — the same +1 ⬢, the same door. It needed one more change first:
-armor was never `stackable`, which `validateCustomizable` requires
-(`CRAFTING.md` §4a), because one Breastplate ever was the entire enforcement
-of "you already have that tag." Bascinet's call: it's fine for a character
-to carry more than one, so every recipe here is now `stackable: true` too.
-Nothing else about the equip rig needed to change — a stackable, layered,
-equippable tag already worked (the Hat proved it), so a second Breastplate
-just contests the first one's BODY/3 layer exactly like a second Hat would
-(`db/lib/equipSlots.js`). Armored Gloves (§2a) got the same treatment even
-though it isn't in the table below.
+Every piece below is `customizable:` (2026-09-09) — the same +1 ⬢ and the
+same **Smithing (Skilled)** rung as the eleven weapons in §3, including the
+pieces that are `crafting` work to make. Armor is where a maker's mark is
+most worth having, so the whole table gets it rather than a chosen few.
+
+It needed one more change first: armor was never `stackable`, which
+`validateCustomizable` requires (`CRAFTING.md` §4a), because one Breastplate
+ever was the entire enforcement of "you already have that tag." Bascinet's
+call: it's fine for a character to carry more than one, so every recipe here
+is now `stackable: true` too. Nothing else about the equip rig needed to
+change — a stackable, layered, equippable tag already worked (the Hat proved
+it), so a second Breastplate just contests the first one's BODY/3 layer
+exactly like a second Hat would (`db/lib/equipSlots.js`). Armored Gloves
+(§2a) got the same treatment even though it isn't in the table below — and
+it is one of the pieces `db/lib/godflesh.js` reads back by slug, so a signed
+pair still counts at the Spillway (`CRAFTING.md` §4a).
 
 | Armor | Tier | Notes |
 |---|---|---|

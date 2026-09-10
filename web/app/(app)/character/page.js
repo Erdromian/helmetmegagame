@@ -18,6 +18,7 @@ import {
   accessibleRooms,
   guestRoomIds as roomGuestIds,
 } from "@lifeweb/db/lib/roomAccess";
+import { mayCustomize } from "@/lib/customCraft";
 import { corpsesInReach } from "@lifeweb/db/lib/corpses";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import {
@@ -384,8 +385,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         purchasableAfterStart: true,
         craftable: true,
         // The custom-item opt-in (CRAFTING.md): the Craft dialog shows its
-        // name/description fields only when this crosses.
+        // name/description fields only when this crosses — and it crosses
+        // resolved against the rung below, not as authored.
         customizable: true,
+        customizableSkillSlug: true,
         // A craftable carrying `placement` is raised on the ground instead
         // of landing in a pocket (db/lib/structures.js). The whole JSON
         // crosses rather than a boolean: the menu needs `unique` too, and
@@ -765,8 +768,17 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // which is the one thing a forger is paying for. The tag itself stays, with
   // its name, its description and its honest point price. Same rule as
   // web/lib/recipeCatalog.js, applied to this page's own query.
+  //
+  // `customizable` crosses RESOLVED rather than as authored: the craft dialog
+  // reads it as "you may put your name on this", and whether you may depends
+  // on the rung the recipe names (Tag.customizableSkillSlug — the smith's, on
+  // the arms and armour). Deciding it here keeps the dialog's predicate a
+  // single field, and craftRequest re-decides it anyway.
+  // A fact about your own sheet, so the gates below may grey a button out.
+  const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   const clientTagCatalog = tagCatalog.map((t) => {
     const skills = t.requirementSkills ?? [];
+    const customizable = mayCustomize(t, heldSlugs);
     const hidden = skills.some(
       (skill) => skill.catalogVisibility !== "ALL" && !satisfied.has(skill.id),
     );
@@ -776,6 +788,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     return hidden
       ? {
           ...t,
+          customizable,
           craftable: false,
           requirementSkills,
           requirementItems: null,
@@ -784,7 +797,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           requirementPerTurn: null,
           requirementGambit: false,
         }
-      : { ...t, requirementSkills };
+      : { ...t, customizable, requirementSkills };
   });
   const craftProjects = (
     await prisma.craftProject.findMany({
@@ -852,8 +865,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // ground again with the same function.
   const buildable = canBuildHere(character.location).ok;
 
-  // A fact about your own sheet, so this one may grey the button out.
-  const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   // Crucify shows only for a Fundamentalist standing at a finished Cross —
   // your tag and your ground, nothing about who else is here.
   // crucifyCharacterRequest re-checks both.

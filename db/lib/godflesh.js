@@ -57,11 +57,21 @@ for (const [key, column] of Object.entries(INJURY_TABLE)) {
 
 // Equipped only, same rule as the turret and db/lib/laborAccess.js's tools: a
 // pair of gloves at the bottom of a sack protects nobody.
+//
+// A smith's own signed piece resolves to what it is a copy of. Every list
+// below names catalog slugs, and a custom craft (CRAFTING.md §4a) mints a
+// fresh `custom-craft-*` slug — so without customOfSlug a breastplate with
+// somebody's name on it would stop being body armour at the Spillway, and a
+// named battle axe would stop cutting. That is the whole reason the column
+// exists; any new rule that reads a held slug back needs the same line.
 function equippedSlugSet(characterTags = []) {
   return new Set(
     characterTags
       .filter((ct) => ct?.equipped === true)
-      .map((ct) => ct?.tag?.slug ?? ct?.slug)
+      .map((ct) => {
+        const tag = ct?.tag ?? ct;
+        return tag?.customOfSlug ?? tag?.slug;
+      })
       .filter(Boolean),
   );
 }

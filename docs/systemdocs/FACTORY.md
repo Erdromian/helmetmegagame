@@ -57,6 +57,13 @@ The server action is `extractGodfleshRequest` in
   | gloves | Minor Wound 0.75 · Deep Wound 0.25 |
   | gloves + body armour | Minor Wound 0.90 · Deep Wound 0.10 |
 
+Both checks — the blade and the body armour — are lists of catalog slugs
+matched against what is equipped, so a smith's SIGNED piece resolves back to
+what it is a copy of before the match (`Tag.customOfSlug`, `CRAFTING.md` §4a).
+A Battle Axe with somebody's name on it still cuts, and a named Breastplate
+still moves you to the bottom row. Any new rule here that reads a held slug
+needs the same resolution.
+
 Gloves cost 3 ⬢ to craft and all three Factory roles start with a pair, so a
 lost hand is nearly always somebody who took them off. That is the intended
 reading, and it is why the DM says which column you were in.

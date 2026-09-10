@@ -177,6 +177,7 @@ import {
   INSCRIPTION_MAX,
   cleanCustomText,
   customCraftFields,
+  mayCustomize,
   customCraftName,
 } from "@/lib/customCraft";
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
@@ -837,6 +838,15 @@ async function mintCustomCraft(db, baseTag, { name, description, literal = false
     equipSlot: baseTag.equipSlot,
     equipLayer: baseTag.equipLayer,
     twoHanded: baseTag.twoHanded,
+    // What this is a copy of. A mint's slug is fresh, so every rule that reads
+    // a held tag's slug back — the Spillway's cutting tools and body armour
+    // (db/lib/godflesh.js), a weapon's torture bonus (db/lib/torture.js) —
+    // resolves through this or stops seeing the thing entirely.
+    customOfSlug: baseTag.slug,
+    // The weapon's own combat block: its class and what it is worth in a
+    // fight (db/lib/fightingSkill.js). Without it a custom sword counts as
+    // nothing at all — cosmetic, which is not what the smith paid for.
+    fighting: baseTag.fighting ?? undefined,
     // Combat/utility stats a customizable weapon or armor piece carries —
     // missing these meant a "Custom Breastplate" minted with zero armor and
     // a "Custom Knight's Helmet" that no longer concealed anyone.
@@ -1072,9 +1082,15 @@ async function craftRequestImpl({
       ? resolveDeathMaskSource(character, ingredientChoice)
       : null;
   // Customizing is +CUSTOM_SURCHARGE ⬢ a unit, like every other per-unit
-  // cost. Fields posted against a non-customizable recipe are ignored, not
-  // refused — the same posture as quantity on a non-stackable.
-  const custom = tag.customizable
+  // cost. Fields posted against a recipe this character may not customize are
+  // ignored, not refused — the same posture as quantity on a non-stackable.
+  // `mayCustomize` reads BOTH halves: the recipe's flag, and the rung the
+  // recipe names (Tag.customizableSkillSlug — `smithing-skilled` on the arms
+  // and armour). The sheet already hides the fields, but a sheet is a hint.
+  //
+  // The one gate point for both paths: an instant craft mints below, and a
+  // multi-turn project carries this same verdict onto CraftProject.custom.
+  const custom = mayCustomize(tag, heldSlugsOf(character.tags))
     ? customCraftFields({ customName, customDescription })
     : { name: "", description: "", active: false };
   const turns = tag.requirementTurns ?? 1;

@@ -92,6 +92,14 @@
 #                     `requirement:` block below, and every listed skill must
 #                     be held. Setting it true puts the tag in the Craft menu
 #                     of everyone who holds its skills. Default false.
+#   customizable    - the maker may put their own name and words on it, for
+#                     +1 ⬢ a unit (CRAFTING.md §4a). Craftable and stackable
+#                     only. Default false.
+#   customizableSkill - a tag slug the maker must HOLD to do that. The arms
+#                     and armour all name `smithing-skilled`, so signing a
+#                     piece is a skilled smith's privilege whatever tier the
+#                     piece itself is. Omit it and anyone who can make the
+#                     thing may customize it.
 #   healable        - the Heal menu (HEAL_CHARACTER): a cure exists. Its cost
 #                     is the `requirement:` block and the medic must hold its
 #                     skills. Default false.
@@ -7243,15 +7251,13 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 12
-  # Trench Knife stays off the customizable list below: its torture bonus
-  # (db/lib/torture.js) checks the held tag's SLUG directly, which a custom
-  # mint never matches — a renamed one would silently lose the +1.
-
-  # Most of the ladder below is now customizable (CRAFTING.md §4a): +1 ⬢
-  # buys the smith's own name and words on the piece, same door as the Badge
-  # and Hat. mintCustomCraft now clones meleeArmor/ballisticArmor/
-  # concealsIdentity/forcesConceal/concealSprite/laborBonus too, so a custom
-  # weapon keeps its real stats and bonuses, not just its base identity.
+  # A `customizableSkill: smithing-skilled` below is the +1 ⬢ door onto a
+  # smith's own name and words (CRAFTING.md §4a), and the rung it names is
+  # who may open it — the top of the Smithing ladder, whatever tier the piece
+  # itself is. Only the plain arms carry it: a mace, a broadsword, a spear.
+  # The named and exotic pieces do not, and neither does anything whose slug
+  # some rule reads back — Trench Knife's torture bonus is keyed to its exact
+  # slug (db/lib/torture.js), which a mint never matches.
   work-knife:
     catalog: all
     name: Work Knife
@@ -7270,6 +7276,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7295,7 +7302,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7406,7 +7412,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7433,7 +7438,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7460,6 +7464,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7507,7 +7512,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7535,7 +7539,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7565,6 +7568,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7592,6 +7596,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7618,7 +7623,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7646,6 +7650,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7673,7 +7678,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7700,7 +7704,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7729,7 +7732,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7757,6 +7759,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7785,6 +7788,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7811,7 +7815,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7841,6 +7844,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7868,6 +7872,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7896,6 +7901,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7925,6 +7931,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -7951,7 +7958,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -7978,7 +7984,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8005,7 +8010,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8033,7 +8037,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8061,7 +8064,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8089,7 +8091,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8148,7 +8149,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8178,7 +8178,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 31
@@ -8206,7 +8205,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 20
@@ -8233,7 +8231,6 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 31
@@ -11850,6 +11847,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -11879,6 +11877,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -12308,6 +12307,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12337,6 +12337,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12386,6 +12387,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12439,6 +12441,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12498,6 +12501,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12524,6 +12528,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12552,6 +12557,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12578,6 +12584,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12639,6 +12646,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -12667,6 +12675,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12694,6 +12703,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12740,6 +12750,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 3
       resourceCost: 34
@@ -13116,6 +13127,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
