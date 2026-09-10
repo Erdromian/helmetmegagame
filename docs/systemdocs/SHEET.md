@@ -102,8 +102,8 @@ Who this is, where they stand, and:
   detail is absolutely positioned inside it, so the box is sized by its resting
   face alone and **opening one cannot move anything** — which is the whole
   point. It used to append a block under the row and shove the rest of the
-  sheet down; floating it instead would have made it a tooltip, and this sheet
-  has none (§3). Swapping in place is the third answer.
+  sheet down; floating it instead would have put a panel over the thing you
+  were reading. Swapping in place is the third answer.
 - **Nearly all of them press**, and that is what fixed the one that did not.
   Free moves (why it is 0), Carrying (what holds the cap up), Combat, Mood and
   the Gambit die (which modifiers, by name) all have something to say; only ⬢
@@ -146,9 +146,10 @@ Who this is, where they stand, and:
   nothing on a quiet turn.
 - **The verb strip** — `ActionGrid variant="strip"`: every action in
   `actionRegistry.js` as one wrapping row of small labelled buttons, sections
-  split by a hairline. A gated verb is muted but clickable: clicking it writes
-  the pool's `gateReason` (or "not now" plus the help sentence) to a line
-  under the strip. The Trumpet joins the row when held.
+  split by a hairline. **Every button hovers**, the same tooltip the verb wears
+  everywhere else: its name, the sentence saying what it does, and — when it is
+  greyed — the pool's `gateReason`. A gated verb is dashed and does not press.
+  The Trumpet joins the row when held.
 
 ## 3. The rail (`TagRail.js`)
 
@@ -169,9 +170,11 @@ stack count.
 
 `TagRow.js` is the row: click it and `TagDetails.js` opens inline beneath —
 the same block `TagChip.js` shows on hover everywhere else, lifted out of it
-so the two cannot drift. **Nothing on this sheet is a tooltip.** Bascinet's
-rule for the surface, and the reason the strip, the tiles, the rows and the
-rig all put their words on the page.
+so the two cannot drift. The rows, the tiles and the rig still put their words
+**on the page** rather than in a floating box, because a panel that opens where
+you are reading beats one that opens over it. The strip is the exception: it is
+a row of small buttons with no room to say anything, so it hovers like the same
+buttons do everywhere else in the app.
 
 `RowVerbs.js` are the small buttons beside an Items, Assets or Health row —
 Use, Equip/Unequip, Give, Destroy, Heal. The predicates are Chat's

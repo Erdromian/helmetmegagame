@@ -245,7 +245,7 @@ you pick the right doc — they are never enough to change code with.
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
 | [`LOBBY.md`](docs/systemdocs/LOBBY.md) | You're touching the game phases (`GameState.phase`), readying up, role priorities, the assignment roll, the creation window, Start Game / End Game, the epilogue, or what Restart Game keeps |
-| [`SHEET.md`](docs/systemdocs/SHEET.md) | You're touching `/character` — the sheet: the band, the verb strip, the tag rail and its rows, the equip board, Escape back to `/play`, or the rule that **nothing on that sheet is a tooltip** |
+| [`SHEET.md`](docs/systemdocs/SHEET.md) | You're touching `/character` — the sheet: the band, the verb strip, the tag rail and its rows, the equip board, or Escape back to `/play` |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, or `/gm/dev/tags` |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, or the `/map` panel |
 | [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |

@@ -7779,14 +7779,9 @@ label.chip {
 
 /* ── The action strip (ActionGrid variant="strip") ──
    One wrapping row of small labelled buttons, the sections split by a
-   hairline. A gated verb is muted, not disabled: clicking it writes its
-   reason to the line under the strip, since the sheet has no tooltips. */
-.action-strip-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-}
-
+   hairline. A gated verb is drawn dashed and greyed and does not press; its
+   reason is in the tooltip, which fires on the disabled button because
+   Tooltip wraps it rather than sitting on it (ActionButton.js). */
 .action-strip {
   display: flex;
   flex-wrap: wrap;
@@ -7813,6 +7808,9 @@ label.chip {
 .action-strip-item {
   all: unset;
   cursor: pointer;
+  /* Pinned, not inherited: the .tag-hover wrapper the tooltip brings with it
+     hands down the mono face, and these are labels, not data. */
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
@@ -7826,7 +7824,7 @@ label.chip {
   white-space: nowrap;
 }
 
-.action-strip-item:hover {
+.action-strip-item:hover:not(:disabled) {
   border-color: var(--accent-text);
 }
 
@@ -7838,12 +7836,12 @@ label.chip {
 .action-strip-item[data-muted="true"] {
   color: var(--muted);
   border-style: dashed;
+  cursor: not-allowed;
 }
 
-.action-strip-why {
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--muted);
+.action-strip-item[data-busy] {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 /* ── The tag rail (TagRail.js / TagRow.js) ──
