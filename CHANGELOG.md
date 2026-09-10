@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A smith can sign their work
+
+✚ A smith can put their own name and words on a piece they make, for 1 ⬢ more  
+✎ It takes Smithing (Skilled) to sign anything. A basic smith still forges the dagger, they just cannot put their name on it  
+✎ Eleven plain arms can be signed — the cudgel, work knife, dagger, spear, gladius, mace, battle axe, halberd, broadsword, war hammer and bastard sword — and every piece of armour and headgear. The named and exotic weapons, the bows and the guns cannot  
+✎ Armour stacks now, so a character can hold more than one breastplate
+
 ## 2026-09-10 · The tool line in the Move dialog is signed off
 
 ✎ The Includes… line under a Location's yields loses its ‡
