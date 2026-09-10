@@ -57,13 +57,32 @@ async function memoryFor(prisma, { turnNumber, zoneId, take }) {
   return rows.reverse().map((row) => `[turn ${row.turn.number}]\n${row.body}`);
 }
 
-// Write one page. Upsert rather than create: a resume that reaches a zone whose
-// step was recorded but whose row somehow is not should heal rather than throw,
-// and a "Run now" over an existing turn should replace its own draft.
+// Find one page. NOT findUnique on turnId_zoneId, and the front page is why.
+//
+// Postgres treats NULLs as distinct in a unique index, so @@unique([turnId,
+// zoneId]) never actually constrained the front page — schema.prisma says so,
+// and a PARTIAL unique index in raw SQL (WHERE "zoneId" IS NULL) is the real
+// guard. Prisma knows it too, and refuses a null component in a compound unique
+// WHERE outright: "Argument `zoneId` must not be null". So that key can address
+// the six zone pages and never the seventh.
+//
+// It is findFirst here and a find-then-write below, which handle null the way
+// an ordinary filter does. The pair used to be findUnique and upsert, and the
+// front page was unreadable and unwritable from the day the Oracle was built —
+// invisible until it first called a real provider, because every zone page
+// succeeded and only the editor ever passes null.
+function findPage(prisma, turnId, zoneId, select) {
+  return prisma.oracleSynopsis.findFirst({ where: { turnId, zoneId: zoneId ?? null }, select });
+}
+
+// Write one page. Replaces rather than only creating: a resume that reaches a
+// zone whose step was recorded but whose row somehow is not should heal rather
+// than throw, and a "Run now" over an existing turn should replace its own
+// draft.
 //
 // editedAt/editedBy are deliberately NOT cleared here — see the caller, which
 // refuses to overwrite a page a GM has rewritten.
-function writePage(prisma, { turnId, zoneId, body, threads, config, usage }) {
+async function writePage(prisma, { turnId, zoneId, body, threads, config, usage }) {
   const data = {
     body,
     threads: threads ?? undefined,
@@ -72,21 +91,16 @@ function writePage(prisma, { turnId, zoneId, body, threads, config, usage }) {
     inputTokens: usage?.inputTokens ?? null,
     outputTokens: usage?.outputTokens ?? null,
   };
-  return prisma.oracleSynopsis.upsert({
-    where: { turnId_zoneId: { turnId, zoneId: zoneId ?? null } },
-    create: { turnId, zoneId: zoneId ?? null, ...data },
-    update: data,
-  });
+  const existing = await findPage(prisma, turnId, zoneId, { id: true });
+  if (existing) return prisma.oracleSynopsis.update({ where: { id: existing.id }, data });
+  return prisma.oracleSynopsis.create({ data: { turnId, zoneId: zoneId ?? null, ...data } });
 }
 
 // A page a GM has rewritten is theirs. Neither a resume nor a Run now may
 // silently replace it — the edit IS the correction, and losing one would make
 // the only correction mechanism unreliable.
 async function isEdited(prisma, turnId, zoneId) {
-  const row = await prisma.oracleSynopsis.findUnique({
-    where: { turnId_zoneId: { turnId, zoneId: zoneId ?? null } },
-    select: { editedAt: true },
-  });
+  const row = await findPage(prisma, turnId, zoneId, { editedAt: true });
   return Boolean(row?.editedAt);
 }
 

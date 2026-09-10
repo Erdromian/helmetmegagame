@@ -6,6 +6,18 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Oracle's front page can be written at all, and one-word names link
+
+✎ The Oracle's front page is written again — it never could be, so every turn's chronicle was six zone pages and nothing tying them together  
+✎ A character with a one-word name is a link in the chronicle again, instead of a dead mention
+
+## 2026-09-10 · Watching Underground finally hands over the caves
+
+✎ A GM watching Underground now reads the Caves and the Depths. Every cave Location and room was invisible to them, on Chat and to the ambient line both  
+✚ Zones I see, at the foot of the audit desk and of Chat's right column  
+✎ The picker stops forgetting which zones you ticked when a page paints from its saved copy  
+− The bare Underground row in a GM's place list, which opened nothing
+
 ## 2026-09-10 · The loot table's resource finds work again
 
 ✎ Finding 1 or 2 loose Resources on a labor roll had never actually reached the game — the entries were written in a shape the table could not read, and the whole loot sync refused to run because of it  
