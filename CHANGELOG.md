@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The verbs on the sheet explain themselves on hover again
+
+✎ Every button on the verb strip now tells you what it does when you point at it, the same as everywhere else in the app  
+− The line under the strip that a greyed verb used to print its reason on: the reason is in the hover now  
+✚ A sentence for Craft, Destroy, Transfer, Loot, Free, Butcher and Write, which had none written for them
+
 ## 2026-09-10 · The 100-coin Desire asks for obols, not goods
 
 ✎ Have 100 ¢ in your inventory at once — obols are weightless, so the goal is reachable; 100 ⬢ of carried goods was not, at a cap of 84
