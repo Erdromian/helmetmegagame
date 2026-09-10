@@ -21,6 +21,7 @@
 // explicitly is what "read-only, no private threads" requires.
 const { putChannelOverwrite, getGuildChannels } = require("./discordRest");
 const { SPECTATOR_ROLE_ID } = require("./roleIds");
+const { SPECIAL_CHANNELS } = require("./specialChannels");
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_SEND_MESSAGES = 2048n;
@@ -84,7 +85,10 @@ async function managedSpectatorChannels(db) {
     db.location.findMany({ select: { name: true, discordChannelId: true } }),
     db.gameConfig.findUnique({
       where: { id: 1 },
-      select: { turnsConsoleChannelId: true, cerberonChannelId: true, freq27065ChannelId: true },
+      select: {
+        turnsConsoleChannelId: true,
+        ...Object.fromEntries(SPECIAL_CHANNELS.map((c) => [c.configKey, true])),
+      },
     }),
   ]);
   const out = [];
@@ -94,8 +98,12 @@ async function managedSpectatorChannels(db) {
   }
   for (const l of locations) if (l.discordChannelId) out.push({ id: l.discordChannelId, label: l.name });
   if (config?.turnsConsoleChannelId) out.push({ id: config.turnsConsoleChannelId, label: "#turns" });
-  if (config?.cerberonChannelId) out.push({ id: config.cerberonChannelId, label: "#cerberon" });
-  if (config?.freq27065ChannelId) out.push({ id: config.freq27065ChannelId, label: "#27.065" });
+  // Walked, not hand-listed — the same way accessSweep, messageWipe and the
+  // doctor read the registry. A new special channel is zero-touch here.
+  for (const entry of SPECIAL_CHANNELS) {
+    const id = config?.[entry.configKey];
+    if (id) out.push({ id, label: `#${entry.slug}` });
+  }
   return out;
 }
 
