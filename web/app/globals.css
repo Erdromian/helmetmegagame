@@ -682,24 +682,13 @@ input[type="radio"]:focus-visible,
   margin: var(--sp-2) 0 var(--sp-3);
 }
 
-/* The guidance line and the character count share a baseline under the box.
-   The sentence takes the width and the count keeps its own end of the line;
-   on a phone the sentence wraps to its own rows and the count follows under
-   it, still to the right, rather than the two crushing into each other. */
-.move-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-2);
-  margin-top: var(--sp-2);
-}
-
-.move-foot > :first-child {
-  flex: 1 1 16rem;
-}
-
+/* The character count, alone under the box and against its right edge. It used
+   to sit in a flex row beside a line of guidance; the guidance is gone and the
+   row went with it, since one item does not need a layout. */
 .move-count {
-  margin-left: auto;
+  display: block;
+  margin-top: var(--sp-2);
+  text-align: right;
   color: var(--muted);
   white-space: nowrap;
 }

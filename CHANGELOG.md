@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Your words for the Move dialog, and File it becomes Lock In
+
+✎ The Move button reads Lock In, and so does the confirm  
+− The 'a filed Move is final' warning in the confirm, and the guidance line under the box  
+✎ The labor readout reads 'You would labor at the X tier'  
+✎ A shut turn says 'Moves were locked.'
+
 ## 2026-09-10 · A good mood wears off by morning
 
 ✎ Happiness now falls 40 a turn instead of 4, so a drink or a kiss is worth having on the day and not for the week  

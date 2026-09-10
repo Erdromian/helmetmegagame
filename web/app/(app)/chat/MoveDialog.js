@@ -94,8 +94,7 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
     // confirm inside startTransition deadlocks (DESIGN-SYSTEM.md).
     const sure = await confirm({
       title: "File this Move?",
-      message: "A filed Move is final. There is no changing it and no taking it back. ‡",
-      confirmLabel: "File it",
+      confirmLabel: "Lock In",
       cancelLabel: "Not yet",
     });
     if (!sure) return;
@@ -176,23 +175,18 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
         />
       </div>
 
-      <div className="move-foot">
-        <span className="text-sm text-muted">
-          {/* A non-breaking space before the mark, so a ‡ never wraps alone onto
-              a line of its own when the panel narrows. */}
-          Say what you hope to accomplish, and any tags the GMs should weigh.{"\u00a0‡"}
-        </span>
-        <span
-          className="mono text-sm move-count"
-          data-tone={body.length >= BODY_WARN ? "danger" : undefined}
-        >
-          {body.length}/{BODY_MAX}
-        </span>
-      </div>
+      {/* The counter is the whole footer now. It was a row of two, with a line
+          of guidance beside it, and the flex rules below it went with that. */}
+      <span
+        className="mono text-sm move-count"
+        data-tone={body.length >= BODY_WARN ? "danger" : undefined}
+      >
+        {body.length}/{BODY_MAX}
+      </span>
 
       {shut && (
         <p className="form-error" role="alert">
-          Moves for this turn are locked. What you typed is kept.{"\u00a0‡"}
+          Moves were locked.
         </p>
       )}
       <FormError>{error}</FormError>
@@ -202,7 +196,7 @@ export default function MoveDialog({ turn = null, characterId = null, onClose, o
           Cancel
         </button>
         <button type="button" className="btn" disabled={!canFile} onClick={file}>
-          File it
+          Lock In
         </button>
       </div>
     </Modal>
@@ -232,7 +226,7 @@ function LaborReadout({ context }) {
       ) : (
         <>
           <p className="move-labor-best">
-            You would work <strong>{context.tier}</strong>.{"\u00a0‡"}
+            You would labor at the <strong>{context.tier}</strong> tier.
           </p>
           <ul className="move-labor-yields">
             {context.yields.map((row) => (
@@ -242,7 +236,7 @@ function LaborReadout({ context }) {
             ))}
           </ul>
           {context.tools.length > 0 && (
-            <p className="text-sm text-muted">Counting your {context.tools.join(", ")}.{"\u00a0‡"}</p>
+            <p className="text-sm text-muted">Includes {context.tools.join(", ")}.{"\u00a0‡"}</p>
           )}
         </>
       )}
