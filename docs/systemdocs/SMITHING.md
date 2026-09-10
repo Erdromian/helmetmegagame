@@ -151,6 +151,13 @@ Life) used to be the example; they're archived in
 
 ## 3. Weapons
 
+Every weapon below is `customizable:` (2026-09-09) except Trench Knife —
++1 ⬢ lets the smith stamp their own name and words on the piece, the same
+door as the Badge and Hat (`CRAFTING.md` §4a). Trench Knife stays off the
+list because its torture bonus is keyed to the held tag's exact slug, which
+a customized mint never matches. Armor and headgear (§4) got the same
+treatment the same day, `stackable` and all — see the note there.
+
 | Weapon | Tier | Notes |
 |---|---|---|
 | Cudgel | Dead Simple | `smithing` |
@@ -226,6 +233,18 @@ bonus in the game, because two tags and a smith stand behind it
 (`LABORING.md` §5).
 
 ## 4. Armor
+
+Every piece below is `customizable:` (2026-09-09), same as the Weapons
+ladder (§3) — the same +1 ⬢, the same door. It needed one more change first:
+armor was never `stackable`, which `validateCustomizable` requires
+(`CRAFTING.md` §4a), because one Breastplate ever was the entire enforcement
+of "you already have that tag." Bascinet's call: it's fine for a character
+to carry more than one, so every recipe here is now `stackable: true` too.
+Nothing else about the equip rig needed to change — a stackable, layered,
+equippable tag already worked (the Hat proved it), so a second Breastplate
+just contests the first one's BODY/3 layer exactly like a second Hat would
+(`db/lib/equipSlots.js`). Armored Gloves (§2a) got the same treatment even
+though it isn't in the table below.
 
 | Armor | Tier | Notes |
 |---|---|---|
