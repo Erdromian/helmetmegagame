@@ -1,5 +1,13 @@
 export const APPEARANCE_MAX_LENGTH = 400;
 
+// The biggest picture a player may upload for their face. Lives here because
+// BOTH sides need the same number: updateCharacterProfile refuses above it
+// (that is the real gate), and AvatarField refuses above it before submitting,
+// so an oversized photo is named in the field instead of being carried all the
+// way to the server to die. Read the bodySizeLimit note in next.config.mjs
+// before raising it — the action body limit has to stay above this.
+export const MAX_AVATAR_UPLOAD_BYTES = 5 * 1024 * 1024;
+
 // Lives here rather than in lib/requests.js because RequestDialog is a client
 // component: importing it from requests.js drags @lifeweb/db (and node:fs)
 // into the browser bundle. Same reason lib/formatTagRequirement.js exists.

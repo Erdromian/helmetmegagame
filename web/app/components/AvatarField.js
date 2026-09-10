@@ -6,6 +6,8 @@ import PortraitMaker from "./PortraitMaker";
 import HoverCard from "./HoverCard";
 import InfoIcon from "./InfoIcon";
 import { useConfirm } from "./ConfirmProvider";
+import FormError from "./FormError";
+import { MAX_AVATAR_UPLOAD_BYTES } from "@/lib/constants";
 import { resetAvatarToDefault } from "../(app)/character/actions";
 
 // An InfoIcon sits INSIDE the Switch's <label>, so a click on the "?" — which
@@ -48,6 +50,12 @@ export default function AvatarField({
   concealGear = null,
 }) {
   const [fileName, setFileName] = useState("");
+  // Said here rather than left to the action. The action's own refusal is still
+  // the gate, but a file over the cap used to reach the framework's body limit
+  // first and die with nothing rendered anywhere -- see the bodySizeLimit note
+  // in next.config.mjs. Naming it at the moment of picking also saves carrying
+  // a 12MB photo up the wire to be told no.
+  const [sizeError, setSizeError] = useState("");
   const [makerOpen, setMakerOpen] = useState(false);
   const [resetting, startReset] = useTransition();
   const confirm = useConfirm();
@@ -83,7 +91,7 @@ export default function AvatarField({
           // keeps or rejects it (PORTRAITS.md §1a). The line says both may
           // happen rather than promising a gate that isn't there.
           <HoverCard
-            panel="Your image may be approved or denied."
+            panel="Your picture has been uploaded. A GM will review it later."
             // .tag-hover forces --font-mono, which is data-only per
             // DESIGN-SYSTEM.md §1 and wrong on a button label. Every other
             // HoverCard wraps a chip or a glyph, where mono is correct; this
@@ -97,7 +105,21 @@ export default function AvatarField({
                 name="avatar"
                 accept="image/*"
                 style={{ display: "none" }}
-                onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file && file.size > MAX_AVATAR_UPLOAD_BYTES) {
+                    // Clear the input, so Save can't carry a file we already
+                    // know the action will refuse.
+                    e.target.value = "";
+                    setFileName("");
+                    setSizeError(
+                      `That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. It has to be under 5MB.`
+                    );
+                    return;
+                  }
+                  setSizeError("");
+                  setFileName(file?.name ?? "");
+                }}
               />
             </label>
           </HoverCard>
@@ -162,6 +184,8 @@ export default function AvatarField({
           </span>
         ) : null}
       </div>
+
+      <FormError>{sizeError}</FormError>
 
       {/* Mounted only while open, so cancelling and reopening starts from what
           is stored rather than from the abandoned edits. */}

@@ -5,7 +5,7 @@ import sharp from "sharp";
 import { redirect } from "next/navigation";
 import { prisma, loadConcealment, loadForcedName } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { APPEARANCE_MAX_LENGTH } from "@/lib/constants";
+import { APPEARANCE_MAX_LENGTH, MAX_AVATAR_UPLOAD_BYTES } from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
 import { syncCharacterNickname, setTurnPingRole, ensureCharacterRole } from "@/lib/discordGuild";
 import { setWebOnly } from "@lifeweb/db/lib/webOnly";
@@ -13,7 +13,6 @@ import { clockLabel } from "@/lib/dmTime";
 import { normalizeSelection } from "@/lib/portrait/catalog";
 import { renderPortrait } from "@/lib/portrait/render";
 
-const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const AVATAR_SIZE = 256;
 
 // Driven by useActionState in web/app/components/BioForm.js, hence the
@@ -103,7 +102,7 @@ export async function updateCharacterProfile(_prevState, formData) {
     select: { avatarUploadsEnabled: true, playPanelEnabled: true },
   });
   if (gameConfig?.avatarUploadsEnabled && avatar && avatar.size > 0) {
-    if (avatar.size > MAX_UPLOAD_BYTES) {
+    if (avatar.size > MAX_AVATAR_UPLOAD_BYTES) {
       return { error: `That image is ${(avatar.size / 1024 / 1024).toFixed(1)}MB. It has to be under 5MB.` };
     }
     try {
