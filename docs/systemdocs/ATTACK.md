@@ -94,8 +94,10 @@ Refused when the target's band is **more than two bands** above yours.
 band index *after* the points are summed (`fightingSkill.js`), so a bound Expert
 still scores 55 and only their band knows they are Pitiful. A score-based gate
 would let a tied-up champion refuse to be attacked, which is exactly backwards.
-Bands are also the unit the game already speaks, and they are ten points wide
-with every rung dead centre — so two bands is two tiers either way.
+Bands are also the unit the game already speaks, and every rung sits dead centre
+of one — so two bands is two rungs either way. (Pitiful is the one band that is
+not ten points wide, `COMBAT.md` §3, and the gate is unaffected: it counts band
+indexes, not the points inside them.)
 
 **The better half of each tree answers.** A marksman is measured on their
 ranged band, not on the melee they never trained; otherwise a good shot is a

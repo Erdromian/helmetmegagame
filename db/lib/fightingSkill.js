@@ -28,12 +28,17 @@ const SECOND_WIND_LABEL = "Second Wind";
 
 const POINTS_PER_TIER = 10;
 
-// Where somebody with no fighting skill at all stands: the middle of Weak.
-// 15 rather than 16 so that this and every rung above it land DEAD CENTRE of
-// their band (15, 25, 35, 45, 55, 65). Mid-band matters because it is what
-// makes the words stable: a peasant picking up a knife, or taking one
-// half-tier knock, stays what they were. Off-centre by even a point and the
-// smallest trait in the catalog starts changing what people are called.
+// Where somebody with no fighting skill at all stands. 15 rather than 16 so
+// that every RUNG above it lands dead centre of its band (25, 35, 45, 55, 65).
+// Mid-band matters because it is what makes the words stable: a peasant picking
+// up a knife, or taking one half-tier knock, stays what they were. Off-centre by
+// even a point and the smallest trait in the catalog starts changing what people
+// are called.
+//
+// Untrained itself is the exception, and knowingly: Weak runs 5-19 rather than
+// 10-19 (see BANDS), so 15 sits high in it rather than at its centre. That is
+// the whole point of the widening — the room is under the base, where the
+// injuries are, not over it.
 const UNTRAINED = 15;
 
 // What one rung of melee-*/ranged-* is worth. Equal to a tier on purpose:
@@ -41,14 +46,26 @@ const UNTRAINED = 15;
 // "counts as 2 tiers higher" in a tag description stay literally true.
 const RUNG_STEP = POINTS_PER_TIER;
 
-// Eight bands, ten points each, so every rung lands in the middle of one.
+// Eight bands, ten points each — except the bottom one, below — so every rung
+// lands in the middle of one.
 // `key` is what the stylesheet colours off (.fighting-band[data-band="..."]).
 // Words, never the number — the posture Tag.meleeArmor's comment sets for
 // armour and db/lib/laborYield.js#qualityWord sets for Laboring. Working out
 // that Seasoned beats Capable is the player's job; a score on a tile would
 // turn a fight into a spreadsheet.
+//
+// PITIFUL IS THE ONE THAT IS NOT TEN WIDE, and it is deliberate. It ended at 9
+// until 2026-09-10, six points under an untrained 15 — so a single ordinary
+// drawback (Clumsy, Fat, Dwarf, all -0.7) put a healthy person in the same word
+// as somebody tied to a chair, and a fifth of the living roster was in it. The
+// bands measure SKILL, and below untrained there is no skill left to measure,
+// only injury; so the bottom band should take a real injury to reach. Weak
+// widens downward to 5-19 instead, which costs the "untrained lands dead
+// centre" property below and buys the asymmetry the setting actually wants:
+// five points up to Mediocre, eleven down to Pitiful, in a valley where almost
+// nobody has been trained.
 const BANDS = Object.freeze([
-  { max: 9, key: "pitiful", label: "Pitiful" },
+  { max: 4, key: "pitiful", label: "Pitiful" },
   { max: 19, key: "weak", label: "Weak" },
   { max: 29, key: "mediocre", label: "Mediocre" },
   { max: 39, key: "capable", label: "Capable" },

@@ -100,10 +100,20 @@ rung lands dead centre of its band. That centring is what makes the words
 stable: a peasant picking up a knife, or taking one half-tier knock, stays what
 they were.
 
+**Pitiful is the one band that is not ten wide** (2026-09-10). It ended at 9,
+six points under an untrained 15, so a single ordinary drawback — Clumsy, Fat or
+Dwarf, all −0.7 — put a healthy person in the same word as somebody tied to a
+chair, and a fifth of the living roster was in it. The bands measure *skill*,
+and below untrained there is no skill left to measure, only injury, so the
+bottom band should take a real injury to reach. Weak widens downward instead.
+The trade is that untrained is no longer dead centre of its own band: five
+points up to Mediocre, eleven down to Pitiful. That asymmetry is the point in a
+valley where almost nobody has been trained.
+
 | Score | Band | | Held | Score | Band |
 |---|---|---|---|---|---|
-| ≤9 | Pitiful | | nothing | 15 | **Weak** |
-| 10–19 | Weak | | Basic | 25 | Mediocre |
+| ≤4 | Pitiful | | nothing | 15 | **Weak** |
+| 5–19 | Weak | | Basic | 25 | Mediocre |
 | 20–29 | Mediocre | | Trained | 35 | Capable |
 | 30–39 | Capable | | Skilled | 45 | Seasoned |
 | 40–49 | Seasoned | | Expert | 55 | Dangerous |
@@ -147,9 +157,38 @@ that is a **ceiling, not a formula**:
 Relentless (7 pts, pure nerve) takes its full +1. Eagle Eyes (2 pts) also helps
 you spot things and read at distance, so combat takes part of its 0.3.
 
-Health tags are not priced this way, because almost all of them cost 0 — a
-wound is not bought. Those are priced off **each other**: the ladder from
-Bruised (−0.5) to Arterial Bleed (−3) has to read as one ladder.
+### Pricing a drawback
+
+**The same ceiling, pointed the other way** (2026-09-10). A drawback bought for
+points is a bargain the game struck with the player, so it owes the same rate a
+bonus pays:
+
+> A drawback's combat penalty is at most `|pointCost| × 0.14` tiers, and less
+> when the drawback costs you things outside a fight too.
+
+0.14 is a rung: +1 tier for 7 points. Tough, Relentless and Giant all sit
+exactly on it, and Strong is deliberately under it at 0.10 because it also does
+carry.
+
+The negatives did not. They ran 0.20 to 0.375 — Missing Fingers worst of all at
+−1.5 tiers for a −4 drawback, **2.7× what a bonus pays**, with a hand slot taken
+on top, and worse than a Peg Leg that cost more. Losing fingers outranked losing
+a leg. Every bought drawback was re-rated to the ceiling above.
+
+**Two deliberate deviations**, both louder here than in a diff:
+
+- **Blind** rates to −1.1 at −8 points, which is absurd for blindness. It sits
+  at −2.0. What is wrong is the −8 price, and repricing a tag is a `TAGS.md`
+  §4a call rather than this ladder's.
+- **Old** went the other way, −0.5 → −0.7. It was the one bought drawback
+  already *under* the rate, and leaving it would have left Old and Frail four
+  points apart at the same price.
+
+Health tags are mostly **not** priced this way, because almost all of them cost
+0 — a wound is not bought. Those are priced off **each other**: the ladder from
+Bruised (−0.3) to Arterial Bleed (−2) has to read as one ladder. It ran −0.5 to
+−3 until 2026-09-10 and was compressed one notch, so that two mortal wounds
+still floor a character but one no longer does it alone.
 
 **The smallest step is 0.1 tiers**, and that is what makes the small traits
 worth authoring at all. Steady costs 1 point and would round to nothing on a

@@ -860,7 +860,7 @@ tags:
     category: general
     group: general-traits
     description: "Elderly. You're slower and fight slightly worse."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
     carryBonus: -0.05
     visible: true
@@ -882,7 +882,7 @@ tags:
     category: health
     group: health-illness
     description: "Covered in sores."
-    fighting: { tree: both, tiers: -0.3 }
+    fighting: { tree: both, tiers: -0.1 }
     pointCost: -1
     conflictsWith: [pretty, beautiful, ugly, disfigured]
     visible: true
@@ -895,7 +895,7 @@ tags:
     category: general
     group: general-traits
     description: "You are physically weak and fragile. Mustering strength to fight back is almost impossible."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [pack-mule, strong, tough]
     carryBonus: -0.1
@@ -1515,7 +1515,7 @@ tags:
     category: general
     group: general-traits
     description: "Eh? What's that? You can't hear very well."
-    fighting: { tree: both, tiers: -0.6 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: -4
     purchasable: true
     purchasableAfterStart: false
@@ -1741,7 +1741,7 @@ tags:
     category: general
     group: general-personality
     description: "Blood, especially your own blood, makes you dizzy..."
-    fighting: { tree: both, tiers: -0.6, situational: true }
+    fighting: { tree: both, tiers: -0.5, situational: true }
     pointCost: -4
     visible: false
     purchasable: true
@@ -3868,7 +3868,7 @@ tags:
     category: health
     group: health-infection
     description: "Your wound is hot and draining pus. You could amputate it."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3887,7 +3887,7 @@ tags:
     category: health
     group: health-infection
     description: "The flesh around your wound has gone soft and gives off an odor. You could amputate it."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3907,7 +3907,7 @@ tags:
     category: health
     group: health-infection
     description: "You're burning up. The infection is in your blood…"
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3927,7 +3927,7 @@ tags:
     category: health
     group: health-infection
     description: "It's gone."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3948,7 +3948,7 @@ tags:
     category: health
     group: health-infection
     description: "Your body is shutting down. You're not lucid."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4011,7 +4011,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your wound is tender and purple, but it'll heal."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4029,7 +4029,7 @@ tags:
     category: health
     group: health-wounds
     description: "You can walk, but it's a struggle. Wrapping your wound with a splint would help."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4049,7 +4049,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your skin is bubbling from a burn."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4070,7 +4070,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your skin is destroyed and will scar if healed."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4091,7 +4091,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your wound is nothing a bandage can't stop."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4110,7 +4110,7 @@ tags:
     category: health
     group: health-wounds
     description: "You can see bone or deep tissue."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4131,7 +4131,7 @@ tags:
     category: health
     group: health-wounds
     description: "You're bleeding fast. You need medical attention to stop the flow."
-    fighting: { tree: both, tiers: -2.5 }
+    fighting: { tree: both, tiers: -1.8 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4151,7 +4151,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your blood is spurting three feet out. You need immediate medical attention to survive."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4171,7 +4171,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your bone is fractured. You need medical attention or your body will heal crooked."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4190,7 +4190,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your breathing hurts. Hopefully there's nothing else under the surface."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     carryBonus: -0.1
     purchasable: false
@@ -4208,7 +4208,7 @@ tags:
     category: health
     group: health-wounds
     description: "You're badly beat and in pain."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4228,7 +4228,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your arm is hanging out. Someone with experience can push it back in."
-    fighting: { tree: melee, tiers: -1.5 }
+    fighting: { tree: melee, tiers: -1 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4246,7 +4246,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your fingers and toes have turned pale and cold. They'll fall off without proper care."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     carryBonus: -0.05
     visible: true
@@ -4267,7 +4267,7 @@ tags:
     category: health
     group: health-wounds
     description: "Something broke past your ribs. Your breathing is shallow and labored. You will die without expert medical attention."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4288,7 +4288,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your intestines aren't currently completely inside you. You need expert medical attention or you will get sepsis."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4309,7 +4309,7 @@ tags:
     category: health
     group: health-wounds
     description: "The swelling makes it hard to eat or speak."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4327,7 +4327,7 @@ tags:
     category: health
     group: health-wounds
     description: "Your fingers are pointing in random directions."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     handsLost: 1
     pointCost: 0
     carryBonus: -0.05
@@ -4350,7 +4350,7 @@ tags:
     category: health
     group: health-illness
     description: "You've had a hot pain on your lower right side since last night."
-    fighting: { tree: both, tiers: -2.5 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: -11
     purchasable: false
     purchasableAfterStart: false
@@ -4369,7 +4369,7 @@ tags:
     category: health
     group: health-illness
     description: "Your lungs are damaged by dust and spores."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -4387,7 +4387,7 @@ tags:
     category: health
     group: health-illness
     description: "Little animals are living in your gut, draining your nutrients. It takes someone skilled in medicine to identify the core issue."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4406,7 +4406,7 @@ tags:
     category: health
     group: health-illness
     description: "You're sweating profusely."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4426,7 +4426,7 @@ tags:
     category: health
     group: health-illness
     description: "Venom has entered your body, causing massive swelling and pain. You will die without prompt medical attention."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4446,7 +4446,7 @@ tags:
     category: health
     group: health-illness
     description: "Your skin burns, itches, and bubbles with boils. It will scar if untreated."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4466,7 +4466,7 @@ tags:
     category: health
     group: health-illness
     description: "Your joints are achy and stiff. It can't be treated."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
     carryBonus: -0.05
     visible: true
@@ -4479,7 +4479,7 @@ tags:
     category: health
     group: health-illness
     description: "Your cough's gotten worse over the years. It will take an expert to cure you."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.2 }
     pointCost: -9
     carryBonus: -0.05
     visible: true
@@ -4500,7 +4500,7 @@ tags:
     category: health
     group: health-illness
     description: "You've stopped shivering. It's not unpleasant."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4518,7 +4518,7 @@ tags:
     category: health
     group: health-illness
     description: "You can't focus."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4541,7 +4541,7 @@ tags:
     category: health
     group: health-illness
     description: "Something is wrong with your body. You may want to seek medical attention."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4553,7 +4553,7 @@ tags:
     category: health
     group: health-illness
     description: "You're coughing every couple minutes. You may want to seek medical attention."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4569,7 +4569,7 @@ tags:
     category: health
     group: health-illness
     description: "You feel bloated and full."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4589,7 +4589,7 @@ tags:
     category: health
     group: health-illness
     description: "Your chest exploded."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4611,7 +4611,7 @@ tags:
     category: health
     group: health-mind
     description: "Lights and sound bombard your senses."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4625,7 +4625,7 @@ tags:
     category: health
     group: health-mind
     description: "You are traumatized."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4659,7 +4659,7 @@ tags:
     category: health
     group: health-mind
     description: "Nothing makes sense. What is happening?! Oh my God!"
-    fighting: { tree: both, tiers: -2.5 }
+    fighting: { tree: both, tiers: -1.8 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4689,7 +4689,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: -8
     conflictsWith: [nearsighted, eagle-eyes]
     visible: true
@@ -4735,7 +4735,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your leg ends above the knee."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -4748,7 +4748,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your arm is gone at the shoulder."
-    fighting: { tree: both, tiers: -2.5 }
+    fighting: { tree: both, tiers: -1.8 }
     handsLost: 2
     pointCost: 0
     carryBonus: -0.1
@@ -4762,7 +4762,7 @@ tags:
     category: health
     group: health-maiming
     description: "You have a wooden leg."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [quick-footed]
     carryBonus: -0.05
@@ -4796,7 +4796,7 @@ tags:
     category: health
     group: health-maiming
     description: "One of your hands is missing several fingers."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -0.5 }
     handsLost: 1
     pointCost: -4
     carryBonus: -0.05
@@ -4838,7 +4838,7 @@ tags:
     category: health
     group: health-maiming
     description: "Your leg is in constant pain: you can hardly walk on it. Expert medical attention could fix it. Or they could just put on a wooden leg — a lot easier."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: -7
     carryBonus: -0.1
     visible: true
@@ -4858,7 +4858,7 @@ tags:
     category: health
     group: health-maiming
     description: "An old injury never healed quite right. You can walk okay, but people know you're coming."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: -2
     visible: true
     purchasable: true
@@ -4874,7 +4874,7 @@ tags:
     category: health
     group: health-maiming
     description: "The legs were cruelly removed."
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     conflictsWith: [quick-footed, peg-leg]
     carryBonus: -0.2
@@ -4888,7 +4888,7 @@ tags:
     category: health
     group: health-maiming
     description: "The stomach was cruelly ripped out."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4911,7 +4911,7 @@ tags:
     category: health
     group: health-maiming
     description: "You've lost all depth perception."
-    fighting: { tree: ranged, tiers: -1.5 }
+    fighting: { tree: ranged, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [eagle-eyes, blind]
     visible: true
@@ -4938,7 +4938,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see in dim light or darkness."
-    fighting: { tree: both, tiers: -1, situational: true }
+    fighting: { tree: both, tiers: -0.4, situational: true }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -4969,7 +4969,7 @@ tags:
     category: health
     group: health-minor
     description: "You're vomiting fairly often."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4983,7 +4983,7 @@ tags:
     category: health
     group: health-minor
     description: "You're in pain."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: false
     purchasable: false
@@ -4996,7 +4996,7 @@ tags:
     category: health
     group: health-minor
     description: "Your mind can't escape the pain—you are writhing, unfocused."
-    fighting: { tree: both, tiers: -1.5 }
+    fighting: { tree: both, tiers: -1 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -5014,7 +5014,7 @@ tags:
     category: health
     group: health-minor
     description: "You're … Off in la-la-land."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -5033,7 +5033,7 @@ tags:
     category: health
     group: health-illness
     description: "You're choking to death! Frothing, clawing at your collar. You can't speak!"
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -5052,7 +5052,7 @@ tags:
     category: health
     group: health-illness
     description: "Your body is rapidly shutting down, but you're clear-headed. Blood is dripping from your mouth."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -5073,7 +5073,7 @@ tags:
     category: health
     group: health-minor
     description: "Only time can cure your headache now."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -5085,7 +5085,7 @@ tags:
     category: health
     group: health-minor
     description: "There's pain behind your eye and bright lights that come and go. It's incurable."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -14631,7 +14631,7 @@ tags:
     category: health
     group: health-wounds
     description: "No… It can't be— A dangerous injury that will turn {tag:infected} without treatment."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.1
     visible: true
@@ -14655,7 +14655,7 @@ tags:
     category: health
     group: health-wounds
     description: "It hurts, but it wouldn't be hard to treat. Left alone it may turn {tag:infected}."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -14868,7 +14868,7 @@ tags:
     category: health
     group: health-mind
     description: "Your vision is slowly getting worse."
-    fighting: { tree: both, tiers: -0.5 }
+    fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
     stackable: true
     visible: false
@@ -14900,7 +14900,7 @@ tags:
     category: health
     group: health-mind
     description: "Gghhhh?"
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
     purchasable: false
