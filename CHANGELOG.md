@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Squeeze briefing says what a cube is worth
+
+✚ A line on the Squeeze document giving the 7 ⬢ Depot price and the cut the Merchant has traditionally taken
+
 ## 2026-09-10 · A cube of Squeeze sells for 7
 
 ✎ Up from 5. A factory day is 56 ⬢ for eight cubes, about four times a good farming day, and a full wagon is 420 ⬢
