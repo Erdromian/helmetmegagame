@@ -16,6 +16,7 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import DeskHeader from "@/app/components/DeskHeader";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import GmZoneRail from "@/app/components/GmZoneRail";
@@ -141,27 +142,39 @@ export default function OracleDesk({
   }
 
   return (
-    <>
-      <header className="desk-header">
-        <h1 className="section-title">Oracle</h1>
-        <div className="field">
-          <label className="field-label" htmlFor="oracle-turn">
-            Turn
-          </label>
-          <select
-            id="oracle-turn"
-            className="mono"
-            value={turn.number}
-            onChange={(event) => router.push(`/gm/oracle?turn=${event.target.value}`)}
-          >
-            {turns.map((t) => (
-              <option key={t.number} value={t.number}>
-                {t.number} · {t.phase === "DAWN" ? "Dawn" : "Dusk"}
-              </option>
-            ))}
-          </select>
-        </div>
-      </header>
+    // .desk-shell is what gives the three columns below a height to scroll
+    // against — a 100dvh flex column, overflow hidden, the same wrapper turns,
+    // players, audit and dev all open with. Without it .desk-body's `flex: 1`
+    // had no flex parent to claim from, so the grid sized to its tallest
+    // column, nothing scrolled internally, and the page stopped short of
+    // .app-main's stretched 100dvh with dead space under it.
+    //
+    // DevPanelModal stays INSIDE the shell on purpose: the shell is deliberately
+    // unpositioned and carries no z-index, so an in-tree .modal-overlay is not
+    // trapped at this element's level (globals.css, above .desk-shell).
+    <div className="desk-shell">
+      <DeskHeader
+        title="Oracle"
+        actions={
+          <div className="field">
+            <label className="field-label" htmlFor="oracle-turn">
+              Turn
+            </label>
+            <select
+              id="oracle-turn"
+              className="mono"
+              value={turn.number}
+              onChange={(event) => router.push(`/gm/oracle?turn=${event.target.value}`)}
+            >
+              {turns.map((t) => (
+                <option key={t.number} value={t.number}>
+                  {t.number} · {t.phase === "DAWN" ? "Dawn" : "Dusk"}
+                </option>
+              ))}
+            </select>
+          </div>
+        }
+      />
 
       <div className="desk-body">
         {/* .desk-queue-row, the same rail row /gm/turns and /gm/players use —
@@ -187,12 +200,19 @@ export default function OracleDesk({
               <button
                 key={zone.id}
                 type="button"
-                className="desk-queue-row flex items-center justify-between gap-2"
+                className="desk-queue-row"
                 data-active={selectedKey === zone.slug ? "true" : "false"}
                 onClick={() => select(zone.slug)}
               >
-                <span>{zone.name}</span>
-                <span className="mono text-sm text-muted">{count.present}</span>
+                {/* The flex row goes on an inner span, the way QueueRail's rows
+                    do. .desk-queue-row is `display: block` and unlayered, and
+                    unlayered CSS outranks @layer utilities — so a `flex` on the
+                    button itself lost silently and the count sat flush against
+                    the zone name ("Fortress25"). */}
+                <span className="flex items-center justify-between gap-2">
+                  <span className="truncate">{zone.name}</span>
+                  <span className="mono text-sm text-muted">{count.present}</span>
+                </span>
               </button>
             );
           })}
@@ -220,7 +240,11 @@ export default function OracleDesk({
               </p>
             </div>
           ) : (
-            <article className="flex flex-col gap-3 p-4">
+            // .desk-card is the wide reading card for a main column — max-width
+            // 52rem, centred — so a synopsis keeps a readable line length on a
+            // wide monitor instead of running the full 1fr cell. It brings its
+            // own padding, and .desk-main already adds 1rem.
+            <article className="desk-card flex flex-col gap-3">
               <div className="flex items-baseline justify-between gap-3">
                 <h2 className="section-title">{page.title}</h2>
                 {!editing && (
@@ -241,7 +265,7 @@ export default function OracleDesk({
                   }}
                 />
               ) : (
-                <OracleMarkdown text={page.body} onInspect={onInspect} className="doc-body" />
+                <OracleMarkdown text={page.body} onInspect={onInspect} className="markdown-content" />
               )}
             </article>
           )}
@@ -272,6 +296,6 @@ export default function OracleDesk({
           onClose={() => setDevPanel(null)}
         />
       )}
-    </>
+    </div>
   );
 }

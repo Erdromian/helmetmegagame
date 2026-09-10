@@ -11,6 +11,7 @@ import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
+import DeskHeader from "@/app/components/DeskHeader";
 import OracleDesk from "./OracleDesk";
 
 const FRONT_PAGE = "__front__";
@@ -48,14 +49,14 @@ export default async function OraclePage({ searchParams }) {
 
   if (turns.length === 0) {
     return (
-      <>
-        <header className="desk-header">
-          <h1 className="section-title">Oracle</h1>
-        </header>
-        <div className="desk-empty">
-          <p>No turn has begun yet.</p>
+      <div className="desk-shell">
+        <DeskHeader title="Oracle" />
+        <div className="desk-body">
+          <div className="desk-empty">
+            <p>No turn has begun yet.</p>
+          </div>
         </div>
-      </>
+      </div>
     );
   }
 
