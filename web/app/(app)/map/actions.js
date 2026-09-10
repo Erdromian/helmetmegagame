@@ -9,6 +9,7 @@ import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { conversationsFor } from "@lifeweb/db/lib/conversations";
 import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
+import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 import {
   ESCORT_SELECT as MOVER_SELECT,
   partyOf,
@@ -84,6 +85,7 @@ async function buildMap({ character, unfogged }) {
         name: true,
         description: true,
         indoors: true,
+        attributes: true,
         zone: { select: { slug: true, name: true, kind: true } },
       },
     }),
@@ -156,7 +158,9 @@ async function buildMap({ character, unfogged }) {
       // Rooms and conversations only where they have actually stood — see
       // roomsInside(). Absent, not empty, everywhere else.
       inside: inside.get(location.id) ?? null,
-      indoors: Boolean(location.indoors),
+      // The mount question, not the roof one: a Location you drive into is
+      // drawn as an ordinary node (locationAttributes.js#parksMounts).
+      indoors: parksMounts(location),
       adjacent: Boolean(near),
       passable: Boolean(near?.passable),
       crossesZone: Boolean(near?.crossesZone),

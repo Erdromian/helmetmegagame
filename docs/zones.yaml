@@ -1645,9 +1645,14 @@ zones:
           A huge, wooden warehouse elevated above a shallow lake. Rickety bridges connect the various sheds, barrels, and winches. Electric lamps hang overhead, holding back the darkness. You can hear the insects and frogs every night. `GODARD FACTORY` is printed in white. Raven banners hang over the entrance.
         # No `yield:` — refining is not a labor coefficient. `refinery` is what
         # makes laboring legal here at all, and what it pays in.
+        #
+        # `wheels` keeps the wagon: this is a warehouse with a ramp down to dry
+        # ground, and the Logistics Room's own description says the cart is
+        # staged there. It still counts as under a roof for everything else.
         attributes:
           refinery: true
           noticeboard: true
+          wheels: true
         rooms:
           factory-logistics-room:
             name: Logistics Room
@@ -1852,9 +1857,12 @@ zones:
           customs:
             name: Customs
             indoors: true
+            # A gate wide enough to drive a laden cart through — checking it is
+            # most of what the post is for. See the Factory above on `wheels`.
             attributes:
               noticeboard: true
               safe: true
+              wheels: true
             description: >-
               Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. It's all illuminated by a pair of floodlights, connected by a suspended cable.
             rooms:
@@ -1881,10 +1889,13 @@ zones:
           depot:
             name: Depot
             indoors: true
+            # A shop that ships crates by the wagonload, over a bridge built to
+            # carry them. See the Factory on `wheels`.
             attributes:
               depot: true
               noticeboard: true
               safe: true
+              wheels: true
             description: >-
               Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
             rooms:

@@ -3,6 +3,7 @@
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor } from "@lifeweb/db/lib/placeAffordances";
+import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
@@ -549,8 +550,9 @@ export async function loadTravel() {
         fromZoneSlug: currentZone?.slug ?? null,
         toZoneSlug: row.location.zone?.slug ?? null,
       }),
-      // A Location a mount gets parked at on arrival (db/lib/indoors.js).
-      indoors: Boolean(row.location.indoors),
+      // A Location a mount gets parked at on arrival (db/lib/indoors.js) —
+      // which is not every Location with a roof over it.
+      indoors: parksMounts(row.location),
       // A way too narrow to ride or push through — crossing it dismounts
       // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
       dismounts: Boolean(row.dismounts),

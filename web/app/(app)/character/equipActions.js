@@ -10,6 +10,7 @@ import {
   FAST_TRAVEL_SLUGS,
 } from "@lifeweb/db/lib/mounts";
 import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
+import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 import { HANDS_TAG_FIELDS, findEquipProblem, handsFor } from "@lifeweb/db/lib/equipSlots";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -46,7 +47,7 @@ async function resolveActor() {
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     select: {
       id: true,
-      location: { select: { indoors: true, name: true } },
+      location: { select: { indoors: true, attributes: true, name: true } },
       // `equipped` and the tag NAME are both read by the boat/mount clash
       // below, which has to name the thing already out loud.
       tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
@@ -89,12 +90,14 @@ export async function equipOne(characterTagId) {
   // this is exactly the old `!held.equipped` check, just spelled for a count.
   const firstUnitOut = held.equippedQuantity === 0;
 
-  // A cart does not come into a chapel (docs/systemdocs/CARRY.md §3). Arriving
-  // already unequipped it; this stops it going straight back on. This one
+  // A cart does not come into a chapel (docs/systemdocs/CARRY.md §3) — though
+  // it does come into a warehouse with a ramp, which is what `parksMounts`
+  // asks rather than reading the `indoors` column. Arriving already unequipped
+  // it; this stops it going straight back on. This one
   // gates the equip direction only — taking the cart off at the door is the
   // whole point of it. The incapacitation check above is the gate that runs
   // both ways.
-  if (firstUnitOut && STOWABLE_SLUGS.has(held.tag.slug) && character.location?.indoors) {
+  if (firstUnitOut && STOWABLE_SLUGS.has(held.tag.slug) && parksMounts(character.location)) {
     return { error: `You can't set up ${held.tag.name} inside ${character.location.name}.` };
   }
 

@@ -196,6 +196,13 @@ the target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes
 five-turn run in one trip**. It takes about 41 cubes, a bit over three turns'
 worth; the rest waits in the Logistics Room for the next wagon.
 
+**The wagon comes inside.** The Factory is `indoors: true`, which would
+otherwise park it at the door and leave a 71 lb carrier shuttling one 68 lb
+crate at a time down to the marsh. It carries the `wheels` attribute instead
+(`CARRY.md` §3), so the cart stays equipped on the factory floor and loads
+where the crates are. The roof is untouched — the mood dial, Sun Sensitivity
+and the no-building rule all still read the column.
+
 Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate, and
 355/68 ≈ 5.2 crates ≈ 41 cubes.
 

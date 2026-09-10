@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
+import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 import BioForm from "./BioForm";
 import CharacterPoller from "./CharacterPoller";
 import EquipBoard from "./EquipBoard";
@@ -183,9 +184,10 @@ export default function CharacterSheet({
     (ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG,
   );
   // The two facts the rig needs beyond the slot rule, because equipActions.js
-  // refuses on them too: a cart is not set up indoors, and a queasy stomach
+  // refuses on them too: a cart is not set up indoors — bar the places built
+  // to be driven into (locationAttributes.js#parksMounts) — and a queasy stomach
   // rules out riding anything at all.
-  const indoors = Boolean(character.location?.indoors);
+  const indoors = parksMounts(character.location);
   const motionSick = Boolean(
     character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === MOTION_SICKNESS_SLUG),
   );

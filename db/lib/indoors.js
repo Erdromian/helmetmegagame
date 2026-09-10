@@ -2,9 +2,11 @@
 // it (docs/systemdocs/CARRY.md §3, MAP.md §3).
 //
 // A Location marked `indoors: true` in docs/zones.yaml is a place you walk
-// INTO — the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft, the
-// Factory. You cannot bring a horse into a chapel, so arriving unequips
-// anything stowable and says so. A LocationLink marked `onFoot: true` is the
+// INTO — the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft. You
+// cannot bring a horse into a chapel, so arriving unequips anything stowable
+// and says so. The exception is authored, not guessed: an indoors Location
+// carrying the `wheels` attribute — the Godard Factory, Customs, the Depot —
+// is a place built to be driven into, and keeps its roof for everything else. A LocationLink marked `onFoot: true` is the
 // other trigger for the same thing: a crawl, a cliff path, a lift, a culvert
 // too tight for a horse or a cart — crossing one unequips it instead of
 // refusing the crossing outright. Either way the carry bonus goes with it,
@@ -18,6 +20,7 @@
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the same
 // posture as carry.js, because locationMove.js requires it.
 const { STOWABLE_SLUGS } = require("./mounts");
+const { parksMounts } = require("./locationAttributes");
 
 // Unequips every stowable a character currently has out. Returns the display
 // names, so a caller can DM them — this module does no Discord work of its
@@ -45,9 +48,11 @@ async function parkMountsIndoors(prisma, characterId, locationId) {
   if (!characterId || !locationId) return [];
   const location = await prisma.location.findUnique({
     where: { id: locationId },
-    select: { indoors: true },
+    select: { indoors: true, attributes: true },
   });
-  if (!location?.indoors) return [];
+  // Not the column — an indoors Location wearing `wheels` is one you drive
+  // into (locationAttributes.js#parksMounts).
+  if (!parksMounts(location)) return [];
   return unequipStowables(prisma, characterId);
 }
 
