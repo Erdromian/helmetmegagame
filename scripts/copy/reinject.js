@@ -116,9 +116,6 @@ function main() {
   if (warnings.length) {
     console.log(`  ${warnings.length} warning(s):`);
     for (const w of warnings) console.log(`    ${w.id}\n      ${w.message}`);
-    const dropped = warnings.filter((w) => w.message.startsWith("drops the ‡")).length;
-    const added = warnings.filter((w) => w.message.startsWith("adds a ‡")).length;
-    console.log(`  ${dropped} mark(s) dropped, ${added} added.`);
     console.log("");
   }
 

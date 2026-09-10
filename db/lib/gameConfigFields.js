@@ -10,9 +10,6 @@
 //
 // `internal` names the columns that are real but not knobs: Discord pointers
 // and the REST breaker, written by code and never by a form.
-//
-// Labels are GM-facing prose (CLAUDE.md prime directive): a line
-// drafted here carries ‡, a line Bascinet wrote does not.
 
 const GROUPS = [
   { key: "creation", name: "Character creation" },

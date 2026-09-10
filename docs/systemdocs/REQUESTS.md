@@ -85,7 +85,7 @@ written under the old names, and what a GM reads is the family label
 > more (§1). Those passages are kept because they document what each action
 > actually changed — which is exactly what a GM needs in order to reverse one
 > by hand from the Dev Panel — but no button runs them. This half of the doc
-> has not been reworded line by line yet. ‡
+> has not been reworded line by line yet.
 
 Deliberately uncounted — a stale number outlived three counts here already;
 the table below and the `RequestType` enum are the record. Most live in
@@ -530,7 +530,7 @@ The **Kill** button that used to sit on the Requests row is gone with the rest
 of that tab, and so is `killRequestTargetImpl`. The fallback it covered — the
 claim not landing because the target was already dead — is a Dev Panel job
 now: `/gm/dev/characters/[characterId]` has Kill directly (`DEV-PANEL.md`).
-Nothing revives on its own. ‡
+Nothing revives on its own.
 
 Both buttons ask twice: the `RequestDialog` reason, then `useConfirm()` before
 anything is written. They act on someone else's character, which is the one
@@ -649,7 +649,7 @@ character holding `medical-basic`; the patient must share the healer's
 Location and not be concealed; and the affliction's own `requirementSkills`
 must be satisfied —
 a Deep Wound names Medical (Skilled), so a character with only the Basic tier
-sees it in the menu labelled "— Gambit ‡" and may still attempt it — it files a
+sees it in the menu labelled "— Gambit" and may still attempt it — it files a
 GAMBIT Move rather than curing anything, and the GM resolves the roll
 (TAGS.md §5c). Routine cures are additionally rationed 2/3/4 a turn by the
 medic's tier, and a 0-turn cure never counts against that. The menu is
@@ -857,7 +857,7 @@ anyone finds out is by looking the man in the face — which is exactly what
 a Censor could paper the roster; `AuditLog` is the record (`request_arrest_warrant`)
 and a GM repairs by hand from `/gm/dev`. If that turns out to matter, the cheap
 fix is Recover Equipment's shape — count the last two turns' audit rows — and it
-needs no column. ‡
+needs no column.
 
 **Check Wanted** is the warrant book, open to anyone holding the `cerberon`
 tag. `listWanted()` (`db/lib/wanted.js`), returned as notice rows under the
@@ -957,11 +957,11 @@ Two things carry that:
   Move / Bind / Harm lists. `character/page.js` calls it too. It lived inside
   that page while the sheet was the only surface that could act on somebody
   near you; a second copy of "who is helpless" would have been a second
-  answer. ‡
+  answer.
 - **`open()` takes an optional third argument**, `{ targetId | patientId |
   toKey }`, applied AFTER the dialog's own reset — a preset is the exception
   to the blank slate, not part of it. Only those three fields are seedable:
-  everything else in a dialog is a decision, not a context. ‡
+  everything else in a dialog is a decision, not a context.
 
 The sheet keeps everything else. Craft, the paperwork verbs, the Bird and the
 Factory are not mounted in Chat, and `ActionGrid` is not either — the
@@ -973,7 +973,7 @@ in `play/actions.js` and both re-checking every gate the panel drew:
 makes) and **Waiting on you** — the Accept/Decline for a pending offer, a
 threat spawn or a lobby seat, calling the same `db/lib` functions the DM's
 buttons call. Neither files an `Action` twice: `fileMove` is guarded by
-`@@unique([characterId, turnId])`, and the rest write no Move at all. ‡
+`@@unique([characterId, turnId])`, and the rest write no Move at all.
 
 One consequence worth knowing: `CharacterSheet#groupTagsByCategory` now groups
 the **`CharacterTag` rows**, not the bare `Tag`s. The wrapper carries

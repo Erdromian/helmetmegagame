@@ -12,20 +12,18 @@ export const CUSTOM_NAME_MAX = 30;
 export const CUSTOM_DESCRIPTION_MAX = 300;
 export const INSCRIPTION_MAX = 200;
 
-// Player-authored text, defanged. Four removals, each closing a real hole:
+// Player-authored text, defanged. Three removals, each closing a real hole:
 // `{` `}` so a description can never form a rich token ({tag:…}/{resource:…}
 // render as REAL chips via richTokens.js — a player must not be able to
-// forge one); `‡` because the mark means "unreviewed drafted copy" and these
-// are a player's own words (also the convention: player prose is neither
-// Claude's nor Bascinet's); `@` because item names travel into Discord
-// messages that default to parsing mentions; and control characters.
+// forge one); `@` because item names travel into Discord messages that
+// default to parsing mentions; and control characters.
 export function cleanCustomText(raw, max) {
   if (typeof raw !== "string") return "";
   const printable = [...raw]
     .map((ch) => {
       const code = ch.charCodeAt(0);
       if (code < 32 || code === 127) return " ";
-      return "{}@\u2021".includes(ch) ? " " : ch;
+      return "{}@".includes(ch) ? " " : ch;
     })
     .join("");
   return printable.replace(/\s+/g, " ").trim().slice(0, max).trim();

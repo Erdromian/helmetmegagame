@@ -33,7 +33,7 @@ const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 // What the filed Move says it was. A player who wasn't there didn't narrate
 // anything, and inventing a sentence for them would put words in a character's
 // mouth on a surface a GM reads as the player's own.
-const AUTO_LABOR_DESCRIPTION = "*A day's work, and nothing else.* ‡";
+const AUTO_LABOR_DESCRIPTION = "*Labored.*";
 
 async function runAutoLaborPass(prisma, turn) {
   // Everyone alive, not everyone with a saved panel — the candidate set is the

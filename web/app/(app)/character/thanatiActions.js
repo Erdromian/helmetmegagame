@@ -107,7 +107,7 @@ async function recoverEquipmentImpl() {
 
   const granted = await prisma.$transaction(async (tx) => {
     const rows = await grantTagSlugs(tx, me.id, missing, openTurn.number);
-    await fileAutoRoutine(tx, me, openTurn, "Recovered equipment. ‡", "auto:recover");
+    await fileAutoRoutine(tx, me, openTurn, "Recovered equipment.", "auto:recover");
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: RECOVER_ACTION,
@@ -147,7 +147,7 @@ async function setHideoutImpl({ roomId }) {
   // Purchase Gear spends whatever is on the hideout floor, which would have
   // turned a treasury into a cult shelf for anyone standing at that Location.
   const silo = await prisma.faction.findFirst({ where: { siloRoomId: room.id }, select: { id: true } });
-  if (silo) throw new UserError("Not in a faction's silo. ‡");
+  if (silo) throw new UserError("Not in a faction's silo.");
   await prisma.gameState.update({ where: { id: 1 }, data: { thanatiHideoutRoomId: room.id } });
   await logAudit(prisma, {
     actorDiscordUserId: session.discordUserId,

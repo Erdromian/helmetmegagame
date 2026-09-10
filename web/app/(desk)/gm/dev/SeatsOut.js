@@ -42,7 +42,7 @@ export default function SeatsOut({ rows }) {
       </thead>
       <tbody>
         {rows.length === 0 ? (
-          <EmptyRow cols={COLS}>Every seat that went out has been taken up. ‡</EmptyRow>
+          <EmptyRow cols={COLS}>Every seat that went out has been taken up.</EmptyRow>
         ) : (
           rows.map((r) => {
             const overdue = r.expiresAt && new Date(r.expiresAt).getTime() <= now;

@@ -472,7 +472,7 @@ ephemeral, to anyone standing in the room's Location, in Bascinet's format:
 
 ```
 -# 15 ⬢ | **Tags**: Graga Sac ×3, Lantern, Cart
--# Nothing is stored here. ‡
+-# Nothing is stored here.
 ```
 
 Reading is free; moving things is the web's Transfer. A Discord select menu
@@ -480,7 +480,7 @@ caps at 25 options, which is why there is no native deposit/withdraw flow.
 
 **Taking things out of a stash is From: the room, To: yourself.** You are in
 your own "To" list — that is the whole of looting a room, and the dialog left
-it out for a while, which made every stash in the game a one-way drop. ‡
+it out for a while, which made every stash in the game a one-way drop.
 
 ## 9. Where the code lives
 

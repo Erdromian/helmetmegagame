@@ -150,7 +150,7 @@ the old name is the thing being replaced.
 
 ## 5. The smell
 
-`bot/src/lib/deathSmell.js` posts **"It smells like death… ‡"** to the channel
+`bot/src/lib/deathSmell.js` posts **"It smells like death…"** to the channel
 of every Location holding a rotten corpse — in a Room there, or in the pocket
 of somebody standing there. A body in a bag smells as much as one on the floor.
 

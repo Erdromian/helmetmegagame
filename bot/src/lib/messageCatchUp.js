@@ -225,8 +225,8 @@ async function tellFiledWithoutReposting(client, entries) {
     if (!user) continue;
     const line =
       count === 1
-        ? "A message you sent while the bot was down has been kept in your archive, but not put back in the room — the scene had moved on. ‡"
-        : `${count} messages you sent while the bot was down have been kept in your archive, but not put back in the room — the scene had moved on. ‡`;
+        ? "A message you sent while the bot was down has been kept in your archive."
+        : `${count} messages you sent while the bot was down have been kept in your archive.`;
     await sendDm(user, `» *${line}*`, { kind: DM_KIND.QUIET }).catch(() => {});
   }
 }

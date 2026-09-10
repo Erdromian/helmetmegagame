@@ -94,16 +94,16 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
   // Three refusals, and each has to say which of the three it is — "nobody by
   // that name" and "everybody who answers to it is already wanted" look
   // identical from the officer's side otherwise.
-  if (matched === 0) throw new UserError("Nobody living answers to that name. ‡");
+  if (matched === 0) throw new UserError("There's nobody with that name.");
   if (targets.length === 0) {
     // grantTagSlugs would no-op on a non-stackable tag already held, so this
     // is here to say so out loud rather than report a success that did
     // nothing.
-    if (alreadyWanted > 0) throw new UserError("There is already a warrant out on them. ‡");
+    if (alreadyWanted > 0) throw new UserError("That person is already marked as wanted.");
     // Nothing left and nobody already wanted means the only match was the
     // officer themselves. A namesake would have survived the filter.
-    if (skippedSelf > 0) throw new UserError("Swear it out on somebody else. ‡");
-    throw new UserError("Nobody living answers to that name. ‡");
+    if (skippedSelf > 0) throw new UserError("Swear it out on somebody else.");
+    throw new UserError("There's nobody with that name.");
   }
 
   const openTurn = await getOpenTurn();
@@ -139,8 +139,8 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
     caught: targets.length,
     line:
       matched > 1
-        ? `A warrant is out on ${name} — ${matched} men answer to that name. ‡`
-        : `A warrant is out on ${name}. ‡`,
+        ? `A warrant is out on ${name} — ${matched} men answer to that name.`
+        : `A warrant is out on ${name}.`,
   };
 }
 
@@ -168,7 +168,7 @@ async function checkWantedImpl() {
     ok: true,
     // Names only. The role is a spoiler — see listWanted in db/lib/wanted.js.
     roster: rows.map((r) => ({ name: r.name })),
-    line: rows.length ? "The warrant book. ‡" : "Nobody is wanted. ‡",
+    line: rows.length ? "The warrant book." : "Nobody is wanted.",
   };
 }
 

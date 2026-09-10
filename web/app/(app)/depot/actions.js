@@ -167,9 +167,7 @@ function revalidateAll() {
 // A line the room witnesses, spoken into the Depot's Location channel.
 //
 // Best-effort and never inside the transaction: a Discord outage must not roll
-// back a shuttle that really did land. `signed` rides with the line because
-// the two shuttle lines are Bascinet's own words and must not be marked with a
-// ‡ — see db/lib/ambientLine.js.
+// back a shuttle that really did land.
 async function speakAtDepot(line) {
   const location = await prisma.location
     .findUnique({ where: { slug: DEPOT_LOCATION_SLUG }, select: { discordChannelId: true } })

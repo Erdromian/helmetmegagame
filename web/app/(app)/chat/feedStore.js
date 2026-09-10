@@ -268,7 +268,7 @@ export function usePlaces() {
 // loading flash, WHICH of the three states it is in: "idle" (nobody has
 // asked), "loading" (a fetch is out) or "loaded" (the backlog is in the
 // store). A place with no rows and no fetch behind it looks exactly like an
-// empty one, which is why "Nothing has been said here yet. ‡" used to flash
+// empty one, which is why "Nothing has been said here yet." used to flash
 // for a beat every time a room was opened.
 //
 // A Map on `state` rather than a bare Set, because Feed.js SUBSCRIBES to this

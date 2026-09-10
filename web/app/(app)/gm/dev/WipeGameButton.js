@@ -52,17 +52,17 @@ export default function WipeGameButton({ hasPacket = false }) {
       <label className="field">
         <span className="field-label">This game&apos;s transcript</span>
         <select name="archive" value={keep ? "keep" : "discard"} onChange={(e) => setKeep(e.target.value === "keep")}>
-          <option value="discard">Discard it — a playtest, keep nothing ‡</option>
-          <option value="keep">Keep it — read it later on /archive ‡</option>
+          <option value="discard">Discard it — a playtest, keep nothing</option>
+          <option value="keep">Keep it — read it later on /archive</option>
         </select>
       </label>
       <p className="ops-lede">
         {keep
-          ? "The transcript leaves the database either way. Keeping it means the packet in the bucket becomes the copy that survives, so Restart Game will refuse until one has been written. ‡"
-          : "Nothing of this game is kept — not the transcript, not its entry in the archive picker. This is the right answer for a playtest. ‡"}
+          ? "The transcript leaves the database either way. Keeping it means the packet in the bucket becomes the copy that survives, so Restart Game will refuse until one has been written."
+          : "Nothing of this game is kept — not the transcript, not its entry in the archive picker. This is the right answer for a playtest."}
       </p>
       {keep && !hasPacket ? (
-        <p className="ops-lede">» <em>No packet yet. Press Archive this game above first. ‡</em></p>
+        <p className="ops-lede">» <em>No packet yet. Press Archive this game above first.</em></p>
       ) : null}
       <div className="flex flex-wrap items-end gap-3">
         <label className="field">

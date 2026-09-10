@@ -776,7 +776,7 @@ async function handleIntercomSubmit(interaction, roomId) {
     .catch((err) => console.error("Intercom audit failed:", err.message ?? err));
 
   // Say what actually happened. A PA that reached four zones out of five is
-  // not a failure, but the speaker has to know which one nobody heard. One ‡
+  // not a failure, but the speaker has to know which one nobody heard. One
   // for the whole message, riding the last line rather than the first.
   const note = failed.length > 0 ? `\n-# Nothing came through in ${failed.join(", ")}.` : "";
   await respond(interaction, `» *Your voice goes out across Ravenheart.*${note}`, { fleeting: true });
@@ -844,13 +844,13 @@ async function handleTravelOpen(interaction) {
       : null;
   await respond(interaction, {
     content: [
-      held ? `» *${held.replace(" ‡", "")}*` : null,
+      held ? `» *${held}*` : null,
       destinations.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
       shutLine,
       truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
     ]
       .filter(Boolean)
-      .join("\n") + " ‡",
+      .join("\n"),
     components: destinations.length > 0 ? [buildLocationSelectRow(destinations, current)] : [],
   });
 }
@@ -1128,7 +1128,7 @@ async function handleTravelConfirm(interaction, locationId) {
     );
   }
 
-  await respond(interaction, { content: `${parts.join(" ")} ‡`, components: [] });
+  await respond(interaction, { content: parts.join(" "), components: [] });
 }
 
 async function handleTravelCancel(interaction) {
@@ -1466,7 +1466,7 @@ async function handleConcealCommand(interaction) {
       interaction,
       concealment.name
         ? `You're already hidden by the ${concealment.name}.`
-        : "You're already hidden by what you're wearing. ‡",
+        : "You're already hidden by what you're wearing.",
     );
     return;
   }
@@ -1569,7 +1569,7 @@ function optionalText(interaction, customId) {
 // application did not respond". Delete it once no such message survives.
 async function handleSpeakOpen(interaction) {
   await ack(interaction);
-  await respond(interaction, "Speak has moved — use /message in the room you want to speak in. ‡");
+  await respond(interaction, "Speak has moved — use /message in the room you want to speak in.");
 }
 
 async function handleSpeakSubmit(interaction, channelId) {

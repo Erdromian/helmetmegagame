@@ -621,7 +621,7 @@ has since been deleted outright along with the channel it opened.
 
 - **Addictions and Personality (`general-addictions`,
   `general-personality`) run their own bands, off the same scale.**
-  Addictions a flat −4, Personality −8…+5. ‡ The rationale is income-based, not
+  Addictions a flat −4, Personality −8…+5. The rationale is income-based, not
   severity-based: the price tracks how much of the Desire catalog a tag closes
   against how much it opens. Depressed closes everything and opens nothing, so
   it sits at the floor at −8; Eunuch closes exactly one family and sits at −1.

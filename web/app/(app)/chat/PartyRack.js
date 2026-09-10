@@ -33,7 +33,7 @@ function seatLine(seats, size) {
     label: `${seats} seats`,
     over,
     warning: over
-      ? `That's more than your ${seats} seats, so you lose the extra crossing your mount buys. ‡`
+      ? `You have more people than your mount can support (${seats} seats), so you lose the extra free zone move.`
       : null,
   };
 }
@@ -96,7 +96,7 @@ export default function PartyRack() {
           already on screen. */}
       {incoming.map((offer) => (
         <div key={offer.id} className="chat-party-ask">
-          <p className="text-sm">{offer.from} wants to take you along. ‡</p>
+          <p className="text-sm">{offer.from} wants to take you along.</p>
           <div className="chat-buttons">
             <button
               type="button"

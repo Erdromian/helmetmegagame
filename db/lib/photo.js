@@ -20,8 +20,7 @@ function joinBits(bits) {
   return bits.filter(Boolean).join(" · ");
 }
 
-// The caption, from an examineReadout() result. One ‡ at the very end, per
-// CLAUDE.md — never one per sentence.
+// The caption, from an examineReadout() result.
 //
 // The concealed branch is the readout's own: a hood in a photograph is still a
 // hood, and nothing about pointing a camera at somebody gets past it. What
@@ -29,16 +28,15 @@ function joinBits(bits) {
 // bandaged hand — which is exactly what examineReadout already decided.
 function photoCaption(readout) {
   if (readout.concealed) {
-    return `${readout.line} ${joinBits([...readout.ailments, ...readout.equipment])}`.trim() + " ‡";
+    return `${readout.line} ${joinBits([...readout.ailments, ...readout.equipment])}`.trim();
   }
 
   const appearance = readout.appearance || "Nothing you can make out.";
   const tags = joinBits(readout.tags.map((t) => t.name));
-  return [appearance, tags].filter(Boolean).join(" ") + " ‡";
+  return [appearance, tags].filter(Boolean).join(" ");
 }
 
-// What the camera prints when nobody is in front of it. Bascinet's line, so no
-// ‡ (CLAUDE.md's verbatim exemption).
+// What the camera prints when nobody is in front of it. Bascinet's line.
 const BLANK_PHOTO_CAPTION = "A nice photo.";
 const BLANK_PHOTO_NAME = "Photo";
 

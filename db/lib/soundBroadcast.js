@@ -55,10 +55,6 @@ function carriesTo(originKind, kind) {
 // it as subtext. The origin itself is distance 0, so it is always in the loud
 // band.
 //
-// `signed` rides through to ambientLine and decides the ‡ — false for a line
-// Bascinet wrote verbatim (CLAUDE.md). The loud copy has to append its own,
-// because it never goes through the helper.
-//
 // Returns { sent, failed } rather than throwing: a bell heard in thirty places
 // out of thirty-six still rang, and the caller has already committed the
 // cooldown by the time this runs.
@@ -81,7 +77,7 @@ async function broadcastSound(prisma, { originLocationId, text, maxHops, loudHop
     zones.filter((loc) => carriesTo(originKind, loc.zone?.kind)).map((loc) => loc.id),
   );
 
-  const loud = `${text}${signed ? " ‡" : ""}`;
+  const loud = text;
   const quiet = ambientLine(text, [], { signed });
 
   // Sequential, no Promise.all: a fan-out across three dozen Locations would

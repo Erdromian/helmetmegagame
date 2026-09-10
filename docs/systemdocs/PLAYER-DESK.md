@@ -44,7 +44,7 @@ third column of the shell**, not of the person view (§6): it is there on the
 roster too, and it does not get thrown away and rebuilt every time you open a
 different conversation. Its tabs are the five base ones —
 `Sheet · Tags · Moves · Archive · DMs`, same list as `/gm/turns` — plus this
-desk's own **Scene ‡**, the live feed where that character is standing (§6,
+desk's own **Scene**, the live feed where that character is standing (§6,
 `CHAT.md` §8). Canon is not a sixth tab any more: it is folded into **Moves**
 as the "This turn" section above that person's past turns (§6).
 
@@ -350,7 +350,7 @@ client, not a support inbox.
 
 ## 6. The inspector
 
-`Sheet · Tags · Moves · Archive · DMs · Scene ‡`, the first five fetched on
+`Sheet · Tags · Moves · Archive · DMs · Scene`, the first five fetched on
 demand and memoized per
 `${characterId}:${tab}` for the life of the page view. **Moves** is that
 person's turns: this desk's **Canon** section on top ("This turn"), then that
@@ -382,7 +382,7 @@ section can't fork the tab list or the tab-bar layout the way an extra tab
 could. The adjudication desk passes none.
 
 **`extraTabs` came back for exactly one thing, and it is not a regression of
-that argument.** `Scene ‡` (`SceneTab.js`) is the live feed where the inspected
+that argument.** `Scene` (`SceneTab.js`) is the live feed where the inspected
 character is standing — Chat's own `Feed` component, read-only, over that
 Location, its Rooms and its Conversations, on the same `/api/feed` stream and
 the same GM gate (`CHAT.md` §8). It is not a section above anything: there is
@@ -543,7 +543,7 @@ this path ever reloads the page.
 | `[discordUserId]/ConversationPane.js` | Thread + composer, optimistic send |
 | `InspectorHost.js` | The shared inspector's player-desk half: derived selection, pins, the Canon prelude |
 | `components/InspectorColumn.js` | The shared inspector itself (ADJUDICATION.md §3) |
-| `SceneTab.js` | The **Scene ‡** tab — Chat's `Feed`, read-only, on one place at a time through `/api/feed?place=` (CHAT.md §8) |
+| `SceneTab.js` | The **Scene** tab — Chat's `Feed`, read-only, on one place at a time through `/api/feed?place=` (CHAT.md §8) |
 | `CanonTab.js` | The "This turn" section — current Move, staged messages/effects, stage-a-DM box — rendered as the Moves tab's `tabPreludes` entry, refetched per mount |
 | `dmDraft.js` | The composer draft's `localStorage` key, shared with Canon |
 | `BulkComposer.js` / `BulkMessageButton.js` | The broadcast modal and its header door |

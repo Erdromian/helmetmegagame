@@ -387,9 +387,9 @@ first thing on the line and the eye can skip what it does not need.
 » *Customs.*
 **Hunting**: × | **Farming**: × | **Fishing**: ×
 **Indoors**: you can't equip a cart or horse here.
-**Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place. ‡
-**Noticeboard**: you can pin paper here. ‡
-**Approach**: the way stands open. Worked from the watchtower. ‡
+**Safe**: the Caving Die doesn't roll here. Nothing underground stalks this place.
+**Noticeboard**: you can pin paper here.
+**Approach**: the way stands open. Worked from the watchtower.
 ```
 
 The second part is `db/lib/locationAttributes.js` reading
@@ -402,9 +402,9 @@ be wrong if they were worded alike. A gate's topic word is the place on the far
 side, which is also how a player reads the button row above it.
 
 Structures print here too, one line each, and their `examine:` string in
-`docs/tags.yaml` is authored as the **fragment after the colon**, ‡-free — the
-topic is the structure's own name, so an `examine:` that named it again would
-say it twice, and the line picks up its mark on the way out.
+`docs/tags.yaml` is authored as the **fragment after the colon** — the topic
+is the structure's own name, so an `examine:` that named it again would say it
+twice.
 
 Words, never numbers. Working out that Bountiful beats Ample is the player's
 job, and the numbers move anyway.

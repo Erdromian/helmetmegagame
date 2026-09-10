@@ -306,7 +306,7 @@ not a cure, §7's clawback deliberately did **not** apply: a one-off script
 deleted the row and its seven holdings and left every holder's `tagPoints`
 untouched.
 
-‡ The price band follows an income-based rationale: a tag is priced by how
+The price band follows an income-based rationale: a tag is priced by how
 much of the catalog it closes against how much it opens. Depressed, closing
 everything and opening nothing, is the floor at −8. Eunuch, closing exactly
 one family, is −1. An Interest-shaped tag costs points because it is pure
@@ -376,7 +376,7 @@ slot is safe — it only ever touches the row it snapshotted. The visible effect
 is that a slot carries a history of rows, and the cooldown math cares only
 about the largest `endedTurnNumber` among them.
 
-## 7. The clawback rule ‡
+## 7. The clawback rule
 
 Curing an Addiction or a negative Personality tag (a Chaplain confessing
 someone free of one, say) is a `HEAL_CHARACTER`-shaped GM adjudication, not a
@@ -394,7 +394,7 @@ this; it is GM-adjudicated the same way every other
 Health-tag cure is (`TAGS.md` §5c), and it's written here because the
 consequence (going negative) is the one a GM might otherwise hesitate over.
 
-## 8. The anti-loop rule ‡
+## 8. The anti-loop rule
 
 "**A Desire arranged solely to fulfil a Desire is not fulfilled.**" A
 character can't stage a scene whose entire content is manufacturing the

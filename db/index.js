@@ -573,7 +573,7 @@ async function resolveNeeds(turn, config) {
   if (ascension?.fired) {
     try {
       const ended = await endGameInDb(prisma, {
-        closingNote: `The cult finished its work at the close of turn ${turn.number}. Ravenheart burned. ‡`,
+        closingNote: `The cult ascended at the end of turn ${turn.number}. Ravenheart was destroyed.`,
         reason: "ascension",
       });
       if (ended.ended) gameEndedPost = ended.post;
@@ -616,7 +616,7 @@ async function resolveNeeds(turn, config) {
       .catch((err) => console.error("Nuke audit log failed:", err));
     try {
       const ended = await endGameInDb(prisma, {
-        closingNote: `The device went off at the close of turn ${turn.number}. Everyone above ground died. ‡`,
+        closingNote: `The device went off at the end of turn ${turn.number}. Everyone above ground died.`,
         reason: "nuke",
       });
       if (ended.ended) gameEndedPost = ended.post;

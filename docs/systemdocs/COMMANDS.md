@@ -310,7 +310,7 @@ offers a `viaName` and a shout needs it, but a bell hangs in a tower you can see
 from the square, so naming the way to it tells nobody anything.
 
 So the only thing left is a volume band, and it is purely a formatting call —
-full size near the source, `ambientLine` subtext past it. ‡
+full size near the source, `ambientLine` subtext past it.
 
 | | Origin | Reach | Full size | Cooldown |
 |---|---|---|---|---|
@@ -703,7 +703,7 @@ the bot owns, and `toggleGate` hands back the two location ids for whoever
 has messages to redraw. A web flip therefore leaves the Discord anchor a
 click behind until the bot's next redraw or the channel doctor's pass, which
 is the cheaper half of the two options — a NOTIFY would have been a second
-long-lived listener for one message. ‡
+long-lived listener for one message.
 
 ## 6a. The web twins
 

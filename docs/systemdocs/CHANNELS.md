@@ -740,7 +740,7 @@ starter row (`db/lib/roomStarterRow.js`, keyed on `INTERCOM_ROOM_SLUG =
 the modal posts one line into each zone's `#summary`:
 
 ```
-@here You hear a voice from the intercom: {text}. ‡
+@here You hear a voice from the intercom: {text}.
 ```
 
 **This is the one world-narration line that is NOT `-#` subtext**, and the

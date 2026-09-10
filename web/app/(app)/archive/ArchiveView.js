@@ -220,7 +220,7 @@ function ArchiveStream({ query, first, view, total, onPick }) {
   }, []);
 
   if (rows.length === 0) {
-    return <EmptyState>No line in this game matches that. ‡</EmptyState>;
+    return <EmptyState>No line in this game matches that.</EmptyState>;
   }
 
   return (

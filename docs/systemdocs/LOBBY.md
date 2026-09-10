@@ -82,7 +82,7 @@ that button. It passes the **roster** check without the Player role — the seat
 exists so a contributor can test creation and play without being seated as a
 GM or a player — but it takes the lobby and the roll like anybody else. It used
 to skip the phase gate too, which meant the people most likely to be testing
-the lobby were the one group that never saw it. ‡
+the lobby were the one group that never saw it.
 
 ### Playtest mode
 
@@ -90,24 +90,24 @@ the lobby were the one group that never saw it. ‡
 creation**, runs the game's whole normal shape — every phase, the lobby, the
 roll, creation, turns — for a closed group. With it on, the roster narrows from
 "holds the Player role" to **a GM, a playtester, or a Contributor**
-(`CONTRIBUTOR_ROLE_ID`); superadmins bypass it as they bypass everything. ‡
+(`CONTRIBUTOR_ROLE_ID`); superadmins bypass it as they bypass everything.
 
 It exists because the Player role cannot say who a playtest is for: the bot
 hands that role to everyone the moment they join the guild
 (`bot/src/events/guildMemberAdd.js`), so "on the roster" and "in the Discord"
-are the same set. ‡
+are the same set.
 
 The switch gates **joining only** — readying up and character creation. Anybody
 who already has a living character keeps playing, so flipping it mid-game
 strands nobody. All three gates read it through one helper,
 `web/lib/discordGuild.js#onRoster`: `lobbyGate()` in `lobbyActions.js`, both
 creation actions in `createActions.js`, and the presentation mirror in
-`character/page.js`. ‡
+`character/page.js`.
 
 Somebody turned away by it is told **"Ravenheart Is Not Open Yet"**, not "You
 Are Not On The Roster" (`gate.masked` in `character/page.js`). There is nothing
 for them to apply for, and a closed rehearsal has no reason to announce
-itself. ‡
+itself.
 
 A role handed out in Discord reaches these surfaces within a minute. The web
 app caches a member's roles for five minutes

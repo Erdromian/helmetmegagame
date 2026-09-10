@@ -42,7 +42,7 @@ async function flattenTagTokens(lines) {
 // tail is the Role's own charter from docs/roles.yaml — its intro and its
 // description lines, Bascinet's words — never a second copy written here.
 // Assign hands a seat to a character who already has a role, so it carries no
-// charter at all. No ‡ — Bascinet signed off on these words on 2026-09-08.
+// charter at all. Bascinet signed off on these words on 2026-09-08.
 //
 // A seat with a `brief` (only the Thanati, who have no Role of their own —
 // db/lib/threats.js) reads it instead of the generic Assign opener, since its

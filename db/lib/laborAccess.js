@@ -229,7 +229,7 @@ function computeLaborAccess(ctx) {
   // ropes" is a legitimate move for a bound character and a GM's to judge.
   const blocked = [...ctx.tagSlugs].find((slug) => INCAPACITATING_SLUGS.has(slug));
   if (blocked) {
-    return { ok: false, reason: "You can't work ‡" };
+    return { ok: false, reason: "You can't work" };
   }
   return { ok: true };
 }
@@ -413,8 +413,8 @@ function formatLaborBonusNote(
   // cubes they never got.
   if (refinery) {
     return refined
-      ? `-# One Godflesh in, ${REFINERY_YIELD} cubes out. ‡`
-      : "-# There was no Godflesh left on the floor when you started working. ‡";
+      ? `-# One Godflesh in, ${REFINERY_YIELD} cubes out.`
+      : "-# There was no Godflesh left on the floor when you started working.";
   }
   const parts = [];
   for (const tool of tools) {

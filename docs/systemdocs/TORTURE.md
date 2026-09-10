@@ -118,7 +118,7 @@ would. A Chaplain's Confession or a Bliss cures it (CONFESSION.md,
   now knows everything about you.*
 - held: *You were tortured, but held out. It won't be long, now...*
 
-Both are Bascinet's words verbatim and carry no ‡.
+Both are Bascinet's words verbatim.
 
 ## 5. Torturing Equipment
 

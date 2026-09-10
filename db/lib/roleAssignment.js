@@ -118,12 +118,12 @@ function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhi
       !players.some((p) => p.priorities?.[role.slug] && mayHold(p, role)),
   );
   if (unwantedLeaders.length) {
-    warnings.push(`Nobody who may hold them wants these leader seats: ${unwantedLeaders.map((r) => r.name).join(", ")}. ‡`);
+    warnings.push(`The following leader seats aren't reserved by anyone: ${unwantedLeaders.map((r) => r.name).join(", ")}.`);
   }
   const returning = rows.filter((r) => r.roleSlug === null).length;
-  if (returning) warnings.push(`${returning} player${returning === 1 ? "" : "s"} will return to the lobby. ‡`);
+  if (returning) warnings.push(`${returning} player${returning === 1 ? "" : "s"} will return to the lobby.`);
   const empty = players.filter((p) => Object.keys(p.priorities ?? {}).length === 0).length;
-  if (empty) warnings.push(`${empty} readied with every role Off. ‡`);
+  if (empty) warnings.push(`${empty} readied with every role Off.`);
 
   return { rows, warnings, seed: String(seed ?? "") };
 }

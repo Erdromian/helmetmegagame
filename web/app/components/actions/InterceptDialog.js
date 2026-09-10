@@ -27,7 +27,7 @@ const MODES = [
   { id: "AMBUSH", label: "Ambush" },
 ];
 
-// Bascinet's words, both of them, so neither carries a ‡.
+// Bascinet's words, both of them.
 const MODE_HELP = {
   SAFE: "Freezes them for two minutes and sends them the message.",
   AMBUSH:
@@ -86,15 +86,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
         )
       }
     >
-      <p className="text-sm text-muted">
-        You wait where you are standing. Anyone you are watching for is stopped when they walk in. ‡
-      </p>
-      {/* Said on the page, not hidden behind anything: where the watch is set
-          and what ends it are the two things about this verb a player cannot
-          work out by using it (SHEET.md §3, INTERCEPT.md §8). */}
-      <p className="text-sm text-muted">
-        {place ? `You are lying in wait at ${place}. ` : ""}Leave this place, however you leave it, and the watch ends. ‡
-      </p>
+      {place ? <p className="text-sm text-muted">{`You are lying in wait at ${place}.`}</p> : null}
 
       {/* The two standing rules sit ABOVE the typed names rather than mixed in
           with them: ✕ has to mean exactly one thing in a chip row, and "anyone
@@ -122,9 +114,6 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
             Any concealed person
           </button>
         </div>
-        {anyPerson ? (
-          <p className="text-xs text-muted">Any person already covers everyone. ‡</p>
-        ) : null}
       </div>
 
       <NameChips
@@ -135,12 +124,6 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
         maxLength={FULL_NAME_LIMIT}
         disabled={anyPerson}
       />
-      {/* Said out loud, because it is the one rule about this verb a player
-          could not work out by using it (INTERCEPT.md). */}
-      <p className="text-xs text-muted">
-        A name only catches a face you would recognise. Somebody hooded walks past it — watch for
-        anyone concealed instead. ‡
-      </p>
 
       <label className="field">
         <span className="field-label">What do you want to message them?</span>

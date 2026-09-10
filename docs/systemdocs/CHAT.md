@@ -335,7 +335,7 @@ and a summary; past twelve of those the warmth is not worth the requests. A GM
 is exempt outright — their list is every zone, Location and Room they may
 watch, which is two hundred and more, and warming a Chat they will open one
 room of is a storm the database pays for and nobody sees. A GM fetches on
-selection. ‡
+selection.
 
 `GET /api/feed/places` answers the same list on its own, for a client that has
 reason to think it moved and no stream open to be told.
@@ -364,7 +364,7 @@ alias, exactly as they speak under it.
 
 The client holds each person for 6 s after their last event
 (`play/typingStore.js`) and draws one line above the composer: *"X is typing…
-‡"*, *"X and Y are typing… ‡"*, *"Several people are typing… ‡"*. Three is
+"*, *"X and Y are typing…"*, *"Several people are typing…"*. Three is
 where naming people stops helping. A Discord-side echo of a WEB typist is
 **not** built — Discord has no API for a bot to type as somebody else.
 
@@ -880,8 +880,8 @@ sheet's rows carry the names, the eye and the person menu.
   `conv:` place and for a PRIVATE `room:` place, and nowhere else — a public
   room needs no guest list, and `placeMembers()` says so with a null `members`
   rather than a refusal. It is a 20px avatar chip per member with a `×`, and a
-  plain, always-visible `+ Add ‡` opening a picker of everyone standing here
-  who is not already in. `HereList`'s person menu gains **Add to `<name>` ‡**
+  plain, always-visible `+ Add` opening a picker of everyone standing here
+  who is not already in. `HereList`'s person menu gains **Add to `<name>`**
   for the same two kinds of place.
 
   Until now the only way to let somebody into either was `/add` on Discord,
@@ -1072,7 +1072,7 @@ sheet's rows carry the names, the eye and the person menu.
 - **`YouPanel.js`** draws **YOU**, in the order a player asks it — and every
   section of it is about the character rather than the street they are
   standing in:
-  1. **`TurnCard.js`** — `DAY 4 · DUSK`, a `closes in 5 h ‡` countdown
+  1. **`TurnCard.js`** — `DAY 4 · DUSK`, a `closes in 5 h` countdown
      computed in the browser off an ISO end time on a 60-second tick (absent
      entirely when `moveWindow` reports no lock: a frozen clock or a short
      manual turn has no honest end to count to), and then either the **Move…**
@@ -1085,7 +1085,7 @@ sheet's rows carry the names, the eye and the person menu.
      (`web/lib/sheetCards.js`), so a new affliction appears here the day it is added to
      `docs/tags.yaml`. Overburdened, Dying and Catatonic — and a carry line
      over its cap — wear the danger tone.
-  3. **`ThingsDrawer.js`** — **Things ‡**, the pockets drawer, collapsed by
+  3. **`ThingsDrawer.js`** — **Things**, the pockets drawer, collapsed by
      default and remembered in `localStorage`. Every tag
      whose category is **Items** or **Assets**, grouped in that order, as one
      chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
@@ -1098,7 +1098,7 @@ sheet's rows carry the names, the eye and the person menu.
      re-read after every verb cannot disagree. It polls on its own minute, and
      only while it is open.
   4. **`DesiresBlock.js`** — the sheet's slot view, in the column: per slot
-     either **Claim ‡** or `Opens on turn N ‡`, the last claim as a muted
+     either **Claim** or `Opens on turn N`, the last claim as a muted
      line, and the Addiction note on the bottom slot. The claim is the real
      one (`claimDesire`), over `DesireCatalog` and `RequestDialog`, exactly as
      `DesirePanel.js` does it. What is different is *when* the catalog
@@ -1123,23 +1123,23 @@ sheet's rows carry the names, the eye and the person menu.
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
   console shows up here without a reload.
 - **The composer's two hand controls**, beside the send and the phone's ⋯.
-  A ✉ (`QuillIcon`) opens a small menu of **Write ‡**, **Seal ‡** and **Send
-  by bird ‡** — each shown only where the sheet would show it, each opening
+  A ✉ (`QuillIcon`) opens a small menu of **Write**, **Seal** and **Send
+  by bird** — each shown only where the sheet would show it, each opening
   the sheet's own dialog through
   `RequestActionsProvider.open("write"|"seal"|"bird")`. Bind a Book used to sit
   in that menu; a blank book is an ordinary craft recipe now and Write is what
   fills one (`PAPERWORK.md` §4a). The bird is
   the one that greys rather than hides: with one already gone today it reads
-  **Sent today ‡**. Beside it, a hood (`HoodIcon`, `aria-pressed`) calls
+  **Sent today**. Beside it, a hood (`HoodIcon`, `aria-pressed`) calls
   `toggleConceal()` — drawn only where `db/lib/conceal.js` would not refuse
   outright, and while it is up the composer's placeholder and label read
-  *Say something as {alias}… ‡*, which is the name every row it writes will
+  *Say something as {alias}…*, which is the name every row it writes will
   wear. A toggle ends in `router.refresh()`, because that name is a server
   prop.
-- **The place card's two doors** (`PlaceCard.js`). A **Depot › ‡** link when
+- **The place card's two doors** (`PlaceCard.js`). A **Depot ›** link when
   this character is standing at the Depot AND holds the merchant licence or
   the keycard — offered only where it would open, since `/depot` bounces
-  anybody without one — and a **Factory ‡** button on godflesh ground, opening
+  anybody without one — and a **Factory** button on godflesh ground, opening
   the sheet's Extract dialog. Both decided server-side in `play/page.js`; the
   page and the action re-check their own gate.
 - **`web/lib/selfPools.js#loadLettersView`** builds the paperwork half of a
@@ -1148,13 +1148,13 @@ sheet's rows carry the names, the eye and the person menu.
   `RequestActionsProvider` takes, so the sheet and Chat hand the dialogs
   one list. The raw text of a paper never comes back from it: only an excerpt,
   and only for a reader. Both surfaces strip `paperText` off the tags they
-  hand to a client component for the same reason. ‡
+  hand to a client component for the same reason.
 - **`web/lib/selfPools.js#loadDesireView`** is to a character's own state what
   `peoplePools.js` is to the people near them: one build of the Desire slots
   and, on request, the evaluated catalog. The sheet asks for both; Chat
   asks for the slots and fetches the catalog when the picker opens. Every gate
   is evaluated server-side — the client never runs the gate logic and never
-  receives a hidden template. ‡
+  receives a hidden template.
 - **`web/lib/peoplePools.js#loadPeoplePools`** is the one build of every
   people pool — the roster standing here, the medical gate, the Loot / Move /
   Bind / Harm lists. It came out of `character/page.js`, which calls it too:
@@ -1166,12 +1166,12 @@ sheet's rows carry the names, the eye and the person menu.
   shared transition, never a bare `router.refresh()`, which drops the route
   to its loading skeleton for the length of the refetch. The event refreshes
   only when the server says the viewer's own presence changed (§3), and the
-  feed store is client state, so a refresh costs nothing that was on screen. ‡
+  feed store is client state, so a refresh costs nothing that was on screen.
 - **One aside is ever mounted.** The right column and the phone's ⋯ sheet are
   the same `ChatAside`, and CSS hiding the column under 900px still left both
   live — two travel loads, two stash reads, two affordance states.
-  `useAsideFolded()` picks one; the CSS rule stays as belt and braces. ‡
-- **Nothing ever flashes "Nothing has been said here yet. ‡"**, and getting
+  `useAsideFolded()` picks one; the CSS rule stays as belt and braces.
+- **Nothing ever flashes "Nothing has been said here yet."**, and getting
   there took three separate fixes, because the empty state had three ways to
   win a race:
   1. `Chat.js` seeded the store from an **effect**, so the first client render
@@ -1213,7 +1213,7 @@ sheet's rows carry the names, the eye and the person menu.
   quantity }] }`) rather than with `formatStashLine`'s Discord sentence, and
   `RoomPanel` draws a `.chip-mono` `12 ⬢` and one `.chip` per stack —
   `Paper ×23`, the `×` only where there is more than one — collapsing past
-  twelve behind `+9 more ‡`. `formatStashLine` stays exactly as it is for the
+  twelve behind `+9 more`. `formatStashLine` stays exactly as it is for the
   bot, which is talking into a channel that renders those markers.
 - **The noticeboard is in the street, not behind a button.** When the open
   place is the Location and it has a board
@@ -1221,7 +1221,7 @@ sheet's rows carry the names, the eye and the person menu.
   pinned notices draw as `.chat-notice-card`s **pinned at the top of the feed
   scroller** — the paper is standing there, and filing it into the scroll in
   the order it went up would bury it under fifty lines of scene. Each card is
-  the notice's name, **Read ‡** and **Tear ‡**; Read opens the same block the
+  the notice's name, **Read** and **Tear**; Read opens the same block the
   Noticeboard dialog draws (`NoticeCards.js#NoticeText`), so a paper read from
   the street and one read from the dialog are one rendering. The dialog keeps
   its own job — pinning one of YOUR papers, which needs a picker — and a pin
@@ -1389,8 +1389,8 @@ the push service minted, and the two keys. Per BROWSER, not per character: one
 player may hold a laptop's row and a phone's, and a character dying does not
 end them.
 
-- **The toggle** sits beside the chime bell in the places column: `Notify me ‡`
-  / `Notifications on ‡`, `aria-pressed`. Pressing it registers `/sw.js`, asks
+- **The toggle** sits beside the chime bell in the places column: `Notify me`
+  / `Notifications on`, `aria-pressed`. Pressing it registers `/sw.js`, asks
   for permission, subscribes and posts the subscription; pressing it again
   unsubscribes. It draws only when the browser has a `PushManager` **and**
   `/api/push/key` answers — the state is a module store read through
@@ -1401,7 +1401,7 @@ end them.
   url the payload carries. It caches nothing: `/chat` is a live feed, and a
   worker serving it out of a cache would be showing yesterday's scene.
 - **What is sent.** Two things, and only two. A **mention** — after the DM, at
-  both call sites, `"{name} was named ‡"` / `"in {place} ‡"`, pointing at
+  both call sites, `"{name} was named"` / `"in {place}"`, pointing at
   `/chat` (the web-origin one at `/chat#<placeKey>`, which is the same hash the
   places column round-trips). And the **turn opening**
   (`db/lib/turnAnnouncement.js`), after the announcement is posted, to every
@@ -1571,14 +1571,14 @@ player believing they were hidden when they were not.
 `updateMany` whose WHERE carries `webOnly: !want` and `OR [{ null }, { lte
 cutoff }]`, so two clicks in one tick cannot both pass and re-saving the Bio
 card in the state you are already in spends nothing. A refusal reads *"You
-switched N minutes ago. You can switch again at HH:MM. ‡"* and **leaves the
+switched N minutes ago. You can switch again at HH:MM."* and **leaves the
 rest of the save standing** — the appearance somebody just typed is not thrown
 away because a cooldown had two minutes left on it.
 
 **What survives either way:** DMs, the OOC report channel (opened by the Player
 role, not per character), guest rows, conversation membership, and the fiction —
 they still stand there and still appear in Who's here?. The places column shows
-one quiet `.chip`, **Playing from the web ‡**.
+one quiet `.chip`, **Playing from the web**.
 
 **The turn-ping role does NOT survive**, and it used to. The line here said it
 did, on the grounds that a turn ping "is a DM, not a channel" — which was simply
@@ -1694,7 +1694,7 @@ no `localStorage` to clear.
 
 ## 8. The GM's Scene tab
 
-The player desk's inspector (`PLAYER-DESK.md` §6) gains a **Scene ‡** tab: what
+The player desk's inspector (`PLAYER-DESK.md` §6) gains a **Scene** tab: what
 is being said where the inspected character is standing, live.
 
 It renders Chat's own `Feed`, not a GM-flavoured copy of it —

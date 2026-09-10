@@ -357,9 +357,9 @@ A dialog on a GM desk is a problem the rest of the app doesn't have. The desks
 are three live columns, and the right-hand one (`InspectorColumn.js`) exists to
 be *browsed* — Sheet, Tags, Moves, Archive, DMs for whoever was last clicked.
 A backdrop over it means a GM cannot look someone up while writing about them,
-which is most of what staging a message is. ‡
+which is most of what staging a message is.
 
-`Modal`'s `modeless` prop drops the modal half and keeps the dialog: ‡
+`Modal`'s `modeless` prop drops the modal half and keeps the dialog:
 
 - transparent, click-through overlay (`data-modeless="true"`), so the page
   behind stays live;
@@ -397,7 +397,7 @@ overlay — a floating composer's unsaved text has to hold off a
 every `useConfirm()`, and the Dev Panel's typed-name Delete. So does every
 player-facing dialog. The opted-in surfaces are the `/gm/turns` composers
 (message, declaration, effect, transfer, push preview), the Dev Panel and its
-own dialogs, the shared custom-tag door and the archive-context popup. ‡
+own dialogs, the shared custom-tag door and the archive-context popup.
 
 ### Confirm first, transition second — always
 

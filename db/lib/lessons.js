@@ -165,7 +165,7 @@ function teacherCapacity(teacher) {
 // --- shared checks -------------------------------------------------------
 
 const GONE = "That offer's gone.";
-const LOCKED_IN = "You've already locked in a Move this turn. ‡";
+const LOCKED_IN = "You've already locked in a Move this turn.";
 
 async function openTurnAndWindow(db) {
   const [turn, frozen] = await Promise.all([
@@ -187,7 +187,7 @@ async function teacherSlot(db, teacher, turnId) {
   if (!(action.gmNotes ?? "").includes("auto:lesson"))
     return {
       ok: false,
-      reason: `${teacher.name} has already locked in a Move this turn. ‡`,
+      reason: `${teacher.name} has already locked in a Move this turn.`,
     };
   const taken = await db.offer.count({
     where: {
@@ -198,7 +198,7 @@ async function teacherSlot(db, teacher, turnId) {
   if (taken >= teacherCapacity(teacher)) {
     return {
       ok: false,
-      reason: `${teacher.name} can't take on another student this turn. ‡`,
+      reason: `${teacher.name} can't take on another student this turn.`,
     };
   }
   return { ok: true, action };
@@ -212,7 +212,7 @@ async function learnerSlot(db, learner, turnId) {
   return action
     ? {
         ok: false,
-        reason: `${learner.name} has already locked in a Move this turn. ‡`,
+        reason: `${learner.name} has already locked in a Move this turn.`,
       }
     : { ok: true };
 }
@@ -225,9 +225,9 @@ async function validateLesson(
   { teacher, learner, tag, turnId, checkSlotsFor },
 ) {
   if (!teacher || teacher.status !== "ALIVE")
-    return "That teacher isn't around any more. ‡";
+    return "That teacher isn't around any more.";
   if (!learner || learner.status !== "ALIVE")
-    return "That student isn't around any more. ‡";
+    return "That student isn't around any more.";
   if (teacher.id === learner.id) return "You can't teach yourself.";
   if (!isHere(teacher, learner)) return notHereMessage(learner);
   if (!isHere(learner, teacher)) return notHereMessage(teacher);
@@ -237,7 +237,7 @@ async function validateLesson(
   if (
     !teachableSkills(teacher, learner, catalog).some((t) => t.id === tag.id)
   ) {
-    return `${teacher.name} can't teach ${learner.name} ${tag.name} right now. ‡`;
+    return `${teacher.name} can't teach ${learner.name} ${tag.name} right now.`;
   }
   for (const who of checkSlotsFor) {
     const slot =
@@ -269,7 +269,7 @@ async function createLessonOffer(
 ) {
   const { turn, locked } = await openTurnAndWindow(prisma);
   if (!turn) return { ok: false, reason: "No turn is open." };
-  if (locked) return { ok: false, reason: "Moves are locked for this turn. ‡" };
+  if (locked) return { ok: false, reason: "Moves are locked for this turn." };
 
   const [teacher, learner, tag] = await Promise.all([
     loadCharacter(prisma, teacherId),
@@ -311,7 +311,7 @@ async function createLessonOffer(
   if (duplicate)
     return {
       ok: false,
-      reason: "That offer is already waiting on an answer. ‡",
+      reason: "That offer is already waiting on an answer.",
     };
 
   const offer = await prisma.offer.create({
@@ -330,7 +330,7 @@ async function createLessonOffer(
     initiatorId === learnerId
       ? // Bascinet's line.
         `*${learner.name}* wants to try and learn *${tag.name}* from you. Accept?`
-      : `*${teacher.name}* offers to teach you *${tag.name}*. Accept? ‡`;
+      : `*${teacher.name}* offers to teach you *${tag.name}*. Accept?`;
   return {
     ok: true,
     offer,
@@ -380,10 +380,10 @@ async function acceptLesson(prisma, offer, responder) {
     return await cancelWith(
       prisma,
       offer,
-      "That offer was for a turn that's over. ‡",
+      "That offer was for a turn that's over.",
     );
   if (locked)
-    return await cancelWith(prisma, offer, "Moves are locked for this turn. ‡");
+    return await cancelWith(prisma, offer, "Moves are locked for this turn.");
 
   const [teacher, learner, tag] = await Promise.all([
     loadCharacter(prisma, offer.teacherId),
@@ -458,7 +458,7 @@ async function acceptLesson(prisma, offer, responder) {
           },
         });
       } else {
-        const base = teacherAction.description.replace(/\.\s*‡?\s*$/, "");
+        const base = teacherAction.description.replace(/\.\s*$/, "");
         teacherAction = await tx.action.update({
           where: { id: teacherAction.id },
           data: { description: `${base}, ${tag.name} to ${learner.name}.` },
@@ -573,7 +573,7 @@ async function declineOffer(prisma, offer, responder) {
     BIND: { content: `${responder.name} won't be bound.`, line: "You said no." },
     ESCORT: {
       content: `${responder.name} isn't coming with you.`,
-      line: "You stay where you are. ‡",
+      line: "You stay where you are.",
     },
     KISS: {
       content: `${responder.name} turned you down.`,
@@ -582,7 +582,7 @@ async function declineOffer(prisma, offer, responder) {
   };
   const wording = WORDING[offer.kind] ?? {
     content: `${responder.name} declined the lesson.`,
-    line: "You turned the lesson down. ‡",
+    line: "You rejected the lesson.",
   };
   return {
     ok: true,
@@ -635,7 +635,7 @@ async function cancelOffersForAction(tx, actionId) {
           (offer.kind === "CONFESSION" ? "your chaplain" : "your teacher");
         dms.push({
           discordUserId: learner.discordUserId,
-          content: `Your ${what} with ${who} was called off by a GM. Your Move wasn't spent. ‡`,
+          content: `Your ${what} with ${who} was called off by a GM. Your Move wasn't spent.`,
         });
       }
     }

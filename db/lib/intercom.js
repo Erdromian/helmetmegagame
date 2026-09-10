@@ -59,7 +59,7 @@ function intercomLine(text) {
   // Supply a full stop only when the speaker didn't end on one themselves,
   // so "Get to the wall!" doesn't broadcast as "Get to the wall!."
   const stop = /[.!?…]$/.test(body) ? "" : ".";
-  return `@here You hear a voice from the intercom: ${body}${stop} ‡`;
+  return `@here You hear a voice from the intercom: ${body}${stop}`;
 }
 
 // Posts to every zone in range, sequentially and individually caught. Never
@@ -91,7 +91,7 @@ async function broadcastIntercom(prisma, text) {
     // written by the Speak handler, which read correctly in /archive and was
     // invisible in Chat: a zone feed can only show a row filed against its
     // own place key. The @here is Discord's alone — a notification is not part
-    // of what was said — and the line already carries its ‡.
+    // of what was said.
     await sceneLineAt(prisma, {
       zoneId: zone.id,
       text: content.replace(/^@here\s+/, ""),

@@ -351,7 +351,7 @@ documents:
       | {tag:mulligan-potion} | 8 | 2 | — |
       | {tag:flawless-skin} | 8 | 1 | — |
 
-      Rumor has it the skilled brewers of past generations knew recipes beyond these — worked from stranger ingredients than any listed here. If something rare and organic finds its way into your hands, a still is one way to ask it questions. ‡
+      Rumor has it the skilled brewers of past generations knew recipes beyond these — worked from stranger ingredients than any listed here. If something rare and organic finds its way into your hands, a still is one way to ask it questions.
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser
@@ -398,7 +398,7 @@ documents:
     flags:
       - gamemaster
     description: |-
-      Recipes hidden from the public papers and the Recipes tab. Each appears in a character's Craft menu only while they hold the ingredient — finding the thing is how the recipe is learned. Nothing here should be told to a player outright; place the ingredient instead. ‡
+      Recipes hidden from the public papers and the Recipes tab. Each appears in a character's Craft menu only while they hold the ingredient — finding the thing is how the recipe is learned. Nothing here should be told to a player outright; place the ingredient instead.
 
       | Recipe | Skill | ⬢ | Needs | The ingredient comes from |
       |---|---|---|---|---|
@@ -416,9 +416,9 @@ documents:
       | {tag:heartforged-blade} | Smithing (Skilled) | 34, 3-turn project | {tag:aberrant-heart} | cut from a fallen Aberrant, hunting the Depths |
       | {tag:death-mask} | Artist | 4, 2-turn project | a corpse (kept) and {tag:saltpeter} | hidden by its own catalog flag, like the {tag:bone-mask}: an artist standing with a body finds it |
 
-      The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey. ‡
+      The {tag:lavish-meal} also takes {tag:honey} as an unlisted delicacy — a cook holding a jar sees the option; the public paper names tea, sweets and fish roe, but never honey.
 
-      Mechanics a GM adjudicates or should know: the {tag:blessed} status a {tag:chrism} grants blocks Break-family grants outright and halves everything that sinks the mood for 3 turns; an equipped {tag:heartforged-blade} stops the mood sinking at all and fights as Exceptional; a held {tag:musk-lure} is auto-spent to negate its holder's first cave TROUBLE; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead. ‡
+      Mechanics a GM adjudicates or should know: the {tag:blessed} status a {tag:chrism} grants blocks Break-family grants outright and halves everything that sinks the mood for 3 turns; an equipped {tag:heartforged-blade} stops the mood sinking at all and fights as Exceptional; a held {tag:musk-lure} is auto-spent to negate its holder's first cave TROUBLE; an equipped {tag:minted-charm} adds +1 to Learn Skill rolls; a {tag:death-mask} can be taken ONCE per corpse — the body's description says when a face is gone — and the finished mask is named for the dead.
 
   # The Demoness threat's own brief (db/lib/threats.js). Assigned by the
   # Demoness tag, which is also what unlocks the hidden Demoness tag

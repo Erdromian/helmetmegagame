@@ -356,7 +356,7 @@ function antagonistNames(slugs) {
 const WHITELISTED_OPT_IN_SLUGS = new Set(OPT_IN_THREATS.filter(optInWhitelisted).map((t) => t.slug));
 
 // A spawned character needs a name and there is nobody to type one, so one is
-// rolled. NO ‡ ANYWHERE IN THESE — a name is written to Character.name, the
+// rolled. These are plain names — each is written to Character.name, the
 // Discord nickname and the personal role title, all of which are matched or
 // worn as identity rather than read as prose.
 const SPAWN_NAMES = {

@@ -67,7 +67,6 @@ function shoutLine(text, distance, viaName, options = {}) {
 // db/lib/scene.js needs these pieces and not the rendered string, because a
 // scene row deliberately stores no `-#` — the web draws a SYSTEM row as
 // subtext itself, and storing the marker would put a literal `-#` on the page.
-// It signs the row itself too, so nothing here carries a ‡.
 //
 // The muffling is re-rolled per call, so the archived copy of a distant shout
 // is not character-for-character the same static as the Discord copy. That is
@@ -79,8 +78,6 @@ function shoutParts(text, distance, viaName, { shouterName = null, muffled = fal
     // load leaves the old anonymous line standing, which errs toward hiding
     // somebody who should be visible rather than the other way round.
     const said = shouterName ? `${shouterName} shouts: » ${text}` : `You hear someone shout: » ${text}`;
-    // Under four words, so no ‡ — and it trails player-typed text, where a
-    // mark would read as part of the shout.
     return { text: muffled ? `${said}, but it's muffled.` : said, lines: [] };
   }
 
@@ -220,7 +217,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   // 300, the option's own maximum. This goes into a couple of dozen channels
   // and half of them get it with most of the letters knocked out; a paragraph
   // of blocks is not a message anybody reads.
-  if (body.length > 300) return { ok: false, error: "A shout is 300 characters at the most. ‡" };
+  if (body.length > 300) return { ok: false, error: "A shout can only be up to 300 characters." };
 
   if (!character?.id) return { ok: false, error: "You don't have a living character." };
   if (!character.locationId) return { ok: false, error: "You're nowhere." };
@@ -234,7 +231,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   // below: a refused shout must not burn the throat timer.
   const voice = await loadVoiceState(prisma, character.id);
   if (voice.shoutBlock) {
-    return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}. ‡` };
+    return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}.` };
   }
 
   const last = await prisma.auditLog
@@ -251,7 +248,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
     return {
       ok: false,
       retryAfter: Math.ceil(left / 1000),
-      error: `Your throat needs about ${minutes} more minute${minutes === 1 ? "" : "s"}. ‡`,
+      error: `You need about ${minutes} more minute${minutes === 1 ? "" : "s"}.`,
     };
   }
 
@@ -307,7 +304,7 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   //
   // The `!muffled` guard is load-bearing. A soundproof room empties `heard` by
   // design, and without it every single muffled shout would refuse here.
-  if (!muffled && heard.length === 0) return { ok: false, error: "There's nobody here to hear it. ‡" };
+  if (!muffled && heard.length === 0) return { ok: false, error: "There's nobody here to hear it." };
 
   // The cooldown, claimed once the shout is certain — and BEFORE the caller's
   // posting loop, not after: that loop is a couple of dozen REST calls and
@@ -331,8 +328,6 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
     })
     .catch((err) => console.error("Shout audit log failed:", err.message ?? err));
 
-  // No ‡ on the muffled ack either: it is the same four words the room is
-  // shown, and marking one copy and not the other would be worse than neither.
   return { ok: true, muffled, here, heard, line: muffled ? "You shout, but it's muffled." : "You shout." };
 }
 

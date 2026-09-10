@@ -54,8 +54,8 @@ async function broadcastToZones(prisma, content, { mentionEveryone = false } = {
       console.error(`World broadcast to ${zone.name} failed:`, err.message ?? err);
     }
     // Beside the post, never instead of it (db/lib/scene.js). `content` is
-    // already the finished message, ‡ and all, so the row does not sign it
-    // again. Written even when the post failed: the thing happened.
+    // already the finished message. Written even when the post failed: the
+    // thing happened.
     await sceneLineAt(prisma, { zoneId: zone.id, text: content, signed: false });
   }
   return { sent, failed };
@@ -64,10 +64,7 @@ async function broadcastToZones(prisma, content, { mentionEveryone = false } = {
 // Every Location channel on the map. `text` is one plain sentence — it is
 // wrapped in ambientLine here rather than by the caller, because a line the
 // WORLD says is `-#` subtext by house rule (CLAUDE.md) and doing it in one
-// place keeps the per-line prefix and the single trailing ‡ correct.
-//
-// `signed: false` for a line Bascinet wrote verbatim — their words take no
-// mark, which is the one exemption the prime directive names.
+// place keeps the per-line prefix correct.
 async function ambientEverywhere(prisma, text, { signed = true } = {}) {
   const content = ambientLine(text, [], { signed });
   const locations = await prisma.location.findMany({

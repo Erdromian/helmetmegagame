@@ -26,7 +26,7 @@ Decisions taken with Bascinet in this session (17 questions):
 | 16 | Antagonist opt-ins **lock once the character exists**. |
 | 17 | UI drafted as **ASCII in this plan**. Config split into **GameConfig + GameState with a field registry**. |
 
-Also from the brief: the `thanati` tag becomes a Belief with Bascinet's exact wording (no ‡, dictated). GMs and superadmins get **Skip to character creation** during Lobby. Antagonist seats carry incompatible tags: refunded if positive cost, grandfathered if negative, when Assigned.
+Also from the brief: the `thanati` tag becomes a Belief with Bascinet's exact wording (dictated). GMs and superadmins get **Skip to character creation** during Lobby. Antagonist seats carry incompatible tags: refunded if positive cost, grandfathered if negative, when Assigned.
 
 SS13 reference (tgstation `code/controllers/subsystem/job.dm`, `preferences.dm`): `divide_occupations` (shuffle → head-of-staff pass per level → HIGH/MEDIUM/LOW loop picking a random eligible open job → jobless fallback BEOVERFLOW / BERANDOMJOB / RETURNTOLOBBY), `set_job_preference_level` (setting High demotes the old High to Medium). Deliberate deviation: no "overflow first" pass. Commoner and Migrant are ordinary roles in the list; the "If nothing fits" dropdown is the overflow.
 
@@ -165,7 +165,7 @@ Files: `web/app/(app)/character/lobby/Lobby.js` (client), `lobbyActions.js` (ser
 │                                                                        │
 │  ┌──────────────────────────────────────────────────────────────────┐  │
 │  │  ○ NOT READY                                   [ Ready up ]      │  │
-│  │  -# You can change everything below until the game starts. ‡     │  │
+│  │  -# You can change everything below until the game starts.     │  │
 │  └──────────────────────────────────────────────────────────────────┘  │
 │                                                                        │
 │  ROLES                                     one High at a time          │
@@ -181,25 +181,25 @@ Files: `web/app/(app)/character/lobby/Lobby.js` (client), `lobbyActions.js` (ser
 │                                                                        │
 │  IF NOTHING FITS                                                       │
 │  [ Join as Commoner ▾ ]   Join as Migrant / Return to lobby            │
-│  -# Return to lobby means you late-join by hand after the start. ‡    │
+│  -# Return to lobby means you late-join by hand after the start.    │
 │                                                                        │
 │  ANTAGONISTS (optional)                                                │
 │  ☐ Archon        ☐ Bastard ░WL░   ☐ Cultist        ☐ Cultist Leader ░WL░│
 │  ☐ Judge         ☐ Obsessed       ☐ Schemer        ☐ Skinless          │
 │  ☐ Succubus ░WL░ ☐ Tribune        ☐ Tribunal Ordinator ░WL░ ☐ Windlander│
-│  -# Ticking one says you're open to it. It doesn't promise it. ‡      │
+│  -# Ticking one says you're open to it. It doesn't promise it.      │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
 - The four-level control is a `.chip-row` segmented group (the pattern from the zone picker fix), keyboard-reachable, the active level filled with `var(--accent)`. High is visually heavier than the others.
 - A whitelisted role or opt-in for a non-whitelisted player is rendered with a translucent grey overlay (`var(--surface)` at 0.7 alpha over the row, `pointer-events: none`, `aria-disabled`) and the label "Whitelist only". Nothing is hidden; the row stays readable.
 - Readied state flips the card: `● READY since 14:02   [ Unready ]` in `var(--positive)`. Preferences stay editable while ready.
-- Ready with all Off and Return to lobby shows a `var(--warn)` line under the button: "You've picked nothing, so you'll be sent back to the lobby at the start. ‡" Ready is still allowed.
+- Ready with all Off and Return to lobby shows a `var(--warn)` line under the button: "You've picked nothing, so you'll be sent back to the lobby at the start." Ready is still allowed.
 - Roles listed per bucket from `groupRoles` (`db/lib/roleGroups.js`), spawn-only seats withheld as today, no seat counts, no demand.
 - GM or superadmin sees one extra line at the top: `[ Skip to character creation ]` → `/character?create=1` renders today's wizard (gate re-checked server-side).
 
 Other `/character` states with no character:
-- CLOSED: `CreationClosed` with "Ravenheart isn't open yet. ‡"
+- CLOSED: `CreationClosed` with "Ravenheart isn't open yet."
 - RUNNING, ASSIGNED entry: wizard with the role step **replaced** by a locked banner (below).
 - RUNNING, no entry / UNASSIGNED / EXPIRED / DECLINED: today's wizard (late join). Cursed rules unchanged.
 - ENDED: "The game has ended." with a link to `/epilogue`.
@@ -208,7 +208,7 @@ Locked-role wizard header:
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
 │  You are the Sheriff.                    The Town · Soil · Town      │
-│  This seat is yours until Sat 12 Sep, 14:02 (in 23 hours). ‡          │
+│  This seat is yours until Sat 12 Sep, 14:02 (in 23 hours).          │
 │  Tags ▸ Identity ▸ Antagonists ▸ Confirm                              │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -225,13 +225,13 @@ Sent from the Start action via `web/lib/discordGuild.js#sendDm` (it logs and pre
 » The Town · Soil. You start in Town.
 » Build your character here: https://ravenheart.quest/character
 » The seat is yours until <t:1757700120:F> (<t:1757700120:R>). After that it opens to anyone.
-» -# Can't make it? Press Decline and the seat goes to somebody else. ‡
+» -# Can't make it? Press Decline and the seat goes to somebody else.
    [ Decline the seat ]
 ```
-Return to lobby: "» No seat matched what you asked for. The game has started and late join is open at …/character. ‡"
+Return to lobby: "» No seat matched what you asked for. The game has started and late join is open at …/character."
 
-- Button `custom_id` prefix `LOBBY_DECLINE_PREFIX = "lobby-decline:"` exported from `db/lib/lobby.js`, routed in `bot/src/events/interactionCreate.js` next to the threat-spawn buttons, handler `bot/src/lib/lobby.js#handleLobbyDecline` → `db/lib/lobby.js#declineAssignment(prisma, entryId, discordUserId)` (status DECLINED, seat released by virtue of status). Reply edits the message: "You turned the seat down. Late join is open. ‡"
-- **`db/lib/lobbySweep.js#runLobbySweep(prisma)`**, bot cron every 15 minutes beside the whisper poll: ASSIGNED entries with `expiresAt - now ≤ 6h` and no `reminderSentAt` get one reminder DM with the same `<t:>`; ASSIGNED entries past `expiresAt` flip to EXPIRED and get "Your seat as Sheriff has been released. Late join is open. ‡". Uses `db/lib/dm.js#sendDm(prisma, …)`. Idempotent; safe if the bot missed a tick.
+- Button `custom_id` prefix `LOBBY_DECLINE_PREFIX = "lobby-decline:"` exported from `db/lib/lobby.js`, routed in `bot/src/events/interactionCreate.js` next to the threat-spawn buttons, handler `bot/src/lib/lobby.js#handleLobbyDecline` → `db/lib/lobby.js#declineAssignment(prisma, entryId, discordUserId)` (status DECLINED, seat released by virtue of status). Reply edits the message: "You turned the seat down. Late join is open."
+- **`db/lib/lobbySweep.js#runLobbySweep(prisma)`**, bot cron every 15 minutes beside the whisper poll: ASSIGNED entries with `expiresAt - now ≤ 6h` and no `reminderSentAt` get one reminder DM with the same `<t:>`; ASSIGNED entries past `expiresAt` flip to EXPIRED and get "Your seat as Sheriff has been released. Late join is open.". Uses `db/lib/dm.js#sendDm(prisma, …)`. Idempotent; safe if the bot missed a tick.
 
 ---
 
@@ -263,7 +263,7 @@ New section, superadmin like the rest of the page. `OpsNav` gains it at the top 
 ```
 After Start the roster gains Assigned / Status / Expires columns. In RUNNING the card shows `[ End game ]` with a closing-note textarea; in ENDED it shows the note, the reveal, and `[ Resume ]`.
 
-Actions in `web/app/(app)/gm/dev/gameActions.js`: `openLobby`, `closeLobby`, `previewAssignment` (writes `GameState.assignmentDraft`), `setDraftRow` (hand-set), `startGame`, `endGame`, `resumeGame`. `startGame` re-validates the draft (every player still READY, every seat still open, roles exist); on a mismatch it returns "The lobby changed since the preview. Preview again. ‡" and commits nothing. Commit is one transaction: entries → ASSIGNED/UNASSIGNED with `expiresAt = now + creationWindowHours`, GameState → RUNNING with `startedAt`, `playerCount`, Turn 1 `gameDate = now` (created if missing), audit `game_started`. DMs and a `#turns` line ("The game has begun. ‡") go in `after()`.
+Actions in `web/app/(app)/gm/dev/gameActions.js`: `openLobby`, `closeLobby`, `previewAssignment` (writes `GameState.assignmentDraft`), `setDraftRow` (hand-set), `startGame`, `endGame`, `resumeGame`. `startGame` re-validates the draft (every player still READY, every seat still open, roles exist); on a mismatch it returns "The lobby changed since the preview. Preview again." and commits nothing. Commit is one transaction: entries → ASSIGNED/UNASSIGNED with `expiresAt = now + creationWindowHours`, GameState → RUNNING with `startedAt`, `playerCount`, Turn 1 `gameDate = now` (created if missing), audit `game_started`. DMs and a `#turns` line ("The game has begun.") go in `after()`.
 
 Nav becomes: **Game** → Game, Turn, Configuration, The Depot · **Operations** unchanged · **Threats** → Assignments, Antagonists · **Danger** → Restart game. The `danger` section stays where it is; the wipe now deletes `LobbyEntry`, deletes + recreates `GameState` (phase CLOSED), and leaves `GameConfig` and `PlayerPreference` alone. `DEFAULT_GAME_CONFIG` is deleted. `openLobby` is the new last step in LAUNCH.md's runbook where "Tick Open to players last" was.
 
@@ -298,11 +298,11 @@ Ending is one shared function, **`db/lib/gameEnd.js#endGameInDb(db, { closingNot
 - Delete the six decoy-only entries not in Bascinet's list: aberrant-emissary, false-chaplain, neomorph, phrygian-count, tribunal-operations, warlock.
 - Keep decoys: archon, obsessed, schemer. Add decoys: `bastard` (WL), `windlander`, `skinless`.
 - `demoness.optIn = { name: "Succubus", whitelist: true }`. `tribunal-ordinator.optIn = { whitelist: true }`, `tribune.optIn = true`. `judge.optIn = true`.
-- New real seats: `thanati-leader` (name "Thanati Leader", optIn `{ name: "Cultist Leader", whitelist: true }`, seat tag `thanati-leader`, assign `{ tagPoints: 10, tagSlugs: ["thanati", "thanati-leader"] }`, spawn like Judge's shape) and `thanati` (name "Thanati", optIn `{ name: "Cultist" }`, seat tag `thanati`, assign `{ tagPoints: 5, tagSlugs: ["thanati"] }`). Points and kits are drafts for Bascinet to tune; blurbs carry ‡.
+- New real seats: `thanati-leader` (name "Thanati Leader", optIn `{ name: "Cultist Leader", whitelist: true }`, seat tag `thanati-leader`, assign `{ tagPoints: 10, tagSlugs: ["thanati", "thanati-leader"] }`, spawn like Judge's shape) and `thanati` (name "Thanati", optIn `{ name: "Cultist" }`, seat tag `thanati`, assign `{ tagPoints: 5, tagSlugs: ["thanati"] }`). Points and kits are drafts for Bascinet to tune; blurbs carry.
 - `normalizeAntagonistSlugs` / `antagonistNames` unchanged in shape; `antagonistNames` returns public names.
 
 `docs/tags.yaml`:
-- New `thanati` in `general-beliefs`: `description: "This reality is cursed. Everyone must die before Tzchernobog can reset it."` (verbatim, no ‡), `pointCost: 0`, `purchasable: false`, `removable: false`, `exclusive: true`, `conflictsWith: [pacifist, charitable, saint, pilgrim]`. Exclusivity already rules out every other belief.
+- New `thanati` in `general-beliefs`: `description: "This reality is cursed. Everyone must die before Tzchernobog can reset it."` (verbatim), `pointCost: 0`, `purchasable: false`, `removable: false`, `exclusive: true`, `conflictsWith: [pacifist, charitable, saint, pilgrim]`. Exclusivity already rules out every other belief.
 - New `thanati-leader` seat tag, 0-cost, `purchasable: false`.
 - `judge` and `demoness` seat tags get `conflictsWith: [pacifist, charitable, saint]` (check `cruel`'s existing edges first; the sync symmetrizes).
 
@@ -330,7 +330,7 @@ Ending is one shared function, **`db/lib/gameEnd.js#endGameInDb(db, { closingNot
 - `web/app/(app)/archive/page.js`, `lifeweb/page.js`, new `epilogue/page.js`.
 
 **Docs**
-- New `docs/systemdocs/LOBBY.md` (phases, preferences, algorithm with the SS13 citation, the window, the reveal). Update `CHARACTERS.md` §1/§4b, `LAUNCH.md` (runbook: Open lobby last; wipe table), `DEV-PANEL.md` §11, `THREATS.md` (public names, conflict rule, two Thanati seats), `TURN-ENGINE.md` (phase gate), `ARCHITECTURE.md` (GameState), `CLAUDE.md` (table row, permission table note on Whitelist, "Game state" section's `openToPlayers` mentions), `docs/handbook.md` (one paragraph on readying and the 24-hour window, with ‡).
+- New `docs/systemdocs/LOBBY.md` (phases, preferences, algorithm with the SS13 citation, the window, the reveal). Update `CHARACTERS.md` §1/§4b, `LAUNCH.md` (runbook: Open lobby last; wipe table), `DEV-PANEL.md` §11, `THREATS.md` (public names, conflict rule, two Thanati seats), `TURN-ENGINE.md` (phase gate), `ARCHITECTURE.md` (GameState), `CLAUDE.md` (table row, permission table note on Whitelist, "Game state" section's `openToPlayers` mentions), `docs/handbook.md` (one paragraph on readying and the 24-hour window, with).
 
 ---
 
@@ -339,7 +339,7 @@ Ending is one shared function, **`db/lib/gameEnd.js#endGameInDb(db, { closingNot
 Three answers taken: Ended locks **only the clock**; past archives are readable by **any signed-in user on `/archive` with a game picker**; the transcript becomes a **dense by-day-and-place view with system lines folded**.
 
 ### 13a. Detonation ends the game
-`runNukeExplosionPass` already claims `nukeDetonatedTurn` and kills everyone above ground (`db/lib/nukeExplosionPass.js`). It stays DB-only. In `db/index.js#advanceTurn`, right after that pass returns `detonated: true`, call `endGameInDb(prisma, { reason: "nuke", closingNote })` with the note "The device went off at the close of turn N. Everyone above ground died. ‡" (kept if a GM later writes their own), and push the returned Game Ended post onto `runSideEffects()` after the fireball broadcast. The new turn still opens (the banner needs it); the next advance is refused by the phase gate. `resumeGame` stays available.
+`runNukeExplosionPass` already claims `nukeDetonatedTurn` and kills everyone above ground (`db/lib/nukeExplosionPass.js`). It stays DB-only. In `db/index.js#advanceTurn`, right after that pass returns `detonated: true`, call `endGameInDb(prisma, { reason: "nuke", closingNote })` with the note "The device went off at the close of turn N. Everyone above ground died." (kept if a GM later writes their own), and push the returned Game Ended post onto `runSideEffects()` after the fireball broadcast. The new turn still opens (the banner needs it); the next advance is refused by the phase gate. `resumeGame` stays available.
 
 ### 13b. Games and archives that survive the wipe
 ```prisma

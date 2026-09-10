@@ -43,10 +43,6 @@ export default function WarrantDialog({ mode, onDone, onClose }) {
           data-autofocus
         />
       </label>
-      <p className="text-xs text-muted">
-        Costs you nothing, and no paper goes up. They are seen as wanted by anyone who
-        looks them in the face. ‡
-      </p>
     </ActionDialog>
   );
 }

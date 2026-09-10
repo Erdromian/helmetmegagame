@@ -37,13 +37,13 @@ async function resolveTarget(kind, { targetCharacterId, targetLocationId, value,
         where: { id: targetCharacterId },
         select: { id: true, name: true, status: true, role: { select: { slug: true, requiresWhitelist: true } } },
       });
-      if (!character) return { error: "That character no longer exists. ‡" };
-      if (character.status !== "ALIVE") return { error: `${character.name} isn't alive. ‡` };
+      if (!character) return { error: "That character no longer exists." };
+      if (character.status !== "ALIVE") return { error: `${character.name} isn't alive.` };
       if (kind.target === "leader" && !character.role?.requiresWhitelist) {
-        return { error: `${character.name} doesn't hold a leader's role. ‡` };
+        return { error: `${character.name} doesn't hold a leader's role.` };
       }
       if (kind.target === "inquisitor-or-baron" && !INQUISITOR_OR_BARON_ROLE_SLUGS.has(character.role?.slug)) {
-        return { error: `${character.name} is neither the Inquisitor nor the Baron. ‡` };
+        return { error: `${character.name} is neither the Inquisitor nor the Baron.` };
       }
       return { data: { targetCharacterId: character.id, targetName: character.name } };
     }
@@ -53,19 +53,19 @@ async function resolveTarget(kind, { targetCharacterId, targetLocationId, value,
         where: { id: targetLocationId },
         select: { id: true, name: true, attributes: true, zone: { select: { kind: true } } },
       });
-      if (!location) return { error: "That Location no longer exists. ‡" };
-      if (!locationEligible(location)) return { error: `${location.name} can't be blown up. ‡` };
+      if (!location) return { error: "That Location no longer exists." };
+      if (!locationEligible(location)) return { error: `${location.name} can't be blown up.` };
       return { data: { targetLocationId: location.id, targetLocationName: location.name } };
     }
     case "number": {
       const n = Number.parseInt(value, 10);
-      if (!Number.isInteger(n) || n < 1) return { error: "The number has to be one or more. ‡" };
+      if (!Number.isInteger(n) || n < 1) return { error: "The number has to be one or more." };
       return { data: { value: n } };
     }
     case "text": {
       const t = (text ?? "").toString().trim();
-      if (!t) return { error: "Write what the objective is. ‡" };
-      if (t.length > 200) return { error: "Keep it under two hundred characters. ‡" };
+      if (!t) return { error: "Write what the objective is." };
+      if (t.length > 200) return { error: "Keep it under two hundred characters." };
       return { data: { text: t } };
     }
     default:
@@ -110,10 +110,10 @@ export async function addObjective({ partyKey, kind: kindKey, targetCharacterId,
   }
 
   const party = partyByKey(partyKey);
-  if (!party) return { error: "That isn't an antagonist party. ‡" };
+  if (!party) return { error: "That isn't an antagonist party." };
   const kind = objectiveKind(kindKey);
   if (!kind || !kindsForParty(party.key).includes(kind)) {
-    return { error: `The ${party.name} can't take that objective. ‡` };
+    return { error: `The ${party.name} can't take that objective.` };
   }
 
   // Custom rows take the GM's weight, or none; every other kind's is fixed.
@@ -140,9 +140,9 @@ export async function addStandardObjectives({ partyKey }) {
     return { error: "Not authorized." };
   }
   const party = partyByKey(partyKey);
-  if (!party) return { error: "That isn't an antagonist party. ‡" };
+  if (!party) return { error: "That isn't an antagonist party." };
   const keys = PARTY_DEFAULTS[party.key] ?? [];
-  if (keys.length === 0) return { error: `The ${party.name} have no standard set. ‡` };
+  if (keys.length === 0) return { error: `The ${party.name} have no standard set.` };
 
   const held = new Set(
     (await prisma.objective.findMany({ where: { partyKey: party.key }, select: { kind: true } })).map((o) => o.kind),
@@ -169,10 +169,10 @@ export async function pinObjective({ id, pinned }) {
     return { error: "Not authorized." };
   }
   const row = await prisma.objective.findUnique({ where: { id } });
-  if (!row) return { error: "That objective no longer exists. ‡" };
+  if (!row) return { error: "That objective no longer exists." };
   const kind = objectiveKind(row.kind);
   const next = pinned === true ? true : pinned === false ? false : null;
-  if (next === null && !kind?.script) return { error: "That one has no script to fall back on. ‡" };
+  if (next === null && !kind?.script) return { error: "That one has no script to fall back on." };
 
   await prisma.objective.update({ where: { id }, data: { pinned: next } });
   await prisma.auditLog.create({
@@ -199,7 +199,7 @@ export async function removeObjective({ id }) {
     return { error: "Not authorized." };
   }
   const row = await prisma.objective.findUnique({ where: { id } });
-  if (!row) return { error: "That objective no longer exists. ‡" };
+  if (!row) return { error: "That objective no longer exists." };
 
   await prisma.objective.delete({ where: { id } });
   await prisma.auditLog.create({

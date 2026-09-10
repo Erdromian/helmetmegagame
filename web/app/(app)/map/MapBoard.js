@@ -733,7 +733,7 @@ export default function MapBoard({ onClose = null }) {
             onGo={() => go(card.id)}
           />
         ) : (
-          <EmptyState>You are nowhere on this map yet.</EmptyState>
+          <EmptyState>You aren&apos;t on the map yet.</EmptyState>
         )}
 
         {!chosen && exits.length > 0 && (

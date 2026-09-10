@@ -34,11 +34,11 @@ async function lobbyGate() {
     // would not help.
     return {
       error: playtestMode
-        ? "Ravenheart isn't open yet. ‡"
-        : "You aren't on the roster for this game. Ask a GM if you think that's wrong. ‡",
+        ? "The game isn't open yet."
+        : "You aren't on the roster for this game. Ask a GM if you think that's wrong.",
     };
   }
-  if (alive) return { error: "You already have a character. ‡" };
+  if (alive) return { error: "You already have a character." };
 
   const whitelisted = superadmin || isLeaderWhitelisted(member);
   return { discordUserId, whitelisted };
@@ -85,7 +85,7 @@ export async function setReady() {
   // check costs nothing and a stale tab is exactly when it matters.
   const existing = await prisma.lobbyEntry.findUnique({ where: { discordUserId } });
   if (existing && existing.status !== "READY") {
-    return { ok: false, error: "Your seat for this game was already decided. ‡" };
+    return { ok: false, error: "Your seat for this game was already decided." };
   }
   const entry =
     existing ??

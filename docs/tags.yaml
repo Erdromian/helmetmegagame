@@ -1437,7 +1437,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  # Bascinet's line, dictated verbatim, so no ‡. Blocks Look at outdoors at
+  # Bascinet's line, dictated verbatim. Blocks Look at outdoors at
   # Dawn only — the Caves and Dusk really are fine, as the text promises.
   sun-sensitivity:
     catalog: all
@@ -3068,7 +3068,7 @@ tags:
   # In INCAPACITATING_SLUGS (db/lib/incapacitation.js): out cold is out cold,
   # so you can be looted, dragged and tied up where you fell. Deliberately NOT
   # in FINISHABLE_SLUGS — passing out in a tavern should not be a
-  # no-confirmation death sentence, the same call already made for Seizure. ‡
+  # no-confirmation death sentence, the same call already made for Seizure.
   unconscious:
     catalog: gm
     name: Unconscious
@@ -3097,7 +3097,7 @@ tags:
     durationTurns: 1
 
   # The bottom of the ladder rather than a rung on it: no escalatesInto, so
-  # drinking through a hangover starts you over at Tipsy. ‡
+  # drinking through a hangover starts you over at Tipsy.
   hangover:
     catalog: gm
     name: Hangover
@@ -4918,7 +4918,7 @@ tags:
       skills: [builder-skilled]
       gambit: false
     # The defense prose is the whole effect. defenseNote is a spliced
-    # fragment — no ‡ (sync enforces).
+    # fragment.
     placement:
       fieldwork: true
       examine: "sharpened stakes ring this ground."
@@ -5184,7 +5184,7 @@ tags:
     # reading the Skinless as a shortcut past it. Still well above a Graga Sac:
     # they are the only ingredient in the catalog that has to be talked out of
     # being a person first — and the Dreamer's Draught SPENDS one now
-    # (Tag.requirementItems), so that decision is taken per bottle. ‡
+    # (Tag.requirementItems), so that decision is taken per bottle.
     sellablePrice: 25
 
   # --- Corpses -----------------------------------------------------------
@@ -5380,7 +5380,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     # The dearest of the three by a wide margin: an Aberrant has to fall first,
-    # and the recipe it feeds costs 0 ⬢ because the heart is the price. ‡
+    # and the recipe it feeds costs 0 ⬢ because the heart is the price.
     sellablePrice: 55
 
   ravens-eye:
@@ -8470,7 +8470,7 @@ tags:
     name: Stepstone
     category: items
     group: items-special
-    description: "You can consume it to teleport anywhere you have been. ‡"
+    description: "You can consume it to teleport anywhere."
     pointCost: 0
     tradeable: true
     weight: 0
@@ -10470,7 +10470,7 @@ tags:
 
   # Five more of the Merchant's imports, priced off DEPOT.md §3: the sell-back
   # column is floor(depotPrice x 0.44), the same ratio every other ware uses.
-  # Descriptions are Bascinet's, dictated verbatim, so none of them takes a ‡.
+  # Descriptions are Bascinet's, dictated verbatim.
   #
   # Weights come off the CARRY.md §1a bands and match the weapons already in
   # this group: a long gun and a sword weigh 5, a pistol 2.
@@ -11321,7 +11321,7 @@ tags:
     requirement:
       turnsCost: 1
       # Still 0 ⬢, and deliberately: the heart IS the price, and an Aberrant
-      # has to fall before anyone holds one. ‡
+      # has to fall before anyone holds one.
       resourceCost: 0
       skills: [brewing-skilled]
       gambit: false
@@ -12673,7 +12673,7 @@ tags:
     consumesInto: [seizure]
     # Nothing in Ravenheart wants a cube. The Depot buys every one of them,
     # which is the whole reason the Factory exists — 8 cubes is a day's work
-    # and pays about 2.2 times a good farming day. ‡
+    # and pays about 2.2 times a good farming day.
     sellable: true
     sellablePrice: 4
 
@@ -12683,7 +12683,7 @@ tags:
   # walk it into the Spillway, and delete the Factory's whole reason to exist —
   # there are exactly two in the world and neither is craftable. Untradeable
   # also means it carries no weight, which is right for a fixture: nobody is
-  # hauling it anywhere. ‡
+  # hauling it anywhere.
   packaging-equipment:
     catalog: gm
     name: Packaging Equipment
@@ -12798,7 +12798,7 @@ tags:
     # Costs no ⬢ at all — the marsh gives you the ingredient. One
     # {tag:godflesh} goes INTO the bottle now and does not come back, which is
     # also what stops this from undercutting the Factory's refining
-    # (docs/systemdocs/BREWING.md, FACTORY.md §8). ‡
+    # (docs/systemdocs/BREWING.md, FACTORY.md §8).
     requirement:
       turnsCost: 1
       resourceCost: 0
@@ -12822,7 +12822,7 @@ tags:
 
   # Permanent, stackable, and the only tag in the catalog a turn pass counts.
   # At 5 the whole stack is swept and {tag:blind} lands in its place —
-  # db/lib/visionDecayPass.js. ‡
+  # db/lib/visionDecayPass.js.
   damaged-vision:
     catalog: all
     name: Damaged Vision
@@ -12836,7 +12836,7 @@ tags:
     purchasableAfterStart: false
 
   # Tier 0 on the cure ladder: it runs its course in a turn, and what it runs
-  # its course INTO is the actual punishment. ‡
+  # its course INTO is the actual punishment.
   seizure:
     catalog: gm
     name: Seizure
@@ -12852,7 +12852,7 @@ tags:
 
   # No requirement block on purpose — Tier 0, and permanent. Nobody in
   # Ravenheart knows what a Squeeze cube does to a brain, so nobody can undo
-  # it. Its desire lock leaves exactly two goals standing. ‡
+  # it. Its desire lock leaves exactly two goals standing.
   stupid:
     catalog: gm
     name: Stupid
@@ -12883,7 +12883,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    # Priced at about 65% of a {tag:flamethrower}, the shelf it shares. ‡
+    # Priced at about 65% of a {tag:flamethrower}, the shelf it shares.
     sellable: true
     sellablePrice: 76
     depotPrice: 126

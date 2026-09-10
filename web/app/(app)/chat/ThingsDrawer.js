@@ -218,7 +218,7 @@ export default function Things({ groups: initialGroups = [] }) {
           if (res?.error) setError(res.error);
           else refresh();
         } catch {
-          setError("Could not reach the server. Nothing was changed. ‡");
+          setError("Could not reach the server. Nothing was changed.");
         }
       });
     },
@@ -235,7 +235,7 @@ export default function Things({ groups: initialGroups = [] }) {
           if (res?.error) setError(res.error);
           else refresh();
         } catch {
-          setError("Could not reach the server. Nothing was changed. ‡");
+          setError("Could not reach the server. Nothing was changed.");
         }
       });
     },

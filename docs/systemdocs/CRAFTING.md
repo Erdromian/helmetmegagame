@@ -140,7 +140,7 @@ budget-consuming craft takes the Character `FOR UPDATE` row lock, re-reads the
 Action inside the transaction, re-runs the family and remainder checks there,
 and `fileAutoRoutine`'s `P2002` catch stays the backstop under even that. The
 Action's `description` is rebuilt from the entries each time one lands —
-"Crafting this turn: 2× Alcohol, 1× Cat. ‡" — so the desk reads the whole
+"Crafting this turn: 2× Alcohol, 1× Cat." — so the desk reads the whole
 turn's work in one line. A project turn keeps its own "(2/3)" line, because a
 project never shares a turn.
 
@@ -208,7 +208,7 @@ and count toward carry.
   ingredients**, snapshotting them onto `consumed`; creates the project at
   `turnsDone: 1`; files the Action — `ROUTINE`, `CONFIRMED`, `PASSED`,
   `appliedEffects: {}`, `gmNotes: "auto:craft"`, description "Crafting 4×
-  Arrow (1/3). ‡". A one-turn recipe finishes on the spot and puts the
+  Arrow (1/3).". A one-turn recipe finishes on the spot and puts the
   snapshot straight on the request.
 - **Continue** (`continueCraft`): the Craft dialog lists active projects;
   pick one, choose *Keep working on it*. Same Move check; one advance per
@@ -269,9 +269,8 @@ the transaction fails (a row someone else already holds is FK-pinned and
 survives the attempt).
 
 Player words are cleaned by `cleanCustomText` (web/lib/customCraft.js): no
-`{}` (a description must not forge a `{tag:…}` chip), no `‡` (these are the
-player's words — they ship UNMARKED, the paper/book-title precedent), no `@`
-(item names travel into Discord), no control characters, hard length caps.
+`{}` (a description must not forge a `{tag:…}` chip), no `@` (item names
+travel into Discord), no control characters, hard length caps.
 There is no GM pre-approval — same posture as paper and book titles — and
 the audit row and the dev panel remain the recourse.
 

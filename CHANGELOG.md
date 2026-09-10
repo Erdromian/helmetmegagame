@@ -6,12 +6,52 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Bascinet's wording, and the draft marks are gone
+
+✎ Your edits are in: the refusals, empty states, DMs and dialog copy across the game now read the way you rewrote them  
+− The double dagger. It is off every string, comment, document and YAML master in the game — only CLAUDE.md still mentions it  
+− The explainer paragraphs in the Intercept and Warrant dialogs, the bell's help line, and the web-only note under the turn ping  
+✎ A shout now says it only works in a room or a conversation, instead of saying there is nobody to hear it
+
 ## 2026-09-10 · A great mood now helps your Gambit rolls
 
 ✚ Ecstatic, a new mood band above Happy: it gives +1 on every Gambit roll  
 ✎ The mood dial used to stop inside Happy, so a really good mood had nowhere left to go. It reaches higher now  
 ✎ A player is told when they reach Ecstatic, the same way they are told about Afraid and Panicking  
 ✎ Worth an eye: anyone sleeping at the Inn, the Keep or the Sanctuary gains ground every night, so they can park at Ecstatic and hold that +1
+
+## 2026-09-10 · Shouting, playing and rolling belong in a room or a conversation
+
+✎ A shout, an instrument and a die now only work in a room or a conversation — not out on the street, and not in a zone's summary channel  
+✎ The street is scenery: the summary is for the big picture, not for the moment you are living in
+
+## 2026-09-09 · The Stepstone goes anywhere above ground, and a warrant catches every namesake
+
+− The Stepstone now takes you to any place on the surface, whether or not you have been there  
+− It still will not carry you underground, so the caves are walked into or not at all  
+− An arrest warrant on a name two living men answer to now marks both of them, instead of refusing and sending the officer to a GM  
+− The warrant book lists names only; it no longer prints anyone's role
+
+## 2026-09-09 · The Meals & Kitchens paper is gone
+
+− The Meals & Kitchens document is deleted, so cooks and Nobility no longer receive it  
+− The Innkeeper and Inn Staff no longer start with it  
+− An empty DM thread now reads the same as an empty room
+
+## 2026-09-09 · Document tidy: the Pusher goes private, Concealing goes away
+
+− The Concealing Your Identity document. The handbook still covers it  
+− The note above the Recipes table about secret recipes  
+✎ The Pusher's paper is no longer public. It goes to the Pusher, the Cerberus, the Baron and the Hand  
+✎ A Dead Simple recipe now reads "Dead Simple: up to 4 a turn"  
+✎ A kept ingredient reads "(not used up)"  
+✎ Respawning: it's the Church and the Mortii's job to help souls pass on
+
+## 2026-09-09 · Anyone in the watchtower can work the gate
+
+− Whoever can reach a watchtower may now work its winch. The gate's own opener list is gone, so getting into the tower is the whole permission model  
+− A gate still refuses somebody who is not standing at it
+
 
 ## 2026-09-09 · The Smithing and Crafting paper is gone
 
@@ -86,7 +126,7 @@ Entries below predate this format and list files instead.
 
 ## 2026-09-09 · Bascinet's words on the Kiss button
 
-✎ Every line the Kiss verb says is now written rather than drafted, so none of it carries a ‡ any more  
+✎ Every line the Kiss verb says is now written rather than drafted, so none of it carries a draft mark any more  
 ✎ A hood or a helmet now refuses with "You can't kiss when you have a Hood on" instead of "Not through your Hood"  
 ✎ The help under the button is just "Ask somebody for a kiss", and a greyed button says "You can't kiss right now"  
 ✎ Asking says "Waiting on response"  
@@ -232,7 +272,7 @@ Entries below predate this format and list files instead.
 ✎ Leper now sits under Health · Illness instead of General, so it reads and inspects like the ailment it is  
 ✎ Blessing costs 3 points instead of 5  
 ✎ The Held row says "3 slots" instead of "3 hands / empty", and an empty slot's menu says what it is waiting for  
-✎ The ‡ marks are off the web UI's error and empty-state copy — Pyrias's sweep
+✎ The draft marks are off the web UI's error and empty-state copy — Pyrias's sweep
 
 ## 2026-09-09 · Wielding five swords costs five hands, not one
 
@@ -826,7 +866,7 @@ Entries below predate this format and list files instead.
 ## 2026-09-07 · The editor's copy pass, applied
 
 − The Teaching Skills doc no longer says the teacher has to be standing where you are  
-− The last of the ‡ marks are gone from the handbook, the documents, the roles, the Craft dialog and the player action strings
+− The last of the draft marks are gone from the handbook, the documents, the roles, the Craft dialog and the player action strings
 
 ## 2026-09-07 · Torture: a Torturer can break a bound character for their secrets
 
@@ -901,7 +941,7 @@ Entries below predate this format and list files instead.
 ## 2026-09-07 · A copy pass over the player-facing text
 
 ✎ A reviewer's rewrite of the player documents, the handbook, the Depot and Faction pages and the action tooltips, with the grammar and punctuation tidied on the way in  
-− The ‡ draft marks from every line that reviewer read: the handbook, twelve documents, the Depot and Faction pages, the action list, the offers and dialogs, and the world's ambient lines  
+− The draft marks from every line that reviewer read: the handbook, twelve documents, the Depot and Faction pages, the action list, the offers and dialogs, and the world's ambient lines  
 ✎ Laboring, Teaching, the Sanctuary, the Treasurer's brief and the Merchant's brief all read shorter now
 
 ## 2026-09-07 · The Depot opens again
@@ -1772,7 +1812,7 @@ A lesson can no longer teach past a tag conflict, which was the way round every 
 ✎ The shuttle landing and departing are announced, which they never were  
 ✎ Arming the turret with no face on file is refused, not warned about: the cure  
 ✎ Undoing a refuel no longer mints back the fuel already burned  
-✎ Tooltips and GM help text carry their ‡
+✎ Tooltips and GM help text carry their
 
 ## 2026-09-04 · The Merchant runs a station now, not a shop
 

@@ -14,9 +14,8 @@ import { submitMove } from "./actions";
 
 // The three help lines are Bascinet's own, word for word from the Discord
 // modal's radio group (bot/src/lib/moveModal.js) — so a player reads the same
-// sentence whichever face they file from. Verbatim Bascinet, so NO ‡ on any
-// of them (CLAUDE.md, "text Bascinet dictated to you verbatim"): don't add one.
-// If the wording changes, change it in both places.
+// sentence whichever face they file from. If the wording changes, change it
+// in both places.
 export const MOVE_KINDS = [
   { value: "ROUTINE", label: "Routine", help: "Easy — it resolves itself." },
   { value: "GAMBIT", label: "Gambit", help: "Could go either way — rolls a die." },

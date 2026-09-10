@@ -18,7 +18,7 @@ const DAMAGED_VISION_SLUG = "damaged-vision";
 const BLIND_AT = 5;
 
 const WENT_BLIND_DM =
-  "The world has been going grey at the edges for a while now. This morning it does not come back. ‡";
+  "You're now blind.";
 
 async function runVisionDecayPass(prisma, turn) {
   const rows = await prisma.characterTag.findMany({

@@ -56,7 +56,7 @@ It composes `examineVision.js#examineBlock` — blind, blind drunk, nearsighted
 with the spectacles in a sack, sun-sensitive outdoors at Dawn — and adds the
 `literate` tag on top.
 
-**One message for every cause: `You can't read this. ‡`** A blind man and an
+**One message for every cause: `You can't read this.`** A blind man and an
 illiterate one get identical refusals. Naming which would leak a condition to
 anyone reading over their shoulder, and it would differ between the tag chip,
 the noticeboard and the server's own refusal — which is exactly the drift the
@@ -319,7 +319,7 @@ Sheriff's Arrest Warrant button (`REQUESTS.md` §5g) grants the Wanted tag and
 puts up **no paper at all** — the man is read as wanted off his own face
 (`TAGS.md`, `visible: named`) and nothing announces it. Do not "fix" that by
 wiring `postWantedPosters` into the warrant: a warrant nobody can see coming is
-the point of it. ‡
+the point of it.
 
 ## 8. Where the code lives
 

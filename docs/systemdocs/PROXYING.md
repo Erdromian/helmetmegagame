@@ -104,7 +104,7 @@ tying a proxied message back to its player and character — last 20,000, single
 bot process, wiped on restart — so every deploy quietly made the last hour of
 scene inert to ✏️ ❌ 🔍 📸. `ArchiveEntry.discordMessageId` is unique, so the
 transcript is that map now: `bot/src/lib/proxy.js#proxyRowFor` reads the row and
-the character's player off it, and a database row does not forget. ‡
+the character's player off it, and a database row does not forget.
 
 ### Who is allowed to speak at all
 
@@ -264,7 +264,7 @@ message up as an `ArchiveEntry` row by `discordMessageId`
 character's own player — so a restart no longer makes an older message inert,
 and a **five-minute window** (`db/lib/say.js#EDIT_WINDOW_MS`) applies to ✏️ and
 ❌ on both faces. Past it: *"That was said more than five minutes ago and
-stands."* ‡
+stands."*
 
 | Emoji | Does |
 |---|---|
@@ -323,7 +323,7 @@ is no deferring your way out of it. Both handlers run in a DM, where
 `interaction.guild` and `.member` are null, so ownership is
 `interaction.user.id` against the row's own character
 (`bot/src/lib/proxy.js#proxyRowFor`). After a restart the stash is empty and the
-box prefills from the row's text instead of refusing. ‡
+box prefills from the row's text instead of refusing.
 
 **Why it stopped being a DM collector.** ✏️ used to DM "Reply here with the
 new text (60 seconds)" and eat the answer with `awaitMessages`. Sixty seconds
@@ -477,7 +477,7 @@ expired every line the character had spoken under it flipped to reading as a
 hood, on both faces at once. The live forced name is still passed, but only as
 the tiebreaker for a row too old to carry a face whose forced name happens to
 read like an alias; an ambiguous row reads as a hood, which is the safe
-direction. Three handlers read it: ‡
+direction. Three handlers read it:
 
 - **🔍** returns a **hardcoded** embed *before* any of the normal field logic:
   the concealed line, plus only the visible ailments and the visible gear —
@@ -873,7 +873,7 @@ Reacting ⭐ to any guild message saves it as a personal `Note` for whoever
 reacted — not just a proxied one. `handleStarReaction` upserts a row keyed on
 `(discordMessageId, discordUserId)` with a speaker, a zone snapshot, content,
 and `sentAt`. Unlike every other reaction here, ⭐ works on a message with no
-archived row at all, and resolves the speaker in two tiers: ‡
+archived row at all, and resolves the speaker in two tiers:
 
 1. **A character message** — its `ArchiveEntry` row, which is durable
    (`db/lib/archive.js`), so starring works on anything ever said.

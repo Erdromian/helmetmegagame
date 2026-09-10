@@ -101,12 +101,6 @@
 # each is a killing or a theft big enough that the bare tier came back too
 # fast.
 #
-# ‡ marks text the Desires-rework planner wrote — a drafted name/description,
-# an invented tier, or a resolved conflict — exactly like docs/tags.yaml's
-# own ‡ convention (see that file's header and content-spec.md §0).
-# User-dictated text carries no marker. `grep -rn "‡" docs/desires.yaml`
-# finds every line the planner touched; deleting the glyph is sign-off.
-#
 # No Desire NAME carries a {tag:slug} token. About twenty did, and which twenty
 # read as an authoring accident rather than a rule: Sake and Ravenheart Red
 # were linked, alcohol and moonshine sitting right beside them were not. Desire
@@ -302,7 +296,7 @@ families:
     # The one family {tag:stupid} does not lock. It exists precisely so that
     # tag's `desires.locks` has something to except besides alcohol — a
     # character with no reachable Desire at all has been benched rather than
-    # changed. Nothing but Squeeze puts anybody in it. ‡
+    # changed. Nothing but Squeeze puts anybody in it.
   # Deliberate adjacencies (not bugs — see content-spec.md §1):
   #   - violence and bravery overlap on duels/tournaments/battles (both
   #     keys on the same desire), so Craven and Pacifist bite differently.
@@ -1568,7 +1562,7 @@ desires:
   # hand — only tier 7 gets that automatically — because none of them is a
   # thing you can meaningfully do twice.
   climb-the-mountain:
-    name: Figure out how to get on top of the Mountain, and climb there ‡
+    name: Figure out how to get on top of the Mountain.
     tier: 3
     oncePerLife: true
     families: [adventure, bravery]
@@ -1615,7 +1609,7 @@ desires:
     requires:
       anyTags: [death-wish]
 
-  # === 4e. ‡ drafted fill-ins ===============================================
+  # === 4e. Drafted fill-ins =================================================
   # Corrupt (T: corrupt, R: cerberus/sheriff)
   look-the-other-way:
     name: Look the other way in return for something.
@@ -1974,8 +1968,8 @@ desires:
       anyRoles: [migrant]
 
   # === 5. Sign-off pass (2026-09-02) ======================================
-  # Everything below arrived from the human sign-off of the ‡ draft, so none
-  # of it carries the glyph — the names are dictated, not drafted.
+  # Everything below arrived from the human sign-off of the draft — the names
+  # are dictated, not drafted.
 
   # The Bum's low, repeatable rung. Replaces bum-custom ("A Desire of your
   # own"), which promised a goal written with a GM — that is the free-text

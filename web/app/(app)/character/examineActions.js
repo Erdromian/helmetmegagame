@@ -114,7 +114,7 @@ export async function examineCharacter(targetId) {
 
     const seen = await lastSightings(prisma, me);
     const sighting = seen.get(String(targetId ?? ""));
-    if (!sighting) throw new UserError("You haven't heard them say anything. ‡");
+    if (!sighting) throw new UserError("You haven't heard them say anything.");
 
     // looker() already selects exactly what examineRow wants — the two lists
     // are the same list, and VIEWER_SELECT is where it is written down.

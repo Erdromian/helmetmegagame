@@ -47,7 +47,7 @@ export async function soundTrumpet() {
   // Every gate the page already applied, re-applied. The button being hidden
   // is a hint, not a lock.
   if (!character.tags.some((ct) => ct.tag.slug === TRUMPET_SLUG)) {
-    return { ok: false, error: "You aren't carrying a trumpet. ‡" };
+    return { ok: false, error: "You aren't carrying a trumpet." };
   }
   if (!character.locationId) {
     return { ok: false, error: "You're nowhere." };
@@ -57,7 +57,7 @@ export async function soundTrumpet() {
   // where it deliberately would not stop a shout.
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) {
-    return { ok: false, error: `You can't raise it to your lips — you're ${blocker.name}. ‡` };
+    return { ok: false, error: `You can't play the instrument — you're ${blocker.name}.` };
   }
 
   const since = Date.now() - (lastSounded.get(character.id) ?? 0);
@@ -65,7 +65,7 @@ export async function soundTrumpet() {
     const minutes = Math.max(1, Math.ceil((TRUMPET_COOLDOWN_MS - since) / 60_000));
     return {
       ok: false,
-      error: `Your lips need about ${minutes} more minute${minutes === 1 ? "" : "s"}. ‡`,
+      error: `Your lips need about ${minutes} more minute${minutes === 1 ? "" : "s"}.`,
     };
   }
   // Claimed BEFORE the posting loop, not after: the loop is a couple of dozen

@@ -44,10 +44,8 @@ async function sceneLine(prisma, { placeKey, text, lines = [], signed = true } =
   ].filter(Boolean);
   if (body.length === 0) return null;
 
-  // The mark is no longer appended, the same call ambientLine.js made in the
-  // copy pass and for the same reason: a scene row is the world moving, not
-  // drafted copy, and marking every arrival and every overheard shout put a ‡
-  // in front of players a hundred times a day.
+  // `signed` is a leftover of the retired draft-mark convention: still
+  // accepted so callers need not change, and it does nothing.
   void signed;
   const content = body.join("\n");
 

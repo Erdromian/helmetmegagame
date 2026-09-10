@@ -109,7 +109,7 @@ export const ACTION_HELP = {
   // The Cerberon's two. The first is Bascinet's own words, verbatim.
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:
-    "Read the warrant book. It names every living man the Cerberon want, hood or no hood. ‡",
+    "Read the warrant book.",
 };
 
 export const ACTION_SECTIONS = [

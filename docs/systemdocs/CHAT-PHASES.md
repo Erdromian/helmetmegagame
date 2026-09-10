@@ -11,7 +11,7 @@ says so, and the orchestrator stages by hunk). Every phase ends with lint, build
 `node --check` on bot/db files, a report, then the orchestrator's review, a
 production check, commit, push. Migrations are hand-written SQL; folder names follow
 `20260911070000_…` upward. `docs/systemdocs/CHAT.md` is updated by the phase that
-changes what it describes. Every player-visible string ends in ‡.
+changes what it describes. Every player-visible string ends in.
 
 Every phase shipped, 2026-09-06. `CHAT.md` describes the whole of it: the one
 write path and the record (§2), conversation membership as a row (§2a),

@@ -164,7 +164,7 @@ async function vomitOnTheRide(prisma, row, openTurn) {
     const expiresTurn = await expiryForGrant(prisma, tag, openTurn);
     await addToStack(prisma, row.id, tag.id, 1, { source: "EVENT", expiresTurn });
     if (row.discordUserId) {
-      await sendDm(prisma, row.discordUserId, "The ride turns your stomach. You're **Vomiting**. ‡");
+      await sendDm(prisma, row.discordUserId, "The ride makes you sick. You're **Vomiting**.");
     }
   } catch (err) {
     console.error("vomitOnTheRide failed:", err);
@@ -226,23 +226,23 @@ function fitsMount(activeSlugs, partySize = 0) {
 function freeZoneMovesReason(character, partySize = 0) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
-    return "Overburdened: put something down and your free crossing comes back. ‡";
+    return "Overburdened: you don't have a free move anymore.";
   }
   const active = equippedSlugs(held);
   if (isMounted(active)) {
     // The one case where the number is lower than a player expects for a
     // reason they cannot read off their own sheet.
     if (!fitsMount(active, partySize)) {
-      return `You're taking more people than your ${fastTravelCapacity(active)} seats, so you lose the extra crossing your mount buys. Leave somebody behind and it comes back. ‡`;
+      return `You're taking more people than your ${fastTravelCapacity(active)} seats, so you've lost the free move.`;
     }
     return null;
   }
   const lamed = held.find((ct) => LAMED_SLUGS.has(ct.tag?.slug));
-  if (lamed) return `${lamed.tag.name}: you cannot walk a zone for free. Ride, and you can. ‡`;
+  if (lamed) return `${lamed.tag.name}: you can't cross a zone for free without riding.`;
   // Not a refusal — the number above is right for most crossings, and the
   // boat quietly adds one to the three that touch water.
   if (isBoated(equippedSlugs(held))) {
-    return "Your boat adds a free crossing between the Forest, the Black Hills and the Marshes. It does nothing anywhere else. ‡";
+    return "Your boat gives you a free crossing between the Forest, the Black Hills and the Marshes.";
   }
   return null;
 }
@@ -281,7 +281,7 @@ async function performLocationMove(prisma, character, targetLocation) {
   // so this one gate covers the bot's picker, the /location command and the
   // staged push alike.
   const stuck = blockerFor(character.tags, ACT);
-  if (stuck) return { ok: false, reason: `You can't go anywhere — you're ${stuck.name}. ‡` };
+  if (stuck) return { ok: false, reason: `You can't go anywhere — you're ${stuck.name}.` };
 
   // Somebody laid in wait and stopped them (docs/systemdocs/INTERCEPT.md).
   // Beside the ACT gate rather than inside it because a hold takes MOVEMENT
@@ -484,7 +484,7 @@ async function performLocationMove(prisma, character, targetLocation) {
               zoneMovesBonusUsed: onBonus ? spentBonus + 1 : spentBonus,
             },
           });
-          if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment. ‡");
+          if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment.");
           outcome.usedFreeMove = true;
           outcome.freeMovesLeft = left - 1;
         } else {
@@ -499,8 +499,8 @@ async function performLocationMove(prisma, character, targetLocation) {
           if (existing) {
             throw new MoveRefused(
               allowance.base + allowance.bonus === 0
-                ? "You're overburdened, so you have no free moves left, and you've already acted this turn. ‡"
-                : "You're out of free moves this turn, and you've already acted. ‡",
+                ? "You're overburdened, so you have no free moves left."
+                : "You're out of free moves this turn and you've already acted.",
             );
           }
           await tx.action.create({
@@ -560,7 +560,7 @@ async function performLocationMove(prisma, character, targetLocation) {
           });
           const readyAt = (row?.lastLocationMoveAt?.getTime() ?? 0) + cooldownMs;
           const seconds = Math.max(1, Math.ceil((readyAt - now.getTime()) / 1000));
-          throw new MoveRefused(`You're still catching your breath — ${seconds}s. ‡`, { retryAfterSeconds: seconds });
+          throw new MoveRefused(`You're still catching your breath — ${seconds}s.`, { retryAfterSeconds: seconds });
         }
       }
 

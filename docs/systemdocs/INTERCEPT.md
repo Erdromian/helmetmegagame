@@ -229,7 +229,7 @@ meant to build.
 
 ## 6. The DMs
 
-Four lines. Three of them are Bascinet's words verbatim, so they carry no `‡`.
+Four lines. Three of them are Bascinet's words verbatim.
 
 | Line | `DM_KIND` |
 |---|---|

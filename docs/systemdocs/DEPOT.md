@@ -558,7 +558,7 @@ resale that stocking goods to trade on was barely a living, and the Merchant's
 own seat is supposed to be a trade. Import prices came down ~18% in the same
 pass, so buying in is cheaper and selling on actually pays. The station still
 takes 40%, which is margin enough that round-tripping a rifle for its own sake
-is a slow way to lose money. ‡
+is a slow way to lose money.
 
 Six wares carry a **wage floor** instead: `alcohol`, `distilled-coca`,
 `trapping-gear`, `phrygian-tears`, `gladiator-helmet` and
@@ -566,14 +566,14 @@ Six wares carry a **wage floor** instead: `alcohol`, `distilled-coca`,
 what a *maker* earns under §4's bands, not what a reseller gets back. 60% is a
 raise for most of them and would have been a pay cut for `alcohol` (4) and
 `distilled-coca` (10), so those two keep the higher number. The rule is that
-the wage never goes down. ‡
+the wage never goes down.
 
 The `fishing-rod` used to be the seventh, and it is the one place the floor
 was wrong: at `turnsCost: 0` the Dead Simple ration mints the margin as a
 FREE action, so 60% of its 12 ⬢ import price (7, against 3 ⬢ of materials)
 was +16 ⬢ a turn on top of an untouched labor day. It sells at the Dead
 Simple convention (cost + 1 = 4) instead — the floor never applies to a
-0-turn recipe. ‡
+0-turn recipe.
 
 Six are also creation picks, marked in the Notes column: `jewelry` (2 pt),
 `instant-camera` (2), `sword-cane` (7), `surgical-equipment` (9),
@@ -596,7 +596,7 @@ buying one mid-game is still a real decision.
 | `sweets` | 4 | 2 | Consumes into `ate-meal` |
 | `alcohol` | 5 | 4 | He stocks the local brew too |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. Cut from 12 ⬢: at that price it was competing with real gear, and a paper-thin disguise is not real gear. |
-| `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. ‡ |
+| `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
 | `boombox` | 11 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
 | `sake` | 11 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
@@ -624,7 +624,7 @@ buying one mid-game is still a real decision.
 | `silver-sword` | 123 | 74 | |
 | `chainsaw` | 126 | 76 | Cuts two Godflesh per Extract, and farms at +2 ⬢ — `FACTORY.md` |
 | `neoclassic-rw10` | 134 | 80 | Neoclassic R&W10. Also a 14-pt creation pick. |
-| `energy-shield` | 145 | 87 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports, and GM-granted until now. ‡ |
+| `energy-shield` | 145 | 87 | **The dearest thing on the shelf that is not a gun.** Stops bullets outright and softens a melee blow — the best odds against the Fortress turret in the game, though a minor wound is still very possible. Caving loot he also imports, and GM-granted until now. |
 | `ml-23` | 149 | 89 | A 9mm pistol |
 | `motorcycle` | 171 | 103 | Caving loot he also imports |
 | `adamantium-sword` | 189 | 113 | |

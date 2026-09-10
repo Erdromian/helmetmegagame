@@ -25,9 +25,9 @@ const JOBLESS_OPTIONS = [
   { value: "RETURN_TO_LOBBY", label: "Return to lobby" },
 ];
 const NOTHING_LINE = {
-  COMMONER: "Every role is Off: you'll start as a Commoner. ‡",
-  MIGRANT: "Every role is Off: you'll start as a Migrant. ‡",
-  RETURN_TO_LOBBY: "Every role is Off: you'll go back to the lobby. ‡",
+  COMMONER: "Every role is Off: you'll start as a Commoner.",
+  MIGRANT: "Every role is Off: you'll start as a Migrant.",
+  RETURN_TO_LOBBY: "Every role is Off: you'll go back to the lobby.",
 };
 const SAVE_DELAY_MS = 400;
 
@@ -128,7 +128,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
             setJobless(res.saved.joblessRole);
           }
         } catch {
-          setError("Couldn't reach the server. Your last change may not have saved. ‡");
+          setError("Couldn't reach the server. Your last change may not have saved.");
         }
       });
     }, SAVE_DELAY_MS);

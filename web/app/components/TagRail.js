@@ -138,7 +138,7 @@ export default function TagRail({
   function noteFor(ct, card, rung) {
     if (card.key === "Health") return healthNote(ct);
     if (isSelf && ct.tag.slug === RESEARCH_TAG_SLUG && !canResearch) return researchHint;
-    if (rung) return `next: ${rung.name} · ${rung.pointCost > 0 ? "+" : ""}${rung.pointCost} pts ‡`;
+    if (rung) return `next: ${rung.name} · ${rung.pointCost > 0 ? "+" : ""}${rung.pointCost} pts`;
     return null;
   }
 

@@ -118,9 +118,8 @@ You are now the {name}!
 Check your tags and documents.
 ```
 
-**No ‡ on a seat message.** Bascinet signed off on this wording, so the
-Assign and Spawn tails, the arrival line and the seat-conflict note all end
-on their own punctuation.
+**Bascinet signed off on this wording**, so the Assign and Spawn tails, the
+arrival line and the seat-conflict note all end on their own punctuation.
 
 No charter here: an assigned character already has a role, and the seat is
 its tags. The spawn offer (§4) is the one that carries a charter.
@@ -206,9 +205,9 @@ on purpose and a third copy in `db/lib` would be a third thing to keep in step.
 display **names** despite the column's name, so the two are looked up
 separately and merged.
 
-Names are rolled from a per-gender list in `db/lib/threats.js`. **No `‡` in
-any of them**: a name is written to `Character.name`, the Discord nickname and
-the personal role title, all worn as identity rather than read as prose.
+Names are rolled from a per-gender list in `db/lib/threats.js`. They are
+plain: a name is written to `Character.name`, the Discord nickname and the
+personal role title, all worn as identity rather than read as prose.
 
 ## 5. The two GM sections
 
@@ -267,7 +266,7 @@ two worth knowing here are `target` — what the Add row asks for: a character, 
 *leader* (a character whose Role has `requiresWhitelist`), the Inquisitor or
 the Baron (not the Baroness — Bascinet's ruling), a Location, a number, free
 text — and `script`. The kinds and their words are Bascinet's, from the
-objectives spec, so they carry no ‡. Solo parties only get `custom`.
+objectives spec. Solo parties only get `custom`.
 
 **Three scripted kinds; the rest are the GM's word.** `script` names a checker
 in `evaluateObjectives`, all read on demand — nothing runs at turn close:

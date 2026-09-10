@@ -106,7 +106,7 @@ export default function PastGames({ games, currentGameId, archiveCounts }) {
           );
         })}
         {games.length === 0 ? (
-          <EmptyRow cols={COL_COUNT}>No game has been opened yet. ‡</EmptyRow>
+          <EmptyRow cols={COL_COUNT}>No game has been opened yet.</EmptyRow>
         ) : null}
       </tbody>
     </TableScroll>

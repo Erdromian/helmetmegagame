@@ -18,8 +18,6 @@ const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = r
 
 // What the world says when the generator finally coughs out. Bascinet's
 // register: a thing that happens TO the room, not an announcement about it.
-// `signed` rides with each line because the two shuttle lines are Bascinet's
-// own words and must not be marked with a ‡ — see db/lib/ambientLine.js.
 const GENERATOR_DIED_LINE = {
   text: "You hear the generator cough twice and stop. Every light in the depot goes out at once.",
   signed: true,

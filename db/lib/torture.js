@@ -114,12 +114,12 @@ function buildTortureEmbed({ name, avatarUrl, tags, desires, thanatiNames }) {
       value: fitField(
         `Your target was the Thanati cult leader, and told you the names of the Thanati members. They are: ${
           thanatiNames.length ? thanatiNames.join(BULLET) : "nobody else, yet"
-        }. ‡`,
+        }.`,
       ),
     });
   }
   return {
-    title: "You successfully broke your target. ‡",
+    title: "You successfully broke your target.",
     description: `Their name is ${name}.`,
     fields,
     ...(avatarUrl ? { thumbnail: { url: avatarUrl } } : {}),

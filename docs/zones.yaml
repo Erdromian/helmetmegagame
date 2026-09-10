@@ -41,8 +41,8 @@
 #   instead of a rename. A Location's id is also its Discord channel name.
 # - name: display name (Title Case). Only used as the Discord channel/
 #   category/role name the FIRST time an entry is provisioned — renaming it
-#   here later does not rename already-provisioned Discord objects. NEVER put
-#   a ‡ in one: the channel doctor matches on these.
+#   here later does not rename already-provisioned Discord objects. The
+#   channel doctor matches on these, so keep them plain.
 # - description: prose. A Location's is the -# subtext on its channel's
 #   pinned anchor and the channel topic; a Room's is its thread's starter
 #   message.

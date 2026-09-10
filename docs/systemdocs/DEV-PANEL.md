@@ -461,7 +461,7 @@ Kill, Revive, Restore turn, Spend turn and Transfer ⬢. Two things stay
 blocking, because both are asking a question that needs an answer: every
 `useConfirm()`, and the typed-name **Delete character** dialog. The
 `useDirtyGuard` close path is untouched — an unsaved staged edit still prompts
-before the modal closes, whichever way it is dismissed. ‡
+before the modal closes, whichever way it is dismissed.
 
 The data assembly is shared, not duplicated: `web/lib/devPanelData.js`
 exports `loadDevPanelProps(characterId, actingDiscordUserId)`, the DTO bundle

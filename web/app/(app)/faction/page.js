@@ -304,7 +304,7 @@ export default async function FactionPage({ searchParams }) {
         <>
           <AppHeader title="Faction" />
           <PageShell width="narrow">
-            <EmptyState>You don&apos;t have a living character. ‡</EmptyState>
+            <EmptyState>You don&apos;t have a living character.</EmptyState>
           </PageShell>
         </>
       );
@@ -319,7 +319,7 @@ export default async function FactionPage({ searchParams }) {
         <PageShell width="default">
           {props.faction ? null : (
             <p className="text-sm text-muted">
-              You answer to nobody. Ask somebody to take you in. ‡
+              You are not part of a faction.
             </p>
           )}
           <FactionConsole {...props} />

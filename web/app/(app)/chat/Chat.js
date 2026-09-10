@@ -185,7 +185,7 @@ export default function Chat({
     if (typeof window === "undefined") return null;
     // The STORE first, and synchronously. Seeding it from an effect meant the
     // first client render drew an empty feed and the server's own rows landed
-    // a frame later — "Nothing has been said here yet. ‡" flashing over a
+    // a frame later — "Nothing has been said here yet." flashing over a
     // scene that was already on the page. An initializer runs before that
     // first paint, and React runs it exactly once.
     // seedInitial rather than the three writes on their own: this runs during
@@ -339,7 +339,7 @@ export default function Chat({
           if (res?.ok) bumpPlaces();
           return res ?? { ok: false, error: "Something went wrong." };
         })
-        .catch(() => ({ ok: false, error: "Could not reach the server. Nothing was changed. ‡" }));
+        .catch(() => ({ ok: false, error: "Could not reach the server. Nothing was changed." }));
     },
     [selectedKey, bumpPlaces],
   );
@@ -765,7 +765,7 @@ export default function Chat({
         )}
         {stream === "fatal" && (
           <p className="chat-quiet-line" role="status">
-            The connection dropped. Reload to catch up. ‡
+            The connection dropped. Reload to catch up.
           </p>
         )}
         {/* On a phone the people are an avatar strip under the place header,

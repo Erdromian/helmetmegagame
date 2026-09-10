@@ -25,8 +25,7 @@
 //   placeholder true = the thing it asks for (a rite) does not exist yet, so
 //               it is hand-scored until it does. The panel says so.
 //
-// `pick` and `label` are Bascinet's words from the objectives spec, so they
-// carry no ‡.
+// `pick` and `label` are Bascinet's words from the objectives spec.
 
 const OBJECTIVE_KINDS = [
   {

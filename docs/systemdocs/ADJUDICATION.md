@@ -125,7 +125,7 @@ tray as "unattached" for the GM to keep or drop.
 - **One auto-filed craft Routine can hold several crafts.** Still one Action
   per character per turn — that does not move — but a craft may cost a
   *fraction* of it, so the row reads "Crafting this turn: 2× Alcohol, 1× Cat.
-  ‡" and carries a ledger in `Action.craftBudget` (`CRAFTING.md` §2a).
+" and carries a ledger in `Action.craftBudget` (`CRAFTING.md` §2a).
   Rejecting it hands back the whole turn, every craft in it included; there
   is no per-craft Undo — a GM reversing one craft works by hand from its
   audit row, and no budget comes back with it (`CRAFTING.md` §2a).
@@ -248,7 +248,7 @@ call site follows success with `refresh()` and the pair meant rendering
   (`DESIGN-SYSTEM.md` §8): no backdrop, clicks pass through, and the header
   drags, so a GM can pull someone up in the inspector while writing about them.
   Escape only closes one while focus is actually inside it. Under 1024px they
-  revert to ordinary blocking modals. ‡
+  revert to ordinary blocking modals.
 
 - **Inspector** — *"quickly pull up the guy he was talking to"*. Every
   character name in the workspace is a click target that swaps the column to

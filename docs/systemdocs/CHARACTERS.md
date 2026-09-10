@@ -177,7 +177,7 @@ leaving the tag on would have meant the Cerberon still reading you as wanted
 under a name their own book has never heard of. The posters already nailed up
 are *not* recalled: they are paper, on their own clock (`PAPERWORK.md` §7).
 A Disguise Kit hides the tag for three turns; this takes it off for good.
-See `REQUESTS.md` §5g and `TAGS.md` (`visible: named`). ‡
+See `REQUESTS.md` §5g and `TAGS.md` (`visible: named`).
 
 The potion is brewable (`brewing-skilled`, 2 turns, 8 ⬢) and stocked at the
 Depot, so it is a thing a player can actually get. It re-validates the same cap

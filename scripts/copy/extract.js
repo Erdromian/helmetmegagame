@@ -94,7 +94,6 @@ function writeWorksheet(group, entries, drafts) {
     lines.push(`- id: ${inline(e.id)}`);
     if (e.label) lines.push(`  what: ${inline(e.label)}`);
     if (e.where) lines.push(`  where: ${inline(e.where)}`);
-    lines.push(`  signed: ${/‡/.test(e.value)}`);
     lines.push(`  old: ${scalar(e.value)}`);
     const draft = drafts.get(e.id);
     lines.push(`  new: ${draft && draft.new ? scalar(draft.new) : "|-"}`);
@@ -104,8 +103,7 @@ function writeWorksheet(group, entries, drafts) {
 
   fs.writeFileSync(file, lines.join("\n"));
   const drafted = entries.filter((e) => drafts.has(e.id) && drafts.get(e.id).new.trim() !== "").length;
-  const signed = entries.filter((e) => /‡/.test(e.value)).length;
-  return { file, count: entries.length, words, drafted, signed, unsigned: entries.length - signed };
+  return { file, count: entries.length, words, drafted };
 }
 
 function main() {
@@ -151,11 +149,10 @@ function main() {
   console.log("");
   for (const r of results) {
     const drafted = r.drafted ? `  ${r.drafted} drafted` : "";
-    const signed = r.signed ? `  ${r.signed} signed` : "";
     console.log(
       `  ${r.group.padEnd(pad)}  ${String(r.count).padStart(4)} entries  ${String(
         r.words,
-      ).padStart(6)} words${signed}${drafted}`,
+      ).padStart(6)} words${drafted}`,
     );
   }
   const total = results.reduce((s, r) => s + r.count, 0);

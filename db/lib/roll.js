@@ -33,8 +33,8 @@ const { loadForcedName, loadConcealment, presentedIdentity } = require("./presen
 // `character` needs { id, name, age, gender, concealed, webOnly }.
 // Returns { ok, value, line } or { ok: false, error }.
 async function castDie(prisma, character, placeKey) {
-  if (!character?.id) return { ok: false, error: "You don't have a living character. ‡" };
-  if (!placeKey) return { ok: false, error: "There's nowhere to roll it. ‡" };
+  if (!character?.id) return { ok: false, error: "You don't have a living character." };
+  if (!placeKey) return { ok: false, error: "There's nowhere to roll it." };
 
   const [forcedName, concealment] = await Promise.all([
     loadForcedName(prisma, character.id),
@@ -46,7 +46,7 @@ async function castDie(prisma, character, placeKey) {
   // Signed HERE, once, rather than by sceneLine: the same sentence goes to
   // Discord below, and a line drafted by Claude is drafted on both faces.
   // `signed: false` is what stops the archive row carrying two marks.
-  const text = `${who} casts a die — **${value}**. ‡`;
+  const text = `${who} casts a die — **${value}**.`;
 
   // The archive row first: it is what Chat shows, and it is the half that
   // cannot fail silently for a web-only player.

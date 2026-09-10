@@ -45,15 +45,14 @@ function noticeLine(post, turnNumber) {
 // board is information, and a silent panel would read as a bug.
 function boardText(locationName, posts, turnNumber) {
   if (!posts || posts.length === 0) {
-    return `The noticeboard at ${locationName} is bare. ‡`;
+    return `The noticeboard at ${locationName} is bare.`;
   }
   const lines = posts.map((p) => `  ${noticeLine(p, turnNumber)}`);
-  return [`The noticeboard at ${locationName}:`, ...lines, "‡"].join("\n");
+  return [`The noticeboard at ${locationName}:`, ...lines].join("\n");
 }
 
 // What the world says when somebody nails something up. Scenery, so the caller
-// runs it through db/lib/ambientLine.js — which handles the per-line `-#` and
-// the single ‡ at the end.
+// runs it through db/lib/ambientLine.js, which handles the per-line `-#`.
 //
 // It names the PAPER and never the person. A notice pinned anonymously is the
 // point of a public board, and "Ada pinned up a paper" would end that forever.

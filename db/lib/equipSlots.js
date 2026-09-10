@@ -51,8 +51,7 @@ const LAYERED_SLOTS = new Set(["HEAD", "BODY", "MOUNT"]);
 // a YAML entry still naming it throws instead of sliding through.
 const EQUIP_SLOTS = ["HEAD", "BODY", "WEAPON", "ACCESSORY", "MOUNT"];
 
-// The words the sheet and the refusals use for each slot. Player-facing copy,
-// so every phrase of five words or more carries its ‡.
+// The words the sheet and the refusals use for each slot. Player-facing copy.
 const SLOT_LABELS = {
   HEAD: "on your head",
   BODY: "on your body",
@@ -139,15 +138,14 @@ function findSlotClash(tags) {
 
 /**
  * Why that pair cannot be worn together, as a sentence for a player.
- * Ends in ‡ — it is drafted copy like everything else here.
  */
 function describeSlotClash({ a, b }) {
   const where = SLOT_LABELS[a.equipSlot] ?? "there";
   // The same tag twice is a stackable slotted item (a hat, say) equipped past
   // its own single slot — TAGS.md §"equipSlot"/"equipLayer" still holds one
   // physical thing per slot however many units the stack carries.
-  if (a.name === b.name) return `You can only have one ${a.name} ${where} at a time. ‡`;
-  return `${a.name} and ${b.name} can't both go ${where}. ‡`;
+  if (a.name === b.name) return `You can only have one ${a.name} ${where} at a time.`;
+  return `${a.name} and ${b.name} can't both go ${where}.`;
 }
 
 /**
@@ -182,7 +180,7 @@ function describeHandsOverflow(tags) {
     counts.set(label, (counts.get(label) ?? 0) + 1);
   }
   const named = listWords([...counts].map(([label, n]) => (n > 1 ? `${label} ×${n}` : label)));
-  return `Your hands are full: put away ${named} before you take up anything else. ‡`;
+  return `Your hands are full: put away ${named} before you equip something else.`;
 }
 
 /**
@@ -221,7 +219,7 @@ function describeAccessoryOverflow(tags) {
     counts.set(tag.name, (counts.get(tag.name) ?? 0) + 1);
   }
   const named = listWords([...counts].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name)));
-  return `You can keep ${MAX_ACCESSORIES} things about you: put away ${named}. ‡`;
+  return `You can equip ${MAX_ACCESSORIES} at a time: put away ${named}.`;
 }
 
 /**

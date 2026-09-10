@@ -109,12 +109,6 @@ function checkEntry(entry, oldValue, newValue) {
   if (oldValue.includes("-#") && !newValue.includes("-#"))
     add("warn", "drops the Discord `-#` subtext marker.");
 
-  // --- the ‡ mark -------------------------------------------------------
-  if (/‡/.test(oldValue) && !/‡/.test(newValue))
-    add("warn", "drops the ‡ — fine if the rewrite is confident; it is counted.");
-  if (!/‡/.test(oldValue) && /‡/.test(newValue))
-    add("warn", "adds a ‡ to a line that had none.");
-
   // --- house style: punctuation ---------------------------------------------
   if (newValue.includes("..."))
     add("warn", "uses ... — house style is the … glyph.");

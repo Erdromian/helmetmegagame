@@ -187,7 +187,7 @@ export default function GoalsTab({
             ) : (
               <p className="text-sm text-muted">
                 {slot.lockedUntilTurn != null
-                  ? `${lockedSlotLabel(slot)} — nothing claimed here yet. ‡`
+                  ? `${lockedSlotLabel(slot)} — nothing claimed here yet.`
                   : "Nothing claimed in this slot yet."}
               </p>
             )}

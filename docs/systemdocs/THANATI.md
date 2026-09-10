@@ -4,7 +4,7 @@
 PLACEHOLDER. Written by Claude for its own orientation while building the
 cult, so the next session has a map. Replace this file as soon as a human
 design doc exists — Bascinet has said one is coming. Nothing here is game
-text; it is exempt from the ‡ rule like the rest of docs/systemdocs/.
+text.
 -->
 
 The death cult as gameplay: who is one, what they carry, the four buttons in
