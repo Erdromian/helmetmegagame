@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The 100-coin Desire asks for obols, not goods
+
+✎ Have 100 ¢ in your inventory at once — obols are weightless, so the goal is reachable; 100 ⬢ of carried goods was not, at a cap of 84
+
 ## 2026-09-10 · The cult buys paper by the ream too
 
 ✎ The Thanati shelf sells a Stack of Paper at 3 ⬢ instead of single sheets at 1

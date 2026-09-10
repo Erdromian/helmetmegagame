@@ -467,7 +467,7 @@ desires:
     families: [scheming, feud]
 
   hold-100:
-    name: Have 100 ⬢/¢ in your inventory at once
+    name: Have 100 ¢ in your inventory at once ‡
     tier: 4
     families: [wealth]
 
