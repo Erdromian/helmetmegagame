@@ -18,7 +18,7 @@ touch the copy: the wording in `db/lib/kiss.js` is settled.
 - Anyone picks somebody standing where they stand and presses **Kiss**. They
   get a DM with Accept / Decline; **nothing happens until they press one.**
 - On Accept **both** dials move **+15** — the same figure a confession is
-  worth (`MOOD.md`) — and the room hears one `-#` line.
+  worth (`MOOD.md`). **Nobody else is told** (§5).
 - **It costs no Move**, files no `Action`, rolls nothing, and no turn pass
   touches it.
 - What holds it back instead is two rations. **Asking** has a **2-hour
@@ -121,28 +121,22 @@ The **ask** spends the cooldown, not the answer, and a decline does not refund
 it. That is the whole point: otherwise asking a whole room costs nothing and
 the picker becomes a way to find out who is willing.
 
-## 5. What the room hears
+## 5. Nobody hears it
 
-One `-#` line, Bascinet's wording, through `db/lib/placeLine.js#roomLine`:
+**A kiss is private.** The only two people told are the two who agreed to it,
+each by DM — "You kissed Ada." to the asker, "Ada kissed you back." to them.
+Nothing is written to the room, the Location, the feed or the archive, and no
+third party is told anything.
 
-```
--# Ada and Celeste kissed.
-```
+It was not always so. Until 2026-09-10 the accept posted one `-#` line —
+`-# Ada and Celeste kissed.` — into whichever Room the two shared, or the
+Location's own channel when they shared none. Bascinet cut it: the room being
+told is a kiss cam, and the two dials moving is the whole mechanic. The lines
+it had already written were deleted from the live game at the same time.
 
-Both names come from `presentedIdentity()`, not `character.name` — a kiss is
-not a place to out somebody the room is seeing as a stranger.
-
-**Where it lands.** Co-presence is Location-grain while a Room is a thread
-inside one, so `placeForKiss` looks for a room they are **both** guests of and
-posts there; with no shared room the Location's own channel hears it. Standing
-in the open street is a place.
-
-Best-effort on both halves, and outside the transaction — it is a network
-call, and a line nobody heard must never undo two dials that already moved.
-
-`roomLine` and `locationLine` moved out of `db/lib/riteEffects.js` into
-`db/lib/placeLine.js` when this shipped; riteEffects still re-exports both, so
-the rites and `riteChant.js` were untouched.
+`placeForKiss` and `sayItHappened` went with it, and `presentedIdentity` is no
+longer imported here at all — with no line to write there is no name to
+present. `db/lib/placeLine.js` stays where it is; the rites use it.
 
 ## 6. What it does NOT do
 
@@ -187,7 +181,6 @@ Blocked is what shipped.
 | `db/lib/incapacitation.js` | the `KISS` capability and ACT-implies-KISS |
 | `db/lib/constants.js` | `KISS_BLOCKING_SLUGS` |
 | `db/lib/mood.js` | `EVENTS.KISS`, `applyKissMood` |
-| `db/lib/placeLine.js` | the `-#` line into a room or a Location |
 | `db/lib/dmAnswer.js` | the Accept branch, shared by both faces |
 | `db/test/kiss.test.js` | the pure half |
 | `web/app/(app)/character/requestActions.js` | `kissRequestImpl` |
