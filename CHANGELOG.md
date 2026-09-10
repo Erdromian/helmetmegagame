@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The sheet says who you are where the face is
+
+✚ Your name, your role and your faction sit in the character sheet's top row now, beside a face three times the size it was
+✎ The page header above it just says Character
+
 ## 2026-09-10 · Guns beat bows, and the crossbow stops being the best ranged weapon
 
 ✎ Every firearm now counts for more in a fight than every bow — the powder half of the ranged ladder starts where the bows stop  
