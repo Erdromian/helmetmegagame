@@ -62,17 +62,12 @@ import {
 export const ACTION_HELP = {
   examine:
     "Look at someone.",
-  craft:
-    "Make something from a recipe you know, with the ingredients in your hands. ‡",
-  destroy:
-    "Break something you're carrying. A few things leave a remnant behind. ‡",
-  transfer:
-    "Move things or Resources between you, the people standing here, and the floor. ‡",
-  loot:
-    "Take what's on a body, or on somebody here who can't stop you. ‡",
-  free: "Cut somebody loose who is bound here. ‡",
-  butcher:
-    "Cut up a body for what it yields. You have to be a Butcher. ‡",
+  craft: "Smith, craft, brew, or cook.",
+  destroy: "Destroy an item.",
+  transfer: "Exchange resources or tags.",
+  loot: "Loot somebody that's bound or helpless.",
+  free: "Cut somebody loose.",
+  butcher: "Butcher a body.",
   write:
     "Add a line to a sheet of paper you're carrying. Writing only ever appends. ‡",
   heal: "Heal yourself or someone nearby. Gated by your Medical skill.",
@@ -183,7 +178,7 @@ export const ACTION_SECTIONS = [
         icon: DocumentsIcon,
         label: "Learn Skill",
         gate: "canLearn",
-        gateReason: "Nobody here can teach you anything you haven't got.",
+        gateReason: "Nobody here can teach you.",
       },
       {
         mode: "teach",
