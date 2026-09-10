@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A cube of Squeeze sells for 7
+
+✎ Up from 5. A factory day is 56 ⬢ for eight cubes, about four times a good farming day, and a full wagon is 420 ⬢
+
 ## 2026-09-10 · A letter can be given a name
 
 ✚ A letter can be given a name when you first write it. Leave it blank and it is A Note, the way every sheet was  
