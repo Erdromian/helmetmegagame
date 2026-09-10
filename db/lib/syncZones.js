@@ -329,7 +329,12 @@ function parseConnection(raw, locationByRef, problems) {
 // Validated rather than trusted: a typo like `hunitng: 0.5` would otherwise
 // silently disable hunting somewhere, and the symptom (one location quietly
 // paying nothing) is nearly invisible in play.
-const YIELD_KINDS = { hunting: "HUNTING", farming: "FARMING", fishing: "FISHING" };
+const YIELD_KINDS = {
+  hunting: "HUNTING",
+  farming: "FARMING",
+  fishing: "FISHING",
+  prospecting: "PROSPECTING",
+};
 const YIELD_MAX = 2;
 
 function collectYields(location, problems) {
@@ -1028,7 +1033,7 @@ async function syncZonesFromYaml(prisma) {
         console.warn(`zones.yaml: location "${location.slug}" structures names "${slug}", which has no placement: block — skipped.`);
         continue;
       }
-      const ground = canBuildHere({ ...location, zone: { kind: zone.kind } });
+      const ground = canBuildHere({ ...location, zone: { kind: zone.kind } }, tag.placement);
       if (!ground.ok) {
         console.warn(`zones.yaml: "${slug}" seeded at "${location.slug}", where players could not build one (${ground.reason}) — authored on purpose?`);
       }

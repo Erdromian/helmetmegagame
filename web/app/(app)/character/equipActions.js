@@ -156,11 +156,16 @@ export async function equipOne(characterTagId) {
       // down. Only an involuntary change sheds (db/lib/tagOps.js).
       //
       // Hands come from everything HELD, since a maiming is never equipped.
-      const held = await tx.characterTag.findMany({
+      // NOT `held` — that name is already the one row this equip is about,
+      // read above and used by the update three lines up. Shadowing it here
+      // put that use in the temporal dead zone of this `const`, so every
+      // single equip threw `Cannot access 'held' before initialization`
+      // before the transaction did anything.
+      const holdings = await tx.characterTag.findMany({
         where: { characterId: character.id, quantity: { gt: 0 } },
         select: { tag: { select: HANDS_TAG_FIELDS } },
       });
-      const problem = findEquipProblem(worn, handsFor(held));
+      const problem = findEquipProblem(worn, handsFor(holdings));
       if (problem) throw new EquipRefusalError(problem);
     });
   } catch (err) {

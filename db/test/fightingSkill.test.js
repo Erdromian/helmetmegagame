@@ -129,15 +129,20 @@ test("a weapon's class decides its half of the tree", () => {
 
 test("situational entries are listed and never summed", () => {
   const tags = [
-    row("melee-duelist", { tree: "melee", points: 20, situational: "one-on-one" }),
-    row("guerrilla", { tree: "both", points: 20, situational: "surprise, rough ground" }),
-    row("camouflage", { note: "hard to spot first" }),
+    row("melee-duelist", { tree: "melee", points: 20, situational: true }),
+    row("guerrilla", { tree: "both", points: 20, situational: true }),
+    // No tier and no tree at all, and it still has to reach the list — that
+    // list is the whole reason such a tag carries a block.
+    row("camouflage", { situational: true }),
   ];
   const r = melee(tags);
   assert.equal(r.score, UNTRAINED, "nothing situational reaches the number");
   assert.equal(r.situational.length, 3);
   assert.equal(r.situational.find((s) => s.label === "melee-duelist").tiers, 2);
   assert.equal(r.situational.find((s) => s.label === "camouflage").tiers, null);
+  // The condition text came out of the catalog: a situational says only that a
+  // gamemaster decides it, and which moment is the description's job.
+  assert.ok(r.situational.every((s) => !("when" in s)));
 });
 
 test("conditions are an AND, and each key is really checked", () => {
@@ -230,7 +235,7 @@ test("the door refuses the blocks that would silently do nothing", () => {
   assert.throws(() => validateFighting({ when: { holds: ["tipsy"] } }, opts()), /nothing to apply/);
   assert.throws(() => normalizeFighting({ tree: "melee", rung: 0 }), /at least 1/);
   assert.throws(() => normalizeFighting({ tree: "both", tiers: 1, when: { bogus: ["x"] } }), /unknown key/);
-  assert.throws(() => normalizeFighting({ tree: "both", situational: "a", note: "b" }), /situational and note/);
+  assert.throws(() => normalizeFighting({ tree: "both", situational: "one-on-one" }), /is a flag/);
   assert.throws(() => normalizeFighting({ tree: "both", tiers: 1, points: 10 }), /tiers and points/);
 });
 

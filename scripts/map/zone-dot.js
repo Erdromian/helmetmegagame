@@ -39,9 +39,9 @@ const ZONES_PATH = path.join(ROOT, "docs", "zones.yaml");
 // Fixed display order (the LaborKind enum in schema.prisma), so two
 // Locations' yields line up down the page instead of following whatever
 // order docs/zones.yaml happened to author them in. The emoji keep a node's
-// label short — "🏹 0.5, 🌾 0.3, 🎣 0.9" instead of three full words.
-const LABOR_KINDS = ["hunting", "farming", "fishing"];
-const LABOR_EMOJI = { hunting: "🏹", farming: "🌾", fishing: "🎣" };
+// label short — "🏹 0.5, 🌾 0.3, 🎣 0.9, ⛏️ 0.7" instead of four full words.
+const LABOR_KINDS = ["hunting", "farming", "fishing", "prospecting"];
+const LABOR_EMOJI = { hunting: "🏹", farming: "🌾", fishing: "🎣", prospecting: "⛏️" };
 
 // Mirrors db/lib/mounts.js#WATER_ZONE_SLUGS — the only zones a Fishing Boat's
 // extra crossing works between. Kept as its own small copy rather than a

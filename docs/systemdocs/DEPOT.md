@@ -438,7 +438,7 @@ The Merchant is the only faucet of currency in the game.
 - **The ATM** moves obols between `Depot.accountObols` and physical `obol`
   tags. It is the only door coins enter and leave the world through, which is
   what makes lending something only he can do.
-- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 15)
+- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 75)
   is drawn and repaid in obols. Drawing puts money in the account. The cap is
   **refused** rather than clamped, so he is told he hit the ceiling. Nothing in
   code punishes a standing balance — the Company is not code.
@@ -448,12 +448,26 @@ obols the same thing wearing two hats, and it meant importing food was free
 money. ⬢ are a **ware on the shuttle** instead (§3, §4) — the only place they
 change form, and never for nothing.
 
-Starting obols are granted through `docs/roles.yaml` using a `Name xN` suffix
+**There are two pots, and they are not the same money.** The station's account
+is `Depot.accountObols`; the Merchant's purse is physical `obol` tags on his
+sheet. Spending one never touches the other, and the ATM is the only door
+between them — which is the point, because the licence is tradeable and handing
+it over hands over the account but not his pockets.
+
+The **station opens with 20 ¢**, and the only place that number lives is the
+`accountObols` default in `db/prisma/schema.prisma`. Restart Game deletes the
+Depot row and recreates it bare, so a new game picks the default up on its own
+and nothing has to remember to seed it.
+
+**Purses** are granted through `docs/roles.yaml` using a `Name xN` suffix
 (`Obol x25`), parsed by `db/lib/startingTags.js`. Baron 25, Merchant 20, Hand
-10, Esculap 10, Baroness / Heir / Meister 5 each — 80 ¢ across the whole cast.
+10, Esculap 10, Baroness / Heir / Meister 5 each, Arbiter 4, Censor 2,
+Cerberus 1 — 87 ¢ across ten roles.
+
 His float is deliberately thin, and thinner than the rest of the cast's scaled
-with it: the Company's line, 75 ¢, is nearly four times his own purse, and it
-is where most of his first order has to come from. It has to be paid back.
+with it: the Company's line, 75 ¢, is nearly four times the station's opening
+balance, and it is where most of his first order has to come from. It has to be
+paid back.
 
 **Debtor** is a separate faucet, off the drawback catalog rather than
 `docs/roles.yaml`: taking the tag grants 20 obols in the creation transaction
@@ -605,12 +619,15 @@ buying one mid-game is still a real decision.
 | `alcohol` | 5 | 4 | He stocks the local brew too |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source. Cut from 12 ⬢: at that price it was competing with real gear, and a paper-thin disguise is not real gear. |
 | `cigarette` | 5 | 3 | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
+| `coal` | 7 | 4 | The generator's own fuel (§2) — missing from this table until 2026-09-09, though it has always had this `depotPrice`. |
+| `silver` | 8 | 5 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source cheaper (`LABORDROPS.md` §2b); this is the fallback. |
 | `boombox` | 11 | 7 | |
 | `distilled-coca` | 11 | 10 | Also a Skilled brew, at 4 ⬢ — see §4 |
 | `sake` | 11 | 7 | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
 | `whip` | 11 | 7 | Equippable |
 | `censer` | 12 | 7 | |
 | `jewelry` | 13 | 8 | Also a 2-pt creation pick |
+| `steel` | 13 | 8 | Craftable (`smithing`, spends `coal` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. |
 | `mining-helmet` | 14 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
 | `black-body-bag` | 22 | 13 | |
 | `monkey` | 22 | 13 | |
@@ -666,6 +683,13 @@ make it, importing it would be pointless. The three exceptions are all brews —
 Merchant who would rather not wait on a brewer. Each is priced well above what
 brewing one costs, and that gap is the market a brewer sells into (§4).
 
+**`steel` (2026-09-09, repriced 2026-09-10) is the fourth**, and the first that isn't a brew — a
+smith with no Prospector bringing up ore can buy the ingot outright instead
+of smelting it himself. Same reasoning as the three brews: priced above what
+the `smithing` recipe itself costs (`SMITHING.md`), so the Merchant is a
+faster source, not a cheaper one. `silver` is not craftable at all, so it
+never faced this question — it is simply stocked, the same as `coal`.
+
 ### Laboring tools
 
 Two of the tools in `LABORING.md` §5 are Merchant stock rather than smith work:
@@ -692,7 +716,7 @@ Four bands, about 106 tags in total:
 | Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 1/3-turn pieces 7), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
-| Factory goods | a day's output at ~2.2× a good farming day | `squeeze` 4 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
+| Factory goods | a day's output at ~3× a good farming day | `squeeze` 5 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
 | Body parts | low, on purpose | `eye` 8, `heart` 8, `hand` 5, `foot` 4, `stomach` 4, `tongue` 3 |
 

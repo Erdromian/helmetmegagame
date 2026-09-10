@@ -247,6 +247,73 @@ each arrived at by getting them wrong first.
    hunger. Guilt Ridden and Insomniac each roll a nightly chance of a bad
    night's sleep, stepping the Tired -> Exhausted ladder (`TAGS.md`,
    `LABORING.md` §4). Audit action `dawn_afflictions_resolved`.
+8a-bis. **Xom pass** (`db/lib/xomPass.js`, `"xom"` in `TURN_PASSES`) — the
+   god of chance and disorder collects. Every ALIVE holder of
+   `{tag:old-ways-xom}` rolls once on a weighted table, and roughly half the
+   time nothing happens. The rest of the table hands out an item, a Seizure,
+   Rage, Melee (Legendary), a scream, a teleport across the map, Madness on
+   every clergy character at once, or a death. Audit action `xom_resolved`.
+
+   **The table is code, in `db/lib/xom.js`, not a YAML master.** Six of its
+   thirteen rows are distinct code paths rather than "grant this slug", so a
+   YAML row would need a `kind:` that maps one-to-one onto a switch the pass
+   already contains — a second place to keep in step for no editability at
+   all. `docs/labordrops.yaml` also weights by REPEATING an entry, which
+   cannot express the half-unit the mass-madness row carries. Bascinet's
+   weights are stored unnormalised and sum to 101.5; `pickXomOutcome`
+   normalises once, at roll time. `db/test/xom.test.js` asserts that every row
+   in the table has an arm in the pass's switch — a row without one falls
+   through to `default` and does nothing, silently, at four in the morning.
+
+   **Why the slot.** After `expirySweep`, or the timed tags it grants (Seizure
+   at 1 turn, Madness at 2) would be swept the moment they landed — the rule
+   the hunger pass runs under, §8 above. After `tagExpiry`, so a tag that
+   progressed this close is on the sheet. After `dyingDeath` /
+   `catatonicDeath` / `nukeExplosion` / `ascension`, so anyone they killed is
+   already `DEAD` and the ALIVE filter drops them: the bomb wins ties, which
+   is right, because a blast is a fact about the map and a god's whim is not.
+   Before `carry`, which has to weigh five cave rats and a grenade in the same
+   close or Overburdened lands a day late. Before `mood`, which pays the night
+   wherever a character is standing — and somebody Xom moved should pay it
+   where Xom put them.
+
+   **It is not idempotent**, which makes `Turn.resolvedPasses` load-bearing
+   here in a way it is nowhere else: a resumed advance must never re-roll.
+   Holders iterate sequentially, never `Promise.all` — the death claim, the
+   teleport write and the one-shot mass-madness guard are all order-sensitive.
+
+   **Three payload fields, and the reason for each.** The tag grants ride
+   `notices` into `tagExpiryDms` like the dawn afflictions do, and the gib
+   merges into `turnDeaths` for the same teardown every other death gets. The
+   other three are Discord-shaped and get their own loops in
+   `db/lib/turnSideEffects.js`:
+
+   - `xomTeleports` — `applyLocationMoveSideEffects`, then **its own ambient
+     line at both ends**, because Xom does not use the roads and that helper
+     announces a gate crossing only when a graph link exists. Then
+     `rollCavingOnArrival`, the same call the staged-relocate loop makes:
+     being *dropped* into the dark must not be the one free walk in
+     (`CAVING.md` §2), or Xom becomes the cheapest way into the Depths in the
+     game. Its own loop rather than a merge into `relocations`, because that
+     loop's letter is a sentence about a journey somebody paid for.
+   - `xomConversations` — **after** the teleports, always: the point is that
+     the two of them are standing in the same place when it opens. Goes
+     through `db/lib/conversationOpen.js`, which is now the one copy of that
+     sequence — the bot's Converse modal and Chat's Converse dialog were
+     already two, and this would have been a third.
+   - `xomShouts` — `shout()` runs in the thunk rather than the pass, because
+     it claims an `AuditLog` row and hands back a fan-out that has to be
+     posted. **Its gates stay intact**: a Mute holder does not scream, and one
+     who shouted five minutes ago has nothing left in the throat — the outcome
+     is simply spent. Its `placeKey` is the **Location**, never a Room, because
+     the turn engine has no idea which thread anybody was sitting in at 04:00.
+     So a Xom scream is made on the map, and a soundproof room never seals one.
+     That is a known limitation of running from here, not an oversight.
+
+   **Nothing is broadcast past the room it happened in.** The tag is
+   `catalog: secret`; a zone-wide post would reverse-engineer the whole
+   mechanic inside two turns and hand the Church a list of names.
+
 8b. **Carry pass** (`db/lib/carryPass.js`) — **after** hunger, so it sees the
    final sheet: Labor payouts, staged pushes, the sweep and the ⬢ upkeep all
    happen earlier in the close and none of them may settle in place.

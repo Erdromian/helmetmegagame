@@ -32,6 +32,10 @@
 //
 // Farming raised a further 9% on 2026-09-06: 14-19 -> 15-21, an average of
 // 16.5 -> 18.0, or +9.09% — the closest whole-number pair to the intent.
+// Prospecting joined 2026-09-09 as the fourth specialisation. Its 2-8 pays
+// less than the other three — Bascinet's call, on purpose: a Labor drop
+// (LABORDROPS.md) is meant to make up the rest of Prospecting's value in
+// items rather than ⬢, which none of the other three lean on this hard.
 const PRODUCTION_RATES = {
   labor: {
     basic: { min: 0, max: 2 },
@@ -39,6 +43,7 @@ const PRODUCTION_RATES = {
     hunting: { min: 0, max: 15 },
     farming: { min: 15, max: 21 },
     fishing: { min: 7, max: 13 },
+    prospecting: { min: 2, max: 8 },
   },
 };
 
@@ -46,7 +51,12 @@ const PRODUCTION_RATES = {
 // maps to. Ordinary object rather than a Set so both directions are cheap —
 // db/lib/laborAccess.js needs tier -> kind, the Labor? button needs kind ->
 // tier.
-const SPECIALISATION_KINDS = { hunting: "HUNTING", farming: "FARMING", fishing: "FISHING" };
+const SPECIALISATION_KINDS = {
+  hunting: "HUNTING",
+  farming: "FARMING",
+  fishing: "FISHING",
+  prospecting: "PROSPECTING",
+};
 
 // The one tier the global dial cannot touch. Basic is the floor of the whole
 // economy — "you can sometimes provide for yourself" — and a GM dropping

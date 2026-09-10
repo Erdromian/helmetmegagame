@@ -22,6 +22,7 @@ const LABORING_SKILLED_SLUG = "laboring-skilled";
 const LABORING_FARMING_SLUG = "laboring-farming";
 const LABORING_HUNTING_SLUG = "laboring-hunting";
 const LABORING_FISHING_SLUG = "laboring-fishing";
+const LABORING_PROSPECTING_SLUG = "laboring-prospecting";
 const CATATONIC_SLUG = "catatonic-afk";
 // Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
 // never by a player; read by the travel gate in db/lib/locationTravel.js.
@@ -226,6 +227,7 @@ module.exports = {
   LABORING_FARMING_SLUG,
   LABORING_HUNTING_SLUG,
   LABORING_FISHING_SLUG,
+  LABORING_PROSPECTING_SLUG,
   CATATONIC_SLUG,
   OVERBURDENED_SLUG,
   STEALTH_SLUG,

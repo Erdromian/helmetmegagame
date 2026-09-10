@@ -92,6 +92,14 @@
 #                     `requirement:` block below, and every listed skill must
 #                     be held. Setting it true puts the tag in the Craft menu
 #                     of everyone who holds its skills. Default false.
+#   customizable    - the maker may put their own name and words on it, for
+#                     +1 ⬢ a unit (CRAFTING.md §4a). Craftable and stackable
+#                     only. Default false.
+#   customizableSkill - a tag slug the maker must HOLD to do that. The arms
+#                     and armour all name `smithing-skilled`, so signing a
+#                     piece is a skilled smith's privilege whatever tier the
+#                     piece itself is. Omit it and anyone who can make the
+#                     thing may customize it.
 #   healable        - the Heal menu (HEAL_CHARACTER): a cure exists. Its cost
 #                     is the `requirement:` block and the medic must hold its
 #                     skills. Default false.
@@ -756,8 +764,7 @@ tags:
     category: general
     group: general-traits
     description: "You serve the Dark Lord now; you are unable to attack his servants or perform anything other than violence."
-    fighting:
-      note: "cannot raise a hand to Tzchernobog's servants, and does nothing but violence ‡"
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -911,7 +918,7 @@ tags:
     category: general
     group: general-traits
     description: "A reflection of your soul, with your choice of name. It can appear and disappear at will, and punch things hard and fast. Beware! Any damage it takes is reflected onto you."
-    fighting: { note: "fights beside you, and what hurts it hurts you ‡" }
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -924,7 +931,7 @@ tags:
     category: general
     group: general-traits
     description: "Once per day, you can stop time in a 10-foot radius around you. This lasts 10 seconds."
-    fighting: { note: "once a day, stops time around you ‡" }
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -958,7 +965,7 @@ tags:
     category: general
     group: general-traits
     description: "You wake up to noise readily, such as footsteps in the night."
-    fighting: { note: "wakes to footsteps, so hard to catch asleep ‡" }
+    fighting: { situational: true }
     pointCost: 1
     purchasable: true
     purchasableAfterStart: false
@@ -972,7 +979,7 @@ tags:
     category: general
     group: general-traits
     description: "Not a good thing to be in Ravenheart."
-    fighting: { note: "sleeps through somebody walking up ‡" }
+    fighting: { situational: true }
     pointCost: -2
     conflictsWith: [light-sleeper]
     purchasable: true
@@ -1054,7 +1061,7 @@ tags:
     category: general
     group: general-traits
     description: "Poisons and diseases have less effect on you."
-    fighting: { note: "poison and disease take less hold ‡" }
+    fighting: { situational: true }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1160,7 +1167,7 @@ tags:
     category: general
     group: general-traits
     description: "Whenever you lead a group in battle, you tend to come out ahead."
-    fighting: { tree: both, tiers: 0.7, situational: "leading a group in battle ‡" }
+    fighting: { tree: both, tiers: 0.7, situational: true }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1171,7 +1178,7 @@ tags:
     category: general
     group: general-traits
     description: "Your battle plans go particularly well when you're on the defense."
-    fighting: { tree: both, tiers: 0.3, situational: "leading a defence" }
+    fighting: { tree: both, tiers: 0.3, situational: true }
     pointCost: 2
     requiredTag: tactician
     purchasable: true
@@ -1268,7 +1275,7 @@ tags:
     category: general
     group: general-traits
     description: "You know the Undercroft and the Underquarter very well. You're hard to follow there."
-    fighting: { tree: both, tiers: 0.3, situational: "in the Undercroft or the Underquarter ‡" }
+    fighting: { tree: both, tiers: 0.3, situational: true }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1343,7 +1350,7 @@ tags:
     category: general
     group: general-traits
     description: "Ropes, chains, and cells barely hold you."
-    fighting: { tree: both, tiers: 0.6, situational: "bound or grappled" }
+    fighting: { tree: both, tiers: 0.6, situational: true }
     pointCost: 4
     purchasable: true
     purchasableAfterStart: true
@@ -1488,7 +1495,7 @@ tags:
     category: general
     group: general-traits
     description: "You can barely see when it's bright outside. You prefer Dusk or the Caves."
-    fighting: { tree: both, tiers: -0.3, situational: "in bright daylight" }
+    fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
     visible: true
     purchasable: true
@@ -1555,7 +1562,7 @@ tags:
     category: general
     group: general-personality
     description: "You will never attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you. Locks all violent Desires, but unlocks a few of its own."
-    fighting: { note: "will not attack except in self defence, and never to kill ‡" }
+    fighting: { situational: true }
     pointCost: 0
     purchasable: true
     purchasableAfterStart: false
@@ -1712,7 +1719,7 @@ tags:
     category: general
     group: general-personality
     description: "You possess an intense fear of uncontrolled fire."
-    fighting: { tree: both, tiers: -0.3, situational: "near uncontrolled fire" }
+    fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
     visible: false
     purchasable: true
@@ -1727,7 +1734,7 @@ tags:
     category: general
     group: general-personality
     description: "Blood, especially your own blood, makes you dizzy..."
-    fighting: { tree: both, tiers: -0.6, situational: "at the sight of blood ‡" }
+    fighting: { tree: both, tiers: -0.6, situational: true }
     pointCost: -4
     visible: false
     purchasable: true
@@ -1761,7 +1768,7 @@ tags:
     category: general
     group: general-personality
     description: "You possess an intense fear of monsters and unnatural creatures."
-    fighting: { tree: both, tiers: -0.3, situational: "facing monsters and unnatural creatures ‡" }
+    fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
     visible: false
     purchasable: true
@@ -1971,7 +1978,7 @@ tags:
     category: general
     group: general-personality
     description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary. Unlocks Desires related to picking fights."
-    fighting: { note: "picks fights that did not need picking ‡" }
+    fighting: { situational: true }
     pointCost: 2
     visible: false
     purchasable: true
@@ -2093,6 +2100,33 @@ tags:
     purchasableAfterStart: true
     exclusive: true
 
+  # The fifth Old Way, and the only one nobody can buy: it is handed out by the
+  # Pray button in the Shrine of an Old Man (docs/zones.yaml, depths-chasm) and
+  # by nothing else. Holding it puts the character on db/lib/xomPass.js's
+  # weighted table, once per turn close, for the rest of their life —
+  # see docs/systemdocs/TURN-ENGINE.md.
+  #
+  # `visible` stays at its default (hidden), unlike {tag:rage}, which is
+  # visible because Rage is plainly happening to you. This is a secret, and one
+  # inspect reaction would be the end of it.
+  #
+  # The lock leaves exactly one Desire standing, the way {tag:stupid} and
+  # {tag:thanati} do — see the `chaos` family in docs/desires.yaml.
+  old-ways-xom:
+    catalog: secret
+    name: Old Ways (Xom)
+    category: general
+    group: general-beliefs
+    description: "The patron god of chance and disorder, as mad as those who willingly become his playthings."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    exclusive: true
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [chaos]
+
   # Pilgrim is deliberately off the point scale at 1 — Gunboat's call.
   pilgrim:
     catalog: all
@@ -2110,7 +2144,7 @@ tags:
     category: general
     group: general-beliefs
     description: "You are at peace. Once per day, you can instantly cure a Moderately Severe or lesser wound (refer to the Medical document). You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
-    fighting: { note: "will not fight at all, not even in self defence ‡" }
+    fighting: { situational: true }
     pointCost: 14
     visible: true
     # Migrants only: Pale is the Migrant role's starting tag and is
@@ -2182,7 +2216,7 @@ tags:
     category: general
     group: general-cerberon
     description: "You're excellent at handling dogs. Under your usage, the kennel's {tag:hound}s fight and track even better."
-    fighting: { note: "your hounds fight and track better ‡" }
+    fighting: { situational: true }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2353,7 +2387,7 @@ tags:
     group: general-brigand
     teachable: true
     description: "You blend into the forest. Useful for ambushes."
-    fighting: { note: "blends into the forest, so hard to spot first ‡" }
+    fighting: { situational: true }
     pointCost: 3
     purchasable: true
     purchasableAfterStart: true
@@ -2495,7 +2529,7 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # The three side-grades. Each needs Laboring (Skilled) behind it, each is
+  # The four side-grades. Each needs Laboring (Skilled) behind it, each is
   # scaled by where you are standing (docs/zones.yaml's per-location `yield:`
   # block), and holding several is fine — a Labor pays the best one you
   # qualify for, so there is nothing to switch and nothing to forget.
@@ -2570,6 +2604,21 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     mastery: true
+
+  # Joined 2026-09-09. Pays the least ⬢ of the four on purpose — a labor drop
+  # (LABORDROPS.md) is meant to make up the difference in items rather than
+  # coin, once that table is built out.
+  laboring-prospecting:
+    catalog: all
+    name: Laboring (Prospecting)
+    category: skills
+    group: skills-labor
+    teachable: true
+    description: "While laboring somewhere worth searching — a stream, a ruin, the undergrowth — you turn up {resource:labor:prospecting}: thin pay in Resources, but plenty else comes up with it. ‡"
+    pointCost: 7
+    requiredTag: laboring-skilled
+    purchasable: true
+    purchasableAfterStart: true
 
   forester:
     catalog: all
@@ -2663,6 +2712,21 @@ tags:
     category: skills
     teachable: true
     description: "Nothing on one… little click on two… click on three… aha! You can pick locks."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Prospecting's own advantage skill, same shape as Forester's — a wider
+  # pool at the SAME draw rather than a second roll, using the requiresTag
+  # gate LABORDROPS.md §2a already provides. No new engine code, and the
+  # balance is just "add a few more good entries," the same tuning this
+  # whole table has already had (Bascinet, 2026-09-10).
+  keen-eye:
+    catalog: all
+    name: Keen Eye
+    category: skills
+    teachable: true
+    description: "You know good ground when you see it. Prospecting turns up more than it does for anyone else. ‡"
     pointCost: 4
     purchasable: true
     purchasableAfterStart: true
@@ -2866,7 +2930,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You have practiced forming a shield wall. When standing within reach of 2 or more other Cerberi, your melee skill counts as 2 tiers higher."
-    fighting: { tree: melee, tiers: 2, situational: "in a shield wall with 2 or more Cerberi ‡" }
+    fighting: { tree: melee, tiers: 2, situational: true }
     pointCost: 8
     requiredTag: melee-basic
     visible: false
@@ -2880,10 +2944,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You're particularly good at fighting people one-on-one — especially with swords, rapiers, and knives. When dueling, your melee skill counts as 2 tiers higher."
-    fighting:
-      tree: melee
-      tiers: 2
-      situational: "one-on-one, especially with swords, rapiers and knives ‡"
+    fighting: { tree: melee, tiers: 2, situational: true }
     pointCost: 9
     requiredTag: melee-basic
     visible: false
@@ -2995,10 +3056,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When you start a fight with a surprise attack in difficult terrain, your fighting skill (whether melee or ranged) counts as 2 tiers higher."
-    fighting:
-      tree: both
-      tiers: 2
-      situational: "opening with a surprise attack in difficult terrain ‡"
+    fighting: { tree: both, tiers: 2, situational: true }
     pointCost: 5
     visible: false
     purchasable: true
@@ -3039,7 +3097,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You are at your best picking foes off from far away. At long range, your ranged skill counts as 2 tiers higher."
-    fighting: { tree: ranged, tiers: 2, situational: "at long range" }
+    fighting: { tree: ranged, tiers: 2, situational: true }
     pointCost: 7
     requiredTag: ranged-basic
     visible: false
@@ -3069,7 +3127,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "When fighting unnatural creatures, your fighting skill counts as 2 tiers higher."
-    fighting: { tree: both, tiers: 2, situational: "against unnatural creatures" }
+    fighting: { tree: both, tiers: 2, situational: true }
     pointCost: 5
     visible: false
     purchasable: true
@@ -3398,7 +3456,7 @@ tags:
     category: status
     group: status-buffs
     description: "You can see in the dark as though it were an overcast day."
-    fighting: { note: "sees in the dark as though it were overcast ‡" }
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3519,7 +3577,7 @@ tags:
     category: status
     group: status-buffs
     description: "Light and eyes go right through you."
-    fighting: { tree: both, tiers: 2, situational: "striking first, unseen" }
+    fighting: { tree: both, tiers: 2, situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3532,7 +3590,7 @@ tags:
     category: status
     group: status-buffs
     description: "Every Gambit you roll is an automatic 6."
-    fighting: { note: "every Gambit rolls a 6 ‡" }
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -4582,7 +4640,7 @@ tags:
     category: health
     group: health-mind
     description: "You no longer feel in control of your body! You must submit a gambit to attack those standing nearby, or if alone, yourself! You may not explicitly warn those around you, outside of acting very strange."
-    fighting: { note: "must attack whoever is standing nearby ‡" }
+    fighting: { situational: true }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4802,7 +4860,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see in dim light or darkness."
-    fighting: { tree: both, tiers: -1, situational: "in dim light or darkness ‡" }
+    fighting: { tree: both, tiers: -1, situational: true }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -5222,6 +5280,31 @@ tags:
       examine: "its stakes wall the current."
       laborBonus: { kind: fishing, amount: 1 }
 
+  # Prospecting's own structure, same shape as the Fish Weir above — the one
+  # bonus category the specialization had no presence in at all until now
+  # (Bascinet, 2026-09-10).
+  claim-stake:
+    catalog: all
+    name: Claim Stake
+    category: assets
+    group: assets-structures
+    description: "A stake driven into the ground, marking a claim. Gives an additional 1 ⬢ when Prospecting where erected. ‡"
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "a stake driven deep, claiming this ground. ‡"
+      laborBonus: { kind: prospecting, amount: 1 }
+
   forge:
     catalog: all
     name: Forge
@@ -5247,6 +5330,90 @@ tags:
     placement:
       examine: "anvil set, bellows hung."
       provides: [workshop-equipment]
+
+  # Bascinet's three, 2026-09-10. Each one is the first user of a new
+  # placement key; the keys themselves are documented on Tag.placement.
+
+  # Buildable only at the inn, because that is where the cellar it fills is.
+  # `locations` naming exactly one Location is also what makes it one-of-a-kind
+  # — `unique` is per-Location, so a single legal site means a single brewery.
+  brewery:
+    catalog: all
+    name: Brewery
+    category: assets
+    group: assets-structures
+    description: "A brewery. It automatically produces one {tag:alcohol} per turn, to the inn's cellar."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 15
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      # Unlike the forge, no workshop is needed. The forge's exemption is a
+      # bootstrap — you cannot build the first forge without one — and there
+      # is no such loop here.
+      fieldwork: true
+      locations: [old-cock-inn]
+      examine: "it'll actively produce alcohol as long as a brewer is around."
+      yields: { tag: alcohol, room: inn-cellar, quantity: 1, skill: brewing-basic }
+
+  rookery:
+    catalog: all
+    name: Rookery
+    category: assets
+    group: assets-structures
+    description: "A rookery. It allows you to send many messages."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 25
+      skills: [builder-skilled]
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "birds await to be sent with letters."
+      # Six is the number of bird-reachable zones, deliberately: a holder CAN
+      # find any one person in a day, by spending every flight they have on it
+      # and writing to nobody. A trade, not a free lookup. The likeliest knob
+      # to want retuning once it has been seen in play.
+      birdSendsPerDay: 6
+
+  makeshift-stage:
+    catalog: all
+    name: Makeshift Stage
+    category: assets
+    group: assets-structures
+    description: "Plays music, making people happy. Only works as long as there is a {tag:boombox} somewhere on the ground in the location."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      # One turn, so openBuildSiteImpl births it COMPLETE in the opening
+      # transaction. No skill: it is planks and trestles.
+      turnsCost: 1
+      resourceCost: 10
+      gambit: false
+    placement:
+      fieldwork: true
+      examine: "a haphazard construction waiting for a boombox."
+      # The boombox is a RUNNING requirement, not a build cost — which is why
+      # this carries no requirement.items, a pairing the sync refuses outright
+      # for a placement recipe ("a build site never spends an ingredient").
+      music: { mood: 8, needs: boombox }
 
   palisade:
     catalog: all
@@ -5617,6 +5784,65 @@ tags:
     sellable: true
     sellablePrice: 3
 
+  # The first of several ingredients Prospecting is meant to source
+  # (LABORDROPS.md §2b) — {tag:silver-knife} and {tag:silver-spear} both spend
+  # one now; each recipe's resourceCost was cut by exactly this price (5 ⬢)
+  # so the total cost of either item is unchanged. Not craftable-purchasable
+  # (2026-09-09: a character can't buy it as a build pick), but the Merchant
+  # keeps some on the shelf too (DEPOT.md §3) for a smith with no prospector
+  # to hand.
+  silver:
+    catalog: all
+    name: Silver
+    category: items
+    group: items-gear
+    description: "Raw silver ore, ready for the forge. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    depotPrice: 8
+    sellable: true
+    sellablePrice: 5
+
+  # Coal and a spell at the forge folded into a usable ingot, same shape as
+  # {tag:black-powder} below: priced at cost, resourceCost (4) over a 4-⬢
+  # coal, no smith's margin baked in. Gated at plain smithing rather than
+  # Skilled — smelting ore is basic forge work, it's shaping it into
+  # {tag:katana}/{tag:rapier}/{tag:brigandine}/{tag:plate-armor} that needs
+  # the higher skill. It runs under the Simple rung's Turns column at
+  # `turnsCost: 1/3` for the same reason the Spear and the Silver Knife do
+  # (SMITHING.md §1) — an ingot is not a day at the anvil, and three fit in
+  # one Routine. Each of those four recipes subtracts 8 ⬢ (2026-09-10):
+  # steel's own sellablePrice, the "value" DEPOT.md §3-§4 says an ingredient
+  # comes off at. Numbers are drafted, not signed off.
+  steel:
+    catalog: all
+    name: Steel
+    category: items
+    group: items-gear
+    description: "A workable ingot, smelted from ore. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1/3
+      resourceCost: 4
+      skills: [smithing]
+      gambit: false
+      items: [coal]
+    depotPrice: 13
+    sellable: true
+    sellablePrice: 8
+
   # Refined saltpeter, and the one ingredient that is itself CRAFTED — the
   # gunpowder smith's intermediate step on the way to a {tag:bomb}. Public
   # on purpose (Chris 2026-09-05): the chain is meant to be read off the
@@ -5861,6 +6087,59 @@ tags:
     depotPrice: 7
     sellable: true
     sellablePrice: 4
+
+  # A raw pull rather than one clean vein — the seam and the ore running
+  # through it come up together, so a chunk resolves into BOTH Coal and
+  # Silver at once rather than one flat tag. No skill gate, unlike the
+  # Lockboxes: ore doesn't need picking, just breaking apart, so it's a
+  # single consumable rather than a craft-then-consume pair. Sellable at its
+  # full combined value (9 ⬢) — there's no locked/opened split to price
+  # around here, just two metals sharing a rock (Bascinet, 2026-09-10).
+  ore-chunk:
+    catalog: all
+    name: Ore Chunk
+    category: items
+    group: items-gear
+    description: "A fist-sized chunk of rock, coal and a paler vein running through it together. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 4
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 9
+    consumable: true
+    consumesInto:
+      - coal
+      - silver
+
+  # A whole haul, sorted rather than raw — one Coal, one Silver, one Steel
+  # already smelted, bundled the way the Depot's own crates are (`DEPOT.md`
+  # §0e), not picked apart one seam at a time. Priced at the sum of its
+  # contents (4 + 5 + 8), same convention as Ore Chunk above (Bascinet,
+  # 2026-09-10).
+  ore-package:
+    catalog: all
+    name: Ore Package
+    category: items
+    group: items-gear
+    description: "A crate of ore, sorted and ready for the forge — Coal, Silver, and an ingot of Steel already smelted. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 17
+    consumable: true
+    consumesInto:
+      - coal
+      - silver
+      - steel
 
   # Bought from the Depot rather than made: nothing in Ravenheart produces it,
   # which is what puts it on the shelf at all (TAGS.md §5, `depotPrice`). It is
@@ -6245,6 +6524,41 @@ tags:
     sellable: true
     sellablePrice: 1
 
+  # Two finds unique to hills-west (LABORDROPS.md), a grave beneath its own
+  # gallows: what the dead were buried wearing, and what the living left them
+  # for the walk after.
+  gallows-charm:
+    catalog: gm
+    name: Gallows Charm
+    category: items
+    group: items-gear
+    description: "Carved bone strung on old cord — a dead man's luck, worn as a ward against the same rope. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 18
+
+  burial-ring:
+    catalog: gm
+    name: Burial Ring
+    category: items
+    group: items-gear
+    description: "A ring, still on the hand that was buried with it. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 35
+
   # The Depot's currency, and worth exactly one ⬢. It does not compress value,
   # it makes value PHYSICAL: ⬢ are a number on a sheet that nobody can pick
   # your pocket for, and these are the same amount as an object you can carry,
@@ -6376,6 +6690,521 @@ tags:
     consumesInto:
       - alcohol
     consumesIntoResources: 8
+
+  # --- Lockboxes ------------------------------------------------------------
+  # A locked find and its picked-open half, three pairs. Lockpicking
+  # (pointCost 4, purchasable) existed as a pure flavor skill with no
+  # mechanical hook anywhere until this — these are its first real use. Each
+  # pair is two tags rather than one because the engine has no single verb
+  # that is both skill-gated AND grants a list: `craftable` gates on a skill
+  # but produces exactly one tag, `consumesInto` grants a whole list but gates
+  # on nothing. So the box crafts (Lockpicking-gated, 0 ⬢, 0 turns, same
+  # shape as Bone Mask's `butcher` gate above) into its own Spoils tag, and
+  # THAT consumes into the real items — two player actions, zero new engine
+  # code (Bascinet, 2026-09-10).
+  overspill-lockbox:
+    catalog: gm
+    name: Overspill Lockbox
+    category: items
+    group: items-gear
+    description: "A small locked box, pitched over the fortress walls with the rest of the trash — whoever tossed it clearly wanted it gone, lock and all. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 8
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Half of what's inside (30 ⬢ — the sum of {tag:overspill-spoils}'s own
+    # consumesInto list, repriced 2026-09-10 when steel dropped to 8)
+    # — a locked box is worth less to sell whole than to actually open, on
+    # purpose, so selling it unpicked is a real but lesser option rather than
+    # a way to skip the lock entirely (Bascinet, 2026-09-10).
+    sellable: true
+    sellablePrice: 15
+
+  overspill-spoils:
+    catalog: gm
+    name: Overspill Spoils
+    category: items
+    group: items-gear
+    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      perTurn: 1
+      skills: [lockpicking]
+      items: [overspill-lockbox]
+    consumable: true
+    consumesInto:
+      - jewelry
+      - steel
+      - silver
+      - mace
+
+  basement-lockbox:
+    catalog: gm
+    name: Basement Lockbox
+    category: items
+    group: items-gear
+    description: "A locked box from the Abandoned Homestead's basement, shelved in with the rest of the unlabelled tinctures. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 8
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Half of what's inside (61 ⬢) — see overspill-lockbox's own note above.
+    sellable: true
+    sellablePrice: 31
+
+  basement-spoils:
+    catalog: gm
+    name: Basement Spoils
+    category: items
+    group: items-gear
+    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      perTurn: 1
+      skills: [lockpicking]
+      items: [basement-lockbox]
+    consumable: true
+    consumesInto:
+      - soporific
+      - amoeba-vial
+      - bliss
+
+  waterlogged-lockbox:
+    catalog: gm
+    name: Waterlogged Lockbox
+    category: items
+    group: items-gear
+    description: "A strongbox the current finally gave up, rusted shut but still holding what someone locked inside. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 8
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Half of what's inside (41 ⬢) — see overspill-lockbox's own note above.
+    sellable: true
+    sellablePrice: 21
+
+  waterlogged-spoils:
+    catalog: gm
+    name: Waterlogged Spoils
+    category: items
+    group: items-gear
+    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      perTurn: 1
+      skills: [lockpicking]
+      items: [waterlogged-lockbox]
+    consumable: true
+    consumesInto:
+      - steel
+      - jewelry
+      - trench-knife
+      - silver
+      - dagger
+      - old-coin
+
+  # Three smaller lockboxes, spread wide rather than deep — global and every
+  # regional Prospecting table, plus Fishing, so the mechanic is something a
+  # labourer actually runs into instead of three rare location specials
+  # (Bascinet's call, 2026-09-10). Same two-tag shape as the big three above.
+  silt-lockbox:
+    catalog: gm
+    name: Silt Lockbox
+    category: items
+    group: items-gear
+    description: "A small lockbox, silted over and forgotten — the kind of thing that turns up wherever the digging is good, not just one place in particular. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Half of what's inside (18 ⬢) — see overspill-lockbox's own note above.
+    sellable: true
+    sellablePrice: 9
+
+  silt-spoils:
+    catalog: gm
+    name: Silt Spoils
+    category: items
+    group: items-gear
+    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 4
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      perTurn: 1
+      skills: [lockpicking]
+      items: [silt-lockbox]
+    consumable: true
+    consumesInto:
+      - jewelry
+      - silver
+      - coal
+      - old-coin
+
+  buried-lockbox:
+    catalog: gm
+    name: Buried Lockbox
+    category: items
+    group: items-gear
+    description: "A lockbox, wedged in wherever the digging turned it up — nobody buries something like this on purpose and forgets it. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Half of what's inside (24 ⬢) — see overspill-lockbox's own note above.
+    sellable: true
+    sellablePrice: 12
+
+  buried-spoils:
+    catalog: gm
+    name: Buried Spoils
+    category: items
+    group: items-gear
+    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 4
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      perTurn: 1
+      skills: [lockpicking]
+      items: [buried-lockbox]
+    consumable: true
+    consumesInto:
+      - dagger
+      - jewelry
+      - silver
+      - coal
+
+  netted-lockbox:
+    catalog: gm
+    name: Netted Lockbox
+    category: items
+    group: items-gear
+    description: "A small lockbox, netted up along with everything else — whatever sank it isn't telling. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Half of what's inside (18 ⬢) — see overspill-lockbox's own note above.
+    sellable: true
+    sellablePrice: 9
+
+  netted-spoils:
+    catalog: gm
+    name: Netted Spoils
+    category: items
+    group: items-gear
+    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 4
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      perTurn: 1
+      skills: [lockpicking]
+      items: [netted-lockbox]
+    consumable: true
+    consumesInto:
+      - trout-heart
+      - silver
+      - jewelry
+      - old-coin
+
+  # Two more, for Prospecting's first City ground — the Underquarter and the
+  # Undercroft (2026-09-10). Smaller than the six above on purpose: neither
+  # location is rich, just an interesting option.
+  till-lockbox:
+    catalog: gm
+    name: Till Lockbox
+    category: items
+    group: items-gear
+    description: "A gambling den's cashbox, small enough to walk off with if you're quick about it. Still locked. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 5
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Half of what's inside (16 ⬢) — see overspill-lockbox's own note above.
+    sellable: true
+    sellablePrice: 8
+
+  till-spoils:
+    catalog: gm
+    name: Till Spoils
+    category: items
+    group: items-gear
+    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      perTurn: 1
+      skills: [lockpicking]
+      items: [till-lockbox]
+    consumable: true
+    consumesInto:
+      - obol
+      - obol
+      - silver
+      - jewelry
+      - old-coin
+
+  reliquary-lockbox:
+    catalog: gm
+    name: Reliquary Lockbox
+    category: items
+    group: items-gear
+    description: "A small reliquary box, left at the Ancient Shrine — an offering, or something somebody hid there and never came back for. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 5
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    # Half of what's inside (20 ⬢) — see overspill-lockbox's own note above.
+    sellable: true
+    sellablePrice: 10
+
+  reliquary-spoils:
+    catalog: gm
+    name: Reliquary Spoils
+    category: items
+    group: items-gear
+    description: "The lock finally gives. Whatever's left inside is yours to sort through. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: false
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      perTurn: 1
+      skills: [lockpicking]
+      items: [reliquary-lockbox]
+    consumable: true
+    consumesInto:
+      - heirloom
+      - jewelry
+
+  # Flavor finds, not ore — Prospecting's own design note already says
+  # "searching is searching, wherever it turns up plant matter"
+  # (LABORDROPS.md §2b), so it was never meant to be mining alone. These
+  # widen what a search can turn up without adding any new mechanic — same
+  # shape as Sweets or Heirloom, just more of the game's existing texture
+  # for personal effects, curios and the occult (Bascinet's call, 2026-09-10).
+  faded-photograph:
+    catalog: all
+    name: Faded Photograph
+    category: items
+    group: items-gear
+    description: "A photograph, sun-bleached almost to nothing. Whoever's in it isn't anymore. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 2
+
+  pocket-watch:
+    catalog: all
+    name: Pocket Watch
+    category: items
+    group: items-gear
+    description: "Stopped at whatever hour it was dropped. Still a fine watch. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 4
+
+  music-box:
+    catalog: all
+    name: Music Box
+    category: items
+    group: items-gear
+    description: "Wind it and it still plays — a few bars, then the same few bars again. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 6
+
+  warding-bead:
+    catalog: all
+    name: Warding Bead
+    category: items
+    group: items-gear
+    description: "A single bead off a longer strand, worn against something. Didn't work, or the strand would still be whole. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+
+  wedding-ring:
+    catalog: all
+    name: Wedding Ring
+    category: items
+    group: items-gear
+    description: "Someone's, once. Still engraved on the inside. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 8
+
+  pawn-ticket:
+    catalog: all
+    name: Pawn Ticket
+    category: items
+    group: items-gear
+    description: "A numbered stub for something nobody came back to claim. Might still be behind the counter. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 2
+
+  prayer-beads:
+    catalog: all
+    name: Prayer Beads
+    category: items
+    group: items-gear
+    description: "Worn smooth by someone else's thumb, once, at the Shrine. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+
+  # The one true gem — as rare as depths-chasm's own philosophy demands
+  # (LABORDROPS.md §2b: "rare ground stays rare by what it can find, not by
+  # a bigger number"), and priced just under the game's existing ceiling
+  # (Aberrant Heart, 55 ⬢) rather than past it. "Fit for a king. Or a
+  # Baron." is doing the naming work here on purpose — Ravenheart has no
+  # king, only the Baron, and the stone doesn't know the difference
+  # (Bascinet, 2026-09-10).
+  flawless-gem:
+    catalog: gm
+    name: Flawless Gem
+    category: items
+    group: items-gear
+    description: "A stone without a single flaw — the kind that ends up on a crown, not a merchant's scale. Fit for a king. Or a Baron. ‡"
+    pointCost: 0
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 45
 
   smoke-grenade:
     catalog: gm
@@ -7223,7 +8052,7 @@ tags:
     group: items-weapons
     description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 14
     equippable: true
     equipSlot: WEAPON
@@ -7266,7 +8095,7 @@ tags:
     group: items-weapons
     description: "A classic revolver with six chambers."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.7, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -7324,7 +8153,13 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 12
-
+  # A `customizableSkill: smithing-skilled` below is the +1 ⬢ door onto a
+  # smith's own name and words (CRAFTING.md §4a), and the rung it names is
+  # who may open it — the top of the Smithing ladder, whatever tier the piece
+  # itself is. Only the plain arms carry it: a mace, a broadsword, a spear.
+  # The named and exotic pieces do not, and neither does anything whose slug
+  # some rule reads back — Trench Knife's torture bonus is keyed to its exact
+  # slug (db/lib/torture.js), which a mint never matches.
   work-knife:
     catalog: all
     name: Work Knife
@@ -7342,6 +8177,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7404,6 +8241,35 @@ tags:
     # Dead Simple convention (cost + 1), NOT the depot wage floor: at 0 turns
     # the free ration would mint the margin as a free action (4/turn on top of
     # an untouched labor day). The depot's 12 stays the impatience premium.
+    sellablePrice: 4
+    depotPrice: 12
+
+  # Prospecting's own tool, same shape as Fishing Rod above — every other
+  # specialization has one made for the work, this was the one gap
+  # (Bascinet, 2026-09-10).
+  prospectors-pick:
+    catalog: all
+    name: "Prospector's Pick"
+    category: items
+    group: items-gear
+    description: "A short-handled pick, good for breaking rock or worrying at a lock. While equipped, Prospecting produces an additional 1 ⬢. ‡"
+    pointCost: 2
+    laborBonus: { kind: prospecting, amount: 1 }
+    equippable: true
+    equipSlot: ACCESSORY
+    tradeable: true
+    weight: 4
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [crafting]
+      gambit: false
+    sellable: true
     sellablePrice: 4
     depotPrice: 12
 
@@ -7528,6 +8394,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7630,6 +8498,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7656,6 +8526,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7684,9 +8556,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1/3
-      resourceCost: 6
+      resourceCost: 1
       skills: [smithing]
       gambit: false
+      # {tag:silver} joined 2026-09-09, priced at 5 ⬢ — the rest of the old
+      # flat 6 ⬢ materials cost, unchanged in total.
+      items: [silver]
     sellable: true
     sellablePrice: 7
 
@@ -7708,6 +8583,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7815,6 +8692,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7842,6 +8721,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7896,6 +8777,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7922,6 +8805,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7949,6 +8834,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7977,6 +8864,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8004,10 +8893,14 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 26
+      turnsCost: 1
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
+      items: [steel]
     sellable: true
     sellablePrice: 42
 
@@ -8056,10 +8949,14 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 2
-      resourceCost: 26
+      turnsCost: 1
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
+      items: [steel]
     sellable: true
     sellablePrice: 42
 
@@ -8084,9 +8981,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 26
+      resourceCost: 21
       skills: [smithing-skilled]
       gambit: false
+      # {tag:silver} joined 2026-09-09, priced at 5 ⬢ — the rest of the old
+      # flat 26 ⬢ materials cost, unchanged in total.
+      items: [silver]
     sellable: true
     sellablePrice: 42
 
@@ -8179,9 +9079,9 @@ tags:
     name: Crossbow
     category: items
     group: items-weapons
-    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as one tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢."
+    description: "A mechanical bow that shoots far and straight. When using the weapon, your Ranged Fighting skill counts as half a tier higher due to its ease of use. Furthermore, while equipped, Hunting produces an additional 1 ⬢. ‡"
     laborBonus: { kind: hunting, amount: 1 }
-    fighting: { tiers: 1, weaponClass: crossbow }
+    fighting: { tiers: 0.5, weaponClass: crossbow }
     pointCost: 9
     requiredTag: ranged-basic
     equippable: true
@@ -8210,7 +9110,7 @@ tags:
     group: items-weapons
     description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 18
     requiredTag: ranged-basic
     equippable: true
@@ -8238,7 +9138,7 @@ tags:
     group: items-weapons
     description: "A powerful single-shot pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.5, weaponClass: firearm }
+    fighting: { tiers: 0.6, weaponClass: firearm }
     pointCost: 14
     requiredTag: ranged-basic
     equippable: true
@@ -8875,7 +9775,7 @@ tags:
     category: items
     group: items-special
     description: "A group of metal wires grafted into the neck to transmit electric spasms. Allows the user to attain the speed of a galloping horse once per day."
-    fighting: { note: "once a day, the speed of a galloping horse ‡" }
+    fighting: { situational: true }
     pointCost: 0
     tradeable: false
     visible: false
@@ -8951,7 +9851,7 @@ tags:
     category: items
     group: items-special
     description: "A two-shot shotgun that is more easily concealable than its normal counterpart."
-    fighting: { tiers: 0.6, weaponClass: firearm }
+    fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -9559,7 +10459,7 @@ tags:
     category: general
     group: general-traits
     description: "You have had a poisoned tooth installed. You can bite down on it at any time to release a deadly nerve agent into the room you are in, inflicting {tag:phrygian-toxin}. You will not survive."
-    fighting: { note: "one bite kills the room, and you with it ‡" }
+    fighting: { situational: true }
     pointCost: 0
     visible: false
     purchasable: false
@@ -10434,6 +11334,30 @@ tags:
     consumesInto:
       - ate-meal
 
+  # Prospecting's edible find where the ground itself isn't cave floor —
+  # every surface Prospecting location with mushroom flavor already written
+  # in (forest-creekside's colonies, forest-sparse-field's fungus on the cut
+  # stumps) grants this rather than {tag:cave-fungus}, which reads as the
+  # underground half of the same idea (LABORDROPS.md §2b).
+  wild-mushroom:
+    catalog: all
+    name: Wild Mushroom
+    category: items
+    group: items-food
+    description: "A cluster of wild mushrooms, still damp with dew. ‡"
+    pointCost: 0
+    sellable: true
+    sellablePrice: 2
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto:
+      - ate-meal
+
   # The delicacy that is caught rather than imported — the labor loot pass
   # drops it (fishing).
   fish-roe:
@@ -10736,7 +11660,7 @@ tags:
     category: assets
     group: assets-companions
     description: "A large, well-trained fighting dog ready to obey commands."
-    fighting: { note: "fights on command" }
+    fighting: { situational: true }
     pointCost: 0
     depotPrice: 38
     sellable: true
@@ -10850,7 +11774,7 @@ tags:
     group: items-weapons
     description: "A 9mm pistol. While equipped, Hunting produces an additional 2 ⬢."
     laborBonus: { kind: hunting, amount: 2 }
-    fighting: { tiers: 0.6, weaponClass: firearm }
+    fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
     depotPrice: 149
     sealedShipping: true
@@ -10876,7 +11800,7 @@ tags:
     category: items
     group: items-weapons
     description: "A semi-automatic rifle chambered in .308."
-    fighting: { tiers: 0.7, weaponClass: firearm }
+    fighting: { tiers: 1, weaponClass: firearm }
     pointCost: 0
     depotPrice: 213
     sealedShipping: true
@@ -10897,7 +11821,7 @@ tags:
     category: items
     group: items-weapons
     description: "An experimental fully automatic rifle that belongs to the past."
-    fighting: { tiers: 1, weaponClass: firearm }
+    fighting: { tiers: 1.2, weaponClass: firearm }
     pointCost: 0
     depotPrice: 443
     sealedShipping: true
@@ -11887,9 +12811,12 @@ tags:
     visible: true
     tradeable: true
     weight: 7
+    stackable: true
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -11914,9 +12841,12 @@ tags:
     visible: true
     tradeable: true
     weight: 6
+    stackable: true
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -12341,9 +13271,12 @@ tags:
     visible: true
     tradeable: true
     weight: 1
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12368,9 +13301,12 @@ tags:
     visible: true
     tradeable: true
     weight: 4
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12415,9 +13351,12 @@ tags:
     visible: true
     tradeable: true
     weight: 4
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12432,7 +13371,7 @@ tags:
     name: Mining Helmet
     category: items
     group: items-headgear
-    description: "A cushioned helmet with a small light, useful in the caves."
+    description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢. ‡"
     pointCost: 5
     depotPrice: 14
     equippable: true
@@ -12447,6 +13386,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 9
+    laborBonus: { kind: prospecting, amount: 1 }
 
   knights-helmet:
     catalog: all
@@ -12466,9 +13406,12 @@ tags:
     visible: true
     tradeable: true
     weight: 6
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12523,9 +13466,12 @@ tags:
     visible: worn
     tradeable: true
     weight: 8
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12547,9 +13493,12 @@ tags:
     visible: true
     tradeable: true
     weight: 3
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12564,7 +13513,7 @@ tags:
     category: items
     group: items-armor
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
-    fighting: { note: "worth more standing beside others carrying one ‡" }
+    fighting: { situational: true }
     pointCost: 5
     equippable: true
     equipSlot: WEAPON
@@ -12573,9 +13522,12 @@ tags:
     visible: true
     tradeable: true
     weight: 10
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12597,9 +13549,12 @@ tags:
     visible: true
     tradeable: true
     weight: 25
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12656,9 +13611,12 @@ tags:
     visible: true
     tradeable: true
     weight: 25
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -12682,13 +13640,20 @@ tags:
     visible: worn
     tradeable: true
     weight: 25
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 2
-      resourceCost: 26
+      turnsCost: 1
+      resourceCost: 18
       skills: [smithing-skilled]
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 2-turn, 26 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
+      items: [steel]
     sellable: true
     sellablePrice: 42
 
@@ -12707,9 +13672,12 @@ tags:
     visible: true
     tradeable: true
     weight: 20
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12751,13 +13719,20 @@ tags:
     visible: true
     tradeable: true
     weight: 55
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
-      turnsCost: 3
-      resourceCost: 34
+      turnsCost: 2
+      resourceCost: 26
       skills: [smithing-skilled]
+      # {tag:steel} joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
+      # the old 3-turn, 34 ⬢ recipe moved into steel's own recipe, and 8 ⬢
+      # comes off for the ingot it spends.
+      items: [steel]
     sellable: true
     sellablePrice: 61
 
@@ -12850,7 +13825,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will: a beautiful, monstrous woman with a serpentine lower body, slitted eyes, and a tongue like a snake's. You can wrap around people, immobilizing them, and have fangs which inflict {tag:envenomated}."
-    fighting: { tree: both, tiers: 1, situational: "in your True Form" }
+    fighting: { tree: both, tiers: 1, situational: true }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -12861,7 +13836,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will: a beautiful woman with a hairy eight-legged abdomen. You become hard to see in the dark and can inflict {tag:paralyzed} and {tag:hallucinating}."
-    fighting: { tree: both, tiers: 1, situational: "in your True Form" }
+    fighting: { tree: both, tiers: 1, situational: true }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -12872,7 +13847,7 @@ tags:
     category: demoness
     group: demoness
     description: "You can switch into your true form at will: a beautiful, monstrous woman with a scaled face and a long, finned tail. You can swim expertly, and have a call that lures the weak-willed."
-    fighting: { tree: both, tiers: 1, situational: "in your True Form" }
+    fighting: { tree: both, tiers: 1, situational: true }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -12896,7 +13871,7 @@ tags:
     category: demoness
     group: demoness
     description: "Your True Form terrifies people, either making them Afraid or Panicking. Requires a True Form other than Apex."
-    fighting: { note: "your True Form leaves people Afraid or Panicking ‡" }
+    fighting: { situational: true }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -12928,7 +13903,7 @@ tags:
     category: demoness
     group: demoness
     description: "While in your True Form, people struggle to raise a hand against you, having their fighting skill counts as 1 tier lower or 2 tiers lower if you are wearing a human face."
-    fighting: { note: "in your True Form, others fight you 1 tier lower — 2 behind a human face ‡" }
+    fighting: { situational: true }
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -12959,7 +13934,7 @@ tags:
     category: demoness
     group: demoness
     description: "Once per day you can let loose a shriek that stuns everyone around you."
-    fighting: { note: "once a day, stuns everyone around you ‡" }
+    fighting: { situational: true }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
@@ -13087,9 +14062,9 @@ tags:
     consumesInto: [seizure]
     # Nothing in Ravenheart wants a cube. The Depot buys every one of them,
     # which is the whole reason the Factory exists — 8 cubes is a day's work
-    # and pays about 2.2 times a good farming day.
+    # and pays about 3 times a good farming day.
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   # UNTRADEABLE on purpose, which is the only thing that actually pins it down:
   # `removable: false` blocks the Destroy menu and nothing else, so while this
@@ -13124,10 +14099,13 @@ tags:
     ballistic: 0.05
     tradeable: true
     weight: 2
+    stackable: true
     visible: worn
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0
       resourceCost: 3

@@ -151,6 +151,20 @@ Life) used to be the example; they're archived in
 
 ## 3. Weapons
 
+**Eleven of the weapons below are `customizable:`** — the plain ones. Cudgel,
+Work Knife, Dagger, Spear, Gladius, Mace, Battle Axe, Halberd, Broadsword,
+War Hammer, Bastard Sword. +1 ⬢ lets the smith stamp their own name and
+words on the piece, the same door as the Badge and Hat (`CRAFTING.md` §4a),
+and it takes **Smithing (Skilled)** to open — whatever tier the piece itself
+is, so a basic smith forges a plain dagger and cannot sign it.
+
+Nothing else on this ladder carries the flag. The named and exotic pieces are
+somebody else's design already (Katana, Lucerne, Phrygian Spear, the silver
+pair), the bows and the sling are `crafting` work rather than smith work, the
+guns and the Bomb are Gunpowder, and the Pitchfork is a farm tool. Trench
+Knife has a harder reason: its torture bonus is keyed to the held tag's exact
+slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
+
 | Weapon | Tier | Notes |
 |---|---|---|
 | Cudgel | Dead Simple | `smithing` |
@@ -163,7 +177,7 @@ Life) used to be the example; they're archived in
 | Shortbow | Dead Simple | `crafting` |
 | Spear | Simple | 1/3 turn — three to a Routine (§2) |
 | Dagger | Simple | 1/3 turn — three to a Routine (§2) |
-| Silver Knife | Simple | 1/3 turn — three to a Routine (§2) |
+| Silver Knife | Simple | 1/3 turn — three to a Routine (§2). Spends one `silver` — its 6 ⬢ total is unchanged, the resourceCost is just 1 ⬢ of it now (2026-09-09). |
 | Gladius | Simple | |
 | Phrygian Spear | Simple | 1/3 turn — three to a Routine (§2) |
 | Javelin | Simple | `ranged-basic` — it is thrown, not held. |
@@ -175,10 +189,10 @@ Life) used to be the example; they're archived in
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
 | Bastard Sword | High Quality | |
-| Rapier | High Quality | |
+| Rapier | High Quality | Spends one `steel`. 1 turn / 18 ⬢ now, not the tier's 2 / 26 — the other turn moved into steel's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10). |
 | Sabre | High Quality | |
-| Katana | High Quality | |
-| Silver Spear | High Quality | |
+| Katana | High Quality | Spends one `steel`. 1 turn / 18 ⬢ now, not the tier's 2 / 26 — same move as Rapier (2026-09-09, repriced 2026-09-10). |
+| Silver Spear | High Quality | Spends one `silver` — its 26 ⬢ total is unchanged, the resourceCost is just 21 ⬢ of it now (2026-09-09). |
 | Lucerne | High Quality | |
 | Zweihander | High Quality | |
 | Crossbow | High Quality | |
@@ -186,7 +200,7 @@ Life) used to be the example; they're archived in
 | Bore Pistol | Gunpowder | Materials cost 20 ⬢, not the tier's 31 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
 | Bomb | Gunpowder | `purchasable: false` (craft-only). Spends one `black-powder` per unit on top of its 31 ⬢ — the one ladder recipe with an ingredient. |
 
-**Off-tier recipes with ingredients.** Two smaller recipes sit under their
+**Off-tier recipes with ingredients.** Three smaller recipes sit under their
 own prices, each spending an ingredient (`requirement.items`, enforced and
 consumed like any brew's):
 
@@ -194,6 +208,7 @@ consumed like any brew's):
 |---|---|---|---|---|
 | `black-powder` | `smithing-gunpowder` | 3 | 1 | `saltpeter` (raw, mined) |
 | `gunpowder-grenade` (**Crude Grenade**) | `smithing-skilled` | 6 | 1 | `saltpeter` (raw, mined) |
+| `steel` | `smithing` | 4 | 1/3 | `coal` (Merchant stock or mined) |
 
 The grenade came over from Brewing (Skilled) on 2026-09-05 — a powder device
 out of a still was always odd — and its group moved to `items-weapons` with
@@ -204,6 +219,27 @@ the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 `gunpowder-grenade`. `black-powder` is the refining step between mined
 saltpeter and the Bomb; its numbers (3 ⬢, sells 6) are drafted, not signed
 off.
+
+**`steel`** (2026-09-09, repriced 2026-09-10) is the same shape as
+`black-powder` — priced at cost, no smith's margin, `sellablePrice` (8) equal
+to its own `resourceCost` (4) plus coal's (4). Gated at plain `smithing`
+rather than `smithing-skilled` on purpose: smelting ore into a usable ingot is
+basic forge work, and it's only the four recipes that SPEND it — `katana`,
+`rapier`, `brigandine`, `plate-armor` — that need the higher skill to shape it
+into something fine.
+
+It is the fifth recipe under the Simple rung's Turns column (§1): `turnsCost:
+1/3`, three ingots to a Routine, for the same reason the Spear and the Silver
+Knife run there — an ingot is not a day at the anvil. Each of the four recipes
+that spend one gave up a full turn of its own (the smelting the smith no
+longer does inside them) and 8 ⬢, the ingot's value — so a smith who smelts
+his own pays the ladder's ⬢ exactly, and a third of a turn on top. **This
+undercuts the ladder's Turns column on purpose:** High Quality steel gear is
+a 1⅓-turn job now rather than 2, Plate 2⅓ rather than 3. See the Weapons and
+Armor tables above. `{tag:silver}` got the same
+`Prospecting`-sourced treatment the same day, but stays a raw material with
+no recipe of its own — silver needs no smelting, so there was nothing to
+split out of `silver-knife`/`silver-spear` beyond the ingredient itself.
 
 Off the ladder — no recipe, no smithing gate:
 
@@ -227,6 +263,23 @@ bonus in the game, because two tags and a smith stand behind it
 
 ## 4. Armor
 
+Every piece below is `customizable:` (2026-09-09) — the same +1 ⬢ and the
+same **Smithing (Skilled)** rung as the eleven weapons in §3, including the
+pieces that are `crafting` work to make. Armor is where a maker's mark is
+most worth having, so the whole table gets it rather than a chosen few.
+
+It needed one more change first: armor was never `stackable`, which
+`validateCustomizable` requires (`CRAFTING.md` §4a), because one Breastplate
+ever was the entire enforcement of "you already have that tag." Bascinet's
+call: it's fine for a character to carry more than one, so every recipe here
+is now `stackable: true` too. Nothing else about the equip rig needed to
+change — a stackable, layered, equippable tag already worked (the Hat proved
+it), so a second Breastplate just contests the first one's BODY/3 layer
+exactly like a second Hat would (`db/lib/equipSlots.js`). Armored Gloves
+(§2a) got the same treatment even though it isn't in the table below — and
+it is one of the pieces `db/lib/godflesh.js` reads back by slug, so a signed
+pair still counts at the Spillway (`CRAFTING.md` §4a).
+
 | Armor | Tier | Notes |
 |---|---|---|
 | Padded Armor | Dead Simple | `crafting` |
@@ -240,9 +293,9 @@ bonus in the game, because two tags and a smith stand behind it
 | Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
 | Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
 | Censor's Helmet | High Quality | Force conceal |
-| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. |
+| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `steel`. 1 turn / 18 ⬢ now, not the tier's 2 / 26 (2026-09-09, repriced 2026-09-10). |
 | Breastplate | High Quality | |
-| Plate Armor | Exceptional | |
+| Plate Armor | Exceptional | Spends one `steel`. 2 turns / 26 ⬢ now, not the tier's 3 / 34 (2026-09-09, repriced 2026-09-10). |
 
 Off the ladder:
 

@@ -20,6 +20,11 @@ import {
   canSendBird as holdsBirdAndLetters,
   birdZones as birdZonesOf,
 } from "@lifeweb/db/lib/bird";
+import {
+  BASE_BIRD_SENDS_PER_DAY,
+  birdAllowanceFrom,
+} from "@lifeweb/db/lib/rookery";
+import { structuresAt, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
 import { isUnaffiliated } from "@lifeweb/db/lib/factionConstants";
 import { placeKeyForRoom } from "@lifeweb/db/lib/placeKey";
 import { describeTurn } from "@/lib/turnFormat";
@@ -159,8 +164,8 @@ export async function loadDesireView(character, { openTurn, gameConfig, withCata
 // opened those dialogs; Chat's composer is the second, and a second copy
 // of these gates would be a second answer to "can this character write".
 //
-// `character` needs { id, tags: [{ tagId, quantity, tag }], location:
-// { indoors }, birdTurnId }.
+// `character` needs { id, locationId, tags: [{ tagId, quantity, tag }],
+// location: { indoors }, birdTurnId, birdDaySends }.
 //
 // The TEXT of a paper never comes back from here — only an excerpt, and only
 // for a reader. The dialogs fetch the whole thing on demand
@@ -236,8 +241,19 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
 
   // Compared against the in-game DAY (birdTurnId stores the day), not the
   // turn. Advisory only — the server's conditional claim is the real gate.
-  const birdSentToday =
+  //
+  // It is a COUNT against an allowance now, not a boolean: a Rookery standing
+  // where they are is worth several flights a day (db/lib/rookery.js). Read
+  // the allowance only for somebody actually holding a bird — 56 of the 57
+  // Locations have no rookery and should not pay for a query to find that out.
+  const birdAllowance = hasBird
+    ? birdAllowanceFrom(
+        await structuresAt(prisma, character.locationId, { statuses: WORKING_STATUSES }),
+      )
+    : BASE_BIRD_SENDS_PER_DAY;
+  const sameDay =
     Boolean(openTurn) && character.birdTurnId === String(describeTurn(openTurn).day);
+  const birdSentToday = sameDay && (character.birdDaySends ?? 0) >= birdAllowance;
 
   // The Raven Draught (REQUESTS.md) reaches anybody, anywhere, once. It shares
   // the Bird's recipient list below rather than building a second one — both

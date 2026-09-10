@@ -243,8 +243,9 @@ Reject of the auto-filed Action remains the full reset for the turn's Move
 ## 4a. Custom items (`customizable`)
 
 A recipe flagged `customizable:` in docs/tags.yaml (the fine and lavish
-meals, the painting, the sketch, the badge, the hat) can be crafted as the
-maker's OWN: for
+meals, the painting, the sketch, the badge, the hat, and — since
+2026-09-09 — the plain arms and all the armor on the Smithing ladder,
+`SMITHING.md` §3-§4) can be crafted as the maker's OWN: for
 **+1 ⬢ a unit** (`CUSTOM_SURCHARGE`, web/lib/customCraft.js) the player sets
 a name and/or a description, and either falls back to the base recipe's when
 left blank. The displayed name always carries the base identity —
@@ -268,6 +269,64 @@ cannot run inside one (paperMint.js's 25P02 trap), and is deleted again if
 the transaction fails (a row someone else already holds is FK-pinned and
 survives the attempt).
 
+### Who may sign a piece
+
+`customizableSkill:` on the recipe names a tag the maker has to be HOLDING,
+and every arm and every piece of armor names `smithing-skilled`. Signing
+your work is a skilled smith's privilege — not something an apprentice does
+to a cudgel — and the piece's own tier has nothing to do with it: a basic
+smith still forges a plain dagger, they just cannot put their name on it.
+Omit the key and the recipe is open to anyone who can make the thing, which
+is the meals, the painting, the sketch, the badge and the hat.
+
+One verdict, `mayCustomize` in web/lib/customCraft.js, read by both faces:
+`/character` ships `customizable` already RESOLVED against the viewer's held
+tags, so the dialog's predicate stays one field, and `craftRequestImpl`
+re-decides it from the session's own character (a server action is a public
+endpoint). Fields posted against a recipe somebody may not customize are
+IGNORED, not refused — the same posture as a quantity on a non-stackable.
+
+Deliberately authored per recipe rather than derived from the recipe's own
+skills, which is the trick `needsWorkshop` gets away with. Nothing derives
+correctly here: a Padded Cap is `crafting` work and still wants the smith's
+rung, and the Hat is `crafting` work that must stay open to everyone — and
+the two sit in the same tag group. No ancestry walk either: the only rung
+above `smithing-skilled` is `smithing-gunpowder`, which carries it as a
+`requiredTag`.
+
+### What the clone has to carry
+
+The clone carries `fighting` (a weapon's class, and what it is worth in a
+fight), `meleeArmor`, `ballisticArmor`, `concealsIdentity`, `forcesConceal`,
+`concealSprite`, `laborBonus` and `carryBonus`. Every one of those was
+missing at some point and cost something real: a "Custom Breastplate" with
+zero armor, a "Custom Knight's Helmet" that concealed nobody, a signed
+Broadsword that counted as no weapon at all. **Any new stat column on `Tag`
+needs adding here before a recipe carrying it is made `customizable`**, or
+the mint quietly loses it — this has gone wrong twice now.
+
+`customOfSlug` is the other half of that rule, for what a stat column cannot
+express. A mint's slug is fresh (`custom-craft-*`), so every rule that reads
+a HELD tag's slug back stops seeing it: `db/lib/godflesh.js` names the tools
+that cut Godflesh and the body armor that survives the Spillway, and a signed
+breastplate would have protected nobody. That module resolves through
+`customOfSlug` now, and so must the next rule of its shape.
+`db/lib/torture.js`'s Trench Knife bonus is the one that does not — the
+Trench Knife is not customizable, and stays that way for exactly this reason.
+Granting a tag by slug (`cavingLoot.js`, `thanati.js`, `threats.js`) is
+unaffected; only matching a held row is.
+
+Armor and headgear needed one more change first: `validateCustomizable`
+refuses `customizable` on anything non-stackable, and every armor/headgear
+tag was non-stackable — one Breastplate, ever, was the whole enforcement of
+"you already have that tag." Bascinet's call (2026-09-09): it's fine for a
+character to carry more than one, so every armor and headgear recipe on the
+Smithing ladder is now both `stackable: true` and `customizable: true`. The
+equip system already handled a stackable, layered, equippable tag correctly
+before this — the Hat proved it — so a second Breastplate just fights the
+first one for the BODY/3 layer exactly like a second Hat would
+(`db/lib/equipSlots.js`).
+
 Player words are cleaned by `cleanCustomText` (web/lib/customCraft.js): no
 `{}` (a description must not forge a `{tag:…}` chip), no `@` (item names
 travel into Discord), no control characters, hard length caps.
@@ -285,6 +344,9 @@ so a custom painting never becomes a public line with a player's words on it
 `customizable` is refused at sync on anything not craftable+stackable or
 carrying `placement` (db/lib/tagShapes.js#validateCustomizable) — a
 non-stackable custom would dodge the base recipe's one-per-character checks.
+The same validator refuses a `customizableSkill` that names no real tag, or
+one left behind on a recipe whose flag has come off: a typo there would close
+the door to everybody rather than fail loudly.
 
 ## 5. Destroy
 

@@ -6,6 +6,64 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Prospecting brings up ore, and steel is a quick smelt
+
+✚ Prospecting, a fourth kind of labor — two new places to work it, the Underquarter and the Undercroft  
+✚ Silver and Steel are real things now: the silver and steel weapons and armour each spend one  
+✎ Steel is a quick smelt — 4 ⬢ and a third of a turn, so three ingots fit in one Routine  
+✎ A steel weapon or piece of armour costs the same ⬢ it always did, but takes a turn less at the anvil  
+✚ Lockboxes turn up in the drop die, and Lockpicking finally does something  
+✎ The drop die pays out real things now instead of bare Resources
+
+## 2026-09-10 · Equipping works again
+
+✎ Equipping anything threw an error instead of equipping it. A variable inside the equip transaction was shadowing the row being equipped, so the write blew up before it ran
+
+## 2026-09-10 · A cube of Squeeze is worth 5
+
+✎ A cube of Squeeze now sells for 5 ⬢ at the Depot, up from 4 — a factory day is about three times a good farming day
+
+## 2026-09-10 · Built, not build
+
+✎ The brewery's refusal reads properly
+
+## 2026-09-10 · Bascinet's words for the three buildings, and a brewery needs a brewer
+
+✎ A brewery only works while someone who can brew is standing in the inn  
+✎ Bascinet's own wording on the three new buildings and their refusals
+
+## 2026-09-10 · A smith can sign their work
+
+✚ A smith can put their own name and words on a piece they make, for 1 ⬢ more  
+✎ It takes Smithing (Skilled) to sign anything. A basic smith still forges the dagger, they just cannot put their name on it  
+✎ Eleven plain arms can be signed — the cudgel, work knife, dagger, spear, gladius, mace, battle axe, halberd, broadsword, war hammer and bastard sword — and every piece of armour and headgear. The named and exotic weapons, the bows and the guns cannot  
+✎ Armour stacks now, so a character can hold more than one breastplate
+
+## 2026-09-10 · The tool line in the Move dialog is signed off
+
+✎ The Includes… line under a Location's yields loses its ‡
+
+## 2026-09-10 · There is a shrine at the bottom of the Chasm, and a god behind it
+
+✚ A Shrine of an Old Man in the Chasm, needing Caving to get in, with a Pray button  
+✚ Praying makes you a plaything of Xom: every turn something may happen to you, and about one turn in a hundred it kills you  
+✚ Cause Chaos, the only Desire a plaything of Xom has left  
+✎ Opening a conversation is one piece of code now instead of three
+
+## 2026-09-10 · Three new buildings: a brewery, a rookery and a stage
+
+✚ A Brewery at the Old Cock Inn, racking one Alcohol a turn into the cellar  
+✚ A Rookery, worth six bird flights a day instead of one  
+✚ A Makeshift Stage, which plays every six hours and cheers up whoever is there  
+✎ A building can now name the one place it belongs, and be raised indoors there
+
+## 2026-09-10 · Your words for the Move dialog, and File it becomes Lock In
+
+✎ The Move button reads Lock In, and so does the confirm  
+− The 'a filed Move is final' warning in the confirm, and the guidance line under the box  
+✎ The labor readout reads 'You would labor at the X tier'  
+✎ A shut turn says 'Moves were locked.'
+
 ## 2026-09-10 · A good mood wears off by morning
 
 ✎ Happiness now falls 40 a turn instead of 4, so a drink or a kiss is worth having on the day and not for the week  

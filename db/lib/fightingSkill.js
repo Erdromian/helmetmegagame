@@ -179,7 +179,7 @@ function modifiers(rows, tree, ctx) {
   for (const row of rows) {
     const block = blockOf(row);
     if (!block || !block.points || block.weaponClass) continue;
-    if (block.situational || block.note) continue;
+    if (block.situational) continue;
     if (!servesTree(block, tree)) continue;
     if (block.when?.weaponClass?.length) continue;
     const slug = slugOf(row);
@@ -254,11 +254,14 @@ function situationals(rows, tree) {
   const out = [];
   for (const row of rows) {
     const block = blockOf(row);
-    if (!block || (!block.situational && !block.note)) continue;
+    if (!block?.situational) continue;
     if (!servesTree(block, tree)) continue;
+    // The name and its shift, and nothing else. Which moment it is for lives
+    // in the tag's own description; a second copy here would be a second thing
+    // to keep in step, and the people reading this list already know what
+    // their own tags do.
     out.push({
       label: nameOf(row),
-      when: block.situational ?? block.note,
       tiers: block.points ? block.points / POINTS_PER_TIER : null,
     });
   }

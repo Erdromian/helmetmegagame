@@ -18,6 +18,7 @@ const LABOR_QUERY_KINDS = [
   { kind: "HUNTING", label: "Hunting" },
   { kind: "FARMING", label: "Farming" },
   { kind: "FISHING", label: "Fishing" },
+  { kind: "PROSPECTING", label: "Prospecting" },
 ];
 
 // Returns { ok: true, name, lines } or { ok: false, error }. `lines` is
@@ -42,10 +43,14 @@ async function examineLines(prisma, locationId) {
     .filter((link) => link.modular)
     .map((link) => ({ isOpen: link.isOpen, farName: endpoints(link, locationId).far.name }));
 
+  // No row means that labor is impossible here (LABORING.md §3), so it is
+  // left off the line entirely rather than printed as a permanent ×. A row
+  // that has drifted to 0 still prints — that is a place worth checking back
+  // on, not one that can never pay.
   const byKind = new Map(location.yields.map((row) => [row.kind, row.current]));
-  const laborLine = LABOR_QUERY_KINDS.map(
-    ({ kind, label }) => `**${label}**: ${qualityWord(byKind.get(kind) ?? null)}`,
-  ).join(" | ");
+  const laborLine = LABOR_QUERY_KINDS.filter(({ kind }) => byKind.has(kind))
+    .map(({ kind, label }) => `**${label}**: ${qualityWord(byKind.get(kind))}`)
+    .join(" | ");
 
   // The Depot's machinery and anything standing on the ground are LIVE state,
   // so they are loaded here and handed to describeLocation as ctx rather than
@@ -66,7 +71,10 @@ async function examineLines(prisma, locationId) {
   return {
     ok: true,
     name: location.name,
-    lines: [laborLine, ...describeLocation(location, { gates, depot, structures })],
+    // A place with no LocationYield rows at all (Town) has nothing to say
+    // here — dropped rather than printed as an empty line, same as every
+    // other part of this readout that has nothing to say.
+    lines: [...(laborLine ? [laborLine] : []), ...describeLocation(location, { gates, depot, structures })],
   };
 }
 

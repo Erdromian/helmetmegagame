@@ -1,4 +1,4 @@
-const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
+const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma, concealedAlias } = require("@lifeweb/db");
 const { setVisibleZones } = require("@lifeweb/db/lib/gmZoneView");
 const { syncGmZoneRoles } = require("@lifeweb/db/lib/gmZoneRoles");
@@ -32,8 +32,6 @@ const { applyMood, EVENTS } = require("@lifeweb/db/lib/mood");
 const {
   travelOptions,
   gateOperable,
-  endpoints,
-  linksFor,
   isHeldOpen,
   soundRange,
   KEYED_OPEN_MS,
@@ -65,14 +63,14 @@ const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
 const { placeKeyForChannel, isScenePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
-const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
+const { resolveLaborRate } = require("@lifeweb/db");
 const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
 const { rollDie } = require("@lifeweb/db/lib/moveEffects");
 const { messageLink } = require("../lib/mentions");
-const { startPrivateThread, addThreadMember, removeThreadMember } = require("@lifeweb/db/lib/discordRest");
+const { addThreadMember, removeThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const {
   WHOS_HERE_PREFIX,
@@ -91,15 +89,14 @@ const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syn
 const { GATE_CHARACTER_SELECT, toggleGate, holdKeyedOpen } = require("@lifeweb/db/lib/gates");
 const { fileMove } = require("@lifeweb/db/lib/moves");
 const { whosHere, whosHereLines } = require("@lifeweb/db/lib/whosHere");
-const { describeLocation, hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
-const { loadDepot, depotPowered, fuelTurnsLeft } = require("@lifeweb/db/lib/depotState");
-const { structuresAt } = require("@lifeweb/db/lib/structures");
+const { examineLines } = require("@lifeweb/db/lib/examineLocation");
 const { blockerFor, ACT } = require("@lifeweb/db/lib/incapacitation");
 const {
   ROOM_STORAGE_PREFIX,
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
+  ROOM_PRAY_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
@@ -111,6 +108,9 @@ const {
   turretWordMatches,
 } = require("../lib/turretModal");
 const { BELL_ROOM_SLUG, bellCooldown, broadcastBell } = require("@lifeweb/db/lib/bell");
+const { XOM_SHRINE_ROOM_SLUG, grantXom } = require("@lifeweb/db/lib/xom");
+const { openConversationThread } = require("@lifeweb/db/lib/conversationOpen");
+const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 const {
   BELL_MODAL_PREFIX,
   BELL_WORD_FIELD,
@@ -593,6 +593,114 @@ async function handleBellOpen(interaction, roomId) {
     return;
   }
   await interaction.showModal(buildBellModal(roomId));
+}
+
+// Pray, in the Shrine of an Old Man (docs/zones.yaml, under depths-chasm).
+//
+// A confirm, not the bell's type-the-word modal, and the difference is
+// deliberate. RING is a speed bump on a LOUD act — typing it says "you are
+// about to disturb a hundred people". Pressing this disturbs nobody; what it
+// does is hand you a permanent tag that can kill you and shut every goal on
+// your sheet but one. The right friction for that is being told what the
+// bargain is, so the confirm says it.
+const PRAY_CONFIRM_PREFIX = "room:pray:go:";
+
+// Alive, standing in the shrine's Location, and admitted through the door.
+// Re-run at confirm as well as at open: the ephemeral outlives somebody
+// climbing back out of the Chasm, and reaching the shrine is the only
+// safeguard on it.
+async function prayGate(interaction, roomId) {
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) return { error: "You don't have a living character." };
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { id: true, name: true, slug: true, locationId: true, accessTagSlugs: true },
+  });
+  if (!room || room.slug !== XOM_SHRINE_ROOM_SLUG) return { error: "There's no shrine here." };
+  if (character.locationId !== room.locationId) {
+    return { error: `You're not standing in the ${room.name} any more.` };
+  }
+  const keys = await roomAccessKeys(prisma, character.id);
+  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds).length === 0) {
+    return { error: "You can't get in there." };
+  }
+  return { character, room };
+}
+
+async function handlePrayOpen(interaction, roomId) {
+  await ack(interaction);
+  const gate = await prayGate(interaction, roomId);
+  if (gate.error) {
+    await respond(interaction, gate.error);
+    return;
+  }
+  await respond(interaction, {
+    content:
+      "The face is waiting. Praying here is permanent, it takes whatever you believed in now, " +
+      "and what happens to you afterwards is not up to you. ‡",
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`${PRAY_CONFIRM_PREFIX}${roomId}`)
+          .setLabel("Pray")
+          .setStyle(ButtonStyle.Danger),
+      ),
+    ],
+  });
+}
+
+async function handlePrayConfirm(interaction, roomId) {
+  await ack(interaction);
+  const gate = await prayGate(interaction, roomId);
+  if (gate.error) {
+    await respond(interaction, gate.error);
+    return;
+  }
+  const { character, room } = gate;
+
+  const result = await grantXom(prisma, { characterId: character.id });
+  if (result.already) {
+    await respond(interaction, "The face is already watching you. ‡");
+    return;
+  }
+  if (result.spoken) {
+    await respond(interaction, "Something else has you already, and it does not share. ‡");
+    return;
+  }
+  if (!result.ok) {
+    await respond(interaction, "Nothing answers. Tell a GM. ‡");
+    return;
+  }
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: interaction.user.id,
+        actionType: "xom_prayed",
+        targetCharacterId: character.id,
+        details: { characterName: character.name, room: room.name, replaced: result.replaced },
+      },
+    })
+    .catch((err) => console.error("Pray audit log failed:", err));
+
+  // Anybody else standing in the shrine sees it happen, and nothing leaves the
+  // room — the tag is `catalog: secret` and this is the only place it is ever
+  // announced at all.
+  const witnessed = `${character.name} kneels, and the face seems to lean down. ‡`;
+  await sceneLineAt(prisma, { roomId: room.id, text: witnessed }).catch(() => {});
+  const thread = await prisma.room
+    .findUnique({ where: { id: room.id }, select: { discordThreadId: true } })
+    .catch(() => null);
+  if (thread?.discordThreadId) {
+    await postMessage(thread.discordThreadId, ambientLine(witnessed)).catch(() => {});
+  }
+
+  await respond(
+    interaction,
+    result.replaced
+      ? `It takes your ${result.replaced} off you and does not offer anything back. ‡`
+      : "Something old and amused turns its attention on you. ‡",
+  );
 }
 
 async function handleBellSubmit(interaction, roomId) {
@@ -1180,72 +1288,16 @@ async function handleWhosHere(interaction, locationId) {
 async function handleExamine(interaction, locationId) {
   await ack(interaction);
 
-  const location = await prisma.location.findUnique({
-    where: { id: locationId },
-    select: {
-      name: true,
-      indoors: true,
-      attributes: true,
-      yields: { select: { kind: true, current: true } },
-    },
-  });
-  if (!location) {
-    await respond(interaction, "That place is gone.");
+  // db/lib/examineLocation.js is the one composer — Chat's Examine dialog
+  // reads from the same function, so the two surfaces cannot drift apart.
+  const result = await examineLines(prisma, locationId);
+  if (!result.ok) {
+    await respond(interaction, result.error);
     return;
   }
-
-  // The gate state is read through the graph rather than off the anchor's
-  // buttons, because a GM can flip an edge without anyone refreshing a
-  // message and Examine must never be the stale one.
-  const links = await linksFor(prisma, locationId);
-  const gates = links
-    .filter((link) => link.modular)
-    .map((link) => ({
-      isOpen: link.isOpen,
-      farName: endpoints(link, locationId).far.name,
-    }));
-
-  const byKind = new Map(location.yields.map((row) => [row.kind, row.current]));
-  const laborLine = LABOR_QUERY_KINDS.map(
-    ({ kind, label }) => `**${label}**: ${qualityWord(byKind.get(kind) ?? null)}`,
-  ).join(" | ");
-
-  // The Depot's machinery is live state, so it is loaded here and handed to
-  // describeLocation as ctx rather than being authored on the Location. Only
-  // for the one room that has any — every other place gets no depot ctx and
-  // prints no depot lines.
-  let depot = null;
-  if (hasAttribute(location, "depot")) {
-    const row = await loadDepot(prisma);
-    depot = {
-      generatorOn: row.generatorOn,
-      powered: depotPowered(row),
-      fuelTurnsLeft: fuelTurnsLeft(row),
-      turretArmed: row.turretArmed,
-      shuttleDocked: row.shuttleState === "DOCKED",
-    };
-  }
-
-  // Structures are live state — built, rising or ruined — so they are loaded
-  // here and handed to describeLocation as ctx rather than being authored on
-  // the Location, the same reasoning as depot above.
-  const structures = await structuresAt(prisma, locationId);
-
-  const lines = [
-    `» *${location.name}.*`,
-    laborLine,
-    ...describeLocation(location, { gates, depot, structures }),
-  ];
+  const lines = [`» *${result.name}.*`, ...result.lines];
   await respond(interaction, lines.join("\n"));
 }
-
-// Fixed order, so the readout looks the same in every channel and a player can
-// learn the shape rather than reading the labels every time.
-const LABOR_QUERY_KINDS = [
-  { kind: "HUNTING", label: "Hunting" },
-  { kind: "FARMING", label: "Farming" },
-  { kind: "FISHING", label: "Fishing" },
-];
 
 async function handleSecretRooms(interaction, locationId) {
   await ack(interaction);
@@ -1382,36 +1434,20 @@ async function handleConverseCreate(interaction, roomId) {
     return;
   }
 
-  // The thread hangs off the LOCATION channel, not the room thread: Discord
-  // has no threads inside threads. The room is the link the whisper poll
-  // reads, nothing more.
-  let thread;
-  try {
-    thread = await startPrivateThread(room.location.discordChannelId, name);
-    // A "web only" creator stays out of their own thread's member list
-    // (CHAT.md §6); the PlayerThreadMember row below is their membership.
-    if (!character.webOnly) await addThreadMember(thread.id, interaction.user.id);
-  } catch (err) {
-    console.error(`Failed to open a conversation in ${room.location.name}:`, err);
-    await respond(interaction, "Couldn't open that — try again, or tell a GM.");
+  // The one copy of the open sequence, shared with Chat's Converse dialog and
+  // with Xom's turn pass — see db/lib/conversationOpen.js.
+  const opened = await openConversationThread(prisma, {
+    locationId: room.locationId,
+    roomId: room.id,
+    name,
+    characterIds: [character.id],
+    creatorCharacterId: character.id,
+  });
+  if (!opened.ok) {
+    await respond(interaction, opened.error);
     return;
   }
-
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
-  const conversation = await prisma.playerThread.create({
-    data: {
-      threadId: thread.id,
-      name,
-      locationId: room.locationId,
-      roomId: room.id,
-      creatorCharacterId: character.id,
-      creatorDiscordUserId: character.discordUserId,
-      lastActivityTurn: openTurn?.number ?? null,
-    },
-  });
-  // The creator is a member like anybody else — the thread add above is only
-  // Discord's copy of that fact (db/lib/conversations.js).
-  await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: character.id });
+  const thread = { id: opened.threadId };
   await prisma.auditLog
     .create({
       data: {
@@ -2100,6 +2136,18 @@ module.exports = {
         }
         if (interaction.customId.startsWith(ROOM_TURRET_PREFIX)) {
           return void (await handleTurretOpen(interaction, interaction.customId.slice(ROOM_TURRET_PREFIX.length)));
+        }
+        // The confirm first: "room:pray:go:<id>" also starts with the open
+        // prefix, so testing the other way round would route every confirm
+        // back into the dialog it came from.
+        if (interaction.customId.startsWith(PRAY_CONFIRM_PREFIX)) {
+          return void (await handlePrayConfirm(
+            interaction,
+            interaction.customId.slice(PRAY_CONFIRM_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(ROOM_PRAY_PREFIX)) {
+          return void (await handlePrayOpen(interaction, interaction.customId.slice(ROOM_PRAY_PREFIX.length)));
         }
         if (interaction.customId.startsWith(ROOM_BELL_PREFIX)) {
           return void (await handleBellOpen(interaction, interaction.customId.slice(ROOM_BELL_PREFIX.length)));

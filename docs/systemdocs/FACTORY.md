@@ -57,6 +57,13 @@ The server action is `extractGodfleshRequest` in
   | gloves | Minor Wound 0.75 · Deep Wound 0.25 |
   | gloves + body armour | Minor Wound 0.90 · Deep Wound 0.10 |
 
+Both checks — the blade and the body armour — are lists of catalog slugs
+matched against what is equipped, so a smith's SIGNED piece resolves back to
+what it is a copy of before the match (`Tag.customOfSlug`, `CRAFTING.md` §4a).
+A Battle Axe with somebody's name on it still cuts, and a named Breastplate
+still moves you to the bottom row. Any new rule here that reads a held slug
+needs the same resolution.
+
 Gloves cost 3 ⬢ to craft and all three Factory roles start with a pair, so a
 lost hand is nearly always somebody who took them off. That is the intended
 reading, and it is why the DM says which column you were in.
@@ -200,10 +207,11 @@ Overburdened. They stash the rest in the Logistics Room and the carry pass
 handles the overflow. The cart and the silo are the business; that is
 deliberate, not an oversight.
 
-**A cube sells for 4 ⬢.** Farming at coefficient 1.0 with
-`productionCoefficient` 0.93 pays 11–15 ⬢, midpoint 13; a factory day at the
-authored 2.2× is ~28.6 ⬢ for 8 cubes, so 3.6 each, rounded to 4. A full wagon is
-240 ⬢ — and since obols went 1:1 in 9/2026, 240 ¢.
+**A cube sells for 5 ⬢.** (It was 4 until 2026-09-10, Bascinet's call.)
+Farming at coefficient 1.0 with `productionCoefficient` 0.93 pays 11–15 ⬢,
+midpoint 13; a factory day is now 40 ⬢ for 8 cubes, about 3.1× a good farming
+day, up from the 2.2× the 4 ⬢ price was derived from. A full 60-cube wagon is
+300 ⬢ — and since obols went 1:1 in 9/2026, 300 ¢.
 
 Squeeze has no `depotPrice`. The station sells nobody a cube.
 

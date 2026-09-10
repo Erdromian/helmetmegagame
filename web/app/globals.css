@@ -682,24 +682,13 @@ input[type="radio"]:focus-visible,
   margin: var(--sp-2) 0 var(--sp-3);
 }
 
-/* The guidance line and the character count share a baseline under the box.
-   The sentence takes the width and the count keeps its own end of the line;
-   on a phone the sentence wraps to its own rows and the count follows under
-   it, still to the right, rather than the two crushing into each other. */
-.move-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--sp-2);
-  margin-top: var(--sp-2);
-}
-
-.move-foot > :first-child {
-  flex: 1 1 16rem;
-}
-
+/* The character count, alone under the box and against its right edge. It used
+   to sit in a flex row beside a line of guidance; the guidance is gone and the
+   row went with it, since one item does not need a layout. */
 .move-count {
-  margin-left: auto;
+  display: block;
+  margin-top: var(--sp-2);
+  text-align: right;
   color: var(--muted);
   white-space: nowrap;
 }
@@ -7219,20 +7208,15 @@ label.chip {
 }
 
 .ledger-tiles {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* auto-fit rather than a fixed five, so the row folds before any tile is
+     narrow enough to wrap "30.5 / 71 lb" onto a second line. The max-width
+     fits all five across when there is room — and exactly five: a sixth needs
+     856px, which is why the Combat readout lives on the row below instead. */
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: var(--sp-2);
   flex: 1 1 26rem;
   max-width: 47rem;
-}
-
-/* One rank. Both are auto-fit on the same minimum, so the two read as one
-   instrument panel rather than two unrelated rows — the top rank fits its
-   three tiles across, the bottom fits Combat's double plus two singles. */
-.ledger-rank {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
-  gap: var(--sp-2);
 }
 
 .ledger-tile {
@@ -7303,29 +7287,19 @@ label.chip {
   mask-image: linear-gradient(to bottom, #000 calc(100% - 0.7rem), transparent);
 }
 
+/* Spacing between the runs of a detail that has several. Deliberately NOT a
+   margin when the detail is anything but block flow: a `> * + *` margin also
+   applies to the second item of a grid, which is what put RANGED four pixels
+   below MELEE and bottom-aligned the pair. Gap is the grid's own job. */
 .ledger-tile-detail > * + * {
   margin-top: var(--sp-1);
 }
+
 
 .ledger-tile-detail[data-open="true"] {
   visibility: visible;
 }
 
-/* Combat's detail is three runs in a tile two columns wide, so it reads as two
-   columns: the two halves of the tree side by side, and what a GM might apply
-   spanning both underneath. In one column the last run — the one nobody can
-   derive from the tile's resting face, and so the most worth reading — was the
-   one that scrolled out of sight. */
-.ledger-tile-wide .ledger-tile-detail {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--sp-1) var(--sp-3);
-  align-content: start;
-}
-
-.combat-line-span {
-  grid-column: 1 / -1;
-}
 
 .ledger-tile-detail .field-label {
   display: inline;
@@ -7401,15 +7375,33 @@ label.chip {
   color: var(--danger);
 }
 
-/* ── The Combat tile ───────────────────────────────────────────────────────
-   Two fighting bands, the armour under them, and one quiet line naming what a
-   GM might apply. It spans two grid columns (.ledger-tile-wide) because it
-   carries three lines where every other tile carries one. */
+/* Combat sits in the band row beside This turn and Turn Effects, all three the
+   same build. It is a <button> rather than a <div>, so it needs the row's own
+   stretch to match its neighbours' heights. */
+.sheet-band-row > .ledger-tile {
+  align-self: stretch;
+}
+
+/* The two bands and the armour on one line — there is width for it here, and
+   two facts read at a glance beat a column of three. They wrap to their own
+   lines when the row folds to one column on a narrow window. */
+.combat-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  margin-top: var(--sp-1);
+}
+
+/* ── The Combat readout ────────────────────────────────────────────────────
+   Two fighting bands and the armour on one line, and one quiet line naming
+   what a gamemaster might apply. It lives in the band row rather than the tile
+   row: the tile row's max-width fits exactly five, and this needs the width of
+   a third of the band. */
 .combat-bands {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-1) var(--sp-2);
-  margin-top: var(--sp-1);
   line-height: 1.2;
 }
 
@@ -7467,22 +7459,9 @@ label.chip {
 /* Armour, deliberately quieter than the bands above it: it is a second system
    riding along, not half of the number. */
 .combat-armor {
-  display: block;
-  margin-top: var(--sp-1);
   font-size: var(--fs-xs);
   color: var(--muted);
-}
-
-.ledger-tile-wide {
-  grid-column: span 2;
-}
-
-@media (max-width: 30rem) {
-  /* One column at phone width, where the grid has folded to a single track
-     and `span 2` would overflow it. */
-  .ledger-tile-wide {
-    grid-column: span 1;
-  }
+  white-space: nowrap;
 }
 
 /* A footnote under the armour line. Names only, no borders, no boxes: these
