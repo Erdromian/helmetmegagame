@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · You can see what a thing is before you pick it up
+
+✎ Moving things now shows each item as a chip with its weight, and hovering one tells you where it is worn, what it stops and what it does in a fight  
+✚ An empty equipment slot now also offers what a room here is storing that fits it. Picking one takes it and puts it on in a single click  
+✎ The Tag Catalog was never showing In a fight, Armour or Worn on any tag at all. All three are there now  
+✎ Two-handed weapons said they took one hand, and layered armour never said which layer it sat at  
+✎ A helpless person's pockets deliberately stay a name and a weight, with no card
+
 ## 2026-09-10 · A channel somebody has spoken in reads bright
 
 ✚ A channel somebody has spoken in now reads bright in the places column, not just a small dot  
