@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Uploading your own picture works again
+
+✎ It has been failing for almost everyone since the game opened. A photo over about a megabyte vanished on Save with no error at all — only two players ever got one through, both tiny files.  
+✚ A picture that is too big now says so the moment you pick it, and names its size  
+✎ The note on Browse no longer reads as a queue you wait in. Your picture is live the moment you save it; a GM reviews it afterwards.
+
 ## 2026-09-10 · A caving 1 keeps you in the zone until a GM has looked at it
 
 ✎ Rolling a 1 in the caves now holds you in that zone until a GM adjudicates the roll. You can still walk the level — camp, regroup, push deeper — you just cannot leave until somebody has dealt with what found you.  
