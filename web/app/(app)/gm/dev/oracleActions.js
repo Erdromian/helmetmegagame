@@ -23,8 +23,18 @@ const MAX_PROMPT = 8000;
 const MAX_URL = 300;
 const MAX_MODEL = 200;
 
+// A <textarea> submits its value with CRLF line endings — the HTML spec says so
+// — and every default in oraclePrompts.js is written with LF. So the "store NULL
+// if it matches the default" comparison below could never match, and pressing
+// Save on a form nobody had edited pinned a CRLF copy of the default into
+// GameConfig forever.
+//
+// That is exactly the failure the comment on that comparison says it exists to
+// prevent: production stopped reading the shipped prompts, and editing them in a
+// later deploy silently did nothing. Both columns were sitting in that state
+// when this was found. Normalising here fixes it for every field at once.
 function clean(raw, max) {
-  const text = raw == null ? "" : String(raw).trim();
+  const text = raw == null ? "" : String(raw).replace(/\r\n/g, "\n").trim();
   return text.slice(0, max);
 }
 

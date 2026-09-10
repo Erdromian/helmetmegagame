@@ -251,7 +251,7 @@ The two regexes cannot collide on the way: `characterMentions.js`'s `TOKEN_RE`
 matches `[A-Za-z0-9_-]` only, so a name with a space in it is invisible to the
 existing mention machinery right up until this function has finished with it.
 
-## 6. The register
+## 6. The register, and the shape of a page
 
 Encyclopedic. Plain, declarative, past tense, third person, no atmosphere and
 no adjectives that carry judgement.
@@ -261,12 +261,63 @@ model told to write plainly and cite nothing but the rows it was handed has
 very little room to invent, where one told to write atmospherically **must**
 invent to comply.
 
+### What a page is organised as
+
+The register was never the problem. The first prompts said how to *write* and
+nothing about how to *organise*, so the model organised a page the only way its
+input is organised — one row at a time. What came back was a per-character
+ledger: everybody's arrival, everybody's inventory in full, and `PRESENT` read
+back at the reader as a list of who stood where. All of which a GM can already
+get off the desks.
+
+So each prompt now carries three things the first pair did not: what the page is
+**for**, an explicit list of what to **leave out**, and the **headings** to write
+under.
+
+- A zone page opens with a sentence or two on the main thing, then `### What is
+  going on` — a paragraph per situation, not per person, with the situation
+  bolded on first mention — then `### Needs a ruling`, a bullet per unsolved
+  move, omitted entirely when there is nothing.
+- The front page opens the same way and then runs `### Across the zones`.
+- Both are told to write far less when little happened, and never to pad. An
+  empty zone still gets one sentence and no headings at all.
+
+Markdown was already safe to ask for: `OracleMarkdown` mounts `MESSAGE_PLUGINS`
+with no element restriction, and the desk renders it inside `markdown-content`,
+which styles `h1`–`h3`. Nothing needed adding for the headings to land.
+
+**One rule is load-bearing rather than cosmetic.** `splitEditorReply` finds the
+threads by matching a line holding the bare word `THREADS`, so the editor prompt
+says outright that the line carries no heading marks and no bold. A model that
+wrote `### THREADS` would cost the threads rail silently, and two tests in
+`db/test/oracle.test.js` hold both halves of that.
+
+The other thing worth stating: "prefer omission to inference" reads as "do not
+connect anything" unless you also say the opposite somewhere. Both prompts now
+do — *putting two rows you were both given beside each other is not inference,
+that is the work* — because comparing is the entire reason the thing exists.
+
+### The prompts live in the database, and one bug meant they always had
+
 Both prompts live in `GameConfig` and are edited from the panel, so the voice
 can be tuned without a deploy — the same reasoning as `docs/handbook.md` being
 read at runtime. NULL means "use the shipped default" in
 `db/lib/oraclePrompts.js`, and a prompt matching that default is stored as NULL
 rather than as a copy, so editing the default in a later deploy still reaches
 anyone who has pressed Save.
+
+**That comparison could never match.** A `<textarea>` submits its value with
+CRLF line endings and every default is written with LF, so pressing Save on a
+form nobody had edited pinned a CRLF copy of the default into the row — forever,
+and invisibly, since the panel then showed exactly the text it was supposed to.
+Both columns were found in that state, which meant production had quietly
+stopped reading the shipped prompts altogether and any later edit to them did
+nothing at all. `clean()` in `web/app/(app)/gm/dev/oracleActions.js` normalises
+the line endings now, which fixes it for every field on that form at once.
+
+The repair for a row already pinned is to clear the column back to NULL. There
+is no button for it; it is a one-line update, and a GM who genuinely wants a
+custom prompt is unaffected either way.
 
 The editor returns one document: prose, a bare `THREADS` line, then the
 threads. Plain rather than JSON on purpose — a small model holds a flat shape

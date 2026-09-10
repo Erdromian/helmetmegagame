@@ -318,6 +318,28 @@ async function syncTagsFromYaml(prisma) {
         );
       }
     }
+    // The two invariants TAGS.md 4 states and nothing used to enforce. Both
+    // are about the SAME door — what /store may offer once play has begun —
+    // and both drifted quietly, in both directions, because the doc was the
+    // only thing holding them: 24 rows were wrong when this was written, among
+    // them Eagle Eyes and Keen Hearing, two 2-point senses a character could
+    // never acquire, and Corrupt, a −2 drawback anybody could take for points.
+    //
+    // Scoped to `purchasable` rows on purpose. A tag nobody can buy at all is
+    // not governed by WHEN it may be bought, and demanding the line on all 380
+    // unbuyable items would be noise standing in for a rule.
+    if (t.purchasable) {
+      if ((t.pointCost ?? 0) < 0 && t.purchasableAfterStart !== false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" has a negative pointCost but is buyable after start — a drawback bought mid-game pays out Tag Points, which is a farm (TAGS.md §4). Set purchasableAfterStart: false`,
+        );
+      }
+      if ((t.category === "items" || t.category === "assets") && t.purchasableAfterStart !== false) {
+        throw new Error(
+          `docs/tags.yaml: tag "${t.slug}" is an ${t.category === "items" ? "item" : "asset"} but is buyable after start — an object enters play by being crafted, found, traded or granted, never off the points menu (TAGS.md §4). Set purchasableAfterStart: false`,
+        );
+      }
+    }
     // concealsIdentity requires equippable — a typo guard, not a rule.
     if (t.concealsIdentity && !t.equippable) {
       throw new Error(

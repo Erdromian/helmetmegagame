@@ -456,7 +456,7 @@ tags:
     pointCost: 1
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # --- Teaching (docs/systemdocs/LESSONS.md) -----------------------------
   # Learn Skill / Teach Skill on the sheet. Teaching is the door; Lecturing
@@ -495,7 +495,7 @@ tags:
     description: "Your family has been around a long time."
     pointCost: 1
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   dancer:
     catalog: gm
@@ -814,7 +814,7 @@ tags:
     pointCost: 14
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
     carryBonus: 0.75
     # Giant, Strong and Pack Mule are one fiction — a big body that hauls —
     # so they never stack. Authored here and on Strong; db:sync-tags mirrors
@@ -968,7 +968,7 @@ tags:
     fighting: { situational: true }
     pointCost: 1
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # A drawback, so it GIVES a point back rather than costing one — same
   # posture as Frail and Old above.
@@ -1164,7 +1164,7 @@ tags:
     fighting: { tree: both, tiers: 0.5 }
     pointCost: 5
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # Granted as a starting tag to the Censor. Left purchasable so anyone
   # else can buy their way into the trait too.
@@ -1230,7 +1230,7 @@ tags:
     fighting: { tree: both, tiers: 0.3 }
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   eagle-eyes:
     catalog: all
@@ -1241,7 +1241,7 @@ tags:
     fighting: { tree: ranged, tiers: 0.3 }
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   ambidextrous:
     catalog: all
@@ -1252,7 +1252,7 @@ tags:
     fighting: { cancels: [missing-arm, missing-fingers, mangled-hand] }
     pointCost: 2
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # Scripted: every rung above Tipsy takes two drinks, tracked by the hidden
   # `holding-it-down` marker; web/lib/consumeGrants.js.
@@ -1375,7 +1375,7 @@ tags:
     pointCost: 3
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   beautiful:
     catalog: all
@@ -1387,7 +1387,7 @@ tags:
     parentTag: pretty
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # Drawbacks, so they GIVE points back — same posture as Frail and Old above,
   # and all creation-only per TAGS.md §4.
@@ -1443,7 +1443,7 @@ tags:
     description: "Other people's possessions just seem to fall into your hands. There's nothing you can do about it! Locks Desires about wealth, but unlocks Desires about thievery."
     pointCost: 0
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
     desires:
       locks:
         - families: [wealth]
@@ -1572,7 +1572,7 @@ tags:
     fighting: { situational: true }
     pointCost: 0
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
     desires:
       locks:
         - families: [violence, feud]
@@ -1649,7 +1649,7 @@ tags:
     conflictsWith: [stutter]
     visible: true
     purchasable: true
-    purchasableAfterStart: false
+    purchasableAfterStart: true
 
   # Slug kept deliberately (see this file's header) — renamed Gambler.
   gambler:
@@ -2215,7 +2215,7 @@ tags:
     # flag is written out.
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   houndmaster:
     catalog: gm
@@ -5258,7 +5258,7 @@ tags:
     equipLayer: 1
     laborBonus: { kind: fishing, amount: 1 }
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -5281,7 +5281,7 @@ tags:
     # ×5 on both carry caps; stacks with Pack Mule (docs/systemdocs/CARRY.md).
     carryBonus: 4
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -6298,7 +6298,7 @@ tags:
     stackable: true
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   radio-bracelet-cerberon:
     catalog: gm
@@ -11150,7 +11150,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -11171,7 +11171,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -11192,7 +11192,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -11213,7 +11213,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -11234,7 +11234,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -11255,7 +11255,7 @@ tags:
     weight: 0
     visible: false
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
     craftable: true
     requirement:
       turnsCost: 1
@@ -13880,7 +13880,7 @@ tags:
     tradeable: true
     weight: 0.5
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   lepers-hood:
     catalog: all
@@ -13899,7 +13899,7 @@ tags:
     tradeable: true
     weight: 0.5
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   padded-cap:
     catalog: all

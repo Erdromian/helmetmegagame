@@ -385,3 +385,35 @@ test("the connection test tolerates its own tiny budget", async () => {
     stub.restore();
   }
 });
+
+// The threads separator, now that the prompts ask for headings above it. A page
+// laid out with ### sections is the new normal shape, and the parser has to find
+// the block underneath one — while a THREADS line that the model decorated as a
+// heading must NOT match, which is why the editor prompt spells out that the
+// line carries the bare word and nothing else.
+
+test("the threads block survives a page written with headings", () => {
+  const reply = [
+    "Three zones moved on the same thing.",
+    "",
+    "### Across the zones",
+    "",
+    "The **garrison hand-out** put arms in eleven hands.",
+    "",
+    "THREADS",
+    "Garrison hand-out | Eleven Cerberi are newly armed.",
+    "Godflesh | Still moving south.",
+  ].join("\n");
+
+  const { body, threads } = splitEditorReply(reply);
+  assert.match(body, /### Across the zones/);
+  assert.doesNotMatch(body, /THREADS/);
+  assert.equal(threads.length, 2);
+  assert.equal(threads[0].name, "Garrison hand-out");
+});
+
+test("a THREADS line dressed as a heading is not the separator", () => {
+  const { body, threads } = splitEditorReply("The turn.\n\n### THREADS\nA | B");
+  assert.equal(threads.length, 0);
+  assert.match(body, /### THREADS/);
+});

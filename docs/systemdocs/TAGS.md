@@ -411,16 +411,23 @@ tag, buyable at creation like anything else.
 `web/app/components/PointBuy.js`: character creation offers every
 `purchasable` tag, while the mid-game store offers only those still marked
 `purchasableAfterStart`. That's what lets a pick like "Secretly an Android"
-exist at launch and never afterward. **Every negative-cost tag should be
-`purchasableAfterStart: false`.** A drawback that can be bought mid-game and
-then shed is a point farm, because `REMOVE_TAG` and `CONSUME_TAG` refund
-resources but never Tag Points. Half of that door is now shut by the catalog's
-own shape: Destroy is for Items and Assets (`CRAFTING.md` §5), and a drawback
-is neither, so no negative tag is `removable` any more and none can be. What
-is left is `consumable`, and the store's own guard in
-`web/app/(app)/store/actions.js` refuses a negative-cost tag carrying either
-flag whatever the YAML says — which is what covers a GM-authored custom row,
-the one place the rule can still be broken.
+exist at launch and never afterward. **Every negative-cost tag is
+`purchasableAfterStart: false`, and `db/lib/syncTags.js` now throws on one
+that is not.** A drawback bought mid-game is a point farm: `REMOVE_TAG` and
+`CONSUME_TAG` refund resources but never Tag Points, so buy → shed → buy runs
+forever.
+
+Shedding turned out to be only half of it. A drawback pays out the moment it
+is bought, and points are the scarce thing — being stuck with Frail afterwards
+is a price a player will happily pay for eight points to spend today. So the
+store's guard in `web/app/(app)/store/actions.js` refuses **any** negative-cost
+tag whatever its flags say, where it used to refuse only one carrying
+`removable` or `consumable`. That is the backstop under a GM-authored custom
+row, the one place the sync cannot see.
+
+This was prose and nothing else until 2026-09-10, and it had drifted: `Corrupt`
+sat at −2 with `purchasableAfterStart: true`, buyable by anyone who opened the
+store.
 
 That invariant has three enforcement points. `purchasableTags()` honours it
 via `PointBuy`'s `afterStartOnly` prop, which **`/store`** mounts — the
@@ -676,7 +683,8 @@ has since been deleted outright along with the channel it opened.
   `general-interests` with one group; before it, a Restriction was defined as
   a pure dead end. See `DESIRES.md` §5.
 - **No drawback is purchasable after start.** Every negative-`pointCost` tag
-  carries `purchasableAfterStart: false`, `/store` enforces it server-side,
+  carries `purchasableAfterStart: false`, the sync throws on one that does
+  not, `/store` refuses any negative-cost tag server-side whatever its flags,
   and fulfilling a Desire is therefore the only mid-game Tag Point faucet.
   This is what closes the buy-a-drawback → get-cured → keep-the-points loop
   at the door (`DESIRES.md` §7).
@@ -703,13 +711,22 @@ has since been deleted outright along with the channel it opened.
   [`SMITHING.md`](SMITHING.md) for the table.
 - **Every negative tag is `purchasableAfterStart: false`.** Restated from §4
   because it is the one invariant the scale can be used to violate: a drawback
-  that can be bought mid-game *and* shed is a point farm. A drawback is not an
-  item, so it is never `removable`; `consumable` is the half still worth
-  watching, and the store's guard is the backstop under both.
-- **Items are `purchasableAfterStart: false` too**, without exception. An
-  object enters play by being crafted or found; its route in is `craftable`
-  plus a `requirement` block, never points. 18 items violated this before the
-  first pass against the scale.
+  bought mid-game pays out Tag Points, which is a faucet Desires are supposed
+  to be alone in. The sync throws on a violation and the store refuses any
+  negative-cost tag at the till, so this is enforced twice rather than asked
+  for four times.
+- **Items and Assets are `purchasableAfterStart: false` too**, without
+  exception, and the sync throws on those as well. An object enters play by
+  being crafted, found, traded or granted; its route in is `craftable` plus a
+  `requirement` block, never points. 18 items violated this before the first
+  pass against the scale, and 11 more rows — six wax seals, two hoods, the
+  Cerberon Radio System, the Fishing Boat and the Cart — had drifted back open
+  by the time the guard was written.
+- **Nothing else is creation-only.** A trait, a skill, a belief or a personality
+  is buyable in `/store` unless it is one of the two cases above. Eagle Eyes and
+  Keen Hearing spent a whole game shut out of it by an authoring slip nobody
+  could see, which is what the guards are for: a character who did not take
+  sharp eyes at creation could never acquire them.
 - **A consumable is worth what it consumes into.** If `consumesInto` grants
   7 points of tags, the container is not a 4-point tag.
 - **Health-category `pointCost` is not a wound severity.** It answers "what is
@@ -1645,7 +1662,9 @@ of who is qualified; `healRequests.js` re-exports it.
    the description**, naming what it becomes. The tooltip's "Becomes" row is
    reinforcement; the sentence is what makes someone act in time.
 5. Negative `pointCost` (a drawback bought at creation) requires
-   `purchasableAfterStart: false`, per §4.
+   `purchasableAfterStart: false`, per §4 — as does anything in `items` or
+   `assets`. The sync throws on either, so a slip fails the run rather than
+   reaching a player.
 6. Set `catalog:` — `secret` if it is cave- or antagonist-related (hidden
    from everyone on the /documents Tag Catalog, GMs included), `all` if it
    is public knowledge, `gm` otherwise. The field is required on every tag;
