@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Browse note says what actually happens to an upload
+
+✎ The hover on Browse now reads “Your image may be approved or denied.” It used to promise approval before the picture went live, which was never how it worked
+
 ## 2026-09-10 · Being hurt costs less in a fight, and being clumsy is no longer Pitiful
 
 ✎ Missing Fingers cost more of your fighting skill than a Peg Leg did, while being cheaper to take. It is now the smaller of the two  
