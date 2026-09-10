@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { armorWord, combineArmor } from "@/lib/armorValue";
-import { fightingSkill } from "@/lib/fightingSkill";
-import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { fightingSkill, TREES } from "@/lib/fightingSkill";
+import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
 import ActionGrid from "./ActionGrid";
@@ -17,10 +17,21 @@ import TurnForecast from "./TurnForecast";
 // glyph — the house rule for ⬢ (CLAUDE.md), and the reason no tile below
 // writes "Resources" next to a hexagon.
 //
-// A tile with a detail to give is a button: the detail (why the free moves
-// are 0, what moves a mood) reads inline under the tiles. It used to be a
-// native title=, and this sheet has no tooltips — which is why the Mood box
-// hovering OPENS that line rather than floating a bubble over it.
+// A tile with something to say SWAPS ITS OWN FACE for it: hover, focus or
+// click and the value is replaced by the detail, inside the same box, at the
+// same height. Nothing outside the tile moves.
+//
+// That shape is the point. The detail used to be appended under the whole row,
+// which pushed the rest of the sheet down every time somebody read it — a
+// readout that moves the thing you were reading. Floating it instead would
+// have been a tooltip, and this sheet has none (SHEET.md §3). Swapping in
+// place is the third answer: it costs no layout and it stays on the page.
+//
+// Click matters as much as hover and is not a fallback: a phone has no hover
+// at all, and a tap is the same gesture with the same result. Focus is in
+// there for the same reason in the other direction — a keyboard has no
+// pointer, and a detail only a mouse can reach is a detail half the people
+// using this cannot.
 //
 // `tone` colours the value by meaning rather than by colour, the rule
 // StatusPill.js sets: the stylesheet owns which token a tone gets.
@@ -31,37 +42,92 @@ function Tile({
   over = false,
   tone = null,
   word = false,
-  hasDetail = false,
+  detail = null,
   open = false,
-  onToggle = null,
-  onHover = null,
+  onOpen = null,
   children = null,
+  wide = false,
 }) {
-  const body = (
-    <>
-      <span className="field-label">{label}</span>
-      <span
-        className="ledger-tile-value"
-        data-over={over ? "true" : "false"}
-        data-tone={tone ?? undefined}
-        data-word={word ? "true" : undefined}
-      >
-        {value}
-      </span>
-      {children}
-    </>
-  );
-  if (!hasDetail) return <div className="ledger-tile">{body}</div>;
+  // Whether a MOUSE is currently over this tile. A touch tap fires a
+  // synthesised mouseenter before its click, so without this the enter opened
+  // the tile and the click immediately toggled it shut again — a tap that
+  // looked like it did nothing. Declared before the early return below,
+  // because a hook may not be called conditionally.
+  const hovering = useRef(false);
+  const className = `ledger-tile${wide ? " ledger-tile-wide" : ""}`;
+  if (!detail) {
+    return (
+      <div className={className}>
+        <span className="field-label">{label}</span>
+        <span
+          className="ledger-tile-value"
+          data-over={over ? "true" : "false"}
+          data-tone={tone ?? undefined}
+          data-word={word ? "true" : undefined}
+        >
+          {value}
+        </span>
+        {children}
+      </div>
+    );
+  }
   return (
     <button
       type="button"
-      className="ledger-tile ledger-tile-button"
+      className={`${className} ledger-tile-button`}
       aria-expanded={open}
-      onClick={onToggle}
-      onMouseEnter={onHover ? () => onHover(true) : undefined}
-      onMouseLeave={onHover ? () => onHover(false) : undefined}
+      onPointerEnter={(e) => {
+        if (e.pointerType !== "mouse") return;
+        hovering.current = true;
+        onOpen(true);
+      }}
+      onPointerLeave={(e) => {
+        if (e.pointerType !== "mouse") return;
+        hovering.current = false;
+        onOpen(false);
+      }}
+      // Under a mouse the tile is already open, so a click would only close it
+      // under the cursor. Touch and keyboard both land here with no pointer
+      // over the tile, and there the click IS the way in and back out.
+      onClick={() => {
+        if (hovering.current) return;
+        onOpen(!open);
+      }}
+      // :focus-visible rather than focus, so a tap (which also focuses) does
+      // not fight the click above. A keyboard is the only thing that reaches
+      // this, and it is the only way a keyboard reaches the detail at all.
+      onFocus={(e) => {
+        if (e.target.matches(":focus-visible")) onOpen(true);
+      }}
+      onBlur={() => onOpen(false)}
     >
-      {body}
+      <span className="field-label">{label}</span>
+      {/* Both faces live in one relative box and the detail is ABSOLUTE inside
+          it, so the tile is sized by its resting face alone and opening it
+          cannot change its height — which is the whole reason for this shape.
+          Sizing it by the taller of the two instead would have made every tile
+          permanently as tall as its longest explanation.
+
+          `visibility` rather than the `hidden` attribute: the stylesheet's
+          reset makes [hidden] display:none !important, and a display:none face
+          cannot be the thing holding the box open. visibility also does the
+          right thing for a screen reader, which display:none would too. */}
+      <span className="ledger-tile-faces">
+        <span className="ledger-tile-face" data-open={open ? "true" : "false"}>
+          <span
+            className="ledger-tile-value"
+            data-over={over ? "true" : "false"}
+            data-tone={tone ?? undefined}
+            data-word={word ? "true" : undefined}
+          >
+            {value}
+          </span>
+          {children}
+        </span>
+        <span className="ledger-tile-detail" data-open={open ? "true" : "false"}>
+          {detail}
+        </span>
+      </span>
     </button>
   );
 }
@@ -76,6 +142,15 @@ const MOOD_DETAIL =
 // db/lib/gambitModifier.js#formatGambitModifiers and the bot's roll line.
 function tierLabel(tiers) {
   return `${tiers > 0 ? "+" : "−"}${Math.abs(tiers)}`;
+}
+
+// "Melee (Expert)" under a run already headed MELEE is the word twice. The
+// catalog names the ladder and its specialisms that way because a tag has to
+// stand alone in a list of five hundred; here it does not, and the prefix was
+// costing a line of a box that has few to spare.
+function shortName(label, tree) {
+  const prefix = tree === "melee" ? "Melee (" : "Ranged (";
+  return label.startsWith(prefix) && label.endsWith(")") ? label.slice(prefix.length, -1) : label;
 }
 
 // What the Combat tile opens: every contributor behind the two bands, and then
@@ -94,7 +169,7 @@ function CombatDetail({ combat }) {
   // as a bug rather than as a distinction.
   const situational = [];
   const seen = new Set();
-  for (const tree of ["melee", "ranged"]) {
+  for (const tree of TREES) {
     for (const entry of combat[tree].situational) {
       if (seen.has(entry.label)) continue;
       seen.add(entry.label);
@@ -103,77 +178,64 @@ function CombatDetail({ combat }) {
   }
 
   return (
-    <div className="sheet-tile-detail">
-      {["melee", "ranged"].map((tree) => (
-        <p key={tree} className="m-0">
+    <>
+      {TREES.map((tree) => (
+        <span key={tree} className="combat-line">
           <span className="field-label">{tree === "melee" ? "Melee" : "Ranged"}</span>{" "}
           {combat[tree].contributors
-            .map((c) => (c.base ? c.label : `${c.label} ${c.cancelledBy ? `nil, ${c.cancelledBy}` : tierLabel(c.tiers)}`))
+            .map((c) => {
+              const name = shortName(c.label, tree);
+              if (c.base) return name;
+              return `${name} ${c.cancelledBy ? `nil, ${c.cancelledBy}` : tierLabel(c.tiers)}`;
+            })
             .join(" · ")}
           {combat[tree].cap && ` · held at ${combat[tree].cap}`}
           {combat[tree].floor && ` · ${combat[tree].floor}`}
-        </p>
+        </span>
       ))}
       {situational.length > 0 && (
-        <p className="m-0">
-          <span className="field-label">If the moment fits</span>{" "}
+        <span className="combat-line combat-line-span">
+          <span className="field-label">If it fits</span>{" "}
           {situational
-            .map((s) => `${s.label} ${s.tiers ? `${tierLabel(s.tiers)}, ` : ""}${s.when}`)
+            .map((s) => `${shortName(shortName(s.label, "melee"), "ranged")}${s.tiers ? ` ${tierLabel(s.tiers)}` : ""}, ${s.when}`)
             .join(" · ")}
-        </p>
+        </span>
       )}
-    </div>
+    </>
   );
 }
 
-// Combat: the two fighting bands, the armour underneath, and the things no
-// code can settle. One tile rather than two, because a player deciding whether
-// to walk into something is asking one question — how does this go for me? —
-// and the answer is how hard you hit and what happens when you are hit.
-//
-// It spans two columns: it carries three lines where every other tile carries
-// one, and squeezing that into a tile's width would wrap every band word.
-function CombatTile({ combat, armor, open, onToggle, onHover }) {
-  const situationalCount = new Set(
-    [...combat.melee.situational, ...combat.ranged.situational].map((s) => s.label),
-  ).size;
-
+// Combat's resting face: the two fighting bands, the armour under them, and
+// one quiet line naming what a GM might apply. One tile rather than two,
+// because a player deciding whether to walk into something is asking one
+// question — how does this go for me? — and the answer is how hard you hit and
+// what happens when you are hit.
+function CombatFace({ combat, armor }) {
+  // Names only, and only once each: a tag on both halves of the tree would
+  // otherwise be printed twice on a line whose whole job is being small.
+  const names = [...new Set(TREES.flatMap((t) => combat[t].situational.map((s) => s.label)))];
   return (
-    <button
-      type="button"
-      className="ledger-tile ledger-tile-button ledger-tile-combat"
-      aria-expanded={open}
-      onClick={onToggle}
-      onMouseEnter={() => onHover(true)}
-      onMouseLeave={() => onHover(false)}
-    >
-      <span className="field-label">Combat</span>
+    <>
       <span className="combat-bands">
-        {["melee", "ranged"].map((tree) => (
+        {TREES.map((tree) => (
           <span key={tree} className="combat-band" data-band={combat[tree].band.key}>
             {combat[tree].band.label}
           </span>
         ))}
       </span>
       {/* Armour rides along as its own small line and is never summed into the
-          bands above it — it is a separate system with separate words
-          (db/lib/armorValue.js), and the only reason it is here is that a
-          player should not have to scroll to the rig to read it. */}
+          bands above it — a separate system with separate words
+          (db/lib/armorValue.js). The only reason it is here is that a player
+          should not have to scroll to the rig to read it. */}
       <span className="combat-armor">
         <span aria-hidden="true">⛊</span> {armor}
       </span>
-      {situationalCount > 0 && (
-        <span className="combat-situational">
-          {[...new Set([...combat.melee.situational, ...combat.ranged.situational].map((s) => s.label))].map(
-            (label) => (
-              <span key={label} className="combat-chip">
-                {label}
-              </span>
-            ),
-          )}
-        </span>
-      )}
-    </button>
+      {/* A footnote, not a row of controls. These are not clickable and never
+          were, so the bordered chips they used to be were lying about what
+          they are. What each one MEANS is in the swapped face; this line only
+          says that there is something to ask about. */}
+      {names.length > 0 && <span className="combat-situational">{names.join(" · ")}</span>}
+    </>
   );
 }
 
@@ -198,7 +260,7 @@ export default function LedgerBand({
   hasTrumpet = false,
   isSelf = true,
 }) {
-  const gambit = gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak, mood: character.mood });
+
   const moodBand = bandOf(character.mood ?? 0);
   // Derived on every render from the tags already in hand, never stored — the
   // posture combineArmor and gambitModifierTotal take, so it can't go stale.
@@ -210,6 +272,25 @@ export default function LedgerBand({
     combineArmor(character.tags, "ballisticArmor"),
   )}`;
   const carrying = carry ? `${carry.weightUsed} / ${carry.weightCap}` : null;
+  // Both of these are already computed by db/lib — carryStatus returns
+  // `breakdown` and gambitModifiers returns its named list — so neither tile
+  // is deriving a second opinion about its own number.
+  const carryDetail = carry?.breakdown?.length
+    ? carry.breakdown
+        .map((b) => `${b.name} ${b.bonus > 0 ? "+" : "−"}${Math.abs(Math.round(b.bonus * 100))}%`)
+        .join(" · ")
+    : "Nothing you hold changes what you can carry.";
+  const gambitParts = gambitModifiers(character.tags, {
+    hungerStreak: character.hungerStreak,
+    mood: character.mood,
+  });
+  // Summed from the parts rather than asked for separately: two calls to the
+  // same module with the same arguments is two chances for the number and its
+  // explanation to disagree.
+  const gambit = gambitParts.reduce((sum, m) => sum + m.value, 0);
+  const gambitDetail = gambitParts.length
+    ? formatGambitModifiers(gambitParts)
+    : "Nothing is weighing on your roll.";
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
     : 0;
@@ -288,71 +369,92 @@ export default function LedgerBand({
           </div>
         </div>
 
+        {/* Two ranks, deliberately, rather than one row left to wrap where it
+            likes. The top is what you HAVE and the bottom is what you ARE —
+            and the split is also what stops a seven-slot row (Combat spans
+            two of them) from folding one orphan tile onto a line of its own at
+            every width that is not quite wide enough for all seven. */}
         <div className="ledger-tiles">
-          <Tile
-            label="Free moves"
-            value={zoneMoves != null ? zoneMoves : "—"}
-            over={zoneMoves === 0}
-            hasDetail={Boolean(zoneMovesReason)}
-            open={tileOpen === "moves"}
-            onToggle={() => setTileOpen((was) => (was === "moves" ? null : "moves"))}
-          />
-          <Tile
-            label="Resources"
-            value={carry ? `${carry.resources} / ${carry.resourcesCap} ⬢` : `${character.resources} ⬢`}
-            over={Boolean(carry && carry.resources > carry.resourcesCap)}
-          />
-          <Tile
-            label="Carrying"
-            value={carrying ? `${carrying} lb` : "—"}
-            over={Boolean(carry && carry.weightUsed > carry.weightCap)}
-          >
-            {carry && (
-              <div
-                className="depot-meter"
-                role="img"
-                aria-label={`${carry.weightUsed} of ${carry.weightCap} pounds carried`}
-              >
-                <span className="depot-meter-fill" style={{ width: `${loadPct}%` }} />
-              </div>
-            )}
-          </Tile>
-          {combat && (
-            <CombatTile
-              combat={combat}
-              armor={armorLine}
-              open={tileOpen === "combat"}
-              onToggle={() => setTileOpen((was) => (was === "combat" ? null : "combat"))}
-              onHover={(inside) => setTileOpen((was) => (inside ? "combat" : was === "combat" ? null : was))}
+          <div className="ledger-rank">
+            {/* One open slot across both ranks, so two tiles are never showing
+                their detail at once — a row where three boxes had all swapped
+                their faces would read as a different row rather than as one
+                tile answering a question. */}
+            <Tile
+              label="Free moves"
+              value={zoneMoves != null ? zoneMoves : "—"}
+              over={zoneMoves === 0}
+              detail={zoneMovesReason || null}
+              open={tileOpen === "moves"}
+              onOpen={(want) => setTileOpen(want ? "moves" : null)}
             />
-          )}
-          {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md) — never the
-              number, which is the whole point of the dial. Fine is grey,
-              Ecstatic is green and Panicking is red; the tone picks the token. */}
-          <Tile
-            label="Mood"
-            value={moodBand?.label ?? "Fine"}
-            tone={moodBand?.tone ?? "muted"}
-            word
-            hasDetail
-            open={tileOpen === "mood"}
-            onToggle={() => setTileOpen((was) => (was === "mood" ? null : "mood"))}
-            onHover={(inside) => setTileOpen((was) => (inside ? "mood" : was === "mood" ? null : was))}
-          />
-          {/* The modifier the bot actually rolls the Gambit die against, not a
-              second opinion: same module, same arguments as /character's row. */}
-          <Tile
-            label="Gambit die"
-            value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
-            over={Boolean(gambit)}
-          />
-          {/* One slot under the row, shared by every tile that has something to
-              say. Combat writes a block rather than a sentence, so this branches
-              on the tile rather than always rendering a paragraph. */}
-          {tileOpen === "combat" && combat && <CombatDetail combat={combat} />}
-          {tileOpen && tileOpen !== "combat" && (
-            <p className="sheet-tile-detail">{tileOpen === "moves" ? zoneMovesReason : MOOD_DETAIL}</p>
-          )}
+            <Tile
+              label="Resources"
+              value={carry ? `${carry.resources} / ${carry.resourcesCap} ⬢` : `${character.resources} ⬢`}
+              over={Boolean(carry && carry.resources > carry.resourcesCap)}
+            />
+            {/* What holds the cap up, back on the sheet. carryBreakdown has
+                said "for the hover breakdown on /character" in db/lib/carry.js
+                the whole time — it came off only because ONE pressable tile in
+                a row of read-only ones read as a bug, and that reason is gone
+                now they all press. */}
+            <Tile
+              label="Carrying"
+              value={carrying ? `${carrying} lb` : "—"}
+              over={Boolean(carry && carry.weightUsed > carry.weightCap)}
+              detail={carryDetail}
+              open={tileOpen === "carrying"}
+              onOpen={(want) => setTileOpen(want ? "carrying" : null)}
+            >
+              {carry && (
+                <span
+                  className="depot-meter"
+                  role="img"
+                  aria-label={`${carry.weightUsed} of ${carry.weightCap} pounds carried`}
+                >
+                  <span className="depot-meter-fill" style={{ width: `${loadPct}%` }} />
+                </span>
+              )}
+            </Tile>
+          </div>
+
+          <div className="ledger-rank">
+            {combat && (
+              <Tile
+                label="Combat"
+                wide
+                value={<CombatFace combat={combat} armor={armorLine} />}
+                detail={<CombatDetail combat={combat} />}
+                open={tileOpen === "combat"}
+                onOpen={(want) => setTileOpen(want ? "combat" : null)}
+              />
+            )}
+            {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md) — never the
+                number, which is the whole point of the dial. Fine is grey,
+                Ecstatic is green and Panicking is red; the tone picks the
+                token. */}
+            <Tile
+              label="Mood"
+              value={moodBand?.label ?? "Fine"}
+              tone={moodBand?.tone ?? "muted"}
+              word
+              detail={MOOD_DETAIL}
+              open={tileOpen === "mood"}
+              onOpen={(want) => setTileOpen(want ? "mood" : null)}
+            />
+            {/* The modifier the bot actually rolls the Gambit die against, not
+                a second opinion: same module, same arguments as the bot's own
+                call — and now it says WHICH modifiers, which is the question a
+                player looking at a bare −3 was always about to ask. */}
+            <Tile
+              label="Gambit die"
+              value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
+              over={Boolean(gambit)}
+              detail={gambitDetail}
+              open={tileOpen === "gambit"}
+              onOpen={(want) => setTileOpen(want ? "gambit" : null)}
+            />
+          </div>
         </div>
       </div>
 

@@ -1,0 +1,330 @@
+# Combat
+
+How good somebody is in a fight, where the number comes from, and who is
+allowed to read it.
+
+Nothing here resolves a fight. A fight is a Gambit and a GM's ruling, the same
+as it always was. What this system does is answer the question a GM used to
+answer by opening the Tags list and doing arithmetic in their head: **how good
+is this person, actually?**
+
+`db/lib/fightingSkill.js` is the whole of it, and it is the sibling of
+`db/lib/armorValue.js` — the catalog carries the numbers, one module owns the
+words and the stacking rule, and nothing else is allowed to re-derive either.
+
+## 1. It reads the catalog as written
+
+The catalog was most of the way here before this existed. Around twenty tag
+descriptions already say **"your melee skill counts as 2 tiers higher"**, and
+four Status tags state their own shift in prose players read. So the unit is
+tiers, and **not one description was reworded** to make this work. Where a tag
+says a number, that number is what it does.
+
+Four of those are load-bearing enough to name, because the prose and the
+`fighting:` block are two copies of one number and they must never drift:
+
+| tag | its own words |
+|---|---|
+| `tipsy` | "Your Fighting skill counts as 1 tier lower." |
+| `wasted` | "Your Fighting skill counts as 2 tiers lower." |
+| `hangover` | "Your fighting skill counts as 1 tier lower." |
+| `opium-high` | "Your fighting skill counts as 1 tier lower." |
+
+A fifth is the `crossbow`: *"your Ranged Fighting skill counts as one tier
+higher due to its ease of use"* — which is why it is the only ordinary weapon
+in the catalog worth a full tier. `db/test/fightingSkill.test.js` pins these.
+
+## 2. The four classes
+
+Every combat-relevant tag is exactly one of these, and which one it is depends
+entirely on **what the code can know**.
+
+| Class | Means | Examples |
+|---|---|---|
+| **Tier** | a rung on the ladder | `melee-expert`, `ranged-basic` |
+| **Modifiers** | programmatic, and not about a weapon | Giant, Old, Missing Arm, Reckless Attacker, Flamboyant (*wearing no body armour*), Drunken Master (*while Tipsy*), the Thanati robes |
+| **Items** | the weapon in your hand, and the skills keyed to one | a Broadsword, Melee (Swords) *with a sword in hand* |
+| **Situational** | the fiction of the moment decides, so a GM does | Duelist, Shield Wall, Guerrilla, Sniper, Monster Hunter, Camouflage |
+
+Four rules fall out of that, and each one is load-bearing:
+
+- **Items means weapons. Nothing else.** Armour is its own system with its own
+  words and **never** adds to or subtracts from a fighting band. It sits in the
+  same tile so the two are read together, not summed. Armour can still be a
+  *condition* on a Modifier — which is all Flamboyant needs, and it reads only
+  whether a slot is filled, never what is in it.
+- **A situational may carry no number at all.** Camouflage, Iron Constitution,
+  a Hound: real weight in a fight, no tier. They render in the same strip as
+  the numbered ones, so a GM reads one list instead of two.
+- **Some things are a floor or a cap, not a number.** Apex Form *is* Legendary
+  — it "removes almost all of your other tags", so there is nothing left to add
+  to. Bound, Paralyzed and Asleep *are* Pitiful. A floor never caps and a cap
+  always wins.
+- **A modifier can cancel another.** Ambidextrous is *"Losing a hand would only
+  be a minor inconvenience to you"* — not a smaller penalty, no penalty. The
+  breakdown still names the cancelled row and what cancelled it, so a player
+  wondering why their missing hand costs nothing can read the answer.
+
+### Stacking
+
+**Modifiers sum. Items take the single best.**
+
+Not invented for this. It is the rule the handbook already states for tools:
+*"Carrying two weapons does not pay twice — you hunt with one of them, so only
+the better one counts — but a weapon, a set of gear and a skill all stack."*
+
+The "best" is the best **pairing**, not the best weapon: a specialism is scored
+together with the weapon it names, because a Broadsword is worth little alone
+and a great deal to a swordsman. Holding a sword and a mace, a swordsman gets
+the sword.
+
+Situational entries never enter the number at all. That is what stops Duelist
+plus Guerrilla plus Sniper from running away.
+
+## 3. The scale
+
+**Authored in tiers, stored in points.** One tier is ten points, so a tag can
+be worth half a tier and the arithmetic never touches a float. `tiers: -0.5`
+becomes `points: -5` at the door (`db/lib/tagShapes.js`), and nothing reads
+`tiers` back out of the database. A `tiers:` off the 0.1 grid is refused rather
+than rounded — a typo should fail the sync, not quietly change a tag.
+
+Untrained is **15**, a rung is **+10**, and the bands are **10 wide**, so every
+rung lands dead centre of its band. That centring is what makes the words
+stable: a peasant picking up a knife, or taking one half-tier knock, stays what
+they were.
+
+| Score | Band | | Held | Score | Band |
+|---|---|---|---|---|---|
+| ≤9 | Pitiful | | nothing | 15 | **Weak** |
+| 10–19 | Weak | | Basic | 25 | Mediocre |
+| 20–29 | Mediocre | | Trained | 35 | Capable |
+| 30–39 | Capable | | Skilled | 45 | Seasoned |
+| 40–49 | Seasoned | | Expert | 55 | Dangerous |
+| 50–59 | Dangerous | | Legendary | 65 | Lethal |
+| 60–69 | Lethal | | | | |
+| 70+ | Legendary | | | | |
+
+**Everyone starts Weak**, which is the point — most of Ravenheart has never
+been trained. **Pitiful is only reachable downward**: a missing arm, Frail,
+Wasted, a bad wound. **Legendary needs the peak of a specialism and the right
+thing in hand** — Expert plus Swords plus a sword. Nobody buys their way there.
+
+How it actually falls out:
+
+```
+a peasant                                Weak
+a peasant with a work knife              Weak
+guard: Basic + broadsword                Mediocre
+soldier: Trained + broadsword            Capable
+Trained + Swords + broadsword            Dangerous
+Expert, unarmed                          Dangerous
+Expert + Swords + broadsword             Legendary
+robed Thanati, Skilled, with the knife   Lethal
+```
+
+**Every tunable is in one block at the top of `db/lib/fightingSkill.js`** — the
+base, the rung step, the tier size, the band edges. Rebalancing the whole
+system is an edit there, not a sweep through `docs/tags.yaml`. That matters,
+because the specialisms at +2 tiers are the values most likely to want a second
+pass once the game has been played.
+
+### Pricing a tag
+
+A fighting rung costs 7 tag points, so **a tier is worth about 7 points** — but
+that is a **ceiling, not a formula**:
+
+> A tag's price pays for everything it does. Combat gets the share of that price
+> combat actually earns, and the full share only when fighting is the tag's
+> whole job.
+
+Relentless (7 pts, pure nerve) takes its full +1. Eagle Eyes (2 pts) also helps
+you spot things and read at distance, so combat takes part of its 0.3.
+
+Health tags are not priced this way, because almost all of them cost 0 — a
+wound is not bought. Those are priced off **each other**: the ladder from
+Bruised (−0.5) to Arterial Bleed (−3) has to read as one ladder.
+
+**The smallest step is 0.1 tiers**, and that is what makes the small traits
+worth authoring at all. Steady costs 1 point and would round to nothing on a
+whole-tier scale; at +0.1 it is honest about being slight and it still
+*composes* — Steady, Eagle Eyes and Strong together come to most of a tier on
+an archer nobody would call a combat build.
+
+Three prices are worth a second look rather than being buried, and each is one
+number in one table:
+
+- **Giant at +2** puts an untrained behemoth at Capable, above a Trained
+  fighter holding nothing. Price-consistent (14 pts is two rungs) and
+  flavour-consistent ("you could easily crush anyone"), but it is the value
+  most likely to want tuning.
+- **Ambidextrous costs 2 points** and cancels a whole maiming. Very cheap
+  insurance. Repricing the tag is a `TAGS.md` §4a call, so this prices the
+  effect and leaves the cost alone.
+- **Brave already does two jobs** — `db/lib/mood.js` halves every mood swing it
+  takes, `db/lib/torture.js` raises its torture threshold — and because mood
+  feeds the Gambit die it already pays off in a fight indirectly. +0.5 is a
+  third job priced modestly, not new ground.
+
+## 4. Authoring
+
+One nullable column, `Tag.fighting`, normalised and validated by
+`db/lib/tagShapes.js` the way `laborBonus` and `placement` already are.
+
+```yaml
+  melee-expert:                       # Tier — Basic is rung 1
+    fighting: { tree: melee, rung: 4 }
+
+  broadsword:                         # Items — a weapon declaring itself
+    fighting: { tiers: 0.4, weaponClass: sword }
+
+  melee-swords:                       # Items — a skill keyed to a class
+    fighting: { tree: melee, tiers: 2, when: { weaponClass: [sword] } }
+
+  strong:                             # Modifiers — and this is why decimals
+    fighting: { tree: both, tiers: 0.5 }
+
+  melee-flamboyant:                   # Modifiers — conditional on what you wear
+    fighting: { tree: melee, tiers: 2, when: { unarmoured: [BODY] } }
+
+  ambidextrous:                       # Modifiers — cancels, never counterweights
+    fighting: { cancels: [missing-arm, missing-fingers, mangled-hand] }
+
+  apex-form:                          # A floor, not a bonus
+    fighting: { tree: both, floor: legendary }
+
+  bound:                              # A cap
+    fighting: { tree: both, cap: pitiful }
+
+  melee-duelist:                      # Situational — never summed
+    fighting:
+      tree: melee
+      tiers: 2
+      situational: "one-on-one, especially with swords, rapiers and knives"
+
+  camouflage:                         # Situational with no number at all
+    fighting: { note: "blends into the forest, so hard to spot first" }
+```
+
+`rung:` is a position, not a score — `fightingSkill.js` owns the `15 + 10 ×
+rung` arithmetic, so re-tuning the ladder is one constant rather than ten YAML
+edits.
+
+### `when:` is an AND
+
+| key | true when |
+|---|---|
+| `weaponClass: [...]` | an **equipped** weapon is of one of these classes |
+| `holds: [...]` | the character holds all of these tags |
+| `equipped: [...]` | all of these are equipped, not merely carried |
+| `unarmoured: [SLOT]` | nothing is equipped in that slot |
+
+Every key present must hold, so a bonus needing several things at once is one
+entry rather than several that cannot see each other.
+
+`equipped:` versus `holds:` is the distinction `armorValue.js` already draws
+and enforces — *"A vest in your cart stops nothing"*. A robe you are not
+wearing is not a robe, and a sword in a sack is not a sword.
+
+`weaponClass` inside `when:` is deliberately **not** tested as a character-level
+condition. It is resolved per weapon, so that "+2 while using swords" attaches
+to the sword being used — otherwise holding a sword and a mace would pay both
+specialisms at once.
+
+### The eleven weapon classes
+
+`sword · polearm · club · axe · knife · unarmed · bow · crossbow · firearm ·
+thrown · exotic`
+
+A weapon's class is also what says **which half of the tree it serves**: bow,
+crossbow, firearm and thrown are the ranged half. There is deliberately no slug
+list anywhere — that is the mistake `armorValue.js` was written to undo, and
+its own comment says why: *"A number on the tag cannot go stale the way a list
+in a file did the moment somebody added a helmet to the catalog."*
+
+### What the door refuses
+
+Every one of these is a **silent** no-op at runtime rather than a crash, which
+is exactly why `db/lib/syncTags.js` catches them at the door:
+
+- a shift with no `tree` — it lands on neither half
+- a `when:` naming a tag that is not in the catalog — it never fires
+- a `weaponClass` on something not `equippable` — a weapon nobody can draw
+- a `weaponClass` **and** a `tree` — the class already decides the tree, and
+  saying it twice invites the two to disagree
+- a block with a condition and nothing to apply
+- a `tiers:` off the 0.1 grid
+
+## 5. Nobody reads an enemy
+
+**A fighting band is the one number a player must never be able to read off
+somebody they might have to fight.** Four things keep that true, and a new
+surface has to keep all four:
+
+- The Combat tile draws **only on your own sheet** (`LedgerBand.js` takes
+  `isSelf`). There is no other-character sheet today; the gate is there so the
+  day one exists it is already shut.
+- Every fighting skill in the catalog is `visible: false`, so 🔍 Examine has
+  never shown one and must keep not showing one.
+- **`web/lib/sheetCards.js#rowValue` must not learn a fighting word.** A tag
+  row's right-hand value renders on surfaces a stranger can reach.
+- **The bot's inspect embed is deliberately left alone.**
+  `bot/src/events/messageReactionAdd.js` prints `formatTagArmor` on every
+  visible tag; it does **not** print `formatTagFighting`, and it should not.
+  Armour is public by design — you can see what somebody is wearing. Putting a
+  number on a stranger's missing arm is a different thing.
+
+`formatTagFighting` (`db/lib/formatTagFighting.js`) says what **one tag** does,
+not what a person is, and that is why it is safe on a chip: the tags carrying a
+real shift are invisible to strangers in the first place.
+
+**GMs see everything**, on the inspector's Sheet tab, directly above the Armor
+fact — one edit in `InspectorColumn.js` that serves both `/gm/turns` and
+`/gm/players`, since both desks mount the same inspector. Deciding how a fight
+goes is the job the number is withheld from players for.
+
+## 6. The surfaces
+
+- **`web/app/components/LedgerBand.js`** — the Combat tile, spanning two
+  tracks of the band's lower rank. Resting it shows the two bands, the combined
+  armour under them, and one quiet 11px line naming the situational tags —
+  names only, because what each one *means* needs room the tile does not have.
+  Hover, focus or click and the tile **swaps its own face** for the breakdown:
+  the two halves of the tree side by side, and what a GM might apply spanning
+  both underneath. Sized by the resting face, so opening it moves nothing.
+  **Not a tooltip** — `SHEET.md` §3 is the rule for that surface, and swapping
+  in place is what keeps it.
+- **`web/app/components/InspectorColumn.js`** — the GM's Fighting fact.
+- **`web/app/components/TagDetails.js`** — one tag's own "In a fight" line.
+- **`web/app/globals.css`** — the eight band colours, mixed from `--danger`,
+  `--muted` and `--positive` with `color-mix(in oklab, …)` rather than written
+  as hex, so the ramp follows every theme. `npm run audit:contrast` reproduces
+  the mix and gates all eight; **a band added to `fightingSkill.js` without a
+  row in `globals.css` and in `audit-contrast.js` renders unstyled and
+  unaudited.**
+
+**Legendary is the one band that looks different rather than just greener** —
+it takes `--font-display`. Practically nobody reaches it, and it should read as
+an event when somebody does.
+
+## 7. What is deliberately not here
+
+- **No column on `Character`.** The band is derived from tags on every read,
+  the way `combineArmor` and `gambitModifierTotal` already are. Cheap, and it
+  cannot go stale.
+- **No `fighting` field on the GM tag form** (`/gm/dev/tags`). That form takes
+  scalars; `laborBonus` and `placement` are Json blocks and are YAML-only for
+  the same reason, and a JSON textarea in a modal would be worse than the gap.
+  A GM edit through the form leaves the column untouched, since the write names
+  its fields.
+- **No number, anywhere, to anybody.** The band is a word — the posture
+  `Tag.meleeArmor`'s comment sets for armour and `laborYield.js#qualityWord`
+  sets for Laboring. The breakdown names contributors in tiers so a GM can
+  follow the arithmetic; nothing prints a total.
+- **Beguiling cannot be held by this model, and that is correct.** It reads
+  *"people struggle to raise a hand against you, having their fighting skill
+  counts as 1 tier lower or 2 tiers lower if you are wearing a human face"* —
+  it modifies **whoever is fighting you**, and a band computed from one
+  character's own tags can never know who that is. It rides as a `note:` on its
+  holder, where the GM adjudicating the fight will see it. Making it a real
+  modifier would mean resolving fights in code, which this system does not do.

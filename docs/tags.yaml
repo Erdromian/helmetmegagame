@@ -744,7 +744,7 @@ tags:
     group: general-traits
     description: "You serve the Dark Lord now; you are unable to attack his servants or perform anything other than violence."
     fighting:
-      note: "cannot raise a hand to Tzchernobog's servants, and does nothing but violence"
+      note: "cannot raise a hand to Tzchernobog's servants, and does nothing but violence ‡"
     pointCost: 0
     visible: false
     purchasable: false
@@ -898,7 +898,7 @@ tags:
     category: general
     group: general-traits
     description: "A reflection of your soul, with your choice of name. It can appear and disappear at will, and punch things hard and fast. Beware! Any damage it takes is reflected onto you."
-    fighting: { note: "fights beside you, and what hurts it hurts you" }
+    fighting: { note: "fights beside you, and what hurts it hurts you ‡" }
     pointCost: 0
     visible: false
     purchasable: false
@@ -911,7 +911,7 @@ tags:
     category: general
     group: general-traits
     description: "Once per day, you can stop time in a 10-foot radius around you. This lasts 10 seconds."
-    fighting: { note: "once a day, stops time around you" }
+    fighting: { note: "once a day, stops time around you ‡" }
     pointCost: 0
     visible: false
     purchasable: false
@@ -945,7 +945,7 @@ tags:
     category: general
     group: general-traits
     description: "You wake up to noise readily, such as footsteps in the night."
-    fighting: { note: "wakes to footsteps, so hard to catch asleep" }
+    fighting: { note: "wakes to footsteps, so hard to catch asleep ‡" }
     pointCost: 1
     purchasable: true
     purchasableAfterStart: false
@@ -959,7 +959,7 @@ tags:
     category: general
     group: general-traits
     description: "Not a good thing to be in Ravenheart."
-    fighting: { note: "sleeps through somebody walking up" }
+    fighting: { note: "sleeps through somebody walking up ‡" }
     pointCost: -2
     conflictsWith: [light-sleeper]
     purchasable: true
@@ -1041,7 +1041,7 @@ tags:
     category: general
     group: general-traits
     description: "Poisons and diseases have less effect on you."
-    fighting: { note: "poison and disease take less hold" }
+    fighting: { note: "poison and disease take less hold ‡" }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1147,7 +1147,7 @@ tags:
     category: general
     group: general-traits
     description: "Whenever you lead a group in battle, you tend to come out ahead."
-    fighting: { tree: both, tiers: 0.7, situational: "leading a group in battle" }
+    fighting: { tree: both, tiers: 0.7, situational: "leading a group in battle ‡" }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -1255,7 +1255,7 @@ tags:
     category: general
     group: general-traits
     description: "You know the Undercroft and the Underquarter very well. You're hard to follow there."
-    fighting: { tree: both, tiers: 0.3, situational: "in the Undercroft or the Underquarter" }
+    fighting: { tree: both, tiers: 0.3, situational: "in the Undercroft or the Underquarter ‡" }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -1542,7 +1542,7 @@ tags:
     category: general
     group: general-personality
     description: "You will never attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you. Locks all violent Desires, but unlocks a few of its own."
-    fighting: { note: "will not attack except in self defence, and never to kill" }
+    fighting: { note: "will not attack except in self defence, and never to kill ‡" }
     pointCost: 0
     purchasable: true
     purchasableAfterStart: false
@@ -1714,7 +1714,7 @@ tags:
     category: general
     group: general-personality
     description: "Blood, especially your own blood, makes you dizzy..."
-    fighting: { tree: both, tiers: -0.6, situational: "at the sight of blood" }
+    fighting: { tree: both, tiers: -0.6, situational: "at the sight of blood ‡" }
     pointCost: -4
     visible: false
     purchasable: true
@@ -1748,7 +1748,7 @@ tags:
     category: general
     group: general-personality
     description: "You possess an intense fear of monsters and unnatural creatures."
-    fighting: { tree: both, tiers: -0.3, situational: "facing monsters and unnatural creatures" }
+    fighting: { tree: both, tiers: -0.3, situational: "facing monsters and unnatural creatures ‡" }
     pointCost: -2
     visible: false
     purchasable: true
@@ -1958,7 +1958,7 @@ tags:
     category: general
     group: general-personality
     description: "You like split knuckles, cracked teeth, black eyes — though they look better on the other guy! You actively pick fights where they might not be necessary. Unlocks Desires related to picking fights."
-    fighting: { note: "picks fights that did not need picking" }
+    fighting: { note: "picks fights that did not need picking ‡" }
     pointCost: 2
     visible: false
     purchasable: true
@@ -2097,7 +2097,7 @@ tags:
     category: general
     group: general-beliefs
     description: "You are at peace. Once per day, you can instantly cure a Moderately Severe or lesser wound (refer to the Medical document). You cannot fight anyone, not even in self-defense. You'd rather let yourself be killed."
-    fighting: { note: "will not fight at all, not even in self defence" }
+    fighting: { note: "will not fight at all, not even in self defence ‡" }
     pointCost: 14
     visible: true
     # Migrants only: Pale is the Migrant role's starting tag and is
@@ -2169,7 +2169,7 @@ tags:
     category: general
     group: general-cerberon
     description: "You're excellent at handling dogs. Under your usage, the kennel's {tag:hound}s fight and track even better."
-    fighting: { note: "your hounds fight and track better" }
+    fighting: { note: "your hounds fight and track better ‡" }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -2240,7 +2240,7 @@ tags:
     group: general-brigand
     teachable: true
     description: "You blend into the forest. Useful for ambushes."
-    fighting: { note: "blends into the forest, so hard to spot first" }
+    fighting: { note: "blends into the forest, so hard to spot first ‡" }
     pointCost: 3
     purchasable: true
     purchasableAfterStart: true
@@ -2700,7 +2700,7 @@ tags:
     group: skills-fighting
     teachable: true
     description: "You have practiced forming a shield wall. When standing within reach of 2 or more other Cerberi, your melee skill counts as 2 tiers higher."
-    fighting: { tree: melee, tiers: 2, situational: "in a shield wall with 2 or more Cerberi" }
+    fighting: { tree: melee, tiers: 2, situational: "in a shield wall with 2 or more Cerberi ‡" }
     pointCost: 8
     requiredTag: melee-basic
     visible: false
@@ -2717,7 +2717,7 @@ tags:
     fighting:
       tree: melee
       tiers: 2
-      situational: "one-on-one, especially with swords, rapiers and knives"
+      situational: "one-on-one, especially with swords, rapiers and knives ‡"
     pointCost: 9
     requiredTag: melee-basic
     visible: false
@@ -2832,7 +2832,7 @@ tags:
     fighting:
       tree: both
       tiers: 2
-      situational: "opening with a surprise attack in difficult terrain"
+      situational: "opening with a surprise attack in difficult terrain ‡"
     pointCost: 5
     visible: false
     purchasable: true
@@ -3213,7 +3213,7 @@ tags:
     category: status
     group: status-buffs
     description: "You can see in the dark as though it were an overcast day."
-    fighting: { note: "sees in the dark as though it were overcast" }
+    fighting: { note: "sees in the dark as though it were overcast ‡" }
     pointCost: 0
     visible: false
     purchasable: false
@@ -3347,7 +3347,7 @@ tags:
     category: status
     group: status-buffs
     description: "Every Gambit you roll is an automatic 6."
-    fighting: { note: "every Gambit rolls a 6" }
+    fighting: { note: "every Gambit rolls a 6 ‡" }
     pointCost: 0
     visible: false
     purchasable: false
@@ -4396,7 +4396,7 @@ tags:
     category: health
     group: health-mind
     description: "You no longer feel in control of your body! You must submit a gambit to attack those standing nearby, or if alone, yourself! You may not explicitly warn those around you, outside of acting very strange."
-    fighting: { note: "must attack whoever is standing nearby" }
+    fighting: { note: "must attack whoever is standing nearby ‡" }
     pointCost: 0
     visible: true
     purchasable: false
@@ -4614,7 +4614,7 @@ tags:
     category: health
     group: health-mind
     description: "You can't see in dim light or darkness."
-    fighting: { tree: both, tiers: -1, situational: "in dim light or darkness" }
+    fighting: { tree: both, tiers: -1, situational: "in dim light or darkness ‡" }
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
@@ -8687,7 +8687,7 @@ tags:
     category: items
     group: items-special
     description: "A group of metal wires grafted into the neck to transmit electric spasms. Allows the user to attain the speed of a galloping horse once per day."
-    fighting: { note: "once a day, the speed of a galloping horse" }
+    fighting: { note: "once a day, the speed of a galloping horse ‡" }
     pointCost: 0
     tradeable: false
     visible: false
@@ -9371,7 +9371,7 @@ tags:
     category: general
     group: general-traits
     description: "You have had a poisoned tooth installed. You can bite down on it at any time to release a deadly nerve agent into the room you are in, inflicting {tag:phrygian-toxin}. You will not survive."
-    fighting: { note: "one bite kills the room, and you with it" }
+    fighting: { note: "one bite kills the room, and you with it ‡" }
     pointCost: 0
     visible: false
     purchasable: false
@@ -12376,7 +12376,7 @@ tags:
     category: items
     group: items-armor
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
-    fighting: { note: "worth more standing beside others carrying one" }
+    fighting: { note: "worth more standing beside others carrying one ‡" }
     pointCost: 5
     equippable: true
     equipSlot: WEAPON
@@ -12708,7 +12708,7 @@ tags:
     category: demoness
     group: demoness
     description: "Your True Form terrifies people, either making them Afraid or Panicking. Requires a True Form other than Apex."
-    fighting: { note: "your True Form leaves people Afraid or Panicking" }
+    fighting: { note: "your True Form leaves people Afraid or Panicking ‡" }
     pointCost: 5
     purchasable: true
     purchasableAfterStart: true
@@ -12740,7 +12740,7 @@ tags:
     category: demoness
     group: demoness
     description: "While in your True Form, people struggle to raise a hand against you, having their fighting skill counts as 1 tier lower or 2 tiers lower if you are wearing a human face."
-    fighting: { note: "in your True Form, others fight you 1 tier lower — 2 behind a human face" }
+    fighting: { note: "in your True Form, others fight you 1 tier lower — 2 behind a human face ‡" }
     pointCost: 9
     purchasable: true
     purchasableAfterStart: true
@@ -12771,7 +12771,7 @@ tags:
     category: demoness
     group: demoness
     description: "Once per day you can let loose a shriek that stuns everyone around you."
-    fighting: { note: "once a day, stuns everyone around you" }
+    fighting: { note: "once a day, stuns everyone around you ‡" }
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true

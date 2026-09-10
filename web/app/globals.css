@@ -7219,15 +7219,20 @@ label.chip {
 }
 
 .ledger-tiles {
-  display: grid;
-  /* auto-fit rather than a fixed five, so the row folds before any tile is
-     narrow enough to wrap "30.5 / 71 lb" onto a second line. The max-width
-     fits all five across when there is room — it was 40rem for the four
-     before the Mood box, which left the Gambit die orphaned on its own row. */
-  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: var(--sp-2);
   flex: 1 1 26rem;
   max-width: 47rem;
+}
+
+/* One rank. Both are auto-fit on the same minimum, so the two read as one
+   instrument panel rather than two unrelated rows — the top rank fits its
+   three tiles across, the bottom fits Combat's double plus two singles. */
+.ledger-rank {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: var(--sp-2);
 }
 
 .ledger-tile {
@@ -7238,8 +7243,96 @@ label.chip {
   min-width: 0;
 }
 
-/* A tile with something to say when clicked (why the moves are 0, what moves
-   a mood). Same box, a cursor, and the accent rule while it is open.
+/* The two faces of a tile that has something to say. Both are always in the
+   DOM — `hidden` toggles which one shows — and they are stacked in the SAME
+   grid cell, so the tile is sized by the taller of the two and opening it
+   cannot change its height by a pixel. That is the whole point: the detail
+   used to be appended under the row and shoved the rest of the sheet down.
+
+   A grid of one column rather than absolute positioning, because absolute
+   would take the taller face out of flow and hand the sizing problem straight
+   back. */
+/* The box both faces share. Relative, because the detail is absolute inside
+   it. `min-height: 0` lets the detail scroll rather than push. */
+/* Both of these are <span>s, so they need saying out loud: an inline box
+   cannot hold the Carrying meter or size the tile, and left inline the meter
+   spilled out of the tile entirely. */
+.ledger-tile-faces {
+  display: block;
+  position: relative;
+  min-width: 0;
+  /* Grow into whatever the tile has left under its label, but never shrink
+     below the resting face. The detail is `inset: 0` inside this box, so a box
+     that only took its own content height gave Mood's paragraph two lines and
+     a scrollbar it could not use, with the rest of the tile blank beneath it.
+     `0 auto` on the shrink is the other half: the row is sized by the tallest
+     tile, and letting this collapse under a shorter neighbour is what pushed
+     the Carrying meter out through the bottom border. */
+  flex: 1 0 auto;
+}
+
+.ledger-tile-face {
+  display: block;
+  min-width: 0;
+}
+
+.ledger-tile-face[data-open="true"] {
+  visibility: hidden;
+}
+
+/* The opened face: absolute, so the tile's height never depends on how much
+   there is to say. Small and quiet, and scrollable in the one case that
+   overruns — the Mood box, whose paragraph is Bascinet's own words and not
+   mine to shorten. Every other tile's detail is a line or two. */
+.ledger-tile-detail {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  visibility: hidden;
+  font-size: var(--fs-2xs);
+  line-height: 1.45;
+  color: var(--muted);
+  /* Block flow, NOT a flex column. A bare string child of a flex column is an
+     anonymous item that shrinks below its content, so Mood's paragraph was
+     clipped after two lines with empty box beneath it and no scrollbar. In
+     normal flow it fills the box and then scrolls, which is the point. */
+  display: block;
+  /* The last few pixels fade out, so a line cut off at the bottom edge reads
+     as "there is more" rather than as a rendering fault. Costs nothing when
+     the detail fits: there is no content down there to fade. */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 0.7rem), transparent);
+}
+
+.ledger-tile-detail > * + * {
+  margin-top: var(--sp-1);
+}
+
+.ledger-tile-detail[data-open="true"] {
+  visibility: visible;
+}
+
+/* Combat's detail is three runs in a tile two columns wide, so it reads as two
+   columns: the two halves of the tree side by side, and what a GM might apply
+   spanning both underneath. In one column the last run — the one nobody can
+   derive from the tile's resting face, and so the most worth reading — was the
+   one that scrolled out of sight. */
+.ledger-tile-wide .ledger-tile-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  align-content: start;
+}
+
+.combat-line-span {
+  grid-column: 1 / -1;
+}
+
+.ledger-tile-detail .field-label {
+  display: inline;
+}
+
+/* A tile with something to say. Same box, a cursor, and the accent rule while
+   it is open.
 
    The column flexbox is not decoration. A <button> centres its own content
    vertically whatever its `display` is, so on a stretched grid row — one made
@@ -7309,21 +7402,9 @@ label.chip {
 }
 
 /* ── The Combat tile ───────────────────────────────────────────────────────
-   Two fighting bands, the armour under them, and the chips for what a GM has
-   to decide. It spans two grid columns because it carries three lines where
-   every other tile carries one — at one column every band word wraps. */
-.ledger-tile-combat {
-  grid-column: span 2;
-}
-
-@media (max-width: 30rem) {
-  /* One column at phone width, where the grid has already folded to a single
-     track and `span 2` would overflow it. */
-  .ledger-tile-combat {
-    grid-column: span 1;
-  }
-}
-
+   Two fighting bands, the armour under them, and one quiet line naming what a
+   GM might apply. It spans two grid columns (.ledger-tile-wide) because it
+   carries three lines where every other tile carries one. */
 .combat-bands {
   display: flex;
   flex-wrap: wrap;
@@ -7392,42 +7473,41 @@ label.chip {
   color: var(--muted);
 }
 
+.ledger-tile-wide {
+  grid-column: span 2;
+}
+
+@media (max-width: 30rem) {
+  /* One column at phone width, where the grid has folded to a single track
+     and `span 2` would overflow it. */
+  .ledger-tile-wide {
+    grid-column: span 1;
+  }
+}
+
+/* A footnote under the armour line. Names only, no borders, no boxes: these
+   are not clickable and never were, and the bordered chips they used to be
+   read as controls that did nothing when pressed. */
 .combat-situational {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-1);
-  margin-top: var(--sp-2);
-}
-
-/* Names only. What each one actually does reads in the detail line under the
-   row — the chip is here so a player knows there IS something, without the
-   tile growing a paragraph. */
-.combat-chip {
-  font-size: var(--fs-xs);
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
   color: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  padding: 0 var(--sp-1);
-  line-height: 1.6;
 }
 
+/* The meter is a <span> on the sheet, because it sits inside the tile's own
+   <span> faces and a <button> may only contain phrasing content. So its
+   display has to be said out loud here — left inline it drew nothing at all. */
 .ledger-tile .depot-meter,
 .ledger-tile-button .depot-meter {
+  display: block;
   margin-top: var(--sp-2);
 }
 
-/* The opened tile's words, under the whole row of tiles. A <p> for the two
-   tiles that say a sentence, a <div> of them for Combat — same slot, same
-   voice, so the row never grows a second place to look. */
-.sheet-tile-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-1);
-  grid-column: 1 / -1;
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  white-space: pre-line;
+/* Combat's opened face writes several short runs; each is its own line. */
+.combat-line {
+  display: block;
 }
 
 /* The strip under the tiles: the Move as filed, on the recessed surface

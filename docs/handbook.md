@@ -403,6 +403,24 @@ Equipping is also a public act. Some gear — a dagger, a pistol, a badge — is
 
 **Durations:** Some tags run out (`· 2t` on the chip). Some get *worse* instead of running out.
 
+### How Good You Are In A Fight
+
+Your sheet carries a **Combat** box, and it says two words: how you do up close, and how you do at range. Those are separate — a Legendary archer is no better with a knife than anyone else. ‡
+
+The words run **Pitiful · Weak · Mediocre · Capable · Seasoned · Dangerous · Lethal · Legendary**, and they are coloured to match, red through grey to green. ‡
+
+**Almost everyone in Ravenheart is Weak.** Most people have never been trained to fight, and that is the honest word for it. One rung of Melee or Ranged makes you Mediocre, and each rung after that moves you one word along. Pitiful is not where you start — it is where you end up, with a hangover, a bad wound, or a limb missing. Legendary is real but very nearly out of reach: it takes the top of a specialism *and* the right weapon in your hands. ‡
+
+Three kinds of thing move the number, and the box tells you which is which when you hover it: ‡
+
+- **What you are.** Being Strong, being Old, having a hand that no longer closes properly. These always count. ‡
+- **What you are holding.** A sword in your hand is worth something on its own, and a great deal more if you have trained with swords. **You only ever swing one weapon**, so carrying a sword *and* an axe is not worth more than carrying the better of the two — but the weapon, your training, and the specialism for that weapon all stack. ‡
+- **The moment.** Duelling, a shield wall, a surprise in rough ground, a shot at long range, something inhuman across from you. No system can know whether this fight is one of those, so these are **listed rather than counted** — bring them up with your GM when they apply. ‡
+
+You will never be shown this for anybody else, and nobody will be shown it for you. Working out how dangerous somebody is, is meant to be something you do by watching them, asking around, or finding out the hard way. ‡
+
+**Armor is separate**, and rides in the same box underneath. It does not make you better at fighting; it decides what happens when you are hit. Both numbers are there because the two things that hurt you in Ravenheart are nothing alike — a breastplate is excellent against a sword and paper against a rifle. ‡
+
 **Teaching:** Most skills can be taught by someone standing with you who holds them. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, teaching becomes their Routine for the turn, and learning becomes your Gambit — you succeed on a roll of 5 or 6, or 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill. A teacher with the Lecturing tag can teach up to three students on one Routine.
 
 ### Examining Tags

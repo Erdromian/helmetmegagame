@@ -8,4 +8,4 @@
 //
 // Named rather than `export *`: the target is CommonJS, so a star re-export
 // makes Turbopack emit runtime interop and warn on every build.
-export { fightingSkill, fightingWord, formatFightingSkill } from "@lifeweb/db/lib/fightingSkill";
+export { fightingSkill, fightingWord, formatFightingSkill, TREES } from "@lifeweb/db/lib/fightingSkill";
