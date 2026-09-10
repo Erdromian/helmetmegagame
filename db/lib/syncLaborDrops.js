@@ -24,21 +24,66 @@ function requireDocsPath(...segments) {
   return p;
 }
 
+const { TIERS } = require("./labordropsRarity");
+
 function loadDoc() {
   return yaml.load(fs.readFileSync(requireDocsPath("labordrops.yaml"), "utf8"));
 }
 
-// One pool item -> a partial LaborDropOption row, or throws on an unknown
-// tag slug. "nothing" (any case) is the explicit no-result pad; "+N"/"-N" is
-// a ⬢ delta; anything else is read as a tag slug.
+// YAML rarity name -> the LaborDropRarity enum. The six are
+// db/lib/labordropsRarity.js's TIERS, which are cavingLoot.js's.
+const RARITY_BY_NAME = new Map(TIERS.map((t) => [t, t.toUpperCase().replace(/-/g, "_")]));
+
+// One pool item -> a partial LaborDropOption row, or throws.
+//
+// Two shapes. A bare scalar is a pad or a ⬢ delta: "nothing" (any case) is
+// the explicit no-result, "+N"/"-N" is a Resources change. Neither is an item
+// and neither takes a rarity — they sit in their own bands.
+//
+// Anything you can actually find is an object carrying its rarity:
+//
+//     - { slug: blind-fish, rarity: common }
+//
+// The rarity is REQUIRED on a tag, and that is the point of the shape: under
+// the old uniform draw an entry's odds came from how many times it had been
+// copy-pasted, which meant nobody ever had to say how rare a thing was
+// supposed to be. Now they do, once, in a word.
 function parsePoolEntry(raw, where, tagIdBySlug) {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const slug = String(raw.slug ?? "").trim();
+    if (!slug) {
+      throw new Error(`labordrops.yaml: an entry in ${where} has no "slug"`);
+    }
+    const tagId = tagIdBySlug.get(slug);
+    if (!tagId) throw new Error(`labordrops.yaml: unknown tag slug "${slug}" in ${where}`);
+    const name = String(raw.rarity ?? "").trim();
+    if (!name) {
+      throw new Error(
+        `labordrops.yaml: "${slug}" in ${where} has no rarity — every find needs one of: ${TIERS.join(", ")}`,
+      );
+    }
+    const rarity = RARITY_BY_NAME.get(name);
+    if (!rarity) {
+      throw new Error(
+        `labordrops.yaml: "${slug}" in ${where} has rarity "${name}" — expected one of: ${TIERS.join(", ")}`,
+      );
+    }
+    return { kind: "TAG", tagId, rarity };
+  }
+
   const value = String(raw).trim();
   if (/^nothing$/i.test(value)) return { kind: "NOTHING" };
   const bonus = /^([+-]\d+)$/.exec(value);
   if (bonus) return { kind: "RESOURCES", resourceAmount: Number(bonus[1]) };
-  const tagId = tagIdBySlug.get(value);
-  if (!tagId) throw new Error(`labordrops.yaml: unknown tag slug "${value}" in ${where}`);
-  return { kind: "TAG", tagId };
+  // A bare slug used to be legal and is the commonest way this file will be
+  // edited wrong from here on, so it gets its own message rather than
+  // "unknown tag".
+  if (tagIdBySlug.has(value)) {
+    throw new Error(
+      `labordrops.yaml: "${value}" in ${where} needs a rarity — write { slug: ${value}, rarity: common }`,
+    );
+  }
+  throw new Error(`labordrops.yaml: unknown tag slug "${value}" in ${where}`);
 }
 
 function parseRoll(key, where) {
@@ -76,8 +121,29 @@ function rowsFromScopeNode(node, where, scope, catalogs) {
     if (!Array.isArray(value)) {
       throw new Error(`labordrops.yaml: ${where} roll ${key} must be a list`);
     }
+    // Repeat-to-weight is gone (db/lib/labordropsRarity.js), so a slug twice
+    // in one pool no longer means "twice as likely" — it means somebody
+    // copy-pasted. Silently it would just make the entry share its band with
+    // itself, which is a bug that looks like a balance decision.
+    const seen = new Set();
     for (const raw of value) {
-      rows.push({ roll, ...scope, ...parsePoolEntry(raw, `${where} roll ${key}`, catalogs.tagIdBySlug) });
+      const row = parsePoolEntry(raw, `${where} roll ${key}`, catalogs.tagIdBySlug);
+      if (row.kind === "TAG") {
+        if (seen.has(row.tagId)) {
+          throw new Error(
+            `labordrops.yaml: ${where} roll ${key} lists the same tag twice — say it once and set its rarity`,
+          );
+        }
+        seen.add(row.tagId);
+      } else if (row.kind === "NOTHING") {
+        if (seen.has("nothing")) {
+          throw new Error(
+            `labordrops.yaml: ${where} roll ${key} has more than one "nothing" — the miss rate is the face's column now, not a pad count`,
+          );
+        }
+        seen.add("nothing");
+      }
+      rows.push({ roll, ...scope, ...row });
     }
   }
   return rows;

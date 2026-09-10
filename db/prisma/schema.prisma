@@ -1173,11 +1173,34 @@ enum LaborDropKind {
   NOTHING
 }
 
+// How rare a TAG entry is within its pool. The same six names
+// db/lib/cavingLoot.js uses, deliberately — two loot systems in one game
+// should not speak two vocabularies. The NUMBERS are not shared: the
+// probability each name carries lives in db/lib/labordropsRarity.js, keyed by
+// die face, and a cave 6 and a labor 6 are different events.
+//
+// Only TAG rows carry one. A NOTHING pad and a RESOURCES delta are not items
+// and sit in their own bands, outside the ladder — the sync refuses a rarity
+// on either.
+enum LaborDropRarity {
+  ULTRACOMMON
+  COMMON
+  UNCOMMON
+  RARE
+  EXTREMELY_RARE
+  NEARLY_IMPOSSIBLE
+}
+
 // One entry in one pool. A "table" is never its own row: it is every
-// LaborDropOption sharing one (roll, laborType, zoneId, locationId) scope,
-// drawn from uniformly — repeat an entry to weight it, the way
-// docs/labordrops.yaml's own examples do. Combining several scopes at once
-// (LABORDROPS.md §2) is a query over this table, not a join anywhere else.
+// LaborDropOption sharing one (roll, laborType, zoneId, locationId) scope.
+// Combining several scopes at once (LABORDROPS.md §2) is a query over this
+// table, not a join anywhere else.
+//
+// The draw is TWO-STAGE now, not uniform: land on a rarity band by the die
+// face's column, then pick evenly among that band's members
+// (db/lib/labordropsRarity.js), the same shape db/lib/cavingLoot.js has
+// always had. Repeat-to-weight is gone with it — a repeated entry is now
+// just a duplicate, and the sync says so.
 model LaborDropOption {
   id String @id @default(cuid())
 
@@ -1197,6 +1220,16 @@ model LaborDropOption {
   location   Location? @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   kind LaborDropKind
+
+  // TAG only, and required on every TAG row (the sync enforces both).
+  // Authored as `rarity:` in docs/labordrops.yaml.
+  //
+  // This replaced repeat-to-weight, which was the only lever the old uniform
+  // draw had: 87 of the file's 180 lines were duplicates, 53 more were
+  // `nothing` pads, and nothing could be rarer than 1/poolsize. See
+  // db/lib/labordropsRarity.js for what each name is worth and why the
+  // column is keyed by face.
+  rarity LaborDropRarity?
 
   // TAG only. Cascades on delete rather than blocking a tag prune — the sync
   // fully rebuilds this table from docs/labordrops.yaml on every run, so a
@@ -2866,6 +2899,65 @@ model Tag {
   // through this instead. Null on every catalog row and on the other four
   // runtime authoring doors.
   customOfSlug String?
+  // What a customizable recipe charges for the player's words, and whether it
+  // takes a description at all. Both authored under `custom:` in
+  // docs/tags.yaml and only legal beside `customizable: true`.
+  //
+  // NULL cost means CUSTOM_SURCHARGE (web/lib/customCraft.js) — the painting,
+  // the sketch, the badge, the hat. `0` means free, which is what the two
+  // meals are: a cook naming their own dish is the whole point of the cooking
+  // rework, not an upsell. surchargeFor() is the one verdict both the dialog
+  // and the server action read, so the ⬢ shown is always the ⬢ billed.
+  customCost Int?
+
+  // False hides the description box and refuses a posted description. The
+  // Fine Meal takes a name and nothing else; the Lavish Meal takes both.
+  customDescribable Boolean @default(true)
+
+  // --- Cooking (docs/systemdocs/COOKING.md) -------------------------------
+  //
+  // What this tag contributes AS AN INGREDIENT, once it has been cooked into
+  // something. Authored as the `cooked:` block in docs/tags.yaml, normalized
+  // and validated by db/lib/tagShapes.js#normalizeCooked.
+  //
+  //   { taste: String, mood: Float, into: [<consumesInto entry>, ...]? }
+  //
+  // The presence of this block is the ONLY thing that makes a tag a legal
+  // ingredient — there is no separate flag and no per-recipe list, so adding
+  // a fourteenth thing you can cook with is one YAML entry and a sync.
+  //
+  // `into` is OPTIONAL, and its absence is not "nothing" — it means "use my
+  // own consumesInto, live". That is the raw/cooked split, and the medical
+  // rework's whole hand-off rests on it: COOKING.md §4-5, and the block
+  // comment on db/lib/tagShapes.js#normalizeCooked.
+  cooked Json?
+
+  // The ingredient slugs that went into THIS dish, in the order the cook
+  // slotted them. Written only on rows minted by a cooking craft
+  // (mintCustomCraft), empty on every catalog row and every other mint.
+  //
+  // Load-bearing twice over. It is what consumeTagRequestImpl reads to work
+  // out what a dish does, and it is part of the mint's REUSE KEY: two cooks
+  // who type the same words over different ingredients must get two rows, or
+  // one of them is eating the other's feces.
+  //
+  // NEVER ship it to a browser. It is deliberately absent from
+  // TAG_CHIP_FIELDS (web/lib/referenceData.js) — a dish says what it tastes
+  // of and never what it was made with, and a column in a flight payload
+  // would undo that in one dev-tools inspection.
+  cookedFrom String[] @default([])
+
+  // A meal recipe's own small mood, before its ingredients. Copied onto the
+  // minted dish row. Small on purpose (5 and 8): the ingredient is meant to
+  // do the work, which it cannot do if the plate it arrives on is already
+  // worth +30. See MOOD.md §6.
+  mealMood Float?
+
+  // How many ingredients this recipe takes: `{ min, max }`, authored as
+  // `requirement.ingredientSlots`. A sibling of requirementItems below rather
+  // than a second `anyOf` entry — the legal set is "any tag with a `cooked`
+  // block", which no authored list could keep up with.
+  requirementIngredientSlots Json?
 
   // The INGREDIENT half of a recipe — BREWING.md's "no code enforces a
   // recipe, least of all the ingredient" is no longer true of any entry that

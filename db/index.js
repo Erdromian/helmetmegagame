@@ -746,6 +746,55 @@ async function resolveNeeds(turn, config) {
           roomTags: { none: {} },
         },
       });
+      // The same sweep, for the same reason, over cooked dishes
+      // (docs/systemdocs/COOKING.md). Every distinct combination of words and
+      // ingredients mints a row, and a busy kitchen makes a lot of them: a
+      // cook who names each night's dinner leaves one behind per night, and
+      // the eaten ones are held by nobody within a turn. Guarded identically
+      // — `ephemeral` and the slug prefix so it can never reach a catalog
+      // row, and `characters`/`roomTags` empty so a dish still in somebody's
+      // pack or on a shelf is left where it is.
+      //
+      // Three guards the disguise sweep above does not need, because a custom
+      // craft can go places a disguise never does.
+      //
+      // A pending OFFER may name a row nobody currently holds, and an Offer is
+      // a real foreign key, so deleting under it would throw. A CraftProject
+      // names its base recipe rather than a mint today, but it is the same
+      // shape of pin and costs nothing to rule out.
+      //
+      // A CRATE is the one that is not a foreign key at all, and it is why
+      // this query cannot be a `where` clause alone: packageItemsRequest
+      // writes the packed items into `Tag.crateContents` as plain JSON and
+      // then drops the CharacterTag rows outright. A crated dish therefore
+      // has no holder, no room, no offer and no project — and sweeping it
+      // would empty the crate silently, since opening one skips a tagId that
+      // no longer resolves. Read every live manifest and exclude what they
+      // name. There are a handful of crates in a game, so this is cheap.
+      //
+      // A swept row leaves a dangling id in old `request_craft_tag` audit
+      // details. Accepted: `details.tagName` is recorded beside it, so a GM
+      // reading the row still sees what was made.
+      const crates = await prisma.tag.findMany({
+        where: { crateContents: { not: Prisma.DbNull } },
+        select: { crateContents: true },
+      });
+      const crated = new Set();
+      for (const { crateContents } of crates) {
+        if (!Array.isArray(crateContents)) continue;
+        for (const line of crateContents) if (line?.tagId) crated.add(line.tagId);
+      }
+      await prisma.tag.deleteMany({
+        where: {
+          ephemeral: true,
+          slug: { startsWith: "custom-craft-" },
+          characters: { none: {} },
+          roomTags: { none: {} },
+          offers: { none: {} },
+          craftProjects: { none: {} },
+          ...(crated.size ? { id: { notIn: [...crated] } } : {}),
+        },
+      });
       await markDone("expirySweep");
     } catch (err) {
       await passFailed("Expiry sweep", err);

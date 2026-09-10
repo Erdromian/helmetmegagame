@@ -88,6 +88,28 @@ export function stripWeightless(tag) {
 
 // Exactly the Tag columns TagChip reads. Shared so every TagChip caller
 // (this module, /gm/turns) uses the same shape instead of a copy that drifts.
+// Cooking (docs/systemdocs/COOKING.md). A cook is told what an ingredient
+// TASTES of and nothing else — not its mood, not what it will do to whoever
+// eats it. You learn an ingredient by using it, and poisoning somebody is
+// meant to be a gamble the poisoner takes too (Bascinet, 2026-09-09).
+//
+// Prisma cannot select one key out of a Json column, so the whole `cooked`
+// block comes back and is cut down here, on the server, before it crosses.
+// Shipping it whole would put every mood figure and every hidden effect one
+// dev-tools inspection away, which is the entire secret.
+//
+// `Tag.cookedFrom` is dropped outright by the same pass, and is not in
+// TAG_CHIP_FIELDS either: a dish says what it tastes of and never what it was
+// made with. It is cut here as well as left out of the select because the
+// character sheet loads its held tags with a bare `include: { tag: … }`,
+// which takes every column there is — a rule that lives only in a select is
+// a rule the next `include` quietly breaks.
+export function cookedTasteOnly(tag) {
+  if (!tag?.cooked && !tag?.cookedFrom?.length) return tag;
+  const { cooked, cookedFrom, ...rest } = tag;
+  return cooked ? { ...rest, cooked: { taste: cooked.taste ?? "" } } : rest;
+}
+
 export const TAG_CHIP_FIELDS = {
   id: true,
   slug: true,
@@ -95,6 +117,9 @@ export const TAG_CHIP_FIELDS = {
   // ChipLabel draws the mastery star off this. Drop it and the star silently
   // stops appearing on every chip in the app rather than erroring anywhere.
   mastery: true,
+  // Read and cut down to its taste by cookedTasteOnly before it ships — see
+  // above. Every caller that spreads TAG_CHIP_FIELDS must map through it.
+  cooked: true,
   description: true,
   pointCost: true,
   category: true,
@@ -223,7 +248,8 @@ export async function getVisibleTags() {
       .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
       .map(composePaper(viewer, held))
       .map(stripEmptyUnlocks)
-      .map(stripWeightless),
+      .map(stripWeightless)
+      .map(cookedTasteOnly),
     { visibleSlugs: readableSlugs },
   );
 }

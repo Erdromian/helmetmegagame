@@ -50,3 +50,4 @@ archives/
 # hide a db/prisma/migrations/backups/ from it in the same way.
 /backups/
 /*.sql
+.claude/worktrees/

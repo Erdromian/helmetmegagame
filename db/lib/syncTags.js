@@ -34,6 +34,11 @@ const {
   validateAdministerSkill,
   normalizeResists,
   validateResists,
+  normalizeCooked,
+  validateCooked,
+  normalizeIngredientSlots,
+  validateIngredientSlots,
+  normalizeCustom,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -672,6 +677,25 @@ async function syncTagsFromYaml(prisma) {
     // stackable only, never alongside placement, and a customizableSkill that
     // names a real tag.
     validateCustomizable(t, { slug: t.slug, knownSlugs: allTagSlugs });
+    // custom.cost / custom.describable — what the player's words cost, and
+    // whether the recipe takes a description at all (COOKING.md).
+    normalizeCustom(t.custom, { slug: t.slug, customizable: t.customizable ?? false });
+    // cooked — what this tag contributes as an INGREDIENT. Every slug it
+    // grants must be real, and `cooked.cures` has to agree with the entry's
+    // own cure columns, so the whole entry goes in. See COOKING.md.
+    validateCooked(normalizeCooked(t.cooked, { slug: t.slug, normalizeInto: normalizeConsumesInto }), {
+      selfSlug: t.slug,
+      tagSlugs: allTagSlugs,
+      entry: t,
+    });
+    // requirement.ingredientSlots — how many ingredients a recipe takes.
+    // Craftable only, never on a placement, never on a multi-turn project.
+    validateIngredientSlots(normalizeIngredientSlots(t.requirement?.ingredientSlots, { slug: t.slug }), {
+      selfSlug: t.slug,
+      craftable: t.craftable ?? false,
+      placement: t.placement ?? null,
+      turnsCost: t.requirement?.turnsCost ?? null,
+    });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -821,6 +845,15 @@ async function syncTagsFromYaml(prisma) {
       requirementResources: entry.requirement?.resourceCost ?? null,
       requirementGambit: entry.requirement?.gambit ?? false,
       requirementItems: normalizeRequirementItems(entry.requirement?.items, { tagNameBySlug, groupNameBySlug }),
+      // Cooking (COOKING.md). `cooked` is what this tag contributes as an
+      // ingredient; `ingredientSlots` is how many a recipe takes; `mealMood`
+      // is a meal's own small buff before its ingredients. `cookedFrom` is
+      // deliberately absent — only a mint ever writes that, and this sync
+      // never sees a minted row.
+      cooked: normalizeCooked(entry.cooked, { slug: entry.slug, normalizeInto: normalizeConsumesInto }),
+      requirementIngredientSlots: normalizeIngredientSlots(entry.requirement?.ingredientSlots, { slug: entry.slug }),
+      mealMood: entry.mealMood ?? null,
+      ...normalizeCustom(entry.custom, { slug: entry.slug, customizable: entry.customizable ?? false }),
       laborBonus: normalizeLaborBonus(entry.laborBonus),
       fighting: normalizeFighting(entry.fighting),
       handsLost: entry.handsLost ?? null,

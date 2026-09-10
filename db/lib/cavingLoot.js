@@ -42,7 +42,10 @@ const WEIGHTS_BY_ZONE = {
 // SMITHING.md §3/§4's ladder (Dead Simple/Simple -> Moderate/High Quality ->
 // Exceptional/Gunpowder) rather than every entry in it.
 const LOOT_TABLE = {
-  ultracommon: ["cave-fungus", "saltpeter", "purring-maggot", "rock"],
+  // rock-salt is ultracommon on Bascinet's call (docs/systemdocs/COOKING.md):
+  // it should be the thing a cook can always get and is never pleased to see,
+  // which is exactly what this tier is for.
+  ultracommon: ["cave-fungus", "saltpeter", "purring-maggot", "rock", "rock-salt"],
   common: ["cudgel", "purse", "cracked-bone-club", "sling", "skinned-cave-rat", "old-coin", "coal"],
   uncommon: [
     "alcohol",

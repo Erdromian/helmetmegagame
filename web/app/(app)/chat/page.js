@@ -27,6 +27,7 @@ import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
+import { cookedTasteOnly } from "@/lib/referenceData";
 import {
   RESEARCH_TAG_SLUG,
   CATHEDRAL_LOCATION_SLUG,
@@ -235,17 +236,25 @@ async function FreshChat({ userId }) {
         // Things drawer's own detection surface (the sheet's own is
         // character/page.js), so the two can no longer disagree about
         // whether a viewer smells anything.
+        //
+        // The same cut is made for cooking (docs/systemdocs/COOKING.md), and
+        // for the same reason: this select is a bare `include` on Tag, so it
+        // takes `cooked` and `cookedFrom` whole. A cook is told what an
+        // ingredient tastes of and nothing else, and a dish never says what
+        // it was made with. cookedTasteOnly runs FIRST, so everything below
+        // is working on the already-narrowed tag.
         const canSmellPoison = canDetectPoison(sheet?.tags ?? []);
         const clientSheet = {
           ...sheet,
           tags: (sheet?.tags ?? []).map((ct) => {
             const { poisonedCount, poisonPayload, ...ctRest } = ct;
+            const cut = cookedTasteOnly(ctRest.tag);
             // Crate-manifest leak (fix round M4b, fix 1): same nested-Tag
             // gap as character/page.js's own strip — `ct.tag.crateContents`
             // carries per-line poisonedCount/poisonPayload for a
             // player-packed crate, and `tag: true` above hands back the
             // whole row with nothing stripped yet.
-            const { crateContents, ...tagRest } = ctRest.tag ?? {};
+            const { crateContents, ...tagRest } = cut ?? {};
             const stripped = {
               ...ctRest,
               // The manifest goes, but WHETHER this is a crate has to survive it: the

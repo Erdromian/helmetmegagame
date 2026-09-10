@@ -347,12 +347,18 @@ test("a consume is worth its largest single figure, never a sum", () => {
   // A treat is a treat, not a treat plus a meal.
   assert.equal(consumeReliefFor("sweets", ["ate-meal"]), 8);
   assert.equal(consumeReliefFor("honeyed-cakes", ["ate-meal"]), 8);
-  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 15);
-  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 30);
   assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 15);
   assert.equal(consumeReliefFor("sky-lantern", []), 8);
   // Any proper meal at all is the floor under the food.
   assert.equal(consumeReliefFor("trail-ration", ["ate-meal"]), 5);
   // And a plain thing is worth nothing.
   assert.equal(consumeReliefFor("stepstone", []), 0);
+});
+
+test("a cooked meal is priced by dishMoodTerms, not by this table", () => {
+  // The two rows that used to sit here are gone: a dish is a minted row, so
+  // its slug never matches a table keyed by slug (COOKING.md). Both fall
+  // through to the ate-meal floor if anything ever asks.
+  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 5);
+  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 5);
 });

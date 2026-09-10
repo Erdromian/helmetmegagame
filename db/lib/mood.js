@@ -155,6 +155,14 @@ const DRINK_RELIEF = 30;
 // consumeReliefFor takes the MAX across all of it, never a sum: Bliss lands
 // both euphoric and high and is one drink, and Sweets is a treat rather than
 // a treat plus a meal.
+//
+// A COOKED MEAL IS NOT IN HERE, and cannot be. `fine-meal: 15` and
+// `lavish-meal: 30` sat in this table until the cooking rework; they were
+// flat, they were the largest single figures a meal could reach, and the
+// moment every meal became a MINTED row (COOKING.md) their slugs stopped
+// matching anything — a dish's slug is `custom-craft-…`. A dish is priced by
+// dishMoodTerms below instead, off its own `mealMood` and what went into it.
+// `ate-meal: 5` stays and is now genuinely the floor under every meal.
 const CONSUME_RELIEF = Object.freeze({
   tipsy: DRINK_RELIEF,
   wasted: DRINK_RELIEF,
@@ -162,14 +170,10 @@ const CONSUME_RELIEF = Object.freeze({
   "blind-drunk": DRINK_RELIEF,
   high: DRINK_RELIEF,
   euphoric: DRINK_RELIEF,
-  "lavish-meal": 30,
   // A hot drink. Keyed on the status rather than the bean, same as the drinks.
   tea: 15,
   caffeinated: 15,
   "maggot-milk": 15,
-  // "Makes an ordinary person happy", says its own catalog line. It used to be
-  // worth nothing, on the argument that it only fed a noble.
-  "fine-meal": 15,
   // The treats. Sugar does not grow in Ravenheart.
   sweets: 8,
   honey: 8,
@@ -792,6 +796,41 @@ function consumeReliefFor(itemSlug, grantedSlugs = []) {
   return best;
 }
 
+// What a COOKED DISH is worth (docs/systemdocs/COOKING.md): the meal's own
+// small figure plus every ingredient's, as terms for applyMoodTerms.
+//
+// Three deliberate differences from consumeReliefFor above, each of which is
+// the reason this is a separate function rather than another branch of it:
+//
+//   It SUMS. A drink is one drink however many statuses it lands, but "the
+//   ingredient does most of the work" only means anything if a second slot
+//   adds to the first. Two delicacies in a Lavish Meal are worth both.
+//
+//   It can be NEGATIVE. Relief is a max over a table of positives; a dish
+//   made of feces is the worst thing in the game and has to be able to say so.
+//
+//   It returns the two halves SEPARATELY, never netted. Only harm is ever
+//   scaled — by k, and by the multiplier stack — so netting +45 of saffron
+//   against -55 of feces first would quietly charge the eater a scaled -10
+//   instead of an unscaled +45 and a scaled -55. They are two things that
+//   happened at one meal, not one thing.
+//
+// DISGUST carries noMultiplier, the way DRIFT does. Three of the rules in
+// MULTIPLIERS apply to `kinds: "*"`, and while "Brave halves your disgust at
+// eating a liver" is arguable, "the Rite of Rage makes feces free" and
+// "holding the right sword makes you immune to disgust" are not. Revulsion at
+// what you just swallowed is not a fright, and nothing in the fright table
+// has an opinion about it.
+function dishMoodTerms(mealMood, ingredientMoods = []) {
+  const moods = ingredientMoods.filter((m) => Number.isFinite(m));
+  const relief = (mealMood ?? 0) + moods.filter((m) => m > 0).reduce((a, m) => a + m, 0);
+  const harm = moods.filter((m) => m < 0).reduce((a, m) => a + m, 0);
+  const terms = [];
+  if (relief) terms.push({ kind: "MEAL", base: relief });
+  if (harm) terms.push({ kind: "DISGUST", base: harm, noMultiplier: true });
+  return terms;
+}
+
 module.exports = {
   // Tables and pure functions: the turn pass, the hooks and the test read these.
   MOOD_BANDS,
@@ -821,6 +860,7 @@ module.exports = {
   loadIntensity,
   applyMoodTerms,
   applyMood,
+  dishMoodTerms,
   applyKissMood,
   KISS_AUDIT_ACTION,
   setMood,

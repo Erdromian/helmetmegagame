@@ -75,6 +75,7 @@ import {
   DEFAULT_MAX_DRAWBACK_POINTS,
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
+import { cookedTasteOnly } from "@/lib/referenceData";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -437,6 +438,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         // renders a Recipe line has to select this or it silently renders none
         // (CORPSES.md §8).
         requirementItems: true,
+        // Cooking (docs/systemdocs/COOKING.md). The slot count draws the
+        // dialog's slots; the two custom columns decide whether it shows a
+        // description box and what the words cost.
+        requirementIngredientSlots: true,
+        customCost: true,
+        customDescribable: true,
         // So the Craft menu can say what a piece of armour is worth before
         // somebody spends two turns and 26 ⬢ finding out.
         meleeArmor: true,
@@ -1008,10 +1015,21 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // the sheet needs it for two things — the Mood box's word and the Gambit
   // tile's modifier — and both are computed client-side. Nothing renders the
   // figure itself; LedgerBand only ever prints bandOf()'s label.
+  //
+  // COOKING (docs/systemdocs/COOKING.md): the held tags come down with a bare
+  // `include`, which takes every column on Tag — so `cooked` is cut to its
+  // taste and `cookedFrom` is dropped HERE rather than left to a select. A
+  // cook is told what an ingredient tastes of and nothing else, and a dish
+  // never says what it was made with; both would otherwise be one dev-tools
+  // inspection away for every tag on the sheet.
   const sheetCharacter = {
     ...character,
     tags: character.tags.map((ct) => {
       const { poisonedCount, poisonPayload, ...ctRest } = ct;
+      // Cooking's cut runs first (docs/systemdocs/COOKING.md): `cooked` is
+      // narrowed to its taste and `cookedFrom` dropped, so a dish never says
+      // what it was made with. Everything below works on the narrowed tag.
+      const tagRow = cookedTasteOnly(ctRest.tag);
       // Crate-manifest leak (fix round M4b, fix 1): `ct.tag.crateContents`
       // carries the SAME two secret columns per line item, for a crate a
       // player packed themselves (packageItemsRequestImpl) — the outer
@@ -1022,7 +1040,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       // crate's manifest (names/quantities of what's inside) is
       // server-only bookkeeping too — nothing on this page renders it, and
       // the crate's own printed description already says what it contains.
-      const { crateContents, ...ctTagRest } = ctRest.tag ?? {};
+      const { crateContents, ...ctTagRest } = tagRow ?? {};
       const stripped = {
         ...ctRest,
         // The manifest goes, but WHETHER this is a crate has to survive it: the

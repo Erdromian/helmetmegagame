@@ -8,6 +8,38 @@
 // Pure — no prisma, no React — importable from either side.
 
 export const CUSTOM_SURCHARGE = 1; // ⬢ per unit, on top of the recipe's own
+
+// What THIS recipe charges for the player's words. A recipe may buy them out
+// with `custom: { cost: 0 }` in docs/tags.yaml, and both meals do: a cook
+// naming their own dish is the point of the cooking rework (COOKING.md), not
+// an upsell, and charging for it made every meal in the game anonymous.
+//
+// One verdict, both sides — the dialog prices what it shows with this and
+// craftRequestImpl prices what it charges with this, the same way
+// customCraftFields below is the one verdict on "is this name blank".
+export function surchargeFor(tag) {
+  return tag?.customCost ?? CUSTOM_SURCHARGE;
+}
+
+// The whole custom-words verdict for one recipe: what the words amount to
+// after cleaning, and what they cost. Four call sites priced this by hand —
+// the dialog's readout, its canSubmit, the confirm prompt and the server —
+// and each had to remember the same two rules (a recipe that takes no
+// description must not count one; the surcharge is the recipe's own). Four
+// copies of a price is how a confirm ends up quoting less than the bill.
+export function customCraftFor(tag, fields) {
+  const custom = tag?.customizable
+    ? customCraftFields({
+        customName: fields?.customName,
+        // A recipe may take a name and no words — the Fine Meal does
+        // (COOKING.md). A description posted at one is dropped rather than
+        // refused: a hidden textarea is a hint, and a stale client is not an
+        // attack.
+        customDescription: tag.customDescribable === false ? "" : fields?.customDescription,
+      })
+    : { name: "", description: "", active: false };
+  return { custom, surcharge: custom.active ? surchargeFor(tag) : 0 };
+}
 export const CUSTOM_NAME_MAX = 30;
 export const CUSTOM_DESCRIPTION_MAX = 300;
 export const INSCRIPTION_MAX = 200;

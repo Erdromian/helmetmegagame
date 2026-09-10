@@ -529,6 +529,7 @@ h3 {
    in the whole stylesheet before, and each merely changed a colour — so the
    app had no visible focus ring at all, including on all 156 .field inputs. */
 .btn:focus-visible,
+.slot-clear:focus-visible,
 .btn-secondary:focus-visible,
 .btn-danger:focus-visible,
 .btn-quiet:focus-visible,
@@ -3864,6 +3865,114 @@ label.chip {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-1);
+}
+
+/* The cooking bench's ingredient slots (IngredientSlots.js,
+   docs/systemdocs/COOKING.md). A row of boxes above the .chip-row that fills
+   them.
+
+   Drawn as .control surfaces rather than as cards: a slot is a form field
+   with a value in it, not an object in its own right, and giving each one a
+   border-radius and a shadow would have made two empty boxes look like the
+   most important thing on the dialog. Dashed while empty, solid once filled,
+   which is the whole state language — an empty required slot and an empty
+   optional one differ by border colour alone. */
+.slot-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.slot {
+  position: relative;
+  flex: 1 1 10rem;
+  min-height: 3.25rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-sm);
+  background: var(--field-bg);
+}
+
+/* A Lavish Meal's first slot. Solid rather than a second colour: the dash is
+   already saying "optional", so taking it away is enough. */
+.slot[data-required] {
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* Where the next chip will land. Without it two identical empty boxes leave
+   the cook guessing which one they are filling. */
+.slot[data-next] {
+  border-color: var(--accent-text);
+}
+
+.slot[data-filled] {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.slot-tag {
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.slot[data-filled] .slot-tag {
+  text-transform: none;
+  letter-spacing: var(--ls-tight);
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.slot-empty {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* What it tastes of, and the only thing the cook is told (COOKING.md). The
+   speech token because it is the words the eater will read, quoted back. */
+.slot-taste {
+  font-size: var(--fs-xs);
+  color: var(--speech);
+}
+
+.slot-clear {
+  all: unset;
+  cursor: pointer;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 4px 6px;
+  border-radius: var(--r-sm);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+
+.slot-clear:hover {
+  color: var(--danger);
+  background: var(--row-hover);
+}
+
+
+/* The cooking bench's pantry: ChipPicker's own row, boxed and bounded. 58
+   tags in the catalog carry a `cooked` block, so a hoarder's chip row would
+   otherwise push the slots and the Craft button off the bottom of the modal —
+   which is the failure ChipPicker's header warns about. Drawn as a recessed
+   .control surface so it reads as one field rather than as loose chips. */
+.pantry {
+  max-height: 9.5rem;
+  overflow-y: auto;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--field-bg);
 }
 
 /* A chip's aside — a corpse's yield, "✓ current", a price — in the muted

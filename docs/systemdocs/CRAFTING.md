@@ -284,7 +284,22 @@ meals, the painting, the sketch, the badge, the hat, and — since
 `SMITHING.md` §3-§4) can be crafted as the maker's OWN: for
 **+1 ⬢ a unit** (`CUSTOM_SURCHARGE`, web/lib/customCraft.js) the player sets
 a name and/or a description, and either falls back to the base recipe's when
-left blank. The displayed name always carries the base identity —
+left blank.
+
+**What the words cost is the recipe's own business now** —
+`surchargeFor(tag)`, reading `Tag.customCost`, is the one verdict both the
+dialog and the server price with. The two meals set `custom: { cost: 0 }` and
+buy them out entirely: a cook naming their own dish is the point of cooking
+(COOKING.md), not an upsell, and charging for it made every meal in the game
+anonymous. `custom: { describable: false }` is the other half — the Fine Meal
+takes a name and no description, so the dialog hides the textarea and the
+server drops a posted one rather than refusing it.
+
+A **cooked dish always mints**, words or not: what went into it is what it
+does, so it needs a row of its own even from a cook who named nothing. Its
+mint also keys on the INGREDIENTS as well as the words — see COOKING.md §2,
+which is the one place this mechanism does something the rest of the
+customizable recipes do not. The displayed name always carries the base identity —
 `Steak Dinner (Lavish Meal)`, or `Lavish Meal (custom)` for a
 description-only custom — so every surface says what the thing IS and a
 custom name cannot impersonate another item.

@@ -180,6 +180,49 @@
 #                     Both halves are validated against this file. The
 #                     condition is applied by the grant, and by nothing else:
 #                     consuming says nothing about what it leaves behind.
+#   cooked:         - what this tag contributes AS AN INGREDIENT, once it has
+#                     been cooked into something (docs/systemdocs/COOKING.md).
+#                     The presence of this block is the ONLY thing that makes
+#                     a tag cookable — there is no `ingredient: true` and no
+#                     per-recipe list of legal slugs, so a fourteenth thing
+#                     you can cook with is one entry here and a sync.
+#                         cooked:
+#                           taste: "little crunchies"
+#                           mood: 28
+#                           into: [nauseous]     # OPTIONAL — read on
+#     taste         - what the eater is told. A FRAGMENT, dropped into the
+#                     middle of one line ("It tastes like honey and onions."),
+#                     so it is lowercase, under 40 characters, and carries NO
+#                     ‡ — the composed sentence wears the one mark. The sync
+#                     refuses a ‡ here.
+#     mood          - what it adds to the eater's dial, signed, on the +64 to
+#                     -100 scale in docs/systemdocs/MOOD.md. This is where
+#                     nearly all of a meal's mood comes from: the recipe's own
+#                     `mealMood` is deliberately tiny beside it.
+#     into          - what it grants the eater when cooked in. Same shapes as
+#                     consumesInto above, oneOf included.
+#                     OMITTING IT IS NOT "NOTHING". An ingredient with no
+#                     `into` contributes its OWN `consumesInto`, looked up
+#                     when somebody eats the dish rather than frozen in when
+#                     it was cooked. That is the RAW/COOKED SPLIT: the tag's
+#                     own consumesInto is what eating it plain does, and this
+#                     overrides that for the cooked case. A deep morel is
+#                     nausea raw and good in a stew, so it writes both. An
+#                     onion does nothing either way, so it writes neither.
+#                     Write `into: []` only to mean "contributes nothing",
+#                     which is a different claim from leaving it out.
+#   mealMood        - a MEAL RECIPE's own small mood, before its ingredients.
+#                     Copied onto the minted dish. Small on purpose: the
+#                     ingredient is meant to do the work, which it cannot do
+#                     if the plate is already worth +30 on its own.
+#   custom:         - what a `customizable` recipe charges for the player's
+#                     words, and whether it takes a description at all.
+#                         custom: { cost: 0, describable: false }
+#                     An absent block, or an absent `cost`, means the standard
+#                     +1 ⬢ surcharge. `0` is the two meals: a cook naming
+#                     their own dish is the point of cooking, not an upsell.
+#                     `describable: false` hides the description box — the
+#                     Fine Meal takes a name and nothing else.
 #   requirement:    - what it costs a character to add (craftable) or remove
 #                     (healable) this tag in play. Enforced by Craft and Heal.
 #                     One shared block covers whichever direction applies to
@@ -207,6 +250,16 @@
 #                     DEAD_SIMPLE_PER_TURN (4). It is never a work cost -
 #                     write work as turnsCost: 1/N; the sync refuses perTurn
 #                     on anything that costs a Move.
+#     ingredientSlots - how many ingredients this recipe takes, as
+#                     `{ min, max }` (COOKING.md). A SIBLING of `items` below,
+#                     not a second `anyOf`: the legal set is "any tag carrying
+#                     a `cooked` block", which no authored list could keep up
+#                     with. The Fine Meal is `{ min: 0, max: 1 }` and the
+#                     Lavish is `{ min: 1, max: 2 }`. Refused on anything not
+#                     craftable, on a `placement`, and on a multi-turn
+#                     project — the mint happens on the finishing turn, days
+#                     after the cook picked, and nothing carries the slugs
+#                     that far.
 #   expiresInto     - what this tag turns INTO when its durationTurns runs
 #                     out, instead of simply being swept away. This is the
 #                     untreated-wound chain: Infected festers, Festering goes
@@ -1060,13 +1113,7 @@ tags:
     name: Iron Constitution
     category: general
     group: general-traits
-    # `nauseous` belongs on this list and is deliberately absent: the tag
-    # arrives with the cooking rework (PR #37), and the sync refuses a
-    # resists entry naming a tag the catalog does not have yet. Add it back
-    # in the same commit that merges cooking — Iron Constitution already
-    # resists Vomiting, and the flesh ingredients roll one or the other, so
-    # without it the trait works half the time at random.
-    resists: [poisoned, vomiting, parasites, cave-fever, choking, asleep]
+    resists: [poisoned, vomiting, nauseous, parasites, cave-fever, choking, asleep]
     description: "Bad food and the weaker poisons don't bother you."
     fighting: { situational: true }
     pointCost: 5
@@ -4976,6 +5023,23 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
 
+  # The rung below Vomiting, and new with the cooking rework
+  # (docs/systemdocs/COOKING.md): what a body part or a raw cave mushroom does
+  # to somebody half the time, where Vomiting is the other half. Shaped
+  # exactly like Vomiting above and priced the same way — no requirement
+  # block, so cure tier 0: real, untreatable, and over in two turns.
+  nauseous:
+    catalog: all
+    name: Nauseous
+    description: "Something you ate is not sitting right."
+    category: health
+    group: health-minor
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
   # --- Pain ---------------------------------------------------------------
   aching:
     catalog: all
@@ -5754,6 +5818,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
+    cooked:
+      taste: "strength"
+      mood: -15
 
   # Same shape as the Graga Sac above — a monster organ that is an ingredient
   # and nothing else: stackable, tradeable, sellable, and NOT consumable,
@@ -5782,6 +5849,9 @@ tags:
     # being a person first — and the Dreamer's Draught SPENDS one now
     # (Tag.requirementItems), so that decision is taken per bottle.
     sellablePrice: 25
+    cooked:
+      taste: "magic"
+      mood: -20
 
   # --- Corpses -----------------------------------------------------------
   # Bodies as real, carryable objects. These three are what a monster leaves;
@@ -6037,6 +6107,9 @@ tags:
     # The dearest of the three by a wide margin: an Aberrant has to fall first,
     # and the recipe it feeds costs 0 ⬢ because the heart is the price.
     sellablePrice: 55
+    cooked:
+      taste: "something indescribable"
+      mood: -25
 
   ravens-eye:
     catalog: gm
@@ -6053,6 +6126,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    cooked:
+      taste: "an eyeball"
+      mood: -15
 
   nightshade-herb:
     catalog: all
@@ -6069,6 +6145,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 2
+    cooked:
+      taste: "something poisonous"
+      mood: -10
 
   # Two more of the same shape (Chris 2026-09-05): Poppy and Distilled Coca
   # used to be brewed out of ⬢ alone, and now spend a raw ingredient the way
@@ -6090,6 +6169,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 2
+    cooked:
+      taste: "something bitter"
+      mood: 10
 
   coca-leaves:
     catalog: all
@@ -6106,6 +6188,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 2
+    cooked:
+      taste: "something bitter"
+      mood: 12
 
   # Fished up by the labor loot pass. Public on purpose (Chris 2026-09-07):
   # the heart is a curiosity anyone may catch, but the White Honey link stays
@@ -6125,6 +6210,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    cooked:
+      taste: "raw fish"
+      mood: 6
 
   # {tag:autoinjector}'s third ingredient (M6c). catalog: gm, same shape as
   # {tag:aberrant-heart}/{tag:cybernetic-core}: a GM can look it up granting
@@ -6170,6 +6258,9 @@ tags:
     consumable: true
     consumesInto: []
     cures: [bruised]
+    cooked:
+      taste: "leeches"
+      mood: -10
 
   # The generator's proper fuel. Imported, so the Merchant has to buy it off
   # the station with the profit he makes selling everything else — which is the
@@ -6748,6 +6839,12 @@ tags:
     consumable: true
     consumesInto:
       - oneOf: [ate-meal, vomiting]
+    # Raw it is Ate Meal or Vomiting, even money. Cooking is what takes the
+    # coin flip out, so `into` is an empty override rather than absent.
+    cooked:
+      taste: "meat"
+      mood: 4
+      into: []
 
   # Cave loot, ultracommon. Raw it is a gut full of regret; squeezed by anyone
   # with Brewing it is a cup of something almost like milk.
@@ -6767,6 +6864,9 @@ tags:
     consumable: true
     consumesInto:
       - poisoned
+    cooked:
+      taste: "a maggot"
+      mood: -8
 
   # Not on the caving table — the maggot is the loot, this is what you make of
   # it. Calms like {tag:tea} (db/lib/mood.js CONSUME_RELIEF) and feeds you.
@@ -6793,6 +6893,9 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    cooked:
+      taste: "milk"
+      mood: 12
 
   supply-kit:
     catalog: gm
@@ -9451,6 +9554,14 @@ tags:
     consumesInto:
       - ate-meal
     sellable: false
+    # Even money on nausea or worse, per Bascinet. The `oneOf` is the same
+    # shape Skinned Cave Rat has used for its own coin flip since the caves
+    # update. Cooking hides what it was; it does not settle the stomach.
+    cooked:
+      taste: "meat"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   # --- Remains -----------------------------------------------------------
   # What the Mutilate button takes off a bound person or a corpse, one piece
@@ -9491,6 +9602,14 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
+    # Even money on nausea or worse, per Bascinet. The `oneOf` is the same
+    # shape Skinned Cave Rat has used for its own coin flip since the caves
+    # update. Cooking hides what it was; it does not settle the stomach.
+    cooked:
+      taste: "organs"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   tongue:
     catalog: gm
@@ -9507,6 +9626,14 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
+    # Even money on nausea or worse, per Bascinet. The `oneOf` is the same
+    # shape Skinned Cave Rat has used for its own coin flip since the caves
+    # update. Cooking hides what it was; it does not settle the stomach.
+    cooked:
+      taste: "organs"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   hand:
     catalog: gm
@@ -9523,6 +9650,16 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 5
+    # Even money on nausea or worse, per Bascinet. The `oneOf` is the same
+    # shape Skinned Cave Rat has used for its own coin flip since the caves
+    # update. Cooking hides what it was; it does not settle the stomach.
+    # A hand is a limb rather than an organ, so it tastes of meat like the
+    # foot does. Bascinet named the foot and 'all other organs'.
+    cooked:
+      taste: "meat"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   foot:
     catalog: gm
@@ -9539,6 +9676,14 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    # Even money on nausea or worse, per Bascinet. The `oneOf` is the same
+    # shape Skinned Cave Rat has used for its own coin flip since the caves
+    # update. Cooking hides what it was; it does not settle the stomach.
+    cooked:
+      taste: "meat"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   bone:
     catalog: gm
@@ -9571,6 +9716,14 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    # Even money on nausea or worse, per Bascinet. The `oneOf` is the same
+    # shape Skinned Cave Rat has used for its own coin flip since the caves
+    # update. Cooking hides what it was; it does not settle the stomach.
+    cooked:
+      taste: "organs"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
 
   heart:
     catalog: gm
@@ -9587,6 +9740,323 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
+    # Even money on nausea or worse, per Bascinet. The `oneOf` is the same
+    # shape Skinned Cave Rat has used for its own coin flip since the caves
+    # update. Cooking hides what it was; it does not settle the stomach.
+    cooked:
+      taste: "organs"
+      mood: -40
+      into:
+        - oneOf: [nauseous, vomiting]
+
+  # --- Cooking ingredients (docs/systemdocs/COOKING.md) --------------------
+  #
+  # Thirteen things worth putting in a pot, added with the cooking rework.
+  # What makes each of them an ingredient is its `cooked:` block and nothing
+  # else — there is no flag and no list, so a fourteenth is one entry here.
+  #
+  # NINE OF THEM DO NOTHING RAW. `consumable: true` with an empty
+  # `consumesInto` is the honest way to write that: you can put a raw onion in
+  # your mouth and the game will let you, and then nothing happens. It is not
+  # the same claim as `consumable: false`, which would refuse the bite. The
+  # two cave finds are worse than nothing raw and say so with `nauseous`.
+  #
+  # The four descriptions and the five tastes Bascinet has not written yet
+  # each carry a note saying so.
+
+  onion:
+    catalog: all
+    name: Onion
+    category: items
+    group: items-food
+    description: "An onion. Goes well in soups."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "onions"
+      mood: 8
+    sellable: true
+    sellablePrice: 2
+
+  boar-loin:
+    catalog: all
+    name: Boar Loin
+    # Bascinet's format, not their words.
+    description: "A cut of boar. You could cook with it."
+    category: items
+    group: items-food
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "boar loin"
+      mood: 16
+    sellable: true
+    sellablePrice: 4
+
+  deer-liver:
+    catalog: all
+    name: Deer Liver
+    category: items
+    group: items-food
+    description: "A deer's liver. Best cooked."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "organs"
+      mood: 14
+    sellable: true
+    sellablePrice: 3
+
+  goose-fat:
+    catalog: all
+    name: Goose Fat
+    category: items
+    group: items-food
+    description: "Goose fat. A delicacy, good for cooking."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "goose"
+      mood: 20
+    sellable: true
+    sellablePrice: 5
+
+  hard-cheese:
+    catalog: all
+    name: Hard Cheese
+    category: items
+    group: items-food
+    description: "A hard wheel of cheese. You could cook with it."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    # The one exception to the nine: a wheel of cheese is food on its own, and
+    # refusing to let somebody eat one would be silly.
+    consumable: true
+    consumesInto: [ate-meal]
+    cooked:
+      taste: "cheese"
+      mood: 22
+    sellable: true
+    sellablePrice: 5
+
+  river-eel:
+    catalog: all
+    name: River Eel
+    category: items
+    group: items-food
+    description: "An ugly eel. You could cook with it."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "eel"
+      mood: 10
+    sellable: true
+    sellablePrice: 3
+
+  lamprey:
+    catalog: all
+    name: Lamprey
+    # Bascinet's format, not their words.
+    description: "A lamprey. You could cook with it."
+    category: items
+    group: items-food
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      # Bascinet gave "eel" for the river eel and nothing for this one; a
+      # lamprey is close enough to share it until they say otherwise.
+      taste: "eel"
+      mood: 8
+    sellable: true
+    sellablePrice: 3
+
+  crayfish:
+    catalog: all
+    name: Crayfish
+    # Bascinet's format, not their words.
+    description: "A crayfish. You could cook with it."
+    category: items
+    group: items-food
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "crayfish"   # Bascinet has not written this one.
+      mood: 12
+    sellable: true
+    sellablePrice: 3
+
+  blind-fish:
+    catalog: all
+    name: Blind Fish
+    # Bascinet's format, not their words.
+    description: "A pale, eyeless fish. You could cook with it."
+    category: items
+    group: items-food
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    # Raw it is a bad idea and no dinner. Cooked it is a fish.
+    consumesInto: [nauseous]
+    cooked:
+      taste: "pale fish"   # Bascinet has not written this one.
+      mood: 8
+      # The override that makes the raw/cooked split real: cooking takes the
+      # nausea off, so `into` is empty rather than absent.
+      into: []
+    sellable: true
+    sellablePrice: 3
+
+  deep-morel:
+    catalog: all
+    name: Deep Morel
+    category: items
+    group: items-food
+    description: "A cave morel. You could cook with it."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [nauseous]
+    cooked:
+      taste: "cave mushroom"   # Bascinet has not written this one.
+      mood: 18
+      into: []
+    sellable: true
+    sellablePrice: 4
+
+  rock-salt:
+    catalog: all
+    name: Rock Salt
+    category: items
+    group: items-food
+    description: "Rock salt. You could cook with it."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "salt"   # Bascinet has not written this one.
+      # Ultracommon in the caves, so it has to stay small — it is the floor
+      # under a meal, not a reason to cook one.
+      mood: 6
+    sellable: true
+    sellablePrice: 1
+
+  # The two Depot imports. Saffron is the best thing you can put in a meal and
+  # is priced to match: 15 ⬢ is three cigarettes, per Bascinet.
+  saffron:
+    catalog: gm
+    name: Saffron
+    category: items
+    group: items-food
+    description: "Foreign spices. Tastes delicious in meals."
+    pointCost: 0
+    depotPrice: 15
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "rich spices"
+      # The highest in the game, and deliberately: a Lavish Meal built around
+      # saffron (8 + 45) is the best thing anybody in Ravenheart will eat.
+      mood: 45
+    sellable: true
+    sellablePrice: 9
+
+  tinned-butter:
+    catalog: gm
+    name: Tinned Butter
+    category: items
+    group: items-food
+    description: "Butter. A delicacy."
+    pointCost: 0
+    depotPrice: 10
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "butter"   # Bascinet has not written this one.
+      mood: 30
+    sellable: true
+    sellablePrice: 6
 
   fine-meal:
     catalog: all
@@ -9603,6 +10073,11 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    # Naming your own work is free now (COOKING.md), and a Fine Meal takes a
+    # NAME only — the Lavish is the one that gets its own words.
+    custom: { cost: 0, describable: false }
+    # Was a flat 15 in db/lib/mood.js. The ingredient does the work now.
+    mealMood: 5
     consumable: true
     consumesInto:
       - ate-meal
@@ -9615,6 +10090,9 @@ tags:
       resourceCost: 2
       skills: [cooking-basic]
       gambit: false
+      # Optional, unlike the Lavish. A Fine Meal is an honest plate of food
+      # with or without something good in it.
+      ingredientSlots: { min: 0, max: 1 }
   lavish-meal:
     catalog: all
     name: Lavish Meal
@@ -9630,6 +10108,12 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
+    # Free words, and the Lavish is the one recipe that takes a DESCRIPTION —
+    # the dish a cook writes their own line for (COOKING.md).
+    custom: { cost: 0 }
+    # Was a flat 30 in db/lib/mood.js, which was the single largest relief in
+    # the game and left the ingredient nothing to say. See MOOD.md §6.
+    mealMood: 8
     consumable: true
     consumesInto:
       - ate-meal
@@ -9643,14 +10127,18 @@ tags:
       # says it too.
       skills: [cooking-skilled]
       gambit: false
-      # The one recipe the cook chooses an ingredient for. Three are Depot
-      # imports and the roe is fished up by the loot pass, so the delicacy is
-      # a real errand either way. Honey stays out of the description and the
-      # paper on purpose: it is gm-catalog, so the honeyed version is a
-      # DISCOVERY — the Recipes tab's anyOf narrowing shows "Tea, Sweets or
-      # Fish Roe" until the cook holds one.
-      items:
-        - anyOf: [tea, sweets, honey, fish-roe]
+      # Was `items: [anyOf: [tea, sweets, honey, fish-roe]]` — four slugs, one
+      # slot, and a hardcoded list that every new delicacy had to be added to
+      # by hand. Now it is slots: at least one of ANYTHING carrying a `cooked`
+      # block, and room for two.
+      #
+      # The Honey discovery survives the change and gets better. It used to
+      # live in the RECIPE — the Recipes tab narrowed the anyOf to "Tea,
+      # Sweets or Fish Roe" until a cook held a jar. Now the recipe names
+      # nothing at all, and the secret lives in the chip list instead: Honey
+      # only appears as something you can slot if you are holding one. Same
+      # discovery, one less place to maintain it.
+      ingredientSlots: { min: 1, max: 2 }
 
   # Featherweight travel food (Chris 2026-09-07): a Fine Meal weighs 2 lb and
   # this weighs a quarter of that — the meal you pack ten of for the caves.
@@ -9731,6 +10219,9 @@ tags:
       resourceCost: 1
       skills: [thanati]
       gambit: false
+    cooked:
+      taste: "something foul"
+      mood: -35
 
   # --- The three kits -----------------------------------------------------
   # None is gear you wear; all are gear you have to GET TO. Each is
@@ -10428,6 +10919,9 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: []
+    cooked:
+      taste: "tea"
+      mood: 15
 
   # --- Paperwork -----------------------------------------------------------
   #
@@ -10668,6 +11162,11 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [phrygian-toxin]
+    # Tasteless, like Phrygian Tears — the two things in the catalog a cook can
+    # hide in a meal with no tell at all.
+    cooked:
+      taste: ""
+      mood: 0
 
   # Five sticks make a bundle, and the bundle is an ordinary Craft recipe with
   # an enforced ingredient — the `items:`/`count:` shape blank-book uses. No
@@ -11481,6 +11980,9 @@ tags:
     consumable: true
     consumesInto:
       - caffeinated
+    cooked:
+      taste: "something bitter"
+      mood: 15
 
   firecracker:
     catalog: gm
@@ -11521,6 +12023,9 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    cooked:
+      taste: "sugar"
+      mood: 20
 
   # Prospecting's edible find where the ground itself isn't cave floor —
   # every surface Prospecting location with mushroom flavor already written
@@ -11566,6 +12071,9 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    cooked:
+      taste: "little crunchies"
+      mood: 28
 
   honey:
     catalog: gm
@@ -11586,6 +12094,12 @@ tags:
     consumable: true
     consumesInto:
       - ate-meal
+    # Still gm-catalog, which is what keeps the honeyed dish a discovery now
+    # that the recipe names no ingredients at all: Honey shows up as something
+    # you can slot only if you are holding a jar.
+    cooked:
+      taste: "honey"
+      mood: 20
 
   sky-lantern:
     catalog: gm
@@ -11628,6 +12142,9 @@ tags:
     consumable: true
     consumesInto:
       - tipsy
+    cooked:
+      taste: "wine"
+      mood: 18
 
   # Gear. The band where a working person might actually save up for one.
   boombox:
@@ -11880,6 +12397,11 @@ tags:
     consumable: true
     consumesInto:
       - asleep
+    # A tonic contributes its EFFECT and no mood: you do not enjoy or resent a
+    # taste you are being drugged with, and a swing on the dial would be a tell.
+    cooked:
+      taste: "something bitter"
+      mood: 0
 
   amoeba-vial:
     catalog: gm
@@ -12108,6 +12630,11 @@ tags:
         durationTurns: 2
     sellable: true
     sellablePrice: 3
+    # Taste is mine. `into` unauthored, so a fungus dish still gets you High
+    # for two turns — the same thing eating it raw does.
+    cooked:
+      taste: "cave mushroom"
+      mood: 0
 
   alcohol:
     catalog: all
@@ -12157,6 +12684,9 @@ tags:
       resourceCost: 1
       skills: [blessing]
       gambit: false
+    cooked:
+      taste: "something holy"
+      mood: 25
 
   # HIDDEN recipe (honey is non-public; Chris 2026-09-07): the Cathedral's
   # second craft. Holy water poured on a thing; this is worked into a person.
@@ -12184,6 +12714,9 @@ tags:
       skills: [blessing]
       gambit: false
       items: [holy-water, honey]
+    cooked:
+      taste: "something holy"
+      mood: 25
 
   bliss:
     catalog: all
@@ -12249,10 +12782,56 @@ tags:
       items: [alcohol]
     sellable: true
     sellablePrice: 14
+    cooked:
+      taste: "wine"
+      mood: 18
 
   # --- The apothecary -----------------------------------------------------
   #Needs resources and a special ingredient acquired through RP. GMs need to adjudicate the results,
   #as most of these are spent through Moves, not automatically.
+  #
+  # ===================================================================
+  # MEDICAL REWORK — READ THIS BEFORE WIRING COOKING INTO ANYTHING
+  # ===================================================================
+  #
+  # Every tonic below can go in a meal (docs/systemdocs/COOKING.md), and every
+  # one of them carries a `cooked:` block with a taste, a mood, and NO `into`.
+  #
+  # THAT ABSENCE IS THE DESIGN, NOT AN OVERSIGHT. An ingredient with no
+  # `cooked.into` contributes its own `consumesInto`, read at the moment
+  # somebody eats the dish rather than frozen in when it was cooked. So
+  # whatever the medical rework makes White Honey (or Mercy, or Poppy, or any
+  # of the rest) do, it does in a stew too — for every dish already sitting in
+  # every pocket, on the next bite, with no re-mint and no code.
+  #
+  # THE CURES ARE THE HALF THAT NEEDED A HOOK. This note used to say the
+  # medical pass could do nothing at all, and that was written before it
+  # existed: it put cures on their own `Tag.cures` column rather than on
+  # `consumesInto`, and a separate column travels nowhere by itself. So a
+  # cure rides into a stew only when the ingredient opts in:
+  #
+  #     cooked:
+  #       cures: true
+  #
+  # Default off, because not every cure is swallowed. Write it on a tonic
+  # somebody drinks — White Honey, Antidote, Fever Draught, Purifier,
+  # Antibiotics, Forgiveness. Leave it off anything injected, applied or
+  # strapped on: a Burn Dressing, Leeches, Cleaning Powder, an autoinjector,
+  # a prosthetic. Those cure a person, not a stew.
+  #
+  # So, for a NEW medical consumable: give it a `cooked:` block with a taste
+  # and a mood, leave `into` out, and add `cures: true` only if it is a thing
+  # you drink. A medicine whose COOKED effect should differ from its raw one
+  # is the only case that needs `into`, and it is the exception, not the rule.
+  #
+  # The mood on these is 0 on purpose: a tonic contributes its effect and no
+  # mood, because you do not enjoy or resent a taste you are being drugged
+  # with, and a swing on the dial would be a tell. White Honey is the one
+  # exception (+15) — medicine that works is a comfort.
+  #
+  # The same note lives on db/lib/tagShapes.js#normalizeCooked and in
+  # COOKING.md §5, because whoever merges that PR will read exactly one of the
+  # three.
 
   # --- Basic tonics — Brewing (Basic) --------------------------------------
   miasma:
@@ -12283,6 +12862,9 @@ tags:
         - group: items-corpse
     sellable: true
     sellablePrice: 5
+    cooked:
+      taste: "rotting flesh"
+      mood: -45
 
   feces:
     catalog: all
@@ -12307,6 +12889,15 @@ tags:
       perTurn: 2
       skills: [brewing-basic]
       gambit: false
+    # The worst thing anybody can be served. -55 is deeper than being robbed
+    # or seeing somebody die, and just short of being tortured — a Lavish Meal
+    # built on it (8 - 55) takes an average person from Fine to Anxious in one
+    # mouthful.
+    cooked:
+      taste: "feces"
+      mood: -55
+      into:
+        - vomiting
 
   cleaning-powder:
     catalog: all
@@ -12332,8 +12923,10 @@ tags:
     sellable: true
     sellablePrice: 4
 
+  # gm-catalog on Bascinet's call: a Cat is one of the hidden recipes, the
+  # way Honey and White Honey are.
   cat:
-    catalog: all
+    catalog: gm
     name: Cat
     category: items
     group: items-drink
@@ -12358,6 +12951,11 @@ tags:
       items: [alcohol]
     sellable: true
     sellablePrice: 7
+    # A tonic contributes its EFFECT and no mood: you do not enjoy or resent a
+    # taste you are being drugged with, and a swing on the dial would be a tell.
+    cooked:
+      taste: "something bitter"
+      mood: 0
 
   poppy:
     catalog: all
@@ -12384,6 +12982,11 @@ tags:
       items: [poppy-pods]
     sellable: true
     sellablePrice: 4
+    # A tonic contributes its EFFECT and no mood: you do not enjoy or resent a
+    # taste you are being drugged with, and a swing on the dial would be a tell.
+    cooked:
+      taste: "something soothing"
+      mood: 0
 
   molotov-cocktail:
     catalog: all
@@ -12419,6 +13022,8 @@ tags:
     group: items-drink
     poison: true
     description: "A draught refined from {tag:nightshade-herb}. Inflicts {tag:choking as the consumer begins to perish."
+    # The `{tag:choking` had no closing brace, so it printed as literal text
+    # on every surface that renders this line.
     pointCost: 0
     tradeable: true
     weight: 0.5
@@ -12430,6 +13035,15 @@ tags:
     consumable: true
     consumesInto:
       - choking
+    # THIS WAS MISSING. The description has promised Choking since the tag was
+    # written and nothing granted it — drinking a Nightshade did nothing at
+    # all. Found while wiring the cooking rework, which needs a poison
+    # ingredient to actually poison somebody. See COOKING.md.
+    cooked:
+      taste: "something poisonous"
+      # A poison contributes its EFFECT and no mood. You do not enjoy or
+      # resent a taste you are dying of, and a mood swing would be a tell.
+      mood: 0
     requirement:
       turnsCost: 1
       resourceCost: 3
@@ -12497,6 +13111,17 @@ tags:
     consumable: true
     consumesInto:
       - phrygian-toxin
+    # THIS WAS MISSING, the same way Nightshade's was: the description has
+    # always promised the toxin and only Adder's Bite and the poison tooth
+    # ever granted it, so the most expensive poison a Brewer can make did
+    # nothing when drunk. Found wiring the cooking rework.
+    cooked:
+      # UNDETECTABLE, and that is the whole character of this one. No taste,
+      # no mood, no tell — a dish carrying it reads exactly like a dish that
+      # is not. web/lib/cooking.js drops an empty taste from the line rather
+      # than printing a gap.
+      taste: ""
+      mood: 0
     requirement:
       turnsCost: 2
       resourceCost: 4
@@ -12617,6 +13242,16 @@ tags:
     cures: [poisoned, envenomated, phrygian-toxin, choking]
     sellable: true
     sellablePrice: 26
+    # MEDICAL REWORK: `into` is deliberately unauthored. This contributes
+    # White Honey's own consumesInto, read when somebody eats the dish — so
+    # whatever the medical PR makes this GRANT, it grants in a stew too, with
+    # no change here. Its `cures` list is the half that needs the opt-in
+    # below: honey is drunk, so it takes the poison off in a stew as well.
+    # See db/lib/tagShapes.js#normalizeCooked.
+    cooked:
+      taste: "medicine"
+      mood: 15
+      cures: true
 
   deadeye-drops:
     catalog: all
@@ -12670,6 +13305,11 @@ tags:
       items: [cave-fungus]
     sellable: true
     sellablePrice: 12
+    # A tonic contributes its EFFECT and no mood: you do not enjoy or resent a
+    # taste you are being drugged with, and a swing on the dial would be a tell.
+    cooked:
+      taste: "something soothing"
+      mood: 0
 
   distilled-coca:
     catalog: all
@@ -12698,8 +13338,9 @@ tags:
     sellablePrice: 10
     depotPrice: 11
 
+  # gm-catalog on Bascinet's call, same as the Cat above.
   mindbreaker-toxin:
-    catalog: all
+    catalog: gm
     name: Mindbreaker Toxin
     category: items
     group: items-drink
@@ -12724,6 +13365,11 @@ tags:
       items: [cave-fungus]
     sellable: true
     sellablePrice: 5
+    # A tonic contributes its EFFECT and no mood: you do not enjoy or resent a
+    # taste you are being drugged with, and a swing on the dial would be a tell.
+    cooked:
+      taste: "something bitter"
+      mood: 0
 
   # The one player-facing rename (docs/systemdocs/CHARACTERS.md §1b). Drunk
   # from this tag's own tooltip on the character sheet: Consume opens the
@@ -12804,6 +13450,9 @@ tags:
       - pheromones
     sellable: true
     sellablePrice: 5
+    cooked:
+      taste: "something disgusting"
+      mood: -30
 
   raven-draught:
     catalog: all
@@ -14679,6 +15328,11 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [vomiting]
+    # `into` unauthored: it still makes you sick. Cooking Godflesh does not
+    # make it food.
+    cooked:
+      taste: "meat"
+      mood: -5
 
   squeeze:
     catalog: gm
@@ -14700,6 +15354,10 @@ tags:
     # and pays about 3 times a good farming day.
     sellable: true
     sellablePrice: 5
+    # `into` unauthored: a cube in a stew is still a seizure.
+    cooked:
+      taste: "something indescribable"
+      mood: -20
 
   # UNTRADEABLE on purpose, which is the only thing that actually pins it down:
   # `removable: false` blocks the Destroy menu and nothing else, so while this
@@ -14834,6 +15492,11 @@ tags:
       items: [godflesh]
     sellable: true
     sellablePrice: 3
+    # It still blinds you — `into` is absent, so the cooked dish carries
+    # Moonshine's own consumesInto. Cooking with it is not a way around it.
+    cooked:
+      taste: "booze"
+      mood: 10
 
   blind-drunk:
     catalog: gm
