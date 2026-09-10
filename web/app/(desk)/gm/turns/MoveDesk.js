@@ -8,7 +8,6 @@ import TagChip from "@/app/components/TagChip";
 import Tooltip from "@/app/components/Tooltip";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
-import RequestDialog from "@/app/components/RequestDialog";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -31,7 +30,7 @@ import { stagingReaches } from "@/lib/stagingReach";
 // claims so two GMs don't work the same row.
 
 const REJECT_HELP =
-  "Deletes the Move and frees up their turn — the misclick escape hatch, or a Move that shouldn't have been one. They're DM'd the reason immediately.";
+  "Deletes the Move and frees up their turn — the misclick escape hatch, or a Move that shouldn't have been one. They're told right away, and anything staged on it stays, detached, in the tray. ‡";
 
 function Switch({ label, value, options, onChange, disabled, children }) {
   return (
@@ -94,7 +93,6 @@ export default function MoveDesk({
   // LOCAL (possibly unsaved) Result text. The plain "+ Message" button
   // leaves this null, so the composer opens blank as before.
   const [messagePrefill, setMessagePrefill] = useState(null);
-  const [rejecting, setRejecting] = useState(false);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
@@ -145,14 +143,13 @@ export default function MoveDesk({
     });
   }
 
-  function submitReject(reason) {
+  function submitReject() {
     setError(null);
     startTransition(async () => {
       try {
-        const res = await rejectMove({ actionId: move.id, reason });
+        const res = await rejectMove({ actionId: move.id });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
-        setRejecting(false);
         if (res.deliveryFailed) {
           setError("Move rejected — but they weren't told. Let them know they can act again.");
         } else {
@@ -408,7 +405,7 @@ export default function MoveDesk({
           <button
             type="button"
             className="btn-danger"
-            onClick={() => setRejecting(true)}
+            onClick={submitReject}
             disabled={disabled}
           >
             Reject
@@ -437,19 +434,6 @@ export default function MoveDesk({
         )}
       </div>
 
-      <RequestDialog
-        open={rejecting}
-        title={`Reject ${move.characterName}'s Move`}
-        submitLabel="Reject it"
-        busy={pending}
-        onCancel={() => !pending && setRejecting(false)}
-        onConfirm={submitReject}
-      >
-        <p className="text-xs text-muted">
-          The Move is deleted and their turn frees up. They&apos;re DM&apos;d this reason right away.
-          Anything staged on it stays, detached, in the tray.
-        </p>
-      </RequestDialog>
     </div>
   );
 }

@@ -11,7 +11,6 @@ import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { dropCharacterTag } from "@/lib/tagEffects";
-import { requireReason } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -721,9 +720,8 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
 // "Reject" on the desk. Deletes the Action outright, since the turn-economy
 // checks look for any Action on the open turn — only deletion frees the
 // player to act again. Staged rows detach via SetNull.
-async function rejectMoveImpl({ actionId, reason: rawReason }) {
+async function rejectMoveImpl({ actionId }) {
   const session = await requireGm();
-  const reason = requireReason(rawReason);
 
   const action = await prisma.action.findUnique({ where: { id: actionId }, include: { character: true } });
   if (!action) throw new UserError("Move not found.");
@@ -741,7 +739,6 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
         actorDiscordUserId: session.discordUserId,
         actionType: "move_rejected",
         targetCharacterId: action.characterId,
-        reason,
         details: {
           actionId,
           description: action.description,
@@ -761,13 +758,14 @@ async function rejectMoveImpl({ actionId, reason: rawReason }) {
   try {
     await sendDm(
       action.character.discordUserId,
-      `Your Move was returned to you — you can act again this turn.\n${reason}`,
-      // The GM's typed reason rides in the body, so this is a person
-      // writing even though the wrapper around it is canned.
+      "Your Move was returned to you — you can act again this turn. ‡",
+      // Canned all the way through now that Reject carries no typed reason,
+      // but it is still a GM handing somebody their turn back, so it belongs
+      // in the conversation rather than sinking into the notices.
       { authorDiscordUserId: session.discordUserId, source: "move_unlock", kind: DM_KIND.CONVERSATION },
     );
   } catch (err) {
-    console.error(`Failed to DM the reject reason to ${action.character.discordUserId}:`, err);
+    console.error(`Failed to DM the rejection to ${action.character.discordUserId}:`, err);
     deliveryFailed = true;
   }
 
