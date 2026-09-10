@@ -327,8 +327,9 @@ desires:
 
   win-a-compliment:
     name: Earn a compliment.
-    tier: 3
+    tier: 1
     families: [vanity, social]
+    cooldownTurns: 5
 
   drink-alcohol:
     name: Drink alcohol
