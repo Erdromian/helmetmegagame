@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Prospecting brings up ore, and steel is a quick smelt
+
+✚ Prospecting, a fourth kind of labor — two new places to work it, the Underquarter and the Undercroft  
+✚ Silver and Steel are real things now: the silver and steel weapons and armour each spend one  
+✎ Steel is a quick smelt — 4 ⬢ and a third of a turn, so three ingots fit in one Routine  
+✎ A steel weapon or piece of armour costs the same ⬢ it always did, but takes a turn less at the anvil  
+✚ Lockboxes turn up in the drop die, and Lockpicking finally does something  
+✎ The drop die pays out real things now instead of bare Resources
+
 ## 2026-09-10 · Equipping works again
 
 ✎ Equipping anything threw an error instead of equipping it. A variable inside the equip transaction was shadowing the row being equipped, so the write blew up before it ran
