@@ -243,8 +243,9 @@ Reject of the auto-filed Action remains the full reset for the turn's Move
 ## 4a. Custom items (`customizable`)
 
 A recipe flagged `customizable:` in docs/tags.yaml (the fine and lavish
-meals, the painting, the sketch, the badge, the hat) can be crafted as the
-maker's OWN: for
+meals, the painting, the sketch, the badge, the hat, and — since
+2026-09-09 — most of the Smithing weapon and armor ladder, `SMITHING.md`
+§3-§4) can be crafted as the maker's OWN: for
 **+1 ⬢ a unit** (`CUSTOM_SURCHARGE`, web/lib/customCraft.js) the player sets
 a name and/or a description, and either falls back to the base recipe's when
 left blank. The displayed name always carries the base identity —
@@ -267,6 +268,27 @@ mint happens OUTSIDE the craft transaction because the name-collision retry
 cannot run inside one (paperMint.js's 25P02 trap), and is deleted again if
 the transaction fails (a row someone else already holds is FK-pinned and
 survives the attempt).
+
+The clone also carries `meleeArmor`, `ballisticArmor`, `concealsIdentity`,
+`forcesConceal`, `concealSprite`, `laborBonus` and `carryBonus` — added
+2026-09-09 when `customizable` first reached armed gear, because a mint that
+dropped them silently produced a "Custom Breastplate" with zero armor and a
+"Custom Knight's Helmet" that no longer concealed anyone. Any future stat
+field on `Tag` needs the same treatment before a recipe carrying it is made
+`customizable`, or the mint quietly loses it. **One weapon stays off the
+list on purpose:** Trench Knife's torture bonus (`db/lib/torture.js`) checks
+the held tag's slug directly, which a custom mint never matches.
+
+Armor and headgear needed one more change first: `validateCustomizable`
+refuses `customizable` on anything non-stackable, and every armor/headgear
+tag was non-stackable — one Breastplate, ever, was the whole enforcement of
+"you already have that tag." Bascinet's call (2026-09-09): it's fine for a
+character to carry more than one, so every armor and headgear recipe on the
+Smithing ladder is now both `stackable: true` and `customizable: true`. The
+equip system already handled a stackable, layered, equippable tag correctly
+before this — the Hat proved it — so a second Breastplate just fights the
+first one for the BODY/3 layer exactly like a second Hat would
+(`db/lib/equipSlots.js`).
 
 Player words are cleaned by `cleanCustomText` (web/lib/customCraft.js): no
 `{}` (a description must not forge a `{tag:…}` chip), no `@` (item names

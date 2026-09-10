@@ -7243,7 +7243,15 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 12
+  # Trench Knife stays off the customizable list below: its torture bonus
+  # (db/lib/torture.js) checks the held tag's SLUG directly, which a custom
+  # mint never matches — a renamed one would silently lose the +1.
 
+  # Most of the ladder below is now customizable (CRAFTING.md §4a): +1 ⬢
+  # buys the smith's own name and words on the piece, same door as the Badge
+  # and Hat. mintCustomCraft now clones meleeArmor/ballisticArmor/
+  # concealsIdentity/forcesConceal/concealSprite/laborBonus too, so a custom
+  # weapon keeps its real stats and bonuses, not just its base identity.
   work-knife:
     catalog: all
     name: Work Knife
@@ -7261,6 +7269,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7286,6 +7295,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7396,6 +7406,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7422,6 +7433,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7447,6 +7459,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7494,6 +7507,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7521,6 +7535,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -7549,6 +7564,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7575,6 +7591,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7601,6 +7618,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7627,6 +7645,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7654,6 +7673,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1/3
       resourceCost: 6
@@ -7680,6 +7700,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7708,6 +7729,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7734,6 +7756,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7761,6 +7784,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -7787,6 +7811,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7815,6 +7840,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7841,6 +7867,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7868,6 +7895,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -7896,6 +7924,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -7922,6 +7951,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -7948,6 +7978,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -7974,6 +8005,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8001,6 +8033,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8028,6 +8061,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8055,6 +8089,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8113,6 +8148,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -8142,6 +8178,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 31
@@ -8169,6 +8206,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 20
@@ -8195,6 +8233,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 31
@@ -11806,9 +11845,11 @@ tags:
     visible: true
     tradeable: true
     weight: 7
+    stackable: true
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -11833,9 +11874,11 @@ tags:
     visible: true
     tradeable: true
     weight: 6
+    stackable: true
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -12260,9 +12303,11 @@ tags:
     visible: true
     tradeable: true
     weight: 1
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12287,9 +12332,11 @@ tags:
     visible: true
     tradeable: true
     weight: 4
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12334,9 +12381,11 @@ tags:
     visible: true
     tradeable: true
     weight: 4
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12385,9 +12434,11 @@ tags:
     visible: true
     tradeable: true
     weight: 6
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12442,9 +12493,11 @@ tags:
     visible: worn
     tradeable: true
     weight: 8
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12466,9 +12519,11 @@ tags:
     visible: true
     tradeable: true
     weight: 3
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3
@@ -12492,9 +12547,11 @@ tags:
     visible: true
     tradeable: true
     weight: 10
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12516,9 +12573,11 @@ tags:
     visible: true
     tradeable: true
     weight: 25
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 6
@@ -12575,9 +12634,11 @@ tags:
     visible: true
     tradeable: true
     weight: 25
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 1
       resourceCost: 14
@@ -12601,9 +12662,11 @@ tags:
     visible: worn
     tradeable: true
     weight: 25
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12626,9 +12689,11 @@ tags:
     visible: true
     tradeable: true
     weight: 20
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 2
       resourceCost: 26
@@ -12670,9 +12735,11 @@ tags:
     visible: true
     tradeable: true
     weight: 55
+    stackable: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 3
       resourceCost: 34
@@ -13043,10 +13110,12 @@ tags:
     ballistic: 0.05
     tradeable: true
     weight: 2
+    stackable: true
     visible: worn
     purchasable: false
     purchasableAfterStart: false
     craftable: true
+    customizable: true
     requirement:
       turnsCost: 0
       resourceCost: 3

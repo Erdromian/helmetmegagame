@@ -837,6 +837,16 @@ async function mintCustomCraft(db, baseTag, { name, description, literal = false
     equipSlot: baseTag.equipSlot,
     equipLayer: baseTag.equipLayer,
     twoHanded: baseTag.twoHanded,
+    // Combat/utility stats a customizable weapon or armor piece carries —
+    // missing these meant a "Custom Breastplate" minted with zero armor and
+    // a "Custom Knight's Helmet" that no longer concealed anyone.
+    meleeArmor: baseTag.meleeArmor,
+    ballisticArmor: baseTag.ballisticArmor,
+    concealsIdentity: baseTag.concealsIdentity,
+    forcesConceal: baseTag.forcesConceal,
+    concealSprite: baseTag.concealSprite,
+    laborBonus: baseTag.laborBonus ?? undefined,
+    carryBonus: baseTag.carryBonus,
     removable: baseTag.removable,
     consumable: baseTag.consumable,
     consumesInto: baseTag.consumesInto,
