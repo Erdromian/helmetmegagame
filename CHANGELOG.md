@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Oracle's front page can be written at all, and one-word names link
+
+✎ The Oracle's front page is written again — it never could be, so every turn's chronicle was six zone pages and nothing tying them together  
+✎ A character with a one-word name is a link in the chronicle again, instead of a dead mention
+
 ## 2026-09-10 · Watching Underground finally hands over the caves
 
 ✎ A GM watching Underground now reads the Caves and the Depths. Every cave Location and room was invisible to them, on Chat and to the ambient line both  
