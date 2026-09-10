@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Oracle's zone rail is the same rail as the other desks'
+
+✎ The Oracle's zone buttons fill the rail and sit flush, instead of floating as centered bubbles — they now use the same rail row the adjudication and player desks do  
+✎ The Turn dropdown on the Oracle desk follows the theme again
+
 ## 2026-09-10 · The Oracle's front page can be written at all, and one-word names link
 
 ✎ The Oracle's front page is written again — it never could be, so every turn's chronicle was six zone pages and nothing tying them together  
