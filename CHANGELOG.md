@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Traits you were born with can be bought during play
+
+✎ Eagle Eyes, Keen Hearing, Brave, Giant, Pretty, Beautiful, Ambidextrous, Light Sleeper, Knighted, Old Blood, Kleptomaniac, Pacifist and Mime's Vow were shut out of the shop by mistake, so a character who did not take sharp eyes at the start could never get them  
+✎ Corrupt could be bought mid-game for points, which was a way of printing them; it is closed, along with eleven items and assets that had drifted into the shop — six wax seals, two hoods, the Cerberon radio, the Fishing Boat and the Cart  
+✚ The shop now refuses any tag that pays you points at all, and the tag sync refuses to load a catalogue that breaks either rule, so neither can drift again  
+✎ The Oracle's pages are laid out now — the main thing, what is going on, what needs a ruling — instead of a list of who arrived and what they were handed
+
 ## 2026-09-10 · A full browser cache can no longer stop a GM typing
 
 ✎ Typing to a player no longer stops working when the browser's storage fills up
