@@ -11,7 +11,7 @@ const test = require("node:test");
 const assert = require("node:assert");
 
 const { auditLinesFor, INCLUDED } = require("../lib/oracleAudit");
-const { windowBetween } = require("../lib/oracleInput");
+const { windowBetween, linkCharacterTokens } = require("../lib/oracleInput");
 const { moveCutoffAt } = require("../lib/turnClock");
 const { cutoffDecision } = require("../lib/oracleCutoff");
 const { splitEditorReply, correspondentPrompt, editorPrompt } = require("../lib/oraclePrompts");
@@ -229,4 +229,40 @@ test("a turn that outlived its end is left to Run now", () => {
 
 test("no open turn is an ordinary answer, not a fault", () => {
   assert.strictEqual(cutoffDecision(null, {}).draft, false);
+});
+
+// Names are resolved before they are stored (ORACLE.md §5), and a name that
+// resolves to nobody must lose its braces rather than become a live link to the
+// wrong person.
+
+const ROSTER = [
+  { id: "cmt00000000000000000000a", name: "Bram Holt" },
+  { id: "cmt00000000000000000000b", name: "Adeliz" },
+];
+
+test("a full name becomes a canonical mention", () => {
+  assert.strictEqual(
+    linkCharacterTokens("{char:Bram Holt} went north.", ROSTER),
+    "{char:cmt00000000000000000000a|Bram Holt} went north.",
+  );
+});
+
+test("a mononym is a name, not an id", () => {
+  // Adeliz is letters with no spaces, which is also exactly what a cuid looks
+  // like to a shape test. Checked in the wrong order, a one-word character name
+  // is mistaken for an id that is already resolved and handed back pointing at
+  // nobody — so the one name a GM most wants to click never links.
+  assert.strictEqual(
+    linkCharacterTokens("{char:Adeliz} arrived.", ROSTER),
+    "{char:cmt00000000000000000000b|Adeliz} arrived.",
+  );
+});
+
+test("an id the model echoed back is left alone", () => {
+  const already = "{char:cmt00000000000000000000a} went north.";
+  assert.strictEqual(linkCharacterTokens(already, ROSTER), already);
+});
+
+test("an invented person loses the braces", () => {
+  assert.strictEqual(linkCharacterTokens("{char:Nobody At All} waited.", ROSTER), "Nobody At All waited.");
 });

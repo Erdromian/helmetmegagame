@@ -317,10 +317,21 @@ function linkCharacterTokens(text, characters) {
 
   return String(text).replace(NAME_TOKEN_RE, (raw, inner) => {
     const name = inner.trim();
-    // Already canonical — an id, no spaces. Leave it exactly as it is.
-    if (/^[A-Za-z0-9_-]{1,64}$/.test(name)) return raw;
+    // The roster is asked FIRST, and the order is the whole point. A MONONYM —
+    // Adeliz, Grendel, Weasel — is a real character name that also looks
+    // exactly like a cuid to a shape test: letters, no spaces. Checking the
+    // id-shape first therefore mistook every single-word name for an id
+    // already resolved and handed it back untouched, so `{char:Adeliz}` was
+    // stored as a token pointing at nobody, and the one name in the sentence a
+    // GM most wants to click was the one that could never be clicked.
     const id = byName.get(name.toLowerCase());
-    return id ? `{char:${id}|${name}}` : name;
+    if (id) return `{char:${id}|${name}}`;
+    // Nobody answers to it. Either it is already a canonical id, which is left
+    // exactly as it is, or the model invented a person — and an invented name
+    // loses its braces and becomes ordinary prose rather than a live link to
+    // the wrong character (ORACLE.md §5).
+    if (/^[A-Za-z0-9_-]{1,64}$/.test(name)) return raw;
+    return name;
   });
 }
 
