@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Oracle calls NanoGPT, and its desk stops explaining itself
+
+✎ The Oracle now points at NanoGPT rather than OpenRouter. The same model under the same id, so only the endpoint moves, and an endpoint typed in by hand is left alone.  
+✎ The Oracle desk and its settings drop their explainer paragraphs. The page is now just the record and the controls.
+
 ## 2026-09-10 · The Oracle writes up each turn for the gamemasters
 
 ✚ The Oracle: at the end of a turn, a plain written account of what happened in each zone, plus a front page pulling them together. Read it at the new Oracle desk  
