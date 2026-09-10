@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The faction roster's lines are straight again
+
+✎ The rules under a faction's Members table were drawn at different heights per row, worst on your own row where the buttons are hidden
+
 ## 2026-09-10 · Earning a compliment is worth one point now
 
 ✎ Earn a compliment drops from 3 points to 1, and comes back every 5 turns instead of every 3
