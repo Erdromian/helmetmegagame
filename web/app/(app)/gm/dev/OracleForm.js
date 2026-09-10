@@ -1,0 +1,203 @@
+"use client";
+
+// The Oracle's settings, at /gm/dev?s=oracle. See docs/systemdocs/ORACLE.md.
+//
+// A client component rather than the plain <form action> the other sections
+// use, because two of its controls answer back: Test connection and Run now
+// both report a result in place, and a GM pressing either wants to know what
+// happened without hunting for it in a log.
+
+import { useState, useTransition } from "react";
+import Switch from "@/app/components/Switch";
+import { saveOracleSettings, clearOracleApiKey, testOracleConnection, runOracleNow } from "./oracleActions";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+
+// A date is data, so it gets .mono (DESIGN-SYSTEM.md). Rendered in the
+// reader's own locale rather than a format picked here.
+function When({ at }) {
+  if (!at) return null;
+  return <span className="mono">{new Date(at).toLocaleDateString()}</span>;
+}
+
+export default function OracleForm({ settings }) {
+  const confirm = useConfirm();
+  const [saving, startSave] = useTransition();
+  const [busy, startBusy] = useTransition();
+  const [note, setNote] = useState(null);
+  const [replacingKey, setReplacingKey] = useState(!settings?.hasApiKey);
+
+  if (!settings) return <p className="text-sm text-muted">No configuration row yet.</p>;
+
+  function onSave(formData) {
+    startSave(async () => {
+      const res = await saveOracleSettings(formData);
+      setNote(res.ok ? { ok: true, text: "Saved." } : { ok: false, text: res.error });
+      if (res.ok) setReplacingKey(false);
+    });
+  }
+
+  function onTest() {
+    startBusy(async () => {
+      setNote({ ok: true, text: "Testing…" });
+      const res = await testOracleConnection();
+      setNote(
+        res.ok
+          ? { ok: true, text: `Answered in ${res.ms}ms.` }
+          : { ok: false, text: res.error ?? "The provider did not answer." },
+      );
+    });
+  }
+
+  function onRun() {
+    startBusy(async () => {
+      // Real money and a few minutes of wall clock, so it asks first.
+      if (!(await confirm({ title: "Draft the last turn?", message: "This calls the provider once per zone." }))) return;
+      setNote({ ok: true, text: "Drafting. This takes a few minutes." });
+      const res = await runOracleNow();
+      setNote(
+        res.ok ? { ok: true, text: `Wrote ${res.zones} zones and a front page.` } : { ok: false, text: res.error },
+      );
+    });
+  }
+
+  return (
+    <form action={onSave} className="flex flex-col gap-4">
+      <div className="ops-toggle">
+        <Switch name="oracleEnabled" defaultChecked={settings.oracleEnabled}>
+          Draft a chronicle at the end of every turn
+        </Switch>
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="oracle-provider">
+          Provider
+        </label>
+        <input id="oracle-provider" name="oracleProvider" defaultValue={settings.oracleProvider} maxLength={60} />
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="oracle-base-url">
+          Base URL
+        </label>
+        <input id="oracle-base-url" name="oracleBaseUrl" defaultValue={settings.oracleBaseUrl} maxLength={300} />
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="oracle-model">
+          Model
+        </label>
+        <input id="oracle-model" name="oracleModel" defaultValue={settings.oracleModel} maxLength={200} />
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="oracle-key">
+          API key
+        </label>
+        {replacingKey ? (
+          <input
+            id="oracle-key"
+            name="oracleApiKey"
+            type="password"
+            autoComplete="off"
+            placeholder="Paste the key"
+            maxLength={400}
+          />
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="mono text-sm">••••••••••••••••</span>
+            <button type="button" className="btn-quiet" onClick={() => setReplacingKey(true)}>
+              Replace
+            </button>
+            <button
+              type="button"
+              className="btn-quiet"
+              onClick={async () => {
+                if (await confirm({ title: "Remove the API key?", message: "The Oracle stops running until a new one is set." })) {
+                  await clearOracleApiKey();
+                  setReplacingKey(true);
+                }
+              }}
+            >
+              Remove
+            </button>
+          </div>
+        )}
+        <p className="text-sm text-muted">
+          {settings.hasApiKey && !replacingKey ? (
+            <>
+              Set <When at={settings.oracleApiKeySetAt} />. The key is never shown again, and leaving this alone keeps
+              it.
+            </>
+          ) : (
+            "Stored in the database so the provider can be swapped without a deploy. It is included in database backups."
+          )}
+        </p>
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="oracle-memory">
+          Turns of memory
+        </label>
+        <input
+          id="oracle-memory"
+          name="oracleMemoryTurns"
+          type="number"
+          min={0}
+          max={10}
+          defaultValue={settings.oracleMemoryTurns}
+        />
+        <p className="text-sm text-muted">
+          How many previous turns each writer is shown. At 0 every turn is written blind.
+        </p>
+      </div>
+
+      <div className="ops-toggle">
+        <Switch name="oracleIncludeChat" defaultChecked={settings.oracleIncludeChat}>
+          Include the chat transcript
+        </Switch>
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="oracle-correspondent">
+          Zone writer
+        </label>
+        <textarea
+          id="oracle-correspondent"
+          name="correspondentPrompt"
+          rows={12}
+          maxLength={8000}
+          defaultValue={settings.correspondentPrompt}
+        />
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="oracle-editor">
+          Editor
+        </label>
+        <textarea
+          id="oracle-editor"
+          name="editorPrompt"
+          rows={12}
+          maxLength={8000}
+          defaultValue={settings.editorPrompt}
+        />
+        <p className="text-sm text-muted">
+          Clearing either box restores the one the game ships with.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="submit" className="btn" disabled={saving}>
+          {saving ? "Saving…" : "Save"}
+        </button>
+        <button type="button" className="btn-quiet" onClick={onTest} disabled={busy || !settings.hasApiKey}>
+          Test connection
+        </button>
+        <button type="button" className="btn-quiet" onClick={onRun} disabled={busy || !settings.hasApiKey}>
+          Draft the last turn
+        </button>
+        {note ? <span className={note.ok ? "text-sm text-muted" : "text-sm text-danger"}>{note.text}</span> : null}
+      </div>
+    </form>
+  );
+}

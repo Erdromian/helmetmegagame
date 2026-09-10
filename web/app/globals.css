@@ -8269,3 +8269,30 @@ button.equip-cell-face:focus-visible {
     height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* A character's name inside an Oracle page (docs/systemdocs/ORACLE.md).
+
+   A real <button>, not a styled span: clicking one pulls that character into
+   the inspector beside the prose, so it is a control and has to be reachable
+   by keyboard and announced as one. It is drawn as part of the sentence rather
+   than as a chip — a synopsis is prose, and a paragraph studded with pills
+   stops reading like one. The underline is what says it can be clicked. */
+.oracle-name {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--muted);
+}
+
+.oracle-name:hover,
+.oracle-name:focus-visible {
+  text-decoration-style: solid;
+  text-decoration-color: var(--accent-text);
+}

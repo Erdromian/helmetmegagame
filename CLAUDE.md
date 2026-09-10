@@ -270,6 +270,7 @@ you pick the right doc — they are never enough to change code with.
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
 | [`THREATS.md`](docs/systemdocs/THREATS.md) | You're touching the antagonist seats — the threat catalog, Assign, mid-round Spawn, or the two Threats sections on `/gm/dev` |
+| [`ORACLE.md`](docs/systemdocs/ORACLE.md) | You're touching the per-turn chronicle — `/gm/oracle`, the zone writers and the editor, the prompts, or **anything that calls a language model** |
 | [`CRT-TERMINAL.md`](docs/systemdocs/CRT-TERMINAL.md) | Someone suggests a terminal/CRT look — read before rebuilding it |
 
 Other reference docs, outside `systemdocs/`:

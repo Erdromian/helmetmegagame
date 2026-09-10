@@ -30,6 +30,10 @@ export const GM_NAV = [
   { href: "/gm/players", label: "Players", icon: "messages", section: "gm" },
   { href: "/gm/turns", label: "Adjudicate", icon: "turns", section: "gm" },
   { href: "/gm/audit", label: "Audit", icon: "audit", section: "gm" },
+  // Reuses the documents glyph: the Oracle is a stack of written pages, and
+  // the two never sit near each other in the rail (this is the GM section,
+  // Documents is the player one).
+  { href: "/gm/oracle", label: "Oracle", icon: "documents", section: "gm" },
   // The GM's own player screens, in PLAYER_NAV's order minus Faction.
   { href: "/character", label: "Character", icon: "character", section: "player" },
   { href: "/chat", label: "Chat", icon: "play", section: "player" },

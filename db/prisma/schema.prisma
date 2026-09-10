@@ -289,6 +289,50 @@ model GameConfig {
   // either way: the GM desk's Scene tab streams from it.
   playPanelEnabled Boolean @default(true)
 
+  // THE ORACLE (docs/systemdocs/ORACLE.md). Every one of these is edited from
+  // /gm/dev?s=oracle rather than the generic Configuration form, so all of
+  // them sit in gameConfigFields.js's INTERNAL_KEYS: an API key rendered as a
+  // generic text box would be readable, and a prompt is a textarea the
+  // registry has no field type for.
+  //
+  // Off by default. A turn with the Oracle disabled skips the whole thing and
+  // writes no rows.
+  oracleEnabled Boolean @default(false)
+
+  // Provider is a label; baseUrl is what actually gets called, so a
+  // self-hosted or proxied endpoint needs no code change. Model is passed
+  // through verbatim.
+  oracleProvider String @default("openrouter")
+  oracleBaseUrl  String @default("https://openrouter.ai/api/v1")
+  oracleModel    String @default("deepseek/deepseek-v4-flash")
+
+  // WRITE-ONLY. Set from the panel, masked afterwards, never returned to a
+  // client — see web/app/(app)/gm/dev/oracleActions.js, which is the only
+  // reader outside the run itself.
+  //
+  // A real credential in a database column is a deliberate departure from
+  // DISCORD_TOKEN's env-var handling, taken so the provider can be swapped
+  // without a deploy. The cost is that it lands in every pg_dump in the backup
+  // bucket, and it must never enter an archive packet (ARCHIVE.md).
+  oracleApiKey      String?
+  oracleApiKeySetAt DateTime?
+  oracleApiKeySetBy String?
+
+  // How many previous turns' synopses ride along as context. This is the whole
+  // of the Oracle's memory: at 0 each turn is written blind.
+  oracleMemoryTurns Int @default(3)
+
+  // Whether the chat transcript joins the moves/tags/audit input. Off is about
+  // 34K tokens a turn; on is closer to 650K and costs roughly ten times as
+  // much, which is still cents.
+  oracleIncludeChat Boolean @default(false)
+
+  // NULL means "use the built-in default in db/lib/oraclePrompts.js". Stored
+  // rather than hardcoded so voice can be tuned without a deploy, the way
+  // docs/handbook.md is read at runtime.
+  oracleCorrespondentPrompt String?
+  oracleEditorPrompt        String?
+
   // The anchor message in #turns carrying the Travel / Move / Speak buttons
   // (see bot/src/lib/turnsConsole.js) — same tracked-message pattern as
   // turnsAnnouncement* above, but reused across restarts rather than
@@ -988,6 +1032,7 @@ model Zone {
   startingForRoles Role[]            @relation("RoleStartingZone")
   cavingRolls      CavingRoll[]
   laborDropOptions LaborDropOption[]
+  oraclePages      OracleSynopsis[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3143,6 +3188,7 @@ model Turn {
   stagedEffects  StagedEffect[]
   cavingRolls    CavingRoll[]
   offers         Offer[]
+  oraclePages    OracleSynopsis[]
 }
 
 model Action {
@@ -4270,6 +4316,60 @@ model ArchiveEntry {
   @@index([characterId, sentAt])
   @@index([discordChannelId, sentAt])
   @@index([placeKey, seq])
+}
+
+/// One page of the Oracle's chronicle: what happened in one zone during one
+/// turn, or — when zoneId is NULL — the editor's front page over all of them.
+/// See docs/systemdocs/ORACLE.md.
+///
+/// Deliberately NOT an ArchiveKind. ArchiveEntry is the players' transcript and
+/// ships inside an archive packet; this is a GM work product, drafted by a
+/// model and rewritten by hand, and it has no business in a game's permanent
+/// record of what players said.
+model OracleSynopsis {
+  id String @id @default(cuid())
+
+  turnId String
+  turn   Turn   @relation(fields: [turnId], references: [id], onDelete: Cascade)
+
+  // NULL is the front page. Every other row is one zone's page.
+  zoneId String?
+  zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+
+  // Markdown, carrying {char:Full Name} tokens that
+  // web/app/components/DocumentMarkdown.js resolves against the turn's roster.
+  body String
+
+  // Front-page rows only: [{ name, state }], two to five of them. The
+  // STRUCTURED half of the rolling memory — an ongoing situation carried
+  // forward by name rather than left for the model to re-notice in three turns
+  // of prose.
+  threads Json?
+
+  // A GM rewrote it. The edited body is what feeds the next turns' context,
+  // which is the whole correction mechanism: there is no regenerate.
+  editedByDiscordUserId String?
+  editedAt              DateTime?
+
+  // What produced this text, snapshot rather than a pointer to live config —
+  // the same reasoning as the log tables (ARCHITECTURE.md). A prompt or model
+  // swap must not rewrite the provenance of pages already written.
+  provider     String
+  model        String
+  inputTokens  Int?
+  outputTokens Int?
+
+  createdAt DateTime @default(now())
+
+  // NOT a substitute for uniqueness. Postgres treats NULLs as distinct in a
+  // unique index, so @@unique([turnId, zoneId]) would happily allow two front
+  // pages for one turn. The real guard is a PARTIAL unique index added in raw
+  // migration SQL — `WHERE "zoneId" IS NULL` — the same shape as
+  // FactionApplication_pending_unique and ThreatSpawn_pending_unique, and it
+  // comes with the same warning: `prisma migrate diff` cannot express it, will
+  // propose dropping it, and the drop must be declined (CLAUDE.md).
+  @@unique([turnId, zoneId])
+  @@index([turnId])
 }
 
 // A GM's own notes about a player, on the player desk's dossier.
