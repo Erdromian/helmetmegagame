@@ -458,7 +458,17 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     if (!Number.isInteger(quantity) || quantity < 1) {
       throw new Error(`${label}: placement.yields.quantity must be a positive integer`);
     }
-    yields = { tag, room, quantity };
+    // Who has to be MINDING it. A skill slug: the structure produces nothing
+    // on a turn that closes with nobody standing at its Location who counts
+    // as having that skill — "counts as" meaning the tier ladder, so a
+    // Brewing (Skilled) brewer satisfies a `brewing-basic` requirement
+    // (db/lib/medicalVision.js#satisfiedSkillIds). Absent means the thing
+    // runs itself.
+    const skill = raw.yields.skill == null ? null : String(raw.yields.skill).trim();
+    if (raw.yields.skill != null && !skill) {
+      throw new Error(`${label}: placement.yields.skill must be a tag slug`);
+    }
+    yields = { tag, room, quantity, skill };
   }
   // How many bird flights a day standing here is worth (BIRD.md). The Bird's
   // own allowance is 1; a structure raises it, and the biggest one at the
@@ -605,6 +615,9 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
   }
   if (placement.yields && !knownSlugs.has(placement.yields.tag)) {
     throw new Error(`${label}: tag "${slug}" placement.yields.tag references unknown tag "${placement.yields.tag}"`);
+  }
+  if (placement.yields?.skill && !knownSlugs.has(placement.yields.skill)) {
+    throw new Error(`${label}: tag "${slug}" placement.yields.skill references unknown tag "${placement.yields.skill}"`);
   }
   if (placement.music && !knownSlugs.has(placement.music.needs)) {
     throw new Error(`${label}: tag "${slug}" placement.music.needs references unknown tag "${placement.music.needs}"`);

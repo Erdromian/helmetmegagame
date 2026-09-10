@@ -30,7 +30,7 @@ test("placement: the new keys survive normalisation", () => {
     music: { mood: 8, needs: "boombox" },
   });
   assert.deepEqual(p.locations, ["old-cock-inn"]);
-  assert.deepEqual(p.yields, { tag: "alcohol", room: "inn-cellar", quantity: 1 });
+  assert.deepEqual(p.yields, { tag: "alcohol", room: "inn-cellar", quantity: 1, skill: null });
   assert.equal(p.birdSendsPerDay, 6);
   assert.deepEqual(p.music, { mood: 8, needs: "boombox" });
 });
@@ -43,9 +43,26 @@ test("placement: absent new keys default to empty, never undefined", () => {
   assert.equal(p.music, null);
 });
 
-test("placement: yields.quantity defaults to 1", () => {
+test("placement: yields.quantity defaults to 1 and skill to nobody", () => {
   const p = normalizePlacement({ yields: { tag: "alcohol", room: "inn-cellar" } });
   assert.equal(p.yields.quantity, 1);
+  // Absent means the thing runs itself; only a named skill gates the pour.
+  assert.equal(p.yields.skill, null);
+});
+
+test("placement: yields.skill rides through and must name a real tag", () => {
+  const p = normalizePlacement({
+    yields: { tag: "alcohol", room: "inn-cellar", skill: "brewing-basic" },
+  });
+  assert.equal(p.yields.skill, "brewing-basic");
+  assert.throws(
+    () =>
+      validatePlacement(
+        normalizePlacement({ yields: { tag: "alcohol", room: "r", skill: "nope" } }),
+        { slug: "brewery", tag: { craftable: true, requirement: { turnsCost: 1 } }, knownSlugs: new Set(["alcohol"]) },
+      ),
+    /yields\.skill references unknown tag "nope"/,
+  );
 });
 
 // The whole reason these validators earn a test: an unknown key is DROPPED,
@@ -65,6 +82,7 @@ test("placement: the new keys refuse nonsense", () => {
     [{ yields: { room: "inn-cellar" } }, /yields\.tag must be a tag slug/],
     [{ yields: { tag: "alcohol" } }, /yields\.room must be a room slug/],
     [{ yields: { tag: "a", room: "b", quantity: 0 } }, /quantity must be a positive integer/],
+    [{ yields: { tag: "a", room: "b", skill: "  " } }, /yields\.skill must be a tag slug/],
     [{ music: { needs: "boombox" } }, /music\.mood must be a positive integer/],
     [{ music: { mood: -8, needs: "boombox" } }, /music\.mood must be a positive integer/],
     [{ music: { mood: 8 } }, /music\.needs must be a tag slug/],
@@ -110,7 +128,7 @@ const ANYWHERE = {};
 test("canBuildHere: a named site is the only place its type may stand", () => {
   assert.equal(canBuildHere(INN, BREWERY).ok, true);
   assert.equal(canBuildHere(SQUARE, BREWERY).ok, false);
-  assert.match(canBuildHere(SQUARE, BREWERY).reason, /belongs somewhere else/);
+  assert.match(canBuildHere(SQUARE, BREWERY).reason, /only be build in the inn/);
 });
 
 // The rule worth pinning down: naming a site satisfies the INDOORS default

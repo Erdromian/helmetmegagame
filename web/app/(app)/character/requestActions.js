@@ -5159,9 +5159,7 @@ async function birdMessageRequestImpl({
   if (allowance > BASE_BIRD_SENDS_PER_DAY) {
     const cooling = rookeryCooldown(character.birdLastSentAt);
     if (!cooling.ok) {
-      throw new UserError(
-        `The birds are still settling. Try again <t:${cooling.readyAt}:R>. \u2021`,
-      );
+      throw new UserError(`Try again <t:${cooling.readyAt}:R>.`);
     }
   }
 
@@ -5191,7 +5189,7 @@ async function birdMessageRequestImpl({
       if (spent.count === 0) {
         throw new UserError(
           allowance > BASE_BIRD_SENDS_PER_DAY
-            ? "The birds have all flown for today. \u2021"
+            ? "The birds have all flown today."
             : "Your bird has already flown today.",
         );
       }

@@ -17,6 +17,14 @@
 // The destination room need NOT be at the structure's own Location — naming it
 // by slug is what lets the brewery at the inn fill the cellar under it.
 //
+// SOMEBODY HAS TO BE MINDING IT. `yields.skill` names a skill, and the turn
+// produces nothing unless a living character who counts as having it is
+// standing at the structure's Location when the turn closes. A brewery is not
+// a machine; it is a trade, and it runs while a brewer is there and stops when
+// they wander off. "Counts as" is the tier ladder, so Brewing (Skilled)
+// satisfies a `brewing-basic` requirement even though holding the higher tier
+// replaces the lower row outright (db/lib/tagWrites.js#replaceLowerTiers).
+//
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel, the
 // db/lib/dm.js convention; require it by path.
 
@@ -24,6 +32,7 @@ const { addToRoomStack } = require("./tagWrites");
 const { ambientLine } = require("./ambientLine");
 const { postMessage } = require("./discordRest");
 const { placementOf } = require("./structures");
+const { buildSkillAncestry, satisfiedSkillIds } = require("./medicalVision");
 
 // Structures that are actually WORKING. Deliberately COMPLETE only, and
 // stricter than WORKING_STATUSES: a palisade still fences you in when it is
@@ -31,13 +40,39 @@ const { placementOf } = require("./structures");
 // labor bonus makes (db/lib/laborAccess.js).
 const YIELDING_STATUSES = ["COMPLETE"];
 
+// Does anybody standing here count as having `skillSlug`? The tier ladder is
+// the whole subtlety: holding Brewing (Skilled) REPLACES the Basic row rather
+// than adding to it, so a plain slug test would find no brewer in a room full
+// of good ones. satisfiedSkillIds walks each held tag's parent chain, which is
+// the same answer requireRecipeSkills gives a crafter.
+async function someoneTending(prisma, locationId, skillSlug) {
+  if (!locationId) return false;
+  const skill = await prisma.tag.findUnique({ where: { slug: skillSlug }, select: { id: true } });
+  // A skill slug the catalog does not have: fail SOFT and OPEN, matching how
+  // the room and tag lookups below treat a cross-master rename. A building
+  // that quietly stopped working would be much harder to notice than one that
+  // kept going.
+  if (!skill) {
+    console.warn(`structureYield: yields.skill "${skillSlug}" is not a tag — not gating on it.`);
+    return true;
+  }
+  const here = await prisma.character.findMany({
+    where: { locationId, status: "ALIVE" },
+    select: { tags: { select: { tagId: true } } },
+  });
+  if (!here.length) return false;
+  const catalog = await prisma.tag.findMany({ select: { id: true, parentTagId: true } });
+  const ancestry = buildSkillAncestry(catalog);
+  return here.some((c) => satisfiedSkillIds(c.tags.map((ct) => ct.tagId), ancestry).has(skill.id));
+}
+
 async function runStructureYieldPass(prisma, turn) {
-  const result = { poured: 0, skipped: 0, lines: [] };
+  const result = { poured: 0, skipped: 0, untended: 0, lines: [] };
   if (!turn?.id) return result;
 
   const rows = await prisma.structure.findMany({
     where: { status: { in: YIELDING_STATUSES } },
-    select: { id: true, typeSlug: true, typeName: true, lastUpkeepTurnId: true },
+    select: { id: true, typeSlug: true, typeName: true, locationId: true, lastUpkeepTurnId: true },
   });
   if (!rows.length) return result;
 
@@ -105,6 +140,17 @@ async function runStructureYieldPass(prisma, turn) {
         continue;
       }
 
+      // Is anybody minding it? Read AFTER the claim above on purpose: an
+      // unminded turn is still a turn that has been accounted for, so a
+      // brewery nobody tended does not bank the day and pour two tomorrow.
+      if (spec.skill) {
+        const minded = await someoneTending(prisma, row.locationId, spec.skill);
+        if (!minded) {
+          result.untended += 1;
+          continue;
+        }
+      }
+
       await prisma.$transaction(async (tx) => {
         await addToRoomStack(tx, room.id, tag.id, spec.quantity);
       });
@@ -112,7 +158,7 @@ async function runStructureYieldPass(prisma, turn) {
       if (room.discordThreadId) {
         result.lines.push({
           threadId: room.discordThreadId,
-          text: ambientLine(`Something new has been left here. ‡`),
+          text: ambientLine(`The brewery generated one alcohol.`),
         });
       }
     } catch (err) {

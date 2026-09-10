@@ -5120,8 +5120,8 @@ tags:
       # is no such loop here.
       fieldwork: true
       locations: [old-cock-inn]
-      examine: "the mash is working. \u2021"
-      yields: { tag: alcohol, room: inn-cellar, quantity: 1 }
+      examine: "it'll actively produce alcohol as long as a brewer is around."
+      yields: { tag: alcohol, room: inn-cellar, quantity: 1, skill: brewing-basic }
 
   rookery:
     catalog: all
@@ -5142,7 +5142,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "the birds shift and mutter on their perches. \u2021"
+      examine: "birds await to be sent with letters."
       # Six is the number of bird-reachable zones, deliberately: a holder CAN
       # find any one person in a day, by spending every flight they have on it
       # and writing to nobody. A trade, not a free lookup. The likeliest knob
@@ -5169,7 +5169,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
-      examine: "planks and trestles, waiting on a crowd. \u2021"
+      examine: "a haphazard construction waiting for a boombox."
       # The boombox is a RUNNING requirement, not a build cost — which is why
       # this carries no requirement.items, a pairing the sync refuses outright
       # for a placement recipe ("a build site never spends an ingredient").
