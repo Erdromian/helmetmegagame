@@ -58,7 +58,7 @@ import { addRoomGuest, removeRoomGuest, roomGuests } from "@lifeweb/db/lib/roomG
 import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMembers";
 import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
 import { sceneLine } from "@lifeweb/db/lib/scene";
-import { parsePlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
+import { parsePlaceKey, isScenePlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
 import { removeThreadMember } from "@lifeweb/db/lib/discordRest";
 import { BELL_ROOM_SLUG, RING_WORD, bellWordMatches, bellCooldown, broadcastBell } from "@lifeweb/db/lib/bell";
 import {
@@ -1593,31 +1593,30 @@ export async function shoutHere(text, placeKey = null) {
   const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
 
-  // The write check comes BEFORE shout(), which is a change: shout() claims the
-  // five-minute cooldown, so asking afterwards meant a thread the player may
-  // not write to cost them five minutes of throat for zero posts. That was
-  // always wrong and is now unmissable — from inside a soundproof room the
-  // thread is the ONLY audience, so failing this check would burn the cooldown
-  // on a shout literally nobody heard.
-  const here = parsePlaceKey(placeKey);
-
-  // Not from the street. A shout is a voice and a Location takes none — the
-  // composer is gone from it (Feed.js) and `/shout` is not offered there
-  // (commands.js) — but a server action is a public endpoint, and the UI is a
-  // hint rather than a lock. Before shout(), so a refused shout costs no
-  // cooldown.
-  if (here?.kind === "loc") {
-    return { ok: false, error: "Step into a room, a conversation or the summary to shout. ‡" };
+  // WHERE, then WHETHER, and both before shout() — which claims the five-minute
+  // cooldown, so asking afterwards meant a place the player may not shout from
+  // cost them five minutes of throat for zero posts.
+  //
+  // Where: a Room or a Conversation and nowhere else, the same gate Discord
+  // uses (db/lib/placeKey.js#isScenePlaceKey). The street takes no voice at all
+  // and the zone summary is a broadcast rather than a place anybody stands in;
+  // `/shout` is offered in neither (commands.js), but a server action is a
+  // public endpoint and the UI is a hint rather than a lock. This used to
+  // refuse the street alone, so a summary place key fell through and shouted
+  // from wherever the character actually stood.
+  //
+  // Whether: from inside a soundproof room the thread is the ONLY audience, so
+  // a write the player does not have would burn the cooldown on a shout
+  // literally nobody heard.
+  if (!isScenePlaceKey(placeKey)) {
+    return { ok: false, error: "There's nobody here to hear it. ‡" };
   }
 
-  const inThread = Boolean(here && (here.kind === "room" || here.kind === "conv"));
-  if (inThread) {
-    const mine = await mayWritePlace(prisma, me.character, placeKey, {
-      gm: false,
-      discordUserId: me.discordUserId,
-    });
-    if (!mine) return { ok: false, error: "You can't speak in here. ‡" };
-  }
+  const mine = await mayWritePlace(prisma, me.character, placeKey, {
+    gm: false,
+    discordUserId: me.discordUserId,
+  });
+  if (!mine) return { ok: false, error: "You can't speak in here. ‡" };
 
   const result = await shout(prisma, { ...me.character, discordUserId: me.discordUserId }, text, { placeKey });
   if (!result.ok) {
@@ -1638,20 +1637,18 @@ export async function shoutHere(text, placeKey = null) {
   // twenty-nine places turned an already-committed shout into a rejected
   // promise, which the composer read as "it didn't send" and left the words
   // sitting in the box. One audience short is not a failed shout.
-  if (inThread) {
-    try {
-      await sceneLine(prisma, { placeKey, text: result.here.scene.text, lines: result.here.scene.lines });
-    } catch (err) {
-      console.error(`Shout row for ${placeKey} failed:`, err?.message ?? err);
-    }
-    try {
-      const target = await discordTargetForPlaceKey(prisma, placeKey);
-      const channelId = target?.threadId ?? target?.channelId ?? null;
-      if (channelId) await postMessage(channelId, result.here.line, undefined, { parse: [] });
-    } catch {
-      // The archive row stands. A thread that refused the post is one
-      // audience short, not a failed shout.
-    }
+  try {
+    await sceneLine(prisma, { placeKey, text: result.here.scene.text, lines: result.here.scene.lines });
+  } catch (err) {
+    console.error(`Shout row for ${placeKey} failed:`, err?.message ?? err);
+  }
+  try {
+    const target = await discordTargetForPlaceKey(prisma, placeKey);
+    const channelId = target?.threadId ?? target?.channelId ?? null;
+    if (channelId) await postMessage(channelId, result.here.line, undefined, { parse: [] });
+  } catch {
+    // The archive row stands. A thread that refused the post is one
+    // audience short, not a failed shout.
   }
 
   for (const place of result.heard) {
@@ -1692,6 +1689,14 @@ export async function rollHere(placeKey) {
     discordUserId: true,
   });
   if (me.error) return { ok: false, error: me.error };
+
+  // A Room or a Conversation, the same gate /shout takes above: a die is cast
+  // in front of the people you are standing with. mayWritePlace alone was not
+  // that gate — db/lib/feedAccess.js gives the zone summary `canSpeak: true`,
+  // so a summary place key passed it and rolled into the broadcast.
+  if (!isScenePlaceKey(placeKey)) {
+    return { ok: false, error: "There's nobody here to see it. ‡" };
+  }
 
   const may = await mayWritePlace(prisma, me.character, placeKey, {
     gm: false,

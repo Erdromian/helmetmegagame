@@ -162,6 +162,23 @@ function parsePlaceKey(placeKey) {
   return { kind, id };
 }
 
+// A SCENE is somewhere people are standing together and can hear each other:
+// a Room thread or a Conversation. Not a Location, which is the street's
+// scenery and takes no voice at all — its members hold no Send there, and
+// what happens on it happens through the anchor's buttons. Not a zone
+// #summary either, which is a broadcast rather than a place anybody stands in.
+//
+// This is the gate for the three moment-to-moment verbs — shout, play, roll —
+// and it lives here so the two faces cannot drift: the bot resolves a channel
+// to a key with placeKeyForChannel above and asks this, the web asks it of the
+// key the browser sent. Before it, Discord and the web disagreed about where
+// each of the three was legal, and the web's half was a hidden menu entry with
+// nothing behind it.
+function isScenePlaceKey(placeKey) {
+  const kind = parsePlaceKey(placeKey)?.kind;
+  return kind === "room" || kind === "conv";
+}
+
 // Where on Discord a place key points, for the outbox: the channel a webhook
 // belongs to, plus the thread to post into when there is one.
 //
@@ -219,5 +236,6 @@ module.exports = {
   placeKeyForConversation,
   placeKeyForZone,
   parsePlaceKey,
+  isScenePlaceKey,
   forgetPlaceKeys,
 };

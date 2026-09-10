@@ -741,12 +741,29 @@ two things run in parallel and are worth knowing about:
   archive row so Chat and `/archive` both see the die; the bot's handler
   still posts a plain message that no row remembers.
 
-**Where each of the three may be typed on the web.** `/shout` runs in a
-Location, a Room and a conversation — the street included, which is the whole
-point of it, and which is why the street has a command-only composer at all
-(`CHAT.md` §5). `/roll` runs in a Room and a conversation. Neither runs in the
-zone summary: that is a broadcast rather than a place anybody stands in, and a
-die cast into one has no audience to see it thrown.
+**Where the moment-to-moment three may be used, on either face.** `/shout`,
+`/play` and `/roll` run in a **Room or a conversation and nowhere else**. One
+predicate says so for both faces — `db/lib/placeKey.js#isScenePlaceKey`, which
+takes a place key and answers `room` or `conv`, true; `loc` or `zone`, false.
+The bot resolves its channel to a key with `placeKeyForChannel` and asks it;
+the web asks it of the key the browser sent.
+
+Two things it rules out. A **zone summary** is a broadcast rather than a place
+anybody stands in, so a die cast into one has no audience to see it thrown. A
+**Location channel** is the street's scenery — its members hold no Send there
+(`CHANNELS.md` §3), and what happens on it happens through the anchor's
+buttons — so a voice in one is a voice in a room the game says nobody is
+talking in.
+
+Before this the two faces disagreed and neither was right. The bot asked
+`resolveChannelContext` for `channelKind === "location"`, which resolves the
+same for the street and for every thread hanging off it, so `/shout` and
+`/play` worked on the open street; `/roll` had no place gate at all and posted
+into whatever channel it was typed in, `#turns` included. On the web the
+composer's own `where: ["room", "conv"]` was already right, but a server action
+is a public endpoint: `shoutHere` refused only a `loc:` key, so a `zone:` one
+fell through and shouted from wherever the character actually stood, and
+`rollHere` asked `mayWritePlace`, which counts the summary as speakable.
 
 **`/add` and `/remove` need you INSIDE the private room, not merely at its
 Location.** On Discord that gate is implicit — the command is typed into the

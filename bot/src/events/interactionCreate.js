@@ -62,7 +62,7 @@ const { buildSpeakModal } = require("../lib/speakModal");
 const { canSpeakInTarget } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../lib/interactionGuild");
 const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
-const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
+const { placeKeyForChannel, isScenePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
 const { resolveLaborRate, qualityWord } = require("@lifeweb/db");
@@ -1773,6 +1773,21 @@ async function handleHealPick(interaction, characterId) {
 // (PROXYING.md).
 async function handleRollCommand(interaction) {
   await ack(interaction);
+
+  // A die is cast in front of people, so the same gate the other two
+  // moment-to-moment verbs use: a Room or a Conversation and nowhere else
+  // (db/lib/placeKey.js#isScenePlaceKey). This had no gate at all, and would
+  // roll into whatever channel it was typed in — the street, a zone #summary,
+  // #turns.
+  const channel = interaction.channel;
+  const placeKey = channel
+    ? await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id })
+    : null;
+  if (!isScenePlaceKey(placeKey)) {
+    await respond(interaction, "There's nobody here to see it.");
+    return;
+  }
+
   const value = rollDie(6);
   const posted = await interaction.channel?.send(`» *A die is cast* — **${value}**`).catch(() => null);
   await respond(interaction, posted ? `You rolled a ${value}.` : "Could not post a roll here.");
@@ -1870,13 +1885,16 @@ async function handlePlayCommand(interaction) {
     return;
   }
 
-  // Where: a Room or a Conversation is a THREAD under its Location's channel,
-  // so resolveChannelContext resolving to a location covers the open street
-  // and every thread hanging off it in one check — and refuses a zone
-  // #summary or #cerberon, which are not places anyone is standing.
+  // Where: a Room or a Conversation, and nowhere else (db/lib/placeKey.js
+  // #isScenePlaceKey). That refuses a zone #summary and #cerberon, which are
+  // not places anyone is standing — and the open street too, which this used
+  // to allow: a Location channel is scenery with no Send on it, so playing
+  // into one was performing to a room the game says nobody is talking in.
   const channel = interaction.channel;
-  const context = channel ? resolveChannelContext(channel) : null;
-  if (!channel || context?.channelKind !== "location") {
+  const placeKey = channel
+    ? await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id })
+    : null;
+  if (!isScenePlaceKey(placeKey)) {
     await respond(interaction, "There's nobody here to hear it.");
     return;
   }
@@ -1911,11 +1929,10 @@ async function handlePlayCommand(interaction) {
     );
   }
 
-  // ...and the street outside hears it, small. Only when the room WAS a
-  // thread — run on the open street, the channel above already is the
-  // Location, and a second copy under the first would just be the same line
-  // twice.
-  if (channel.isThread() && channel.parent) {
+  // ...and the street outside hears it, small. The gate above leaves only a
+  // Room or a Conversation, both of which are threads under their Location's
+  // channel, so the parent is always there and always the street.
+  if (channel.parent) {
     await channel.parent.send(ambientLine(line)).catch(() => null);
   }
 
@@ -1951,12 +1968,16 @@ async function handleShoutCommand(interaction) {
     return;
   }
 
-  // Where the CHARACTER stands, not what channel the command was typed in —
-  // the two can disagree, and only one of them is a place a voice comes from.
-  // The channel still has to be somewhere you can speak, so /shout can't be
-  // fired out of a zone #summary or a DM.
-  const context = interaction.channel ? resolveChannelContext(interaction.channel) : null;
-  if (context?.channelKind !== "location") {
+  // Where the CHARACTER stands is what the shout is anchored to, not the
+  // channel it was typed in — the two can disagree, and only one of them is a
+  // place a voice comes from. But the channel still has to be a scene you are
+  // in: a Room or a Conversation (db/lib/placeKey.js#isScenePlaceKey), never a
+  // zone #summary, a DM, or the open street, which takes no voice at all.
+  const shoutChannel = interaction.channel;
+  const placeKey = shoutChannel
+    ? await placeKeyForChannel(prisma, { channelId: shoutChannel.id, parentId: shoutChannel.parent?.id })
+    : null;
+  if (!isScenePlaceKey(placeKey)) {
     await respond(interaction, "There's nobody here to hear it.");
     return;
   }

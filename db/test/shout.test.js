@@ -20,3 +20,23 @@ test("three hops away hears only that someone shouted, and which way", () => {
   assert.equal(shoutParts("Run!", 3, "the Gate").text, "You hear someone shout from the direction of the Gate.");
   assert.equal(shoutParts("Run!", 3, null).text, "You hear someone shout somewhere nearby.");
 });
+
+// The place gate the three moment-to-moment verbs share (db/lib/placeKey.js).
+// Both faces ask this one question, so a drift between them fails here first.
+const { isScenePlaceKey } = require("../lib/placeKey");
+
+test("a room and a conversation are scenes", () => {
+  assert.equal(isScenePlaceKey("room:abc"), true);
+  assert.equal(isScenePlaceKey("conv:abc"), true);
+});
+
+test("the street and the zone summary are not", () => {
+  assert.equal(isScenePlaceKey("loc:abc"), false);
+  assert.equal(isScenePlaceKey("zone:abc"), false);
+});
+
+test("a missing or malformed key is not a scene", () => {
+  for (const key of [null, undefined, "", "room:", ":abc", "nonsense", 7]) {
+    assert.equal(isScenePlaceKey(key), false);
+  }
+});
