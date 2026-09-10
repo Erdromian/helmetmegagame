@@ -207,10 +207,11 @@ Overburdened. They stash the rest in the Logistics Room and the carry pass
 handles the overflow. The cart and the silo are the business; that is
 deliberate, not an oversight.
 
-**A cube sells for 4 ⬢.** Farming at coefficient 1.0 with
-`productionCoefficient` 0.93 pays 11–15 ⬢, midpoint 13; a factory day at the
-authored 2.2× is ~28.6 ⬢ for 8 cubes, so 3.6 each, rounded to 4. A full wagon is
-240 ⬢ — and since obols went 1:1 in 9/2026, 240 ¢.
+**A cube sells for 5 ⬢.** (It was 4 until 2026-09-10, Bascinet's call.)
+Farming at coefficient 1.0 with `productionCoefficient` 0.93 pays 11–15 ⬢,
+midpoint 13; a factory day is now 40 ⬢ for 8 cubes, about 3.1× a good farming
+day, up from the 2.2× the 4 ⬢ price was derived from. A full 60-cube wagon is
+300 ⬢ — and since obols went 1:1 in 9/2026, 300 ¢.
 
 Squeeze has no `depotPrice`. The station sells nobody a cube.
 
