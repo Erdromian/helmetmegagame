@@ -99,7 +99,7 @@ const ATTRIBUTES = {
   // Logistics Room says is staged at the ramp. Means nothing outdoors, where
   // wheels were never in question.
   wheels: {
-    describe: () => "**Wheels**: you can bring a cart or a horse in here. ‡",
+    describe: () => "**Wheels**: you can bring a cart or a horse in here.",
   },
 
   // A public board somebody can pin a paper to. What the Noticeboard button on
