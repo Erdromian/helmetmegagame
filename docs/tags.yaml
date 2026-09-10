@@ -2401,7 +2401,7 @@ tags:
     name: Second Wind
     category: general
     group: general-traits
-    description: "You fight through it. Wounds and illness cost you nothing at all in a fight, though being at death's door still ends one. ‡"
+    description: "Wounds and illnesses don't affect your combat score."
     pointCost: 6
     visible: false
     purchasable: true
@@ -3128,8 +3128,8 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "You fight better with a drink in you. While {tag:tipsy}, your fighting skill counts as 1 tier higher, and being {tag:wasted} costs you nothing at all."
-    fighting: { tree: both, tiers: 1, when: { holds: [tipsy] } }
+    description: "You fight better with a drink in you. While {tag:tipsy} or {tag:wasted}, your fighting skill counts as 1 tier higher."
+    fighting: { tree: both, tiers: 1, cancels: [tipsy, wasted, blind-drunk], when: { holdsAny: [tipsy, wasted, blind-drunk] } }
     pointCost: 5
     requiredTag: alcoholic
     visible: false
@@ -3442,7 +3442,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You feel warm, but a bit uncoordinated. Your Fighting skill counts as 1 tier lower."
-    fighting: { tree: both, tiers: -1 }
+    fighting: { tree: both, tiers: -0.8 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3455,7 +3455,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You are in a bit of a stupor and are having trouble controlling your body. Your Fighting skill counts as 2 tiers lower."
-    fighting: { tree: both, tiers: -2 }
+    fighting: { tree: both, tiers: -1.2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -15504,7 +15504,7 @@ tags:
     category: status
     group: status-debuffs
     description: "You can barely see. That drink is bad!"
-    fighting: { tree: both, tiers: -3 }
+    fighting: { tree: both, tiers: -1.2 }
     pointCost: 0
     visible: true
     purchasable: false

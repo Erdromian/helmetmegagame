@@ -1002,7 +1002,10 @@ const { BANDS, POINTS_PER_TIER, WEAPON_CLASSES } = require("./fightingSkill");
 
 const FIGHTING_TREES = new Set(["melee", "ranged", "both"]);
 const FIGHTING_BAND_KEYS = new Set(BANDS.map((b) => b.key));
-const FIGHTING_WHEN_KEYS = new Set(["weaponClass", "holds", "equipped", "unarmoured"]);
+// `holds` is AND — every slug must be held. `holdsAny` is OR, for a condition
+// that spans rungs of one ladder: the drinking rungs replace each other, so a
+// tag keyed to "being drunk at all" can never name them with `holds`.
+const FIGHTING_WHEN_KEYS = new Set(["weaponClass", "holds", "holdsAny", "equipped", "unarmoured"]);
 
 // A tier is authored to one decimal place and nothing finer. The check is not
 // fussiness: `tiers: 0.25` would silently become 2.5 points, round somewhere,
@@ -1172,7 +1175,7 @@ function validateFighting(normalized, { selfSlug, tagSlugs, equippable, label = 
 
   // Every condition and cancellation names a real tag. A typo here would read
   // as a bonus that simply never fires.
-  for (const field of ["holds", "equipped"]) {
+  for (const field of ["holds", "holdsAny", "equipped"]) {
     for (const slug of normalized.when?.[field] ?? []) {
       if (!tagSlugs.has(slug)) {
         throw new Error(`${label}: "${selfSlug}" fighting.when.${field} names unknown tag "${slug}"`);

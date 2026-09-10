@@ -1172,7 +1172,7 @@ zones:
             starting_resources: 1
             starting_zone: caves
             starting_location: caves-abandoned-camp
-            extra_starting_points: 10
+            extra_starting_points: 6
             starting_tags: [Pale]
             doc_elements: [caving]
           mercenary:

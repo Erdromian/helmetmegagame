@@ -43,10 +43,24 @@ export const CURSED_ROLE_SLUGS = ["migrant", "bum"];
 // roll reads the same one.
 export { SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly };
 
-// budget = config base + role bonus - curse penalty, clamped at 0.
+// budget = config base, then EITHER the role's bonus OR the curse penalty,
+// clamped at 0.
+//
+// The curse REPLACES the bonus rather than netting against it (Bascinet,
+// 2026-09-10). Both roles a cursed player may take carry a bonus — Migrant's
+// is the largest in the game — so netting them meant a curse cost 6 points on
+// paper and left a cursed Migrant better off than most of the roster. Coming
+// back cursed is supposed to hurt, and now it reads the way it is described:
+// a flat -6 against the base, whatever seat you take.
 export function computeBudget({ startingTagPoints, role, cursed }) {
   const base = startingTagPoints ?? 0;
-  const bonus = role?.extraStartingPoints ?? 0;
+  const modifier = role?.extraStartingPoints ?? 0;
+  // A curse cancels a role's BONUS but never its penalty. Both seats a cursed
+  // player may take carry a modifier and they point opposite ways: Migrant
+  // gives +6, Bum takes 3 away. Wiping the modifier outright would have made
+  // a cursed Bum better off than an uncursed one, which is the wrong
+  // direction for a tag that is supposed to be a punishment.
+  const bonus = cursed ? Math.min(0, modifier) : modifier;
   const penalty = cursed ? CURSED_POINT_PENALTY : 0;
   return Math.max(0, base + bonus - penalty);
 }

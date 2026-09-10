@@ -153,6 +153,8 @@ function servesTree(block, tree) {
 function whenHolds(when, ctx) {
   if (!when) return true;
   if (when.holds?.length && !when.holds.every((s) => ctx.held.has(s))) return false;
+  // OR, unlike `holds` above — see FIGHTING_WHEN_KEYS in db/lib/tagShapes.js.
+  if (when.holdsAny?.length && !when.holdsAny.some((s) => ctx.held.has(s))) return false;
   if (when.equipped?.length && !when.equipped.every((s) => ctx.equipped.has(s))) return false;
   if (when.unarmoured?.length && when.unarmoured.some((slot) => ctx.armouredSlots.has(slot))) return false;
   // weaponClass is deliberately NOT tested here. It is resolved per weapon in
@@ -180,12 +182,37 @@ function rungBase(rows, tree) {
   return { points: UNTRAINED + RUNG_STEP * best.rung, label: best.label };
 }
 
-// A wound rather than an illness or a state of mind — what Second Wind waives.
+// A wound rather than a state of mind — what Second Wind waives outright.
 // Health-category AND one of the three wound groups; a tag whose group was not
 // selected reads as not-a-wound, which fails SAFE (the penalty still counts).
 function isWoundRow(row) {
   const tag = tagOf(row);
   return tag?.category === HEALTH_CATEGORY && WOUND_TAG_GROUPS.includes(tag?.group?.slug);
+}
+
+// Illnesses are waived too (Bascinet, 2026-09-10), but only up to a point:
+// "wounds and illnesses don't affect your combat score, except the really
+// really bad ones". This is where "really really bad" is drawn, and it is a
+// THRESHOLD rather than a list of slugs on purpose — the same reasoning the
+// wound rule uses. A named list would be true on the day it was written and
+// quietly wrong for the next illness somebody adds.
+//
+// The catalog draws the line for us: the eighteen illnesses run -0.3 to -1.5
+// and then jump straight to -2, with nothing in between. Everything at or
+// above the floor is something you can fight through — a cough, boils, gut
+// worms, a fever. Everything past it is actively killing you: Choking,
+// Envenomated, Phrygian Toxin, an Exploded Chest, Appendicitis. Grit does not
+// answer those.
+// In STORED points, not authored tiers: normalizeFighting multiplies by 10,
+// so -1.5 tiers is -15 here. Comparing against -1.5 would have waived every
+// illness in the catalog, including the ones that are killing you.
+const SECOND_WIND_ILLNESS_FLOOR = -15;
+
+function isWaivedIllnessRow(row, points) {
+  const tag = tagOf(row);
+  if (tag?.category !== HEALTH_CATEGORY) return false;
+  if (tag?.group?.slug !== "health-illness") return false;
+  return points >= SECOND_WIND_ILLNESS_FLOOR;
 }
 
 // Everything programmatic that is not about a weapon. These SUM: a maiming and
@@ -215,7 +242,11 @@ function modifiers(rows, tree, ctx) {
     // somehow helped keeps helping — and the band CAPS (Dying, Paralyzed,
     // Seizure) are untouched on purpose, since those take you out of a fight
     // rather than making you worse at one.
-    if (ctx.secondWind && isWoundRow(row) && block.points < 0) {
+    if (
+      ctx.secondWind &&
+      block.points < 0 &&
+      (isWoundRow(row) || isWaivedIllnessRow(row, block.points))
+    ) {
       out.push({ label: nameOf(row), points: 0, cancelledBy: SECOND_WIND_LABEL });
       continue;
     }

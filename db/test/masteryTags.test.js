@@ -84,12 +84,29 @@ const SKILL = tag("melee-basic", "Skills", { tree: "melee", rung: 1 });
 const SECOND_WIND = tag("second-wind", "General", null);
 const WOUND = tag("broken-arm", "Health", { tree: "both", points: -15 }, "health-wounds");
 
-test("a Health penalty that is NOT a wound still costs you", () => {
-  // Blind and the illnesses are Health, and Second Wind is not a cure for them.
-  for (const [slug, group] of [["blind", "health-mind"], ["envenomated", "health-illness"], ["aching", "health-minor"]]) {
+test("a Health penalty outside the waived groups still costs you", () => {
+  // A state of mind and the minor track are Health, and Second Wind is not a
+  // cure for either. Blind stays blind however hard you grit your teeth.
+  for (const [slug, group] of [["blind", "health-mind"], ["aching", "health-minor"]]) {
     const row = { tag: { slug, name: slug, category: "Health", group: { slug: group }, fighting: { tree: "both", points: -15 } } };
     const r = fightingSkillFor([SKILL, SECOND_WIND, row], "melee");
     assert.equal(r.contributors.find((c) => c.label === slug).points, -15, slug);
+  }
+});
+
+// Illnesses joined the waived set (Bascinet, 2026-09-10), but only down to
+// -1.5 tiers. The catalog breaks cleanly there: everything milder is a cough
+// or a fever you can fight through, everything worse is killing you.
+test("an ordinary illness is waived and a lethal one is not", () => {
+  const illness = (slug, points) =>
+    ({ tag: { slug, name: slug, category: "Health", group: { slug: "health-illness" }, fighting: { tree: "both", points } } });
+  for (const [slug, points] of [["pox", -10], ["heatstroke", -15]]) {
+    const r = fightingSkillFor([SKILL, SECOND_WIND, illness(slug, points)], "melee");
+    assert.equal(r.contributors.find((c) => c.label === slug).points, 0, slug);
+  }
+  for (const [slug, points] of [["consumptive", -20], ["envenomated", -30]]) {
+    const r = fightingSkillFor([SKILL, SECOND_WIND, illness(slug, points)], "melee");
+    assert.equal(r.contributors.find((c) => c.label === slug).points, points, slug);
   }
 });
 
