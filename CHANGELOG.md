@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A cube of Squeeze is worth 5
+
+✎ A cube of Squeeze now sells for 5 ⬢ at the Depot, up from 4 — a factory day is about three times a good farming day
+
 ## 2026-09-10 · Built, not build
 
 ✎ The brewery's refusal reads properly
