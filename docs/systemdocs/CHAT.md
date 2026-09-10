@@ -625,15 +625,30 @@ sheet's rows carry the names, the eye and the person menu.
   the private ones a key or a guest row opens, marked `▪`), **Conversations**,
   **Summary**, and exports `PlacesTabs` — the same list as the phone's
   `.tab-bar`. Only one of the two is ever drawn.
-- **The unread dot** is one comparison: the newest **notable** seq in a place
-  against the newest seq this browser has seen there.
+- **The unread mark** is one comparison: the newest **notable** seq in a place
+  against the newest seq this browser has seen there. An unread place reads at
+  full strength against a column that is otherwise `--muted`, and keeps its
+  dot — the same move `/gm/players` makes on its own rail.
 
-  Notable, not merely newest. Any-row-is-unread meant a place lit up for
-  scenery — somebody lifting a stamp off a table — so the dot stopped meaning
-  anything, which is the whole failure of an unread mark. A row is notable
-  when it is **in a conversation** (there is no scenery in one) or **carries
-  this character's `{char:…}` token**, and in neither case when they wrote it
-  themselves. One predicate, `feedStore.js#isNotableRow`.
+  Notable means **somebody spoke**: the row is not yours, and its `source` is
+  not `SYSTEM`. That is the whole predicate,
+  `feedStore.js#isNotableRow`.
+
+  `SYSTEM` is what keeps this honest. Any-row-is-unread meant a place lit up
+  for scenery — somebody lifting a stamp off a table — so the mark stopped
+  meaning anything, which is the whole failure of an unread mark. The scenery
+  is exactly what `source: SYSTEM` names: the ambient lines, the turn banners,
+  everything the game says rather than a person.
+
+  It used to be far narrower — a row **in a conversation**, or one **carrying
+  this character's `{char:…}` token**, and nothing else. Ordinary roleplay in a
+  Room therefore moved no mark at all, and a **GM got none whatever**:
+  `notableWatermarks` returned an empty map for a viewer with no character, on
+  the reasoning that they are watching rather than being spoken to. In
+  practice the one person reading every channel had nothing to read them by,
+  and was opening a hundred places in turn to find where a scene was. Speech
+  subsumes both old arms — a conversation row is a person speaking, and so is
+  a mention — so widening it deleted a query rather than adding one.
 
   The first half comes down with the place list (`notableSeq`, a string — the
   column is a bigint, computed by `web/lib/feedAccess.js#notableWatermarks`)
@@ -648,8 +663,12 @@ sheet's rows carry the names, the eye and the person menu.
   is the newest seq **overall** — so reading a place to the bottom clears its
   dot however the dot was lit.
 
-  The **chime** is deliberately narrower than the dot: `Chat.js` rings on the
-  mention half only. A busy conversation ringing on every line is a reason to
+  **Mark all read** is the tick in the column's foot, beside the chime and
+  notify icons: `seenStore.js#markAllSeen` over every place's own `newest`,
+  forward-only per place and one repaint for the lot.
+
+  The **chime** is deliberately narrower than the mark and did **not** widen
+  with it: `Chat.js` rings on the mention half only. A busy conversation ringing on every line is a reason to
   mute Chat rather than to look at it — a dot is patient, a sound is not.
 - **A ping in a conversation adds them to it**, the way Discord does when you
   @ a stranger in a thread. `POST /api/feed/say` calls

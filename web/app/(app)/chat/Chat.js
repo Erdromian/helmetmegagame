@@ -20,7 +20,7 @@ import { addMember } from "./actions";
 import { mentionsCharacter } from "@/app/components/richTokens";
 import { playChime, chimedRecently } from "@/app/components/chime";
 import useChatChimeMuted, { chatChimeMuted } from "@/app/components/useChatChimeMuted";
-import { useSeen, markSeen, seedSeenIfFresh } from "./seenStore";
+import { useSeen, markSeen, markAllSeen, seedSeenIfFresh } from "./seenStore";
 import { noteTyping } from "./typingStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
 import { useOpenPlace, setOpenPlace } from "./openPlace";
@@ -186,6 +186,13 @@ export default function Chat({
   );
 
   const onSeen = useCallback((placeKey, seq) => markSeen(placeKey, seq), []);
+
+  // The tick in the column's foot. Off the SAME `newest` every row's mark is
+  // drawn from, so what it clears is exactly what was lit — a place whose
+  // newest is null has nothing to mark and is skipped by markAllSeen.
+  const onMarkAllSeen = useCallback(() => {
+    markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) })));
+  }, [navPlaces, newest]);
 
   // A browser opening Chat for the first time starts caught up rather
   // than with a dot beside everywhere it can hear. In a state INITIALIZER, so
@@ -763,6 +770,7 @@ export default function Chat({
         chimeMuted={chimeMuted}
         onToggleChime={setChimeMuted}
         push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
+        onMarkAllSeen={onMarkAllSeen}
       />
       <div className="chat-centre">
         <PlacesTabs places={navPlaces} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />

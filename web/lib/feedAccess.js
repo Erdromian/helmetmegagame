@@ -71,24 +71,26 @@ export async function placesFor(client, character, options) {
   }));
 }
 
-// The newest row in each place that is ABOUT this viewer. Two queries, because
-// the two halves have nothing in common but the answer:
+// The newest row in each place where SOMEBODY SPOKE — the seed for the unread
+// mark in the places column.
 //
-//   1. Every row in a conversation. Somebody opening a private thread with you
-//      IS the message — there is no scenery in one.
-//   2. Every row anywhere carrying this character's {char:<id>} token. That is
-//      what a mention is made of on both faces (CHAT.md §5), so a ping typed
-//      into Discord counts exactly as a web one does.
+// One query, and two conditions in it: the row is not the viewer's own, and
+// its source is not SYSTEM.
 //
-// Rows the viewer wrote are excluded from both: your own words are not news.
-// A GM (no character) has neither half and gets no dots, which is right — they
-// are watching, not being spoken to.
+// This used to be two queries for a much narrower question — rows in a
+// conversation, and rows carrying the viewer's {char:…} token — with the note
+// that a GM has neither and so gets no marks, "which is right, they are
+// watching, not being spoken to". In practice that left the one person
+// reading every channel with nothing to read them by, and had them opening a
+// hundred places in turn to find out where a scene was. Speech subsumes both
+// old arms: a conversation row is a person speaking, and so is a mention.
+//
+// Works with no character, which is the whole point — a GM in Chat is in GM
+// mode BECAUSE they have none (web/lib/feedAccess.js#loadFeedViewer).
 async function notableWatermarks(client, places, character) {
   const out = new Map();
-  if (!character?.id) return out;
-
-  const convKeys = places.filter((entry) => entry.kind === "conv").map((entry) => entry.placeKey);
   const allKeys = places.map((entry) => entry.placeKey);
+  if (allKeys.length === 0) return out;
 
   try {
     // The same per-place floors placesFor uses above: summaries and turn
@@ -97,52 +99,35 @@ async function notableWatermarks(client, places, character) {
     // placeSeqWhere scopes placeKey itself, so it replaces the `in` clause
     // rather than sitting beside one.
     const floors = await feedWipeFloors(client);
-    const base = { deletedAt: null, NOT: { characterId: character.id } };
 
-    const [convRows, mentionRows] = await Promise.all([
-      convKeys.length
-        ? client.archiveEntry.groupBy({
-            by: ["placeKey"],
-            where: { ...base, ...placeSeqWhere(floors, convKeys) },
-            _max: { seq: true },
-          })
-        : [],
-      client.archiveEntry.groupBy({
-        by: ["placeKey"],
-        where: {
-          ...base,
-          ...placeSeqWhere(floors, allKeys),
-          // Both spellings of a mention. The token carries the name it was
-          // sent under now (db/lib/characterMentions.js), so the bare form
-          // only ever matches a row written before that — and a bare
-          // `{char:<id>` prefix would be wrong in the other direction, since
-          // nothing makes one cuid a non-prefix of another.
-          //
-          // Under AND, not a bare OR: placeSeqWhere returns its OWN `OR` when
-          // the set spans both zone summaries and turn places, and a sibling
-          // `OR` key would overwrite it — dropping the place scoping entirely
-          // and marking this reader notable for mentions in rooms they cannot
-          // read.
-          AND: [
-            {
-              OR: [
-                { content: { contains: `{char:${character.id}}` } },
-                { content: { contains: `{char:${character.id}|` } },
-              ],
-            },
-          ],
-        },
-        _max: { seq: true },
-      }),
-    ]);
+    // Your own words are not news. Spelled with the null arm rather than as a
+    // bare `NOT`, because a comparison never matches a NULL column — and a
+    // proxied row that never resolved to a character carries no characterId,
+    // so `NOT: { characterId: me }` would silently drop exactly the rows a
+    // watcher most wants to see.
+    const notMine = character?.id
+      ? { OR: [{ characterId: null }, { characterId: { not: character.id } }] }
+      : {};
 
-    // Largest wins where a place answers both — a mention inside a
-    // conversation is one row, not two.
-    for (const row of [...convRows, ...mentionRows]) {
+    const rows = await client.archiveEntry.groupBy({
+      by: ["placeKey"],
+      where: {
+        deletedAt: null,
+        // SYSTEM is the game talking to itself — a gate crossing, a smell, a
+        // turn banner. Lighting a channel for those is what made the old mark
+        // stop meaning anything, and it is the one thing held back now that
+        // the rule is otherwise "somebody spoke".
+        source: { not: "SYSTEM" },
+        ...notMine,
+        ...placeSeqWhere(floors, allKeys),
+      },
+      _max: { seq: true },
+    });
+
+    for (const row of rows) {
       const seq = row._max?.seq;
       if (!row.placeKey || seq === null || seq === undefined) continue;
-      const prev = out.get(row.placeKey);
-      if (prev === undefined || BigInt(String(seq)) > BigInt(prev)) out.set(row.placeKey, String(seq));
+      out.set(row.placeKey, String(seq));
     }
   } catch (err) {
     // Same posture as the watermarks above: a missing dot is cosmetic, a

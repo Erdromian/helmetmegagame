@@ -3,7 +3,7 @@
 import { memo, useEffect, useRef } from "react";
 import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
-import { BellIcon, BellOffIcon, BellRingIcon, SendIcon } from "@/app/components/icons";
+import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
 import { useFolded } from "./sectionFold";
 
@@ -52,6 +52,7 @@ const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
       type="button"
       className="chat-place"
       data-active={active ? "true" : "false"}
+      data-unread={unread ? "true" : undefined}
       onClick={() => onSelect(place.placeKey)}
     >
       <span className="chat-glyph" aria-hidden="true">
@@ -133,6 +134,8 @@ export default function PlacesColumn({
   // The push toggle beside the bell. Null on a browser with no PushManager,
   // and on a deployment with no VAPID keys set (CHAT.md §5a).
   push = null,
+  // The tick beside them: everything caught up at once. Null hides it.
+  onMarkAllSeen = null,
 }) {
   const here = places.filter((p) => p.kind === "loc");
   const rooms = places.filter((p) => p.kind === "room");
@@ -192,6 +195,15 @@ export default function PlacesColumn({
             onClick={push.onToggle}
           />
         )}
+        {onMarkAllSeen && (
+          /* A bare .icon-btn rather than IconButton: that wrapper draws a
+             Tooltip from its label, and this column carries none. The
+             aria-label is the button's accessible NAME — without it a screen
+             reader announces an empty button — and is not copy anybody sees. */
+          <button type="button" className="icon-btn" aria-label="Mark all read" onClick={onMarkAllSeen}>
+            <CheckIcon width="15" height="15" />
+          </button>
+        )}
         {webOnly && <span className="chip chat-webonly">Playing from the web</span>}
       </div>
     </nav>
@@ -219,22 +231,26 @@ export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
   }, [selected]);
   return (
     <div ref={stripRef} className="tab-bar chat-tabs" role="tablist" aria-label="Places">
-      {places.map((place) => (
-        <button
-          key={place.placeKey}
-          type="button"
-          role="tab"
-          className="tab-item"
-          aria-selected={place.placeKey === selected}
-          data-active={place.placeKey === selected ? "true" : "false"}
-          onClick={() => onSelect(place.placeKey)}
-        >
-          {place.name}
-          {place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place)) && (
-            <span className="chat-dot" aria-label="Unread" />
-          )}
-        </button>
-      ))}
+      {places.map((place) => {
+        // Computed once so the attribute and the dot cannot disagree — the
+        // column's own rows read the same pair off `unreadOf`.
+        const unread = place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place));
+        return (
+          <button
+            key={place.placeKey}
+            type="button"
+            role="tab"
+            className="tab-item"
+            aria-selected={place.placeKey === selected}
+            data-active={place.placeKey === selected ? "true" : "false"}
+            data-unread={unread ? "true" : undefined}
+            onClick={() => onSelect(place.placeKey)}
+          >
+            {place.name}
+            {unread && <span className="chat-dot" aria-label="Unread" />}
+          </button>
+        );
+      })}
     </div>
   );
 }

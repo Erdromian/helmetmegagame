@@ -5867,6 +5867,22 @@ label.chip {
   color: var(--muted);
 }
 
+/* Something has been said here that this browser has not read. Full-strength
+   against a column whose rows are all var(--muted), which is the same move
+   .desk-body--players makes on its own rail — "unread reads bright, the way an
+   unread channel does". The dot stays beside it: brightness alone is one cue,
+   and on a dim screen it is not always the one that lands.
+
+   Under :hover and [data-active] in the cascade on purpose, so hovering an
+   unread row and opening one both still look like what they are. */
+.chat-place[data-unread="true"] {
+  color: var(--text);
+}
+
+.tab-item[data-unread="true"] {
+  color: var(--text);
+}
+
 .chat-place:hover {
   color: var(--text);
   background: var(--surface);
@@ -7279,7 +7295,21 @@ label.chip {
 /* The foot of the places column: the chime toggle and the web-only chip. The
    column's rows draw their own side padding and the column has none, so the
    foot supplies its own or the button clips against the border. */
+/* PINNED, because the column it sits in is the scroller. A GM reads every
+   place in the game — 278 of them on a full map — so the foot was landing
+   8,000px below the fold and the chime, the push toggle and the mark-all tick
+   were all unreachable without scrolling past every room in Ravenheart.
+
+   position: sticky rather than restructuring the column into a scrolling body
+   plus a fixed foot: the same result, no markup change, and margin-top: auto
+   still puts it at the bottom when the list is short enough not to scroll. The
+   background is what stops the rows sliding under it. */
 .chat-places-foot {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  padding-bottom: var(--sp-2);
   margin-top: auto;
   display: flex;
   align-items: center;
