@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The tool line in the Move dialog is signed off
+
+✎ The Includes… line under a Location's yields loses its ‡
+
 ## 2026-09-10 · There is a shrine at the bottom of the Chasm, and a god behind it
 
 ✚ A Shrine of an Old Man in the Chasm, needing Caving to get in, with a Pray button  

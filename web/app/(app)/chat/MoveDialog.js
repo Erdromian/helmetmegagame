@@ -236,7 +236,7 @@ function LaborReadout({ context }) {
             ))}
           </ul>
           {context.tools.length > 0 && (
-            <p className="text-sm text-muted">Includes {context.tools.join(", ")}.{"\u00a0‡"}</p>
+            <p className="text-sm text-muted">Includes {context.tools.join(", ")}.</p>
           )}
         </>
       )}
