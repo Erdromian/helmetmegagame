@@ -5,7 +5,7 @@
 // second layer, not a replacement (see LABORDROPS.md §6a-§6b).
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { annotateLines, mechanicalValue, splitBlurb } = require("../lib/labordropsAnnotate");
+const { annotateLines, priceRows, mechanicalValue, splitBlurb, ASSUMED_VALUES } = require("../lib/labordropsAnnotate");
 
 test("mechanicalValue: obol, a sellable tag, an unsellable tag, and non-tag entries", () => {
   const tagsById = new Map([
@@ -20,6 +20,98 @@ test("mechanicalValue: obol, a sellable tag, an unsellable tag, and non-tag entr
   assert.equal(mechanicalValue("Nothing", tagsById), null);
   assert.equal(mechanicalValue("+1", tagsById), null);
   assert.equal(mechanicalValue("-2", tagsById), null);
+});
+
+test("mechanicalValue: a non-sellable tag that pays out on consume falls back to consumesIntoResources", () => {
+  const tagsById = new Map([
+    ["t-purse", { slug: "purse", sellable: false, sellablePrice: null, consumesIntoResources: 3 }],
+    // sellable wins if a tag somehow carries both — the direct sale is the
+    // value a player actually sees on the counter.
+    ["t-both", { slug: "both", sellable: true, sellablePrice: 9, consumesIntoResources: 3 }],
+  ]);
+  assert.equal(mechanicalValue("purse", tagsById), "worth 3 ⬢ consumed");
+  assert.equal(mechanicalValue("both", tagsById), "sells 9 ⬢");
+});
+
+test("priceRows: evValue falls back to consumesIntoResources the same way mechanicalValue does", () => {
+  const tagsById = new Map([
+    ["t-purse", { slug: "purse", sellable: false, sellablePrice: null, consumesIntoResources: 3 }],
+    ["t-bone", { slug: "bone", sellable: false, sellablePrice: null }],
+  ]);
+  const rows = [
+    { kind: "TAG", tagId: "t-purse" },
+    { kind: "TAG", tagId: "t-bone" },
+  ];
+  const [purseRow, boneRow] = priceRows(rows, tagsById);
+  assert.equal(purseRow.evValue, 3);
+  assert.equal(boneRow.evValue, 0);
+});
+
+test("mechanicalValue: a tag with neither sellablePrice nor consumesIntoResources falls back to ASSUMED_VALUES", () => {
+  const tagsById = new Map([
+    ["t-godflesh", { slug: "godflesh", sellable: false, sellablePrice: null, consumesIntoResources: null }],
+    ["t-bone", { slug: "bone", sellable: false, sellablePrice: null }],
+  ]);
+  assert.equal(ASSUMED_VALUES.godflesh, 8);
+  assert.equal(mechanicalValue("godflesh", tagsById), "assumed 8 ⬢ (not actually sellable yet)");
+  // A tag with no entry in ASSUMED_VALUES still falls all the way to "not sellable".
+  assert.equal(mechanicalValue("bone", tagsById), "not sellable");
+});
+
+test("mechanicalValue: the three monster corpses are assumed at what Butchering turns them into", () => {
+  const tagsById = new Map([
+    ["t-skinless", { slug: "skinless-corpse", sellable: false, sellablePrice: null }],
+    ["t-graga", { slug: "graga-corpse", sellable: false, sellablePrice: null }],
+    ["t-nekker", { slug: "nekker-corpse", sellable: false, sellablePrice: null }],
+  ]);
+  assert.equal(ASSUMED_VALUES["skinless-corpse"], 25);
+  assert.equal(ASSUMED_VALUES["graga-corpse"], 8);
+  assert.equal(ASSUMED_VALUES["nekker-corpse"], 5);
+  assert.equal(mechanicalValue("skinless-corpse", tagsById), "assumed 25 ⬢ (not actually sellable yet)");
+  assert.equal(mechanicalValue("graga-corpse", tagsById), "assumed 8 ⬢ (not actually sellable yet)");
+  assert.equal(mechanicalValue("nekker-corpse", tagsById), "assumed 5 ⬢ (not actually sellable yet)");
+});
+
+test("mechanicalValue: the three smaller lockboxes (Silt, Buried, Netted) are worth their full contents", () => {
+  const tagsById = new Map([
+    ["t-silt", { slug: "silt-lockbox", sellable: true, sellablePrice: 9 }],
+    ["t-buried", { slug: "buried-lockbox", sellable: true, sellablePrice: 12 }],
+    ["t-netted", { slug: "netted-lockbox", sellable: true, sellablePrice: 9 }],
+  ]);
+  assert.equal(ASSUMED_VALUES["silt-lockbox"], 18);
+  assert.equal(ASSUMED_VALUES["buried-lockbox"], 24);
+  assert.equal(ASSUMED_VALUES["netted-lockbox"], 18);
+  assert.equal(mechanicalValue("silt-lockbox", tagsById), "worth 18 ⬢ opened (sells 9 ⬢ locked)");
+  assert.equal(mechanicalValue("buried-lockbox", tagsById), "worth 24 ⬢ opened (sells 12 ⬢ locked)");
+  assert.equal(mechanicalValue("netted-lockbox", tagsById), "worth 18 ⬢ opened (sells 9 ⬢ locked)");
+});
+
+test("priceRows: evValue takes ASSUMED_VALUES first, ahead of a real sellablePrice/consumesIntoResources", () => {
+  const tagsById = new Map([
+    ["t-godflesh", { slug: "godflesh", sellable: false, sellablePrice: null, consumesIntoResources: null }],
+    ["t-bone", { slug: "bone", sellable: false, sellablePrice: null }],
+  ]);
+  const rows = [
+    { kind: "TAG", tagId: "t-godflesh" },
+    { kind: "TAG", tagId: "t-bone" },
+  ];
+  const [godfleshRow, boneRow] = priceRows(rows, tagsById);
+  assert.equal(godfleshRow.evValue, 8);
+  assert.equal(boneRow.evValue, 0);
+});
+
+test("mechanicalValue + priceRows: a Lockbox's real (discounted) sellablePrice loses to its ASSUMED_VALUES contents value", () => {
+  const tagsById = new Map([
+    // Mirrors the real catalog shape: sellablePrice is deliberately HALF of
+    // what's inside (Bascinet's call, 2026-09-10) — the override must win
+    // over it, not the other way around, or a table's EV math would silently
+    // halve itself the moment the tag became genuinely sellable.
+    ["t-overspill", { slug: "overspill-lockbox", sellable: true, sellablePrice: 20 }],
+  ]);
+  assert.equal(ASSUMED_VALUES["overspill-lockbox"], 40);
+  assert.equal(mechanicalValue("overspill-lockbox", tagsById), "worth 40 ⬢ opened (sells 20 ⬢ locked)");
+  const [row] = priceRows([{ kind: "TAG", tagId: "t-overspill" }], tagsById);
+  assert.equal(row.evValue, 40);
 });
 
 test("splitBlurb: preserves author text before ' — '", () => {

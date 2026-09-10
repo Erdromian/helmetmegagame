@@ -418,6 +418,9 @@ zones:
         name: Underquarter
         description: >-
           Squat buildings, piled into discomfort.
+        # Not rich ground — a scrounge through scrap shacks and a gambling
+        # den's spare change, not a dig site (Bascinet, 2026-09-10).
+        yield: { prospecting: 0.4 }
         rooms:
           underquarter-shacks:
             name: Shacks
@@ -843,6 +846,9 @@ zones:
         indoors: true
         description: >-
           Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
+        # Not rich ground — old coin and a shrine's own offerings, not the
+        # Vault down the hall (Bascinet, 2026-09-10).
+        yield: { prospecting: 0.4 }
         rooms:
           undercroft-sauna:
             name: Sauna

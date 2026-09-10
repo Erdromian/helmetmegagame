@@ -283,9 +283,21 @@ key), so there is no player state a partial upsert would need to protect.
 disk — no sync needed first — and prints, for every authored bucket and
 every combined labor-type pool:
 
-- each entry's Depot sell value (a `RESOURCES` entry's own ⬢ delta; a `TAG`
-  entry's `sellablePrice` where it has one, `obol` hardcoded to 1 ⬢ since it
-  IS the currency rather than something priced in it);
+- each entry's ⬢ value (a `RESOURCES` entry's own delta; a `TAG` entry's
+  `sellablePrice` where it has one, `obol` hardcoded to 1 ⬢ since it IS the
+  currency rather than something priced in it; a `TAG` with no `sellablePrice`
+  but a `consumesIntoResources` — Purse, Supply Kit — falls back to that
+  instead, since that's the ⬢ a player actually realizes, just through the
+  other door (2026-09-09); a `TAG` with neither, but listed in
+  `labordropsAnnotate.js`'s `ASSUMED_VALUES` — godflesh at 8 ⬢, and the three
+  monster corpses (Skinless/Graga/Nekker) at what Butchering turns them into
+  (25/8/5 ⬢) since Butchering is free (CORPSES.md §6: no ⬢, no turn) and
+  consumes the body for exactly one of that yield, so the corpse and its
+  yield are worth the same thing — falls back to that stand-in instead, so a
+  table using it can be priced and balanced before the tag is actually made
+  sellable in the live catalog. It's a planning number only, never written
+  to the tag, and the label says
+  "assumed" to say so (2026-09-10));
 - the pool's ⬢ **expected value** — the plain average of every entry's ⬢
   value, `nothing` and an unpriced tag both counting as 0;
 - the pool's **hit rate** — the share of the pool that isn't `nothing`,
