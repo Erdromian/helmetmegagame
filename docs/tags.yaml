@@ -8541,7 +8541,7 @@ tags:
     name: "Prospector's Pick"
     category: items
     group: items-gear
-    description: "A short-handled pick, good for breaking rock or worrying at a lock. While equipped, Prospecting produces an additional 1 ⬢. ‡"
+    description: "A short-handled pick. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 2
     laborBonus: { kind: prospecting, amount: 1 }
     equippable: true

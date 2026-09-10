@@ -1115,16 +1115,20 @@ desires:
 
   perform-for-5:
     name: Perform for at least 5 people
-    tier: 3
+    tier: 2
+    # The ladder at the top of this file: a Desire that costs nothing but
+    # other people's attention takes the inverted cooldown, not the tier.
+    cooldownTurns: 4
     families: [craft, social]
     requires:
       anyRoles: [minstrel]
       anyTags: [musician, artist]
       combine: or
 
-  perform-for-15:
-    name: Perform for at least 15 people
+  perform-for-20:
+    name: Perform for at least 20 people
     tier: 5
+    oncePerLife: true
     families: [craft, social]
     requires:
       anyRoles: [minstrel]
