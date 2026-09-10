@@ -199,9 +199,9 @@ item — and `MAX_CRATES` (12), past which a huge order simply means fuller
 crates rather than a landing pad buried in tag rows.
 
 There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`
-(200). The weight cap does not bound the weightless, and eight Depot wares
-weigh 0 lb — `paper`, `cigarette`, `jewelry`, `spectacles` and the four animals
-— so without it a paper order packs into one crate however large it is.
+(200). The weight cap does not bound the weightless, and seven Depot wares
+weigh 0 lb — `cigarette`, `jewelry`, `spectacles` and the four animals — so
+without it a weightless order packs into one crate however large it is.
 
 **A crate is a `Tag` row created at runtime** with `custom: true`, so
 `db:prune-tags` skips it (`db/lib/pruneTags.js`). Being a tag means crates get
@@ -568,11 +568,14 @@ sell price, no amount of round-tripping prints an obol — the same invariant
 `db/lib/syncTags.js` enforces for every priced tag, just held by hand here
 since there is no row to check.
 
-**Paper undercuts everything at 1 ⬢**, on purpose. It has to be something a
-scribe buys by the ream without thinking about it, or nobody writes and the
-whole of `PAPERWORK.md` is a menu people look at once. It is also the only ware
+**Paper undercuts everything, and the station sells it by the ream.** A
+`stack-of-paper` is 3 ⬢ and consumes into twenty sheets, so writing costs a
+scribe almost nothing — which it has to, or nobody writes and the whole of
+`PAPERWORK.md` is a menu people look at once. Loose `paper` is no longer on the
+shelf: a weightless 1 ⬢ line was a thing every order padded itself out with,
+and the ream is the same paper at a fifth the price. It is also the only ware
 with no sell-back price at all: a resale market in blank paper is not a thing
-anybody needs, and 1 ⬢ leaves no room under it anyway.
+anybody needs.
 
 **Sell-back is 60% of the buy price**, rounded, with a floor of 1 ⬢. It used to
 be ~44%, and the counter was a bad place to stand: the spread ate so much of a
@@ -608,10 +611,10 @@ buying one mid-game is still a real decision.
 
 | Ware | ⬢ | Sells back | Notes |
 |---|---|---|---|
-| `paper` | 1 | — | **The cheapest thing on the shelf**, deliberately. Blank stock: writing on it mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. |
 | `coffee` | 2 | 1 | Consumes into `caffeinated` (2t) |
 | `tea` | 2 | 1 | +15 mood (`MOOD.md` §5), the same as Maggot Milk |
 | `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
+| `stack-of-paper` | 3 | — | **The cheapest paper on the shelf**, deliberately. A ream: consumes into twenty blank sheets, and writing on one mints the letter (`PAPERWORK.md`). Sells back for nothing, so buying and reselling is pure loss. Loose `paper` is not stocked. |
 | `firecracker` | 3 | 2 | |
 | `honey` | 4 | 2 | Consumes into `ate-meal` |
 | `sky-lantern` | 4 | 2 | |

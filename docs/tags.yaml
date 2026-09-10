@@ -10282,6 +10282,9 @@ tags:
 
   # The cheapest thing the Depot sells, on purpose. Paper has to be something
   # a scribe buys by the ream without thinking about it, or nobody writes.
+  # The Depot stocks the REAM, not the sheet: 3 ⬢ for twenty sheets is the
+  # same paper at a fifth the price, and it stops the shelf carrying a
+  # weightless 1 ⬢ line that every order padded itself out with.
   # A ream, bought once at creation and unpacked when you need it. The twenty
   # repeats are the mechanism, not a mistake: repeating a slug is the only way
   # consumesInto asks for several of something, and it multiplies here because
@@ -10293,6 +10296,7 @@ tags:
     group: items-paper
     description: "A ream of blank sheets. It can be consumed into paper."
     pointCost: 1
+    depotPrice: 3
     tradeable: true
     weight: 2
     stackable: true
@@ -10329,7 +10333,6 @@ tags:
     group: items-paper
     description: "*Blank paper.*"
     pointCost: 0
-    depotPrice: 1
     tradeable: true
     weight: 0
     stackable: true

@@ -39,7 +39,7 @@ unbounded.
 
 | `Tag.paperKind` | What it is |
 |---|---|
-| *null*, slug `paper` | **Blank stock.** One stackable catalog tag. `depotPrice: 1`, the cheapest thing the Depot sells. |
+| *null*, slug `paper` | **Blank stock.** One stackable catalog tag. Not stocked loose — the Depot sells `stack-of-paper`, a 3 ⬢ ream that consumes into twenty sheets. |
 | `PAPER` | **A written sheet.** Carries `paperText`. |
 | `SEALED` | **A closed letter.** Same row, renamed in place. Carries `sealMark`. |
 | `BROKEN_SEAL` | **A spent envelope.** Evidence somebody opened it, and whose wax it was. |
