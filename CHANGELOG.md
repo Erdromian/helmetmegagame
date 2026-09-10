@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The draft marks come off, and the rule goes with them
+
+− The little double daggers that marked drafted prose. They are gone from the handbook, the tag descriptions, every DM and every screen  
+✎ The Other lens's empty line reads No miscellaneous requests
+
 ## 2026-09-10 · A cart can come into the Factory, Customs and the Depot
 
 ✎ The Godard Factory, Customs and the Depot no longer park your horse and cart at the door, so a wagon can be loaded where the crates are  
