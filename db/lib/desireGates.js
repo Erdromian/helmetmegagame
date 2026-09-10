@@ -325,6 +325,12 @@ function desireSlotsNeverLock(heldTags) {
 
 module.exports = {
   desireSlotsNeverLock,
+  // The two lock primitives, exported for db/lib/seatConflicts.js — a seat
+  // strips a Personality tag by asking this same evaluator whether the tag
+  // would lock one of the seat's own Desires, rather than restating the
+  // clause precedence a second time and letting the two drift.
+  unionLockClauses,
+  lockedReasonForTemplate,
   evaluateDesireCatalog,
   slotStates,
   describeDesireLocks,

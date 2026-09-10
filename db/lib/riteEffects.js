@@ -25,7 +25,7 @@ const { HUNGERLESS_SLUG } = require("./constants");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquippedQuantity } = require("./tagWrites");
 const { createWithRetry } = require("./paperMint");
-const { resolveSeatConflicts } = require("./seatConflicts");
+const { resolveSeatConflicts, describeSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
 const { setMood, MOOD_MIN } = require("./mood");
 const { normalizeChant, containsPhrase } = require("./rites");
@@ -232,15 +232,22 @@ const EFFECTS = {
   async conversion({ db, room, resolved, openTurn }) {
     const target = resolved.boundPerson;
     const thanati = await db.tag.findUnique({ where: { slug: THANATI_SLUG }, select: { id: true } });
+    // The rite is an Assign by another road, so it gets the same clear-out
+    // (THREATS.md §3) — and has to TELL them, or a convert finds Alcoholic
+    // gone and four tag points missing with nothing anywhere saying why.
+    let conflicts = null;
     await db.$transaction(async (tx) => {
       await grantTagSlugs(tx, target.id, [THANATI_SLUG], openTurn?.number ?? null);
-      if (thanati) await resolveSeatConflicts(tx, target.id, [thanati.id]);
+      if (thanati) conflicts = await resolveSeatConflicts(tx, target.id, [thanati.id]);
       await fulfillObjectives(tx, { partyKey: "thanati", kinds: ["convert-character", "convert-leader"], targetCharacterId: target.id });
     });
     await sendDm(
       db,
       target.discordUserId,
-      "This reality is cursed! You are now loyal to the Thanati and must follow the cult’s orders. Read your Documents for more information.",
+      [
+        "This reality is cursed! You are now loyal to the Thanati and must follow the cult’s orders. Read your Documents for more information.",
+        conflicts && describeSeatConflicts(conflicts),
+      ].filter(Boolean).join("\n"),
       { source: "rite" },
     ).catch(log(`conversion DM to ${target.name}`));
     await roomLine(db, room, `${aliasSubject(target)}’s eyes widen as they begin to understand...`);
