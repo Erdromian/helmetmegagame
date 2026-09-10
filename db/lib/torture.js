@@ -64,7 +64,7 @@ function tortureBonuses({ torturerSlugs = [], equipmentInReach = false } = {}) {
 }
 
 // `gambitMods` is gambitModifiers(torturerTags, { hungerStreak, mood }) — Hungry,
-// Afraid, Panicking — computed by the caller because those read Character columns
+// Ecstatic, Afraid, Panicking — computed by the caller because those read Character columns
 // this file never sees. They count here exactly as they would on any Gambit.
 function resolveTorture({ die, torturerSlugs = [], targetSlugs = [], equipmentInReach = false, gambitMods = [] }) {
   const modifiers = [...tortureBonuses({ torturerSlugs, equipmentInReach }), ...gambitMods];

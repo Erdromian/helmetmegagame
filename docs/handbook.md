@@ -287,11 +287,11 @@ After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review
 
 ### Mood
 
-Your character has a mood, and there is a box for it on your sheet that says it in one word. From best to worst: Happy, Pleased, Content, **Fine**, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Most people sit at Fine. ‡
+Your character has a mood, and there is a box for it on your sheet that says it in one word. From best to worst: Ecstatic, Happy, Pleased, Content, **Fine**, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Most people sit at Fine. ‡
 
 Things wear on a character — nights spent out in the wilderness or down in the caves, a wound, going hungry, being tied up, seeing somebody die, worse. Things lift them too: a roof over your head, and the Inn, the Keep or the Sanctuary more so than an ordinary room. So does a drink, a meal, a treat, a pot of tea, a coffee, a smoke, hearing a Musician play, a confession, or getting what you wanted from a Desire. Nothing stays extreme for long — every night your mood slides a little back toward Fine, from either direction. ‡
 
-Only the bottom two do anything to the dice: **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2. A good mood is its own reward and changes no roll. You are told when you drop into Afraid or Panicking, and otherwise the box on your sheet is the only place your mood is written down. ‡
+Only the three at the ends do anything to the dice. **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2 — and at the other end, **Ecstatic** gives you +1. The five in the middle are their own reward and change no roll. You are told when you reach any of those three, and otherwise the box on your sheet is the only place your mood is written down. ‡
 
 A noble who skips a fine meal takes it as hard as anyone else takes a rough night outdoors. ‡
 

@@ -1,8 +1,10 @@
 // The single source of the summed Gambit die modifier. Two contributors:
-// Hunger at -1 * min(hungerStreak, cap), and the bottom two mood bands
-// (docs/systemdocs/MOOD.md) — Afraid at a flat -1, Panicking at a flat -2.
-// A mood is one number, so it lands in exactly one band and the two can
-// never sum; the modifier is read straight off the band table.
+// Hunger at -1 * min(hungerStreak, cap), and the three extreme mood bands
+// (docs/systemdocs/MOOD.md) — Ecstatic at a flat +1, Afraid at a flat -1,
+// Panicking at a flat -2. A mood is one number, so it lands in exactly one
+// band and the three can never sum; the modifier is read straight off the band
+// table. Ecstatic is the only contributor that points UPWARD, so the total can
+// now be positive, and one good night cancels the first hungry turn outright.
 //
 // It stays a list-returning module rather than collapsing to one number,
 // because Action.diceModifier is one Int and the confirm DM still wants the
@@ -48,9 +50,10 @@ function hungerModifier(hungerStreak = 0) {
 // because they live on Character rather than on a tag: see the comments on
 // Character.hungerStreak and Character.mood in schema.prisma.
 //
-// EVERY caller must pass `mood`, and select it. A missed one reads undefined,
-// lands in Fine, and quietly hands somebody back a penalty they should be
-// carrying — which is the one way this can go wrong silently.
+// EVERY caller must pass `mood`, and select it. A missed one reads undefined
+// and lands in Fine, which quietly hands somebody back a penalty they should be
+// carrying — or pockets an Ecstatic bonus they earned. Either way it is the one
+// way this can go wrong silently.
 function gambitModifiers(characterTags = [], { hungerStreak = 0, mood = 0 } = {}) {
   const out = [];
 

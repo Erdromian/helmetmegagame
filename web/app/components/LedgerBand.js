@@ -67,8 +67,8 @@ function Tile({
 // What the Mood box says when you open it. Bascinet's words, verbatim.
 const MOOD_DETAIL =
   "Certain things, like spending time in the wilderness without the Rough Camper trait or receiving wounds harm " +
-  "your mood. Other things, like listening to music, fulfilling desires, or eating meals boost your mood. A poor " +
-  "mood impacts your Gambit rolls.";
+  "your mood. Other things, like listening to music, fulfilling desires, or eating meals boost your mood. Your " +
+  "Mood impacts your Gambit rolls.";
 
 // The band across the top of the sheet — it scrolls away with the rest of the
 // page: who this is and where they stand, the five things a player checks
@@ -199,8 +199,8 @@ export default function LedgerBand({
             )}
           </Tile>
           {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md) — never the
-              number, which is the whole point of the dial. Fine is grey and
-              Panicking is red; the tone picks the token. */}
+              number, which is the whole point of the dial. Fine is grey,
+              Ecstatic is green and Panicking is red; the tone picks the token. */}
           <Tile
             label="Mood"
             value={moodBand?.label ?? "Fine"}

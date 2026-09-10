@@ -35,16 +35,17 @@ const wound = (extra = {}) => ({
   ...extra,
 });
 
-test("nine bands, gapless and symmetric about Fine", () => {
-  assert.equal(MOOD_BANDS.length, 9);
+test("ten bands, gapless and symmetric about Fine but for Panicking", () => {
+  assert.equal(MOOD_BANDS.length, 10);
   for (let i = 1; i < MOOD_BANDS.length; i += 1) {
     assert.equal(MOOD_BANDS[i].min, MOOD_BANDS[i - 1].max);
   }
-  // The steps out from Fine are the same five magnitudes in both directions.
+  // The steps out from Fine are the same magnitudes in both directions, as far
+  // as the good half goes: Panicking is the one band with nothing facing it.
   const negative = MOOD_BANDS.filter((b) => b.max <= -10).map((b) => -b.max);
   const positive = MOOD_BANDS.filter((b) => b.min >= 10).map((b) => b.min);
   assert.deepEqual(negative.sort((a, b) => a - b), [10, 28, 46, 64, 82]);
-  assert.deepEqual(positive.sort((a, b) => a - b), [10, 28, 46]);
+  assert.deepEqual(positive.sort((a, b) => a - b), [10, 28, 46, 64]);
 });
 
 test("a mood always has a word, and 0 is Fine", () => {
@@ -64,18 +65,24 @@ test("the boundary belongs to the further band, both ways", () => {
   assert.equal(bandOf(10).key, "content");
   assert.equal(bandOf(28).key, "pleased");
   assert.equal(bandOf(46).key, "happy");
-  assert.equal(bandOf(64).key, "happy");
+  assert.equal(bandOf(63.99).key, "happy");
+  assert.equal(bandOf(64).key, "ecstatic");
+  // The clamp itself is Ecstatic, the way −100 is Panicking.
+  assert.equal(bandOf(82).key, "ecstatic");
 });
 
-test("only the bottom two bands touch the dice", () => {
+test("only the three extreme bands touch the dice, and Ecstatic points up", () => {
   assert.equal(bandOf(-90).gambit, -2);
   assert.equal(bandOf(-70).gambit, -1);
-  for (const mood of [-50, -30, -12, 0, 12, 30, 50]) {
+  assert.equal(bandOf(70).gambit, 1);
+  // Ecstatic is Afraid's mirror: same magnitude, opposite sign.
+  assert.equal(bandOf(70).gambit, -bandOf(-70).gambit);
+  for (const mood of [-50, -30, -12, 0, 12, 30, 50, 63.99]) {
     assert.ok(!bandOf(mood).gambit, `mood ${mood} should not modify a Gambit`);
   }
 });
 
-test("the dial clamps to +64 … −100", () => {
+test("the dial clamps to +82 … −100", () => {
   assert.equal(clampMood(-140), MOOD_MIN);
   assert.equal(clampMood(90), MOOD_MAX);
   assert.equal(clampMood(-33.333), -33.33);
@@ -193,23 +200,31 @@ test("the movement ration pools only move terms, and floors at −15", () => {
   assert.equal(arrivalTermFor({ attributes: { haven: true } }), null);
 });
 
-test("only Afraid and Panicking say anything, and only on the way in", () => {
+test("only the three bands that move a Gambit say anything, and only on the way in", () => {
   const fine = bandOf(0);
   const uncomfortable = bandOf(-20);
   const afraid = bandOf(-70);
   const panicking = bandOf(-90);
+  const happy = bandOf(50);
+  const ecstatic = bandOf(70);
 
   assert.equal(moodBandDm(fine, afraid), "You are now Afraid.");
   assert.equal(moodBandDm(afraid, panicking), "You are now Panicking.");
-  // Everything else is silent: the seven other bands, in either direction.
+  // The good end talks on the same rule, because it moves the die too.
+  assert.equal(moodBandDm(happy, ecstatic), "You are now Ecstatic.");
+  // Everything else is silent: the six other bands, in either direction.
   assert.equal(moodBandDm(fine, uncomfortable), null);
   assert.equal(moodBandDm(uncomfortable, fine), null);
-  assert.equal(moodBandDm(fine, bandOf(50)), null);
-  // ...and so is climbing back out of the two that do talk.
+  assert.equal(moodBandDm(fine, happy), null);
+  // ...and so is climbing back out of any of the three that do talk. Falling
+  // out of Ecstatic needs no code of its own: Happy is not a key, so the
+  // existing "only on the way in" rule already covers it.
   assert.equal(moodBandDm(afraid, uncomfortable), null);
   assert.equal(moodBandDm(panicking, fine), null);
+  assert.equal(moodBandDm(ecstatic, happy), null);
   // Staying put says nothing either.
   assert.equal(moodBandDm(afraid, afraid), null);
+  assert.equal(moodBandDm(ecstatic, ecstatic), null);
 });
 
 test("a consume is worth its largest single figure, never a sum", () => {

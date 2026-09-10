@@ -180,7 +180,7 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   }
 
   if ("resources" in picked) data.resources = intOrNull(picked.resources) ?? 0;
-  // The mood dial is +64 … −100 by definition (docs/systemdocs/MOOD.md); the
+  // The mood dial is +82 … −100 by definition (docs/systemdocs/MOOD.md); the
   // dial's own clamp, so the rounding rule lives in one place.
   if ("mood" in picked) data.mood = clampMood(Number(picked.mood));
   // tagPoints is allowed to go negative on purpose — clamping it at 0 would

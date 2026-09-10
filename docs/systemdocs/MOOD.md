@@ -21,18 +21,20 @@ are still gone; their jobs are two rows in the tables below.
 
 ## 1. The dial
 
-`Character.mood` is a float, **+64 down to −100**, that no player ever sees as
+`Character.mood` is a float, **+82 down to −100**, that no player ever sees as
 a number. It is shown and edited on the Dev Panel's Identity tab (clamped on
 save, `web/lib/characterWrite.js`). Everything else that moves it goes through
 `db/lib/mood.js`.
 
 What a player sees is **one word**, in the Mood box on their sheet (§4), read
-off the band the dial sits in. The bands are 18 wide and symmetric about Fine,
-and the boundary belongs to the band further from Fine on both sides — so −10
-is Uncomfortable, +10 is Content, −82 is Panicking, +46 is Happy:
+off the band the dial sits in. The bands are 18 wide and symmetric about Fine
+— all but Panicking, which is the one band with nothing facing it — and the
+boundary belongs to the band further from Fine on both sides, so −10 is
+Uncomfortable, +10 is Content, −82 is Panicking, +64 is Ecstatic:
 
 | Mood | Word | Tone | Dice |
 |---|---|---|---|
+| +64 … +82 | Ecstatic | good | +1 to every Gambit |
 | +46 … +64 | Happy | good | |
 | +28 … +46 | Pleased | good | |
 | +10 … +28 | Content | good | |
@@ -44,16 +46,31 @@ is Uncomfortable, +10 is Content, −82 is Panicking, +46 is Happy:
 | −82 … −100 | Panicking | bad | −2 to every Gambit |
 
 `bandOf` never returns null: a mood of 0 is **Fine**, which is a word like any
-other. The good half is **flavour only**, on Bascinet's call — Happy rolls the
-same dice as Fine. The two bottom bands carry their modifier on the band row
+other. The **middle six bands are flavour** — Content, Pleased and Happy roll
+what Fine rolls. The three at the ends carry their modifier on the band row
 itself, which is what `db/lib/gambitModifier.js` reads; a mood is one number,
-so it lands in exactly one band and the two can never sum.
+so it lands in exactly one band and the three can never sum.
 
-**A player is DM'd only when they drop INTO Afraid or Panicking**, and the line
-is plain: `You are now Afraid.` Nothing is said for the other seven bands, and
-nothing is said on the way back out — climbing out of Afraid is the player's
-own business, and the box on their sheet already says so. `moodBandDm` is the
-whole rule. Hooks inside a transaction hand the DM to `setMoodDmSender`'s
+**Ecstatic was added on 2026-09-10**, and it is the first thing on the good half
+of the dial ever worth a die. It mirrors Afraid exactly — same 18-point width,
+same distance from Fine, +1 against its −1 — which is why the ceiling moved from
++64 to +82 to make room: at +64 the dial clamped *inside* Happy, so the comfort
+half had nowhere left to go and a character who drank, ate well and slept in the
+Keep every night rolled what somebody at Fine rolled. Two consequences worth
+knowing. Hunger is no longer the only contributor and no longer the only
+direction, so a Gambit modifier can now be **positive**, and one good night
+cancels a character's first hungry turn outright. And Panicking still has no
+twin: nothing on the dial is worth +2.
+
+**A player is DM'd only when they reach a band that moves the die** — Afraid,
+Panicking or Ecstatic — and the line is plain: `You are now Afraid.` The rule is
+the dice, not the direction: a band worth a line is one that changes what you
+roll, which is why the good end earned one the day it earned a modifier. Nothing
+is said for the other six bands, and nothing is said on the way back out —
+climbing out of Afraid, or sliding out of Ecstatic, is the player's own business,
+and the box on their sheet already says so. `moodBandDm` is the whole rule, and
+falling out of Ecstatic needed no code of its own: Happy is not a key, so the
+existing "only on the way in" clause already covers it. Hooks inside a transaction hand the DM to `setMoodDmSender`'s
 registered sender (registered once in `db/index.js` beside the client), which
 fires a moment and a half after the call — after the surrounding write has, in
 practice, committed. That is a delay, not a commit signal: a transaction that
@@ -150,14 +167,14 @@ What it says is Bascinet's own wording, verbatim (`MOOD_DETAIL`):
 
 > Certain things, like spending time in the wilderness without the Rough Camper
 > trait or receiving wounds harm your mood. Other things, like listening to
-> music, fulfilling desires, or eating meals boost your mood. A poor mood
-> impacts your Gambit rolls.
+> music, fulfilling desires, or eating meals boost your mood. Your Mood impacts
+> your Gambit rolls.
 
 The word is **coloured by tone, not by a token picked at the call site** — the
 rule `web/app/components/StatusPill.js` sets. `MOOD_BANDS` carries a `tone` per
 band and `.ledger-tile-value[data-tone=…]` in `globals.css` decides what that
 looks like: `muted` for Fine (grey), `warn` through the middle three, `bad`
-(`--danger`, full red) for Afraid and Panicking, `good` for the three above
+(`--danger`, full red) for Afraid and Panicking, `good` for the four above
 Fine. The four tokens are the ones `.status-pill` already uses, so
 `npm run audit:contrast --workspace=web` already covers them. The tile also
 drops `--font-mono`, because a word is not data.
@@ -331,6 +348,15 @@ The designer's checks, all asserted in `db/test/mood.test.js`:
 - A moderately severe wound (rung 3, −30) on top of that is −50: **Anxious**.
 - At −20, two nights indoors (+6 +4 each) clear the dial; one night in a Haven
   reaches Fine on its own.
+- **Ecstatic is cheaper to hold than Afraid is to escape, and that is known.** A
+  Haven night is +12 against a −4 drift, so anybody sleeping at the Inn, the Keep
+  or the Sanctuary nets +8 a night with no upkeep beyond a bed: roughly ten
+  nights from Fine to the +82 ceiling, and a standing +1 on every Gambit after
+  that. The bad half has no equivalent, because the wilderness charge needs
+  somebody to actually be out in it. Accepted as shipped, and watched. If it
+  wants a brake the levers are `MOOD_DRIFT`, `PLACE_TERMS.HAVEN` and
+  `GameConfig.moodIntensity` (which divides relief by k) — none of them in the
+  band table.
 
 The dial is clamped in the database (`LEAST/GREATEST` in the UPDATE), so two
 hooks in the same tick cannot race a stale read past either end.
@@ -347,7 +373,8 @@ hooks in the same tick cannot race a stale read past either end.
   `setMood`, `consumeReliefFor`, `setMoodDmSender`, `loadIntensity`). Off the
   barrel; require by subpath.
 - `db/lib/moodPass.js` — the nightly settle.
-- `db/lib/gambitModifier.js` — Afraid −1, Panicking −2, read off the band.
+- `db/lib/gambitModifier.js` — Ecstatic +1, Afraid −1, Panicking −2, read off
+  the band.
 - `db/lib/torture.js` — the TORTURED hit's caller side (TORTURE.md).
 - `db/lib/locationAttributes.js` — `wilderness`, `haven`.
 - `db/lib/gameConfigFields.js` — `moodIntensity`.

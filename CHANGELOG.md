@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A great mood now helps your Gambit rolls
+
+✚ Ecstatic, a new mood band above Happy: it gives +1 on every Gambit roll  
+✎ The mood dial used to stop inside Happy, so a really good mood had nowhere left to go. It reaches higher now  
+✎ A player is told when they reach Ecstatic, the same way they are told about Afraid and Panicking  
+✎ Worth an eye: anyone sleeping at the Inn, the Keep or the Sanctuary gains ground every night, so they can park at Ecstatic and hold that +1
+
 ## 2026-09-09 · The Smithing and Crafting paper is gone
 
 − The public Smithing and Crafting sheet, with the whole tier table and every recipe on it  

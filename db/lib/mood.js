@@ -1,9 +1,10 @@
 // The mood dial (docs/systemdocs/MOOD.md).
 //
-// Every character carries Character.mood, a signed number from +64 down to
+// Every character carries Character.mood, a signed number from +82 down to
 // −100 that no player ever sees as a number. What they see is ONE WORD, in
 // its own box on the sheet, projected from the band the dial sits in:
 //
+//   +64…+82 Ecstatic (+1)
 //   +46…+64 Happy      +28…+46 Pleased    +10…+28 Content
 //   −10…+10 Fine
 //   −10…−28 Uncomfortable   −28…−46 Stressed   −46…−64 Anxious
@@ -46,19 +47,24 @@
 const { hasAttribute, SAFE_ATTRIBUTE, WILDERNESS_ATTRIBUTE, HAVEN_ATTRIBUTE } = require("./locationAttributes");
 const { DYING_SLUG } = require("./constants");
 
-// Asymmetric on purpose: there is more room to be terrified than to be
-// delighted, and only the bottom two bands touch the dice.
-const MOOD_MAX = 64;
+// Still asymmetric, but by one band rather than by a whole half: Ecstatic
+// mirrors Afraid exactly — same width, same distance from Fine, +1 against its
+// −1 — and Panicking is the one band with no twin. There is still more room to
+// be terrified than to be delighted, just not as much more.
+const MOOD_MAX = 82;
 const MOOD_MIN = -100;
 
-// Nine bands, 18 wide, symmetric about Fine. The boundary belongs to the
-// FURTHER band on both sides — −10 is Uncomfortable, +10 is Content, −82 is
-// Panicking, +46 is Happy — which is why bandOf flips which end is open at 0.
+// Ten bands, 18 wide, symmetric about Fine but for Panicking, which has no
+// twin. The boundary belongs to the FURTHER band on both sides — −10 is
+// Uncomfortable, +10 is Content, −82 is Panicking, +64 is Ecstatic — which is
+// why bandOf flips which end is open at 0.
 //
 // `tone` is the vocabulary the sheet colours by (web/app/components/
 // StatusPill.js's rule: the call site names a meaning, the stylesheet picks
-// the colour). `gambit` is the die modifier, read by db/lib/gambitModifier.js;
-// only the bottom two carry one, on Bascinet's call — a good mood is flavour.
+// the colour). `gambit` is the die modifier, read by db/lib/gambitModifier.js.
+// THREE bands carry one, and they are the three extremes: Ecstatic at +1
+// against Afraid's −1, and Panicking's −2 alone at the bottom. The six in the
+// middle are flavour — Content, Pleased and Happy roll what Fine rolls.
 const MOOD_BANDS = Object.freeze([
   { min: -Infinity, max: -82, key: "panicking", label: "Panicking", tone: "bad", gambit: -2 },
   { min: -82, max: -64, key: "afraid", label: "Afraid", tone: "bad", gambit: -1 },
@@ -68,13 +74,18 @@ const MOOD_BANDS = Object.freeze([
   { min: -10, max: 10, key: "fine", label: "Fine", tone: "muted", gambit: 0 },
   { min: 10, max: 28, key: "content", label: "Content", tone: "good", gambit: 0 },
   { min: 28, max: 46, key: "pleased", label: "Pleased", tone: "good", gambit: 0 },
-  { min: 46, max: Infinity, key: "happy", label: "Happy", tone: "good", gambit: 0 },
+  { min: 46, max: 64, key: "happy", label: "Happy", tone: "good", gambit: 0 },
+  // Infinity rather than MOOD_MAX, mirroring Panicking's −Infinity, so an
+  // unclamped read still lands in a band instead of falling out of the table.
+  { min: 64, max: Infinity, key: "ecstatic", label: "Ecstatic", tone: "good", gambit: 1 },
 ]);
 
-// The only two bands anybody hears about. Everything else is a word on the
-// sheet and nothing in the inbox — a player crossing 28 and back used to get
-// two DMs about being Stressed, which buried the two that cost dice.
-const DM_BAND_KEYS = new Set(["afraid", "panicking"]);
+// The only bands anybody hears about, and the rule is the dice: a band that
+// moves a Gambit is worth a line either way, which is why Ecstatic is in here
+// beside the two that cost. The other six are a word on the sheet and nothing
+// in the inbox — a player crossing 28 and back used to get two DMs about being
+// Stressed, which buried the ones that matter.
+const DM_BAND_KEYS = new Set(["afraid", "panicking", "ecstatic"]);
 
 // What a night somewhere is worth, on top of the drift. Exactly one applies,
 // chosen by placeClassOf. Harm is negative, comfort positive.

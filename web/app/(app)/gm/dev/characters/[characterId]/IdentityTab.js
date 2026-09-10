@@ -4,6 +4,9 @@ import CheckField from "@/app/components/CheckField";
 import Switch from "@/app/components/Switch";
 import Select from "@/app/components/Select";
 import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDERS, GENDER_LABELS } from "@/lib/characterName";
+// The dial's own ends, not a copy of them: this input sat on a hardcoded 64 and
+// went stale the day Ecstatic raised the ceiling (docs/systemdocs/MOOD.md).
+import { MOOD_MAX, MOOD_MIN } from "@lifeweb/db/lib/mood";
 
 // Every scalar on the Character row a GM may set, in one tab.
 //
@@ -224,8 +227,8 @@ export default function IdentityTab({ staged, lastNameLocked, factions, location
             </span>
             <input
               type="number"
-              min={-100}
-              max={64}
+              min={MOOD_MIN}
+              max={MOOD_MAX}
               step={1}
               value={staged.mood ?? 0}
               onChange={(e) => onField("mood", Number(e.target.value))}
