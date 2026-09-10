@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A letter can be given a name
+
+✚ A letter can be given a name when you first write it. Leave it blank and it is A Note, the way every sheet was  
+✎ A name is set once, on the first write. Adding to a sheet later cannot rename it, and the letters already written stay A Note  
+✎ Sealing still replaces the name with whose wax is on it, so a sealed letter tells a courier nothing  
+✎ A book or letter called @everyone can no longer ping the server from a noticeboard
+
 ## 2026-09-10 · The Browse note says what actually happens to an upload
 
 ✎ The hover on Browse now reads “Your image may be approved or denied.” It used to promise approval before the picture went live, which was never how it worked
