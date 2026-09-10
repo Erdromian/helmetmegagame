@@ -39,7 +39,6 @@ export default function FactionPanel({ faction, siloOpen = false, onSelect = nul
         </Link>
       </div>
       <div className="chat-feed">
-        <p className="chat-quiet-line">{faction.roleLine}</p>
 
         {/* The silo, when its door is open to this character. A shut door
             keeps the room out of the viewer's own place list entirely, and a

@@ -337,15 +337,56 @@ export default function MapBoard({ onClose = null }) {
     applyView();
   }, [applyView, data, layer, windowOf]);
 
-  // Re-frame when the layer changes or the map first arrives. Depending on
-  // `fit` alone would re-run this on every render that changes `data`.
+  // Is anything drawn on `forLayer` inside the window the view is showing
+  // right now? The window is the same interval applyView's clamp works in:
+  // the plate spans [x, x + W*k] in viewBox units and the visible box sits
+  // centred in it, so a node at plate (n.x, n.y) lands at x + n.x*k.
+  const anythingInView = useCallback(
+    (forLayer) => {
+      const win = windowOf(svgRef.current?.getBoundingClientRect());
+      const shown = (data?.nodes ?? []).filter((n) => onLayer(n, forLayer));
+      if (!win || shown.length === 0) return false;
+      const { x, y, k } = view.current;
+      const left = (win.W - win.w) / 2;
+      const top = (win.H - win.h) / 2;
+      return shown.some((n) => {
+        const px = x + n.x * k;
+        const py = y + n.y * k;
+        return px >= left && px <= left + win.w && py >= top && py <= top + win.h;
+      });
+    },
+    [data, windowOf],
+  );
+
+  // Frame on arrival, and whenever the character's Location moves — the nonce
+  // is that, and it is the only real navigation the board has.
+  //
+  // A layer press is deliberately NOT that. Surface and Underground are the
+  // same plate drawn twice — one PLATE_SRC, one width and height, the flip is
+  // a CSS treatment off data-layer — so { x, y, k } means the same thing on
+  // both, and keeping it is what makes them read as two faces of one place
+  // rather than two maps. It used to re-fit on every press, which threw you
+  // somewhere else at a different zoom for no reason you asked for.
+  //
+  // The one exception is landing on nothing: if the spot you were looking at
+  // holds nothing you know on the layer you just switched to, an empty field
+  // is worse than a re-frame, so fit() runs after all. Reset is still there
+  // for the rest.
   const framed = useRef(null);
+  const flipped = useRef(null);
   useEffect(() => {
+    if (!data?.ok) return;
     const key = `${nonce}:${layer}`;
-    if (!data?.ok || framed.current === key) return;
-    framed.current = key;
-    fit();
-  }, [data, layer, nonce, fit]);
+    if (framed.current !== nonce) {
+      framed.current = nonce;
+      flipped.current = key;
+      fit();
+      return;
+    }
+    if (flipped.current === key) return;
+    flipped.current = key;
+    if (!anythingInView(layer)) fit();
+  }, [data, layer, nonce, fit, anythingInView]);
 
   // The guard stays: a touch contact reports button 0, the second finger
   // included, so nothing here shuts pinch out — but a right-click must still

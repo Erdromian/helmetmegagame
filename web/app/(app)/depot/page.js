@@ -133,12 +133,13 @@ async function FreshDepot() {
 
   if (!licensed && !keycard && !superadmin) redirect("/character");
 
-  // The terminal is a thing in a room, not a website. Standing at the Depot is
-  // now required to open the page at all, not merely to use it — every write
-  // path already refuses from anywhere else (requireLicensedMerchant in
-  // ./actions.js), so this is the page catching up to the server actions rather
-  // than a new rule. A superadmin still reads it from anywhere.
-  if (!superadmin && character?.location?.slug !== DEPOT_LOCATION_SLUG) redirect("/character");
+  // Standing at the Depot is NOT required to open the page — only to work it.
+  // It used to bounce you to /character, and a rail item that answers a click
+  // by throwing you at a different page reads as a broken link rather than as
+  // a rule. So the console opens from anywhere, greyed: `atDepot` below is
+  // already in every control's gate, and DepotConsole leads with "You're not
+  // at the depot." The server actions are the enforcement either way
+  // (requireDepotStanding in ./actions.js), and they have not moved.
 
   const depot = await loadDepot(prisma);
   const openTurn = await getOpenTurn();

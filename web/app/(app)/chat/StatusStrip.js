@@ -23,6 +23,12 @@ const BAD = new Set(["overburdened", "dying", "catatonic-afk"]);
 // what the chip cannot: how close you are, rather than how much you have. A
 // player who has to divide 63 by 71 to see Overburdened coming finds out by
 // being told instead, which is too late to put anything down.
+//
+// `numbers` is the same opt-out one step further, and for the same reason.
+// The sheet's band draws Resources and Carrying as tiles a few inches away,
+// with the caps and the meter the chips can only half-say, so it turns the
+// two leading chips off and keeps this row for what is actually worn. Chat
+// has no tiles, so it keeps them.
 export default function StatusStrip({
   resources = 0,
   carry = null,
@@ -30,6 +36,7 @@ export default function StatusStrip({
   onPick = null,
   pickedId = null,
   meter = false,
+  numbers = true,
 }) {
   const worn = tags.filter((ct) => SHOWN_CATEGORIES.has(ct.tag?.category));
   // The sheet's own arithmetic, to the pixel: the same clamp at 100 and the
@@ -48,10 +55,12 @@ export default function StatusStrip({
             ORed together, so a character over on Resources used to turn the
             POUNDS chip red — and now that a load bar sits under that chip, a
             red number over an unfilled bar would be a straight contradiction. */}
-        <span className="chip chip-mono" data-tone={overResources ? "danger" : undefined}>
-          {resources} ⬢
-        </span>
-        {carry && (
+        {numbers && (
+          <span className="chip chip-mono" data-tone={overResources ? "danger" : undefined}>
+            {resources} ⬢
+          </span>
+        )}
+        {numbers && carry && (
           <span className="chip chip-mono" data-tone={over ? "danger" : undefined}>
             {Math.round(carry.weightUsed)}/{carry.weightCap} lb
           </span>

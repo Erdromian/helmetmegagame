@@ -2,13 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, DRAINED_SLUG, bloodValueForTags, bumpBlood, FEED_PERSON_AMOUNT } from "@lifeweb/db";
-import { getGmSession } from "@/lib/discordGuild";
+import { auth } from "@/lib/auth";
+import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 
-async function requireGm() {
-  const { session, isGm: gm } = await getGmSession();
+// Superadmin, not GM. The Web is the Mortii's to tend and everyone else's to
+// wonder about — a GM watching a zone has no call to move its Blood, and the
+// panel these two back is gone from their page. A server action is a public
+// endpoint (CLAUDE.md), so the gate moving on the page means nothing until it
+// moves here too.
+async function requireSuperadmin() {
+  const session = await auth();
   if (!session?.discordUserId) throw new Error("Not authenticated.");
-  if (!gm) throw new Error("Not authorized.");
+  if (!isSuperadmin(session.discordUserId)) throw new Error("Not authorized.");
   return session;
 }
 
@@ -18,7 +24,7 @@ async function requireGm() {
 // The amount comes from db/lib/lifeweb.js, the same module the player-facing
 // Donate Blood request reads, so the two paths can't grant different numbers.
 export async function donateBlood(characterId) {
-  const session = await requireGm();
+  const session = await requireSuperadmin();
   if (!characterId) return;
 
   const character = await prisma.character.findFirst({
@@ -81,7 +87,7 @@ export async function donateBlood(characterId) {
 
 // No character cost, no Drained tag — a flat top-up.
 export async function feedLifewebPerson() {
-  const session = await requireGm();
+  const session = await requireSuperadmin();
 
   // bumpBlood upserts the config row itself, so there is nothing to read first.
   const blood = await bumpBlood(prisma, FEED_PERSON_AMOUNT);

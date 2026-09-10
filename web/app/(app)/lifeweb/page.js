@@ -7,7 +7,7 @@ import {
   DONATE_BLOOD_BY_TAG,
 } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { getGmSession } from "@/lib/discordGuild";
+import { isSuperadmin } from "@/lib/superadmin";
 import LifewebDonateBloodPanel from "../../components/LifewebDonateBloodPanel";
 import LifewebFeedPersonButton from "../../components/LifewebFeedPersonButton";
 import LifewebRequestButtons from "../../components/LifewebRequestButtons";
@@ -28,15 +28,21 @@ export default async function LifewebPage() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  const { isGm: gm } = await getGmSession();
+  // Superadmin, not GM. This page is a Mortus surface: how much Blood is in
+  // the Tower is a secret the Mortii keep, and every other GM gets the same
+  // vague omen line in the turn announcement that the players do. A superadmin
+  // still reads it, and still gets the panel below, because that is host
+  // access rather than game permission — the same split /gm/dev sits on.
+  const superadmin = isSuperadmin(session.discordUserId);
 
-  // A GM reaches the page without a Mortus character; only a Mortus gets the
-  // player-facing Request buttons, since the server action re-checks the tag.
+  // A superadmin reaches the page without a Mortus character; only a Mortus
+  // gets the player-facing Request buttons, since the server action re-checks
+  // the tag.
   const mortusCharacter = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE", tags: { some: { tag: { slug: MORTUS_SLUG } } } },
     select: { id: true, zone: { select: { slug: true } } },
   });
-  if (!mortusCharacter && !gm) redirect("/character");
+  if (!mortusCharacter && !superadmin) redirect("/character");
 
   const [state, aliveCharacters] = await Promise.all([
     // findUnique, not upsert: this is a page render, and the row is created by
@@ -110,7 +116,7 @@ export default async function LifewebPage() {
         </section>
       )}
 
-      {gm && (
+      {superadmin && (
         <section className="panel p-5">
           <h2 className="panel-header">GM Panel</h2>
 

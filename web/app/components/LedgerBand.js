@@ -147,8 +147,11 @@ export default function LedgerBand({
               {character.zone?.name ?? "Unassigned"} · {character.location?.name ?? "Nowhere"}
             </p>
             <div className="mt-2">
+              {/* No ⬢ and no pounds here: the tiles a few inches to the right
+                  already carry both, with the caps and the load meter the chips
+                  could only half-say. What is left is what is actually worn. */}
               <StatusStrip
-                resources={carry ? carry.resources : character.resources}
+                numbers={false}
                 carry={carry}
                 tags={character.tags}
                 onPick={(ct) => setPicked((was) => (was === (ct.tag.id ?? ct.tagId) ? null : ct.tag.id ?? ct.tagId))}

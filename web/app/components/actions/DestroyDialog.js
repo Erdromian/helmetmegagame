@@ -28,11 +28,9 @@ export default function DestroyDialog({ presets, onDone, onClose }) {
   async function onSubmit() {
     if (!chosen) return;
     const what = line.quantity > 1 ? `${line.quantity}× ${chosen.name}` : chosen.name;
-    const ok = await confirm({
-      title: "Destroy it?",
-      message: `${what} is gone for good. Nothing comes back.`,
-      confirmLabel: "Destroy",
-    });
+    // Title and buttons only. The body line spelled out what "Destroy"
+    // already means, with the thing's own name in it, on every single one.
+    const ok = await confirm({ title: "Destroy it?", confirmLabel: "Destroy" });
     if (!ok) return;
     submit(
       () => destroyTagRequest({ tagId: chosen.id, quantity: String(line.quantity) }),

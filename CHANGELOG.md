@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A pass over the sheet, the map, the Depot and the Lifeweb
+
+✎ The sheet is squarer: Crafting & building moved under the Bio, and your ⬢ and your pounds are no longer printed twice on the band  
+✎ The map keeps where you were and how far in you were zoomed when you flip between the surface and underground — they are the same plate, so it is the same view. It only re-frames when the layer you switched to has nothing you know in sight  
+✎ The Depot opens from anywhere now, greyed, instead of throwing the Merchant back at their character sheet. Standing at the counter is still what works it  
+− The GM panel on the Lifeweb, and the page itself, for GMs. It is a Mortus surface; a superadmin still reads it and still moves the Blood  
+− "One turn of work — this is your Move for the turn" from the Craft dialog  
+− The line under "Destroy it?" naming the thing and saying it is not coming back  
+− The Desires note saying Nobility shuts every Desire at tier 1. The lock still holds, and each one still says "Locked by Nobility" on its own row  
+− The line in the Faction panel telling you which seat you hold in it
+
 ## 2026-09-10 · Shelter brings you back to Fine, not past it
 
 ✎ A roof only ever mends a mood as far as Fine. The Inn, the Keep, the Sanctuary and the Cathedral mend it faster, but none of them makes anybody happy  

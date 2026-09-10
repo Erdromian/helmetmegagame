@@ -97,7 +97,13 @@ export async function loadNavItems(discordUserId) {
     // A finished past game is everyone's to read, whatever the current one is.
     prisma.game.count({ where: { endedAt: { not: null } } }),
   ]);
-  const hasMortus = gm || !!hasMortusTag;
+  const superadmin = isSuperadmin(discordUserId);
+  // The Lifeweb item follows the Mortus tag, not the GM role. How much Blood
+  // is in the Tower is the Mortii's secret to keep, and a GM reading it off a
+  // panel is the whole thing given away — every other GM gets the same vague
+  // omen line in the turn announcement that the players do. A superadmin keeps
+  // it, host access rather than game permission, the way /gm/dev works.
+  const hasMortus = !!hasMortusTag || superadmin;
 
   // Only a GM has a per-GM read cursor to speak of; a player's own DM history
   // isn't what this badge is for.
@@ -114,7 +120,6 @@ export async function loadNavItems(discordUserId) {
   // /character's creation gate.
   const withArchive =
     gm || config?.archiveVisible || pastGames > 0 ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
-  const superadmin = isSuperadmin(discordUserId);
   const withDepot = hasLicenceTag || superadmin ? [...withArchive, DEPOT_NAV_ITEM] : withArchive;
   // Dev is appended last and carries section "gm", so on a GM's rail it lands
   // after the player group. That is one more divider than the two groups
