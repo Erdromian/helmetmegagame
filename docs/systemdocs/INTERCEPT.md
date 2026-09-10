@@ -314,7 +314,9 @@ builds a new one, and `interceptReleaseRow` is gone.
 
 The authoritative control is the **You are fighting** list at the foot of the
 Attack dialog. The DM button is the convenience. The Intercept dialog's own
-holding list is Safe stops only, for the reason §3 gives.
+holding list is Safe stops only — `heldReason: { not: "attack" }`, for the
+reason §3 gives: listing a fight there would draw a Let-them-go button whose
+only possible answer is *They're already free.*
 
 ## 8. The surface
 

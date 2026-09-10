@@ -56,9 +56,15 @@ function revalidate() {
 
 // Everyone this character is holding right now, as the sheet draws them —
 // by the face the room sees, never by their true name.
+//
+// INTERCEPT holds only. Somebody you are holding because you attacked them is
+// broken off from the Attack dialog, not let go from here: releaseHeldBy
+// refuses an attack hold outright (docs/systemdocs/ATTACK.md §4), so listing
+// one would draw a Let-them-go button whose only possible answer is "They're
+// already free."
 async function holdingRows(characterId) {
   const rows = await prisma.character.findMany({
-    where: { heldById: characterId, heldUntil: { gt: new Date() } },
+    where: { heldById: characterId, heldUntil: { gt: new Date() }, heldReason: { not: "attack" } },
     select: IDENTITY_SELECT,
   });
   return rows.map((row) => ({ id: row.id, name: seenAs(identityOf(row)) }));

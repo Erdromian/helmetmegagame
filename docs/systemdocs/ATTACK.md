@@ -86,6 +86,19 @@ free target for anybody with a knife.
 Only the gap **upward** is checked. Attacking somebody far below you is a bad
 thing to do, not an impossible one, and the GM reads it either way.
 
+How it falls out against the catalog as written:
+
+```
+a peasant           Weak       may attack up to Capable
+a guard             Mediocre   may attack up to Seasoned
+a soldier           Capable    may attack the Dangerous swordsman
+```
+
+So a peasant may take on a guard or a soldier and is refused a trained
+swordsman or an Expert; a guard may take on the soldier and is refused the
+swordsman. That is the line the gate is drawn at: a fight you will probably
+lose is yours to pick, a fight you cannot be in is not.
+
 **Why it exists:** without it anybody at all freezes anybody at all for a whole
 day, and a bum stops the Tribunal Ordinator by walking up to them. It is meant
 to stop a hopeless fight, not a hard one.
