@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A kiss is nobody else's business
+
+− The line the room used to hear when two people kissed. Nobody is told now but the two of them
+
 ## 2026-09-10 · The verbs on the sheet explain themselves on hover again
 
 ✎ Every button on the verb strip now tells you what it does when you point at it, the same as everywhere else in the app  
