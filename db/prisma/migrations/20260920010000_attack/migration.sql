@@ -5,6 +5,12 @@
 -- right one without a query.
 ALTER TABLE "Character" ADD COLUMN "heldReason" TEXT;
 
+-- Every hold running at this moment is an intercept — the only kind there was
+-- until now. Naming them is what keeps them releasable: the clears that must
+-- leave a FIGHT alone are written as "not one of the two fight reasons", and a
+-- NULL would have to be reasoned about at every one of them.
+UPDATE "Character" SET "heldReason" = 'intercept' WHERE "heldUntil" IS NOT NULL;
+
 CREATE TABLE "Attack" (
     "id" TEXT NOT NULL,
     "attackerId" TEXT NOT NULL,

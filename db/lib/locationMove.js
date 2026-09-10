@@ -31,7 +31,7 @@ const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessag
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
-const { closeFightsOnMove } = require("./attack");
+const { closeFightsFor } = require("./attack");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -322,7 +322,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     // deliberately will not touch one — both sides are held, and only the row
     // knows whether either of them is still in another — so the row is what
     // gets ended here, and it unpicks both holds on its way out.
-    await closeFightsOnMove(prisma, characterId).catch((err) =>
+    await closeFightsFor(prisma, characterId).catch((err) =>
       console.error(`Move: closing fights failed for ${characterId}:`, err.message ?? err),
     );
   }

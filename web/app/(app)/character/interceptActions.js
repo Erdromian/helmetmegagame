@@ -11,6 +11,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import {
+  NOT_A_FIGHT,
   MAX_NAMES,
   MESSAGE_LIMIT,
   cleanMessage,
@@ -64,7 +65,7 @@ function revalidate() {
 // already free."
 async function holdingRows(characterId) {
   const rows = await prisma.character.findMany({
-    where: { heldById: characterId, heldUntil: { gt: new Date() }, heldReason: { not: "attack" } },
+    where: { heldById: characterId, heldUntil: { gt: new Date() }, ...NOT_A_FIGHT },
     select: IDENTITY_SELECT,
   });
   return rows.map((row) => ({ id: row.id, name: seenAs(identityOf(row)) }));

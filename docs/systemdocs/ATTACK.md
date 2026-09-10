@@ -24,9 +24,21 @@ everybody for free: no cron, no pass, no rows to sweep. Floored at
 closed on time would otherwise put the deadline in the past and hold nobody.
 
 **Both sides are held, each named as holding the other.** You do not start a
-fight and stroll off. `Character.heldReason` says which of the two things has
-hold of somebody, so `heldReasonFor` can name the right one while staying pure
-— a query inside that predicate would have to be awaited at eight call sites.
+fight and stroll off.
+
+`Character.heldReason` says WHY, and it has **three** values, not two —
+`intercept`, `attack`, `attacking` (`HELD_REASON` in `db/lib/intercept.js`).
+The third is the whole point: the person who was jumped and the person who did
+the jumping are both held, and telling the aggressor *"Somebody attacked you"*
+on every shut way and every banner would be a plain lie. A column rather than a
+query because `heldReasonFor` is pure and eight surfaces read it.
+
+`heldById` names **one** opponent, and a brawl has several, so it is re-derived
+rather than merely cleared — see `settleHold` below. Every clear that works off
+`heldById` (`releaseHeldBy`, the walk-off clear in `locationTravel.js`, the
+death clear in `characterDeath.js`) carries `heldReason: { notIn: FIGHT_REASONS }`
+for the same reason: a blind clear would free somebody out of a fight that is
+still going.
 
 ## 2. The row is the rule
 
@@ -43,9 +55,13 @@ is still something that happened.
 Only the attacker may call it off. `cancelAttack`'s `WHERE` is the ownership
 check; there is no second lookup to disagree with it.
 
-`clearHoldIfFree` runs for **both** sides and clears nothing while any other
-live Attack this turn names that person, so one man backing out of a three-way
-brawl does not unpick the whole thing.
+`settleHold` runs for **both** sides, and it clears **or re-points** — never
+just clears. That second half is the one that matters. A and C both attack B,
+then A breaks off: B stays held, correctly, but `heldById` still says A, who is
+now in no fight at all. Left stale, the next thing that clears "everyone A is
+holding" — A walking away, A dying — frees B out of C's fight. So the pointer
+moves to somebody really still there, and being jumped outranks doing the
+jumping when a person is in both positions at once.
 
 **Three other things end a fight**, and each ends the ROW rather than the hold,
 because the hold is derived from it:
@@ -54,12 +70,14 @@ because the hold is derived from it:
    own DM. Both go through `db/lib/dmAnswer.js#answerAttackHold`, so the faces
    cannot drift.
 2. Either of them is **relocated** — a GM's teleport, a Bulk Move, a staged
-   Relocate to, a rite. `closeFightsOnMove` hangs off
+   Relocate to, a rite. `closeFightsFor` hangs off
    `applyLocationMoveSideEffects`, the writer every relocation runs. Walking off
    never reaches it, because a held character cannot walk.
-3. The attacker **dies** (`db/lib/characterDeath.js`), beside the escort and
-   hold releases. The row is stamped so the GM's lens does not sit there reading
-   "Holding" over a corpse.
+3. Either of them **dies** (`db/lib/characterDeath.js`), through the same
+   helper and ahead of the escort and hold releases. **Both** ends, not just a
+   dead attacker: a row left live on the far side would go on pinning the
+   survivor for the rest of the turn, because `settleHold` would keep finding
+   it — and the GM's lens would sit there reading "Holding" over a corpse.
 
 *One known gap, and it is small:* a two-minute Safe intercept hold that an
 attack overwrote is not restored when the attack is called off. A second column
@@ -183,7 +201,11 @@ own Location rather than the attacker's seat — the `cavingRollRow` reasoning.
 | Type | Written by | `turnId` |
 |---|---|---|
 | `request_attack_filed` | the button | yes |
-| `request_attack_cancelled` | Break off, and the DM's Cancel attack | yes |
+| `request_attack_cancelled` | Break off, on the sheet | yes |
+
+The DM's **Cancel attack** writes no row, the `answerInterceptHold` precedent
+(`INTERCEPT.md` §9): `db/lib/dmAnswer.js` is shared by both faces and writes no
+audit anywhere, and a hold ending is not the thing the log is kept for.
 
 An ambush writes its existing `request_intercept_fired` row and no second one.
 `request_attack_filed` is on the Oracle's allowlist (`db/lib/oracleAudit.js`) —

@@ -587,7 +587,6 @@ export default function Workspace({
           cavingRolls={cavingRolls}
           otherRows={otherRows}
           onInspect={inspect}
-          inspectedId={inspected?.characterId ?? null}
           visibleZoneNames={visibleZoneNames}
           stagedByMove={stagedByMove}
           selected={selected}

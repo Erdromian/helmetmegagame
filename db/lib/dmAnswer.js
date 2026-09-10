@@ -34,7 +34,7 @@ const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
 const { holdKeyedOpen } = require("./gates");
 const { settleCarry } = require("./carry");
-const { releaseHeldBy } = require("./intercept");
+const { releaseHeldBy, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
 const { recordArchiveEvent } = require("./archive");
 
@@ -206,10 +206,15 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
   if (!openTurn) return { ok: false, line: GONE, ...empty() };
 
+  // By the face the room saw, never the row. The DM this button sits on says
+  // "you ambushed a hooded figure"; answering it with their real name would
+  // make the button the unmasking tool the whole verb refuses to be
+  // (docs/systemdocs/ATTACK.md §6).
   const target = await prisma.character.findUnique({
     where: { id },
-    select: { id: true, name: true, discordUserId: true, status: true },
+    select: { ...IDENTITY_SELECT, status: true },
   });
+  const seen = target ? seenAs(identityOf(target)) : "them";
   const done = await cancelAttack(prisma, {
     attackerId: attacker.id,
     targetCharacterId: id,
@@ -221,7 +226,7 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
   if (target?.discordUserId && target.status === "ALIVE") {
     dms.push({ discordUserId: target.discordUserId, content: ATTACK_CALLED_OFF_DM });
   }
-  return { ok: true, line: `You break off from ${target?.name ?? "them"}. ‡`, ...empty(), dms };
+  return { ok: true, line: `You break off from ${seen}. ‡`, ...empty(), dms };
 }
 
 // The one entry point. `action` is the descriptor off DirectMessage.meta

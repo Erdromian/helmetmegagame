@@ -18,7 +18,7 @@
 // sends them after the transaction commits (ARCHITECTURE.md §5).
 const { fightingSkill, bandRank, FIGHTING_TAG_FIELDS } = require("./fightingSkill");
 const { turnEndsAt } = require("./turnClock");
-const { SAFE_HOLD_MS, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { SAFE_HOLD_MS, HELD_REASON, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { DM_KIND } = require("./dmKinds");
 const { DM_ACTION, dmAction } = require("./dmActions");
 
@@ -83,7 +83,7 @@ function attackHoldUntil(openTurn, now = new Date()) {
 }
 
 // Everyone still in a live fight with this character, either end of it. The
-// one query the cancel below runs, and the reason one person backing out of a
+// one query the settle below runs, and the reason one person backing out of a
 // three-way brawl does not unpick the whole thing.
 function liveAttackWhere(characterId, turnId) {
   return {
@@ -93,21 +93,43 @@ function liveAttackWhere(characterId, turnId) {
   };
 }
 
-// Clears a character's hold ONLY if nothing else is holding them. Called for
-// both sides of a cancelled attack.
+// Re-derive one person's hold from the fights they are actually still in.
+// Called for every side of every attack that ends, however it ends.
+//
+// It CLEARS or it RE-POINTS — never just clears — and the re-point is the
+// half that matters. heldById names one opponent, and a brawl has several: A
+// and C both attack B, then A breaks off. B stays held, correctly, but
+// heldById still says A, who is now in no fight at all. Leave that stale and
+// the next thing that clears "everyone A is holding" — A walking away, A dying
+// — frees B out of C's fight. So the pointer is moved to somebody who is
+// really still there.
 //
 // Known and small: a two-minute Safe intercept hold that an attack overwrote
 // is not restored when the attack is called off. Tracking that would want a
 // second column for two minutes of a stranger's afternoon, which is a worse
 // trade than the gap.
-async function clearHoldIfFree(db, characterId, turnId) {
-  const still = await db.attack.findFirst({ where: liveAttackWhere(characterId, turnId), select: { id: true } });
-  if (still) return false;
-  await db.character.updateMany({
-    where: { id: characterId, heldReason: "attack" },
-    data: { heldUntil: null, heldById: null, heldReason: null },
+async function settleHold(db, characterId, turnId) {
+  const still = await db.attack.findMany({
+    where: liveAttackWhere(characterId, turnId),
+    select: { attackerId: true, targetCharacterId: true },
   });
-  return true;
+  if (still.length === 0) {
+    await db.character.updateMany({
+      where: { id: characterId, heldReason: { in: [HELD_REASON.ATTACK, HELD_REASON.ATTACKING] } },
+      data: { heldUntil: null, heldById: null, heldReason: null },
+    });
+    return { held: false };
+  }
+  // Being jumped outranks doing the jumping: somebody in both positions at
+  // once should read the sentence about the fight they did not choose.
+  const jumped = still.find((row) => row.targetCharacterId === characterId);
+  const row = jumped ?? still[0];
+  const opponent = jumped ? row.attackerId : row.targetCharacterId;
+  await db.character.updateMany({
+    where: { id: characterId, heldReason: { in: [HELD_REASON.ATTACK, HELD_REASON.ATTACKING] } },
+    data: { heldById: opponent, heldReason: jumped ? HELD_REASON.ATTACK : HELD_REASON.ATTACKING },
+  });
+  return { held: true };
 }
 
 // ─── Filing one ─────────────────────────────────────────────────────────────
@@ -137,20 +159,20 @@ async function fileAttack(db, { attacker, target, openTurn, fromAmbush = false, 
     throw err;
   }
 
-  // BOTH sides, each held BY THE OTHER. You do not start a fight and stroll
-  // off. Writing the other person into heldById rather than themselves is what
-  // keeps db/lib/intercept.js#releaseHeldBy's ownership WHERE meaningful — it
-  // is still true that the person named there is the one you are locked to.
+  // BOTH sides, each held BY THE OTHER, and each with its OWN reason. You do
+  // not start a fight and stroll off — but the person who was jumped and the
+  // person who did the jumping must not read the same sentence off every shut
+  // way, and heldReason is the only thing that can tell them apart.
   //
   // Conditional on the clock, the fireWatches rule: a hold already running
   // longer than this one is left exactly where it is.
-  for (const [who, by] of [
-    [target.id, attacker.id],
-    [attacker.id, target.id],
+  for (const [who, by, reason] of [
+    [target.id, attacker.id, HELD_REASON.ATTACK],
+    [attacker.id, target.id, HELD_REASON.ATTACKING],
   ]) {
     await db.character.updateMany({
       where: { id: who, OR: [{ heldUntil: null }, { heldUntil: { lt: until } }] },
-      data: { heldUntil: until, heldById: by, heldReason: "attack" },
+      data: { heldUntil: until, heldById: by, heldReason: reason },
     });
   }
 
@@ -171,35 +193,43 @@ async function cancelAttack(db, { attackerId, targetCharacterId, turnId }) {
     data: { cancelledAt: new Date() },
   });
   if (done.count === 0) return { ok: false };
-  await clearHoldIfFree(db, targetCharacterId, turnId);
-  await clearHoldIfFree(db, attackerId, turnId);
+  await settleHold(db, targetCharacterId, turnId);
+  await settleHold(db, attackerId, turnId);
   return { ok: true };
 }
 
-// However you left, the fight is over. You cannot keep a hand on somebody from
-// the next zone — the releaseHeldBy reasoning in db/lib/locationMove.js, which
-// cannot touch an attack hold itself (both sides are held, and only the row
-// knows whether either of them is still in another fight).
+// Every fight this character is in, on either side, ended at once — and both
+// sides of each of them settled. Two callers, and they are the two ways a
+// fight stops being a fight without anybody choosing:
 //
-// Called from applyLocationMoveSideEffects, the writer EVERY relocation runs:
-// a GM's teleport, a Bulk Move, a staged Relocate to, a rite. Walking off never
-// reaches it, because a held character cannot walk.
+//   * a RELOCATION (db/lib/locationMove.js) — a GM's teleport, a Bulk Move, a
+//     staged Relocate to, a rite. You cannot keep a hand on somebody from the
+//     next zone. Walking off never reaches it, because a held character cannot
+//     walk.
+//   * a DEATH (db/lib/characterDeath.js). Both ends: a dead attacker is
+//     holding nobody, and a dead target is not being held. Leaving the far
+//     half live would strand the survivor — settleHold would keep finding that
+//     row and refuse to let go of them for the rest of the turn.
+//
+// db/lib/intercept.js#releaseHeldBy deliberately cannot do this itself: it
+// works off heldById, and only the row knows whether either side is still in
+// another fight.
 //
 // Looks the open turn up itself, the cancelWatchOnMove shape — the callers of
 // that function have no turn in hand.
-async function closeFightsOnMove(db, characterId) {
+async function closeFightsFor(db, characterId) {
   if (!characterId) return { closed: 0 };
   const openTurn = await db.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
   if (!openTurn) return { closed: 0 };
 
   const live = await db.attack.findMany({
-    where: { turnId: openTurn.id, cancelledAt: null, OR: [{ attackerId: characterId }, { targetCharacterId: characterId }] },
-    select: { attackerId: true, targetCharacterId: true },
+    where: liveAttackWhere(characterId, openTurn.id),
+    select: { id: true, attackerId: true, targetCharacterId: true },
   });
   if (live.length === 0) return { closed: 0 };
 
   await db.attack.updateMany({
-    where: { turnId: openTurn.id, cancelledAt: null, OR: [{ attackerId: characterId }, { targetCharacterId: characterId }] },
+    where: { id: { in: live.map((row) => row.id) } },
     data: { cancelledAt: new Date() },
   });
   const touched = new Set();
@@ -207,7 +237,7 @@ async function closeFightsOnMove(db, characterId) {
     touched.add(row.attackerId);
     touched.add(row.targetCharacterId);
   }
-  for (const id of touched) await clearHoldIfFree(db, id, openTurn.id);
+  for (const id of touched) await settleHold(db, id, openTurn.id);
   return { closed: live.length };
 }
 
@@ -274,15 +304,10 @@ module.exports = {
   ATTACK_TAG_SELECT,
   ATTACK_CANCEL_PREFIX,
   ATTACK_CALLED_OFF_DM,
-  attackCancelRow,
   bestBandRank,
   attackRefusal,
-  attackHoldUntil,
-  liveAttackWhere,
-  clearHoldIfFree,
   fileAttack,
   cancelAttack,
-  closeFightsOnMove,
+  closeFightsFor,
   attacksBy,
-  attackDms,
 };

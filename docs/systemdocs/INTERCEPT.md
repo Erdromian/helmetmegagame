@@ -128,10 +128,10 @@ keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
   it (`ADJUDICATION.md`), which is the same moment. An Ambush writes that hold
   through `db/lib/attack.js#fileAttack` rather than here — see §5a.
 
-`Character.heldReason` says **which of the two** has hold of somebody,
-`"intercept"` or `"attack"`, so the predicate below can name the right one
-without a query. A column rather than a lookup because that predicate is pure
-and eight surfaces read it.
+`Character.heldReason` says **which** has hold of somebody — `HELD_REASON` in
+this file, and there are three values rather than two because a fight holds both
+sides and they must not read the same sentence (`ATTACK.md` §1). A column rather
+than a lookup because the predicate below is pure and eight surfaces read it.
 
 `heldReasonFor(character, now)` is the one predicate, pure, and it is what both
 the mover's gate and every picker read — so a surface can never draw a way the
@@ -141,9 +141,9 @@ nothing.
 
 **Three writers end a hold before its time**, and `heldById` is what lets each
 of them know whose holds to clear. All three are about an *intercept* hold:
-`releaseHeldBy`'s `WHERE` carries `heldReason: { not: "attack" }`, because both
-sides of a fight are held and only the `Attack` row knows whether either of them
-is still in another one. Breaking off is `db/lib/attack.js#cancelAttack`, and
+each carries `heldReason: { notIn: FIGHT_REASONS }`, because both sides of a
+fight are held, `heldById` names only one opponent of possibly several, and only
+the `Attack` row knows whether either of them is still in another fight. Breaking off is `db/lib/attack.js#cancelAttack`, and
 only that (`ATTACK.md` §2).
 
 1. The holder presses **Release** — on the sheet, or on the button in their own
@@ -314,7 +314,7 @@ builds a new one, and `interceptReleaseRow` is gone.
 
 The authoritative control is the **You are fighting** list at the foot of the
 Attack dialog. The DM button is the convenience. The Intercept dialog's own
-holding list is Safe stops only — `heldReason: { not: "attack" }`, for the
+holding list is Safe stops only — it excludes both fight reasons, for the
 reason §3 gives: listing a fight there would draw a Let-them-go button whose
 only possible answer is *They're already free.*
 

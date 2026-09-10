@@ -276,9 +276,12 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
 // One held pair. It opens the INSPECTOR on the person being held rather than a
 // desk, because there is no desk for a fight — what a GM wants next is that
 // person's sheet, their band, and what they filed.
-function OtherRows({ rows, matchFor, onInspect, kbdId, kbdLens, inspectedId }) {
+function OtherRows({ rows, matchFor, onInspect, kbdId, kbdLens, openRowId }) {
   return rows.map((row) => {
-    const active = inspectedId === row.targetCharacterId;
+    // Keyed to the ROW, not the person being held: in a three-way brawl every
+    // row naming that target would light up at once, which reads as three
+    // selections.
+    const active = openRowId === row.id;
     return (
       <button
         key={row.id}
@@ -288,7 +291,7 @@ function OtherRows({ rows, matchFor, onInspect, kbdId, kbdLens, inspectedId }) {
         data-urgent={row.statusLabel === "Holding" || undefined}
         data-kbd={kbdLens === "other" && kbdId === row.id ? "" : undefined}
         data-row-key={row.id}
-        onClick={() => onInspect?.(row.targetCharacterId, row.targetName)}
+        onClick={() => onInspect?.(row.targetCharacterId, row.targetName, row.id)}
       >
         <span className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-1.5 truncate font-medium">
@@ -319,7 +322,6 @@ export default function QueueRail({
   cavingRolls,
   otherRows,
   onInspect,
-  inspectedId,
   visibleZoneNames,
   stagedByMove,
   selected,
@@ -540,6 +542,11 @@ export default function QueueRail({
   );
   const visibleRows = rowsForLens[lens] ?? movesShown;
   const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
+  // Which Other row was last opened. Local rather than lifted into `selected`:
+  // an Other row opens the INSPECTOR, not a desk, so it is not a selection the
+  // workspace or the URL has any opinion about — it is just the row you last
+  // pressed, so the rail can show you where you are in a long list.
+  const [openRowId, setOpenRowId] = useState(null);
   // Tracked by ROW ID, not position — a status change re-sorts the rail, and
   // an index-based cursor would follow the slot instead of the row.
   const [kbdCursorId, setKbdCursorId] = useState(null);
@@ -628,6 +635,7 @@ export default function QueueRail({
         // The Other lens has no desk — ⏎ opens the inspector on the person
         // being held, the same thing clicking the row does.
         if (lens === "other") {
+          setOpenRowId(row.id);
           onInspect?.(row.targetCharacterId, row.targetName);
           return;
         }
@@ -799,8 +807,11 @@ export default function QueueRail({
             <OtherRows
               rows={otherTable.visible}
               matchFor={otherTable.matchFor}
-              onInspect={onInspect}
-              inspectedId={inspectedId}
+              onInspect={(id, name, rowId) => {
+                setOpenRowId(rowId);
+                onInspect?.(id, name);
+              }}
+              openRowId={openRowId}
               kbdId={kbdId}
               kbdLens={lens}
             />
