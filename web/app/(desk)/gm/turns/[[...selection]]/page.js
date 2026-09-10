@@ -20,10 +20,14 @@ import {
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
   CAVING_ROLL_INCLUDE,
+  ATTACK_INCLUDE,
+  INTERCEPT_HIT_INCLUDE,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
+  attackRow,
+  interceptHitRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
 
@@ -96,6 +100,8 @@ async function FreshTurnsWorkspace({ params, userId }) {
   const [
     actions,
     cavingRolls,
+    attacks,
+    interceptHits,
     stagedEffects,
     stagedMessages,
     roster,
@@ -125,6 +131,27 @@ async function FreshTurnsWorkspace({ params, userId }) {
           where: { turnId: openTurn.id },
           orderBy: { createdAt: "desc" },
           include: CAVING_ROLL_INCLUDE,
+        })
+      : [],
+    // The Other lens — everything holding somebody in place this turn
+    // (docs/systemdocs/ATTACK.md). Turn-scoped like the Caving lens above, and
+    // cancelled rows ride along rather than being filtered out: a fight
+    // somebody started and called off is still something a GM may need to know
+    // happened.
+    openTurn
+      ? prisma.attack.findMany({
+          where: { turnId: openTurn.id },
+          orderBy: { createdAt: "desc" },
+          include: ATTACK_INCLUDE,
+        })
+      : [],
+    // Its intercept half. An AMBUSH files an Attack above, so what is left
+    // here is the two-minute Safe stops.
+    openTurn
+      ? prisma.interceptHit.findMany({
+          where: { turnId: openTurn.id },
+          orderBy: { createdAt: "desc" },
+          include: INTERCEPT_HIT_INCLUDE,
         })
       : [],
     // Open-turn staging plus every unapplied stray from earlier turns —
@@ -245,6 +272,13 @@ async function FreshTurnsWorkspace({ params, userId }) {
 
 
   const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds }));
+
+  // The Other lens's one merged list. An Ambush is already an Attack row, so
+  // the two halves never name the same event twice.
+  const otherRows = [
+    ...attacks.map((a) => attackRow(a, { usernameById, catatonicIds })),
+    ...interceptHits.map((h) => interceptHitRow(h, { usernameById, catatonicIds })),
+  ];
 
   const locationRows = stagingLocations.map((l) => ({
     id: l.id,
@@ -376,6 +410,7 @@ async function FreshTurnsWorkspace({ params, userId }) {
         stagingLocations: locationRows,
         moves: moves,
         cavingRolls: cavingRows,
+        otherRows: otherRows,
         stagedEffects: effects,
         stagedMessages: messages,
         gmProfiles: gmProfilesById,

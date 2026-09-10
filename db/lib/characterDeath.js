@@ -13,6 +13,8 @@ const { cancelOffersForCharacter } = require("./lessons");
 const { SEAT_TAG_SLUGS } = require("./threats");
 const { applyMood } = require("./mood");
 const { CATATONIC_SLUG, GIBBED_SLUG, METEMPSYCHOSIS_SLUG } = require("./constants");
+const { NOT_A_FIGHT } = require("./intercept");
+const { closeFightsFor } = require("./attack");
 
 // Marks one character DEAD. Returns { claimed } — false when the character
 // was no longer ALIVE, in which case NOTHING else was written: the update's
@@ -145,10 +147,22 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
   // holder's own Release and the holder walking away. Their OWN heldUntil is
   // deliberately left alone, for the same reason escortedById is: it costs a
   // corpse nothing, and it lapses on its own anyway.
+  // A FIGHT comes off first, and it comes off through the row rather than
+  // through heldById (docs/systemdocs/ATTACK.md §2). Both ends of it: a dead
+  // attacker holds nobody, and a dead target is holding nobody either — and a
+  // row left live on the far side would go on pinning the survivor for the
+  // rest of the turn, because settleHold would keep finding it. Stamped rather
+  // than deleted, the same as breaking off: it happened.
+  await closeFightsFor(prisma, character.id).catch((err) =>
+    console.error(`Failed to close fights on death for ${character.id}:`, err),
+  );
+  // The intercept holds. Guarded away from a fight for the reason
+  // releaseHeldBy is: heldById names one opponent and a brawl has several, so
+  // a blind clear here would free somebody out of a fight that is still going.
   await prisma.character
     .updateMany({
-      where: { heldById: character.id },
-      data: { heldUntil: null, heldById: null },
+      where: { heldById: character.id, ...NOT_A_FIGHT },
+      data: { heldUntil: null, heldById: null, heldReason: null },
     })
     .catch((err) => console.error(`Failed to release held characters on death for ${character.id}:`, err));
   await prisma.character

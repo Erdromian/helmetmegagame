@@ -93,6 +93,15 @@ function bandByKey(key) {
   return BANDS.find((b) => b.key === key) ?? null;
 }
 
+// Where a band sits on the ladder: 0 for Pitiful, 7 for Legendary. The unit a
+// GAP between two people is measured in, and the reason db/lib/attack.js reads
+// bands rather than scores — floor:/cap: tags (Apex Form, Bound, Paralyzed)
+// move the band index after the points are summed, so a tied-up Expert still
+// scores 55 and only the band knows they are Pitiful.
+function bandRank(key) {
+  return BANDS.findIndex((b) => b.key === key);
+}
+
 // The one place a score becomes a word.
 function fightingWord(score) {
   return bandOfScore(score).label;
@@ -445,6 +454,7 @@ module.exports = {
   WEAPON_CLASSES,
   FIGHTING_TAG_FIELDS,
   bandByKey,
+  bandRank,
   fightingSkill,
   fightingSkillFor,
   fightingWord,

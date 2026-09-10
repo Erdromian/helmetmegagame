@@ -34,7 +34,8 @@ const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
 const { holdKeyedOpen } = require("./gates");
 const { settleCarry } = require("./carry");
-const { releaseHeldBy } = require("./intercept");
+const { releaseHeldBy, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
 const { recordArchiveEvent } = require("./archive");
 
 // Nothing to do, drawn as the reason under the message. Shared so the four
@@ -191,6 +192,43 @@ async function answerInterceptHold(prisma, { id, discordUserId }) {
   return { ok: true, line: `You let ${target.name} go.`, ...empty(), dms };
 }
 
+// Breaking off a fight you started (docs/systemdocs/ATTACK.md). The same shape
+// as the release above and the same rule — the initiator answers — but it
+// cannot go through releaseHeldBy, because BOTH sides of a fight are held and
+// only the Attack row knows whether either of them is still in another one.
+// cancelAttack's WHERE is the ownership check.
+async function answerAttackHold(prisma, { id, discordUserId }) {
+  const attacker = await prisma.character.findFirst({
+    where: { discordUserId, status: "ALIVE" },
+    select: { id: true, name: true },
+  });
+  if (!attacker) return { ok: false, line: NOT_YOURS, ...empty() };
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+  if (!openTurn) return { ok: false, line: GONE, ...empty() };
+
+  // By the face the room saw, never the row. The DM this button sits on says
+  // "you ambushed a hooded figure"; answering it with their real name would
+  // make the button the unmasking tool the whole verb refuses to be
+  // (docs/systemdocs/ATTACK.md §6).
+  const target = await prisma.character.findUnique({
+    where: { id },
+    select: { ...IDENTITY_SELECT, status: true },
+  });
+  const seen = target ? seenAs(identityOf(target)) : "them";
+  const done = await cancelAttack(prisma, {
+    attackerId: attacker.id,
+    targetCharacterId: id,
+    turnId: openTurn.id,
+  });
+  if (!done.ok) return { ok: false, line: "You aren't fighting them.", ...empty() };
+
+  const dms = [];
+  if (target?.discordUserId && target.status === "ALIVE") {
+    dms.push({ discordUserId: target.discordUserId, content: ATTACK_CALLED_OFF_DM });
+  }
+  return { ok: true, line: `You break off from ${seen}.`, ...empty(), dms };
+}
+
 // The one entry point. `action` is the descriptor off DirectMessage.meta
 // (db/lib/dmActions.js#dmActionOf); `discordUserId` is the CLICKER, resolved
 // by the caller from its own session or interaction and never from anything
@@ -215,6 +253,8 @@ async function answerDmAction(prisma, { action, choice, discordUserId }) {
       return answerKeyedWay(prisma, args);
     case DM_ACTION.INTERCEPT_HOLD:
       return answerInterceptHold(prisma, args);
+    case DM_ACTION.ATTACK_HOLD:
+      return answerAttackHold(prisma, args);
     default:
       return { ok: false, line: GONE, ...empty() };
   }

@@ -37,6 +37,7 @@ const {
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
+const { ATTACK_CANCEL_PREFIX } = require("@lifeweb/db/lib/attack");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
@@ -1037,16 +1038,17 @@ async function handleKeyedPrompt(interaction, payload) {
   });
 }
 
-// Letting a prisoner go, from the Release button on the ambusher's own DM
-// (docs/systemdocs/INTERCEPT.md). The handleKeyedPrompt shape: update IS the
-// ack, and the buttons come off whatever the answer was. The shared half —
-// who may release whom, and the word owed to the person let go — is
-// db/lib/dmAnswer.js, so the web's Release cannot drift from this one.
-async function handleInterceptRelease(interaction, targetId) {
+// Ending a hold you imposed, from the button on your own DM: Release for an
+// old intercept (docs/systemdocs/INTERCEPT.md), Cancel attack for a fight
+// (docs/systemdocs/ATTACK.md). The handleKeyedPrompt shape: update IS the ack,
+// and the buttons come off whatever the answer was. The shared half — who may
+// end whose hold, and the word owed to the other person — is
+// db/lib/dmAnswer.js, so the web's own button cannot drift from this one.
+async function handleHoldEnd(interaction, kind, targetId) {
   await ack(interaction, { update: true });
 
   const result = await answerDmAction(prisma, {
-    action: { kind: DM_ACTION.INTERCEPT_HOLD, id: targetId },
+    action: { kind, id: targetId },
     choice: DM_CHOICE.ACCEPT,
     discordUserId: interaction.user.id,
   });
@@ -1057,7 +1059,7 @@ async function handleInterceptRelease(interaction, targetId) {
     const user = await interaction.client.users.fetch(dm.discordUserId).catch(() => null);
     if (!user) continue;
     await sendDm(user, `» ${dm.content}`).catch((err) =>
-      console.error(`Intercept release DM to ${dm.discordUserId} failed:`, err.message ?? err),
+      console.error(`Hold release DM to ${dm.discordUserId} failed:`, err.message ?? err),
     );
   }
 }
@@ -2168,9 +2170,17 @@ module.exports = {
           return void (await handleKeyedPrompt(interaction, interaction.customId.slice(KEYED_PREFIX.length)));
         }
         if (interaction.customId.startsWith(INTERCEPT_RELEASE_PREFIX)) {
-          return void (await handleInterceptRelease(
+          return void (await handleHoldEnd(
             interaction,
+            DM_ACTION.INTERCEPT_HOLD,
             interaction.customId.slice(INTERCEPT_RELEASE_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(ATTACK_CANCEL_PREFIX)) {
+          return void (await handleHoldEnd(
+            interaction,
+            DM_ACTION.ATTACK_HOLD,
+            interaction.customId.slice(ATTACK_CANCEL_PREFIX.length),
           ));
         }
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));

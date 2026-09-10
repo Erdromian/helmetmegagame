@@ -60,7 +60,7 @@ function makeMoveSearchMap(tagsById) {
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
 export const RAIL_STORAGE_DEFAULT = {
   lens: "moves",
-  filters: {}, // { moves, caving, history, "history-caving" } — each an initialFilters-shaped object
+  filters: {}, // { moves, caving, other, history, "history-caving" } — each an initialFilters-shaped object
   hideTravel: true,
   hideHistoryTravel: true,
   historyKind: "moves", // "moves" | "caving"
@@ -110,9 +110,36 @@ const cavingSearchMap = (r) => ({
 });
 const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
+// The Other lens — everything holding somebody in place this turn
+// (docs/systemdocs/ATTACK.md). Attacks, ambushes and Safe intercepts in one
+// list, because to a GM reading the queue they are one question: who cannot
+// leave, and who is standing over them.
+//
+// The lens is deliberately named for the shape rather than the contents. It is
+// where the next thing that is neither a Move nor a die goes.
+const OTHER_KIND_OPTIONS = ["Attack", "Ambush", "Intercept"];
+const OTHER_STATUS_OPTIONS = ["Holding", "Called off", "Stopped"];
+const OTHER_STATUS_RANK = { Holding: 0, Stopped: 1, "Called off": 2 };
+const OTHER_FILTER_DEFS = [
+  { key: "zone", label: "Zone", value: (r) => r.zoneName },
+  { key: "kind", label: "Kind", value: (r) => r.kindLabel, options: OTHER_KIND_OPTIONS },
+  { key: "status", label: "Status", value: (r) => r.statusLabel, options: OTHER_STATUS_OPTIONS },
+];
+const otherSearchMap = (r) => ({
+  name: r.characterName,
+  target: r.targetName,
+  username: r.discordUsername,
+  role: r.roleTitle,
+  zone: `${r.zoneName ?? ""} ${r.locationName ?? ""}`,
+  kind: r.kindLabel,
+  status: r.statusLabel,
+});
+// A live hold is the only one a GM can still do anything about.
+const OTHER_TONES = { Holding: "bad", Stopped: "neutral", "Called off": "neutral" };
+
 // The keyboard lens flips, and what ⏎ selects in each lens. The History
 // lens over the OPEN turn selects a live "move" — see historyIsOpenTurn.
-const LENS_FOR_KEY = { m: "moves", c: "caving", h: "history" };
+const LENS_FOR_KEY = { m: "moves", c: "caving", o: "other", h: "history" };
 const SELECTION_TYPE_FOR_LENS = {
   moves: "move",
   caving: "caving",
@@ -246,9 +273,55 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
   });
 }
 
+// One held pair. It opens the INSPECTOR on the person being held rather than a
+// desk, because there is no desk for a fight — what a GM wants next is that
+// person's sheet, their band, and what they filed.
+function OtherRows({ rows, matchFor, onInspect, kbdId, kbdLens, openRowId }) {
+  return rows.map((row) => {
+    // Keyed to the ROW, not the person being held: in a three-way brawl every
+    // row naming that target would light up at once, which reads as three
+    // selections.
+    const active = openRowId === row.id;
+    return (
+      <button
+        key={row.id}
+        type="button"
+        className="desk-queue-row"
+        data-active={active}
+        data-urgent={row.statusLabel === "Holding" || undefined}
+        data-kbd={kbdLens === "other" && kbdId === row.id ? "" : undefined}
+        data-row-key={row.id}
+        onClick={() => onInspect?.(row.targetCharacterId, row.targetName, row.id)}
+      >
+        <span className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-1.5 truncate font-medium">
+            <CharacterAvatar
+              characterId={row.characterId}
+              name={row.characterName}
+              version={row.avatarVersion}
+              catatonic={row.catatonic}
+            />
+            <span className="truncate">
+              {row.characterName} → {row.targetName}
+            </span>
+            <MatchHint match={matchFor(row)} />
+          </span>
+          <StatusPill tone={OTHER_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
+        </span>
+        <span className="block truncate text-xs text-muted">
+          {row.kindLabel}
+          {row.locationName ? ` · ${row.locationName}` : row.zoneName ? ` · ${row.zoneName}` : ""}
+        </span>
+      </button>
+    );
+  });
+}
+
 export default function QueueRail({
   moves,
   cavingRolls,
+  otherRows,
+  onInspect,
   visibleZoneNames,
   stagedByMove,
   selected,
@@ -271,6 +344,7 @@ export default function QueueRail({
 }) {
   const moveFilterDefs = useMemo(() => MOVE_FILTER_DEFS, []);
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
+  const otherFilterDefs = useMemo(() => OTHER_FILTER_DEFS, []);
   const moveSearchMap = useMemo(() => makeMoveSearchMap(tagsById), [tagsById]);
 
   // The rail's persisted view state. Each table's filters live under their
@@ -325,7 +399,16 @@ export default function QueueRail({
     [cavingRolls, inView],
   );
 
-  // All four tables mount permanently so lens flips keep each one's filters.
+  const rankedOtherRows = useMemo(
+    () =>
+      inView(otherRows).map((r) => ({
+        ...r,
+        queueOrder: (OTHER_STATUS_RANK[r.statusLabel] ?? 0) * 1e15 - r.createdAtMs,
+      })),
+    [otherRows, inView],
+  );
+
+  // All five tables mount permanently so lens flips keep each one's filters.
   // rankBySearch: true — no sortable headers to preserve, a query reorders.
   const moveTable = useTableState({
     rows: rankedMoves,
@@ -344,6 +427,15 @@ export default function QueueRail({
     initialSort: { key: "queueOrder", dir: "asc" },
     pageSize: 1000,
     ...makeFiltersProps("caving"),
+  });
+  const otherTable = useTableState({
+    rows: rankedOtherRows,
+    filterDefs: otherFilterDefs,
+    searchMap: otherSearchMap,
+    rankBySearch: true,
+    initialSort: { key: "queueOrder", dir: "asc" },
+    pageSize: 1000,
+    ...makeFiltersProps("other"),
   });
   // The History lens is the Moves lens over a past turn.
   const historyTable = useTableState({
@@ -384,6 +476,7 @@ export default function QueueRail({
     const storedQuery = readSession(VIEW_STORAGE_KEY, VIEW_STORAGE_DEFAULT).query ?? {};
     if (storedQuery.moves) moveTable.setQuery(storedQuery.moves);
     if (storedQuery.caving) cavingTable.setQuery(storedQuery.caving);
+    if (storedQuery.other) otherTable.setQuery(storedQuery.other);
     if (storedQuery.history) historyTable.setQuery(storedQuery.history);
     if (storedQuery["history-caving"]) historyCavingTable.setQuery(storedQuery["history-caving"]);
   }
@@ -397,6 +490,7 @@ export default function QueueRail({
         query: {
           moves: moveTable.query,
           caving: cavingTable.query,
+          other: otherTable.query,
           history: historyTable.query,
           "history-caving": historyCavingTable.query,
         },
@@ -411,6 +505,7 @@ export default function QueueRail({
     viewRestored,
     moveTable.query,
     cavingTable.query,
+    otherTable.query,
     historyTable.query,
     historyCavingTable.query,
   ]);
@@ -440,12 +535,18 @@ export default function QueueRail({
     () => ({
       moves: movesShown,
       caving: cavingTable.visible,
+      other: otherTable.visible,
       history: historyIsCaving ? historyCavingTable.visible : historyShown,
     }),
-    [movesShown, cavingTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
+    [movesShown, cavingTable.visible, otherTable.visible, historyIsCaving, historyCavingTable.visible, historyShown],
   );
   const visibleRows = rowsForLens[lens] ?? movesShown;
   const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
+  // Which Other row was last opened. Local rather than lifted into `selected`:
+  // an Other row opens the INSPECTOR, not a desk, so it is not a selection the
+  // workspace or the URL has any opinion about — it is just the row you last
+  // pressed, so the rail can show you where you are in a long list.
+  const [openRowId, setOpenRowId] = useState(null);
   // Tracked by ROW ID, not position — a status change re-sorts the rail, and
   // an index-based cursor would follow the slot instead of the row.
   const [kbdCursorId, setKbdCursorId] = useState(null);
@@ -513,7 +614,7 @@ export default function QueueRail({
     function onKey(e) {
       const key = e.key;
       const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
-      const isLensKey = key === "m" || key === "r" || key === "c" || key === "h";
+      const isLensKey = key === "m" || key === "r" || key === "c" || key === "o" || key === "h";
       if (!isNav && !isLensKey) return;
       if (hasModifier(e)) return;
       if (dialogHoldsKeyboard()) return;
@@ -530,8 +631,16 @@ export default function QueueRail({
 
       if (key === "Enter") {
         const row = clampedKbdIndex >= 0 ? rows[clampedKbdIndex] : null;
+        if (!row) return;
+        // The Other lens has no desk — ⏎ opens the inspector on the person
+        // being held, the same thing clicking the row does.
+        if (lens === "other") {
+          setOpenRowId(row.id);
+          onInspect?.(row.targetCharacterId, row.targetName);
+          return;
+        }
         const type = lens === "history" ? historySelectionType : (SELECTION_TYPE_FOR_LENS[lens] ?? "move");
-        if (row) onSelect({ type, id: row.id });
+        onSelect({ type, id: row.id });
         return;
       }
 
@@ -551,6 +660,7 @@ export default function QueueRail({
     clampedKbdIndex,
     coarse,
     historySelectionType,
+    onInspect,
   ]);
 
   return (
@@ -561,6 +671,9 @@ export default function QueueRail({
         </button>
         <button type="button" aria-pressed={lens === "caving"} onClick={() => onLens?.("caving")}>
           Caving
+        </button>
+        <button type="button" aria-pressed={lens === "other"} onClick={() => onLens?.("other")}>
+          Other
         </button>
         <button type="button" aria-pressed={lens === "history"} onClick={() => onLens?.("history")}>
           History
@@ -681,6 +794,28 @@ export default function QueueRail({
                 )}
               </>
             )}
+          </div>
+        </>
+      ) : lens === "other" ? (
+        <>
+          <RailFilters
+            table={otherTable}
+            filterDefs={otherFilterDefs}
+            searchPlaceholder="name, target, @handle, zone:…"
+          />
+          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
+            <OtherRows
+              rows={otherTable.visible}
+              matchFor={otherTable.matchFor}
+              onInspect={(id, name, rowId) => {
+                setOpenRowId(rowId);
+                onInspect?.(id, name);
+              }}
+              openRowId={openRowId}
+              kbdId={kbdId}
+              kbdLens={lens}
+            />
+            {otherTable.total === 0 && <p className="p-3 text-sm text-muted">Nobody is being held.</p>}
           </div>
         </>
       ) : lens === "caving" ? (

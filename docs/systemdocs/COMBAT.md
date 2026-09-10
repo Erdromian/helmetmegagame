@@ -308,6 +308,16 @@ surface has to keep all four:
   Armour is public by design — you can see what somebody is wearing. Putting a
   number on a stranger's missing arm is a different thing.
 
+**One deliberate exception, and it is one bit.** The Attack button refuses a
+target more than two bands above you and says so — *"This opponent is too strong
+to attack."* Press it and you have learned that somebody is three or more bands
+above you, and nothing else: not their band, not their score, not which half of
+the tree it came from, and nothing at all about anybody two bands up or less.
+That is the price of the verb existing at all (`ATTACK.md` §3), and it is why
+the picker in that dialog lists the people it will refuse rather than filtering
+them out — a picker that hid them would answer the same question for free, for
+everybody in the room, on every page load.
+
 `formatTagFighting` (`db/lib/formatTagFighting.js`) says what **one tag** does,
 not what a person is, and that is why it is safe on a chip: the tags carrying a
 real shift are invisible to strangers in the first place.

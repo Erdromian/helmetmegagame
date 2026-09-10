@@ -62,6 +62,7 @@ import {
   Camera,
   Search,
   OctagonMinus,
+  Swords,
   X,
 } from "lucide-react";
 
@@ -173,6 +174,11 @@ export const ShackleIcon = lucide(Link, "ShackleIcon");
 // Link that Bind wears: laying in wait is neither taking nor tying, it is
 // standing in somebody's way (docs/systemdocs/INTERCEPT.md).
 export const InterceptIcon = lucide(OctagonMinus, "InterceptIcon");
+// Attack — crossed blades. Not the Wound that Harm wears (that is damage
+// already done) and not the halt sign Intercept wears (that is waiting for
+// somebody): this is the moment two people are locked together
+// (docs/systemdocs/ATTACK.md).
+export const AttackIcon = lucide(Swords, "AttackIcon");
 // Free — the key that opens it.
 export const KeyIcon = lucide(KeyRound, "KeyIcon");
 // A bird in flight, for the Bird's letter.

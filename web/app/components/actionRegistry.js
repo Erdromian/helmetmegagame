@@ -55,6 +55,7 @@ import {
   CharacterIcon,
   SkullIcon,
   InterceptIcon,
+  AttackIcon,
   KissIcon,
 } from "./icons";
 
@@ -109,6 +110,9 @@ export const ACTION_HELP = {
   hideout: "Set your hideout room, determining where you can purchase things from.",
   // Bascinet's words, verbatim.
   intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
+  // Bascinet's words, verbatim.
+  attack:
+    "Attack someone, forcing them to stay in place until the turn ends and the combat is adjudicated. Attacking is permanent for the turn—you can, however, cancel it.",
   // The Cerberon's two. The first is Bascinet's own words, verbatim.
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:
@@ -333,6 +337,13 @@ export const ACTION_SECTIONS = [
       // has nothing to bite on, and there is no fact about your own sheet
       // that could grey it either.
       { mode: "intercept", icon: InterceptIcon, label: "Intercept" },
+      // NO gate and NO show, the Intercept reasoning taken one step further.
+      // Whether anybody standing near you is out of your league is a fact
+      // about the ROOM, and greying on it would be free scouting every time
+      // the page loaded — the metagaming rule at the top of this file. You
+      // find out by opening the dialog and pressing it (docs/systemdocs/
+      // ATTACK.md).
+      { mode: "attack", icon: AttackIcon, label: "Attack" },
       // HIDDEN rather than greyed, the Extract rule: whether YOU are a
       // Fundamentalist standing at a Cross is your own fact, and a dead
       // Crucify icon on every other sheet would teach nothing.

@@ -32,6 +32,11 @@ const DM_ACTION = Object.freeze({
   // also why it never became an Offer kind — an Offer's responder answers, and
   // here the initiator does (docs/systemdocs/INTERCEPT.md).
   INTERCEPT_HOLD: "INTERCEPT_HOLD",
+  // Calling off a fight you started (docs/systemdocs/ATTACK.md). The same odd
+  // shape as INTERCEPT_HOLD above — the initiator answers, not the responder —
+  // and it replaced that button on an ambusher's DM, because an ambush is an
+  // attack now and breaking one off has to unpick BOTH holds rather than one.
+  ATTACK_HOLD: "ATTACK_HOLD",
 });
 
 // The two answers. Every family reads as one of these, even where Discord
@@ -54,6 +59,7 @@ const DM_ACTION_LABELS = Object.freeze({
   [DM_ACTION.KEYED_WAY]: { accept: "Yes", decline: "No" },
   // One button, and it is the accept — the LOBBY_SEAT shape, the other way up.
   [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
+  [DM_ACTION.ATTACK_HOLD]: { accept: "Cancel attack", decline: null },
 });
 
 // The descriptor a sendDm call site spreads into `meta`. `variant` is optional

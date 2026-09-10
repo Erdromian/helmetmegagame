@@ -31,6 +31,7 @@ const { parkMountsIndoors, parkedMessage, dismountForNarrowWay, dismountedMessag
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
+const { closeFightsFor } = require("./attack");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW } = require("./zoneChannelSpec");
 const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
@@ -316,6 +317,13 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   if (fromLocationId) {
     await releaseHeldBy(prisma, characterId).catch((err) =>
       console.error(`Move: releasing holds failed for ${characterId}:`, err.message ?? err),
+    );
+    // The same clear for a FIGHT (docs/systemdocs/ATTACK.md). releaseHeldBy
+    // deliberately will not touch one — both sides are held, and only the row
+    // knows whether either of them is still in another — so the row is what
+    // gets ended here, and it unpicks both holds on its way out.
+    await closeFightsFor(prisma, characterId).catch((err) =>
+      console.error(`Move: closing fights failed for ${characterId}:`, err.message ?? err),
     );
   }
 

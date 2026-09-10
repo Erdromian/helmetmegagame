@@ -17,7 +17,8 @@
 // cron, no turn pass and no rows to sweep. Character.heldUntil is a plain
 // timestamp: past it, you are free, and nothing had to notice. It is the
 // keyed-way pattern (MAP.md §2b) applied to a person instead of a door. An
-// Ambush gets db/lib/turnClock.js#turnEndsAt for its timestamp, so the turn
+// An Ambush gets its timestamp from db/lib/attack.js instead, because an
+// Ambush IS an attack now; either way it is the turn's own end, so the turn
 // advance releases everybody for free.
 //
 // A hold takes MOVEMENT and nothing else. It is deliberately not an
@@ -29,10 +30,41 @@ const { presentedIdentity, CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFr
 const { withArticle } = require("./concealedIdentity");
 const { matchesTypedName } = require("./characterName");
 const { blockerFor, ACT } = require("./incapacitation");
-const { turnEndsAt } = require("./turnClock");
 const { reFor } = require("./discordMarkup");
 const { DM_KIND } = require("./dmKinds");
-const { DM_ACTION, dmAction } = require("./dmActions");
+
+// WHY somebody cannot move, written onto Character.heldReason beside the
+// timestamp. Three values rather than two, because a fight holds BOTH sides
+// and they are not in the same position: the person who was jumped and the
+// person who did the jumping must not read the same sentence.
+//
+// A frozen table rather than seven hand-written strings across four files —
+// the clear in db/lib/characterDeath.js was written without the guard the
+// clear in this file has, and a typo'd literal is exactly how that happens
+// twice.
+const HELD_REASON = Object.freeze({
+  INTERCEPT: "intercept",
+  ATTACK: "attack",
+  ATTACKING: "attacking",
+});
+
+// The two that a fight writes. releaseHeldBy and every other clear that works
+// off heldById has to leave these alone: only the Attack row knows whether
+// either side is still in another fight (docs/systemdocs/ATTACK.md §2).
+const FIGHT_REASONS = Object.freeze([HELD_REASON.ATTACK, HELD_REASON.ATTACKING]);
+
+// "...and this hold is not a fight", as a `where` fragment to spread in.
+//
+// Written as an explicit OR rather than a bare `notIn`, and that is not
+// belt-and-braces. The column is nullable, and in SQL `x NOT IN (…)` is NULL
+// — which is FALSE — when x is NULL. Every intercept hold that was already
+// running when this shipped has a NULL heldReason, so a bare notIn could read
+// each one as a fight and leave it unreleasable until the turn ended. The
+// migration backfills those rows too; this is the half that does not depend on
+// which Prisma version is generating the query.
+const NOT_A_FIGHT = Object.freeze({
+  OR: [{ heldReason: null }, { heldReason: { notIn: FIGHT_REASONS } }],
+});
 
 // Two minutes, Bascinet's number. Long enough to say something and be
 // answered, short enough that walking into a checkpoint is not a punishment.
@@ -44,21 +76,11 @@ const SAFE_HOLD_MS = 2 * 60 * 1000;
 const MAX_NAMES = 12;
 const MESSAGE_LIMIT = 300;
 
-// The Release button on the ambusher's own DM. The prefix lives here, beside
-// the row builder, so the sender and the answerer cannot drift — the
-// db/lib/locationAnchorRow.js#keyedPromptRow precedent.
+// The Release button that used to ride the ambusher's DM. Nothing builds one
+// any more — an ambush files an Attack and wears Cancel attack instead
+// (db/lib/attack.js) — but the prefix and its answerer stay so that a button
+// already sitting in somebody's DMs when this shipped still does something.
 const INTERCEPT_RELEASE_PREFIX = "icept:release:";
-
-function interceptReleaseRow(targetId, label) {
-  return [
-    {
-      type: 1,
-      components: [
-        { type: 2, style: 2, custom_id: `${INTERCEPT_RELEASE_PREFIX}${targetId}`, label: label.slice(0, 80) },
-      ],
-    },
-  ];
-}
 
 // ---------------------------------------------------------------------------
 // The message a player typed
@@ -107,6 +129,18 @@ function cleanNames(names) {
 function heldReasonFor(character, now = new Date()) {
   const until = character?.heldUntil ? new Date(character.heldUntil) : null;
   if (!until || until.getTime() <= now.getTime()) return null;
+  // WHICH of the two things has hold of them. A column rather than a query,
+  // because this function is pure and eight surfaces read it — see the
+  // Character.heldReason comment in db/prisma/schema.prisma.
+  if (character.heldReason === HELD_REASON.ATTACK) {
+    return "Somebody attacked you. You can't move until the end of the turn.";
+  }
+  // The other side of the same fight. They know perfectly well what is holding
+  // them — they started it — and telling them they were attacked would be a
+  // plain lie on every shut way and every banner.
+  if (character.heldReason === HELD_REASON.ATTACKING) {
+    return "You're in a fight. You can't move until the end of the turn.";
+  }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
   // Under five minutes it is worth counting down; a hold that runs to the end
   // of the turn is not, and saying "43188s" would be worse than saying nothing.
@@ -121,7 +155,12 @@ function heldReasonFor(character, now = new Date()) {
 // somebody else's prisoner, and so a hold that has already lapsed or been
 // handed on is not clobbered.
 async function releaseHeldBy(db, holderId, { targetId = null } = {}) {
-  const where = { heldById: holderId, heldUntil: { gt: new Date() } };
+  // An ATTACK hold is not this function's to end. Both sides of a fight are
+  // held and each names the other, so letting the intercept Release touch one
+  // would free the victim, leave the Attack row live, and leave the attacker
+  // standing there held by a fight that no longer holds anybody. Breaking off
+  // is db/lib/attack.js#cancelAttack, and only that.
+  const where = { heldById: holderId, heldUntil: { gt: new Date() }, ...NOT_A_FIGHT };
   if (targetId) where.id = targetId;
   const freed = await db.character.findMany({
     where,
@@ -130,7 +169,7 @@ async function releaseHeldBy(db, holderId, { targetId = null } = {}) {
   if (freed.length === 0) return [];
   await db.character.updateMany({
     where: { id: { in: freed.map((c) => c.id) } },
-    data: { heldUntil: null, heldById: null },
+    data: { heldUntil: null, heldById: null, heldReason: null },
   });
   return freed;
 }
@@ -301,13 +340,6 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
   if (live.length === 0) return { dms, hits: [] };
 
   const now = new Date();
-  // An Ambush runs to the end of the turn. Never SHORTER than a Safe stop,
-  // though: turnEndsAt is the boundary after the turn STARTED, so a turn the
-  // cron has not closed on time — paused, or opened by hand — would otherwise
-  // put the deadline in the past and an ambush would hold nobody at all.
-  const boundary = turnEndsAt(openTurn);
-  const floor = new Date(now.getTime() + SAFE_HOLD_MS);
-  const turnEnd = boundary && boundary > floor ? boundary : floor;
   const hits = [];
 
   for (const arrival of arrivals) {
@@ -340,8 +372,11 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
         throw err;
       }
 
+      // An Ambush carries NO deadline of its own: db/lib/attack.js#fileAttack
+      // owns that clock now, and two copies of "when does the turn end" is
+      // exactly the drift this codebase keeps writing comments about.
       const ambush = watch.mode === "AMBUSH";
-      const until = ambush ? turnEnd : new Date(now.getTime() + SAFE_HOLD_MS);
+      const until = ambush ? null : new Date(now.getTime() + SAFE_HOLD_MS);
       hits.push({ watch, interceptor: watch.character, target: row, presented, matchedBy, ambush, until });
 
       // The record a GM reads on /gm/audit. turnId is set because the once-
@@ -369,12 +404,40 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
 
   if (hits.length === 0) return { dms, hits: [] };
 
+  // AN AMBUSH IS AN ATTACK (docs/systemdocs/ATTACK.md). It files a real Attack
+  // row and that is what holds both sides — the ambusher included, because
+  // springing the trap puts you in the fight too. No strength gate: you set a
+  // watch blind and do not get to pick who walks into it.
+  //
+  // Required lazily because db/lib/attack.js requires this module back for the
+  // hold's own vocabulary. A cycle resolved at call time rather than at load
+  // time, so neither half ever sees a partial exports object.
+  const { fileAttack } = require("./attack");
+  const attackDmsOut = [];
+  for (const hit of hits.filter((h) => h.ambush)) {
+    const filed = await fileAttack(db, {
+      attacker: hit.interceptor,
+      target: hit.target,
+      openTurn,
+      fromAmbush: true,
+      locationId,
+    });
+    // The unique on Attack already has these two, this turn — they were
+    // button-attacked, or ambushed and broken off. Nobody was newly held, so
+    // the victim must NOT be told "it's an ambush, you can't move": a line
+    // that is not true is worse than no line. Very hard to reach, because the
+    // InterceptHit ration above stops the same catcher twice in one turn, but
+    // it costs one flag to never lie.
+    hit.held = filed.ok;
+    attackDmsOut.push(...filed.dms);
+  }
+
   // ONE hold per person, however many people caught them: the longest wins, so
-  // an Ambush always beats a Safe stop and a second Safe stop cannot shorten
-  // the first. Conditional on the clock, so a hold already running longer than
-  // this one is left exactly where it is.
+  // a second Safe stop cannot shorten the first. Conditional on the clock, so
+  // a hold already running longer than this one — an Ambush's, above — is left
+  // exactly where it is.
   const longest = new Map();
-  for (const hit of hits) {
+  for (const hit of hits.filter((h) => !h.ambush)) {
     const best = longest.get(hit.target.id);
     if (!best || (hit.until && hit.until > best.until)) longest.set(hit.target.id, hit);
   }
@@ -382,7 +445,7 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
     if (!hit.until) continue;
     await db.character.updateMany({
       where: { id: hit.target.id, OR: [{ heldUntil: null }, { heldUntil: { lt: hit.until } }] },
-      data: { heldUntil: hit.until, heldById: hit.interceptor.id },
+      data: { heldUntil: hit.until, heldById: hit.interceptor.id, heldReason: HELD_REASON.INTERCEPT },
     });
   }
 
@@ -390,6 +453,7 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
   // lines, because walking into three people is what happened.
   for (const hit of hits) {
     if (!hit.target.discordUserId) continue;
+    if (hit.ambush && !hit.held) continue;
     const stopper = seenAs(identityOf(hit.interceptor));
     if (hit.ambush) {
       dms.push({
@@ -439,27 +503,23 @@ async function fireWatches(db, { arrivals, locationId, openTurn }) {
         kind: DM_KIND.NOTICE,
       });
     }
-    for (const hit of group.filter((h) => h.ambush)) {
-      const name = seenAs(hit.presented);
-      dms.push({
-        discordUserId: who.discordUserId,
-        content: `You successfully ambushed ${name}.`,
-        kind: DM_KIND.NOTICE,
-        components: interceptReleaseRow(hit.target.id, `Release ${name}`),
-        meta: dmAction(DM_ACTION.INTERCEPT_HOLD, hit.target.id),
-      });
-    }
+    // The ambusher's own line is db/lib/attack.js's now, because the button on
+    // it calls off a fight rather than releasing a hold — one DM per victim
+    // still, since a button answers about exactly one person.
   }
+  dms.push(...attackDmsOut);
 
   return { dms, hits };
 }
 
 module.exports = {
+  HELD_REASON,
+  FIGHT_REASONS,
+  NOT_A_FIGHT,
   SAFE_HOLD_MS,
   MAX_NAMES,
   MESSAGE_LIMIT,
   INTERCEPT_RELEASE_PREFIX,
-  interceptReleaseRow,
   cleanMessage,
   cleanNames,
   heldReasonFor,

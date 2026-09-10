@@ -2,7 +2,8 @@
 
 You stand somewhere and say who you are watching for. When one of them walks
 in, they are stopped and handed a line you wrote. **Safe** holds them two
-minutes; **Ambush** holds them until the turn ends, or until you let them go.
+minutes; **Ambush** files a real Attack (`ATTACK.md`), which holds *both* of you
+until the turn ends, or until you break it off.
 
 It is the first mechanic in the game that takes **movement alone**. Everything
 else that stops a person — Bound, Paralyzed, Dying, Catatonic — takes ACT with
@@ -124,7 +125,13 @@ keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
 - **Ambush** — `db/lib/turnClock.js#turnEndsAt(openTurn)`, so the turn advance
   releases everybody for free. This is also what "when the gambit is
   adjudicated" means: a Gambit's die is revealed by the turn push and only by
-  it (`ADJUDICATION.md`), which is the same moment.
+  it (`ADJUDICATION.md`), which is the same moment. An Ambush writes that hold
+  through `db/lib/attack.js#fileAttack` rather than here — see §5a.
+
+`Character.heldReason` says **which** has hold of somebody — `HELD_REASON` in
+this file, and there are three values rather than two because a fight holds both
+sides and they must not read the same sentence (`ATTACK.md` §1). A column rather
+than a lookup because the predicate below is pure and eight surfaces read it.
 
 `heldReasonFor(character, now)` is the one predicate, pure, and it is what both
 the mover's gate and every picker read — so a surface can never draw a way the
@@ -133,7 +140,11 @@ mover is about to refuse. Under five minutes it counts down; past that it says
 nothing.
 
 **Three writers end a hold before its time**, and `heldById` is what lets each
-of them know whose holds to clear:
+of them know whose holds to clear. All three are about an *intercept* hold:
+each carries `heldReason: { notIn: FIGHT_REASONS }`, because both sides of a
+fight are held, `heldById` names only one opponent of possibly several, and only
+the `Attack` row knows whether either of them is still in another fight. Breaking off is `db/lib/attack.js#cancelAttack`, and
+only that (`ATTACK.md` §2).
 
 1. The holder presses **Release** — on the sheet, or on the button in their own
    DM. Both go through `db/lib/dmAnswer.js#answerInterceptHold`, so the faces
@@ -208,7 +219,9 @@ meant to build.
 - Several watches may match one arrival. They are frozen **once**: the longest
   hold wins, so an Ambush always beats a Safe stop and a second Safe stop
   cannot shorten the first. The write is conditional on the clock, so a hold
-  already running longer is left where it is.
+  already running longer is left where it is. Ambushes hold through `fileAttack`
+  and Safe stops through the loop here, and both writes carry the same
+  condition, so the two cannot fight over one person.
 - The victim gets **one DM per intercepting character**. Three guards at the
   gate is three lines, because walking into three people is what happened.
 - A Safe watch reports its whole haul in one line to its owner. An Ambush is
@@ -226,6 +239,23 @@ meant to build.
   back, and Stop-then-Save is two clicks. Keyed to the row, the ration would be
   reset by any of that, and a Safe watch could catch the same person all
   afternoon. Keyed to the person, re-setting a watch buys nothing.
+
+### 5a. An Ambush is an Attack
+
+When an Ambush fires it files an `Attack` row (`fromAmbush: true`) and that row
+is what holds both sides. Two things follow, and both are deliberate:
+
+- **No strength gate.** `ATTACK.md` §3 refuses a target more than two bands
+  above you; an ambush skips it, because you set the watch blind and do not get
+  to pick who walks into it.
+- **The ambusher is held too.** Springing the trap puts you in the fight. That
+  is a real change to this verb, and it is the whole point of the rework: an
+  ambush and an attack are one thing in one queue.
+
+`fireWatches` requires `db/lib/attack.js` **lazily**, at call time, because that
+module requires this one back for the hold's own vocabulary. A cycle resolved
+at call time rather than load time, so neither half ever sees a partial exports
+object.
 
 ## 6. The DMs
 
@@ -269,16 +299,24 @@ otherwise go out unmuzzled.
 
 ## 7. Release
 
-The button in the ambusher's DM is `DM_ACTION.INTERCEPT_HOLD`, and it is the odd
-one out of that family: every other kind is a **pending row somebody is being
-asked about**, and this is the person who imposed a state ending it. That is
-also why it never became an `Offer` kind — an Offer's *responder* answers, and
-here the *initiator* does; modelling it as one would mean "accept" meant
-"release" and every reader of the Offer table would have to learn that one kind
-means the opposite of the others.
+The button in the ambusher's DM is `DM_ACTION.ATTACK_HOLD`, labelled **Cancel
+attack**, and it is the odd one out of that family: every other kind is a
+**pending row somebody is being asked about**, and this is the person who
+imposed a state ending it. That is also why it never became an `Offer` kind — an
+Offer's *responder* answers, and here the *initiator* does; modelling it as one
+would mean "accept" meant "release" and every reader of the Offer table would
+have to learn that one kind means the opposite of the others.
 
-The authoritative control is the list at the foot of the Intercept dialog. The
-DM button is the convenience.
+It was `INTERCEPT_HOLD` until an ambush became an attack. That kind, its
+`icept:release:` prefix and its answerer all stay, so a button already sitting
+in somebody's DMs when the change shipped still does something — but nothing
+builds a new one, and `interceptReleaseRow` is gone.
+
+The authoritative control is the **You are fighting** list at the foot of the
+Attack dialog. The DM button is the convenience. The Intercept dialog's own
+holding list is Safe stops only — it excludes both fight reasons, for the
+reason §3 gives: listing a fight there would draw a Let-them-go button whose
+only possible answer is *They're already free.*
 
 ## 8. The surface
 
@@ -336,6 +374,7 @@ Nothing here is destructive, so no `restore` snapshot is owed (`REQUESTS.md` §2
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — cancels the watch on ANY relocation, and sends the letter |
 | `db/lib/locationGraph.js` | `resolveNeighbors` draws the refusal on every way |
 | `db/lib/escort.js` | Refuses to attach somebody being held |
+| `db/lib/attack.js` | What an Ambush actually files (`ATTACK.md`) |
 | `db/lib/dmAnswer.js` | `answerInterceptHold` — Release, shared by both faces |
 | `web/app/(app)/character/interceptActions.js` | Load, save, stop, release |
 | `web/app/components/actions/InterceptDialog.js` | The dialog |

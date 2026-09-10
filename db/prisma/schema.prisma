@@ -1303,6 +1303,7 @@ model Location {
   // when its owner leaves it (docs/systemdocs/INTERCEPT.md §1), so a Location
   // that goes away takes them with it.
   interceptWatches InterceptWatch[]
+  attacks          Attack[]
   laborDropOptions LaborDropOption[]
 
   @@index([zoneId])
@@ -2136,11 +2137,24 @@ model Character {
   heldBy    Character?  @relation("InterceptHold", fields: [heldById], references: [id])
   holding   Character[] @relation("InterceptHold")
 
+  // WHICH of the two things is holding them — "intercept" or "attack" — so
+  // that db/lib/intercept.js#heldReasonFor can name the right one while
+  // staying PURE. That predicate is read by the mover's own gate and by every
+  // picker that draws a way out, and a query inside it would have to be
+  // awaited at eight call sites. A column is the cheaper half of that trade.
+  heldReason String?
+
   interceptWatch   InterceptWatch?
   // Caught by somebody, and the catches they made. Two relations to the same
   // table, so both ends are named.
   interceptHits    InterceptHit[]  @relation("InterceptCaught")
   interceptCatches InterceptHit[]  @relation("InterceptCatcher")
+
+  // Fights this character started, and fights started on them
+  // (docs/systemdocs/ATTACK.md). Two relations to the same table, so both
+  // ends are named.
+  attacksMade  Attack[] @relation("AttackMade")
+  attacksTaken Attack[] @relation("AttackTaken")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -3916,6 +3930,51 @@ model InterceptHit {
 
   @@unique([interceptorId, targetCharacterId, turnId])
   @@index([targetCharacterId])
+}
+
+// A fight somebody started (docs/systemdocs/ATTACK.md). One row per attacker
+// per target per turn, and the unique below IS the "attacking is permanent for
+// the turn" rule — the same shape as InterceptHit above, and for the same
+// reason: the insert is what claims the act, so nothing has to be counted.
+//
+// Attack does not RESOLVE a fight. Nothing in this codebase does — a fight is
+// a Gambit and a GM's ruling (docs/systemdocs/COMBAT.md). What this row buys
+// is that neither side can walk out of the scene before the GM reads it: both
+// Character.heldUntil are stamped with the turn's own end, so the turn advance
+// frees everybody for free and nothing sweeps.
+model Attack {
+  id String @id @default(cuid())
+
+  attackerId String
+  attacker   Character @relation("AttackMade", fields: [attackerId], references: [id], onDelete: Cascade)
+
+  targetCharacterId String
+  targetCharacter   Character @relation("AttackTaken", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  // Not a foreign key, the InterceptHit.turnId reasoning: it is a claim token,
+  // and deleting a turn must never cascade into somebody's fight.
+  turnId String
+
+  // An ambush that fired rather than a button somebody pressed. The strength
+  // gate does not apply to one — you set a watch blind and do not get to pick
+  // who walks into it.
+  fromAmbush Boolean @default(false)
+
+  // Where it happened, for the GM's Other lens. Nullable and SetNull: a fight
+  // outliving its Location by a zone resync is a stale label, not a lost row.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+
+  // Cancelled, NEVER deleted. Breaking off is meant to be final for the turn,
+  // and a deleted row would hand the unique back and let somebody attack the
+  // same person all afternoon. It is also what the GM reads.
+  cancelledAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([attackerId, targetCharacterId, turnId])
+  @@index([targetCharacterId])
+  @@index([turnId])
 }
 
 // A multi-turn craft in progress (docs/systemdocs/CRAFTING.md). A table, not

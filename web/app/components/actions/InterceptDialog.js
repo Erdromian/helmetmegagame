@@ -27,11 +27,14 @@ const MODES = [
   { id: "AMBUSH", label: "Ambush" },
 ];
 
-// Bascinet's words, both of them.
+// Bascinet's words, both of them. Ambush needed rewriting once it became a
+// real attack (docs/systemdocs/ATTACK.md §4): the ambusher is held too now,
+// and calling it off is Break off in the Attack dialog rather than a Release
+// in this one.
 const MODE_HELP = {
   SAFE: "Freezes them for two minutes and sends them the message.",
   AMBUSH:
-    "Freezes them until the end of the turn, when the gambit is adjudicated, or until you let them go. If you wish to harm them, make sure to enter a Gambit declaring your intention.",
+    "You attack whoever enters the location. Neither of you can move until the end of the turn. Make sure to declare a Gambit with your intention.",
 };
 
 export default function InterceptDialog({ mode: verb, onDone, onClose }) {
