@@ -314,3 +314,74 @@ test("the intercom carries what it said", () => {
   );
   assert.match(line.join("\n"), /Send me a letter by bird\./);
 });
+
+// The token cap, and the one failure that arrives looking like a success. A
+// model that runs into max_tokens returns a 200 carrying a well-formed string
+// of exactly the right shape — so nothing downstream can tell a page that was
+// cut off mid-sentence from one that finished, and it gets stored, read as the
+// account of the turn, and fed to the next three turns' writers as fact.
+
+const { complete, OracleError } = require("../lib/oracleClient");
+
+const PROVIDER_CONFIG = {
+  oracleApiKey: "k",
+  oracleModel: "m",
+  oracleBaseUrl: "https://example.invalid/v1",
+};
+
+// One canned chat-completion, and a count of how many times it was asked for —
+// the count is half the point, since a truncation must not be retried.
+function stubProvider(finishReason) {
+  const calls = { n: 0 };
+  const real = globalThis.fetch;
+  globalThis.fetch = async () => {
+    calls.n += 1;
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ finish_reason: finishReason, message: { content: "A page." } }],
+        usage: { prompt_tokens: 10, completion_tokens: 5 },
+      }),
+    };
+  };
+  return { calls, restore: () => { globalThis.fetch = real; } };
+}
+
+test("a page cut off at the cap is an error, not a page", async () => {
+  const stub = stubProvider("length");
+  try {
+    await assert.rejects(
+      () => complete(PROVIDER_CONFIG, { system: "s", user: "u", maxTokens: 40 }),
+      (err) => err instanceof OracleError && /40-token cap/.test(err.message),
+    );
+    // And asked for exactly once: the same request truncates the same way, so a
+    // retry only spends the money twice.
+    assert.equal(stub.calls.n, 1);
+  } finally {
+    stub.restore();
+  }
+});
+
+test("a page that finished is returned untouched", async () => {
+  const stub = stubProvider("stop");
+  try {
+    const result = await complete(PROVIDER_CONFIG, { system: "s", user: "u", maxTokens: 40 });
+    assert.equal(result.text, "A page.");
+    assert.equal(result.truncated, false);
+  } finally {
+    stub.restore();
+  }
+});
+
+// Test connection budgets sixteen tokens for one word, so a chatty model runs
+// past it every time. That must not read as a broken key.
+test("the connection test tolerates its own tiny budget", async () => {
+  const stub = stubProvider("length");
+  try {
+    const result = await complete(PROVIDER_CONFIG, { system: "s", user: "u", maxTokens: 16, allowTruncated: true });
+    assert.equal(result.text, "A page.");
+    assert.equal(result.truncated, true);
+  } finally {
+    stub.restore();
+  }
+});

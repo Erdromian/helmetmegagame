@@ -273,6 +273,42 @@ threads. Plain rather than JSON on purpose — a small model holds a flat shape
 far more reliably than a nested one, and a malformed tail costs the threads
 rail rather than the whole front page.
 
+### How long a page may be
+
+`max_tokens` is a ceiling on length, and the prompts above are the target: 150
+to 400 words from a correspondent, 120 to 300 plus threads from the editor. The
+caps in `oracle.js` sit at roughly three times that — 1800 and 1400 — so an
+ordinary page never comes near one.
+
+They are generous because the failure is one-sided. A cap set too high costs
+nothing; the model writes the length it was asked for and stops. A cap set too
+low cuts the page off mid-sentence, and **that is the one failure that arrives
+looking like a success.** A truncated reply is a 200 carrying a well-formed
+string of exactly the right shape, so it is stored as an ordinary page, read as
+the account of the turn, and handed to the next three turns' writers as fact.
+The editor suffers worst, because its `THREADS` block is at the *end* — a front
+page cut short loses the threads rail rather than a paragraph.
+
+So `oracleClient.js` reads `finish_reason`, and `length` is an **error**, not a
+short page. It is deliberately **not retryable**: the same request truncates the
+same way and would only spend the money twice, which is the reasoning
+`retryableStatus()` already applies to a 400. At three times the asked length,
+hitting a cap means the model ignored its instructions by a wide margin and the
+text was worth little anyway — so treat one in the log as a prompt problem, not
+a cap problem.
+
+`testConnection` is the exception and passes `allowTruncated`. It budgets
+sixteen tokens for one word, so a chatty model runs past it every time, and the
+only question that button asks — does the key, the URL and the model name work
+— has already been answered by a reply of any length.
+
+**The timeout has to be the looser of the two**, or the cap is unreachable and
+every long page dies as a timeout instead of arriving. `DEFAULT_TIMEOUT_MS` is
+five minutes, which covers a page at these caps even on a provider generating at
+three tokens a second — measured, on the nano-gpt endpoint this runs against.
+Seven calls plus a retry each still fits inside the three-hour window, and the
+bot's minute tick already refuses to start a second run while one is in flight.
+
 ## 7. Memory, and the one correction
 
 Every writer is shown the last `oracleMemoryTurns` turns of pages for its own

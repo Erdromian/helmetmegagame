@@ -46,6 +46,23 @@ function seatZones(prisma) {
 // the entire correction mechanism: there is no regenerate, so a page a GM fixed
 // is what the next turns are told, and a page nobody touched carries forward as
 // drafted.
+// Ceilings on length, not targets — the prompts ask for 150-400 words from a
+// correspondent and 120-300 plus threads from the editor, and these sit at
+// roughly three times that so an ordinary page never comes near them.
+//
+// They are deliberately generous, because the failure they guard is one-sided.
+// A cap set too high costs nothing: the model writes the length it was asked
+// for and stops. A cap set too low cuts a page off mid-sentence, and until
+// oracleClient.js learned to read finish_reason nothing anywhere noticed. The
+// editor is the one that suffers most from a low cap, since its THREADS block
+// is at the END of its reply, so a truncated front page loses the threads rail
+// rather than a paragraph.
+//
+// A page that runs into either of these is now an error rather than a silent
+// short page, so treat one in the log as a prompt problem, not a cap problem.
+const CORRESPONDENT_MAX_TOKENS = 1800;
+const EDITOR_MAX_TOKENS = 1400;
+
 async function memoryFor(prisma, { turnNumber, zoneId, take }) {
   if (!take || take < 1) return [];
   const rows = await prisma.oracleSynopsis.findMany({
@@ -149,7 +166,7 @@ async function runCorrespondent(prisma, { turn, zone, material, config, aggregat
   const result = await complete(config, {
     system: correspondentPrompt(config),
     user: block.text,
-    maxTokens: 1200,
+    maxTokens: CORRESPONDENT_MAX_TOKENS,
   });
 
   await writePage(prisma, {
@@ -192,7 +209,7 @@ async function runEditor(prisma, { turn, config, characters }) {
   const result = await complete(config, {
     system: editorPrompt(config),
     user,
-    maxTokens: 1200,
+    maxTokens: EDITOR_MAX_TOKENS,
   });
 
   const { body, threads } = splitEditorReply(result.text);

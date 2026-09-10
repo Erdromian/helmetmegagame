@@ -14,7 +14,17 @@
 // per zone, and the pages already written are what make a retry cheap — that is
 // where the real durability lives.
 
-const DEFAULT_TIMEOUT_MS = 180_000;
+// How long to WAIT, which is not the same question as how long a page is
+// allowed to be. The cap below is a ceiling on length; this is a ceiling on
+// patience. It has to be the looser of the two, or the cap is unreachable and
+// every long page dies as a timeout instead of arriving.
+//
+// Five minutes covers a page at the caps in oracle.js even on a provider
+// generating at three tokens a second, which is what nano-gpt was measured
+// doing. Seven calls plus one retry each still fits inside the three-hour
+// window the run has to itself, and the bot's minute tick already refuses to
+// start a second run while one is in flight (bot/src/events/ready.js).
+const DEFAULT_TIMEOUT_MS = 300_000;
 
 class OracleError extends Error {
   constructor(message, { status = null, retryable = false } = {}) {
@@ -74,7 +84,8 @@ async function once({ baseUrl, apiKey, model, system, user, timeoutMs, maxTokens
   }
 
   const json = await response.json().catch(() => null);
-  const text = json?.choices?.[0]?.message?.content;
+  const choice = json?.choices?.[0];
+  const text = choice?.message?.content;
   if (typeof text !== "string" || !text.trim()) {
     // A 200 with no content is a provider problem, not a prompt problem, and it
     // is the shape an overloaded gateway most often returns.
@@ -83,6 +94,12 @@ async function once({ baseUrl, apiKey, model, system, user, timeoutMs, maxTokens
 
   return {
     text: text.trim(),
+    // A model that ran into max_tokens stops mid-sentence and says so HERE, in
+    // a field nothing used to read. The body it returns is a well-formed string
+    // of the right shape, so without this a cut-off page is indistinguishable
+    // from a finished one all the way to the desk. complete() decides what that
+    // means; this only reports it.
+    truncated: choice?.finish_reason === "length",
     inputTokens: Number(json?.usage?.prompt_tokens) || null,
     outputTokens: Number(json?.usage?.completion_tokens) || null,
   };
@@ -92,7 +109,13 @@ async function once({ baseUrl, apiKey, model, system, user, timeoutMs, maxTokens
 //
 // `config` is a GameConfig row — the API key never travels any other way, so
 // there is exactly one place in the codebase that reads it.
-async function complete(config, { system, user, timeoutMs = DEFAULT_TIMEOUT_MS, maxTokens = 2048 }) {
+async function complete(config, {
+  system,
+  user,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
+  maxTokens = 2048,
+  allowTruncated = false,
+}) {
   const apiKey = config?.oracleApiKey;
   if (!apiKey) throw new OracleError("No API key is set for the Oracle.");
   if (!config?.oracleModel) throw new OracleError("No model is set for the Oracle.");
@@ -108,7 +131,21 @@ async function complete(config, { system, user, timeoutMs = DEFAULT_TIMEOUT_MS, 
   };
 
   try {
-    return await once(args);
+    const result = await once(args);
+    // A page cut off at the cap is the one failure that arrives looking like a
+    // success: it is stored as an ordinary page, read as a complete account of
+    // the turn, and fed to the next three turns' writers as fact. So it is an
+    // error, and NOT a retryable one — the same request produces the same
+    // truncation and only spends the money twice, which is the reasoning
+    // retryableStatus() already applies to a 400.
+    //
+    // With the caps in oracle.js at roughly three times the length the prompts
+    // ask for, hitting this means the model ignored its instructions by a wide
+    // margin, and the text would have been worth little anyway.
+    if (result.truncated && !allowTruncated) {
+      throw new OracleError(`The model stopped at the ${maxTokens}-token cap, mid-page.`);
+    }
+    return result;
   } catch (err) {
     if (!(err instanceof OracleError) || !err.retryable) throw err;
     // One retry, after a pause long enough to outlast a brief rate limit. There
@@ -130,6 +167,11 @@ async function testConnection(config) {
       user: "Reply with the single word OK.",
       timeoutMs: 30_000,
       maxTokens: 16,
+      // Sixteen tokens is a budget for one word, so a chatty model runs past it
+      // every time. That is fine here: the question this button asks is whether
+      // the key, the URL and the model name work, and a reply of any length has
+      // already answered it.
+      allowTruncated: true,
     });
     return { ok: true, ms: Date.now() - started, reply: res.text.slice(0, 40) };
   } catch (err) {
