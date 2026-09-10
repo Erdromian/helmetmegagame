@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · The Merchant sells paper by the ream
+
+✚ The Depot stocks a Stack of Paper at 3 ⬢, which unpacks into twenty sheets  
+− Loose single sheets are off the Merchant's shelf
+
 ## 2026-09-10 · The radios work on the web now
 
 ✚ A Radio section on Chat: the frequencies you are carrying a radio for, sitting under Summary  
