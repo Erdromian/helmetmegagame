@@ -93,9 +93,27 @@ async function boardFor(prisma, locationId) {
   return { location, openTurn, posts };
 }
 
+// TEARING WITH NO HANDS. A player who takes a notice down walks away holding
+// it; a GM has nothing to hold it in, so the paper goes with the post — which
+// is also exactly what happens to a notice that blows away on its own clock
+// (the noticeboard pass in db/index.js).
+//
+// `ephemeral` is the same guard that pass uses, and it is the whole guard: a
+// catalog tag that somehow found its way onto a wall must survive being torn
+// off it. The post delete is returned uncounted-on so the caller can keep its
+// own delete-IS-the-claim race check — two people tearing at one paper still
+// cannot both walk away with it.
+async function destroyNotice(prisma, post) {
+  const claimed = await prisma.noticePost.deleteMany({ where: { id: post.id } });
+  if (claimed.count === 0) return claimed;
+  await prisma.tag.deleteMany({ where: { id: post.tagId, ephemeral: true } });
+  return claimed;
+}
+
 module.exports = {
   NOTICEBOARD_ATTRIBUTE,
   boardFor,
+  destroyNotice,
   BOARD_OPTION_LIMIT,
   hasNoticeboard,
   noticeLine,

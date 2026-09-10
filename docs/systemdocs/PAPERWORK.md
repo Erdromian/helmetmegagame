@@ -328,6 +328,47 @@ five action rows would overflow the board at three papers.
 A pin and a tear each raise an ambient `-#` line naming the **paper and never
 the person**. Anonymous notice-pinning is the point of a public board.
 
+### A GM works the same board
+
+A GM presses the same Noticeboard button and gets the same panel, with the one
+control that needs a body swapped out. **One rule decides which panel you get,
+and it is the same rule on both faces:**
+
+```
+an alive character standing here  ->  you act as that character
+otherwise, and you are a GM       ->  you act as a GM
+otherwise                         ->  "You're not here."
+```
+
+So a GM who is playing somebody works the board through that body when they are
+standing at it, and as a GM everywhere else — which is also why a GM never meets
+"You're not here." on a board any more. On Discord the board is the one whose
+channel the anchor sits in; on the web it is the Location the GM has open in
+`/chat`, and the button lives in the zone rail's column because GM mode has no
+right column of its own (it is built from a character, and GM mode is the
+absence of one).
+
+Three differences, each a consequence of having no body:
+
+- **Post a notice**, where a player gets Pin. A GM carries no paper, so the
+  notice is written on the spot — Title and Body — and minted through
+  `mintUnownedPaper`, the one minter that needs no character. `postedById` is
+  null, the shape a Wanted poster already lands in.
+- **Read** skips `readBlock` entirely, wax seals included. A GM holds no tags,
+  so the ordinary gate would call them illiterate and refuse every notice on
+  every board.
+- **Tear down** destroys the paper with the post (`destroyNotice`), because
+  there are no hands to take it into. Exactly what the expiry sweep does.
+
+**The ambient line is deliberately identical.** A GM's pin and a GM's tear raise
+the same anonymous `-#` line a player's does, naming the paper and never the
+person, so nobody in the room can tell one from the other. The only record of
+who posted a notice is the `AuditLog` row (`gm_post_notice` / `gm_tear_notice`)
+— `paperAuthor` carries the GM's Discord id and nothing renders it anywhere.
+
+A GM notice takes the same `noticeExpiryTurns` clock as everyone else's; there
+is no field for it.
+
 `GameConfig.noticeExpiryTurns` (default 10, live on `/gm/dev`) is how long one
 stays up, counting the turn it went up in. **An expired notice is destroyed,
 paper and all** — it blew away, which is what makes tearing one down worth
@@ -350,12 +391,14 @@ the point of it.
 
 `db/lib/reading.js` (the gate), `db/lib/paper.js` (names, descriptions, the
 per-viewer composition), `db/lib/paperMint.js` (the four writes),
-`db/lib/noticeboard.js` (board copy and the attribute),
+`db/lib/noticeboard.js` (board copy, the attribute, and `destroyNotice`),
 `db/lib/merchantSeal.js` (his initials),
 `web/app/(app)/character/paperActions.js` (Write and Seal),
-`bot/src/lib/noticeboardPanel.js` (the board), `bot/src/lib/birdReply.js` (the
-answer), `docs/tags.yaml` + `docs/zones.yaml` (the catalog and where the
-stamps start).
+`bot/src/lib/noticeboardPanel.js` (the board, players' and GMs' alike),
+`web/app/(app)/chat/GmNoticeboardDialog.js` (the GM's board on the web),
+`bot/src/lib/birdReply.js` (the answer),
+`db/lib/customText.js` (what an authored title may contain),
+`docs/tags.yaml` + `docs/zones.yaml` (the catalog and where the stamps start).
 
 ## 9. What this does not do
 

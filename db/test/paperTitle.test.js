@@ -20,7 +20,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { paperName, bookName, TITLE_MAX } = require("../lib/paper");
-const { cleanCustomText } = require("../../web/lib/customCraft.js");
+const { cleanCustomText } = require("../lib/customText");
 
 test("no title leaves the sheet anonymous", () => {
   assert.equal(paperName(), "A Note");

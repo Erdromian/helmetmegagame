@@ -28,6 +28,7 @@ const {
   computeNarrowcastAccess,
 } = require("./specialChannels");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { hasNoticeboard } = require("./noticeboard");
 const { conversationsFor } = require("./conversations");
 const { visibleZoneIds } = require("./gmZoneView");
 const { SCRYING_EYE_SLUG, ROBE_SLUGS } = require("./thanati");
@@ -69,7 +70,7 @@ function slowmodeMsFor(placeKey) {
 // One line of a place list. `canSpeak` is the composer's gate and the send
 // route's; `slowmodeSeconds` is what the composer tells a player they are
 // waiting for. `roomKind` is null for anything that is not a Room.
-function place({ placeKey, kind, name, description = "", roomKind = null, canSpeak }) {
+function place({ placeKey, kind, name, description = "", roomKind = null, canSpeak, hasBoard = false }) {
   return {
     placeKey,
     kind,
@@ -77,6 +78,11 @@ function place({ placeKey, kind, name, description = "", roomKind = null, canSpe
     description: description ?? "",
     roomKind,
     canSpeak,
+    // Only a Location ever carries one, and only the GM list fills it in: a
+    // player's board reaches them through affordancesFor, off the Location
+    // they are standing in. A GM is standing nowhere and picks the place off
+    // the left column, so the column has to say which places have a board.
+    hasBoard,
     slowmodeSeconds: Math.round(slowmodeMsFor(placeKey) / 1000),
   };
 }
@@ -256,6 +262,9 @@ async function gmPlacesFor(prisma, discordUserId) {
           id: true,
           name: true,
           description: true,
+          // For hasNoticeboard below — the one Location attribute the GM's
+          // column needs, and it is a JSON blob rather than a join.
+          attributes: true,
           rooms: {
             orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
             select: { id: true, name: true, description: true, kind: true },
@@ -285,6 +294,7 @@ async function gmPlacesFor(prisma, discordUserId) {
           name: `${zone.name} · ${location.name}`,
           description: location.description,
           canSpeak: false,
+          hasBoard: hasNoticeboard(location),
         }),
       );
       for (const room of location.rooms) {

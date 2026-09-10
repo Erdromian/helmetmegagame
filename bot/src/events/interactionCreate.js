@@ -146,10 +146,14 @@ const {
   READ_PREFIX: NOTICE_READ_PREFIX,
   TEAR_PREFIX: NOTICE_TEAR_PREFIX,
   PIN_PREFIX: NOTICE_PIN_PREFIX,
+  POST_PREFIX: NOTICE_POST_PREFIX,
+  POST_MODAL_PREFIX: NOTICE_POST_MODAL_PREFIX,
   handleNoticeboardOpen,
   handleNoticeRead,
   handleNoticeTear,
   handleNoticePin,
+  handleNoticePost,
+  handleNoticePostSubmit,
 } = require("../lib/noticeboardPanel");
 const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
 const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
@@ -2225,6 +2229,12 @@ module.exports = {
         if (interaction.customId.startsWith(NOTICEBOARD_PREFIX)) {
           return void (await handleNoticeboardOpen(interaction, interaction.customId.slice(NOTICEBOARD_PREFIX.length)));
         }
+        // The GM's third row: a button where a player gets the Pin select,
+        // because a GM holds no paper and writes the notice on the spot. It
+        // opens a modal, so the handler must NOT be acked first.
+        if (interaction.customId.startsWith(NOTICE_POST_PREFIX)) {
+          return void (await handleNoticePost(interaction, interaction.customId.slice(NOTICE_POST_PREFIX.length)));
+        }
         if (interaction.customId === REPORT_OPEN_ID) return void (await handleReportOpen(interaction));
         if (interaction.customId === REPORT_CLOSE_ID) return void (await handleReportClose(interaction));
         // Arrives in a DM; must NOT be acked first since it opens a modal.
@@ -2262,6 +2272,12 @@ module.exports = {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
         if (interaction.customId.startsWith(CONVERSE_MODAL_PREFIX)) {
           return void (await handleConverseCreate(interaction, interaction.customId.slice(CONVERSE_MODAL_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(NOTICE_POST_MODAL_PREFIX)) {
+          return void (await handleNoticePostSubmit(
+            interaction,
+            interaction.customId.slice(NOTICE_POST_MODAL_PREFIX.length),
+          ));
         }
         if (interaction.customId.startsWith(INTERCOM_MODAL_PREFIX)) {
           return void (await handleIntercomSubmit(

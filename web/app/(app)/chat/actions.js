@@ -41,8 +41,18 @@ import {
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { dismountedMessage } from "@lifeweb/db/lib/indoors";
-import { boardFor, boardText, pinnedLine, tornLine, BOARD_OPTION_LIMIT } from "@lifeweb/db/lib/noticeboard";
-import { paperDescription, paperView } from "@lifeweb/db/lib/paper";
+import {
+  boardFor,
+  boardText,
+  destroyNotice,
+  pinnedLine,
+  tornLine,
+  BOARD_OPTION_LIMIT,
+} from "@lifeweb/db/lib/noticeboard";
+import { paperDescription, paperView, TITLE_MAX, WRITE_MAX } from "@lifeweb/db/lib/paper";
+import { mintUnownedPaper } from "@lifeweb/db/lib/paperMint";
+import { cleanCustomText } from "@lifeweb/db/lib/customText";
+import { getGmSession } from "@/lib/discordGuild";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
@@ -937,6 +947,185 @@ export async function pinNotice(tagId) {
   }
   await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(held.tag.name) });
   return { ok: true, line: `You nail ${held.tag.name} up. Anyone here can read it, or take it down.` };
+}
+
+// ------------------------------------------------ the board, worked by a GM
+//
+// A GM has no body, so every gate the four actions above apply — are you
+// alive, are you standing here, can you read — answers "no" for them. The
+// board was the one public surface in the game the GMs could not touch.
+//
+// FOUR SEPARATE ACTIONS rather than a branch inside each of the four above.
+// Three of them behave differently enough (no literacy gate, a tear that
+// destroys, a post that mints paper out of nothing) that branching would make
+// the player path harder to read for no gain, and a server action re-checks
+// everything it was sent regardless.
+//
+// The gate is the SAME verdict chat/page.js uses to decide GM mode, so the
+// page and the actions can never disagree about who is a GM. The board comes
+// from the place the GM has open, which is the Discord half's rule too: there,
+// the button lives on the anchor in that Location's own channel.
+async function gmBoard(placeKey) {
+  const { session, isGm } = await getGmSession();
+  // The same sentence a characterless player gets from actor(). A GM reading
+  // this is looking at a bug; anyone else is looking at a refusal that tells
+  // them nothing about whether GM powers exist.
+  if (!session?.discordUserId || !isGm) return { error: "You have no living character." };
+  const parsed = parsePlaceKey(placeKey);
+  if (parsed?.kind !== "loc") return { error: "There's no board here." };
+  const ctx = await boardFor(prisma, parsed.id);
+  if (ctx.error) return ctx;
+  return { ...ctx, discordUserId: session.discordUserId };
+}
+
+export async function gmReadBoard(placeKey) {
+  const ctx = await gmBoard(placeKey);
+  if (ctx.error) return { ok: false, error: ctx.error };
+  // No `holding`: a GM has no paper to pin, which is the whole reason the
+  // dialog gives them a writing form where a player gets a picker.
+  return {
+    ok: true,
+    heading: boardText(ctx.location.name, ctx.posts, ctx.openTurn?.number ?? 0),
+    notices: ctx.posts.map((p) => ({ id: p.id, name: p.tag.name })),
+  };
+}
+
+export async function gmReadNotice(placeKey, postId) {
+  const ctx = await gmBoard(placeKey);
+  if (ctx.error) return { ok: false, error: ctx.error };
+  const post = ctx.posts.find((p) => p.id === postId);
+  if (!post) return { ok: false, error: "It's gone." };
+  // A GM sees everything, wax seal included. readBlock reads a tag list, and
+  // a GM's is empty — the ordinary gate would call them illiterate and refuse
+  // every notice on every board, so the panel would open onto nothing it
+  // could ever show. Reading is silent either way; nobody is told.
+  const text = (post.tag.paperText ?? "").trim();
+  return {
+    ok: true,
+    name: post.tag.name,
+    text,
+    plain: false,
+    paper: { kind: post.tag.paperKind ?? null, text, plain: false },
+  };
+}
+
+export async function gmTearNotice(placeKey, postId) {
+  const ctx = await gmBoard(placeKey);
+  if (ctx.error) return { ok: false, error: ctx.error };
+  const post = ctx.posts.find((p) => p.id === postId);
+  if (!post) return { ok: false, error: "It's gone." };
+
+  // The delete IS the claim, the same as a player's tear — and the paper goes
+  // with the post, because a GM has nothing to hold it in. That is what the
+  // expiry sweep does to a notice that blew away, so nothing new is invented
+  // here (db/lib/noticeboard.js#destroyNotice).
+  const claimed = await destroyNotice(prisma, post);
+  if (claimed.count === 0) return { ok: false, error: "Somebody got there first." };
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: ctx.discordUserId,
+        actionType: "gm_tear_notice",
+        details: {
+          locationId: ctx.location.id,
+          locationName: ctx.location.name,
+          tagName: post.tag.name,
+          face: "web",
+        },
+      },
+    })
+    .catch((err) => console.error("Notice audit log failed:", err));
+
+  if (ctx.location.discordChannelId) {
+    await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
+  }
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
+  return { ok: true, line: `You take ${post.tag.name} down.` };
+}
+
+export async function gmPostNotice(placeKey, { title: rawTitle = "", body: rawBody = "" } = {}) {
+  const ctx = await gmBoard(placeKey);
+  if (ctx.error) return { ok: false, error: ctx.error };
+  if (!ctx.openTurn) return { ok: false, error: "Nothing is happening yet." };
+
+  // The title is CLEANED and the body is only trimmed — exactly what a
+  // player's own Write does (character/paperActions.js). A paper's NAME is
+  // interpolated raw into bot messages, so an "@" in one is a mention waiting
+  // to happen; a body is only ever shown through PaperSheet or inside a code
+  // block, and it keeps its line breaks because a proclamation signed on its
+  // own line should stay signed on its own line.
+  const title = cleanCustomText(rawTitle, TITLE_MAX) || null;
+  const body = String(rawBody ?? "").trim().slice(0, WRITE_MAX);
+  if (!body) return { ok: false, error: "Write something first." };
+
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { noticeExpiryTurns: true },
+  });
+  const expiresTurn = expiryFrom(ctx.openTurn.number, config?.noticeExpiryTurns ?? 10);
+
+  // MINTED OUTSIDE A TRANSACTION. createWithRetry re-rolls the slug on a
+  // unique collision, and Postgres aborts the whole transaction on the first
+  // failed statement (25P02), so a retry inside one throws instead of
+  // retrying — db/lib/paperMint.js spells the trap out.
+  //
+  // paperAuthor takes the GM's Discord id, and nothing renders it anywhere. It
+  // is for the audit trail only: a notice is anonymous on the board, which is
+  // the point of a public board.
+  const paper = await mintUnownedPaper(
+    prisma,
+    `gm-notice-${ctx.location.id}`,
+    ctx.discordUserId,
+    body,
+    title,
+  );
+
+  try {
+    await prisma.noticePost.create({
+      data: {
+        locationId: ctx.location.id,
+        tagId: paper.id,
+        // Nobody pinned it. The column is nullable for its own reason — a
+        // notice outlives the person who put it up — and this is the shape a
+        // Wanted poster already lands in (db/lib/wantedPoster.js).
+        postedById: null,
+        postedTurn: ctx.openTurn.number,
+        expiresTurn,
+      },
+    });
+  } catch (err) {
+    // The paper exists and the board refused it, so it would be an orphan
+    // nothing can ever reach. Take it back out.
+    await prisma.tag.deleteMany({ where: { id: paper.id, ephemeral: true } }).catch(() => {});
+    if (err?.code === "P2002") return { ok: false, error: "That one is already up somewhere." };
+    return { ok: false, error: "That didn't go up." };
+  }
+
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: ctx.discordUserId,
+        actionType: "gm_post_notice",
+        details: {
+          locationId: ctx.location.id,
+          locationName: ctx.location.name,
+          tagId: paper.id,
+          tagName: paper.name,
+          face: "web",
+        },
+      },
+    })
+    .catch((err) => console.error("Notice audit log failed:", err));
+
+  // THE SAME LINE A PLAYER'S PIN RAISES. It names the paper and never the
+  // person, so nobody in the room can tell a GM's notice from anyone else's —
+  // which is exactly why the line was written that way.
+  if (ctx.location.discordChannelId) {
+    await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(paper.name))).catch(() => {});
+  }
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(paper.name) });
+  return { ok: true, line: `You nail ${paper.name} up. Anyone here can read it, or take it down.` };
 }
 
 // ------------------------------------------------------------- conversation

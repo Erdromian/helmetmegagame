@@ -15,6 +15,7 @@ import FactionPanel from "./FactionPanel";
 import DmPane, { DM_PLACE_KEY } from "./DmPane";
 import { useDmState, seedNewestOutbound, addDmRow, noteDmReconnect } from "./dmStore";
 import NoticeCards from "./NoticeCards";
+import GmNoticeboardDialog from "./GmNoticeboardDialog";
 import { ConverseDialog } from "./PlacePanel";
 import { addMember } from "./actions";
 import { mentionsCharacter } from "@/app/components/richTokens";
@@ -239,6 +240,10 @@ export default function Chat({
   const [chimeMuted, setChimeMuted] = useChatChimeMuted();
 
   const asideFolded = useAsideFolded();
+  // GM mode only. Closed on its own rather than folded into the place dialogs,
+  // because GM mode has no PlacePanel to hang one off — that is built from a
+  // character and GM mode is the absence of one.
+  const [gmBoardOpen, setGmBoardOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   // The noticeboard cards at the top of the Location's feed, and the counter
   // that makes them re-read. The Noticeboard dialog in the right column pins
@@ -856,10 +861,26 @@ export default function Chat({
           .chat-aside-tabs the tabbed version uses. */}
       {!aside && gmZones && !asideFolded && (
         <aside className="chat-aside">
+          {/* The SAME button a player presses, in the only column GM mode
+              has. A GM stands nowhere, so the board is the one belonging to
+              the place they have open — which is the Discord half's rule
+              too, where the button lives on the anchor in that Location's own
+              channel. Shown only where docs/zones.yaml declared a board
+              (db/lib/feedAccess.js#gmPlacesFor fills in `hasBoard`). */}
+          {selected?.kind === "loc" && selected.hasBoard && (
+            <div className="chat-buttons">
+              <button type="button" className="btn-secondary" onClick={() => setGmBoardOpen(true)}>
+                Noticeboard
+              </button>
+            </div>
+          )}
           <div className="chat-aside-tabs">
             <GmZoneRail zones={gmZones.selectable} selectedIds={gmZones.selectedIds} />
           </div>
         </aside>
+      )}
+      {gmBoardOpen && selectedKey && (
+        <GmNoticeboardDialog placeKey={selectedKey} onClose={() => setGmBoardOpen(false)} />
       )}
       {aside && !asideFolded && (
         <aside className="chat-aside">

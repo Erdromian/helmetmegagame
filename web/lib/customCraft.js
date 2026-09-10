@@ -7,6 +7,8 @@
 // on "is this name blank" the way billedSeen exists to prevent for the Move.
 // Pure — no prisma, no React — importable from either side.
 
+import { cleanCustomText } from "@lifeweb/db/lib/customText";
+
 export const CUSTOM_SURCHARGE = 1; // ⬢ per unit, on top of the recipe's own
 
 // What THIS recipe charges for the player's words. A recipe may buy them out
@@ -44,22 +46,11 @@ export const CUSTOM_NAME_MAX = 30;
 export const CUSTOM_DESCRIPTION_MAX = 300;
 export const INSCRIPTION_MAX = 200;
 
-// Player-authored text, defanged. Three removals, each closing a real hole:
-// `{` `}` so a description can never form a rich token ({tag:…}/{resource:…}
-// render as REAL chips via richTokens.js — a player must not be able to
-// forge one); `@` because item names travel into Discord messages that
-// default to parsing mentions; and control characters.
-export function cleanCustomText(raw, max) {
-  if (typeof raw !== "string") return "";
-  const printable = [...raw]
-    .map((ch) => {
-      const code = ch.charCodeAt(0);
-      if (code < 32 || code === 127) return " ";
-      return "{}@".includes(ch) ? " " : ch;
-    })
-    .join("");
-  return printable.replace(/\s+/g, " ").trim().slice(0, max).trim();
-}
+// Player-authored text, defanged — see db/lib/customText.js for what it takes
+// out and why. It lives down there rather than here because the bot needs the
+// same scrubber for the GM's noticeboard modal and cannot reach into web/.
+// Re-exported so every caller this module already had is untouched.
+export { cleanCustomText };
 
 // The single verdict both sides use: the cleaned fields, and whether this
 // craft is customized at all (either field non-empty after cleaning).
