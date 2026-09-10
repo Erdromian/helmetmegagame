@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Shelter brings you back to Fine, not past it
+
+✎ A roof only ever mends a mood as far as Fine. The Inn, the Keep, the Sanctuary and the Cathedral mend it faster, but none of them makes anybody happy  
+✎ Sleeping indoors used to be worth a net +8 every night forever, so a bed alone could carry somebody up to Ecstatic in about ten nights and hold them there. It can't now  
+✎ What still lifts a mood into the good bands: a drink, a meal, a treat, tea, a coffee, a smoke, music, an absolved confession, a kiss, being healed, or getting what you wanted from a Desire  
+✎ Climbing out of a bad mood is exactly as fast as it was — the cap only blocks crossing over into the good half
+
 ## 2026-09-10 · Bascinet's wording, and the draft marks are gone
 
 ✎ Your edits are in: the refusals, empty states, DMs and dialog copy across the game now read the way you rewrote them  

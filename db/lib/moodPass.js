@@ -100,8 +100,12 @@ async function runMoodPass(prisma, turn) {
     if (noble && !held.has(DINED_SLUG)) terms.push({ kind: "NOBLE_MEAL", base: EVENTS.NOBLE_MEAL });
 
     // Somebody already Fine, in a place that neither lifts nor lowers, has
-    // nothing to settle: no write.
-    if (character.mood === 0 && !terms.some((t) => t.base)) {
+    // nothing to settle: no write. A capAtFine term counts for nothing here —
+    // shelter can only fill a deficit, and at 0 there is none — so without this
+    // exemption every character sitting at Fine under a roof would open a
+    // transaction to compute a delta of zero, which on a full roster is most of
+    // them.
+    if (character.mood === 0 && !terms.some((t) => t.base && !t.capAtFine)) {
       skipped += 1;
       continue;
     }
