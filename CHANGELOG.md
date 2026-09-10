@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · Rejecting a Move no longer asks for a reason it cannot take
+
+✎ Reject on the turns desk fires straight away instead of opening a dialog that always refused
+
 ## 2026-09-10 · Steady hands and Clumsy are mutually exclusive
 
 ✎ Steady and Clumsy can no longer be held together
