@@ -93,9 +93,15 @@ const DM_BAND_KEYS = new Set(["afraid", "panicking", "ecstatic"]);
 // chosen by placeClassOf. Harm is negative, comfort positive.
 const PLACE_TERMS = Object.freeze({ CAVE: -14, WILDERNESS: -10, OPEN: 4, INDOORS: 6, HAVEN: 12 });
 
-// Every mood slides back toward Fine overnight, from BOTH sides: a fright
-// wears off, and so does a good evening. Never overshoots 0.
-const MOOD_DRIFT = 4;
+// Every mood slides back toward Fine overnight, from BOTH sides — but not at
+// the same speed. A fright wears off slowly; a good evening is mostly gone by
+// morning. Neither ever overshoots 0.
+//
+// The asymmetry is the point: fear and grief are the half of the dial a
+// character has to live with, and delight is the half they have to keep
+// earning. A drink or a kiss is worth having on the day, not for the week.
+const MOOD_DRIFT_UP = 4;
+const MOOD_DRIFT_DOWN = 40;
 
 // Walking somewhere frightening costs a step charge (arrivalTermFor), and a
 // step is cheap: five walks into the marshes used to be the whole
@@ -268,11 +274,13 @@ function placeTermFor(placeClass) {
 }
 
 // The overnight slide back toward Fine, or null for somebody already there.
-// It is not a fright, so no tag scales it — hence noMultiplier.
+// Slow coming up, fast coming down. It is not a fright, so no tag scales it —
+// hence noMultiplier: Brave halving a happy person's decline would be nonsense,
+// and so would it sparing them the climb.
 function driftTermFor(mood) {
   const v = clampMood(mood);
   if (v === 0) return null;
-  const base = v < 0 ? Math.min(MOOD_DRIFT, -v) : -Math.min(MOOD_DRIFT, v);
+  const base = v < 0 ? Math.min(MOOD_DRIFT_UP, -v) : -Math.min(MOOD_DRIFT_DOWN, v);
   return { kind: "DRIFT", base, noMultiplier: true };
 }
 
@@ -703,7 +711,8 @@ module.exports = {
   MOOD_BANDS,
   MOOD_MAX,
   MOOD_MIN,
-  MOOD_DRIFT,
+  MOOD_DRIFT_UP,
+  MOOD_DRIFT_DOWN,
   PLACE_TERMS,
   MOVE_MOOD_TURN_CAP,
   EVENTS,

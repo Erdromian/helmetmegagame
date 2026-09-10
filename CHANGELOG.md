@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-10 · A good mood wears off by morning
+
+✎ Happiness now falls 40 a turn instead of 4, so a drink or a kiss is worth having on the day and not for the week  
+✎ Recovery from a bad mood is unchanged at 4 a turn — fear and grief still take their time  
+✎ Ecstatic and its +1 Gambit are now something you arrange, not something you hold
+
 ## 2026-09-10 · The Oracle calls NanoGPT, and its desk stops explaining itself
 
 ✎ The Oracle now points at NanoGPT rather than OpenRouter. The same model under the same id, so only the endpoint moves, and an endpoint typed in by hand is left alone.  

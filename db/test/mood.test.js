@@ -7,7 +7,8 @@ const {
   MOOD_BANDS,
   MOOD_MAX,
   MOOD_MIN,
-  MOOD_DRIFT,
+  MOOD_DRIFT_UP,
+  MOOD_DRIFT_DOWN,
   PLACE_TERMS,
   EVENTS,
   bandOf,
@@ -106,20 +107,32 @@ test("the dial clamps to +82 … −100", () => {
   assert.equal(clampMood(undefined), 0);
 });
 
-test("the drift pulls toward Fine from both sides and never overshoots", () => {
+test("the drift pulls toward Fine from both sides, slowly up and fast down", () => {
   assert.equal(driftTermFor(0), null);
-  assert.equal(driftTermFor(-50).base, MOOD_DRIFT);
-  assert.equal(driftTermFor(50).base, -MOOD_DRIFT);
-  // A mood inside one step of Fine lands exactly on it.
+  assert.equal(driftTermFor(-50).base, MOOD_DRIFT_UP);
+  assert.equal(driftTermFor(50).base, -MOOD_DRIFT_DOWN);
+  // A mood inside one step of Fine lands exactly on it, from either side.
   assert.equal(driftTermFor(-2).base, 2);
   assert.equal(driftTermFor(2).base, -2);
+  assert.equal(driftTermFor(30).base, -30);
   assert.equal(driftTermFor(-50).noMultiplier, true);
+});
+
+test("the ceiling is three nights from Fine, and the floor is twenty-five", () => {
+  const nights = (start) => {
+    let mood = start;
+    let n = 0;
+    for (; mood !== 0 && n < 100; n += 1) mood = settle(mood, [driftTermFor(mood)]);
+    return n;
+  };
+  assert.equal(nights(MOOD_MAX), 3);
+  assert.equal(nights(MOOD_MIN), 25);
 });
 
 test("the drift down from a good mood is not a fright, so no tag scales it", () => {
   const brave = ["brave"];
   const down = driftTermFor(40);
-  assert.equal(resolveDelta({ ...down, heldSlugs: brave }), -MOOD_DRIFT);
+  assert.equal(resolveDelta({ ...down, heldSlugs: brave }), -MOOD_DRIFT_DOWN);
   // ...whereas an actual fright is halved.
   assert.equal(resolveDelta({ kind: "WOUND", base: -30, heldSlugs: brave }), -15);
 });
@@ -209,7 +222,7 @@ test("two nights indoors clear a −20, and one in a Haven does better", () => {
   for (let i = 0; i < 2; i += 1) mood = night(mood, "INDOORS");
   assert.equal(mood, 0);
   assert.equal(bandOf(mood).label, "Fine");
-  assert.equal(PLACE_TERMS.INDOORS + MOOD_DRIFT, 10);
+  assert.equal(PLACE_TERMS.INDOORS + MOOD_DRIFT_UP, 10);
 
   // A haven does it in one: −20 is Uncomfortable, and one night there is not.
   const haven = night(-20, "HAVEN");
@@ -244,8 +257,10 @@ test("a bed never makes anybody happy, however many nights they sleep in one", (
   assert.equal(mood, 0);
   assert.equal(bandOf(mood).label, "Fine");
 
-  // Somebody already above Fine only drifts back down in one.
-  assert.equal(night(40), 36);
+  // Somebody already above Fine only drifts back down, and the bed does not
+  // slow the fall — a good mood is spent by morning either way.
+  assert.equal(night(40), 0);
+  assert.equal(night(60), 20);
   assert.equal(night(4), 0);
 
   // Recovery from a bad mood is untouched — the full +16 still lands.

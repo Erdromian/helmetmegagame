@@ -270,11 +270,19 @@ A Fine Meal used to be worth nothing at all, on the argument that it only fed a
 noble. It is +15 now — "makes an ordinary person happy" is its own catalog
 line — and it still feeds the noble besides (§7).
 
-**The nightly drift** replaced the old one-way decay. Every mood slides
-`MOOD_DRIFT` (**4**) back toward Fine at every close, from *both* sides, never
-overshooting 0: a fright wears off, and so does a good evening. It carries
-`noMultiplier: true`, so no tag scales it — Brave halving a happy person's
-decline would be nonsense.
+**The nightly drift** replaced the old one-way decay. Every mood slides back
+toward Fine at every close, from *both* sides, never overshooting 0 — but not at
+the same speed. `MOOD_DRIFT_UP` is **4** and `MOOD_DRIFT_DOWN` is **40**: a
+fright wears off slowly, a good evening is mostly gone by morning. From the
+ceiling that is three nights to Fine against the floor's twenty-five.
+
+The asymmetry is the point. Fear and grief are the half of the dial a character
+has to live with; delight is the half they have to keep earning. A drink, a
+kiss or a fulfilled Desire is worth having on the day and not for the week,
+which is also what keeps Ecstatic's `+1` Gambit a thing somebody arranges rather
+than a thing they hold. It carries `noMultiplier: true`, so no tag scales it
+either way — Brave halving a happy person's decline would be nonsense, and so
+would it sparing them the climb.
 
 **How a capped term settles.** `restorativeRoom(before, otherDelta)` is the whole
 rule: a `capAtFine` term contributes at most the room left between the dial and
@@ -402,7 +410,8 @@ hooks in the same tick cannot race a stale read past either end.
 
 - `db/lib/mood.js` — the tables (`EVENTS`, one signed table: harm negative,
   relief positive, so most callers name only the kind; `MOOD_BANDS`;
-  `PLACE_TERMS`; `MOOD_DRIFT`; `DESIRE_RELIEF_PER_POINT`; the consume relief
+  `PLACE_TERMS`; `MOOD_DRIFT_UP` / `MOOD_DRIFT_DOWN`;
+  `DESIRE_RELIEF_PER_POINT`; the consume relief
   map), the pure functions (`bandOf`, `placeClassOf`, `placeTermFor`,
   `driftTermFor`, `restorativeRoom`, `woundRungOf`, `woundMoodFor`, `multiplierFor`,
   `resolveDelta`, `moodBandDm`, `clampMood`), and the Prisma surface

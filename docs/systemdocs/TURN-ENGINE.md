@@ -259,7 +259,8 @@ each arrived at by getting them wrong first.
    sheet; before travel arrival, so a traveller pays the night for the
    Location they ended the day in rather than the one they haven't reached yet.
    It applies the turn's flat harms and reliefs to `Character.mood`, slides
-   every dial one step of `MOOD_DRIFT` back toward Fine from either direction,
+   every dial back toward Fine from either direction — one slow step of
+   `MOOD_DRIFT_UP` (4) coming up, one fast `MOOD_DRIFT_DOWN` (40) coming down —
    and deletes each character's `dined` marker so a fresh turn starts
    unmarked. It settles no tag: the band is a word read off the number, not a
    row. Audit action `mood_resolved`; its DMs — only the two bands that carry
