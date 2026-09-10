@@ -15,6 +15,7 @@ import Tooltip from "./Tooltip";
 import useSubmitOnEnter from "./useSubmitOnEnter";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { combineArmor, armorWord } from "@/lib/armorValue";
+import { fightingSkill } from "@/lib/fightingSkill";
 import {
   getCharacterInspector,
   getArchiveSlice,
@@ -146,6 +147,21 @@ function StagedDeltaFact({ display, pendingSuffix, onStage, disabled }) {
 // Gunboat's words, verbatim, on every custom-tag door.
 const CUSTOM_TAG_TOOLTIP =
   "Use this for things that would affect adjudications—not just little bracelets or something.";
+
+// "Melee: Seasoned | Ranged: Weak — 2 situational". The two bands the same way
+// the Armor line prints its two, plus a count of the things a GM has to decide
+// for themselves: Duelist wants a duel, Guerrilla wants rough ground, and no
+// query can tell whether this fight is either. The count rather than the list,
+// because the Tags tab beside this one carries every one of them in full and a
+// facts row is one line.
+function fightingLine(tags) {
+  const resolved = fightingSkill(tags);
+  const situational = new Set(
+    [...resolved.melee.situational, ...resolved.ranged.situational].map((s) => s.label),
+  ).size;
+  const bands = `Melee: ${resolved.melee.band.label} | Ranged: ${resolved.ranged.band.label}`;
+  return situational ? `${bands} — ${situational} situational` : bands;
+}
 
 function SheetView({
   data,
@@ -282,6 +298,14 @@ function SheetView({
     // GM needs the character's actual protection, not one gauntlet's rating.
     // Always shown, "None" included: the fact that there is nothing to turn a
     // blow aside matters exactly as much as a number would.
+    // Fighting sits directly above Armor because the two are one question when
+    // a GM is arbitrating a fight: how hard does this person hit, and what
+    // happens when they are hit. Same two-halves shape as the line below it.
+    //
+    // Unlike the player's own sheet, this is drawn for EVERY character —
+    // deciding what happens in a fight is exactly the GM's job, and it is the
+    // reason the number is withheld from players in the first place.
+    ["Fighting", fightingLine(data.tags)],
     [
       "Armor",
       `Melee: ${armorWord(combineArmor(data.tags, "meleeArmor"))} | Ballistic: ${armorWord(combineArmor(data.tags, "ballisticArmor"))}`,

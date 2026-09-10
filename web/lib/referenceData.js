@@ -1,5 +1,6 @@
 import { prisma, PRODUCTION_RATES, computeRate, formatRate } from "@lifeweb/db";
 import { carryCaps, carryBonusLine, MULT_SCALE } from "@lifeweb/db/lib/carry";
+import { FIGHTING_TAG_FIELDS } from "@lifeweb/db/lib/fightingSkill";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
@@ -141,6 +142,11 @@ export const TAG_CHIP_FIELDS = {
   // paper against a rifle, which is the one thing that line exists to say.
   meleeArmor: true,
   ballisticArmor: true,
+  // What the tag does in a fight, for TagChip's "In a fight" line and for the
+  // GM inspector's Fighting fact, which resolves a whole character off these
+  // rows. equipSlot rides along because that resolution asks whether a body
+  // slot is filled (Flamboyant) and whether a weapon is drawn.
+  ...FIGHTING_TAG_FIELDS,
   // TagChip's "Weight" line, via formatTagWeight. Both halves: an untradeable
   // tag weighs nothing against the cap no matter what the column says, so a
   // weight shown without `tradeable` would contradict the sheet's total.

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { armorWord, combineArmor } from "@/lib/armorValue";
+import { fightingSkill } from "@/lib/fightingSkill";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
@@ -70,6 +72,111 @@ const MOOD_DETAIL =
   "your mood. Other things, like listening to music, fulfilling desires, or eating meals boost your mood. Your " +
   "Mood impacts your Gambit rolls.";
 
+// A tier shift as the catalog writes it: "+2", "−0.5". U+2212 minus, matching
+// db/lib/gambitModifier.js#formatGambitModifiers and the bot's roll line.
+function tierLabel(tiers) {
+  return `${tiers > 0 ? "+" : "−"}${Math.abs(tiers)}`;
+}
+
+// What the Combat tile opens: every contributor behind the two bands, and then
+// the things a GM has to decide. Written into the shared detail slot under the
+// row of tiles rather than floating over anything — this sheet has no tooltips
+// (SHEET.md §3), and the Mood box set the precedent that a tile with something
+// to say says it on the page.
+//
+// The SCORE is never printed, only the names and their shifts. Working out
+// that Seasoned beats Capable is the player's job, the same posture armour
+// takes; a total here would turn a fight into arithmetic and hand somebody a
+// way to measure themselves against a person they should not be able to read.
+function CombatDetail({ combat }) {
+  // One list, not two: a tag's condition is the same kind of fact whichever
+  // half of the tree it lands on, and two columns of near-identical rows read
+  // as a bug rather than as a distinction.
+  const situational = [];
+  const seen = new Set();
+  for (const tree of ["melee", "ranged"]) {
+    for (const entry of combat[tree].situational) {
+      if (seen.has(entry.label)) continue;
+      seen.add(entry.label);
+      situational.push(entry);
+    }
+  }
+
+  return (
+    <div className="sheet-tile-detail">
+      {["melee", "ranged"].map((tree) => (
+        <p key={tree} className="m-0">
+          <span className="field-label">{tree === "melee" ? "Melee" : "Ranged"}</span>{" "}
+          {combat[tree].contributors
+            .map((c) => (c.base ? c.label : `${c.label} ${c.cancelledBy ? `nil, ${c.cancelledBy}` : tierLabel(c.tiers)}`))
+            .join(" · ")}
+          {combat[tree].cap && ` · held at ${combat[tree].cap}`}
+          {combat[tree].floor && ` · ${combat[tree].floor}`}
+        </p>
+      ))}
+      {situational.length > 0 && (
+        <p className="m-0">
+          <span className="field-label">If the moment fits</span>{" "}
+          {situational
+            .map((s) => `${s.label} ${s.tiers ? `${tierLabel(s.tiers)}, ` : ""}${s.when}`)
+            .join(" · ")}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Combat: the two fighting bands, the armour underneath, and the things no
+// code can settle. One tile rather than two, because a player deciding whether
+// to walk into something is asking one question — how does this go for me? —
+// and the answer is how hard you hit and what happens when you are hit.
+//
+// It spans two columns: it carries three lines where every other tile carries
+// one, and squeezing that into a tile's width would wrap every band word.
+function CombatTile({ combat, armor, open, onToggle, onHover }) {
+  const situationalCount = new Set(
+    [...combat.melee.situational, ...combat.ranged.situational].map((s) => s.label),
+  ).size;
+
+  return (
+    <button
+      type="button"
+      className="ledger-tile ledger-tile-button ledger-tile-combat"
+      aria-expanded={open}
+      onClick={onToggle}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+    >
+      <span className="field-label">Combat</span>
+      <span className="combat-bands">
+        {["melee", "ranged"].map((tree) => (
+          <span key={tree} className="combat-band" data-band={combat[tree].band.key}>
+            {combat[tree].band.label}
+          </span>
+        ))}
+      </span>
+      {/* Armour rides along as its own small line and is never summed into the
+          bands above it — it is a separate system with separate words
+          (db/lib/armorValue.js), and the only reason it is here is that a
+          player should not have to scroll to the rig to read it. */}
+      <span className="combat-armor">
+        <span aria-hidden="true">⛊</span> {armor}
+      </span>
+      {situationalCount > 0 && (
+        <span className="combat-situational">
+          {[...new Set([...combat.melee.situational, ...combat.ranged.situational].map((s) => s.label))].map(
+            (label) => (
+              <span key={label} className="combat-chip">
+                {label}
+              </span>
+            ),
+          )}
+        </span>
+      )}
+    </button>
+  );
+}
+
 // The band across the top of the sheet — it scrolls away with the rest of the
 // page: who this is and where they stand, the five things a player checks
 // before doing anything, then the pieces of the Chat's YOU column that belong
@@ -93,6 +200,15 @@ export default function LedgerBand({
 }) {
   const gambit = gambitModifierTotal(character.tags, { hungerStreak: character.hungerStreak, mood: character.mood });
   const moodBand = bandOf(character.mood ?? 0);
+  // Derived on every render from the tags already in hand, never stored — the
+  // posture combineArmor and gambitModifierTotal take, so it can't go stale.
+  // Drawn only on your OWN sheet: a fighting band is the one number nobody
+  // should be able to read off somebody they might have to fight, and every
+  // fighting tag in the catalog is `visible: false` for the same reason.
+  const combat = isSelf ? fightingSkill(character.tags) : null;
+  const armorLine = `${armorWord(combineArmor(character.tags, "meleeArmor"))} · ${armorWord(
+    combineArmor(character.tags, "ballisticArmor"),
+  )}`;
   const carrying = carry ? `${carry.weightUsed} / ${carry.weightCap}` : null;
   const loadPct = carry
     ? Math.min(100, Math.round((carry.weightUsed / Math.max(carry.weightCap, 1)) * 100))
@@ -201,6 +317,15 @@ export default function LedgerBand({
               </div>
             )}
           </Tile>
+          {combat && (
+            <CombatTile
+              combat={combat}
+              armor={armorLine}
+              open={tileOpen === "combat"}
+              onToggle={() => setTileOpen((was) => (was === "combat" ? null : "combat"))}
+              onHover={(inside) => setTileOpen((was) => (inside ? "combat" : was === "combat" ? null : was))}
+            />
+          )}
           {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md) — never the
               number, which is the whole point of the dial. Fine is grey,
               Ecstatic is green and Panicking is red; the tone picks the token. */}
@@ -221,7 +346,11 @@ export default function LedgerBand({
             value={gambit ? `${gambit > 0 ? "+" : ""}${gambit}` : "±0"}
             over={Boolean(gambit)}
           />
-          {tileOpen && (
+          {/* One slot under the row, shared by every tile that has something to
+              say. Combat writes a block rather than a sentence, so this branches
+              on the tile rather than always rendering a paragraph. */}
+          {tileOpen === "combat" && combat && <CombatDetail combat={combat} />}
+          {tileOpen && tileOpen !== "combat" && (
             <p className="sheet-tile-detail">{tileOpen === "moves" ? zoneMovesReason : MOOD_DETAIL}</p>
           )}
         </div>

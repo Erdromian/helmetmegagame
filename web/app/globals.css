@@ -7308,13 +7308,121 @@ label.chip {
   color: var(--danger);
 }
 
+/* ── The Combat tile ───────────────────────────────────────────────────────
+   Two fighting bands, the armour under them, and the chips for what a GM has
+   to decide. It spans two grid columns because it carries three lines where
+   every other tile carries one — at one column every band word wraps. */
+.ledger-tile-combat {
+  grid-column: span 2;
+}
+
+@media (max-width: 30rem) {
+  /* One column at phone width, where the grid has already folded to a single
+     track and `span 2` would overflow it. */
+  .ledger-tile-combat {
+    grid-column: span 1;
+  }
+}
+
+.combat-bands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  margin-top: var(--sp-1);
+  line-height: 1.2;
+}
+
+/* A word, not a number, so it drops --font-mono the way the Mood box does. */
+.combat-band {
+  font-size: var(--fs-lg);
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+.combat-band + .combat-band::before {
+  content: "·";
+  color: var(--muted);
+  margin-inline-end: var(--sp-2);
+  font-weight: 400;
+}
+
+/* Eight steps from red through grey to green, mixed from the theme's own
+   tokens rather than written as hex — so the ramp follows dusk and dawn
+   instead of fighting one of them, and `npm run audit:contrast` has real
+   colours to judge. The keys are db/lib/fightingSkill.js's band keys; adding
+   a band there without adding it here renders unstyled, which is visible
+   rather than silent. */
+.combat-band[data-band="pitiful"] {
+  color: var(--danger);
+}
+.combat-band[data-band="weak"] {
+  color: color-mix(in oklab, var(--danger) 50%, var(--muted));
+}
+.combat-band[data-band="mediocre"] {
+  color: var(--muted);
+}
+.combat-band[data-band="capable"] {
+  color: color-mix(in oklab, var(--positive) 25%, var(--muted));
+}
+.combat-band[data-band="seasoned"] {
+  color: color-mix(in oklab, var(--positive) 50%, var(--muted));
+}
+.combat-band[data-band="dangerous"] {
+  color: color-mix(in oklab, var(--positive) 75%, var(--muted));
+}
+.combat-band[data-band="lethal"] {
+  color: var(--positive);
+}
+
+/* Legendary is the one band that looks different rather than just greener.
+   Practically nobody reaches it — a specialism at its peak with the right
+   thing in hand — and it should read as an event when somebody does. This is
+   the "handful of thematic moments" --font-display exists for. */
+.combat-band[data-band="legendary"] {
+  color: var(--positive);
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: 0.01em;
+}
+
+/* Armour, deliberately quieter than the bands above it: it is a second system
+   riding along, not half of the number. */
+.combat-armor {
+  display: block;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.combat-situational {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+}
+
+/* Names only. What each one actually does reads in the detail line under the
+   row — the chip is here so a player knows there IS something, without the
+   tile growing a paragraph. */
+.combat-chip {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0 var(--sp-1);
+  line-height: 1.6;
+}
+
 .ledger-tile .depot-meter,
 .ledger-tile-button .depot-meter {
   margin-top: var(--sp-2);
 }
 
-/* The opened tile's words, under the whole row of tiles. */
+/* The opened tile's words, under the whole row of tiles. A <p> for the two
+   tiles that say a sentence, a <div> of them for Combat — same slot, same
+   voice, so the row never grows a second place to look. */
 .sheet-tile-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
   grid-column: 1 / -1;
   margin: 0;
   font-size: var(--fs-xs);
