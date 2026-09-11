@@ -12698,7 +12698,7 @@ tags:
     name: Ravenheart Red
     category: items
     group: items-drink
-    description: "A wine as dark as a raven's blood. Ravenheart's only export."
+    description: "A wine as dark as a raven's blood. A valuable export."
     pointCost: 0
     tradeable: true
     weight: 2.5
