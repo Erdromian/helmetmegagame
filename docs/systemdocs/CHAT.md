@@ -804,6 +804,39 @@ and a one-line box:
   and dialogue mixed, and the words somebody actually said are what a reader
   scans for.
 
+  **Both marks hold formatting now, and that took a rewrite.** `remark-parse`
+  builds the whole inline tree before any plugin runs, so a paragraph arrives
+  already cut into siblings wherever a `*star*`, a `` `tick` ``, a `~~tilde~~`
+  or a `[link](…)` sits — and both passes were built on
+  `mdast-util-find-and-replace`, which sees one text node at a time. So
+  `he said "*get out*"` was never tinted and `||a *hidden* word||` was never
+  hidden. Players write with emphasis constantly, so that was most quotes and
+  most spoilers, for as long as the tint has existed. `chatRuns.js` is the fix:
+  it scans a parent's **child list** rather than one string, an opener and a
+  closer still have to sit in text nodes, and everything between them — an
+  emphasis, a link, a resolved mention, a `<t:…>` — goes inside the wrapper
+  whole. The old refusals all survive it: no newline or hard break inside, a
+  400-character cap, a quote opens only on a real character, and an opener with
+  no partner is left as a character rather than swallowing the rest of the line.
+  `db/test/chatFormatting.test.js` is the guard.
+
+  **A token is the opposite case, and gets the opposite fix.** A
+  `{kind:payload}` payload is `[^}]+` — a name like `Bob *the Blade* Marley`, a
+  price like ``{info:costs `5` ⬢}`` — and formatting does not belong *inside* a
+  token, it just cuts the paragraph in half and leaves the reader a raw
+  `{char:cmtt…`. So `tokenEscape.js` backslashes every Markdown-active
+  character inside a `{…}` **before** anything parses, remark hands the payload
+  back as one text node, and `remarkTokens` matches it whole. It runs on the raw
+  string at render, so it repairs rows already in the database and nothing
+  stored has to change. A token written between backticks keeps its bar bare —
+  somebody demonstrating the syntax should not see a backslash in it.
+
+  **The plugin order flipped, and that is deliberate** (`markdownPlugins.js`):
+  `remarkSubtext → remarkTokens → remarkDiscord → remarkChat`. Chat's own marks
+  go last because they can now wrap a resolved mention or a timestamp as one
+  more sibling, and because a name like `Bob "Ace" Smith` would otherwise have
+  had its own speech tinted in the middle of a mention.
+
   **The rule the two renderers split on is scene-or-prose, and only that.** A
   surface does not get to know a different *syntax* from its neighbours; what
   it gets to decide is which tokens it *resolves*, and that is the `components`
