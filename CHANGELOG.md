@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Clicking a name on the Players desk is instant now
+
+✎ Opening a conversation no longer loads a page. It paints in about a tenth of a second, clicking through several people in a row doesn't queue them up any more, and going back to someone you had open a minute ago is free.  
+✎ Back, Forward, pasted links, ⌘K and the old /gm/messages links all still work — the address bar follows what you've opened rather than causing it.  
+✎ Paging back through a long conversation stopped blocking whatever you did next.  
+✎ Three faults in yesterday's live-feed work, found in review: a reader that closed its tab could leave the server waking for every message in the game forever; switching conversation rebuilt the live connection each time; and the chime was being swallowed for anything that arrived during a reconnect — which was the very thing that feed was built to fix.
+
 ## 2026-09-11 · Brigands start able to work
 
 ✚ Both Brigand roles start with Laboring (Basic)  
