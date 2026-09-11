@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Cutting Godflesh stops costing your turn
+
+✎ Extract has its own cooldown now: once per in-game day, so one cut covers both turns of that day. Cut again and it says you already harvested Godflesh today.  
+✎ Somebody who cuts and files nothing still gets their labor, so a cutting day now pays the Godflesh and a labor on top of it.  
+− The Move a cut used to spend. Nothing is filed on /gm/turns for one any more.
+
 ## 2026-09-11 · The places drawer no longer covers its own rows on a phone
 
 ✎ The chime, the tick and the app's links sit under the places instead of over them, and the links are two columns
