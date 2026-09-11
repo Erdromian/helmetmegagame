@@ -191,14 +191,15 @@ adding to it, not just what the new item is worth on its own. An empty face
 in a bucket (Forest's regional table had no face 6 at all) is the safest
 place to add fresh content, since there's nothing there yet to dilute.
 
-**Keen Eye (the `requiresTag` pool nested under `laborType.prospecting`,
-LABORDROPS.md §2a) learned the same lesson the hard way, across four
-redesigns.** Its first pass used tag grants only, verified "never hurts"
+**The Prospecting advantage pool (the `requiresTag` pool nested under
+`laborType.prospecting`, LABORDROPS.md §2a — it hangs off Eagle Eyes, and
+nothing player-facing says so) learned the same lesson the hard way, across
+four redesigns.** Its first pass used tag grants only, verified "never hurts"
 against the OLD uniform draw — but that property doesn't carry over to the
 rarity system: a `requiresTag` entry still just JOINS whatever band its
 rarity lands in, so it only helps if it's worth more than that band's
 existing members, and at a couple of Forest locations it was worth less and
-Keen Eye came out net NEGATIVE. A flat `"+N"` (a RESOURCES entry) fixed the
+the pool came out net NEGATIVE. A flat `"+N"` (a RESOURCES entry) fixed the
 guarantee — its own untouched `resources` band, immune to dilution — but
 traded items for coin, which wasn't the skill's flavor (Bascinet: "use item
 drops"). Rebuilding the guarantee with items needs a sharper rule than "pick
