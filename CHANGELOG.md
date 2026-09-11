@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Picking a picture no longer pretends it has been uploaded
+
+✎ The note on the Browse button said your picture had been uploaded and a GM would review it. It said that before anything had been sent, and it stayed on screen while you chose a file — so people believed it, never pressed Save, and their picture never went anywhere. Two uploads landed in eleven days while players wrote in asking how long approval takes.  
+✚ Choosing a file now says to press Save, and the confirmation only appears once the save has really gone through  
+✚ Any size of picture works now: the browser shrinks a big photo before sending it, so a 20MB phone photo goes up as a few hundred KB  
+✎ A photo taken with the phone held sideways is no longer stored sideways
+
 ## 2026-09-11 · A resolved caving encounter's Result can be edited again
 
 ✎ The Result box on a caving encounter stays editable after you mark it resolved — a Save button now sits beside Mark resolved, the same way the Move desk works. Before this, resolving an encounter took away the only button that saved the box, so anything typed afterwards looked accepted and was thrown away when the desk closed.
