@@ -1,8 +1,8 @@
-// THE GATE ATTACK AND INTERCEPT SHARE (docs/systemdocs/ATTACK.md §5a).
+// THE GATE ON ATTACK (docs/systemdocs/ATTACK.md §5a).
 //
-// Both verbs are free, and that is what made them a lever: with your Move
-// already filed on something else, pressing either only pins somebody where
-// they stand for the rest of the day. The doc has the whole argument.
+// Attack is free, and that is what made it a lever: with your Move already
+// filed on something else, pressing it only pins somebody where they stand
+// for the rest of the day. The doc has the whole argument.
 
 // A Move already filed spends the turn — unless it is a GAMBIT, which is the
 // fight itself written up first and the button pressed second.
@@ -20,8 +20,6 @@ function spentBy(action) {
 // Bascinet's words, verbatim.
 const ATTACK_MOVE_SPENT =
   "You've already used your Move this turn. You should only Attack if you plan to use your Gambit to actually declare your combat.";
-const INTERCEPT_MOVE_SPENT =
-  "You've already used your Move this turn. You should only lay in wait if you plan to use your Gambit on whoever walks into it.";
 
 // `db` is a parameter for the db/lib/dm.js reason: requiring the barrel back
 // from inside db/lib/ resolves to a partial exports object.
@@ -39,15 +37,9 @@ async function attackMoveBlock(db, characterId, turnId) {
   return (await moveSpent(db, characterId, turnId)) ? ATTACK_MOVE_SPENT : null;
 }
 
-async function interceptMoveBlock(db, characterId, turnId) {
-  return (await moveSpent(db, characterId, turnId)) ? INTERCEPT_MOVE_SPENT : null;
-}
-
 module.exports = {
   spentBy,
   moveSpent,
   ATTACK_MOVE_SPENT,
-  INTERCEPT_MOVE_SPENT,
   attackMoveBlock,
-  interceptMoveBlock,
 };

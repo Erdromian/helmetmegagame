@@ -47,13 +47,9 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
   const [holding, setHolding] = useState([]);
   const [place, setPlace] = useState(null);
   const [limits, setLimits] = useState({ names: 12, message: 300 });
-  // Why a new or edited watch is refused this turn, or null — resolved
-  // server-side by interceptActions.js off db/lib/combatGate.js.
-  const [blocked, setBlocked] = useState(null);
   // Whether a watch actually EXISTS server-side, as opposed to whether this
   // form currently describes one. Stop watching hangs off this: clearing the
-  // name chips must not take away the only way out of a live watch, which
-  // matters now that Save can be dead underneath it.
+  // name chips must not take away the only way out of a live watch.
   const [hasWatch, setHasWatch] = useState(false);
   const { submit, busy, error } = useSubmit();
 
@@ -64,7 +60,6 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
         if (!live || !res?.ok) return;
         setLimits(res.limits ?? { names: 12, message: 300 });
         setHolding(res.holding ?? []);
-        setBlocked(res.blocked ?? null);
         setHasWatch(Boolean(res.watch));
         if (res.watch) {
           setMode(res.watch.mode);
@@ -90,7 +85,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       busy={busy}
       error={error}
       loading={loading}
-      canSubmit={watching && !blocked}
+      canSubmit={watching}
       onClose={onClose}
       onSubmit={() =>
         submit(
@@ -100,12 +95,6 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       }
     >
       {place ? <p className="text-sm text-muted">{`You are lying in wait at ${place}.`}</p> : null}
-
-      {/* Save greys, not the icon on the strip — Stop watching and Let them go
-          live down this dialog, and a dead button on the sheet would strand
-          anyone who set a watch and then filed a Routine
-          (docs/systemdocs/INTERCEPT.md §8). */}
-      {blocked ? <p className="text-xs text-muted">{blocked}</p> : null}
 
       {/* The two standing rules sit ABOVE the typed names rather than mixed in
           with them: ✕ has to mean exactly one thing in a chip row, and "anyone
