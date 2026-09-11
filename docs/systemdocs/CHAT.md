@@ -1169,8 +1169,10 @@ and a one-line box:
      will not open — dimmed, still drawn, because knowing the way is there and
      shut is what sends you to find the winch. A zone crossing is tinted. The
      header is `Travel · N free` with `freeReason` as its title. Clicking a
-     node opens an inline confirm strip under the grid — the sentence, the
-     drag-along chips, `Go` and `Cancel` — not a modal. While somebody has hold
+     node opens an inline confirm strip under the grid — the sentence, the count
+     of who comes with you, `Go` and `Cancel` — not a modal. A click only ever
+     picks: `Go` is the one thing that moves anybody, here and on the map
+     alike (MAP.md §6c). While somebody has hold
      of you the grid still draws, every way shut with its reason on it, under
      one banner saying so (INTERCEPT.md). It used to be replaced outright while
      a journey was pending; travel lands at once now (MAP.md §3).
