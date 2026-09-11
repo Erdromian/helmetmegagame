@@ -1729,6 +1729,19 @@ input[type="radio"]:disabled {
   letter-spacing: normal;
 }
 
+/* The one bad-news tone a chip may wear: Overburdened, Dying, Catatonic, a
+   carry line over its cap, and Moves being locked. It was scoped to Chat's own
+   column so it could not leak into the chips the rest of the app draws — but
+   the header now wants the same tone for the same meaning (LockChip.js), and
+   two rules saying "bad" differently is how "bad" ended up drawn with --accent
+   in some tables and --danger in others. One rule, one meaning. `danger` is the
+   chips' word for it; .status-pill says `bad`, and a third spelling would not
+   help anybody. */
+.chip[data-tone="danger"] {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 /* A slash command a player is meant to TYPE ({cmd:play}). Not a .chip: a chip
    is a bubble naming a thing in the game, and a command is literal text you
    copy. It gets the mono face and a hairline so it reads as something to be
@@ -6818,14 +6831,6 @@ label.chip {
    are; these are not, and inheriting it turned the floor into a typewriter. */
 .chat-chip-hover {
   font-family: inherit;
-}
-
-/* The one bad-news tone, scoped to this column so it cannot leak into the
-   chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
-   carry line over its cap. */
-.chat-chips .chip[data-tone="danger"] {
-  color: var(--danger);
-  border-color: var(--danger);
 }
 
 /* The load bar under those chips (play/StatusStrip.js). It is the SHEET's own

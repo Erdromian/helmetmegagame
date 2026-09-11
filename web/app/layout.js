@@ -1,6 +1,6 @@
 import { IBM_Plex_Mono, Source_Sans_3, Source_Serif_4, UnifrakturMaguntia } from "next/font/google";
 import "./globals.css";
-import { getOpenTurn } from "@/lib/turn";
+import { getOpenTurn, getMoveWindow } from "@/lib/turn";
 import { resolveTheme } from "@/lib/turnFormat";
 import {
   getVisibleTags,
@@ -12,6 +12,7 @@ import TagsProvider from "./components/TagsProvider";
 import ProductionRatesProvider from "./components/ProductionRatesProvider";
 import CarryProvider from "./components/CarryProvider";
 import DocumentsProvider from "./components/DocumentsProvider";
+import MoveWindowProvider from "./components/MoveWindowProvider";
 import ConfirmProvider from "./components/ConfirmProvider";
 import NoticeProvider from "./components/NoticeProvider";
 import { RefreshProvider } from "./components/useRefresh";
@@ -74,6 +75,10 @@ export default async function RootLayout({ children }) {
   const ratesPromise = getProductionRates().catch(() => null);
   const docsPromise = getDocumentIndex().catch(() => []);
   const carryPromise = getCarryReference().catch(() => null);
+  // When Moves lock, for the chip every header wears (LockChip.js). Streamed
+  // like the four above so no page has to fetch it and no header has to be
+  // handed it as a prop.
+  const moveWindowPromise = getMoveWindow().catch(() => null);
 
   const turn = await getOpenTurn();
   // BASCINET_THEME pins the whole environment to one theme, which is the only
@@ -107,7 +112,11 @@ export default async function RootLayout({ children }) {
             <TagsProvider tagsPromise={tagsPromise}>
               <ProductionRatesProvider ratesPromise={ratesPromise}>
                 <CarryProvider carryPromise={carryPromise}>
-                  <DocumentsProvider docsPromise={docsPromise}>{children}</DocumentsProvider>
+                  <DocumentsProvider docsPromise={docsPromise}>
+                    <MoveWindowProvider moveWindowPromise={moveWindowPromise}>
+                      {children}
+                    </MoveWindowProvider>
+                  </DocumentsProvider>
                 </CarryProvider>
               </ProductionRatesProvider>
             </TagsProvider>

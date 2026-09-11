@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Pager from "@/app/components/Pager";
 import DeskHeader from "@/app/components/DeskHeader";
+import LockChip from "@/app/components/LockChip";
 import { useRefresh } from "@/app/components/useRefresh";
 import AuditFeed from "./AuditFeed";
 import AuditFilters from "./AuditFilters";
@@ -154,6 +155,7 @@ export default function AuditDesk({
                 Turn {openTurn.number} · {openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}
               </span>
             )}
+            <LockChip />
             {freshCount > 0 && (
               <button type="button" className="chip" onClick={acknowledge}>
                 {freshCount} new

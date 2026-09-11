@@ -790,6 +790,24 @@ sends `moveWindow(...).cutoffAt` as `closesAt`, and `TurnCard.js` renders
 `closes in N h` from it, or `locked` once the window has shut. Counting to
 `endsAt` told a player they had three hours they did not have.
 
+**And it is in the header of every page**, which is the one surface nobody has
+to go looking for: `LOCK 9:00 PM · 2h 14m`, becoming `MOVES LOCKED` once the
+window shuts, and nothing at all when `hasLock` is false. The clock time is the
+**reader's own**, in their own timezone and locale — a relative "closes in 3 h"
+still made a player two zones over do arithmetic to know whether they could file
+after dinner.
+
+One component draws it, `web/app/components/LockChip.js`, and it takes no props:
+`web/lib/turn.js#getMoveWindow` derives the two timestamps once per request and
+the root layout streams them into `MoveWindowProvider`, so a header adds the chip
+by writing `<LockChip />`. That matters because there are eleven headers and
+several are rendered from client components that cannot hold an async server
+child. `/gm/turns` had its own `moves lock in 2h 14m` string; it reads the shared
+chip now, and keeps its separate "Push in …" countdown, which counts to `endsAt`.
+
+`locked` is derived in the browser against `cutoffAt`, never sent as a boolean —
+a GM desk sits open for hours and has to cross the cutoff while it sits there.
+
 ### 6a-i. A filed Move is final
 
 There is no editing a Move once it is filed, and no cancelling one. The
@@ -821,6 +839,7 @@ markers for the desk's labels.
 | `db/turnCalendar.js` | The in-fiction calendar and `buildTurnAnnouncement` |
 | `db/lib/turnBanner.js` | Picking and resolving the turn banner (§4) |
 | `db/lib/turnClock.js` | Turn end / Move cutoff derivation (§6a) |
+| `web/app/components/LockChip.js` | The cutoff in every page header, in the reader's own time (§6a) |
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/autoLaborPass.js` | The auto-labor pass |
 | `db/lib/laborYield.js` | Location yield drift, and the quality words |

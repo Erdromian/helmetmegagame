@@ -9,9 +9,8 @@ import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
+import { turnEndsAt } from "@lifeweb/db/lib/turnClock";
 import { avatarReviewWhere } from "@lifeweb/db/lib/avatarReview";
-import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { placementOf } from "@lifeweb/db/lib/structures";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
@@ -91,14 +90,13 @@ export default async function TurnsWorkspacePage({ params }) {
 async function FreshTurnsWorkspace({ params, userId }) {
   const { selection } = await params;
   const parsedSelection = parseSelection(selection);
-  // The move cutoff needs both of these, and neither needs the other, so they
-  // go out together rather than one after the other. (turnClock is a db/lib
-  // module and Workspace is a client component, so the derivation stays
-  // server-side here and only the two numbers cross the boundary. The header
-  // ticks against cutoffAtMs itself.) The big batch below still waits on
-  // openTurn — it filters by turn id.
-  const [openTurn, frozen] = await Promise.all([getOpenTurn(), clockFrozen(prisma)]);
-  const window_ = openTurn ? moveWindow(openTurn, { clockFrozen: frozen }) : null;
+  // Only the turn's END is derived here now, for the push countdown below — the
+  // Move cutoff moved into the header chip every page wears (LockChip.js), which
+  // reads it from the root layout. turnEndsAt does not care whether the clock is
+  // frozen, so this no longer needs clockFrozen() alongside it. The big batch
+  // below still waits on openTurn — it filters by turn id.
+  const openTurn = await getOpenTurn();
+  const endsAt = openTurn ? turnEndsAt(openTurn) : null;
 
   const [
     actions,
@@ -393,7 +391,7 @@ async function FreshTurnsWorkspace({ params, userId }) {
         number: openTurn.number,
         phase: openTurn.phase,
         label: turnLabel(openTurn),
-        endsAtMs: window_?.endsAt ? window_.endsAt.getTime() : null,
+        endsAtMs: endsAt ? endsAt.getTime() : null,
       }
     : null;
 
@@ -429,9 +427,6 @@ async function FreshTurnsWorkspace({ params, userId }) {
         stagedEffects: effects,
         stagedMessages: messages,
         gmProfiles: gmProfilesById,
-        moveLock: window_?.hasLock
-          ? { cutoffAtMs: window_.cutoffAt.getTime(), endsAtMs: window_.endsAt.getTime() }
-          : null,
         deployVersion: deployVersion(),
       }}
     />

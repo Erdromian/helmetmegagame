@@ -60,6 +60,7 @@ import SeatsOut from "./SeatsOut";
 import AssignmentPreview from "./AssignmentPreview";
 import { isSpawnOnly } from "@/lib/characterCreation";
 import DeskHeader from "@/app/components/DeskHeader";
+import LockChip from "@/app/components/LockChip";
 import OpsNav from "./OpsNav";
 import SendLetterForm from "./SendLetterForm";
 import Switch from "@/app/components/Switch";
@@ -715,9 +716,12 @@ export default async function DevPanelPage({ searchParams }) {
       <DeskHeader
         title="Dev Panel"
         meta={
-          <span className="chip">
-            {openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No open turn"}
-          </span>
+          <>
+            <span className="chip">
+              {openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No open turn"}
+            </span>
+            <LockChip />
+          </>
         }
       />
       <div className="desk-body desk-body--ops">

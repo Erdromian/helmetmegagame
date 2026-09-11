@@ -17,6 +17,7 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DeskHeader from "@/app/components/DeskHeader";
+import LockChip from "@/app/components/LockChip";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import GmZoneRail from "@/app/components/GmZoneRail";
@@ -155,6 +156,7 @@ export default function OracleDesk({
     <div className="desk-shell">
       <DeskHeader
         title="Oracle"
+        meta={<LockChip />}
         actions={
           <div className="field">
             <label className="field-label" htmlFor="oracle-turn">

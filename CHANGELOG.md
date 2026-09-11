@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The header says when Moves lock, in your own time
+
+✚ Every page header now carries a LOCK chip: the time Moves stop being accepted, in your own timezone, counting down in minutes  
+✚ It turns MOVES LOCKED once the window shuts, and says nothing at all when the clock is frozen or the turn is too short to have a cutoff  
+✎ The adjudication desk's own 'moves lock in 2h 14m' is gone — it wears the same chip as everybody else now
+
 ## 2026-09-11 · Cutting Godflesh stops costing your turn
 
 ✎ Extract has its own cooldown now: once per in-game day, so one cut covers both turns of that day. Cut again and it says you already harvested Godflesh today.  
