@@ -17,7 +17,7 @@ const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival, cavingHoldFor, cavingHeldIds } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG } = require("./constants");
-const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, STOWABLE_SLUGS } = require("./mounts");
+const { isMounted, isBoated, blocksOnFoot, boatCrossing, equippedSlugs, fastTravelCapacity, fastTravelBonus, STOWABLE_SLUGS } = require("./mounts");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
 const { linkBetween, crossingCheck } = require("./locationGraph");
@@ -202,7 +202,7 @@ function moveAllowance(character, config, crossing = null, partySize = 0) {
   // bonus to lose, so walking any number of people is free; an overloaded
   // horse is therefore never WORSE than legs, only no better.
   if (isMounted(active)) {
-    return { base, bonus: fitsMount(active, partySize) ? 1 : 0 };
+    return { base, bonus: fitsMount(active, partySize) ? fastTravelBonus(active) : 0 };
   }
   // A boat does the same, but only where the water goes. It does NOT cancel
   // lameness: you still have to get down to the bank.

@@ -519,7 +519,14 @@ function normalizeLaborBonus(entry, label = "docs/tags.yaml") {
   if (!Number.isInteger(amount) || amount === 0) {
     throw new Error(`${label}: laborBonus.amount must be a non-zero integer`);
   }
-  const requiresTag = entry.requiresTag == null ? null : String(entry.requiresTag);
+  // A string names one tag; an array names several, any ONE of which
+  // satisfies the tool (the Plow: a Horse or an Arelitz will both pull it).
+  const requiresTag =
+    entry.requiresTag == null
+      ? null
+      : Array.isArray(entry.requiresTag)
+        ? entry.requiresTag.map(String)
+        : String(entry.requiresTag);
   return { kind, amount, equipped: entry.equipped !== false, requiresTag };
 }
 
@@ -533,8 +540,14 @@ function validateLaborBonus(normalized, { selfSlug, tagSlugs, equippable, label 
       `${label}: "${selfSlug}" has a laborBonus that requires being equipped, but the tag is not equippable`,
     );
   }
-  if (normalized.requiresTag && !tagSlugs.has(normalized.requiresTag)) {
-    throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag names unknown tag "${normalized.requiresTag}"`);
+  const required = normalized.requiresTag == null ? [] : Array.isArray(normalized.requiresTag) ? normalized.requiresTag : [normalized.requiresTag];
+  if (required.length === 0 && Array.isArray(normalized.requiresTag)) {
+    throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag is an empty list`);
+  }
+  for (const slug of required) {
+    if (!tagSlugs.has(slug)) {
+      throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag names unknown tag "${slug}"`);
+    }
   }
 }
 

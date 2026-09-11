@@ -257,7 +257,10 @@ function toolsFor(ctx, tier) {
   const eligible = (ctx.tools ?? []).filter((tool) => {
     if (tool.kind !== tier) return false;
     if (tool.needsEquipped && !tool.equipped) return false;
-    if (tool.requiresTag && !ctx.tagSlugs.has(tool.requiresTag)) return false;
+    if (tool.requiresTag) {
+      const required = Array.isArray(tool.requiresTag) ? tool.requiresTag : [tool.requiresTag];
+      if (!required.some((slug) => ctx.tagSlugs.has(slug))) return false;
+    }
     return true;
   });
 

@@ -8749,7 +8749,13 @@ tags:
     group: assets-property
     description: "A framed instrument meant for tilling soil. While equipped with a {tag:horse}, Farming produces an additional 3 ⬢."
     pointCost: 5
-    laborBonus: { kind: farming, amount: 3, equipped: false, requiresTag: horse }
+    # An Arelitz (Warbeast) or (Thoroughbred) pulls a plow as well as a horse
+    # does. Not the Ovum — it hates moving, and the plow is nothing but.
+    laborBonus:
+      kind: farming
+      amount: 3
+      equipped: false
+      requiresTag: [horse, arelitz-warbeast, arelitz-thoroughbred]
     tradeable: true
     stackable: true
     visible: true

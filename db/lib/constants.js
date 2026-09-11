@@ -136,6 +136,17 @@ const TRUMPET_SLUG = "trumpet";
 // `equipped`), so stowing it indoors is not a way to skip the bill.
 const HORSE_SLUG = "horse";
 const HORSE_UPKEEP_COST = 1;
+// The Arelitz — horse-hybrids bred via db/lib/tagShapes.js's `keep`/`customOf`
+// recipes on docs/tags.yaml. Read by db/lib/arelitzLayPass.js (which of these
+// lay an egg, and how many) and by horseUpkeepPass.js below.
+const ARELITZ_WARBEAST_SLUG = "arelitz-warbeast";
+const ARELITZ_OVUM_SLUG = "arelitz-ovum";
+const ARELITZ_THOROUGHBRED_SLUG = "arelitz-thoroughbred";
+const ARELITZ_EGG_SLUG = "arelitz-egg";
+
+// The whole horse family, for horseUpkeepPass.js — every species eats, each
+// billed separately (its own header comment says why).
+const UPKEEP_SLUGS = [HORSE_SLUG, ARELITZ_WARBEAST_SLUG, ARELITZ_OVUM_SLUG, ARELITZ_THOROUGHBRED_SLUG];
 const HUMAN_FLESH_SLUG = "human-flesh";
 const ENGRAVE_RESOURCE_COST = 4;
 // How many turns a person's corpse stays fresh before it turns. Monster
@@ -275,6 +286,11 @@ module.exports = {
   TRUMPET_SLUG,
   HORSE_SLUG,
   HORSE_UPKEEP_COST,
+  UPKEEP_SLUGS,
+  ARELITZ_WARBEAST_SLUG,
+  ARELITZ_OVUM_SLUG,
+  ARELITZ_THOROUGHBRED_SLUG,
+  ARELITZ_EGG_SLUG,
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,
