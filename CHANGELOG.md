@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · A tag mentioned inside another tag is readable again on your sheet
+
+✎ Opening a tag on `/character` that mentions another tag (a wound's cure, a poison's antidote) now lets you hover that mention too, instead of showing dead text
+
 ## 2026-09-11 · Play your lute from the website too
 
 ✎ Playing an instrument now works from Chat, not just Discord — same cooldown and mood lift either way
