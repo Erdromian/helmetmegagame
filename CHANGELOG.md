@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The Censor can teach, and can lecture three at once
+
+✚ The Censor now starts with Teaching (Lecturing), so he can train up to three people on one Routine
+
 ## 2026-09-10 · Uploading your own picture works again
 
 ✎ It has been failing for almost everyone since the game opened. A photo over about a megabyte vanished on Save with no error at all — only two players ever got one through, both tiny files.  
