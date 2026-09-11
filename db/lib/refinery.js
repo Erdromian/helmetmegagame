@@ -194,6 +194,7 @@ async function revertRefinery(tx, characterId, snapshot) {
 
 module.exports = {
   REFINERY_YIELD,
+  REFINERY_OUTPUT_SLUG,
   isRefinery,
   loadRefineryStashes,
   refineryInputFor,

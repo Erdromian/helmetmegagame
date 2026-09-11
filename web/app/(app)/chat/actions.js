@@ -8,7 +8,7 @@ import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/li
 import { fileMove } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { resolveLaborRate } from "@lifeweb/db/lib/laborAccess";
+import { resolveLaborRate, REFINERY_NOTE } from "@lifeweb/db/lib/laborAccess";
 import { qualityWord } from "@lifeweb/db/lib/laborYield";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
@@ -1567,6 +1567,11 @@ export async function moveContext() {
     // Named, not summed: the number is the coefficient's cousin and stays out.
     tools: rate.ok ? (rate.tools ?? []).map((tool) => tool.name).filter(Boolean) : [],
     refusal: rate.ok ? null : (rate.reason ?? null),
+    // The Godard Factory floor, where a day pays in cubes and the four yield
+    // words above describe nothing (db/lib/refinery.js, FACTORY.md). The same
+    // sentence the DM gets afterwards, shared from db/lib so the two faces
+    // cannot drift. Null everywhere else, which is what the dialog branches on.
+    refining: rate.ok && rate.refinery ? REFINERY_NOTE : null,
   };
 }
 
