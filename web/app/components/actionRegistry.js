@@ -106,7 +106,7 @@ export const ACTION_HELP = {
   disarm:
     "Take the datacard out and stop the countdown. Safe again, and you can arm it as many times as you like.",
   extract:
-    "Cut Godflesh out of the marsh. Takes your turn, and you need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
+    "Cut Godflesh out of the marsh. Once a day, and it costs you no turn. You need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
   bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",

@@ -1,7 +1,9 @@
 // Spending a whole Move from a button (ADJUDICATION.md §2): one Action per
 // character per turn, filed by the same rules the modal uses. Bury, Engrave,
-// Extract, a build site, a Gambit heal and the Thanati's Recover Equipment all
-// want the turn to themselves and use these two. Crafting takes
+// a build site, a Gambit heal and the Thanati's Recover Equipment all want the
+// turn to themselves and use these two. (Extract used to be on that list; it
+// costs no Move since 2026-09-11 and carries its own once-a-day claim instead
+// — FACTORY.md §3.) Crafting takes
 // requestActions.js's resolveCraftMove instead, because a craft may cost a
 // FRACTION of the Move and share the rest with another craft.
 //

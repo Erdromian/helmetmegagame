@@ -6,6 +6,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { railKindSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
+import LockChip from "@/app/components/LockChip";
 import InboxPoller from "./InboxPoller";
 import LiveInboxPoller from "./LiveInboxPoller";
 import DeskInboxCounts from "./DeskInboxCounts";
@@ -242,6 +243,7 @@ export default async function PlayerDeskLayout({ children }) {
                 ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}`
                 : "No turn open"}
             </span>
+            <LockChip />
             <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
           </>
         }

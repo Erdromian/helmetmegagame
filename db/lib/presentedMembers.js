@@ -31,7 +31,7 @@ const {
   forcedNameFrom,
   presentedIdentity,
 } = require("./presentedIdentity");
-const { concealedAlias, withArticle } = require("./concealedIdentity");
+const { aliasRow } = require("./concealedIdentity");
 const { hoodToken } = require("./hoodToken");
 
 // The columns and tags presentedIdentity reads. whosHere's PRESENT_SELECT
@@ -118,10 +118,7 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
       return {
         characterId: null,
         token: hoodToken(person.id),
-        // "a young woman", the HERE column's own wording — the strip sits
-        // directly above it, and two spellings of one hood in a single
-        // viewport is worse than either.
-        name: withArticle((sighting?.name ?? concealedAlias(person)).toLowerCase()),
+        name: aliasRow(person, sighting?.name),
         avatarPath: seen ? face : null,
         avatarVersion: null,
         unknownFace: !seen || Boolean(sighting?.unknownFace),

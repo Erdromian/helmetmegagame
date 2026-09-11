@@ -175,6 +175,13 @@ const FeedRow = memo(function FeedRow({
   return (
     <li
       className="chat-row"
+      // Focusable by a tap, never by Tab: on a touch screen there is no
+      // hover, so the action bar shows for the row that was tapped
+      // (:focus-within, globals.css) — Discord's long-press, one gesture
+      // cheaper. -1 keeps the row out of the Tab order; the bar's own
+      // buttons are still reached by keyboard, and focusing one of them
+      // reveals the bar the same way.
+      tabIndex={showActions ? -1 : undefined}
       data-seq={row.seq ?? undefined}
       data-run={startsRun ? "start" : undefined}
       data-pending={row.pending ? "true" : undefined}

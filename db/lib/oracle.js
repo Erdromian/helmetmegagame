@@ -19,7 +19,7 @@
 
 const { complete } = require("./oracleClient");
 const { correspondentPrompt, editorPrompt, splitEditorReply } = require("./oraclePrompts");
-const { loadTurnMaterial, zoneBlock, linkCharacterTokens } = require("./oracleInput");
+const { loadTurnMaterial, zoneBlock, linkCharacterTokens, aggregatesSeenByZone } = require("./oracleInput");
 
 // Whether a run is even possible. Checked at RUN time rather than baked into
 // the side-effect payload, so enabling the Oracle between the advance and the
@@ -253,15 +253,40 @@ async function runOracle(prisma, { turnId, step, skipIfComplete = false }) {
 
   const material = await loadTurnMaterial(prisma, turn, { includeChat: config.oracleIncludeChat });
 
-  // Shared across the six calls so a once-per-turn line lands in one zone's
-  // input rather than all six. Sequential rather than parallel for the same
-  // reason: the set is only meaningful if the zones are built in order.
-  const aggregatesSeen = new Set();
-  for (const zone of zones) {
-    await step(`oracle:${zone.slug}`, () =>
-      runCorrespondent(prisma, { turn, zone, material, config, aggregatesSeen }),
-    );
-  }
+  // The six run AT ONCE. A page is one to five minutes of a small model writing
+  // at a few tokens a second, and six of those in a row put the chronicle on
+  // the desk a quarter of an hour into the three-hour window it is written to
+  // be read in. Together they cost about what the SLOWEST one costs. Measured
+  // on the same real turn, back to back: 818 seconds in a row, 240 at once.
+  //
+  // What used to make them sequential was a single mutable Set claiming the
+  // once-a-turn lines as it went. That claim is settled up front now
+  // (oracleInput.js#aggregatesSeenByZone) and each call gets its own Set, so
+  // the input is identical to what the in-order version built.
+  //
+  // allSettled rather than all: every zone is attempted whatever its
+  // neighbours do — the cutoff run's step() swallows anyway, and Run now's does
+  // not, so without this one early failure would quietly cost the five pages
+  // behind it. Six calls are already in flight by then; there is nothing left
+  // to stop, which is the one thing Run now's old "the first error stops the
+  // run" no longer means. It is still TOLD about the error — the reason comes
+  // back below — and the editor does not run over a set it cannot trust.
+  const seenByZone = aggregatesSeenByZone(material, zones);
+  const settled = await Promise.allSettled(
+    zones.map((zone) =>
+      step(`oracle:${zone.slug}`, () =>
+        runCorrespondent(prisma, {
+          turn,
+          zone,
+          material,
+          config,
+          aggregatesSeen: seenByZone.get(zone.id) ?? new Set(),
+        }),
+      ),
+    ),
+  );
+  const failed = settled.find((outcome) => outcome.status === "rejected");
+  if (failed) return { ran: false, reason: failed.reason?.message ?? String(failed.reason) };
 
   await step("oracle:editor", () =>
     runEditor(prisma, { turn, config, characters: material.characters }),

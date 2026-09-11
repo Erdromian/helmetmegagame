@@ -20,6 +20,8 @@
 // the result, and this decides only what happens. See
 // docs/systemdocs/FACTORY.md.
 
+const { turnDay } = require("./turnFormat");
+
 // Anything that can cut. The Chainsaw is also the only one that doubles the
 // yield, which is what a player is paying the Depot 154 ¢ for.
 const EXTRACT_TOOLS = ["chainsaw", "battle-axe", "hatchet"];
@@ -137,4 +139,30 @@ function extractionDm(result, { locationName = null } = {}) {
   return lines.join("\n");
 }
 
-module.exports = { GODFLESH_SLUG, extractToolFor, rollExtraction, extractionDm };
+// The cooldown. Extract used to cost the whole Move, so "once per turn" fell
+// out of the Action table's @@unique([characterId, turnId]). It costs no Move
+// now, so it carries its own claim: Character.extractDayKey, the in-game DAY,
+// the same token and the same trap as the Bird's (FACTORY.md §3, BIRD.md).
+//
+// A day is TWO turns. Keying this on the turn id would hand out two cuts a day
+// instead of the one the button promises.
+function extractDayKey(openTurn) {
+  return openTurn ? String(turnDay(openTurn)) : null;
+}
+
+// Read-side only, for greying the button. The WRITE side is the conditional
+// updateMany in extractGodfleshRequest, whose WHERE is the real check — this
+// predicate has read the row a moment ago and two tabs can both pass it.
+function extractedToday(character, openTurn) {
+  const key = extractDayKey(openTurn);
+  return Boolean(key && character?.extractDayKey === key);
+}
+
+module.exports = {
+  GODFLESH_SLUG,
+  extractToolFor,
+  rollExtraction,
+  extractionDm,
+  extractDayKey,
+  extractedToday,
+};

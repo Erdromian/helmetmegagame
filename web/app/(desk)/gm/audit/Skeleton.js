@@ -15,6 +15,10 @@ export default function Loading() {
         meta={
           <>
             <SkeletonBar width="6rem" height={20} />
+            {/* The lock chip's slot (LockChip.js) — the header is flex-wrap, so
+                a skeleton one chip short wraps to one line where the real one
+                takes two. */}
+            <SkeletonBar width="9rem" height={20} />
             <SkeletonBar width="8rem" height={20} />
           </>
         }

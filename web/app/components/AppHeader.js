@@ -3,6 +3,7 @@ import { getOpenTurn } from "@/lib/turn";
 import DeskHeader from "./DeskHeader";
 import { SkeletonBar } from "./PageShell";
 import TurnMeta from "./TurnMeta";
+import LockChip from "./LockChip";
 
 // The header every page wears.
 //
@@ -37,6 +38,9 @@ export default function AppHeader({ title, meta = null, actions = null }) {
           <Suspense fallback={<SkeletonBar width="11rem" height={22} />}>
             <TurnMeta turnPromise={turnPromise} />
           </Suspense>
+          {/* Outside the boundary: it awaits nothing on the server, it reads
+              the root layout's streamed cutoff from context. */}
+          <LockChip />
         </>
       }
       actions={actions}

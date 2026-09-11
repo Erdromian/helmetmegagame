@@ -6,6 +6,42 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The Oracle lands at the lock instead of a quarter hour into the window
+
+✎ The six zone pages are written at the same time rather than one after another  
+✎ It starts on the Moves lock itself, not two minutes after  
+✎ The Oracle's rail item is an eye
+
+## 2026-09-11 · You can whisper with a hood and hand it things, helmet on
+
+✚ Take a masked stranger aside: Converse from their row in Here, with them already ticked  
+✚ Let one into a conversation or a private room — the + Add button and /add list them as "a young man"  
+✚ Transfer sits on a hood's row too. It always reached them; the dropdown was the only way to find it  
+✎ Heal, Loot, Bind, Harm, Kiss, Teach and Confess call somebody by their forced name — a Beast was listed under the name underneath it  
+✎ Nothing about a mask leaks by being invited: the page is never told who is behind one, and the room hears "a young man was added"  
+✎ Discord is unchanged. /add there names a character by their role, and a hood has no role to name
+
+## 2026-09-11 · The action bar stops sitting on the words of a run
+
+✎ On a phone the Change / Take back / Look at buttons show only for the message you tap, instead of covering the second line of every run  
+✎ On a desktop the words keep clear of the bar that appears on hover
+
+## 2026-09-11 · The header says when Moves lock, in your own time
+
+✚ Every page header now carries a LOCK chip: the time Moves stop being accepted, in your own timezone, counting down in minutes  
+✚ It turns MOVES LOCKED once the window shuts, and says nothing at all when the clock is frozen or the turn is too short to have a cutoff  
+✎ The adjudication desk's own 'moves lock in 2h 14m' is gone — it wears the same chip as everybody else now
+
+## 2026-09-11 · Cutting Godflesh stops costing your turn
+
+✎ Extract has its own cooldown now: once per in-game day, so one cut covers both turns of that day. Cut again and it says you already harvested Godflesh today.  
+✎ Somebody who cuts and files nothing still gets their labor, so a cutting day now pays the Godflesh and a labor on top of it.  
+− The Move a cut used to spend. Nothing is filed on /gm/turns for one any more.
+
+## 2026-09-11 · The places drawer no longer covers its own rows on a phone
+
+✎ The chime, the tick and the app's links sit under the places instead of over them, and the links are two columns
+
 ## 2026-09-11 · Picking a picture no longer pretends it has been uploaded
 
 ✎ The note on the Browse button said your picture had been uploaded and a GM would review it. It said that before anything had been sent, and it stayed on screen while you chose a file — so people believed it, never pressed Save, and their picture never went anywhere. Two uploads landed in eleven days while players wrote in asking how long approval takes.  

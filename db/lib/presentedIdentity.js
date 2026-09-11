@@ -70,6 +70,21 @@ function forcedNameFrom(tags) {
   return null;
 }
 
+// What a roster row is CALLED, for a list that has already excluded hoods.
+//
+// The third hand-rolled copy of `forced ?? name` was in web/lib/peoplePools.js
+// and it did not exist: every action picker on /character printed
+// Character.name straight, so a Beast's real name reached Heal, Loot, Bind,
+// Harm, Kiss, Teach and Confess while whosHere() and Attack got it right. A
+// forced name is not concealment — a Beast is openly a Beast — so the row
+// keeps its real id and only the label changes.
+//
+// It does NOT handle a hood, deliberately: a list that can contain one wants
+// whosHere()'s two-list answer, not a name.
+function rosterName(row) {
+  return forcedNameFrom(row?.tags) ?? row?.name ?? null;
+}
+
 async function loadForcedName(prisma, characterId) {
   const held = await prisma.characterTag.findFirst({
     where: { characterId, tag: { forcedName: { not: null } } },
@@ -207,6 +222,7 @@ module.exports = {
   CONCEALMENT_TAG_FIELDS,
   wasHooded,
   forcedNameFrom,
+  rosterName,
   loadForcedName,
   concealmentFrom,
   loadConcealment,

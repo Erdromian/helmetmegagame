@@ -12,6 +12,7 @@ import {
   isDynastyMember,
   presentedIdentity,
   concealmentFrom,
+  rosterName,
   startingTagSlugs,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";
@@ -41,7 +42,7 @@ import {
   hasAttribute,
   GODFLESH_ATTRIBUTE,
 } from "@lifeweb/db/lib/locationAttributes";
-import { extractToolFor } from "@lifeweb/db/lib/godflesh";
+import { extractToolFor, extractedToday } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
@@ -670,11 +671,19 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // leaks the way the metagaming rule in actionRegistry.js guards against.
   const canSeeExtract = hasAttribute(character.location, GODFLESH_ATTRIBUTE);
   const extractTool = canSeeExtract ? extractToolFor(character.tags) : null;
-  const canExtract = Boolean(extractTool);
-  const extractBlocked =
-    canSeeExtract && !canExtract
-      ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
-      : null;
+  // Extract costs no Move, so its cooldown is its own: once per in-game day,
+  // claimed on Character.extractDayKey (FACTORY.md §3). Greyed with the reason
+  // rather than hidden — unlike the marsh tile, having already cut today is a
+  // fact this character obviously knows.
+  const cutAlready = canSeeExtract && extractedToday(character, openTurn);
+  const canExtract = Boolean(extractTool) && !cutAlready;
+  const extractBlocked = !canSeeExtract
+    ? null
+    : cutAlready
+      ? "You already harvested Godflesh today."
+      : !extractTool
+        ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
+        : null;
   const canSeePackage = await hasEquipmentInReach(
     prisma,
     character,
@@ -1072,9 +1081,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     id: character.id,
     tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
   };
+  // rosterName, not c.name: a forced name is what a lesson offer should be
+  // addressed to, the same as every other picker (web/lib/peoplePools.js).
   const hereForLessons = here.map((c) => ({
     id: c.id,
-    name: c.name,
+    name: rosterName(c),
     tags: c.tags,
   }));
   const teachers = hereForLessons
@@ -1107,7 +1118,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // them everybody's addictions before they had agreed to hear a word.
   const confessors = here
     .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
-    .map((c) => ({ id: c.id, name: c.name }));
+    .map((c) => ({ id: c.id, name: rosterName(c) }));
   // Guilt Ridden can't bring themself to confess at all — see
   // db/lib/confession.js#confessableTags, mirrored here so the Confess
   // button hides itself instead of failing on click.

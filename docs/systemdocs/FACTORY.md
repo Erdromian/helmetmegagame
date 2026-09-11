@@ -28,9 +28,16 @@ marsh tile  --Extract-->  Godflesh  --labor at the Factory-->  8 Squeeze
                                      --cart-->  the Depot  -->  obols
 ```
 
-Every step is somebody's whole turn. A refugee alternates Extract and refine,
-so about half their days are producing days — which is where the
-"2.5 producing turns in 5" in §6 comes from.
+Every step after the first is somebody's whole turn. **Extract is not** — it
+costs no Move and runs on its own once-a-day cooldown (§3), so cutting and
+working your day are two separate things. A refugee still alternates cutting
+and refining in practice, because a lump has to exist before there is anything
+to refine, which is where the "2.5 producing turns in 5" in §6 comes from.
+
+One consequence, and it is intended rather than an oversight: a refugee who
+cuts and files nothing is **also auto-labored**, and every marsh tile carries a
+`yield:` block (`hunting: 1.0, fishing: 1.0`). So a cutting day now pays the
+Godflesh *and* a labor on top of it.
 
 ## 3. Extract
 
@@ -41,9 +48,16 @@ The server action is `extractGodfleshRequest` in
 - **Where.** Any Location carrying the `godflesh: true` attribute: the five
   open Marshes and the marsh Village. The attribute is the match, so no tile is named by
   slug anywhere in code (`db/lib/locationAttributes.js`).
-- **What it costs.** The turn's Routine, filed through `fileAutoRoutine` like
-  Craft, Bury and Engrave. Once per turn falls out of
-  `@@unique([characterId, turnId])` rather than a counter.
+- **What it costs.** Nothing. No Move, no Action row, and the move lock is not
+  consulted — cut before the deadline or after it. It used to spend the turn's
+  Routine through `fileAutoRoutine`, which is where "once per turn" came from
+  for free; since 2026-09-11 it carries its own cooldown instead.
+- **How often.** Once per in-game **day** — two turns, so one cut covers both.
+  `Character.extractDayKey` holds the claim, written by a conditional
+  `updateMany` whose WHERE is the check, exactly the shape the Bird's
+  `birdTurnId` has (`BIRD.md`). The refusal is *"You already harvested Godflesh
+  today."*, and the button greys with that sentence rather than hiding — where
+  you are standing is worth hiding, having already cut today is not.
 - **What you need.** A `hatchet`, `battle-axe` or `chainsaw` **equipped**. A
   blade in a sack cuts nothing, the same rule armour follows at the turret.
 - **The roll.** 1d6, DM'd whatever it says. Yield is 1, or **2** with a
@@ -69,9 +83,10 @@ lost hand is nearly always somebody who took them off. That is the intended
 reading, and it is why the DM says which column you were in.
 
 Extract also refuses while Bound, Dying, Paralyzed or Catatonic — or mid
-Seizure, which is the one it exists for. `requireFreeMove` checks only the turn
-and the one-Action rule, so without that gate a man on the floor could wade
-into the marsh with an axe.
+Seizure, which is the one it exists for. That gate matters more now, not less:
+the day claim cares about the calendar and nothing else, and there is no Move
+check left behind it, so without `blockerFor(..., ACT)` a man on the floor could
+wade into the marsh with an axe.
 
 The button **hides** off a marsh tile rather than greying. That is not a breach
 of the metagaming rule in `web/app/components/actionRegistry.js` — that rule
@@ -346,5 +361,6 @@ about a trough.
 | Stupid's garble | `db/lib/babble.js`, `bot/src/lib/proxy.js` |
 | Damaged Vision → Blind | `db/lib/visionDecayPass.js` |
 | Spillway | `db/lib/parties.js`, `resourceTransfer.js`, `web/lib/tagEffects.js` |
+| The once-a-day claim | `extractDayKey` / `extractedToday` in `db/lib/godflesh.js`, `Character.extractDayKey` |
 | Constants | `PACKAGING_EQUIPMENT_SLUG`, `PACKAGE_MAX_LBS`, `PACKAGE_LABEL_MAX` in `db/lib/constants.js` |
 | Geography, roles, papers | `docs/zones.yaml`, `docs/roles.yaml`, `docs/documents.yaml` |

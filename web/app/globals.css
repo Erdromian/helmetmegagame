@@ -1729,6 +1729,19 @@ input[type="radio"]:disabled {
   letter-spacing: normal;
 }
 
+/* The one bad-news tone a chip may wear: Overburdened, Dying, Catatonic, a
+   carry line over its cap, and Moves being locked. It was scoped to Chat's own
+   column so it could not leak into the chips the rest of the app draws — but
+   the header now wants the same tone for the same meaning (LockChip.js), and
+   two rules saying "bad" differently is how "bad" ended up drawn with --accent
+   in some tables and --danger in others. One rule, one meaning. `danger` is the
+   chips' word for it; .status-pill says `bad`, and a third spelling would not
+   help anybody. */
+.chip[data-tone="danger"] {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 /* A slash command a player is meant to TYPE ({cmd:play}). Not a .chip: a chip
    is a bubble naming a thing in the game, and a command is literal text you
    copy. It gets the mono face and a hairline so it reads as something to be
@@ -6142,6 +6155,25 @@ label.chip {
   flex: 1;
 }
 
+/* Where a pointer can hover, the words stop short of the right edge so the
+   action bar that floats there on hover never sits on them — Discord's
+   messages carry the same right indent for the same toolbar. A run's second
+   line has no name row to put the bar over, so without this it landed on
+   the sentence itself. Not on a touch screen: the bar only shows for a
+   tapped row there, and the width is worth more than the clearance. */
+@media (hover: hover) {
+  .chat-row-body {
+    padding-right: 8rem;
+  }
+}
+
+/* A tapped row (tabIndex -1) takes focus so its bar can show; the ring that
+   would draw around a whole message is not wanted, and :focus-visible never
+   fires for a tap anyway. */
+.chat-row:focus {
+  outline: none;
+}
+
 .chat-row-head {
   display: flex;
   align-items: baseline;
@@ -6208,7 +6240,10 @@ label.chip {
 .chat-row-actions {
   position: absolute;
   right: var(--sp-2);
-  top: -10px;
+  /* Astride the row's top edge — half in the gap above, half over the
+     row's own right-hand indent (.chat-row-body's padding-right) — so it
+     belongs visibly to this line and covers no words of it. */
+  top: -12px;
   z-index: 1;
   display: flex;
   gap: var(--sp-1);
@@ -6232,13 +6267,10 @@ label.chip {
   pointer-events: auto;
 }
 
-/* No hover on a touch screen, so the bar is simply always there. */
-@media (pointer: coarse) {
-  .chat-row-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
+/* No hover on a touch screen. The bar used to be simply always there, and
+   on a phone that was three buttons sitting on the words of every second
+   line of a run. Now it shows for the row that was TAPPED (the row takes
+   focus, Feed.js) and goes again when the next tap lands somewhere else. */
 
 /* Discord's red line: everything below it arrived since you last had this
    place open. A rule with its label at the right-hand end, where the eye
@@ -6264,6 +6296,11 @@ label.chip {
    is to say WHICH line, not to leave it marked. */
 .chat-row[data-run="start"] {
   margin-top: var(--sp-3);
+}
+
+/* Lines within a run sit tight — the same speaker, moments apart. */
+.chat-row:not([data-run="start"]) {
+  margin-top: 2px;
 }
 
 /* A pending row is the same row, quieter. */
@@ -6874,14 +6911,6 @@ label.chip {
   font-family: inherit;
 }
 
-/* The one bad-news tone, scoped to this column so it cannot leak into the
-   chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
-   carry line over its cap. */
-.chat-chips .chip[data-tone="danger"] {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
 /* The load bar under those chips (play/StatusStrip.js). It is the SHEET's own
    meter — .depot-meter / .depot-meter-fill, the same pair the Carrying tile
    draws — so only its spacing is redefined here: it sits under a chip row
@@ -7098,9 +7127,21 @@ label.chip {
   padding-top: var(--sp-2);
 }
 
-/* The tail's sticky background is the drawer's surface here, not the page. */
+/* In the drawer the MODAL is the scroller, so a sticky tail would pin to
+   the drawer's bottom edge and the place rows would scroll under it — which
+   is exactly what happened on the first phone it met: Bascinet's row half
+   behind the foot's border. Static here: the tail flows after the list and
+   the whole drawer scrolls as one, the way the bottom bar's More sheet
+   does. The desktop column keeps the sticky, where the column itself
+   scrolls and a GM's 278 rooms would put the foot 8,000px down. */
 .chat-drawer .chat-places-tail {
+  position: static;
+  margin-top: 0;
   background: var(--surface-raised);
+}
+
+.chat-drawer .chat-places {
+  padding-bottom: var(--sp-3);
 }
 
 /* A person row is a real tap target inside the drawer. */
@@ -7121,11 +7162,18 @@ label.chip {
   border-top: 0;
 }
 
+/* Two columns, so eight rows of links are four rows of the drawer and the
+   places above them keep most of it. */
 .chat-drawer-nav {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 2px;
   padding-top: var(--sp-2);
+}
+
+.chat-drawer-nav .nav-sheet-item {
+  padding-inline: var(--sp-2);
+  min-height: 44px;
 }
 
 /* ---- The ladder. Three widths above the phone, one breakpoint each:

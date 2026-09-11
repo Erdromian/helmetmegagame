@@ -166,8 +166,9 @@ export async function runOracleNow(turnNumber = null) {
   // No ledger here — Run now is a person waiting on a button, so a failure is
   // TOLD to them rather than swallowed and left for a resume. That is the whole
   // difference from the turn path: the pass-through step below deliberately
-  // does not catch, so the first provider error stops the run and surfaces,
-  // instead of writing five good pages and one silent hole.
+  // does not catch, so a provider error surfaces instead of leaving five good
+  // pages and one silent hole. It no longer STOPS anything — the six zones run
+  // at once, so the others are already written by the time one of them fails.
   let result;
   try {
     result = await runOracle(prisma, { turnId: turn.id, step: (_key, fn) => fn() });

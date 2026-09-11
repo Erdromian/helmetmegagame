@@ -31,6 +31,22 @@ export function untilLabel(closesAt, now) {
   return `closes in ${Math.max(1, Math.round(ms / 60_000))} m`;
 }
 
+// "2h 14m" / "14m" — how long until Moves lock, for the chip every header
+// wears (web/app/components/LockChip.js). Null once the moment has passed, so
+// the caller switches to saying it is locked rather than printing a zero.
+//
+// The arithmetic is /gm/turns' own formatCountdown, deliberately: two readings
+// of one clock in one header must not round differently. The last minute floors
+// to 1m rather than 0m, because a countdown that reads zero while the Move
+// button still works says the wrong thing.
+export function lockCountdown(ms) {
+  if (ms == null || ms <= 0) return null;
+  const minutes = Math.max(1, Math.round(ms / 60_000));
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
 export function describeTurn(turn) {
   if (!turn) return { day: null, phase: null, label: "NO TURN OPEN" };
   const day = Math.ceil(turn.number / 2);

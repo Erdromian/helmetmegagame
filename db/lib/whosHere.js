@@ -13,7 +13,7 @@
 // with NO role — a Role is as identifying as a name — and never in the
 // concealed list, even if Character.concealed is still on underneath.
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
-const { concealedAlias, withArticle } = require("./concealedIdentity");
+const { aliasRow } = require("./concealedIdentity");
 const { isUnaffiliated } = require("./factionConstants");
 const { lastSightings } = require("./sightings");
 // The hood handle moved to its own leaf so presentedMembers.js can mint one
@@ -39,6 +39,56 @@ const PRESENT_SELECT = {
   },
 };
 
+// The one place "is this person hidden from this viewer" is decided. Every
+// readout below and resolveHoodToken all read it rather than asking again:
+// two copies of the rule means a hood one list offers and another refuses,
+// which is exactly the bug resolveHoodToken carried.
+//
+// `sightings` is a caller's own lastSightings Map, for one that has already
+// paid for it — db/lib/presentedMembers.js takes it the same way. Without one,
+// `withSightings` decides whether to go and ask.
+async function presentRows(
+  prisma,
+  viewer,
+  { locationId, includeSelf = true, withSightings = false, sightings = null } = {},
+) {
+  const where = locationId ?? viewer?.locationId ?? null;
+  if (!where) return [];
+
+  const present = await prisma.character.findMany({
+    where: { status: "ALIVE", locationId: where },
+    select: PRESENT_SELECT,
+    orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+  });
+
+  // Sightings first, because they decide which list somebody lands in. A
+  // caller holding one already passes it rather than paying for a second
+  // identical answer — the same posture db/lib/presentedMembers.js takes.
+  const seenBy = sightings ?? (withSightings ? await lastSightings(prisma, viewer) : new Map());
+
+  // Concealed the same way the proxy decides it, not straight off the column:
+  // a row still flagged concealed after the mask came off is speaking under
+  // its own name, and listing it here as a stranger would be a lie the room
+  // can check.
+  return present
+    .filter((c) => includeSelf || c.id !== viewer?.id)
+    .map((c) => {
+      const piece = concealmentFrom(c.tags);
+      const forced = forcedNameFrom(c.tags);
+      const live = Boolean(piece && (piece.forced || c.concealed));
+      const self = c.id === viewer?.id;
+      // You have always seen yourself. Nobody should have to speak to learn
+      // what they look like.
+      const sighting = self ? null : (seenBy.get(c.id) ?? null);
+      const seen = self || Boolean(sighting);
+      // A forced name is not hiding (PROXYING.md §5), so it never moves lists —
+      // and it is the one identity a sighting cannot speak for, since say.js
+      // writes a Beast's own name into concealedAlias beside a hood's.
+      const hidden = forced ? false : sighting ? sighting.concealed : live;
+      return { ...c, forced, hidden, seen, sighting, self, livePiece: piece };
+    });
+}
+
 // `viewer` needs { id?, factionId, locationId } — an id is only used to keep
 // the looker out of their own list, which the Discord readout never did and
 // the web column wants (you are not one of the strangers in the room).
@@ -60,40 +110,8 @@ const PRESENT_SELECT = {
 // decided by the identity you actually hold, not by what is over their face at
 // this instant. A hood put on after you heard them speak does not protect them
 // from you until the turn rolls.
-async function whosHere(prisma, viewer, { locationId, includeSelf = true, withSightings = false } = {}) {
-  const where = locationId ?? viewer?.locationId ?? null;
-  if (!where) return { named: [], concealed: [] };
-
-  const present = await prisma.character.findMany({
-    where: { status: "ALIVE", locationId: where },
-    select: PRESENT_SELECT,
-    orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-  });
-
-  // Sightings first, because they decide which list somebody lands in.
-  const sightings = withSightings ? await lastSightings(prisma, viewer) : new Map();
-
-  // Concealed the same way the proxy decides it, not straight off the column:
-  // a row still flagged concealed after the mask came off is speaking under
-  // its own name, and listing it here as a stranger would be a lie the room
-  // can check.
-  const rows = present
-    .filter((c) => includeSelf || c.id !== viewer?.id)
-    .map((c) => {
-      const piece = concealmentFrom(c.tags);
-      const forced = forcedNameFrom(c.tags);
-      const live = Boolean(piece && (piece.forced || c.concealed));
-      const self = c.id === viewer?.id;
-      // You have always seen yourself. Nobody should have to speak to learn
-      // what they look like.
-      const sighting = self ? null : (sightings.get(c.id) ?? null);
-      const seen = self || Boolean(sighting);
-      // A forced name is not hiding (PROXYING.md §5), so it never moves lists —
-      // and it is the one identity a sighting cannot speak for, since say.js
-      // writes a Beast's own name into concealedAlias beside a hood's.
-      const hidden = forced ? false : sighting ? sighting.concealed : live;
-      return { ...c, forced, hidden, seen, sighting, self, livePiece: piece };
-    });
+async function whosHere(prisma, viewer, { withHoodIds = false, ...options } = {}) {
+  const rows = await presentRows(prisma, viewer, options);
 
   const named = rows
     .filter((c) => !c.hidden || c.forced)
@@ -135,12 +153,7 @@ async function whosHere(prisma, viewer, { locationId, includeSelf = true, withSi
         ? presentedIdentity(c, { concealment: c.livePiece }).avatarPath
         : (c.sighting?.avatarPath ?? null);
       return {
-        // The column's own styling either way. ArchiveEntry.concealedAlias is
-        // frozen Title Case ("Young Person"), because it is a NAME on a line;
-        // a row in a list of who is standing here is a description, and reads
-        // "a young person". Taking the frozen string raw made the same hood
-        // change wording the moment you heard it speak.
-        alias: withArticle((c.sighting?.name ?? concealedAlias(c)).toLowerCase()),
+        alias: aliasRow(c, c.sighting?.name),
         token: hoodToken(c.id),
         avatarPath: c.seen ? face : null,
         unknownFace: !c.seen || Boolean(c.sighting?.unknownFace),
@@ -149,7 +162,20 @@ async function whosHere(prisma, viewer, { locationId, includeSelf = true, withSi
       };
     });
 
-  return { named, concealed };
+  // SERVER-ONLY, and opt-in so it cannot be shipped by accident: token -> the
+  // character id behind it, for a caller that has to filter hoods by id before
+  // deciding which to offer. placeMembers() is the one — it drops anybody
+  // already in the conversation, and anybody holding a key to the room.
+  //
+  // A sibling key rather than an id on the concealed rows themselves, because
+  // those rows go straight to a browser and /api/avatar/<id> answers with a
+  // face: shipping one IS the unmasking, whatever the page chooses to draw.
+  if (!withHoodIds) return { named, concealed };
+  const hoodIds = new Map();
+  for (const c of rows) {
+    if (c.hidden && !c.forced) hoodIds.set(hoodToken(c.id), c.id);
+  }
+  return { named, concealed, hoodIds };
 }
 
 // The other half of the token: which concealed character standing at the
@@ -157,18 +183,25 @@ async function whosHere(prisma, viewer, { locationId, includeSelf = true, withSi
 // actually there right now, so a token minted in a room somebody has since
 // left resolves to nothing — the co-presence rule is the gate, exactly as it
 // is for looking at anyone else.
-async function resolveHoodToken(prisma, viewer, token) {
+//
+// It reads presentRows() rather than deciding for itself, and that is the
+// whole point. It used to answer off the LIVE row alone while every list that
+// mints a token answers off the sighting, and the two disagree in a case
+// players reach easily: somebody speaks from under a helmet and then takes it
+// off. Your sighting still says hooded, so they are in `concealed` and the
+// dropdown offers them — and this said no, because there is nothing over
+// their face now. The result was a person standing in front of you, listed in
+// HERE, that Transfer answered "Unknown recipient." about. One rule, one
+// place, and the mismatch cannot come back.
+//
+// `sightings` is a caller's own Map, for one that already has it.
+async function resolveHoodToken(prisma, viewer, token, { sightings = null } = {}) {
   if (!token || !viewer?.locationId) return null;
   // No key, no answer — the same reason hoodToken() above mints none.
   if (!process.env.AUTH_SECRET) return null;
-  const present = await prisma.character.findMany({
-    where: { status: "ALIVE", locationId: viewer.locationId },
-    select: { id: true, concealed: true, tags: PRESENT_SELECT.tags },
-  });
-  for (const c of present) {
-    const piece = concealmentFrom(c.tags);
-    if (!piece || !(piece.forced || c.concealed)) continue;
-    if (forcedNameFrom(c.tags)) continue;
+  const rows = await presentRows(prisma, viewer, { withSightings: true, sightings });
+  for (const c of rows) {
+    if (!c.hidden || c.forced) continue;
     if (hoodToken(c.id) === token) return c.id;
   }
   return null;

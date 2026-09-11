@@ -22,6 +22,7 @@ import {
   SpeakerIcon,
   PlayIcon,
   MapIcon,
+  EyeIcon,
 } from "./icons";
 import RailLinkPending from "./RailLinkPending";
 import { signOutOfDiscord } from "../actions";
@@ -42,6 +43,7 @@ export const ICONS = {
   messages: MessageIcon,
   notes: NotesIcon,
   documents: DocumentsIcon,
+  oracle: EyeIcon,
   archive: ArchiveIcon,
   lifeweb: LifewebIcon,
   help: HelpIcon,

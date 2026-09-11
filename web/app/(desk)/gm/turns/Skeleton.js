@@ -19,6 +19,8 @@ export default function Loading() {
         meta={
           <>
             <SkeletonBar width="7rem" height={22} />
+            {/* The lock chip's slot — see LockChip.js and the note above. */}
+            <SkeletonBar width="9rem" height={22} />
             <SkeletonBar width="5rem" height={22} />
             <SkeletonBar width="4rem" height={16} />
           </>

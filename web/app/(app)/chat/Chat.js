@@ -389,9 +389,9 @@ export default function Chat({
   // row can say why nothing happened — a menu row that failed used to be
   // answered by the list not changing, and nothing else.
   const onAddMember = useCallback(
-    (characterId) => {
-      if (!selectedKey || !characterId) return Promise.resolve({ ok: false, error: "That place is gone." });
-      return addMember(selectedKey, characterId)
+    (ref) => {
+      if (!selectedKey || !ref) return Promise.resolve({ ok: false, error: "That place is gone." });
+      return addMember(selectedKey, ref)
         .then((res) => {
           if (res?.ok) bumpPlaces();
           return res ?? { ok: false, error: "Something went wrong." };

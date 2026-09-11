@@ -118,14 +118,17 @@ export function usePlaceActions(initialAffordances, onChanged) {
   // it is a corner you take somebody into, so the place to ask for one is
   // beside the somebody.
   //
-  // `person` is whoever's row it was opened from — {id, name} — so the dialog
-  // opens with them already ticked. The place card's own Converse passes
-  // nothing, and so does a hood's, which has no id to tick.
+  // `person` is whoever's row it was opened from — { ref, name } — so the
+  // dialog opens with them already ticked. `ref` is a character id, or
+  // "hood:<token>" for somebody standing there in a mask: taking a stranger
+  // aside is a thing you can do without knowing their name, and having to ask
+  // them to lift the helmet first is the disguise undone. The place card's
+  // own Converse passes nothing.
   const openConverse = useCallback(
     (person = null) => {
       setError(null);
       setNotice(null);
-      setDialog({ kind: "converse", entry: null, person: person?.id ? person : null });
+      setDialog({ kind: "converse", entry: null, person: person?.ref ? person : null });
     },
     [setError],
   );
@@ -321,7 +324,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
               ))}
             </Select>
           </div>
-          {person?.id && (
+          {person?.ref && (
             <div className="chip-row" role="group" aria-label="Who comes with you">
               <button
                 type="button"
@@ -352,7 +355,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
               className="btn"
               disabled={!roomId || !name.trim() || pending}
               onClick={() =>
-                run(openConversation, { roomId, name, inviteIds: invited && person?.id ? [person.id] : [] }, {
+                run(openConversation, { roomId, name, inviteRefs: invited && person?.ref ? [person.ref] : [] }, {
                   onOk: (res) => {
                     onDone(res);
                     onClose();

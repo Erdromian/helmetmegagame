@@ -15,6 +15,7 @@ import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import DeskHeader from "@/app/components/DeskHeader";
+import LockChip from "@/app/components/LockChip";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import usePins from "@/app/components/usePins";
@@ -55,17 +56,6 @@ function formatCountdown(minutes) {
   const m = minutes % 60;
   if (h <= 0) return `Push in ${m}m`;
   return `Push in ${h}h ${m}m`;
-}
-
-// The last stretch of a turn, when players can no longer send a Move
-// (TURN-ENGINE.md, db/lib/turnClock.js#moveWindow). Absent when auto-advance
-// is off or the turn is too short to carry a cutoff.
-function formatMoveLock(cutoffAtMs, nowMs) {
-  const mins = Math.round((cutoffAtMs - nowMs) / 60_000);
-  if (mins <= 0) return "moves locked";
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h <= 0 ? `moves lock in ${m}m` : `moves lock in ${h}h ${m}m`;
 }
 
 // Selection is mirrored into the URL as /gm/turns/<type>/<id>, so a refresh
@@ -167,7 +157,6 @@ export default function Workspace({
   stagedEffects,
   stagedMessages,
   gmProfiles,
-  moveLock,
   deployVersion,
 }) {
   const [desk, setDesk] = useSessionState(DESK_STORAGE_KEY, DESK_STORAGE_DEFAULT);
@@ -543,8 +532,9 @@ export default function Workspace({
   // below instead.
   const lastRefreshedAt = useGatedRefreshPoll(REFRESH_MS, deployVersion);
 
-  // Countdown to the nightly CT push, ticking every 30s. The move cutoff rides
-  // the same tick.
+  // Countdown to the nightly CT push, ticking every 30s. The Move cutoff used to
+  // ride this tick too; it is LockChip's now, in every header rather than only
+  // this one.
   const [nowMs, setNowMs] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 30_000);
@@ -564,10 +554,10 @@ export default function Workspace({
             <span className="chip">
               {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
             </span>
+            <LockChip />
             <span className="chip chip-quiet">{solvedCount}/{moves.length} solved</span>
             <span className="text-xs text-muted" title="Push fires at midnight CT">
               {formatCountdown(pushMinutes)}
-              {moveLock ? ` · ${formatMoveLock(moveLock.cutoffAtMs, nowMs)}` : ""}
             </span>
             {lastRefreshedAt && (
               <span className="text-xs text-muted">
