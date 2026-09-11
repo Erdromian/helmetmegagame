@@ -2285,7 +2285,7 @@ tags:
     category: general
     group: general-personality
     psychological: true
-    description: "You want the next thing before the last one has finished. Your Desire slots take no rest between claims."
+    description: "Your Desire slots don't have a cooldown."
     pointCost: 13
     visible: false
     purchasable: true
