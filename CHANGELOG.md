@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Opening a conversation stops asking Discord twice
+
+✎ The desk was fetching the whole server member list twice over to draw one conversation — once for names, once for GM faces — on two separate caches that expired at different moments. It reads it once now. This was the slowest thing on the page, and the reason opening somebody sometimes hung for seconds with no pattern to it.  
+✎ The audit log and the turn desk were doing the same thing, so they get quicker too.
+
 ## 2026-09-11 · The message desk hears a reply the moment it lands
 
 ✎ A player's reply now appears on the Players desk by itself — in the rail and in the open conversation — instead of waiting for the desk to go and ask. It arrives in a fraction of a second.  
