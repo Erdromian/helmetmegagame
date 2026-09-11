@@ -680,6 +680,53 @@ input[type="radio"]:focus-visible,
   padding: 7px 14px;
 }
 
+/* A long dialog's own sections — the staging composer chief among it, which
+   is six unrelated zones (targets, numbers, staged tag changes, what they
+   already hold, the catalog, the footer) in one 46rem panel. Unheaded they ran
+   together as one column of controls and the only landmark was a bare
+   .field-label two thirds of the way down. A rule and a heading per zone give
+   the panel a spine to scan; nothing here is a new colour or a new box. */
+.composer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+/* The first group opens the panel, so it needs neither the rule nor the air —
+   the sticky .modal-header is already its top edge. */
+.composer-group:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Same type as .field-label, because that is exactly what it is: the label for
+   a group of fields rather than for one. */
+.composer-group-title {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* The footer of a dialog long enough to scroll. Same trick .modal-header uses
+   at the other end — the panel is one scroll box, so this bleeds back out of
+   its padding and sticks flush to the bottom edge. Opt-in: a short dialog does
+   not want its two buttons detached from the thing they act on, and the
+   ≤640px bottom-sheet rule already sticks EVERY .modal-actions, so this only
+   has to cover the desktop case. */
+.modal-actions--sticky {
+  position: sticky;
+  bottom: calc(var(--sp-4) * -1);
+  z-index: 2;
+  margin: var(--sp-4) calc(var(--sp-4) * -1) calc(var(--sp-4) * -1);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border);
+}
+
 /* ---- The Move dialog ----------------------------------------------------
    Filing a Move is the one irreversible thing a player does in a day, so the
    dialog carries three things a bare textarea never did: what the ground here
@@ -2573,6 +2620,17 @@ input[type="radio"]:disabled {
 .table-scroll {
   max-height: var(--list-h);
   overflow: auto;
+  /* The containing block for anything absolutely positioned inside the table,
+     which in practice means every `.sr-only` label a row draws (they are
+     `position: absolute`). Without it their containing block is the nearest
+     positioned ancestor — `.app-shell` — so they are laid out at the row's
+     full-table offset and escape this scroller's clip entirely. On /gm/players
+     that gave a 44-row roster a 2228px document inside a 950px desk, and the
+     whole desk scrolled off the top of the window: the one thing a desk shell
+     promises it will never do. Costs nothing anywhere else — the sticky thead
+     below is unaffected, and a scroll container is where an abspos descendant
+     wanted to be anchored in the first place. */
+  position: relative;
 }
 
 /* The same frame for a list that isn't a table — the /notes card board. Only

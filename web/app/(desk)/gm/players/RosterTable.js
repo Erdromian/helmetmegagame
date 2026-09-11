@@ -5,7 +5,7 @@ import { noteActionVersion } from "@/app/components/useDeskVersion";
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
-import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
+import StatusPill, { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import MatchHint from "@/app/components/MatchHint";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -20,8 +20,7 @@ import { filterTagsByQuery, sortForMode, tagsById as buildTagsById } from "@/lib
 // bulkTagCharacters stays in (app) — it is shared GM plumbing, not this
 // desk's own, so it keeps its home rather than following the table here.
 import { bulkTagCharacters } from "@/app/(app)/gm/actions";
-import { sendGmBroadcast } from "./actions";
-import useSubmitOnEnter from "@/app/components/useSubmitOnEnter";
+import BulkComposer from "./BulkComposer";
 import { inVisibleZones } from "@/lib/zones";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 
@@ -35,7 +34,13 @@ import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 // Bulk zone moves stay a superadmin verb on /gm/dev, so a button for it here
 // would fail for most of the people looking at it.
 
-const COL_COUNT = 13;
+// Eleven: the checkbox, nine columns of fact, and one Flags cell. Cursed,
+// Catatonic and Acted used to be three columns of their own, each holding a
+// word or a dash — three column-widths spent saying "no" about nearly every
+// row. Folded into one cell of chips they cost nothing when empty and read as
+// a set when they are not, and the table stopped needing a permanent
+// horizontal scroll to reach Resources.
+const COL_COUNT = 11;
 
 // The key "zone" means the zone SEAT — the zone their faction is keyed to —
 // because that is what every other GM surface means by Zone and what a GM's
@@ -45,12 +50,24 @@ const COL_COUNT = 13;
 // so "Cursed" doesn't vanish from the dropdown just because nobody's cursed
 // this turn. Zone/Standing in/Faction stay derived from the loaded rows,
 // since those legitimately vary game to game.
+// Acted is a FILTER rather than a sortable column now that it lives in the
+// Flags cell. That is the better control for the question it answers — "who
+// still hasn't moved" wants the other forty rows gone, not pushed to page two
+// — and it only exists while a turn is open, since with none there is nothing
+// to have acted in.
 const FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (c) => c.factionZoneName },
   { key: "locationZone", label: "Standing in", value: (c) => c.zoneName },
   { key: "faction", label: "Faction", value: (c) => c.factionName },
   { key: "status", label: "Status", value: (c) => c.status, options: ["ALIVE", "DEAD", "CURSED"] },
 ];
+
+const ACTED_FILTER = {
+  key: "acted",
+  label: "Acted",
+  value: (c) => (c.acted ? "Acted" : "Not acted"),
+  options: ["Acted", "Not acted"],
+};
 
 // scoreMatch fields. Both zone concepts (faction seat and where they're
 // physically standing) share the one "zone" slot the fuzzy engine has —
@@ -91,14 +108,15 @@ export default function RosterTable({
   const [selected, setSelected] = useState(new Set());
   const [composerOpen, setComposerOpen] = useState(false);
   const [tagBarOpen, setTagBarOpen] = useState(false);
-  const [composerError, setComposerError] = useState(null);
-  const [sending, startSending] = useTransition();
   // { characterId, name } of the Dev Panel currently open as a modal over
   // this desk, or null. Mirrors the adjudication desk's Workspace.js —
   // opening it never leaves /gm/players or resets the roster's filters.
   const [devPanel, setDevPanel] = useState(null);
 
-  const filterDefs = useMemo(() => FILTER_DEFS, []);
+  const filterDefs = useMemo(
+    () => (hasOpenTurn ? [...FILTER_DEFS, ACTED_FILTER] : FILTER_DEFS),
+    [hasOpenTurn],
+  );
   // The prop is only the seed — see PlayerRail.
   const zonesInView = useVisibleZoneNames(visibleZoneNames);
   // The zones this GM chose to see (null = all). Not a default filter — rows
@@ -133,8 +151,6 @@ export default function RosterTable({
     searchMap: searchMapFor,
     initialSort: { key: "name", dir: "asc" },
   });
-
-  const onComposerKeyDown = useSubmitOnEnter();
 
   // A FactionLink clicked from the Players tab routes here rather than to
   // /faction — switch to the Factions tab and highlight the row, instead of
@@ -193,14 +209,18 @@ export default function RosterTable({
             options={options}
             query={query}
             setQuery={setQuery}
-            searchLabel="Search players"
+            /* "Filter roster", not "Search players": the rail beside this one
+               already owns the word Search ("Search inbox"), and this box does
+               not reach past the rows on screen the way that one does. Two
+               boxes, two verbs. */
+            searchLabel="Filter roster"
             searchPlaceholder="name, role, faction, zone, @handle…"
           >
             <button
               type="button"
               className="btn"
               disabled={selected.size === 0}
-              onClick={() => setComposerOpen((open) => !open)}
+              onClick={() => setComposerOpen(true)}
             >
               Message selected ({selected.size})
             </button>
@@ -231,45 +251,20 @@ export default function RosterTable({
             />
           )}
 
-          {composerOpen && selected.size > 0 && (
-            <form
-              className="panel flex flex-col gap-3 p-4"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const message = new FormData(e.currentTarget).get("message")?.toString().trim();
-                if (!message) return;
-                setComposerError(null);
-                startSending(async () => {
-                  const res = noteActionVersion(await sendGmBroadcast({ characterIds: [...selected], message }));
-                  if (!res.ok) {
-                    setComposerError(res.error);
-                    return;
-                  }
-                  setComposerOpen(false);
-                  setSelected(new Set());
-                });
-              }}
-            >
-              <label className="field">
-                <span className="field-label">
-                  Message ({selected.size} recipient{selected.size === 1 ? "" : "s"}, sent from
-                  Bascinet)
-                </span>
-                {/* No maxLength: this is an uncontrolled form field, and a cap
-                    here silently truncated a long paste. Over the cap,
-                    sendGmBroadcast rejects and the error shows below. */}
-                <textarea name="message" rows={3} required onKeyDown={onComposerKeyDown} />
-              </label>
-              <FormError>{composerError}</FormError>
-              <button type="submit" className="btn self-start" disabled={sending}>
-                {sending ? "Sending…" : "Send"}
-              </button>
-            </form>
-          )}
+          {/* Ten columns plus the checkbox, down from thirteen. 1050px is the
+              width at which no row wraps to a second line with a real roster
+              in it — measured, not guessed: below about 1000px the names start
+              breaking over two lines and every row grows, which costs more
+              vertical room than the horizontal scroll ever cost. It is still a
+              long way down from 1230px.
 
-          {/* Thirteen columns. Without a minWidth they compress to one word
-              per line at 375px instead of scrolling inside the frame. */}
-          <TableScroll minWidth="1230px">
+              It does NOT fit the desk's middle column at 1440 (694px of room),
+              so the frame keeps its horizontal scroll. Folding the three flag
+              columns cut how far you have to push it from about 535px to about
+              355px — better, not solved. Making it fit outright means dropping
+              a column somebody asked for or narrowing the inspector, and
+              neither is this batch's call. */}
+          <TableScroll minWidth="1050px">
             <thead>
               <tr>
                 <th scope="col" className="col-fit">
@@ -287,9 +282,7 @@ export default function RosterTable({
                 <SortHeader label="Faction" sortKey="factionName" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Standing in" sortKey="zoneName" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Status" sortKey="status" sort={sort} onSort={toggleSort} />
-                <th scope="col">Cursed</th>
-                <th scope="col">Catatonic</th>
-                <SortHeader label="Acted" sortKey="acted" sort={sort} onSort={toggleSort} />
+                <th scope="col">Flags</th>
                 <SortHeader label="Tags" sortKey="tagCount" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Resources" sortKey="resources" sort={sort} onSort={toggleSort} />
               </tr>
@@ -351,19 +344,26 @@ export default function RosterTable({
                   <td>
                     <EnumPill map={CHARACTER_STATUS} value={c.status} />
                   </td>
-                  <td style={{ color: c.cursed ? "var(--accent-text)" : "var(--muted)" }}>
-                    {c.cursed ? "Cursed" : "-"}
-                  </td>
-                  {/* AFK, from the catatonic tag — the auto-granted marker
-                      (db/lib/catatonicPass.js), not a CharacterStatus. */}
-                  <td style={{ color: c.catatonic ? "var(--accent-text)" : "var(--muted)" }}>
-                    {c.catatonic ? "Catatonic" : "-"}
-                  </td>
-                  <td
-                    className="mono"
-                    style={{ color: c.acted ? "var(--positive)" : "var(--muted)" }}
-                  >
-                    {!hasOpenTurn ? "-" : c.acted ? "yes" : "no"}
+                  {/* Three states that are nearly always absent, in one cell.
+                      Catatonic is AFK, from the auto-granted catatonic tag
+                      (db/lib/catatonicPass.js), not a CharacterStatus. "Not
+                      acted" is the only one drawn for its ABSENCE, because
+                      absence is the thing a GM is hunting in the back half of
+                      a turn; with no turn open there is nothing to say. */}
+                  <td>
+                    <div className="flex flex-wrap items-center gap-1">
+                      {c.cursed && <StatusPill tone="bad">Cursed</StatusPill>}
+                      {c.catatonic && <StatusPill tone="warn">Catatonic</StatusPill>}
+                      {hasOpenTurn &&
+                        (c.acted ? (
+                          <StatusPill tone="good">Acted</StatusPill>
+                        ) : (
+                          <StatusPill tone="warn">Not acted</StatusPill>
+                        ))}
+                      {!c.cursed && !c.catatonic && !hasOpenTurn && (
+                        <span className="text-muted">-</span>
+                      )}
+                    </div>
                   </td>
                   <td className="mono">{c.tagCount}</td>
                   <td className="mono">{c.resources} ⬢</td>
@@ -382,6 +382,20 @@ export default function RosterTable({
 
           <Pager page={page} totalPages={totalPages} total={total} unit="players" onPage={setPage} />
         </>
+      )}
+
+      {/* One bulk-message UI on this desk, not two. "Message selected" used
+          to unfold its own inline panel with a bare textarea — no recipient
+          list you could edit, no character count, no zone/faction shortcuts —
+          beside a BulkComposer that already had all four and was reachable
+          from the desk header. Same modal now, opened with the roster's
+          selection already ticked. */}
+      {composerOpen && (
+        <BulkComposer
+          characters={inView}
+          initialSelectedIds={[...selected]}
+          onClose={() => setComposerOpen(false)}
+        />
       )}
 
       {devPanel && (

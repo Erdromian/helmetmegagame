@@ -1,18 +1,19 @@
 import Link from "next/link";
 
-// Shared nav for the three PageShell sub-pages this sits above — characters,
-// factions, tags — plus a link back to the desk-style /gm/dev. The Dev Panel's
-// own OpsNav.js links to these three the other way ((desk)/gm/dev/OpsNav.js's
-// "Elsewhere" group), so this is what makes the trip back symmetric.
+import { DEV_PAGES } from "@/lib/devNav";
+
+// The nav for the three PageShell sub-pages this sits above — characters,
+// factions, tags — plus a link back to the desk-style /gm/dev.
+//
+// It and the Dev Panel's own OpsNav "Elsewhere" group are one navigation now:
+// both read DEV_PAGES from web/lib/devNav.js, which is the single list of
+// where /gm/dev can take you. They stay two renderers because the two shells
+// are genuinely different shapes — a vertical rail inside the desk, a
+// horizontal row in a page header — but neither owns the destinations any more.
 //
 // No "use client": a leaf of plain <Link>s, so every server-component
 // sub-page can render it without joining a client bundle.
-const ITEMS = [
-  { key: "panel", href: "/gm/dev", label: "Dev Panel" },
-  { key: "characters", href: "/gm/dev/characters", label: "Characters" },
-  { key: "factions", href: "/gm/dev/factions", label: "Factions" },
-  { key: "tags", href: "/gm/dev/tags", label: "Tags" },
-];
+const ITEMS = DEV_PAGES;
 
 export default function DevSubNav({ current }) {
   return (

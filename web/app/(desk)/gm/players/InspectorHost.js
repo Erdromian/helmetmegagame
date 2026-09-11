@@ -225,10 +225,11 @@ export default function InspectorHost({
         tabPreludes={tabPreludes}
         extraTabs={extraTabs}
         pinsActions={pinsActions}
+        lookup={false}
         customTag={customTag}
         requestedTab={tabRequest}
         emptyStanding={standing}
-        emptyHint="Pick somebody in the rail, or look them up above, to keep their sheet beside the conversation."
+        emptyHint="Pick somebody in the rail to keep their sheet beside the conversation."
         footer={<GmZoneRail zones={selectableZones} selectedIds={visibleZoneIds} />}
       />
 

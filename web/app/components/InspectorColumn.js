@@ -605,6 +605,14 @@ export default function InspectorColumn({
   extraTabs = {},
   // Buttons that belong beside the pins (the player desk's "Message pinned").
   pinsActions = null,
+  // Whether the column draws its own "Look up a character…" box above the
+  // pins. On /gm/turns and /gm/oracle it is the only way to reach somebody who
+  // is not in the rail or on the page, so it stays. The player desk turns it
+  // off: its rail IS the roster, reaches every character, and searches message
+  // text besides — so the box was the fourth search field on one screen, and
+  // the weakest of the four. `roster` is still passed there, because the
+  // column reads the inspected person's handle and role out of it.
+  lookup = true,
   emptyHint,
   // What the desk stands at, for the column with nobody picked: a list of
   // { label, value, tone? }. Seventy per cent of a three-column desk was a
@@ -670,7 +678,7 @@ export default function InspectorColumn({
           Close inspector
         </button>
       </div>
-      {roster && <InspectorSearch roster={roster} onInspect={onInspect} />}
+      {lookup && roster && <InspectorSearch roster={roster} onInspect={onInspect} />}
       {(pinned.length > 0 || pinsActions) && (
         <div className="desk-inspector-pins">
           {pinned.map((p) => (

@@ -486,9 +486,15 @@ instance is a change to the hub, not a slider.
   one a GM scrolls past. So a row still has **no desk**: clicking it, or `⏎`,
   opens the inspector on the person being held, and so does clicking any name
   in the strip. Each live pairing carries a ✕ that calls that one fight off.
-- **History lens** — the same rail over any turn, the open one included,
-  picked from a Turn dropdown above the filters (the open turn first, marked
-  `· open`, then the resolved ones newest first). A GM used to have to go to
+- **History lens** — the same rail over any turn, the open one included.
+  Its two parameters sit on **one line of selects** above the filters —
+  **Showing** (Moves or Caving) and **Turn** (the open turn first, marked
+  `· open`, then the resolved ones newest first). The kind used to be a second
+  `.segmented` stacked directly under the lens segmented: same control, same
+  width, two of the same four words, eight pixels apart, so the pair read as
+  one eight-button control with nothing saying which row meant what. The lens
+  picks the lens; inside History, kind is a parameter of the view exactly the
+  way the turn is, so it is drawn the way the turn is. A GM used to have to go to
   `/gm/audit` to see what somebody did last turn. Nothing is loaded with the
   page: for a **resolved** turn the lens fetches on demand
   (`actions.js#getMoveHistory`) and caches it for the page view, so the open
@@ -505,13 +511,21 @@ instance is a change to the hub, not a slider.
   (`appliedEffects`), the Result, and everything that was sent on it. No lock,
   no composers, no Solve, no Reject — but a staged row the push never carried
   keeps its Edit/Delete, and a failed delivery keeps its Resend, because those
-  are the two things about a past turn that can still need doing. A
-  **Moves / Caving** switch beside the Turn picker (`historyKind`) reads back
+  are the two things about a past turn that can still need doing. Setting
+  **Showing** to Caving (`historyKind`) reads back
   that turn's Caving Die rolls instead, mapped by the same `cavingRollRow`
   the live Caving lens uses and opening a **read-only `CavingDesk`** — see
   `CAVING.md` §5.
 - **Desk** — the selected item. For a Move: situation, dice, declared
-  numbers, the Result box, everything staged on it, and the three composers.
+  numbers, the Result box, everything staged on it, and the three composers. The
+  **effect composer** is the longest dialog on the desk, so it is drawn as
+  headed, ruled-off groups — Targets, What it does to them, Tag changes, Their
+  tags, Add from the catalog — with a **sticky footer** carrying Cancel and
+  Stage it. Unheaded, six unrelated zones ran together as one column of
+  controls whose only landmark was a bare field label two thirds down, and with
+  a tag catalog open the two buttons sat a full screen below the fields. The
+  Tag changes group only renders once there is a change to show; a headed,
+  ruled-off group holding nothing reads as a bug.
   Every button derives from `moveReviewStatus`, never from a display label or
   a lock: **Save · Solve · Reject** on an open Move, **Save · Reopen ·
   Reject** once it's Solved — Save stays live on a Solved Move (it edits

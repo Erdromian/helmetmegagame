@@ -207,9 +207,22 @@ silently on load, instead of surviving as a pin to nothing.
 
 ## 4. The roster
 
-Everything the old table had, plus the columns a GM actually asks about
-mid-turn: **Acted this turn** and **tag count**. A **Catatonic** column sits
-beside Cursed, same shape (word or dash), computed from the `catatonic-afk` tag
+Everything the old table had, plus what a GM actually asks about
+mid-turn: **Acted this turn** and **tag count**.
+
+**Eleven columns, not thirteen.** Cursed, Catatonic and Acted used to be three
+columns of their own, each holding a word or a dash about a state nearly every
+row does not have; they are one **Flags** cell of `StatusPill`s now. Empty they
+cost nothing, and only "Not acted" is drawn for its *absence*, because absence
+is what a GM hunts in the back half of a turn. Acted stopped being a sortable
+column in the fold and became a **filter** instead, which is the better control
+for that question anyway — it wants the other forty rows gone, not pushed to
+page two — and it only appears while a turn is open. The table still does not
+fit the middle column at 1440 (about 930px of content against 694px of room)
+and keeps its horizontal scroll, but the fold cut the push from roughly 535px
+to 235px.
+
+Catatonic is computed from the `catatonic-afk` tag
 rows the page already loads — the same AFK state the rail avatars mark with
 a muted dot (`CharacterAvatar`'s `catatonic` prop; see `TAGS.md` §7 for
 every surface the tag reaches). Since the guild-leave rework, a Catatonic
@@ -224,18 +237,36 @@ Two bulk verbs, both GM-safe:
 
 | Verb | Action | Lives in |
 |---|---|---|
-| Message selected | `sendGmBroadcast` | this desk's `actions.js` (sequential, never a fan-out) |
+| Message selected | `sendGmBroadcast`, through `BulkComposer` | this desk's `actions.js` (sequential, never a fan-out) |
 | Tag / untag selected | `bulkTagCharacters` | `(app)/gm/actions.js` (one transaction **per character**) |
 
-`BulkComposer` — the same modal, over the whole living roster with
-zone/faction bulk-check — has two more doors: **Bulk message** in the desk
-header, reachable from the rail where the roster's checkboxes are not, and
-**Message pinned** in the inspector's pin row, which opens it prefilled with
-the pinned characters. It was a finished component nothing imported until
-then.
+**There is one bulk-message UI, and it is `BulkComposer`.** "Message selected"
+used to unfold its own inline panel under the filter bar — a bare textarea with
+no editable recipient list, no character count and no zone/faction shortcuts —
+beside a `BulkComposer` that had all four. Same modal now, opened with the
+roster's ticked rows already in it (`initialSelectedIds`) and still fully
+editable afterwards, so picking rows in the table and then adding a whole zone
+is one flow rather than two products.
 
-**"Why this row matched" has one form across all three surfaces** — the rail,
-this roster and the inspector's lookup box (`MatchHint.js`): a muted
+It has three doors, all the same component: the roster's **Message selected**,
+**Bulk message** in the desk header (reachable from the rail, where the
+roster's checkboxes are not), and **Message pinned** in the inspector's pin
+row.
+
+**Two search boxes on this desk, not four.** The rail's is **Search inbox** —
+it reaches every character *and* message text. The roster's is **Filter roster**
+— it only narrows the rows on screen, and is labelled for what it does rather
+than borrowing the rail's verb. The inspector's own "Look up a character…" box
+is **off here** (`InspectorColumn`'s `lookup={false}`): the rail already reaches
+anybody, so it was the fourth search field on one screen and the weakest of
+them. The inspector still gets `roster`, because it reads the inspected
+person's handle and role out of it, and it keeps its **pins row**. `/gm/turns`
+and `/gm/oracle` keep the box — there the rail is Moves or zones, not people,
+so it is the only way to reach somebody.
+
+**"Why this row matched" has one form across the surfaces that have one** — the
+rail, this roster and (on the other desks) the inspector's lookup box
+(`MatchHint.js`): a muted
 `· <what matched>` suffix, the value where the row has one (the role title,
 the faction, the matched tag names) and the field's own word where it does
 not. A name hit says nothing, because the name is already the biggest thing on
@@ -244,7 +275,9 @@ a different dot, and the value with no dot at all.
 
 **The inspector with nobody picked shows where the desk stands** — unread,
 awaiting a reply, conversations, pinned, muted — instead of seventy per cent
-of a column holding one sentence of advice. The advice is still underneath it.
+of a column holding one sentence of advice. The advice is still underneath it,
+and now says to pick somebody **in the rail** rather than pointing at a lookup
+box this desk no longer draws.
 The adjudication desk fills the same slot with its own turn's standing
 (`InspectorColumn.js`'s `emptyStanding`).
 

@@ -523,6 +523,23 @@ float over a desk shell (same reason no desk carries one — `DESIGN-SYSTEM.md`
 §6). The server actions and the other sections (`characters/`, `factions/`,
 `tags/`) stay in `(app)/gm/dev/`, since only the top page needed to move.
 
+**One navigation, two renderers.** Because of that split there are two shells
+and each needs a nav: `OpsNav.js`, a vertical rail of sections inside the desk,
+and `DevSubNav.js`, a horizontal row in the `AppHeader` of the three PageShell
+sub-pages. Two renderers is a layout fact — the rail would look wrong in a page
+header — but the *destinations* are not: both read `DEV_PAGES` from
+`web/lib/devNav.js`, which is the single list of where `/gm/dev` can take you.
+`OpsNav` draws it as its fourth group ("Elsewhere", minus the panel you are
+already on); `DevSubNav` draws the whole list, panel included, as the way back.
+Each used to keep its own hand-written copy of the other's links, so adding or
+renaming a sub-page meant editing two files and, in practice, forgetting one.
+
+**`/gm/dev/threats` is a redirect, not a page.** The threat surfaces are two
+*sections* of this panel (`?s=assignments`, `?s=antagonists` — `THREATS.md`
+§1); the `threats/` folder holds only their tables, which the panel imports.
+It had no `page.js`, so every link written to the obvious-looking
+`/gm/dev/threats` 404'd. It now redirects to `/gm/dev?s=assignments`.
+
 ### 11a. Two tiers, one table
 
 The panel is **not** superadmin-only. It has two tiers, and the line between

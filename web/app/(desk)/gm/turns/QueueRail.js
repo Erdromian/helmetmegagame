@@ -904,24 +904,26 @@ export default function QueueRail({
               historyIsCaving ? "name, @handle, tag:…" : "name, role, @handle, zone:…"
             }
             header={
-              <div className="flex flex-col gap-2">
-                <div className="segmented" role="group" aria-label="History kind">
-                  <button
-                    type="button"
-                    aria-pressed={historyKind !== "caving"}
-                    onClick={() => onHistoryKind?.("moves")}
+              /* Two selects on one line: WHAT of WHICH turn. The kind used to
+                 be a second .segmented stacked directly under the lens
+                 segmented above — the same control, the same width, the same
+                 two of its four words ("Moves", "Caving"), eight pixels apart,
+                 and a GM reading down the rail hit the pair as one eight-button
+                 control with no way to tell which row meant what. The lens
+                 chooses the lens; inside History, kind is a parameter of the
+                 view like the turn is, so it is drawn like the turn is. */
+              <div className="desk-rail-filter-line">
+                <label className="field min-w-0" style={{ flex: "1 1 7rem" }}>
+                  <span className="field-label">Showing</span>
+                  <Select
+                    value={historyKind === "caving" ? "caving" : "moves"}
+                    onChange={(e) => onHistoryKind?.(e.target.value)}
                   >
-                    Moves
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={historyKind === "caving"}
-                    onClick={() => onHistoryKind?.("caving")}
-                  >
-                    Caving
-                  </button>
-                </div>
-                <label className="field">
+                    <option value="moves">Moves</option>
+                    <option value="caving">Caving</option>
+                  </Select>
+                </label>
+                <label className="field min-w-0" style={{ flex: "1 1 7rem" }}>
                   <span className="field-label">Turn</span>
                   <Select
                     value={historyTurnId ?? ""}

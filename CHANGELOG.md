@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Fewer boxes doing the same job on the GM desks
+
+✎ The Players desk has two search boxes instead of four: Search inbox on the rail and Filter roster on the roster  
+✎ One bulk-message form, wherever you start it from — the roster's Message selected now opens the same composer as the header  
+✎ The roster's Cursed, Catatonic and Acted columns fold into one Flags cell, and Acted becomes a filter  
+✎ The Players page no longer grows a phantom page scroll under the roster  
+✎ The History lens picks what it shows and which turn on one line  
+✎ The effect composer is grouped under headings with its buttons pinned at the bottom  
+✎ The Oracle header says when the chronicle was last written  
+✎ /gm/dev/threats links land on the assignments section instead of a 404
+
 ## 2026-09-11 · The GM desks read top to bottom
 
 ✎ The Move desk now puts the Result box front and centre, with the header's four look-alike buttons folded into one menu  
