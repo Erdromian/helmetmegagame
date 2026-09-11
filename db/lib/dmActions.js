@@ -37,6 +37,10 @@ const DM_ACTION = Object.freeze({
   // and it replaced that button on an ambusher's DM, because an ambush is an
   // attack now and breaking one off has to unpick BOTH holds rather than one.
   ATTACK_HOLD: "ATTACK_HOLD",
+  // A tax filed against you (docs/tags.yaml's `taxman` description,
+  // db/lib/tax.js). A pending row, like OFFER — but only one answer exists,
+  // the LOBBY_SEAT shape: there is no Accept, doing nothing IS the accept.
+  PENDING_TAX: "PENDING_TAX",
 });
 
 // The two answers. Every family reads as one of these, even where Discord
@@ -60,6 +64,7 @@ const DM_ACTION_LABELS = Object.freeze({
   // One button, and it is the accept — the LOBBY_SEAT shape, the other way up.
   [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
   [DM_ACTION.ATTACK_HOLD]: { accept: "Cancel attack", decline: null },
+  [DM_ACTION.PENDING_TAX]: { accept: null, decline: "Refuse" },
 });
 
 // The descriptor a sendDm call site spreads into `meta`. `variant` is optional

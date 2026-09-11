@@ -48,6 +48,7 @@ const { runHorseUpkeepPass } = require("./lib/horseUpkeepPass");
 const { runAutoLaborPass } = require("./lib/autoLaborPass");
 const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
+const { runTaxPass } = require("./lib/taxPass");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runLessonPass } = require("./lib/lessonPass");
 const { runResearchPass } = require("./lib/researchPass");
@@ -230,6 +231,12 @@ const TURN_PASSES = [
   "research",
   "confessions",
   "stagedPush",
+  // What a filed tax collects (db/lib/taxPass.js). Right after stagedPush
+  // (a GM's own adjudication outranks a player verb) and before
+  // horseUpkeep/hunger — a tax is the same kind of levy, and can push
+  // someone into Hunger, matching horseUpkeepPass.js's own "the animal eats
+  // before the rider does."
+  "tax",
   "tagExpiry",
   // Counts Damaged Vision stacks and turns 5 of them into Blind. After
   // tagExpiry so a stack that grew this turn is counted, before the sweep so
@@ -498,6 +505,29 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Staged push audit log failed:", err));
+  }
+
+  // What a filed tax collects (db/lib/taxPass.js). See TURN_PASSES's own
+  // comment on "tax" above for why it sits exactly here.
+  if (!done.has("tax")) {
+    const taxed = await runTaxPass(prisma, turn).catch(async (err) => {
+      await passFailed("Tax", err);
+      return null;
+    });
+    if (taxed) {
+      await markDone("tax");
+      if (taxed.applied > 0 || taxed.skipped > 0) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "taxes_collected",
+              details: taxed,
+            },
+          })
+          .catch((err) => console.error("Tax audit log failed:", err));
+      }
+    }
   }
 
   // The caving release (db/lib/cavingPass.js). Directly after the staged push,

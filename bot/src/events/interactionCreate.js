@@ -157,6 +157,8 @@ const {
 } = require("../lib/noticeboardPanel");
 const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
 const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
+const { PENDING_TAX_DECLINE_PREFIX } = require("@lifeweb/db/lib/tax");
+const { handleTaxDecline } = require("../lib/tax");
 const {
   THREAT_SPAWN_ACCEPT_PREFIX,
   THREAT_SPAWN_DECLINE_PREFIX,
@@ -2118,6 +2120,14 @@ module.exports = {
           return void (await handleThreatSpawnDecline(
             interaction,
             interaction.customId.slice(THREAT_SPAWN_DECLINE_PREFIX.length),
+          ));
+        }
+        // Arrives in a DM on a tax (docs/tags.yaml's `taxman` description), so
+        // guild/member are null.
+        if (interaction.customId.startsWith(PENDING_TAX_DECLINE_PREFIX)) {
+          return void (await handleTaxDecline(
+            interaction,
+            interaction.customId.slice(PENDING_TAX_DECLINE_PREFIX.length),
           ));
         }
         // Arrives in a DM on an assignment (docs/systemdocs/LOBBY.md §4), so
