@@ -7,7 +7,7 @@ import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
-import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
+import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
 import { isTradeable } from "@/lib/tagRequests";
 import {
   TAG_CHIP_FIELDS,
@@ -34,21 +34,6 @@ import {
   satisfiedSkillIds,
   HEAL_SKILL_SELECT,
 } from "@/lib/healRequests";
-
-// What a roster row is CALLED, for every picker built off peopleHere().
-//
-// A forced name (Tag.forcedName, Apex Form -> "Beast") outranks the column,
-// and until now nothing here knew that: hereWhere() drops a hood, so these
-// lists were treated as safe and printed Character.name straight — which
-// handed a Beast's real name to Heal, Loot, Bind, Harm, Kiss and Teach while
-// whosHere() and Attack got it right. A forced name is not concealment, so
-// the row keeps its real id; only the label changes.
-//
-// A hood never reaches here at all. Transfer is the one picker that offers
-// one, and its whole list comes from whosHere() instead.
-export function rosterName(row) {
-  return forcedNameFrom(row?.tags) ?? row?.name ?? null;
-}
 
 // Everything the PEOPLE dialogs need — Look at, Heal, Transfer's recipient
 // list, Loot, Bind, Free, Harm, Move Player — built once for whichever

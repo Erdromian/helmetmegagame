@@ -45,14 +45,9 @@ import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 // is forked: this is the same Heal dialog, the same Loot dialog, the same
 // server actions.
 //
-// A HOOD GETS A SHORTER MENU, NOT A DIFFERENT ONE. Three things you can
-// plainly do to a stranger whose name you do not know: hand them something,
-// take them aside, and let them through a door. A hood hides WHO somebody is,
-// not THAT they are standing there (db/lib/presence.js), and a masked rider
-// who had to take the helmet off to be handed a toll or invited into a corner
-// was not wearing one. Everything else stays off: healing, looting, binding,
-// freeing, harming and kissing all act on an identity rather than on a body
-// in the room, and the server refuses them on a hood anyway.
+// A HOOD GETS A SHORTER MENU, NOT A DIFFERENT ONE: hand them something, take
+// them aside, let them through a door. `PROXYING.md` §5 has the rule and the
+// reason the other six are absent.
 //
 // A hooded row carries no character id — /api/avatar/<id> answers with a
 // face, so shipping one is the unmasking. What it carries is the hood token
@@ -100,7 +95,10 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
     [open, onClose, person],
   );
 
-  const entries = PEOPLE_ACTIONS.filter((entry) => !person.hooded || entry.hoodPrefix);
+  // A hood with no token is a hood there is nothing to act ON — hoodToken
+  // mints none without an AUTH_SECRET. Converse below still works, because it
+  // can open with nobody ticked; everything else needs a handle.
+  const entries = PEOPLE_ACTIONS.filter((entry) => (person.hooded ? entry.hoodPrefix && person.ref : true));
 
   return (
     <div className="chat-menu" role="menu" aria-label={person.name}>
@@ -117,7 +115,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
           OPEN in the feed. Only offered where there is a door to open — a
           Location, the zone summary and a public room have none — and the
           server re-checks that this character may work it. */}
-      {addPlace && onAddMember && (
+      {addPlace && onAddMember && person.ref && (
         <ActionButton
           variant="menu"
           label={`Add to ${addPlace.name}`}
@@ -135,9 +133,8 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
             onClose();
             // Opened ON this person, so the dialog has them ticked already —
             // asking for a corner with somebody and then having to name them
-            // again was the same answer typed twice. A hood is ticked the
-            // same way, under "hood:<token>"; openConversation resolves it.
-            onConverse({ ref: person.hooded ? `hood:${person.ref}` : person.ref, name: person.name });
+            // again was the same answer typed twice.
+            onConverse({ ref: person.ref, name: person.name });
           }}
         />
       )}
@@ -188,7 +185,6 @@ export default function HereList({
   // the action's { ok, error }; this is where the sentence is shown, under
   // the list the row was on.
   const [addError, setAddError] = useState(null);
-  // A character id for somebody named, a hood token for somebody in one.
   const addAndReport = useCallback(
     (ref) => {
       if (!onAddMember) return;
@@ -320,11 +316,10 @@ export default function HereList({
             )}
           </div>
           {/* The same menu the named rows get, filtered to what you can do
-              to somebody you cannot name. No token — no AUTH_SECRET to mint
-              one with — means nothing to act on, so no menu at all. */}
-          {openId === `hooded-${index}` && person.token && (
+              to somebody you cannot name. */}
+          {openId === `hooded-${index}` && (
             <PersonMenu
-              person={{ ref: person.token, name: person.alias, hooded: true }}
+              person={{ ref: person.token ?? null, name: person.alias, hooded: true }}
               onClose={close}
               onConverse={onConverse}
               addPlace={addPlace}

@@ -388,12 +388,19 @@ anywhere else, and a stale one resolves to nothing. The id never crosses the
 wire, because `/api/avatar/<id>` takes an id and answers with a face — shipping
 one IS the unmasking, whatever the page chooses to draw.
 
-`hoodsHere()` beside `whosHere()` is the server-only list that carries the ids,
-for the one caller that has to filter on them before minting a handle —
-`placeMembers`, which drops anybody already in the place or holding a key to
-the room. It is built from the same rows `whosHere`'s
-`concealed` half is, so the picker and the HERE column can never disagree about
-who is hidden — `db/test/whosHere.test.js` asserts exactly that.
+`whosHere(..., { withHoodIds: true })` adds a server-only `hoodIds` map —
+token to character id — for the one caller that has to filter hoods by id
+before offering them (`placeMembers`, dropping anybody already in the place).
+A sibling key rather than an id on the rows, because those rows go straight to
+a browser.
+
+**One function decides who is hidden**, `presentRows` in the same file, and
+`resolveHoodToken` reads it too. It did not, and that was a bug players could
+reach: the lists judge by your **sighting** (what you last heard somebody
+called), the resolver judged by the **live** row, and the two disagree the
+moment a hood takes the helmet off. You would see "a young man" in the
+dropdown, hand him a coin, and be told "Unknown recipient." about a man
+standing in front of you. `db/test/whosHere.test.js` pins both halves.
 
 Before this, a rider who spent the game masked had to take the helmet off to be
 invited into a conversation or handed a toll, which is the whole disguise

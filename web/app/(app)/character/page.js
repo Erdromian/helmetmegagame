@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { loadPeoplePools, loadStashRooms, rosterName } from "@/lib/peoplePools";
+import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import {
   LESSON_CATALOG_SELECT,
@@ -12,6 +12,7 @@ import {
   isDynastyMember,
   presentedIdentity,
   concealmentFrom,
+  rosterName,
   startingTagSlugs,
   normalizeAntagonistSlugs,
 } from "@lifeweb/db";

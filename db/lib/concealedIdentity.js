@@ -62,6 +62,19 @@ function capitalizeFirst(text) {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+// "a young woman" — the alias as a row in a list of who is standing here.
+// A description rather than a name, so it is lower-cased and takes an
+// article, and it prefers what a viewer LAST HEARD this person called
+// (db/lib/sightings.js) over what they would be called right now: a hood put
+// on after you heard them speak does not change what you know.
+//
+// Shared by whosHere's concealed column and presentedMembers' strip, which
+// sit inches apart on /chat — two spellings of one hood in a single viewport
+// is worse than either.
+function aliasRow(character, sightingName = null) {
+  return withArticle((sightingName ?? concealedAlias(character ?? {})).toLowerCase());
+}
+
 // "An old woman", ready to start a sentence.
 function aliasSubject(character) {
   return capitalizeFirst(withArticle(concealedAlias(character ?? {}).toLowerCase()));
@@ -90,6 +103,7 @@ module.exports = {
   genderWord,
   withArticle,
   capitalizeFirst,
+  aliasRow,
   aliasSubject,
   isConcealedAlias,
 };

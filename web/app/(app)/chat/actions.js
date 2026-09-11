@@ -15,7 +15,7 @@ import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { resolveDmActions } from "@/lib/dmActions";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
-import { whosHere, hoodsHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
+import { whosHere, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
@@ -1145,8 +1145,14 @@ export async function converseRooms() {
   return { ok: true, rooms: open.map((r) => ({ id: r.id, name: r.name, private: r.kind === "PRIVATE" })) };
 }
 
-// `inviteRefs` are character ids, or "hood:<token>" for somebody standing
-// there in a mask — the same pair Transfer's recipient key takes.
+// How many people one Converse may seat besides the opener. The dialog ticks
+// at most one; this is the bound on a hand-posted list, since each hood token
+// in it costs a presence query to resolve.
+const INVITE_LIMIT = 10;
+
+// `inviteRefs` are character ids, or the bare hood token a concealed row
+// carries instead of one — the same pair lookAt, addMember and removeMember
+// take, told apart the same way.
 export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
@@ -1188,11 +1194,14 @@ export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
   // with this character, and an id is then re-checked for ALIVE and the same
   // Location, which is the co-presence rule every other people action uses.
   // An unresolvable ref is dropped the way a bad id has always been.
-  const refs = [...new Set((Array.isArray(inviteRefs) ? inviteRefs : []).map(String))].filter(Boolean);
+  // Capped: each hood token costs a presence query, and the dialog sends at
+  // most one. A longer list is somebody posting by hand.
+  const refs = [...new Set((Array.isArray(inviteRefs) ? inviteRefs : []).map(String))]
+    .filter(Boolean)
+    .slice(0, INVITE_LIMIT);
+  const sightings = refs.some((ref) => HOOD_TOKEN.test(ref)) ? await lastSightings(prisma, me.character) : null;
   const resolved = await Promise.all(
-    refs.map((ref) =>
-      ref.startsWith("hood:") ? resolveHoodToken(prisma, me.character, ref.slice("hood:".length)) : ref,
-    ),
+    refs.map((ref) => (HOOD_TOKEN.test(ref) ? resolveHoodToken(prisma, me.character, ref, { sightings }) : ref)),
   );
   const wanted = [...new Set(resolved.filter(Boolean))].filter((id) => id !== me.character.id);
   if (wanted.length > 0) {
@@ -1221,7 +1230,15 @@ export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
     })
     .catch(() => {});
 
-  return { ok: true, line: "Opened. It is in your places now." };
+  // Say so when the person you opened it FOR did not come. They walked off
+  // between ticking the box and pressing the button, or they were never
+  // reachable — either way the room is empty and the old line said "Opened"
+  // and let you find that out by talking to nobody.
+  const missed = refs.length > 0 && wanted.length === 0;
+  return {
+    ok: true,
+    line: missed ? "Opened, but they aren't here any more — add them when they turn up." : "Opened. It is in your places now.",
+  };
 }
 
 // ------------------------------------------------------- bell, PA, the gun
@@ -2044,10 +2061,14 @@ export async function lookAt(personRef) {
   const me = await actor({ id: true, factionId: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };
 
-  const targetId = HOOD_TOKEN.test(ref) ? await resolveHoodToken(prisma, me.character, ref) : ref;
+  // One sightings Map for both halves: resolveHoodToken decides who counts as
+  // hooded from the same answer the readout below is built on.
+  const seen = await lastSightings(prisma, me.character);
+  const targetId = HOOD_TOKEN.test(ref)
+    ? await resolveHoodToken(prisma, me.character, ref, { sightings: seen })
+    : ref;
   if (!targetId) return { ok: false, error: "They aren't here any more." };
 
-  const seen = await lastSightings(prisma, me.character);
   const sighting = seen.get(targetId);
   if (!sighting) return { ok: false, error: "You haven't heard them say anything." };
 
@@ -2169,88 +2190,77 @@ export async function placeMembers(placeKey) {
     members = await roomGuests(prisma, room.id, me.character, { sightings });
   }
 
-  // Everyone standing here who is not already in — HOODS INCLUDED. A hood
-  // hides WHO somebody is, not THAT they are standing there, which is the
-  // same argument that already lets Transfer hand a coin to a stranger
-  // (db/lib/presence.js). Taking a masked rider aside, or letting one through
-  // a door, is a thing you can plainly do to a person whose name you do not
-  // know — and the alternative was making them take the helmet off to be
-  // invited, which is the whole disguise undone at the door.
+  // Everyone standing here who is not already in — HOODS INCLUDED, because
+  // letting somebody through a door does not need their name (PROXYING.md
+  // §5). `withHoodIds` is the server-only map this needs to filter them by
+  // id; the id is dropped again on the way out.
+  const here = await whosHere(prisma, me.character, { sightings, withHoodIds: true });
+
+  // One list, two kinds of row. `id` is private to this function — it is what
+  // the two filters below judge on, and what a hood must never be shipped
+  // under, since /api/avatar/<id> answers with a face.
   //
-  // hoodsHere() is the server-only half of the same list: it carries the ids
-  // this function has to filter on, and only the token goes back out.
-  const [here, hooded] = await Promise.all([
-    whosHere(prisma, me.character, { sightings }),
-    hoodsHere(prisma, me.character, { sightings }),
-  ]);
-  // Off the raw ids, not off `members` — a hooded member carries no id, so
-  // testing the presented rows would offer them in the picker as somebody
-  // outside and let them be "added" to a place they are already in.
+  // An untokened hood (no AUTH_SECRET, so hoodToken mints nothing) is absent
+  // rather than offered, the same rule Transfer's recipient list applies.
   const inside = new Set(memberIds);
-  let candidates = (here.named ?? [])
-    .filter((person) => person.characterId !== me.character.id && !inside.has(person.characterId))
-    .map((person) => ({
+  let candidates = [
+    ...(here.named ?? []).map((person) => ({
+      id: person.characterId,
       characterId: person.characterId,
       name: person.name,
       avatarVersion: person.avatarVersion,
       avatarPath: person.avatarPath ?? null,
-    }));
-  // A hood's chip carries the token and no id. `unknownFace` always: the
-  // picker is a presence list, and a mask is only drawn once you have watched
-  // somebody speak in it (PROXYING.md §5a) — which the strip below does, and
-  // a row of people you have not been let in with yet has not earned.
-  // An untokened hood (no AUTH_SECRET) is not offerable, the same rule
-  // Transfer's list applies.
-  const hoodCandidates = hooded
-    .filter((person) => person.id !== me.character.id && !inside.has(person.id) && person.token)
-    .map((person) => ({
-      characterId: null,
-      token: person.token,
-      id: person.id,
-      name: person.alias,
-      avatarVersion: null,
-      avatarPath: null,
-      unknownFace: true,
-    }));
+      unknownFace: false,
+    })),
+    ...(here.concealed ?? [])
+      .filter((person) => person.token && here.hoodIds.has(person.token))
+      .map((person) => ({
+        id: here.hoodIds.get(person.token),
+        characterId: null,
+        token: person.token,
+        name: person.alias,
+        avatarVersion: null,
+        // The mask if this reader has earned it, the question-mark plate if
+        // not — whichever the HERE column decided (PROXYING.md §5a). Not
+        // hard-coded to the plate: the picker sits directly under that column,
+        // and one hood drawn two ways in one viewport reads as two people.
+        avatarPath: person.avatarPath ?? null,
+        unknownFace: Boolean(person.unknownFace),
+      })),
+  ].filter((person) => person.id !== me.character.id && !inside.has(person.id));
 
   // A key-holder is already in, by their key, and roomGuests() deliberately
   // does not list them (they hold no guest row). Left in the picker they read
   // as somebody outside, and letting one "in" writes a guest row that grants
   // nothing and that /remove then refuses to take back. One query for the
   // whole shortlist — whosHere() carries no tags.
-  let hoods = hoodCandidates;
-  if (room && room.accessTagSlugs.length > 0 && candidates.length + hoods.length > 0) {
-    const holders = await prisma.characterTag.findMany({
-      where: {
-        characterId: {
-          in: [...candidates.map((person) => person.characterId), ...hoods.map((person) => person.id)],
+  //
+  // NAMED ROWS ONLY, and a hood is deliberately left in the picker even when
+  // they hold a key. Dropping them would be a fact about the person the row
+  // names — the one thing the metagaming rule forbids a control from leaking
+  // (web/app/components/actionRegistry.js) — and here it is the worst
+  // possible one: a hood you can see standing there, absent from both the
+  // members strip and the picker, is a hood with a key to this room, which is
+  // exactly what a hideout's masks are for. The cost of offering them is a
+  // guest row that grants what they already had.
+  if (room && room.accessTagSlugs.length > 0) {
+    const named = candidates.filter((person) => person.characterId);
+    if (named.length > 0) {
+      const holders = await prisma.characterTag.findMany({
+        where: {
+          characterId: { in: named.map((person) => person.id) },
+          tag: { slug: { in: room.accessTagSlugs } },
         },
-        tag: { slug: { in: room.accessTagSlugs } },
-      },
-      select: { characterId: true },
-    });
-    const keyed = new Set(holders.map((row) => row.characterId));
-    candidates = candidates.filter((person) => !keyed.has(person.characterId));
-    hoods = hoods.filter((person) => !keyed.has(person.id));
+        select: { characterId: true },
+      });
+      const keyed = new Set(holders.map((row) => row.characterId));
+      candidates = candidates.filter((person) => !person.characterId || !keyed.has(person.id));
+    }
   }
 
-  // The id was only ever this function's, for the two filters above. It never
-  // leaves: /api/avatar/<id> answers with a face, so shipping one is the leak.
-  return {
-    ok: true,
-    members,
-    candidates: [...candidates, ...hoods.map(({ id: _id, ...person }) => person)],
-  };
+  return { ok: true, members, candidates: candidates.map(({ id: _id, ...person }) => person) };
 }
 
-// `ref` is a character id, or the opaque hood token a concealed candidate
-// carries instead of one. Told apart the same way /look and removeMember tell
-// them apart: a token is 32 hex characters and a cuid never is.
-//
-// resolveHoodToken, not resolveMemberToken: the person being added is by
-// definition not on the place's roster yet, so co-presence at the caller's own
-// Location is what the token has to resolve against — which is also the list
-// placeMembers() offered it from.
 export async function addMember(placeKey, ref) {
   const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
   if (me.error) return { ok: false, error: me.error };

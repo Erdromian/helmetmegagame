@@ -134,15 +134,12 @@ the conversation appear on the target's web page with no reload.
 `PlayerThreadInvite` stays beside it and keeps its old job: it is what replays
 the **Discord** add when the target finally walks into the Location.
 
-**A hood can be let in.** The candidate list `placeMembers()` builds is
-`whosHere().named` **plus** `hoodsHere()`, and a concealed row carries the hood
-token instead of a character id (`PROXYING.md` §5). `addMember(placeKey, ref)`
-takes either, telling them apart the way `/look` and `removeMember` do — a
-token is 32 hex characters and a cuid never is — and resolves a token through
-`resolveHoodToken`, so it only ever names somebody standing with the caller.
-The web `/add` declares `hoods: true` on its `person` arg, the same as `/look`.
-The reply line was already safe: `presentedNameOf` has always written it, so
-letting somebody in says "a young man was added" and never their name.
+**A hood can be let in** (`PROXYING.md` §5). `placeMembers()` offers them by
+alias, `addMember(placeKey, ref)` takes a character id or a hood token — told
+apart the way `/look` and `removeMember` tell them apart, a token is 32 hex
+characters and a cuid never is — and the web `/add` declares `hoods: true` on
+its `person` arg. The reply line was already safe: `presentedNameOf` has always
+written it, so letting somebody in says "a young man was added".
 
 The message wipe needs no new step — `deletePlayerThread` cascades.
 
@@ -1004,14 +1001,18 @@ and a one-line box:
 
   A **key-holder is not offered in the picker**: they are already in by their
   key, `roomGuests()` deliberately does not list them, and a guest row written
-  for one grants nothing and cannot be taken back. That filter is one query
-  over both halves of the shortlist, which is why `hoodsHere()` exists — a
-  hood's chip carries no id, so the id has to be dropped on the way out rather
-  than never fetched.
+  for one grants nothing and cannot be taken back.
 
-  **Hoods are in the picker**, by alias and with the question-mark plate: the
-  picker is a presence list, and a mask is only drawn once you have watched
-  somebody speak in it (`PROXYING.md` §5a), which this list has not earned.
+  **That filter skips hoods**, who stay in the picker even holding a key. A
+  hood you can see standing there, absent from both the strip and the picker,
+  is a hood with a key to this room — which is the fact a hideout's masks
+  exist to keep, and the metagaming rule already forbids a control leaking one
+  about the person it names. The cost is a guest row granting what they had.
+
+  A hood's chip wears whichever face the HERE column gave them — the mask if
+  you have watched them speak in it, the question-mark plate if not
+  (`PROXYING.md` §5a). Not always the plate: the picker sits directly under
+  that column, and one hood drawn two ways in one viewport reads as two.
 
   The row is written first and Discord's thread membership follows,
   `PlayerThreadInvite` included — §2a's rule, not a second one. Every write

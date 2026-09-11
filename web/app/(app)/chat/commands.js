@@ -117,9 +117,9 @@ export const COMMANDS = [
     name: "converse",
     description: "Take somebody aside for a private conversation.",
     where: EVERYWHERE,
-    // No argument: the Converse dialog asks which room and what to call it,
-    // and it has its own tick-list of everyone standing here. Asking for one
-    // person out here and the rest in there would be the same question twice.
+    // No argument: the dialog asks which room and what to call it, and you
+    // add people once you are in it. Converse opened from somebody's row in
+    // HERE ticks that person; typed here it opens empty.
     args: [],
     run: (_values, ctx) => {
       ctx.converse?.();
