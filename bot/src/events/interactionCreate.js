@@ -68,7 +68,7 @@ const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
-const { rollDie } = require("@lifeweb/db/lib/moveEffects");
+const { castDie } = require("@lifeweb/db/lib/roll");
 const { messageLink } = require("../lib/mentions");
 const { addThreadMember, removeThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
@@ -1836,17 +1836,24 @@ async function handleHealPick(interaction, characterId) {
   });
 }
 
-// The one die a player rolls for themselves; posted as a plain bot message
-// rather than a public interaction reply, which would carry Discord's
-// "@account used /roll" header and out the player behind the character
-// (PROXYING.md).
+// The one die a player rolls for themselves. db/lib/roll.js#castDie is the
+// shared implementation, as it is for the web's Chat composer — it writes the
+// die as a SYSTEM archive row and posts the same sentence to Discord, rather
+// than a public interaction reply, which would carry Discord's "@account used
+// /roll" header and out the player behind the character (PROXYING.md).
+//
+// This handler used to post `» *A die is cast* — **N**` and record nothing, so
+// a die rolled on Discord was a die Chat and /archive never saw. It is also
+// why the roller is named now: a die is an act, not a noise, and a concealed
+// roller is named by their alias.
 async function handleRollCommand(interaction) {
   await ack(interaction);
 
   // A die is cast in front of people, so the same gate the other two
   // moment-to-moment verbs use: a Room or a Conversation and nowhere else
-  // (db/lib/placeKey.js#isScenePlaceKey). This had no gate at all, and would
-  // roll into whatever channel it was typed in — the street, a zone #summary,
+  // (db/lib/placeKey.js#isScenePlaceKey). castDie does not ask this — it takes
+  // any place key — so the gate stays here, where it was. Without it a die
+  // rolls into whatever channel it was typed in: the street, a zone #summary,
   // #turns.
   const channel = interaction.channel;
   const placeKey = channel
@@ -1857,9 +1864,16 @@ async function handleRollCommand(interaction) {
     return;
   }
 
-  const value = rollDie(6);
-  const posted = await interaction.channel?.send(`» *A die is cast* — **${value}**`).catch(() => null);
-  await respond(interaction, posted ? `You rolled a ${value}.` : "Could not post a roll here.");
+  // The whole row: castDie needs age, gender, concealed and webOnly to work
+  // out what to call the roller.
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "You don't have a living character.");
+    return;
+  }
+
+  const result = await castDie(prisma, character, placeKey);
+  await respond(interaction, result.ok ? result.line : result.error);
 }
 
 // /play: the Instrument tag's one verb. db/lib/instrumentPlay.js is the

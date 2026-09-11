@@ -1,11 +1,6 @@
-// TODO(rewire): castDie() below is the shared form of
-// bot/src/events/interactionCreate.js#handleRollCommand (around lines
-// 1747-1752 at 2f4f79ca). The bot still runs its own copy, which posts
-// `» *A die is cast* — **N**` into the channel and records nothing; it should
-// call castDie() with the channel's place key instead, so a die rolled on
-// Discord is a die Chat and /archive can both see.
-
-// The one die a player rolls for themselves.
+// The one die a player rolls for themselves. Both faces call it —
+// bot/src/events/interactionCreate.js#handleRollCommand and the web's Chat
+// composer — so a die is the same die whichever app threw it.
 //
 // It is written as a SYSTEM archive row (db/lib/scene.js) rather than as an
 // interaction reply, for the reason the bot's own comment gives: a public
@@ -43,14 +38,11 @@ async function castDie(prisma, character, placeKey) {
   const who = presentedIdentity(character, { forcedName, concealment }).name ?? "Somebody";
 
   const value = rollDie(6);
-  // Signed HERE, once, rather than by sceneLine: the same sentence goes to
-  // Discord below, and a line drafted by Claude is drafted on both faces.
-  // `signed: false` is what stops the archive row carrying two marks.
   const text = `${who} casts a die — **${value}**.`;
 
   // The archive row first: it is what Chat shows, and it is the half that
   // cannot fail silently for a web-only player.
-  await sceneLine(prisma, { placeKey, text, signed: false });
+  await sceneLine(prisma, { placeKey, text });
 
   // Then Discord, best-effort. A dead channel loses the audience, not the die.
   try {
