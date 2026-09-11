@@ -3606,6 +3606,60 @@ input[type="radio"]:disabled {
   flex-shrink: 0;
 }
 
+/* A fight's row STACKS: the people in it ride under the row, not beside it
+   (docs/systemdocs/ATTACK.md §7). Same wrapper, so the active and keyboard
+   states above are inherited unchanged, and the avatar review row's
+   side-by-side layout is untouched. */
+.desk-queue-rowset[data-stacked] {
+  display: block;
+  padding-right: 0;
+}
+
+.desk-queue-web {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2) var(--sp-2) var(--sp-2);
+}
+
+/* Wraps rather than truncates: a name losing its tail is a name a GM cannot
+   act on, and the rail is narrow. */
+.desk-queue-web-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.desk-queue-web-name {
+  font-size: var(--fs-xs);
+  color: var(--text);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--border);
+}
+
+.desk-queue-web-name:hover {
+  text-decoration-color: var(--accent);
+}
+
+.desk-queue-web-cancels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--border);
+}
+
+.desk-queue-web-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
 .desk-queue-row[data-auto] {
   opacity: 0.6;
 }

@@ -320,6 +320,11 @@ It was `INTERCEPT_HOLD` until an ambush became an attack. That kind, its
 in somebody's DMs when the change shipped still does something — but nothing
 builds a new one, and `interceptReleaseRow` is gone.
 
+A Safe hit also draws its own row on the GM's Other lens, carrying both people
+and what each of them filed this turn (`ATTACK.md` §7) — but no cancel button.
+The two-minute hold lapsed on its own clock long before a GM got there, so one
+could only ever answer *They're already free.*
+
 The authoritative control is the **You are fighting** list at the foot of the
 Attack dialog. The DM button is the convenience. The Intercept dialog's own
 holding list is Safe stops only — it excludes both fight reasons, for the

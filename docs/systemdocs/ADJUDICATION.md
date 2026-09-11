@@ -210,9 +210,14 @@ call site follows success with `refresh()` and the pair meant rendering
   the queue those are one question — who cannot leave, and who is standing over
   them — and knowing it before reading the Gambits is the point. Named for the
   shape rather than the contents; it is where the next thing that is neither a
-  Move nor a die goes. A row has **no desk**: clicking one, or `⏎`, opens the
-  inspector on the person being held, which is where their sheet, their band
-  and what they filed already are.
+  Move nor a die goes. A row is one **fight**, not one pairing — a group ambush
+  is one row — and everybody in it rides inline under the row with a chip each
+  for what they filed, which flips the lens to Moves and opens that Gambit.
+  Inline rather than a desk because the point of the lens is seeing at a glance
+  whether anything is happening, and a fight you have to click twice to read is
+  one a GM scrolls past. So a row still has **no desk**: clicking it, or `⏎`,
+  opens the inspector on the person being held, and so does clicking any name
+  in the strip. Each live pairing carries a ✕ that calls that one fight off.
 - **History lens** — the same rail over any turn, the open one included,
   picked from a Turn dropdown above the filters (the open turn first, marked
   `· open`, then the resolved ones newest first). A GM used to have to go to

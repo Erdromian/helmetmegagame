@@ -527,6 +527,16 @@ export default function Workspace({
     if (tab) setTabRequest((prev) => ({ tab, token: (prev?.token ?? 0) + 1 }));
   }
 
+  // An Other row's Move chip: flip to the Moves lens and open that Move, so a
+  // GM reading a fight is on the Gambit in one click (ATTACK.md §7). It goes
+  // through `select` rather than setting the selection itself, so the
+  // unsaved-edits guard and the URL mirror both still run.
+  function openMove(moveId) {
+    if (!moveId) return;
+    setLens("moves");
+    select({ type: "move", id: moveId });
+  }
+
   // Shared gated poll (useGatedRefreshPoll.js). deployVersion is the
   // anti-yank guard: a router.refresh() against a stale build trips Next's
   // full-navigation mismatch fallback, so a deploy latches the reload chip
@@ -587,6 +597,7 @@ export default function Workspace({
           cavingRolls={cavingRolls}
           otherRows={otherRows}
           onInspect={inspect}
+          onOpenMove={openMove}
           visibleZoneNames={visibleZoneNames}
           stagedByMove={stagedByMove}
           selected={selected}

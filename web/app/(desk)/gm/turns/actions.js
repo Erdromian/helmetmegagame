@@ -30,6 +30,9 @@ import {
   tagsByIdFor,
 } from "@/lib/moveRows";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
+// Required by path, not off the @lifeweb/db barrel: db/lib/attack.js is
+// deliberately not on it (the db/lib/dm.js convention).
+import { cancelAttack } from "@lifeweb/db/lib/attack";
 
 // Server actions for the adjudication workspace (/gm/turns). Staged rows
 // apply and deliver only at the turn-end push (db/lib/stagedPush.js);
@@ -1239,6 +1242,80 @@ async function rejectAvatarImpl({ characterId }) {
   return { name: character.name };
 }
 
+
+// CALLING A FIGHT OFF FROM THE DESK (docs/systemdocs/ATTACK.md §7).
+//
+// Only the attacker can break off, which leaves a GM reading the Other lens
+// with nothing to press when a fight needs ending. This is that button, and
+// it ends ONE pairing: cancelAttack's WHERE names two people and a turn, and
+// a cluster-wide version would end fights the GM never meant to touch.
+const HOLD_CALLED_OFF_DM = "The attack was canceled.";
+
+async function cancelHoldAsGmImpl({ attackId }) {
+  // The id below is posted by a client, and a server action is a public
+  // endpoint — so the gate is here, not on the row that drew the button.
+  const session = await requireGm();
+  const openTurn = await requireOpenTurn();
+
+  const attack = await prisma.attack.findUnique({
+    where: { id: String(attackId ?? "") },
+    select: {
+      id: true,
+      turnId: true,
+      cancelledAt: true,
+      attacker: { select: { id: true, name: true, discordUserId: true, status: true } },
+      targetCharacter: { select: { id: true, name: true, discordUserId: true, status: true } },
+    },
+  });
+  if (!attack) throw new UserError("That fight is gone.");
+  if (attack.cancelledAt) throw new UserError("That fight is already off.");
+  // A fight on a turn the push already swept is nobody's to end: the turn
+  // advance freed both of them for free (ATTACK.md §1).
+  if (attack.turnId !== openTurn.id) throw new UserError("That fight was on an earlier turn.");
+
+  // Never stamp cancelledAt by hand. cancelAttack also settles BOTH sides,
+  // which RE-POINTS heldById rather than blindly clearing it — a blind clear
+  // frees somebody out of a fight that is still going (ATTACK.md §2).
+  const done = await cancelAttack(prisma, {
+    attackerId: attack.attacker.id,
+    targetCharacterId: attack.targetCharacter.id,
+    turnId: attack.turnId,
+  });
+  if (!done.ok) throw new UserError("That fight is already off.");
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "gm_attack_cancelled",
+      targetCharacterId: attack.targetCharacter.id,
+      turnId: attack.turnId,
+      details: { attackerName: attack.attacker.name, targetName: attack.targetCharacter.name },
+    },
+  });
+
+  // Both sides, because both were held. A NOTICE rather than a CONVERSATION:
+  // the game said it, and a canned line sitting at the top of the GM inbox as
+  // mail is the exact pattern DM_KIND was built to stop. Each catch()es on its
+  // own — a Discord outage must not undo the cancel.
+  for (const who of [attack.attacker, attack.targetCharacter]) {
+    if (!who.discordUserId || who.status !== "ALIVE") continue;
+    after(() =>
+      sendDm(who.discordUserId, HOLD_CALLED_OFF_DM, {
+        kind: DM_KIND.NOTICE,
+        allowedMentions: { parse: [] },
+      }).catch(() => {}),
+    );
+  }
+
+  revalidatePath("/gm/turns");
+  revalidatePath("/gm/audit");
+  revalidatePath("/character");
+  return { ok: true };
+}
+
+export async function cancelHoldAsGm(input) {
+  return guarded(() => cancelHoldAsGmImpl(input ?? {}));
+}
 
 export async function resolveCavingRoll(input) {
   return guarded(() => resolveCavingRollImpl(input));
