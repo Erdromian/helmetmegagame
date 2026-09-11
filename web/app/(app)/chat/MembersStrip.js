@@ -7,6 +7,10 @@ import IconButton from "@/app/components/IconButton";
 import { CloseIcon } from "@/app/components/icons";
 import useActionRunner from "@/app/components/useActionRunner";
 import { addMember, removeMember } from "./actions";
+import useNarrow from "./useNarrow";
+
+// How many faces the phone's folded row shows before it says "+n".
+const FACEPILE_MAX = 5;
 
 // Who is in this conversation, or in this private room — and the two buttons
 // that change it.
@@ -35,6 +39,14 @@ import { addMember, removeMember } from "./actions";
 export default function MembersStrip({ placeKey, data, onChanged }) {
   const [picking, setPicking] = useState(false);
   const { run, pending, error } = useActionRunner();
+  // On a phone the strip is one row of faces until it is tapped open — a
+  // conversation with a dozen people in it used to wrap to three rows of
+  // chips above a feed that had no rows to spare. Opening it is a state of
+  // this strip, so it closes again when the reader moves to another place
+  // (Feed.js keys itself on the place).
+  const narrow = useNarrow();
+  const [unfolded, setUnfolded] = useState(false);
+  const folded = narrow && !unfolded && !picking;
 
   const done = useCallback(() => {
     setPicking(false);
@@ -67,6 +79,41 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
   if (!data.members) return null;
 
   const candidates = data.candidates ?? [];
+
+  if (folded) {
+    const shown = data.members.slice(0, FACEPILE_MAX);
+    const rest = data.members.length - shown.length;
+    return (
+      <div className="chat-members chat-members--folded">
+        <button
+          type="button"
+          className="chat-facepile"
+          aria-expanded={false}
+          aria-label={`${data.members.length} in here — show who`}
+          onClick={() => setUnfolded(true)}
+        >
+          {shown.map((person) => (
+            <span key={person.characterId ?? person.token ?? person.name} className="chat-facepile-face">
+              <CharacterAvatar
+                characterId={person.characterId ?? undefined}
+                src={person.avatarPath ?? undefined}
+                unknown={Boolean(person.unknownFace)}
+                name={person.name}
+                version={person.avatarVersion}
+                size={22}
+              />
+            </span>
+          ))}
+          <span className="chat-facepile-count">
+            {rest > 0 ? `+${rest}` : data.members.length === 0 ? "Nobody else" : `${data.members.length} in here`}
+          </span>
+        </button>
+        <button type="button" className="btn-secondary" disabled={pending} onClick={() => setPicking(true)}>
+          + Add
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="chat-members">

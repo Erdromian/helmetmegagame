@@ -13,13 +13,19 @@ Changing `Turns` here also changes what a merchant pays for the finished item �
 
 | Slug | Name | pt | Gate |
 |---|---|---|---|
-| `crafting` | Crafting | 5 | none |
+| `crafting` | Crafting | 2 | none |
 | `smithing` | Smithing | 5 | none |
 | `smithing-skilled` | Smithing (Skilled) | 5 | `parentTag: smithing` (cumulative, total 10) |
-| `smithing-gunpowder` | Smithing (Gunpowder) | 9 | `requiredTag: smithing-skilled` |
+| `smithing-gunpowder` | Smithing (Gunpowder) | 9 | `requiredTag: smithing-skilled`, `mastery` |
 
 A full gunsmith is `smithing` + `smithing-skilled` + `smithing-gunpowder` =
 5 + 5 + 9 = **19 pt**.
+
+**Smithing (Gunpowder) is a `mastery` tag** (2026-09-10, `TAGS.md` §4a), so
+nobody starts the game a gunsmith — the rung is bought from `/store` with
+points earned in play. Its 9 pt sits below the 12–15 mastery band on purpose:
+the band prices a capstone that stands alone, and this one already costs 10 pt
+of prerequisites before it can be bought at all.
 
 ## 2. Tiers
 
@@ -34,7 +40,7 @@ other rung actually moved. `pt`, `Turns`, and every gate are untouched.
 | Moderate | 7 | 14 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
 | High Quality | 9 | 26 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
 | Exceptional | 14 | 34 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Gunpowder | 14 | 31 | 2 | `smithing-gunpowder` | `ranged-basic` | yes |
+| Gunpowder | 14 | 29 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
@@ -197,8 +203,8 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Zweihander | High Quality | |
 | Crossbow | High Quality | |
 | Musketoon | Gunpowder | Priced at 18 pt, not the tier's 14 — a pre-existing outlier, not introduced by the Combat Update. |
-| Bore Pistol | Gunpowder | Materials cost 20 ⬢, not the tier's 31 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
-| Bomb | Gunpowder | `purchasable: false` (craft-only). Spends one `black-powder` per unit on top of its 31 ⬢ — the one ladder recipe with an ingredient. |
+| Bore Pistol | Gunpowder | Materials cost 19 ⬢, not the tier's 29 — a pre-existing outlier, not introduced by the Combat Update. Priced accordingly in `DEPOT.md` §4. |
+| Bomb | Gunpowder | `purchasable: false` (craft-only). Spends one `black-powder` per unit on top of its 29 ⬢ — the one ladder recipe with an ingredient. |
 
 **Off-tier recipes with ingredients.** Three smaller recipes sit under their
 own prices, each spending an ingredient (`requirement.items`, enforced and

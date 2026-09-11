@@ -8,6 +8,33 @@ export const APPEARANCE_MAX_LENGTH = 400;
 // before raising it — the action body limit has to stay above this.
 export const MAX_AVATAR_UPLOAD_BYTES = 5 * 1024 * 1024;
 
+// The browser shrinks a picture to this longest edge before posting it
+// (lib/shrinkImage.js), so the bytes that actually travel are tens of KB and
+// the cap above almost never comes into play. 1024 is 4x the 256 the server
+// stores, which leaves the cover-crop real pixels to work from and leaves room
+// if AVATAR_SIZE ever grows.
+export const MAX_AVATAR_UPLOAD_EDGE = 1024;
+
+// Below this, a picture already within MAX_AVATAR_UPLOAD_EDGE is posted
+// untouched rather than re-encoded — there is nothing to win, and a lossy
+// round-trip would only cost quality.
+export const SHRINK_SKIP_BELOW_BYTES = 512 * 1024;
+
+// The sanity cap, refused WITHOUT being decoded. Shrinking means a big photo is
+// fine now, so the only thing left to refuse is something absurd — decoding a
+// 2GB file would lock the tab up before any check could speak. Deliberately far
+// above anything a camera produces.
+export const MAX_AVATAR_PICK_BYTES = 50 * 1024 * 1024;
+
+// One owner for the refusal sentence, because two caps now speak it — 50MB at
+// pick time, 5MB for what reaches the server — and hard-coding "under 5MB" for
+// a 60MB file would be a lie. Both the client field and the server action call
+// this, so the wording cannot drift between them.
+export function avatarTooBigMessage(bytes, limit = MAX_AVATAR_UPLOAD_BYTES) {
+  const mb = (bytes / 1024 / 1024).toFixed(1);
+  return `That image is ${mb}MB. It has to be under ${Math.round(limit / 1024 / 1024)}MB.`;
+}
+
 // Lives here rather than in lib/requests.js because RequestDialog is a client
 // component: importing it from requests.js drags @lifeweb/db (and node:fs)
 // into the browser bundle. Same reason lib/formatTagRequirement.js exists.

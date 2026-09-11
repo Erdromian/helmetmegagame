@@ -511,7 +511,10 @@ without a deliberate decision recorded here.
 per tag.** A `mastery` tag (§4) is bought mid-game with points a character
 earned, never out of the 12 a build opens with, so the ceiling that keeps one
 tag from eating a whole starting budget is not the constraint on it. They are
-priced 12–15 and are meant to be: a capstone should cost about what a
+priced 12–15 and are meant to be (**Smithing (Gunpowder) is the one exception,
+at 9** — made `mastery` on 2026-09-10 so no character starts a gunsmith, and
+left at its old price because 10 pt of prerequisites already stand in front of
+it, `SMITHING.md` §1): a capstone should cost about what a
 character's whole first sheet did. Lucky at 15 is the highest price in the
 catalog and the deliberate top of this band — it bends every die a character
 rolls. Do not read the mastery prices as a new general scale; an ordinary tag
@@ -537,9 +540,12 @@ of the Desire catalog it closes against how much it opens, and Depressed
 closes everything and opens nothing, so it is that band's floor. **Camouflage is a seventh, at 3** — lowered from 4, Bascinet's call, the same
 between-bands spot as Teaching (Drill Instructor). It buys no code: nothing
 reads the slug, and "nearly invisible when ambushing in a forested area" is
-adjudicated the way Mindreading's Gambit is. Teaching and
-Teaching (Lecturing) sit on-scale at 5 each, the ordinary Moderate band
-(`LESSONS.md` §1).
+adjudicated the way Mindreading's Gambit is. Teaching (Lecturing) sits on-scale at 5, the ordinary Moderate band
+(`LESSONS.md` §1); **Teaching itself dropped to 4 on 2026-09-10**, Bascinet's
+call, the same between-bands spot. **Crafting dropped to 2 the same day** —
+back onto the Minor band from Moderate, and on-scale there: it gates the Dead
+Simple rung and miscellaneous production, not a rung of the smithing chain
+(`SMITHING.md` §1).
 **Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:
 false` rows; what it costs is its recipe (`TORTURE.md` §5), not a price.
 

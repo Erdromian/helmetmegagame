@@ -464,6 +464,13 @@ Tailwind `sm:` is 640px, so between 640 and 720 a page has desktop padding
 under a mobile nav bar. That gap is known and deliberately left alone —
 unifying it means touching every page.
 
+**One route hides that bar: `/chat`.** Under 720px Chat is Discord's channel
+view — the page header and the bottom bar both go, the scene has the whole
+screen, and the app's links ride the foot of the ≡ places drawer instead
+(`body:has(.chat-shell) .app-rail` in `globals.css`; `CHAT.md` §5). Nothing
+else may do this: a second route without the bar is a second place to get
+lost.
+
 **The page body never scrolls sideways.** Anything wider than the viewport
 scrolls inside its own container:
 

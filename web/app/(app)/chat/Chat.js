@@ -1,15 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import Modal from "@/app/components/Modal";
-import ChatAside, { hereKey } from "./ChatAside";
+import ChatAside from "./ChatAside";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import MapBoard from "../map/MapBoard";
-import HereList from "@/app/components/HereList";
-import PlacesColumn, { PlacesTabs } from "./PlacesColumn";
+import PlacesColumn from "./PlacesColumn";
 import useAsideFolded from "./useAsideFolded";
+import useNarrow from "./useNarrow";
+import useSwipeOpen from "./useSwipeOpen";
+import { ICONS } from "@/app/components/NavRail";
+import { SignOutIcon } from "@/app/components/icons";
+import { signOutOfDiscord } from "@/app/actions";
+import { describeTurn } from "@/lib/turnFormat";
 import Feed from "./Feed";
 import FactionPanel from "./FactionPanel";
 import DmPane, { DM_PLACE_KEY } from "./DmPane";
@@ -21,7 +27,7 @@ import { addMember } from "./actions";
 import { mentionsCharacter } from "@/app/components/richTokens";
 import { playChime, chimedRecently } from "@/app/components/chime";
 import useChatChimeMuted, { chatChimeMuted } from "@/app/components/useChatChimeMuted";
-import { useSeen, markSeen, markAllSeen, seedSeenIfFresh } from "./seenStore";
+import { useSeen, markSeen, markAllSeen, seedSeenIfFresh, isUnread } from "./seenStore";
 import { noteTyping } from "./typingStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
 import { useOpenPlace, setOpenPlace } from "./openPlace";
@@ -111,10 +117,16 @@ export default function Chat({
   // dot before the pane has opened (./DmPane.js). The store takes over from
   // the first stream frame on.
   dmNewestMs = null,
+  // The app's own nav, for the foot of the phone's places drawer. The bottom
+  // bar is hidden on /chat under 720px so the scene has the whole screen
+  // (globals.css), and these are the same rows it carried
+  // (web/lib/navItems.js#loadNavItems, the list the rail itself draws).
+  navItems = [],
 }) {
   // The server's list is the first paint; the stream replaces it whole from
   // its first `places` event onward.
   const router = useRouter();
+  const pathname = usePathname();
   const streamed = usePlaces();
   const places = streamed.length > 0 ? streamed : initialPlaces;
   const seen = useSeen();
@@ -234,17 +246,22 @@ export default function Chat({
     return null;
   });
 
-  // The phone's ⋯ sheet. The right column has no room to stand on a narrow
-  // screen (under 900px, useAsideFolded.js), so it comes up over the scene instead — the same three panels,
-  // rendered by the same component.
   const [chimeMuted, setChimeMuted] = useChatChimeMuted();
 
+  // The two drawers, Discord's way round. Under 900px (useAsideFolded.js)
+  // the right column has nowhere to stand, so it comes in from the right
+  // over the scene — the same four panels, the same component. Under 720px
+  // (useNarrow.js) the places column goes the same way, from the left. Both
+  // are Modals, so Escape, the backdrop, the focus trap and the ✕ are the
+  // shared dialog's rather than a drawer's own.
   const asideFolded = useAsideFolded();
+  const narrow = useNarrow();
   // GM mode only. Closed on its own rather than folded into the place dialogs,
   // because GM mode has no PlacePanel to hang one off — that is built from a
   // character and GM mode is the absence of one.
   const [gmBoardOpen, setGmBoardOpen] = useState(false);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [asideOpen, setAsideOpen] = useState(false);
+  const [placesOpen, setPlacesOpen] = useState(false);
   // The noticeboard cards at the top of the Location's feed, and the counter
   // that makes them re-read. The Noticeboard dialog in the right column pins
   // to the SAME board, so the two have to share a signal or a pin leaves the
@@ -322,8 +339,24 @@ export default function Chat({
     },
     [],
   );
-  const openSheet = useCallback(() => setSheetOpen(true), []);
-  const closeSheet = useCallback(() => setSheetOpen(false), []);
+  const openAside = useCallback(() => setAsideOpen(true), []);
+  const closeAside = useCallback(() => setAsideOpen(false), []);
+  const openPlaces = useCallback(() => setPlacesOpen(true), []);
+  const closePlaces = useCallback(() => setPlacesOpen(false), []);
+  // Picking a place from the drawer closes it: the place is what you came
+  // for, and a drawer left over the scene you just chose is a second tap.
+  const onSelectFromDrawer = useCallback((placeKey) => {
+    setOpenPlace(placeKey);
+    setPlacesOpen(false);
+  }, []);
+  // Swipe the scene right for the places, left for the people (Discord's
+  // gestures). Only where the drawers exist — on a desktop the columns are
+  // already on the page and a swipe means nothing.
+  const centreRef = useRef(null);
+  useSwipeOpen(centreRef, {
+    onRight: narrow ? openPlaces : null,
+    onLeft: aside && asideFolded ? openAside : null,
+  });
 
   // The map, over the top of everything. Mounted HERE rather than in
   // ChatAside because Chat owns the one copy of it: ChatAside is written twice
@@ -337,17 +370,17 @@ export default function Chat({
   // somewhere to go.
   const [mapOpen, setMapOpen] = useState(false);
   const openMap = useCallback(() => {
-    setSheetOpen(false);
+    setAsideOpen(false);
     if (asideFolded) router.push("/map");
     else setMapOpen(true);
   }, [asideFolded, router]);
 
   const onTravelPick = useCallback((locationId) => {
     setTravelPick({ locationId, at: Date.now() });
-    // On a phone the grid is inside the ⋯ sheet, so picking a node from the
-    // composer has to bring the sheet up with it — otherwise the command
-    // answers "confirm it in Travel" and Travel is nowhere on the screen.
-    setSheetOpen(true);
+    // On a phone the grid is inside the right drawer, so picking a node from
+    // the composer has to bring the drawer out with it — otherwise the
+    // command answers "confirm it in Travel" and Travel is nowhere on screen.
+    setAsideOpen(true);
   }, []);
   const onConverse = useCallback(() => setConverseOn(true), []);
   // "Add to …" on a person's row in HERE. The same server action the members
@@ -763,22 +796,80 @@ export default function Chat({
     );
   }
 
+  // The places column, drawn ONCE: in the left column on a desktop, in the
+  // ≡ drawer on a phone. The GM's zone picker rides its foot wherever the
+  // right column it used to live in is folded away, and the app's own links
+  // ride it on a phone, where the bottom bar is gone from this page.
+  const placesFoot =
+    (narrow && navItems.length > 0) || (gmZones && asideFolded) ? (
+      <div className="chat-places-nav">
+        {gmZones && asideFolded && <GmZoneRail zones={gmZones.selectable} selectedIds={gmZones.selectedIds} />}
+        {narrow && navItems.length > 0 && (
+          <nav className="chat-drawer-nav" aria-label="Main">
+            {navItems.map((item) => {
+              const Icon = ICONS[item.icon];
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="menu-item nav-sheet-item"
+                  data-active={pathname === item.href || pathname.startsWith(`${item.href}/`) ? "true" : "false"}
+                >
+                  {Icon && <Icon aria-hidden="true" />}
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+            <form action={signOutOfDiscord}>
+              <button type="submit" className="menu-item nav-sheet-item" style={{ width: "100%" }}>
+                <SignOutIcon aria-hidden="true" />
+                <span>Sign out</span>
+              </button>
+            </form>
+          </nav>
+        )}
+      </div>
+    ) : null;
+  const placesColumn = (
+    <PlacesColumn
+      places={navPlaces}
+      selected={selectedKey}
+      seen={seen}
+      newest={newest}
+      onSelect={narrow ? onSelectFromDrawer : onSelect}
+      webOnly={webOnly}
+      chimeMuted={chimeMuted}
+      onToggleChime={setChimeMuted}
+      push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
+      onMarkAllSeen={onMarkAllSeen}
+      foot={placesFoot}
+    />
+  );
+
+  // What the head's two phone buttons say: a dot on ≡ when some OTHER place
+  // has something unread — the same test the column's rows draw their dot
+  // from — and the count of people standing here on the people button.
+  const unreadElsewhere = navPlaces.some(
+    (place) => place.placeKey !== selectedKey && isUnread(seen, place.placeKey, newest(place)),
+  );
+  const hereCount = aside ? (aside.people?.named?.length ?? 0) + (aside.people?.concealed?.length ?? 0) : null;
+  const drawers = {
+    onOpenPlaces: narrow ? openPlaces : null,
+    onOpenAside: aside && asideFolded ? openAside : null,
+    unreadElsewhere,
+    hereCount,
+  };
+  // The drawer's title is where the app header's turn chip went: the header
+  // is hidden on a phone to give the scene its 60px back.
+  // "Gamemaster" for GM mode, the way the header's chip says it (TurnMeta.js).
+  const drawerTitle = [aside?.zone?.name ?? (gm ? "Gamemaster" : null), describeTurn(aside?.turn ?? null).label]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
     <div className="chat-body">
-      <PlacesColumn
-        places={navPlaces}
-        selected={selectedKey}
-        seen={seen}
-        newest={newest}
-        onSelect={onSelect}
-        webOnly={webOnly}
-        chimeMuted={chimeMuted}
-        onToggleChime={setChimeMuted}
-        push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
-        onMarkAllSeen={onMarkAllSeen}
-      />
-      <div className="chat-centre">
-        <PlacesTabs places={navPlaces} selected={selectedKey} seen={seen} newest={newest} onSelect={onSelect} />
+      {!narrow && placesColumn}
+      <div className="chat-centre" ref={centreRef}>
         {/* The live feed is down. Here rather than in the feed or the column
             foot: this row is on screen whichever pane is open, on a phone as
             well — and the phone is where a stream drops most, every time the
@@ -793,16 +884,10 @@ export default function Chat({
             The connection dropped. Reload to catch up.
           </p>
         )}
-        {/* On a phone the people are an avatar strip under the place header,
-            opening the same per-person menu the column's rows do. It draws
-            nowhere else — CSS hides it above 720px. */}
-        {aside && (
-          <HereList key={hereKey(aside.people)} people={aside.people} selfId={aside.selfId} strip />
-        )}
         {factionOpen ? (
-          <FactionPanel faction={faction} siloOpen={siloOpen} onSelect={onSelect} />
+          <FactionPanel faction={faction} siloOpen={siloOpen} onSelect={onSelect} drawers={drawers} />
         ) : dmOpen ? (
-          <DmPane self={self} />
+          <DmPane self={self} drawers={drawers} />
         ) : (
         <Feed
           // Keyed on the place, so opening another room starts the composer
@@ -821,7 +906,7 @@ export default function Chat({
           self={self}
           autocorrect={autocorrect}
           onSeen={onSeen}
-          onOpenSheet={aside ? openSheet : null}
+          {...drawers}
           roster={roster}
           // whosHere() whole, hoods included — the slash commands' person
           // picker needs them, and `roster` above deliberately has none.
@@ -850,7 +935,7 @@ export default function Chat({
         />
         )}
       </div>
-      {/* ONE of these ever mounts. The CSS hides the column under 720px, but
+      {/* ONE of these ever mounts. The CSS hides the column under 900px, but
           hiding is not unmounting: both copies used to be live at once on a
           phone, which meant two travel loads, two stash reads and two
           separate answers about what can be worked here. */}
@@ -858,7 +943,8 @@ export default function Chat({
           viewer.character, and GM mode is the absence of one — but the grid
           still reserves the column (globals.css .chat-body). So the rail is
           the column's only tenant here, bottom-pinned by the same
-          .chat-aside-tabs the tabbed version uses. */}
+          .chat-aside-tabs the tabbed version uses. Folded, it rides the foot
+          of the places column instead (placesFoot above). */}
       {!aside && gmZones && !asideFolded && (
         <aside className="chat-aside">
           {/* The SAME button a player presses, in the only column GM mode
@@ -910,17 +996,31 @@ export default function Chat({
           }}
         />
       )}
-      {aside && asideFolded && sheetOpen && (
-        <Modal open title="Here" onClose={closeSheet} panelClassName="modal-panel chat-sheet">
-          <ChatAside
-            {...aside}
-            selected={selected}
-            onPlaceChanged={bumpBoard}
-            travelPick={travelPick}
-            addPlace={addPlace}
-            onAddMember={onAddMember}
-            onOpenMap={openMap}
-          />
+      {aside && asideFolded && asideOpen && (
+        <Modal open title="Here" onClose={closeAside} panelClassName="modal-panel chat-drawer chat-drawer--right">
+          <DrawerBody onSwipeClose={closeAside} side="right">
+            <ChatAside
+              {...aside}
+              selected={selected}
+              onPlaceChanged={bumpBoard}
+              travelPick={travelPick}
+              addPlace={addPlace}
+              onAddMember={onAddMember}
+              onOpenMap={openMap}
+            />
+          </DrawerBody>
+        </Modal>
+      )}
+      {narrow && placesOpen && (
+        <Modal
+          open
+          title={drawerTitle || "Places"}
+          onClose={closePlaces}
+          panelClassName="modal-panel chat-drawer chat-drawer--left"
+        >
+          <DrawerBody onSwipeClose={closePlaces} side="left">
+            {placesColumn}
+          </DrawerBody>
         </Modal>
       )}
       {/* Escape and the backdrop both close it — Modal.js owns that, and its
@@ -932,6 +1032,19 @@ export default function Chat({
           <MapBoard onClose={() => setMapOpen(false)} />
         </Modal>
       )}
+    </div>
+  );
+}
+
+// The inside of a drawer: the same swipe that opened it, the other way,
+// closes it. A wrapper rather than a ref on the Modal's panel because the
+// Modal owns that ref.
+function DrawerBody({ side, onSwipeClose, children }) {
+  const ref = useRef(null);
+  useSwipeOpen(ref, side === "left" ? { onLeft: onSwipeClose } : { onRight: onSwipeClose });
+  return (
+    <div ref={ref} className="chat-drawer-body">
+      {children}
     </div>
   );
 }

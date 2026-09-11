@@ -5,7 +5,11 @@ import sharp from "sharp";
 import { redirect } from "next/navigation";
 import { prisma, loadConcealment, loadForcedName } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { APPEARANCE_MAX_LENGTH, MAX_AVATAR_UPLOAD_BYTES } from "@/lib/constants";
+import {
+  APPEARANCE_MAX_LENGTH,
+  MAX_AVATAR_UPLOAD_BYTES,
+  avatarTooBigMessage,
+} from "@/lib/constants";
 import { AGE_MIN, AGE_MAX, formatBareName } from "@/lib/characterName";
 import { syncCharacterNickname, setTurnPingRole, ensureCharacterRole } from "@/lib/discordGuild";
 import { setWebOnly } from "@lifeweb/db/lib/webOnly";
@@ -103,11 +107,24 @@ export async function updateCharacterProfile(_prevState, formData) {
   });
   if (gameConfig?.avatarUploadsEnabled && avatar && avatar.size > 0) {
     if (avatar.size > MAX_AVATAR_UPLOAD_BYTES) {
-      return { error: `That image is ${(avatar.size / 1024 / 1024).toFixed(1)}MB. It has to be under 5MB.` };
+      return { error: avatarTooBigMessage(avatar.size) };
     }
     try {
       const buffer = Buffer.from(await avatar.arrayBuffer());
       data.avatarData = await sharp(buffer)
+        // BEFORE the resize, not after. .rotate() with no argument applies the
+        // EXIF Orientation tag, and a phone held sideways writes upright pixels
+        // plus that tag. Resizing first would cover-crop the unrotated frame —
+        // a sideways band out of the middle of the photo, stood upright. The
+        // browser bakes orientation in for pictures it can shrink itself
+        // (lib/shrinkImage.js); this covers everything it could not read, and
+        // is a no-op on pixels carrying no tag.
+        //
+        // Do NOT reach for .withMetadata() here. sharp strips metadata by
+        // default and that default is load-bearing: a phone photo carries GPS
+        // coordinates, and /api/avatar/[characterId] serves these bytes
+        // publicly with a year-long immutable cache.
+        .rotate()
         .resize(AVATAR_SIZE, AVATAR_SIZE, { fit: "cover" })
         .webp({ quality: 85 })
         .toBuffer();
@@ -166,7 +183,12 @@ export async function updateCharacterProfile(_prevState, formData) {
   await ensureCharacterRole(updated).catch(() => {});
   revalidatePath("/character");
   if (webOnlyError) return { error: webOnlyError };
-  return { ok: true };
+  // `avatarUploaded` is what BioForm hangs the confirmation on. It has to come
+  // back from here rather than being assumed at the call site: the upload
+  // branch is skipped when uploads are off or no file was attached, and a
+  // confirmation for a picture nobody sent is the same lie this whole change
+  // is undoing.
+  return { ok: true, avatarUploaded: data.avatarData !== undefined };
 }
 
 // Builds and stores a portrait from a selection the modal posted. The

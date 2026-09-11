@@ -28,7 +28,9 @@ import { signOutOfDiscord } from "../actions";
 import { playChime } from "./chime";
 import useChimeMuted from "./useChimeMuted";
 
-const ICONS = {
+// Exported for Chat's phone drawer, which draws the same links in its foot
+// (the bottom bar is hidden on /chat under 720px — see chat/Chat.js).
+export const ICONS = {
   character: CharacterIcon,
   play: PlayIcon,
   map: MapIcon,

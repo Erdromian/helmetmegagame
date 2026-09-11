@@ -6,7 +6,7 @@ lesson. This is the game's first code-adjudicated Gambit.
 
 ## 1. The rules
 
-- **Teaching** (5 pt, a standalone `skills` tag): you can train someone in a
+- **Teaching** (4 pt, a standalone `skills` tag): you can train someone in a
   skill you have. Teaching is your **Routine** for the turn; learning is the student's
   **Gambit**. They succeed on a **5 or 6** — the die after its modifier
   (Hunger, Afraid, Panic; `db/lib/gambitModifier.js`).

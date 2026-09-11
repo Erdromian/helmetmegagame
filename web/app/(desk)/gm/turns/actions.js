@@ -688,32 +688,42 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
   return result;
 }
 
-// "Mark resolved" on a TROUBLE roll — a one-way stamp, no unsolve. Idempotent
-// for a QUIET/FIND row (already resolved at creation).
-async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes }) {
+// The Caving desk's two buttons, same shape as resolveMoveImpl above.
+// mode: "save" keeps the Result text and leaves the roll wherever it was;
+// "resolve" is the one-way stamp on a TROUBLE roll (no unsolve), idempotent
+// for a QUIET/FIND row that was already resolved at creation.
+//
+// Save exists because the Result box stayed editable on a resolved roll while
+// the only button that persisted it disappeared, so anything typed after
+// resolving was quietly thrown away — the same trap MoveDesk.js:415 describes.
+async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "resolve" }) {
   const session = await requireGm();
+  if (!["save", "resolve"].includes(mode)) throw new UserError("Unknown mode.");
+
   const roll = await prisma.cavingRoll.findUnique({ where: { id: cavingRollId ?? "" } });
   if (!roll) throw new UserError("Caving roll not found.");
 
   const gmNotes = rawNotes?.toString().trim() || null;
-  await prisma.cavingRoll.update({
-    where: { id: roll.id },
-    data: {
-      resolvedAt: roll.resolvedAt ?? new Date(),
-      resolvedByDiscordUserId: session.discordUserId,
-      gmNotes,
-    },
-  });
+
+  // A save touches the text and nothing else: it must not resolve an open roll,
+  // and must not re-stamp somebody else as the GM who resolved it.
+  const data =
+    mode === "save"
+      ? { gmNotes }
+      : { gmNotes, resolvedAt: roll.resolvedAt ?? new Date(), resolvedByDiscordUserId: session.discordUserId };
+
+  await prisma.cavingRoll.update({ where: { id: roll.id }, data });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
-      actionType: "caving_roll_resolved",
+      actionType: mode === "save" ? "caving_roll_saved" : "caving_roll_resolved",
       targetCharacterId: roll.characterId,
       details: { cavingRollId: roll.id, die: roll.die, kind: roll.kind },
     },
   });
 
+  if (mode === "save") return { status: roll.resolvedAt ? "RESOLVED" : "OPEN", note: "Saved." };
   return { status: "RESOLVED" };
 }
 

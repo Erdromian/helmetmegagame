@@ -7,7 +7,8 @@ import EmptyState from "@/app/components/EmptyState";
 import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
-import { travelFoot, openedByLabel } from "@/lib/travelCost";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { crossingConfirm, travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadTravel, travelTo } from "./actions";
 
 // TRAVEL: every way out of here as a node you can see, instead of a dropdown
@@ -68,6 +69,7 @@ export default function TravelNodes({ onDone, pick = null }) {
     setTarget(pick.locationId ?? null);
   }
   const { run, pending, error } = useActionRunner();
+  const confirm = useConfirm();
 
   useEffect(() => {
     let cancelled = false;
@@ -110,8 +112,18 @@ export default function TravelNodes({ onDone, pick = null }) {
 
   // Travel, in one place: the Go button and a second click on a node are two
   // doors onto the same call, the way the map's are (MAP.md §6c).
-  const go = (locationId) =>
-    run(travelTo, { locationId }, {
+  //
+  // A zone crossing stops here and asks first. It is the one move that spends
+  // something, carries whoever is with you, and cannot be walked back for free
+  // — and a player crossed one by double-clicking, which is why the second
+  // click is no longer a door for a crossing either. A hop inside the zone is
+  // untouched: no dialog, and picking it twice still goes.
+  const go = async (option) => {
+    if (option.crossesZone) {
+      const asked = crossingConfirm(option, option.freeLeft, data.partySize);
+      if (!(await confirm(asked))) return;
+    }
+    run(travelTo, { locationId: option.id }, {
       onOk: (res) => {
         setTarget(null);
         onDone?.(res);
@@ -119,6 +131,7 @@ export default function TravelNodes({ onDone, pick = null }) {
         refresh();
       },
     });
+  };
 
   return (
     <div className="chat-travel">
@@ -153,17 +166,23 @@ export default function TravelNodes({ onDone, pick = null }) {
               // maintain. Every node here is already passable; the button is
               // disabled otherwise.
               //
+              // A zone crossing is the exception, and the same exception the
+              // map makes on a phone: a second click only re-picks, so Go is
+              // the only door out of the zone. Killing it here kills the Enter
+              // shortcut for a crossing too, since Enter on a focused button IS
+              // this handler.
+              //
               // The focus() is not redundant. Safari and Firefox on macOS do
               // NOT focus a button on a mouse click, so without it "click one,
               // then press Enter" would work in Chrome and quietly do nothing
               // in half the browsers players actually use.
               onClick={(e) => {
                 e.currentTarget.focus();
-                if (target !== option.id) {
+                if (target !== option.id || option.crossesZone) {
                   setTarget(option.id);
                   return;
                 }
-                if (!pending) go(option.id);
+                if (!pending) go(option);
               }}
             >
               <span className="chat-node-name">{option.name}</span>
@@ -210,7 +229,7 @@ export default function TravelNodes({ onDone, pick = null }) {
               type="button"
               className="btn"
               disabled={pending}
-              onClick={() => go(chosen.id)}
+              onClick={() => go(chosen)}
             >
               Go
             </button>

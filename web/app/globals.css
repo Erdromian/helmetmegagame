@@ -5650,6 +5650,9 @@ label.chip {
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  /* A scroll that reaches the end of a column stays in it — on a phone the
+     alternative is pull-to-refresh, or the page behind a drawer moving. */
+  overscroll-behavior: contain;
   border-right: 1px solid var(--border);
   padding: var(--sp-3) 0;
 }
@@ -5711,6 +5714,7 @@ label.chip {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* The GM zone picker at the foot of the right column. It wears the desks'
@@ -5976,6 +5980,64 @@ label.chip {
   overflow-y: auto;
 }
 
+/* The name as the button that opens the description — a heading in every
+   respect but the cursor. On a phone it is the ONLY way to the line, since
+   the clamped line itself is not drawn there. */
+.chat-head-name {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The phone's two drawer buttons either side of the head (ChatHead.js): ≡
+   for the places, the people for who is here. Hidden by default and shown
+   by the same media queries that fold the columns they open, so a desktop —
+   where both columns are already on the page — never sees a button that
+   opens what is beside it. */
+.chat-head-phone {
+  display: none;
+  position: relative;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.chat-head-phone .icon-btn {
+  width: 36px;
+  height: 36px;
+}
+
+.chat-head-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  margin: 0;
+}
+
+.chat-head-count {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  min-width: 16px;
+  padding: 0 4px;
+  font-size: var(--fs-2xs);
+  line-height: 16px;
+  text-align: center;
+  color: var(--on-accent);
+  background: var(--accent-solid);
+  border-radius: var(--r-full);
+  pointer-events: none;
+}
+
 .chat-quiet {
   flex: 1;
   font-size: var(--fs-sm);
@@ -5986,6 +6048,7 @@ label.chip {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--sp-3) var(--sp-4);
 }
 
@@ -6354,6 +6417,46 @@ label.chip {
   padding: var(--sp-2) var(--sp-4);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+/* The box grows with its text (Feed.js sets the height off scrollHeight, up
+   to about six lines), so nothing here may pin it. */
+.chat-composer textarea {
+  resize: none;
+  overflow-y: auto;
+}
+
+/* The phone's send: the same glyph button the Bascinet pane uses, sized to
+   the 44px floor and drawn in the accent so it reads as THE button. */
+.chat-send {
+  width: 44px;
+  height: 44px;
+  color: var(--on-accent);
+  background: var(--accent-solid);
+  border-color: var(--accent-solid);
+}
+
+.chat-send:disabled {
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--border);
+}
+
+/* The + on the phone's composer: the ✉ and the hood, folded behind one
+   button at the LEFT edge of the box (Discord's), so it sits first in the
+   row and its menu opens to the right rather than off the screen. */
+.chat-composer-tools--folded {
+  order: -1;
+}
+
+.chat-composer-tools--folded .icon-btn {
+  width: 44px;
+  height: 44px;
+}
+
+.chat-menu--left {
+  right: auto;
+  left: 0;
 }
 
 /* ---- The right column: who is here, the place, and you ---- */
@@ -6838,78 +6941,152 @@ label.chip {
   margin-top: var(--sp-3);
 }
 
-/* The phone's people strip: faces only, under the place header. Hidden on a
-   desktop, where the column already has them with their names. */
-.chat-strip {
-  display: none;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-3);
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  flex-shrink: 0;
-}
+/* ---- The two drawers (Chat.js) ---- */
 
-/* The place list is the left column on a desktop and a tab strip on a phone;
-   only one of the two is ever drawn. */
-.chat-tabs {
-  display: none;
-  padding: 0 var(--sp-2);
-  flex-shrink: 0;
-}
+/* A column come in over the scene from its own side: the places from the
+   left under 720px, the people, the place, the ways out and you from the
+   right under 900px. Discord's shape. Each is a Modal (backdrop, Escape,
+   the focus trap, the ✕ in a header that names the place and the turn), so
+   what this adds is only WHERE the panel stands: full height, pinned to one
+   edge, no more than a phone's width less a thumb of scene beside it.
 
-/* The phone's way into the right column. On a desktop the column is already
-   there, so the button is not — hidden by the default and shown by the same
-   media query that hides .chat-aside. */
-.chat-sheet-trigger {
-  display: none;
-}
+   Unscoped by media query on purpose: each drawer only mounts when its hook
+   (useNarrow.js, useAsideFolded.js) says its column is folded, and a second
+   source of truth here disagreed with the first between 720 and 900px.
 
-/* The ⋯ sheet: the right column, come up from the bottom over the scene.
-   A dialog rather than a drawer of its own, so it keeps Escape, the focus
-   trap and the backdrop that Modal already owns. Unscoped on purpose: the
-   sheet only mounts when useAsideFolded.js says the column is folded, and a
-   media query on the class was a second source of truth that disagreed
-   with it between 720 and 900px. */
-.chat-sheet {
+   The selector is as long as it is to outrank the modal's own bottom-sheet
+   rule under 640px (`.modal-overlay:not([data-modeless]) .modal-panel`),
+   which would otherwise make the drawer full-width and 92dvh tall. */
+.modal-overlay:not([data-modeless="true"]) .modal-panel.chat-drawer {
   position: fixed;
-  left: 0;
-  right: 0;
+  top: 0;
   bottom: 0;
-  width: auto;
+  width: min(88vw, 24rem);
   max-width: none;
-  max-height: 80dvh;
+  max-height: none;
+  height: 100dvh;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  border-top: 0;
   border-bottom: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
+  border-radius: 0;
+  /* The modal's own bottom-sheet rule under 640px animates a rise from the
+     foot; a drawer slides in from its side instead (below). */
+  animation: none;
   padding-bottom: calc(var(--sp-4) + env(safe-area-inset-bottom, 0px));
 }
 
-/* Inside the phone's ⋯ sheet the MODAL is the scroller (max-height + overflow
-   above), so the tabbed column must not try to be one as well: a flex child
-   with min-height:0 inside an auto-height parent collapses to nothing. The
-   strip still sits at the top; the sheet scrolls the panel under it. */
-.chat-sheet .chat-aside-tabs {
+.modal-overlay:not([data-modeless="true"]) .modal-panel.chat-drawer--left {
+  left: 0;
+  right: auto;
+  border-left: 0;
+  animation: drawer-in-left 160ms ease-out;
+}
+
+.modal-overlay:not([data-modeless="true"]) .modal-panel.chat-drawer--right {
+  right: 0;
+  left: auto;
+  border-right: 0;
+  animation: drawer-in-right 160ms ease-out;
+}
+
+@keyframes drawer-in-left {
+  from {
+    transform: translateX(-12%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes drawer-in-right {
+  from {
+    transform: translateX(12%);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-drawer--left,
+  .chat-drawer--right {
+    animation: none;
+  }
+}
+
+/* Inside a drawer the MODAL is the scroller, so the column must not try to
+   be one as well: a flex child with min-height:0 inside an auto-height
+   parent collapses to nothing. The tab strip still sits at the top; the
+   drawer scrolls the panel under it. */
+.chat-drawer .chat-aside-tabs {
   height: auto;
 }
 
-.chat-sheet .chat-aside-panel {
+.chat-drawer .chat-aside-panel {
   overflow-y: visible;
   min-height: 0;
+}
+
+/* The places column inside the left drawer: no border of its own (the
+   drawer's edge is the border), no scroller of its own (the drawer is), and
+   the modal's padding pulled back so the rows and their active-edge rule
+   run to the drawer's edge the way they do in the desktop column. */
+.chat-drawer .chat-places {
+  display: flex;
+  overflow: visible;
+  border-right: 0;
+  margin-inline: calc(var(--sp-4) * -1);
+  padding-top: var(--sp-2);
+}
+
+/* The tail's sticky background is the drawer's surface here, not the page. */
+.chat-drawer .chat-places-tail {
+  background: var(--surface-raised);
+}
+
+/* A person row is a real tap target inside the drawer. */
+.chat-drawer .chat-person {
+  min-height: 44px;
+}
+
+/* Under the places, in the drawer: GM mode's zone picker, and on a phone the
+   app's own links — the same rows the bottom bar's More sheet draws, since
+   that bar is hidden on this page (below). */
+.chat-places-nav {
+  border-top: 1px solid var(--border);
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+}
+
+.chat-places-nav .desk-inspector-zones {
+  padding-inline: 0;
+  border-top: 0;
+}
+
+.chat-drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: var(--sp-2);
 }
 
 /* ---- The ladder. Three widths above the phone, one breakpoint each:
 
      >= 1200          15rem | 1fr | 20rem     three columns
      900 - 1200       12rem | 1fr | 17rem     flanks shrink
-     720 - 900        11rem | 1fr   [⋯]       aside folds into the sheet
-     <= 720           tabs / strip / feed     one column
+     720 - 900        11rem | 1fr   [👥]      aside folds into the right drawer
+     <= 720           [≡] head [👥] / feed    one column, a drawer each side
 
-   The middle two are new: with one breakpoint at 720 a 900px window gave
-   the scene less room than either flank. The aside folds at 56.25rem
-   (900px) here AND in useAsideFolded.js — the same number in both, or
-   there is a band where the column is gone and the ⋯ that opens it is
-   hidden too. */
+   The middle two are there because with one breakpoint at 720 a 900px
+   window gave the scene less room than either flank. The aside folds at
+   56.25rem (900px) here AND in useAsideFolded.js, and the places fold at
+   720px here AND in useNarrow.js — the same number in both places each
+   time, or there is a band where a column is gone and the button that
+   opens it is hidden too. */
 @media (max-width: 75rem) {
   .chat-body {
     --chat-rail: 12rem;
@@ -6928,41 +7105,79 @@ label.chip {
     display: none;
   }
 
-  .chat-sheet-trigger {
+  /* The people button in the head, which opens the right drawer. */
+  .chat-head-phone:last-child {
     display: inline-flex;
   }
 }
 
 @media (max-width: 720px) {
+  /* The phone: Discord's channel view. The page's own header and the app's
+     bottom bar both go, and Chat has the whole screen — a 48px head, the
+     scene, a one-line box. The header's turn chip is the places drawer's
+     title; the bar's links are that drawer's foot (Chat.js). Unlike
+     .desk-shell, the height contract does NOT invert here — a chat whose
+     feed scrolls the page instead of itself loses its composer the moment
+     anybody says anything. */
   .chat-shell {
-    /* The bar's height comes off because .app-main carries the fixed bottom
-       bar's clearance; a full 100dvh would put the composer underneath it.
-       Unlike .desk-shell, the height contract does NOT invert here — a chat
-       whose feed scrolls the page instead of itself loses its composer the
-       moment anybody says anything. */
-    height: calc(100dvh - var(--rail-h) - env(safe-area-inset-bottom, 0px));
+    height: 100dvh;
+  }
+
+  .chat-shell > .desk-header {
+    display: none;
+  }
+
+  body:has(.chat-shell) .app-rail {
+    display: none;
+  }
+
+  body:has(.chat-shell) .app-main {
+    padding-bottom: 0;
   }
 
   .chat-body {
     grid-template-columns: 1fr;
   }
 
-  .chat-places {
+  /* Belt and braces: useNarrow.js already stops the column mounting. */
+  .chat-body > .chat-places {
     display: none;
   }
 
-  /* A person row is a real tap target inside the sheet. */
-  .chat-sheet .chat-person {
-    min-height: 44px;
+  /* Both drawer buttons. */
+  .chat-head-phone {
+    display: inline-flex;
   }
 
-  .chat-tabs {
-    display: flex;
+  /* The head is one 48px bar: the name on one line, no crumb (the drawer's
+     title says where you are), and the description only once the name has
+     been tapped. */
+  .chat-head {
+    min-height: 48px;
+    padding-top: var(--sp-1);
+    padding-bottom: var(--sp-1);
+  }
+
+  .chat-head-main {
+    gap: 0;
+  }
+
+  .chat-head .section-title {
+    font-size: var(--fs-md);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat-crumb,
+  .chat-head-desc:not([data-open="true"]) {
+    display: none;
   }
 
   .chat-head,
   .chat-feed,
-  .chat-composer {
+  .chat-composer,
+  .chat-members {
     padding-left: var(--sp-3);
     padding-right: var(--sp-3);
   }
@@ -6971,10 +7186,46 @@ label.chip {
     padding-left: 0;
   }
 
-  .chat-strip {
-    display: flex;
+  /* Who is writing, OVER the last line of the scene rather than in a row
+     of its own — the row is one the feed does not have here. Nothing is
+     drawn when nobody is, so nothing is covered. */
+  .chat-typing {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    min-height: 0;
+    padding: 2px var(--sp-3);
+    background: linear-gradient(to top, var(--bg) 60%, transparent);
+    pointer-events: none;
   }
 
+  .chat-typing:empty {
+    display: none;
+  }
+
+  /* The noticeboard scrolls away with the scene here. Pinned, three papers
+     were most of a phone's feed. */
+  .chat-notices {
+    position: static;
+  }
+
+  /* One-line box, and 16px so iOS does not zoom the page on focus. */
+  .chat-composer {
+    padding-top: var(--sp-2);
+    padding-bottom: calc(var(--sp-2) + env(safe-area-inset-bottom, 0px));
+    gap: var(--sp-1);
+  }
+
+  .chat-composer textarea {
+    font-size: max(16px, var(--fs-sm));
+    min-height: 44px;
+  }
+
+  .chat-composer-keys,
+  .chat-countdown {
+    padding-bottom: 0;
+  }
 }
 
 /* ---- Chat text: speech, spoilers, mentions (phase 6, CHAT.md §5) ---- */
@@ -7232,6 +7483,45 @@ label.chip {
   border-top: 1px dashed var(--border);
 }
 
+/* The phone's version: one row — the faces overlapping, a count, and Add —
+   until it is tapped open into the chips above (MembersStrip.js). */
+.chat-members--folded {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.chat-facepile {
+  appearance: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 36px;
+}
+
+.chat-facepile-face {
+  display: inline-flex;
+  border-radius: var(--r-full);
+  /* The ring is the page, so each face reads as its own coin where they
+     overlap. */
+  box-shadow: 0 0 0 2px var(--bg);
+  margin-right: -6px;
+}
+
+.chat-facepile-count {
+  margin-left: var(--sp-3);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
 /* Slowmode, counted down rather than refused. Quiet: it is the answer to a
    question nobody asked yet. */
 .chat-countdown {
@@ -7314,13 +7604,16 @@ label.chip {
    plus a fixed foot: the same result, no markup change, and margin-top: auto
    still puts it at the bottom when the list is short enough not to scroll. The
    background is what stops the rows sliding under it. */
-.chat-places-foot {
+.chat-places-tail {
   position: sticky;
   bottom: 0;
   background: var(--bg);
   border-top: 1px solid var(--border);
-  padding-bottom: var(--sp-2);
   margin-top: auto;
+}
+
+.chat-places-foot {
+  padding-bottom: var(--sp-2);
   display: flex;
   align-items: center;
   gap: var(--sp-2);

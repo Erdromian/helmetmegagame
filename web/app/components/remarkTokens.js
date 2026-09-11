@@ -8,14 +8,26 @@ import { TOKEN_SOURCE } from "./richTokens";
 // live TagChip/ResourceChip — same as RichText does outside Markdown, but
 // now a token also resolves correctly inside a table cell, a list item, etc.,
 // since it's part of the same tree Markdown itself renders from.
+//
+// A token's payload holds no formatting: markdownPlugins.js escapes every
+// Markdown-active character inside a `{…}` before any of this parses, so what
+// arrives here is always one whole text node. See tokenEscape.js.
+//
+// `ignore` matches remarkChat's and remarkDiscord's, and it was the one pass
+// without it: inside code the whole point of the text is that it is literal, so
+// a `{tag:apex-form}` typed between backticks stays as typed.
 export default function remarkTokens() {
   return (tree) => {
-    findAndReplace(tree, [
-      new RegExp(TOKEN_SOURCE, "g"),
-      (raw, kind, payload) => ({
-        type: "richToken",
-        data: { hName: "richtoken", hProperties: { kind, payload, raw } },
-      }),
-    ]);
+    findAndReplace(
+      tree,
+      [
+        new RegExp(TOKEN_SOURCE, "g"),
+        (raw, kind, payload) => ({
+          type: "richToken",
+          data: { hName: "richtoken", hProperties: { kind, payload, raw } },
+        }),
+      ],
+      { ignore: ["code", "inlineCode"] },
+    );
   };
 }

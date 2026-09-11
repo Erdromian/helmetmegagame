@@ -61,10 +61,15 @@ test("every plugin list runs every syntax pass", () => {
     // pass must run on raw text, before any inline pass has cut the paragraph
     // into children.
     assert.ok(line.indexOf("remarkSubtext") < line.indexOf("remarkDiscord"), `${name} runs remarkSubtext too late`);
-    // And a token pass before remarkChat splits the text node mid-quote, so
-    // the quote stops matching itself.
+    // And chat's own marks go LAST, after the token and Discord passes. That
+    // is the reverse of the old rule, and the reason is chatRuns.js: remarkChat
+    // scans siblings now, so a resolved mention inside a quote is one more
+    // thing the quote wraps rather than the thing that broke it. Going last is
+    // what keeps a token's payload — a name like `Bob "Ace" Smith` — from
+    // having its own speech tinted mid-mention.
     if (line.includes("remarkChat")) {
-      assert.ok(line.indexOf("remarkChat") < line.indexOf("remarkTokens"), `${name} runs remarkChat too late`);
+      assert.ok(line.indexOf("remarkTokens") < line.indexOf("remarkChat"), `${name} runs remarkChat too early`);
+      assert.ok(line.indexOf("remarkDiscord") < line.indexOf("remarkChat"), `${name} runs remarkChat too early`);
     }
   }
 });
@@ -75,7 +80,10 @@ test("a renderer that runs remarkTokens also draws them", () => {
   for (const file of fs.readdirSync(COMPONENTS)) {
     if (!file.endsWith(".js")) continue;
     const source = fs.readFileSync(path.join(COMPONENTS, file), "utf8");
-    if (!source.includes("markdownPlugins")) continue;
+    // A RENDERER — one that imports the lists. Matched on the import rather
+    // than on the word, so a plugin merely naming the file in a comment is not
+    // asked to carry a components map it has no use for.
+    if (!/from "\.\/markdownPlugins"/.test(source)) continue;
     assert.ok(source.includes("richtoken"), `${file} runs the token pass but renders no richtoken component`);
     assert.ok(source.includes("DISCORD_COMPONENTS"), `${file} renders no Discord nodes`);
   }

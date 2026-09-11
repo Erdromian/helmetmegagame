@@ -12,6 +12,7 @@ import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
+import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { resolveCavingRoll, undoCavingFind } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 
@@ -74,11 +75,12 @@ export default function CavingDesk({
     [markDirty],
   );
 
-  function resolve() {
+  // mode: "save" keeps the Result text where it is, "resolve" stamps the roll.
+  function run(mode) {
     setError(null);
     startTransition(async () => {
       try {
-        const res = await resolveCavingRoll({ cavingRollId: roll.id, gmNotes });
+        const res = await resolveCavingRoll({ cavingRollId: roll.id, gmNotes, mode });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         refresh();
@@ -170,6 +172,7 @@ export default function CavingDesk({
             <span className="field-label">Result — what happened down there</span>
             <textarea
               rows={4}
+              maxLength={RESULT_BOX_MAX_LENGTH}
               value={gmNotes}
               disabled={pending || readOnly}
               onChange={(e) => setNotes(e.target.value)}
@@ -284,11 +287,20 @@ export default function CavingDesk({
 
       <FormError>{error}</FormError>
 
-      {roll.kind === "TROUBLE" && !roll.resolvedAt && !readOnly && (
+      {roll.kind === "TROUBLE" && !readOnly && (
         <div className="mt-4 flex flex-wrap justify-end gap-3">
-          <button type="button" className="btn" onClick={resolve} disabled={pending}>
-            {pending ? "Working…" : "Mark resolved"}
+          {/* Save is always here, resolved or not — the same fix MoveDesk.js:415
+              describes. Marking a roll resolved used to take the only button
+              that wrote the Result box away with it, so the box stayed typeable
+              and threw away everything typed into it after that. */}
+          <button type="button" className="btn-quiet" onClick={() => run("save")} disabled={pending}>
+            {pending ? "Working…" : "Save"}
           </button>
+          {!roll.resolvedAt && (
+            <button type="button" className="btn" onClick={() => run("resolve")} disabled={pending}>
+              {pending ? "Working…" : "Mark resolved"}
+            </button>
+          )}
         </div>
       )}
     </div>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import EmptyState from "@/app/components/EmptyState";
+import ChatHead from "./ChatHead";
 
 // The Faction panel: the centre column when the places column's ⚑ row is the
 // open one.
@@ -26,18 +27,22 @@ function marks(member) {
   return out;
 }
 
-export default function FactionPanel({ faction, siloOpen = false, onSelect = null }) {
+// `drawers` is the phone's head controls, from Chat.js (see DmPane.js).
+export default function FactionPanel({ faction, siloOpen = false, onSelect = null, drawers = null }) {
   if (!faction) return null;
   const roster = faction.roster ?? [];
 
   return (
     <div className="chat-main">
-      <div className="chat-head">
-        <h1 className="section-title">{faction.name}</h1>
-        <Link className="btn btn-quiet" href="/faction">
-          Faction page ›
-        </Link>
-      </div>
+      <ChatHead
+        name={faction.name}
+        {...(drawers ?? {})}
+        trailing={
+          <Link className="btn btn-quiet" href="/faction">
+            Faction page ›
+          </Link>
+        }
+      />
       <div className="chat-feed">
 
         {/* The silo, when its door is open to this character. A shut door

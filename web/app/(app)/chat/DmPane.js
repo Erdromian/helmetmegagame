@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState, useTransition } from "react"
 import DmThread from "@/app/components/DmThread";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { FeedSkeleton } from "./Feed";
+import ChatHead from "./ChatHead";
+import useNarrow from "./useNarrow";
 import EmptyState from "@/app/components/EmptyState";
 import IconButton from "@/app/components/IconButton";
 import { SendIcon } from "@/app/components/icons";
@@ -34,7 +36,9 @@ let optimisticSeq = 0;
 import { DM_PLACE_KEY } from "@/lib/dmSources";
 export { DM_PLACE_KEY };
 
-export default function DmPane({ self }) {
+// `drawers` is the phone's head controls — onOpenPlaces, onOpenAside and the
+// marks on them — handed down whole by Chat.js and spread into ChatHead.
+export default function DmPane({ self, drawers = null }) {
   const dm = useDmState();
   const [pending, setPending] = useState([]);
   const [draft, setDraft] = useState("");
@@ -120,6 +124,7 @@ export default function DmPane({ self }) {
   }, [dm.rows, pending]);
 
   const onKeyDown = useSubmitOnEnter();
+  const narrow = useNarrow();
 
   function send(e) {
     e.preventDefault();
@@ -160,9 +165,7 @@ export default function DmPane({ self }) {
 
   return (
     <div className="chat-main">
-      <div className="chat-head">
-        <h1 className="section-title">Bascinet</h1>
-      </div>
+      <ChatHead name="Bascinet" {...(drawers ?? {})} />
 
       <div className="chat-feed chat-dm">
         {!dm.seeded && loadError ? (
@@ -192,7 +195,7 @@ export default function DmPane({ self }) {
         <div className="field chat-composer-box">
           <textarea
             aria-label="Write to Bascinet"
-            rows={2}
+            rows={narrow ? 1 : 2}
             value={draft}
             placeholder="Write to Bascinet…"
             onChange={(e) => setDraft(e.target.value)}

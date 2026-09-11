@@ -14,7 +14,7 @@
 // here. See web/lib/actionResult.js for why validation is returned, never
 // thrown.
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import BioNameFields from "./BioNameFields";
 import AvatarField from "./AvatarField";
 import AppearanceField from "./AppearanceField";
@@ -33,6 +33,11 @@ export default function BioForm({
   concealGear,
 }) {
   const [state, formAction, pending] = useActionState(updateCharacterProfile, null);
+  // Raised by AvatarField while it shrinks a picked picture in the browser.
+  // The transcode is async, so without this a player who picks a file and
+  // hits Save immediately would post the original — which for a big photo is
+  // the silent body-limit rejection all over again.
+  const [shrinking, setShrinking] = useState(false);
 
   return (
     <form action={formAction} className="flex flex-col gap-3">
@@ -50,10 +55,20 @@ export default function BioForm({
         hasCustomAvatar={hasCustomAvatar}
         forcedIdentity={forcedIdentity}
         concealGear={concealGear}
+        onBusyChange={setShrinking}
       />
       <AppearanceField defaultValue={character.appearance ?? ""} />
       <FormError>{state?.error}</FormError>
-      <button type="submit" className="btn self-start" disabled={pending}>
+      {/* Said HERE, after the save has actually landed, and only when a picture
+          really went with it. This sentence used to be a tooltip on the Browse
+          button, where it was simply untrue — it announced an upload that had
+          not happened yet, and players believed it and never pressed Save. */}
+      {state?.avatarUploaded ? (
+        <span className="text-sm text-muted">
+          Your picture has been uploaded. A GM will review it later.
+        </span>
+      ) : null}
+      <button type="submit" className="btn self-start" disabled={pending || shrinking}>
         {pending ? "Saving…" : "Save"}
       </button>
     </form>

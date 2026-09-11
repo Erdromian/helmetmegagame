@@ -709,13 +709,28 @@ same numbers through `web/lib/travelCost.js#travelFoot` — extracted from
 costs — and Go calls the same `travelTo`, which re-derives every gate
 server-side regardless.
 
-**Picking a place twice goes there**, on both surfaces, so an ordinary hop
-need not cross the board to the card and back. The second click on the node
-already picked *is* the Go button; anywhere you cannot go it still just
-unpicks. A real double-click works for the same reason and needs no code of
-its own — it arrives as two clicks, which pick and then go — which is why
-there is no `onDoubleClick` here to fight the 6px drag guard that stops a pan
-from registering as a pick.
+**Picking a place twice goes there — inside your own zone**, on both surfaces,
+so an ordinary hop need not cross the board to the card and back. The second
+click on the node already picked *is* the Go button; anywhere you cannot go it
+still just unpicks. A real double-click works for the same reason and needs no
+code of its own — it arrives as two clicks, which pick and then go — which is
+why there is no `onDoubleClick` here to fight the 6px drag guard that stops a
+pan from registering as a pick.
+
+**A zone crossing is not on that shortcut, and it asks first.** A second click
+on a crossing only re-picks, so the card's (or the strip's) **Go** is the only
+door out of the zone — and Go then opens the shared `useConfirm()` dialog,
+naming the zone, what the crossing spends, and how many people come with you.
+Both surfaces build that sentence from one place,
+`web/lib/travelCost.js#crossingConfirm`, for the same reason they share
+`travelFoot`.
+
+Why only a crossing: a hop inside the zone is free, immediate and walk-backable,
+and a dialog in front of it would be a toll on the commonest thing anyone does.
+A crossing is none of those — it spends a travel or the whole Move, it carries
+the escorted party, and it lands at once. The complaint that settled it was a
+player who double-clicked while reading the menu, crossed a zone he had not
+chosen, and took somebody with him.
 
 **Tapping the plate itself unpicks**, on both surfaces. A node's own handler
 owns its clicks and the drag guard still applies, so this is only ever a tap on
@@ -724,15 +739,16 @@ only way out of a card, which on a phone left a description sitting over most
 of the board with nothing obvious to do about it.
 
 **Not on a finger.** On a coarse pointer the second tap unpicks like any
-other and the card's Go is the only door. A stray tap on a phone is easy and
-this one spends a crossing; a deliberate press an inch away is not much to
-ask, and the sheet in §6e puts Go on screen the moment you pick, so there is
-nowhere to travel to. `canTravelTo` is untouched by this — it narrows a
+other and the card's Go is the only door — which is the same answer the
+crossing rule above now gives every pointer. A stray tap on a phone is easy;
+a deliberate press an inch away is not much to ask, and the sheet in §6e puts
+Go on screen the moment you pick, so there is nowhere to travel to. `canTravelTo` is untouched by this — it narrows a
 gesture, not the rule about where you may walk. It is also why there is no
 double-tap-to-zoom: on this board a double tap already means *go*.
 
-**Enter does the same** once something is picked. On the Travel panel that is
-free: its nodes are real `<button>`s, so a click focuses one and Enter
+**Enter does the same** once something is picked — and, being the keyboard's
+half of that second click, it stops at a crossing too. On the Travel panel both
+halves are free: its nodes are real `<button>`s, so a click focuses one and Enter
 re-activates it, which is the second pick. The map has to spell it out — its
 rhombi are SVG `<g>` elements with no focus, and the Ways out list, which *is*
 real buttons, unmounts the moment you pick something — so `MapBoard` listens on
@@ -742,7 +758,8 @@ Modal that already owns it.
 
 `canTravelTo(node, here)` is the one predicate all three doors read, so a place
 can never travel on a gesture while its own card is showing a refusal. Go and
-Cancel are untouched — this adds a shortcut and draws nothing new.
+Cancel are untouched — the gesture is a shortcut over them, never a way past
+them.
 
 ### 6d. The plate
 

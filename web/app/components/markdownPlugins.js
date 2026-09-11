@@ -23,52 +23,34 @@ import { DiscordEmoji, DiscordMention, DiscordPing } from "./DiscordMarkupNodes"
 // ORDER IS LOAD-BEARING, and in this order:
 //   remarkSubtext  block-level, needs RAW text — a `-#` cannot be found once
 //                  an inline pass has cut the paragraph into children
-//   remarkChat     wraps a quoted sentence while it is still one run of text
-//   remarkDiscord  inline tokens
 //   remarkTokens   inline {kind:…} chips
-// Put a token pass before remarkChat and a mention in the middle of a quote
-// splits the text node, so the quote stops matching itself (CHAT.md).
+//   remarkDiscord  inline <t:…> and friends
+//   remarkChat     quoted speech and ||spoilers||, LAST
+//
+// The tokens go first and the scene's own marks go last, which is the reverse
+// of how it was. The old order put remarkChat first because a mention in the
+// middle of a quote split the text node and the quote stopped matching itself —
+// and that was true of every other formatting mark too, which is the bug
+// chatRuns.js fixes: remarkChat now scans SIBLINGS, so a resolved mention or a
+// timestamp inside a quote is simply one more thing the quote wraps. Going last
+// is what keeps a token's payload out of its reach: a name like
+// `Bob "Ace" Smith` would otherwise have had its own speech tinted, in the
+// middle of a mention.
 
-// A `{char:<id>|<Name>}` carries a bar, and remark-gfm splits a table row on
-// bars at BLOCK level — before remarkTokens ever sees the text. So a mention
-// written into a table cell was torn in half and printed its raw cuid at the
-// reader: `{char:cmtt…` in one cell, `Name}` in the next, and no mention at
-// all. Every renderer below inherits that from remarkGfm, so the DM, the
-// document and the scene were all wrong the same way.
-//
-// Escaping the bar as `\|` fixes it, and is safe OUTSIDE a table too rather
-// than needing to know where it is: remark unescapes `\|` back to `|` in the
-// text node, so remarkTokens still matches the whole token and the mention
-// keeps its face. That is what makes this a blanket pass instead of a
-// context-sensitive one.
-//
-// Done HERE, at render, rather than by writing `\|` into the row. What is
-// STORED has to keep matching the visibility query in web/lib/feedAccess.js —
-// a Prisma `contains` on `{char:<id>|` is how a mentioned player earns the
-// right to read the row that mentions them (CHAT.md §5) — plus its JS twin,
-// db/lib/characterMentions.js#mentionsCharacter. Escaping on the way in would
-// have needed both of those, and every row already written, to agree on a new
-// shape. This pass needs none of it, and it repairs the rows already in the
-// database.
-//
-// The separator is the only bar a token can hold: freezeMentionName strips
-// `{`, `}` and `|` out of the name half before it is ever frozen. The optional
-// backslash in the pattern makes the pass idempotent, so running it twice
-// cannot produce `\\|`.
-const CHAR_TOKEN = /\{char:[^}]*\}/g;
-
-export function escapeTokenBars(content) {
-  if (typeof content !== "string" || !content.includes("{char:")) return content;
-  return content.replace(CHAR_TOKEN, (token) => token.replace(/\\?\|/g, "\\|"));
-}
+// The pre-parse escape pass lives in tokenEscape.js, which has no imports so a
+// test can load it with no build step. It is what keeps a
+// `{char:…|Bob *the Blade* Marley}` in one piece, and a mention written into a
+// table cell out of remark-gfm's block-level bar split. The old name is kept as
+// an alias so no call site had to move.
+export { default as escapeTokenSyntax, default as escapeTokenBars } from "./tokenEscape";
 
 // Anything written that is read as words: DMs, the audit inspector, the
 // archive-context peek, documents and the handbook.
-export const MESSAGE_PLUGINS = [remarkGfm, remarkSubtext, remarkDiscord, remarkTokens];
+export const MESSAGE_PLUGINS = [remarkGfm, remarkSubtext, remarkTokens, remarkDiscord];
 // A scene line: everything above plus chat's own two, ||spoilers|| and the
 // speech tint. A DM is a GM and a player talking, not a scene, which is the
 // one thing that genuinely differs between the two.
-export const CHAT_PLUGINS = [remarkGfm, remarkSubtext, remarkChat, remarkDiscord, remarkTokens];
+export const CHAT_PLUGINS = [remarkGfm, remarkSubtext, remarkTokens, remarkDiscord, remarkChat];
 
 // The custom tags remarkDiscord emits. Spread into every renderer's
 // `components` map — a renderer that omits it renders the tag as nothing at

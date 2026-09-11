@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
@@ -8,7 +8,7 @@ import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
-import { CameraIcon, EditIcon, EyeIcon, HoodIcon, MoreIcon, NotesIcon, QuillIcon, SearchIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, HoodIcon, NotesIcon, PlusIcon, QuillIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { Readout } from "@/app/components/ExamineDialog";
@@ -17,6 +17,8 @@ import useActionRunner from "@/app/components/useActionRunner";
 import { photographRow, starRow, lookAt, lookAtRow, loadTravel, placeMembers, toggleConceal } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
+import useNarrow from "./useNarrow";
+import ChatHead from "./ChatHead";
 import {
   useFeed,
   useHistoryState,
@@ -480,7 +482,16 @@ export default function Feed({
   // your own sentence rewrite itself a second after you send it.
   autocorrect = false,
   onSeen,
-  onOpenSheet = null,
+  // The phone's two drawers, opened from the head (ChatHead.js): everywhere
+  // this character can hear, and who is standing here with the place, the
+  // ways out and you. Null draws no button — the GM desk's Scene tab embeds
+  // this feed and has neither.
+  onOpenPlaces = null,
+  onOpenAside = null,
+  // A dot on ≡ when some other place has something unread, and the count on
+  // the people button. Both drawn by ChatHead, decided by Chat.js.
+  unreadElsewhere = false,
+  hereCount = null,
   // whosHere().named for where this character stands, as { id, name,
   // updatedAt } — the @ list, and the same roster the page hands
   // CharacterMentionsProvider so a {char:…} renders back as a face.
@@ -569,15 +580,15 @@ export default function Feed({
       ? fallbackRows
       : stored;
   const [searchOpen, setSearchOpen] = useState(false);
-  // Whether the place's own description under the title is open. Chat.js keys
-  // this component on the open place, so walking into another room brings the
-  // line back closed without a reset.
-  const [descOpen, setDescOpen] = useState(false);
   // The `at` of a jump whose failure the reader has already waved away, so
   // closing the search box after a miss actually closes it.
   const [dismissedJump, setDismissedJump] = useState(null);
   const typing = typingLine(useTyping(placeKey));
   const coarse = useIsCoarsePointer();
+  // The phone (useNarrow.js): a one-line box, the send as a glyph, and the
+  // ✉ and the hood folded behind a + the way Discord's composer does it.
+  const narrow = useNarrow();
+  const [toolsOpen, setToolsOpen] = useState(false);
   const confirm = useConfirm();
   // The box's text. Seeded from what this tab last left unsent in THIS place
   // (./draftStore.js): Chat.js keys this component on the open place, so a
@@ -1048,6 +1059,33 @@ export default function Feed({
     );
   }, [command, draft, runCommand, commandCtx, setCmdError]);
 
+  // The hood, from the composer's own button or the phone's + menu. The name
+  // every row this composer writes will wear is a server prop, so the page
+  // is what has to re-read it.
+  const toggleHood = useCallback(() => {
+    setConcealError(null);
+    startConceal(async () => {
+      try {
+        const res = await toggleConceal();
+        if (res?.ok) refresh();
+        else setConcealError(res?.error ?? "Something went wrong.");
+      } catch {
+        setConcealError("Could not reach the server. Nothing was changed.");
+      }
+    });
+  }, [refresh]);
+
+  // The box grows with what is in it, up to about six lines, and shrinks
+  // back. A DOM measurement after the value lands, so it is a layout effect
+  // and it sets no state — `rows` is only the floor.
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const line = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    el.style.height = `${Math.min(el.scrollHeight, Math.round(line * 6) + 12)}px`;
+  }, [draft, narrow, command]);
+
   const submit = useCallback(() => {
     const content = draft.trim();
     if (!content || !placeKey) return;
@@ -1495,53 +1533,31 @@ export default function Feed({
     setDismissedJump(jump?.at ?? null);
   };
 
-  // The head is the place's name and, under it, the place's own words. A room
-  // has nowhere else to say them: PlaceCard draws the LOCATION's description
-  // and the zone's, and the hover card on the room's row in the left column is
-  // gone the moment you click through. So the line comes back here — but as one
-  // clamped line of subtext you open with a click, not the fixed-height strip
-  // with a "more" button that used to sit over the scene. The turn is still on
-  // the crumb above the whole Chat (layout.js).
+  // The head is ChatHead.js: the name, where you are standing above it, the
+  // place's own words under it as one line you open, and — on a phone — the
+  // two drawer buttons either side. Search is the head's trailing control.
   const description = place?.description?.trim() || "";
   return (
     <div className="chat-main">
-      <div className="chat-head">
-        <div className="chat-head-main">
-          {/* Where you are standing, above what you are reading. A
-              conversation and the zone summary are both opened from
-              somewhere, and nothing on the page used to say where. */}
-          {crumb.length > 0 && (
-            <p className="chat-crumb">
-              {crumb.map((name, i) => (
-                <Fragment key={name}>
-                  {i > 0 && <span aria-hidden="true"> · </span>}
-                  {name}
-                </Fragment>
-              ))}
-            </p>
-          )}
-          <h1 className="section-title">{place.name}</h1>
-          {description && (
-            <button
-              type="button"
-              className="chat-head-desc"
-              data-open={descOpen ? "true" : undefined}
-              aria-expanded={descOpen}
-              onClick={() => setDescOpen((open) => !open)}
-            >
-              {description}
-            </button>
-          )}
-        </div>
-        {onJump && (
-          <IconButton
-            icon={SearchIcon}
-            label="Search what was said"
-            aria-expanded={showSearch}
-            onClick={() => (showSearch ? closeSearch() : setSearchOpen(true))}
-          />
-        )}
-      </div>
+      <ChatHead
+        name={place.name}
+        crumb={crumb}
+        description={description}
+        onOpenPlaces={onOpenPlaces}
+        onOpenAside={onOpenAside}
+        unreadElsewhere={unreadElsewhere}
+        hereCount={hereCount}
+        trailing={
+          onJump ? (
+            <IconButton
+              icon={SearchIcon}
+              label="Search what was said"
+              aria-expanded={showSearch}
+              onClick={() => (showSearch ? closeSearch() : setSearchOpen(true))}
+            />
+          ) : null
+        }
+      />
 
       {/* Who is in this conversation or private room, and the two buttons that
           change it. Only those two kinds of place have one — MembersStrip
@@ -1634,6 +1650,16 @@ export default function Feed({
        </div>
       </div>
 
+      {/* Who is writing something. Inside the wrap so that on a phone it can
+          sit OVER the last line of the scene rather than under it — a row of
+          its own is a row the feed does not have there. On a desktop it is
+          still a line between the scene and the box, holding its height
+          whether or not anybody is writing, so the feed does not jump every
+          time somebody starts and stops. */}
+      <p className="chat-typing" aria-live="polite">
+        {typing}
+      </p>
+
       {!atBottom && (
         <button
           type="button"
@@ -1649,13 +1675,6 @@ export default function Feed({
         </button>
       )}
       </div>
-
-      {/* Who is writing something, above the composer and below the scene.
-          Holds its line's height whether or not anybody is, so the feed does
-          not jump every time somebody starts and stops. */}
-      <p className="chat-typing" aria-live="polite">
-        {typing}
-      </p>
 
       {!readOnly && (
         <div className="chat-composer">
@@ -1689,7 +1708,7 @@ export default function Feed({
                   aria-label={
                     concealed && alias ? `Say something as ${alias}` : `Say something in ${place.name}`
                   }
-                  rows={2}
+                  rows={narrow ? 1 : 2}
                   value={draft}
                   placeholder={
                     command
@@ -1825,18 +1844,32 @@ export default function Feed({
                   affordance at all, and nothing on the page said Enter would
                   send. It is drawn everywhere now, with the keys spelled out
                   beside it where there is a keyboard to use them. */}
-              <button
-                type="button"
-                className="btn"
-                onClick={command ? runCurrent : submit}
-                disabled={
-                  command
-                    ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
-                    : !draft.trim() || waitSeconds > 0
-                }
-              >
-                {command ? "Run" : "Send"}
-              </button>
+              {narrow ? (
+                <IconButton
+                  icon={SendIcon}
+                  label={command ? "Run" : "Send"}
+                  className="icon-btn chat-send"
+                  onClick={command ? runCurrent : submit}
+                  disabled={
+                    command
+                      ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
+                      : !draft.trim() || waitSeconds > 0
+                  }
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={command ? runCurrent : submit}
+                  disabled={
+                    command
+                      ? cmdPending || (Boolean(textArgOf(command.entry)) && !draft.trim())
+                      : !draft.trim() || waitSeconds > 0
+                  }
+                >
+                  {command ? "Run" : "Send"}
+                </button>
+              )}
               {/* Two quiet readouts under the send. The keys, because nothing
                   on the page said Enter would send; and the count, but only
                   where a limit actually exists to run into — the refusal used
@@ -1871,20 +1904,21 @@ export default function Feed({
           {/* Paperwork and the hood, beside the send. Neither is a place's
               affordance — they are things you do with your own hands wherever
               you are standing — so they sit on the composer rather than in the
-              right column. */}
+              right column. On a phone the two fold behind one + at the left
+              edge of the box (Discord's), so the row is +, the box, and send. */}
           {(lettersMenu.length > 0 || canConceal) && (
-            <span className="chat-composer-tools">
-              {lettersMenu.length > 0 && (
+            <span className={narrow ? "chat-composer-tools chat-composer-tools--folded" : "chat-composer-tools"}>
+              {narrow ? (
                 <span className="chat-tool-wrap">
                   <IconButton
-                    icon={QuillIcon}
-                    label="Letters"
+                    icon={PlusIcon}
+                    label="More"
                     aria-haspopup="menu"
-                    aria-expanded={lettersOpen}
-                    onClick={() => setLettersOpen((was) => !was)}
+                    aria-expanded={toolsOpen}
+                    onClick={() => setToolsOpen((was) => !was)}
                   />
-                  {lettersOpen && (
-                    <div className="chat-menu" role="menu" aria-label="Letters">
+                  {toolsOpen && (
+                    <div className="chat-menu chat-menu--left" role="menu" aria-label="More">
                       {lettersMenu.map((entry) => (
                         <button
                           key={entry.mode}
@@ -1893,49 +1927,75 @@ export default function Feed({
                           className="menu-item"
                           disabled={entry.disabled}
                           onClick={() => {
-                            setLettersOpen(false);
+                            setToolsOpen(false);
                             openAction?.(entry.mode);
                           }}
                         >
                           {entry.label}
                         </button>
                       ))}
+                      {canConceal && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="menu-item"
+                          disabled={concealPending}
+                          onClick={() => {
+                            setToolsOpen(false);
+                            toggleHood();
+                          }}
+                        >
+                          {concealed ? "Take the hood off" : "Put the hood up"}
+                        </button>
+                      )}
                     </div>
                   )}
                 </span>
-              )}
-              {canConceal && (
-                <IconButton
-                  icon={HoodIcon}
-                  label={concealed ? "Take the hood off" : "Put the hood up"}
-                  aria-pressed={concealed}
-                  disabled={concealPending}
-                  onClick={() => {
-                    setConcealError(null);
-                    startConceal(async () => {
-                      try {
-                        const res = await toggleConceal();
-                        // The name every row this composer writes will wear
-                        // is a server prop, so the page is what has to
-                        // re-read it.
-                        if (res?.ok) refresh();
-                        else setConcealError(res?.error ?? "Something went wrong.");
-                      } catch {
-                        setConcealError("Could not reach the server. Nothing was changed.");
-                      }
-                    });
-                  }}
-                />
+              ) : (
+                <>
+                  {lettersMenu.length > 0 && (
+                    <span className="chat-tool-wrap">
+                      <IconButton
+                        icon={QuillIcon}
+                        label="Letters"
+                        aria-haspopup="menu"
+                        aria-expanded={lettersOpen}
+                        onClick={() => setLettersOpen((was) => !was)}
+                      />
+                      {lettersOpen && (
+                        <div className="chat-menu" role="menu" aria-label="Letters">
+                          {lettersMenu.map((entry) => (
+                            <button
+                              key={entry.mode}
+                              type="button"
+                              role="menuitem"
+                              className="menu-item"
+                              disabled={entry.disabled}
+                              onClick={() => {
+                                setLettersOpen(false);
+                                openAction?.(entry.mode);
+                              }}
+                            >
+                              {entry.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </span>
+                  )}
+                  {canConceal && (
+                    <IconButton
+                      icon={HoodIcon}
+                      label={concealed ? "Take the hood off" : "Put the hood up"}
+                      aria-pressed={concealed}
+                      disabled={concealPending}
+                      onClick={toggleHood}
+                    />
+                  )}
+                </>
               )}
             </span>
           )}
-          {/* The phone's way to the right column: the people, the place panel
-              and the You strip, as a sheet over the scene. Hidden on a
-              desktop by the same media query that hides the column, since
-              there it would only open what is already on screen. */}
-          <span className="chat-sheet-trigger">
-            <IconButton icon={MoreIcon} label="Here" disabled={!onOpenSheet} onClick={onOpenSheet ?? undefined} />
-          </span>
         </div>
       )}
 

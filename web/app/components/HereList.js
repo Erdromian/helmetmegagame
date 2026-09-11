@@ -131,7 +131,6 @@ export default function HereList({
   // here. (/ledger, which this used to name, redirects to /character now.)
   people,
   selfId,
-  strip = false,
   onConverse = null,
   poll = false,
   // The open place, when it is one somebody can be let into: { placeKey,
@@ -208,18 +207,18 @@ export default function HereList({
 
   return (
     <div
-      className={strip ? "chat-strip" : "chat-here"}
+      className="chat-here"
       ref={wrapRef}
       onBlur={(event) => {
         if (!wrapRef.current?.contains(event.relatedTarget)) close();
       }}
     >
-      {!strip && <p className="chat-section-title">Here · {total}</p>}
-      {total === 0 && !strip && <EmptyState>Nobody is here.</EmptyState>}
+      <p className="chat-section-title">Here · {total}</p>
+      {total === 0 && <EmptyState>Nobody is here.</EmptyState>}
 
       {named.map((person) => (
         <div key={person.characterId} className="chat-person-wrap">
-          <div className={strip ? undefined : "chat-person-row"}>
+          <div className="chat-person-row">
             <button
               type="button"
               className="chat-person"
@@ -238,19 +237,17 @@ export default function HereList({
                 src={person.avatarPath ?? undefined}
                 size={24}
               />
-              {!strip && (
-                <span className="chat-person-name">
-                  {person.name}
-                  {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
-                  {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
-                </span>
-              )}
+              <span className="chat-person-name">
+                {person.name}
+                {person.roleTitle ? <span className="text-muted"> · {person.roleTitle}</span> : null}
+                {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
+              </span>
             </button>
             {/* No eye until you have heard them. Absent rather than greyed:
                 the row above already drops it for yourself, so that is one
                 rule instead of two, and a disabled eye would need a sentence
                 explaining itself. */}
-            {!strip && person.characterId !== selfId && person.sightingSeq && (
+            {person.characterId !== selfId && person.sightingSeq && (
               <span className="chat-person-eye">
                 <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
               </span>
@@ -273,7 +270,7 @@ export default function HereList({
           two hoods would then share the key `hooded-null`. */}
       {concealed.map((person, index) => (
         <div key={`hooded-${index}`} className="chat-person-wrap">
-          <div className={strip ? undefined : "chat-person-row"}>
+          <div className="chat-person-row">
             <button
               type="button"
               className="chat-person"
@@ -291,9 +288,9 @@ export default function HereList({
                 unknown={person.unknownFace}
                 size={24}
               />
-              {!strip && <span className="chat-person-name text-muted">{person.alias}</span>}
+              <span className="chat-person-name text-muted">{person.alias}</span>
             </button>
-            {!strip && person.sightingSeq && (
+            {person.sightingSeq && (
               <span className="chat-person-eye">
                 <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
               </span>

@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useEffect, useRef } from "react";
+import { memo } from "react";
 import IconButton from "@/app/components/IconButton";
 import HoverCard from "@/app/components/HoverCard";
 import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, SendIcon } from "@/app/components/icons";
@@ -17,10 +17,11 @@ import { useFolded } from "./sectionFold";
 //   ROOMS          the public rooms off it, then the private ones you can open
 //   CONVERSATIONS  the private threads you are in
 //
-// Under 720px the same list is a horizontal .tab-bar of .tab-item above the
-// feed, which is the second half of this file. The sections are the only
-// difference between the two: a tab strip has no room for headings, so the
-// glyph carries the kind instead.
+// On a phone (under 720px) the SAME column is the ≡ drawer over the scene
+// (Chat.js). It used to be a horizontal tab strip above the feed, which had
+// no room for the sections and took a row off a screen that had none to
+// give; the drawer is the desktop column, unchanged, with a foot for the
+// app's own links since the bottom bar is gone from Chat there.
 
 // A private Room wears a key, a Location wears the door it is. One character
 // each, because the column is 15rem wide and a label is what people read.
@@ -43,9 +44,8 @@ function glyph(place) {
 // it; `pinnable={false}` because the row is a button already — one tab stop,
 // Enter still selects the place, nothing sticks open. A row with nothing to
 // say (a Conversation, Bascinet, the faction) is a bare button, so thirty
-// rows do not each mount a portal. Phones get no hover and none of this: the
-// column is not rendered under 720px, and the place you are standing in has
-// its description at the top of the ⋯ sheet.
+// rows do not each mount a portal. A phone gets no hover and none of this;
+// the open place's description is one tap on its name in the head.
 const PlaceRow = memo(function PlaceRow({ place, active, unread, onSelect }) {
   const button = (
     <button
@@ -136,6 +136,9 @@ export default function PlacesColumn({
   push = null,
   // The tick beside them: everything caught up at once. Null hides it.
   onMarkAllSeen = null,
+  // Whatever the phone's drawer wants under the places: the app's nav links,
+  // or GM mode's zone picker. Null on a desktop, where the rail has them.
+  foot = null,
 }) {
   const here = places.filter((p) => p.kind === "loc");
   const rooms = places.filter((p) => p.kind === "room");
@@ -177,6 +180,10 @@ export default function PlacesColumn({
           the whole of the game for them (CHAT.md §6). An icon and a chip
           rather than two sentences: the column is 15rem wide and the places
           are what it is for. */}
+      {/* The tail: pinned to the column's bottom whatever is above it, so the
+          chime, the tick and whatever the phone or GM mode puts under them
+          are never 8,000px below the fold of a GM's every-room list. */}
+      <div className="chat-places-tail">
       <div className="chat-places-foot">
         {onToggleChime && (
           <IconButton
@@ -206,51 +213,8 @@ export default function PlacesColumn({
         )}
         {webOnly && <span className="chip chat-webonly">Playing from the web</span>}
       </div>
+      {foot}
+      </div>
     </nav>
-  );
-}
-
-// The phone's version of the same list. .tab-bar / .tab-item are the app's
-// tab strip (DESIGN-SYSTEM.md §5) — a strip that navigates between panels,
-// keyed on data-active, which is exactly what this is.
-export function PlacesTabs({ places, selected, seen, newest, onSelect }) {
-  const stripRef = useRef(null);
-  // The open tab is brought into the strip's view whenever it changes — a
-  // search hit, `/travel`, a link into a room can all open a place whose tab
-  // is off the edge of the phone. By moving the strip's own scrollLeft, never
-  // scrollIntoView: that walks every scrollable ancestor and would drag the
-  // whole screen with it.
-  useEffect(() => {
-    const strip = stripRef.current;
-    const tab = strip?.querySelector('[data-active="true"]');
-    if (!strip || !tab) return;
-    const left = tab.offsetLeft;
-    const right = left + tab.offsetWidth;
-    if (left < strip.scrollLeft) strip.scrollLeft = left;
-    else if (right > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = right - strip.clientWidth;
-  }, [selected]);
-  return (
-    <div ref={stripRef} className="tab-bar chat-tabs" role="tablist" aria-label="Places">
-      {places.map((place) => {
-        // Computed once so the attribute and the dot cannot disagree — the
-        // column's own rows read the same pair off `unreadOf`.
-        const unread = place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place));
-        return (
-          <button
-            key={place.placeKey}
-            type="button"
-            role="tab"
-            className="tab-item"
-            aria-selected={place.placeKey === selected}
-            data-active={place.placeKey === selected ? "true" : "false"}
-            data-unread={unread ? "true" : undefined}
-            onClick={() => onSelect(place.placeKey)}
-          >
-            {place.name}
-            {unread && <span className="chat-dot" aria-label="Unread" />}
-          </button>
-        );
-      })}
-    </div>
   );
 }
