@@ -35,9 +35,13 @@ const DEFAULT_SOURCE = "bot_auto";
 // The `»` that marks a line as the game restating something at you
 // (CLAUDE.md, "Bot message style"). Idempotent: a caller that wrote its own
 // chevron — the `/dm` handler does — gets one, not two.
+//
+// The test is the chevron ALONE, not `"» "`. A caller that wrote `»hi` with no
+// space still wrote a chevron, and `» »hi` is two of them — which is the one
+// shape a reader notices, because it reads as a quote of a quote.
 function applyDmPrefix(content) {
   const text = String(content ?? "");
-  return text.startsWith("» ") ? text : `» ${text}`;
+  return text.startsWith("»") ? text : `» ${text}`;
 }
 
 // The exact `data` for a DirectMessage.create after a send. One place, so a
@@ -72,8 +76,18 @@ function dmLogRow({ discordUserId, content, opts = {}, discordMessageId = null, 
 // Stable across RUNS too, so it is built from ids and never from a loop index.
 // The push's step ladder used `delivery:<messageId>:<index>`; an index moves if
 // a recipient is removed between a crash and its resume.
-function dedupeKey({ scope, subjectId, discordUserId }) {
-  return `${scope}:${subjectId}:${discordUserId ?? "none"}`;
+//
+// `recipientKey` is what a caller passes when the Discord id is not the
+// identity it means. A staged message's recipients are CHARACTERS, and a
+// character who has never linked a Discord account has a null id — so keying on
+// the Discord id gave every such recipient the same `…:none` tail, and a
+// createMany with skipDuplicates silently collapsed a whole roomful of them
+// into one row. Worse, that same tail is the one a PUBLIC post uses, so a
+// PRIVATE recipient could collide with the zone's own post. Callers pass the
+// thing that actually identifies the recipient; `discordUserId` stays as the
+// fallback for the transports that genuinely key on a Discord account.
+function dedupeKey({ scope, subjectId, discordUserId, recipientKey }) {
+  return `${scope}:${subjectId}:${recipientKey ?? discordUserId ?? "none"}`;
 }
 
 // What a bounced send is written down as — in Delivery.lastError, in

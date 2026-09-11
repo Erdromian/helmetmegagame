@@ -389,11 +389,10 @@ async function runStagedPushPass(prisma, turn) {
     toEnsure.push({ stagedMessage: message, recipients });
   }
 
-  // A PUBLIC row gets its one row too, so the tray and the Resend button read
-  // the same table for both kinds.
-  for (const post of publicPosts) {
-    toEnsure.push({ stagedMessage: { id: post.stagedMessageId }, recipients: [] });
-  }
+  // A PUBLIC row is NOT pre-written here. deliverPublic calls ensureDeliveries
+  // itself and is the only thing that ever touches that row, so writing it
+  // twice bought nothing — and the pre-write is only worth its query for the
+  // PRIVATE fan-out, where it is what makes a half-finished push resumable.
   for (const each of toEnsure) {
     // Best-effort: a push whose delivery rows could not be written still
     // delivers (deliverPrivate calls ensureDeliveries itself and is idempotent

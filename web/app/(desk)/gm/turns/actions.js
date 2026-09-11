@@ -9,7 +9,13 @@ import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 // By path, not off the barrel — the db/lib/dm.js convention this module follows.
-import { deliverPrivate, deliverPublic, failuresFor } from "@lifeweb/db/lib/stagedDelivery";
+import {
+  backfillLegacyDeliveries,
+  deliverPrivate,
+  deliverPublic,
+  failuresFor,
+  isRetryable,
+} from "@lifeweb/db/lib/stagedDelivery";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { dropCharacterTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
@@ -209,52 +215,80 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
   if (!existing) throw new UserError("That staged message is gone.");
   if (!existing.sentAt) throw new UserError("That message hasn't gone out yet.");
 
-  const failedRows = existing.deliveries.filter((d) => d.state === "FAILED");
-  // The blob is the fallback for a message pushed before the Delivery table
-  // existed: its rows are written on demand by the shared path, and they come
-  // back PENDING, which `onlyFailed` would skip. So an old message retries
-  // everyone who is not already SENT — which for a pre-Delivery row is
-  // everyone, and the GM pressed Resend precisely because some of them bounced.
+  const recipients = existing.recipients.map((r) => ({
+    characterId: r.character.id,
+    name: r.character.name,
+    discordUserId: r.character.discordUserId,
+  }));
   const priorFailures = Array.isArray(existing.deliveryFailures) ? existing.deliveryFailures : [];
-  if (!failedRows.length && !priorFailures.length) throw new UserError("Nothing failed on that message.");
-  const onlyFailed = failedRows.length > 0;
+
+  // A message pushed BEFORE the Delivery table existed has a sentAt and no rows
+  // at all, and production is full of them. Writing them fresh would make them
+  // PENDING — which reads as "never attempted" — and Resend would then re-DM
+  // every recipient who had already read the thing, or re-post a declaration
+  // that is already sitting in the channel. So the old state is reconstructed
+  // first, from the only two things the old code wrote down: sentAt says
+  // everyone was attempted, and the blob names who bounced.
+  let deliveries = existing.deliveries;
+  if (!deliveries.length) {
+    await backfillLegacyDeliveries(prisma, {
+      stagedMessage: existing,
+      recipients,
+      priorFailures,
+    });
+    deliveries = await prisma.delivery.findMany({
+      where: { stagedMessageId: existing.id },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  // Retryable, not merely FAILED: a row a killed push stranded IN_FLIGHT past
+  // the stale window is a bounce that never got to say so, and refusing to
+  // resend it leaves the recipient with nothing and the GM with no button.
+  const retryable = deliveries.filter((d) => d.state !== "SENT" && isRetryable(d));
+  if (!retryable.length) throw new UserError("Nothing failed on that message.");
 
   let resent = 0;
   let stillFailing = [];
+  let held = 0;
 
   if (existing.kind === "PRIVATE") {
-    const recipients = existing.recipients.map((r) => ({
-      characterId: r.character.id,
-      name: r.character.name,
-      discordUserId: r.character.discordUserId,
-    }));
     // The push's own code path (db/lib/stagedDelivery.js), not a second copy
     // of it. Each recipient is claimed before their DM, so pressing Resend
-    // while a push is still running retries nobody twice.
-    const { sent, failed } = await deliverPrivate(prisma, {
+    // while a push is still running retries nobody twice — and `onlyFailed` is
+    // now unconditional, because the rows are the whole truth for a legacy
+    // message too. There is never a reason for Resend to reach a recipient the
+    // table does not say needs reaching.
+    const { sent, skipped } = await deliverPrivate(prisma, {
       stagedMessage: existing,
       recipients,
-      onlyFailed,
+      onlyFailed: true,
     });
     resent = sent.length;
+    held = skipped.length;
     // Derived from the rows, not from this run: a recipient a concurrent push
     // just got through to must not still be listed as failing here.
-    stillFailing = failed.length ? await failuresFor(prisma, existing.id) : [];
+    stillFailing = await failuresFor(prisma, existing.id);
   } else {
     const channelId = existing.zone?.discordSummaryChannelId;
     if (!channelId) throw new UserError("That zone has no summary channel configured.");
     // A declaration that reached Discord already has its Hall row; one that
     // never posted has none, and a resend is the only thing that will write
     // it. `sent` on the row is the question, not whether this is a retry.
-    const posted = existing.deliveries.some((d) => d.state === "SENT");
-    const { sent, failed } = await deliverPublic(prisma, {
+    const posted = deliveries.some((d) => d.state === "SENT");
+    const { sent, skipped } = await deliverPublic(prisma, {
       stagedMessage: existing,
       channelId,
       zoneId: existing.zoneId,
       writeSceneLine: !posted,
     });
     resent = sent;
-    stillFailing = failed;
+    held = skipped ? 1 : 0;
+    // Derived from the rows, the same way PRIVATE does it. The raw `failed`
+    // this used to return is only ever this run's own bounce, so a post that
+    // failed here and was retried by a push a second later stayed listed as
+    // failing and the blob disagreed with the row.
+    stillFailing = await failuresFor(prisma, existing.id);
   }
 
   await prisma.stagedMessage.update({
@@ -269,14 +303,17 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
       details: {
         stagedMessageId: existing.id,
         kind: existing.kind,
-        attempted: resent + stillFailing.length,
+        attempted: resent + stillFailing.length + held,
         delivered: resent,
         stillFailing: stillFailing.length,
+        // Claimed by a push running right now. Neither sent nor bounced, and
+        // the GM's counts have to add up or the row reads as lost mail.
+        held,
       },
     },
   });
 
-  return { resent, stillFailing, patch: await deskPatchFor({ stagedMessageIds: [existing.id] }) };
+  return { resent, stillFailing, held, patch: await deskPatchFor({ stagedMessageIds: [existing.id] }) };
 }
 
 // The composer stages presence ops only (add/remove). Patch and equip belong

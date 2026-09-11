@@ -17,7 +17,10 @@
 // Required BY PATH, not off the @lifeweb/db barrel — the db/lib/dm.js
 // convention, and for the same reason: it takes `prisma` as a parameter
 // because db/index.js imports the module that imports this one.
-const { sendDm } = require("./dm");
+// The MODULE, not a destructured `sendDm`: db/test/stagedDelivery.test.js
+// swaps the transport out to assert what actually reached Discord, and a
+// destructured binding captured at load time would ignore the swap.
+const dm = require("./dm");
 const { DM_KIND } = require("./dmKinds");
 const { dedupeKey, describeFailure } = require("./dmPolicy");
 const { postMessageBatched } = require("./discordRest");
@@ -36,10 +39,28 @@ const { sceneLineAt } = require("./scene");
 // still in flight five minutes later is a process that is not coming back.
 const STALE_CLAIM_MS = 5 * 60 * 1000;
 
-// A PRIVATE message's key names the recipient; a PUBLIC one has no recipient
-// and its "none" tail is what keeps it one row rather than zero.
-function deliveryKeyFor(stagedMessageId, discordUserId) {
-  return dedupeKey({ scope: "staged", subjectId: stagedMessageId, discordUserId });
+// A PRIVATE message's key names the RECIPIENT — the character, not their
+// Discord account. A staged message is addressed to characters, and a character
+// who has never linked Discord has a null id, so keying on that id gave every
+// such recipient the same tail; `createMany({ skipDuplicates: true })` then
+// wrote one row for the lot of them and the rest were never delivered and never
+// even listed as failing. It also collided with the PUBLIC key, which is why
+// that one is now the literal word "public" rather than a shared empty tail.
+function deliveryKeyFor(stagedMessageId, recipient = null) {
+  const recipientKey = recipient
+    ? (recipient.characterId ?? recipient.discordUserId ?? null)
+    : "public";
+  return dedupeKey({ scope: "staged", subjectId: stagedMessageId, recipientKey });
+}
+
+// Is this row something an attempt may take? PENDING and FAILED plainly are.
+// So is an IN_FLIGHT row whose claim has gone stale — a process killed mid-send
+// leaves one behind, and without this it would sit there looking busy forever
+// and the Resend button would tell the GM nothing had failed.
+function isRetryable(delivery, now = Date.now()) {
+  if (delivery.state === "PENDING" || delivery.state === "FAILED") return true;
+  if (delivery.state !== "IN_FLIGHT") return false;
+  return !delivery.claimedAt || delivery.claimedAt.getTime() < now - STALE_CLAIM_MS;
 }
 
 // Every row a staged message needs, written once. skipDuplicates on the unique
@@ -51,7 +72,7 @@ async function ensureDeliveries(prisma, { stagedMessage, recipients }) {
     characterId: r?.characterId ?? null,
     discordUserId: r?.discordUserId ?? null,
     name: r?.name ?? null,
-    dedupeKey: deliveryKeyFor(stagedMessage.id, r?.discordUserId ?? null),
+    dedupeKey: deliveryKeyFor(stagedMessage.id, r ?? null),
   }));
   await prisma.delivery.createMany({ data: rows, skipDuplicates: true });
   return prisma.delivery.findMany({
@@ -92,7 +113,7 @@ async function claimDelivery(prisma, delivery) {
 async function deliverPrivate(prisma, { stagedMessage, recipients, onlyFailed = false }) {
   const deliveries = await ensureDeliveries(prisma, { stagedMessage, recipients });
   const byKey = new Map(
-    (recipients ?? []).map((r) => [deliveryKeyFor(stagedMessage.id, r.discordUserId), r]),
+    (recipients ?? []).map((r) => [deliveryKeyFor(stagedMessage.id, r), r]),
   );
 
   const sent = [];
@@ -101,7 +122,12 @@ async function deliverPrivate(prisma, { stagedMessage, recipients, onlyFailed = 
 
   for (const delivery of deliveries) {
     if (delivery.state === "SENT") continue;
-    if (onlyFailed && delivery.state !== "FAILED") continue;
+    // Resend wants the bounces — and the rows a killed push stranded IN_FLIGHT,
+    // which are bounces that never got to say so. Not the ones a push running
+    // right now is holding: those are still someone else's, and the claim below
+    // refuses them anyway.
+    if (onlyFailed && !(delivery.state === "FAILED" || (delivery.state === "IN_FLIGHT" && isRetryable(delivery))))
+      continue;
     const recipient = byKey.get(delivery.dedupeKey) ?? {
       characterId: delivery.characterId,
       name: delivery.name,
@@ -114,13 +140,32 @@ async function deliverPrivate(prisma, { stagedMessage, recipients, onlyFailed = 
       continue;
     }
 
+    let message;
     try {
-      const message = await sendDm(prisma, recipient.discordUserId, stagedMessage.content, {
+      message = await dm.sendDm(prisma, recipient.discordUserId, stagedMessage.content, {
         authorDiscordUserId: stagedMessage.createdByDiscordUserId ?? null,
         source: "staged_push",
         // A turn result is GM-authored prose, just delivered in bulk.
         kind: DM_KIND.CONVERSATION,
       });
+    } catch (err) {
+      const failure = describeFailure(err);
+      await prisma.delivery
+        .update({
+          where: { id: delivery.id },
+          data: { state: "FAILED", claimedAt: null, lastError: failure },
+        })
+        .catch((markErr) => console.error(`Failed to mark delivery ${delivery.id}:`, markErr));
+      failed.push({ characterId: recipient.characterId, name: recipient.name, ...failure });
+      continue;
+    }
+
+    // THE SEND HAPPENED. Stamping it is a separate try on purpose: this used to
+    // sit inside the one above, so a database hiccup on the stamp marked the row
+    // FAILED for a DM the player had already read, and the next attempt sent it
+    // again. A stamp that fails leaves the row IN_FLIGHT — claimed, so nothing
+    // touches it until the stale window expires, by which time a human can look.
+    try {
       await prisma.delivery.update({
         where: { id: delivery.id },
         data: {
@@ -131,17 +176,13 @@ async function deliverPrivate(prisma, { stagedMessage, recipients, onlyFailed = 
           discordMessageId: message?.id ?? null,
         },
       });
-      sent.push({ characterId: recipient.characterId, name: recipient.name });
-    } catch (err) {
-      const failure = describeFailure(err);
-      await prisma.delivery
-        .update({
-          where: { id: delivery.id },
-          data: { state: "FAILED", claimedAt: null, lastError: failure },
-        })
-        .catch((markErr) => console.error(`Failed to mark delivery ${delivery.id}:`, markErr));
-      failed.push({ characterId: recipient.characterId, name: recipient.name, ...failure });
+    } catch (markErr) {
+      console.error(
+        `DELIVERY SENT BUT NOT STAMPED — delivery ${delivery.id} (staged message ${stagedMessage.id}) reached ${recipient.name ?? recipient.discordUserId} and the row is still IN_FLIGHT:`,
+        markErr,
+      );
     }
+    sent.push({ characterId: recipient.characterId, name: recipient.name });
   }
 
   return { sent, failed, skipped };
@@ -159,10 +200,15 @@ async function deliverPublic(prisma, { stagedMessage, channelId, zoneId, writeSc
 
   if (!channelId) {
     const failure = { error: "no summary channel configured", status: null };
-    await prisma.delivery.update({
-      where: { id: delivery.id },
+    // Guarded, not a blind update: a row that is already SENT, or IN_FLIGHT
+    // under somebody else's claim, must not be flipped to FAILED by a caller
+    // that merely could not find a channel. Doing so told the tray a post that
+    // had gone out had bounced, and invited a GM to send it twice.
+    const marked = await prisma.delivery.updateMany({
+      where: { id: delivery.id, state: { notIn: ["SENT", "IN_FLIGHT"] } },
       data: { state: "FAILED", claimedAt: null, lastError: failure },
     });
+    if (!marked.count) return { sent: 0, failed: [], skipped: true };
     return { sent: 0, failed: [failure], skipped: false };
   }
   if (delivery.state === "SENT") return { sent: 0, failed: [], skipped: true };
@@ -172,18 +218,6 @@ async function deliverPublic(prisma, { stagedMessage, channelId, zoneId, writeSc
     // Batched: a declaration over 2000 characters posts as several messages in
     // order rather than being rejected. See ADJUDICATION.md §1.
     await postMessageBatched(channelId, stagedMessage.content);
-    if (writeSceneLine && zoneId) {
-      // The Hall's half: one SYSTEM row in the zone's feed, beside the post.
-      // The declaration is GM-authored and already signed, so it is not signed
-      // again. The push always wrote this and Resend never did, which is how a
-      // resent declaration used to reach Discord and never reach /play.
-      await sceneLineAt(prisma, { zoneId, text: stagedMessage.content, signed: false });
-    }
-    await prisma.delivery.update({
-      where: { id: delivery.id },
-      data: { state: "SENT", sentAt: new Date(), claimedAt: null, lastError: null },
-    });
-    return { sent: 1, failed: [], skipped: false };
   } catch (err) {
     const failure = describeFailure(err);
     await prisma.delivery
@@ -194,6 +228,84 @@ async function deliverPublic(prisma, { stagedMessage, channelId, zoneId, writeSc
       .catch((markErr) => console.error(`Failed to mark delivery ${delivery.id}:`, markErr));
     return { sent: 0, failed: [failure], skipped: false };
   }
+
+  // THE POST HAPPENED. Everything below is bookkeeping, and none of it may turn
+  // a delivered post back into a failure — a FAILED row here is an invitation to
+  // post the declaration a second time. Each half gets its own try and its own
+  // loud log instead.
+  try {
+    await prisma.delivery.update({
+      where: { id: delivery.id },
+      data: { state: "SENT", sentAt: new Date(), claimedAt: null, lastError: null },
+    });
+  } catch (markErr) {
+    console.error(
+      `POST SENT BUT NOT STAMPED — delivery ${delivery.id} (staged message ${stagedMessage.id}) reached the summary channel and the row is still IN_FLIGHT:`,
+      markErr,
+    );
+  }
+
+  if (writeSceneLine && zoneId) {
+    // The Hall's half: one SYSTEM row in the zone's feed, beside the post. The
+    // declaration is GM-authored and already signed, so it is not signed again.
+    // The push always wrote this and Resend never did, which is how a resent
+    // declaration used to reach Discord and never reach /play. Its failure costs
+    // the web feed one row; it does not cost Discord a second post.
+    await sceneLineAt(prisma, { zoneId, text: stagedMessage.content, signed: false }).catch((err) =>
+      console.error(`Hall row for staged message ${stagedMessage.id} failed:`, err),
+    );
+  }
+
+  return { sent: 1, failed: [], skipped: false };
+}
+
+// The rows a message pushed BEFORE this table existed never got.
+//
+// Production carries StagedMessage rows with a sentAt and no Delivery rows at
+// all. Left alone, the shared path writes them fresh as PENDING on first
+// touch — and PENDING reads as "never attempted", so a GM pressing Resend on a
+// message where one recipient bounced would re-DM every recipient who had
+// already read it, and re-post a declaration that was already in the channel.
+//
+// So a legacy row is reconstructed from what the old code DID write down: the
+// sentAt stamp says every recipient was attempted, and the deliveryFailures
+// blob names the ones that bounced. Everybody else was delivered. Only ever
+// called when the message has no rows whatsoever — the moment there is one,
+// the table is the truth and this never runs again.
+async function backfillLegacyDeliveries(prisma, { stagedMessage, recipients, priorFailures = [] }) {
+  if (!stagedMessage?.sentAt) return false;
+  const existing = await prisma.delivery.count({ where: { stagedMessageId: stagedMessage.id } });
+  if (existing) return false;
+
+  const failures = Array.isArray(priorFailures) ? priorFailures : [];
+  const isPublic = stagedMessage.kind === "PUBLIC";
+  // A PUBLIC message has one row and no recipients: it failed if the blob says
+  // anything at all, and succeeded otherwise.
+  const list = isPublic ? [null] : (recipients ?? []);
+
+  const rows = list.map((r) => {
+    const failure = isPublic
+      ? (failures[0] ?? null)
+      : (failures.find(
+          (f) =>
+            (f?.characterId && r?.characterId && f.characterId === r.characterId) ||
+            (!f?.characterId && f?.name && r?.name && f.name === r.name),
+        ) ?? null);
+    return {
+      stagedMessageId: stagedMessage.id,
+      characterId: r?.characterId ?? null,
+      discordUserId: r?.discordUserId ?? null,
+      name: r?.name ?? null,
+      dedupeKey: deliveryKeyFor(stagedMessage.id, r ?? null),
+      state: failure ? "FAILED" : "SENT",
+      sentAt: failure ? null : stagedMessage.sentAt,
+      attempts: 1,
+      lastError: failure ? { error: failure.error ?? "unknown error", status: failure.status ?? null } : undefined,
+    };
+  });
+  if (!rows.length) return false;
+  await prisma.delivery.createMany({ data: rows, skipDuplicates: true });
+  return true;
 }
 
 // What StagedMessage.deliveryFailures should say, given the rows. Derived
@@ -215,7 +327,9 @@ module.exports = {
   deliverPrivate,
   deliverPublic,
   ensureDeliveries,
+  backfillLegacyDeliveries,
   claimDelivery,
+  isRetryable,
   deliveryKeyFor,
   failuresFor,
   STALE_CLAIM_MS,

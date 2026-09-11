@@ -658,32 +658,50 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
         content: delivery.content,
         createdByDiscordUserId: delivery.createdByDiscordUserId ?? null,
       };
-      const { failed } = await deliverPrivate(prisma, {
+      const { failed, skipped } = await deliverPrivate(prisma, {
         stagedMessage,
         recipients: list(delivery.recipients),
       });
       // sentAt says "delivery was attempted for every recipient", which is
       // what the tray's missed-push banner reads. The failure list is derived
-      // from the rows rather than from this run, so a recipient another run
-      // already got through to does not reappear here.
+      // from the rows rather than from this run — ALWAYS, not only when this
+      // run bounced somebody. A run that fails nobody can still be looking at a
+      // message with FAILED rows on it (a partial push resumed, or a Resend
+      // running beside it), and blanking the blob there told the tray the
+      // message was clean while the rows said otherwise.
+      const rowFailures = await failuresFor(prisma, delivery.stagedMessageId);
       await prisma.stagedMessage
         .update({
           where: { id: delivery.stagedMessageId },
           data: {
             sentAt: new Date(),
-            deliveryFailures: failed.length ? await failuresFor(prisma, delivery.stagedMessageId) : Prisma.DbNull,
+            deliveryFailures: rowFailures.length ? rowFailures : Prisma.DbNull,
           },
         })
         .catch((err) =>
           console.error(`Failed to stamp staged message ${delivery.stagedMessageId} sent:`, err),
         );
-      if (failed.length)
+      if (failed.length || skipped.length)
         deliveryFailures.push({
           stagedMessageId: delivery.stagedMessageId,
           attempted: list(delivery.recipients).length,
-          delivered: list(delivery.recipients).length - failed.length,
+          delivered: list(delivery.recipients).length - failed.length - skipped.length,
           failed,
+          // Somebody else's claim — a Resend pressed mid-push, or a second
+          // runner. Not a bounce, but not a delivery either, and a GM reading
+          // the audit row needs the count to add up.
+          ...(skipped.length ? { skipped } : {}),
         });
+      // THE KEY IS NOT RECORDED WHEN ANYBODY BOUNCED. That is the whole reason
+      // the step ladder stopped being the record: a recorded key means "never
+      // walk this message again", and a resumed push must retry a bounce. The
+      // rows underneath are idempotent, so re-walking costs a SENT recipient
+      // nothing. A skip is somebody else's claim, and re-walking that is free
+      // too, so it counts as unfinished for the same reason.
+      if (failed.length || skipped.length)
+        throw new Error(
+          `staged message ${delivery.stagedMessageId}: ${failed.length} bounced, ${skipped.length} held by another run`,
+        );
     });
   }
 

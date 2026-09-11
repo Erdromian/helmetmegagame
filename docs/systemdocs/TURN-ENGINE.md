@@ -435,7 +435,18 @@ So, in order:
   has a `Delivery` row it claims before sending and stamps after
   (`db/lib/stagedDelivery.js`, `ADJUDICATION.md` §1a), and that claim is what
   keeps a resume from sending twice. The step key stays, one per *message*, as
-  the cheap "this whole message is done" skip.
+  the cheap "this whole message is done" skip — and it is recorded **only when
+  every recipient came back sent**. A message that bounced anybody, or whose
+  rows another run was holding, leaves its key unrecorded, so a resume walks it
+  again; the rows underneath are idempotent, so re-walking costs a recipient
+  who already has it nothing. Recording the key regardless was the old bug
+  wearing a new table: the rows knew about the bounce and nothing ever read
+  them again.
+- **`deliveryFailures` is rewritten from the rows on every push, always** — not
+  only when *this* run bounced somebody. A run that fails nobody can still be
+  looking at a message with `FAILED` rows on it (a partial push resumed, or a
+  Resend running beside it), and blanking the blob there told the tray the
+  message was clean while the rows said otherwise.
 - **`sideEffectsDoneAt`** is stamped only at the very end, and is the sole
   selector for the resume.
 - **`resumeTurnSideEffects(prisma)`** finds the oldest turn with a payload and

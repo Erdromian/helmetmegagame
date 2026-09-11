@@ -3742,15 +3742,20 @@ model Delivery {
   name          String?
 
   // Stable across the push and every later resend. Partial on nothing: a
-  // PUBLIC row's key ends in "none", and there is exactly one per message.
+  // PUBLIC row's key ends in "public", and there is exactly one per message.
+  // A PRIVATE row's ends in the CHARACTER id, not the Discord one — a recipient
+  // who never linked Discord has no id, and keying on it collapsed every such
+  // recipient onto one row (and onto the PUBLIC row's key besides).
   dedupeKey String @unique
 
   state    DeliveryState @default(PENDING)
   attempts Int           @default(0)
 
   // The claim stamp. A row left IN_FLIGHT by a killed process is reclaimable
-  // after STALE_CLAIM_MS (db/lib/stagedDelivery.js) — the same 30 minutes
-  // Turn.sideEffectClaimedAt uses, and for the same reason.
+  // after STALE_CLAIM_MS (db/lib/stagedDelivery.js) — FIVE minutes, not the
+  // thirty Turn.sideEffectClaimedAt uses. That window covers a whole
+  // side-effect thunk; this one covers a single DM, and anything still in
+  // flight five minutes later is a process that is not coming back.
   claimedAt DateTime?
   sentAt    DateTime?
 

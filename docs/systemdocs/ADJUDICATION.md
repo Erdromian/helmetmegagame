@@ -47,11 +47,19 @@ recorded what happened to *one* recipient.
 
 How it works now:
 
-- `stagedPush.js` writes the rows **at selection**, before anything sends
-  (`createMany` with `skipDuplicates` on the unique `dedupeKey`), so a push that
-  dies after the first DM finds the rest sitting there `PENDING`.
-- `dedupeKey` is `staged:<messageId>:<discordUserId>`, built from ids and never
-  from a position (`db/lib/dmPolicy.js#dedupeKey`).
+- `stagedPush.js` writes the PRIVATE rows **at selection**, before anything
+  sends (`createMany` with `skipDuplicates` on the unique `dedupeKey`), so a
+  push that dies after the first DM finds the rest sitting there `PENDING`. A
+  PUBLIC row is not pre-written: `deliverPublic` is the only thing that ever
+  touches it, and it writes the row itself.
+- `dedupeKey` is `staged:<messageId>:<characterId>` — the **character**, not
+  their Discord account, and never a position
+  (`db/lib/dmPolicy.js#dedupeKey`). Keying on the Discord id looked equivalent
+  and was not: a recipient who has never linked Discord has a null id, so every
+  such recipient shared one key, `skipDuplicates` collapsed them into a single
+  row, and the rest were neither delivered to nor listed as failing. A PUBLIC
+  row's key ends in `public` for the same reason — that shared empty tail was
+  also the one a public post used.
 - Each send **claims** its row first: `updateMany` from `PENDING`/`FAILED`
   (or a stale `IN_FLIGHT`) to `IN_FLIGHT`. Count 0 means somebody else has it —
   a concurrent push, or a GM pressing Resend mid-push — and this run sends
@@ -59,7 +67,17 @@ How it works now:
   `db/test/stagedDelivery.test.js` is what holds it.
 - A claim goes stale after **five minutes**, not the thirty
   `Turn.sideEffectClaimedAt` uses: that window covers a whole side-effect thunk,
-  this one covers a single DM.
+  this one covers a single DM. A row still `IN_FLIGHT` past that window counts
+  as **retryable** — for the claim, and for the Resend button's own "did
+  anything fail?" gate, because a process killed mid-send left a player with
+  nothing and never got to write down that it had.
+- **A send that landed is never written down as a failure.** The send and the
+  stamp that follows it are separate `try`s: if the database hiccups on the
+  stamp, the row stays `IN_FLIGHT` and the log says so loudly. Marking it
+  `FAILED` would invite the next attempt to send a DM the player has already
+  read. The public half is the same shape — post, stamp, and only then the
+  `/play` row, whose own failure costs the web feed one line and never costs
+  Discord a second post.
 - `StagedMessage.sentAt` and `deliveryFailures` are still written — the tray,
   the missed-push banner and every already-pushed turn read them — but they are
   **derived** from these rows now rather than being the only record. So a
@@ -67,8 +85,23 @@ How it works now:
 
 The tray reads the rows too: the status pill counts them (`Sent · 1 failed`,
 `Sending…`) and one line per recipient says what happened, instead of the single
-`Sent, some failed`. A message pushed before the table existed has no rows and
-still reads off the blob.
+`Sent, some failed`.
+
+**A message pushed before this table existed** has a `sentAt` and no rows at
+all, and production is full of them. The first Resend on one **reconstructs**
+the rows from the only two things the old code wrote down — `sentAt` says every
+recipient was attempted, and the `deliveryFailures` blob names the ones that
+bounced, so everybody else was delivered to
+(`stagedDelivery.js#backfillLegacyDeliveries`). Without that, the shared path
+would write those rows fresh as `PENDING`, which reads as *never attempted*, and
+one GM pressing Resend would re-DM every recipient who had already read the
+message and re-post a declaration already sitting in the channel. Resend is
+therefore **always** `onlyFailed` now; it has no "retry everyone" arm left.
+
+**Resend reports three numbers, not two.** Sent, still failing, and **held** —
+a row a push running right now has claimed. A held row is neither a send nor a
+bounce, and leaving it out of the audit row made the counts fail to add up,
+which reads as lost mail.
 
 `Delivery` raises the desk's live channel through its **parent**: the trigger
 notifies `bascinet_desk` with `{"t":"message","id":<stagedMessageId>}`, because
@@ -289,14 +322,32 @@ the rest of the card would still swap, and a Kind switch flipping mid-sentence
 is the desk moving while somebody writes on it. The frame lands when the draft
 clears, which is what every save, solve and reject does. **Removals are never
 buffered**: if another GM rejected the Move being written on, holding that back
-would leave a GM narrating a row that no longer exists.
+would leave a GM narrating a row that no longer exists. **Nor is a Solve**, for
+the same reason — a solved Move has nothing left to write on it, so the frame
+lands and the editor drops its draft rather than showing half a sentence over a
+Solved badge. And a frame is only ever buffered while an editor holding that
+draft is actually **mounted**: a draft left behind on a row nobody has open is
+recoverable text, not an interrupted sentence.
 
-No zone gate, matching the page: `/gm/turns` ships every row and the rail
-filters client-side, so a GM widening their zones with a click finds the rows
-already there. A stream that shipped less than the page would make the click a
-lie. And the stream is not a gate in the other direction either — the route
-establishes the reader is a GM and re-reads everything it sends; subscribing to
-the hub grants nothing.
+**Every patch carries its turn, and a patch for another turn is dropped.** A
+mutation asks about rows by id and does not test whether they are still on the
+desk, so a Solve pressed as the turn-end push lands comes back holding a row
+from the turn that just closed. The store holds rows rather than queries, so
+nothing downstream would catch it dropping into the new turn's queue —
+`deskPatchFor` stamps the open turn on the patch and `applyDeskPatch` ignores
+one that does not match the turn the desk is showing.
+
+**No zone gate, matching the page — and that means the stream really does send
+a GM rows from zones their `GmZoneView` excludes.** `/gm/turns` ships every row
+and the rail filters client-side, so a GM widening their zones with a click
+finds the rows already there; a stream that shipped less than the page would
+make the click a lie. The zone seat on this desk is a **view**, not a
+confidentiality boundary — every GM is trusted with every row, and what
+`GAMEMASTERS.md` §1 gates is the Discord channels, not the desk's payload. If
+that ever has to become a real gate, both halves move together: the page's
+queries and the stream's `deskPatchFor`, not one of them. The stream is not a
+gate in the other direction either — the route establishes the reader is a GM
+and re-reads everything it sends; subscribing to the hub grants nothing.
 
 When the hub's Postgres client drops and comes back, rows written in the gap
 reached nobody. Unlike the inbox there is no cursor to re-ask from — a patch is

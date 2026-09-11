@@ -270,10 +270,20 @@ async function releaseUnresolvedCavingRolls(prisma, turn) {
   });
   if (!open.length) return { released: 0, rolls: [] };
 
+  // The guarded updateMany is the claim: a roll a GM resolved between the read
+  // above and this write matches nothing. So the COUNT is what was released,
+  // not `open.length` — and the audit row is re-read from the rows that
+  // actually changed, because naming a caver the GM had already freed is how a
+  // reader of this log gets told the wrong thing about who is still down there.
   await prisma.cavingRoll.updateMany({
     where: { id: { in: open.map((r) => r.id) }, resolvedAt: null },
-    data: { resolvedAt: new Date() },
+    data: { resolvedAt: new Date(), resolvedByDiscordUserId: null },
   });
+  const released = await prisma.cavingRoll.findMany({
+    where: { id: { in: open.map((r) => r.id) }, resolvedAt: { not: null }, resolvedByDiscordUserId: null },
+    select: { id: true, characterId: true },
+  });
+  if (!released.length) return { released: 0, rolls: [] };
   await prisma.auditLog
     .create({
       data: {
@@ -281,16 +291,16 @@ async function releaseUnresolvedCavingRolls(prisma, turn) {
         actionType: "caving_auto_resolved",
         details: {
           turnNumber: turn.number,
-          released: open.length,
+          released: released.length,
           // Named, because "who is suddenly free to walk out of the Caves" is
           // the question a GM reading this row is actually asking.
-          rolls: open.map((r) => ({ cavingRollId: r.id, characterId: r.characterId })),
+          rolls: released.map((r) => ({ cavingRollId: r.id, characterId: r.characterId })),
         },
       },
     })
     .catch((err) => console.error("Caving auto-resolve audit log failed:", err));
 
-  return { released: open.length, rolls: open.map((r) => r.id) };
+  return { released: released.length, rolls: released.map((r) => r.id) };
 }
 
 module.exports = {
