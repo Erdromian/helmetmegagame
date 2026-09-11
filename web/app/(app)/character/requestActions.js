@@ -175,6 +175,7 @@ import {
   extractToolFor,
   rollExtraction,
   extractionDm,
+  extractDayKey,
 } from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
@@ -5726,9 +5727,15 @@ async function engraveHeadstoneRequestImpl({
 
 // --- The Godard Factory -----------------------------------------------
 
-// Cutting Godflesh out of the marsh. Spends the Routine, rolls a d6, and on a
-// 1 rolls again on a table that Armored Gloves dominate — db/lib/godflesh.js
-// holds all of that, and this only writes the result down.
+// Cutting Godflesh out of the marsh. Rolls a d6, and on a 1 rolls again on a
+// table that Armored Gloves dominate — db/lib/godflesh.js holds all of that,
+// and this only writes the result down.
+//
+// It costs NO Move. It used to spend the Routine through fileAutoRoutine, which
+// is where its "once per turn" came from for free; now it carries its own
+// once-a-day claim instead (Character.extractDayKey, FACTORY.md §3). Nothing
+// here touches the Action table or the move lock any more — cutting and working
+// your day are two separate things.
 //
 // Every gate is re-checked here. The button greys itself for a blade and hides
 // itself off a marsh tile, but a server action is a public endpoint and the
@@ -5751,16 +5758,20 @@ async function extractGodfleshRequestImpl() {
     );
   }
   // Bound, Dying, Paralyzed, Catatonic — or mid-Seizure from a cube, which is
-  // the one this exists for. requireFreeMove below only checks the turn and
-  // the one-Action rule, so nothing else would stop a man on the floor wading
-  // into the marsh with an axe.
+  // the one this exists for. This is the ONLY thing standing between a man on
+  // the floor and a wade into the marsh with an axe: the day claim below cares
+  // about the calendar and nothing else, and there is no Move gate left at all.
   const floored = blockerFor(character.tags, ACT);
   if (floored) {
     throw new UserError(`You're in no state to be swinging anything — you're ${floored.name}.`);
   }
 
+  // Still needed, for the day key and for dating the injury — but no longer as
+  // a gate. The move lock is deliberately NOT consulted: Extract is outside
+  // that window now, the same way the Bird is.
   const openTurn = await getOpenTurn();
-  await requireFreeMove(character, openTurn);
+  const dayKey = extractDayKey(openTurn);
+  if (!dayKey) throw new UserError("No turn is open.");
 
   const result = rollExtraction(character.tags);
   const [godflesh, injury] = await Promise.all([
@@ -5790,6 +5801,20 @@ async function extractGodfleshRequestImpl() {
   };
 
   await prisma.$transaction(async (tx) => {
+    // The claim, and the first thing written — the Bird's shape (BIRD.md): a
+    // conditional updateMany whose WHERE *is* the check, so two tabs submitting
+    // at once cannot both cut. A stale key from an earlier day is overwritten
+    // by the same statement, so nothing has to sweep it.
+    const claimed = await tx.character.updateMany({
+      where: {
+        id: character.id,
+        OR: [{ extractDayKey: null }, { extractDayKey: { not: dayKey } }],
+      },
+      data: { extractDayKey: dayKey },
+    });
+    if (claimed.count === 0) {
+      throw new UserError("You already harvested Godflesh today.");
+    }
     await addToStack(tx, character.id, godflesh.id, result.quantity, {
       source: "EVENT",
       stackable: godflesh.stackable,
@@ -5803,18 +5828,14 @@ async function extractGodfleshRequestImpl() {
         }),
       });
     }
-    const action = await fileAutoRoutine(
-      tx,
-      character,
-      openTurn,
-      "*Out in the marsh, cutting.*",
-      "auto:extract",
-    );
-    effect.actionId = action.id;
+    // No Action row any more, so this audit line is the WHOLE trace a cut
+    // leaves. It carries turnId for the same reason every rationed action does
+    // (REQUESTS.md §1a) — it is the only thing a GM can count.
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_extract_godflesh",
       targetCharacterId: character.id,
+      turnId: openTurn.id,
       details: effect,
     });
   });

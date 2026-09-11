@@ -1729,6 +1729,19 @@ input[type="radio"]:disabled {
   letter-spacing: normal;
 }
 
+/* The one bad-news tone a chip may wear: Overburdened, Dying, Catatonic, a
+   carry line over its cap, and Moves being locked. It was scoped to Chat's own
+   column so it could not leak into the chips the rest of the app draws — but
+   the header now wants the same tone for the same meaning (LockChip.js), and
+   two rules saying "bad" differently is how "bad" ended up drawn with --accent
+   in some tables and --danger in others. One rule, one meaning. `danger` is the
+   chips' word for it; .status-pill says `bad`, and a third spelling would not
+   help anybody. */
+.chip[data-tone="danger"] {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 /* A slash command a player is meant to TYPE ({cmd:play}). Not a .chip: a chip
    is a bubble naming a thing in the game, and a command is literal text you
    copy. It gets the mono face and a hairline so it reads as something to be
@@ -6820,14 +6833,6 @@ label.chip {
   font-family: inherit;
 }
 
-/* The one bad-news tone, scoped to this column so it cannot leak into the
-   chips the rest of the app draws: Overburdened, Dying, Catatonic, and a
-   carry line over its cap. */
-.chat-chips .chip[data-tone="danger"] {
-  color: var(--danger);
-  border-color: var(--danger);
-}
-
 /* The load bar under those chips (play/StatusStrip.js). It is the SHEET's own
    meter — .depot-meter / .depot-meter-fill, the same pair the Carrying tile
    draws — so only its spacing is redefined here: it sits under a chip row
@@ -7044,9 +7049,21 @@ label.chip {
   padding-top: var(--sp-2);
 }
 
-/* The tail's sticky background is the drawer's surface here, not the page. */
+/* In the drawer the MODAL is the scroller, so a sticky tail would pin to
+   the drawer's bottom edge and the place rows would scroll under it — which
+   is exactly what happened on the first phone it met: Bascinet's row half
+   behind the foot's border. Static here: the tail flows after the list and
+   the whole drawer scrolls as one, the way the bottom bar's More sheet
+   does. The desktop column keeps the sticky, where the column itself
+   scrolls and a GM's 278 rooms would put the foot 8,000px down. */
 .chat-drawer .chat-places-tail {
+  position: static;
+  margin-top: 0;
   background: var(--surface-raised);
+}
+
+.chat-drawer .chat-places {
+  padding-bottom: var(--sp-3);
 }
 
 /* A person row is a real tap target inside the drawer. */
@@ -7067,11 +7084,18 @@ label.chip {
   border-top: 0;
 }
 
+/* Two columns, so eight rows of links are four rows of the drawer and the
+   places above them keep most of it. */
 .chat-drawer-nav {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 2px;
   padding-top: var(--sp-2);
+}
+
+.chat-drawer-nav .nav-sheet-item {
+  padding-inline: var(--sp-2);
+  min-height: 44px;
 }
 
 /* ---- The ladder. Three widths above the phone, one breakpoint each:

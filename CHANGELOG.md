@@ -6,6 +6,29 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The header says when Moves lock, in your own time
+
+✚ Every page header now carries a LOCK chip: the time Moves stop being accepted, in your own timezone, counting down in minutes  
+✚ It turns MOVES LOCKED once the window shuts, and says nothing at all when the clock is frozen or the turn is too short to have a cutoff  
+✎ The adjudication desk's own 'moves lock in 2h 14m' is gone — it wears the same chip as everybody else now
+
+## 2026-09-11 · Cutting Godflesh stops costing your turn
+
+✎ Extract has its own cooldown now: once per in-game day, so one cut covers both turns of that day. Cut again and it says you already harvested Godflesh today.  
+✎ Somebody who cuts and files nothing still gets their labor, so a cutting day now pays the Godflesh and a labor on top of it.  
+− The Move a cut used to spend. Nothing is filed on /gm/turns for one any more.
+
+## 2026-09-11 · The places drawer no longer covers its own rows on a phone
+
+✎ The chime, the tick and the app's links sit under the places instead of over them, and the links are two columns
+
+## 2026-09-11 · Picking a picture no longer pretends it has been uploaded
+
+✎ The note on the Browse button said your picture had been uploaded and a GM would review it. It said that before anything had been sent, and it stayed on screen while you chose a file — so people believed it, never pressed Save, and their picture never went anywhere. Two uploads landed in eleven days while players wrote in asking how long approval takes.  
+✚ Choosing a file now says to press Save, and the confirmation only appears once the save has really gone through  
+✚ Any size of picture works now: the browser shrinks a big photo before sending it, so a 20MB phone photo goes up as a few hundred KB  
+✎ A photo taken with the phone held sideways is no longer stored sideways
+
 ## 2026-09-11 · A resolved caving encounter's Result can be edited again
 
 ✎ The Result box on a caving encounter stays editable after you mark it resolved — a Save button now sits beside Mark resolved, the same way the Move desk works. Before this, resolving an encounter took away the only button that saved the box, so anything typed afterwards looked accepted and was thrown away when the desk closed.

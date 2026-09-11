@@ -1518,6 +1518,19 @@ model Room {
   resources Int       @default(0)
   tags      RoomTag[]
 
+  // Which stash slugs this room has EVER been seeded with, from
+  // docs/zones.yaml's `stash:`. seedRoomStash writes a slug only while it is
+  // absent here, so an item players carried off never comes back, and a slug
+  // newly authored into the YAML still seeds once.
+  //
+  // The old test was "does a RoomTag row exist", which could not tell
+  // "emptied" from "never seeded" — taking the last unit DELETES the row
+  // (db/lib/tagWrites.js#dropRoomTag), so an looted room looked identical to
+  // a fresh one and every re-sync refilled it. That cost a live game 139
+  // duplicated items on 2026-09-10. Slugs rather than tag ids for the same
+  // reason accessTagSlugs above is: zones and tags sync independently.
+  seededStashSlugs String[] @default([])
+
   playerThreads PlayerThread[]
   guests        RoomGuest[]
 
@@ -2002,6 +2015,19 @@ model Character {
   // for anyone who has never sent one. Only consulted when the allowance is
   // above 1; the ordinary once-a-day bird needs no cooldown, the day is one.
   birdLastSentAt DateTime?
+
+  // The in-game DAY this character last cut Godflesh out of the marsh. Extract
+  // used to cost the whole Move and take its "once per turn" from the Action
+  // table's @@unique([characterId, turnId]); it costs no Move at all now, so
+  // the cooldown had to become its own thing (docs/systemdocs/FACTORY.md §3).
+  //
+  // Same claim token as birdTurnId just above, and named for what it actually
+  // holds rather than inheriting that column's turn-shaped name: a day is TWO
+  // turns, so this stores String(turnDay(openTurn)) and not a turn id. Written
+  // by a conditional updateMany whose WHERE is the check, so two tabs racing
+  // cannot both cut. Not a foreign key — deleting a turn must never cascade
+  // into a character row.
+  extractDayKey String?
 
   // Consecutive turns' worth of hunger this character is carrying — written
   // only by db/lib/hungerPass.js. Each hungry turn increments it; a fed turn
