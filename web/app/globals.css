@@ -4813,6 +4813,24 @@ label.chip {
   opacity: 0.55;
 }
 
+/* A send that did not go. It keeps its place in the thread rather than being
+   swept back into the composer, so the quiet danger mark is what says it is
+   not delivered. */
+.dm-row[data-failed] .dm-row-body {
+  border-left: 2px solid var(--danger);
+  padding-left: 0.5rem;
+}
+
+.dm-row-failed {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--danger);
+}
+
 .dm-row-gutter {
   display: flex;
   align-items: flex-start;

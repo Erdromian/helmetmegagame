@@ -280,6 +280,20 @@ async function handleGmCommand(interaction) {
     await respond(interaction, "That didn't send. Check the bot can post here, and try again.");
     return;
   }
+
+  // Speaking as the game into a room is a GM act, and this was the one send
+  // path that left no trace of who made it — the message wears the bot's
+  // name, so without this line /gm/audit cannot answer "who said that".
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: interaction.user.id,
+        actionType: "gm_channel_message",
+        details: { channelId: interaction.channelId, message: content, attachment: attachment?.url ?? null },
+      },
+    })
+    .catch((err) => console.error("Failed to log /gm message:", err));
+
   await respond(interaction, "Sent.", { fleeting: true });
 }
 

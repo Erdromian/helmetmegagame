@@ -263,16 +263,32 @@ client, not a support inbox.
   there is no `setState` in an effect to seed it.
 - **Send is optimistic.** The row appears and the draft clears the instant you
   press Enter, styled pending (`data-pending` on the row) until the server
-  answers; a failure removes the row, puts the draft back exactly as it was,
-  and shows the error, so nothing a GM typed is lost to a failed send. The
-  server half matches: `sendGmDm` awaits the Discord POST (a GM must know if
-  *that* failed) and returns the one created row instead of re-reading the
-  whole thread page.
+  answers. The server half matches: `sendGmDm` awaits the Discord POST (a GM
+  must know if *that* failed) and returns the one created row instead of
+  re-reading the whole thread page.
+- **Every send carries a nonce** — `DirectMessage.clientNonce`, minted in the
+  composer before the send. It does two jobs. It is what pairs the optimistic
+  line with the row that comes back: the pairing used to be on the TEXT, so
+  sending "ok" twice retired both placeholders against the first row to land
+  and the second send looked as though it had never happened. And it makes a
+  re-send safe — `sendGmDm` looks the nonce up before it posts anything, so a
+  send that reached Discord but lost its answer returns the row already there
+  rather than delivering a second copy. A partial unique index backs that up
+  in the database (`db/test/dmNonce.test.js`); every writer with no composer
+  behind it passes null, which the index allows.
+- **A failed send stays where it was written.** The row keeps its place with
+  the error on it and quiet **Retry** / **Discard** beside it, rather than
+  vanishing and pushing the words back into the box. Putting them back was
+  safe only while a GM sat still waiting for the answer: the draft is per
+  conversation and shared with whatever they have started typing since, so a
+  slow failure overwrote a sentence in progress. Retry re-sends under the same
+  nonce, so exactly one message is delivered whatever actually happened the
+  first time.
 - **The player's side arrives live.** The pane's page state is seeded once,
   and used to stay that way until the GM sent something. Now it unions that
   page with the live feed for this conversation (§9a) during render — never
-  copied into state — and a pending optimistic row retires as soon as the
-  real row with the same content shows up, whichever path brings it first.
+  copied into state — and a pending optimistic row retires as soon as its
+  nonce comes back on a real row, whichever path brings it first.
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
   the same player twice. The same table carries `handledAt` and `mutedAt`, the
   rail's ✓ "needs no reply" mark and its ⊘ mute (§3).
@@ -556,6 +572,26 @@ ceiling — never later than the data it describes. Read the other way round, a
 layout's watermark could land after a message its own queries had missed, and
 then `mergeRailRows` discarded the patch carrying that message as "older than
 the rows". The desk chimed and showed nothing until a reload.
+
+**A patch that is older than what is held is dropped.** Two paths feed this
+store, and the 30s `full=1` backstop builds its answer from a read that can
+predate a frame the stream already delivered. Folding it in unconditionally is
+how a row that had just gone to zero unread came back saying three.
+
+**The read cursor is a local override until the server catches up.** Marking a
+conversation read deliberately revalidates nothing (§9), so the rail had to
+wait for the next frame to learn about it and the nav rail's Players badge —
+server-rendered, with no patch consumer at all — never learned about it. Now
+the pane notes the read in the store the moment it fires
+(`liveInbox.js#noteConversationRead`), `markConversationRead` hands back the
+cursor it actually wrote, and the override is re-noted with that value. It
+clears when the server's own rows echo a `lastReadAtMs` at or past it
+(`reconcileReadOverrides`, called from an effect so `mergeRailRows` stays
+pure), or on age if that echo never comes. An override touches one field, the
+unread count — not `lastDirection`: having read somebody does not make it your
+turn to have written last. `DeskInboxCounts.js` publishes the merged number to
+the rail badge through `navBadge.js`, and withdraws it on unmount, so the two
+can never disagree and no other page inherits the desk's count.
 
 **The merge rule.** A patch lays over a rail row only when the patch is newer
 than the row (`liveInbox.js#mergeRailRows`), as a whole — its fields came from

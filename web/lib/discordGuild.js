@@ -591,8 +591,8 @@ export async function sendDm(discordUserId, content, opts = {}) {
     // ping the room out of somebody else's inbox.
     allowedMentions: opts.allowedMentions,
   });
-  await prisma.directMessage
-    .create({
+  try {
+    await prisma.directMessage.create({
       data: {
         discordUserId,
         direction: "OUTBOUND",
@@ -601,9 +601,18 @@ export async function sendDm(discordUserId, content, opts = {}) {
         source: opts.source ?? null,
         kind: opts.kind ?? (opts.embeds?.length ? DM_KIND.QUIET : DM_KIND.NOTICE),
         discordMessageId: message?.id ?? null,
+        // The composer's own id for this send, where there was a composer.
+        // Null everywhere else, which the partial unique index allows.
+        clientNonce: opts.clientNonce ?? null,
         meta: opts.meta ?? undefined,
       },
-    })
-    .catch(() => {});
+    });
+  } catch (err) {
+    // P2002 is the nonce already being on the table: this send is a retry of
+    // one that did get through, and the row the caller wants is the one
+    // already there. Not a failure, and nothing to log. Anything else is a
+    // lost log row, which is worth a line — the send itself still stands.
+    if (err?.code !== "P2002") console.error("DM log write failed:", err);
+  }
   return message;
 }

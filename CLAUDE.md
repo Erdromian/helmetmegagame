@@ -1141,7 +1141,11 @@ global CLIs. To make one able to build, run, and deploy:
   two live applications to one faction. `ThreatSpawn_pending_unique` is the
   third of these, and the same answer: without it a player could hold two live
   spawn offers (`THREATS.md` §4). `AuditLog_details_trgm_idx` is the fourth,
-  and the reason `/gm/audit`'s text search is not a full-table scan. The
+  and the reason `/gm/audit`'s text search is not a full-table scan.
+  `DirectMessage_clientNonce_key` is the fifth and the same answer: a PARTIAL
+  unique index (`WHERE "clientNonce" IS NOT NULL`), so every DM writer with no
+  composer behind it can go on passing null. Decline that drop too — without
+  it a retried send can reach a player twice. The
   `DirectMessage_notify` trigger (`CHAT.md` §2b) is the fifth — Prisma does
   not model triggers, so `migrate diff` never mentions it either way, but a
   hand-written "fix drift" migration must not drop it.

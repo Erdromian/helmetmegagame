@@ -297,7 +297,7 @@ function CollapsedGroup({ messages }) {
 // player sees Bascinet (CHAT.md §2b).
 const BASCINET_PROFILE = Object.freeze({ username: "Bascinet", avatarUrl: null });
 
-function Row({ item, gmProfileById, character, now, perspective }) {
+function Row({ item, gmProfileById, character, now, perspective, onRetry, onDiscard }) {
   const { message, head, ms } = item;
   const outbound = message.direction === "OUTBOUND";
   const profile =
@@ -316,6 +316,7 @@ function Row({ item, gmProfileById, character, now, perspective }) {
     <div
       className={head ? "dm-row dm-row-head" : "dm-row dm-row-cont"}
       data-pending={message.pending || undefined}
+      data-failed={message.failed || undefined}
       data-dir={outbound ? "out" : "in"}
     >
       <div className="dm-row-gutter" aria-hidden={head ? undefined : "true"}>
@@ -349,6 +350,26 @@ function Row({ item, gmProfileById, character, now, perspective }) {
           <MarkdownContent content={message.content} />
         )}
         {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
+        {/* A send that failed stays where it was written rather than being
+            swept back into the composer, which could clobber a sentence the
+            writer has started since. Retry reuses the send's nonce, so a
+            message that did reach Discord before the answer got lost cannot
+            be delivered a second time. */}
+        {message.failed && (
+          <div className="dm-row-failed">
+            <span>{message.error || "That didn't send."}</span>
+            {onRetry && (
+              <button type="button" className="btn-quiet" onClick={() => onRetry(message)}>
+                Retry
+              </button>
+            )}
+            {onDiscard && (
+              <button type="button" className="btn-quiet" onClick={() => onDiscard(message)}>
+                Discard
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -369,6 +390,11 @@ export default function DmThread({
   // pane is "player": the same rows, with every one of those the other way
   // round. Nothing else in the renderer knows which is which.
   perspective = "gm",
+  // Only the composer that owns an optimistic row can re-send or drop it, so
+  // both are handed in. Absent everywhere else, which is also every place a
+  // row can never be `failed`.
+  onRetry = null,
+  onDiscard = null,
 }) {
   const containerRef = useRef(null);
   const sentinelRef = useRef(null);
@@ -526,6 +552,8 @@ export default function DmThread({
                 character={character}
                 now={now}
                 perspective={perspective}
+                onRetry={onRetry}
+                onDiscard={onDiscard}
               />
             );
         }

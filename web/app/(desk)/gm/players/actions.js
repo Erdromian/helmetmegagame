@@ -75,7 +75,7 @@ export async function getDmThreadPage({ discordUserId, characterId, beforeMs, be
 
 const ALLOWED_SEND_SOURCES = new Set(["gm_reply", "gm_inspector", "gm_dev_panel"]);
 
-export async function sendGmDm({ discordUserId, characterId, content, source = "gm_reply" }) {
+export async function sendGmDm({ discordUserId, characterId, content, source = "gm_reply", clientNonce }) {
   return guarded(async () => {
     const session = await requireGm();
     const playerDiscordUserId = await resolvePlayerDiscordUserId({ discordUserId, characterId });
@@ -87,24 +87,41 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
     }
     const resolvedSource = ALLOWED_SEND_SOURCES.has(source) ? source : "gm_reply";
 
+    // The composer's own id for this send. It is what retires the optimistic
+    // row (matching on the TEXT retired both of two "ok"s at once), and it is
+    // what makes Retry safe: if the first attempt got as far as Discord, the
+    // row is already here and this returns it rather than sending twice.
+    const nonce = clientNonce ? String(clientNonce).trim().slice(0, 64) : null;
+    if (nonce) {
+      const already = await prisma.directMessage.findFirst({ where: { clientNonce: nonce } });
+      if (already) {
+        const page = await getDmThreadPage({ discordUserId: playerDiscordUserId });
+        return { message: already, messages: page?.messages ?? null, hasMore: page?.hasMore ?? null };
+      }
+    }
+
     // The Discord POST stays awaited: a GM has to know if the send itself
     // failed.
     const sent = await sendDm(playerDiscordUserId, message, {
       authorDiscordUserId: session.discordUserId,
       source: resolvedSource,
       kind: DM_KIND.CONVERSATION,
+      clientNonce: nonce,
     });
 
-    // The row sendDm just wrote, read back by the Discord message id it
-    // stamped on it — never "the newest outbound row", which under a failed
-    // log write or two GMs replying at once would hand back somebody else's
-    // message to swap in for the optimistic placeholder. (sendDm returns the
-    // Discord message, not the DirectMessage row, and swallows its own
-    // create() failure — in which case `created` is null and the client
-    // keeps its placeholder.)
-    const created = sent?.id
-      ? await prisma.directMessage.findFirst({ where: { discordMessageId: sent.id, direction: "OUTBOUND" } })
-      : null;
+    // The row sendDm just wrote, read back by the nonce this send carried —
+    // never "the newest outbound row", which under two GMs replying at once
+    // would hand back somebody else's message to swap in for the optimistic
+    // placeholder. The Discord message id is the fallback for a caller that
+    // sent no nonce (the inspector's older path). Either way sendDm returns
+    // the Discord message rather than the row, and its log write is
+    // best-effort — when that write is the thing that failed, `created` is
+    // null and the client keeps its placeholder.
+    const created = nonce
+      ? await prisma.directMessage.findFirst({ where: { clientNonce: nonce } })
+      : sent?.id
+        ? await prisma.directMessage.findFirst({ where: { discordMessageId: sent.id, direction: "OUTBOUND" } })
+        : null;
 
     // Not deferred: the audit row is what /gm/audit exists for (a DM that
     // reached a player with no record of who sent it is the gap the log is
@@ -169,7 +186,7 @@ export async function markConversationRead({ playerDiscordUserId }) {
     const id = playerDiscordUserId?.toString().trim();
     if (!id) throw new UserError("No conversation specified.");
 
-    await prisma.conversationRead.upsert({
+    const row = await prisma.conversationRead.upsert({
       where: {
         gmDiscordUserId_playerDiscordUserId: { gmDiscordUserId: session.discordUserId, playerDiscordUserId: id },
       },
@@ -183,6 +200,12 @@ export async function markConversationRead({ playerDiscordUserId }) {
     // (web/lib/inboxDelta.js) picks a moved cursor up within seconds, and
     // the 30s refresh is the backstop. Re-running the whole layout for it
     // was the desk's most frequent full re-render.
+    //
+    // Handing the cursor back is what lets the client stop guessing in the
+    // meantime: it notes a read locally before this call so the badge clears
+    // at once, then re-notes with the value actually written, and the
+    // override clears when the server's rows catch up (liveInbox.js).
+    return { lastReadAtMs: row.lastReadAt.getTime() };
   });
 }
 

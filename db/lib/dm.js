@@ -46,6 +46,10 @@ async function sendDm(prisma, discordUserId, content, opts = {}) {
         // the game talking, not a person — see db/lib/dmKinds.js.
         kind: opts.kind ?? (opts.embeds?.length ? DM_KIND.QUIET : DM_KIND.NOTICE),
         discordMessageId: message?.id ?? null,
+        // The sender's own id for this send, where there was a composer behind
+        // it. Null for everything this twin actually carries today, which is
+        // what the partial unique index on the column is for.
+        clientNonce: opts.clientNonce ?? null,
         // ?? undefined: a caller's explicit null would be rejected by Prisma
         // for a Json? column, and the .catch below would eat the lost row.
         meta: opts.meta ?? undefined,

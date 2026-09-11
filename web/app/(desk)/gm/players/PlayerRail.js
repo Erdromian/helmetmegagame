@@ -8,7 +8,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import useNowTick from "@/app/components/useNowTick";
-import { mergeRailRows, useRailPatches } from "./liveInbox";
+import { mergeRailRows, useRailPatches, useReadOverrides } from "./liveInbox";
 import { inVisibleZones } from "@/lib/zones";
 import { useSelection, selectConversation } from "./selection";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
@@ -74,7 +74,15 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
   // row's last-message time, and it has to see the live one to un-stick
   // when a new message lands.
   const patches = useRailPatches();
-  const rows = useMemo(() => mergeRailRows(serverRows, patches, rowsAsOfMs), [serverRows, patches, rowsAsOfMs]);
+  // And this GM's own "I have read that" marks over the top of those, applied
+  // per field rather than as a whole row — see liveInbox.js#mergeRailRows.
+  // Without them the badge on a conversation just read came back on the next
+  // frame, because marking read deliberately revalidates nothing.
+  const readOverrides = useReadOverrides();
+  const rows = useMemo(
+    () => mergeRailRows(serverRows, patches, rowsAsOfMs, readOverrides),
+    [serverRows, patches, rowsAsOfMs, readOverrides],
+  );
 
   // The zones this GM chose to see (null = all). Unlike the zone dropdown
   // below, this is not a lens: a row outside it is not theirs to work, and a

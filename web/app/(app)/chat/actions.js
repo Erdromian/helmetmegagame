@@ -1653,7 +1653,7 @@ export async function gmThread({ beforeId = null } = {}) {
 const TO_GMS_WINDOW_MS = 60_000;
 const TO_GMS_PER_WINDOW = 12;
 
-export async function sendToGms(content) {
+export async function sendToGms(content, clientNonce) {
   const me = await account();
   if (me.error) return { ok: false, error: me.error };
   const text = typeof content === "string" ? content.trim() : "";
@@ -1672,12 +1672,26 @@ export async function sendToGms(content) {
   });
   if (recent >= TO_GMS_PER_WINDOW) return { ok: false, error: "Slow down a moment." };
 
+  // The composer's own id for this line. It is what retires the pending row
+  // in DmPane, and a re-send under the same nonce can only find the row that
+  // is already here — the same treatment the GM's side of the conversation
+  // gets (PLAYER-DESK.md §5).
+  const nonce = clientNonce ? String(clientNonce).trim().slice(0, 64) : null;
+  if (nonce) {
+    const already = await prisma.directMessage.findFirst({
+      where: { clientNonce: nonce },
+      select: PLAYER_DM_SELECT,
+    });
+    if (already) return { ok: true, row: playerDmRow(already) };
+  }
+
   const row = await prisma.directMessage.create({
     data: {
       discordUserId: me.discordUserId,
       direction: "INBOUND",
       content: text,
       source: "player",
+      clientNonce: nonce,
       meta: { via: "play" },
     },
     select: PLAYER_DM_SELECT,

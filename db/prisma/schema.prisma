@@ -3821,6 +3821,19 @@ model DirectMessage {
   // e.g. { attachments: [names] } or { embed: true }.
   meta Json?
 
+  // The id the CLIENT minted for this send, before it knew the row's own id.
+  // An optimistic line in a composer used to be retired by matching its TEXT
+  // against whatever came back, so sending "ok" twice retired both at once.
+  // The nonce is also what makes a retry safe: a sender that never heard the
+  // answer re-sends the same one, and the partial unique index below (it is
+  // partial, so the null every other writer passes never collides) means the
+  // second attempt can only find the first row, not add a second.
+  //
+  // The index lives in migration SQL only (20260921020000_dm_client_nonce) —
+  // Prisma's schema language cannot say WHERE — so `migrate diff` offers to
+  // drop it. Decline, the way the trgm indexes are declined.
+  clientNonce String?
+
   @@index([discordUserId, createdAt])
   @@index([createdAt])
   @@index([direction, discordUserId, createdAt]) // unread scans

@@ -93,11 +93,19 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
              COALESCE(u."unreadCount", 0) AS "unreadCount",
              (EXTRACT(EPOCH FROM cm."handledAt") * 1000)::double precision AS "handledAtMs",
              (cm."mutedAt" IS NOT NULL) AS "muted",
-             cm."claimedByDiscordUserId"
+             cm."claimedByDiscordUserId",
+             -- This GM's read cursor, shipped so the client can tell whether
+             -- its own optimistic "I have read this" has been overtaken by
+             -- the server yet (liveInbox.js#reconcileReadOverrides). Without
+             -- it the override would have to clear on a timer and guess.
+             (EXTRACT(EPOCH FROM cr."lastReadAt") * 1000)::double precision AS "lastReadAtMs"
         FROM touched t
         LEFT JOIN latest l ON l."discordUserId" = t."discordUserId"
         LEFT JOIN unread u ON u."discordUserId" = t."discordUserId"
         LEFT JOIN "ConversationMeta" cm ON cm."playerDiscordUserId" = t."discordUserId"
+        LEFT JOIN "ConversationRead" cr
+          ON cr."playerDiscordUserId" = t."discordUserId"
+         AND cr."gmDiscordUserId" = ${gmDiscordUserId}
     `,
     open
       ? prisma.directMessage.findMany({
@@ -114,6 +122,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
             kind: true,
             createdAt: true,
             meta: true,
+            clientNonce: true,
           },
         })
       : null,
@@ -179,6 +188,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
         gmDiscordUserId,
       ),
       unreadCount: Number(r.unreadCount ?? 0),
+      lastReadAtMs: r.lastReadAtMs != null ? Number(r.lastReadAtMs) : 0,
       handled: r.handledAtMs != null && Number(r.handledAtMs) >= lastAtMs,
       muted: Boolean(r.muted),
       claimedByDiscordUserId: r.claimedByDiscordUserId ?? null,

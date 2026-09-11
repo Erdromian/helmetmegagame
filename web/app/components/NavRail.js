@@ -28,6 +28,7 @@ import RailLinkPending from "./RailLinkPending";
 import { signOutOfDiscord } from "../actions";
 import { playChime } from "./chime";
 import useChimeMuted from "./useChimeMuted";
+import { useNavUnread } from "./navBadge";
 
 // Exported for Chat's phone drawer, which draws the same links in its foot
 // (the bottom bar is hidden on /chat under 720px — see chat/Chat.js).
@@ -82,6 +83,12 @@ export default function NavRail({ items }) {
   // is also "is this a GM's rail", which is the only rail the chime ever fires
   // on (a player's unread count is hardcoded 0 in loadNavItems).
   const isGmRail = items.some((item) => item.section === "gm");
+  // Null everywhere but the player desk, where the desk publishes the number
+  // it is actually showing (navBadge.js). The server's badge is the fallback,
+  // and the only value a first paint ever has.
+  const liveUnread = useNavUnread();
+  const badgeFor = (item) =>
+    item.href === "/gm/players" && liveUnread != null ? liveUnread : item.badge;
   const [chimeMuted, setChimeMuted] = useChimeMuted();
   const toggleChimeMuted = () => {
     const next = !chimeMuted;
@@ -119,7 +126,7 @@ export default function NavRail({ items }) {
             >
               <Icon aria-hidden="true" />
               <span>{item.label}</span>
-              {item.badge > 0 && <span className="rail-item-badge mono">{item.badge}</span>}
+              {badgeFor(item) > 0 && <span className="rail-item-badge mono">{badgeFor(item)}</span>}
               <RailLinkPending />
             </Link>
             </Fragment>

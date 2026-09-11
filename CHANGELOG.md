@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Messages to players stop going wrong
+
+✎ A reply you send twice, or retry after a bad connection, lands exactly once — a failed send now stays in the thread with Retry and Discard instead of vanishing  
+✎ Opening a conversation clears its unread mark and it stays cleared, on the rail and on the Players badge in the side nav  
+✎ The /gm command now leaves an audit entry
+
 ## 2026-09-11 · The adjudication desk keeps its own rows now
 
 ✎ Staging, solving and rejecting update the desk the moment the server answers, instead of waiting for the page to reload — the case where a write landed but the screen never changed is gone  
