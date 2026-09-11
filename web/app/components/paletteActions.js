@@ -205,7 +205,7 @@ async function getPaletteIndexImpl() {
       id: a.id,
       label: `${a.character?.name ?? "(deleted)"} — ${moveKindLabel(a.moveKind, a.gmNotes)}`,
       hint: a.description ?? "",
-      href: `/gm/turns/move/${a.id}`,
+      href: `/gm/turns?sel=move/${a.id}`,
       search: { preview: a.description ?? "" },
     });
   }

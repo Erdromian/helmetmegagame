@@ -226,13 +226,39 @@ tokens and the shared control classes still apply; the `.desk-*` family in
 leave; `/gm/players` is its sibling in the same group.
 
 The route is `/gm/turns/[[...selection]]`, and the URL carries which row is
-open — `/gm/turns/move/<id>`, `/gm/turns/caving/<id>`,
-`/gm/turns/history/<id>`.
-An optional catch-all, not `[moveId]`: the desk selects one of four things, so
-the URL has to carry both halves of `{ type, id }`. Selection changes never
-touch the server — `setSelected` is `useState` and the URL is mirrored with
-`history.replaceState`, so picking a row leaves the queue, every DTO, the
-inspector cache and the tray untouched.
+open **in a search param** — `/gm/turns?sel=move/<id>`,
+`?sel=caving/<id>`, `?sel=history/<id>`. Build one with
+`turnsSelectionHref` (`web/lib/routes.js`) rather than by hand. Selection
+changes never touch the server — `setSelected` is `useState` and the URL is
+mirrored with `history.replaceState`, so picking a row leaves the queue, every
+DTO, the inspector cache and the tray untouched.
+
+**A search param, never a path segment, and that is load-bearing.** It used to
+be a path (`/gm/turns/move/<id>`), and that is what made the desk "randomly
+redraw and wipe what I was typing". Next patches `history.replaceState`, so
+mirroring the selection in moved the router's canonical URL with it; the next
+`router.refresh()` — every mutation does one — refetched the route with
+*different dynamic params*, which Next treats as a different segment and
+**remounts**. The workspace, the rail, the open Move and every piece of React
+state under them were rebuilt: the Result box, an open composer, the
+inspector's zone view, the selection itself. No navigation, no reload, nothing
+in the console. Measured: 5 of 5 refreshes remounted before, 0 of 5 after.
+A search param changes no segment, so the same refresh is a plain props
+update. The old path URLs still work — the catch-all route stays and redirects
+onto the query form, so nobody's bookmark breaks.
+
+Two more guards sit behind that one. `SnapshotPage` (`web/lib/snapshot/`)
+holds the last payload it painted, so a snapshot scope nothing has been stored
+under yet never swaps a live desk for the route skeleton. And `deskStore.js`
+only lets a payload wipe the queue or prune drafts if it is not OLDER than the
+last one seeded — a stored snapshot from a previous turn used to be able to
+delete the draft being typed.
+
+**The black box.** `blackBox.js` keeps the last ~20 desk events (mounts,
+selections, resets) in `sessionStorage` and prints one
+`desk reset: <reason chain>` line when the workspace mounts twice without a
+reload, or when a panel opens onto a draft it never saved. If the desk ever
+resets itself again, that line is the first thing to ask a GM for.
 
 Two consequences worth knowing. The route file has to genuinely exist, because
 the desk polls `router.refresh()` against the *current* URL and a GM parked on

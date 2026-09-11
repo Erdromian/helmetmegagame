@@ -7,3 +7,11 @@
 // the pattern plus "page" covers every selection.
 
 export const TURNS_PATH = "/gm/turns/[[...selection]]";
+
+// The adjudication desk's selection URL. It is a SEARCH PARAM, not a path
+// segment, and page.js explains at length why — a path param changing under
+// router.refresh() remounts the whole desk. Everything that links to a Move or
+// a Caving roll builds its href here, so there is one spelling.
+export function turnsSelectionHref(sel) {
+  return sel ? `/gm/turns?sel=${sel.type}/${sel.id}` : "/gm/turns";
+}

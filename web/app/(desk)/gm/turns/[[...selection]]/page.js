@@ -13,6 +13,7 @@ import { avatarReviewWhere } from "@lifeweb/db/lib/avatarReview";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { deployVersion } from "@/lib/deployVersion";
+import { turnsSelectionHref } from "@/lib/routes";
 import {
   MOVE_INCLUDE,
   STAGED_EFFECT_INCLUDE,
@@ -46,35 +47,53 @@ function turnLabel(turn) {
 
 
 
-// An optional catch-all rather than a [moveId] child route, for two reasons.
-// The desk selects a Move OR a Caving roll, so the URL has to carry
-// both halves of Workspace's { type, id }. And a child route would force this
-// file to become a layout, putting the client Workspace above `children` —
-// which cannot then hand tagsById/roster/zones/stagedByMove down to a server
-// child, so every desk would have to reload its own DTOs and loading.js would
-// flash on each queue click.
+// THE SELECTION IS A SEARCH PARAM, NOT A PATH SEGMENT, and that is the whole
+// reason the desk stops throwing GMs' work away.
 //
-// The route also has to exist, not just be tolerated: Workspace polls
-// router.refresh() every 45s against the CURRENT url, so a GM parked on
-// /gm/turns/move/abc would 404 on the first poll without it.
+// It used to be a path: /gm/turns/move/<id>, mirrored in with replaceState so
+// picking a row cost no RSC fetch. But Next's patched replaceState moves the
+// router's canonicalUrl with it, so the NEXT router.refresh() — every desk
+// mutation does one, and the backstop poll does one every two minutes —
+// refetched the route at a path whose dynamic params had changed. Next treats
+// that as a different segment and REMOUNTS it: the workspace, the rail, the
+// open Move desk and every piece of React state under them, gone, with no
+// navigation and no reload to explain it. That is the "the desk randomly
+// redraws and eats what I was typing" bug. A search param changes no segment,
+// so the same refresh is a plain props update. Measured both ways.
 //
 // `history` is the fourth type: a Move on a RESOLVED turn, opened read-only.
 // It never overlaps `move` — the open turn's Move is always `move`, and a
 // history URL naming one is redirected below.
-function parseSelection(segments) {
-  if (!segments || segments.length !== 2) return null;
-  const [type, id] = segments;
+//
+// `sel` reads "<type>/<id>". The old path form still resolves — the catch-all
+// route stays, and every /gm/turns/<type>/<id> link elsewhere in the app lands
+// on the redirect below — so nobody's bookmark or pasted link breaks.
+function parseSelection(sel) {
+  if (typeof sel !== "string") return null;
+  const [type, id, ...rest] = sel.split("/");
+  if (rest.length || !id) return null;
   if (!["move", "caving", "history"].includes(type)) return null;
   return { type, id };
+}
+
+function legacyPathSelection(segments) {
+  if (!segments || segments.length !== 2) return null;
+  return parseSelection(segments.join("/"));
 }
 
 // Snapshotted (web/lib/snapshot, CHAT.md §5c): the page reads the session,
 // mounts the shell, and streams FreshTurnsWorkspace in behind it. A browser that has
 // been here before paints its last data in the first frame.
-export default async function TurnsWorkspacePage({ params }) {
+export default async function TurnsWorkspacePage({ params, searchParams }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
   const { selection } = await params;
+  // An old path-shaped deep link, from a bookmark or from one of the Links
+  // elsewhere in the app. One hop onto the query form and it behaves like
+  // everything else from then on.
+  const legacy = legacyPathSelection(selection);
+  if (legacy) redirect(turnsSelectionHref(legacy));
+  const { sel } = await searchParams;
   return (
     // remountOnFresh={false}: the workspace re-seeds itself when its props
     // change — every row it draws goes through the desk store, which folds the
@@ -82,17 +101,17 @@ export default async function TurnsWorkspacePage({ params }) {
     // (deskStore.js). The remount was there to stop an island holding stale
     // props in state, and it took the Result box a GM had already started
     // typing with it. Nothing here needs it any more.
-    <SnapshotPage scope={`gm-turns:${(selection ?? []).join("/")}`} userId={session.discordUserId} render={TurnsView} fallback={<Loading />} remountOnFresh={false}>
+    <SnapshotPage scope={`gm-turns:${sel ?? ""}`} userId={session.discordUserId} render={TurnsView} fallback={<Loading />} remountOnFresh={false}>
       <Suspense fallback={null}>
-        <FreshTurnsWorkspace params={params} userId={session.discordUserId} />
+        <FreshTurnsWorkspace searchParams={searchParams} userId={session.discordUserId} />
       </Suspense>
     </SnapshotPage>
   );
 }
 
-async function FreshTurnsWorkspace({ params, userId }) {
-  const { selection } = await params;
-  const parsedSelection = parseSelection(selection);
+async function FreshTurnsWorkspace({ searchParams, userId }) {
+  const { sel } = await searchParams;
+  const parsedSelection = parseSelection(sel);
   // Only the turn's END is derived here now, for the push countdown below — the
   // Move cutoff moved into the header chip every page wears (LockChip.js), which
   // reads it from the root layout. turnEndsAt does not care whether the clock is
@@ -303,7 +322,7 @@ async function FreshTurnsWorkspace({ params, userId }) {
       where: { id: parsedSelection.id },
       include: MOVE_INCLUDE,
     });
-    if (past && openTurn && past.turnId === openTurn.id) redirect(`/gm/turns/move/${past.id}`);
+    if (past && openTurn && past.turnId === openTurn.id) redirect(turnsSelectionHref({ type: "move", id: past.id }));
     if (past) {
       const [pastEffects, pastMessages] = await Promise.all([
         prisma.stagedEffect.findMany({
@@ -377,7 +396,7 @@ async function FreshTurnsWorkspace({ params, userId }) {
 
   return (
     <SnapshotFresh
-      scope={`gm-turns:${(selection ?? []).join("/")}`}
+      scope={`gm-turns:${sel ?? ""}`}
       userId={userId}
       data={{
         // The database's own clock at the read above, and the turn these rows

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { reportDeskReset } from "./blackBox";
 
 // What a GM has typed into a desk row but not yet saved — the Move desk's
 // Result box and Kind switch, and the Caving desk's Result box.
@@ -48,6 +49,9 @@ const DRAFT_FRESH_MS = 10 * 60 * 1000;
 const drafts = new Map();
 // key -> number of mounted editors. See deskDraftHeld.
 const mounts = new Map();
+// Once per key per page life: re-opening the same row a dozen times is one
+// fact, and a line that repeats is a line nobody reads (blackBox.js).
+const reportedDrafts = new Set();
 const listeners = new Set();
 let currentTurnId = null;
 
@@ -179,6 +183,10 @@ export function pruneDeskDrafts(liveKeys) {
     // judged on membership alone rather than being swept for a null.
     const wrongTurn = entry.turnId != null && entry.turnId !== currentTurnId;
     if (!wrongTurn && liveKeys.has(key)) continue;
+    // Never sweep a row somebody has open and has typed into. Whatever the
+    // membership arithmetic says, deleting the sentence being written in front
+    // of the GM is never the right answer — it goes when the panel closes.
+    if (deskDraftHeld(key)) continue;
     drafts.set(key, null);
     changed = true;
     try {
@@ -218,6 +226,13 @@ export function useDeskDraft(key) {
   useEffect(() => {
     if (!key) return undefined;
     mounts.set(key, (mounts.get(key) ?? 0) + 1);
+    // A panel opening onto text it never saved means something took the panel
+    // away mid-sentence. Worth one line (blackBox.js) — that used to be the
+    // only trace the desk left of resetting itself.
+    if (readDeskDraft(key) != null && !reportedDrafts.has(key)) {
+      reportedDrafts.add(key);
+      reportDeskReset(`draft restored on ${key}`);
+    }
     emit();
     return () => {
       const next = (mounts.get(key) ?? 1) - 1;

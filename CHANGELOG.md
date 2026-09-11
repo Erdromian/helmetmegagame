@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The adjudication desk stops wiping your work
+
+✎ Picking a Move no longer makes the next save, solve, pin or background check redraw the whole desk — the redraw was what ate your Result box, an open composer, the zone filter and the selection  
+✎ Move links now read /gm/turns?sel=move/… — old links still work, they redirect  
+✎ A stale page snapshot from an earlier turn can no longer delete the text you are typing  
+✎ If the desk ever resets again, the browser console now says why
+
 ## 2026-09-11 · The GM pages speak one visual language
 
 ✎ A warning is now amber or red everywhere — Missed push, an overdue seat, a dropped live feed — instead of the same grey pill as a label  

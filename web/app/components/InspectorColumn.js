@@ -335,7 +335,7 @@ function MovesView({ data }) {
       <p className="field-label">Past turns</p>
       {!data.rows.length && <p className="text-sm text-muted">Nothing on any past turn.</p>}
       {data.rows.map((r) => (
-        <Link key={r.id} href={`/gm/turns/history/${r.id}`} className="desk-archive-row">
+        <Link key={r.id} href={`/gm/turns?sel=history/${r.id}`} className="desk-archive-row">
           <p className="text-xs text-muted">
             Turn {r.turnLabel} · {r.kindLabel} · {r.reviewLabel}
             {r.rollLabel ? ` · ${r.rollLabel}` : ""}

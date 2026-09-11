@@ -86,7 +86,7 @@ export default function CanonTab({ characterId, discordUserId }) {
         <div className="flex flex-wrap gap-2">
           {/* Deep-links the row, not just the desk — /gm/turns carries its
               selection in the URL, so this lands on the Move itself. */}
-          <Link href={move ? `/gm/turns/move/${move.id}` : "/gm/turns"} className="btn-quiet">
+          <Link href={move ? `/gm/turns?sel=move/${move.id}` : "/gm/turns"} className="btn-quiet">
             Open in Adjudication →
           </Link>
         </div>

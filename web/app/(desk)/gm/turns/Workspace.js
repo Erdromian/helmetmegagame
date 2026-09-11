@@ -23,11 +23,13 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import usePins from "@/app/components/usePins";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused } from "@/lib/deskKeyGuard";
+import { turnsSelectionHref } from "@/lib/routes";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import { seedDesk, useDeskRows } from "./deskStore";
 import DeskStream from "./DeskStream";
 import DeskStreamChip from "./DeskStreamChip";
+import { noteDesk, noteWorkspaceMount } from "./blackBox";
 
 // The adjudication workspace's client shell. Owns selection (which
 // Move shows), inspector (right column + pins), and preview (push
@@ -74,11 +76,11 @@ function formatCountdown(minutes) {
   return `Push in ${h}h ${m}m`;
 }
 
-// Selection is mirrored into the URL as /gm/turns/<type>/<id>, so a refresh
-// keeps your seat and a GM can send another GM a link to the exact Move.
-function selectionHref(sel) {
-  return sel ? `/gm/turns/${sel.type}/${sel.id}` : "/gm/turns";
-}
+// Selection is mirrored into the URL as /gm/turns?sel=<type>/<id>, so a
+// reload keeps your seat and a GM can send another GM a link to the exact
+// Move. A SEARCH param, never a path segment — see page.js#parseSelection for
+// the bug that rule exists to close.
+const selectionHref = turnsSelectionHref;
 
 // A selected history row can belong to a turn other than the one the picker
 // is on, so this looks across every loaded turn, falling back to the deep
@@ -182,6 +184,13 @@ export default function Workspace({
   // (SnapshotFresh.js says the same). Both payloads this page can render,
   // the stored snapshot and the fresh one, come through here; the store keeps
   // whichever was read later.
+  // The black box (blackBox.js). One write per mount, and the warning line if
+  // this is the second workspace this JavaScript context has built — which is
+  // a silent remount, the thing that used to eat a GM's Result box.
+  useEffect(() => {
+    noteWorkspaceMount();
+  }, []);
+
   useEffect(() => {
     seedDesk({
       asOfMs,
@@ -260,6 +269,7 @@ export default function Workspace({
         if (!ok) return;
       }
       setSelected(sel);
+      noteDesk("select", sel ? `${sel.type}/${sel.id}` : "none");
       window.history.replaceState(null, "", selectionHref(sel));
     },
     [confirm],
