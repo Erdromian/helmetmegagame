@@ -5201,6 +5201,7 @@ tags:
     description: "A horse rideable by up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others. Cannot be used in the Caves. Consumes 1 ⬢ per day."
     pointCost: 9
     tradeable: true
+    stackable: true
     equippable: true
     equipSlot: MOUNT
     equipLayer: 1
@@ -5212,6 +5213,109 @@ tags:
     depotPrice: 90
     sellable: true
     sellablePrice: 54
+    craftable: true
+    # Reproduction. Keeps the mare — `keep: true` — and spends a Lavish Meal
+    # instead of ⬢: a Lavish Meal always needs a real errand (tea/sweets/honey/
+    # fish roe, three of them Depot imports), which is the actual throttle on
+    # breeding a line of horses out of nothing. `customOf:` reaches a Lavish
+    # Meal because a cooked one never keeps the `lavish-meal` slug — it mints
+    # fresh every time (COOKING.md) — see db/lib/tagShapes.js.
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      gambit: false
+      items:
+        - tag: horse
+          keep: true
+        - customOf: lavish-meal
+
+  # --- Arelitz — horse-hybrids bred with a graga sac, fish roe or plain ⬢.
+  # Each recipe spends the horse; only Reproduction (above) keeps it.
+  arelitz-warbeast:
+    catalog: all
+    name: Arelitz (Warbeast)
+    category: assets
+    group: assets-companions
+    description: "A terrifying, arachnid behemoth that tramples men with ease. It is only barely hurt by typical weapons."
+    pointCost: 0
+    tradeable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 80
+    craftable: true
+    requirement:
+      turnsCost: 1
+      gambit: false
+      items: [horse, graga-sac]
+
+  arelitz-ovum:
+    catalog: all
+    name: Arelitz (Ovum)
+    category: assets
+    group: assets-companions
+    description: "A bloated Arelitz. It hates moving. It produces the valuable Arelitz egg. Does not allow fast travel."
+    pointCost: 0
+    tradeable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 60
+    craftable: true
+    requirement:
+      turnsCost: 1
+      gambit: false
+      items: [horse, fish-roe]
+
+  arelitz-thoroughbred:
+    catalog: all
+    name: Arelitz (Thoroughbred)
+    category: assets
+    group: assets-companions
+    description: "A healthy and upright arachnid, capable of galloping easily. It has an extra zone move compared to a regular horse."
+    pointCost: 0
+    tradeable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 70
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+      gambit: false
+      items: [horse]
+
+  arelitz-egg:
+    catalog: all
+    name: Arelitz Egg
+    category: items
+    group: items-food
+    description: "A large egg colored like ivory, still wet with the placenta. It can be sold or cracked open into foodstuffs."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    consumesIntoResources: 5
+    sellable: true
+    sellablePrice: 10
 
   bird:
     catalog: all
