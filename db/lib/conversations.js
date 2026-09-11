@@ -99,6 +99,38 @@ async function conversationsFor(prisma, characterId, { locationId = undefined } 
   return rows.map((row) => row.playerThread).filter(Boolean);
 }
 
+// Who is in one conversation, as raw ids. The rows ARE the membership, so
+// this is the whole answer and it is the ONLY thing either face should ask.
+//
+// The ids stay on the server. conversationMembers below is the presented list
+// and deliberately carries no id for anybody in a hood, so a membership test
+// has to be answered off these rather than off those: your own row is a hood
+// like any other when you are wearing one, and matching on a withheld id would
+// lock you out of your own conversation.
+async function conversationMemberIds(prisma, playerThreadId) {
+  if (!playerThreadId) return [];
+  const rows = await prisma.playerThreadMember.findMany({
+    where: { playerThreadId },
+    orderBy: { createdAt: "asc" },
+    select: { characterId: true },
+  });
+  return rows.map((row) => row.characterId);
+}
+
+// Being a member IS the permission to work the door — to /add or /remove
+// somebody else. Both faces ask this one question.
+//
+// Discord's thread-member list is NOT the question, though the bot used to ask
+// it: a web-only character is in the rows and in no thread anywhere, so they
+// were in a conversation they could not invite anybody to. The rows have been
+// the truth since phase 2 (see the header); this is the last place that had
+// not caught up.
+async function isConversationMember(prisma, playerThreadId, characterId) {
+  if (!playerThreadId || !characterId) return false;
+  const ids = await conversationMemberIds(prisma, playerThreadId);
+  return ids.includes(characterId);
+}
+
 // Who is in one conversation. The rows ARE the membership (Discord's thread
 // member list is their projection), so this is the whole answer and it needs
 // no REST call — which is the point: Chat draws it beside every message.
@@ -208,6 +240,8 @@ async function pullMentionedIntoConversation(prisma, { conversation, content, sp
 
 module.exports = {
   conversationByThreadId,
+  conversationMemberIds,
+  isConversationMember,
   addConversationMember,
   pullMentionedIntoConversation,
   removeConversationMember,

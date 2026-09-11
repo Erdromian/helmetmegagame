@@ -40,3 +40,82 @@ test("a missing or malformed key is not a scene", () => {
     assert.equal(isScenePlaceKey(key), false);
   }
 });
+
+// ---------------------------------------------------------------- the name
+
+// shouterNameFor is where the whole distance-0 naming rule lives, and it needs
+// no database, so it is pinned here.
+const { shouterNameFor, deliverShout } = require("../lib/shout");
+
+test("a hood shouts as a lower-case subject, not as a Title Case name", () => {
+  // identity.name is Title Case because it is a webhook username; mid-sentence
+  // that reads as somebody actually called Young Man.
+  const character = { age: 22, gender: "MAN" };
+  const name = shouterNameFor(character, { concealed: true, name: "Young Man" });
+  assert.equal(name, "A young man");
+});
+
+test("a forced name and a real name both come straight off the identity", () => {
+  assert.equal(shouterNameFor({}, { concealed: false, name: "Beast" }), "Beast");
+  assert.equal(shouterNameFor({}, { concealed: false, name: "Ada" }), "Ada");
+});
+
+test("no identity leaves the anonymous line standing", () => {
+  assert.equal(shouterNameFor({}, null), null);
+  assert.equal(shouterNameFor({}, { concealed: false, name: "" }), null);
+});
+
+test("distance zero names the shouter, and says when it is muffled", () => {
+  assert.equal(
+    shoutParts("Run!", 0, null, { shouterName: "Beast" }).text,
+    "Beast shouts: » Run!",
+  );
+  assert.equal(
+    shoutParts("Run!", 0, null, { shouterName: "Beast", muffled: true }).text,
+    "Beast shouts: » Run!, but it's muffled.",
+  );
+  // Falling back to anonymous is the point: erring toward hiding somebody who
+  // should be visible beats naming somebody who should not be.
+  assert.equal(
+    shoutParts("Run!", 0, null, { muffled: true }).text,
+    "You hear someone shout: » Run!, but it's muffled.",
+  );
+});
+
+// ------------------------------------------------------------ the delivery
+
+// shoutAudience is the de-duplication rule on its own: which of `heard` still
+// needs delivering once the place the shout was MADE in has been.
+const { shoutAudience } = require("../lib/shout");
+
+test("a shout made from a Location does not deliver to it twice", () => {
+  // soundRange counts the shouter's own Location at distance 0, so a caller
+  // shouting from a `loc:` key — the turn engine's Xom scream — names it once
+  // as `here` and again as heard[0]. It used to write and post both.
+  const heard = [
+    { placeKey: "loc:home", name: "Home" },
+    { placeKey: "loc:next", name: "Next" },
+  ];
+  assert.deepEqual(
+    shoutAudience("loc:home", heard).map((place) => place.placeKey),
+    ["loc:next"],
+  );
+});
+
+test("a shout made from a room or a conversation can never collide", () => {
+  const heard = [
+    { placeKey: "loc:home", name: "Home" },
+    { placeKey: "loc:next", name: "Next" },
+  ];
+  for (const origin of ["room:vault", "conv:abc"]) {
+    assert.deepEqual(
+      shoutAudience(origin, heard).map((place) => place.placeKey),
+      ["loc:home", "loc:next"],
+    );
+  }
+});
+
+test("a sealed room hears nobody around it, and that is not an error", () => {
+  assert.deepEqual(shoutAudience("room:vault", []), []);
+  assert.deepEqual(shoutAudience("room:vault"), []);
+});

@@ -63,6 +63,7 @@ import {
   addConversationMember,
   removeConversationMember,
   conversationMembers,
+  conversationMemberIds,
 } from "@lifeweb/db/lib/conversations";
 import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout, deliverShout } from "@lifeweb/db/lib/shout";
@@ -2097,19 +2098,14 @@ async function conversationHere(character, placeKey, { sightings = null } = {}) 
   });
   if (!conversation) return { error: "That conversation is gone." };
 
-  // The raw ids stay HERE, on the server. `members` is the presented list and
-  // carries no id for anybody in a hood (db/lib/presentedMembers.js) — which
-  // is also why the membership gate below is answered off `memberIds` rather
-  // than off the rows: your own row is a hood like any other when you are
-  // wearing one, and matching on a withheld id would lock you out of your own
-  // conversation.
-  const memberIds = (
-    await prisma.playerThreadMember.findMany({
-      where: { playerThreadId: conversation.id },
-      orderBy: { createdAt: "asc" },
-      select: { characterId: true },
-    })
-  ).map((row) => row.characterId);
+  // The raw ids stay HERE, on the server — db/lib/conversations.js is where
+  // both faces read them, so the bot and this cannot disagree about who is in
+  // a conversation. `members` below is the presented list and carries no id
+  // for anybody in a hood (db/lib/presentedMembers.js), which is why the gate
+  // is answered off `memberIds` rather than off those rows: your own row is a
+  // hood like any other when you are wearing one, and matching on a withheld
+  // id would lock you out of your own conversation.
+  const memberIds = await conversationMemberIds(prisma, conversation.id);
   if (!memberIds.includes(character.id)) {
     return { error: "You're not in this conversation." };
   }

@@ -339,6 +339,19 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
 
 // --------------------------------------------------------------- delivering
 
+// Which of `heard` still needs delivering once `here` has been. Pure, and
+// exported for the test: it is the whole of the de-duplication rule.
+//
+// soundRange includes the Location the shouter is standing in at distance 0,
+// so a caller that shouts FROM a `loc:` key — the turn engine's Xom scream
+// does, because at 04:00 nobody knows which thread anybody was sitting in —
+// names the same place twice, and used to write and post to it twice. A caller
+// shouting from a `room:` or `conv:` key can never collide, so this costs them
+// nothing.
+function shoutAudience(placeKey, heard = []) {
+  return heard.filter((place) => place.placeKey !== placeKey);
+}
+
 // Put a finished shout in front of the people shout() says can hear it.
 //
 // Two halves per place, and both are needed. The archive row is what Chat
@@ -349,13 +362,6 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
 //
 // `placeKey` is where the shout was MADE — the thread, when it was made in one.
 // It takes `here`; `heard` takes the Locations around it.
-//
-// THE ORIGIN IS SKIPPED IN `heard`. soundRange includes the Location the
-// shouter is standing in at distance 0, so a caller that shouts FROM a `loc:`
-// key — the turn engine's Xom scream does, because at 04:00 nobody knows which
-// thread anybody was sitting in — would otherwise write that place twice and
-// post to it twice. A caller shouting from a `room:` or `conv:` key can never
-// collide, so this costs them nothing.
 //
 // Sequential, no Promise.all: this is up to a couple of dozen Locations, and a
 // fan-out across all of them would burst Discord's rate-limit buckets. Same
@@ -380,8 +386,7 @@ async function deliverShout(prisma, { placeKey, here, heard = [] } = {}) {
     }
   }
 
-  for (const place of heard) {
-    if (place.placeKey === placeKey) continue;
+  for (const place of shoutAudience(placeKey, heard)) {
     try {
       await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
     } catch (err) {
@@ -400,4 +405,12 @@ async function deliverShout(prisma, { placeKey, here, heard = [] } = {}) {
   }
 }
 
-module.exports = { shoutLine, shoutParts, shouterNameFor, shout, deliverShout, SHOUT_COOLDOWN_MS };
+module.exports = {
+  shoutLine,
+  shoutParts,
+  shouterNameFor,
+  shoutAudience,
+  shout,
+  deliverShout,
+  SHOUT_COOLDOWN_MS,
+};

@@ -1,14 +1,10 @@
-// TODO(rewire): a faithful extraction of the Room half of /add and /remove,
-// bot/src/events/interactionCreate.js#handleRoomGuestCommand (around lines
-// 458-538 at 2f4f79ca). The bot still runs its own copy; it should call
-// addRoomGuest()/removeRoomGuest() and answer with the `line` they hand back.
-// Same gates in the same order, same refusal sentences, same Discord side
-// effects — the one difference is that the bot resolves its target from a
-// Discord ROLE and these take a character id, so the "that isn't a living
-// character's role" refusal is worded for a caller that picked a person.
-
 // A RoomGuest row is the ONE way into a private room's thread without one of
 // its access tags (db/lib/roomAccess.js).
+//
+// Both faces call these — bot/src/events/interactionCreate.js
+// #handleRoomGuestCommand and the web's member strip. The bot picks its target
+// from a Discord ROLE and these take a character id, so the bot keeps its own
+// "that isn't a living character's role" refusal and hands the id down.
 //
 // Who may work the door: anyone STANDING here who can get in — a key or a
 // guest row, plus their own feet. Both halves are checked; the feet alone are

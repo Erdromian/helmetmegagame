@@ -41,14 +41,13 @@ const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const {
   syncCharacterRoomAccess,
-  recordRoomThread,
   accessibleRooms,
   roomAccessKeys,
-  heldTagSlugs,
 } = require("@lifeweb/db/lib/roomAccess");
 const {
   addConversationMember,
   removeConversationMember,
+  isConversationMember,
 } = require("@lifeweb/db/lib/conversations");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { sendDm } = require("../lib/dm");
@@ -57,7 +56,7 @@ const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal } = require("../lib/speakModal");
 const { canSpeakInTarget } = require("../lib/speakTargets");
-const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../lib/interactionGuild");
+const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
 const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
 const { placeKeyForChannel, isScenePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const { playInstrument } = require("@lifeweb/db/lib/instrumentPlay");
@@ -70,8 +69,10 @@ const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
 const { castDie } = require("@lifeweb/db/lib/roll");
 const { toggleConceal } = require("@lifeweb/db/lib/conceal");
+const { addRoomGuest, removeRoomGuest } = require("@lifeweb/db/lib/roomGuests");
+const { notifyPresence } = require("@lifeweb/db/lib/presenceNotify");
 const { messageLink } = require("../lib/mentions");
-const { addThreadMember, removeThreadMember } = require("@lifeweb/db/lib/discordRest");
+const { addThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const {
   WHOS_HERE_PREFIX,
@@ -390,10 +391,18 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
+  // Being a member IS the permission, and membership is the ROWS
+  // (db/lib/conversations.js) — not Discord's thread-member list, which this
+  // used to fetch. A web-only character is in the rows and in no thread
+  // anywhere, so they were shut out of a door they were standing behind.
+  const actor = await findAliveCharacter(interaction.user.id);
   const gm = isGmMember(interaction);
   if (!gm) {
-    const member = await channel.members.fetch(interaction.user.id).catch(() => null);
-    if (!member) {
+    if (!actor) {
+      await respond(interaction, "You don't have a living character.");
+      return;
+    }
+    if (!(await isConversationMember(prisma, row.id, actor.id))) {
       await respond(interaction, "You're not in this conversation.");
       return;
     }
@@ -413,7 +422,7 @@ async function handleThreadMemberCommand(interaction, action) {
   // standing there in a hood — so the whole point of the disguise came apart
   // at the door. presentedNameOf is the same resolver the web strip and the
   // HERE column go through (db/lib/presentedMembers.js).
-  const shown = await presentedNameOf(prisma, target.id, await actingCharacter(interaction, { select: { id: true } }));
+  const shown = await presentedNameOf(prisma, target.id, actor);
 
   if (action === "remove") {
     // The ROW is what membership is now (db/lib/conversations.js); the thread
@@ -422,12 +431,16 @@ async function handleThreadMemberCommand(interaction, action) {
     await prisma.playerThreadInvite
       .deleteMany({ where: { threadId: channel.id, characterId: target.id } })
       .catch((err) => console.error("Failed to delete thread invite:", err));
-    try {
-      await channel.members.remove(target.discordUserId);
-    } catch (err) {
-      console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
-      await respond(interaction, "Couldn't remove them. The bot may be missing Manage Threads.");
-      return;
+    // A web-only member holds no thread seat to take away, and the row above
+    // is the whole of the removal for them.
+    if (target.discordUserId) {
+      try {
+        await channel.members.remove(target.discordUserId);
+      } catch (err) {
+        console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
+        await respond(interaction, "Couldn't remove them. The bot may be missing Manage Threads.");
+        return;
+      }
     }
     await respond(interaction, `${shown} was removed.`, { fleeting: true });
     return;
@@ -449,7 +462,7 @@ async function handleThreadMemberCommand(interaction, action) {
   // A "web only" target is out of every channel on purpose (CHAT.md §6), so
   // the row above is the whole of the add: they see the conversation on /chat
   // and the invite row replays the Discord half if they ever come back off it.
-  if (target.locationId === row.locationId && !target.webOnly) {
+  if (target.locationId === row.locationId && !target.webOnly && target.discordUserId) {
     try {
       await addThreadMember(channel.id, target.discordUserId);
     } catch (err) {
@@ -479,112 +492,50 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
   await sendDm(user, `» *You were let into ${where}.*\n${link}`, { kind: DM_KIND.QUIET }).catch(() => { });
 }
 
-// The Room half of /add and /remove.
+// The Room half of /add and /remove. db/lib/roomGuests.js is the rule — the
+// same one the web's member strip asks — and this is only the Discord end of
+// it: resolve the target from the role picker, then hand the id down.
 //
-// Who may work the door: anyone STANDING here who can get in — a key or a
-// guest row, plus their own feet. A GM may always.
-//
-// That used to be read off Discord thread membership, which was the same set
-// back when membership tracked presence. It no longer does (db/lib/
-// roomAccess.js, 2026-09-06): a keyholder is a member of every room their key
-// opens, everywhere on the map, so the old check had quietly become "holds a
-// key" and let somebody three zones away let a guest into a room they were
-// nowhere near. The location comparison is the thing that was always meant.
-//
-// /remove refuses a key-holder on purpose. Their key is what admits them, and
-// the next arrival or tag change would let them straight back in; taking the
-// key is the real removal, so say so rather than doing something that undoes
-// itself.
+// The role, rather than a user, is the whole reason /add takes one: the picker
+// then names characters and never Discord accounts, so inviting somebody
+// cannot reveal who plays them (bot/src/lib/commands.js).
 async function handleRoomGuestCommand(interaction, action, room) {
-  if (room.kind !== "PRIVATE") {
-    await respond(interaction, "Anyone standing here can already walk in.");
-    return;
-  }
-
-  const gm = isGmMember(interaction);
-  if (!gm) {
-    const standing = await findAliveCharacter(interaction.user.id);
-    if (!standing || !room.locationId || standing.locationId !== room.locationId) {
-      await respond(interaction, "You're not in this room.");
-      return;
-    }
-  }
-
   const role = interaction.options.getRole("character");
   const target = await prisma.character.findFirst({
     where: { discordRoleId: role.id, status: "ALIVE" },
+    select: { id: true },
   });
   if (!target) {
+    // Worded for somebody who picked a ROLE, which is what this face offers.
+    // db/lib/roomGuests.js says "That isn't a living character." to a caller
+    // that picked a person.
     await respond(interaction, "That isn't a living character's role.");
-    return;
-  }
-  // What to CALL them, for the same reason the conversation half above does
-  // it: a door opening or refusing is not the moment to say who is under the
-  // hood standing in front of it.
-  const shown = await presentedNameOf(prisma, target.id, await actingCharacter(interaction, { select: { id: true } }));
-  if (target.locationId !== room.locationId) {
-    await respond(interaction, `${shown} isn't here to be let in.`);
-    return;
-  }
-
-  if (action === "remove") {
-    const held = await heldTagSlugs(prisma, target.id);
-    if (room.accessTagSlugs.some((slug) => held.has(slug))) {
-      await respond(interaction, "They have a key. You can't remove them.");
-      return;
-    }
-    await prisma.roomGuest
-      .deleteMany({ where: { roomId: room.id, characterId: target.id } })
-      .catch((err) => console.error("Failed to delete room guest:", err));
-    // No account behind the character means there is no thread member to drop.
-    // Calling with an undefined id fails, and the catch below would report it
-    // as a missing bot permission — a wrong answer to a question nobody asked.
-    if (!target.discordUserId) {
-      await respond(interaction, `${shown} was shown out.`, { fleeting: true });
-      return;
-    }
-    try {
-      await removeThreadMember(room.discordThreadId, target.discordUserId);
-      // The record has to follow, or the diff in syncCharacterRoomAccess sees
-      // no disagreement and this eviction un-does itself on the next sync.
-      await recordRoomThread(prisma, target.id, room.id, false);
-    } catch (err) {
-      console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err);
-      await respond(interaction, "Couldn't remove them. The bot may be missing Manage Threads.");
-      return;
-    }
-    await respond(interaction, `${shown} was shown out.`, { fleeting: true });
     return;
   }
 
   const actor = await findAliveCharacter(interaction.user.id);
-  await prisma.roomGuest
-    .upsert({
-      where: { roomId_characterId: { roomId: room.id, characterId: target.id } },
-      update: {},
-      create: { roomId: room.id, characterId: target.id, invitedById: actor?.id ?? null },
-    })
-    .catch((err) => console.error("Failed to record room guest:", err));
-
-  // The guest ROW above is the grant; thread membership is only Discord's copy
-  // of it, and a "web only" character has no Discord copy of anything
-  // (CHAT.md §6). Their record is left saying "not in the thread", which is
-  // true, and the web feed shows them the room off the guest row regardless.
-  if (!target.webOnly) {
-    try {
-      await addThreadMember(room.discordThreadId, target.discordUserId);
-      // Without this the guest is never shown out: the mover's recompute only
-      // acts where entitlement and the record DISAGREE, and an unrecorded
-      // membership agrees with "not entitled" forever. See recordRoomThread.
-      await recordRoomThread(prisma, target.id, room.id, true);
-    } catch (err) {
-      console.error(`Failed to add ${target.discordUserId} to room ${room.id}:`, err);
-    }
+  const args = { actor, roomId: room.id, characterId: target.id, gm: isGmMember(interaction) };
+  const result = action === "remove" ? await removeRoomGuest(prisma, args) : await addRoomGuest(prisma, args);
+  if (!result.ok) {
+    await respond(interaction, result.error);
+    return;
   }
-  await notifyLetIn(interaction, target, room.name, room.location?.name, room.discordThreadId);
-  await respond(interaction, `${shown} was let in.`, {
-    fleeting: true,
-  });
+
+  // The guest's own Chat has to hear about the door as well — the row changed
+  // what places they can read. The web has always done this; the bot never
+  // did, so a guest added from Discord sat looking at a page that would not
+  // show them the room until they reloaded it.
+  await notifyPresence(prisma, result.target.id).catch(() => {});
+  if (result.notify) {
+    await notifyLetIn(
+      interaction,
+      result.target,
+      result.notify.threadName,
+      result.notify.placeName,
+      result.notify.threadId,
+    );
+  }
+  await respond(interaction, result.line, { fleeting: true });
 }
 
 // The Council Room's Intercom button, and its modal.
