@@ -594,9 +594,9 @@ raise for most of them and would have been a pay cut for `alcohol` (4) and
 the wage never goes down.
 
 That rule bites on a rebalance, not just on the original pricing. The
-2026-09-11 lift set the Simple rung to 12 by rung, and `trapping-gear` sits on
-that rung — which would have cut it from its 16 ⬢ floor. It carries **20**
-instead, the ordinary +25%. Re-price a rung and check this list before shipping.
+2026-09-11 pass set the Simple rung by wage, and `trapping-gear` sits on that
+rung — which would have cut it from its 16 ⬢ floor. It carries **24**
+instead, its rung's wage paid on its own dearer materials. Re-price a rung and check this list before shipping.
 
 The `fishing-rod` used to be the seventh, and it is the one place the floor
 was wrong: at `turnsCost: 0` the Dead Simple ration mints the margin as a
@@ -783,20 +783,30 @@ more turns in one item is rewarded a little more than proportionally, not just
 proportionally. The formula's raw rates read 2 → 5 → 6 → 7 → 11 ⬢/turn, and the shipped
 prices now sit well above it. Two passes put them there and neither re-derived the
 formula: the ~15% materials rebalance cut every rung's `resourceCost`, and then on
-2026-09-11 **every sell price on the ladder was lifted ~25%** — a smith could not make a
-living against a Merchant who sets his own buy price (§4), and the bottom of the ladder
-paid worst of all. What still has to hold is the SHAPE: never flat and never falling.
-The shipped per-turn profits are now 6 → 6 → 12 → 13 → 22.5, with Dead Simple's 8 sitting
-outside the curve for the reason below.
+2026-09-11 **every sell price on the ladder was lifted and the curve deliberately
+flattened** — a smith could not make a living against a Merchant who sets his own buy
+price (§4), and the bottom of the ladder paid worst of all. What still has to hold is
+the SHAPE: never falling. The shipped per-turn profits are now
 
-**The 25% is on the PRICE, and prices are not margins.** A quarter off a 9 ⬢ sword is
-most of its 3 ⬢ profit, and a quarter off a 59 ⬢ musketoon is half again of its 30 —
-so a flat multiplier does not scale the wages evenly and cannot be trusted to preserve
-the shape. Two rungs were set by hand instead of by the multiplier, both at the bottom
-where the distortion is worst: the Simple rung went to **12** rather than the arithmetic
-11, so that it is not out-earned by the ⅓-turn pieces beneath it, and those pieces went
-to **8** rather than 9 for the same reason. Check the shape after any future pass; the
-multiplier will not check it for you. (Moderate was 8 for a while, exactly tying High
+| rung | ⅓-turn | Simple | Moderate | High Quality | Gunpowder |
+|---|---|---|---|---|---|
+| ⬢/turn | 9 | 10 | 16 | 18 | 22.5 |
+
+with Dead Simple's 12 sitting outside the curve for the reason below.
+
+**Flatter is the point, and it is a reversal.** The ladder used to run 3 → 7 → 8 → 15,
+a nearly five-fold spread from the bottom rung to the top, which meant the first two
+rungs were somewhere you passed through rather than somewhere anybody worked. It now
+runs 9 → 22.5, two and a half fold. The top was left where it was and everything under
+it brought up: the low rungs a little, the middle a good deal more.
+
+**Set these by the WAGE, not by a multiplier on the price.** A quarter off a 9 ⬢ sword
+is most of its 3 ⬢ profit; a quarter off a 59 ⬢ musketoon is half again of its 30. The
+margin is a small difference of two larger numbers, so a percentage on the price lands
+as a wildly uneven percentage on the wage — the 2026-09-11 pass started as a flat 25%
+and had to have two rungs hand-corrected before it even shipped. Pick the ⬢/turn you
+want, multiply by the turns, add the `resourceCost`. Then read the table above and check
+nothing overtook the rung above it. (Moderate was 8 for a while, exactly tying High
 Quality — the flat-wage bug — and dropped a point on 2026-09-07 to restore the climb.)
 1.3 is a judgment
 call, not a derived constant: high enough to feel like a real reward for committing
@@ -806,14 +816,17 @@ one item's `sellablePrice`.
 
 **Dead Simple is the one exception, kept outside the formula on purpose.** It costs 0
 turns, so `rate × 0^1.3` would price it at raw material cost with no margin at all.
-Instead it keeps a flat token markup — **+2 ⬢** since the 2026-09-11 lift, up from +1 —
+Instead it keeps a flat token markup — **+3 ⬢** since the 2026-09-11 pass, up from +1 —
 and its rationing stays the 4-unit/turn cap (`SMITHING.md` §2) rather than a turn cost.
 It was never meant to compete turn-for-turn with the ladder above it, so it does not have
-to clear the same per-turn bar, which is just as well: four a turn at +2 is 8 ⬢/turn and
-sits above the two rungs over it. **That is the one number here worth watching.** It costs
-no turn, so it stacks on top of an untouched labor day — exactly the shape that made the
-`fishing-rod`'s 60% floor a problem further up this section. Doubling a free wage is the
-part of this pass most likely to want a second look.
+to clear the same per-turn bar.
+
+**It cannot be tuned finely, and it is the number here worth watching.** The 4-unit
+ration means one ⬢ on the price is four on the wage, so the smallest change available at
+this rung is ±4 ⬢/turn — which is why it reads 12 now, above the two rungs over it, with
+no intermediate setting to reach for. And it costs no turn, so it stacks on top of an
+untouched labor day: exactly the shape that made the `fishing-rod`'s 60% floor a problem
+further up this section. If any part of this pass wants revisiting, it is this one.
 
 The Dead Simple rung spans two skills — `crafting` gates the cloth and wood half,
 `smithing` the metal — and **both halves take the same markup**, which is the same
@@ -822,10 +835,10 @@ reading. A padded cap and a work knife are one rung and pay one wage.
 
 The four 1/3-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
 `SMITHING.md` §2) get the same treatment for the same reason: `2 × (1/3)^1.3` rounds to
-0, so they carry a flat markup instead and sell at **8**. Three a turn is 6 ⬢/turn, level
-with the rung's full-turn wage — quick work is paid the same rate, not a better one. That
-levelling is why the rung above them was set to 12 by hand rather than the 11 the
-multiplier gave: at 11 the quick pieces would have out-earned it.
+0, so they carry a flat markup instead and sell at **9**. Three a turn is 9 ⬢/turn,
+against the rung's full-turn 10 — quick work is paid about the rung's rate, never a
+better one. Integer prices are why it is 9 and not exactly 10; round the quick pieces
+DOWN when they will not land clean, never up, or the rung above them is overtaken.
 
 A further 5% came off the Gunpowder tier on 2026-09-10 (31→29, 20→19), again without
 re-deriving `sellablePrice`, which widens that margin once more on purpose.
