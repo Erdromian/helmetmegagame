@@ -619,6 +619,20 @@ deliberately **not** exported from the `@lifeweb/db` barrel — three exports
 with the same name would make it easy to grab the wrong one. Require it by
 path.
 
+**The three share one policy, and it lives in `db/lib/dmPolicy.js`.** The `»`
+prefix, the `kind`/`source` defaults, the exact `DirectMessage` row and what a
+bounced send is written down as are one decision, not three. Each transport
+keeps its own body and calls `applyDmPrefix` / `dmLogRow` for the rest, so a new
+column is added in one place. Like `dmKinds.js` it has **zero requires, ever** —
+it is reachable from a client component, and one require of `@lifeweb/db` there
+drags PrismaClient into the browser bundle.
+
+A GM-sent DM also writes an `AuditLog` row at the call site. The desk's reply,
+`/gm/dev`'s message box, a threat assignment and `/dm` all do;
+`web/app/(desk)/gm/players/actions.js#sendGmDm` is the shared one. A DM that
+reached a player with no record of who sent it is the gap `/gm/audit` exists to
+close.
+
 Inbound DMs are logged directly in `bot/src/events/messageCreate.js`.
 
 ### Every DM says what kind of thing it is
@@ -1154,6 +1168,8 @@ global CLIs. To make one able to build, run, and deploy:
   raise `bascinet_desk` so a second GM's desk updates live (`ADJUDICATION.md`
   §3). `Action_notify` is COLUMN-SCOPED; recreating it without its `UPDATE OF`
   list would wake every open desk for every write in a turn-end push.
+  `Delivery_notify` is the sixth, and the odd one: it announces its PARENT
+  `StagedMessage`, because no desk row is a `Delivery` (`ADJUDICATION.md` §1a).
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

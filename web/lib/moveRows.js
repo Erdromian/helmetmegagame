@@ -47,6 +47,10 @@ export const STAGED_MESSAGE_INCLUDE = {
   recipients: { include: { character: { select: { id: true, name: true, updatedAt: true } } } },
   zone: { select: { id: true, name: true } },
   turn: { select: { id: true, number: true } },
+  // One row per send (db/lib/stagedDelivery.js). The tray used to be able to
+  // say only "Sent, some failed" off a JSON blob; with these it can say which
+  // recipient, and whether the retry is still running.
+  deliveries: true,
 };
 
 // The Caving lens' row shape. Same "one mapper, both callers" rule as the Move
@@ -269,6 +273,16 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
     })),
     sent: Boolean(m.sentAt),
     deliveryFailures: m.deliveryFailures ?? null,
+    // Per-recipient delivery state, newest truth. Empty for a message pushed
+    // before the Delivery table existed — the blob above is what those still
+    // read, which is why both are here.
+    deliveries: (m.deliveries ?? []).map((d) => ({
+      characterId: d.characterId,
+      name: d.name,
+      state: d.state,
+      attempts: d.attempts,
+      error: d.lastError?.error ?? null,
+    })),
     createdByUsername: usernameById.get(m.createdByDiscordUserId) ?? m.createdByDiscordUserId,
     createdByDiscordUserId: m.createdByDiscordUserId ?? null,
     turnNumber: m.turn?.number ?? null,
@@ -357,6 +371,11 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     lootTagName: c.lootTag?.name ?? null,
     lootUndoneAt: c.lootUndoneAt ? c.lootUndoneAt.getTime() : null,
     statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
+    // A TROUBLE roll is created unresolved, and the only hand that resolves one
+    // writes its own id — so resolved with no resolver means the turn-end push
+    // let it go (db/lib/cavingPass.js#releaseUnresolvedCavingRolls). Worth
+    // saying out loud on the desk: nobody adjudicated this, the clock did.
+    autoResolved: Boolean(c.resolvedAt) && c.kind === "TROUBLE" && !c.resolvedByDiscordUserId,
     resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
     resolvedByUsername: c.resolvedByDiscordUserId
       ? (usernameById.get(c.resolvedByDiscordUserId) ?? c.resolvedByDiscordUserId)

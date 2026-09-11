@@ -49,10 +49,39 @@ export function effectState(effect) {
 }
 
 export function messageState(message) {
+  const rows = Array.isArray(message.deliveries) ? message.deliveries : [];
+  if (message.sent && rows.length) {
+    // Counted off the Delivery rows, so the pill says HOW MANY bounced rather
+    // than only that something did — and it says "Sending" while a retry is in
+    // flight, which "Sent, some failed" could not.
+    const failed = rows.filter((d) => d.state === "FAILED").length;
+    if (rows.some((d) => d.state === "IN_FLIGHT")) return { label: "Sending…", tone: "warn" };
+    if (failed) return { label: `Sent · ${failed} failed`, tone: "bad" };
+    if (rows.every((d) => d.state === "SENT")) return { label: "Sent", tone: "good" };
+  }
   if (message.sent && message.deliveryFailures) return { label: "Sent, some failed", tone: "bad" };
   if (message.sent) return { label: "Sent", tone: "good" };
   if (message.missed) return { label: "Missed push", tone: "bad" };
   return { label: "Staged", tone: "warn" };
+}
+
+// One short line per recipient who is not simply done — "Ada: DMs closed",
+// "Bram: sending…". Empty when everything landed, so a clean message says
+// nothing extra. The blob-era fallback keeps an old turn readable.
+export function deliveryNotes(message) {
+  const rows = Array.isArray(message.deliveries) ? message.deliveries : [];
+  if (rows.length) {
+    return rows
+      .filter((d) => d.state !== "SENT")
+      .map((d) => {
+        const who = d.name ?? "the channel";
+        if (d.state === "IN_FLIGHT") return `${who}: sending…`;
+        if (d.state === "PENDING") return `${who}: not sent yet`;
+        return `${who}: ${d.error ?? "failed"}${d.attempts > 1 ? ` (${d.attempts} tries)` : ""}`;
+      });
+  }
+  const blob = Array.isArray(message.deliveryFailures) ? message.deliveryFailures : [];
+  return blob.map((f) => `${f.name ?? "the channel"}: ${f.error ?? "failed"}`);
 }
 
 export function truncate(text, limit = 120) {

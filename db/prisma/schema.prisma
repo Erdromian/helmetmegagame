@@ -2180,6 +2180,7 @@ model Character {
   notes                   Note[]
   desires                 Desire[]
   stagedMessageRecipients StagedMessageRecipient[]
+  deliveries              Delivery[]
   stagedEffects           StagedEffect[]
   cavingRolls             CavingRoll[]
   craftProjects           CraftProject[]
@@ -2949,7 +2950,7 @@ model Tag {
   // meals are: a cook naming their own dish is the whole point of the cooking
   // rework, not an upsell. surchargeFor() is the one verdict both the dialog
   // and the server action read, so the ⬢ shown is always the ⬢ billed.
-  customCost Int?
+  customCost   Int?
 
   // False hides the description box and refuses a posted description. The
   // Fine Meal takes a name and nothing else; the Lavish Meal takes both.
@@ -3695,9 +3696,79 @@ model StagedMessage {
   updatedAt DateTime @updatedAt
 
   recipients StagedMessageRecipient[]
+  deliveries Delivery[]
 
   @@index([turnId])
   @@index([moveId])
+}
+
+// One send, one row. The unit of delivery for a staged message: one per
+// PRIVATE recipient, one for a PUBLIC row's post (docs/systemdocs/ADJUDICATION.md §1a).
+//
+// WHY IT EXISTS. The push used to record its progress as a step key on the
+// Turn — `delivery:<messageId>:<index>` — and swallow a bounced DM inside the
+// step, so the key was written whether or not the player got anything. A
+// resumed push then skipped the bounce for good, and the Resend button ran a
+// SECOND copy of the send logic (web/app/(desk)/gm/turns/actions.js) reading a
+// JSON blob to work out who to retry. Three problems fall out of that, and all
+// three are the same problem: there was no row that said what happened to ONE
+// recipient.
+//
+// `state` is that row. `dedupeKey` is its identity — built from ids, never a
+// loop index, so it survives a recipient being removed between a crash and its
+// resume (db/lib/dmPolicy.js#dedupeKey). The claim is `updateMany` from a
+// non-terminal state to IN_FLIGHT: count 0 means somebody else has it, which is
+// how two pushes, or a push and a GM's Resend, stay out of each other's way.
+//
+// StagedMessage.sentAt and deliveryFailures are still written — the desk, the
+// tray and every archived turn read them — but they are now DERIVED from these
+// rows rather than being the only record.
+model Delivery {
+  id              String        @id @default(cuid())
+  stagedMessageId String
+  stagedMessage   StagedMessage @relation(fields: [stagedMessageId], references: [id], onDelete: Cascade)
+
+  // Who it is for. SetNull rather than Cascade: a character deleted after a
+  // push must not take the record of what they were sent with them — the
+  // snapshot below is what the failure list reads. Null on a PUBLIC row, which
+  // is addressed to a channel.
+  characterId String?
+  character   Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+
+  // Snapshots, no FK — the log-table convention (ARCHITECTURE.md). The name is
+  // what a GM reads in "failed: Ada", and it has to keep reading right after
+  // the character is gone.
+  discordUserId String?
+  name          String?
+
+  // Stable across the push and every later resend. Partial on nothing: a
+  // PUBLIC row's key ends in "none", and there is exactly one per message.
+  dedupeKey String @unique
+
+  state    DeliveryState @default(PENDING)
+  attempts Int           @default(0)
+
+  // The claim stamp. A row left IN_FLIGHT by a killed process is reclaimable
+  // after STALE_CLAIM_MS (db/lib/stagedDelivery.js) — the same 30 minutes
+  // Turn.sideEffectClaimedAt uses, and for the same reason.
+  claimedAt DateTime?
+  sentAt    DateTime?
+
+  discordMessageId String?
+  lastError        Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stagedMessageId])
+  @@index([state])
+}
+
+enum DeliveryState {
+  PENDING
+  IN_FLIGHT
+  SENT
+  FAILED
 }
 
 // PRIVATE recipients, one row per recipient character. Cascade both ways:

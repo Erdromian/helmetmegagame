@@ -1,5 +1,5 @@
 const { prisma } = require("@lifeweb/db");
-const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
+const { dmLogRow } = require("@lifeweb/db/lib/dmPolicy");
 
 // Renders one embed (an EmbedBuilder instance or a plain object) to
 // readable text: title, description, then each field as "**name**: value".
@@ -25,22 +25,25 @@ function contentOf(payload) {
 async function sendDm(user, payload, opts = {}) {
   const dm = await user.createDM();
   const sent = await dm.send(payload);
+  // db/lib/dmPolicy.js holds the kind/source defaults the other two
+  // transports use. The embeds and `meta` are read off the PAYLOAD here rather
+  // than off opts — this twin carries them there — so the three reaction
+  // handlers that send one still need no opts at all: an inspect readout is
+  // plumbing, and plumbing is QUIET.
+  const hasEmbeds = Boolean(payload?.embeds?.length);
   await prisma.directMessage
     .create({
       data: {
-        discordUserId: user.id,
-        direction: "OUTBOUND",
-        content: contentOf(payload),
-        authorDiscordUserId: opts.authorDiscordUserId ?? null,
-        source: opts.source ?? "bot_auto",
-        // NOTICE unless the caller says otherwise (db/lib/dmKinds.js): a DM
-        // nobody classified is the game talking, not a person. An embed is
-        // read off the payload the same way `meta` below is, so the three
-        // reaction handlers that send one need no opts at all — an inspect
-        // readout is plumbing, and plumbing is QUIET.
-        kind: opts.kind ?? (payload?.embeds?.length ? DM_KIND.QUIET : DM_KIND.NOTICE),
-        discordMessageId: sent?.id ?? null,
-        meta: opts.meta ?? (payload?.embeds?.length ? { embed: true } : undefined),
+        ...dmLogRow({
+          discordUserId: user.id,
+          // No `»` here: this transport's callers write their own where they
+          // want one, and a payload may be an embed with no text at all.
+          content: contentOf(payload),
+          opts,
+          discordMessageId: sent?.id ?? null,
+          hasEmbeds,
+        }),
+        meta: opts.meta ?? (hasEmbeds ? { embed: true } : undefined),
       },
     })
     .catch(() => {});

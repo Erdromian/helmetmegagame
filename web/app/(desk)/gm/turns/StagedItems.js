@@ -12,7 +12,7 @@ import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
 import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
-import { chunkCount, effectSummary, effectState, messageState, tagNameLookup, truncate } from "./stagedFormat";
+import { chunkCount, effectSummary, effectState, deliveryNotes, messageState, tagNameLookup, truncate } from "./stagedFormat";
 
 // The staged-row lists the desk and the tray share: every row shows what it
 // will do at the push, who queued it, and edit/delete — which stay live right
@@ -146,7 +146,13 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   // The push writes DbNull on a clean send, but an empty array would be
   // truthy — check for actual entries rather than presence.
   const failureCount = Array.isArray(message.deliveryFailures) ? message.deliveryFailures.length : 0;
-  const canResend = message.sent && failureCount > 0;
+  const deliveryRows = Array.isArray(message.deliveries) ? message.deliveries : [];
+  const notes = deliveryNotes(message);
+  // A Delivery row that is FAILED is the retryable thing. The blob stays the
+  // answer for a message pushed before the table existed.
+  const canResend =
+    message.sent &&
+    (deliveryRows.length ? deliveryRows.some((d) => d.state === "FAILED") : failureCount > 0);
 
   const recipientNames =
     message.kind === "PUBLIC"
@@ -222,12 +228,14 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
           <GmAvatar profile={gmProfiles?.[message.createdByDiscordUserId]} size={13} />
           by {message.createdByUsername}
           {message.turnNumber != null ? ` · turn ${message.turnNumber}` : ""}
-          {message.deliveryFailures
-            ? ` · failed: ${(Array.isArray(message.deliveryFailures) ? message.deliveryFailures : [])
-                .map((f) => f.name ?? f.error)
-                .join(", ")}`
-            : ""}
         </p>
+        {notes.length > 0 && (
+          <ul className="text-xs text-muted">
+            {notes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        )}
         {resendError && <p className="form-error">{resendError}</p>}
         {deleteError && <FormError>{deleteError}</FormError>}
       </div>

@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Every message the push sends is written down per recipient
+
+✎ A staged message now records, per recipient, whether it went out — the tray shows Sent · 1 failed and names who bounced, and Resend retries only them  
+✎ A push that dies mid-delivery picks up where it left off and tells nobody twice  
+✎ A Trouble caving roll nobody resolved by the push resolves itself, so the caver is not stuck in the zone another day  
+✎ A resent public declaration now reaches the Hall feed too  
+✎ The /dm command leaves an audit entry
+
 ## 2026-09-11 · The adjudication desk goes live
 
 ✎ What another GM stages, solves or rejects shows up on your desk within a second, no reload — a small chip in the header says when the desk has dropped back to its slower check  

@@ -44,6 +44,7 @@ const { broadcastToZones } = require("./worldBroadcast");
 const { postGameEnded } = require("./gameEnd");
 const { syncSpectatorAccess } = require("./spectatorAccess");
 const { sceneLine, sceneLineAt } = require("./scene");
+const { deliverPrivate, deliverPublic, failuresFor } = require("./stagedDelivery");
 const {
   placeKeyForLocation,
   placeKeyForConversation,
@@ -53,7 +54,6 @@ const { postTurnsAnnouncement } = require("./turnAnnouncement");
 const { runMessageWipe } = require("./messageWipe");
 const {
   postMessage,
-  postMessageBatched,
   patchGuildRole,
   getGuildRoles,
   deleteGuildRole,
@@ -637,48 +637,54 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
     });
   }
 
-  // Staged-arbitration deliveries (docs/systemdocs/ADJUDICATION.md).
-  // sentAt is stamped only after sends were attempted, so a crash partway
-  // leaves the remainder visibly unsent instead of falsely delivered.
+  // Staged-arbitration deliveries (docs/systemdocs/ADJUDICATION.md §1a).
+  //
+  // One Delivery row per recipient carries the state now, and
+  // db/lib/stagedDelivery.js is the same code the Resend button runs — so a
+  // bounce is a FAILED row a later attempt can claim, rather than a step key
+  // that says "done" because the loop did not throw. The step ladder still
+  // wraps the message as a whole (a message fully delivered is not re-walked
+  // on a resume), but the per-recipient no-double-send promise no longer
+  // depends on it: the claim does.
+  //
+  // The error is NOT swallowed inside step() any more — deliverPrivate hands
+  // back what failed and the key is recorded either way, because the rows
+  // below are what a retry reads, not the key.
   const deliveryFailures = [];
   for (const delivery of list(p.privateDeliveries)) {
-    const failed = [];
-    const recipients = list(delivery.recipients);
-    for (let r = 0; r < recipients.length; r += 1) {
-      const recipient = recipients[r];
-      await step(`delivery:${delivery.stagedMessageId}:${r}`, async () => {
-        try {
-          await sendDm(prisma, recipient.discordUserId, delivery.content, {
-            authorDiscordUserId: delivery.createdByDiscordUserId ?? null,
-            source: "staged_push",
-            // A turn result is GM-authored prose, just delivered in bulk.
-            kind: DM_KIND.CONVERSATION,
-          });
-        } catch (err) {
-          failed.push({
-            characterId: recipient.characterId,
-            name: recipient.name,
-            error: String(err?.message ?? err),
-          });
-        }
+    await step(`delivery:${delivery.stagedMessageId}`, async () => {
+      const stagedMessage = {
+        id: delivery.stagedMessageId,
+        content: delivery.content,
+        createdByDiscordUserId: delivery.createdByDiscordUserId ?? null,
+      };
+      const { failed } = await deliverPrivate(prisma, {
+        stagedMessage,
+        recipients: list(delivery.recipients),
       });
-    }
-    await prisma.stagedMessage
-      .update({
-        where: { id: delivery.stagedMessageId },
-        data: {
-          sentAt: new Date(),
-          deliveryFailures: failed.length ? failed : Prisma.DbNull,
-        },
-      })
-      .catch((err) =>
-        console.error(
-          `Failed to stamp staged message ${delivery.stagedMessageId} sent:`,
-          err,
-        ),
-      );
-    if (failed.length)
-      deliveryFailures.push({ stagedMessageId: delivery.stagedMessageId, failed });
+      // sentAt says "delivery was attempted for every recipient", which is
+      // what the tray's missed-push banner reads. The failure list is derived
+      // from the rows rather than from this run, so a recipient another run
+      // already got through to does not reappear here.
+      await prisma.stagedMessage
+        .update({
+          where: { id: delivery.stagedMessageId },
+          data: {
+            sentAt: new Date(),
+            deliveryFailures: failed.length ? await failuresFor(prisma, delivery.stagedMessageId) : Prisma.DbNull,
+          },
+        })
+        .catch((err) =>
+          console.error(`Failed to stamp staged message ${delivery.stagedMessageId} sent:`, err),
+        );
+      if (failed.length)
+        deliveryFailures.push({
+          stagedMessageId: delivery.stagedMessageId,
+          attempted: list(delivery.recipients).length,
+          delivered: list(delivery.recipients).length - failed.length,
+          failed,
+        });
+    });
   }
 
   await eachDm("routine", p.routineNotices, (notice) =>
@@ -741,67 +747,42 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
 
   for (const post of list(p.publicPosts)) {
     await step(`publicPost:${post.stagedMessageId}`, async () => {
-      const targetChannelId = post.zoneSummaryChannelId;
-      if (!targetChannelId) {
-        console.error(
-          `Public declaration ${post.stagedMessageId} skipped: its zone has no summary channel.`,
+      const stagedMessage = {
+        id: post.stagedMessageId,
+        content: post.content,
+        createdByDiscordUserId: null,
+      };
+      const { sent, failed } = await deliverPublic(prisma, {
+        stagedMessage,
+        channelId: post.zoneSummaryChannelId,
+        zoneId: post.zoneId,
+        // The push is always the FIRST attempt at a declaration, so the Hall
+        // row is always its to write. Only Resend has a reason to skip it.
+        writeSceneLine: true,
+      });
+      await prisma.stagedMessage
+        .update({
+          where: { id: post.stagedMessageId },
+          data: {
+            // A post with no channel never went anywhere, so it is not stamped
+            // sent — it stays in the tray as unsent work, the way it did.
+            ...(sent ? { sentAt: new Date() } : {}),
+            deliveryFailures: failed.length ? failed : Prisma.DbNull,
+          },
+        })
+        .catch((err) =>
+          console.error(`Failed to stamp public post ${post.stagedMessageId}:`, err),
         );
-        await prisma.stagedMessage
-          .update({
-            where: { id: post.stagedMessageId },
-            data: { deliveryFailures: [{ error: "no summary channel configured" }] },
-          })
-          .catch((err) =>
-            console.error(`Failed to mark public post ${post.stagedMessageId}:`, err),
-          );
-        deliveryFailures.push({
-          stagedMessageId: post.stagedMessageId,
-          failed: [{ error: "no summary channel configured" }],
-        });
-        return;
-      }
-      try {
-        // Batched: a declaration over 2000 characters posts as several
-        // messages in order rather than being rejected. See ADJUDICATION.md §1.
-        await postMessageBatched(targetChannelId, post.content);
-        // The Hall's half: one SYSTEM row in the zone's feed, beside the post.
-        // The declaration is GM-authored and already signed, so it is not
-        // signed again.
-        await sceneLineAt(prisma, {
-          zoneId: post.zoneId,
-          text: post.content,
-          signed: false,
-        });
-        await prisma.stagedMessage
-          .update({
-            where: { id: post.stagedMessageId },
-            data: { sentAt: new Date(), deliveryFailures: Prisma.DbNull },
-          })
-          .catch((err) =>
-            console.error(
-              `Failed to stamp public post ${post.stagedMessageId} sent:`,
-              err,
-            ),
-          );
-      } catch (err) {
+      if (failed.length) {
         console.error(
           `Public declaration ${post.stagedMessageId} failed to post:`,
-          err,
+          failed.map((f) => f.error).join("; "),
         );
-        await prisma.stagedMessage
-          .update({
-            where: { id: post.stagedMessageId },
-            data: { deliveryFailures: [{ error: String(err?.message ?? err) }] },
-          })
-          .catch((markErr) =>
-            console.error(
-              `Failed to mark public post ${post.stagedMessageId}:`,
-              markErr,
-            ),
-          );
         deliveryFailures.push({
           stagedMessageId: post.stagedMessageId,
-          failed: [{ error: String(err?.message ?? err) }],
+          attempted: 1,
+          delivered: 0,
+          failed,
         });
       }
     });

@@ -24,6 +24,57 @@ day of work survives a refresh):
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper, so a GM can stage several at once; asking for more than one of a non-stackable tag stages `force: true` right alongside it (`TAGS.md` §5a). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive a player's Transfer and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 
+### 1a. One row per send: the `Delivery` table
+
+**Every send a staged message makes has its own row** — one per PRIVATE
+recipient, one for a PUBLIC row's post — and `db/lib/stagedDelivery.js` is the
+only code that writes them. The push and the **Resend** button run the same
+function.
+
+They did not, and all three problems that caused were the same problem: nothing
+recorded what happened to *one* recipient.
+
+- The push recorded its progress as a step key on the closing turn
+  (`delivery:<messageId>:<index>`) and swallowed each bounce inside the step —
+  so a recipient whose DMs were closed was written down as **done**, and no
+  resumed push ever tried them again.
+- The key carried a loop **index**, so removing a recipient between a crash and
+  its resume shifted everybody else's key onto somebody else's send.
+- Resend was a second copy of the sending logic, reading the `deliveryFailures`
+  JSON to work out who to retry — and it forgot the `/play` row that a public
+  post writes, so a resent declaration reached Discord and never reached the
+  Hall.
+
+How it works now:
+
+- `stagedPush.js` writes the rows **at selection**, before anything sends
+  (`createMany` with `skipDuplicates` on the unique `dedupeKey`), so a push that
+  dies after the first DM finds the rest sitting there `PENDING`.
+- `dedupeKey` is `staged:<messageId>:<discordUserId>`, built from ids and never
+  from a position (`db/lib/dmPolicy.js#dedupeKey`).
+- Each send **claims** its row first: `updateMany` from `PENDING`/`FAILED`
+  (or a stale `IN_FLIGHT`) to `IN_FLIGHT`. Count 0 means somebody else has it —
+  a concurrent push, or a GM pressing Resend mid-push — and this run sends
+  nothing. That claim is the whole no-double-send promise;
+  `db/test/stagedDelivery.test.js` is what holds it.
+- A claim goes stale after **five minutes**, not the thirty
+  `Turn.sideEffectClaimedAt` uses: that window covers a whole side-effect thunk,
+  this one covers a single DM.
+- `StagedMessage.sentAt` and `deliveryFailures` are still written — the tray,
+  the missed-push banner and every already-pushed turn read them — but they are
+  **derived** from these rows now rather than being the only record. So a
+  recipient whose retry finally lands drops off the failure list by itself.
+
+The tray reads the rows too: the status pill counts them (`Sent · 1 failed`,
+`Sending…`) and one line per recipient says what happened, instead of the single
+`Sent, some failed`. A message pushed before the table existed has no rows and
+still reads off the blob.
+
+`Delivery` raises the desk's live channel through its **parent**: the trigger
+notifies `bascinet_desk` with `{"t":"message","id":<stagedMessageId>}`, because
+no desk row is a Delivery and a second GM's screen should not have to wait for
+`StagedMessage` itself to be written next.
+
 ### Long messages split; they are never truncated
 
 Both kinds cap at **6000 characters** (`GM_MESSAGE_MAX_LENGTH`), which is about
@@ -491,9 +542,14 @@ guarantees: `TURN-ENGINE.md` §2–3). What a GM needs to know:
   in the side-effect thunk via `db/lib/zoneMove.js`, with the channel
   doctor as the safety net (`CHANNELS.md` §3).
 - Messages are stamped `sentAt` after their sends are attempted, per-recipient
-  failures recorded on the row and in one `staged_push_delivery_failed`
-  audit row. A crash mid-delivery leaves the rest visibly unsent, not
-  falsely delivered.
+  state on its own `Delivery` row (§1a), the failures also summarised on
+  `StagedMessage.deliveryFailures` and in one `staged_push_delivery_failed`
+  audit row carrying `{attempted, delivered}`. A crash mid-delivery leaves the
+  rest visibly unsent, not falsely delivered — and a resumed push finishes
+  exactly the ones that did not get through.
+- **An unresolved `TROUBLE` caving roll is resolved by the push** and its hold
+  on the caver lifts (`CAVING.md` §2d). The Caving lens is read-only on a past
+  turn by design, so a roll nobody got to is a roll nobody can get to.
 - A staged row created in the seconds around the cron retargets itself to
   the new open turn; anything that slips through lands in the missed-push
   banner. Honest beats locked.

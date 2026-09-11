@@ -315,6 +315,18 @@ async function handleGmDmCommand(interaction) {
       source: "gm_slash",
       kind: DM_KIND.CONVERSATION,
     });
+    // Same reason /gm writes one: a GM message that reached a player with no
+    // record of who sent it is the gap /gm/audit exists to close. The DM row
+    // itself already carries the author, but the log is the place a GM looks.
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: interaction.user.id,
+          actionType: "gm_dm_sent",
+          details: { discordUserId: recipient.id, message: content },
+        },
+      })
+      .catch((err) => console.error("Failed to log /dm:", err));
     await respond(interaction, `Sent to ${recipient}.`, { fleeting: true });
   } catch (err) {
     console.error("Failed to send /dm DM:", err);

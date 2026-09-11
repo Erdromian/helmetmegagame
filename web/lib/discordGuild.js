@@ -15,7 +15,7 @@ import {
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
-import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
+import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
 import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
   revokeAccessForCharacters as revokeAccessForCharactersShared,
@@ -583,7 +583,7 @@ export async function killCharacter(character, reason = null) {
 // assignment and a bird letter ended up in the inbox looking like mail. Pass
 // DM_KIND.CONVERSATION only when a person actually typed the words.
 export async function sendDm(discordUserId, content, opts = {}) {
-  const formatted = `» ${content}`;
+  const formatted = applyDmPrefix(content);
   const message = await postDmBatched(discordUserId, formatted, {
     components: opts.components,
     embeds: opts.embeds,
@@ -592,20 +592,18 @@ export async function sendDm(discordUserId, content, opts = {}) {
     allowedMentions: opts.allowedMentions,
   });
   try {
+    // db/lib/dmPolicy.js — the prefix, the defaults and the row shape are
+    // shared with the other two transports. This one used to write `source:
+    // null`, which was never a third meaning, only an unset field; it writes
+    // the same "bot_auto" default the others do now.
     await prisma.directMessage.create({
-      data: {
+      data: dmLogRow({
         discordUserId,
-        direction: "OUTBOUND",
         content: formatted,
-        authorDiscordUserId: opts.authorDiscordUserId ?? null,
-        source: opts.source ?? null,
-        kind: opts.kind ?? (opts.embeds?.length ? DM_KIND.QUIET : DM_KIND.NOTICE),
+        opts,
         discordMessageId: message?.id ?? null,
-        // The composer's own id for this send, where there was a composer.
-        // Null everywhere else, which the partial unique index allows.
-        clientNonce: opts.clientNonce ?? null,
-        meta: opts.meta ?? undefined,
-      },
+        hasEmbeds: Boolean(opts.embeds?.length),
+      }),
     });
   } catch (err) {
     // P2002 is the nonce already being on the table: this send is a retry of
