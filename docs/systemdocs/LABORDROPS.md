@@ -159,13 +159,14 @@ too**, not just 6 — a prospector finds something worth having more often
 than a hunter finds a body, even if any one find is smaller.
 
 **Target total EV/labor, by the location's own yield coefficient**
-(Bascinet, 2026-09-09) — a rule of thumb, not a formula to hit exactly:
+(Bascinet, 2026-09-09; raised ~50% on 2026-09-20) — a rule of thumb, not a
+formula to hit exactly:
 
 | coefficient | target EV/labor |
 |---|---|
-| 0.4 | ~4 ⬢ |
-| 0.6-0.7 | ~6-7 ⬢ |
-| 0.8-1.0 | ~8-10 ⬢ |
+| 0.4 | ~6 ⬢ |
+| 0.6-0.7 | ~9-10.5 ⬢ |
+| 0.8-1.0 | ~12-15 ⬢ |
 
 Read this off `npm run db:audit-labor-drops`'s own combined EV/labor line
 for the table you're building (§6a), the same way every other table in this
@@ -175,12 +176,69 @@ file was tuned — not by hand arithmetic. Since a Prospecting-specific
 a zone-wide or labor-type-wide Prospecting pool exists, a location's own
 table only needs to make up the remainder.
 
+**The 2026-09-20 pass raised every Prospecting table's own EV/labor by about
+50%, entirely through item drops — base pay (`db/lib/production.js`) didn't
+move.** The lever that did most of the work, under the rarity-band draw
+(§2, §7): a band's column share is FIXED, so removing a 0-value junk entry
+(Rock, Bear Trap, a "not sellable" filler sitting next to something real)
+concentrates that same share onto the members left behind, which is a pure
+gain with no downside — Prospecting's pools never authored a `nothing` pad,
+so there's no hit-rate cost to worry about. The trap on the other side: adding
+a new entry to a band that already has ONE strong member (Hills/Forest
+face 4's Buried Lockbox, alone) SPLITS that member's share and can lower the
+band's average — check what a band's existing members are worth before
+adding to it, not just what the new item is worth on its own. An empty face
+in a bucket (Forest's regional table had no face 6 at all) is the safest
+place to add fresh content, since there's nothing there yet to dilute.
+
+**Keen Eye (the `requiresTag` pool nested under `laborType.prospecting`,
+LABORDROPS.md §2a) learned the same lesson the hard way, across four
+redesigns.** Its first pass used tag grants only, verified "never hurts"
+against the OLD uniform draw — but that property doesn't carry over to the
+rarity system: a `requiresTag` entry still just JOINS whatever band its
+rarity lands in, so it only helps if it's worth more than that band's
+existing members, and at a couple of Forest locations it was worth less and
+Keen Eye came out net NEGATIVE. A flat `"+N"` (a RESOURCES entry) fixed the
+guarantee — its own untouched `resources` band, immune to dilution — but
+traded items for coin, which wasn't the skill's flavor (Bascinet: "use item
+drops"). Rebuilding the guarantee with items needs a sharper rule than "pick
+an unused rarity": it has to be one that can never become the band the
+LEFTOVER (every tier nobody authored) flows to, or one big value in that
+slot detonates — an early pass put a 51 ⬢ item at a rarity most locations
+had nothing earlier than live, so that rarity inherited almost the FACE's
+entire probability instead of its own column share, and the average shot
+past +5 ⬢/labor from one slot.
+
+**The rule that held: only use a rarity STRICTLY LATER, in TIERS order
+(`db/lib/labordropsRarity.js`), than whatever the base table's own ungated
+entries ALWAYS put on that face.** That earlier tier is always live, so it
+always wins the "commonest" tiebreak instead, and the grant's share is
+capped at its own column percentage, full stop. `laborType.prospecting`
+guarantees a floor at faces 2/4/5/6; the shared `global.1` mishap pool plays
+the same role at face 1 (ultracommon, always live everywhere). Face 3 needed
+a fix first — nothing reached it globally, so Hills' and Forest's regional
+tables (`laborTypeZone.prospecting`) each picked up a small face-3 entry
+specifically to give every location a floor there too, closing the last gap
+(a location with NOTHING on a face is the "sole occupant" trap: an add-on
+there wins the WHOLE face instead of its column's share).
+
+**Bascinet's last ask ("less spiky... use every number 1-6, many medium
+prizes instead of juggernauts") is also the shape that held up best.** Six
+modest items (14-33 ⬢ each) spread across all six faces, rather than three
+big ones (51-60 ⬢) on three — same total floor and average, thinner spread.
+One exception worth flagging: face 5's next-safe rarity (`extremely-rare`)
+is already crowded with 4-42 ⬢ gear at several locations (a Basement
+Lockbox worth 61 ⬢ ASSUMED among them), so that slot is kept smaller than
+the other five on purpose rather than sized to match — it can't win the
+tiebreak, but a big item there would still dilute the high rollers it joins.
+
 **A genuinely rare spot — the Ore Vein, eventually — should NOT scale EV up
-with its rarity.** Keep the EV in the same 4-10 band as an ordinary location;
-what makes it rare is a pool entry (or a few) that exist NOWHERE else in the
-catalog — an ore type, a gem, whatever the fiction calls for — at a modest
-hit rate, not a bigger number on an ordinary item. A location is special
-because of what it can find, not because it pays better on average.
+with its rarity.** Keep the EV in the same band as an ordinary location's
+target above; what makes it rare is a pool entry (or a few) that exist
+NOWHERE else in the catalog — an ore type, a gem, whatever the fiction calls
+for — at a modest hit rate, not a bigger number on an ordinary item. A
+location is special because of what it can find, not because it pays better
+on average.
 
 `laborTypeLocation.prospecting.hills-west` is the first table built this
 way: the Forgotten Gallows is a real grave (`docs/zones.yaml`), so its pool

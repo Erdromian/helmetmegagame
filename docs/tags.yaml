@@ -1060,13 +1060,7 @@ tags:
     name: Iron Constitution
     category: general
     group: general-traits
-    # `nauseous` belongs on this list and is deliberately absent: the tag
-    # arrives with the cooking rework (PR #37), and the sync refuses a
-    # resists entry naming a tag the catalog does not have yet. Add it back
-    # in the same commit that merges cooking — Iron Constitution already
-    # resists Vomiting, and the flesh ingredients roll one or the other, so
-    # without it the trait works half the time at random.
-    resists: [poisoned, vomiting, parasites, cave-fever, choking, asleep]
+    resists: [poisoned, vomiting, nauseous, parasites, cave-fever, choking, asleep]
     description: "Bad food and the weaker poisons don't bother you."
     fighting: { situational: true }
     pointCost: 5
@@ -2741,6 +2735,7 @@ tags:
     teachable: true
     description: "You know good ground when you see it. Prospecting turns up more than it does for anyone else."
     pointCost: 4
+    requiredTag: laboring-prospecting
     purchasable: true
     purchasableAfterStart: true
 
@@ -4977,6 +4972,25 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
 
+  # The rung below Vomiting: what a body part or a raw cave mushroom does to
+  # somebody half the time, where Vomiting is the other half. Shaped exactly
+  # like Vomiting above and priced the same way — no requirement block, so
+  # cure tier 0: real, untreatable, and over in two turns. Restored
+  # 2026-09-20 — deleted as collateral damage of the dagger sweep (commit
+  # "The draft marks come off"), which left Iron Constitution's resists list
+  # (below) pointing at a tag that no longer existed.
+  nauseous:
+    catalog: all
+    name: Nauseous
+    description: "Something you ate is not sitting right."
+    category: health
+    group: health-minor
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 2
+
   # --- Pain ---------------------------------------------------------------
   aching:
     catalog: all
@@ -6219,6 +6233,27 @@ tags:
       - coal
       - silver
 
+  # A straight sell rather than a smelted intermediate — real, but small, so
+  # it sells for less than Ore Chunk's combined coal+silver despite being the
+  # rarer thing to find (Bascinet, 2026-09-20: Prospecting's tables needed
+  # more good stuff at moderate rarity, not just more of the same three
+  # items).
+  gold-fleck:
+    catalog: all
+    name: Gold Fleck
+    category: items
+    group: items-gear
+    description: "A fleck of gold, panned or picked loose from the rock. Small, but real."
+    pointCost: 0
+    tradeable: true
+    weight: 0.2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 12
+
   # A whole haul, sorted rather than raw — one Coal, one Silver, one Steel
   # already smelted, bundled the way the Depot's own crates are (`DEPOT.md`
   # §0e), not picked apart one seam at a time. Priced at the sum of its
@@ -6244,6 +6279,125 @@ tags:
       - coal
       - silver
       - steel
+
+  # A second crate — bigger than Ore Package, but not by much (constants.js:
+  # "a crate's consumesInto repeats a slug per unit"). Priced the same way as
+  # Ore Package: the sum of its contents (3×4 + 1×5 + 2×8).
+  rich-ore-package:
+    catalog: all
+    name: Rich Ore Package
+    category: items
+    group: items-gear
+    description: "A crate of ore, heavier than most — extra Coal and a second ingot of Steel alongside the Silver."
+    pointCost: 0
+    tradeable: true
+    weight: 10
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 33
+    consumable: true
+    consumesInto:
+      - coal
+      - coal
+      - coal
+      - silver
+      - steel
+      - steel
+
+  # One of six modest Keen Eye finds (docs/labordrops.yaml's requiresTag
+  # pool) — MANY medium prizes across every face of the die, rather than a
+  # few outsized ones on just two or three (Bascinet, 2026-09-20: the first
+  # item-only pass leaned on three 40-60 ⬢ single items and came out spiky).
+  # All six are dedicated to that pool rather than reusing Ore Chunk/Gold
+  # Fleck, which are already priced into several OTHER tables — changing
+  # their sellablePrice to tune Keen Eye would have rippled into every one
+  # of those.
+  ore-sample:
+    catalog: all
+    name: Ore Sample
+    category: items
+    group: items-gear
+    description: "A promising streak, panned out and pocketed whole."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 33
+
+  # A sack rather than a sorted crate — one of the six, see Ore Sample above.
+  ore-sack:
+    catalog: all
+    name: Ore Sack
+    category: items
+    group: items-gear
+    description: "A sack of ore, heavier than it looks."
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 30
+
+  # The smallest of the six — see Ore Sample above.
+  ore-speck:
+    catalog: all
+    name: Ore Speck
+    category: items
+    group: items-gear
+    description: "A speck of ore, easy to miss — unless you're looking for it."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 21
+
+  # One of the six — see Ore Sample above.
+  ore-vein:
+    catalog: all
+    name: Ore Vein
+    category: items
+    group: items-gear
+    description: "A short run of ore, worth following to its end."
+    pointCost: 0
+    tradeable: true
+    weight: 4
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 30
+
+  # One of the six — see Ore Sample above.
+  ore-nugget:
+    catalog: all
+    name: Ore Nugget
+    category: items
+    group: items-gear
+    description: "A single nugget, heavier in the hand than it looks."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 24
 
   # Bought from the Depot rather than made: nothing in Ravenheart produces it,
   # which is what puts it on the shelf at all (TAGS.md §5, `depotPrice`). It is
@@ -9589,6 +9743,322 @@ tags:
     sellable: true
     sellablePrice: 8
 
+  # --- Cooking ingredients (docs/systemdocs/COOKING.md) ---------------------
+  #
+  # Thirteen things worth putting in a pot, added with the cooking rework.
+  # What makes each of them an ingredient is its `cooked:` block and nothing
+  # else — there is no flag and no list, so a fourteenth is one entry here.
+  #
+  # NINE OF THEM DO NOTHING RAW. `consumable: true` with an empty
+  # `consumesInto` is the honest way to write that: you can put a raw onion in
+  # your mouth and the game will let you, and then nothing happens. It is not
+  # the same claim as `consumable: false`, which would refuse the bite. The
+  # two cave finds are worse than nothing raw and say so with `nauseous`.
+  #
+  # The four descriptions and the five tastes Bascinet has not written yet
+  # each carry a note saying so.
+  #
+  # Restored 2026-09-20 — this whole block was deleted as collateral damage
+  # in the commit that swept the dagger marks ("The draft marks come off"),
+  # which broke docs/labordrops.yaml's hunting/fishing/farming tables and
+  # docs/zones.yaml's room stashes (both still named several of these slugs)
+  # and made the entire labor-drop sync throw on the first reference. Content
+  # unchanged from before the deletion — a decision on whether to keep this
+  # feature belongs to Bascinet, not to a sync-unblocking pass.
+
+  onion:
+    catalog: all
+    name: Onion
+    category: items
+    group: items-food
+    description: "An onion. Goes well in soups."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "onions"
+      mood: 8
+    sellable: true
+    sellablePrice: 2
+
+  boar-loin:
+    catalog: all
+    name: Boar Loin
+    # Bascinet's format, not their words.
+    description: "A cut of boar. You could cook with it."
+    category: items
+    group: items-food
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "boar loin"
+      mood: 16
+    sellable: true
+    sellablePrice: 4
+
+  deer-liver:
+    catalog: all
+    name: Deer Liver
+    category: items
+    group: items-food
+    description: "A deer's liver. Best cooked."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "organs"
+      mood: 14
+    sellable: true
+    sellablePrice: 3
+
+  goose-fat:
+    catalog: all
+    name: Goose Fat
+    category: items
+    group: items-food
+    description: "Goose fat. A delicacy, good for cooking."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "goose"
+      mood: 20
+    sellable: true
+    sellablePrice: 5
+
+  hard-cheese:
+    catalog: all
+    name: Hard Cheese
+    category: items
+    group: items-food
+    description: "A hard wheel of cheese. You could cook with it."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    # The one exception to the nine: a wheel of cheese is food on its own, and
+    # refusing to let somebody eat one would be silly.
+    consumable: true
+    consumesInto: [ate-meal]
+    cooked:
+      taste: "cheese"
+      mood: 22
+    sellable: true
+    sellablePrice: 5
+
+  river-eel:
+    catalog: all
+    name: River Eel
+    category: items
+    group: items-food
+    description: "An ugly eel. You could cook with it."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "eel"
+      mood: 10
+    sellable: true
+    sellablePrice: 3
+
+  lamprey:
+    catalog: all
+    name: Lamprey
+    # Bascinet's format, not their words.
+    description: "A lamprey. You could cook with it."
+    category: items
+    group: items-food
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      # Bascinet gave "eel" for the river eel and nothing for this one; a
+      # lamprey is close enough to share it until they say otherwise.
+      taste: "eel"
+      mood: 8
+    sellable: true
+    sellablePrice: 3
+
+  crayfish:
+    catalog: all
+    name: Crayfish
+    # Bascinet's format, not their words.
+    description: "A crayfish. You could cook with it."
+    category: items
+    group: items-food
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "crayfish"   # Bascinet has not written this one.
+      mood: 12
+    sellable: true
+    sellablePrice: 3
+
+  blind-fish:
+    catalog: all
+    name: Blind Fish
+    # Bascinet's format, not their words.
+    description: "A pale, eyeless fish. You could cook with it."
+    category: items
+    group: items-food
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    # Raw it is a bad idea and no dinner. Cooked it is a fish.
+    consumesInto: [nauseous]
+    cooked:
+      taste: "pale fish"   # Bascinet has not written this one.
+      mood: 8
+      # The override that makes the raw/cooked split real: cooking takes the
+      # nausea off, so `into` is empty rather than absent.
+      into: []
+    sellable: true
+    sellablePrice: 3
+
+  deep-morel:
+    catalog: all
+    name: Deep Morel
+    category: items
+    group: items-food
+    description: "A cave morel. You could cook with it."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [nauseous]
+    cooked:
+      taste: "cave mushroom"   # Bascinet has not written this one.
+      mood: 18
+      into: []
+    sellable: true
+    sellablePrice: 4
+
+  rock-salt:
+    catalog: all
+    name: Rock Salt
+    category: items
+    group: items-food
+    description: "Rock salt. You could cook with it."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "salt"   # Bascinet has not written this one.
+      # Ultracommon in the caves, so it has to stay small — it is the floor
+      # under a meal, not a reason to cook one.
+      mood: 6
+    sellable: true
+    sellablePrice: 1
+
+  # The two Depot imports. Saffron is the best thing you can put in a meal and
+  # is priced to match: 15 ⬢ is three cigarettes, per Bascinet.
+  saffron:
+    catalog: gm
+    name: Saffron
+    category: items
+    group: items-food
+    description: "Foreign spices. Tastes delicious in meals."
+    pointCost: 0
+    depotPrice: 15
+    tradeable: true
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "rich spices"
+      # The highest in the game, and deliberately: a Lavish Meal built around
+      # saffron (8 + 45) is the best thing anybody in Ravenheart will eat.
+      mood: 45
+    sellable: true
+    sellablePrice: 9
+
+  tinned-butter:
+    catalog: gm
+    name: Tinned Butter
+    category: items
+    group: items-food
+    description: "Butter. A delicacy."
+    pointCost: 0
+    depotPrice: 10
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    cooked:
+      taste: "butter"   # Bascinet has not written this one.
+      mood: 30
+    sellable: true
+    sellablePrice: 6
   fine-meal:
     catalog: all
     name: Fine Meal

@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Merge PR #41: Prospecting pays properly, and Keen Eye is worth taking
+
+✎ Every Prospecting table's drops are up by about half again — the raise is all in what you find, base pay is untouched. Junk with no sale value (Rock, Bear Trap) is cut rather than padded around, since a rarity band's share is fixed and dropping a worthless member concentrates it on what is left.  
+✚ Gold Fleck, and six ore finds behind Keen Eye  
+✎ Keen Eye now needs Prospecting before it can be bought, the same way its sibling labour skills need their trade  
+✎ Keen Eye turns up one modest find on every face of the die rather than a rare windfall, so it never makes a day worse — verified across all 29 Prospecting locations: floor +1.79 ⬢ a labour, average +2.12, none hurt  
+✎ Fourteen tags the draft-mark sweep deleted by accident are back — onion, boar loin, hard cheese and eleven others, restored verbatim. Several were still named by the labour drop tables and the room stashes, so the whole sync threw on the first one.  
+✎ The labour drop audit prices Lockboxes and consumables again instead of calling them worthless
+
 ## 2026-09-11 · You can't start a fight once your Move is spent
 
 ✎ Attack and Intercept now refuse if you have already filed your Move for the turn — unless that Move is a Gambit, so writing the fight up first and pressing the button second still works  
