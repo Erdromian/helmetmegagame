@@ -44,6 +44,12 @@ export const GM_NAV = [
 // reads it, so it is a tool for them rather than a record of them. Dev stays
 // superadmin. Gamemasters still has no rail item at all: it is one more
 // superadmin table hanging off the Dev panel's sub-nav.
+//
+// Dev is INSERTED after Oracle rather than pushed onto the end (see
+// gmNavItems below). It used to land after the player group, which drew a
+// third divider on a two-group rail and put the panel a superadmin opens all
+// day below their own character sheet. One "Gamemaster" group, in the order
+// the job is done.
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "player" };
@@ -127,12 +133,15 @@ export async function loadNavItems(discordUserId) {
   const withArchive =
     gm || config?.archiveVisible || pastGames > 0 ? [...withLifeweb, ARCHIVE_NAV_ITEM] : withLifeweb;
   const withDepot = hasLicenceTag || superadmin ? [...withArchive, DEPOT_NAV_ITEM] : withArchive;
-  // Dev is appended last and carries section "gm", so on a GM's rail it lands
-  // after the player group. That is one more divider than the two groups
-  // suggest, which is correct: Dev is not the same job as Players/Adjudicate
-  // and reads better as its own mark at the bottom.
+  // Dev goes in with the rest of the "gm" section — directly after Oracle,
+  // which is the last item that carries it — rather than on the end. Appended
+  // last it sat below the player group and earned a divider of its own, so a
+  // two-hat rail drew three groups.
+  //
   // There was a Ledger item after this one while the rebuilt sheet was being
   // judged. It won and became /character, so the Character item above is it
   // and /ledger is only a redirect now (docs/systemdocs/SHEET.md).
-  return superadmin ? [...withDepot, DEV_NAV_ITEM] : withDepot;
+  if (!superadmin) return withDepot;
+  const lastGm = withDepot.findLastIndex((item) => item.section === "gm");
+  return [...withDepot.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withDepot.slice(lastGm + 1)];
 }

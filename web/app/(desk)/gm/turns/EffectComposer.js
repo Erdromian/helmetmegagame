@@ -302,9 +302,11 @@ export default function EffectComposer({
             });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
-        onDone();
-      } catch {
-        setError(mutationErrorMessage());
+        // The parent folds this into the desk store rather than refreshing
+        // the page — see deskStore.js.
+        onDone(res.patch);
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }

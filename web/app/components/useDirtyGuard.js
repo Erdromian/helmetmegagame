@@ -26,9 +26,30 @@ export function isAnyDirty() {
 // outcome. Without it that composer is born clean, so Escape, a backdrop click
 // or Cancel discarded the message with no confirm, no beforeunload and no
 // trace. That is how a staged message came to never be staged.
-export default function useDirtyGuard({ enabled = true, initialDirty = false } = {}) {
+// `alsoDirty` is for a panel whose unsaved content lives OUTSIDE this hook —
+// the desk drafts (deskDraft.js), which survive a reload and so are already
+// there on the first render, before anybody has typed anything this mount.
+// It is a plain boolean the caller derives, ORed into `dirty`; its
+// contribution to the counter is owned by its own effect below rather than by
+// markDirty/markClean, so the two can never fight over one instance's 1.
+//
+// `alsoDirtyHoldsPoll` is the one place those two audiences come apart. A
+// draft restored from storage is unsaved work for as long as it exists — it is
+// guarded on close and on unload, no argument. But it is only SOMEBODY WRITING
+// RIGHT NOW for as long as somebody is writing, and isAnyDirty() is what
+// stands the 120s backstop poll down. A draft left on a row last week held
+// that poll down for ever, so a caller whose outside content has gone cold
+// passes false and keeps the close guard without keeping the desk frozen.
+// Typing calls markDirty(), which gates the poll again for this sitting.
+export default function useDirtyGuard({
+  enabled = true,
+  initialDirty = false,
+  alsoDirty = false,
+  alsoDirtyHoldsPoll = true,
+} = {}) {
   const confirm = useConfirm();
-  const [dirty, setDirty] = useState(initialDirty);
+  const [selfDirty, setDirty] = useState(initialDirty);
+  const dirty = selfDirty || alsoDirty;
   const dirtyRef = useRef(initialDirty);
   // Whether this instance currently contributes its 1 to dirtyInstances. The
   // single source of truth for the counter, so registering, marking and
@@ -73,6 +94,14 @@ export default function useDirtyGuard({ enabled = true, initialDirty = false } =
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!alsoDirty || !alsoDirtyHoldsPoll) return undefined;
+    dirtyInstances += 1;
+    return () => {
+      dirtyInstances = Math.max(0, dirtyInstances - 1);
+    };
+  }, [alsoDirty, alsoDirtyHoldsPoll]);
 
   useEffect(() => {
     if (!enabled || !dirty) return undefined;

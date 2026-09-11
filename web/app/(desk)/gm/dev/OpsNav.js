@@ -88,7 +88,7 @@ export default function OpsNav({ section, tier }) {
             className="ops-nav-item"
             data-active={section === "danger" ? "true" : undefined}
           >
-            Restart game
+            Archive &amp; restart
           </Link>
         </div>
       ) : null}

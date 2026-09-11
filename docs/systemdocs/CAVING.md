@@ -210,6 +210,38 @@ row lands `QUIET`, already resolved, so nothing reaches the Caving lens and
 no `CAVE_TROUBLE` mood hit fires. The DM says what happened: whatever it was
 followed the stink instead. One lure, one trouble; the next 1 is real.
 
+### 2d. The push lets go of what nobody adjudicated
+
+**A `TROUBLE` roll still unresolved when the turn is pushed is resolved by the
+push**, and §2c's hold lifts with it
+(`db/lib/cavingPass.js#releaseUnresolvedCavingRolls`, run from `db/index.js`
+directly after the staged push).
+
+It has to be. The hold is right while the turn is open and a GM is working, and
+wrong the moment the turn closes: the Caving lens goes **read-only** on a past
+turn (`ADJUDICATION.md` §3), so a roll nobody reached is a roll nobody *can*
+reach — and the caver is left standing in the dark with no way out and nobody
+able to give them one. History caving stays read-only; this is the release valve
+instead.
+
+What it writes: `resolvedAt`, and nothing else. **`resolvedByDiscordUserId`
+stays null, and that null is the marker** — a `TROUBLE` row is created
+unresolved and the only hand that resolves one always writes an id, so resolved
+with no resolver can only mean the push. `gmNotes` is untouched: the game has
+nothing to say about a monster it never adjudicated. The Caving lens reads the
+same rule and prints *"Resolved automatically at the push"*, so a GM reading
+back a past turn is never told a colleague handled something nobody did.
+
+A GM resolving the same roll at the same instant is not overwritten and not
+double-counted: the pass re-reads only the rows its own update actually
+changed (`resolvedAt` set, `resolvedByDiscordUserId` still null) before
+naming names, so a roll the GM reached first is left with the GM's resolver
+id and never shows up as the push's doing.
+
+One `caving_auto_resolved` audit row per push names every roll and caver it let
+go — "who can suddenly walk out of the Caves" being the question that row is
+there to answer.
+
 ## 3. The loot table
 
 `db/lib/cavingLoot.js` — **code, not YAML**, because this is mechanics (a

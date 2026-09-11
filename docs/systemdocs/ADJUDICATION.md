@@ -24,6 +24,90 @@ day of work survives a refresh):
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper, so a GM can stage several at once; asking for more than one of a non-stackable tag stages `force: true` right alongside it (`TAGS.md` §5a). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive a player's Transfer and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 
+### 1a. One row per send: the `Delivery` table
+
+**Every send a staged message makes has its own row** — one per PRIVATE
+recipient, one for a PUBLIC row's post — and `db/lib/stagedDelivery.js` is the
+only code that writes them. The push and the **Resend** button run the same
+function.
+
+They did not, and all three problems that caused were the same problem: nothing
+recorded what happened to *one* recipient.
+
+- The push recorded its progress as a step key on the closing turn
+  (`delivery:<messageId>:<index>`) and swallowed each bounce inside the step —
+  so a recipient whose DMs were closed was written down as **done**, and no
+  resumed push ever tried them again.
+- The key carried a loop **index**, so removing a recipient between a crash and
+  its resume shifted everybody else's key onto somebody else's send.
+- Resend was a second copy of the sending logic, reading the `deliveryFailures`
+  JSON to work out who to retry — and it forgot the `/play` row that a public
+  post writes, so a resent declaration reached Discord and never reached the
+  Hall.
+
+How it works now:
+
+- `stagedPush.js` writes the PRIVATE rows **at selection**, before anything
+  sends (`createMany` with `skipDuplicates` on the unique `dedupeKey`), so a
+  push that dies after the first DM finds the rest sitting there `PENDING`. A
+  PUBLIC row is not pre-written: `deliverPublic` is the only thing that ever
+  touches it, and it writes the row itself.
+- `dedupeKey` is `staged:<messageId>:<characterId>` — the **character**, not
+  their Discord account, and never a position
+  (`db/lib/dmPolicy.js#dedupeKey`). Keying on the Discord id looked equivalent
+  and was not: a recipient who has never linked Discord has a null id, so every
+  such recipient shared one key, `skipDuplicates` collapsed them into a single
+  row, and the rest were neither delivered to nor listed as failing. A PUBLIC
+  row's key ends in `public` for the same reason — that shared empty tail was
+  also the one a public post used.
+- Each send **claims** its row first: `updateMany` from `PENDING`/`FAILED`
+  (or a stale `IN_FLIGHT`) to `IN_FLIGHT`. Count 0 means somebody else has it —
+  a concurrent push, or a GM pressing Resend mid-push — and this run sends
+  nothing. That claim is the whole no-double-send promise;
+  `db/test/stagedDelivery.test.js` is what holds it.
+- A claim goes stale after **five minutes**, not the thirty
+  `Turn.sideEffectClaimedAt` uses: that window covers a whole side-effect thunk,
+  this one covers a single DM. A row still `IN_FLIGHT` past that window counts
+  as **retryable** — for the claim, and for the Resend button's own "did
+  anything fail?" gate, because a process killed mid-send left a player with
+  nothing and never got to write down that it had.
+- **A send that landed is never written down as a failure.** The send and the
+  stamp that follows it are separate `try`s: if the database hiccups on the
+  stamp, the row stays `IN_FLIGHT` and the log says so loudly. Marking it
+  `FAILED` would invite the next attempt to send a DM the player has already
+  read. The public half is the same shape — post, stamp, and only then the
+  `/play` row, whose own failure costs the web feed one line and never costs
+  Discord a second post.
+- `StagedMessage.sentAt` and `deliveryFailures` are still written — the tray,
+  the missed-push banner and every already-pushed turn read them — but they are
+  **derived** from these rows now rather than being the only record. So a
+  recipient whose retry finally lands drops off the failure list by itself.
+
+The tray reads the rows too: the status pill counts them (`Sent · 1 failed`,
+`Sending…`) and one line per recipient says what happened, instead of the single
+`Sent, some failed`.
+
+**A message pushed before this table existed** has a `sentAt` and no rows at
+all, and production is full of them. The first Resend on one **reconstructs**
+the rows from the only two things the old code wrote down — `sentAt` says every
+recipient was attempted, and the `deliveryFailures` blob names the ones that
+bounced, so everybody else was delivered to
+(`stagedDelivery.js#backfillLegacyDeliveries`). Without that, the shared path
+would write those rows fresh as `PENDING`, which reads as *never attempted*, and
+one GM pressing Resend would re-DM every recipient who had already read the
+message and re-post a declaration already sitting in the channel. Resend is
+therefore **always** `onlyFailed` now; it has no "retry everyone" arm left.
+
+**Resend reports three numbers, not two.** Sent, still failing, and **held** —
+a row a push running right now has claimed. A held row is neither a send nor a
+bounce, and leaving it out of the audit row made the counts fail to add up,
+which reads as lost mail.
+
+`Delivery` raises the desk's live channel through its **parent**: the trigger
+notifies `bascinet_desk` with `{"t":"message","id":<stagedMessageId>}`, because
+no desk row is a Delivery and a second GM's screen should not have to wait for
+`StagedMessage` itself to be written next.
+
 ### Long messages split; they are never truncated
 
 Both kinds cap at **6000 characters** (`GM_MESSAGE_MAX_LENGTH`), which is about
@@ -156,9 +240,148 @@ a selection would otherwise 404 on the first poll. And a revalidation of this
 page must be `revalidatePath(TURNS_PATH, "page")` (`web/lib/routes.js`) — a
 dynamic route needs its pattern, not a path that happens to match it. Only
 the **cross-page** actions carry that call now (depot, store, dev panel,
-player desk…); the desk's own actions dropped theirs, because every desk
-call site follows success with `refresh()` and the pair meant rendering
-`page.js` twice per mutation (see the header note in `actions.js`).
+player desk…); the desk's own actions dropped theirs. What is left in
+`actions.js` is only ever another page's — `/character` after a Reject or a
+portrait takedown, `/gm/audit` after a fight is called off — never this one's.
+
+### Narrow screens
+
+Three fixed columns crush the middle one on anything smaller than a big
+laptop, so the desk drops a column at a time (`DESIGN-SYSTEM.md` §9 has the
+rules; this is what a GM sees).
+
+- **Under 1024px** the inspector is no longer beside the work. An
+  **Inspector** button in the desk header opens it as an overlay from the
+  right, and `Close inspector` inside it puts it away; clicking any character
+  name opens it too, so looking somebody up still answers. Whether it is open
+  is per-tab view state, shared with `/gm/players` so it stays as you left it
+  between the desks.
+- **Under 800px** the queue and the open row take turns. Picking a Move hides
+  the rail and gives the Move the screen, with **← Back to queue** at the top
+  of it — the same deselect the panel's own Close does, dirty guard included.
+  Nothing picked, and the queue is the whole desk.
+
+Above 1024px nothing changed: three columns, as before.
+
+### The desk owns its own rows
+
+What the workspace draws is not its props. Every row page.js ships is folded
+into a client store (`deskStore.js`), the workspace reads its Moves, Caving
+rolls and staged rows back out of it, and **every mutation hands back the rows
+it changed** — `patch`, built by `web/lib/deskRows.js#deskPatchFor` and folded
+into the same store. So a Solve marks the row Solved because the Solve
+happened, not because a page refetch came back afterwards and said so.
+
+That distinction is the whole point. The desk used to write, call
+`router.refresh()`, and hope: when the refresh didn't run — the deploy-stale
+gate had latched (`useDeskVersion.js`), or the answer raced something else —
+the write had landed in the database and the screen never moved. A GM pressed
+Solve, saw Solve still offered, and pressed it again. Nothing on the desk waits
+on a refetch any more. The 120-second poll is a correctness backstop, not the
+way anybody's work appears.
+
+**The reconciliation rule.** Every row carries `asOfMs`, the database's own
+clock at the moment it was read (`web/lib/pgClock.js` — never the web
+container's `Date.now()`, because the two machines drift and a few hundred
+milliseconds the wrong way is enough to make a fresh row lose to a stale one).
+A newer read replaces a held row **whole**; a tie keeps what is held. Never
+field by field: the fields of one row came from one consistent read, and half
+of a fresh row over half of a stale one can say things neither read ever said.
+A page payload is additionally authoritative about **membership** at its own
+stamp — a row it doesn't name, whose held copy is no older, is gone, which is
+how another GM's Reject reaches you. A patch never is: it says "these
+changed", never "and nothing else exists". Deletes are remembered as
+tombstones, capped, so a payload already in flight when a row was deleted
+can't put it back.
+
+A GM's own half-typed text is not in the store and never should be. The Result
+box and the Caving notes live in `deskDraft.js`, keyed by row and mirrored to
+`localStorage`, which is what lets a payload land underneath a GM mid-sentence
+without taking the sentence with it.
+
+### The live channel
+
+The other GMs' half. Four Postgres triggers announce every change to an
+`Action` (column-scoped), a `CavingRoll`, a `StagedEffect` or a `StagedMessage`
+on `bascinet_desk` (`db/lib/deskNotify.js`, migration
+`20260921030000_desk_notify`); `web/lib/feedHub.js` fans the bare `{t, id, op}`
+out to every open desk; `/api/gm/desk-stream` coalesces a quarter-second of ids
+and re-reads them in **one** `deskPatchFor()` call; `DeskStream.js` folds the
+result through the very same `applyDeskPatch()` a button's patch goes through.
+A frame from the stream and a frame from a Solve are indistinguishable once
+they land, and the store's newer-wins rule arbitrates between them without
+either knowing about the other.
+
+Four things about it are deliberate.
+
+**A trigger, not a `pg_notify()` in each writer.** The writers are spread
+across all three packages — the actions here, `db/lib/stagedPush.js`, the
+caving pass, `db/lib/moveEconomy.js`, the Dev Panel — and the next one is one
+`create()` away. Same reasoning as `DirectMessage_notify` (CHAT.md §2b).
+
+**The `Action` trigger is column-scoped.** `Action` is written on every filing,
+every travel stub and the whole turn-end push. It fires only for the seven
+columns a queue row actually draws — `moveReviewStatus`, `resultMessage`,
+`moveKind`, `reviewedByDiscordUserId`, `lockedByDiscordUserId`,
+`lockExpiresAt`, `appliedEffects` — plus every INSERT and DELETE, because a new
+Move belongs on the queue and a rejected one has to leave it. A `craftBudget`
+or a `confirmDmMessageId` write wakes nobody.
+
+**The stream sends only what belongs on a desk.** `deskPatchFor`'s
+`onDeskOnly` flag re-applies page.js's own membership rule — the open turn's
+Moves and Caving rolls, staged rows of the open turn or not yet delivered.
+Without it, closing a turn would deal a hundred of LAST turn's Moves onto every
+open queue, because `stagedPush.js` stamps `appliedEffects` on all of them and
+the store holds rows rather than queries. An id dropped this way is reported as
+neither a row nor a removal: off the desk is not the same as gone.
+
+**A frame for a row somebody is typing into is buffered, not folded.** Their
+text is already safe — the draft wins over the row wherever one exists — but
+the rest of the card would still swap, and a Kind switch flipping mid-sentence
+is the desk moving while somebody writes on it. The frame lands when the draft
+clears, which is what every save, solve and reject does. **Removals are never
+buffered**: if another GM rejected the Move being written on, holding that back
+would leave a GM narrating a row that no longer exists. **Nor is a Solve**, for
+the same reason — a solved Move has nothing left to write on it, so the frame
+lands and the editor drops its draft rather than showing half a sentence over a
+Solved badge. And a frame is only ever buffered while an editor holding that
+draft is actually **mounted**: a draft left behind on a row nobody has open is
+recoverable text, not an interrupted sentence.
+
+**Every patch carries its turn, and a patch for another turn is dropped.** A
+mutation asks about rows by id and does not test whether they are still on the
+desk, so a Solve pressed as the turn-end push lands comes back holding a row
+from the turn that just closed. The store holds rows rather than queries, so
+nothing downstream would catch it dropping into the new turn's queue —
+`deskPatchFor` stamps the open turn on the patch and `applyDeskPatch` ignores
+one that does not match the turn the desk is showing.
+
+**No zone gate, matching the page — and that means the stream really does send
+a GM rows from zones their `GmZoneView` excludes.** `/gm/turns` ships every row
+and the rail filters client-side, so a GM widening their zones with a click
+finds the rows already there; a stream that shipped less than the page would
+make the click a lie. The zone seat on this desk is a **view**, not a
+confidentiality boundary — every GM is trusted with every row, and what
+`GAMEMASTERS.md` §1 gates is the Discord channels, not the desk's payload. If
+that ever has to become a real gate, both halves move together: the page's
+queries and the stream's `deskPatchFor`, not one of them. The stream is not a
+gate in the other direction either — the route establishes the reader is a GM
+and re-reads everything it sends; subscribing to the hub grants nothing.
+
+When the hub's Postgres client drops and comes back, rows written in the gap
+reached nobody. Unlike the inbox there is no cursor to re-ask from — a patch is
+a list of ids, not a window in time — so the tab is told to fetch the page
+once, through the same deploy gate every other refresh here goes through. If
+the stream itself drops twice in a row, a "Catching up" chip says so
+(`deskStreamStore.js`, `DeskStreamChip.js`) and the 120s poll carries the desk:
+a live path that has quietly stopped is worse than one that never existed.
+
+**One replica, and this depends on it.** The live channels behind the desks
+(`web/lib/feedHub.js`) are a module singleton holding a single Postgres
+`LISTEN` client on `globalThis`. That is correct for exactly one web replica
+and silently wrong for two: each would hold its own hub, and a browser would
+hear only whatever its replica happened to be told. Scaling `web` past one
+instance is a change to the hub, not a slider.
 
 ```
 ┌ header: turn chip · push times · Preview push ─────────────────────┐
@@ -279,7 +502,8 @@ call site follows success with `refresh()` and the pair meant rendering
   names already on screen. Pin the ones an arbitration keeps returning to.
   Fetched on demand via server actions, cached for the page view. Three quick
   edits live here too: the DMs tab carries a composer that sends immediately
-  (»-prefixed, logged, not staged — `sendInspectorDm`); clicking an archived
+  (»-prefixed, logged, not staged — `sendGmDm`, the player desk's own
+  action, shared rather than reimplemented); clicking an archived
   line opens `ArchiveContextModal` (`web/app/components/`), the ~30 messages before/after it in the
   same Discord channel/thread with a jump link when the message still exists
   (`getArchiveContext`); and the Sheet/Tags tabs stage deltas in place — ✕ a
@@ -314,14 +538,22 @@ keeps itself current and stays reachable from the keyboard:
   navigation that destroys all view state — and this repo deploys many times
   a day, which is exactly how the desk used to "refresh for no reason". Now
   a deploy latches a quiet **"Updated — reload when ready"** chip in the
-  header (auto-refresh stands down until the GM clicks it), a switchover 5xx
+  header — whose tooltip says what a reload actually brings back: the rail's
+  filters and scroll, who is open, and anything typed into a Result box or a
+  reply, but **not** a half-filled composer (auto-refresh stands down until the GM clicks it), a switchover 5xx
   or dropped connection is a silently skipped tick, and once the flag has
   latched, a mutation that fails from the stale build says to reload
-  (`mutationErrorMessage`) instead of "something went wrong". The one window
-  left uncovered is a mutation inside the ≤45s between the deploy landing
-  and the next poll noticing it — that can still fail generic, or succeed
-  and have its `refresh()` trip the reload; the persisted view state is what
-  makes that survivable.
+  (`mutationErrorMessage`) instead of "something went wrong". **That window
+  is closed from both ends now.** Every server action hands its build back in
+  its own result (`guarded()` in `web/lib/actionResult.js`), and the desks
+  pass the result through `noteActionVersion()`, so the very first mutation
+  after a deploy latches the chip rather than the next poll. And every
+  refresh under the desk — the post-mutation ones included — goes through
+  `safeRefresh` (`useRefresh.js`), which asks `/api/desk-version` first and
+  simply does not refresh across a build boundary. A mutation that still
+  throws Next's `UnrecognizedActionError` (the action ids died with the old
+  build) latches the chip on the way past, instead of reaching `error.js`
+  and taking the column away.
 - **Keyboard**: `↑↓` / `j k` walk the rail, `⏎` opens the focused row,
   `m`/`r`/`c`/`o`/`h` flip the lens, Escape peels the layers below. All of it stands down while a
   field has focus or a modal is open.
@@ -348,6 +580,17 @@ keeps itself current and stays reachable from the keyboard:
 Escape is layered, topmost-first: an open `Modal` handles its own Escape and
 the workspace yields to it; otherwise a focused field just blurs, and a
 selected Move/Request deselects through its own dirty guard (`Workspace.js`).
+
+The **Result box on both desks is a draft, not component state**
+(`web/app/(desk)/gm/turns/deskDraft.js`) — the Move desk's Result and Kind
+together, the Caving desk's Result, each keyed by row and mirrored to
+`localStorage` the way the reply box already was (`dmDraft.js`). Memory is the
+source of truth and storage is a best-effort mirror, never the other way
+round. A draft **wins over the saved row** while it exists, counts as dirty
+(so the poll stands down and closing asks first), and is cleared by the save,
+solve, reject or resolve that puts it on the row. Before this, those two
+boxes were the only editors on either desk in no storage tier at all: anything
+that replaced the column took the narration with it.
 With nothing selected **Escape does nothing**. It used to navigate to
 `/gm/players`, which made the desk read as a mode you were trapped in rather
 than a page — one stray keystroke and the whole workspace was gone. The rail
@@ -369,9 +612,14 @@ guarantees: `TURN-ENGINE.md` §2–3). What a GM needs to know:
   in the side-effect thunk via `db/lib/zoneMove.js`, with the channel
   doctor as the safety net (`CHANNELS.md` §3).
 - Messages are stamped `sentAt` after their sends are attempted, per-recipient
-  failures recorded on the row and in one `staged_push_delivery_failed`
-  audit row. A crash mid-delivery leaves the rest visibly unsent, not
-  falsely delivered.
+  state on its own `Delivery` row (§1a), the failures also summarised on
+  `StagedMessage.deliveryFailures` and in one `staged_push_delivery_failed`
+  audit row carrying `{attempted, delivered}`. A crash mid-delivery leaves the
+  rest visibly unsent, not falsely delivered — and a resumed push finishes
+  exactly the ones that did not get through.
+- **An unresolved `TROUBLE` caving roll is resolved by the push** and its hold
+  on the caver lifts (`CAVING.md` §2d). The Caving lens is read-only on a past
+  turn by design, so a roll nobody got to is a roll nobody can get to.
 - A staged row created in the seconds around the cron retargets itself to
   the new open turn; anything that slips through lands in the missed-push
   banner. Honest beats locked.
@@ -450,6 +698,13 @@ adjudicable the moment the Ram is a ruin.
 | `.../Workspace.js` | Client shell: selection, inspector context + cache, layout |
 | `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
+| `.../deskStore.js` | The desk's client-owned rows: seed, patch, the newer-wins reconciliation rule |
+| `.../deskDraft.js` | What a GM has typed and not saved — the Result boxes and the Kind switch, keyed by row, mirrored to `localStorage`. Also the desk's record of WHICH rows are dirty, which is what `DeskStream.js` buffers against |
+| `db/lib/deskNotify.js` | `bascinet_desk` — the channel four Postgres triggers announce a changed desk row on (migration `20260921030000_desk_notify`) |
+| `web/app/api/gm/desk-stream/route.js` | The live channel's server half: coalesces a beat of ids from the hub and answers with one `deskPatchFor` frame |
+| `.../DeskStream.js` / `deskStreamStore.js` / `DeskStreamChip.js` | Its client half: the EventSource and its own reconnect, the dirty-row buffer, and the chip that says when the desk has dropped to its backstop poll |
+| `web/lib/deskRows.js` | The other half, server-side: the shared row CONTEXT (usernames, Catatonic, Location names, the open turn, the clock) and `deskPatchFor`, the patch every mutation hands back and the live channel re-reads with |
+| `web/lib/pgClock.js` | `pgNowMs()` — the database's clock, which is the only stamp the store reconciles on. Shared with the player desk's `inboxDelta.js` |
 | `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |

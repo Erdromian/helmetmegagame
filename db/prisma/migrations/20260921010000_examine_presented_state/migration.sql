@@ -1,0 +1,12 @@
+-- What the room could SEE of the speaker, frozen beside the name and the face
+-- the row already froze (docs/systemdocs/PROXYING.md §5a). A look answers for
+-- the moment you saw somebody; without this, re-examining an old line showed
+-- live gear, so a cultist could chat bare-faced in Town, walk two zones off,
+-- robe up, and every old line of his showed the robes.
+--
+-- Nullable and NOT backfilled, on purpose. There is no record of what anybody
+-- was wearing when an existing row was written, and stamping today's state
+-- onto yesterday's line is exactly the bug. NULL means "not frozen", and
+-- db/lib/examineRow.js falls back to the live character for those rows —
+-- which is what every row does today.
+ALTER TABLE "ArchiveEntry" ADD COLUMN "presentedState" JSONB;

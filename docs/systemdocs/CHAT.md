@@ -263,10 +263,22 @@ built to end.
 
 `web/lib/feedHub.js` keeps **one** `pg.Client` per web process (on
 `globalThis`, the same trick as the Prisma singleton, so `next dev` does not
-leak a listener per hot reload). It holds **two** LISTENs on that one client —
-`bascinet_feed` for messages and `bascinet_presence` for place changes — with
-one reconnect and one backoff between them, and a map of place key → open
-streams beside a map of character id → open streams.
+leak a listener per hot reload). It holds **five** LISTENs on that one client,
+with one reconnect and one backoff between them all:
+
+| Channel | Raised by | Fanned out to |
+|---|---|---|
+| `bascinet_feed` | `db/lib/feedNotify.js`, at every archived message | place key → open streams |
+| `bascinet_presence` | `db/lib/presenceNotify.js`, when somebody's place list changes | character id → open streams |
+| `bascinet_typing` | `db/lib/typingNotify.js` (§3, the third channel) | place key → open streams; the only payload the hub ENRICHES, resolving the presented name |
+| `bascinet_dm` | the `DirectMessage_notify` trigger (§2b) | account id → open panes, **and** the GM desk's inbox stream, keyed on nothing |
+| `bascinet_desk` | four triggers on `Action` / `CavingRoll` / `StagedEffect` / `StagedMessage` (`db/lib/deskNotify.js`, ADJUDICATION.md §3) | the adjudication desk's streams, keyed on nothing. The **only channel the hub reads nothing for** — the bare `{t, id, op}` goes straight out and `/api/gm/desk-stream` re-reads a whole beat's worth in one query |
+
+Feed notifications run one at a time (a row lookup and an avatar lookup sit
+between the notification and the fan-out, and two arriving in order could
+otherwise reach a stream out of order). The other four stay off that chain
+deliberately: none is ordered against anything, and a typing frame held up
+behind a slow row lookup is a worse trade.
 
 `GET /api/feed?since=` is **one stream per tab, for every place the viewer may
 read**. Phase 0 opened a stream per place, which was fine when there was one;
@@ -1169,8 +1181,10 @@ and a one-line box:
      will not open — dimmed, still drawn, because knowing the way is there and
      shut is what sends you to find the winch. A zone crossing is tinted. The
      header is `Travel · N free` with `freeReason` as its title. Clicking a
-     node opens an inline confirm strip under the grid — the sentence, the
-     drag-along chips, `Go` and `Cancel` — not a modal. While somebody has hold
+     node opens an inline confirm strip under the grid — the sentence, the count
+     of who comes with you, `Go` and `Cancel` — not a modal. A click only ever
+     picks: `Go` is the one thing that moves anybody, here and on the map
+     alike (MAP.md §6c). While somebody has hold
      of you the grid still draws, every way shut with its reason on it, under
      one banner saying so (INTERCEPT.md). It used to be replaced outright while
      a journey was pending; travel lands at once now (MAP.md §3).

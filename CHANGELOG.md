@@ -6,6 +6,65 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The GM pages speak one visual language
+
+✎ A warning is now amber or red everywhere — Missed push, an overdue seat, a dropped live feed — instead of the same grey pill as a label  
+✎ Every GM page shows the same turn chip in the same place, including when no turn is open  
+✎ The desk headers rank their chips: turn and lock stay, counts become quiet text, only problems get colour  
+✎ On the Players rail, pinned, handled and muted no longer light the same colour, and hovering a row no longer looks like selecting it  
+✎ Dev sits with the other Gamemaster pages in the side nav  
+✎ A dozen small labels fixed: Claimed · you, a close button instead of one labelled Esc, the roster tab counts what it shows, the tray's hide/expand pair is one control
+
+## 2026-09-11 · The GM desks fit a tablet and a phone
+
+✎ Under about 1024px wide the inspector becomes a panel you open from the header, so the desk itself gets the room  
+✎ Under about 800px the queue or roster and the desk take turns on screen — pick a row, work it, then Back to queue  
+✎ A half-typed reply in the Players desk only pauses the background check for ten minutes, not forever
+
+## 2026-09-11 · The desk's own tidy-ups
+
+✎ A page load that started before another GM's Solve can no longer make the Move look unsolved for a moment  
+✎ A half-written Result box on a Move somebody else solved is dropped rather than shown over the Solved card, and an old forgotten draft no longer stops the desk checking for changes  
+✎ The unread badge tracks the game's clock, not your computer's, so a fast clock can't hide new mail  
+✎ Retrying a message that deliberately began with » keeps it
+
+## 2026-09-11 · Resend only reaches the people who never got the message
+
+− On a message pushed before the delivery ledger existed, Resend rebuilds the ledger from what the push recorded, so it retries only the recipients who bounced instead of everyone  
+− A message that reached Discord but whose bookkeeping failed is never resent; it stays claimed and is reported  
+− A recipient who bounced during the push is retried when the push resumes  
+− Two recipients without a Discord account no longer collapse into one delivery
+
+## 2026-09-11 · Every message the push sends is written down per recipient
+
+✎ A staged message now records, per recipient, whether it went out — the tray shows Sent · 1 failed and names who bounced, and Resend retries only them  
+✎ A push that dies mid-delivery picks up where it left off and tells nobody twice  
+✎ A Trouble caving roll nobody resolved by the push resolves itself, so the caver is not stuck in the zone another day  
+✎ A resent public declaration now reaches the Hall feed too  
+✎ The /dm command leaves an audit entry
+
+## 2026-09-11 · The adjudication desk goes live
+
+✎ What another GM stages, solves or rejects shows up on your desk within a second, no reload — a small chip in the header says when the desk has dropped back to its slower check  
+✎ If you are mid-sentence in a Result box, another GM's edit to that same Move waits until you save rather than overwriting you
+
+## 2026-09-11 · The GM desks stop losing what you typed
+
+✎ A half-written Result box survives a reload, a deploy or a wrong click — it comes back exactly as you left it, until you save or solve  
+✎ A fresh deploy no longer kicks the desk into a full page reload mid-work; the desk notices on your next action and offers the reload chip instead  
+✎ On the Players desk, opening somebody no longer resets the roster's search and filters, and Back works without a reload
+
+## 2026-09-11 · Messages to players stop going wrong
+
+✎ A reply you send twice, or retry after a bad connection, lands exactly once — a failed send now stays in the thread with Retry and Discard instead of vanishing  
+✎ Opening a conversation clears its unread mark and it stays cleared, on the rail and on the Players badge in the side nav  
+✎ The /gm command now leaves an audit entry
+
+## 2026-09-11 · The adjudication desk keeps its own rows now
+
+✎ Staging, solving and rejecting update the desk the moment the server answers, instead of waiting for the page to reload — the case where a write landed but the screen never changed is gone  
+✎ The desk reconciles a late page payload against what you just did, so a slow load no longer undoes a fresh staging or brings back a deleted row
+
 ## 2026-09-11 · Clicking a name on the Players desk is instant now
 
 ✎ Opening a conversation no longer loads a page. It paints in about a tenth of a second, clicking through several people in a row doesn't queue them up any more, and going back to someone you had open a minute ago is free.  

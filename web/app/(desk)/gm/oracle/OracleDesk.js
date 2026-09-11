@@ -16,7 +16,7 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import DeskHeader from "@/app/components/DeskHeader";
+import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import DevPanelModal from "@/app/components/DevPanelModal";
@@ -156,7 +156,15 @@ export default function OracleDesk({
     <div className="desk-shell">
       <DeskHeader
         title="Oracle"
-        meta={<LockChip />}
+        meta={
+          <>
+            {/* The turn being READ, which on this desk is the selected one
+                rather than the open one — the whole page is that turn's
+                chronicle, and the select in the actions slot changes it. */}
+            <DeskTurnChip turn={turn} />
+            <LockChip />
+          </>
+        }
         actions={
           <div className="field">
             <label className="field-label" htmlFor="oracle-turn">

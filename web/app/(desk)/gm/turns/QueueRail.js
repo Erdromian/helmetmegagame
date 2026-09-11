@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import CheckField from "@/app/components/CheckField";
 import StatusPill from "@/app/components/StatusPill";
 import Select from "@/app/components/Select";
 import GmAvatar from "@/app/components/GmAvatar";
@@ -17,6 +18,7 @@ import IconButton from "@/app/components/IconButton";
 import { CheckIcon, CloseIcon } from "@/app/components/icons";
 import { useRefresh } from "@/app/components/useRefresh";
 import { cancelHoldAsGm, keepAvatar, rejectAvatar } from "./actions";
+import { noteActionVersion } from "@/app/components/useDeskVersion";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -302,12 +304,22 @@ function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = await fn({ characterId: row.characterId });
+    const result = noteActionVersion(await fn({ characterId: row.characterId }));
     // A second GM answering the same row first is the ordinary case here, not
     // an exception: both of them are looking at the same queue. Refresh either
     // way, so the row that is already dealt with leaves the screen.
     if (result?.error) setError(result.error);
     setBusy(false);
+    // STILL A REFRESH, and the only three left on this desk that are. The
+    // Other lens's rows are not desk-store rows: an avatar awaiting review is
+    // a Character, and a hold is an Attack or an Intercept hit, so none of the
+    // four types web/lib/deskRows.js#deskPatchFor can re-read covers them and
+    // there is nothing to hand back a patch of. Giving them one would mean a
+    // fifth row type through the store, the stream and the trigger set for
+    // three buttons nobody presses twice a turn. They keep the refresh — now
+    // the GUARDED one (DeskStaleRefreshGate), with noteActionVersion above
+    // latching the chip on the first press after a deploy rather than leaving
+    // it to the 120s poll.
     refresh();
   };
 
@@ -386,9 +398,10 @@ function HoldRow({ row, matchFor, onInspect, onOpenMove, active, kbd }) {
     if (busy) return;
     setBusy(hold.attackId);
     setError(null);
-    const result = await cancelHoldAsGm({ attackId: hold.attackId });
+    const result = noteActionVersion(await cancelHoldAsGm({ attackId: hold.attackId }));
     if (result?.error) setError(result.error);
     setBusy(null);
+    // A refresh rather than a patch, for the reason AvatarReviewRow gives.
     refresh();
   };
 
@@ -1038,11 +1051,14 @@ export default function QueueRail({
             filterDefs={moveFilterDefs}
             searchPlaceholder="name, role, @handle, zone:…"
           >
+            {/* CheckField, not a bare <input type="checkbox"> in a
+                hand-rolled <label> — the exact shape DESIGN-SYSTEM §5a names.
+                Outside .field it fell back to unstyled browser chrome and was
+                the one white box on the desk. */}
             {hiddenTravelCount > 0 && (
-              <label className="field-label flex items-center gap-1.5" style={{ fontWeight: "normal" }}>
-                <input type="checkbox" checked={!hideTravel} onChange={(e) => setHideTravel(!e.target.checked)} />
+              <CheckField checked={!hideTravel} onChange={(e) => setHideTravel(!e.target.checked)}>
                 Show {hiddenTravelCount} travel
-              </label>
+              </CheckField>
             )}
           </RailFilters>
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>

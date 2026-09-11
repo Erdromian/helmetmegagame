@@ -28,6 +28,7 @@ import RailLinkPending from "./RailLinkPending";
 import { signOutOfDiscord } from "../actions";
 import { playChime } from "./chime";
 import useChimeMuted from "./useChimeMuted";
+import { useNavUnread } from "./navBadge";
 
 // Exported for Chat's phone drawer, which draws the same links in its foot
 // (the bottom bar is hidden on /chat under 720px — see chat/Chat.js).
@@ -52,9 +53,9 @@ export const ICONS = {
 
 // How many items stay in the mobile bottom bar. The rest go behind "More".
 //
-// A GM carries up to ten nav items (Players, Adjudicate, Audit, Character,
-// Map, Notes, Documents, Handbook, plus Lifeweb/Archive and Dev) and Sign
-// out. That many targets across a 390px viewport is well under the 44px
+// A GM carries up to eleven nav items (Players, Adjudicate, Audit, Oracle,
+// Dev, then Character, Map, Notes, Documents, Handbook, plus Lifeweb/Archive)
+// and Sign out. That many targets across a 390px viewport is well under the 44px
 // touch minimum, and visually crammed. Five plus More is ~65px. Players now
 // carry six (Character, Map, Faction, Notes, Documents, Handbook) — one over
 // the cap, so Handbook is the first thing to fall into the mobile sheet.
@@ -62,9 +63,12 @@ export const ICONS = {
 // other five, which stay in the bar untouched. Sign out lives in the sheet
 // too on mobile, for anyone under the cap.
 //
-// GM_NAV leads with its "gm" section, so the five a GM keeps in the bar are
-// Players, Adjudicate, Audit, Character, Map — the job first, then the two
-// player screens they actually open. Notes/Documents fall into the sheet.
+// GM_NAV leads with its "gm" section, and Dev is inserted at the end of that
+// section rather than appended to the list (navItems.js), so the five a GM
+// keeps in the bar are Players, Adjudicate, Audit, Oracle and — for a
+// superadmin — Dev. That is the whole job, and every player screen falls into
+// the sheet behind More. This comment used to say Character and Map were in
+// the bar; Oracle had been added above them and nobody corrected it.
 const MOBILE_PRIMARY = 5;
 
 // What a section break is called in the mobile sheet. The desktop rail draws
@@ -82,6 +86,12 @@ export default function NavRail({ items }) {
   // is also "is this a GM's rail", which is the only rail the chime ever fires
   // on (a player's unread count is hardcoded 0 in loadNavItems).
   const isGmRail = items.some((item) => item.section === "gm");
+  // Null everywhere but the player desk, where the desk publishes the number
+  // it is actually showing (navBadge.js). The server's badge is the fallback,
+  // and the only value a first paint ever has.
+  const liveUnread = useNavUnread();
+  const badgeFor = (item) =>
+    item.href === "/gm/players" && liveUnread != null ? liveUnread : item.badge;
   const [chimeMuted, setChimeMuted] = useChimeMuted();
   const toggleChimeMuted = () => {
     const next = !chimeMuted;
@@ -98,6 +108,7 @@ export default function NavRail({ items }) {
           // PLAYER_NAV sets no section at all, so a player sees none of these —
           // the whole feature costs them nothing.
           const divide = i > 0 && item.section !== items[i - 1].section;
+          const badge = badgeFor(item);
           return (
             <Fragment key={item.href}>
             {divide && (
@@ -119,7 +130,7 @@ export default function NavRail({ items }) {
             >
               <Icon aria-hidden="true" />
               <span>{item.label}</span>
-              {item.badge > 0 && <span className="rail-item-badge mono">{item.badge}</span>}
+              {badge > 0 && <span className="rail-item-badge mono">{badge}</span>}
               <RailLinkPending />
             </Link>
             </Fragment>

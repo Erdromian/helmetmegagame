@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
-import { useRefresh } from "@/app/components/useRefresh";
 import TagChip from "@/app/components/TagChip";
 import Tooltip from "@/app/components/Tooltip";
 import GmAvatar from "@/app/components/GmAvatar";
@@ -17,7 +16,9 @@ import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import { resolveMove, rejectMove } from "./actions";
-import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import { applyDeskPatch } from "./deskStore";
+import { clearDeskDraft, deskDraftFresh, useDeskDraft, writeDeskDraft } from "./deskDraft";
+import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { stagingReaches } from "@/lib/stagingReach";
 
@@ -71,9 +72,23 @@ export default function MoveDesk({
   onOpenDev,
   gmProfiles,
 }) {
-  const [refresh] = useRefresh();
   const router = useRouter();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  // The Result box and the Kind switch, held outside this component so they
+  // survive anything that replaces it — a reload included (deskDraft.js).
+  // The draft wins while it exists; a save, a solve or a reject clears it and
+  // the saved row takes back over.
+  const draftKey = `move:${move.id}`;
+  const draft = useDeskDraft(draftKey);
+  const edits = useMemo(
+    () => draft ?? { moveKind: move.moveKind, resultMessage: move.resultMessage ?? "" },
+    [draft, move.moveKind, move.resultMessage],
+  );
+  // A cold draft is still guarded on close and on unload; it just stops
+  // standing the desk's backstop poll down (useDirtyGuard, deskDraft.js).
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({
+    alsoDirty: !!draft,
+    alsoDirtyHoldsPoll: deskDraftFresh(draftKey),
+  });
   const confirm = useConfirm();
   const { locked, error: lockError } = useMoveLock(move.id);
 
@@ -84,10 +99,6 @@ export default function MoveDesk({
     return () => registerEscape?.(null);
   }, [registerEscape, guardedClose, onClose]);
 
-  const [edits, setEdits] = useState({
-    moveKind: move.moveKind,
-    resultMessage: move.resultMessage ?? "",
-  });
   const [composer, setComposer] = useState(null); // "effect" | "message" | "public" | null
   // Set only by "Stage as message" below, to prefill the composer with the
   // LOCAL (possibly unsaved) Result text. The plain "+ Message" button
@@ -102,12 +113,22 @@ export default function MoveDesk({
   const solved = move.reviewStatus === "SOLVED";
   const disabled = pending || !locked;
 
+  // Somebody else solved this Move while a draft sat on it. The row is done,
+  // so the draft is not unsaved work any more — it is stale narration sitting
+  // on top of a closed card, and leaving it there would show the GM their own
+  // half-sentence over a Solved badge and go on claiming the desk is dirty.
+  // Dropping it hands the editor back the saved values, which is what a Solve
+  // by this GM does too.
+  useEffect(() => {
+    if (solved && draft) clearDeskDraft(draftKey);
+  }, [solved, draft, draftKey]);
+
   const setEdit = useCallback(
     (key, value) => {
       markDirty();
-      setEdits((e) => ({ ...e, [key]: value }));
+      writeDeskDraft(draftKey, { ...edits, [key]: value });
     },
-    [markDirty],
+    [markDirty, draftKey, edits],
   );
 
   // Solving is the last moment anyone looks at this Move, and the Result box
@@ -133,12 +154,16 @@ export default function MoveDesk({
     }
     startTransition(async () => {
       try {
-        const res = await resolveMove({ actionId: move.id, mode, edits });
+        const res = noteActionVersion(await resolveMove({ actionId: move.id, mode, edits }));
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
-        refresh();
-      } catch {
-        setError(mutationErrorMessage());
+        clearDeskDraft(draftKey);
+        // The row on screen changes because the write happened, not because a
+        // page refetch came back (deskStore.js). This is the fix for a Solve
+        // that saved and left the desk still offering Solve.
+        applyDeskPatch(res.patch);
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }
@@ -147,17 +172,18 @@ export default function MoveDesk({
     setError(null);
     startTransition(async () => {
       try {
-        const res = await rejectMove({ actionId: move.id });
+        const res = noteActionVersion(await rejectMove({ actionId: move.id }));
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
+        clearDeskDraft(draftKey);
         if (res.deliveryFailed) {
           setError("Move rejected — but they weren't told. Let them know they can act again.");
         } else {
           onClose();
         }
-        refresh();
-      } catch {
-        setError(mutationErrorMessage());
+        applyDeskPatch(res.patch);
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }
@@ -351,9 +377,9 @@ export default function MoveDesk({
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />
@@ -365,10 +391,10 @@ export default function MoveDesk({
           initialContent={messagePrefill ?? undefined}
           initialRecipients={messagePrefill != null ? [{ characterId: move.characterId, name: move.characterName }] : undefined}
           roster={roster}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
             setMessagePrefill(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => {
             setComposer(null);
@@ -381,9 +407,9 @@ export default function MoveDesk({
           moveId={move.id}
           defaultZoneId={move.zoneId}
           zones={presenceZones}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />
@@ -422,9 +448,11 @@ export default function MoveDesk({
           {pending ? "Working…" : "Save"}
         </button>
         {solved ? (
-          <button type="button" className="btn" onClick={() => run("unsolve")} disabled={disabled}>
-            {pending ? "Working…" : "Reopen"}
-          </button>
+          <Tooltip text="Puts the Move back in the queue. Nothing staged is lost.">
+            <button type="button" className="btn" onClick={() => run("unsolve")} disabled={disabled}>
+              {pending ? "Working…" : "Reopen"}
+            </button>
+          </Tooltip>
         ) : (
           <Tooltip text="Marks the staging complete. Nothing applies until the push.">
             <button type="button" className="btn" onClick={() => run("solve")} disabled={disabled}>

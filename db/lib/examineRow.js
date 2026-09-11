@@ -2,29 +2,40 @@
 // db/lib/examine.js, which is deliberately pure and stays that way.
 //
 // This is the ONE path behind every look in the game now: 🔍 and 📸 in
-// Discord, the eye on a row in the web feed, and the eye in the HERE column,
-// which points at the last line it watched somebody say. They used to be three
-// — a bot copy, a web copy, and a hood-token copy — agreeing by hand on rules
-// (the doctor's eye, the officer's ⬢, the impoverished hood read) where a
-// divergence is invisible until a player notices one surface telling them
-// something another won't.
+// Discord, the eye on a row in the web feed, the eye in the HERE column, which
+// points at the last line it watched somebody say, and the web's camera. They
+// used to be four — a bot copy, a web copy, a camera copy and a hood-token
+// copy — agreeing by hand on rules (the doctor's eye, the officer's ⬢, the
+// impoverished hood read) where a divergence is invisible until a player
+// notices one surface telling them something another won't.
 //
 // It is pressed against a SEQ rather than a character id, and that is the
 // whole design rather than a convenience. The server resolves the speaker
 // itself, so a page can offer a look at a hooded line without ever being told
 // who is under the hood — the thing db/lib/whosHere.js#hoodToken exists to
-// avoid, solved once here instead. And it answers for the hood worn WHEN THE
-// LINE WAS SAID: a mask coming off never retroactively unmasks what was said
-// behind it, and a mask going on never hides what was said before it.
+// avoid, solved once here instead.
+//
+// AND IT ANSWERS FOR THE MOMENT THE LINE WAS SAID, not for now. A mask coming
+// off never retroactively unmasks what was said behind it; a mask going on
+// never hides what was said before it; and — the part this file was missing
+// for a long time — gear picked up after the fact never appears on a line said
+// before it. The row froze what the room could see and this reads it back;
+// db/lib/examineSnapshot.js holds the rule for what is frozen and what is not,
+// and is the file to read before changing either side of it.
+//
+// A row with no snapshot — written before the column existed — falls back to
+// the live character, which is what every row did before.
 //
 // `viewer` is a live Character loaded with VIEWER_SELECT below. Returns
 // { blocked: <sentence> } when they cannot see, null when the line or the
 // speaker is gone, and { readout } otherwise.
 const { getMyFactionRole } = require("./factionPermissions");
-const { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("./examine");
+const { EXAMINE_TAG_SELECT, EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire } = require("./examine");
+const { readPresentedState, rehydrateSubject } = require("./examineSnapshot");
 const { buildSkillAncestry, satisfiedSkillIds } = require("./medicalVision");
 const { examineBlock } = require("./examineVision");
 const { forcedNameFrom, wasHooded } = require("./presentedIdentity");
+const { feedWipeFloors, floorForPlace } = require("./feedWipe");
 const { mayReadPlace } = require("./feedAccess");
 const { THANATI_SLUG } = require("./thanati");
 
@@ -60,15 +71,25 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false }
     // presentedAvatarPath rides along for wasHooded below: it is the face the
     // room actually saw, frozen at send time, and the only signal that still
     // tells a hood from a forced name once the forcing tag has worn off.
+    // presentedState is the rest of what it saw; turnNumber is the clock every
+    // duration on the readout is counted against.
     select: {
+      kind: true,
+      seq: true,
+      turnNumber: true,
       characterId: true,
       concealedAlias: true,
       presentedAvatarPath: true,
+      presentedState: true,
       deletedAt: true,
       placeKey: true,
     },
   });
   if (!row || row.deletedAt || !row.characterId || !row.placeKey) return null;
+  // A system event can carry a characterId — a death, a fulfilled Desire — and
+  // is not a thing anybody watched somebody say. The camera already refused
+  // one; the eye should too.
+  if (row.kind !== "MESSAGE") return null;
   if (row.characterId === viewer.id) return null;
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true, phase: true } });
@@ -89,18 +110,65 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false }
   const allowed = await mayReadPlace(prisma, viewer, row.placeKey, { gm, discordUserId: viewer.discordUserId });
   if (!allowed) return null;
 
-  const subject = await prisma.character.findUnique({
+  // And the same FLOOR the feed itself renders above (db/lib/feedWipe.js), so
+  // a look reaches exactly as far back as Chat does and no further. Without
+  // it, a seq being a sequential number meant this server action would answer
+  // for any line ever said in a place the reader can currently read — every
+  // row below the wipe line, back to turn one. A radio net is the bad case:
+  // netPlacesFor has no location component, so a frequency audible from
+  // anywhere carried its whole history.
+  const floors = await feedWipeFloors(prisma);
+  if (row.seq <= floorForPlace(floors, row.placeKey)) return null;
+
+  // What the room could SEE of them, or null for a row written before the
+  // column — in which case everything below falls back to the live character,
+  // exactly as it always did.
+  const state = readPresentedState(row.presentedState);
+
+  // A frozen look needs almost nothing live off the speaker: rehydrateSubject
+  // overwrites every in-fiction field, so loading the whole subject would be
+  // fetching a twenty-column tag join to throw it away. What is left is the
+  // three things that are not in-fiction state — the id, the avatar's
+  // cache-buster, and the age and gender nobody can put on or take off.
+  const live = await prisma.character.findUnique({
     where: { id: row.characterId },
-    select: EXAMINE_SUBJECT_SELECT,
+    select: state
+      ? { id: true, name: true, age: true, gender: true, updatedAt: true }
+      : EXAMINE_SUBJECT_SELECT,
   });
-  if (!subject) return null;
+  if (!live) return null;
+
+  // Everything else a frozen subject needs: the tag CATALOG (rules, not
+  // disguise — a rebalance should reach an old line) and the faction they were
+  // in then, which inRealFaction reads to gate both the Role and the ⬢.
+  const [catalog, faction] = state
+    ? await Promise.all([
+      prisma.tag.findMany({
+        where: { id: { in: state.tags.map((t) => t.tagId) } },
+        select: { id: true, ...EXAMINE_TAG_SELECT },
+      }),
+      state.factionId
+        ? prisma.faction.findUnique({ where: { id: state.factionId }, select: { name: true, slug: true } })
+        : null,
+    ])
+    : [[], null];
+
+  const subject = state ? rehydrateSubject({ live, state, tags: catalog, faction }) : live;
+
+  // Every duration on the readout counts against the turn the LINE was said
+  // in, not today's. A frozen `expiresTurn: 12` read on turn 20 would render
+  // "expires this turn" — false, and it quietly tells a reader doing the
+  // arithmetic that the tag is long gone. Against the row's own turn it says
+  // three turns left, which is what an onlooker could have worked out at the
+  // time. openTurn is still fetched: examineBlock needs its phase.
+  const readoutTurn = (state ? row.turnNumber : null) ?? openTurn?.number;
 
   // A forced name is NOT a hood — a Beast is being something, not hiding — and
   // say.js writes both into concealedAlias, so the two are told apart by what
   // the ROW froze rather than by what the speaker happens to hold now
-  // (presentedIdentity.js#wasHooded). Comparing against the live forced name
-  // was the whole bug: a Disguise Kit lasts three turns, and once it was swept
-  // every line said under it started reading as a hood.
+  // (presentedIdentity.js#wasHooded). Reading the forced name off the FROZEN
+  // tags closes the last of that: a Disguise Kit lasts three turns, and the
+  // live comparison found no name to match once it was swept.
   const forced = forcedNameFrom(subject.tags);
   const hooded = wasHooded(row, { forcedName: forced });
 
@@ -112,13 +180,27 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false }
   const [skillCatalog, officer, lastDesire] = await Promise.all([
     bystander ? [] : prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
     // A Leader/Treasurer of the SUBJECT's faction sees their ⬢, the same seat
-    // /faction's roster column reads.
+    // /faction's roster column reads. Keyed on the faction they were in THEN,
+    // since that is the one the readout is answering for.
     !hooded && subject.factionId && viewer.discordUserId
       ? getMyFactionRole(prisma, viewer.discordUserId, subject.factionId).then((r) => r.isOfficer)
       : false,
     !hooded && canSeeDesire(sightTags)
       ? prisma.desire.findFirst({
-        where: { characterId: subject.id, status: "FULFILLED" },
+        where: {
+          characterId: subject.id,
+          status: "FULFILLED",
+          // A Desire fulfilled AFTER the line was said is not something this
+          // line can report. Fulfilling one is a private act.
+          //
+          // The null arm is not optional: endedTurnNumber is stamped from the
+          // OPEN turn, so one fulfilled between turns carries no number at all,
+          // and a bare `lte` never matches a NULL column — it would drop the
+          // most recent Desire rather than date it.
+          ...(readoutTurn == null
+            ? {}
+            : { OR: [{ endedTurnNumber: null }, { endedTurnNumber: { lte: readoutTurn } }] }),
+        },
         orderBy: [{ endedTurnNumber: "desc" }, { id: "desc" }],
         select: { text: true, points: true },
       })
@@ -137,7 +219,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false }
           (viewer.tags ?? []).map((ct) => ct.tagId),
           buildSkillAncestry(skillCatalog),
         ),
-      openTurnNumber: openTurn?.number,
+      openTurnNumber: readoutTurn,
       lastDesire,
       viewerFactionId: viewer.factionId ?? null,
       viewerIsOfficer: officer,

@@ -7,7 +7,6 @@ import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
-import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { crossingConfirm, travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
@@ -83,7 +82,6 @@ export default function MapBoard({ onClose = null }) {
   const [labels, setLabels] = useState(true);
   const [layer, setLayer] = useState(null);
   const { run, pending, error } = useActionRunner();
-  const coarse = useIsCoarsePointer();
   const confirm = useConfirm();
   // useId() returns a string with punctuation React reserves (":r0:"), which
   // is legal in an id but not in a url(#…) reference. Stripped to word
@@ -511,14 +509,11 @@ export default function MapBoard({ onClose = null }) {
     return () => svg.removeEventListener("wheel", onWheel);
   }, [toWorld, zoomBy]);
 
-  // Travel, in one place. The Go button, a second click on a node and Enter are
-  // three doors onto the same call — travelTo, which re-derives every gate
-  // server-side whatever any of them thought (MAP.md §6c).
-  //
-  // A zone crossing asks first, in the shared confirm, and is down to one door:
-  // the card's Go. It spends something, it carries whoever is with you, and it
-  // cannot be walked back for free — and a player crossed one by double-
-  // clicking. A hop inside the zone is untouched.
+  // Travel, in one place. The card's Go is the only door onto it — travelTo,
+  // which re-derives every gate server-side whatever the board thought
+  // (MAP.md §6c). A zone crossing asks again on top of that, in the shared
+  // confirm: it spends something, it carries whoever is with you, and it
+  // cannot be walked back for free.
   const go = async (node) => {
     if (node.crossesZone) {
       const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0);
@@ -532,39 +527,6 @@ export default function MapBoard({ onClose = null }) {
       },
     });
   };
-
-  // Enter goes to the place you have picked.
-  //
-  // On a window rather than on the node, because the node has nowhere to put a
-  // key handler: the rhombi are SVG <g> elements with no focus of their own,
-  // and the Ways out list — which IS real buttons — unmounts the moment you
-  // pick something. So after a pick there is nothing focused for Enter to land
-  // on, and this catches it. /chat needs none of this: its travel nodes are
-  // real <button>s, so clicking one focuses it and Enter re-activates it,
-  // which is the second activation already.
-  //
-  // Deliberately no Escape. On /chat the map is inside a Modal that already
-  // owns Escape (play/Chat.js), and a second meaning here would race it.
-  useEffect(() => {
-    if (!data?.ok || !sel || pending) return undefined;
-    const picked = data.nodes.find((n) => n.id === sel);
-    const standing = data.you.locationId ? data.nodes.find((n) => n.id === data.you.locationId) : null;
-    if (!canTravelTo(picked, standing)) return undefined;
-    // Not for a crossing. Enter is the keyboard's half of the second click, and
-    // a crossing no longer goes on either — the card's Go does.
-    if (picked.crossesZone) return undefined;
-
-    const onKey = (e) => {
-      if (e.key !== "Enter" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
-      // Enter belongs to whatever is focused first. Cancel is a button, and
-      // somebody pressing Enter on Cancel means cancel.
-      if (e.target?.closest?.("input, textarea, select, button, [contenteditable]")) return;
-      e.preventDefault();
-      go(picked);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  });
 
   // ---------------------------------------------------------------- render
 
@@ -664,24 +626,16 @@ export default function MapBoard({ onClose = null }) {
                       setSel(n.id);
                       return;
                     }
-                    // On a mouse, the second click on the place already picked
-                    // IS the Go button, so a hop is one gesture instead of a
-                    // trip across the plate to the card. A real double-click
-                    // lands here too — it arrives as two clicks, which pick and
-                    // then go — so there is no onDoubleClick to fight the drag
-                    // guard above. Anywhere you cannot go, it still just
-                    // unpicks.
-                    //
-                    // Not on a finger, and not for a zone crossing on any
-                    // pointer. A stray tap on a phone is easy and a crossing
-                    // spends something either way, so there the second tap
-                    // unpicks like any other and Go on the card — which is on
-                    // screen the moment you pick, since the sheet opens — is
-                    // the only door. canTravelTo is untouched: this narrows a
-                    // gesture, not the rule about where you may walk.
-                    if (n.crossesZone && canTravelTo(n, here)) return;
-                    if (!coarse && canTravelTo(n, here) && !pending) go(n);
-                    else setSel(null);
+                    // The second click unpicks, whatever the pointer and
+                    // whatever the node. It used to be the Go button on a
+                    // mouse, which meant a double-click — or, on the Travel
+                    // panel, a tap that landed on the place already chosen —
+                    // moved somebody with nothing in front of it. Go on the
+                    // card is the only door now, and it is on screen the moment
+                    // you pick, since the sheet opens. So this is just the way
+                    // back out of a card sitting over the board, and there is
+                    // no onDoubleClick to fight the drag guard above.
+                    setSel(null);
                   }}
                 >
                   {/* The thing a finger aims at. First, so it paints under the

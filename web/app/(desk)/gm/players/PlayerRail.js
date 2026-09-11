@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import ZoneChip from "@/app/components/ZoneChip";
+import { noteActionVersion } from "@/app/components/useDeskVersion";
 import Select from "@/app/components/Select";
 import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import useNowTick from "@/app/components/useNowTick";
-import { mergeRailRows, useRailPatches } from "./liveInbox";
+import { mergeRailRows, useRailPatches, useReadOverrides } from "./liveInbox";
 import { inVisibleZones } from "@/lib/zones";
 import { useSelection, selectConversation } from "./selection";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
@@ -50,6 +51,19 @@ function matchedTagNames(tagNames, query) {
   return shown.join(", ") + ((hits.length ? hits : tagNames ?? []).length > 3 ? ", …" : "");
 }
 
+// "why this row matched", or null when the matched field has nothing on it.
+function matchReason(match, row, query) {
+  if (!match) return null;
+  const field = match.matchedField;
+  if (field === "name" || field === "username") return null;
+  if (field === "role") return row.roleTitle || null;
+  if (field === "faction") return row.factionName || null;
+  if (field === "zone") return row.zoneName || null;
+  if (field === "tag") return matchedTagNames(row.tagNames, query) || null;
+  if (field === "preview") return "matched message text";
+  return null;
+}
+
 function relativeTime(ms, now) {
   const diff = now - ms;
   const mins = Math.round(diff / 60_000);
@@ -74,7 +88,15 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
   // row's last-message time, and it has to see the live one to un-stick
   // when a new message lands.
   const patches = useRailPatches();
-  const rows = useMemo(() => mergeRailRows(serverRows, patches, rowsAsOfMs), [serverRows, patches, rowsAsOfMs]);
+  // And this GM's own "I have read that" marks over the top of those, applied
+  // per field rather than as a whole row — see liveInbox.js#mergeRailRows.
+  // Without them the badge on a conversation just read came back on the next
+  // frame, because marking read deliberately revalidates nothing.
+  const readOverrides = useReadOverrides();
+  const rows = useMemo(
+    () => mergeRailRows(serverRows, patches, rowsAsOfMs, readOverrides),
+    [serverRows, patches, rowsAsOfMs, readOverrides],
+  );
 
   // The zones this GM chose to see (null = all). Unlike the zone dropdown
   // below, this is not a lens: a row outside it is not theirs to work, and a
@@ -184,10 +206,12 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
     const next = !isMuted(row);
     setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: next }));
     startTransition(async () => {
-      const res = await setConversationMuted({
-        playerDiscordUserId: row.discordUserId,
-        muted: next,
-      });
+      const res = noteActionVersion(
+        await setConversationMuted({
+          playerDiscordUserId: row.discordUserId,
+          muted: next,
+        }),
+      );
       if (!res?.ok) {
         setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: !next }));
       }
@@ -198,10 +222,12 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
     const next = !isHandled(row);
     setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: next }));
     startTransition(async () => {
-      const res = await setConversationHandled({
-        playerDiscordUserId: row.discordUserId,
-        handled: next,
-      });
+      const res = noteActionVersion(
+        await setConversationHandled({
+          playerDiscordUserId: row.discordUserId,
+          handled: next,
+        }),
+      );
       if (!res?.ok) {
         setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: !next }));
       }
@@ -356,9 +382,16 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
             </label>
           </div>
         )}
-        <div className="segmented" role="group" aria-label="Reply filter">
+        {/* One independent toggle, so it is a chip, not a segmented control:
+            a segmented control holds ONE VALUE out of several and this has no
+            siblings to be exclusive with (DESIGN-SYSTEM §5). As a lone
+            segment it drew a full-width bar that read like another field
+            label. */}
+        <div className="chip-row">
           <button
             type="button"
+            className="chip"
+            data-active={needsReplyOnly ? "true" : undefined}
             aria-pressed={needsReplyOnly}
             onClick={() => setNeedsReplyOnly((v) => !v)}
           >
@@ -456,7 +489,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                       className="chip"
                       title={claimedByOther ? "Claimed by another GM" : "Claimed by you"}
                     >
-                      {claimedByOther ? "Claimed" : "You"}
+                      {claimedByOther ? "Claimed" : "Claimed · you"}
                     </span>
                   )}
                   {row.lastAtMs > 0 && (
@@ -471,14 +504,14 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                     <span className="text-muted">{row.roleTitle || "No messages yet"}</span>
                   )}
                 </div>
-                {match && match.matchedField !== "name" && match.matchedField !== "username" && (
-                  <div className="desk-queue-reason">
-                    {match.matchedField === "role" && row.roleTitle}
-                    {match.matchedField === "faction" && row.factionName}
-                    {match.matchedField === "zone" && row.zoneName}
-                    {match.matchedField === "tag" && matchedTagNames(row.tagNames, query)}
-                    {match.matchedField === "preview" && "matched message text"}
-                  </div>
+                {/* Only when there is something to say. The field that
+                    matched can be empty on the row (a role match on a
+                    character with no roleTitle, a tag hit whose names did not
+                    survive the filter), and this used to render the padded
+                    empty line anyway — a blank gap under the preview that
+                    looked like a rendering fault. */}
+                {matchReason(match, row, query) && (
+                  <div className="desk-queue-reason">{matchReason(match, row, query)}</div>
                 )}
                 {hitCount > 0 && (
                   <div className="desk-queue-reason">

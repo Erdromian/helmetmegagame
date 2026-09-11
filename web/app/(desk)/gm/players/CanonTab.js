@@ -1,5 +1,7 @@
 "use client";
 
+import { noteActionVersion } from "@/app/components/useDeskVersion";
+
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
@@ -57,7 +59,7 @@ export default function CanonTab({ characterId, discordUserId }) {
     if (!content) return;
     setStageError(null);
     startTransition(async () => {
-      const res = await stageDmAsMessage({ characterId, content });
+      const res = noteActionVersion(await stageDmAsMessage({ characterId, content }));
       if (!res.ok) {
         setStageError(res.error);
         return;

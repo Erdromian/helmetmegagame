@@ -1,6 +1,7 @@
 import { prisma, Prisma } from "@lifeweb/db";
 import { railKindSql, withoutDmNoise, dmPreview } from "./dmThread";
 import { listGuildMembers } from "./discordGuild";
+import { pgNowMs } from "./pgClock";
 
 // The live half of the player desk: "what changed since the last time you
 // asked". The desk's 30s router.refresh() poll can never reseed the open
@@ -22,8 +23,6 @@ const COLD_START_MS = 120_000;
 const TOUCHED_LIMIT = 500;
 const THREAD_LIMIT = 60;
 
-const clockSql = Prisma.sql`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`;
-
 // createdAt is timestamp(3) without a zone, holding UTC (Prisma's convention).
 // `AT TIME ZONE 'UTC'` turns the epoch back into that same nominal UTC
 // timestamp, so the comparison holds whatever the session's TimeZone is.
@@ -37,8 +36,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
 
   // No cursor yet (first tick, or a page restored from bfcache): look back a
   // couple of minutes rather than at the whole table.
-  const clock = await prisma.$queryRaw(clockSql);
-  const nowMs = Number(clock[0]?.nowMs ?? Date.now());
+  const nowMs = await pgNowMs();
   const effectiveSince = since ?? nowMs - COLD_START_MS;
   const sinceDate = new Date(effectiveSince);
 
@@ -95,11 +93,19 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
              COALESCE(u."unreadCount", 0) AS "unreadCount",
              (EXTRACT(EPOCH FROM cm."handledAt") * 1000)::double precision AS "handledAtMs",
              (cm."mutedAt" IS NOT NULL) AS "muted",
-             cm."claimedByDiscordUserId"
+             cm."claimedByDiscordUserId",
+             -- This GM's read cursor, shipped so the client can tell whether
+             -- its own optimistic "I have read this" has been overtaken by
+             -- the server yet (liveInbox.js#reconcileReadOverrides). Without
+             -- it the override would have to clear on a timer and guess.
+             (EXTRACT(EPOCH FROM cr."lastReadAt") * 1000)::double precision AS "lastReadAtMs"
         FROM touched t
         LEFT JOIN latest l ON l."discordUserId" = t."discordUserId"
         LEFT JOIN unread u ON u."discordUserId" = t."discordUserId"
         LEFT JOIN "ConversationMeta" cm ON cm."playerDiscordUserId" = t."discordUserId"
+        LEFT JOIN "ConversationRead" cr
+          ON cr."playerDiscordUserId" = t."discordUserId"
+         AND cr."gmDiscordUserId" = ${gmDiscordUserId}
     `,
     open
       ? prisma.directMessage.findMany({
@@ -116,6 +122,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
             kind: true,
             createdAt: true,
             meta: true,
+            clientNonce: true,
           },
         })
       : null,
@@ -181,6 +188,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
         gmDiscordUserId,
       ),
       unreadCount: Number(r.unreadCount ?? 0),
+      lastReadAtMs: r.lastReadAtMs != null ? Number(r.lastReadAtMs) : 0,
       handled: r.handledAtMs != null && Number(r.handledAtMs) >= lastAtMs,
       muted: Boolean(r.muted),
       claimedByDiscordUserId: r.claimedByDiscordUserId ?? null,

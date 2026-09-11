@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Pager from "@/app/components/Pager";
-import DeskHeader from "@/app/components/DeskHeader";
+import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import { useRefresh } from "@/app/components/useRefresh";
 import AuditFeed from "./AuditFeed";
@@ -150,11 +150,9 @@ export default function AuditDesk({
         title="Audit"
         meta={
           <>
-            {openTurn && (
-              <span className="chip">
-                Turn {openTurn.number} · {openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}
-              </span>
-            )}
+            {/* Unconditional. It used to vanish with the turn, so "no turn
+                open" and "the chip has not loaded" looked the same. */}
+            <DeskTurnChip turn={openTurn} />
             <LockChip />
             {freshCount > 0 && (
               <button type="button" className="chip" onClick={acknowledge}>

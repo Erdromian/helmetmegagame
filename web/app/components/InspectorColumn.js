@@ -13,6 +13,7 @@ import ArchiveContextModal from "./ArchiveContextModal";
 import CustomTagDialog from "./CustomTagDialog";
 import Tooltip from "./Tooltip";
 import useSubmitOnEnter from "./useSubmitOnEnter";
+import useInspectorOverlay from "./useInspectorOverlay";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { combineArmor, armorWord } from "@/lib/armorValue";
 import { fightingSkill } from "@/lib/fightingSkill";
@@ -650,8 +651,20 @@ export default function InspectorColumn({
   const inspectedUsername = inspectedRoster?.username;
   const inspectedRole = inspectedRoster?.roleTitle;
 
+  // On the narrow tiers this column is an overlay the desk header toggles
+  // open; on a wide screen `open` is not read at all and the column is simply
+  // the third one (globals.css).
+  const { open: overlayOpen, setOpen: setOverlayOpen } = useInspectorOverlay();
+
   return (
-    <aside className="desk-inspector">
+    <aside className="desk-inspector" data-open={overlayOpen || undefined}>
+      {/* The overlay's own way out — the header's toggle is underneath it.
+          CSS-hidden on the wide tier, where the column never closes. */}
+      <div className="desk-inspector-overlay-bar">
+        <button type="button" className="btn-quiet" onClick={() => setOverlayOpen(false)}>
+          Close inspector
+        </button>
+      </div>
       {roster && <InspectorSearch roster={roster} onInspect={onInspect} />}
       {(pinned.length > 0 || pinsActions) && (
         <div className="desk-inspector-pins">

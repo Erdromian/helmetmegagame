@@ -71,9 +71,9 @@ export default function MessageComposer({
           : await createStagedMessage({ kind: "PRIVATE", content, recipientCharacterIds, moveId, cavingRollId });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
-        onDone();
-      } catch {
-        setError(mutationErrorMessage());
+        onDone(res.patch);
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }

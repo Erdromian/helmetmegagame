@@ -1,5 +1,7 @@
 "use client";
 
+import { noteActionVersion } from "@/app/components/useDeskVersion";
+
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
@@ -170,7 +172,9 @@ export default function RosterTable({
     <div className="flex flex-col gap-4">
       <div className="segmented self-start" role="group" aria-label="Roster view">
         <button type="button" aria-pressed={view === "players"} onClick={() => setView("players")}>
-          Players ({characters.length})
+          {/* inView, not `characters` — the tab said 40 while the table
+              below it showed the 6 in the zones this GM has picked. */}
+          Players ({inView.length})
         </button>
         <button type="button" aria-pressed={view === "factions"} onClick={() => setView("factions")}>
           Factions ({factionCount})
@@ -235,7 +239,7 @@ export default function RosterTable({
                 if (!message) return;
                 setComposerError(null);
                 startSending(async () => {
-                  const res = await sendGmBroadcast({ characterIds: [...selected], message });
+                  const res = noteActionVersion(await sendGmBroadcast({ characterIds: [...selected], message }));
                   if (!res.ok) {
                     setComposerError(res.error);
                     return;
@@ -419,7 +423,7 @@ function BulkTagBar({ tags, count, characterIds, onDone }) {
   function apply(mode) {
     setResult(null);
     startTransition(async () => {
-      const res = await bulkTagCharacters({ characterIds, tagId, mode });
+      const res = noteActionVersion(await bulkTagCharacters({ characterIds, tagId, mode }));
       if (!res?.ok) {
         setResult({ error: res?.error ?? "Something went wrong." });
         return;

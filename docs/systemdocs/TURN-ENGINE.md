@@ -423,12 +423,30 @@ So, in order:
   said since. `buildSideEffectPayload` is the whole list.
 - Each send is wrapped in **`step(key, fn)`**, which records the key in
   **`sideEffectSteps`** only once the send returns. Anything that posts or DMs
-  gets a per-item key (`death:<characterId>`, `delivery:<id>:<n>`, index keys
-  for the notice loops); a singleton post gets a section key
+  gets a per-item key (`death:<characterId>`, `delivery:<stagedMessageId>`,
+  index keys for the notice loops); a singleton post gets a section key
   (`nukeBroadcast`, `gameEnded`, `messageWipe`). The granularity is the point:
   a re-run must not tell somebody a second time that they died. The existing
   per-call `.catch()`es stay — those stop one dead channel taking a loop down,
   which is a different job.
+- **Staged deliveries no longer rest on a step key at all.** They used to — one
+  key per recipient, recorded even when the DM bounced, which is how a resumed
+  push learned to skip exactly the people it had failed to reach. Each send now
+  has a `Delivery` row it claims before sending and stamps after
+  (`db/lib/stagedDelivery.js`, `ADJUDICATION.md` §1a), and that claim is what
+  keeps a resume from sending twice. The step key stays, one per *message*, as
+  the cheap "this whole message is done" skip — and it is recorded **only when
+  every recipient came back sent**. A message that bounced anybody, or whose
+  rows another run was holding, leaves its key unrecorded, so a resume walks it
+  again; the rows underneath are idempotent, so re-walking costs a recipient
+  who already has it nothing. Recording the key regardless was the old bug
+  wearing a new table: the rows knew about the bounce and nothing ever read
+  them again.
+- **`deliveryFailures` is rewritten from the rows on every push, always** — not
+  only when *this* run bounced somebody. A run that fails nobody can still be
+  looking at a message with `FAILED` rows on it (a partial push resumed, or a
+  Resend running beside it), and blanking the blob there told the tray the
+  message was clean while the rows said otherwise.
 - **`sideEffectsDoneAt`** is stamped only at the very end, and is the sole
   selector for the resume.
 - **`resumeTurnSideEffects(prisma)`** finds the oldest turn with a payload and

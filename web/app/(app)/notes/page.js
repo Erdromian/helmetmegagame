@@ -7,7 +7,7 @@ import Loading from "./Skeleton";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { loadMentionDirectory } from "@/lib/mentionDirectory";
+import { loadMentionDirectory, loadOfferableMentions } from "@/lib/mentionDirectory";
 
 // Notes are personal — a player's own Journal and their own list of messages
 // they've starred, never a shared/GM view. Each signed-in user only ever
@@ -33,7 +33,7 @@ async function FreshNotes() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
-  const [notes, journalEntries, roster, openTurn] = await Promise.all([
+  const [notes, journalEntries, roster, directory, openTurn] = await Promise.all([
     prisma.note.findMany({
       where: { discordUserId: session.discordUserId },
       orderBy: { sentAt: "desc" },
@@ -43,23 +43,31 @@ async function FreshNotes() {
       where: { discordUserId: session.discordUserId },
       orderBy: { updatedAt: "desc" },
     }),
-    // The @mention roster: every character a player may currently see stood
-    // somewhere, alive or freshly dead — mirrors character/page.js's own
-    // zoneRoster precedent. This is the ONE roster query, reused for both the
-    // composer's autocomplete AND drawing the FACE on a saved {char:<id>}
-    // token. (The NAME comes off the token itself now, frozen at the moment it
+    // Two rosters, because offering a name and resolving one are different
+    // questions (web/lib/mentionDirectory.js has the whole argument).
+    //
+    //   offerable — the composer's autocomplete. Anybody presenting as
+    //               somebody else is left out: being offered a name to type is
+    //               a live act, and a hooded character must not be in it.
+    //   directory — what a saved {char:<id>} draws its FACE against. Everybody,
+    //               and deliberately blind to hoods, or the little portrait
+    //               beside an old entry would wink out whenever its subject
+    //               masked up somewhere and come back when they stopped.
+    //
+    // (The NAME comes off the token itself either way, frozen at the moment it
     // was written — db/lib/characterMentions.js.)
     //
     // It keeps a buried character's death from leaking by omission
     // (CHARACTERS.md §5) — a dead-and-buried character is simply absent, like
     // every other roster in the app.
     //
-    // loadMentionDirectory, not a query of its own. This page used to roll its
-    // own findMany with NO concealment filter at all, so a hooded or disguised
-    // character was offered by name in the autocomplete and drew their real
-    // portrait in an entry — while /chat, one directory over, withheld both.
-    // The forced/concealed rule has three cases and a precedence order, and
-    // the second copy of it is always the one that never got written.
+    // Both come out of the shared module rather than a findMany here. This
+    // page used to roll its own, with NO concealment filter at all, so a
+    // hooded or disguised character was offered by name in the autocomplete —
+    // while /chat, one directory over, withheld them. The forced/concealed
+    // rule has three cases and a precedence order, and the second copy of it
+    // is always the one that never got written.
+    loadOfferableMentions({ includeUnburiedDead: true }),
     loadMentionDirectory({ includeUnburiedDead: true }),
     getOpenTurn(),
   ]);
@@ -103,10 +111,8 @@ async function FreshNotes() {
     updatedAtMs: e.updatedAt.getTime(),
   }));
 
-  // Already the shape the provider wants — loadMentionDirectory stamps
-  // updatedAt as a number so nothing on this page has to remember to.
-  const mentionRoster = roster;
-
+  // Already the shape the provider wants — both loaders stamp updatedAt as a
+  // number so nothing on this page has to remember to.
   return (
     <SnapshotFresh
       scope="notes"
@@ -114,7 +120,8 @@ async function FreshNotes() {
       data={{
         starred: starred,
         journal: journal,
-        roster: mentionRoster,
+        roster: roster,
+        directory: directory,
         currentTurnNumber: openTurn?.number ?? null,
       }}
     />

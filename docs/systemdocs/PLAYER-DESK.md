@@ -59,6 +59,16 @@ exempted: it stacks and keeps the shared 45vh cap, exactly like the one on
 the 45vh cap on their rails — there, the rail is a queue and the main pane is
 the work.
 
+Two tiers above that one belong to the GM desks alone (`DESIGN-SYSTEM.md`
+§9). **Under 1024px** the inspector stops being the third column and becomes
+an overlay behind an **Inspector** button in the header — so the 720px note
+above now only describes what the *rail* does, and the inspector no longer
+stacks under the conversation at any width. **Under 800px**, opening somebody
+hides the rail as well as the roster and the conversation takes the screen,
+with **← Back** in the conversation header as the way out (the same
+destination as Esc). With nobody open, the rail and the roster stack exactly
+as they always did.
+
 Routes are keyed on **`discordUserId`, not `characterId`**: that is what
 `DirectMessage` keys on (no character FK, by design), every character has one,
 and it keeps working for a conversation whose character is gone.
@@ -263,16 +273,39 @@ client, not a support inbox.
   there is no `setState` in an effect to seed it.
 - **Send is optimistic.** The row appears and the draft clears the instant you
   press Enter, styled pending (`data-pending` on the row) until the server
-  answers; a failure removes the row, puts the draft back exactly as it was,
-  and shows the error, so nothing a GM typed is lost to a failed send. The
-  server half matches: `sendGmDm` awaits the Discord POST (a GM must know if
-  *that* failed) and returns the one created row instead of re-reading the
-  whole thread page.
+  answers. The server half matches: `sendGmDm` awaits the Discord POST (a GM
+  must know if *that* failed) and returns the one created row instead of
+  re-reading the whole thread page.
+- **Every send carries a nonce** — `DirectMessage.clientNonce`, minted in the
+  composer before the send. It does two jobs. It is what pairs the optimistic
+  line with the row that comes back: the pairing used to be on the TEXT, so
+  sending "ok" twice retired both placeholders against the first row to land
+  and the second send looked as though it had never happened. And it makes a
+  re-send safe — `sendGmDm` looks the nonce up before it posts anything, so a
+  send that was **logged** and then lost its answer returns the row already
+  there rather than delivering a second copy. The nonce is written with the
+  log row, which `sendDm` writes *after* the Discord POST, so one window stays
+  open and is worth knowing about: a send that reached Discord and then lost
+  its log write (the container swapped between the two, or the insert failed
+  for something other than the nonce already being there) leaves nothing for
+  Retry to find, and Retry delivers twice. Closing it means reserving the
+  nonce before the POST and filling the row in after, across all three
+  `sendDm` transports. A partial unique index backs the dedupe up
+  in the database (`db/test/dmNonce.test.js`); every writer with no composer
+  behind it passes null, which the index allows.
+- **A failed send stays where it was written.** The row keeps its place with
+  the error on it and quiet **Retry** / **Discard** beside it, rather than
+  vanishing and pushing the words back into the box. Putting them back was
+  safe only while a GM sat still waiting for the answer: the draft is per
+  conversation and shared with whatever they have started typing since, so a
+  slow failure overwrote a sentence in progress. Retry re-sends under the same
+  nonce, so exactly one message is delivered in every case the
+  nonce can see — and the one case it cannot is named above.
 - **The player's side arrives live.** The pane's page state is seeded once,
   and used to stay that way until the GM sent something. Now it unions that
   page with the live feed for this conversation (§9a) during render — never
-  copied into state — and a pending optimistic row retires as soon as the
-  real row with the same content shows up, whichever path brings it first.
+  copied into state — and a pending optimistic row retires as soon as its
+  nonce comes back on a real row, whichever path brings it first.
 - **Claim/release** is advisory (`ConversationMeta`), so five GMs don't answer
   the same player twice. The same table carries `handledAt` and `mutedAt`, the
   rail's ✓ "needs no reply" mark and its ⊘ mute (§3).
@@ -379,12 +412,45 @@ request at all.
 `next.config` redirect from the old `/gm/messages/<id>` still lands. The URL
 follows the selection instead of causing it.
 
+That `pushState` passes **`null`**, not the current `history.state`. Next
+patches `pushState`/`replaceState` and its patch early-returns on any state
+that already carries Next's own `__NA` marker — which every entry Next wrote
+does. Handing the current state back therefore skipped the patch: the router's
+`canonicalUrl` never moved, so a `router.refresh()` refetched whoever was open
+*before*, Next's own `HistoryUpdater` put the old address back in the bar, and
+Back onto an entry the router had not marked reloaded the whole page. Passing
+`null` lets the patch copy `__NA` and the router tree onto the new entry and
+move `canonicalUrl` with it.
+
+**The roster is hidden, never unmounted.** `DeskMiddle.js` used to swap it out
+for the conversation, and its search, column filters, sort and half-built bulk
+selection went with it — open somebody to check one thing, come back to a
+roster that had reset itself. It now sits under a `display: contents` wrapper
+that only flips `hidden`, so its position in the tree — and everything it is
+holding — never changes.
+
 **The desk has one route.** `[[...selection]]/page.js` is an optional
 catch-all — the shape `/gm/turns` already uses — rather than a roster page
 beside a `[discordUserId]` sibling. It has to stay mounted whether or not
 somebody is open, so that closing a conversation reveals the roster rather
 than an empty column. It never reads its own `selection` param; that is the
 store's job.
+
+**An unsent reply pauses the poll.** The composer registers with
+`useDirtyGuard` while there is anything in it, so the desk's 30s
+`router.refresh()` stands down rather than refetching the page under a
+half-written sentence. It deliberately does *not* arm the browser's
+beforeunload prompt: the draft is mirrored to storage (`dmDraft.js`) and comes
+back after a reload, so asking "are you sure" on every ⌘R would warn about
+nothing.
+
+It pauses the poll only while somebody is **actually writing** — the same
+10-minute freshness rule the adjudication desk's Result box follows
+(`useDirtyGuard.js#alsoDirtyHoldsPoll`, `turns/deskDraft.js`). A draft is
+stamped when it is typed into and counts as cold once it is that old, or as
+soon as it comes back out of storage on a reload. Before that, a half-typed
+reply left in some conversation last week stood the backstop poll down for
+ever, and the desk simply stopped refreshing.
 
 **What is still a server action, and why.** Sending a DM, claiming, muting and
 ✓-ing still are: they are mutations, they are rare, and they want the
@@ -556,6 +622,33 @@ ceiling — never later than the data it describes. Read the other way round, a
 layout's watermark could land after a message its own queries had missed, and
 then `mergeRailRows` discarded the patch carrying that message as "older than
 the rows". The desk chimed and showed nothing until a reload.
+
+**A patch that is older than what is held is dropped.** Two paths feed this
+store, and the 30s `full=1` backstop builds its answer from a read that can
+predate a frame the stream already delivered. Folding it in unconditionally is
+how a row that had just gone to zero unread came back saying three.
+
+**The read cursor is a local override until the server catches up.** Marking a
+conversation read deliberately revalidates nothing (§9), so the rail had to
+wait for the next frame to learn about it and the nav rail's Players badge —
+server-rendered, with no patch consumer at all — never learned about it. Now
+the pane notes the read in the store the moment it fires
+(`liveInbox.js#noteConversationRead`), `markConversationRead` hands back the
+cursor it actually wrote, and the override is re-noted with that value —
+**replacing** the first note rather than having to beat it. That distinction is
+the whole of a bug: the first note guesses the cursor from the BROWSER's clock,
+so a machine running two minutes fast claimed to have read two minutes of
+messages it had never seen, and because the store only ever raised an override,
+the server's real answer was thrown away. Every message the player sent in that
+window arrived already counted as read and the badge simply never came back.
+Raising is right between two guesses; the server's answer is not a guess. It
+clears when the server's own rows echo a `lastReadAtMs` at or past it
+(`reconcileReadOverrides`, called from an effect so `mergeRailRows` stays
+pure), or on age if that echo never comes. An override touches one field, the
+unread count — not `lastDirection`: having read somebody does not make it your
+turn to have written last. `DeskInboxCounts.js` publishes the merged number to
+the rail badge through `navBadge.js`, and withdraws it on unmount, so the two
+can never disagree and no other page inherits the desk's count.
 
 **The merge rule.** A patch lays over a rail row only when the patch is newer
 than the row (`liveInbox.js#mergeRailRows`), as a whole — its fields came from

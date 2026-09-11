@@ -433,6 +433,14 @@ function laborTierLabel(tier) {
 // The one wording for "here is why your roll is the size it is", shared so the
 // Move-confirm DM (bot/) and the auto-labor DM (db/) can't drift apart.
 // Discord `-#` subtext: it explains a number rather than competing with it.
+// What a shift on the Factory floor is worth, in one sentence. It lives here
+// rather than at either call site because both faces say it and neither may
+// say it differently: the Discord DM wears it under a `-#` (subtext is per
+// line, db/lib/ambientLine.js), and the web Move dialog prints it bare, so the
+// prefix cannot be baked in. See docs/systemdocs/FACTORY.md.
+const REFINERY_NOTE = `One Godflesh in, ${REFINERY_YIELD} cubes out.`;
+const REFINERY_EMPTY_NOTE = "There was no Godflesh left on the floor when you started working.";
+
 // Returns null when there is nothing to explain, so a caller can spread it
 // straight into a lines array.
 function formatLaborBonusNote(
@@ -446,9 +454,7 @@ function formatLaborBonusNote(
   // told why their day came to nothing rather than reading a line about eight
   // cubes they never got.
   if (refinery) {
-    return refined
-      ? `-# One Godflesh in, ${REFINERY_YIELD} cubes out.`
-      : "-# There was no Godflesh left on the floor when you started working.";
+    return refined ? `-# ${REFINERY_NOTE}` : `-# ${REFINERY_EMPTY_NOTE}`;
   }
   const parts = [];
   for (const tool of tools) {
@@ -482,6 +488,8 @@ async function resolveLaborRate(prisma, characterId) {
 
 module.exports = {
   LIFEWEB_FAILURE_MULTIPLIER,
+  REFINERY_NOTE,
+  REFINERY_EMPTY_NOTE,
   lazyYield,
   lazyExpression,
   buildLaborContext,

@@ -97,6 +97,9 @@ export const PLAYER_DM_SELECT = {
   kind: true,
   createdAt: true,
   meta: true,
+  // Same job as on the desk's select below: it is what retires the pending
+  // line in Chat's Bascinet composer.
+  clientNonce: true,
 };
 
 // What the GM DESK is handed about a conversation. The player's opposite
@@ -118,6 +121,10 @@ export const GM_DM_SELECT = {
   kind: true,
   createdAt: true,
   meta: true,
+  // What retires the composer's optimistic row. It has to ride every path a
+  // row can arrive by, or a line sent here and delivered by the stream would
+  // sit pending forever beside its own twin.
+  clientNonce: true,
 };
 
 export function gmDmRow(row) {
@@ -130,6 +137,7 @@ export function gmDmRow(row) {
     source: row.source ?? null,
     kind: row.kind,
     meta: row.meta ?? null,
+    clientNonce: row.clientNonce ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -142,6 +150,7 @@ export function playerDmRow(row) {
     source: row.source ?? null,
     kind: row.kind,
     meta: row.meta ?? null,
+    clientNonce: row.clientNonce ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }

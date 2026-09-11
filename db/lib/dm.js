@@ -12,7 +12,7 @@
 // @lifeweb/db would be a third same-named export with a third signature and
 // would invite the wrong one being grabbed. Require it by path.
 const { postDmBatched } = require("./discordRest");
-const { DM_KIND } = require("./dmKinds");
+const { applyDmPrefix, dmLogRow } = require("./dmPolicy");
 
 // Applies the `»` prefix (see CLAUDE.md "Bot message style") and logs to
 // DirectMessage so /gm/messages keeps a full conversation record. The log is
@@ -26,7 +26,7 @@ const { DM_KIND } = require("./dmKinds");
 // button (the Bird's Reply, so far). postDmBatched puts it on the LAST chunk,
 // and the same goes for `opts.embeds`.
 async function sendDm(prisma, discordUserId, content, opts = {}) {
-  const formatted = `» ${content}`;
+  const formatted = applyDmPrefix(content);
   const message = await postDmBatched(discordUserId, formatted, {
     components: opts.components,
     embeds: opts.embeds,
@@ -34,22 +34,17 @@ async function sendDm(prisma, discordUserId, content, opts = {}) {
     // ping the room out of somebody else's inbox.
     allowedMentions: opts.allowedMentions,
   });
+  // The prefix, the kind/source defaults and the row shape are all one
+  // decision shared with the other two transports — db/lib/dmPolicy.js.
   await prisma.directMessage
     .create({
-      data: {
+      data: dmLogRow({
         discordUserId,
-        direction: "OUTBOUND",
         content: formatted,
-        authorDiscordUserId: opts.authorDiscordUserId ?? null,
-        source: opts.source ?? "bot_auto",
-        // NOTICE unless the caller says otherwise. A DM nobody classified is
-        // the game talking, not a person — see db/lib/dmKinds.js.
-        kind: opts.kind ?? (opts.embeds?.length ? DM_KIND.QUIET : DM_KIND.NOTICE),
+        opts,
         discordMessageId: message?.id ?? null,
-        // ?? undefined: a caller's explicit null would be rejected by Prisma
-        // for a Json? column, and the .catch below would eat the lost row.
-        meta: opts.meta ?? undefined,
-      },
+        hasEmbeds: Boolean(opts.embeds?.length),
+      }),
     })
     .catch(() => {});
   return message;

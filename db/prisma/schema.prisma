@@ -2180,6 +2180,7 @@ model Character {
   notes                   Note[]
   desires                 Desire[]
   stagedMessageRecipients StagedMessageRecipient[]
+  deliveries              Delivery[]
   stagedEffects           StagedEffect[]
   cavingRolls             CavingRoll[]
   craftProjects           CraftProject[]
@@ -2949,7 +2950,7 @@ model Tag {
   // meals are: a cook naming their own dish is the whole point of the cooking
   // rework, not an upsell. surchargeFor() is the one verdict both the dialog
   // and the server action read, so the ⬢ shown is always the ⬢ billed.
-  customCost Int?
+  customCost   Int?
 
   // False hides the description box and refuses a posted description. The
   // Fine Meal takes a name and nothing else; the Lavish Meal takes both.
@@ -3695,9 +3696,84 @@ model StagedMessage {
   updatedAt DateTime @updatedAt
 
   recipients StagedMessageRecipient[]
+  deliveries Delivery[]
 
   @@index([turnId])
   @@index([moveId])
+}
+
+// One send, one row. The unit of delivery for a staged message: one per
+// PRIVATE recipient, one for a PUBLIC row's post (docs/systemdocs/ADJUDICATION.md §1a).
+//
+// WHY IT EXISTS. The push used to record its progress as a step key on the
+// Turn — `delivery:<messageId>:<index>` — and swallow a bounced DM inside the
+// step, so the key was written whether or not the player got anything. A
+// resumed push then skipped the bounce for good, and the Resend button ran a
+// SECOND copy of the send logic (web/app/(desk)/gm/turns/actions.js) reading a
+// JSON blob to work out who to retry. Three problems fall out of that, and all
+// three are the same problem: there was no row that said what happened to ONE
+// recipient.
+//
+// `state` is that row. `dedupeKey` is its identity — built from ids, never a
+// loop index, so it survives a recipient being removed between a crash and its
+// resume (db/lib/dmPolicy.js#dedupeKey). The claim is `updateMany` from a
+// non-terminal state to IN_FLIGHT: count 0 means somebody else has it, which is
+// how two pushes, or a push and a GM's Resend, stay out of each other's way.
+//
+// StagedMessage.sentAt and deliveryFailures are still written — the desk, the
+// tray and every archived turn read them — but they are now DERIVED from these
+// rows rather than being the only record.
+model Delivery {
+  id              String        @id @default(cuid())
+  stagedMessageId String
+  stagedMessage   StagedMessage @relation(fields: [stagedMessageId], references: [id], onDelete: Cascade)
+
+  // Who it is for. SetNull rather than Cascade: a character deleted after a
+  // push must not take the record of what they were sent with them — the
+  // snapshot below is what the failure list reads. Null on a PUBLIC row, which
+  // is addressed to a channel.
+  characterId String?
+  character   Character? @relation(fields: [characterId], references: [id], onDelete: SetNull)
+
+  // Snapshots, no FK — the log-table convention (ARCHITECTURE.md). The name is
+  // what a GM reads in "failed: Ada", and it has to keep reading right after
+  // the character is gone.
+  discordUserId String?
+  name          String?
+
+  // Stable across the push and every later resend. Partial on nothing: a
+  // PUBLIC row's key ends in "public", and there is exactly one per message.
+  // A PRIVATE row's ends in the CHARACTER id, not the Discord one — a recipient
+  // who never linked Discord has no id, and keying on it collapsed every such
+  // recipient onto one row (and onto the PUBLIC row's key besides).
+  dedupeKey String @unique
+
+  state    DeliveryState @default(PENDING)
+  attempts Int           @default(0)
+
+  // The claim stamp. A row left IN_FLIGHT by a killed process is reclaimable
+  // after STALE_CLAIM_MS (db/lib/stagedDelivery.js) — FIVE minutes, not the
+  // thirty Turn.sideEffectClaimedAt uses. That window covers a whole
+  // side-effect thunk; this one covers a single DM, and anything still in
+  // flight five minutes later is a process that is not coming back.
+  claimedAt DateTime?
+  sentAt    DateTime?
+
+  discordMessageId String?
+  lastError        Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([stagedMessageId])
+  @@index([state])
+}
+
+enum DeliveryState {
+  PENDING
+  IN_FLIGHT
+  SENT
+  FAILED
 }
 
 // PRIVATE recipients, one row per recipient character. Cascade both ways:
@@ -3820,6 +3896,19 @@ model DirectMessage {
 
   // e.g. { attachments: [names] } or { embed: true }.
   meta Json?
+
+  // The id the CLIENT minted for this send, before it knew the row's own id.
+  // An optimistic line in a composer used to be retired by matching its TEXT
+  // against whatever came back, so sending "ok" twice retired both at once.
+  // The nonce is also what makes a retry safe: a sender that never heard the
+  // answer re-sends the same one, and the partial unique index below (it is
+  // partial, so the null every other writer passes never collides) means the
+  // second attempt can only find the first row, not add a second.
+  //
+  // The index lives in migration SQL only (20260921020000_dm_client_nonce) —
+  // Prisma's schema language cannot say WHERE — so `migrate diff` offers to
+  // drop it. Decline, the way the trgm indexes are declined.
+  clientNonce String?
 
   @@index([discordUserId, createdAt])
   @@index([createdAt])
@@ -4612,6 +4701,25 @@ model ArchiveEntry {
   // Frozen for the same reason concealedAlias is: a live lookup would unmask
   // every line said behind a mask the moment it came off.
   presentedAvatarPath String?
+
+  // What the room could SEE of the speaker, frozen at send time — the third
+  // frozen column, and the same argument as the two above it: a live lookup
+  // re-dresses every old line the moment somebody changes clothes.
+  //
+  // db/lib/examineSnapshot.js owns the payload and the rule behind it; this
+  // comment does not restate either, because a shape the schema cannot enforce
+  // is a shape that drifts once it is written down twice.
+  //
+  // Two things that only belong here. NULL means "not frozen" — a row written
+  // before this column, a scene line, an intercom broadcast — and the reader
+  // falls back to the live character. It is NEVER backfilled: there is no
+  // record of what anybody wore then, and stamping today's state onto
+  // yesterday's line is precisely the bug this closes.
+  //
+  // And NEVER put it in a wire select. It holds the character's WHOLE tag
+  // list, hidden rows included; FEED_ROW_SELECT and ARCHIVE_ROW_SELECT
+  // (db/lib/archive.js) must not learn about it.
+  presentedState Json?
 
   content String
 

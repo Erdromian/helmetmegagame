@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSelection } from "./selection";
 import InspectorColumn from "@/app/components/InspectorColumn";
+import useInspectorOverlay from "@/app/components/useInspectorOverlay";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import usePins from "@/app/components/usePins";
 import BulkComposer from "./BulkComposer";
@@ -82,13 +83,17 @@ export default function InspectorHost({
   // Token-stamped so the column can tell a fresh ask from the one it already
   // honoured.
   const [tabRequest, setTabRequest] = useState(null); // { tab, token }
+  const { setOpen: setInspectorOpen } = useInspectorOverlay();
   const onInspect = useCallback(
     (characterId, name, tab) => {
       const row = rowByCharacter.get(characterId);
       if (row) setOverride({ segment, value: row });
       if (tab) setTabRequest((prev) => ({ tab, token: (prev?.token ?? 0) + 1 }));
+      // Narrow tiers: the column is a closed overlay until something asks for
+      // it. In an event handler, never an effect.
+      setInspectorOpen(true);
     },
-    [rowByCharacter, segment],
+    [rowByCharacter, segment, setInspectorOpen],
   );
 
   const roster = useMemo(

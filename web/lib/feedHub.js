@@ -5,6 +5,7 @@ import { FEED_CHANNEL } from "@lifeweb/db/lib/feedNotify";
 import { PRESENCE_CHANNEL } from "@lifeweb/db/lib/presenceNotify";
 import { TYPING_CHANNEL } from "@lifeweb/db/lib/typingNotify";
 import { DM_CHANNEL } from "@lifeweb/db/lib/dmNotify";
+import { DESK_CHANNEL } from "@lifeweb/db/lib/deskNotify";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow, GM_DM_SELECT, gmDmRow } from "./dmThread";
 import { dmActionOf } from "@lifeweb/db/lib/dmActions";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
@@ -24,7 +25,7 @@ import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/
 const HUB_KEY = "__bascinetFeedHub";
 // Bumped whenever createHub() gains a field, so a hot reload backfills an
 // older hub instead of throwing on the missing one. See hub().
-const HUB_SHAPE = 2;
+const HUB_SHAPE = 4;
 const BACKOFF_MIN_MS = 1000;
 const BACKOFF_MAX_MS = 60_000;
 
@@ -59,6 +60,19 @@ function createHub() {
     // 20260913060000_dm_notify), so this costs no migration and no second
     // channel — only a second fan-out of a notification already arriving.
     gmDmSubscribers: new Set(),
+    // Set<({ t, id, op }) => void>. The fifth channel, and keyed on nothing
+    // for the same reason gmDmSubscribers is: the adjudication desk watches
+    // every row of its four types at once, and there is no smaller thing to
+    // subscribe to. Raised by four Postgres triggers rather than by any
+    // writer (db/lib/deskNotify.js, ADJUDICATION.md §3).
+    //
+    // THE HUB READS NOTHING ON THIS CHANNEL. Both DM paths above re-read the
+    // row here, because the shape they fan out is the shape that goes on the
+    // wire. A desk row is not: the stream coalesces a beat's worth of ids and
+    // re-reads them in ONE deskPatchFor() call, so a burst — a turn-end push
+    // touching two hundred staged rows — costs one query per frame instead of
+    // two hundred here.
+    deskSubscribers: new Set(),
     // characterId -> { name, at }. A typing event fires every few seconds per
     // person, and resolving forced name + concealment is two queries; nobody's
     // mask comes off often enough to pay that on every keystroke burst.
@@ -69,6 +83,15 @@ function createHub() {
     // Whether this hub has ever held a LISTEN. A connect after that is a
     // RE-connect, and everything raised in the gap is gone — see resyncDm.
     everConnected: false,
+    // Which channels the LIVE client is actually listening on. Not the same
+    // question as "has it connected": hub() backfills a hub built by an older
+    // copy of this file on a hot reload, and a channel added to CHANNELS since
+    // then has a field here but no LISTEN on the session that is already open —
+    // which is how the desk channel came to be subscribed to by a hub that was
+    // never told about it, silently, with the stream up and no frames on it.
+    // connect() reconciles this against CHANNELS every time it is called,
+    // including the early return when a client already exists.
+    listened: new Set(),
   };
 }
 
@@ -332,6 +355,44 @@ function resyncDm() {
   }
 }
 
+// A desk row changed. Nothing is read: the bare {t, id, op} goes straight to
+// every open adjudication stream, which decides what to do with it.
+function handleDesk(payload) {
+  const set = hub().deskSubscribers;
+  // No desk open in this process, so the notification costs a parse we don't
+  // even pay.
+  if (set.size === 0) return;
+  let parsed;
+  try {
+    parsed = JSON.parse(payload);
+  } catch {
+    return;
+  }
+  if (!parsed?.t || !parsed?.id) return;
+  const event = { t: String(parsed.t), id: String(parsed.id), op: parsed.op === "gone" ? "gone" : "row" };
+  for (const send of [...set]) {
+    try {
+      send(event);
+    } catch (err) {
+      console.error("Desk subscriber failed:", err);
+    }
+  }
+}
+
+// The desk's half of the reconnect sentinel. Its stream has no cursor to
+// re-ask from — a patch is a list of ids, not a window in time — so the
+// answer is coarser than the inbox's: it tells the tab to fetch the page
+// again, once, through its own stale gate.
+function resyncDesk() {
+  for (const send of [...hub().deskSubscribers]) {
+    try {
+      send({ resync: true });
+    } catch (err) {
+      console.error("Desk subscriber failed:", err);
+    }
+  }
+}
+
 async function handleNotification(msg) {
   if (msg.channel === DM_CHANNEL) {
     if (!msg.payload) return;
@@ -345,6 +406,10 @@ async function handleNotification(msg) {
     // Both chairs, from one notification. Neither waits on the other: a slow
     // read for a desk nobody has open must not hold up a player's pane.
     await Promise.allSettled([handleDm(parsed), handleGmDm(parsed)]);
+    return;
+  }
+  if (msg.channel === DESK_CHANNEL) {
+    if (msg.payload) handleDesk(msg.payload);
     return;
   }
   if (msg.channel === PRESENCE_CHANNEL) {
@@ -413,11 +478,29 @@ function scheduleReconnect() {
   timer.unref?.();
 }
 
+const CHANNELS = [FEED_CHANNEL, PRESENCE_CHANNEL, TYPING_CHANNEL, DM_CHANNEL, DESK_CHANNEL];
+
+// Issue a LISTEN for every channel this session is not already on. Idempotent
+// and cheap — the ordinary call is five Set lookups and no query.
+async function listenAll(client, h) {
+  for (const channel of CHANNELS) {
+    if (h.listened.has(channel)) continue;
+    // Channel names are module constants, never anything a caller supplies.
+    await client.query(`LISTEN ${channel}`);
+    h.listened.add(channel);
+  }
+}
+
 // A single Client, not a Pool: LISTEN belongs to one session, and a pooled
 // connection can be handed to another query between notifications.
 async function connect() {
   const h = hub();
-  if (h.client || h.connecting) return;
+  if (h.client) {
+    // Already connected — but not necessarily to everything. See `listened`.
+    await listenAll(h.client, h).catch((err) => console.error("Feed hub LISTEN failed:", err));
+    return;
+  }
+  if (h.connecting) return;
   if (!process.env.DATABASE_URL) {
     console.warn("Feed hub: no DATABASE_URL, the live feed will not update.");
     return;
@@ -431,6 +514,9 @@ async function connect() {
     if (err) console.error("Feed hub listener error:", err);
     if (h.client === client) h.client = null;
     h.connecting = false;
+    // The session is gone and so are its LISTENs; the next connect re-issues
+    // them all.
+    h.listened = new Set();
     client.removeAllListeners();
     client.end().catch(() => {});
     scheduleReconnect();
@@ -463,18 +549,17 @@ async function connect() {
 
   try {
     await client.connect();
-    // Both channels on the ONE client: LISTEN belongs to a session, and a
+    // Every channel on the ONE client: LISTEN belongs to a session, and a
     // second connection would double the reconnect logic for no gain.
-    await client.query(`LISTEN ${FEED_CHANNEL}`);
-    await client.query(`LISTEN ${PRESENCE_CHANNEL}`);
-    await client.query(`LISTEN ${TYPING_CHANNEL}`);
-    await client.query(`LISTEN ${DM_CHANNEL}`);
+    h.listened = new Set();
+    await listenAll(client, h);
     h.client = client;
     h.connecting = false;
     h.backoffMs = BACKOFF_MIN_MS;
     if (h.everConnected) {
       resyncPlaces();
       resyncDm();
+      resyncDesk();
     }
     h.everConnected = true;
   } catch (err) {
@@ -589,5 +674,24 @@ export function subscribeToAllDms(send) {
 
   return () => {
     h.gmDmSubscribers.delete(send);
+  };
+}
+
+// Every desk row change, for a reader whose job is all of them: the
+// adjudication desk (ADJUDICATION.md §3). The same unsubscribe contract as
+// subscribeToAllDms and no key, because there is nothing to key on — see
+// deskSubscribers.
+//
+// This is NOT a gate. The caller is the desk's SSE route, which has already
+// established that the reader is a GM and re-reads every row it sends through
+// web/lib/deskRows.js. Subscribing does not make anybody a GM.
+export function subscribeToDesk(send) {
+  const h = hub();
+  h.deskSubscribers.add(send);
+
+  connect().catch((err) => console.error("Feed hub connect failed:", err));
+
+  return () => {
+    h.deskSubscribers.delete(send);
   };
 }

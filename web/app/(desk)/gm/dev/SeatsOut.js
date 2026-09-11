@@ -2,6 +2,7 @@
 
 import useNowTick from "@/app/components/useNowTick";
 import { EmptyRow } from "@/app/components/EmptyState";
+import StatusPill from "@/app/components/StatusPill";
 
 // Seats that have been handed out and not taken up (LOBBY.md). A GM could not
 // see this anywhere before: the full lobby roster lives in the Game section,
@@ -52,7 +53,10 @@ export default function SeatsOut({ rows }) {
                 <td>{r.roleName}</td>
                 <td className="mono">
                   {overdue ? (
-                    <span className="chip chip-quiet">overdue</span>
+                    // A seat nobody answered is the one row on this table a
+                    // GM is meant to act on, and it was drawn in the quietest
+                    // thing the app has.
+                    <StatusPill tone="warn">Overdue</StatusPill>
                   ) : (
                     untilLabel(r.expiresAt, now)
                   )}

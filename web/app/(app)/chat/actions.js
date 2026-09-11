@@ -8,7 +8,7 @@ import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/li
 import { fileMove } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { resolveLaborRate } from "@lifeweb/db/lib/laborAccess";
+import { resolveLaborRate, REFINERY_NOTE } from "@lifeweb/db/lib/laborAccess";
 import { qualityWord } from "@lifeweb/db/lib/laborYield";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { loadDesireView } from "@/lib/selfPools";
@@ -95,9 +95,6 @@ import { settleCarry, deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { acceptThreatSpawn, declineThreatSpawn, applySpawnSideEffects } from "@lifeweb/db/lib/threatSpawn";
 import { declineAssignment } from "@lifeweb/db/lib/lobby";
 import { mayReadPlace, mayWritePlace } from "@lifeweb/db/lib/feedAccess";
-import { EXAMINE_SUBJECT_SELECT, examineReadout } from "@lifeweb/db/lib/examine";
-import { BLIND_SLUG } from "@lifeweb/db/lib/examineVision";
-import { getMyFactionRole } from "@lifeweb/db/lib/factionPermissions";
 import { photoCaption } from "@lifeweb/db/lib/photo";
 import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
@@ -197,8 +194,11 @@ export async function lookAtRow(seq) {
 
 // Photographing what somebody said — the web twin of the 📸 reaction
 // (bot/src/events/messageReactionAdd.js#handleCameraReaction). The row is the
-// only thing the browser sends; who spoke, whether they were hooded and
-// whether this reader may see the place are all resolved here.
+// only thing the browser sends; who spoke, whether they were hooded, whether
+// this reader may see the place and what the room could see of the speaker
+// AT THE TIME are all resolved by db/lib/examineRow.js, the same path the eye
+// takes. A print is permanent, so a caption written off live state was the
+// worst version of the look-at-now bug: evidence that outlives the look.
 //
 // The camera is NOT spent: holding one is the whole gate, and film is not a
 // system anybody asked for. What bounds it instead is one shot per line per
@@ -225,11 +225,6 @@ export async function photographRow(seq) {
 
   const holds = (slug) => character.tags.some((ct) => ct.tag?.slug === slug && (ct.quantity ?? 0) > 0);
 
-  // Framing a shot is something you do by eye. Gated exactly as 🔍 and 📸
-  // are, and with the bot's own sentence.
-  if (holds(BLIND_SLUG)) {
-    return { ok: false, error: "You can't see." };
-  }
   if (!holds(CAMERA_SLUG)) return { ok: false, error: "You have no camera." };
 
   let key;
@@ -238,23 +233,6 @@ export async function photographRow(seq) {
   } catch {
     return { ok: false, error: "That line is gone." };
   }
-
-  const row = await prisma.archiveEntry.findUnique({
-    where: { seq: key },
-    select: { seq: true, kind: true, placeKey: true, characterId: true, concealedAlias: true, deletedAt: true },
-  });
-  if (!row || row.kind !== "MESSAGE" || row.deletedAt || !row.characterId) {
-    return { ok: false, error: "That line is gone." };
-  }
-  if (row.characterId === character.id) return { ok: false, error: "Point it at somebody else." };
-
-  // The same gate the feed itself reads by (db/lib/feedAccess.js). A seq is a
-  // guessable number, so this is what stops one being pointed at a room the
-  // reader is standing outside of.
-  const allowed =
-    Boolean(row.placeKey) &&
-    (await mayReadPlace(prisma, character, row.placeKey, { gm: false, discordUserId: me.discordUserId }));
-  if (!allowed) return { ok: false, error: "That line is gone." };
 
   // One shot per line per photographer, read off the INDEXED columns.
   // AuditLog has (actorDiscordUserId, actionType, turnId) and (actionType);
@@ -265,43 +243,43 @@ export async function photographRow(seq) {
     where: { actorDiscordUserId: me.discordUserId, actionType: PHOTO_ACTION },
     select: { details: true },
   });
-  const wanted = String(row.seq);
+  const wanted = String(key);
   if (mine.some((entry) => String(entry.details?.seq ?? "") === wanted)) {
     return { ok: false, error: "You already have that shot." };
   }
 
-  const subject = await prisma.character.findUnique({
-    where: { id: row.characterId },
-    select: EXAMINE_SUBJECT_SELECT,
+  // Only what the audit row files, plus the one refusal examineRow cannot
+  // word for itself: it returns a bare null for your own line, and "point it
+  // at somebody else" is worth more than "that line is gone". Everything else
+  // about the row — the place, the floor, the kind, the speaker — is its call.
+  const row = await prisma.archiveEntry.findUnique({
+    where: { seq: key },
+    select: { placeKey: true, characterId: true },
   });
-  if (!subject) return { ok: false, error: "That line is gone." };
+  if (!row?.characterId) return { ok: false, error: "That line is gone." };
+  if (row.characterId === character.id) return { ok: false, error: "Point it at somebody else." };
 
-  // The hood the ROOM SAW, which outlives the hood they are wearing now: a
-  // print filed under a real name nobody present ever heard would be a
-  // permanent unmasking of somebody who spoke masked.
-  const hooded = row.concealedAlias != null;
-
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
-  // A Leader/Treasurer of the subject's own faction reads their ⬢, the same
-  // seat the readout gives 🔍. Nothing else of the viewer's sight survives —
-  // `viewerTags: []` and an empty `satisfied` are what "a lens has no medical
-  // training" means, and without them a surgeon's photograph would launder
-  // their diagnosis into whoever they handed the print to.
-  const officer =
-    !hooded && subject.factionId
-      ? (await getMyFactionRole(prisma, me.discordUserId, subject.factionId)).isOfficer
-      : false;
-
-  const readout = examineReadout({
-    subject: hooded ? { ...subject, concealed: true } : subject,
-    viewerTags: [],
-    satisfied: new Set(),
-    openTurnNumber: openTurn?.number,
-    lastDesire: null,
-    viewerFactionId: character.factionId ?? null,
-    viewerIsOfficer: officer,
-    wasConcealedAs: hooded ? row.concealedAlias : null,
-  });
+  // The shot itself is the ordinary look, through the one path every look in
+  // the game takes (db/lib/examineRow.js). This used to be a second copy of
+  // that — its own row fetch, its own place gate, its own subject load, its
+  // own examineReadout — and the copies had already drifted twice over: it
+  // decided a hood by `concealedAlias != null` rather than wasHooded(), so a
+  // forced name photographed as an impoverished hood here and as an ordinary
+  // read in Discord; and its sight gate was Blind alone where the eye's is the
+  // full examineBlock, so a nearsighted player could not look but could
+  // photograph. Framing a shot is something you do by eye, and now it is
+  // gated exactly as 🔍 and 📸 are.
+  //
+  // `bystander: true` is what makes it a LENS rather than a person: no
+  // doctor's eye, no Seductive, no Thanati sight. Without it a surgeon's
+  // photograph would carry their diagnosis to whoever they handed the print
+  // to, which is the one way that gate could be laundered.
+  const viewer = await prisma.character.findUnique({ where: { id: character.id }, select: VIEWER_SELECT });
+  const result = await examineRow(prisma, viewer, key, { bystander: true });
+  if (!result) return { ok: false, error: "That line is gone." };
+  if (result.blocked) return { ok: false, error: result.blocked };
+  const readout = result.readout;
+  const hooded = readout.concealed;
 
   // No transaction: nothing is spent, so there is nothing that has to be
   // atomic with the print — and mintPhoto's collision retry cannot run inside
@@ -309,7 +287,7 @@ export async function photographRow(seq) {
   const photo = await mintPhoto(prisma, character.id, {
     subject: readout.name,
     caption: photoCaption(readout),
-    subjectCharacterId: subject.id,
+    subjectCharacterId: row.characterId,
   });
 
   // Written only once the print exists, so a failed mint leaves the shot
@@ -319,7 +297,7 @@ export async function photographRow(seq) {
       actorDiscordUserId: me.discordUserId,
       actionType: PHOTO_ACTION,
       targetCharacterId: row.characterId,
-      details: { seq: String(row.seq), placeKey: row.placeKey, hooded, photoTagId: photo.id, photoName: photo.name },
+      details: { seq: wanted, placeKey: row.placeKey, hooded, photoTagId: photo.id, photoName: photo.name },
     },
   });
 
@@ -1597,6 +1575,11 @@ export async function moveContext() {
     // Named, not summed: the number is the coefficient's cousin and stays out.
     tools: rate.ok ? (rate.tools ?? []).map((tool) => tool.name).filter(Boolean) : [],
     refusal: rate.ok ? null : (rate.reason ?? null),
+    // The Godard Factory floor, where a day pays in cubes and the four yield
+    // words above describe nothing (db/lib/refinery.js, FACTORY.md). The same
+    // sentence the DM gets afterwards, shared from db/lib so the two faces
+    // cannot drift. Null everywhere else, which is what the dialog branches on.
+    refining: rate.ok && rate.refinery ? REFINERY_NOTE : null,
   };
 }
 
@@ -1683,7 +1666,7 @@ export async function gmThread({ beforeId = null } = {}) {
 const TO_GMS_WINDOW_MS = 60_000;
 const TO_GMS_PER_WINDOW = 12;
 
-export async function sendToGms(content) {
+export async function sendToGms(content, clientNonce) {
   const me = await account();
   if (me.error) return { ok: false, error: me.error };
   const text = typeof content === "string" ? content.trim() : "";
@@ -1702,12 +1685,30 @@ export async function sendToGms(content) {
   });
   if (recent >= TO_GMS_PER_WINDOW) return { ok: false, error: "Slow down a moment." };
 
+  // The composer's own id for this line. It is what retires the pending row
+  // in DmPane, and a re-send under the same nonce can only find the row that
+  // is already here — the same treatment the GM's side of the conversation
+  // gets (PLAYER-DESK.md §5).
+  const nonce = clientNonce ? String(clientNonce).trim().slice(0, 64) : null;
+  if (nonce) {
+    const already = await prisma.directMessage.findFirst({
+      // A nonce is a posted value, not proof of who posted it — scope the
+      // lookup to this player's own inbound row so a guessed/replayed nonce
+      // can never hand back somebody else's DirectMessage (CLAUDE.md: never
+      // trust a posted id).
+      where: { clientNonce: nonce, discordUserId: me.discordUserId, direction: "INBOUND" },
+      select: PLAYER_DM_SELECT,
+    });
+    if (already) return { ok: true, row: playerDmRow(already) };
+  }
+
   const row = await prisma.directMessage.create({
     data: {
       discordUserId: me.discordUserId,
       direction: "INBOUND",
       content: text,
       source: "player",
+      clientNonce: nonce,
       meta: { via: "play" },
     },
     select: PLAYER_DM_SELECT,

@@ -14,8 +14,10 @@
 // requiring it back would resolve to a partial (prisma-less) exports object.
 // Deliberately NOT spread into the @lifeweb/db barrel — require it by path.
 
+const { Prisma } = require("@prisma/client");
 const { notifyFeed } = require("./feedNotify");
 const { hoodToken } = require("./whosHere");
+const { loadPresentedState } = require("./examineSnapshot");
 
 // The columns the live feed needs off a row, and nothing else. Kept beside
 // feedRowShape below so the two never drift.
@@ -241,9 +243,38 @@ async function resolveTurn(prisma, turn) {
 // `sourceDiscordMessageId`. safely() would swallow it and the second post would
 // go out anyway. Every other caller keeps the swallow — an archive write must
 // never be the thing that breaks a turn pass.
+// What the room could see of the speaker, for the freeze this row carries.
+//
+// The caller usually supplies it — db/lib/say.js builds it out of the same
+// query that resolves the identity, so the proxy path pays nothing extra. When
+// it does not, this loads it, so the invariant is one sentence: EVERY message
+// row with a character and a place carries a snapshot.
+//
+// The placeKey guard is the same rule db/lib/examineRow.js reads by: a row with
+// no place can never carry a look, so freezing one would be pure waste.
+//
+// Never allowed to fail the send. The proxy calls with `rethrow: true` and a
+// message it loses is lost for good, while a snapshot it loses just degrades
+// that line to the live read it would have had anyway.
+async function resolvePresentedState(prisma, entry) {
+  if (entry.presentedState !== undefined) return entry.presentedState;
+  if (!entry.character?.id || !entry.placeKey) return null;
+  try {
+    const { state } = await loadPresentedState(prisma, entry.character.id);
+    return state;
+  } catch (err) {
+    console.error("Presented-state snapshot failed:", err);
+    return null;
+  }
+}
+
 async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
   const run = async () => {
-    const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
+    const [turn, gameId, presentedState] = await Promise.all([
+      resolveTurn(prisma, entry.turn),
+      currentGameId(prisma),
+      resolvePresentedState(prisma, entry),
+    ]);
     const row = await prisma.archiveEntry.create({
       data: {
         kind: "MESSAGE",
@@ -257,6 +288,10 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         characterName: entry.character?.name ?? null,
         concealedAlias: entry.concealedAlias ?? null,
         presentedAvatarPath: entry.presentedAvatarPath ?? null,
+        // The third frozen column. DbNull rather than null is how a Json
+        // column is told to hold a SQL NULL — a bare null is the other kind of
+        // nothing on a Json field, and "not frozen" is the one meant here.
+        presentedState: presentedState ?? Prisma.DbNull,
         content: entry.content ?? "",
         discordMessageId: entry.discordMessageId ?? null,
         // The player's original message, when one produced this row. The

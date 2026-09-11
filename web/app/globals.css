@@ -3706,8 +3706,12 @@ input[type="radio"]:disabled {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 1rem;
-  max-width: 52rem;
-  margin: 0 auto;
+  /* No max-width. This used to cap at 52rem and centre itself, which was a
+     reading measure for a full-page column — but the desks' middle column is
+     already narrower than that at every tier, so the cap never bit and the
+     `margin: 0 auto` only ever centred a card in a column it already filled.
+     It DID bite the one place the class escaped to a wide surface, leaving a
+     rounded bubble in the middle of the page. The column is the measure. */
 }
 
 .desk-move-text {
@@ -4522,6 +4526,19 @@ label.chip {
   grid-template-columns: 19rem minmax(0, 1fr) 22rem;
 }
 
+/* The roster, while a conversation is drawn over it (DeskMiddle.js). It stays
+   mounted so its search, filters, sort and bulk selection survive — this
+   wrapper only decides whether it is on screen. display:contents keeps the
+   roster's own <main class="desk-main"> as the grid column; [hidden] takes the
+   wrapper and everything under it out of layout altogether. */
+.desk-hideable {
+  display: contents;
+}
+
+.desk-hideable[hidden] {
+  display: none;
+}
+
 /* The person view is the conversation, full width of the middle column. It is
    still its own element rather than .desk-convo directly, because the route's
    loading.js paints the same wrapper. */
@@ -4623,8 +4640,12 @@ label.chip {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
+/* Hover is NOT selection. Both used to paint --field-bg, so dragging a
+   pointer down a hundred-row rail lit up fake selections behind the real one.
+   Selection keeps --field-bg plus its inset accent bar; hover gets the raised
+   surface instead — visible, and never confusable with the open row. */
 .desk-body--players .desk-queue-row:hover {
-  background: var(--field-bg);
+  background: var(--surface-raised);
 }
 
 /* Unread reads bright, the way an unread channel does: full-strength name,
@@ -4676,8 +4697,11 @@ label.chip {
   color: var(--text);
 }
 
+/* Handled is a done mark, not a highlight: it goes positive, and only the
+   pin keeps the accent. Three marks sharing one colour meant a GM had to read
+   the glyph itself to tell pinned from handled from muted. */
 .desk-queue-done[aria-pressed="true"] {
-  color: var(--accent-text);
+  color: var(--positive);
 }
 
 .desk-queue-mute {
@@ -4695,8 +4719,11 @@ label.chip {
   color: var(--text);
 }
 
+/* Muted is the opposite of accented — it says "out of the working set", so
+   it reads as struck-through text at full strength rather than lighting up. */
 .desk-queue-mute[aria-pressed="true"] {
-  color: var(--accent-text);
+  color: var(--text);
+  text-decoration: line-through;
 }
 
 /* A revealed muted row: still readable, visibly out of the working set. The
@@ -4811,6 +4838,24 @@ label.chip {
    just isn't confirmed, and a failed send removes it outright. */
 .dm-row[data-pending] {
   opacity: 0.55;
+}
+
+/* A send that did not go. It keeps its place in the thread rather than being
+   swept back into the composer, so the quiet danger mark is what says it is
+   not delivered. */
+.dm-row[data-failed] .dm-row-body {
+  border-left: 2px solid var(--danger);
+  padding-left: 0.5rem;
+}
+
+.dm-row-failed {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--danger);
 }
 
 .dm-row-gutter {
@@ -5113,6 +5158,134 @@ label.chip {
   /* The transcript stops being its own scroll region once the page scrolls. */
   .desk-convo-thread {
     overflow-y: visible;
+  }
+}
+
+/* ── The two GM desks get narrower (DESIGN-SYSTEM.md §"Breakpoints") ─────
+   Everything below is /gm/turns and /gm/players only. /gm/audit keeps its
+   three columns at every width: its inspector is a different component with
+   no toggle, and hiding it there would put the row detail out of reach.
+
+   These blocks sit AFTER .desk-body--players' own declaration on purpose. A
+   media query adds no specificity, so a rule for that class written earlier
+   in the file would simply lose to it — which is the trap the @720 block two
+   screens up already carries a comment about.
+
+   Two chrome pieces are drawn by the desks at every width and revealed here:
+   the header's Inspector toggle and the middle column's way back. */
+.desk-inspector-toggle,
+.desk-back,
+.desk-inspector-overlay-bar {
+  display: none;
+}
+
+/* A laptop, a half-screen window, a tablet held sideways: two columns and an
+   overlay. Three columns of 19 + 22rem leave the middle one about 40px wide
+   at 768 — single letters stacked down a strip, which is not a workspace.
+   The inspector is the column to give up, because it is the one a GM opens
+   deliberately: a sheet pulled up beside the work, not the work. */
+@media (max-width: 1024px) {
+  .desk-body--turns,
+  .desk-body--players {
+    grid-template-columns: 19rem minmax(0, 1fr);
+  }
+
+  .desk-inspector-toggle {
+    display: inline-flex;
+  }
+
+  .desk-body--turns .desk-inspector,
+  .desk-body--players .desk-inspector {
+    display: none;
+  }
+
+  /* Fixed rather than absolute inside .desk-body, so it is the same panel
+     whether the shell is a fixed 100dvh (above 720) or an auto-height
+     scrolling column (below it), and so it needs no positioned ancestor —
+     .desk-shell's own comment forbids giving it one.
+
+     z-index 40, deliberately, and it is the ONE stacking context this family
+     has. Modal.js renders in-tree, so a dialog opened from inside the
+     inspector is trapped at this element's level: 40 clears the mobile nav
+     rail's 30, which is exactly the bug .desk-shell and .desk-body--ops both
+     warn about. Anything lower would paint desk dialogs under the bottom bar. */
+  .desk-body--turns .desk-inspector[data-open],
+  .desk-body--players .desk-inspector[data-open] {
+    display: flex;
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(22rem, 100%);
+    /* The @720 block caps a STACKED inspector at 45vh. An overlay is not
+       stacked, and a half-height floating panel reads as broken. */
+    max-height: none;
+    z-index: 40;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    box-shadow: var(--e-3);
+    overflow-y: auto;
+  }
+
+  .desk-inspector[data-open] .desk-inspector-overlay-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* One screen at a time. Under ~800px a 19rem rail beside the work leaves the
+   work about 300px, and stacking the two instead (what the @720 block did)
+   makes a column whose bottom half nobody scrolls to. So the queue and the
+   open row take turns: pick something and the rail steps aside, and the way
+   back is a full-width button at the top of the work.
+
+   The player desk only hides its RAIL here. Its middle column is the roster,
+   which is content in its own right, and DeskMiddle already swaps the roster
+   for the conversation (.desk-hideable[hidden]) — so :has() reads that same
+   switch rather than duplicating the state. */
+@media (max-width: 800px) {
+  .desk-body--turns,
+  .desk-body--players {
+    grid-template-columns: 1fr;
+  }
+
+  /* The 45vh cap in the @720 block is for a rail stacked above the work.
+     Here it is the only thing on screen, so it takes the height. */
+  .desk-body--turns .desk-rail {
+    max-height: none;
+  }
+
+  .desk-body--turns[data-selected] .desk-rail,
+  .desk-body--players:has(.desk-hideable[hidden]) .desk-rail {
+    display: none;
+  }
+
+  /* Nothing picked: the queue IS the desk, and an empty work column under it
+     is just a second screenful of "pick a Move from the queue". */
+  .desk-body--turns:not([data-selected]) .desk-main {
+    display: none;
+  }
+
+  .desk-back {
+    display: inline-flex;
+  }
+
+  .desk-body--turns .desk-back {
+    margin: 0.75rem 0.75rem 0;
+  }
+}
+
+/* Touch minimums, on the pointer rather than the width — a 1024px tablet is
+   the case the width test misses, and the case this tier is most for. The
+   @720 block has its own coarse-pointer twin above; these are the controls
+   this tier adds. */
+@media (pointer: coarse) {
+  .desk-inspector-toggle,
+  .desk-back {
+    min-height: 2.75rem;
+    padding-block: 0.5rem;
   }
 }
 

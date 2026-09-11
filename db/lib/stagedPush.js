@@ -13,6 +13,7 @@ const { addResources, applyMoveEffects, describeMoveEffects } = require("./moveE
 const { formatRangeExpression } = require("./resourceDelta");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
+const { ensureDeliveries } = require("./stagedDelivery");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -351,6 +352,11 @@ async function runStagedPushPass(prisma, turn) {
 
   const privateDeliveries = [];
   const publicPosts = [];
+  // The Delivery rows are written HERE, at selection, not at send time. That
+  // is what makes the sends resumable in the first place: a push that dies
+  // after the first DM finds the other rows already sitting there PENDING,
+  // and the one it managed SENT. See db/lib/stagedDelivery.js.
+  const toEnsure = [];
   for (const message of unsent) {
     if (message.kind === "PUBLIC") {
       publicPosts.push({
@@ -380,6 +386,21 @@ async function runStagedPushPass(prisma, turn) {
       recipients,
       createdByDiscordUserId: message.createdByDiscordUserId,
     });
+    toEnsure.push({ stagedMessage: message, recipients });
+  }
+
+  // A PUBLIC row is NOT pre-written here. deliverPublic calls ensureDeliveries
+  // itself and is the only thing that ever touches that row, so writing it
+  // twice bought nothing — and the pre-write is only worth its query for the
+  // PRIVATE fan-out, where it is what makes a half-finished push resumable.
+  for (const each of toEnsure) {
+    // Best-effort: a push whose delivery rows could not be written still
+    // delivers (deliverPrivate calls ensureDeliveries itself and is idempotent
+    // on the unique key) — this only moves the write earlier, off the clock a
+    // player is waiting on.
+    await ensureDeliveries(prisma, each).catch((err) =>
+      console.error(`Failed to prepare deliveries for ${each.stagedMessage.id}:`, err),
+    );
   }
 
   return {

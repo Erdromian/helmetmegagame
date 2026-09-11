@@ -5,19 +5,21 @@ import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
 import { railKindSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
-import DeskHeader from "@/app/components/DeskHeader";
+import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import InboxPoller from "./InboxPoller";
 import InboxStream from "./InboxStream";
 import InboxStreamChip from "./InboxStreamChip";
 import DeskInboxCounts from "./DeskInboxCounts";
 import { deployVersion } from "@/lib/deployVersion";
-import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
+import { DeskStaleChip } from "@/app/components/useDeskVersion";
+import { DeskStaleRefreshGate } from "@/app/components/useRefresh";
 import InspectorHost from "./InspectorHost";
 import DeskMiddle from "./DeskMiddle";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import BulkMessageButton from "./BulkMessageButton";
+import { InspectorToggle } from "@/app/components/useInspectorOverlay";
 
 // The player desk's server half. Owns the rail's data; the child route
 // loads its own conversation. The rail is the union of "everyone with a
@@ -97,7 +99,7 @@ export default async function PlayerDeskLayout({ children }) {
   const clock = await prisma.$queryRaw`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`;
   const rowsAsOfMs = Number(clock[0].nowMs);
 
-  const [latestMessages, unreadRows, everDmedUserIds, claims] = await Promise.all([
+  const [latestMessages, unreadRows, everDmedUserIds, claims, reads] = await Promise.all([
     prisma.$queryRaw`
       SELECT DISTINCT ON ("discordUserId")
         "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
@@ -131,11 +133,19 @@ export default async function PlayerDeskLayout({ children }) {
         ],
       },
     }),
+    // This GM's read cursors. The rail does not draw them; the client uses
+    // them to decide when its own optimistic "read" has been overtaken by the
+    // server and can be dropped (liveInbox.js#reconcileReadOverrides).
+    prisma.conversationRead.findMany({
+      where: { gmDiscordUserId: session.discordUserId },
+      select: { playerDiscordUserId: true, lastReadAt: true },
+    }),
   ]);
 
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));
   const claimByUser = new Map(claims.map((c) => [c.playerDiscordUserId, c.claimedByDiscordUserId]));
+  const lastReadByUser = new Map(reads.map((r) => [r.playerDiscordUserId, r.lastReadAt.getTime()]));
   const mutedUserIds = new Set(claims.filter((c) => c.mutedAt).map((c) => c.playerDiscordUserId));
   const handledAtByUser = new Map(
     claims.filter((c) => c.handledAt).map((c) => [c.playerDiscordUserId, c.handledAt.getTime()]),
@@ -225,6 +235,7 @@ export default async function PlayerDeskLayout({ children }) {
       // Whether a thread exists, not how long — avoids a per-user COUNT scan.
       hasConversation: latestByUser.has(discordUserId),
       unreadCount: unreadByUser.get(discordUserId) ?? 0,
+      lastReadAtMs: lastReadByUser.get(discordUserId) ?? 0,
       claimedByDiscordUserId: claimByUser.get(discordUserId) ?? null,
       // Handled only while the mark is at or after the last message; a new
       // inbound DM outruns it and the row is awaiting again.
@@ -251,17 +262,15 @@ export default async function PlayerDeskLayout({ children }) {
   return (
     // Skips a hard-reload across the build boundary once deploy latches the
     // stale flag — same as /gm/turns.
-    <DeskStaleRefreshGate>
+    <DeskStaleRefreshGate version={deployVersion()}>
     <div className="desk-shell">
       <DeskHeader
         title="Players"
         meta={
           <>
-            <span className="chip">
-              {openTurn
-                ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}`
-                : "No turn open"}
-            </span>
+            {/* Same rank as /gm/turns: turn and lock are chips, the counts
+                below are one muted run (DeskInboxCounts.js). */}
+            <DeskTurnChip turn={openTurn} />
             <LockChip />
             <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
             <InboxStreamChip />
@@ -270,6 +279,7 @@ export default async function PlayerDeskLayout({ children }) {
         actions={
           <>
             <DeskStaleChip />
+            <InspectorToggle />
             <BulkMessageButton characters={bulkCharacters} />
           </>
         }

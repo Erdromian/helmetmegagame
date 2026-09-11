@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useTransition } from "react";
 import StatusPill from "@/app/components/StatusPill";
-import { useRefresh } from "@/app/components/useRefresh";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import FormError from "@/app/components/FormError";
 import GmAvatar from "@/app/components/GmAvatar";
@@ -11,8 +10,9 @@ import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
-import { mutationErrorMessage } from "@/app/components/useDeskVersion";
-import { chunkCount, effectSummary, effectState, messageState, tagNameLookup, truncate } from "./stagedFormat";
+import { applyDeskPatch } from "./deskStore";
+import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
+import { chunkCount, effectSummary, effectState, deliveryNotes, messageState, tagNameLookup, truncate } from "./stagedFormat";
 
 // The staged-row lists the desk and the tray share: every row shows what it
 // will do at the push, who queued it, and edit/delete — which stay live right
@@ -32,7 +32,6 @@ export function StagedEffectRow({
   batchCount,
   gmProfiles,
 }) {
-  const [refresh] = useRefresh();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -61,11 +60,11 @@ export function StagedEffectRow({
     if (!ok) return;
     startTransition(async () => {
       try {
-        const res = await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id });
+        const res = noteActionVersion(await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id }));
         if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
-        refresh();
-      } catch {
-        setDeleteError(mutationErrorMessage());
+        applyDeskPatch(res.patch);
+      } catch (err) {
+        setDeleteError(mutationErrorMessage(err));
       }
     });
   }
@@ -124,9 +123,9 @@ export function StagedEffectRow({
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
-          onDone={() => {
+          onDone={(patch) => {
             setEditing(false);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setEditing(false)}
         />
@@ -136,7 +135,6 @@ export function StagedEffectRow({
 }
 
 export function StagedMessageRow({ message, roster, presenceZones, onInspect, gmProfiles }) {
-  const [refresh] = useRefresh();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -148,7 +146,13 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   // The push writes DbNull on a clean send, but an empty array would be
   // truthy — check for actual entries rather than presence.
   const failureCount = Array.isArray(message.deliveryFailures) ? message.deliveryFailures.length : 0;
-  const canResend = message.sent && failureCount > 0;
+  const deliveryRows = Array.isArray(message.deliveries) ? message.deliveries : [];
+  const notes = deliveryNotes(message);
+  // A Delivery row that is FAILED is the retryable thing. The blob stays the
+  // answer for a message pushed before the table existed.
+  const canResend =
+    message.sent &&
+    (deliveryRows.length ? deliveryRows.some((d) => d.state === "FAILED") : failureCount > 0);
 
   const recipientNames =
     message.kind === "PUBLIC"
@@ -166,11 +170,11 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
     if (!ok) return;
     startTransition(async () => {
       try {
-        const res = await deleteStagedMessage({ stagedMessageId: message.id });
+        const res = noteActionVersion(await deleteStagedMessage({ stagedMessageId: message.id }));
         if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
-        refresh();
-      } catch {
-        setDeleteError(mutationErrorMessage());
+        applyDeskPatch(res.patch);
+      } catch (err) {
+        setDeleteError(mutationErrorMessage(err));
       }
     });
   }
@@ -179,11 +183,11 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
     setResendError(null);
     startTransition(async () => {
       try {
-        const res = await resendStagedMessage({ stagedMessageId: message.id });
+        const res = noteActionVersion(await resendStagedMessage({ stagedMessageId: message.id }));
         if (!res?.ok) return setResendError(res?.error ?? "Something went wrong.");
-        refresh();
-      } catch {
-        setResendError(mutationErrorMessage());
+        applyDeskPatch(res.patch);
+      } catch (err) {
+        setResendError(mutationErrorMessage(err));
       }
     });
   }
@@ -224,12 +228,14 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
           <GmAvatar profile={gmProfiles?.[message.createdByDiscordUserId]} size={13} />
           by {message.createdByUsername}
           {message.turnNumber != null ? ` · turn ${message.turnNumber}` : ""}
-          {message.deliveryFailures
-            ? ` · failed: ${(Array.isArray(message.deliveryFailures) ? message.deliveryFailures : [])
-                .map((f) => f.name ?? f.error)
-                .join(", ")}`
-            : ""}
         </p>
+        {notes.length > 0 && (
+          <ul className="text-xs text-muted">
+            {notes.map((note) => (
+              <li key={note}>{note}</li>
+            ))}
+          </ul>
+        )}
         {resendError && <p className="form-error">{resendError}</p>}
         {deleteError && <FormError>{deleteError}</FormError>}
       </div>
@@ -256,9 +262,9 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
           <PublicComposer
             existing={message}
             zones={presenceZones}
-            onDone={() => {
+            onDone={(patch) => {
               setEditing(false);
-              refresh();
+              applyDeskPatch(patch);
             }}
             onCancel={() => setEditing(false)}
           />
@@ -266,9 +272,9 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
           <MessageComposer
             existing={message}
             roster={roster}
-            onDone={() => {
+            onDone={(patch) => {
               setEditing(false);
-              refresh();
+              applyDeskPatch(patch);
             }}
             onCancel={() => setEditing(false)}
           />

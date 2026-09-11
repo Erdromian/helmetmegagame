@@ -270,8 +270,8 @@ stands."*
 |---|---|
 | ❌ | Soft-deletes the row; `bot/src/lib/feedOutbox.js` removes the Discord message. Owner, or a GM (who is not held to the window). |
 | ✏️ | Edit, via a DM button and a modal — see below. The modal writes the **row**, through `editSpeech`, and the outbox carries the change to Discord. Owner only. |
-| 🔍 | Inspect embed — see §5 and `FACTIONS.md` §4. Same readout as **Look at** on `/character` (§4a). |
-| 📸 / 📷 | The same readout, frozen onto a **Photo** tag in the reactor's hands. Needs an Instant Camera, which is not spent. `COMMANDS.md` §6. |
+| 🔍 | Inspect embed, as of that line — see §5 and `FACTIONS.md` §4. Same readout as **Look at** on `/character` (§4a). |
+| 📸 / 📷 | The same readout, as of that line, frozen onto a **Photo** tag in the reactor's hands. Needs an Instant Camera, which is not spent. `COMMANDS.md` §6. |
 | ⭐ | Saves a personal `Note` — see §7. |
 | 🌫️ | GM-only fog. |
 
@@ -302,12 +302,45 @@ lets a hooded line carry an eye at all — the server resolves the speaker, so
 the page can offer the look without ever being told who is under the hood, and
 the hood token in `db/lib/whosHere.js` is no longer what a look is keyed on.
 
-Four surfaces, one implementation: 🔍 and 📸 in Discord, the eye on a row in
-the web feed, and the eye in the HERE column, which points at the last line it
-watched that person say. All four read a hood the same impoverished way (§5),
-all four are free, spend no Move, file no `AuditLog` row and tell the subject
-nothing. `web/app/(app)/character/examineActions.js` is the sheet's half, and
-its picker lists who you have heard rather than who is nearby.
+**And it answers for the whole of that moment, not just the identity.** The
+name, the face, the appearance, the gear, the wounds, the Role and the ⬢ all
+come off `ArchiveEntry.presentedState`, frozen at send time beside the alias
+and the face (`db/lib/examineSnapshot.js`). One rule decides every question
+about what is frozen and what is not:
+
+> **Character-side frozen. Catalog-side live. Viewer-side live.**
+
+What the room could *see* of somebody is frozen. What a tag *is* — its name,
+its armour value, what it costs to treat — is read live off `Tag`, because
+that is a rule rather than a disguise and a rebalance should reach an old line.
+And nothing of the looker's own is ever frozen: the doctor's eye, Seductive,
+the officer's seat and a Thanati's sight are faculties you have *now*.
+
+A row written before that column falls back to the live character, which is
+what every row did before. It is never backfilled — stamping today's state onto
+yesterday's line is the bug, not the fix.
+
+A look also reaches back exactly as far as Chat itself renders, and no further
+(`db/lib/feedWipe.js`). A seq is a guessable number and these are server
+actions, so without that floor a player could hand one any line ever said in a
+place they can currently read — the whole history of a radio net, which is
+audible from anywhere.
+
+Five surfaces, one implementation: 🔍 and 📸 in Discord, the eye on a row in
+the web feed, the eye in the HERE column, which points at the last line it
+watched that person say, and the web's own camera. All five read a hood the
+same impoverished way (§5), all five are free, spend no Move, file no
+`AuditLog` row and tell the subject nothing.
+`web/app/(app)/character/examineActions.js` is the sheet's half, and its picker
+lists who you have heard rather than who is nearby.
+
+The web camera was the fifth late, and was a second copy until then — its own
+row fetch, its own place gate, its own subject load, its own readout. The
+copies had drifted twice over: it told a hood from a forced name by whether
+`concealedAlias` was set rather than by `wasHooded()`, so a Disguise Kit
+photographed as an impoverished hood on the web and as an ordinary read in
+Discord; and its sight gate was Blind alone where the eye's is the full
+`examineBlock`, so a nearsighted player could not look but could photograph.
 
 **✏️ is a button and a modal, and writes no inbound DM at all**
 (`bot/src/lib/editModal.js`). A reaction carries no interaction token, so a
@@ -655,13 +688,31 @@ only where you are standing, because you did read it. Sightings die with the
 turn, and nothing stores them: they are two queries over `ArchiveEntry`, which
 already froze both halves of a presented identity at send time.
 
-**What you saw is frozen, and that is the whole of it.** The name, the face and
-the identity Examine answers for all come from the LAST line you saw, never
-from live state. Somebody who chats bare-faced and then pulls a mask on in
-private is still listed under their own name with their own face until the turn
-rolls — a hood put on after you heard them speak does not protect them from
-you. It follows that a sighting decides which of `whosHere`'s two lists
-somebody lands in, rather than their concealment now.
+**What you saw is frozen, and that is the whole of it.** The name, the face,
+the appearance, the gear and everything else Examine answers for all come from
+the LINE you saw, never from live state. Somebody who chats bare-faced and then
+pulls a mask on in private is still listed under their own name with their own
+face until the turn rolls — a hood put on after you heard them speak does not
+protect them from you. It follows that a sighting decides which of `whosHere`'s
+two lists somebody lands in, rather than their concealment now.
+
+That sentence used to be true of the name and the face and false of everything
+else, which is how the hole players found worked: a Thanati could chat
+bare-faced in Town, walk two zones off, robe up and start a rite, and anyone
+who scrolled back to the Town line and clicked the eye saw the robes. The look
+read the *character*, live, and the character had moved on. Now the row carries
+what the room could see of him (`ArchiveEntry.presentedState`, §4a) and the
+look reads that instead. Gear picked up after the fact no longer appears on a
+line said before it, the same way a mask does not.
+
+Mentions follow the same rule, and used to break it in miniature: a `{char:…}`
+kept the name the row froze, but the little portrait beside it was drawn from a
+directory rebuilt live, which dropped anybody currently masked. So the face on
+an old mention winked out the moment its subject pulled a hood on anywhere in
+the world and came back when it came off — a mask detector readable by anybody
+who could see any line that ever named them. Nobody is dropped from that list
+now (`web/lib/mentionDirectory.js`); the frozen name in the token is what
+decides whether a face is drawn.
 
 Four states, and only the eye's absence marks the difference in the column:
 

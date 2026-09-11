@@ -24,12 +24,6 @@ import { peekSeen, markSeen } from "./seenStore";
 // round-trips through the hash, but it has no feed, no seq and no channel.
 // What lives here is the page fetch, the reply, and the seen mark.
 
-// How long a pending row waits to be matched by its confirmed twin before it
-// is dropped as its own thing. The stream (the trigger's NOTIFY) usually
-// beats the action's answer, so the real row can already be in the store when
-// the optimistic one is still drawn.
-const MATCH_WINDOW_MS = 30_000;
-
 let optimisticSeq = 0;
 
 // Re-exported so every existing `from "./DmPane"` importer is unchanged.
@@ -108,18 +102,13 @@ export default function DmPane({ self, drawers = null }) {
   }, [dm.rows]);
 
   // A pending row retires the moment its confirmed twin shows up, whichever
-  // path brought it — the stream usually wins.
+  // path brought it — the stream usually wins. Paired by the nonce the send
+  // carried, not by text: writing "ok" twice used to retire both pending
+  // lines against the first row that came back.
   const messages = useMemo(() => {
     if (pending.length === 0) return dm.rows;
-    const live = pending.filter(
-      (p) =>
-        !dm.rows.some(
-          (row) =>
-            row.direction === "INBOUND" &&
-            row.content === p.content &&
-            Math.abs(Date.parse(row.createdAt) - Date.parse(p.createdAt)) < MATCH_WINDOW_MS,
-        ),
-    );
+    const settled = new Set(dm.rows.map((row) => row.clientNonce).filter(Boolean));
+    const live = pending.filter((p) => !settled.has(p.clientNonce));
     return live.length === 0 ? dm.rows : [...dm.rows, ...live];
   }, [dm.rows, pending]);
 
@@ -132,8 +121,13 @@ export default function DmPane({ self, drawers = null }) {
     if (!content || content.length > PLAYER_DM_MAX_LENGTH || sending) return;
     setError(null);
     const tempId = `optimistic-${(optimisticSeq += 1)}`;
+    const nonce =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `n-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
     const optimistic = {
       id: tempId,
+      clientNonce: nonce,
       direction: "INBOUND",
       content,
       source: "player",
@@ -146,7 +140,7 @@ export default function DmPane({ self, drawers = null }) {
     setPending((prev) => [...prev, optimistic]);
     setDraft("");
     startSending(async () => {
-      const result = await sendToGms(content);
+      const result = await sendToGms(content, nonce);
       setPending((prev) => prev.filter((p) => p.id !== tempId));
       if (!result?.ok) {
         // The words come back into the box — unless the player has already

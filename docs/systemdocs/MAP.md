@@ -709,57 +709,43 @@ same numbers through `web/lib/travelCost.js#travelFoot` — extracted from
 costs — and Go calls the same `travelTo`, which re-derives every gate
 server-side regardless.
 
-**Picking a place twice goes there — inside your own zone**, on both surfaces,
-so an ordinary hop need not cross the board to the card and back. The second
-click on the node already picked *is* the Go button; anywhere you cannot go it
-still just unpicks. A real double-click works for the same reason and needs no
-code of its own — it arrives as two clicks, which pick and then go — which is
-why there is no `onDoubleClick` here to fight the 6px drag guard that stops a
-pan from registering as a pick.
+**Nothing travels on a gesture. Picking a node only picks it**, on both
+surfaces and every pointer, and the card's (or the strip's) **Go** is the only
+door onto `travelTo`. A second click on the place you already picked unpicks it
+on the map, and on the Travel panel leaves the strip where it is. A real
+double-click therefore picks and unpicks, which is why there is no
+`onDoubleClick` here to fight the 6px drag guard that stops a pan from
+registering as a pick, and why a double tap on this board no longer means *go*.
 
-**A zone crossing is not on that shortcut, and it asks first.** A second click
-on a crossing only re-picks, so the card's (or the strip's) **Go** is the only
-door out of the zone — and Go then opens the shared `useConfirm()` dialog,
-naming the zone, what the crossing spends, and how many people come with you.
-Both surfaces build that sentence from one place,
+**A zone crossing asks again on top of that.** Go opens the shared
+`useConfirm()` dialog, naming the zone, what the crossing spends, and how many
+people come with you. Both surfaces build that sentence from one place,
 `web/lib/travelCost.js#crossingConfirm`, for the same reason they share
 `travelFoot`.
 
-Why only a crossing: a hop inside the zone is free, immediate and walk-backable,
-and a dialog in front of it would be a toll on the commonest thing anyone does.
-A crossing is none of those — it spends a travel or the whole Move, it carries
-the escorted party, and it lands at once. The complaint that settled it was a
-player who double-clicked while reading the menu, crossed a zone he had not
-chosen, and took somebody with him.
+The second click used to be the Go button for a hop inside your own zone — one
+gesture instead of a trip across the plate to the card. Two complaints ended it.
+A player double-clicked while reading the menu, crossed a zone he had not chosen
+and took somebody with him, which took the shortcut off crossings; then on a
+phone, where the Travel panel is a drawer full of small nodes, a tap that landed
+on the node already chosen moved somebody with no sentence in front of it at
+all. What the strip says — the place, whether it spends your Move, how many
+people are with you — is worth one deliberate press, even for a free hop.
+
+**Enter is nobody's shortcut either.** The Travel panel's nodes are real
+`<button>`s, so Enter on a focused node is another pick; the map, whose rhombi
+are SVG `<g>` elements with no focus of their own, listens for nothing. Tab to
+**Go**. There is deliberately **no Escape**: on `/chat` the map sits in a Modal
+that already owns it.
 
 **Tapping the plate itself unpicks**, on both surfaces. A node's own handler
 owns its clicks and the drag guard still applies, so this is only ever a tap on
-open ground. It exists because the second tap on the node you picked was the
-only way out of a card, which on a phone left a description sitting over most
-of the board with nothing obvious to do about it.
+open ground. It is a second way out of a card, beside Cancel and the node's own
+second click, because on a phone a description sitting over most of the board
+with nothing obvious to do about it is a trap.
 
-**Not on a finger.** On a coarse pointer the second tap unpicks like any
-other and the card's Go is the only door — which is the same answer the
-crossing rule above now gives every pointer. A stray tap on a phone is easy;
-a deliberate press an inch away is not much to ask, and the sheet in §6e puts
-Go on screen the moment you pick, so there is nowhere to travel to. `canTravelTo` is untouched by this — it narrows a
-gesture, not the rule about where you may walk. It is also why there is no
-double-tap-to-zoom: on this board a double tap already means *go*.
-
-**Enter does the same** once something is picked — and, being the keyboard's
-half of that second click, it stops at a crossing too. On the Travel panel both
-halves are free: its nodes are real `<button>`s, so a click focuses one and Enter
-re-activates it, which is the second pick. The map has to spell it out — its
-rhombi are SVG `<g>` elements with no focus, and the Ways out list, which *is*
-real buttons, unmounts the moment you pick something — so `MapBoard` listens on
-the window, and stands aside for anything already focused. Enter on **Cancel**
-means cancel. There is deliberately **no Escape**: on `/chat` the map sits in a
-Modal that already owns it.
-
-`canTravelTo(node, here)` is the one predicate all three doors read, so a place
-can never travel on a gesture while its own card is showing a refusal. Go and
-Cancel are untouched — the gesture is a shortcut over them, never a way past
-them.
+`canTravelTo(node, here)` is the one predicate the board and the card read, so
+a place can never offer Go while its own card is showing a refusal.
 
 ### 6d. The plate
 
@@ -769,6 +755,12 @@ pattern, `docsPath()` rather than `__dirname`). A Location the table does not
 place is simply not drawn, rather than stacked on the origin. Surface nodes sit
 on the drawing; Caves and Depths are a schematic layer, since the plate draws no
 tunnels.
+
+`docs/assets/map-prototype.psci` is the ASCII-editable source for the plate,
+opened in [Playscii](http://vectorpoem.com/playscii/). The PNG beside it is an
+export, so a change to the map is made in the `.psci` and exported over the
+`.png` — editing the raster directly leaves the two out of step and the next
+export throws the edit away. Nothing at runtime reads the `.psci`.
 
 The art is a raster and never follows the theme — but it was drawn with exactly
 one accent in it, `#57a9bc`, the water, and that blue answered to nothing. So

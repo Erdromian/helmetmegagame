@@ -9,7 +9,6 @@ import { DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
-import DevSubNav from "../DevSubNav";
 
 // The tag catalog, with a Create dialog for GM-authored tags.
 //

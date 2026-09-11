@@ -17,6 +17,11 @@
 // The two queries it cannot do for you, being Prisma-free, are the subject's
 // last fulfilled Desire and the skill catalog behind the doctor's eye. Both
 // come in as arguments; see EXAMINE_SUBJECT_SELECT for the rest.
+//
+// `subject` is not always a row that was fetched. A look answers for the
+// MOMENT the line was said, so db/lib/examineRow.js usually hands this an
+// assembled subject (db/lib/examineSnapshot.js). Nothing here needs to know
+// which it got — the shape is the same either way, and that is the point.
 const { concealedLine } = require("./concealedIdentity");
 const { inRealFaction } = require("./factionConstants");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
@@ -42,6 +47,35 @@ const { revealedTags } = require("./torture");
 // The subject `select` both callers load. Kept here beside the reader so a
 // field this file starts reading can't be missing at one call site — the
 // failure mode is a silently absent embed field, not an error.
+// The TAG half, split out so a reader rebuilding a subject from a frozen
+// snapshot can fetch the same catalog columns off Tag directly
+// (db/lib/examineSnapshot.js). A tag's name, armour value and requirement are
+// RULES rather than disguise, so they are read live even for a look that
+// answers for a moment years gone — a rebalance should reach an old line.
+const EXAMINE_TAG_SELECT = {
+  name: true,
+  // The client resolves this against the catalog TagsProvider already
+  // ships, so the Examine readout can draw a hoverable TagChip without
+  // this select having to carry a whole tag row per line.
+  slug: true,
+  category: true,
+  inspectVisibility: true,
+  forcedName: true,
+  ...CONCEALMENT_TAG_FIELDS,
+  // The six formatTagRequirement() reads. It renders no ingredient
+  // line rather than throwing when requirementItems is missing, which
+  // is the quiet failure this shared select exists to prevent — and
+  // without requirementPerTurn a `turnsCost: 1/N` cure showed as a
+  // flat "1 turn" instead of its real fraction (review fix, M2).
+  requirementGambit: true,
+  requirementTurns: true,
+  requirementPerTurn: true,
+  requirementResources: true,
+  requirementItems: true,
+  requirementSkills: { select: { id: true, name: true } },
+  ...ARMOR_TAG_FIELDS,
+};
+
 const EXAMINE_SUBJECT_SELECT = {
   id: true,
   name: true,
@@ -57,31 +91,7 @@ const EXAMINE_SUBJECT_SELECT = {
   tags: {
     select: {
       equipped: true,
-      tag: {
-        select: {
-          name: true,
-          // The client resolves this against the catalog TagsProvider already
-          // ships, so the Examine readout can draw a hoverable TagChip without
-          // this select having to carry a whole tag row per line.
-          slug: true,
-          category: true,
-          inspectVisibility: true,
-          forcedName: true,
-          ...CONCEALMENT_TAG_FIELDS,
-          // The six formatTagRequirement() reads. It renders no ingredient
-          // line rather than throwing when requirementItems is missing, which
-          // is the quiet failure this shared select exists to prevent — and
-          // without requirementPerTurn a `turnsCost: 1/N` cure showed as a
-          // flat "1 turn" instead of its real fraction (review fix, M2).
-          requirementGambit: true,
-          requirementTurns: true,
-          requirementPerTurn: true,
-          requirementResources: true,
-          requirementItems: true,
-          requirementSkills: { select: { id: true, name: true } },
-          ...ARMOR_TAG_FIELDS,
-        },
-      },
+      tag: { select: EXAMINE_TAG_SELECT },
       expiresTurn: true,
     },
   },
@@ -253,4 +263,4 @@ function tortureReadout({ subject, openTurnNumber }) {
   };
 }
 
-module.exports = { EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire, tortureReadout };
+module.exports = { EXAMINE_TAG_SELECT, EXAMINE_SUBJECT_SELECT, examineReadout, canSeeDesire, tortureReadout };

@@ -17,7 +17,10 @@ const DEFAULT_TAB = "journal";
 // useTableState instances (one inside each child list) is what keeps this
 // page's paging and sorting honest — an interleaved single list was
 // considered and rejected during design for exactly that reason.
-export default function NotesBoard({ starred, journal, roster, currentTurnNumber }) {
+// `roster` is who the composer may OFFER — nobody currently presenting as
+// somebody else. `directory` is who a saved {char:…} may RESOLVE to, which is
+// everybody and deliberately blind to hoods (web/lib/mentionDirectory.js).
+export default function NotesBoard({ starred, journal, roster, directory, currentTurnNumber }) {
   // Per-tab, not per-entry: which of the two boards is showing. Session-
   // scoped so a mid-deploy hard reload (this repo redeploys several times a
   // day) doesn't silently switch a player back to Journal.
@@ -31,7 +34,7 @@ export default function NotesBoard({ starred, journal, roster, currentTurnNumber
   }
 
   return (
-    <CharacterMentionsProvider characters={roster}>
+    <CharacterMentionsProvider characters={roster} directory={directory}>
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="segmented" role="group" aria-label="Notes view">

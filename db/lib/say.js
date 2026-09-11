@@ -23,11 +23,8 @@ const { notifyFeed } = require("./feedNotify");
 const { babble, growl, STUPID_SLUG, GHOUL_SLUG } = require("./babble");
 const { blockerFor, slugsBlocking, SPEAK, SHOUT } = require("./incapacitation");
 const { capitalizeSentences, fixContractions } = require("./textCorrection");
-const {
-  loadForcedName,
-  loadConcealment,
-  presentedIdentity,
-} = require("./presentedIdentity");
+const { presentedIdentity } = require("./presentedIdentity");
+const { loadPresentedState } = require("./examineSnapshot");
 const { mayWritePlace, slowmodeMsFor } = require("./feedAccess");
 const { rolesToTokens, stampMentionNames } = require("./characterMentions");
 const { noteChant } = require("./riteChant");
@@ -195,13 +192,27 @@ async function prepareSpeech(prisma, { character, placeKey, content, source = "W
   // (db/lib/presentedIdentity.js). Read off the character, never off the
   // caller — concealment is standing state and a caller's opinion of it would
   // be a second answer to a settled question.
-  const [forcedName, concealment] = await Promise.all([
-    loadForcedName(prisma, character.id),
-    loadConcealment(prisma, character.id),
-  ]);
+  //
+  // One query where there used to be two. loadPresentedState's select is a
+  // superset of what loadForcedName and loadConcealment each fetched, and it
+  // hands back the third frozen column besides: what the room could SEE of the
+  // speaker, which the row keeps beside the name and the face
+  // (db/lib/examineSnapshot.js). Same rows answer all three, so they cannot
+  // disagree about what somebody was holding.
+  const { state: presentedState, forcedName, concealment } = await loadPresentedState(prisma, character.id);
   const identity = presentedIdentity(character, { forcedName, concealment });
 
-  return { ok: true, character, content: text, rowContent, identity, placeKey: placeKey ?? null, source, voice };
+  return {
+    ok: true,
+    character,
+    content: text,
+    rowContent,
+    identity,
+    presentedState,
+    placeKey: placeKey ?? null,
+    source,
+    voice,
+  };
 }
 
 // The write half. `prepared` is what prepareSpeech returned; everything else
@@ -250,6 +261,9 @@ async function recordSpeech(
     // path carries a ?v=<updatedAt> cache-buster and freezing one would pin a
     // stale portrait forever. Null is how "their own face" is recorded.
     presentedAvatarPath: prepared.identity?.alias ? (prepared.identity.avatarPath ?? null) : null,
+    // And what the room could SEE of them — the third frozen column, built
+    // above by prepareSpeech.
+    presentedState: prepared.presentedState ?? null,
     placeKey: prepared.placeKey,
     source: prepared.source,
     discordMessageId,
@@ -336,6 +350,13 @@ async function loadEditable(prisma, { characterId, seq, gm = false }) {
 
 // Re-run the transforms, because an edit is a fresh piece of writing: a
 // player who went Stupid between saying it and fixing it babbles now.
+//
+// It does NOT re-freeze presentedState, and that is not an oversight. The
+// WORDS are fresh writing; what the room saw is not — nobody in the fiction
+// re-observes anybody because a typo got fixed. Re-snapshotting would also
+// make the five-minute window a laundering device (robe up, edit the old line,
+// leak again), and a GM edit is exempt from that window entirely, so it would
+// rewrite what a room saw days ago.
 async function editSpeech(prisma, { characterId, seq, content, gm = false } = {}) {
   const found = await loadEditable(prisma, { characterId, seq, gm });
   if (!found.ok) return found;

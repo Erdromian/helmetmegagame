@@ -13,14 +13,15 @@ import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import IconButton from "@/app/components/IconButton";
 import { SendIcon } from "@/app/components/icons";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
-import { useThreadFeed } from "../liveInbox";
+import { useThreadFeed, noteConversationRead } from "../liveInbox";
 import {
   sendGmDm,
   markConversationRead,
   claimConversation,
   releaseConversation,
 } from "../actions";
-import { useDmDraft, writeDmDraft } from "../dmDraft";
+import { useDmDraft, writeDmDraft, dmDraftFresh } from "../dmDraft";
+import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { selectConversation } from "../selection";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 
@@ -29,6 +30,15 @@ import { dialogHoldsKeyboard } from "@/app/components/Modal";
 // inside itself; the composer is pinned to the bottom where a composer
 // belongs.
 let optimisticSeq = 0;
+
+// One id per send, minted before the send and kept across a Retry. It is what
+// pairs the optimistic line with the row that comes back, and it is what makes
+// Retry safe: the server finds the nonce already on the table and returns that
+// row instead of delivering a second copy.
+function mintNonce() {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `n-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+}
 
 export default function ConversationPane({
   discordUserId,
@@ -61,6 +71,23 @@ export default function ConversationPane({
   // Held in memory, mirrored to localStorage where there is room (../dmDraft).
   // Typing never depends on the mirror succeeding.
   const content = useDmDraft(discordUserId);
+  // An unsent reply counts as unsaved work, so the desk's gated poll stands
+  // down while there is one (isAnyDirty) rather than refetching the page
+  // under a half-written sentence. `enabled: false` deliberately leaves the
+  // beforeunload prompt off: the reply is mirrored to storage (dmDraft.js)
+  // and comes back after a reload, so asking "are you sure" — on every ⌘R,
+  // and on the stale chip's own reload — would warn about nothing.
+  //
+  // It only holds the poll down while somebody is ACTUALLY WRITING, the same
+  // 10-minute rule the adjudication desk's Result box follows
+  // (useDirtyGuard.js#alsoDirtyHoldsPoll, deskDraft.js). A half-typed reply
+  // left in a conversation last week is still shown and still restored — it
+  // just stops freezing the whole desk's backstop poll for ever.
+  useDirtyGuard({
+    enabled: false,
+    alsoDirty: content.trim().length > 0,
+    alsoDirtyHoldsPoll: dmDraftFresh(discordUserId),
+  });
 
   // What the live poll has brought in for this conversation since the page
   // was seeded (liveInbox.js), unioned with the server page during render —
@@ -69,22 +96,22 @@ export default function ConversationPane({
   // first: the poll can beat the send action's own answer.
   const feed = useThreadFeed(discordUserId);
   const displayed = useMemo(() => {
-    if (feed.length === 0) return pages.messages;
     const byId = new Map();
     for (const m of pages.messages) byId.set(m.id, m);
     for (const m of feed) if (!byId.has(m.id)) byId.set(m.id, m);
+    // Retired by NONCE, not by text. Matching on content meant sending "ok"
+    // twice retired both placeholders against the first row that landed, and
+    // left the second send looking like it had never happened.
     const settled = new Set(
-      [...byId.values()]
-        .filter((m) => !m.pending && m.direction === "OUTBOUND" && m.authorDiscordUserId === myDiscordUserId)
-        .map((m) => m.content),
+      [...byId.values()].filter((m) => !m.pending && m.clientNonce).map((m) => m.clientNonce),
     );
     return [...byId.values()]
-      .filter((m) => !(m.pending && settled.has(m.content)))
+      .filter((m) => !(m.pending && m.clientNonce && settled.has(m.clientNonce)))
       .sort((a, b) => {
         const d = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
         return d !== 0 ? d : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
       });
-  }, [pages.messages, feed, myDiscordUserId]);
+  }, [pages.messages, feed]);
 
   const writeDraft = useCallback((value) => writeDmDraft(discordUserId, value), [discordUserId]);
 
@@ -107,13 +134,28 @@ export default function ConversationPane({
   useEffect(() => {
     const newest = displayed[displayed.length - 1];
     if (!newest) return;
-    // An optimistic row is not a real message yet — marking read against its
-    // temp id would burn the de-dupe slot the real one needs.
-    if (newest.pending) return;
+    // Neither an optimistic row nor a failed one is a real message yet —
+    // marking read against a temp id would burn the de-dupe slot the real one
+    // needs, and a failed row never gets a real id at all.
+    if (newest.pending || newest.failed) return;
     if (lastMarkedIdRef.current === newest.id) return;
     if (document.visibilityState !== "visible") return;
     lastMarkedIdRef.current = newest.id;
-    markConversationRead({ playerDiscordUserId: discordUserId });
+    // Said locally FIRST, so the rail badge and the nav badge clear on the
+    // open rather than on whichever frame the server's cursor reaches next
+    // (liveInbox.js#noteConversationRead). Then said again with the cursor
+    // the server actually wrote, which is what the override is reconciled
+    // against.
+    noteConversationRead(discordUserId, Date.now());
+    markConversationRead({ playerDiscordUserId: discordUserId }).then((result) => {
+      if (result?.ok && Number.isFinite(result.lastReadAtMs)) {
+        // `fromServer` — this REPLACES the Date.now() guess above rather than
+        // having to be newer than it. A browser clock running fast would
+        // otherwise leave its own over-claim standing and hide the badge for
+        // every message that arrives before the real clock catches up.
+        noteConversationRead(discordUserId, result.lastReadAtMs, { fromServer: true });
+      }
+    });
   }, [displayed, discordUserId]);
 
   // The GET route, not the server action it used to call. Paging back through
@@ -147,9 +189,74 @@ export default function ConversationPane({
   // Send is optimistic: the row appears and the draft clears the instant you
   // hit Enter, because waiting on a Discord round trip for the text you just
   // typed to appear is what made the composer feel slow. The temp row is
-  // styled pending until the server answers; a failure removes it, puts the
-  // draft back exactly as it was, and shows the error — so nothing a GM wrote
-  // is ever lost to a failed send.
+  // styled pending until the server answers.
+  //
+  // A failure no longer takes the row away and puts the words back in the
+  // box. That was safe when a GM sat still waiting for the answer, and wrong
+  // the rest of the time: the draft is per conversation and shared with
+  // whatever they started typing next, so a slow failure overwrote a sentence
+  // in progress. The failed line stays where it is instead, with Retry and
+  // Discard on it — and Retry reuses the nonce, so a send whose ANSWER got
+  // lost cannot land twice: the row is already on the table under that nonce
+  // and sendGmDm hands it back instead of posting again.
+  //
+  // One window that does not cover, honestly: the nonce is written when the DM
+  // is LOGGED, which is after the Discord POST (web/lib/discordGuild.js#sendDm).
+  // A send that reached Discord and then lost its log write — the container
+  // swapped between the two, or the log insert itself failed for something
+  // other than the nonce already being there — leaves no row for Retry to find,
+  // and Retry posts a second copy. Closing it means reserving the nonce before
+  // the POST and filling the row in afterwards, which is a change to all three
+  // sendDm transports and is not made here.
+  const deliver = useCallback(
+    (message, tempId, nonce) => {
+      startTransition(async () => {
+        // try/catch, not just the `ok` flag: an action REJECTS when the
+        // request never completes at all (the tab offline, a container
+        // swapped mid-deploy), and that is the commonest way a send fails.
+        // Left unhandled it surfaced as an uncaught "Failed to fetch" and the
+        // row sat pending for ever, which is the exact state this is here to
+        // stop.
+        let result;
+        try {
+          result = await sendGmDm({ discordUserId, content: message, clientNonce: nonce });
+        } catch {
+          result = { ok: false, error: "That didn't send — you may be offline." };
+        }
+        if (!result.ok) {
+          setPages((prev) => ({
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === tempId ? { ...m, pending: false, failed: true, error: result.error } : m,
+            ),
+          }));
+          setError(result.error);
+          return;
+        }
+        // The action returns the fresh tail page too — the only path that
+        // brings in what the PLAYER said since this pane mounted (state is
+        // seeded once; a poll's router.refresh can't reseed it). MERGE it: the
+        // GM may have paged back hundreds of messages with loadOlder, and
+        // replacing the array would snap them to the last 100. Rows already
+        // held keep their place; new ids are appended in server order; the
+        // optimistic row goes.
+        setPages((prev) => {
+          const kept = prev.messages.filter((m) => m.id !== tempId);
+          if (!Array.isArray(result.messages)) {
+            return {
+              ...prev,
+              messages: prev.messages.map((m) => (m.id === tempId ? (result.message ?? { ...m, pending: false }) : m)),
+            };
+          }
+          const have = new Set(kept.map((m) => m.id));
+          const fresh = result.messages.filter((m) => !have.has(m.id));
+          return { ...prev, messages: [...kept, ...fresh] };
+        });
+      });
+    },
+    [discordUserId],
+  );
+
   function handleSend(e) {
     e.preventDefault();
     const message = content.trim();
@@ -157,12 +264,18 @@ export default function ConversationPane({
     setError(null);
 
     const tempId = `optimistic-${(optimisticSeq += 1)}`;
+    const nonce = mintNonce();
     const optimistic = {
       id: tempId,
+      clientNonce: nonce,
       discordUserId,
       direction: "OUTBOUND",
       // Matches what sendDm actually writes, so the row does not visibly
-      // reflow when the real one replaces it.
+      // reflow when the real one replaces it. `sentText` is the bare thing
+      // that was handed to the server, kept so Retry can resend exactly it —
+      // deriving it back out of `content` meant stripping a leading "» ", and
+      // a GM who deliberately opened their message with one lost it.
+      sentText: message,
       content: `» ${message}`,
       authorDiscordUserId: myDiscordUserId,
       source: "gm_reply",
@@ -176,35 +289,29 @@ export default function ConversationPane({
       fitComposer(composerRef.current);
     }
 
-    startTransition(async () => {
-      const result = await sendGmDm({ discordUserId, content: message });
-      if (!result.ok) {
-        setPages((prev) => ({ ...prev, messages: prev.messages.filter((m) => m.id !== tempId) }));
-        writeDraft(message);
-        setError(result.error);
-        return;
-      }
-      // The action returns the fresh tail page too — the only path that
-      // brings in what the PLAYER said since this pane mounted (state is
-      // seeded once; a poll's router.refresh can't reseed it). MERGE it: the
-      // GM may have paged back hundreds of messages with loadOlder, and
-      // replacing the array would snap them to the last 100. Rows already
-      // held keep their place; new ids are appended in server order; the
-      // optimistic row goes.
-      setPages((prev) => {
-        const kept = prev.messages.filter((m) => m.id !== tempId);
-        if (!Array.isArray(result.messages)) {
-          return {
-            ...prev,
-            messages: prev.messages.map((m) => (m.id === tempId ? (result.message ?? { ...m, pending: false }) : m)),
-          };
-        }
-        const have = new Set(kept.map((m) => m.id));
-        const fresh = result.messages.filter((m) => !have.has(m.id));
-        return { ...prev, messages: [...kept, ...fresh] };
-      });
-    });
+    deliver(message, tempId, nonce);
   }
+
+  // Retry sends the same words under the same nonce, taken from `sentText` —
+  // the bare text this row was sent with — rather than unpicked from the `»`
+  // the row wears. The fallback is for a row from before that field existed.
+  const retrySend = useCallback(
+    (row) => {
+      setError(null);
+      setPages((prev) => ({
+        ...prev,
+        messages: prev.messages.map((m) =>
+          m.id === row.id ? { ...m, pending: true, failed: false, error: null } : m,
+        ),
+      }));
+      deliver(row.sentText ?? row.content.replace(/^» /, ""), row.id, row.clientNonce);
+    },
+    [deliver],
+  );
+
+  const discardSend = useCallback((row) => {
+    setPages((prev) => ({ ...prev, messages: prev.messages.filter((m) => m.id !== row.id) }));
+  }, []);
 
   function toggleClaim() {
     startTransition(async () => {
@@ -278,6 +385,17 @@ export default function ConversationPane({
     <div className="desk-convo">
       <div className="desk-convo-head">
         <div className="flex items-center gap-2 min-w-0">
+          {/* Narrow tiers only (globals.css): down there the roster and the
+              rail are not on screen beside this, so the way back has to be
+              in the conversation itself. Same destination as Esc. */}
+          <button
+            type="button"
+            className="btn-quiet desk-back"
+            title="Back to the roster"
+            onClick={() => selectConversation(null)}
+          >
+            ← Back
+          </button>
           <CharacterAvatar characterId={characterId} name={label} version={avatarVersion} size={32} zoomable />
           <h2 className="section-title truncate">{label}</h2>
           {zoneName ? <ZoneChip zoneName={zoneName} /> : null}
@@ -294,9 +412,13 @@ export default function ConversationPane({
             name={label}
             onOpen={() => setDevPanelOpen(true)}
           />
+          {/* A fixed width, because the three labels this button wears are
+              very different lengths and everything to its left jumped sideways
+              every time a claim changed hands. */}
           <button
             type="button"
-            className="btn-quiet"
+            className="btn-quiet text-center"
+            style={{ width: "11rem" }}
             disabled={claimedByOther || pending}
             onClick={toggleClaim}
           >
@@ -306,15 +428,19 @@ export default function ConversationPane({
                 : "Release claim"
               : "Claim conversation"}
           </button>
-          {/* Twin of the Escape key handler above — same destination, so the
-              keycap label doubles as the hint that the key works. */}
+          {/* Twin of the Escape key handler above. It used to be LABELLED
+              "Esc", which reads as a keycap sitting in a row of verbs rather
+              than as a thing to press; a close mark is what a pane's own
+              corner control looks like everywhere else, and the key still
+              gets said, in the tooltip. */}
           <button
             type="button"
             className="btn-quiet"
-            title="Back to the roster"
+            title="Close — or press Esc"
+            aria-label="Close this conversation"
             onClick={() => selectConversation(null)}
           >
-            Esc
+            ✕
           </button>
         </div>
       </div>
@@ -333,6 +459,8 @@ export default function ConversationPane({
             character={characterId ? { id: characterId, name: label, avatarVersion } : null}
             newSinceMs={lastReadAtMs}
             myDiscordUserId={myDiscordUserId}
+            onRetry={retrySend}
+            onDiscard={discardSend}
           />
         )}
       </div>

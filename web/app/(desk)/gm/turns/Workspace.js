@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSessionState from "@/app/components/useSessionState";
-import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
+import { DeskStaleChip } from "@/app/components/useDeskVersion";
+import { DeskStaleRefreshGate } from "@/app/components/useRefresh";
 import useGatedRefreshPoll from "@/app/components/useGatedRefreshPoll";
 import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
@@ -10,11 +11,12 @@ import MoveHistoryDesk from "./MoveHistoryDesk";
 import CavingDesk from "./CavingDesk";
 import { getMoveHistory } from "./actions";
 import InspectorColumn from "@/app/components/InspectorColumn";
+import useInspectorOverlay, { InspectorToggle } from "@/app/components/useInspectorOverlay";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
-import DeskHeader from "@/app/components/DeskHeader";
+import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -23,13 +25,27 @@ import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused } from "@/lib/deskKeyGuard";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
+import { seedDesk, useDeskRows } from "./deskStore";
+import DeskStream from "./DeskStream";
+import DeskStreamChip from "./DeskStreamChip";
 
 // The adjudication workspace's client shell. Owns selection (which
 // Move shows), inspector (right column + pins), and preview (push
-// dialog). Everything rendered is a DTO from page.js; mutations live in a
-// child that calls a server action and router.refresh()es.
+// dialog).
+//
+// The rows it draws are NOT its props. page.js's payload is folded into the
+// desk store (deskStore.js) and read back out of it, and every mutation folds
+// the rows it changed into that same store. So a write shows up because it
+// happened, not because a router.refresh() came back — which is what the desk
+// used to depend on, and what silently failed whenever the deploy-stale gate
+// had latched.
 
-const REFRESH_MS = 45_000;
+// The backstop, not the update path. A GM's own work folds in from the action
+// that did it (deskStore.js) and another GM's arrives on the live channel
+// (DeskStream.js), so this is the third thing that would have to fail — slow
+// and quiet, the way the player desk's backstop poll sits behind its stream
+// (InboxStream.js).
+const REFRESH_MS = 120_000;
 
 // Click-frequency view state, split from QueueRail's RAIL_STORAGE_KEY so the
 // two subscriber sets stay independent.
@@ -151,14 +167,39 @@ export default function Workspace({
   presenceZones,
   stagingLocations,
   factions,
-  moves,
-  cavingRolls,
+  moves: moveRows,
+  cavingRolls: cavingRollRows,
   otherRows,
-  stagedEffects,
-  stagedMessages,
+  stagedEffects: stagedEffectRows,
+  stagedMessages: stagedMessageRows,
   gmProfiles,
   deployVersion,
+  asOfMs,
+  turnId,
 }) {
+  // Writing a module store from an effect is the sanctioned shape here —
+  // it is a setState in an effect that the lint forbids, not this
+  // (SnapshotFresh.js says the same). Both payloads this page can render,
+  // the stored snapshot and the fresh one, come through here; the store keeps
+  // whichever was read later.
+  useEffect(() => {
+    seedDesk({
+      asOfMs,
+      turnId,
+      moves: moveRows,
+      cavingRolls: cavingRollRows,
+      stagedEffects: stagedEffectRows,
+      stagedMessages: stagedMessageRows,
+    });
+  }, [asOfMs, turnId, moveRows, cavingRollRows, stagedEffectRows, stagedMessageRows]);
+
+  // Until the first seed lands (one tick after mount) the props ARE the rows.
+  const deskRows = useDeskRows();
+  const moves = deskRows.seeded ? deskRows.moves : moveRows;
+  const cavingRolls = deskRows.seeded ? deskRows.cavingRolls : cavingRollRows;
+  const stagedEffects = deskRows.seeded ? deskRows.stagedEffects : stagedEffectRows;
+  const stagedMessages = deskRows.seeded ? deskRows.stagedMessages : stagedMessageRows;
+
   const [desk, setDesk] = useSessionState(DESK_STORAGE_KEY, DESK_STORAGE_DEFAULT);
   const [rail, setRail] = useSessionState(RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT);
   // A deep link's lens/turn is a one-shot correction over persisted state,
@@ -241,6 +282,7 @@ export default function Workspace({
   // knows characters, so it prunes the "c:" namespace against the roster.
   const knownPinIdentities = useMemo(() => new Set(roster.map((c) => `c:${c.id}`)), [roster]);
   const { pins: pinned, togglePin } = usePins({ knownIdentities: knownPinIdentities });
+  const { setOpen: setInspectorOpen } = useInspectorOverlay();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [devPanel, setDevPanel] = useState(null); // { characterId, name } or null
   const onOpenDev = useCallback((characterId, name) => setDevPanel({ characterId, name }), []);
@@ -513,6 +555,10 @@ export default function Workspace({
   function inspect(characterId, name, tab) {
     if (!characterId) return;
     setInspected({ characterId, name });
+    // On a narrow screen the inspector is a closed overlay, so looking
+    // somebody up has to open it — otherwise the click answers with nothing.
+    // An event handler, never an effect (react-hooks/set-state-in-effect).
+    setInspectorOpen(true);
     if (tab) setTabRequest((prev) => ({ tab, token: (prev?.token ?? 0) + 1 }));
   }
 
@@ -545,25 +591,33 @@ export default function Workspace({
   return (
     // Once a deploy latches `stale`, refreshes under this gate skip instead
     // of hard-reloading across the build boundary.
-    <DeskStaleRefreshGate>
+    <DeskStaleRefreshGate version={deployVersion}>
+    {/* Inside the gate on purpose: the resync sentinel's refresh is then the
+        guarded one, and cannot cross a deploy boundary. */}
+    <DeskStream deployVersion={deployVersion} />
     <div className="desk-shell">
       <DeskHeader
         title="Adjudication"
         meta={
           <>
-            <span className="chip">
-              {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
-            </span>
+            {/* Rank: the turn and the lock are chips because they are the two
+                facts the whole desk is keyed to. Everything after them is a
+                count or a clock, and counts do not need a bubble each — six
+                equal-weight chips in a row have no first thing to read. They
+                run together as one muted line instead, and only a warning
+                takes colour. */}
+            <DeskTurnChip turn={openTurn} />
             <LockChip />
-            <span className="chip chip-quiet">{solvedCount}/{moves.length} solved</span>
-            <span className="text-xs text-muted" title="Push fires at midnight CT">
-              {formatCountdown(pushMinutes)}
-            </span>
-            {lastRefreshedAt && (
-              <span className="text-xs text-muted">
-                updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            <DeskStreamChip />
+            <span className="text-xs text-muted">
+              <span title="Moves marked solved, of the Moves filed this turn">
+                {solvedCount}/{moves.length} solved
               </span>
-            )}
+              <span title="Push fires at midnight CT"> · {formatCountdown(pushMinutes)}</span>
+              {lastRefreshedAt && (
+                <> · updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
+              )}
+            </span>
             {/* isAnyDirty() is a plain module counter, read at render time. */}
             {isAnyDirty() && <span className="text-xs text-accent">paused — unsaved edits</span>}
           </>
@@ -571,6 +625,7 @@ export default function Workspace({
         actions={
           <>
             <DeskStaleChip />
+            <InspectorToggle />
             <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
               Preview push
             </button>
@@ -581,7 +636,10 @@ export default function Workspace({
       {/* The zone view lives in the client from here down, so the queue
           re-filters on the click rather than on a revalidate. */}
       <GmZoneViewProvider initialZoneNames={visibleZoneNames}>
-      <div className="desk-body">
+      {/* data-selected is what the one-screen-at-a-time tier reads: under
+          ~800px the queue and the open row take turns, rather than stacking
+          into a column nobody can see the bottom of (globals.css). */}
+      <div className="desk-body desk-body--turns" data-selected={selected ? "" : undefined}>
         <QueueRail
           moves={moves}
           cavingRolls={cavingRolls}
@@ -610,6 +668,12 @@ export default function Workspace({
         />
 
         <main className="desk-main">
+          {/* Narrow tiers only: the queue is not on screen beside this, so
+              there has to be a way back to it. Same destination and same
+              dirty guard as the panel's own Close. */}
+          <button type="button" className="btn-quiet desk-back" onClick={deselect}>
+            ← Back to queue
+          </button>
           {selectedMove ? (
             <MoveDesk
               key={selectedMove.id}

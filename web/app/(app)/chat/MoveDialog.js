@@ -223,6 +223,18 @@ function LaborReadout({ context }) {
         <p className="form-error" role="alert">
           {context.refusal}
         </p>
+      ) : context.refining ? (
+        /* A refinery pays in goods, not ⬢, and it is the one Location with no
+           LocationYield rows behind it — so the four quality words below would
+           all read the same nothing, and there are no tools to list either
+           (db/lib/laborAccess.js's refinery branch returns neither). What the
+           shift makes is the whole story, which is what the sentence says. */
+        <>
+          <p className="move-labor-best">
+            You would labor at the <strong>{context.tier}</strong> tier.
+          </p>
+          <p className="text-sm text-muted">{context.refining}</p>
+        </>
       ) : (
         <>
           <p className="move-labor-best">

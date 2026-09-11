@@ -1,8 +1,8 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { unstable_isUnrecognizedActionError } from "next/navigation";
 import { readSession, writeSession } from "./useSessionState";
-import { RefreshGate } from "./useRefresh";
 
 // The client half of the desk's deploy awareness (deployVersion.js is the
 // server half). Polling calls checkDeskVersion() first and only refresh()es
@@ -15,7 +15,10 @@ import { RefreshGate } from "./useRefresh";
 
 const CRUMB_KEY = "gm-desk-version-crumb";
 
-const state = { stale: false, lastSeen: null };
+// `baseline` is the build this desk's page rendered from, handed in by
+// DeskStaleRefreshGate (useRefresh.js) so a mutation result can be judged
+// without prop-drilling the version to every call site.
+const state = { stale: false, lastSeen: null, baseline: null };
 const listeners = new Set();
 
 function subscribe(callback) {
@@ -25,6 +28,20 @@ function subscribe(callback) {
 
 export function isDeskStale() {
   return state.stale;
+}
+
+export function setDeskBaseline(version) {
+  state.baseline = version ?? null;
+}
+
+export function deskBaseline() {
+  return state.baseline;
+}
+
+function latch() {
+  if (state.stale) return;
+  state.stale = true;
+  for (const callback of listeners) callback();
 }
 
 // baseline = the version the page was RENDERED by (a page.js prop), which is
@@ -45,10 +62,7 @@ export async function checkDeskVersion(baseline) {
     /* offline, timing out, or mid-switchover — all mean "don't refresh now",
        never "reload the page" */
   }
-  if (outcome === "stale" && !state.stale) {
-    state.stale = true;
-    for (const callback of listeners) callback();
-  }
+  if (outcome === "stale") latch();
   // Breadcrumb for the mount-time diagnostic line (Workspace.js): after a
   // reload it says whether the last poll before it saw a new build, a dead
   // server, or nothing unusual (= the GM's own ⌘R).
@@ -62,11 +76,19 @@ export async function checkDeskVersion(baseline) {
 // poll's pre-flight check.
 export function noteDeskVersion(seen, baseline) {
   state.lastSeen = seen;
-  if (seen !== baseline && !state.stale) {
-    state.stale = true;
-    for (const callback of listeners) callback();
-  }
+  if (seen !== baseline) latch();
   return state.stale ? "stale" : "ok";
+}
+
+// Every desk server action hands its build back in the result
+// (lib/actionResult.js#guarded). Passing the result through here is what
+// latches the chip on the FIRST mutation after a deploy rather than on the
+// next poll — the window in which a post-mutation refresh() would have been
+// a hard navigation. Returns the result untouched, so a call site reads
+// `const res = noteActionVersion(await doThing(...))`.
+export function noteActionVersion(result) {
+  if (result?.version && state.baseline) noteDeskVersion(result.version, state.baseline);
+  return result;
 }
 
 export function readVersionCrumb() {
@@ -79,15 +101,6 @@ export default function useDeskVersion() {
 
 function getServerSnapshot() {
   return false;
-}
-
-// Wraps a desk in a RefreshGate keyed on the stale latch, so EVERY
-// useRefresh() under it — the post-mutation ones included — skips rather
-// than refreshing across a deploy boundary (which is a hard reload). A
-// component rather than a bare prop because server layouts can't pass a
-// function to a client component; this one imports its own guard.
-export function DeskStaleRefreshGate({ children }) {
-  return <RefreshGate skipWhen={isDeskStale}>{children}</RefreshGate>;
 }
 
 // The header chip both desks show once a deploy has latched `stale`: the
@@ -104,7 +117,7 @@ export function DeskStaleChip() {
       type="button"
       className="btn-quiet"
       onClick={() => window.location.reload()}
-      title="A new version deployed. This desk has stopped auto-refreshing; reload picks the new version up — filters, search, scroll and selection all come back."
+      title="A new version deployed. This desk has stopped auto-refreshing; reload picks the new version up. Rail filters, scroll, who you have open and anything typed into a Result box or a reply come back — a half-filled composer does not, so send or stage that first."
     >
       <span className="text-accent">Updated — reload when ready</span>
     </button>
@@ -114,7 +127,13 @@ export function DeskStaleChip() {
 // The catch-path error for every desk mutation. A stale build's server
 // action rejects with "Failed to find Server Action" (the action ids died
 // with the old build); say the true thing when we know the build moved.
-export function mutationErrorMessage() {
+// Pass the caught error where there is one. A stale build's action ids died
+// with the old build, and Next answers that with UnrecognizedActionError —
+// which is proof the server moved on, so latch the chip here rather than
+// waiting for a poll to notice. Uncaught, that same error reaches error.js
+// and takes the whole column (and everything in useState with it) away.
+export function mutationErrorMessage(err) {
+  if (err && unstable_isUnrecognizedActionError(err)) latch();
   return state.stale
     ? "The desk is running an older version than the server — reload the page, then try again."
     : "Something went wrong on the server — your change may not have saved. Try again.";

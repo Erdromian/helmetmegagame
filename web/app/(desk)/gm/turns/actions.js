@@ -8,7 +8,14 @@ import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
-import { postMessageBatched } from "@lifeweb/db/lib/discordRest";
+// By path, not off the barrel — the db/lib/dm.js convention this module follows.
+import {
+  backfillLegacyDeliveries,
+  deliverPrivate,
+  deliverPublic,
+  failuresFor,
+  isRetryable,
+} from "@lifeweb/db/lib/stagedDelivery";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { dropCharacterTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
@@ -29,11 +36,19 @@ import {
   cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
+import { deskPatchFor } from "@/lib/deskRows";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 // Required by path, not off the @lifeweb/db barrel: db/lib/attack.js is
 // deliberately not on it (the db/lib/dm.js convention).
 import { cancelAttack } from "@lifeweb/db/lib/attack";
 
+// EVERY MUTATION HERE HANDS BACK THE ROWS IT CHANGED, as `patch` — the shape
+// web/lib/deskRows.js#deskPatchFor builds and the client's desk store folds in
+// (deskStore.js). The desk used to write, then ask the router to fetch the
+// whole page again and hope; when that refresh didn't come back the write had
+// landed and the screen never said so. A patch costs one small re-read and
+// removes the hope.
+//
 // Server actions for the adjudication workspace (/gm/turns). Staged rows
 // apply and deliver only at the turn-end push (db/lib/stagedPush.js);
 // exceptions that act now: Reject, the FEED_PERSON kill, Request review.
@@ -120,7 +135,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
     },
   });
 
-  return { id: row.id };
+  return { id: row.id, patch: await deskPatchFor({ stagedMessageIds: [row.id] }) };
 }
 
 async function updateStagedMessageImpl({ stagedMessageId, content, recipientCharacterIds, zoneId }) {
@@ -159,13 +174,17 @@ async function updateStagedMessageImpl({ stagedMessageId, content, recipientChar
     },
   });
 
-  return {};
+  return { patch: await deskPatchFor({ stagedMessageIds: [existing.id] }) };
 }
 
 async function deleteStagedMessageImpl({ stagedMessageId }) {
   const session = await requireGm();
   const existing = await prisma.stagedMessage.findUnique({ where: { id: stagedMessageId ?? "" } });
-  if (!existing) return {};
+  // Already gone — say so as a removal rather than as nothing, so a desk still
+  // showing the row drops it.
+  if (!existing) {
+    return { patch: await deskPatchFor({ removed: { stagedMessageIds: [stagedMessageId].filter(Boolean) } }) };
+  }
   if (existing.sentAt) throw new UserError("That message already went out.");
 
   await prisma.stagedMessage.delete({ where: { id: existing.id } });
@@ -177,7 +196,7 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
     },
   });
 
-  return {};
+  return { patch: await deskPatchFor({ removed: { stagedMessageIds: [existing.id] } }) };
 }
 
 // Retries a sent-but-partially-failed staged message. PRIVATE re-sends only
@@ -190,44 +209,86 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
     include: {
       recipients: { include: { character: { select: { id: true, name: true, discordUserId: true } } } },
       zone: { select: { discordSummaryChannelId: true } },
+      deliveries: true,
     },
   });
   if (!existing) throw new UserError("That staged message is gone.");
   if (!existing.sentAt) throw new UserError("That message hasn't gone out yet.");
-  const priorFailures = Array.isArray(existing.deliveryFailures) ? existing.deliveryFailures : [];
-  if (!priorFailures.length) throw new UserError("Nothing failed on that message.");
 
-  let stillFailing = [];
+  const recipients = existing.recipients.map((r) => ({
+    characterId: r.character.id,
+    name: r.character.name,
+    discordUserId: r.character.discordUserId,
+  }));
+  const priorFailures = Array.isArray(existing.deliveryFailures) ? existing.deliveryFailures : [];
+
+  // A message pushed BEFORE the Delivery table existed has a sentAt and no rows
+  // at all, and production is full of them. Writing them fresh would make them
+  // PENDING — which reads as "never attempted" — and Resend would then re-DM
+  // every recipient who had already read the thing, or re-post a declaration
+  // that is already sitting in the channel. So the old state is reconstructed
+  // first, from the only two things the old code wrote down: sentAt says
+  // everyone was attempted, and the blob names who bounced.
+  let deliveries = existing.deliveries;
+  if (!deliveries.length) {
+    await backfillLegacyDeliveries(prisma, {
+      stagedMessage: existing,
+      recipients,
+      priorFailures,
+    });
+    deliveries = await prisma.delivery.findMany({
+      where: { stagedMessageId: existing.id },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  // Retryable, not merely FAILED: a row a killed push stranded IN_FLIGHT past
+  // the stale window is a bounce that never got to say so, and refusing to
+  // resend it leaves the recipient with nothing and the GM with no button.
+  const retryable = deliveries.filter((d) => d.state !== "SENT" && isRetryable(d));
+  if (!retryable.length) throw new UserError("Nothing failed on that message.");
+
   let resent = 0;
+  let stillFailing = [];
+  let held = 0;
 
   if (existing.kind === "PRIVATE") {
-    const failedIds = new Set(priorFailures.map((f) => f.characterId).filter(Boolean));
-    const targets = existing.recipients
-      .map((r) => r.character)
-      .filter((c) => failedIds.has(c.id));
-    for (const target of targets) {
-      try {
-        await sendDm(target.discordUserId, existing.content, {
-          authorDiscordUserId: existing.createdByDiscordUserId,
-          source: "staged_push",
-          // A turn result is GM-authored prose, just delivered in bulk.
-          kind: DM_KIND.CONVERSATION,
-        });
-        resent += 1;
-      } catch (err) {
-        stillFailing.push({ characterId: target.id, name: target.name, error: String(err?.message ?? err) });
-      }
-    }
+    // The push's own code path (db/lib/stagedDelivery.js), not a second copy
+    // of it. Each recipient is claimed before their DM, so pressing Resend
+    // while a push is still running retries nobody twice — and `onlyFailed` is
+    // now unconditional, because the rows are the whole truth for a legacy
+    // message too. There is never a reason for Resend to reach a recipient the
+    // table does not say needs reaching.
+    const { sent, skipped } = await deliverPrivate(prisma, {
+      stagedMessage: existing,
+      recipients,
+      onlyFailed: true,
+    });
+    resent = sent.length;
+    held = skipped.length;
+    // Derived from the rows, not from this run: a recipient a concurrent push
+    // just got through to must not still be listed as failing here.
+    stillFailing = await failuresFor(prisma, existing.id);
   } else {
     const channelId = existing.zone?.discordSummaryChannelId;
     if (!channelId) throw new UserError("That zone has no summary channel configured.");
-    try {
-      // Batched like the push's own loop (ADJUDICATION.md §1).
-      await postMessageBatched(channelId, existing.content);
-      resent += 1;
-    } catch (err) {
-      stillFailing = [{ error: String(err?.message ?? err) }];
-    }
+    // A declaration that reached Discord already has its Hall row; one that
+    // never posted has none, and a resend is the only thing that will write
+    // it. `sent` on the row is the question, not whether this is a retry.
+    const posted = deliveries.some((d) => d.state === "SENT");
+    const { sent, skipped } = await deliverPublic(prisma, {
+      stagedMessage: existing,
+      channelId,
+      zoneId: existing.zoneId,
+      writeSceneLine: !posted,
+    });
+    resent = sent;
+    held = skipped ? 1 : 0;
+    // Derived from the rows, the same way PRIVATE does it. The raw `failed`
+    // this used to return is only ever this run's own bounce, so a post that
+    // failed here and was retried by a push a second later stayed listed as
+    // failing and the blob disagreed with the row.
+    stillFailing = await failuresFor(prisma, existing.id);
   }
 
   await prisma.stagedMessage.update({
@@ -239,11 +300,20 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "staged_message_resent",
-      details: { stagedMessageId: existing.id, resent, stillFailing: stillFailing.length },
+      details: {
+        stagedMessageId: existing.id,
+        kind: existing.kind,
+        attempted: resent + stillFailing.length + held,
+        delivered: resent,
+        stillFailing: stillFailing.length,
+        // Claimed by a push running right now. Neither sent nor bounced, and
+        // the GM's counts have to add up or the row reads as lost mail.
+        held,
+      },
     },
   });
 
-  return { resent, stillFailing };
+  return { resent, stillFailing, held, patch: await deskPatchFor({ stagedMessageIds: [existing.id] }) };
 }
 
 // The composer stages presence ops only (add/remove). Patch and equip belong
@@ -356,7 +426,11 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
     },
   });
 
-  return { count: created.length, batchId };
+  return {
+    count: created.length,
+    batchId,
+    patch: await deskPatchFor({ stagedEffectIds: created.map((r) => r.id) }),
+  };
 }
 
 // A staged character-to-character transfer. Separate from
@@ -414,7 +488,7 @@ async function createStagedTransferImpl({
     },
   });
 
-  return { id: created.id };
+  return { id: created.id, patch: await deskPatchFor({ stagedEffectIds: [created.id] }) };
 }
 
 async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, locationId }) {
@@ -463,13 +537,19 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
     },
   });
 
-  return {};
+  return { patch: await deskPatchFor({ stagedEffectIds: [existing.id] }) };
 }
 
 async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
   const session = await requireGm();
 
   if (batchId) {
+    // Read the ids before deleting them: a deleteMany count tells the desk how
+    // many rows went, not which, and the patch has to name each one.
+    const doomed = await prisma.stagedEffect.findMany({
+      where: { batchId, appliedAt: null },
+      select: { id: true },
+    });
     const { count } = await prisma.stagedEffect.deleteMany({ where: { batchId, appliedAt: null } });
     await prisma.auditLog.create({
       data: {
@@ -478,11 +558,19 @@ async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
         details: { batchId, count },
       },
     });
-    return { count };
+    return {
+      count,
+      patch: await deskPatchFor({ removed: { stagedEffectIds: doomed.map((d) => d.id) } }),
+    };
   }
 
   const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
-  if (!existing) return { count: 0 };
+  if (!existing) {
+    return {
+      count: 0,
+      patch: await deskPatchFor({ removed: { stagedEffectIds: [stagedEffectId].filter(Boolean) } }),
+    };
+  }
   if (existing.appliedAt) throw new UserError("That effect already applied.");
   await prisma.stagedEffect.delete({ where: { id: existing.id } });
   await prisma.auditLog.create({
@@ -492,7 +580,7 @@ async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
       details: { stagedEffectId: existing.id, count: 1 },
     },
   });
-  return { count: 1 };
+  return { count: 1, patch: await deskPatchFor({ removed: { stagedEffectIds: [existing.id] } }) };
 }
 
 // Moves staged rows a resolved turn's push never got to onto the open turn.
@@ -523,7 +611,14 @@ async function retargetMissedStagingImpl({ effectIds = [], messageIds = [] }) {
     },
   });
 
-  return { effects: effects.count, messages: messages.count };
+  return {
+    effects: effects.count,
+    messages: messages.count,
+    // The retargeted rows flip `missed` on their DTO, which is what clears the
+    // banner — so the patch names every id that was offered, not just the ones
+    // that moved.
+    patch: await deskPatchFor({ stagedEffectIds: effectIds, stagedMessageIds: messageIds }),
+  };
 }
 
 async function lockHolderName(discordUserId) {
@@ -559,7 +654,9 @@ async function claimMoveLockImpl({ actionId }) {
     throw new UserError(`${holder} is adjudicating this Move.`);
   }
 
-  return { ttlMs: MOVE_LOCK_TTL_MS };
+  // The lock is presence, and presence is a row field (lockedByDiscordUserId
+  // on the Move DTO) — so it folds into the desk store like any other change.
+  return { ttlMs: MOVE_LOCK_TTL_MS, patch: await deskPatchFor({ moveIds: [actionId] }) };
 }
 
 async function refreshMoveLockImpl({ actionId }) {
@@ -578,7 +675,7 @@ async function releaseMoveLockImpl({ actionId }) {
     where: { id: actionId ?? "", lockedByDiscordUserId: session.discordUserId },
     data: { lockedByDiscordUserId: null, lockExpiresAt: null },
   });
-  return {};
+  return { patch: await deskPatchFor({ moveIds: [actionId] }) };
 }
 
 // A Gambit always carries a fresh roll, a Routine never does, so switching
@@ -688,7 +785,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     },
   });
 
-  return result;
+  return { ...result, patch: await deskPatchFor({ moveIds: [actionId] }) };
 }
 
 // The Caving desk's two buttons, same shape as resolveMoveImpl above.
@@ -726,8 +823,9 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
     },
   });
 
-  if (mode === "save") return { status: roll.resolvedAt ? "RESOLVED" : "OPEN", note: "Saved." };
-  return { status: "RESOLVED" };
+  const patch = await deskPatchFor({ cavingRollIds: [roll.id] });
+  if (mode === "save") return { status: roll.resolvedAt ? "RESOLVED" : "OPEN", note: "Saved.", patch };
+  return { status: "RESOLVED", patch };
 }
 
 // "Reject" on the desk. Deletes the Action outright, since the turn-economy
@@ -741,6 +839,14 @@ async function rejectMoveImpl({ actionId }) {
   if (lockIsLive(action) && action.lockedByDiscordUserId !== session.discordUserId) {
     throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
   }
+
+  // Read before the delete: the staged rows hanging off this Move survive it,
+  // detached (moveId SetNull), and the desk has to be told they moved to the
+  // tray rather than left showing them under a Move that is gone.
+  const [detachedEffects, detachedMessages] = await Promise.all([
+    prisma.stagedEffect.findMany({ where: { moveId: action.id }, select: { id: true } }),
+    prisma.stagedMessage.findMany({ where: { moveId: action.id }, select: { id: true } }),
+  ]);
 
   // A lesson's partner Moves may go with this one (db/lib/lessons.js); the
   // learners it strands are told after commit.
@@ -783,7 +889,15 @@ async function rejectMoveImpl({ actionId }) {
   }
 
   revalidatePath("/character");
-  return { description: action.description, deliveryFailed };
+  return {
+    description: action.description,
+    deliveryFailed,
+    patch: await deskPatchFor({
+      stagedEffectIds: detachedEffects.map((e) => e.id),
+      stagedMessageIds: detachedMessages.map((m) => m.id),
+      removed: { moveIds: [action.id] },
+    }),
+  };
 }
 
 async function getCharacterInspectorImpl({ characterId }) {
@@ -1149,8 +1263,7 @@ async function undoCavingFindImpl({ rollId }) {
   });
 
   await afterInventoryChange(roll.characterId);
-  revalidatePath("/gm/turns");
-  return { ok: true };
+  return { ok: true, patch: await deskPatchFor({ cavingRollIds: [roll.id] }) };
 }
 
 // ─── The uploaded-portrait queue (docs/systemdocs/PORTRAITS.md §1a) ─────────
@@ -1184,7 +1297,6 @@ async function keepAvatarImpl({ characterId }) {
     data: { avatarReviewedAt: new Date() },
   });
 
-  revalidatePath("/gm/turns");
   return { name: character.name };
 }
 
@@ -1237,7 +1349,6 @@ async function rejectAvatarImpl({ characterId }) {
     ).catch((err) => console.error("Avatar rejection DM failed:", err));
   }
 
-  revalidatePath("/gm/turns");
   revalidatePath("/character");
   return { name: character.name };
 }
@@ -1307,7 +1418,6 @@ async function cancelHoldAsGmImpl({ attackId }) {
     );
   }
 
-  revalidatePath("/gm/turns");
   revalidatePath("/gm/audit");
   revalidatePath("/character");
   return { ok: true };

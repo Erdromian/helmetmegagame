@@ -47,6 +47,7 @@ const { runHorseUpkeepPass } = require("./lib/horseUpkeepPass");
 const { runAutoLaborPass } = require("./lib/autoLaborPass");
 const { runLaborYieldPass } = require("./lib/laborYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
+const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runLessonPass } = require("./lib/lessonPass");
 const { runResearchPass } = require("./lib/researchPass");
 const { runConfessionPass } = require("./lib/confessionPass");
@@ -490,6 +491,19 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Staged push audit log failed:", err));
+  }
+
+  // The caving release (db/lib/cavingPass.js). Directly after the staged push,
+  // because the push is the GM's last chance to have resolved one by hand: a
+  // TROUBLE roll still open once the turn closes holds its caver in the zone
+  // forever, and the Caving lens is read-only on a past turn. So anything left
+  // is resolved automatically here and the hold lifts.
+  if (!done.has("cavingRelease")) {
+    const released = await releaseUnresolvedCavingRolls(prisma, turn).catch(async (err) => {
+      await passFailed("Caving release", err);
+      return null;
+    });
+    if (released) await markDone("cavingRelease");
   }
 
   // Sweeps turn-scoped tag expiry. Progression runs first (grants what an
