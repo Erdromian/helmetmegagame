@@ -24,6 +24,10 @@ const LABORING_HUNTING_SLUG = "laboring-hunting";
 const LABORING_FISHING_SLUG = "laboring-fishing";
 const LABORING_PROSPECTING_SLUG = "laboring-prospecting";
 const CATATONIC_SLUG = "catatonic-afk";
+// The tax button's gate (docs/systemdocs/TAGS.md, TaxDialog.js). Held plus
+// isLeader/isTreasurer of the holder's own faction is what shows the button —
+// the tag alone does nothing without the seat.
+const TAXMAN_SLUG = "taxman";
 // Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
 // never by a player; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
@@ -267,6 +271,7 @@ module.exports = {
   LABORING_FISHING_SLUG,
   LABORING_PROSPECTING_SLUG,
   CATATONIC_SLUG,
+  TAXMAN_SLUG,
   OVERBURDENED_SLUG,
   STEALTH_SLUG,
   CORPSE_GROUP_SLUG,
