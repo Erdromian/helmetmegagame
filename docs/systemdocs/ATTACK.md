@@ -159,6 +159,47 @@ file afterwards is what costs your Move.
 `needs: ACT` applies — a bound man is told why rather than left pressing a
 button that cannot work.
 
+### 5a. But not once your Move is spent
+
+**A Move already filed this turn refuses the button**, unless that Move is a
+**Gambit**. `db/lib/combatGate.js` owns the predicate and the sentence:
+
+> You've already used your Move this turn. You should only Attack if you plan to
+> use your Gambit to actually declare your combat.
+
+The reason is the whole of §5 turned around. Free means a player whose turn is
+already spent on something else can still pin somebody where they stand for the
+rest of the day — and all a GM gets for it is a Move with nothing in it about
+any fight, and two holds to unpick by hand. The other player lost an afternoon
+to a button that cost nobody anything.
+
+The Gambit exception is why the check reads `Action.moveKind` rather than the
+plain "have you acted" question the rest of the sheet asks
+(`web/lib/moveEconomy.js`). Writing *"I swing at Bob"* first and pressing the
+button second is the right thing done in the other order, and must not be
+refused.
+
+It tests the **row**, not the kind, so **a filed Move with no `moveKind` at all
+counts as spent**. `db/lib/locationTravel.js` files a paid zone crossing with
+that column left null, and a crossing costs the whole turn — reading it as
+"hasn't acted" would have let anybody who walked across a boundary pin somebody
+anyway, which is the case this exists for. A future writer that forgets the
+column fails closed the same way.
+
+**Two things this does not catch**, stated so nobody assumes otherwise. It is
+an ordering rule: pressing Attack first and filing a Routine afterwards is not
+refused by anything, because `db/lib/moves.js#fileMove` knows nothing about
+holds. And the exception is the Move's *kind*, not its contents — the auto-filed
+Gambits (`auto:lesson`, `auto:confession`, `auto:heal_gambit`, the Cathedral
+research one) are nobody's combat declaration but read as one here.
+
+**Break off is never gated.** `cancelAttackImpl` carries no such check, on
+purpose: it is the way out for exactly the player this refuses, and locking it
+would be worse than the thing being prevented.
+
+A firing **ambush** is not gated either. `fireWatches` files its `Attack` row
+off a watch set earlier, when the Move was still free (§4).
+
 ## 6. The surface
 
 `/character`'s verb strip, in the **Others** section, on `ActionDialog`.
@@ -166,10 +207,18 @@ button that cannot work.
 **No `gate` and no `show`.** Whether anybody standing near you is out of your
 league is a fact about the *room*, and greying on it would be free scouting
 every time the page loaded — the metagaming rule at the top of
-`actionRegistry.js`. The picker lists everybody here, **including the people the
-button will refuse**, for the same reason: filtering them out would answer "who
-is out of my league?" to anyone who opened the dialog, which is the one thing
-§3's exception is kept narrow to avoid.
+`actionRegistry.js`.
+
+§5a's refusal is a fact about your own sheet, so that rule would allow greying
+the icon for it — but the **Attack submit inside the dialog** greys instead,
+with the sentence above the picker. Break off lives in this dialog, and a dead
+icon on the strip would strand anybody who attacked and then filed a Routine.
+It is the shape `CraftDialog.js` already uses for `hasMoved`.
+
+The picker lists everybody here, **including the people the button will
+refuse**, for the same reason the icon never greys: filtering them out would
+answer "who is out of my league?" to anyone who opened the dialog, which is the
+one thing §3's exception is kept narrow to avoid.
 
 Nothing in the dialog is a tooltip (`SHEET.md` §3). What an attack does prints
 on the page, and the fights you are already in sit under it with a **Break off**
@@ -297,6 +346,7 @@ Nothing here is destructive, so no `restore` snapshot is owed
 | File | Role |
 |---|---|
 | `db/lib/attack.js` | The whole mechanism — the band gate, the row, both holds, the lines |
+| `db/lib/combatGate.js` | §5a — the spent-Move refusal, shared with Intercept |
 | `db/lib/locationMove.js` | `closeFightsOnMove` — a relocation ends the fight |
 | `db/lib/characterDeath.js` | A dead man is in no fight |
 | `db/lib/fightingSkill.js` | `bandRank`, and nothing else changed |

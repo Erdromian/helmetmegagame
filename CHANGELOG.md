@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · You can't start a fight once your Move is spent
+
+✎ Attack and Intercept now refuse if you have already filed your Move for the turn — unless that Move is a Gambit, so writing the fight up first and pressing the button second still works  
+✎ The refusal sits on the button inside the dialog, not the icon on the sheet: Break off, Stop watching and Let them go are never blocked  
+✚ A watch already set still fires, and a zone crossing now counts as a spent Move like any other
+
 ## 2026-09-11 · The turn desk shows a whole fight in one row
 
 ✎ A group ambush is one row on the Other tab now, instead of one row per person jumped — everyone caught is listed under it  

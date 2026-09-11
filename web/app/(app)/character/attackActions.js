@@ -13,6 +13,7 @@ import { peopleHere } from "@/lib/peopleHere";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { isHere, HERE_FIELDS, notHereMessage } from "@lifeweb/db/lib/presence";
 import { IDENTITY_SELECT, identityOf, seenAs } from "@lifeweb/db/lib/intercept";
+import { attackMoveBlock } from "@lifeweb/db/lib/combatGate";
 import {
   ATTACK_TAG_SELECT,
   ATTACK_CALLED_OFF_DM,
@@ -30,7 +31,8 @@ import {
 // guarded().
 //
 // It costs nothing — no Move, no ⬢, no Action row. The Gambit you file
-// afterwards is what costs your Move.
+// afterwards is what costs your Move. A Move already filed on anything else
+// refuses the button (db/lib/combatGate.js, reasoned out in ATTACK.md §5a).
 
 // The identity columns and the fighting columns AT ONCE, for both sides.
 // presentedIdentity wants the concealment fields (so a DM names a hooded
@@ -92,6 +94,10 @@ async function loadAttacksImpl() {
     ok: true,
     people: here.map((row) => ({ id: row.id, name: seenAs(identityOf(row)) })),
     fighting: await attacksBy(prisma, character.id, openTurn?.id ?? null),
+    // Why the dialog's Attack button is dead, or null. Advisory — the same
+    // sentence is thrown for real below — and it deliberately does NOT reach
+    // the Break off rows, which stay live for exactly the player this refuses.
+    blocked: await attackMoveBlock(prisma, character.id, openTurn?.id ?? null),
   };
 }
 
@@ -102,6 +108,12 @@ async function attackCharacterImpl({ targetCharacterId }) {
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("There's no turn open right now.");
+
+  // Ahead of the band gate on purpose: somebody who cannot attack at all this
+  // turn must not be told, as a consolation prize, that the person they picked
+  // was out of their league (docs/systemdocs/COMBAT.md §5).
+  const spent = await attackMoveBlock(prisma, character.id, openTurn.id);
+  if (spent) throw new UserError(spent);
 
   const target = await prisma.character.findUnique({
     where: { id: targetCharacterId },
@@ -159,6 +171,9 @@ async function cancelAttackImpl({ targetCharacterId }) {
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("There's no turn open right now.");
 
+  // NO combatGate check here, deliberately. Breaking off is the one way out of
+  // a fight for a player whose Move is already spent, and gating it would trap
+  // exactly the person the gate above exists to protect somebody from.
   const target = await prisma.character.findUnique({
     where: { id: targetCharacterId ?? "" },
     select: { ...IDENTITY_SELECT, status: true },
