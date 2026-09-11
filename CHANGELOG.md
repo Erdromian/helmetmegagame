@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The message desk stops stalling and going deaf
+
+✎ Opening somebody on the Players desk is quicker. The desk was quietly loading every conversation in the rail in the background just in case you clicked it, so the one you actually clicked queued up behind the rest.  
+✎ Clicking a name now shows you something straight away instead of sitting on the last conversation until the new one is ready.  
+✎ A hiccup talking to Discord no longer makes a quiet conversation come back as 'not found'.  
+✎ One broken conversation no longer takes the whole desk down with it — the rail stays, and you can click somebody else.  
+✎ The desk keeps listening for new mail after a deploy. It used to stop updating silently while the chime went on ringing, which is why you would hear a ping and find nothing there until you reloaded.
+
 ## 2026-09-11 · Merge PR #41: Prospecting pays properly, and Keen Eye is worth taking
 
 ✎ Every Prospecting table's drops are up by about half again — the raise is all in what you find, base pay is untouched. Junk with no sale value (Rock, Bear Trap) is cut rather than padded around, since a rarity band's share is fixed and dropping a worthless member concentrates it on what is left.  
