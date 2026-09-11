@@ -1068,8 +1068,23 @@ async function syncZonesFromYaml(prisma) {
   // quantity, which made every re-sync a faucet: empty the Lost Convoy's 46
   // obols and the next `db:sync-zones` put them back. `resources` never worked
   // that way, and the header of docs/zones.yaml promised the items did not
-  // either. Now they don't.
-  async function seedRoomStash(prisma, roomId, stash) {
+  // either.
+  //
+  // Closing that only closed HALF of it, and the other half cost the live
+  // game 139 duplicated items on 2026-09-10 — four wax stamps, a Graywall
+  // Key, three Cerberus Keys, a horse. The test was "does a RoomTag row
+  // exist", and taking the LAST unit deletes the row
+  // (tagWrites.js#dropRoomTag), so a room players had stripped bare was
+  // indistinguishable from one that had never been seeded, and every re-sync
+  // restocked it. The guard only ever worked while at least one unit
+  // remained — i.e. in exactly the cases nobody would notice.
+  //
+  // So the seed is now recorded on the ROOM (`Room.seededStashSlugs`) rather
+  // than inferred from what happens to be lying in it. A slug is written once,
+  // ever. A slug newly authored into the YAML still seeds, because it is not
+  // in that list yet; an item somebody carried off never returns, because it
+  // is. See docs/systemdocs/SYNC.md §2.
+  async function seedRoomStash(prisma, roomId, stash, seededSlugs = []) {
     if (stash.resources > 0) {
       // Conditional on 0, so this is a seed and not a top-up: a room somebody
       // has already spent out of stays spent.
@@ -1078,9 +1093,19 @@ async function syncZonesFromYaml(prisma) {
         data: { resources: stash.resources },
       });
     }
+    const seeded = new Set(seededSlugs);
+    const newlySeeded = [];
     for (const [slug, quantity] of stash.items) {
+      // Seeded before: leave it, whatever the room holds now. This is the
+      // whole fix — the question is "has this room ever been given one",
+      // never "is one lying here".
+      if (seeded.has(slug)) continue;
       const tag = await prisma.tag.findUnique({ where: { slug }, select: { id: true } });
       if (!tag) {
+        // Unknown tag: zones sync BEFORE tags, so on a database that has never
+        // seen db:sync-tags this is expected (LAUNCH.md §5 runs the zone sync
+        // twice for it). Skip WITHOUT recording the slug, so the second run
+        // still seeds it.
         console.warn(`zones.yaml: room stash names unknown tag "${slug}" — run db:sync-tags first.`);
         continue;
       }
@@ -1091,6 +1116,15 @@ async function syncZonesFromYaml(prisma) {
       if (!existing) {
         await prisma.roomTag.create({ data: { roomId, tagId: tag.id, quantity } });
       }
+      // Recorded even when a row already existed: the room demonstrably has
+      // this item, so the seed is spent either way.
+      newlySeeded.push(slug);
+    }
+    if (newlySeeded.length) {
+      await prisma.room.update({
+        where: { id: roomId },
+        data: { seededStashSlugs: { push: newlySeeded } },
+      });
     }
   }
 
@@ -1125,7 +1159,12 @@ async function syncZonesFromYaml(prisma) {
     }
     roomsBySlug.set(entry.slug, room);
     if (entry.stash.resources > 0 || entry.stash.items.length > 0) {
-      await seedRoomStash(prisma, room.id, entry.stash);
+      // `room` is the row as it stands after the upsert above, so its
+      // seededStashSlugs is current. A room that merely MOVED location keeps
+      // its record (the branch above updates, never recreates); a room whose
+      // slug left the YAML and came back is a new row with an empty list, and
+      // seeds fresh — which is right, since a changed id is not a rename.
+      await seedRoomStash(prisma, room.id, entry.stash, room.seededStashSlugs ?? []);
     }
   }
 

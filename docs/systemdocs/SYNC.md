@@ -86,11 +86,34 @@ under create-only, and a faction that predates the column still gets the one
 the YAML names for it. Rooms come from `db:sync-zones`, which runs first; an
 unknown slug warns and skips rather than throwing.
 
-A room's `stash:` is the same shape of promise. It takes either a flat list of
-slugs (one each) or a map with `resources:` and an `items:` map of slug →
-count. A stack already at or above the authored quantity is left alone, and
-`resources` is written only while the room holds none — so a re-sync can
-neither undo a player carrying the anvil off nor quietly duplicate it.
+A room's `stash:` is the same shape of promise, and the one that had to be
+rebuilt to keep it. It takes either a flat list of slugs (one each) or a map
+with `resources:` and an `items:` map of slug → count. `resources` is written
+only while the room holds none. The items half is keyed on
+**`Room.seededStashSlugs`** — the slugs this room has ever been given — so a
+slug is seeded **once, ever**, and a re-sync can neither undo a player
+carrying the anvil off nor quietly duplicate it.
+
+**It used to be keyed on whether a `RoomTag` row existed, and that was wrong
+in the one case nobody would notice.** Taking the *last* unit deletes the row
+(`db/lib/tagWrites.js#dropRoomTag`), so a room players had stripped bare was
+indistinguishable from one that had never been seeded, and every re-sync
+restocked it. A partial stack was safe; an emptied one was a faucet. On
+2026-09-10 a single `db:sync` put 139 items back into a live game — four wax
+stamps, a Graywall Key, three Cerberus Keys, a horse, 48 obols — on top of
+the copies players were already carrying. `db:dedupe-room-stash` is the
+cleanup that followed (§4).
+
+Two details of the new rule matter:
+
+- a slug is recorded **even when a `RoomTag` row already existed** — the room
+  demonstrably has the item, so the seed is spent either way;
+- an **unknown tag is skipped without being recorded**, because zones sync
+  before tags and a first-ever run warns and skips (`LAUNCH.md` §5 runs the
+  zone sync twice for exactly this). Recording it on that pass would strand
+  the item forever. This is not hypothetical: nine stash lines were skipped
+  that way at the 2026-09-10 game start because their `Tag` rows did not exist
+  yet, and seeded correctly on a later run.
 
 A Location's `structures:` is the third promise of that shape. It lists the
 slugs of placement tags that were always standing there (the Square's cross),
@@ -403,6 +426,7 @@ pre-launch wipe rebuilds everything else from YAML.
 |---|---|
 | `db:sync` | All seven masters in the working order (zones, narrowcast channels, tags, roles, desires, documents, labor drops). |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |
+| `db:dedupe-room-stash` | Dry-run by default (`-- --apply`): removes room-stash items a re-sync re-created over a stack players had emptied, and the copies of those since picked up. Deletes the **floor** copy first — whoever looted the room keeps what they carried off — and reaches into a bag only where the injected unit was itself picked up, taking it from whoever took it, by the audit trail. Proof is a `RoomTag.createdAt` inside a known sync window, or a stack drawn to zero *before* that window with more drawn out after (the row that would prove it is destroyed when somebody empties it). Writes a `stash_dedupe` audit row per deletion and DMs each player "A duplicate item was removed."; idempotent — a second run reads those audit rows and takes nothing twice. Written for the 2026-09-10 incident above and kept because the evidence trail is worth having if it ever recurs. |
 | `db:prune-tags` | Dry-run by default (`-- --apply`): the destructive counterpart to `db:sync-tags` — deletes any Tag row absent from `docs/tags.yaml`, skipping GM-created and referenced tags, then any TagGroup absent from `docs/taggroups.yaml` once no surviving tag sits in it. |
 | `db:prune-orphan-roles` | Dry-run by default (`-- --apply`): deletes Discord character roles no living character claims. Only touches roles carrying the character-role signature (mentionable + `hashNameToColor` colour), so zone, divider and GM cosmetic roles are never candidates. Add `-- --include-catatonic` to also accept the Catatonic repaint (`CATATONIC_ROLE_COLOR` + the ` • Catatonic` suffix), which otherwise can never match — harmless while a character claims the role, but it strands one left by a finished game. "Permissionless" here means **`0` or exactly @everyone's bitfield**: Discord's create-role endpoint copies @everyone's permissions when the field is omitted, which `ensureCharacterRole` used to do, so a stricter test made this script a silent no-op. Guards the 250-role guild cap. |
 | `db:prune-stale-channels` | Dry-run by default (`-- --apply`): deletes categories, channels and `Zone:`/`Location:` roles left behind by a **previous game** — objects no DB row points at any more. `db:sync-zones` cannot reach these: it only prunes a Zone/Location row that left `docs/zones.yaml` while the DB still holds its Discord ids, and the doctor never deletes a channel at all. So a retired layout lingers beside the live one under a category of the same name. Conservative by construction, with no hardcoded ids — a category is a candidate only when its name matches a live `Zone.name` *and* nothing in the DB references it, channels are only ever deleted as that category's children, and the run aborts outright if any candidate turns out to be referenced. |

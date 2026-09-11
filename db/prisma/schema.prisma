@@ -1518,6 +1518,19 @@ model Room {
   resources Int       @default(0)
   tags      RoomTag[]
 
+  // Which stash slugs this room has EVER been seeded with, from
+  // docs/zones.yaml's `stash:`. seedRoomStash writes a slug only while it is
+  // absent here, so an item players carried off never comes back, and a slug
+  // newly authored into the YAML still seeds once.
+  //
+  // The old test was "does a RoomTag row exist", which could not tell
+  // "emptied" from "never seeded" — taking the last unit DELETES the row
+  // (db/lib/tagWrites.js#dropRoomTag), so an looted room looked identical to
+  // a fresh one and every re-sync refilled it. That cost a live game 139
+  // duplicated items on 2026-09-10. Slugs rather than tag ids for the same
+  // reason accessTagSlugs above is: zones and tags sync independently.
+  seededStashSlugs String[] @default([])
+
   playerThreads PlayerThread[]
   guests        RoomGuest[]
 
