@@ -2301,7 +2301,7 @@ tags:
     name: Metempsychosis
     category: general
     group: general-traits
-    description: "You know something very, very important."
+    description: "You know something very, very important. You can respawn freely and infinitely."
     pointCost: 12
     visible: false
     purchasable: true
