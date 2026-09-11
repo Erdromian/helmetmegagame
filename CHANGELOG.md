@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Brigands start able to work
+
+✚ Both Brigand roles start with Laboring (Basic)  
+✎ The four Brigands already in the game have been given it
+
 ## 2026-09-11 · Searching the rail no longer holds up your next click
 
 ✎ Typing in the rail's search box used to block whatever you did next, because the search and the click went through the same queue — so 'type a name, click the row' made the click wait for a scan of every message in the game. It doesn't any more, and a search you've typed past is now abandoned instead of running to the end.
