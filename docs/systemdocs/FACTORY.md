@@ -187,6 +187,13 @@ them as before. This refusal is the hand-packed button only.
 is the feature — it is how you smuggle something past a Cerberus, and the GM
 desk says so out loud on the request row.
 
+**It is also optional, and not everyone is offered one.** A crate with no line
+gets no `description` at all rather than an empty `[CONTAINS]:`. And writing on
+a crate is writing: the field is rendered only for a packer who can read —
+letters AND eyes, `readBlock` from `db/lib/reading.js`, the same rule the paper
+actions use — and the server refuses a posted label from anyone else with the
+same one sentence, so which of the two stopped them never leaks.
+
 There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`.
 The weight cap does not bound the weightless, and a crate's `consumesInto`
 repeats a slug per unit, so a crate of obols (0 lb, stackable, no ceiling) would
