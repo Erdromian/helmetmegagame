@@ -116,9 +116,16 @@ wearing a filter's clothes; a 100-player inbox needs "who is waiting on me",
 not three mutually exclusive views of it. What used to be the "Awaiting"
 filter is a row-level mark instead: any row where the player wrote last and
 it's already read (`lastDirection === "INBOUND" && unreadCount === 0`) gets a
-small muted "awaiting" chip next to its time chip — the unread badge already
-says as much when there's an unread count, so the chip only shows when there
-isn't one. The desk header's meta row totals the same predicate as an
+small muted, italic "awaiting" next to its time — the unread badge already
+says as much when there's an unread count, so it only shows when there
+isn't one.
+
+**Those three states are one weight ladder, not one pill.** `unread` >
+`awaiting` > `read`, read off `data-unread` / `data-awaiting` on the row
+(`globals.css`): an unread row's name is full strength at 700, an awaiting
+row's is full strength at normal weight, a read row's is muted. Before this
+the two live states were the same weight plus a small grey chip, so a rail of
+a hundred rows had two visible states and one of them was "not selected". The desk header's meta row totals the same predicate as an
 "N awaiting" chip beside "N unread".
 
 **The ✓ under the star clears a row from that pile.** Some messages want no
@@ -145,6 +152,13 @@ still arrive and still read normally. It is also **standing**, unlike ✓: a
 new message does not lift it, because a mute is a decision about a person
 rather than about one message. `ConversationMeta.mutedAt` holds it until a GM
 clicks ⊘ again.
+
+**The rail's chrome is two lines.** Search inbox and the zone dropdown share
+the first; **Needs reply**, "Searching everyone — filters paused", **Mark all
+read** and **Show muted** share the second. It used to be up to five stacked
+rows — a row per control — so on a laptop the first conversation started below
+the fold. The adjudication rail's `RailFilters` follows the same shape
+(`ADJUDICATION.md` §3).
 
 Muted rows are hidden, not deleted. A **Show muted (N)** button appears among
 the rail's filters whenever there are any; it reveals them **in their ordinary
@@ -219,6 +233,20 @@ header, reachable from the rail where the roster's checkboxes are not, and
 **Message pinned** in the inspector's pin row, which opens it prefilled with
 the pinned characters. It was a finished component nothing imported until
 then.
+
+**"Why this row matched" has one form across all three surfaces** — the rail,
+this roster and the inspector's lookup box (`MatchHint.js`): a muted
+`· <what matched>` suffix, the value where the row has one (the role title,
+the faction, the matched tag names) and the field's own word where it does
+not. A name hit says nothing, because the name is already the biggest thing on
+the row. The three used to print the bare field name, the bare field name with
+a different dot, and the value with no dot at all.
+
+**The inspector with nobody picked shows where the desk stands** — unread,
+awaiting a reply, conversations, pinned, muted — instead of seventy per cent
+of a column holding one sentence of advice. The advice is still underneath it.
+The adjudication desk fills the same slot with its own turn's standing
+(`InspectorColumn.js`'s `emptyStanding`).
 
 **Bulk zone moves are deliberately absent.** `bulkMoveCharacters` requires
 superadmin, so a button for it here would fail for most of the people looking

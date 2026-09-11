@@ -172,8 +172,19 @@ export default function AuditDesk({
                 Clock
               </button>
             </div>
-            <button type="button" className="btn-quiet" aria-pressed={live} onClick={() => setLive((v) => !v)}>
-              {live ? "Pause live" : "Go live"}
+            {/* A real toggle, in the house form: a chip keyed on data-active
+                plus aria-pressed (DESIGN-SYSTEM §5). As a .btn-quiet with a
+                changing word it was the one control on the desk whose state
+                you had to read the LABEL to know. */}
+            <button
+              type="button"
+              className="chip"
+              data-active={live ? "true" : undefined}
+              aria-pressed={live}
+              title={live ? "Stop following new entries" : "Follow new entries as they land"}
+              onClick={() => setLive((v) => !v)}
+            >
+              Live
             </button>
             <button type="button" className="btn-secondary" disabled={exporting} onClick={() => download()}>
               CSV

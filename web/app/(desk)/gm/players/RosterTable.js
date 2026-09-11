@@ -7,6 +7,7 @@ import { useMemo, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
+import MatchHint from "@/app/components/MatchHint";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import FactionLink from "@/app/components/FactionLink";
@@ -323,9 +324,10 @@ export default function RosterTable({
                       <Link href={`/gm/players/${c.discordUserId}`} className="menu-item">
                         {c.name}
                       </Link>
-                      {match && match.matchedField !== "name" && (
-                        <span className="text-xs text-muted">· {match.matchedField}</span>
-                      )}
+                      <MatchHint
+                        match={match}
+                        values={{ role: c.roleTitle, faction: c.factionName, zone: c.zoneName }}
+                      />
                       <DevCharacterButton
                         characterId={c.id}
                         name={c.name}

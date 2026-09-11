@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import FormError from "@/app/components/FormError";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
+import StagingStrip from "./StagingStrip";
 import EffectComposer from "./EffectComposer";
 import TransferComposer from "./TransferComposer";
 import MessageComposer from "./MessageComposer";
@@ -221,19 +222,15 @@ export default function StagingTray({
       {open && (
         <div className="desk-tray-body">
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
-              + Effect
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("transfer")}>
-              + Transfer
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("message")}>
-              + Message
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
-              + Public
-            </button>
-            <button type="button" className="btn-quiet" onClick={onOpenPreview}>
+            <StagingStrip
+              onEffect={() => setComposer("effect")}
+              onTransfer={() => setComposer("transfer")}
+              onMessage={() => setComposer("message")}
+              onPublic={() => setComposer("public")}
+            />
+            {/* The only Preview push in the app — the desk header used to
+                carry a second one. */}
+            <button type="button" className="btn-secondary" onClick={onOpenPreview}>
               Preview push
             </button>
             {missedEffects.length + missedMessages.length > 0 && (

@@ -12,6 +12,7 @@ import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 import CustomTagDialog from "@/app/components/CustomTagDialog";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import useEscapeLayer from "./escapeLayers";
 import QuantityField from "@/app/components/QuantityField";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
@@ -64,13 +65,24 @@ export default function EffectComposer({
   const [targetSearch, setTargetSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  // Anything actually filled in counts as unsaved work — the prefilled target
+  // alone does not, or every composer would open dirty. Editing an `existing`
+  // row is exempt: those values are already a staged row.
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({
+    alsoDirty:
+      !existing && Boolean(resources.trim() || tagPoints.trim() || ops.size || locationId),
+  });
 
   // Tags ticked in the catalog browser but not yet folded into `ops` — a GM
   // who checks boxes and presses "Stage it" directly (skipping "Add N
   // selected") still gets them, via `submit()` below. Lifted out of
   // TagCatalogBrowser, which otherwise owns this as purely internal state.
   const [checkedTagIds, setCheckedTagIds] = useState(() => new Set());
+
+  // Escape closes this before it reaches the Move underneath (escapeLayers.js).
+  useEscapeLayer(() => {
+    if (!pending) guardedClose(onCancel);
+  });
 
   // A quantity box's in-progress text, kept separate from the committed
   // `op.quantity` so Backspace-then-retype doesn't snap to 1 mid-edit

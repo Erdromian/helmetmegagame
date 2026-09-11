@@ -12,6 +12,7 @@ import DmThread from "./DmThread";
 import ArchiveContextModal from "./ArchiveContextModal";
 import CustomTagDialog from "./CustomTagDialog";
 import Tooltip from "./Tooltip";
+import MatchHint from "./MatchHint";
 import useSubmitOnEnter from "./useSubmitOnEnter";
 import useInspectorOverlay from "./useInspectorOverlay";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -559,17 +560,15 @@ function InspectorSearch({ roster, onInspect }) {
             <li key={c.id}>
               <button type="button" className="btn-quiet" onClick={() => pick(c)}>
                 <span className="truncate">{c.name}</span>
-                {match.matchedField !== "name" && (
-                  <span className="text-xs text-muted">
-                    {match.matchedField === "username" && c.username
-                      ? `@${c.username}`
-                      : match.matchedField === "role"
-                        ? c.roleTitle
-                        : match.matchedField === "faction"
-                          ? c.factionName
-                          : c.zoneName}
-                  </span>
-                )}
+                <MatchHint
+                  match={match}
+                  values={{
+                    username: c.username ? `@${c.username}` : null,
+                    role: c.roleTitle,
+                    faction: c.factionName,
+                    zone: c.zoneName,
+                  }}
+                />
               </button>
             </li>
           ))}
@@ -607,6 +606,12 @@ export default function InspectorColumn({
   // Buttons that belong beside the pins (the player desk's "Message pinned").
   pinsActions = null,
   emptyHint,
+  // What the desk stands at, for the column with nobody picked: a list of
+  // { label, value, tone? }. Seventy per cent of a three-column desk was a
+  // sentence explaining how to fill it; a GM already knows how to click a
+  // name, and what they actually want from that space is the shape of the
+  // work in front of them.
+  emptyStanding = null,
   // { mode, categories, tags, groups } — omit to hide the custom-tag door.
   customTag = null,
   // { tab, token } — a desk asking the column to jump to a tab ("Past moves"
@@ -684,10 +689,24 @@ export default function InspectorColumn({
       )}
 
       {!inspected ? (
-        <p className="p-4 text-sm text-muted">
-          {emptyHint ??
-            "Click any character name — in the queue, on the desk, in the tray — to look them up here without leaving the workspace."}
-        </p>
+        <div className="desk-inspector-empty">
+          {emptyStanding?.length ? (
+            <dl className="desk-standing">
+              {emptyStanding.map((s) => (
+                <div key={s.label} className="desk-standing-row">
+                  <dt>{s.label}</dt>
+                  <dd className="mono" data-tone={s.tone ?? undefined}>
+                    {s.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          <p className="text-sm text-muted">
+            {emptyHint ??
+              "Click any character name — in the queue, on the desk, in the tray — to look them up here without leaving the workspace."}
+          </p>
+        </div>
       ) : (
         <>
           <div className="desk-inspector-head">

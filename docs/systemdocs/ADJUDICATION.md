@@ -270,6 +270,25 @@ player desk…); the desk's own actions dropped theirs. What is left in
 `actions.js` is only ever another page's — `/character` after a Reject or a
 portrait takedown, `/gm/audit` after a fight is called off — never this one's.
 
+### What the Move desk looks like
+
+Top-down, the card is one job: who and where (with the side trips — Message
+them, Past moves, the dev panel — behind a `⋯` menu so `Close` is the only
+other control in the header), then the Move as they wrote it, then the Kind /
+Dice / Declared line, then **the Result box as the visually primary panel** —
+a raised surface with an accent edge, because it is the thing a GM came here
+to fill in and it used to be the fourth of five identical hairline-ruled
+slabs. Staged rows come after it, then Reject / Save / Solve.
+
+The Kind switch's consequence line ("Saving rolls a fresh d6…") is always
+rendered, empty or not, so changing Kind no longer shoves the Result box down
+the screen mid-sentence.
+
+Staged rows are two lines now: what it will do, then a quiet line carrying who
+staged it and which turn. Delivery detail rides the state pill's tooltip — a
+**bounce stays spelled out**, because it is the one thing on a staged row a GM
+has to act on.
+
 ### Narrow screens
 
 Three fixed columns crush the middle one on anything smaller than a big
@@ -603,9 +622,38 @@ keeps itself current and stays reachable from the keyboard:
   that opens the message composer prefilled with the result text and the
   Move's own character.
 
-Escape is layered, topmost-first: an open `Modal` handles its own Escape and
-the workspace yields to it; otherwise a focused field just blurs, and a
-selected Move/Request deselects through its own dirty guard (`Workspace.js`).
+Escape is layered, topmost-first, and there are four rungs
+(`Workspace.js`, `escapeLayers.js`):
+
+1. An open blocking `Modal`, or a modeless one that currently holds focus,
+   handles its own Escape and the workspace yields to it.
+2. A focused field just blurs.
+3. An **open composer** closes — even one the GM has clicked away from. A
+   modeless dialog deliberately does not own the keyboard, so
+   `EffectComposer` / `MessageComposer` / `PublicComposer` /
+   `TransferComposer` each push a layer onto `escapeLayers.js` while they are
+   open, and the workspace asks that stack before it touches the selection.
+   Without it the first Escape closed the whole Move and took the composer
+   and the Result box with it.
+4. Only then does the selected Move/Caving roll deselect, through its own
+   dirty guard.
+
+A composer holding anything typed into it also counts in `isAnyDirty()`, so it
+stands the backstop poll down and makes switching rows ask first — an
+`existing` row being edited is exempt, since that text is already saved.
+
+**Every mutation on the desk catches a throw.** `guarded()` turns a
+`UserError` into `{ ok: false, error }`, but anything else rejects — and an
+uncaught rejection inside a server-action call reaches `(desk)/error.js`,
+which replaces the entire desk with an error page over one failed button.
+Every call site (`MoveDesk`, `CavingDesk`, `StagedItems`, `StagingTray`, the
+four composers, `QueueRail`'s avatar and hold rows) wraps its call and puts
+the message in its own `FormError` via `mutationErrorMessage`.
+
+**One "+ Effect / + Message / + Public" strip** (`StagingStrip.js`), used by
+the Move desk, the Caving desk and the tray — the tray is the only one with a
+`+ Transfer`. And **one Preview push**, on the tray beside the rows it
+previews; the desk header used to carry a second.
 
 The **Result box on both desks is a draft, not component state**
 (`web/app/(desk)/gm/turns/deskDraft.js`) — the Move desk's Result and Kind

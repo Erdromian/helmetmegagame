@@ -183,6 +183,24 @@ export default function InspectorHost({
     [tagCatalog],
   );
 
+  // Where the desk stands, for the column with nobody picked. Counted off the
+  // same `rows` the rail draws from, so the two can never disagree.
+  const standing = useMemo(() => {
+    const conversations = rows.filter((r) => r.hasConversation && !r.muted);
+    const unread = conversations.filter((r) => r.unreadCount > 0).length;
+    const awaiting = conversations.filter(
+      (r) => r.unreadCount === 0 && r.lastDirection === "INBOUND" && !r.handled,
+    ).length;
+    const muted = rows.filter((r) => r.hasConversation && r.muted).length;
+    return [
+      { label: "Unread", value: unread, tone: unread ? "warn" : undefined },
+      { label: "Awaiting a reply", value: awaiting, tone: awaiting ? "warn" : undefined },
+      { label: "Conversations", value: conversations.length },
+      { label: "Pinned", value: pinned.length },
+      ...(muted ? [{ label: "Muted", value: muted }] : []),
+    ];
+  }, [rows, pinned]);
+
   const pinsActions =
     pinned.length > 0 ? (
       <button type="button" className="btn-quiet" onClick={() => setBulkOpen(true)}>
@@ -209,6 +227,7 @@ export default function InspectorHost({
         pinsActions={pinsActions}
         customTag={customTag}
         requestedTab={tabRequest}
+        emptyStanding={standing}
         emptyHint="Pick somebody in the rail, or look them up above, to keep their sheet beside the conversation."
         footer={<GmZoneRail zones={selectableZones} selectedIds={visibleZoneIds} />}
       />

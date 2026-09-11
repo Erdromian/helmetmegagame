@@ -1,7 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import useNowTick from "@/app/components/useNowTick";
 import { EmptyRow } from "@/app/components/EmptyState";
+import { useTableState, SortHeader } from "@/app/components/DataTable";
 import StatusPill from "@/app/components/StatusPill";
 
 // Seats that have been handed out and not taken up (LOBBY.md). A GM could not
@@ -30,22 +32,38 @@ function untilLabel(expiresAt, now) {
 
 export default function SeatsOut({ rows }) {
   const now = useNowTick(60_000);
+  // The shared engine, minus the chrome a four-column list does not need: no
+  // search, no pager, just sortable headers — "which of these has run out"
+  // was previously answered by reading every row (DESIGN-SYSTEM §5).
+  // expiresAt can arrive as a Date or as an ISO string depending on the
+  // caller; the engine sorts on the raw field, so give it a number.
+  const sortable = useMemo(
+    () => rows.map((r) => ({ ...r, expiresAtMs: r.expiresAt ? new Date(r.expiresAt).getTime() : null })),
+    [rows],
+  );
+  const { pageRows, sort, toggleSort } = useTableState({
+    rows: sortable,
+    searchFields: [(r) => r.handle],
+    filterDefs: [],
+    initialSort: { key: "expiresAtMs", dir: "asc" },
+    pageSize: 500,
+  });
 
   return (
     <table className="data-table">
       <thead>
         <tr>
-          <th>Player</th>
-          <th>Seat</th>
-          <th>Answers by</th>
-          <th>Reminded</th>
+          <SortHeader label="Player" sortKey="handle" sort={sort} onSort={toggleSort} />
+          <SortHeader label="Seat" sortKey="roleName" sort={sort} onSort={toggleSort} />
+          <SortHeader label="Answers by" sortKey="expiresAtMs" sort={sort} onSort={toggleSort} />
+          <th scope="col">Reminded</th>
         </tr>
       </thead>
       <tbody>
-        {rows.length === 0 ? (
+        {pageRows.length === 0 ? (
           <EmptyRow cols={COLS}>Every seat that went out has been taken up.</EmptyRow>
         ) : (
-          rows.map((r) => {
+          pageRows.map((r) => {
             const overdue = r.expiresAt && new Date(r.expiresAt).getTime() <= now;
             return (
               <tr key={r.discordUserId}>

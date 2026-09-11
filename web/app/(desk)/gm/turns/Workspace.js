@@ -30,6 +30,7 @@ import { seedDesk, useDeskRows } from "./deskStore";
 import DeskStream from "./DeskStream";
 import DeskStreamChip from "./DeskStreamChip";
 import { noteDesk, noteWorkspaceMount } from "./blackBox";
+import { runTopEscapeLayer } from "./escapeLayers";
 
 // The adjudication workspace's client shell. Owns selection (which
 // Move shows), inspector (right column + pins), and preview (push
@@ -330,8 +331,9 @@ export default function Workspace({
   );
 
   // Escape is layered, topmost-first: an open Modal handles its own; a
-  // focused field just blurs; a selected Move/Request deselects through the
-  // dirty guard. Nothing selected -> Escape does nothing.
+  // focused field just blurs; an open modeless composer closes
+  // (escapeLayers.js); a selected Move/Request deselects through the dirty
+  // guard. Nothing selected -> Escape does nothing.
   const selectedRef = useRef(null);
   useEffect(() => {
     selectedRef.current = selected;
@@ -357,6 +359,10 @@ export default function Workspace({
         active.blur?.();
         return;
       }
+      // A modeless composer the GM has clicked away from gets the key before
+      // the selection does (escapeLayers.js). Without this the first Escape
+      // closed the Move and took the open composer with it.
+      if (runTopEscapeLayer()) return;
       if (selectedRef.current) {
         deskEscapeRef.current?.();
       }
@@ -549,6 +555,30 @@ export default function Workspace({
 
   const solvedCount = moves.filter((m) => m.reviewStatus === "SOLVED").length;
 
+  // Where the turn stands, for the inspector column with nobody picked.
+  // Counted off the desk store's own rows, so it agrees with the rail.
+  const standing = useMemo(() => {
+    // Off the enum, not the display label: statusLabel carries "Pending
+    // confirm" and half a dozen other words, so counting "Open" strings read
+    // zero on a desk with ten unsolved Moves on it.
+    const open = moves.length - solvedCount;
+    const cavingOpen = (cavingRolls ?? []).filter((c) => !c.resolvedAt).length;
+    const staged =
+      stagedEffects.filter((e) => !e.applied).length +
+      stagedMessages.filter((m) => !m.sent).length;
+    const acted = new Set(moves.map((m) => m.characterId)).size;
+    const yetToAct = Math.max(0, roster.length - acted);
+    return [
+      { label: "Moves open", value: open, tone: open ? "warn" : undefined },
+      { label: "Moves solved", value: `${solvedCount}/${moves.length}` },
+      ...(cavingOpen
+        ? [{ label: "Caving to answer", value: cavingOpen, tone: "warn" }]
+        : []),
+      { label: "Staged for the push", value: staged },
+      { label: "Yet to act", value: yetToAct },
+    ];
+  }, [moves, cavingRolls, stagedEffects, stagedMessages, roster, solvedCount]);
+
   // Defaults to STAGING: a tag invented while chasing a Move belongs in the
   // tray, not live.
   const customTag = useMemo(
@@ -636,9 +666,10 @@ export default function Workspace({
           <>
             <DeskStaleChip />
             <InspectorToggle />
-            <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
-              Preview push
-            </button>
+            {/* No "Preview push" here. There is one of that button and it
+                lives on the push tray, beside the rows it previews — two of
+                them in two places was the desk's own example of the same
+                verb offered twice. */}
           </>
         }
       />
@@ -770,6 +801,7 @@ export default function Workspace({
           onOpenDev={onOpenDev}
           customTag={customTag}
           requestedTab={tabRequest}
+          emptyStanding={standing}
           footer={<GmZoneRail zones={selectableZones} selectedIds={visibleZoneIds} />}
         />
       </div>

@@ -9,6 +9,7 @@ import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
+import StagingStrip from "./StagingStrip";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
@@ -178,7 +179,7 @@ export default function CavingDesk({
       )}
 
       {roll.kind === "TROUBLE" && (
-        <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+        <div className="desk-result mt-4 flex flex-col gap-3">
           <label className="field">
             <span className="field-label">Result — what happened down there</span>
             <textarea
@@ -210,24 +211,14 @@ export default function CavingDesk({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="field-label">Staged on this roll</h3>
           {!readOnly && (
-            <div className="flex gap-2">
-              <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
-                + Effect
-              </button>
-              <button
-                type="button"
-                className="btn-quiet"
-                onClick={() => {
-                  setMessagePrefill(null);
-                  setComposer("message");
-                }}
-              >
-                + Message
-              </button>
-              <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
-                + Public
-              </button>
-            </div>
+            <StagingStrip
+              onEffect={() => setComposer("effect")}
+              onMessage={() => {
+                setMessagePrefill(null);
+                setComposer("message");
+              }}
+              onPublic={() => setComposer("public")}
+            />
           )}
         </div>
 

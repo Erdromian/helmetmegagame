@@ -7,6 +7,7 @@ import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import { createStagedMessage, updateStagedMessage } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import useEscapeLayer from "./escapeLayers";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 
@@ -41,8 +42,17 @@ export default function MessageComposer({
   // outcome, typed nowhere else. It has to count as unsaved from the first
   // frame or Escape/backdrop/Cancel throws it away without asking. Editing an
   // `existing` staged row is not seeded dirty: that text is already a row.
+  // A composer holding anything at all counts as unsaved work: that is what
+  // stands the desk's backstop poll down and what makes switching rows ask
+  // first. Editing an `existing` row is exempt — that text is already saved.
   const { markDirty, markClean, guardedClose } = useDirtyGuard({
     initialDirty: !existing && Boolean((initialContent ?? "").trim()),
+    alsoDirty: !existing && Boolean(content.trim()),
+  });
+
+  // Escape closes this before it reaches the Move underneath (escapeLayers.js).
+  useEscapeLayer(() => {
+    if (!pending) guardedClose(onCancel);
   });
 
   const matches = useMemo(() => {

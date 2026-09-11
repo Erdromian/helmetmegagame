@@ -10,7 +10,6 @@ import { listGuildMembers, listGmMembers, getGmSession } from "@/lib/discordGuil
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { inactiveCharacters, inactiveRows } from "@lifeweb/db/lib/inactivity";
 import { TRIAL_GM_ROLE_ID } from "@lifeweb/db/lib/roleIds";
-import DiscordAvatar from "@/app/components/DiscordAvatar";
 import CharacterLink from "@/app/components/CharacterLink";
 import {
   OPT_IN_THREATS,
@@ -57,6 +56,7 @@ import PastGames from "./PastGames";
 import ConfigForm from "./ConfigForm";
 import LobbyRoster from "./LobbyRoster";
 import SeatsOut from "./SeatsOut";
+import GmRosterTable from "./GmRosterTable";
 import AssignmentPreview from "./AssignmentPreview";
 import { isSpawnOnly } from "@/lib/characterCreation";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
@@ -1124,54 +1124,22 @@ export default async function DevPanelPage({ searchParams }) {
               <div className="ops-section-head">
                 <h2 className="section-title">Gamemasters</h2>
               </div>
-              <table className="data-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Gamemaster</th>
-                    <th scope="col">Seat</th>
-                    <th scope="col">Character</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {gmRoster.map((m) => (
-                    <tr key={m.id}>
-                      <td>
-                        <span className="flex items-center gap-2">
-                          <DiscordAvatar
-                            discordUserId={m.id}
-                            avatar={m.avatar}
-                            name={m.globalName ?? m.username}
-                          />
-                          <span>
-                            {m.globalName ?? m.username}
-                            {m.globalName && (
-                              <span className="block text-xs text-muted mono">@{m.username}</span>
-                            )}
-                          </span>
-                        </span>
-                      </td>
-                      <td>
-                        <StatusPill tone={gmStanding(m).tone}>{gmStanding(m).label}</StatusPill>
-                        {isSuperadmin(m.id) && <StatusPill tone="accent">Master</StatusPill>}
-                      </td>
-                      <td>
-                        <CharacterLink
-                          characterId={gmCharacterByUserId.get(m.id)?.id}
-                          name={gmCharacterByUserId.get(m.id)?.name}
-                          isGm
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                  {gmRoster.length === 0 ? (
-                    <tr>
-                      <td colSpan={3} className="text-muted">
-                        Nobody holds the Gamemaster or Trial Gamemaster role yet.
-                      </td>
-                    </tr>
-                  ) : null}
-                </tbody>
-              </table>
+              {/* Flattened to plain rows here so the table itself is a client
+                  leaf on the shared engine — this page stays a server
+                  component. */}
+              <GmRosterTable
+                rows={gmRoster.map((m) => ({
+                  id: m.id,
+                  name: m.globalName ?? m.username,
+                  handle: m.globalName ? m.username : null,
+                  avatar: m.avatar,
+                  standing: gmStanding(m).label,
+                  tone: gmStanding(m).tone,
+                  master: isSuperadmin(m.id),
+                  characterId: gmCharacterByUserId.get(m.id)?.id ?? null,
+                  characterName: gmCharacterByUserId.get(m.id)?.name ?? null,
+                }))}
+              />
             </section>
           ) : null}
 

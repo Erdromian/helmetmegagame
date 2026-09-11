@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The GM desks read top to bottom
+
+✎ The Move desk now puts the Result box front and centre, with the header's four look-alike buttons folded into one menu  
+✎ The staging buttons live in one strip and Preview push in one place, instead of three copies and two  
+✎ Staged rows are two calm lines instead of eight things on one  
+✎ Both rails get to the first row after two lines of filters, not five  
+✎ Pressing Escape closes an open composer first; a second Escape closes the Move  
+✎ With nobody picked, the inspector shows where the desk stands — open, solved, staged, who has not acted  
+✎ The audit search filters as you type, and the character dev bar's thirteen icons sit in five labelled groups
+
 ## 2026-09-11 · A tag mentioned inside another tag is readable again on your sheet
 
 ✎ Opening a tag on `/character` that mentions another tag (a wound's cure, a poison's antidote) now lets you hover that mention too, instead of showing dead text

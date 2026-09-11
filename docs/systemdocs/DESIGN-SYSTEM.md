@@ -169,6 +169,19 @@ Three of these carry a trap:
   audit desk's Family filter and the inspector's "Zones I see" are the
   reference.
 
+Three more the GM desks now hold themselves to:
+
+- **One control, one place.** A verb offered twice is a verb a GM has to
+  choose between: `+ Effect / + Message / + Public` is one component
+  (`StagingStrip.js`) used by three surfaces, and there is exactly one
+  "Preview push". When a panel's header grows past two controls, the side
+  trips go behind a `⋯` (`DeskRowMenu.js`) and the way out stays a button.
+- **A search hint has one form**, `MatchHint.js`: a muted `· what matched`
+  suffix. Never a bare field name on one surface and a value on another.
+- **Reserve the space a conditional line will take.** A warning that appears
+  under a control and pushes the field below it down the screen costs the
+  reader their place; rendering it empty costs a little whitespace.
+
 Pick a button variant by how important the action is, rather than defaulting to
 `.btn` everywhere.
 

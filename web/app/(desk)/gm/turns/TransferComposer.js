@@ -7,6 +7,7 @@ import Select from "@/app/components/Select";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { createStagedTransfer } from "./actions";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
+import useEscapeLayer from "./escapeLayers";
 
 // Stage a character-to-character ⬢ transfer. 1:1 by nature, so it's its own
 // composer rather than another field bolted onto the multi-target one.
@@ -16,7 +17,14 @@ export default function TransferComposer({ roster, defaultFromKey = "", onDone, 
   const [amount, setAmount] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({
+    alsoDirty: Boolean(String(amount).trim()),
+  });
+
+  // Escape closes this before it reaches the Move underneath (escapeLayers.js).
+  useEscapeLayer(() => {
+    if (!pending) guardedClose(onCancel);
+  });
 
   const parties = useMemo(
     () => ({

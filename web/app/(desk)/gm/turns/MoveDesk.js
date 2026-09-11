@@ -7,7 +7,8 @@ import TagChip from "@/app/components/TagChip";
 import Tooltip from "@/app/components/Tooltip";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
-import DevCharacterButton from "@/app/components/DevCharacterButton";
+import DeskRowMenu from "@/app/components/DeskRowMenu";
+import { prefetchDevPanel } from "@/app/components/DevPanelModal";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useMoveLock from "./useMoveLock";
@@ -15,6 +16,7 @@ import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
+import StagingStrip from "./StagingStrip";
 import { resolveMove, rejectMove } from "./actions";
 import { applyDeskPatch } from "./deskStore";
 import { clearDeskDraft, deskDraftFresh, useDeskDraft, writeDeskDraft } from "./deskDraft";
@@ -211,32 +213,33 @@ export default function MoveDesk({
             <p className="text-xs text-muted">Standing here: {move.standingHere.join(" · ")}</p>
           ) : null}
         </div>
+        {/* Four quiet buttons of equal weight left nothing in this header
+            reading as the way out. The side trips go behind ⋯; Close stays a
+            real button, because it is the one a GM reaches for. */}
         <div className="flex items-center gap-2">
-          {/* Straight to their conversation on the player desk. The reverse
-              link lives on that desk's Canon tab, so the two are one loop. */}
-          {move.discordUserId && (
-            <button
-              type="button"
-              className="btn-quiet"
-              onClick={() => guardedClose(() => router.push(`/gm/players/${move.discordUserId}`))}
-            >
-              Message →
-            </button>
-          )}
-          {/* Everything they did before this turn, in the inspector's Moves
-              tab — "what did this person do last time" without leaving the
-              row you're adjudicating. */}
-          <button
-            type="button"
-            className="btn-quiet"
-            onClick={() => onInspect(move.characterId, move.characterName, "Moves")}
-          >
-            Past moves
-          </button>
-          <DevCharacterButton
-            characterId={move.characterId}
-            name={move.characterName}
-            onOpen={() => onOpenDev?.(move.characterId, move.characterName)}
+          <DeskRowMenu
+            ariaLabel={`More for ${move.characterName}`}
+            onOpen={() => prefetchDevPanel(move.characterId)}
+            items={[
+              // Straight to their conversation on the player desk. The
+              // reverse link lives on that desk's Canon tab, so the two are
+              // one loop.
+              move.discordUserId && {
+                label: "Message them →",
+                onClick: () => guardedClose(() => router.push(`/gm/players/${move.discordUserId}`)),
+              },
+              // Everything they did before this turn, in the inspector's
+              // Moves tab — "what did this person do last time" without
+              // leaving the row you're adjudicating.
+              {
+                label: "Past moves",
+                onClick: () => onInspect(move.characterId, move.characterName, "Moves"),
+              },
+              {
+                label: "Open dev panel",
+                onClick: () => onOpenDev?.(move.characterId, move.characterName),
+              },
+            ]}
           />
           <button type="button" className="btn-quiet" onClick={() => guardedClose(onClose)} disabled={pending}>
             Close
@@ -290,15 +293,19 @@ export default function MoveDesk({
             <span className="mono text-sm">{declared ?? "—"}</span>
           </div>
         </div>
-        {edits.moveKind !== move.moveKind && (
-          <p className="text-xs text-accent">
-            {edits.moveKind === "GAMBIT"
+        {/* Always rendered, empty or not. Switching Kind used to make this
+            line appear from nowhere and shove the Result box down the screen
+            mid-sentence; reserving the two lines it can take costs a little
+            whitespace and costs nobody their place. */}
+        <p className="desk-kind-note text-xs text-accent" aria-live="polite">
+          {edits.moveKind === move.moveKind
+            ? ""
+            : edits.moveKind === "GAMBIT"
               ? "Saving rolls a fresh d6 and applies their current Hunger."
               : edits.moveKind === "LABOR"
                 ? "Saving clears the roll. A Labor is never arbitrated — its payout came from the range already on it."
                 : "Saving clears the roll — a Routine never carries one."}
-          </p>
-        )}
+        </p>
         {declared && (
           <p className="text-xs text-muted">
             Declared numbers pay out at the push whether or not you Solve. Disagree? Stage an
@@ -307,7 +314,11 @@ export default function MoveDesk({
         )}
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+      {/* The job. Five identical border-t slabs down this card left the one
+          box a GM is actually here to fill in looking like the four around
+          it, so this one is a raised panel with the accent edge instead of a
+          fifth hairline. */}
+      <div className="desk-result mt-4 flex flex-col gap-3">
         <label className="field">
           <span className="field-label">Result — the canon of what happened</span>
           <textarea
@@ -335,24 +346,14 @@ export default function MoveDesk({
       <div className="mt-4 flex flex-col gap-3 border-t pt-4" style={{ borderColor: "var(--border)" }}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="field-label">Staged on this Move</h3>
-          <div className="flex gap-2">
-            <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
-              + Effect
-            </button>
-            <button
-              type="button"
-              className="btn-quiet"
-              onClick={() => {
-                setMessagePrefill(null);
-                setComposer("message");
-              }}
-            >
-              + Message
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
-              + Public
-            </button>
-          </div>
+          <StagingStrip
+            onEffect={() => setComposer("effect")}
+            onMessage={() => {
+              setMessagePrefill(null);
+              setComposer("message");
+            }}
+            onPublic={() => setComposer("public")}
+          />
         </div>
 
         <StagedItems
