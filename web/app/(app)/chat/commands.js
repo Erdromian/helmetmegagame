@@ -130,7 +130,10 @@ export const COMMANDS = [
     name: "add",
     description: "Bring somebody into this conversation or private room.",
     where: ["room", "conv"],
-    args: [{ name: "person", kind: "person" }],
+    // Hoods included, the same as /look: a mask hides who somebody is, not
+    // that they are standing here, and a rider who had to take his helmet off
+    // to be invited was not wearing one. The token is what carries them.
+    args: [{ name: "person", kind: "person", hoods: true }],
     run: ({ person }, ctx) => addMember(ctx.placeKey, person),
   },
   {

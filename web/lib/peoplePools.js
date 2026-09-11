@@ -7,6 +7,7 @@ import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { peopleHere } from "@/lib/peopleHere";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
+import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
 import { isTradeable } from "@/lib/tagRequests";
 import {
   TAG_CHIP_FIELDS,
@@ -33,6 +34,21 @@ import {
   satisfiedSkillIds,
   HEAL_SKILL_SELECT,
 } from "@/lib/healRequests";
+
+// What a roster row is CALLED, for every picker built off peopleHere().
+//
+// A forced name (Tag.forcedName, Apex Form -> "Beast") outranks the column,
+// and until now nothing here knew that: hereWhere() drops a hood, so these
+// lists were treated as safe and printed Character.name straight — which
+// handed a Beast's real name to Heal, Loot, Bind, Harm, Kiss and Teach while
+// whosHere() and Attack got it right. A forced name is not concealment, so
+// the row keeps its real id; only the label changes.
+//
+// A hood never reaches here at all. Transfer is the one picker that offers
+// one, and its whole list comes from whosHere() instead.
+export function rosterName(row) {
+  return forcedNameFrom(row?.tags) ?? row?.name ?? null;
+}
 
 // Everything the PEOPLE dialogs need — Look at, Heal, Transfer's recipient
 // list, Loot, Bind, Free, Harm, Move Player — built once for whichever
@@ -83,6 +99,11 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
                 // what needsSurgicalSite() matches medical-expert on — without it
                 // a patient standing here never warns that their wound needs a site.
                 requirementSkills: { select: HEAL_SKILL_SELECT },
+                // What to CALL them: a forced name (Apex Form -> "Beast") is
+                // not concealment — a Beast is openly a Beast — but every
+                // picker below used to print the real name underneath it.
+                // rosterName() is the one answer now.
+                forcedName: true,
                 concealsIdentity: true,
                 concealSprite: true,
                 forcesConceal: true,
@@ -121,6 +142,8 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
                 // catalog entry as well (REQUESTS.md §5b). What it weighs is
                 // not a secret from the person about to pick it up.
                 weightLbs: true,
+                // rosterName()'s half — see the note in the roster above.
+                forcedName: true,
               },
             },
           },
@@ -128,19 +151,30 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
       },
     }),
     prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
-    // The hoods, for TRANSFER'S recipient list and nothing else. A hood hides
-    // WHO somebody is, not THAT they are standing there, and handing a coin to
-    // a stranger is a thing you can plainly do to a person whose name you do
-    // not know. They arrive as { alias, token } — an HMAC handle, so the
-    // browser is never told the character id behind the mask, and
-    // resolveHoodToken re-checks co-presence when one is posted back.
-    whosHere(prisma, character, { includeSelf: false }),
+    // TRANSFER'S recipient list, BOTH halves of it. A hood hides WHO somebody
+    // is, not THAT they are standing there, and handing a coin to a stranger
+    // is a thing you can plainly do to a person whose name you do not know —
+    // so Transfer is the one picker that reaches one, and `concealed` carries
+    // an HMAC handle rather than the character id behind the mask.
+    //
+    // The NAMED half comes from here too, and that is the point of the call:
+    // peopleHere() splits on the `concealed` COLUMN while this splits on what
+    // is actually over the face, and mixing the two left people in neither
+    // list or in both. Somebody wearing a sack with the column off (a forced
+    // hood is not a choice) was offered twice, once by their real name; and
+    // with sightings on, somebody who spoke bare-faced and then masked up
+    // would have fallen out of both. One question, one answer.
+    //
+    // `withSightings` so the dropdown and the HERE column six inches above it
+    // call the same person the same thing — the name you HOLD, frozen at the
+    // last line you heard them say.
+    whosHere(prisma, character, { includeSelf: false, withSightings: true }),
   ]);
 
-  const selfEntry = { id: character.id, name: character.name };
-  const peopleParties = [selfEntry, ...here.map(({ id, name }) => ({ id, name }))];
-  // TRANSFER'S list, and only Transfer's. `peopleParties` above is also the
-  // Heal payer list and Craft's, and transferRequestImpl is the one action that
+  const selfEntry = { id: character.id, name: rosterName(character) };
+  const peopleParties = [selfEntry, ...here.map((c) => ({ id: c.id, name: rosterName(c) }))];
+  // TRANSFER'S list, and only Transfer's. `peopleParties` above is the Heal
+  // payer list and Craft's, and transferRequestImpl is the one action that
   // knows how to resolve a hood token — offering one anywhere else would be a
   // row you can pick and cannot use.
   //
@@ -148,10 +182,9 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // "character:<id>". A token is null when AUTH_SECRET is unset, and an
   // untokened hood is not offerable.
   const transferParties = [
-    ...peopleParties,
-    ...roomNow.concealed
-      .filter((c) => c.token)
-      .map((c) => ({ id: c.token, name: c.alias, kind: "hood" })),
+    selfEntry,
+    ...roomNow.named.map((c) => ({ id: c.characterId, name: c.name })),
+    ...roomNow.concealed.filter((c) => c.token).map((c) => ({ id: c.token, name: c.alias, kind: "hood" })),
   ];
 
   // Whether their eyes are good enough to look anybody over — Nearsighted
@@ -236,13 +269,13 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // the majority who aren't medics.
   const selfAsPatient = {
     id: character.id,
-    name: character.name,
+    name: rosterName(character),
     tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
   };
   const healTargets = (canHeal ? [selfAsPatient, ...here] : [])
     .map((t) => ({
       id: t.id,
-      name: t.name,
+      name: rosterName(t),
       healable: t.tags
         .map((ct) => ct.tag)
         .filter(isHealable)
@@ -306,7 +339,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // A body, or anyone who can't stop you. Only `tradeable` tags come off.
   const lootTargets = helpless.map((c) => ({
     id: c.id,
-    name: c.name,
+    name: rosterName(c),
     status: c.status,
     condition: conditionOf(c),
     resources: c.resources,
@@ -336,14 +369,14 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // never the same one.
   const consumeTargets = zoneRoster
     .filter((c) => c.status === "ALIVE")
-    .map((c) => ({ id: c.id, name: c.name }));
+    .map((c) => ({ id: c.id, name: rosterName(c) }));
 
   // Bind and Free split this one list on `bound`; Crucify on `crucified`.
   const bindTargets = zoneRoster
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({
       id: c.id,
-      name: c.name,
+      name: rosterName(c),
       bound: c.tags.some((ct) => ct.tag.slug === "bound"),
       crucified: c.tags.some((ct) => ct.tag.slug === "crucified"),
     }));
@@ -353,7 +386,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     .filter((c) => c.status === "ALIVE")
     .map((c) => ({
       id: c.id,
-      name: c.name,
+      name: rosterName(c),
       condition: conditionOf(c),
       finishable: c.tags.some((ct) => FINISHABLE_SLUGS.has(ct.tag.slug)),
     }));
@@ -363,7 +396,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // living owner or not at all — there's nobody home to dose).
   const doseTargets = helpless
     .filter((c) => c.status === "ALIVE")
-    .map((c) => ({ id: c.id, name: c.name, condition: conditionOf(c) }));
+    .map((c) => ({ id: c.id, name: rosterName(c), condition: conditionOf(c) }));
 
   // Not the whole Health category (TAGS.md §5c) — isInflictable narrows it to
   // wounds and maiming. Filtered in JS so this and the server action's
@@ -398,7 +431,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // later, so a stale page can never push a kiss past this list.
   const kissTargets = here
     .filter((p) => !kissBlock(p, { self: false }))
-    .map(({ id, name }) => ({ id, name }));
+    .map((p) => ({ id: p.id, name: rosterName(p) }));
 
   return {
     here,

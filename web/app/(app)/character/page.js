@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
+import { loadPeoplePools, loadStashRooms, rosterName } from "@/lib/peoplePools";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 import {
   LESSON_CATALOG_SELECT,
@@ -1080,9 +1080,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     id: character.id,
     tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
   };
+  // rosterName, not c.name: a forced name is what a lesson offer should be
+  // addressed to, the same as every other picker (web/lib/peoplePools.js).
   const hereForLessons = here.map((c) => ({
     id: c.id,
-    name: c.name,
+    name: rosterName(c),
     tags: c.tags,
   }));
   const teachers = hereForLessons
@@ -1115,7 +1117,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // them everybody's addictions before they had agreed to hear a word.
   const confessors = here
     .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
-    .map((c) => ({ id: c.id, name: c.name }));
+    .map((c) => ({ id: c.id, name: rosterName(c) }));
   // Guilt Ridden can't bring themself to confess at all — see
   // db/lib/confession.js#confessableTags, mirrored here so the Confess
   // button hides itself instead of failing on click.

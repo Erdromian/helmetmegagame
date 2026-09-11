@@ -388,10 +388,12 @@ export default function Chat({
   // Answers with the action's own { ok, error }, so the list that offered the
   // row can say why nothing happened — a menu row that failed used to be
   // answered by the list not changing, and nothing else.
+  // `ref` is a character id, or the hood token a concealed row carries
+  // instead of one — addMember tells them apart and resolves the token.
   const onAddMember = useCallback(
-    (characterId) => {
-      if (!selectedKey || !characterId) return Promise.resolve({ ok: false, error: "That place is gone." });
-      return addMember(selectedKey, characterId)
+    (ref) => {
+      if (!selectedKey || !ref) return Promise.resolve({ ok: false, error: "That place is gone." });
+      return addMember(selectedKey, ref)
         .then((res) => {
           if (res?.ok) bumpPlaces();
           return res ?? { ok: false, error: "Something went wrong." };

@@ -53,8 +53,10 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
     onChanged?.();
   }, [onChanged]);
 
+  // A character id for somebody named, the opaque hood token for somebody in
+  // one — the same pair onRemove below already takes.
   const onAdd = useCallback(
-    (characterId) => run(() => addMember(placeKey, characterId), undefined, { onOk: done }),
+    (ref) => run(() => addMember(placeKey, ref), undefined, { onOk: done }),
     [placeKey, run, done],
   );
 
@@ -162,19 +164,26 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
           {candidates.length === 0 ? (
             <span className="text-sm text-muted">Nobody else is standing here.</span>
           ) : (
-            candidates.map((person) => (
+            candidates.map((person, index) => (
+              // Keyed by token where there is no id, and by position where
+              // there is neither — db/lib/whosHere.js mints no token without
+              // an AUTH_SECRET, and two hoods would share one null key.
               <button
-                key={person.characterId}
+                key={person.characterId ?? person.token ?? `hooded-${index}`}
                 type="button"
                 className="chip"
                 disabled={pending}
-                onClick={() => onAdd(person.characterId)}
+                onClick={() => onAdd(person.characterId ?? person.token)}
               >
+                {/* The same three props the member chips above take: a real
+                    id only for somebody named, and the question-mark plate
+                    for a hood, whose face this picker has not earned. */}
                 <CharacterAvatar
-                  characterId={person.characterId}
+                  characterId={person.characterId ?? undefined}
                   name={person.name}
                   version={person.avatarVersion}
                   src={person.avatarPath ?? undefined}
+                  unknown={Boolean(person.unknownFace)}
                   size={16}
                 />
                 {person.name}

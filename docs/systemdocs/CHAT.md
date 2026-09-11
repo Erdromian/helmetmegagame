@@ -134,6 +134,16 @@ the conversation appear on the target's web page with no reload.
 `PlayerThreadInvite` stays beside it and keeps its old job: it is what replays
 the **Discord** add when the target finally walks into the Location.
 
+**A hood can be let in.** The candidate list `placeMembers()` builds is
+`whosHere().named` **plus** `hoodsHere()`, and a concealed row carries the hood
+token instead of a character id (`PROXYING.md` §5). `addMember(placeKey, ref)`
+takes either, telling them apart the way `/look` and `removeMember` do — a
+token is 32 hex characters and a cuid never is — and resolves a token through
+`resolveHoodToken`, so it only ever names somebody standing with the caller.
+The web `/add` declares `hoods: true` on its `person` arg, the same as `/look`.
+The reply line was already safe: `presentedNameOf` has always written it, so
+letting somebody in says "a young man was added" and never their name.
+
 The message wipe needs no new step — `deletePlayerThread` cascades.
 
 ## 2b. Bascinet is a place too: the DM conversation
@@ -162,7 +172,7 @@ it as one quiet line with an **Open** link to the place it happened in
 (`meta.placeKey`, `DmThread.js#MentionBody`), where the Discord DM carries a
 Discord link. Beyond that one row the two surfaces cannot disagree about what
 was said.
-`play/actions.js#gmThread` pages it from the newest backwards; the row shape
+`web/app/(app)/chat/actions.js#gmThread` pages it from the newest backwards; the row shape
 (`dmThread.js#PLAYER_DM_SELECT` / `playerDmRow`) **strips the author**: a
 player never learns which GM answered. The renderer is the desk's own
 `DmThread.js` with one new prop, `perspective="player"`, which flips exactly
@@ -310,7 +320,7 @@ reader's side is what keeps a notification from being an authorisation. Five
 things fire it: the feet (`applyLocationMoveSideEffects`), a key
 (`syncCharacterRoomAccess`, only when the entitled set actually changes),
 being let into or out of a conversation (`db/lib/conversations.js`), a room
-guest being added or shown out (`play/actions.js`), and the "web only" switch
+guest being added or shown out (`web/app/(app)/chat/actions.js`), and the "web only" switch
 (`db/lib/webOnly.js` — the place list is unchanged, the chip in the column is
 not). The stream re-reads the character (its Location moved, and the viewer it
 opened with is stale), recomputes the place list, moves its subscriptions,
@@ -778,7 +788,7 @@ and a one-line box:
   is pressed against a **seq**, the server resolves the speaker itself, and
   what it prints is the impoverished concealed readout — the hood the ROOM SAW
   at the time, not the one they are wearing now (`examineReadout`'s
-  `wasConcealedAs`). `photographRow(seq)` in `play/actions.js` is the web twin
+  `wasConcealedAs`). `photographRow(seq)` in `web/app/(app)/chat/actions.js` is the web twin
   of the 📸 reaction and mirrors it exactly: blind refuses, no camera refuses,
   the viewer's own sight is stripped (`viewerTags: []`, an empty `satisfied`)
   so a surgeon's photograph carries no diagnosis, and `mintPhoto` files the
@@ -989,12 +999,19 @@ and a one-line box:
   own thread and a thread is invisible to anybody not entitled to it; lifting
   the code out of the bot dropped it, and for a moment anybody in the street
   could hand out a door they could not open. Both `db/lib/roomGuests.js#doorwayFor`
-  and `play/actions.js#privateRoomHere` now test it, which also stops
+  and `web/app/(app)/chat/actions.js#privateRoomHere` now test it, which also stops
   `placeMembers()` handing a guest list to somebody outside.
 
   A **key-holder is not offered in the picker**: they are already in by their
   key, `roomGuests()` deliberately does not list them, and a guest row written
-  for one grants nothing and cannot be taken back.
+  for one grants nothing and cannot be taken back. That filter is one query
+  over both halves of the shortlist, which is why `hoodsHere()` exists — a
+  hood's chip carries no id, so the id has to be dropped on the way out rather
+  than never fetched.
+
+  **Hoods are in the picker**, by alias and with the question-mark plate: the
+  picker is a presence list, and a mask is only drawn once you have watched
+  somebody speak in it (`PROXYING.md` §5a), which this list has not earned.
 
   The row is written first and Discord's thread membership follows,
   `PlayerThreadInvite` included — §2a's rule, not a second one. Every write
@@ -1324,7 +1341,7 @@ and a one-line box:
   `db/lib/noticeboard.js#boardFor(prisma, locationId)` is the loader that made
   this possible: Location-keyed, knowing nothing about who is asking. The
   ACTOR gate — you have to be standing here — stays with the caller, which is
-  the one line `play/actions.js#boardHere` is now.
+  the one line `web/app/(app)/chat/actions.js#boardHere` is now.
 - **Search the scene** (`/api/feed/search?q=&place=`). An `ILIKE '%q%'` over
   `ArchiveEntry.content`, which is exactly the shape
   `ArchiveEntry_content_trgm_idx` covers — the GIN trigram index that lives

@@ -358,10 +358,46 @@ into a channel or through the Speak modal — is reposted under an anonymous
 alias instead of the name, and **Who's here?** on a Location's anchor lists
 them under that alias too (`CHANNELS.md` §4). The old per-message `/conceal`
 text prefix and the Speak modal's checkbox are gone: a player who wants to be
-unnamed is unnamed until they say otherwise. A concealed character is also
-excluded from every people-picker on `/character` (Heal, Loot, Move Player,
-Bind, Free, Harm, Transfer) and cannot be targeted through those menus
-(`db/lib/presence.js`).
+unnamed is unnamed until they say otherwise.
+
+**A hood hides WHO you are, not THAT you are standing there.** That line is
+what decides which menus a concealed character appears in, and there are two
+answers rather than one.
+
+Most people-pickers leave them out, and `hereWhere` in `db/lib/presence.js` is
+where that happens: Heal, Loot, Bind, Free, Harm, Kiss, Learn, Teach and
+Confess all act on an **identity**, and naming somebody to heal or teach them
+would undo the thing they put the helmet on for. The `@`-mention directory
+drops them for the same reason (`web/lib/mentionDirectory.js`).
+
+Three do offer them, because they are things you can plainly do to a stranger
+whose name you do not know:
+
+| | Where |
+|---|---|
+| **Hand them something** | Transfer's recipient list — built whole from `whosHere()`; the server re-check is `hereWhere(..., { allowConcealed: true })`, the one caller of that flag |
+| **Take them aside** | Converse, from the hood's own row in the HERE column |
+| **Let them through a door** | `+ Add` and `/add` on a conversation or a private room (`CHAT.md` §2a) |
+
+All three hand the browser a **hood token** instead of a character id — an
+HMAC of the id under `AUTH_SECRET` (`db/lib/whosHere.js#hoodToken`), posted
+back as `hood:<token>` and resolved by `resolveHoodToken`, which re-queries who
+is actually standing at the caller's Location and re-derives concealment from
+their tags. So a token names somebody in the room you are in and nobody
+anywhere else, and a stale one resolves to nothing. The id never crosses the
+wire, because `/api/avatar/<id>` takes an id and answers with a face — shipping
+one IS the unmasking, whatever the page chooses to draw.
+
+`hoodsHere()` beside `whosHere()` is the server-only list that carries the ids,
+for the one caller that has to filter on them before minting a handle —
+`placeMembers`, which drops anybody already in the place or holding a key to
+the room. It is built from the same rows `whosHere`'s
+`concealed` half is, so the picker and the HERE column can never disagree about
+who is hidden — `db/test/whosHere.test.js` asserts exactly that.
+
+Before this, a rider who spent the game masked had to take the helmet off to be
+invited into a conversation or handed a toll, which is the whole disguise
+undone at the door.
 
 **It is not open to everyone.** With a bare face there is nothing to toggle and
 both surfaces refuse. This is `Tag.concealsIdentity`, which sat inert in the

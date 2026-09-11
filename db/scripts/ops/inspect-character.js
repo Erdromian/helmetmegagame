@@ -152,7 +152,7 @@ async function main() {
     }
 
     const equipped = c.tags.filter((ct) => ct.equipped);
-    const handCap = handsFor(character.tags);
+    const handCap = handsFor(c.tags);
     const problem = findEquipProblem(equipped, handCap);
     console.log(`\n  Equipped: ${equipped.length} · ${handsUsed(equipped)}/${handCap} hands`);
     if (problem) console.log(`    the slot rules would refuse this set: ${problem}`);

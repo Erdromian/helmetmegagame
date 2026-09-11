@@ -43,8 +43,21 @@ import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 // The menu is the sheet's own people dialogs, opened through
 // RequestActionsProvider with the clicked person already filled in. Nothing
 // is forked: this is the same Heal dialog, the same Loot dialog, the same
-// server actions. A hood's menu is Converse and nothing else — there is
-// nobody there to heal or loot until the hood comes off.
+// server actions.
+//
+// A HOOD GETS A SHORTER MENU, NOT A DIFFERENT ONE. Three things you can
+// plainly do to a stranger whose name you do not know: hand them something,
+// take them aside, and let them through a door. A hood hides WHO somebody is,
+// not THAT they are standing there (db/lib/presence.js), and a masked rider
+// who had to take the helmet off to be handed a toll or invited into a corner
+// was not wearing one. Everything else stays off: healing, looting, binding,
+// freeing, harming and kissing all act on an identity rather than on a body
+// in the room, and the server refuses them on a hood anyway.
+//
+// A hooded row carries no character id — /api/avatar/<id> answers with a
+// face, so shipping one is the unmasking. What it carries is the hood token
+// (db/lib/whosHere.js#hoodToken), and every action below that takes one
+// resolves it server-side against the people actually standing here.
 //
 // THE METAGAMING RULE STILL HOLDS (web/app/components/actionRegistry.js): no
 // row is greyed for a fact about the person it names. Whether they can be
@@ -57,9 +70,13 @@ import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
 // gone entirely — taking somebody with you is the party rack below this list
 // now, and it is a thing you keep rather than a thing you re-do every hop
 // (docs/systemdocs/MAP.md §3a).
+// `hoodPrefix` is what makes a row offerable to a hood: transferRequestImpl
+// parses "hood:<token>" and resolves it back through resolveHoodToken, the
+// same handle Transfer's own recipient dropdown has always offered
+// (web/lib/peoplePools.js). An entry without one is named-rows-only.
 const PEOPLE_ACTIONS = [
   { mode: "heal", label: "Heal", preset: "patientId" },
-  { mode: "transfer", label: "Transfer", preset: "toKey", prefix: "character:" },
+  { mode: "transfer", label: "Transfer", preset: "toKey", prefix: "character:", hoodPrefix: "hood:" },
   { mode: "loot", label: "Loot", preset: "targetId" },
   { mode: "bind", label: "Bind", preset: "targetId" },
   { mode: "free", label: "Free", preset: "targetId" },
@@ -67,6 +84,8 @@ const PEOPLE_ACTIONS = [
   { mode: "kiss", label: "Kiss", preset: "targetId" },
 ];
 
+// `person` is normalised by the two lists below to { ref, name, hooded }:
+// a character id for somebody named, a hood token for somebody in one.
 function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
@@ -75,15 +94,17 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
     (entry) => {
       onClose();
       if (!open) return;
-      const value = entry.prefix ? `${entry.prefix}${person.characterId}` : person.characterId;
-      open(entry.mode, null, { [entry.preset]: value });
+      const prefix = person.hooded ? entry.hoodPrefix : entry.prefix;
+      open(entry.mode, null, { [entry.preset]: prefix ? `${prefix}${person.ref}` : person.ref });
     },
     [open, onClose, person],
   );
 
+  const entries = PEOPLE_ACTIONS.filter((entry) => !person.hooded || entry.hoodPrefix);
+
   return (
     <div className="chat-menu" role="menu" aria-label={person.name}>
-      {PEOPLE_ACTIONS.map((entry) => (
+      {entries.map((entry) => (
         <ActionButton
           key={entry.mode}
           variant="menu"
@@ -102,7 +123,7 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
           label={`Add to ${addPlace.name}`}
           onClick={() => {
             onClose();
-            onAddMember(person.characterId);
+            onAddMember(person.ref);
           }}
         />
       )}
@@ -114,8 +135,9 @@ function PersonMenu({ person, onClose, onConverse, addPlace, onAddMember }) {
             onClose();
             // Opened ON this person, so the dialog has them ticked already —
             // asking for a corner with somebody and then having to name them
-            // again was the same answer typed twice.
-            onConverse({ id: person.characterId, name: person.name });
+            // again was the same answer typed twice. A hood is ticked the
+            // same way, under "hood:<token>"; openConversation resolves it.
+            onConverse({ ref: person.hooded ? `hood:${person.ref}` : person.ref, name: person.name });
           }}
         />
       )}
@@ -166,11 +188,12 @@ export default function HereList({
   // the action's { ok, error }; this is where the sentence is shown, under
   // the list the row was on.
   const [addError, setAddError] = useState(null);
+  // A character id for somebody named, a hood token for somebody in one.
   const addAndReport = useCallback(
-    (characterId) => {
+    (ref) => {
       if (!onAddMember) return;
       setAddError(null);
-      Promise.resolve(onAddMember(characterId))
+      Promise.resolve(onAddMember(ref))
         .then((res) => {
           if (res && !res.ok) setAddError(res.error ?? "Something went wrong.");
         })
@@ -255,7 +278,7 @@ export default function HereList({
           </div>
           {openId === person.characterId && (
             <PersonMenu
-              person={person}
+              person={{ ref: person.characterId, name: person.name, hooded: false }}
               onClose={close}
               onConverse={onConverse}
               addPlace={addPlace}
@@ -296,22 +319,17 @@ export default function HereList({
               </span>
             )}
           </div>
-          {openId === `hooded-${index}` && onConverse && (
-            <div className="chat-menu" role="menu" aria-label={person.alias}>
-              <button
-                type="button"
-                role="menuitem"
-                className="menu-item"
-                onClick={() => {
-                  close();
-                  // No id under a hood, so nobody to tick — the dialog opens
-                  // the way the place card's Converse opens it.
-                  onConverse();
-                }}
-              >
-                Converse
-              </button>
-            </div>
+          {/* The same menu the named rows get, filtered to what you can do
+              to somebody you cannot name. No token — no AUTH_SECRET to mint
+              one with — means nothing to act on, so no menu at all. */}
+          {openId === `hooded-${index}` && person.token && (
+            <PersonMenu
+              person={{ ref: person.token, name: person.alias, hooded: true }}
+              onClose={close}
+              onConverse={onConverse}
+              addPlace={addPlace}
+              onAddMember={onAddMember ? addAndReport : null}
+            />
           )}
         </div>
       ))}

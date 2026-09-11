@@ -494,6 +494,29 @@ room's thread** (`db/lib/roomAnnounce.js`, the whisper poll's alias):
 "*An old woman leaves Graga Sac ×3 and 12 ⬢ here.*" / "*A young man takes a
 Lantern.*" The room learns an age and a presentation, never a name.
 
+**You can hand something to a stranger in a hood.** Transfer is the only
+action that reaches a concealed person, and the argument is that a hood hides
+WHO somebody is, not THAT they are standing there — handing a coin to a masked
+rider is a plain thing to do to a body in the room. `hereWhere(...,
+{ allowConcealed: true })` in `db/lib/presence.js` is the one caller of that
+flag, and `web/lib/peoplePools.js` builds the whole recipient list — named
+people and hoods alike — from one `whosHere()` call. One call and not two on
+purpose: `peopleHere()` splits on the `concealed` column while `whosHere()`
+splits on what is actually over the face, and mixing the two put a character
+in a sack (forced, column off) on the list twice, once under their real name.
+
+A hooded row reads as **"a young man"**, the HERE column's own wording and its
+own sighting (so one person is not "an old woman" in the column and "a young
+man" in the dropdown six inches below it). Its value is `hood:<token>` rather
+than `character:<id>` — an HMAC handle, so the browser is never told who is
+under the mask — and `transferRequestImpl` turns it back into an id through
+`resolveHoodToken`, which re-checks co-presence. The receiving DM ("You were
+handed …") names no giver, and the room hears the aliased line above.
+
+The same hood also carries **Transfer** on its row in the HERE column, beside
+Converse and Add — before that the dropdown was the only way to find it, so
+the rider took the helmet off instead. `PROXYING.md` §5 has the whole rule.
+
 The two older actions, `transferTagRequest` and `transferResourcesRequest`,
 still exist for their `LOOT` direction and for anything else that calls them.
 
