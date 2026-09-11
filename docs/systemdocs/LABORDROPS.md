@@ -159,13 +159,14 @@ too**, not just 6 — a prospector finds something worth having more often
 than a hunter finds a body, even if any one find is smaller.
 
 **Target total EV/labor, by the location's own yield coefficient**
-(Bascinet, 2026-09-09) — a rule of thumb, not a formula to hit exactly:
+(Bascinet, 2026-09-09; raised ~50% on 2026-09-20) — a rule of thumb, not a
+formula to hit exactly:
 
 | coefficient | target EV/labor |
 |---|---|
-| 0.4 | ~4 ⬢ |
-| 0.6-0.7 | ~6-7 ⬢ |
-| 0.8-1.0 | ~8-10 ⬢ |
+| 0.4 | ~6 ⬢ |
+| 0.6-0.7 | ~9-10.5 ⬢ |
+| 0.8-1.0 | ~12-15 ⬢ |
 
 Read this off `npm run db:audit-labor-drops`'s own combined EV/labor line
 for the table you're building (§6a), the same way every other table in this
@@ -175,12 +176,48 @@ file was tuned — not by hand arithmetic. Since a Prospecting-specific
 a zone-wide or labor-type-wide Prospecting pool exists, a location's own
 table only needs to make up the remainder.
 
+**The 2026-09-20 pass raised every Prospecting table's own EV/labor by about
+50%, entirely through item drops — base pay (`db/lib/production.js`) didn't
+move.** The lever that did most of the work, under the rarity-band draw
+(§2, §7): a band's column share is FIXED, so removing a 0-value junk entry
+(Rock, Bear Trap, a "not sellable" filler sitting next to something real)
+concentrates that same share onto the members left behind, which is a pure
+gain with no downside — Prospecting's pools never authored a `nothing` pad,
+so there's no hit-rate cost to worry about. The trap on the other side: adding
+a new entry to a band that already has ONE strong member (Hills/Forest
+face 4's Buried Lockbox, alone) SPLITS that member's share and can lower the
+band's average — check what a band's existing members are worth before
+adding to it, not just what the new item is worth on its own. An empty face
+in a bucket (Forest's regional table had no face 6 at all) is the safest
+place to add fresh content, since there's nothing there yet to dilute.
+
+**Keen Eye (the `requiresTag` pool nested under `laborType.prospecting`,
+LABORDROPS.md §2a) learned the same lesson the hard way.** Its first two
+designs used tag grants only, and both were verified "never hurts" against
+the OLD uniform draw — but that property doesn't carry over to the rarity
+system: a `requiresTag` entry still just JOINS whatever band its rarity
+lands in, so it only helps if it's worth more than that band's existing
+members, and at two Forest locations (Headwaters, Sparse Field) it was worth
+less and Keen Eye came out net NEGATIVE. The fix: a flat `"+N"` (a
+RESOURCES entry) sits in its own `resources` band, which nothing else in
+Prospecting's tables uses, so it never competes with an existing entry for
+share and its contribution is the same fixed amount at every location that
+face reaches — a genuine, location-independent guarantee rather than
+something that has to be re-verified by hand every time the surrounding
+table changes. One gotcha found the hard way: putting it on a face the base
+`laborType.prospecting` bucket doesn't otherwise touch (face 3, at a
+location with nothing else configured there) makes the "+N" the pool's
+ONLY entry, which wins the WHOLE face instead of its column's own share —
+see `db/lib/labordropsRarity.js`'s "sole occupant" case. Keep a
+`requiresTag` resources bonus on faces the base table already populates.
+
 **A genuinely rare spot — the Ore Vein, eventually — should NOT scale EV up
-with its rarity.** Keep the EV in the same 4-10 band as an ordinary location;
-what makes it rare is a pool entry (or a few) that exist NOWHERE else in the
-catalog — an ore type, a gem, whatever the fiction calls for — at a modest
-hit rate, not a bigger number on an ordinary item. A location is special
-because of what it can find, not because it pays better on average.
+with its rarity.** Keep the EV in the same band as an ordinary location's
+target above; what makes it rare is a pool entry (or a few) that exist
+NOWHERE else in the catalog — an ore type, a gem, whatever the fiction calls
+for — at a modest hit rate, not a bigger number on an ordinary item. A
+location is special because of what it can find, not because it pays better
+on average.
 
 `laborTypeLocation.prospecting.hills-west` is the first table built this
 way: the Forgotten Gallows is a real grave (`docs/zones.yaml`), so its pool

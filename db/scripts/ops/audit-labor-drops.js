@@ -27,7 +27,7 @@ const fs = require("node:fs");
 const { prisma } = require("../../index");
 const { loadDoc, parseDoc } = require("../../lib/syncLaborDrops");
 const { scopeFilters, TIER_TO_LABOR_DROP_TYPE, passesRequiredTag } = require("../../lib/laborDrops");
-const { annotateLines, priceRows } = require("../../lib/labordropsAnnotate");
+const { annotateLines, priceRows, ASSUMED_VALUES } = require("../../lib/labordropsAnnotate");
 const { rowShares, bandOf } = require("../../lib/labordropsRarity");
 const { docsPath } = require("../../lib/repoPaths");
 
@@ -55,9 +55,19 @@ const OBOL_SLUG = "obol";
 const OBOL_VALUE = 1;
 
 // One pool entry -> { label, evValue, note }. evValue is always a ⬢ number
-// (0 for NOTHING and for a tag with no sellablePrice) — see the legend
-// printed at the bottom of the report for why a tag's pointCost is shown but
-// never summed into it.
+// (0 for NOTHING and for a tag with neither a price nor an override) — see
+// the legend printed at the bottom of the report for why a tag's pointCost
+// is shown but never summed into it.
+//
+// Mirrors labordropsAnnotate.js#mechanicalValue/priceRows exactly — ASSUMED_VALUES
+// checked BEFORE the real sellable price (a Lockbox's discounted sellablePrice
+// must never win over its full contents value), then consumesIntoResources for
+// a non-sellable tag that still pays out when consumed (Purse, Supply Kit).
+// This branch order went missing from this script in the 2026-09-10 rarity
+// merge — labordropsAnnotate.js kept it (its own tests still pin it), but this
+// terminal report silently fell back to 0 ⬢ for every Lockbox and consumable
+// until restored here, imported from the one place ASSUMED_VALUES is now
+// defined rather than re-declared.
 function priceEntry(row, tagsById) {
   if (row.kind === "NOTHING") return { label: "(nothing)", evValue: 0, note: null };
   if (row.kind === "RESOURCES") {
@@ -69,8 +79,23 @@ function priceEntry(row, tagsById) {
   if (tag?.slug === OBOL_SLUG) {
     return { label: `${name} — the coin itself, worth ${OBOL_VALUE} ⬢`, evValue: OBOL_VALUE, note: null };
   }
+  if (tag && ASSUMED_VALUES[tag.slug] != null) {
+    const overrideValue = ASSUMED_VALUES[tag.slug];
+    const label =
+      tag.sellable && tag.sellablePrice
+        ? `${name} — worth ${overrideValue} ⬢ opened (sells ${tag.sellablePrice} ⬢ locked)`
+        : `${name} — assumed ${overrideValue} ⬢ (not actually sellable yet)`;
+    return { label, evValue: overrideValue, note: tag.sellable ? null : "assumed" };
+  }
   if (tag?.sellable && tag.sellablePrice) {
     return { label: `${name} — sells ${tag.sellablePrice} ⬢`, evValue: tag.sellablePrice, note: null };
+  }
+  if (tag?.consumesIntoResources) {
+    return {
+      label: `${name} — worth ${tag.consumesIntoResources} ⬢ consumed`,
+      evValue: tag.consumesIntoResources,
+      note: null,
+    };
   }
   const pointNote = tag ? `pointCost ${tag.pointCost}` : "tag missing from catalog";
   return { label: `${name} — not sellable (${pointNote})`, evValue: 0, note: "unpriced" };
@@ -113,7 +138,17 @@ async function main() {
   const { zoneSlug, locationSlug, holdsSlugs, write } = parseArgs(process.argv.slice(2));
 
   const [tags, zones, locations] = await Promise.all([
-    prisma.tag.findMany({ select: { id: true, slug: true, name: true, sellable: true, sellablePrice: true, pointCost: true } }),
+    prisma.tag.findMany({
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        sellable: true,
+        sellablePrice: true,
+        pointCost: true,
+        consumesIntoResources: true,
+      },
+    }),
     prisma.zone.findMany({ select: { id: true, slug: true, name: true } }),
     prisma.location.findMany({ select: { id: true, slug: true, name: true } }),
   ]);
@@ -256,12 +291,18 @@ async function main() {
       "rolled it. The '-> tier: ⬢ EV/labor' line is the real, unconditional number: (1/6) times the\n" +
       "sum of all six faces' EV, an unconfigured face (almost always 2-5) counted as a real zero\n" +
       "rather than skipped. Adding two 'roll N' lines together is not that number — divide by 6 first,\n" +
-      "and count the unlisted faces too. ⬢ EV itself averages each pool entry's Depot sell price\n" +
-      "(RESOURCES entries use their own ⬢ delta; NOTHING and a non-sellable tag both count as 0 ⬢).\n" +
-      "A tag's pointCost is shown for reference only — it's a different scale (character-build points,\n" +
-      "not ⬢) and is never summed into the EV. Hit rate is the share of the pool that isn't NOTHING,\n" +
-      "regardless of whether the result carries a ⬢ price. A \"requires:\" entry only joins the\n" +
-      "Combined section when its skill is named on --holds.",
+      "and count the unlisted faces too. ⬢ EV is the RARITY-BAND-WEIGHTED expectation (LABORDROPS.md\n" +
+      "§2, §7), not a flat average of the pool's lines — each entry's real chance comes from the die\n" +
+      "face's column and which rarity band it's authored at (db/lib/labordropsRarity.js), printed as\n" +
+      "the leading percentage on each entry above. RESOURCES entries use their own ⬢ delta; NOTHING\n" +
+      "counts as 0 ⬢. A tag priced in labordropsAnnotate.js's ASSUMED_VALUES (a Lockbox, godflesh, a\n" +
+      "monster corpse) prices at that override, ahead of its own sellablePrice — a Lockbox's real price\n" +
+      "is deliberately half its contents, so the table's balance math needs the FULL value a player who\n" +
+      "actually opens it realizes. A tag with neither a price nor an override, but a consumesIntoResources\n" +
+      "(Purse, Supply Kit), prices at that instead. A tag's pointCost is shown for reference only — it's a\n" +
+      "different scale (character-build points, not ⬢) and is never summed into the EV. Hit rate is the\n" +
+      "share of the pool's PROBABILITY that isn't NOTHING, not the share of its lines. A \"requires:\" entry\n" +
+      "only joins the Combined section when its skill is named on --holds.",
   );
 
   await prisma.$disconnect();
