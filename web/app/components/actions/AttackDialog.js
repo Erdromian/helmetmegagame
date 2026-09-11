@@ -27,6 +27,9 @@ export default function AttackDialog({ onDone, onClose }) {
   const [loading, setLoading] = useState(true);
   const [people, setPeople] = useState([]);
   const [fighting, setFighting] = useState([]);
+  // Why Attack is refused this turn, or null — resolved server-side by
+  // attackActions.js off db/lib/combatGate.js, never re-derived here.
+  const [blocked, setBlocked] = useState(null);
   const [targetId, setTargetId] = useState("");
   const confirm = useConfirm();
   const { submit, busy, error } = useSubmit();
@@ -38,6 +41,7 @@ export default function AttackDialog({ onDone, onClose }) {
         if (!live || !res?.ok) return;
         setPeople(res.people ?? []);
         setFighting(res.fighting ?? []);
+        setBlocked(res.blocked ?? null);
       })
       .finally(() => {
         if (live) setLoading(false);
@@ -74,10 +78,15 @@ export default function AttackDialog({ onDone, onClose }) {
       error={error}
       loading={loading && options.length === 0 && fighting.length === 0}
       empty={!loading && options.length === 0 && fighting.length === 0 ? "There’s nobody here to attack." : null}
-      canSubmit={Boolean(target)}
+      canSubmit={Boolean(target) && !blocked}
       onClose={onClose}
       onSubmit={onSubmit}
     >
+      {/* The submit greys, not the icon on the strip: Break off lives in this
+          dialog, and a dead button on the sheet would strand anyone who
+          attacked and then filed a Routine (docs/systemdocs/ATTACK.md §6). */}
+      {blocked ? <p className="text-xs text-muted">{blocked}</p> : null}
+
       {options.length > 0 ? (
         <ChipPicker
           label="Who are you attacking?"

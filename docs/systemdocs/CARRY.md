@@ -494,6 +494,19 @@ room's thread** (`db/lib/roomAnnounce.js`, the whisper poll's alias):
 "*An old woman leaves Graga Sac ×3 and 12 ⬢ here.*" / "*A young man takes a
 Lantern.*" The room learns an age and a presentation, never a name.
 
+**You can hand something to a stranger in a hood** — the one action that
+reaches a concealed person. The row reads "a young man" and its value is
+`hood:<token>` rather than `character:<id>`; `PROXYING.md` §5 has the rule and
+the handle. Transfer also sits on a hood's row in the HERE column now, beside
+Converse and Add, because the dropdown used to be the only way to find it.
+
+Two things specific to this dialog. The recipient list is **one `whosHere()`
+call**, named people and hoods together, and not `peopleHere()` plus
+`whosHere()`: those split on different things — the `concealed` column versus
+what is actually over the face — so a character in a sack was offered twice,
+the second time under their real name. And the receiving DM ("You were handed
+…") names no giver, the same silence the aliased room line above keeps.
+
 The two older actions, `transferTagRequest` and `transferResourcesRequest`,
 still exist for their `LOOT` direction and for anything else that calls them.
 

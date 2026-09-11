@@ -172,8 +172,33 @@ async function fetchGuildMembers() {
     username: m.user.username,
     globalName: m.user.global_name ?? null,
     avatar: m.user.avatar ?? null,
+    // The SERVER-specific avatar, which is a different picture from the one
+    // above: `m.avatar` is the face somebody set for this guild, `m.user
+    // .avatar` the one they wear everywhere. Carried here so gmProfiles.js can
+    // build the GM roster out of this list instead of fetching the identical
+    // /guilds/:id/members?limit=1000 a second time — see its own note.
+    guildAvatar: m.avatar ?? null,
     roles: m.roles ?? [],
   }));
+}
+
+// Whether the last attempt to read the roster actually reached Discord.
+//
+// The list itself cannot answer that: the failure path below returns [], and
+// so does LOCAL_MODE (db/lib/localMode.js — a local session is a guild of
+// one). So "empty" means EITHER "Discord is down" OR "there is genuinely
+// nobody", and a caller that guesses gets it wrong half the time. The player
+// desk guessed, and turned a Discord blip into a 404 on an ordinary
+// conversation; see (desk)/gm/players/[discordUserId]/page.js.
+//
+// Starts true: nothing has failed yet, and a caller asking before the first
+// fetch should not be told the roster is unknowable.
+let memberListReachable = true;
+
+// Did the roster we are serving come from a successful read? A stale answer
+// counts — it was real when it was fetched, and it still names real people.
+export function isGuildRosterKnown() {
+  return memberListReachable;
 }
 
 export const listGuildMembers = cache(async () => {
@@ -182,10 +207,12 @@ export const listGuildMembers = cache(async () => {
   try {
     const value = await dedupe("memberList", fetchGuildMembers);
     memberListCache.set("all", value);
+    memberListReachable = true;
     return value;
   } catch (err) {
     const stale = memberListCache.getStale("all");
     console.error(`Guild member list failed${stale ? ", serving stale" : ""}: ${err.message}`);
+    memberListReachable = stale !== undefined;
     return stale ?? [];
   }
 });

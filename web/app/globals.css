@@ -3619,6 +3619,60 @@ input[type="radio"]:disabled {
   flex-shrink: 0;
 }
 
+/* A fight's row STACKS: the people in it ride under the row, not beside it
+   (docs/systemdocs/ATTACK.md §7). Same wrapper, so the active and keyboard
+   states above are inherited unchanged, and the avatar review row's
+   side-by-side layout is untouched. */
+.desk-queue-rowset[data-stacked] {
+  display: block;
+  padding-right: 0;
+}
+
+.desk-queue-web {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: 0 var(--sp-2) var(--sp-2) var(--sp-2);
+}
+
+/* Wraps rather than truncates: a name losing its tail is a name a GM cannot
+   act on, and the rail is narrow. */
+.desk-queue-web-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
+.desk-queue-web-name {
+  font-size: var(--fs-xs);
+  color: var(--text);
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--border);
+}
+
+.desk-queue-web-name:hover {
+  text-decoration-color: var(--accent);
+}
+
+.desk-queue-web-cancels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  padding-top: var(--sp-1);
+  border-top: 1px solid var(--border);
+}
+
+.desk-queue-web-cancel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  min-width: 0;
+}
+
 .desk-queue-row[data-auto] {
   opacity: 0.6;
 }
@@ -6101,6 +6155,25 @@ label.chip {
   flex: 1;
 }
 
+/* Where a pointer can hover, the words stop short of the right edge so the
+   action bar that floats there on hover never sits on them — Discord's
+   messages carry the same right indent for the same toolbar. A run's second
+   line has no name row to put the bar over, so without this it landed on
+   the sentence itself. Not on a touch screen: the bar only shows for a
+   tapped row there, and the width is worth more than the clearance. */
+@media (hover: hover) {
+  .chat-row-body {
+    padding-right: 8rem;
+  }
+}
+
+/* A tapped row (tabIndex -1) takes focus so its bar can show; the ring that
+   would draw around a whole message is not wanted, and :focus-visible never
+   fires for a tap anyway. */
+.chat-row:focus {
+  outline: none;
+}
+
 .chat-row-head {
   display: flex;
   align-items: baseline;
@@ -6167,7 +6240,10 @@ label.chip {
 .chat-row-actions {
   position: absolute;
   right: var(--sp-2);
-  top: -10px;
+  /* Astride the row's top edge — half in the gap above, half over the
+     row's own right-hand indent (.chat-row-body's padding-right) — so it
+     belongs visibly to this line and covers no words of it. */
+  top: -12px;
   z-index: 1;
   display: flex;
   gap: var(--sp-1);
@@ -6191,13 +6267,10 @@ label.chip {
   pointer-events: auto;
 }
 
-/* No hover on a touch screen, so the bar is simply always there. */
-@media (pointer: coarse) {
-  .chat-row-actions {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
+/* No hover on a touch screen. The bar used to be simply always there, and
+   on a phone that was three buttons sitting on the words of every second
+   line of a run. Now it shows for the row that was TAPPED (the row takes
+   focus, Feed.js) and goes again when the next tap lands somewhere else. */
 
 /* Discord's red line: everything below it arrived since you last had this
    place open. A rule with its label at the right-hand end, where the eye
@@ -6223,6 +6296,11 @@ label.chip {
    is to say WHICH line, not to leave it marked. */
 .chat-row[data-run="start"] {
   margin-top: var(--sp-3);
+}
+
+/* Lines within a run sit tight — the same speaker, moments apart. */
+.chat-row:not([data-run="start"]) {
+  margin-top: 2px;
 }
 
 /* A pending row is the same row, quieter. */

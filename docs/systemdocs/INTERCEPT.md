@@ -22,6 +22,25 @@ of what a watch said at the time.
 It carries a Location, a mode, a message, a list of typed names, and two
 dragnet flags.
 
+**Setting or editing one is free, but not once your Move is spent.** A Move
+already filed this turn refuses the save, unless that Move is a **Gambit** —
+`db/lib/combatGate.js`, shared with Attack, which states the reasoning in
+`ATTACK.md` §5a. The sentence:
+
+> You've already used your Move this turn. You should only lay in wait if you
+> plan to use your Gambit on whoever walks into it.
+
+The refusal covers an **edit** as well as a new watch, because the upsert is how
+both happen and rewriting who you are waiting for, with your turn already gone,
+is the same lever — which is why **Stop watching** hangs off whether a watch
+really exists rather than off what the form currently says: clearing the name
+chips must not take away the only way out of a live watch.
+
+**Stopping** a watch is never gated, and neither is Release:
+those are the way out, and `stopInterceptImpl` and `releaseHeldImpl` carry no
+such check. A watch that was already set fires normally — the gate is on laying
+the trap, not on springing it.
+
 **It is anchored.** `locationId` is stamped from where its owner stood when
 they saved it, and the watch works there and nowhere else. **Any move at all
 cancels it** — walking, being carried along by an escort, a GM's teleport, a
@@ -320,6 +339,11 @@ It was `INTERCEPT_HOLD` until an ambush became an attack. That kind, its
 in somebody's DMs when the change shipped still does something — but nothing
 builds a new one, and `interceptReleaseRow` is gone.
 
+A Safe hit also draws its own row on the GM's Other lens, carrying both people
+and what each of them filed this turn (`ATTACK.md` §7) — but no cancel button.
+The two-minute hold lapsed on its own clock long before a GM got there, so one
+could only ever answer *They're already free.*
+
 The authoritative control is the **You are fighting** list at the foot of the
 Attack dialog. The DM button is the convenience. The Intercept dialog's own
 holding list is Safe stops only — it excludes both fight reasons, for the
@@ -331,6 +355,14 @@ only possible answer is *They're already free.*
 `/character`'s verb strip, in the **Others** section. The dialog is
 `web/app/components/actions/InterceptDialog.js` on `ActionDialog`, and it loads
 whatever watch is set so it can be reopened and edited at any time.
+
+**The icon on the strip never greys**, §1's refusal included. That refusal is a
+fact about your own sheet, so the metagaming rule at the top of
+`actionRegistry.js` would allow it — but **Save inside the dialog** greys
+instead, with the sentence at the top of the body, because Stop watching and Let
+them go live down here and a dead icon would strand anybody who set a watch and
+then filed a Routine. It is the shape `CraftDialog.js` already uses for
+`hasMoved`.
 
 **Nothing in it is a tooltip** (`SHEET.md` §3). Both mode sentences print on the
 page, both at once rather than only the chosen one; the dialog names the place
@@ -383,6 +415,7 @@ Nothing here is destructive, so no `restore` snapshot is owed (`REQUESTS.md` §2
 | `db/lib/locationGraph.js` | `resolveNeighbors` draws the refusal on every way |
 | `db/lib/escort.js` | Refuses to attach somebody being held |
 | `db/lib/attack.js` | What an Ambush actually files (`ATTACK.md`) |
+| `db/lib/combatGate.js` | The spent-Move refusal on a save, shared with Attack |
 | `db/lib/dmAnswer.js` | `answerInterceptHold` — Release, shared by both faces |
 | `web/app/(app)/character/interceptActions.js` | Load, save, stop, release |
 | `web/app/components/actions/InterceptDialog.js` | The dialog |

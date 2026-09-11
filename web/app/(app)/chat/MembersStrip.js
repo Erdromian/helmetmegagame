@@ -54,7 +54,7 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
   }, [onChanged]);
 
   const onAdd = useCallback(
-    (characterId) => run(() => addMember(placeKey, characterId), undefined, { onOk: done }),
+    (ref) => run(() => addMember(placeKey, ref), undefined, { onOk: done }),
     [placeKey, run, done],
   );
 
@@ -162,19 +162,20 @@ export default function MembersStrip({ placeKey, data, onChanged }) {
           {candidates.length === 0 ? (
             <span className="text-sm text-muted">Nobody else is standing here.</span>
           ) : (
-            candidates.map((person) => (
+            candidates.map((person, index) => (
               <button
-                key={person.characterId}
+                key={person.characterId ?? person.token ?? `hooded-${index}`}
                 type="button"
                 className="chip"
                 disabled={pending}
-                onClick={() => onAdd(person.characterId)}
+                onClick={() => onAdd(person.characterId ?? person.token)}
               >
                 <CharacterAvatar
-                  characterId={person.characterId}
+                  characterId={person.characterId ?? undefined}
                   name={person.name}
                   version={person.avatarVersion}
                   src={person.avatarPath ?? undefined}
+                  unknown={Boolean(person.unknownFace)}
                   size={16}
                 />
                 {person.name}

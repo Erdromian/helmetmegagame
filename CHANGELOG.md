@@ -6,6 +6,83 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Clicking a name on the Players desk is instant now
+
+✎ Opening a conversation no longer loads a page. It paints in about a tenth of a second, clicking through several people in a row doesn't queue them up any more, and going back to someone you had open a minute ago is free.  
+✎ Back, Forward, pasted links, ⌘K and the old /gm/messages links all still work — the address bar follows what you've opened rather than causing it.  
+✎ Paging back through a long conversation stopped blocking whatever you did next.  
+✎ Three faults in yesterday's live-feed work, found in review: a reader that closed its tab could leave the server waking for every message in the game forever; switching conversation rebuilt the live connection each time; and the chime was being swallowed for anything that arrived during a reconnect — which was the very thing that feed was built to fix.
+
+## 2026-09-11 · Brigands start able to work
+
+✚ Both Brigand roles start with Laboring (Basic)  
+✎ The four Brigands already in the game have been given it
+
+## 2026-09-11 · Searching the rail no longer holds up your next click
+
+✎ Typing in the rail's search box used to block whatever you did next, because the search and the click went through the same queue — so 'type a name, click the row' made the click wait for a scan of every message in the game. It doesn't any more, and a search you've typed past is now abandoned instead of running to the end.
+
+## 2026-09-11 · Opening a conversation stops asking Discord twice
+
+✎ The desk was fetching the whole server member list twice over to draw one conversation — once for names, once for GM faces — on two separate caches that expired at different moments. It reads it once now. This was the slowest thing on the page, and the reason opening somebody sometimes hung for seconds with no pattern to it.  
+✎ The audit log and the turn desk were doing the same thing, so they get quicker too.
+
+## 2026-09-11 · The message desk hears a reply the moment it lands
+
+✎ A player's reply now appears on the Players desk by itself — in the rail and in the open conversation — instead of waiting for the desk to go and ask. It arrives in a fraction of a second.  
+✎ The desk no longer chimes for a message it then fails to show you. There was a timing hole where it could hear something arrive and throw it away a moment later; you would only see it after a reload.  
+✎ When the live connection does drop, the desk says so in the header rather than looking healthy and quietly showing you nothing. It keeps working in the meantime, just up to half a minute behind.  
+✎ The desk stopped asking the database what changed twenty times a minute per person, which was part of why clicking around it felt slow.
+
+## 2026-09-11 · The message desk stops stalling and going deaf
+
+✎ Opening somebody on the Players desk is quicker. The desk was quietly loading every conversation in the rail in the background just in case you clicked it, so the one you actually clicked queued up behind the rest.  
+✎ Clicking a name now shows you something straight away instead of sitting on the last conversation until the new one is ready.  
+✎ A hiccup talking to Discord no longer makes a quiet conversation come back as 'not found'.  
+✎ One broken conversation no longer takes the whole desk down with it — the rail stays, and you can click somebody else.  
+✎ The desk keeps listening for new mail after a deploy. It used to stop updating silently while the chime went on ringing, which is why you would hear a ping and find nothing there until you reloaded.
+
+## 2026-09-11 · Merge PR #41: Prospecting pays properly, and Keen Eye is worth taking
+
+✎ Every Prospecting table's drops are up by about half again — the raise is all in what you find, base pay is untouched. Junk with no sale value (Rock, Bear Trap) is cut rather than padded around, since a rarity band's share is fixed and dropping a worthless member concentrates it on what is left.  
+✚ Gold Fleck, and six ore finds behind Keen Eye  
+✎ Keen Eye now needs Prospecting before it can be bought, the same way its sibling labour skills need their trade  
+✎ Keen Eye turns up one modest find on every face of the die rather than a rare windfall, so it never makes a day worse — verified across all 29 Prospecting locations: floor +1.79 ⬢ a labour, average +2.12, none hurt  
+✎ Fourteen tags the draft-mark sweep deleted by accident are back — onion, boar loin, hard cheese and eleven others, restored verbatim. Several were still named by the labour drop tables and the room stashes, so the whole sync threw on the first one.  
+✎ The labour drop audit prices Lockboxes and consumables again instead of calling them worthless
+
+## 2026-09-11 · You can't start a fight once your Move is spent
+
+✎ Attack and Intercept now refuse if you have already filed your Move for the turn — unless that Move is a Gambit, so writing the fight up first and pressing the button second still works  
+✎ The refusal sits on the button inside the dialog, not the icon on the sheet: Break off, Stop watching and Let them go are never blocked  
+✚ A watch already set still fires, and a zone crossing now counts as a spent Move like any other
+
+## 2026-09-11 · The turn desk shows a whole fight in one row
+
+✎ A group ambush is one row on the Other tab now, instead of one row per person jumped — everyone caught is listed under it  
+✚ Each person in a fight links straight to the Move they filed, so their Gambit is one click from the row  
+✚ A ✕ beside any fight on the Other tab calls it off and tells both people
+
+## 2026-09-11 · The Oracle lands at the lock instead of a quarter hour into the window
+
+✎ The six zone pages are written at the same time rather than one after another  
+✎ It starts on the Moves lock itself, not two minutes after  
+✎ The Oracle's rail item is an eye
+
+## 2026-09-11 · You can whisper with a hood and hand it things, helmet on
+
+✚ Take a masked stranger aside: Converse from their row in Here, with them already ticked  
+✚ Let one into a conversation or a private room — the + Add button and /add list them as "a young man"  
+✚ Transfer sits on a hood's row too. It always reached them; the dropdown was the only way to find it  
+✎ Heal, Loot, Bind, Harm, Kiss, Teach and Confess call somebody by their forced name — a Beast was listed under the name underneath it  
+✎ Nothing about a mask leaks by being invited: the page is never told who is behind one, and the room hears "a young man was added"  
+✎ Discord is unchanged. /add there names a character by their role, and a hood has no role to name
+
+## 2026-09-11 · The action bar stops sitting on the words of a run
+
+✎ On a phone the Change / Take back / Look at buttons show only for the message you tap, instead of covering the second line of every run  
+✎ On a desktop the words keep clear of the bar that appears on hover
+
 ## 2026-09-11 · The header says when Moves lock, in your own time
 
 ✚ Every page header now carries a LOCK chip: the time Moves stop being accepted, in your own timezone, counting down in minutes  

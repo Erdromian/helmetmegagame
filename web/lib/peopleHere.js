@@ -18,10 +18,10 @@ export { hereWhere, isHere, HERE_FIELDS, notHereMessage } from "@lifeweb/db/lib/
 
 // Everyone here, name-sorted, with the caller's `select`. Nowhere is
 // nobody: an unplaced character reaches no one.
-export async function peopleHere(character, { includeDead = false, allowConcealed = false, select } = {}) {
+export async function peopleHere(character, { includeDead = false, select } = {}) {
   if (!character?.locationId) return [];
   return prisma.character.findMany({
-    where: hereWhere(character, { includeDead, allowConcealed }),
+    where: hereWhere(character, { includeDead }),
     orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
     select,
   });

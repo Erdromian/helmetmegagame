@@ -5,7 +5,7 @@ import { FEED_CHANNEL } from "@lifeweb/db/lib/feedNotify";
 import { PRESENCE_CHANNEL } from "@lifeweb/db/lib/presenceNotify";
 import { TYPING_CHANNEL } from "@lifeweb/db/lib/typingNotify";
 import { DM_CHANNEL } from "@lifeweb/db/lib/dmNotify";
-import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "./dmThread";
+import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow, GM_DM_SELECT, gmDmRow } from "./dmThread";
 import { dmActionOf } from "@lifeweb/db/lib/dmActions";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 
@@ -22,11 +22,15 @@ import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/
 // would leak a database connection each time.
 
 const HUB_KEY = "__bascinetFeedHub";
+// Bumped whenever createHub() gains a field, so a hot reload backfills an
+// older hub instead of throwing on the missing one. See hub().
+const HUB_SHAPE = 2;
 const BACKOFF_MIN_MS = 1000;
 const BACKOFF_MAX_MS = 60_000;
 
 function createHub() {
   return {
+    shape: HUB_SHAPE,
     // placeKey -> Set<(row) => void>
     subscribers: new Map(),
     // characterId -> Set<() => void>. The second channel, added in phase 2:
@@ -44,6 +48,17 @@ function createHub() {
     // in a tab (CHAT.md §2b). Raised by a Postgres trigger rather than by any
     // writer (db/lib/dmNotify.js).
     dmSubscribers: new Map(),
+    // Set<(row) => void>, and the only one keyed on NOTHING. A player's
+    // conversation belongs to one account, so the map above is the right
+    // shape for it; the GM desk's inbox is every conversation at once, and
+    // keying that by recipient would mean subscribing to a few hundred keys
+    // and resubscribing whenever somebody new wrote in. So the desk takes the
+    // firehose and the stream decides what to do with it.
+    //
+    // The trigger already fires for every row (db/prisma/migrations/
+    // 20260913060000_dm_notify), so this costs no migration and no second
+    // channel — only a second fan-out of a notification already arriving.
+    gmDmSubscribers: new Set(),
     // characterId -> { name, at }. A typing event fires every few seconds per
     // person, and resolving forced name + concealment is two queries; nobody's
     // mask comes off often enough to pay that on every keystroke burst.
@@ -58,8 +73,27 @@ function createHub() {
 }
 
 function hub() {
-  if (!globalThis[HUB_KEY]) globalThis[HUB_KEY] = createHub();
-  return globalThis[HUB_KEY];
+  const existing = globalThis[HUB_KEY];
+  if (!existing) {
+    globalThis[HUB_KEY] = createHub();
+    return globalThis[HUB_KEY];
+  }
+  // `next dev` re-evaluates this module on a hot reload but keeps the object
+  // on globalThis, so a hub built by an OLDER copy of this file is missing any
+  // field added since — and the first call reaching for one throws. Backfill
+  // rather than rebuild: rebuilding would drop the live pg client and every
+  // open subscription with it.
+  //
+  // Behind a stamp so the ordinary path stays a property read — hub() is
+  // called on every fan-out, and building a throwaway hub each time to diff
+  // against would not be free. BUMP HUB_SHAPE when adding a field above.
+  if (existing.shape !== HUB_SHAPE) {
+    for (const [key, value] of Object.entries(createHub())) {
+      if (existing[key] === undefined) existing[key] = value;
+    }
+    existing.shape = HUB_SHAPE;
+  }
+  return existing;
 }
 
 // A subscriber's callback is player code as far as this module is concerned —
@@ -191,14 +225,8 @@ async function handleTyping(payload) {
 // conversation on either face, and a mention relay IS one here: it reaches
 // the player's pane exactly as the Discord DM reaches their inbox.
 // What goes out is the PLAYER's shape of the row: no author.
-async function handleDm(payload) {
-  let parsed;
-  try {
-    parsed = JSON.parse(payload);
-  } catch {
-    return;
-  }
-  if (!parsed?.id || !parsed?.discordUserId) return;
+async function handleDm(parsed) {
+  if (!parsed?.discordUserId) return;
   const set = hub().dmSubscribers.get(String(parsed.discordUserId));
   if (!set || set.size === 0) return;
 
@@ -219,6 +247,39 @@ async function handleDm(payload) {
       send(shaped);
     } catch (err) {
       console.error("DM subscriber failed:", err);
+    }
+  }
+}
+
+// The same notification, read again for the GM desk.
+//
+// A SECOND read rather than a reshape of the first, because the two chairs do
+// not see the same rows or the same columns. The player's filter keeps mention
+// relays and drops the author; the desk's drops the relays and needs the
+// author to say who answered (dmThread.js). Sharing one read would mean one
+// chair quietly getting the other's rules, which is the class of bug
+// withoutDmNoise's `perspective` exists to prevent.
+//
+// It costs one indexed lookup, and only when a GM actually has the desk open —
+// there are five of them, against a hundred players.
+async function handleGmDm(parsed) {
+  const set = hub().gmDmSubscribers;
+  if (set.size === 0) return;
+
+  const row = await prisma.directMessage.findFirst({
+    where: withoutDmNoise({ id: String(parsed.id) }, { perspective: "gm" }),
+    select: GM_DM_SELECT,
+  });
+  // Filtered out for the desk — an inspect embed, or a mention relay. The
+  // player's pane may still have had it; that is the point of two filters.
+  if (!row) return;
+
+  const shaped = gmDmRow(row);
+  for (const send of [...set]) {
+    try {
+      send(shaped);
+    } catch (err) {
+      console.error("GM DM subscriber failed:", err);
     }
   }
 }
@@ -257,11 +318,33 @@ function resyncDm() {
       }
     }
   }
+  // The desk has no cursor on this channel either, but unlike the player's
+  // pane it has somewhere to go: its stream re-asks inboxDelta.js from its own
+  // clock cursor, which cannot have moved during the outage. Same sentinel,
+  // and it matters more here — the desk going quiet without saying so is the
+  // exact failure GMs have been reporting.
+  for (const send of [...hub().gmDmSubscribers]) {
+    try {
+      send({ resync: true });
+    } catch (err) {
+      console.error("GM DM subscriber failed:", err);
+    }
+  }
 }
 
 async function handleNotification(msg) {
   if (msg.channel === DM_CHANNEL) {
-    if (msg.payload) await handleDm(msg.payload);
+    if (!msg.payload) return;
+    let parsed;
+    try {
+      parsed = JSON.parse(msg.payload);
+    } catch {
+      return;
+    }
+    if (!parsed?.id) return;
+    // Both chairs, from one notification. Neither waits on the other: a slow
+    // read for a desk nobody has open must not hold up a player's pane.
+    await Promise.allSettled([handleDm(parsed), handleGmDm(parsed)]);
     return;
   }
   if (msg.channel === PRESENCE_CHANNEL) {
@@ -487,5 +570,24 @@ export function subscribeToDm(discordUserId, send) {
     if (!current) return;
     current.delete(send);
     if (current.size === 0) h.dmSubscribers.delete(key);
+  };
+}
+
+// Every DirectMessage, for a reader whose job is all of them: the GM desk's
+// inbox (PLAYER-DESK.md §9a). The same unsubscribe contract as the other four
+// and no key, because there is nothing to key on — see gmDmSubscribers.
+//
+// This is NOT a gate. Like the presence channel, a notification here is a
+// nudge and never an authorisation: the caller is the desk's SSE route, which
+// has already established that this reader is a GM and re-reads what it is
+// allowed to send. Subscribing does not make anybody a GM.
+export function subscribeToAllDms(send) {
+  const h = hub();
+  h.gmDmSubscribers.add(send);
+
+  connect().catch((err) => console.error("Feed hub connect failed:", err));
+
+  return () => {
+    h.gmDmSubscribers.delete(send);
   };
 }

@@ -168,7 +168,11 @@ laborType:
     6:  # EV 19.50 ⬢ · hit 100%
       - { slug: silt-lockbox, rarity: uncommon }  # turns up wherever the digging is good — worth 18 ⬢ opened (sells 9 ⬢ locked)
       - { slug: knuckle-duster, rarity: uncommon }  # sells 21 ⬢
-    # Redesigned 2026-09-20 four times over (Bascinet: "make sure Keen Eye
+    # This pool used to hang off a Keen Eye tag of its own. That tag is
+    # retired: Eagle Eyes carries the pool now, and nothing says so anywhere
+    # a player can read it — the skill is meant to be found, not shopped for.
+    #
+    # Redesigned 2026-09-20 four times over (Bascinet: "make sure it
     # gives at least +1, hopefully +2 on average" — "I don't like the flat
     # resources, use item drops" — a supernova, see below — "less spiky,
     # every number 1-6, many medium prizes instead of juggernauts"). A
@@ -194,7 +198,7 @@ laborType:
     # six faces now has a floor: `ultracommon` (1), `common` (2), `uncommon`
     # (3, since 2026-09-20 — zone.hills/zone.forest picked up a face-3 entry
     # apiece specifically so this floor exists everywhere), `uncommon` (4),
-    # `rare` (5), `uncommon` (6). Keen Eye sits one step later than each:
+    # `rare` (5), `uncommon` (6). The pool sits one step later than each:
     # `common`/`uncommon`/`rare`/`extremely-rare`/`extremely-rare`/`rare`.
     # Face 5 is the one exception worth flagging: its next tier up,
     # `extremely-rare`, is already crowded with 4-42 ⬢ gear at several
@@ -209,7 +213,7 @@ laborType:
     # locations: floor +1.79 ⬢/labor (worst case, Underlocks), average
     # +2.12, zero locations hurt.
     requiresTag:
-      keen-eye:  # ⬢ EV/labor 14.70 · hit 93%
+      eagle-eyes:  # ⬢ EV/labor 14.70 · hit 93%
         1:  # own EV 21.00 ⬢ · hit 100% · combined EV 3.47 ⬢ · hit 55%
           - { slug: ore-speck, rarity: common }  # even a bad day turns up something, if you're looking — sells 21 ⬢
         2:  # own EV 33.00 ⬢ · hit 100% · combined EV 6.47 ⬢ · hit 100%

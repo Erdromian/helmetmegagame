@@ -117,9 +117,9 @@ export const COMMANDS = [
     name: "converse",
     description: "Take somebody aside for a private conversation.",
     where: EVERYWHERE,
-    // No argument: the Converse dialog asks which room and what to call it,
-    // and it has its own tick-list of everyone standing here. Asking for one
-    // person out here and the rest in there would be the same question twice.
+    // No argument: the dialog asks which room and what to call it, and you
+    // add people once you are in it. Converse opened from somebody's row in
+    // HERE ticks that person; typed here it opens empty.
     args: [],
     run: (_values, ctx) => {
       ctx.converse?.();
@@ -130,7 +130,10 @@ export const COMMANDS = [
     name: "add",
     description: "Bring somebody into this conversation or private room.",
     where: ["room", "conv"],
-    args: [{ name: "person", kind: "person" }],
+    // Hoods included, the same as /look: a mask hides who somebody is, not
+    // that they are standing here, and a rider who had to take his helmet off
+    // to be invited was not wearing one. The token is what carries them.
+    args: [{ name: "person", kind: "person", hoods: true }],
     run: ({ person }, ctx) => addMember(ctx.placeKey, person),
   },
   {

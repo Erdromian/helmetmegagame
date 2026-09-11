@@ -13,18 +13,23 @@
 // inspectVision.js.
 
 // The Prisma where-clause for "everyone here but me".
-// `allowConcealed` is the one opt-out, and TRANSFER is its only caller. A hood
-// hides WHO somebody is, not THAT somebody is standing there — handing a coin
-// to a stranger is a thing you can plainly do to a person whose name you do not
-// know. Every other action keeps the strict rule: learning a skill from a hood,
-// or confessing to one, would be acting on an identity rather than on a body in
-// the room.
-function hereWhere(character, { includeDead = false, allowConcealed = false } = {}) {
+//
+// Always strict about hoods, and it has no opt-out on purpose. Transfer is the
+// one action that reaches a concealed person, and it does NOT come through
+// here: it asks db/lib/whosHere.js instead, which splits on what is actually
+// over the face rather than on the column this clause reads. Mixing the two
+// was the bug — somebody wearing a sack with the wish left off is concealed by
+// whosHere's reckoning and bare-faced by this one, so they were offered twice,
+// the second time under their real name.
+//
+// isHere() below still takes `allowConcealed`, because the re-check on a
+// posted id is the half Transfer does keep (web/lib/transferReach.js).
+function hereWhere(character, { includeDead = false } = {}) {
   return {
     locationId: character.locationId,
     id: { not: character.id },
     OR: [
-      allowConcealed ? { status: "ALIVE" } : { status: "ALIVE", concealed: false },
+      { status: "ALIVE", concealed: false },
       ...(includeDead ? [{ status: "DEAD", buriedAt: null }] : []),
     ],
   };

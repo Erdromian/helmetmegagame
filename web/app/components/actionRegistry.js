@@ -342,8 +342,13 @@ export const ACTION_SECTIONS = [
       { mode: "free", icon: KeyIcon, label: "Free" },
       // NO gate and NO show. Laying in wait needs nothing and says nothing
       // about who is near you — the metagaming rule at the top of this file
-      // has nothing to bite on, and there is no fact about your own sheet
-      // that could grey it either.
+      // has nothing to bite on.
+      //
+      // A Move already spent DOES refuse it (db/lib/combatGate.js), and that is
+      // a fact about your own sheet, so the rule would allow greying here. The
+      // refusal sits on Save INSIDE the dialog instead, because Stop watching
+      // lives down there too and a dead icon would strand anyone who set a
+      // watch and then filed a Routine.
       { mode: "intercept", icon: InterceptIcon, label: "Intercept" },
       // NO gate and NO show, the Intercept reasoning taken one step further.
       // Whether anybody standing near you is out of your league is a fact
@@ -351,6 +356,9 @@ export const ACTION_SECTIONS = [
       // the page loaded — the metagaming rule at the top of this file. You
       // find out by opening the dialog and pressing it (docs/systemdocs/
       // ATTACK.md).
+      //
+      // A spent Move refuses this one too, and for the same reason it greys
+      // inside the dialog rather than here: Break off is in there.
       { mode: "attack", icon: AttackIcon, label: "Attack" },
       // HIDDEN rather than greyed, the Extract rule: whether YOU are a
       // Fundamentalist standing at a Cross is your own fact, and a dead

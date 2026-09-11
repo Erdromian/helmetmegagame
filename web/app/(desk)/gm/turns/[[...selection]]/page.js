@@ -20,18 +20,15 @@ import {
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
   CAVING_ROLL_INCLUDE,
-  ATTACK_INCLUDE,
-  INTERCEPT_HIT_INCLUDE,
   AVATAR_REVIEW_SELECT,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
-  attackRow,
-  interceptHitRow,
   avatarReviewRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
+import { ATTACK_INCLUDE, INTERCEPT_HIT_INCLUDE, otherHoldRows } from "@/lib/holdClusters";
 
 // The adjudication workspace's server half: one load, all DTOs, no
 // Prisma-shaped object across the boundary. The queue is the OPEN turn's
@@ -285,12 +282,25 @@ async function FreshTurnsWorkspace({ params, userId }) {
 
   const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds }));
 
+  // What each person filed this turn, for the Other lens's Move chips. Built
+  // off `moves` rather than off `actions` and costing no second query: a chip
+  // can then only exist for a Move the client actually holds, so it is
+  // structurally impossible to draw one that opens an empty desk. A character
+  // may hold more than one (an auto-filed Travel beside their Gambit — Action
+  // carries no unique on characterId+turnId), so each gets its own chip.
+  const movesByCharacterId = new Map();
+  for (const m of moves) {
+    const list = movesByCharacterId.get(m.characterId) ?? [];
+    list.push({ id: m.id, kindLabel: m.kindLabel });
+    movesByCharacterId.set(m.characterId, list);
+  }
+
   // The Other lens's one merged list. An Ambush is already an Attack row, so
   // the two halves never name the same event twice.
+  const otherCtx = { usernameById, catatonicIds, movesByCharacterId };
   const otherRows = [
-    ...attacks.map((a) => attackRow(a, { usernameById, catatonicIds })),
-    ...interceptHits.map((h) => interceptHitRow(h, { usernameById, catatonicIds })),
-    ...avatarsToReview.map((c) => avatarReviewRow(c, { usernameById, catatonicIds })),
+    ...otherHoldRows(attacks, interceptHits, otherCtx),
+    ...avatarsToReview.map((c) => avatarReviewRow(c, otherCtx)),
   ];
 
   const locationRows = stagingLocations.map((l) => ({

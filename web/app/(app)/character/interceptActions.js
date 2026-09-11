@@ -22,6 +22,7 @@ import {
   seenAs,
   IDENTITY_SELECT,
 } from "@lifeweb/db/lib/intercept";
+import { interceptMoveBlock } from "@lifeweb/db/lib/combatGate";
 
 // LAYING IN WAIT, from the character sheet (docs/systemdocs/INTERCEPT.md).
 // Same posture as cerberonActions.js: the actor is resolved from the session
@@ -31,6 +32,10 @@ import {
 //
 // Nothing here costs a Move, ⬢ or a per-turn ration. Setting a watch is free
 // and open to everyone: it is a fact about nobody until somebody walks in.
+//
+// With one exception: a Move already filed on anything else refuses a save
+// (db/lib/combatGate.js, reasoned out in ATTACK.md §5a). Stopping a watch stays
+// open — it is the way out, not the lever.
 
 async function me({ needs = null } = {}) {
   const session = await auth();
@@ -82,9 +87,14 @@ async function loadInterceptImpl() {
   // a relocation that never ran the cancel — but the dialog must never draw a
   // watch that could not fire.
   const live = watch && anchorHolds(watch, character.locationId) ? watch : null;
+  const openTurn = await getOpenTurn();
   return {
     ok: true,
     limits: { names: MAX_NAMES, message: MESSAGE_LIMIT },
+    // Why the dialog's Save button is dead, or null. Advisory — the same
+    // sentence is thrown for real in setInterceptImpl — and it never reaches
+    // Stop watching, which stays live for exactly the player this refuses.
+    blocked: await interceptMoveBlock(prisma, character.id, openTurn?.id ?? null),
     watch: live
       ? {
           mode: live.mode,
@@ -119,6 +129,13 @@ async function setInterceptImpl({ mode, message, names, anyConcealed, anyPerson 
   if (!character.locationId) {
     throw new UserError("You have to be standing somewhere to intercept.");
   }
+  // The upsert below is how a watch is EDITED as well as set, so this refuses a
+  // rewrite too. That is intended: changing who you are waiting for, once your
+  // Move is gone, is the same lever as laying the trap in the first place.
+  // stopInterceptImpl carries no such check.
+  const openTurn = await getOpenTurn();
+  const spent = await interceptMoveBlock(prisma, character.id, openTurn?.id ?? null);
+  if (spent) throw new UserError(spent);
 
   const data = {
     // Stamped from where they stand, and never moved afterwards: walking away

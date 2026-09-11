@@ -2723,22 +2723,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Prospecting's own advantage skill, same shape as Forester's — a wider
-  # pool at the SAME draw rather than a second roll, using the requiresTag
-  # gate LABORDROPS.md §2a already provides. No new engine code, and the
-  # balance is just "add a few more good entries," the same tuning this
-  # whole table has already had (Bascinet, 2026-09-10).
-  keen-eye:
-    catalog: all
-    name: Keen Eye
-    category: skills
-    teachable: true
-    description: "You know good ground when you see it. Prospecting turns up more than it does for anyone else."
-    pointCost: 4
-    requiredTag: laboring-prospecting
-    purchasable: true
-    purchasableAfterStart: true
-
   climbing:
     catalog: all
     name: Climbing
@@ -6307,14 +6291,18 @@ tags:
       - steel
       - steel
 
-  # One of six modest Keen Eye finds (docs/labordrops.yaml's requiresTag
-  # pool) — MANY medium prizes across every face of the die, rather than a
-  # few outsized ones on just two or three (Bascinet, 2026-09-20: the first
-  # item-only pass leaned on three 40-60 ⬢ single items and came out spiky).
-  # All six are dedicated to that pool rather than reusing Ore Chunk/Gold
-  # Fleck, which are already priced into several OTHER tables — changing
-  # their sellablePrice to tune Keen Eye would have rippled into every one
-  # of those.
+  # One of six modest finds behind Eagle Eyes (docs/labordrops.yaml's
+  # requiresTag pool) — MANY medium prizes across every face of the die,
+  # rather than a few outsized ones on just two or three (Bascinet,
+  # 2026-09-20: the first item-only pass leaned on three 40-60 ⬢ single
+  # items and came out spiky). All six are dedicated to that pool rather
+  # than reusing Ore Chunk/Gold Fleck, which are already priced into several
+  # OTHER tables — changing their sellablePrice to tune the pool would have
+  # rippled into every one of those.
+  #
+  # Eagle Eyes says nothing about Prospecting in its own description, and
+  # that is deliberate: the bonus is meant to be discovered, not shopped
+  # for. Do not add a line about it there.
   ore-sample:
     catalog: all
     name: Ore Sample

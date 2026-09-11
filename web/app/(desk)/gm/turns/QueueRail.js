@@ -16,7 +16,7 @@ import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 import IconButton from "@/app/components/IconButton";
 import { CheckIcon, CloseIcon } from "@/app/components/icons";
 import { useRefresh } from "@/app/components/useRefresh";
-import { keepAvatar, rejectAvatar } from "./actions";
+import { cancelHoldAsGm, keepAvatar, rejectAvatar } from "./actions";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -134,6 +134,9 @@ const OTHER_FILTER_DEFS = [
 const otherSearchMap = (r) => ({
   name: r.characterName,
   target: r.targetName,
+  // Everybody in the fight, not only the two the title names — searching a
+  // brawl for the third person in it should find it.
+  people: r.searchText,
   username: r.discordUsername,
   role: r.roleTitle,
   zone: `${r.zoneName ?? ""} ${r.locationName ?? ""}`,
@@ -353,32 +356,50 @@ function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
   );
 }
 
-function OtherRows({ rows, matchFor, onInspect, kbdId, kbdLens, openRowId }) {
-  return rows.map((row) => {
-    if (row.kind === "AVATAR") {
-      return (
-        <AvatarReviewRow
-          key={row.id}
-          row={row}
-          matchFor={matchFor}
-          onInspect={onInspect}
-          active={openRowId === row.id}
-          kbd={kbdLens === "other" && kbdId === row.id}
-        />
-      );
-    }
-    // Keyed to the ROW, not the person being held: in a three-way brawl every
-    // row naming that target would light up at once, which reads as three
-    // selections.
-    const active = openRowId === row.id;
-    return (
+// What each person is in this row FOR, in the fewest words that stay true.
+const HOLD_ROLE_LABELS = {
+  attacking: "attacking",
+  held: "held",
+  stopping: "stopping",
+  stopped: "stopped",
+};
+
+// One fight, drawn as a row plus a strip of the people in it
+// (docs/systemdocs/ATTACK.md §7).
+//
+// The strip is INLINE and always open rather than a desk or a disclosure: the
+// whole point of this lens is seeing at a glance whether anything is
+// happening, and a fight you have to click twice to read is one a GM scrolls
+// past. There is still no desk — clicking a name opens the inspector, which is
+// what a GM wants next.
+//
+// WHY IT IS NOT ONE BUTTON, the AvatarReviewRow reasoning verbatim:
+// .desk-queue-row IS a <button>, so the names, the Move chips and the ✕ cannot
+// nest inside it. The row and its strip are siblings inside
+// .desk-queue-rowset, which takes over the border and the layout.
+function HoldRow({ row, matchFor, onInspect, onOpenMove, active, kbd }) {
+  const [refresh] = useRefresh();
+  const [busy, setBusy] = useState(null);
+  const [error, setError] = useState(null);
+
+  const cancel = async (hold) => {
+    if (busy) return;
+    setBusy(hold.attackId);
+    setError(null);
+    const result = await cancelHoldAsGm({ attackId: hold.attackId });
+    if (result?.error) setError(result.error);
+    setBusy(null);
+    refresh();
+  };
+
+  const live = row.holds.filter((h) => !h.cancelled);
+
+  return (
+    <div className="desk-queue-rowset" data-stacked="" data-active={active} data-kbd={kbd ? "" : undefined}>
       <button
-        key={row.id}
         type="button"
         className="desk-queue-row"
-        data-active={active}
         data-urgent={row.statusLabel === "Holding" || undefined}
-        data-kbd={kbdLens === "other" && kbdId === row.id ? "" : undefined}
         data-row-key={row.id}
         onClick={() => onInspect?.(row.targetCharacterId, row.targetName, row.id)}
       >
@@ -392,6 +413,7 @@ function OtherRows({ rows, matchFor, onInspect, kbdId, kbdLens, openRowId }) {
             />
             <span className="truncate">
               {row.characterName} → {row.targetName}
+              {row.extraCount > 0 ? ` +${row.extraCount}` : ""}
             </span>
             <MatchHint match={matchFor(row)} />
           </span>
@@ -402,6 +424,85 @@ function OtherRows({ rows, matchFor, onInspect, kbdId, kbdLens, openRowId }) {
           {row.locationName ? ` · ${row.locationName}` : row.zoneName ? ` · ${row.zoneName}` : ""}
         </span>
       </button>
+      <div className="desk-queue-web">
+        {row.people.map((p) => (
+          <div key={p.characterId} className="desk-queue-web-line">
+            <button
+              type="button"
+              className="desk-queue-web-name"
+              onClick={() => onInspect?.(p.characterId, p.name, row.id)}
+            >
+              {p.name}
+            </button>
+            <span className="text-xs text-muted">{HOLD_ROLE_LABELS[p.role] ?? p.role}</span>
+            {p.moves.length > 0 ? (
+              p.moves.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  className="chip chip-quiet"
+                  onClick={() => onOpenMove?.(m.id)}
+                >
+                  {m.kindLabel}
+                </button>
+              ))
+            ) : (
+              <span className="text-xs text-muted">no Move</span>
+            )}
+          </div>
+        ))}
+        {live.length > 0 && (
+          <div className="desk-queue-web-cancels">
+            {live.map((h) => (
+              <span key={h.attackId} className="desk-queue-web-cancel">
+                <span className="truncate text-xs text-muted">
+                  {h.attackerName} → {h.targetName}
+                </span>
+                <IconButton
+                  icon={CloseIcon}
+                  label={`Call off ${h.attackerName} → ${h.targetName}`}
+                  disabled={busy != null}
+                  onClick={() => cancel(h)}
+                />
+              </span>
+            ))}
+          </div>
+        )}
+        {error && <p className="text-xs text-accent">{error}</p>}
+      </div>
+    </div>
+  );
+}
+
+function OtherRows({ rows, matchFor, onInspect, onOpenMove, kbdId, kbdLens, openRowId }) {
+  return rows.map((row) => {
+    const active = openRowId === row.id;
+    const kbd = kbdLens === "other" && kbdId === row.id;
+    if (row.kind === "AVATAR") {
+      return (
+        <AvatarReviewRow
+          key={row.id}
+          row={row}
+          matchFor={matchFor}
+          onInspect={onInspect}
+          active={active}
+          kbd={kbd}
+        />
+      );
+    }
+    // Keyed to the ROW, not to the person being held: one person can be in
+    // two of these at once, and every row naming them lighting up reads as
+    // two selections.
+    return (
+      <HoldRow
+        key={row.id}
+        row={row}
+        matchFor={matchFor}
+        onInspect={onInspect}
+        onOpenMove={onOpenMove}
+        active={active}
+        kbd={kbd}
+      />
     );
   });
 }
@@ -411,6 +512,7 @@ export default function QueueRail({
   cavingRolls,
   otherRows,
   onInspect,
+  onOpenMove,
   visibleZoneNames,
   stagedByMove,
   selected,
@@ -900,6 +1002,7 @@ export default function QueueRail({
                 setOpenRowId(rowId);
                 onInspect?.(id, name);
               }}
+              onOpenMove={onOpenMove}
               openRowId={openRowId}
               kbdId={kbdId}
               kbdLens={lens}

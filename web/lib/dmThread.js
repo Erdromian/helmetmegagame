@@ -53,7 +53,7 @@ export function railKindSql(alias) {
 
 // The raw twin of withoutDmNoise, for the one raw-SQL caller that asks the
 // THREAD question rather than the rail one: the desk's message-content search
-// (gm/players/actions.js#searchConversations). It has to match what opening
+// (app/api/gm/conversation-search). It has to match what opening
 // the person would show, notices included — a GM who remembers reading a line
 // on somebody's thread and cannot search for it has been told the search is
 // broken, and searching only the rail's rows is exactly that.
@@ -98,6 +98,41 @@ export const PLAYER_DM_SELECT = {
   createdAt: true,
   meta: true,
 };
+
+// What the GM DESK is handed about a conversation. The player's opposite
+// number above, and deliberately wider: the desk has to say WHO answered
+// ("You: " / "GM: " / "Bot: " in dmPreview), so authorDiscordUserId stays,
+// and it draws notices as quiet grey lines, so `kind` stays too.
+//
+// Kept in step with the open-thread select in web/lib/inboxDelta.js on
+// purpose — the desk's poll and its live stream deliver rows into the same
+// client store (gm/players/liveInbox.js), and two shapes in one store is how
+// a row renders one way on arrival and another way after a refresh.
+export const GM_DM_SELECT = {
+  id: true,
+  discordUserId: true,
+  direction: true,
+  content: true,
+  authorDiscordUserId: true,
+  source: true,
+  kind: true,
+  createdAt: true,
+  meta: true,
+};
+
+export function gmDmRow(row) {
+  return {
+    id: row.id,
+    discordUserId: row.discordUserId,
+    direction: row.direction,
+    content: row.content,
+    authorDiscordUserId: row.authorDiscordUserId ?? null,
+    source: row.source ?? null,
+    kind: row.kind,
+    meta: row.meta ?? null,
+    createdAt: row.createdAt.toISOString(),
+  };
+}
 
 export function playerDmRow(row) {
   return {

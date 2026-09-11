@@ -1480,6 +1480,7 @@ zones:
               - Ravine Camp
               - Brigand Leader
               - Brigand
+              - Laboring (Basic)
               - Melee (Basic)
               - Ranged (Basic)
               - Padded Armor
@@ -1514,6 +1515,7 @@ zones:
             starting_tags:
               - Ravine Camp
               - Brigand
+              - Laboring (Basic)
               - Melee (Basic)
               - Ranged (Basic)
               - Dagger

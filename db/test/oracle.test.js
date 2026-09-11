@@ -11,7 +11,7 @@ const test = require("node:test");
 const assert = require("node:assert");
 
 const { auditLinesFor, INCLUDED } = require("../lib/oracleAudit");
-const { windowBetween, linkCharacterTokens } = require("../lib/oracleInput");
+const { windowBetween, linkCharacterTokens, aggregatesSeenByZone } = require("../lib/oracleInput");
 const { moveCutoffAt } = require("../lib/turnClock");
 const { cutoffDecision } = require("../lib/oracleCutoff");
 const { splitEditorReply, correspondentPrompt, editorPrompt } = require("../lib/oraclePrompts");
@@ -183,10 +183,57 @@ test("a skipped turn is covered by the next page, not lost", () => {
   assert.strictEqual(to.getTime() - from.getTime(), 2 * 24 * 60 * 60 * 1000);
 });
 
+// The once-a-turn lines are claimed before the six calls start, because the six
+// calls no longer happen in order. A line reported twice reads as it happening
+// twice, and a line reported nowhere reads as a quiet turn.
+
+function aggregateMaterial() {
+  return {
+    characters: [
+      { id: "c1", zoneId: "z1", discordUserId: "u1" },
+      { id: "c2", zoneId: "z2", discordUserId: "u2" },
+      { id: "c3", zoneId: "z3", discordUserId: "u3" },
+    ],
+    auditRows: [
+      { actionType: "hunger_resolved", actorDiscordUserId: "u1" },
+      { actionType: "hunger_resolved", actorDiscordUserId: "u2" },
+      { actionType: "caving_resolved", actorDiscordUserId: "u2" },
+      { actionType: "request_heal_character", actorDiscordUserId: "u3" },
+    ],
+  };
+}
+
+const ZONES = [{ id: "z1" }, { id: "z2" }, { id: "z3" }];
+
+test("a once-a-turn line is claimed by the first zone holding it", () => {
+  const seen = aggregatesSeenByZone(aggregateMaterial(), ZONES);
+  assert.strictEqual(seen.get("z1").has("hunger_resolved"), false);
+  assert.strictEqual(seen.get("z2").has("hunger_resolved"), true);
+});
+
+test("a zone claims a line of its own even when an earlier zone took another", () => {
+  const seen = aggregatesSeenByZone(aggregateMaterial(), ZONES);
+  assert.strictEqual(seen.get("z2").has("caving_resolved"), false);
+  assert.strictEqual(seen.get("z1").has("caving_resolved"), true);
+});
+
+test("a zone whose rows never mention a line claims none of it", () => {
+  const seen = aggregatesSeenByZone(aggregateMaterial(), ZONES);
+  assert.strictEqual(seen.get("z3").has("hunger_resolved"), true);
+  assert.strictEqual(seen.get("z3").has("caving_resolved"), true);
+});
+
+test("the claim survives the zones being handed over in a different order", () => {
+  const reversed = aggregatesSeenByZone(aggregateMaterial(), [...ZONES].reverse());
+  // z2 is now first, so it takes both lines and z1 is left with neither.
+  assert.strictEqual(reversed.get("z2").has("hunger_resolved"), false);
+  assert.strictEqual(reversed.get("z1").has("hunger_resolved"), true);
+});
+
 // When the Oracle fires. Every branch but one is a REFUSAL, and a refusal that
 // fires by mistake costs a turn its page without saying anything.
 
-test("it drafts once the cutoff has passed and settled", () => {
+test("it drafts once the cutoff has passed", () => {
   const turn = DAY_TWO;
   const now = new Date(moveCutoffAt(turn).getTime() + 3 * 60 * 1000);
   assert.strictEqual(cutoffDecision(turn, { now }).draft, true);
@@ -200,14 +247,13 @@ test("it does not draft before the cutoff", () => {
   assert.strictEqual(reason, "before the cutoff");
 });
 
-test("it keeps out of the minute the stage sweep holds", () => {
-  // 21:00 exactly. The Makeshift Stage fires on that same minute, and the
-  // Oracle opening seven model calls beside it is the contention the stage
-  // sweep's own hours were chosen to avoid.
+test("it drafts on the cutoff minute itself", () => {
+  // 21:00 exactly. It used to sit out this minute for the Makeshift Stage
+  // sweep; the page is wanted at the lock, and the two barely contend.
   const turn = DAY_TWO;
   const { draft, reason } = cutoffDecision(turn, { now: moveCutoffAt(turn) });
-  assert.strictEqual(draft, false);
-  assert.strictEqual(reason, "settling");
+  assert.strictEqual(draft, true);
+  assert.strictEqual(reason, "at the cutoff");
 });
 
 test("a frozen clock never reaches a cutoff", () => {

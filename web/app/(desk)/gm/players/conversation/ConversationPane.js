@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import DmThread from "@/app/components/DmThread";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
@@ -16,13 +15,13 @@ import { SendIcon } from "@/app/components/icons";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { useThreadFeed } from "../liveInbox";
 import {
-  getDmThreadPage,
   sendGmDm,
   markConversationRead,
   claimConversation,
   releaseConversation,
 } from "../actions";
 import { useDmDraft, writeDmDraft } from "../dmDraft";
+import { selectConversation } from "../selection";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 
 // The centre column: a real chat pane rather than a thread block sitting in
@@ -117,19 +116,32 @@ export default function ConversationPane({
     markConversationRead({ playerDiscordUserId: discordUserId });
   }, [displayed, discordUserId]);
 
+  // The GET route, not the server action it used to call. Paging back through
+  // a long conversation is the other thing a GM does while meaning to click
+  // somewhere else, and an action would put the click behind it — the same
+  // reason the rail's search moved (api/gm/conversation-search).
   async function loadOlder() {
     const oldest = pages.messages[0];
     if (!oldest) return;
-    const result = await getDmThreadPage({
-      discordUserId,
-      beforeMs: new Date(oldest.createdAt).getTime(),
+    const params = new URLSearchParams({
+      user: discordUserId,
+      beforeMs: String(new Date(oldest.createdAt).getTime()),
       beforeId: oldest.id,
     });
-    if (!result.ok) return;
-    setPages((prev) => ({
-      messages: [...result.messages, ...prev.messages],
-      hasMore: result.hasMore,
-    }));
+    try {
+      const res = await fetch(`/api/gm/thread?${params}`, { cache: "no-store" });
+      // res.ok is true for a 204 ("not a GM any more"), so test it by hand or
+      // the next line parses an empty body.
+      if (res.status === 204 || !res.ok) return;
+      const result = await res.json();
+      setPages((prev) => ({
+        messages: [...result.messages, ...prev.messages],
+        hasMore: result.hasMore,
+      }));
+    } catch {
+      // Offline or a switchover. The sentinel stays, so scrolling up again
+      // retries; nothing already on screen is lost.
+    }
   }
 
   // Send is optimistic: the row appears and the draft clears the instant you
@@ -213,13 +225,15 @@ export default function ConversationPane({
   //   2. A focused input/textarea/select — blur it. The reply composer is a
   //      textarea, and Escape mid-sentence must not throw the GM out of the
   //      conversation; a second Escape then leaves.
-  //   3. Otherwise, back to /gm/players.
+  //   3. Otherwise, close the conversation — a state change now (selection.js),
+  //      not a navigation, so the roster comes back without a server round
+  //      trip. DeskMiddle swaps the two, so the roster does re-mount and its
+  //      own search box starts empty; what it no longer does is re-fetch.
   // Unlike /gm/turns, leaving here is a step back to the list rather than off
   // the whole desk — the rail never leaves the screen — which is why this one
   // navigates where that one deliberately doesn't. Non-destructive either way:
   // the composer draft is held per conversation in memory, and mirrored to
   // storage where there is room (dmDraft.js).
-  const router = useRouter();
   const coarse = useIsCoarsePointer();
   useEffect(() => {
     // No Escape key on a touch-primary device, and no stray navigation there.
@@ -232,11 +246,11 @@ export default function ConversationPane({
         active.blur();
         return;
       }
-      router.push("/gm/players");
+      selectConversation(null);
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [coarse, router]);
+  }, [coarse]);
 
   const onKeyDown = useSubmitOnEnter();
 
@@ -294,9 +308,14 @@ export default function ConversationPane({
           </button>
           {/* Twin of the Escape key handler above — same destination, so the
               keycap label doubles as the hint that the key works. */}
-          <Link href="/gm/players" className="btn-quiet" title="Back to the roster">
+          <button
+            type="button"
+            className="btn-quiet"
+            title="Back to the roster"
+            onClick={() => selectConversation(null)}
+          >
             Esc
-          </Link>
+          </button>
         </div>
       </div>
 
