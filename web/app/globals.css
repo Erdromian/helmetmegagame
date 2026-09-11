@@ -7044,9 +7044,21 @@ label.chip {
   padding-top: var(--sp-2);
 }
 
-/* The tail's sticky background is the drawer's surface here, not the page. */
+/* In the drawer the MODAL is the scroller, so a sticky tail would pin to
+   the drawer's bottom edge and the place rows would scroll under it — which
+   is exactly what happened on the first phone it met: Bascinet's row half
+   behind the foot's border. Static here: the tail flows after the list and
+   the whole drawer scrolls as one, the way the bottom bar's More sheet
+   does. The desktop column keeps the sticky, where the column itself
+   scrolls and a GM's 278 rooms would put the foot 8,000px down. */
 .chat-drawer .chat-places-tail {
+  position: static;
+  margin-top: 0;
   background: var(--surface-raised);
+}
+
+.chat-drawer .chat-places {
+  padding-bottom: var(--sp-3);
 }
 
 /* A person row is a real tap target inside the drawer. */
@@ -7067,11 +7079,18 @@ label.chip {
   border-top: 0;
 }
 
+/* Two columns, so eight rows of links are four rows of the drawer and the
+   places above them keep most of it. */
 .chat-drawer-nav {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 2px;
   padding-top: var(--sp-2);
+}
+
+.chat-drawer-nav .nav-sheet-item {
+  padding-inline: var(--sp-2);
+  min-height: 44px;
 }
 
 /* ---- The ladder. Three widths above the phone, one breakpoint each:
