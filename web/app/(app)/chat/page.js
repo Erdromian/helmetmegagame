@@ -17,6 +17,7 @@ import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { loadNavItems } from "@/lib/navItems";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
@@ -104,6 +105,7 @@ async function FreshChat({ userId }) {
             initialSeq: "0",
             self: { characterId: null, discordUserId: viewer.discordUserId, name: null, speakerKey: null },
             aside: null,
+            navItems: (await loadNavItems(viewer.discordUserId)).map(({ href, label, icon }) => ({ href, label, icon })),
           },
         }}
       />
@@ -140,6 +142,13 @@ async function FreshChat({ userId }) {
   const floors = await feedWipeFloors(prisma);
   const floor = floorForPlace(floors, first.placeKey);
 
+  // The rail's own item list, for the foot of the phone's places drawer —
+  // the bottom bar is hidden on /chat there (Chat.js). Only href, label and
+  // icon go down: the badge is the GM inbox's, and the drawer has no room
+  // for a number nobody asked for.
+  const navItemsPromise = loadNavItems(viewer.discordUserId).then((items) =>
+    items.map(({ href, label, icon }) => ({ href, label, icon })),
+  );
   const [rows, watermark, forcedName, concealment] = await Promise.all([
     prisma.archiveEntry.findMany({
       where: { placeKey: first.placeKey, deletedAt: null, seq: seqFilterAbove(floor) },
@@ -493,6 +502,7 @@ async function FreshChat({ userId }) {
       : null,
     faction: factionView,
     dmNewestMs: newestDm?.createdAt?.getTime?.() ?? null,
+    navItems: await navItemsPromise,
     conceal: {
       canConceal: Boolean(concealment) && !concealment.forced && !forcedName,
       concealed: Boolean(identity.concealed),

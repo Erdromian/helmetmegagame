@@ -65,6 +65,8 @@ import {
   OctagonMinus,
   Swords,
   X,
+  Menu,
+  Plus,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -108,6 +110,10 @@ export const EyeIcon = lucide(Eye, "EyeIcon");
 export const EditIcon = lucide(Pencil, "EditIcon");
 // The mobile bottom bar's "More" affordance — see NavRail.js's MOBILE_PRIMARY.
 export const MoreIcon = lucide(Ellipsis, "MoreIcon");
+// The phone's Chat top bar: ≡ opens the places drawer, + opens the composer's
+// tools menu (Chat's ChatHead.js and Feed.js).
+export const MenuIcon = lucide(Menu, "MenuIcon");
+export const PlusIcon = lucide(Plus, "PlusIcon");
 // Chat's row action bar: pointing an instant camera at what somebody said,
 // the web twin of the 📸 reaction.
 export const CameraIcon = lucide(Camera, "CameraIcon");

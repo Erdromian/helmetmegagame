@@ -559,29 +559,28 @@ Three widths above the phone, one breakpoint each (`globals.css`, the
 ```
 >= 1200        15rem | 1fr | 20rem     three columns
 900 - 1200     12rem | 1fr | 17rem     the flanks shrink
-720 - 900      11rem | 1fr   [⋯]       the aside folds into the sheet
-<= 720         tabs / strip / feed     one column
+720 - 900      11rem | 1fr   [👥]      the aside folds into the right drawer
+<= 720         [≡] head [👥] / feed    one column, a drawer each side
 ```
 
-The aside folds at 900px in the CSS **and** in `useAsideFolded.js` — the
-same number in both, or there is a band where the column is gone and the ⋯
-that opens it is hidden too. `.chat-sheet` itself is unscoped: the sheet
-mounts only when the hook says folded, so a media query on the class was a
-second source of truth. The floating `.turn-chip` the (app) layout mounts is
-hidden on this route (`body:has(.chat-shell)`) — the header carries the turn,
-and on a phone the chip sat exactly on the ⋯.
+The aside folds at 900px in the CSS **and** in `useAsideFolded.js`, and the
+places column folds at 720px in the CSS **and** in `useNarrow.js` — the same
+number in both places each time, or there is a band where a column is gone
+and the button that opens it is hidden too. `.chat-drawer` itself is
+unscoped: a drawer mounts only when its hook says its column is folded, so a
+media query on the class was a second source of truth.
 
-Under 720px, one column — the places column becomes a `.tab-bar` of
-`.tab-item`s with unread dots, **HERE** is an avatar strip under the place
-header, and the rest of the right column comes up as a bottom sheet from the
-⋯ button beside the composer:
+**Under 720px Chat is Discord's channel view** (2026-09-11). Before this a
+phone stacked the app header with its turn chip, a tab strip of places, the
+place head, a strip of faces, the members row, the typing line, a two-row
+composer with Send and ⋯, and then the app's fixed bottom bar — and the
+scene got what was left, which on a 390×844 phone was about a quarter of the
+screen and less with the keyboard up. Now it gets everything but a 48px head
+and a one-line box:
 
 ```
 ┌────────────────────────────────────┐
-│ ‹ Town · The Keep                  │
-│ A vaulted hall, damp and cold…     │
-│────────────────────────────────────│
-│ Keep● | Throne | Cellar● | Old Tom●│
+│ ≡•   The Keep              🔍  👥³ │
 │────────────────────────────────────│
 │ -# Somebody has entered from the   │
 │    Square.                         │
@@ -590,15 +589,56 @@ header, and the rest of the right column comes up as a bottom sheet from the
 │                                    │
 │ ⊙ a young man               12:05  │
 │   *pulls his cloak tighter*        │
+│                                    │
+│                                    │
+│ Old Tom is writing…                │
 │────────────────────────────────────│
-│ ▢ Say something…            ⌤   ⚡ │
+│ ⊕  ▢ Say something…             ➤ │
 └────────────────────────────────────┘
 ```
 
-…and ⋯ opens the sheet, which is the same four tabs in the same order the
-column draws them — the people included, so a sheet titled "Here" now has some.
-The strip under the place header stays: it is faces at a glance, where the
-sheet's rows carry the names, the eye and the person menu.
+- **≡ opens the places as a drawer from the left** — the SAME `PlacesColumn`
+  the desktop draws, sections, folds, unread dots and the chime/push/mark-all
+  foot included, so nothing forks. The dot on ≡ means some other place has
+  something unread (the column's own `isUnread` test). The drawer's title is
+  `Town · DAY 6 · DUSK`: the app header is hidden on this route under 720px
+  (`.chat-shell > .desk-header`), and this is where its turn chip went.
+  Picking a place closes the drawer. Its foot carries the app's own links,
+  drawn the way the bottom bar's More sheet draws them — because **the bottom
+  bar is hidden on /chat under 720px** (`body:has(.chat-shell) .app-rail`),
+  which is the one route in the app that does that (`DESIGN-SYSTEM.md` §9).
+  `page.js` hands `Chat` the rail's own item list for it
+  (`web/lib/navItems.js#loadNavItems`). GM mode's zone picker rides the same
+  foot wherever the right column it lived in is folded.
+- **👥 opens the right column as a drawer from the right**, with the count of
+  people standing here on the button — the same `ChatAside`, the same four
+  tabs, full height now rather than an 80dvh bottom sheet so Travel and You
+  have room. The avatar strip that sat under the head is gone: the people
+  are one tap away and the count is on the button.
+- **Swipe** the scene right for the places and left for the people
+  (`useSwipeOpen.js`: a mostly-horizontal touch move of 70px or more; the
+  opposite swipe inside a drawer closes it). Touch events only, passive, no
+  follow-the-finger — the drawer slides in on its own once the gesture
+  lands.
+- **The head is `ChatHead.js`**, one component the feed, the Bascinet pane
+  and the faction panel all wear (each used to hand-roll its own). On a phone
+  the crumb is dropped, the name is one line, and the description shows only
+  once the name has been tapped.
+- **The box is one line and grows** as you type, to about six lines
+  (`Feed.js` sets the height off `scrollHeight` — on a desktop too, where two
+  rows is the floor). Send is the ➤ glyph, and the ✉ and the hood fold behind
+  one ⊕ at the left edge (Discord's +). The textarea is 16px there, or iOS
+  zooms the page on focus.
+- **Nothing else takes height.** The typing line sits OVER the last line of
+  the scene rather than in a row of its own; the noticeboard scrolls away
+  with the feed rather than pinning; the members row of a conversation folds
+  to overlapping faces, a count and Add until it is tapped open
+  (`MembersStrip.js`).
+- **The keyboard.** `web/app/layout.js` exports `viewport.interactiveWidget:
+  "resizes-content"`: Chrome on Android otherwise leaves the layout viewport
+  alone when the keys come up and the composer sits under them. The three
+  scrollers carry `overscroll-behavior: contain`, so the end of the feed is
+  not pull-to-refresh.
 
 ### The parts
 
@@ -939,11 +979,11 @@ sheet's rows carry the names, the eye and the person menu.
   it is `canSpeak: false` and still draws the box, command-only, so `/shout`
   has somewhere to be typed. See the slash-commands bullet above.
 - **`ChatAside.js`** is the right column — and, under 900px, everything
-  inside the ⋯ sheet. One component either way, because the phone's version
+  inside the 👥 drawer. One component either way, because the phone's version
   is the same sections in the same order; only the box around them changes,
-  and the sheet is a `Modal` wearing `.chat-sheet` rather than a drawer of its
-  own, so it keeps Escape, the focus trap and the backdrop `Modal` already
-  owns.
+  and the drawer is a `Modal` wearing `.chat-drawer` rather than a drawer of
+  its own, so it keeps Escape, the focus trap and the backdrop `Modal`
+  already owns.
 
   **The sections are TABS, not a stack** (2026-09-09) — Place · Room · Travel ·
   You. Three of them are unbounded (the place card is as long as its prose, the
@@ -981,16 +1021,16 @@ sheet's rows carry the names, the eye and the person menu.
   `.chat-menu-portal` exists for exactly that (it is how `placePanel()` escapes
   its own container); the menu moves onto it first, then the cap.
 
-  **Neither the list nor the party rack is gated on the sheet any more**, and
+  **Neither the list nor the party rack is gated on the drawer any more**, and
   both used to be. The HERE tab was `!inSheet` on the stated grounds that the
-  phone's avatar strip made a second poller — which was never true: `Chat.js`
-  renders the strip with no `poll` prop and `HereList` defaults it off, so the
-  strip has never polled anything. What that gate did cost was real. The sheet
-  is mounted from 900px down (`useAsideFolded.js`) and the strip only appears
-  from 720px down (`globals.css`), so between the two **who is standing here
-  was drawn nowhere at all** — and under 720 the sheet is titled "Here" and had
-  no people in it. The party rack was worse off again: living inside a
-  desktop-only tab, it was unreachable on a phone entirely.
+  phone's avatar strip (since removed) made a second poller — which was never
+  true: that strip was rendered with no `poll` prop and never polled anything.
+  What that gate did cost was real. The sheet was mounted from 900px down
+  (`useAsideFolded.js`) and the strip only appeared from 720px down, so
+  between the two **who is standing here was drawn nowhere at all** — and
+  under 720 the sheet was titled "Here" and had no people in it. The party
+  rack was worse off again: living inside a desktop-only tab, it was
+  unreachable on a phone entirely.
 
   What that costs is one poll. A desktop reader sitting on Place pays two slow
   re-reads a minute where the tabbed version paid none until you pressed HERE —
@@ -998,13 +1038,11 @@ sheet's rows carry the names, the eye and the person menu.
   `useVisiblePoll` stands both of them down whenever the BROWSER tab is in the
   background (it reads `document.visibilityState`, not which aside tab is
   open — that standing-down comes from the closed panels being unmounted). On a
-  phone both mount only while the ⋯ sheet is open.
+  phone both mount only while the 👥 drawer is open.
 
-  The phone's avatar strip is keyed on the same `hereKey` the column's list
-  uses, exported from `ChatAside.js` for it. It had no key at all, and since
-  `HereList` seeds the server's rows into `useState`, it froze at whatever it
-  first mounted with — so the strip and the sheet's list could sit one above
-  the other disagreeing about who was in the room.
+  The list is keyed on `hereKey` (exported from `ChatAside.js`): `HereList`
+  seeds the server's rows into `useState`, so a move — which hands down a new
+  list — has to remount it rather than leave the old street's people in place.
 
   Each section is a **card** — `--surface`, a border and `--r-md`, the same
   treatment `.panel` gets everywhere else. They were a hairline `border-bottom`
@@ -1141,7 +1179,8 @@ sheet's rows carry the names, the eye and the person menu.
   The card and the waiting list share **one** 60-second interval (`myMove()`
   and `waitingOnYou()` on the same tick), so a Move filed from the `#turns`
   console shows up here without a reload.
-- **The composer's two hand controls**, beside the send and the phone's ⋯.
+- **The composer's two hand controls**, beside the send (behind one ⊕ on a
+  phone).
   A ✉ (`QuillIcon`) opens a small menu of **Write**, **Seal** and **Send
   by bird** — each shown only where the sheet would show it, each opening
   the sheet's own dialog through
@@ -1186,10 +1225,12 @@ sheet's rows carry the names, the eye and the person menu.
   to its loading skeleton for the length of the refetch. The event refreshes
   only when the server says the viewer's own presence changed (§3), and the
   feed store is client state, so a refresh costs nothing that was on screen.
-- **One aside is ever mounted.** The right column and the phone's ⋯ sheet are
-  the same `ChatAside`, and CSS hiding the column under 900px still left both
-  live — two travel loads, two stash reads, two affordance states.
-  `useAsideFolded()` picks one; the CSS rule stays as belt and braces.
+- **One aside is ever mounted.** The right column and the phone's 👥 drawer
+  are the same `ChatAside`, and CSS hiding the column under 900px still left
+  both live — two travel loads, two stash reads, two affordance states.
+  `useAsideFolded()` picks one; the CSS rule stays as belt and braces. The
+  places column and the ≡ drawer are the same arrangement one step down, on
+  `useNarrow()`.
 - **Nothing ever flashes "Nothing has been said here yet."**, and getting
   there took three separate fixes, because the empty state had three ways to
   win a race:

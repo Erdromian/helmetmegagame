@@ -47,6 +47,17 @@ export const metadata = {
   description: "bascinet megagame",
 };
 
+// `interactiveWidget: resizes-content` is for Chat on a phone. Chrome on
+// Android's default (resizes-visual) leaves the layout viewport alone when
+// the keyboard comes up, so a 100dvh shell keeps its full height and the
+// composer at its foot sits UNDER the keys. With this the viewport shrinks
+// and the composer rides up above them, the way it already does on iOS.
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
+
 // Theme/turn state is live game state fetched per-request, not something
 // that should be statically prerendered (and prerendering would try to hit
 // the database at build time, when it isn't reachable).

@@ -7,7 +7,8 @@ import { useSyncExternalStore } from "react";
 // the same number as the `56.25rem` media block in globals.css — the CSS
 // hides the column and shows the ⋯, this hook decides which one MOUNTS, and
 // if the two disagreed there would be a band with neither. The phone's own
-// breakpoint (720px, tabs and the face strip) stays pure CSS.
+// breakpoint (720px, where the places column folds into the ≡ drawer) is
+// the same arrangement one step down: useNarrow.js.
 //
 // CSS already hides the column there, but hiding is not unmounting — both
 // copies were mounting, so a phone ran two TravelNodes loads, two stash reads
