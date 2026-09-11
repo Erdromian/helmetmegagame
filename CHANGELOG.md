@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Public declarations reach the caves
+
+✎ A public declaration staged for the Caves or the Depths used to go nowhere — there is no summary channel underground, so it was quietly marked undeliverable and no player ever read it  
+✚ Underground a declaration now posts into every Location channel on that level, word for word, so everyone down there reads it wherever they happen to be standing  
+✎ The tray now says which rooms took it and which bounced, and Resend retries only the ones that missed
+
 ## 2026-09-11 · Appraisal: see an item's worth in obols
 
 ✎ New skill, Appraisal (1 pt): shows a tag's worth in obols on its tooltip  
