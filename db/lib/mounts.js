@@ -14,9 +14,10 @@ const FAST_TRAVEL_SLUGS = new Set(["horse", "motorcycle", "arelitz-warbeast", "a
 
 // The boat is deliberately NOT a fast-travel mount. It buys the same extra
 // crossing, but only between the three zones the water actually connects, and
-// it does none of the other things that set does: no passengers, no cancelling
-// a ruined leg, no passing a mounted-only gate. Keeping it out of
-// FAST_TRAVEL_SLUGS is what holds all three of those true for free.
+// it does none of the other things that set does: no cancelling a ruined leg,
+// no passing a mounted-only gate. Keeping it out of FAST_TRAVEL_SLUGS is what
+// holds both of those true for free. It DOES carry passengers — see
+// fastTravelCapacity below — that part isn't tied to FAST_TRAVEL_SLUGS at all.
 const WATER_TRAVEL_SLUGS = new Set(["fishing-boat"]);
 
 // Where a boat is any use. Zone SLUGS, not names — `hills` is the Black
@@ -66,6 +67,7 @@ function fastTravelCapacity(activeSlugs) {
   if (activeSlugs.has("arelitz-thoroughbred")) return activeSlugs.has("cart") ? 6 : 2;
   if (activeSlugs.has("horse")) return activeSlugs.has("cart") ? 6 : 2;
   if (activeSlugs.has("motorcycle")) return 2;
+  if (activeSlugs.has("fishing-boat")) return 4;
   return 0;
 }
 

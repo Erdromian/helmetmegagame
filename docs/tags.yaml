@@ -5358,7 +5358,7 @@ tags:
     name: Fishing Boat
     category: assets
     group: assets-property
-    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor."
+    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor. It can carry four people."
     pointCost: 4
     visible: true
     tradeable: true
