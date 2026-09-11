@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import ZoneChip from "@/app/components/ZoneChip";
+import { noteActionVersion } from "@/app/components/useDeskVersion";
 import Select from "@/app/components/Select";
 import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -192,10 +193,12 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
     const next = !isMuted(row);
     setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: next }));
     startTransition(async () => {
-      const res = await setConversationMuted({
-        playerDiscordUserId: row.discordUserId,
-        muted: next,
-      });
+      const res = noteActionVersion(
+        await setConversationMuted({
+          playerDiscordUserId: row.discordUserId,
+          muted: next,
+        }),
+      );
       if (!res?.ok) {
         setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: !next }));
       }
@@ -206,10 +209,12 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
     const next = !isHandled(row);
     setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: next }));
     startTransition(async () => {
-      const res = await setConversationHandled({
-        playerDiscordUserId: row.discordUserId,
-        handled: next,
-      });
+      const res = noteActionVersion(
+        await setConversationHandled({
+          playerDiscordUserId: row.discordUserId,
+          handled: next,
+        }),
+      );
       if (!res?.ok) {
         setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: !next }));
       }

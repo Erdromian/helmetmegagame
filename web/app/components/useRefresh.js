@@ -1,7 +1,13 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useTransition } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import {
+  checkDeskVersion,
+  checkedRecently,
+  isDeskStale,
+  setDeskBaseline,
+} from "./useDeskVersion";
 
 const RefreshContext = createContext(null);
 
@@ -37,6 +43,43 @@ export function RefreshGate({ skipWhen, children }) {
     if (skipWhen()) return;
     refresh();
   }, [refresh, skipWhen]);
+  const value = useMemo(() => [guarded, refreshing], [guarded, refreshing]);
+  return <RefreshContext.Provider value={value}>{children}</RefreshContext.Provider>;
+}
+
+// A router.refresh() that will not cross a deploy boundary.
+//
+// Next discards an RSC payload built by a different build and falls back to a
+// full browser navigation — which on a desk is the reload that eats whatever
+// the GM was in the middle of. The stale latch (useDeskVersion.js) catches
+// that once a poll has noticed, but between a deploy landing and the next
+// tick every post-mutation refresh() was unguarded. So ask first: skip
+// outright if the latch is already set, otherwise check the running build and
+// refresh only on a match. A check the poll just made counts as this one's.
+export function safeRefresh(baseline, refresh) {
+  if (isDeskStale()) return;
+  if (!baseline || checkedRecently(3000)) {
+    refresh();
+    return;
+  }
+  checkDeskVersion(baseline).then((outcome) => {
+    if (outcome === "ok") refresh();
+  });
+}
+
+// Wraps a desk in a RefreshGate keyed on the stale latch and on the running
+// build, so EVERY useRefresh() under it — the post-mutation ones included —
+// skips rather than refreshing across a deploy boundary. A component rather
+// than a bare prop because server layouts can't pass a function to a client
+// component; this one imports its own guard.
+export function DeskStaleRefreshGate({ version = null, children }) {
+  const [refresh, refreshing] = useRefresh();
+  // Remembered for noteActionVersion(), which judges a mutation's result
+  // without the version being drilled to the call site.
+  useEffect(() => {
+    setDeskBaseline(version);
+  }, [version]);
+  const guarded = useCallback(() => safeRefresh(version, refresh), [refresh, version]);
   const value = useMemo(() => [guarded, refreshing], [guarded, refreshing]);
   return <RefreshContext.Provider value={value}>{children}</RefreshContext.Provider>;
 }

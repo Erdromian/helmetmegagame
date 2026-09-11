@@ -14,7 +14,8 @@ import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { resolveCavingRoll, undoCavingFind } from "./actions";
 import { applyDeskPatch } from "./deskStore";
-import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import { clearDeskDraft, useDeskDraft, writeDeskDraft } from "./deskDraft";
+import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 
 // The arbitration desk for one Caving Die roll — see
 // docs/systemdocs/CAVING.md. Only a TROUBLE (die 1) row is ever unresolved;
@@ -50,14 +51,19 @@ export default function CavingDesk({
   turnLabel = null,
 }) {
   const confirm = useConfirm();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  // The Result box, held outside this component so a reload or anything else
+  // that replaces the column hands it back (deskDraft.js) — the same
+  // treatment MoveDesk.js gives its own.
+  const draftKey = `caving:${roll.id}`;
+  const draft = useDeskDraft(draftKey);
+  const gmNotes = draft?.gmNotes ?? roll.gmNotes ?? "";
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({ alsoDirty: !!draft });
 
   useEffect(() => {
     registerEscape?.(() => guardedClose(onClose));
     return () => registerEscape?.(null);
   }, [registerEscape, guardedClose, onClose]);
 
-  const [gmNotes, setGmNotes] = useState(roll.gmNotes ?? "");
   const [composer, setComposer] = useState(null); // "effect" | "message" | "public" | null
   // Set only by "Stage as message" below, to prefill the composer with the
   // Result box's narration — the same bridge MoveDesk.js uses. A plain
@@ -69,9 +75,9 @@ export default function CavingDesk({
   const setNotes = useCallback(
     (value) => {
       markDirty();
-      setGmNotes(value);
+      writeDeskDraft(draftKey, { gmNotes: value });
     },
-    [markDirty],
+    [markDirty, draftKey],
   );
 
   // mode: "save" keeps the Result text where it is, "resolve" stamps the roll.
@@ -79,12 +85,13 @@ export default function CavingDesk({
     setError(null);
     startTransition(async () => {
       try {
-        const res = await resolveCavingRoll({ cavingRollId: roll.id, gmNotes, mode });
+        const res = noteActionVersion(await resolveCavingRoll({ cavingRollId: roll.id, gmNotes, mode }));
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
+        clearDeskDraft(draftKey);
         applyDeskPatch(res.patch);
-      } catch {
-        setError(mutationErrorMessage());
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }
@@ -104,15 +111,15 @@ export default function CavingDesk({
 
     startTransition(async () => {
       try {
-        const res = await undoCavingFind({ rollId: roll.id });
+        const res = noteActionVersion(await undoCavingFind({ rollId: roll.id }));
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         // Same as resolve() above: GM notes typed but never marked clean
         // would otherwise leave isAnyDirty() stuck true for the rest of the
         // session, silently pausing the desk's 45s poll.
         markClean();
         applyDeskPatch(res.patch);
-      } catch {
-        setError(mutationErrorMessage());
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }

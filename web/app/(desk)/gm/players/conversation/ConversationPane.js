@@ -21,6 +21,7 @@ import {
   releaseConversation,
 } from "../actions";
 import { useDmDraft, writeDmDraft } from "../dmDraft";
+import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { selectConversation } from "../selection";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 
@@ -70,6 +71,13 @@ export default function ConversationPane({
   // Held in memory, mirrored to localStorage where there is room (../dmDraft).
   // Typing never depends on the mirror succeeding.
   const content = useDmDraft(discordUserId);
+  // An unsent reply counts as unsaved work, so the desk's gated poll stands
+  // down while there is one (isAnyDirty) rather than refetching the page
+  // under a half-written sentence. `enabled: false` deliberately leaves the
+  // beforeunload prompt off: the reply is mirrored to storage (dmDraft.js)
+  // and comes back after a reload, so asking "are you sure" — on every ⌘R,
+  // and on the stale chip's own reload — would warn about nothing.
+  useDirtyGuard({ enabled: false, alsoDirty: content.trim().length > 0 });
 
   // What the live poll has brought in for this conversation since the page
   // was seeded (liveInbox.js), unioned with the server page during render —

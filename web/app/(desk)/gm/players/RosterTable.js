@@ -1,5 +1,7 @@
 "use client";
 
+import { noteActionVersion } from "@/app/components/useDeskVersion";
+
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
@@ -235,7 +237,7 @@ export default function RosterTable({
                 if (!message) return;
                 setComposerError(null);
                 startSending(async () => {
-                  const res = await sendGmBroadcast({ characterIds: [...selected], message });
+                  const res = noteActionVersion(await sendGmBroadcast({ characterIds: [...selected], message }));
                   if (!res.ok) {
                     setComposerError(res.error);
                     return;
@@ -419,7 +421,7 @@ function BulkTagBar({ tags, count, characterIds, onDone }) {
   function apply(mode) {
     setResult(null);
     startTransition(async () => {
-      const res = await bulkTagCharacters({ characterIds, tagId, mode });
+      const res = noteActionVersion(await bulkTagCharacters({ characterIds, tagId, mode }));
       if (!res?.ok) {
         setResult({ error: res?.error ?? "Something went wrong." });
         return;

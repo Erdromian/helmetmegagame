@@ -10,7 +10,7 @@ import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { retargetMissedStaging } from "./actions";
 import { applyDeskPatch } from "./deskStore";
-import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 import { tagNameLookup } from "./stagedFormat";
 
 // The bottom tray: everything queued for the push, in one honest list —
@@ -170,14 +170,16 @@ export default function StagingTray({
     if (!ok) return;
     startTransition(async () => {
       try {
-        const res = await retargetMissedStaging({
-          effectIds: missedEffects.map((e) => e.id),
-          messageIds: missedMessages.map((m) => m.id),
-        });
+        const res = noteActionVersion(
+          await retargetMissedStaging({
+            effectIds: missedEffects.map((e) => e.id),
+            messageIds: missedMessages.map((m) => m.id),
+          }),
+        );
         if (!res?.ok) return setRetargetError(res?.error ?? "Something went wrong.");
         applyDeskPatch(res.patch);
-      } catch {
-        setRetargetError(mutationErrorMessage());
+      } catch (err) {
+        setRetargetError(mutationErrorMessage(err));
       }
     });
   }

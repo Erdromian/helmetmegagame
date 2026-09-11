@@ -6,7 +6,7 @@ import FormError from "@/app/components/FormError";
 import Select from "@/app/components/Select";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { createStagedTransfer } from "./actions";
-import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 
 // Stage a character-to-character ⬢ transfer. 1:1 by nature, so it's its own
 // composer rather than another field bolted onto the multi-target one.
@@ -49,12 +49,12 @@ export default function TransferComposer({ roster, defaultFromKey = "", onDone, 
     if (!amountValid) return setError("Amount must be a positive whole number.");
     startTransition(async () => {
       try {
-        const res = await createStagedTransfer({ fromKey, toKey, amount });
+        const res = noteActionVersion(await createStagedTransfer({ fromKey, toKey, amount }));
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone(res.patch);
-      } catch {
-        setError(mutationErrorMessage());
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }

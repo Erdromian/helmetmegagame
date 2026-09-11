@@ -12,7 +12,8 @@ import InboxStream from "./InboxStream";
 import InboxStreamChip from "./InboxStreamChip";
 import DeskInboxCounts from "./DeskInboxCounts";
 import { deployVersion } from "@/lib/deployVersion";
-import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
+import { DeskStaleChip } from "@/app/components/useDeskVersion";
+import { DeskStaleRefreshGate } from "@/app/components/useRefresh";
 import InspectorHost from "./InspectorHost";
 import DeskMiddle from "./DeskMiddle";
 import { getGmProfiles } from "@/lib/gmProfiles";
@@ -260,7 +261,7 @@ export default async function PlayerDeskLayout({ children }) {
   return (
     // Skips a hard-reload across the build boundary once deploy latches the
     // stale flag — same as /gm/turns.
-    <DeskStaleRefreshGate>
+    <DeskStaleRefreshGate version={deployVersion()}>
     <div className="desk-shell">
       <DeskHeader
         title="Players"

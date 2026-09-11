@@ -72,8 +72,8 @@ export default function MessageComposer({
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone(res.patch);
-      } catch {
-        setError(mutationErrorMessage());
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }

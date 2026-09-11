@@ -26,9 +26,16 @@ export function isAnyDirty() {
 // outcome. Without it that composer is born clean, so Escape, a backdrop click
 // or Cancel discarded the message with no confirm, no beforeunload and no
 // trace. That is how a staged message came to never be staged.
-export default function useDirtyGuard({ enabled = true, initialDirty = false } = {}) {
+// `alsoDirty` is for a panel whose unsaved content lives OUTSIDE this hook —
+// the desk drafts (deskDraft.js), which survive a reload and so are already
+// there on the first render, before anybody has typed anything this mount.
+// It is a plain boolean the caller derives, ORed into `dirty`; its
+// contribution to the counter is owned by its own effect below rather than by
+// markDirty/markClean, so the two can never fight over one instance's 1.
+export default function useDirtyGuard({ enabled = true, initialDirty = false, alsoDirty = false } = {}) {
   const confirm = useConfirm();
-  const [dirty, setDirty] = useState(initialDirty);
+  const [selfDirty, setDirty] = useState(initialDirty);
+  const dirty = selfDirty || alsoDirty;
   const dirtyRef = useRef(initialDirty);
   // Whether this instance currently contributes its 1 to dirtyInstances. The
   // single source of truth for the counter, so registering, marking and
@@ -73,6 +80,14 @@ export default function useDirtyGuard({ enabled = true, initialDirty = false } =
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!alsoDirty) return undefined;
+    dirtyInstances += 1;
+    return () => {
+      dirtyInstances = Math.max(0, dirtyInstances - 1);
+    };
+  }, [alsoDirty]);
 
   useEffect(() => {
     if (!enabled || !dirty) return undefined;

@@ -395,12 +395,37 @@ request at all.
 `next.config` redirect from the old `/gm/messages/<id>` still lands. The URL
 follows the selection instead of causing it.
 
+That `pushState` passes **`null`**, not the current `history.state`. Next
+patches `pushState`/`replaceState` and its patch early-returns on any state
+that already carries Next's own `__NA` marker — which every entry Next wrote
+does. Handing the current state back therefore skipped the patch: the router's
+`canonicalUrl` never moved, so a `router.refresh()` refetched whoever was open
+*before*, Next's own `HistoryUpdater` put the old address back in the bar, and
+Back onto an entry the router had not marked reloaded the whole page. Passing
+`null` lets the patch copy `__NA` and the router tree onto the new entry and
+move `canonicalUrl` with it.
+
+**The roster is hidden, never unmounted.** `DeskMiddle.js` used to swap it out
+for the conversation, and its search, column filters, sort and half-built bulk
+selection went with it — open somebody to check one thing, come back to a
+roster that had reset itself. It now sits under a `display: contents` wrapper
+that only flips `hidden`, so its position in the tree — and everything it is
+holding — never changes.
+
 **The desk has one route.** `[[...selection]]/page.js` is an optional
 catch-all — the shape `/gm/turns` already uses — rather than a roster page
 beside a `[discordUserId]` sibling. It has to stay mounted whether or not
 somebody is open, so that closing a conversation reveals the roster rather
 than an empty column. It never reads its own `selection` param; that is the
 store's job.
+
+**An unsent reply pauses the poll.** The composer registers with
+`useDirtyGuard` while there is anything in it, so the desk's 30s
+`router.refresh()` stands down rather than refetching the page under a
+half-written sentence. It deliberately does *not* arm the browser's
+beforeunload prompt: the draft is mirrored to storage (`dmDraft.js`) and comes
+back after a reload, so asking "are you sure" on every ⌘R would warn about
+nothing.
 
 **What is still a server action, and why.** Sending a DM, claiming, muting and
 ✓-ing still are: they are mutations, they are rare, and they want the

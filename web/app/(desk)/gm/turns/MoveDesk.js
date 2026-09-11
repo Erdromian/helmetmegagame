@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
 import TagChip from "@/app/components/TagChip";
@@ -17,7 +17,8 @@ import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import { resolveMove, rejectMove } from "./actions";
 import { applyDeskPatch } from "./deskStore";
-import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import { clearDeskDraft, useDeskDraft, writeDeskDraft } from "./deskDraft";
+import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { stagingReaches } from "@/lib/stagingReach";
 
@@ -72,7 +73,17 @@ export default function MoveDesk({
   gmProfiles,
 }) {
   const router = useRouter();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  // The Result box and the Kind switch, held outside this component so they
+  // survive anything that replaces it — a reload included (deskDraft.js).
+  // The draft wins while it exists; a save, a solve or a reject clears it and
+  // the saved row takes back over.
+  const draftKey = `move:${move.id}`;
+  const draft = useDeskDraft(draftKey);
+  const edits = useMemo(
+    () => draft ?? { moveKind: move.moveKind, resultMessage: move.resultMessage ?? "" },
+    [draft, move.moveKind, move.resultMessage],
+  );
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({ alsoDirty: !!draft });
   const confirm = useConfirm();
   const { locked, error: lockError } = useMoveLock(move.id);
 
@@ -83,10 +94,6 @@ export default function MoveDesk({
     return () => registerEscape?.(null);
   }, [registerEscape, guardedClose, onClose]);
 
-  const [edits, setEdits] = useState({
-    moveKind: move.moveKind,
-    resultMessage: move.resultMessage ?? "",
-  });
   const [composer, setComposer] = useState(null); // "effect" | "message" | "public" | null
   // Set only by "Stage as message" below, to prefill the composer with the
   // LOCAL (possibly unsaved) Result text. The plain "+ Message" button
@@ -104,9 +111,9 @@ export default function MoveDesk({
   const setEdit = useCallback(
     (key, value) => {
       markDirty();
-      setEdits((e) => ({ ...e, [key]: value }));
+      writeDeskDraft(draftKey, { ...edits, [key]: value });
     },
-    [markDirty],
+    [markDirty, draftKey, edits],
   );
 
   // Solving is the last moment anyone looks at this Move, and the Result box
@@ -132,15 +139,16 @@ export default function MoveDesk({
     }
     startTransition(async () => {
       try {
-        const res = await resolveMove({ actionId: move.id, mode, edits });
+        const res = noteActionVersion(await resolveMove({ actionId: move.id, mode, edits }));
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
+        clearDeskDraft(draftKey);
         // The row on screen changes because the write happened, not because a
         // page refetch came back (deskStore.js). This is the fix for a Solve
         // that saved and left the desk still offering Solve.
         applyDeskPatch(res.patch);
-      } catch {
-        setError(mutationErrorMessage());
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }
@@ -149,17 +157,18 @@ export default function MoveDesk({
     setError(null);
     startTransition(async () => {
       try {
-        const res = await rejectMove({ actionId: move.id });
+        const res = noteActionVersion(await rejectMove({ actionId: move.id }));
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
+        clearDeskDraft(draftKey);
         if (res.deliveryFailed) {
           setError("Move rejected — but they weren't told. Let them know they can act again.");
         } else {
           onClose();
         }
         applyDeskPatch(res.patch);
-      } catch {
-        setError(mutationErrorMessage());
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }

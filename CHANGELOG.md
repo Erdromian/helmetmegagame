@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The GM desks stop losing what you typed
+
+✎ A half-written Result box survives a reload, a deploy or a wrong click — it comes back exactly as you left it, until you save or solve  
+✎ A fresh deploy no longer kicks the desk into a full page reload mid-work; the desk notices on your next action and offers the reload chip instead  
+✎ On the Players desk, opening somebody no longer resets the roster's search and filters, and Back works without a reload
+
 ## 2026-09-11 · Messages to players stop going wrong
 
 ✎ A reply you send twice, or retry after a bad connection, lands exactly once — a failed send now stays in the thread with Retry and Discard instead of vanishing  

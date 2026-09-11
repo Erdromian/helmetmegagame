@@ -2,7 +2,13 @@
 
 import { useEffect } from "react";
 import { useSelection, selectConversation } from "./selection";
-import { useThread, getThread, noteLoading, noteReady, noteError } from "./threadStore";
+import {
+  useThread,
+  getThread,
+  noteLoading,
+  noteReady,
+  noteError,
+} from "./threadStore";
 import PersonShell from "./conversation/PersonShell";
 import ConversationSkeleton from "./conversation/Skeleton";
 
@@ -33,13 +39,19 @@ export default function DeskMiddle({ children, gmProfiles, myDiscordUserId }) {
     noteLoading(selected);
     (async () => {
       try {
-        const res = await fetch(`/api/gm/thread?user=${encodeURIComponent(selected)}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `/api/gm/thread?user=${encodeURIComponent(selected)}`,
+          {
+            cache: "no-store",
+            signal: controller.signal,
+          },
+        );
         if (controller.signal.aborted) return;
         if (res.status === 204) {
-          noteError(selected, "You are not signed in as a GM any more. Reload the page.");
+          noteError(
+            selected,
+            "You are not signed in as a GM any more. Reload the page.",
+          );
           return;
         }
         if (res.status === 404) {
@@ -64,57 +76,76 @@ export default function DeskMiddle({ children, gmProfiles, myDiscordUserId }) {
     return () => controller.abort();
   }, [selected]);
 
-  if (!selected) return children;
-
-  // A payload we already had stays on screen while a refetch is in flight, so
-  // reopening never flashes empty. Only a conversation with nothing cached
-  // draws the skeleton.
-  if (entry?.payload) {
-    return (
-      <PersonShell
-        // Keyed on the conversation: the pane seeds local state from its props
-        // (the loaded page, the claim, the composer's draft), so switching
-        // person has to be a remount. This is what the route change used to do.
-        key={selected}
-        {...entry.payload}
-        // The route answers in REST's shape — `messages` / `hasMore` — and the
-        // pane takes the props it always took, which name themselves `initial`
-        // because it copies them into state once. Spreading the payload alone
-        // left both undefined and the pane threw on its first render.
-        initialMessages={entry.payload.messages}
-        initialHasMore={entry.payload.hasMore}
-        gmProfiles={gmProfiles}
-        myDiscordUserId={myDiscordUserId}
-      />
-    );
-  }
-
-  if (entry?.status === "error") {
-    // Its own error state rather than components/ErrorPanel, which carries a
-    // DeskHeader of its own — a second header inside the column — and says
-    // "that page didn't load", which is not what happened. error.js still
-    // covers a render THROW; this covers a failed fetch, which no boundary
-    // can see.
-    return (
-      <div className="desk-person">
-        <div className="panel m-3 flex flex-col items-start gap-3 p-4">
-          <p className="text-sm text-muted">{entry.error}</p>
-          <button
-            type="button"
-            className="btn"
-            onClick={() => {
-              // Clearing and re-selecting is what re-runs the effect above.
-              const id = selected;
-              selectConversation(null, { replace: true });
-              selectConversation(id, { replace: true });
-            }}
-          >
-            Try again
-          </button>
-        </div>
+  // The roster is HIDDEN, never unmounted. It used to be swapped out for the
+  // conversation, and everything it was holding went with it: the search box,
+  // the column filters, the sort, and a half-built bulk selection. Opening
+  // somebody to check one thing and coming back to a reset roster is the
+  // "the page reset itself" a GM sees.
+  //
+  // The wrapper is display:contents while it shows, so <main class="desk-main">
+  // is still the desk grid's own column; hidden, it drops out of layout
+  // entirely and the conversation takes the column instead. Its position in
+  // the tree never changes, which is what keeps the state.
+  return (
+    <>
+      <div className="desk-hideable" hidden={!!selected}>
+        {children}
       </div>
-    );
-  }
+      {selected ? body() : null}
+    </>
+  );
 
-  return <ConversationSkeleton />;
+  function body() {
+    // A payload we already had stays on screen while a refetch is in flight, so
+    // reopening never flashes empty. Only a conversation with nothing cached
+    // draws the skeleton.
+    if (entry?.payload) {
+      return (
+        <PersonShell
+          // Keyed on the conversation: the pane seeds local state from its props
+          // (the loaded page, the claim, the composer's draft), so switching
+          // person has to be a remount. This is what the route change used to do.
+          key={selected}
+          {...entry.payload}
+          // The route answers in REST's shape — `messages` / `hasMore` — and the
+          // pane takes the props it always took, which name themselves `initial`
+          // because it copies them into state once. Spreading the payload alone
+          // left both undefined and the pane threw on its first render.
+          initialMessages={entry.payload.messages}
+          initialHasMore={entry.payload.hasMore}
+          gmProfiles={gmProfiles}
+          myDiscordUserId={myDiscordUserId}
+        />
+      );
+    }
+
+    if (entry?.status === "error") {
+      // Its own error state rather than components/ErrorPanel, which carries a
+      // DeskHeader of its own — a second header inside the column — and says
+      // "that page didn't load", which is not what happened. error.js still
+      // covers a render THROW; this covers a failed fetch, which no boundary
+      // can see.
+      return (
+        <div className="desk-person">
+          <div className="panel m-3 flex flex-col items-start gap-3 p-4">
+            <p className="text-sm text-muted">{entry.error}</p>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => {
+                // Clearing and re-selecting is what re-runs the effect above.
+                const id = selected;
+                selectConversation(null, { replace: true });
+                selectConversation(id, { replace: true });
+              }}
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return <ConversationSkeleton />;
+  }
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { noteActionVersion } from "@/app/components/useDeskVersion";
+
 import { useMemo, useState, useTransition } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
 import Modal from "@/app/components/Modal";
@@ -76,7 +78,7 @@ export default function BulkComposer({ characters, initialSelectedIds, onClose }
     if (!canSend) return;
     setError(null);
     startTransition(async () => {
-      const res = await sendGmBroadcast({ characterIds: [...selected], message: message.trim() });
+      const res = noteActionVersion(await sendGmBroadcast({ characterIds: [...selected], message: message.trim() }));
       if (!res.ok) {
         setError(res.error);
         return;

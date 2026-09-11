@@ -11,7 +11,7 @@ import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
 import { applyDeskPatch } from "./deskStore";
-import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 import { chunkCount, effectSummary, effectState, messageState, tagNameLookup, truncate } from "./stagedFormat";
 
 // The staged-row lists the desk and the tray share: every row shows what it
@@ -60,11 +60,11 @@ export function StagedEffectRow({
     if (!ok) return;
     startTransition(async () => {
       try {
-        const res = await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id });
+        const res = noteActionVersion(await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id }));
         if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
         applyDeskPatch(res.patch);
-      } catch {
-        setDeleteError(mutationErrorMessage());
+      } catch (err) {
+        setDeleteError(mutationErrorMessage(err));
       }
     });
   }
@@ -164,11 +164,11 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
     if (!ok) return;
     startTransition(async () => {
       try {
-        const res = await deleteStagedMessage({ stagedMessageId: message.id });
+        const res = noteActionVersion(await deleteStagedMessage({ stagedMessageId: message.id }));
         if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
         applyDeskPatch(res.patch);
-      } catch {
-        setDeleteError(mutationErrorMessage());
+      } catch (err) {
+        setDeleteError(mutationErrorMessage(err));
       }
     });
   }
@@ -177,11 +177,11 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
     setResendError(null);
     startTransition(async () => {
       try {
-        const res = await resendStagedMessage({ stagedMessageId: message.id });
+        const res = noteActionVersion(await resendStagedMessage({ stagedMessageId: message.id }));
         if (!res?.ok) return setResendError(res?.error ?? "Something went wrong.");
         applyDeskPatch(res.patch);
-      } catch {
-        setResendError(mutationErrorMessage());
+      } catch (err) {
+        setResendError(mutationErrorMessage(err));
       }
     });
   }

@@ -4522,6 +4522,19 @@ label.chip {
   grid-template-columns: 19rem minmax(0, 1fr) 22rem;
 }
 
+/* The roster, while a conversation is drawn over it (DeskMiddle.js). It stays
+   mounted so its search, filters, sort and bulk selection survive — this
+   wrapper only decides whether it is on screen. display:contents keeps the
+   roster's own <main class="desk-main"> as the grid column; [hidden] takes the
+   wrapper and everything under it out of layout altogether. */
+.desk-hideable {
+  display: contents;
+}
+
+.desk-hideable[hidden] {
+  display: none;
+}
+
 /* The person view is the conversation, full width of the middle column. It is
    still its own element rather than .desk-convo directly, because the route's
    loading.js paints the same wrapper. */

@@ -92,8 +92,19 @@ export function selectConversation(discordUserId, { replace = false } = {}) {
     // pushState rather than router.push: router.push would re-enter the very
     // navigation this store exists to avoid. The route the app is actually
     // mounted on stays put; only the address bar and the store move.
-    if (replace) window.history.replaceState(window.history.state, "", url);
-    else window.history.pushState(window.history.state, "", url);
+    //
+    // The state is null, NOT window.history.state. Next patches pushState and
+    // replaceState, and the patch early-returns on any state that already
+    // carries its own `__NA` marker — which every entry Next itself wrote
+    // does. Handing the current state back therefore skipped the patch
+    // entirely: Next's canonicalUrl never followed the selection, so a
+    // router.refresh() refetched whoever was open BEFORE, its own
+    // HistoryUpdater put the old address back in the bar, and Back onto an
+    // entry it had not marked reloaded the whole page. Passing null lets the
+    // patch copy __NA and the router's tree onto the new entry and move
+    // canonicalUrl with it — the same thing Workspace.js does on /gm/turns.
+    if (replace) window.history.replaceState(null, "", url);
+    else window.history.pushState(null, "", url);
   }
   emit();
 }

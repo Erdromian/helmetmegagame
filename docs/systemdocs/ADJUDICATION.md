@@ -358,14 +358,22 @@ keeps itself current and stays reachable from the keyboard:
   navigation that destroys all view state — and this repo deploys many times
   a day, which is exactly how the desk used to "refresh for no reason". Now
   a deploy latches a quiet **"Updated — reload when ready"** chip in the
-  header (auto-refresh stands down until the GM clicks it), a switchover 5xx
+  header — whose tooltip says what a reload actually brings back: the rail's
+  filters and scroll, who is open, and anything typed into a Result box or a
+  reply, but **not** a half-filled composer (auto-refresh stands down until the GM clicks it), a switchover 5xx
   or dropped connection is a silently skipped tick, and once the flag has
   latched, a mutation that fails from the stale build says to reload
-  (`mutationErrorMessage`) instead of "something went wrong". The one window
-  left uncovered is a mutation inside the ≤45s between the deploy landing
-  and the next poll noticing it — that can still fail generic, or succeed
-  and have its `refresh()` trip the reload; the persisted view state is what
-  makes that survivable.
+  (`mutationErrorMessage`) instead of "something went wrong". **That window
+  is closed from both ends now.** Every server action hands its build back in
+  its own result (`guarded()` in `web/lib/actionResult.js`), and the desks
+  pass the result through `noteActionVersion()`, so the very first mutation
+  after a deploy latches the chip rather than the next poll. And every
+  refresh under the desk — the post-mutation ones included — goes through
+  `safeRefresh` (`useRefresh.js`), which asks `/api/desk-version` first and
+  simply does not refresh across a build boundary. A mutation that still
+  throws Next's `UnrecognizedActionError` (the action ids died with the old
+  build) latches the chip on the way past, instead of reaching `error.js`
+  and taking the column away.
 - **Keyboard**: `↑↓` / `j k` walk the rail, `⏎` opens the focused row,
   `m`/`r`/`c`/`o`/`h` flip the lens, Escape peels the layers below. All of it stands down while a
   field has focus or a modal is open.
@@ -392,6 +400,17 @@ keeps itself current and stays reachable from the keyboard:
 Escape is layered, topmost-first: an open `Modal` handles its own Escape and
 the workspace yields to it; otherwise a focused field just blurs, and a
 selected Move/Request deselects through its own dirty guard (`Workspace.js`).
+
+The **Result box on both desks is a draft, not component state**
+(`web/app/(desk)/gm/turns/deskDraft.js`) — the Move desk's Result and Kind
+together, the Caving desk's Result, each keyed by row and mirrored to
+`localStorage` the way the reply box already was (`dmDraft.js`). Memory is the
+source of truth and storage is a best-effort mirror, never the other way
+round. A draft **wins over the saved row** while it exists, counts as dirty
+(so the poll stands down and closing asks first), and is cleared by the save,
+solve, reject or resolve that puts it on the row. Before this, those two
+boxes were the only editors on either desk in no storage tier at all: anything
+that replaced the column took the narration with it.
 With nothing selected **Escape does nothing**. It used to navigate to
 `/gm/players`, which made the desk read as a mode you were trapped in rather
 than a page — one stray keystroke and the whole workspace was gone. The rail

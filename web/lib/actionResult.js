@@ -12,6 +12,8 @@
 // `{ ok: false, error }`. Callers branch on `ok` and never use try/catch for
 // validation.
 
+import { deployVersion } from "@/lib/deployVersion";
+
 export class UserError extends Error {
   constructor(message) {
     super(message);
@@ -23,12 +25,18 @@ export class UserError extends Error {
 // rethrown untouched, so genuine faults keep their stack and their server-side
 // log entry — and so does `redirect()`/`notFound()`, which work *by* throwing
 // and would silently stop working if this swallowed everything.
+// Every result also carries `version`, the build that answered it. A desk
+// client passes the result through noteActionVersion() (useDeskVersion.js),
+// which is how a deploy latches the desk's stale flag on the first mutation
+// after it lands rather than on the next 45s poll — the window in which a
+// post-mutation refresh() was still a hard navigation. It is written FIRST,
+// so an action that returns a `version` of its own still wins.
 export async function guarded(fn) {
   try {
     const out = await fn();
-    return { ok: true, ...(out ?? {}) };
+    return { ok: true, version: deployVersion(), ...(out ?? {}) };
   } catch (e) {
-    if (e instanceof UserError) return { ok: false, error: e.message };
+    if (e instanceof UserError) return { ok: false, version: deployVersion(), error: e.message };
     throw e;
   }
 }

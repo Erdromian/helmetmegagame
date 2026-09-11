@@ -46,8 +46,8 @@ export default function PublicComposer({
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone(res.patch);
-      } catch {
-        setError(mutationErrorMessage());
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }

@@ -305,8 +305,8 @@ export default function EffectComposer({
         // The parent folds this into the desk store rather than refreshing
         // the page — see deskStore.js.
         onDone(res.patch);
-      } catch {
-        setError(mutationErrorMessage());
+      } catch (err) {
+        setError(mutationErrorMessage(err));
       }
     });
   }

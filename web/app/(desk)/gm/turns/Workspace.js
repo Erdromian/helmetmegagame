@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSessionState from "@/app/components/useSessionState";
-import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
+import { DeskStaleChip } from "@/app/components/useDeskVersion";
+import { DeskStaleRefreshGate } from "@/app/components/useRefresh";
 import useGatedRefreshPoll from "@/app/components/useGatedRefreshPoll";
 import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
@@ -581,7 +582,7 @@ export default function Workspace({
   return (
     // Once a deploy latches `stale`, refreshes under this gate skip instead
     // of hard-reloading across the build boundary.
-    <DeskStaleRefreshGate>
+    <DeskStaleRefreshGate version={deployVersion}>
     <div className="desk-shell">
       <DeskHeader
         title="Adjudication"
