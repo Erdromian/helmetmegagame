@@ -92,12 +92,14 @@ export function StagedEffectRow({
           )}{" "}
           <span className="mono">{effectSummary(effect, tagNames)}</span>
         </p>
-        <p className="text-xs text-muted flex items-center gap-1">
-          {showBatch && effect.batchId ? "Mass apply · " : ""}
-          <GmAvatar profile={gmProfiles?.[effect.createdByDiscordUserId]} size={13} />
-          by {effect.createdByUsername}
-          {effect.turnNumber != null ? ` · turn ${effect.turnNumber}` : ""}
-          {effect.appliedError ? ` · ${effect.appliedError}` : ""}
+        <p className="desk-staged-sub">
+          {showBatch && effect.batchId ? <span>Mass apply</span> : null}
+          <span className="inline-flex items-center gap-1">
+            <GmAvatar profile={gmProfiles?.[effect.createdByDiscordUserId]} size={13} />
+            {effect.createdByUsername}
+          </span>
+          {effect.turnNumber != null ? <span>turn {effect.turnNumber}</span> : null}
+          {effect.appliedError ? <span className="text-danger">{effect.appliedError}</span> : null}
         </p>
         {deleteError && <FormError>{deleteError}</FormError>}
       </div>
@@ -218,29 +220,32 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
             </span>
           )}
         </p>
-        <p className="mt-1 text-sm">
-          » {truncate(message.content)}
-          {chunkCount(message.content) > 1 && (
-            <span className="chip ml-1">{chunkCount(message.content)} msgs</span>
-          )}
-        </p>
-        <p className="text-xs text-muted flex items-center gap-1">
-          <GmAvatar profile={gmProfiles?.[message.createdByDiscordUserId]} size={13} />
-          by {message.createdByUsername}
-          {message.turnNumber != null ? ` · turn ${message.turnNumber}` : ""}
-        </p>
-        {notes.length > 0 && (
-          <ul className="text-xs text-muted">
+        <p className="mt-1 text-sm">» {truncate(message.content)}</p>
+        {state.tone === "bad" && notes.length > 0 && (
+          <ul className="text-xs form-error">
             {notes.map((note) => (
               <li key={note}>{note}</li>
             ))}
           </ul>
         )}
+        <p className="desk-staged-sub">
+          <span className="inline-flex items-center gap-1">
+            <GmAvatar profile={gmProfiles?.[message.createdByDiscordUserId]} size={13} />
+            {message.createdByUsername}
+          </span>
+          {message.turnNumber != null ? <span>turn {message.turnNumber}</span> : null}
+          {chunkCount(message.content) > 1 ? <span>{chunkCount(message.content)} msgs</span> : null}
+        </p>
         {resendError && <p className="form-error">{resendError}</p>}
         {deleteError && <FormError>{deleteError}</FormError>}
       </div>
       <div className="flex items-center gap-2">
-        <StatusPill tone={state.tone}>{state.label}</StatusPill>
+        {/* Delivery detail sits behind the pill rather than under the row.
+            A bounce is the exception: it stays spelled out, because it is the
+            one thing on a staged row a GM has to act on. */}
+        <span title={notes.length ? notes.join("\n") : undefined}>
+          <StatusPill tone={state.tone}>{state.label}</StatusPill>
+        </span>
         {canResend && (
           <button type="button" className="btn-quiet" onClick={onResend} disabled={pending}>
             {pending ? "Resending…" : "Resend"}

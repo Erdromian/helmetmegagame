@@ -226,13 +226,39 @@ tokens and the shared control classes still apply; the `.desk-*` family in
 leave; `/gm/players` is its sibling in the same group.
 
 The route is `/gm/turns/[[...selection]]`, and the URL carries which row is
-open — `/gm/turns/move/<id>`, `/gm/turns/caving/<id>`,
-`/gm/turns/history/<id>`.
-An optional catch-all, not `[moveId]`: the desk selects one of four things, so
-the URL has to carry both halves of `{ type, id }`. Selection changes never
-touch the server — `setSelected` is `useState` and the URL is mirrored with
-`history.replaceState`, so picking a row leaves the queue, every DTO, the
-inspector cache and the tray untouched.
+open **in a search param** — `/gm/turns?sel=move/<id>`,
+`?sel=caving/<id>`, `?sel=history/<id>`. Build one with
+`turnsSelectionHref` (`web/lib/routes.js`) rather than by hand. Selection
+changes never touch the server — `setSelected` is `useState` and the URL is
+mirrored with `history.replaceState`, so picking a row leaves the queue, every
+DTO, the inspector cache and the tray untouched.
+
+**A search param, never a path segment, and that is load-bearing.** It used to
+be a path (`/gm/turns/move/<id>`), and that is what made the desk "randomly
+redraw and wipe what I was typing". Next patches `history.replaceState`, so
+mirroring the selection in moved the router's canonical URL with it; the next
+`router.refresh()` — every mutation does one — refetched the route with
+*different dynamic params*, which Next treats as a different segment and
+**remounts**. The workspace, the rail, the open Move and every piece of React
+state under them were rebuilt: the Result box, an open composer, the
+inspector's zone view, the selection itself. No navigation, no reload, nothing
+in the console. Measured: 5 of 5 refreshes remounted before, 0 of 5 after.
+A search param changes no segment, so the same refresh is a plain props
+update. The old path URLs still work — the catch-all route stays and redirects
+onto the query form, so nobody's bookmark breaks.
+
+Two more guards sit behind that one. `SnapshotPage` (`web/lib/snapshot/`)
+holds the last payload it painted, so a snapshot scope nothing has been stored
+under yet never swaps a live desk for the route skeleton. And `deskStore.js`
+only lets a payload wipe the queue or prune drafts if it is not OLDER than the
+last one seeded — a stored snapshot from a previous turn used to be able to
+delete the draft being typed.
+
+**The black box.** `blackBox.js` keeps the last ~20 desk events (mounts,
+selections, resets) in `sessionStorage` and prints one
+`desk reset: <reason chain>` line when the workspace mounts twice without a
+reload, or when a panel opens onto a draft it never saved. If the desk ever
+resets itself again, that line is the first thing to ask a GM for.
 
 Two consequences worth knowing. The route file has to genuinely exist, because
 the desk polls `router.refresh()` against the *current* URL and a GM parked on
@@ -243,6 +269,25 @@ the **cross-page** actions carry that call now (depot, store, dev panel,
 player desk…); the desk's own actions dropped theirs. What is left in
 `actions.js` is only ever another page's — `/character` after a Reject or a
 portrait takedown, `/gm/audit` after a fight is called off — never this one's.
+
+### What the Move desk looks like
+
+Top-down, the card is one job: who and where (with the side trips — Message
+them, Past moves, the dev panel — behind a `⋯` menu so `Close` is the only
+other control in the header), then the Move as they wrote it, then the Kind /
+Dice / Declared line, then **the Result box as the visually primary panel** —
+a raised surface with an accent edge, because it is the thing a GM came here
+to fill in and it used to be the fourth of five identical hairline-ruled
+slabs. Staged rows come after it, then Reject / Save / Solve.
+
+The Kind switch's consequence line ("Saving rolls a fresh d6…") is always
+rendered, empty or not, so changing Kind no longer shoves the Result box down
+the screen mid-sentence.
+
+Staged rows are two lines now: what it will do, then a quiet line carrying who
+staged it and which turn. Delivery detail rides the state pill's tooltip — a
+**bounce stays spelled out**, because it is the one thing on a staged row a GM
+has to act on.
 
 ### Narrow screens
 
@@ -441,9 +486,15 @@ instance is a change to the hub, not a slider.
   one a GM scrolls past. So a row still has **no desk**: clicking it, or `⏎`,
   opens the inspector on the person being held, and so does clicking any name
   in the strip. Each live pairing carries a ✕ that calls that one fight off.
-- **History lens** — the same rail over any turn, the open one included,
-  picked from a Turn dropdown above the filters (the open turn first, marked
-  `· open`, then the resolved ones newest first). A GM used to have to go to
+- **History lens** — the same rail over any turn, the open one included.
+  Its two parameters sit on **one line of selects** above the filters —
+  **Showing** (Moves or Caving) and **Turn** (the open turn first, marked
+  `· open`, then the resolved ones newest first). The kind used to be a second
+  `.segmented` stacked directly under the lens segmented: same control, same
+  width, two of the same four words, eight pixels apart, so the pair read as
+  one eight-button control with nothing saying which row meant what. The lens
+  picks the lens; inside History, kind is a parameter of the view exactly the
+  way the turn is, so it is drawn the way the turn is. A GM used to have to go to
   `/gm/audit` to see what somebody did last turn. Nothing is loaded with the
   page: for a **resolved** turn the lens fetches on demand
   (`actions.js#getMoveHistory`) and caches it for the page view, so the open
@@ -460,13 +511,21 @@ instance is a change to the hub, not a slider.
   (`appliedEffects`), the Result, and everything that was sent on it. No lock,
   no composers, no Solve, no Reject — but a staged row the push never carried
   keeps its Edit/Delete, and a failed delivery keeps its Resend, because those
-  are the two things about a past turn that can still need doing. A
-  **Moves / Caving** switch beside the Turn picker (`historyKind`) reads back
+  are the two things about a past turn that can still need doing. Setting
+  **Showing** to Caving (`historyKind`) reads back
   that turn's Caving Die rolls instead, mapped by the same `cavingRollRow`
   the live Caving lens uses and opening a **read-only `CavingDesk`** — see
   `CAVING.md` §5.
 - **Desk** — the selected item. For a Move: situation, dice, declared
-  numbers, the Result box, everything staged on it, and the three composers.
+  numbers, the Result box, everything staged on it, and the three composers. The
+  **effect composer** is the longest dialog on the desk, so it is drawn as
+  headed, ruled-off groups — Targets, What it does to them, Tag changes, Their
+  tags, Add from the catalog — with a **sticky footer** carrying Cancel and
+  Stage it. Unheaded, six unrelated zones ran together as one column of
+  controls whose only landmark was a bare field label two thirds down, and with
+  a tag catalog open the two buttons sat a full screen below the fields. The
+  Tag changes group only renders once there is a change to show; a headed,
+  ruled-off group holding nothing reads as a bug.
   Every button derives from `moveReviewStatus`, never from a display label or
   a lock: **Save · Solve · Reject** on an open Move, **Save · Reopen ·
   Reject** once it's Solved — Save stays live on a Solved Move (it edits
@@ -577,9 +636,38 @@ keeps itself current and stays reachable from the keyboard:
   that opens the message composer prefilled with the result text and the
   Move's own character.
 
-Escape is layered, topmost-first: an open `Modal` handles its own Escape and
-the workspace yields to it; otherwise a focused field just blurs, and a
-selected Move/Request deselects through its own dirty guard (`Workspace.js`).
+Escape is layered, topmost-first, and there are four rungs
+(`Workspace.js`, `escapeLayers.js`):
+
+1. An open blocking `Modal`, or a modeless one that currently holds focus,
+   handles its own Escape and the workspace yields to it.
+2. A focused field just blurs.
+3. An **open composer** closes — even one the GM has clicked away from. A
+   modeless dialog deliberately does not own the keyboard, so
+   `EffectComposer` / `MessageComposer` / `PublicComposer` /
+   `TransferComposer` each push a layer onto `escapeLayers.js` while they are
+   open, and the workspace asks that stack before it touches the selection.
+   Without it the first Escape closed the whole Move and took the composer
+   and the Result box with it.
+4. Only then does the selected Move/Caving roll deselect, through its own
+   dirty guard.
+
+A composer holding anything typed into it also counts in `isAnyDirty()`, so it
+stands the backstop poll down and makes switching rows ask first — an
+`existing` row being edited is exempt, since that text is already saved.
+
+**Every mutation on the desk catches a throw.** `guarded()` turns a
+`UserError` into `{ ok: false, error }`, but anything else rejects — and an
+uncaught rejection inside a server-action call reaches `(desk)/error.js`,
+which replaces the entire desk with an error page over one failed button.
+Every call site (`MoveDesk`, `CavingDesk`, `StagedItems`, `StagingTray`, the
+four composers, `QueueRail`'s avatar and hold rows) wraps its call and puts
+the message in its own `FormError` via `mutationErrorMessage`.
+
+**One "+ Effect / + Message / + Public" strip** (`StagingStrip.js`), used by
+the Move desk, the Caving desk and the tray — the tray is the only one with a
+`+ Transfer`. And **one Preview push**, on the tray beside the rows it
+previews; the desk header used to carry a second.
 
 The **Result box on both desks is a draft, not component state**
 (`web/app/(desk)/gm/turns/deskDraft.js`) — the Move desk's Result and Kind

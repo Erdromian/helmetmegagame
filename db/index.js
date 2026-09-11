@@ -24,6 +24,7 @@ const {
 const { expiryFrom } = require("./lib/turnFormat");
 const { runCorpseRotPass } = require("./lib/corpseRotPass");
 const { runStructureYieldPass } = require("./lib/structureYieldPass");
+const { runArelitzLayPass } = require("./lib/arelitzLayPass");
 const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTravelArrivalPass } = require("./lib/travelArrivalPass");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
@@ -293,6 +294,12 @@ const TURN_PASSES = [
   // happen before the overflow drop that may already be putting things there.
   // Nothing above reads a stash, so nothing above can see it.
   "structureYield",
+  // What Arelitz LAY (db/lib/arelitzLayPass.js). Same reasoning as
+  // structureYield just above, and for the same reason it sits right after
+  // it: the egg lands on a Room's floor for a stashed Arelitz, so it must not
+  // run before "carry"'s own overflow drop might already be putting things
+  // there.
+  "arelitzLay",
   // The Depot's hardware: the generator burns a turn of fuel, the shuttle's
   // six-turn clock runs out, and the turret sweeps whoever is standing in the
   // room. Last, so the turret fires on the sheet everything else left behind —
@@ -1156,6 +1163,31 @@ async function resolveNeeds(turn, config) {
             },
           })
           .catch((err) => console.error("Structure yield audit log failed:", err));
+      }
+    }
+  }
+
+  // What Arelitz lay: an egg into the owner's pocket, or into the room's
+  // stash for one parked there. See db/lib/arelitzLayPass.js's header for why
+  // this sits right after structureYield and does not share its per-row
+  // claim.
+  if (!done.has("arelitzLay")) {
+    const laid = await runArelitzLayPass(prisma, turn).catch(async (err) => {
+      await passFailed("Arelitz lay", err);
+      return null;
+    });
+    if (laid) {
+      await markDone("arelitzLay");
+      if (laid.laidToCharacters > 0 || laid.laidToRooms > 0) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "arelitz_lay",
+              details: laid,
+            },
+          })
+          .catch((err) => console.error("Arelitz lay audit log failed:", err));
       }
     }
   }

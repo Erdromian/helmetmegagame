@@ -6,6 +6,48 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Fewer boxes doing the same job on the GM desks
+
+✎ The Players desk has two search boxes instead of four: Search inbox on the rail and Filter roster on the roster  
+✎ One bulk-message form, wherever you start it from — the roster's Message selected now opens the same composer as the header  
+✎ The roster's Cursed, Catatonic and Acted columns fold into one Flags cell, and Acted becomes a filter  
+✎ The Players page no longer grows a phantom page scroll under the roster  
+✎ The History lens picks what it shows and which turn on one line  
+✎ The effect composer is grouped under headings with its buttons pinned at the bottom  
+✎ The Oracle header says when the chronicle was last written  
+✎ /gm/dev/threats links land on the assignments section instead of a 404
+
+## 2026-09-11 · The GM desks read top to bottom
+
+✎ The Move desk now puts the Result box front and centre, with the header's four look-alike buttons folded into one menu  
+✎ The staging buttons live in one strip and Preview push in one place, instead of three copies and two  
+✎ Staged rows are two calm lines instead of eight things on one  
+✎ Both rails get to the first row after two lines of filters, not five  
+✎ Pressing Escape closes an open composer first; a second Escape closes the Move  
+✎ With nobody picked, the inspector shows where the desk stands — open, solved, staged, who has not acted  
+✎ The audit search filters as you type, and the character dev bar's thirteen icons sit in five labelled groups
+
+## 2026-09-11 · A drink is a nudge now, and Drunken Master finally pays
+
+✎ Tipsy costs half a tier instead of a whole one, Wasted 1.2 instead of 2, a Hangover half a tier  
+✎ Drunken Master is worth +1.9 tiers whenever there is a drink in you, so Tipsy lands at +1.4 and Wasted at +0.7 — it used to key on Tipsy alone, cancel it to exactly nothing, and go dead entirely on the second drink  
+✎ The rungs stop stating their own number, since what a drink costs now depends on who is drinking it
+
+## 2026-09-11 · A tag mentioned inside another tag is readable again on your sheet
+
+✎ Opening a tag on `/character` that mentions another tag (a wound's cure, a poison's antidote) now lets you hover that mention too, instead of showing dead text
+
+## 2026-09-11 · Play your lute from the website too
+
+✎ Playing an instrument now works from Chat, not just Discord — same cooldown and mood lift either way
+
+## 2026-09-11 · The adjudication desk stops wiping your work
+
+✎ Picking a Move no longer makes the next save, solve, pin or background check redraw the whole desk — the redraw was what ate your Result box, an open composer, the zone filter and the selection  
+✎ Move links now read /gm/turns?sel=move/… — old links still work, they redirect  
+✎ A stale page snapshot from an earlier turn can no longer delete the text you are typing  
+✎ If the desk ever resets again, the browser console now says why
+
 ## 2026-09-11 · The GM pages speak one visual language
 
 ✎ A warning is now amber or red everywhere — Missed push, an overdue seat, a dropped live feed — instead of the same grey pill as a label  

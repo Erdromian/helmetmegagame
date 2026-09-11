@@ -24,6 +24,15 @@ import { useSnapshot } from "./snapshotStore";
 // an action) is a props update like today, so an open dialog survives it.
 // `remountOnFresh={false}` is for a view that already re-seeds itself when
 // its props change (Chat.js does).
+//
+// ONE MORE RULE: once this component has painted the view, it never paints
+// `fallback` over it again. `scope` is a prop, and a page that builds it out
+// of the open row (/gm/turns does) hands this component a scope nothing has
+// been stored under yet every time the GM picks a new row. Reading that cold
+// scope as "no data" swapped a live workspace for the route skeleton
+// mid-sentence. Holding the last non-null payload makes a cold scope mean what
+// it always should have — "nothing stored for this yet, keep showing what you
+// have and let the fresh data land underneath".
 export default function SnapshotPage({
   scope,
   userId,
@@ -38,10 +47,17 @@ export default function SnapshotPage({
   // compiler lint forbids reading a ref during render, and this is only
   // ever read.
   const [first] = useState(data);
-  const stale = remountOnFresh && first !== null && data === first;
+  // The last payload this mount actually drew. Set during render rather than
+  // in an effect (react-hooks/set-state-in-effect is an error here), and only
+  // when the store hands over something new, so it costs one extra render per
+  // payload and nothing per frame.
+  const [held, setHeld] = useState(data);
+  if (data !== null && data !== held) setHeld(data);
+  const shown = data ?? held;
+  const stale = remountOnFresh && first !== null && shown === first;
   return (
     <>
-      {data ? <View key={stale ? "stored" : "fresh"} {...data} /> : fallback}
+      {shown ? <View key={stale ? "stored" : "fresh"} {...shown} /> : fallback}
       {children}
     </>
   );

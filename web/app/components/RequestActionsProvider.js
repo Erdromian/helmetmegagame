@@ -284,6 +284,9 @@ export default function RequestActionsProvider({
     selfId,
     selfName,
     characterTags,
+    // Letters AND eyes, resolved once in web/lib/selfPools.js. Package reads
+    // it to decide whether to offer a line for the side of the crate.
+    canRead,
     resources,
     carry,
     transferParties,

@@ -15,10 +15,11 @@ import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { inVisibleZones } from "@/lib/zones";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 import IconButton from "@/app/components/IconButton";
+import MatchHint from "@/app/components/MatchHint";
 import { CheckIcon, CloseIcon } from "@/app/components/icons";
 import { useRefresh } from "@/app/components/useRefresh";
 import { cancelHoldAsGm, keepAvatar, rejectAvatar } from "./actions";
-import { noteActionVersion } from "@/app/components/useDeskVersion";
+import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 
 // The left rail: the work queue as a compact list, using useTableState (the
 // same filter/search/sort engine every table uses) minus the table markup.
@@ -157,26 +158,26 @@ const SELECTION_TYPE_FOR_LENS = {
   history: "history",
 };
 
-// The match-reason subtext — only worth showing when the hit came off a
-// field other than the name everyone can already see on the row.
-function MatchHint({ match }) {
-  if (!match || match.matchedField === "name") return null;
-  return <span className="text-xs text-muted"> · {match.matchedField}</span>;
-}
-
 function RailFilters({ table, filterDefs, searchPlaceholder, header, children }) {
   return (
+    // Two bands, not five. The search line carries the quiet extras
+    // (the travel checkbox) beside it, and every dropdown shares the second —
+    // a rail that opened with four stacked rows of chrome before its first
+    // row of work was a rail nobody could see the work in.
     <div className="desk-rail-filters">
       {header}
-      <label className="field">
-        <span className="field-label">Search</span>
-        <input
-          value={table.query}
-          onChange={(e) => table.setQuery(e.target.value)}
-          placeholder={searchPlaceholder}
-        />
-      </label>
-      <div className="flex flex-wrap gap-2">
+      <div className="desk-rail-filter-line">
+        <label className="field min-w-0" style={{ flex: "1 1 9rem" }}>
+          <span className="field-label">Search</span>
+          <input
+            value={table.query}
+            onChange={(e) => table.setQuery(e.target.value)}
+            placeholder={searchPlaceholder}
+          />
+        </label>
+        {children}
+      </div>
+      <div className="desk-rail-filter-line">
         {filterDefs.map((def) => (
           <label className="field min-w-0" style={{ flex: "1 1 6rem" }} key={def.key}>
             <span className="field-label">{def.label}</span>
@@ -194,7 +195,6 @@ function RailFilters({ table, filterDefs, searchPlaceholder, header, children })
           </label>
         ))}
       </div>
-      {children}
     </div>
   );
 }
@@ -304,11 +304,18 @@ function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = noteActionVersion(await fn({ characterId: row.characterId }));
-    // A second GM answering the same row first is the ordinary case here, not
-    // an exception: both of them are looking at the same queue. Refresh either
-    // way, so the row that is already dealt with leaves the screen.
-    if (result?.error) setError(result.error);
+    try {
+      const result = noteActionVersion(await fn({ characterId: row.characterId }));
+      // A second GM answering the same row first is the ordinary case here,
+      // not an exception: both of them are looking at the same queue. Refresh
+      // either way, so the row that is already dealt with leaves the screen.
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      // guarded() turns a UserError into a result; anything else REJECTS, and
+      // an uncaught rejection here reaches (desk)/error.js and replaces the
+      // whole desk with an error page over one avatar row.
+      setError(mutationErrorMessage(err));
+    }
     setBusy(false);
     // STILL A REFRESH, and the only three left on this desk that are. The
     // Other lens's rows are not desk-store rows: an avatar awaiting review is
@@ -398,8 +405,12 @@ function HoldRow({ row, matchFor, onInspect, onOpenMove, active, kbd }) {
     if (busy) return;
     setBusy(hold.attackId);
     setError(null);
-    const result = noteActionVersion(await cancelHoldAsGm({ attackId: hold.attackId }));
-    if (result?.error) setError(result.error);
+    try {
+      const result = noteActionVersion(await cancelHoldAsGm({ attackId: hold.attackId }));
+      if (result?.error) setError(result.error);
+    } catch (err) {
+      setError(mutationErrorMessage(err));
+    }
     setBusy(null);
     // A refresh rather than a patch, for the reason AvatarReviewRow gives.
     refresh();
@@ -893,24 +904,26 @@ export default function QueueRail({
               historyIsCaving ? "name, @handle, tag:…" : "name, role, @handle, zone:…"
             }
             header={
-              <div className="flex flex-col gap-2">
-                <div className="segmented" role="group" aria-label="History kind">
-                  <button
-                    type="button"
-                    aria-pressed={historyKind !== "caving"}
-                    onClick={() => onHistoryKind?.("moves")}
+              /* Two selects on one line: WHAT of WHICH turn. The kind used to
+                 be a second .segmented stacked directly under the lens
+                 segmented above — the same control, the same width, the same
+                 two of its four words ("Moves", "Caving"), eight pixels apart,
+                 and a GM reading down the rail hit the pair as one eight-button
+                 control with no way to tell which row meant what. The lens
+                 chooses the lens; inside History, kind is a parameter of the
+                 view like the turn is, so it is drawn like the turn is. */
+              <div className="desk-rail-filter-line">
+                <label className="field min-w-0" style={{ flex: "1 1 7rem" }}>
+                  <span className="field-label">Showing</span>
+                  <Select
+                    value={historyKind === "caving" ? "caving" : "moves"}
+                    onChange={(e) => onHistoryKind?.(e.target.value)}
                   >
-                    Moves
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={historyKind === "caving"}
-                    onClick={() => onHistoryKind?.("caving")}
-                  >
-                    Caving
-                  </button>
-                </div>
-                <label className="field">
+                    <option value="moves">Moves</option>
+                    <option value="caving">Caving</option>
+                  </Select>
+                </label>
+                <label className="field min-w-0" style={{ flex: "1 1 7rem" }}>
                   <span className="field-label">Turn</span>
                   <Select
                     value={historyTurnId ?? ""}

@@ -22,6 +22,7 @@ import {
   replyButtonRow,
   canReadLetters,
 } from "@lifeweb/db/lib/bird";
+import { readBlock, CANNOT_READ } from "@lifeweb/db/lib/reading";
 import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
@@ -281,6 +282,9 @@ async function requireCharacter({ needs = null } = {}) {
       tags: {
         include: { tag: { include: { group: { select: { slug: true } } } } },
       },
+      // Half of db/lib/reading.js's `where` — Sun Sensitivity needs to know
+      // whether there is a roof overhead.
+      location: { select: { indoors: true } },
       role: { select: { slug: true } },
     },
   });
@@ -498,6 +502,33 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
         throw new UserError(`Making that needs ${item.label}.`);
       }
       plan.hold.push({ kind: "group", slug: item.slug, label: item.label });
+      continue;
+    }
+    if (item.kind === "customOf") {
+      // A mint of this recipe never keeps the base slug — its only trace of
+      // where it came from is `customOfSlug` (mintCustomCraft). The base row
+      // itself still counts, for the rare case it's what's actually held.
+      // Several candidates: take the least remarkable one (lowest mealMood,
+      // then oldest), not a picker — the player is spending a commodity, not
+      // choosing a flavour.
+      const candidates = held
+        .filter((ct) => ct.tag.customOfSlug === item.slug || ct.tag.slug === item.slug)
+        .sort((a, b) => (a.tag.mealMood ?? 0) - (b.tag.mealMood ?? 0) || a.acquiredAt - b.acquiredAt);
+      const ct = candidates[0];
+      if (!ct) throw new UserError(`Making that needs ${item.label}.`);
+      if (item.keep) {
+        plan.hold.push({ kind: "tag", slug: ct.tag.slug, label: item.label });
+        continue;
+      }
+      const needed = quantity * (item.count ?? 1);
+      if (ct.quantity < needed) {
+        throw new UserError(
+          needed > 1
+            ? `Making ${quantity > 1 ? `${quantity} of those` : "that"} takes ${needed} × ${item.label}, and you have ${ct.quantity}.`
+            : `Making that needs ${item.label}.`,
+        );
+      }
+      plan.spend.push({ tagId: ct.tagId, tagName: ct.tag.name ?? item.label, quantity: needed });
       continue;
     }
     let slug = item.slug;
@@ -5878,7 +5909,20 @@ async function packageItemsRequestImpl({
   const label = String(rawLabel ?? "")
     .trim()
     .slice(0, PACKAGE_LABEL_MAX);
-  if (!label) throw new UserError("Say what's in it.");
+
+  // The line is OPTIONAL — a blank crate is a perfectly ordinary thing to
+  // pack. But writing one is writing, so a packer who cannot read is offered
+  // no field at all (actions/PackageDialog.js) and refused one here. Letters
+  // AND eyes, the same readBlock the paper actions use, and the same single
+  // sentence whichever of the two stopped them.
+  if (label) {
+    const labelTurn = await getOpenTurn();
+    const where = {
+      phase: labelTurn?.phase ?? null,
+      indoors: character.location?.indoors ?? true,
+    };
+    if (readBlock(character.tags, where)) throw new UserError(CANNOT_READ);
+  }
 
   const lines = (Array.isArray(rawLines) ? rawLines : [])
     .map((l) => ({
@@ -5988,7 +6032,9 @@ async function packageItemsRequestImpl({
       data: {
         slug,
         name: "Crate",
-        description: `[CONTAINS]: ${label}`,
+        // No line on the side means no description at all, rather than an
+        // empty `[CONTAINS]:` that would read as a bug.
+        description: label ? `[CONTAINS]: ${label}` : null,
         custom: true,
         // Game state, not catalog — a Restart Game sweeps it up (TAGS.md §5d).
         ephemeral: true,

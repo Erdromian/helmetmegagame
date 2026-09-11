@@ -403,7 +403,7 @@ export default function ConversationPane({
         </div>
         <div className="flex items-center gap-2">
           {moveId && (
-            <Link href={`/gm/turns/move/${moveId}`} className="btn-quiet">
+            <Link href={`/gm/turns?sel=move/${moveId}`} className="btn-quiet">
               Adjudicate →
             </Link>
           )}

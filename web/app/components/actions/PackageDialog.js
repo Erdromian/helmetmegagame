@@ -13,10 +13,15 @@ import { packageItemsRequest } from "@/app/(app)/character/requestActions";
 import { PACKAGE_MAX_LBS, PACKAGE_LABEL_MAX } from "@lifeweb/db/lib/constants";
 
 // Package (docs/systemdocs/FACTORY.md): what goes in the crate, as rows with
-// a count, and the line printed on its side. The lb readout is what stops
-// somebody filling a form they can't submit; the server recomputes it.
+// a count, and — optionally — the line printed on its side. The lb readout is
+// what stops somebody filling a form they can't submit; the server recomputes
+// it.
 export default function PackageDialog({ onDone, onClose }) {
   const pools = useActionPools();
+  // Writing on a crate is writing. Letters AND eyes, the same `canRead` the
+  // paper dialogs gate on, so an illiterate packer is offered no line at all
+  // rather than a field they could not fill. The server re-checks it.
+  const canLabel = pools.canRead === true;
   const { roster } = useRoster(["self"], { seed: { self: { characterTags: pools.characterTags ?? [] } } });
   const packable = packableTags(roster?.self?.characterTags ?? []);
   const [picks, setPicks] = useState({});
@@ -42,34 +47,46 @@ export default function PackageDialog({ onDone, onClose }) {
       busy={busy}
       error={error}
       empty={rows.length === 0 ? "You aren't carrying anything that could go in a crate." : null}
-      canSubmit={lines.length > 0 && label.trim().length > 0 && packedLbs <= PACKAGE_MAX_LBS}
+      canSubmit={lines.length > 0 && packedLbs <= PACKAGE_MAX_LBS}
       onClose={onClose}
       onSubmit={() =>
         submit(
-          () => packageItemsRequest({ lines: lines.map((l) => ({ tagId: l.tagId, quantity: String(l.quantity) })), label }),
-          () => onDone(`Packed into a ${crateLbs} lb crate, marked "${label.trim()}".`),
+          () =>
+            packageItemsRequest({
+              lines: lines.map((l) => ({ tagId: l.tagId, quantity: String(l.quantity) })),
+              label: canLabel ? label : "",
+            }),
+          () =>
+            onDone(
+              canLabel && label.trim()
+                ? `Packed into a ${crateLbs} lb crate, marked "${label.trim()}".`
+                : `Packed into a ${crateLbs} lb crate.`,
+            ),
         )
       }
     >
       <span className="field-label">What goes in?</span>
       <StackPicker rows={rows} picks={picks} onChange={setPicks} />
-      <label className="field">
-        <span className="field-label">What does the crate say?</span>
-        <input
-          type="text"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          placeholder="Squeeze, 7 cubes"
-          autoComplete="off"
-          maxLength={PACKAGE_LABEL_MAX}
-          required
-        />
-      </label>
+      {canLabel && (
+        <label className="field">
+          <span className="field-label">What does the crate say?</span>
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="Squeeze, 7 cubes"
+            autoComplete="off"
+            maxLength={PACKAGE_LABEL_MAX}
+          />
+        </label>
+      )}
       <p className={packedLbs > PACKAGE_MAX_LBS ? "text-sm text-accent" : "text-xs text-muted"}>
         {`${packedLbs} / ${PACKAGE_MAX_LBS} lb packed. The crate will weigh ${crateLbs} lb. `}
         {packedLbs > PACKAGE_MAX_LBS
           ? "That won't go in one crate."
-          : "Nobody checks the line on the side against what's actually in there."}
+          : canLabel
+            ? "Nobody checks the line on the side against what's actually in there."
+            : null}
       </p>
     </ActionDialog>
   );

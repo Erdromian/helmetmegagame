@@ -12,6 +12,7 @@ import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 import CustomTagDialog from "@/app/components/CustomTagDialog";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import useEscapeLayer from "./escapeLayers";
 import QuantityField from "@/app/components/QuantityField";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
@@ -64,13 +65,24 @@ export default function EffectComposer({
   const [targetSearch, setTargetSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  // Anything actually filled in counts as unsaved work — the prefilled target
+  // alone does not, or every composer would open dirty. Editing an `existing`
+  // row is exempt: those values are already a staged row.
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({
+    alsoDirty:
+      !existing && Boolean(resources.trim() || tagPoints.trim() || ops.size || locationId),
+  });
 
   // Tags ticked in the catalog browser but not yet folded into `ops` — a GM
   // who checks boxes and presses "Stage it" directly (skipping "Add N
   // selected") still gets them, via `submit()` below. Lifted out of
   // TagCatalogBrowser, which otherwise owns this as purely internal state.
   const [checkedTagIds, setCheckedTagIds] = useState(() => new Set());
+
+  // Escape closes this before it reaches the Move underneath (escapeLayers.js).
+  useEscapeLayer(() => {
+    if (!pending) guardedClose(onCancel);
+  });
 
   // A quantity box's in-progress text, kept separate from the committed
   // `op.quantity` so Backspace-then-retype doesn't snap to 1 mid-edit
@@ -318,9 +330,14 @@ export default function EffectComposer({
       onClose={() => !pending && guardedClose(onCancel)}
       width="widest"
     >
+      {/* Six zones, each headed and ruled off, and a footer that stays on
+          screen. This panel is the longest dialog on the desk — at 46rem with
+          a tag catalog in it, Cancel/Stage it sat a full screen below the
+          fields, and the zones themselves ran together as one column of
+          controls with no landmarks. */}
       <div className="mt-3 flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
-          <span className="field-label">Targets</span>
+        <section className="composer-group">
+          <h3 className="composer-group-title">Targets</h3>
           <div className="flex flex-wrap gap-1.5">
             {targets.map((t) => (
               <button
@@ -369,9 +386,11 @@ export default function EffectComposer({
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        <div className="flex flex-wrap items-end gap-3">
+        <section className="composer-group">
+          <h3 className="composer-group-title">What it does to them</h3>
+          <div className="flex flex-wrap items-end gap-3">
           <label className="field" style={{ width: "10rem" }}>
             <span className="field-label">Resources</span>
             <input
@@ -432,10 +451,16 @@ export default function EffectComposer({
               {Math.abs(declaredDelta)})
             </button>
           )}
-        </div>
+          </div>
+        </section>
 
-        <div className="flex flex-col gap-2">
-          <span className="field-label">Tag changes</span>
+        {/* Only once there is something to change. A headed, ruled-off group
+            holding nothing is a heading that looks like a bug — and this one
+            is empty for most of a composer's life, since the whole point of
+            the catalog below is to fill it. */}
+        {(ops.size > 0 || cancelNotice) && (
+        <section className="composer-group">
+          <h3 className="composer-group-title">Tag changes</h3>
           {cancelNotice && <p className="text-xs text-muted">{cancelNotice}</p>}
           {[...ops.values()].map((op) => {
             const tag = tagById.get(op.tagId);
@@ -483,9 +508,13 @@ export default function EffectComposer({
               </div>
             );
           })}
-          {soleTargetId && (
+        </section>
+        )}
+
+        {soleTargetId && (
+          <section className="composer-group">
+            <h3 className="composer-group-title">Their tags</h3>
             <div className="flex flex-col gap-1">
-              <span className="field-label">Their tags</span>
               {heldFetchFailed ? (
                 <span className="text-sm text-accent flex items-center gap-2">
                   Couldn&apos;t load their tags.
@@ -535,7 +564,11 @@ export default function EffectComposer({
                 })
               )}
             </div>
-          )}
+          </section>
+        )}
+
+        <section className="composer-group">
+          <h3 className="composer-group-title">Add from the catalog</h3>
           <TagCatalogBrowser
             tags={allTagCatalog}
             heldTagIds={heldTagIds}
@@ -551,7 +584,7 @@ export default function EffectComposer({
             renderActions={renderTagBrowserActions}
             onCreateCustom={() => setCreatingTag(true)}
           />
-        </div>
+        </section>
 
         {creatingTag && (
           <CustomTagDialog
@@ -587,7 +620,7 @@ export default function EffectComposer({
 
         <FormError>{error}</FormError>
 
-        <div className="modal-actions">
+        <div className="modal-actions modal-actions--sticky">
           <button type="button" className="btn-quiet" onClick={() => guardedClose(onCancel)} disabled={pending}>
             Cancel
           </button>

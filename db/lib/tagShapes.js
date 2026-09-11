@@ -254,16 +254,25 @@ function rollTagChain(normalized) {
   return slugs;
 }
 
-// requirement.items — the INGREDIENT half of a recipe. Three entry shapes:
+// requirement.items — the INGREDIENT half of a recipe. Four entry shapes:
 //
 //     items: [cave-fungus]                 a specific tag, SPENT
 //     items: [{ group: items-corpse }]     any tag in a group, KEPT
 //     items: [{ anyOf: [tea, sweets] }]    the player picks one, SPENT
+//     items: [{ customOf: lavish-meal }]   any mint of that recipe, SPENT
 //
 // The group form is not a convenience — it is the only thing that can work for
 // Miasma. A person's corpse tag is written at death (db/lib/corpseMint.js) and
 // never appears in docs/tags.yaml, so no authored slug could ever name one.
 // That is also why the stored column is Json rather than a Tag[] relation.
+//
+// customOf exists for the same reason, on a different axis: a Lavish Meal
+// almost never IS the authored `lavish-meal` row — mintCustomCraft clones it
+// into a fresh ephemeral Tag with a random slug the instant a cook adds an
+// ingredient (COOKING.md), and `customOfSlug` on that clone is the only field
+// that still says which recipe it came from. A `group:` can't reach it
+// spendably (groups are always kept, and items-food is far too wide anyway);
+// `anyOf:` can't reach it at all, since there is no fixed slug list to name.
 //
 // CONSUMED OR KEPT, and the default differs by shape. A slug (or an `anyOf`
 // pick) is SPENT — `quantity` units per craft, scaled the same way ⬢ is. A
@@ -368,8 +377,9 @@ function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameByS
     const hasTag = typeof entry?.tag === "string";
     const hasGroup = typeof entry?.group === "string";
     const hasAnyOf = entry?.anyOf != null;
-    if ([hasTag, hasGroup, hasAnyOf].filter(Boolean).length !== 1) {
-      throw new Error(`${label}: a requirement.items entry needs exactly one of \`tag:\`, \`group:\` or \`anyOf:\``);
+    const hasCustomOf = typeof entry?.customOf === "string";
+    if ([hasTag, hasGroup, hasAnyOf, hasCustomOf].filter(Boolean).length !== 1) {
+      throw new Error(`${label}: a requirement.items entry needs exactly one of \`tag:\`, \`group:\`, \`anyOf:\` or \`customOf:\``);
     }
     if (entry.keep != null && typeof entry.keep !== "boolean") {
       throw new Error(`${label}: a requirement.items \`keep:\` must be a boolean`);
@@ -412,6 +422,15 @@ function normalizeRequirementItems(entries, { tagNameBySlug = null, groupNameByS
         slugs,
         options,
         label: entry.as ?? joinWithOr(options.map((o) => o.name)),
+        keep: entry.keep === true,
+        ...countField,
+      };
+    }
+    if (hasCustomOf) {
+      return {
+        kind: "customOf",
+        slug: entry.customOf,
+        label: entry.as ?? tagNameBySlug?.get(entry.customOf) ?? entry.customOf,
         keep: entry.keep === true,
         ...countField,
       };
@@ -500,7 +519,14 @@ function normalizeLaborBonus(entry, label = "docs/tags.yaml") {
   if (!Number.isInteger(amount) || amount === 0) {
     throw new Error(`${label}: laborBonus.amount must be a non-zero integer`);
   }
-  const requiresTag = entry.requiresTag == null ? null : String(entry.requiresTag);
+  // A string names one tag; an array names several, any ONE of which
+  // satisfies the tool (the Plow: a Horse or an Arelitz will both pull it).
+  const requiresTag =
+    entry.requiresTag == null
+      ? null
+      : Array.isArray(entry.requiresTag)
+        ? entry.requiresTag.map(String)
+        : String(entry.requiresTag);
   return { kind, amount, equipped: entry.equipped !== false, requiresTag };
 }
 
@@ -514,8 +540,14 @@ function validateLaborBonus(normalized, { selfSlug, tagSlugs, equippable, label 
       `${label}: "${selfSlug}" has a laborBonus that requires being equipped, but the tag is not equippable`,
     );
   }
-  if (normalized.requiresTag && !tagSlugs.has(normalized.requiresTag)) {
-    throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag names unknown tag "${normalized.requiresTag}"`);
+  const required = normalized.requiresTag == null ? [] : Array.isArray(normalized.requiresTag) ? normalized.requiresTag : [normalized.requiresTag];
+  if (required.length === 0 && Array.isArray(normalized.requiresTag)) {
+    throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag is an empty list`);
+  }
+  for (const slug of required) {
+    if (!tagSlugs.has(slug)) {
+      throw new Error(`${label}: "${selfSlug}" laborBonus.requiresTag names unknown tag "${slug}"`);
+    }
   }
 }
 

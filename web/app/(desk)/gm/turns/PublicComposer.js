@@ -7,6 +7,7 @@ import Select from "@/app/components/Select";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { createStagedMessage, updateStagedMessage } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
+import useEscapeLayer from "./escapeLayers";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 
@@ -28,7 +29,14 @@ export default function PublicComposer({
   const [zoneId, setZoneId] = useState(existing?.zoneId ?? defaultZoneId ?? "");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
-  const { markDirty, markClean, guardedClose } = useDirtyGuard();
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({
+    alsoDirty: !existing && Boolean(content.trim()),
+  });
+
+  // Escape closes this before it reaches the Move underneath (escapeLayers.js).
+  useEscapeLayer(() => {
+    if (!pending) guardedClose(onCancel);
+  });
 
   // No maxLength on the textarea: a paste that runs long stays whole and
   // visible so the GM can trim it, rather than being silently cut at the cap.

@@ -10,13 +10,14 @@
 // character has ACTIVE, not merely the ones they hold — `equippedSlugs` below
 // is what builds that set, and callers must not hand these functions a bare
 // held-slug set by mistake.
-const FAST_TRAVEL_SLUGS = new Set(["horse", "motorcycle"]);
+const FAST_TRAVEL_SLUGS = new Set(["horse", "motorcycle", "arelitz-warbeast", "arelitz-thoroughbred"]);
 
 // The boat is deliberately NOT a fast-travel mount. It buys the same extra
 // crossing, but only between the three zones the water actually connects, and
-// it does none of the other things that set does: no passengers, no cancelling
-// a ruined leg, no passing a mounted-only gate. Keeping it out of
-// FAST_TRAVEL_SLUGS is what holds all three of those true for free.
+// it does none of the other things that set does: no cancelling a ruined leg,
+// no passing a mounted-only gate. Keeping it out of FAST_TRAVEL_SLUGS is what
+// holds both of those true for free. It DOES carry passengers — see
+// fastTravelCapacity below — that part isn't tied to FAST_TRAVEL_SLUGS at all.
 const WATER_TRAVEL_SLUGS = new Set(["fishing-boat"]);
 
 // Where a boat is any use. Zone SLUGS, not names — `hills` is the Black
@@ -25,8 +26,10 @@ const WATER_ZONE_SLUGS = new Set(["forest", "hills", "marshes"]);
 
 // Tags that stop working the moment they leave your hands. Cart is here for
 // its carry multiplier and its extra seats; the mounts and the boat for their
-// free move.
-const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, ...WATER_TRAVEL_SLUGS, "cart"]);
+// free move. The Ovum earns no free move at all (it hates moving) so it is
+// not in FAST_TRAVEL_SLUGS — but it is still an animal that needs parking at
+// an indoors door, so it is added here by hand.
+const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, ...WATER_TRAVEL_SLUGS, "cart", "arelitz-ovum"]);
 
 // A boat and a horse are the same slot in fiction — you are either riding or
 // poling — so equipping one refuses while the other is out
@@ -47,17 +50,33 @@ function equippedSlugs(characterTags = []) {
 }
 
 // Seats a mount carries, rider included. A horse alone seats 2; Cart upgrades
-// that pair to 6, and that is the biggest ride there is.
+// that pair to 6, and that is the biggest ride there is. A Warbeast already
+// seats 4 on its own, and 6 with a Cart — the same ceiling a horse reaches,
+// just without needing the Cart to get there.
 //
 // The Motorcycle seats 2 and is checked BEFORE the horse, so the Cart upgrade
 // below can never reach it: a hand-cart towed behind a motorcycle is not a
 // thing, and leaving it to fall through would have quietly made one seat six.
 // Somebody holding both a bike and a horse gets the horse's arithmetic, which
-// is the only case where the order matters and is the generous reading.
+// is the only case where the order matters and is the generous reading. The
+// Warbeast and Thoroughbred are checked in the same spot in that order, ahead
+// of the horse, for the same reason: whichever mount a character has out
+// decides the arithmetic, and this is the one place that has to pick.
 function fastTravelCapacity(activeSlugs) {
+  if (activeSlugs.has("arelitz-warbeast")) return activeSlugs.has("cart") ? 6 : 4;
+  if (activeSlugs.has("arelitz-thoroughbred")) return activeSlugs.has("cart") ? 6 : 2;
   if (activeSlugs.has("horse")) return activeSlugs.has("cart") ? 6 : 2;
   if (activeSlugs.has("motorcycle")) return 2;
+  if (activeSlugs.has("fishing-boat")) return 4;
   return 0;
+}
+
+// The extra zone crossings a fast-travel mount buys, on top of the base move
+// every character gets. Every fast-travel slug is worth 1 except the
+// Thoroughbred, which is bred for exactly this and is worth 2.
+function fastTravelBonus(activeSlugs) {
+  if (activeSlugs.has("arelitz-thoroughbred")) return 2;
+  return isMounted(activeSlugs) ? 1 : 0;
 }
 
 function isMounted(activeSlugs) {
@@ -111,6 +130,7 @@ module.exports = {
   STOWABLE_SLUGS,
   equippedSlugs,
   fastTravelCapacity,
+  fastTravelBonus,
   isMounted,
   isBoated,
   blocksOnFoot,

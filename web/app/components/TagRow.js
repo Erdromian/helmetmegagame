@@ -63,7 +63,10 @@ export default function TagRow({
             currentTurn={currentTurn}
             armedTurn={armedTurn}
             showName={false}
-            inTooltip={false}
+            // Not inside the row's <button> — this detail sits in a sibling
+            // div, so a nested {tag:…} reference here can safely become a
+            // real, hoverable TagChip instead of flat text (ChipText.js).
+            inTooltip
             // "· smells wrong" (M4) — already a stripped, gated boolean by
             // the time it reaches here (character/page.js).
             poisonMarker={Boolean(ct.poisonMarker)}

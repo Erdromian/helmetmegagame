@@ -3,7 +3,6 @@
 import FormError from "@/app/components/FormError";
 import Modal from "@/app/components/Modal";
 import { useMemo, useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRefresh } from "@/app/components/useRefresh";
 import IconButton from "@/app/components/IconButton";
@@ -17,7 +16,6 @@ import {
   SkipIcon,
   MessageIcon,
   SyncIcon,
-  EyeIcon,
   TrashIcon,
   WoundIcon,
   BandageIcon,
@@ -224,8 +222,15 @@ export default function ActionBar({
 
   return (
     <>
-      <section className="panel flex flex-wrap items-center gap-4 p-3">
-        <div className="flex items-center gap-2">
+      {/* Thirteen bare icons in a row, split only by hairlines, meant every
+          verb had to be hovered to be read. Three named clusters instead:
+          Life (are they alive, do they have a turn), Body (what is on the
+          sheet), Admin (Discord, deletion). The icons stay — the label is
+          what says which neighbourhood you are in. */}
+      <section className="panel dev-bar p-3">
+        <div className="dev-bar-cluster">
+          <span className="field-label">Life</span>
+          <div className="flex items-center gap-2">
           {alive ? (
             <IconButton
               icon={SkullIcon}
@@ -261,6 +266,12 @@ export default function ActionBar({
             />
           )}
 
+          </div>
+        </div>
+
+        <div className="dev-bar-cluster">
+          <span className="field-label">Turn</span>
+          <div className="flex items-center gap-2">
           <IconButton
             icon={RestoreIcon}
             label={hasActed ? "Give their turn back" : "They haven't acted this turn"}
@@ -291,6 +302,12 @@ export default function ActionBar({
               )
             }
           />
+          </div>
+        </div>
+
+        <div className="dev-bar-cluster">
+          <span className="field-label">Reach</span>
+          <div className="flex items-center gap-2">
           <IconButton
             icon={MessageIcon}
             label={`Message ${character.name}`}
@@ -312,12 +329,13 @@ export default function ActionBar({
             disabled={pending || !transferRoster?.length}
             onClick={openTransferDialog}
           />
+          </div>
         </div>
 
-        <span className="dev-bar-sep" aria-hidden="true" />
-
         {/* Three tag verbs, all of which fire. */}
-        <div className="flex items-center gap-2">
+        <div className="dev-bar-cluster">
+          <span className="field-label">Body</span>
+          <div className="flex items-center gap-2">
           <IconButton
             icon={WoundIcon}
             label="Inflict a wound"
@@ -336,20 +354,23 @@ export default function ActionBar({
             disabled={pending}
             onClick={feedThem}
           />
+          </div>
         </div>
 
-        <span className="dev-bar-sep" aria-hidden="true" />
-
-        <div className="flex items-center gap-2">
+        <div className="dev-bar-cluster">
+          <span className="field-label">Admin</span>
+          <div className="flex items-center gap-2">
           <IconButton
             icon={SyncIcon}
             label="Re-push their Discord role, nickname and channel access"
             disabled={pending || !alive}
             onClick={() => run(() => resyncDiscord({ characterId: character.id }))}
           />
-          <Link href="/character" className="icon-btn" aria-label="View the player-facing sheet">
-            <EyeIcon width="15" height="15" />
-          </Link>
+          {/* The eye is gone. It linked to /character — the SIGNED-IN GM's own
+              sheet, never this character's — so it answered a question nobody
+              asked with somebody else's answer. There is no GM-facing view of
+              another character's player sheet to point it at; this panel is
+              that view. */}
           {canDelete && (
             <IconButton
               icon={TrashIcon}
@@ -358,6 +379,7 @@ export default function ActionBar({
               onClick={() => setDialog("delete")}
             />
           )}
+          </div>
         </div>
 
         <FormError>{error}</FormError>

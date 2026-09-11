@@ -21,8 +21,8 @@ import GmZoneRail from "@/app/components/GmZoneRail";
 const LINKS = {
   // The literal URL, not TURNS_PATH — that constant is the route PATTERN for
   // revalidatePath and is not navigable.
-  actionId: (v) => `/gm/turns/move/${v}`,
-  cavingRollId: (v) => `/gm/turns/caving/${v}`,
+  actionId: (v) => `/gm/turns?sel=move/${v}`,
+  cavingRollId: (v) => `/gm/turns?sel=caving/${v}`,
   characterId: (v) => `/gm/dev/characters/${v}`,
   tagId: () => "/gm/dev/tags",
   factionId: () => "/gm/dev/factions",

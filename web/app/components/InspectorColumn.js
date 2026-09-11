@@ -12,6 +12,7 @@ import DmThread from "./DmThread";
 import ArchiveContextModal from "./ArchiveContextModal";
 import CustomTagDialog from "./CustomTagDialog";
 import Tooltip from "./Tooltip";
+import MatchHint from "./MatchHint";
 import useSubmitOnEnter from "./useSubmitOnEnter";
 import useInspectorOverlay from "./useInspectorOverlay";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
@@ -335,7 +336,7 @@ function MovesView({ data }) {
       <p className="field-label">Past turns</p>
       {!data.rows.length && <p className="text-sm text-muted">Nothing on any past turn.</p>}
       {data.rows.map((r) => (
-        <Link key={r.id} href={`/gm/turns/history/${r.id}`} className="desk-archive-row">
+        <Link key={r.id} href={`/gm/turns?sel=history/${r.id}`} className="desk-archive-row">
           <p className="text-xs text-muted">
             Turn {r.turnLabel} · {r.kindLabel} · {r.reviewLabel}
             {r.rollLabel ? ` · ${r.rollLabel}` : ""}
@@ -559,17 +560,15 @@ function InspectorSearch({ roster, onInspect }) {
             <li key={c.id}>
               <button type="button" className="btn-quiet" onClick={() => pick(c)}>
                 <span className="truncate">{c.name}</span>
-                {match.matchedField !== "name" && (
-                  <span className="text-xs text-muted">
-                    {match.matchedField === "username" && c.username
-                      ? `@${c.username}`
-                      : match.matchedField === "role"
-                        ? c.roleTitle
-                        : match.matchedField === "faction"
-                          ? c.factionName
-                          : c.zoneName}
-                  </span>
-                )}
+                <MatchHint
+                  match={match}
+                  values={{
+                    username: c.username ? `@${c.username}` : null,
+                    role: c.roleTitle,
+                    faction: c.factionName,
+                    zone: c.zoneName,
+                  }}
+                />
               </button>
             </li>
           ))}
@@ -606,7 +605,21 @@ export default function InspectorColumn({
   extraTabs = {},
   // Buttons that belong beside the pins (the player desk's "Message pinned").
   pinsActions = null,
+  // Whether the column draws its own "Look up a character…" box above the
+  // pins. On /gm/turns and /gm/oracle it is the only way to reach somebody who
+  // is not in the rail or on the page, so it stays. The player desk turns it
+  // off: its rail IS the roster, reaches every character, and searches message
+  // text besides — so the box was the fourth search field on one screen, and
+  // the weakest of the four. `roster` is still passed there, because the
+  // column reads the inspected person's handle and role out of it.
+  lookup = true,
   emptyHint,
+  // What the desk stands at, for the column with nobody picked: a list of
+  // { label, value, tone? }. Seventy per cent of a three-column desk was a
+  // sentence explaining how to fill it; a GM already knows how to click a
+  // name, and what they actually want from that space is the shape of the
+  // work in front of them.
+  emptyStanding = null,
   // { mode, categories, tags, groups } — omit to hide the custom-tag door.
   customTag = null,
   // { tab, token } — a desk asking the column to jump to a tab ("Past moves"
@@ -665,7 +678,7 @@ export default function InspectorColumn({
           Close inspector
         </button>
       </div>
-      {roster && <InspectorSearch roster={roster} onInspect={onInspect} />}
+      {lookup && roster && <InspectorSearch roster={roster} onInspect={onInspect} />}
       {(pinned.length > 0 || pinsActions) && (
         <div className="desk-inspector-pins">
           {pinned.map((p) => (
@@ -684,10 +697,24 @@ export default function InspectorColumn({
       )}
 
       {!inspected ? (
-        <p className="p-4 text-sm text-muted">
-          {emptyHint ??
-            "Click any character name — in the queue, on the desk, in the tray — to look them up here without leaving the workspace."}
-        </p>
+        <div className="desk-inspector-empty">
+          {emptyStanding?.length ? (
+            <dl className="desk-standing">
+              {emptyStanding.map((s) => (
+                <div key={s.label} className="desk-standing-row">
+                  <dt>{s.label}</dt>
+                  <dd className="mono" data-tone={s.tone ?? undefined}>
+                    {s.value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+          <p className="text-sm text-muted">
+            {emptyHint ??
+              "Click any character name — in the queue, on the desk, in the tray — to look them up here without leaving the workspace."}
+          </p>
+        </div>
       ) : (
         <>
           <div className="desk-inspector-head">

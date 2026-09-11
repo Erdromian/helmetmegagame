@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SECTION_TIER, allows } from "@/lib/devAccess";
+import { DEV_ELSEWHERE } from "@/lib/devNav";
 
 // The Dev Panel's section rail — a plain server component, no "use client"
 // and no usePathname: the active section comes from ?s=, already known by
@@ -41,12 +42,6 @@ const SECTIONS = [
   },
 ];
 
-const ELSEWHERE = [
-  { href: "/gm/dev/characters", label: "Characters" },
-  { href: "/gm/dev/factions", label: "Factions" },
-  { href: "/gm/dev/tags", label: "Tags" },
-];
-
 export default function OpsNav({ section, tier }) {
   const groups = SECTIONS.map((group) => ({
     ...group,
@@ -73,7 +68,7 @@ export default function OpsNav({ section, tier }) {
 
       <div className="ops-nav-group">
         <span className="ops-nav-title">Elsewhere</span>
-        {ELSEWHERE.map((item) => (
+        {DEV_ELSEWHERE.map((item) => (
           <Link key={item.href} href={item.href} className="ops-nav-item ops-nav-item--away">
             {item.label} ↗
           </Link>

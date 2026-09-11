@@ -6,6 +6,7 @@ import { noteActionVersion } from "@/app/components/useDeskVersion";
 import Select from "@/app/components/Select";
 import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import MatchHint from "@/app/components/MatchHint";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
 import useNowTick from "@/app/components/useNowTick";
@@ -49,19 +50,6 @@ function matchedTagNames(tagNames, query) {
   const hits = (tagNames ?? []).filter((n) => words.some((w) => n.toLowerCase().includes(w)));
   const shown = (hits.length ? hits : tagNames ?? []).slice(0, 3);
   return shown.join(", ") + ((hits.length ? hits : tagNames ?? []).length > 3 ? ", …" : "");
-}
-
-// "why this row matched", or null when the matched field has nothing on it.
-function matchReason(match, row, query) {
-  if (!match) return null;
-  const field = match.matchedField;
-  if (field === "name" || field === "username") return null;
-  if (field === "role") return row.roleTitle || null;
-  if (field === "faction") return row.factionName || null;
-  if (field === "zone") return row.zoneName || null;
-  if (field === "tag") return matchedTagNames(row.tagNames, query) || null;
-  if (field === "preview") return "matched message text";
-  return null;
 }
 
 function relativeTime(ms, now) {
@@ -206,13 +194,19 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
     const next = !isMuted(row);
     setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: next }));
     startTransition(async () => {
-      const res = noteActionVersion(
-        await setConversationMuted({
-          playerDiscordUserId: row.discordUserId,
-          muted: next,
-        }),
-      );
-      if (!res?.ok) {
+      try {
+        const res = noteActionVersion(
+          await setConversationMuted({
+            playerDiscordUserId: row.discordUserId,
+            muted: next,
+          }),
+        );
+        if (!res?.ok) {
+          setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: !next }));
+        }
+      } catch {
+        // A throw is not a refusal — put the optimistic mark back and leave
+        // the rail standing rather than letting it reach (desk)/error.js.
         setMutedOverride((prev) => ({ ...prev, [row.discordUserId]: !next }));
       }
     });
@@ -222,13 +216,17 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
     const next = !isHandled(row);
     setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: next }));
     startTransition(async () => {
-      const res = noteActionVersion(
-        await setConversationHandled({
-          playerDiscordUserId: row.discordUserId,
-          handled: next,
-        }),
-      );
-      if (!res?.ok) {
+      try {
+        const res = noteActionVersion(
+          await setConversationHandled({
+            playerDiscordUserId: row.discordUserId,
+            handled: next,
+          }),
+        );
+        if (!res?.ok) {
+          setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: !next }));
+        }
+      } catch {
         setHandledOverride((prev) => ({ ...prev, [handledKey(row)]: !next }));
       }
     });
@@ -347,7 +345,11 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
 
   function markAllRead() {
     startTransition(async () => {
-      await Promise.all(unreadIds.map((id) => markConversationRead({ playerDiscordUserId: id })));
+      // allSettled, not all: one closed thread rejecting must not take the
+      // other ninety-nine marks — or the desk — down with it.
+      await Promise.allSettled(
+        unreadIds.map((id) => markConversationRead({ playerDiscordUserId: id })),
+      );
     });
   }
 
@@ -355,20 +357,21 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
 
   return (
     <div className="desk-rail">
+      {/* Two bands of chrome, then the inbox. It used to be up to five rows
+          — search, a note, a zone row, a chip row, and a button per quiet
+          verb, each on its own line — so on a laptop the first conversation
+          started below the fold. */}
       <div className="desk-rail-filters">
-        <label className="field min-w-0">
-          <span className="field-label">Search</span>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="name, role, faction, tag, zone, @handle, message text…"
-          />
-        </label>
-        {searching && (
-          <span className="text-xs text-muted">Searching everyone — filters paused.</span>
-        )}
-        {zoneOptions.length > 0 && (
-          <div className="flex flex-wrap gap-2">
+        <div className="desk-rail-filter-line">
+          <label className="field min-w-0" style={{ flex: "1 1 9rem" }}>
+            <span className="field-label">Search inbox</span>
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="name, role, faction, tag, zone, @handle, message text…"
+            />
+          </label>
+          {zoneOptions.length > 0 && (
             <label className="field min-w-0" style={{ flex: "1 1 6rem" }}>
               <span className="field-label">Zone</span>
               <Select value={zoneFilter} onChange={(e) => setZoneFilter(e.target.value)}>
@@ -380,34 +383,35 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                 ))}
               </Select>
             </label>
-          </div>
-        )}
-        {/* One independent toggle, so it is a chip, not a segmented control:
-            a segmented control holds ONE VALUE out of several and this has no
-            siblings to be exclusive with (DESIGN-SYSTEM §5). As a lone
-            segment it drew a full-width bar that read like another field
-            label. */}
-        <div className="chip-row">
-          <button
-            type="button"
-            className="chip"
-            data-active={needsReplyOnly ? "true" : undefined}
-            aria-pressed={needsReplyOnly}
-            onClick={() => setNeedsReplyOnly((v) => !v)}
-          >
-            Needs reply
-          </button>
+          )}
         </div>
-        {unreadIds.length > 0 && (
-          <button type="button" className="btn-quiet" onClick={markAllRead}>
-            Mark all read
-          </button>
-        )}
-        {mutedCount > 0 && (
-          <button type="button" className="btn-quiet" onClick={() => setShowMuted((v) => !v)}>
-            {showMuted ? `Hide muted (${mutedCount})` : `Show muted (${mutedCount})`}
-          </button>
-        )}
+        <div className="desk-rail-filter-line text-xs">
+            {/* One independent toggle, so it is a chip, not a segmented
+                control: a segmented control holds ONE VALUE out of several
+                and this has no siblings to be exclusive with
+                (DESIGN-SYSTEM §5). It shares the line with the quiet verbs
+                rather than claiming a row. */}
+            <button
+              type="button"
+              className="chip"
+              data-active={needsReplyOnly ? "true" : undefined}
+              aria-pressed={needsReplyOnly}
+              onClick={() => setNeedsReplyOnly((v) => !v)}
+            >
+              Needs reply
+            </button>
+            {searching && <span className="text-muted">Searching everyone — filters paused.</span>}
+            {unreadIds.length > 0 && (
+              <button type="button" className="btn-quiet" onClick={markAllRead}>
+                Mark all read
+              </button>
+            )}
+            {mutedCount > 0 && (
+              <button type="button" className="btn-quiet" onClick={() => setShowMuted((v) => !v)}>
+                {showMuted ? `Hide muted (${mutedCount})` : `Show muted (${mutedCount})`}
+              </button>
+            )}
+        </div>
       </div>
 
       <div className="desk-queue">
@@ -425,6 +429,11 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
               data-active={active ? "true" : "false"}
               data-muted={muted ? "true" : undefined}
               data-unread={row.unreadCount > 0 ? "true" : undefined}
+              data-awaiting={
+                row.lastDirection === "INBOUND" && row.unreadCount === 0 && !handled
+                  ? "true"
+                  : undefined
+              }
             >
               <div className="desk-queue-marks">
                 <button
@@ -495,8 +504,13 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                   {row.lastAtMs > 0 && (
                     <span className="desk-queue-time mono">{relativeTime(row.lastAtMs, now)}</span>
                   )}
+                  {/* Three weights, one ladder: unread is full-strength and
+                      bold, awaiting is full-strength, read is muted
+                      (globals.css). The word is still here for anyone who
+                      cannot read weight as meaning, but it is text in the
+                      row's own voice rather than a fifth pill. */}
                   {row.lastDirection === "INBOUND" && row.unreadCount === 0 && !handled && (
-                    <span className="chip chip-quiet">awaiting</span>
+                    <span className="desk-queue-awaiting text-xs">awaiting</span>
                   )}
                 </div>
                 <div className="desk-queue-preview">
@@ -504,20 +518,25 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                     <span className="text-muted">{row.roleTitle || "No messages yet"}</span>
                   )}
                 </div>
-                {/* Only when there is something to say. The field that
-                    matched can be empty on the row (a role match on a
-                    character with no roleTitle, a tag hit whose names did not
-                    survive the filter), and this used to render the padded
-                    empty line anyway — a blank gap under the preview that
-                    looked like a rendering fault. */}
-                {matchReason(match, row, query) && (
-                  <div className="desk-queue-reason">{matchReason(match, row, query)}</div>
-                )}
-                {hitCount > 0 && (
-                  <div className="desk-queue-reason">
-                    in messages · {hitCount}
-                  </div>
-                )}
+                {/* One form across the rail, the roster and the inspector's
+                    lookup (MatchHint.js): a muted `· what matched` suffix,
+                    the value where the row has one and the field's own word
+                    where it does not. Nothing renders for a name hit, or when
+                    the matched field is empty on this row — that used to
+                    leave a padded blank line under the preview that looked
+                    like a rendering fault. */}
+                <div className="desk-queue-reason">
+                  <MatchHint
+                    match={match}
+                    values={{
+                      role: row.roleTitle,
+                      faction: row.factionName,
+                      zone: row.zoneName,
+                      tag: matchedTagNames(row.tagNames, query),
+                    }}
+                  />
+                  {hitCount > 0 && <span className="text-xs text-muted"> · {hitCount} in messages</span>}
+                </div>
               </button>
               {row.unreadCount > 0 && (
                 <span className="desk-queue-unread mono">{row.unreadCount}</span>

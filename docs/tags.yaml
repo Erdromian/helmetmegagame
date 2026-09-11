@@ -2647,16 +2647,16 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # A Musician MASTERY: triples what /play is worth to everyone who hears it.
-  # Gated on Musician because the mood half of /play already lives inside that
-  # check (bot/src/events/interactionCreate.js) — without the parent, playing
-  # badly soothes nobody and this would be worth nothing.
+  # A Musician MASTERY: quadruples what /play is worth to everyone who hears
+  # it. Gated on Musician because the mood half of /play already lives inside
+  # that check (db/lib/instrumentPlay.js) — without the parent, playing badly
+  # soothes nobody and this would be worth nothing.
   musician-pythagorean:
     catalog: all
     name: Musician (Pythagorean)
     category: skills
     teachable: false
-    description: "Your music is complex and absorbing. It lifts everyone who hears it three times as much."
+    description: "Your music is complex and absorbing. It makes everyone ecstatic, buffing their mood massively."
     pointCost: 14
     requiredTag: musician
     visible: false
@@ -3061,8 +3061,14 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "You fight better with a drink in you. While {tag:tipsy}, your fighting skill counts as 1 tier higher, and being {tag:wasted} costs you nothing at all."
-    fighting: { tree: both, tiers: 1, when: { holds: [tipsy] } }
+    description: "Your fighting skill is higher when you're drunk."
+    # `holdsAny`, not `holds`: the drinking rungs REPLACE each other, so a
+    # second drink clears {tag:tipsy} and grants {tag:wasted}. Keyed to tipsy
+    # alone this went dead past the first drink, and against tipsy's old -1 it
+    # cancelled out to exactly nothing — a tag that read +1 and did +0.
+    # A flat bonus on top of whatever the drink costs, so the rungs stay
+    # ordered: tipsy lands at +1.4, wasted at +0.7.
+    fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted, blind-drunk] } }
     pointCost: 5
     requiredTag: alcoholic
     visible: false
@@ -3366,16 +3372,16 @@ tags:
   # you the one above instead. So tipsy -> wasted -> unconscious, and the only
   # way down is to stop.
   #
-  # None of the Fighting penalties below is enforced in code — no line in the
-  # repo reads `tipsy`. They are numbers a GM weighs while adjudicating a
-  # fight, which is how the original Tipsy has always worked.
+  # The Fighting penalties below are ordinary generic `fighting:` blocks, not
+  # special cases: no line of code branches on `tipsy`. The one place a rung is
+  # named by slug is Drunken Master's `holdsAny`, which is a catalog entry too.
   tipsy:
     catalog: gm
     name: Tipsy
     category: status
     group: status-debuffs
-    description: "You feel warm, but a bit uncoordinated. Your Fighting skill counts as 1 tier lower."
-    fighting: { tree: both, tiers: -1 }
+    description: "You feel warm, but a bit uncoordinated."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3387,8 +3393,8 @@ tags:
     name: Wasted
     category: status
     group: status-debuffs
-    description: "You are in a bit of a stupor and are having trouble controlling your body. Your Fighting skill counts as 2 tiers lower."
-    fighting: { tree: both, tiers: -2 }
+    description: "You are in a bit of a stupor and are having trouble controlling your body."
+    fighting: { tree: both, tiers: -1.2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3436,8 +3442,8 @@ tags:
     name: Hangover
     category: status
     group: status-debuffs
-    description: "Ugh... Your fighting skill counts as 1 tier lower."
-    fighting: { tree: both, tiers: -1 }
+    description: "Ugh..."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -5195,6 +5201,7 @@ tags:
     description: "A horse rideable by up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others. Cannot be used in the Caves. Consumes 1 ⬢ per day."
     pointCost: 9
     tradeable: true
+    stackable: true
     equippable: true
     equipSlot: MOUNT
     equipLayer: 1
@@ -5206,6 +5213,109 @@ tags:
     depotPrice: 90
     sellable: true
     sellablePrice: 54
+    craftable: true
+    # Reproduction. Keeps the mare — `keep: true` — and spends a Lavish Meal
+    # instead of ⬢: a Lavish Meal always needs a real errand (tea/sweets/honey/
+    # fish roe, three of them Depot imports), which is the actual throttle on
+    # breeding a line of horses out of nothing. `customOf:` reaches a Lavish
+    # Meal because a cooked one never keeps the `lavish-meal` slug — it mints
+    # fresh every time (COOKING.md) — see db/lib/tagShapes.js.
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      gambit: false
+      items:
+        - tag: horse
+          keep: true
+        - customOf: lavish-meal
+
+  # --- Arelitz — horse-hybrids bred with a graga sac, fish roe or plain ⬢.
+  # Each recipe spends the horse; only Reproduction (above) keeps it.
+  arelitz-warbeast:
+    catalog: all
+    name: Arelitz (Warbeast)
+    category: assets
+    group: assets-companions
+    description: "A terrifying, arachnid behemoth that tramples men with ease. It is only barely hurt by typical weapons."
+    pointCost: 0
+    tradeable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 80
+    craftable: true
+    requirement:
+      turnsCost: 1
+      gambit: false
+      items: [horse, graga-sac]
+
+  arelitz-ovum:
+    catalog: all
+    name: Arelitz (Ovum)
+    category: assets
+    group: assets-companions
+    description: "A bloated Arelitz. It hates moving. It produces the valuable Arelitz egg. Does not allow fast travel."
+    pointCost: 0
+    tradeable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 60
+    craftable: true
+    requirement:
+      turnsCost: 1
+      gambit: false
+      items: [horse, fish-roe]
+
+  arelitz-thoroughbred:
+    catalog: all
+    name: Arelitz (Thoroughbred)
+    category: assets
+    group: assets-companions
+    description: "A healthy and upright arachnid, capable of galloping easily. It has an extra zone move compared to a regular horse."
+    pointCost: 0
+    tradeable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 70
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+      gambit: false
+      items: [horse]
+
+  arelitz-egg:
+    catalog: all
+    name: Arelitz Egg
+    category: items
+    group: items-food
+    description: "A large egg colored like ivory, still wet with the placenta. It can be sold or cracked open into foodstuffs."
+    pointCost: 0
+    tradeable: true
+    weight: 0.5
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: []
+    consumesIntoResources: 5
+    sellable: true
+    sellablePrice: 10
 
   bird:
     catalog: all
@@ -5248,7 +5358,7 @@ tags:
     name: Fishing Boat
     category: assets
     group: assets-property
-    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor."
+    description: "A flat-bottomed boat with a pole. While equipped, gives the user 1 extra Zone crossing each turn between the Forest, Black Hills and Marshes, and adds +1 to Fishing Labor. It can carry four people."
     pointCost: 4
     visible: true
     tradeable: true
@@ -8639,7 +8749,13 @@ tags:
     group: assets-property
     description: "A framed instrument meant for tilling soil. While equipped with a {tag:horse}, Farming produces an additional 3 ⬢."
     pointCost: 5
-    laborBonus: { kind: farming, amount: 3, equipped: false, requiresTag: horse }
+    # An Arelitz (Warbeast) or (Thoroughbred) pulls a plow as well as a horse
+    # does. Not the Ovum — it hates moving, and the plow is nothing but.
+    laborBonus:
+      kind: farming
+      amount: 3
+      equipped: false
+      requiresTag: [horse, arelitz-warbeast, arelitz-thoroughbred]
     tradeable: true
     stackable: true
     visible: true
@@ -12692,7 +12808,7 @@ tags:
     name: Ravenheart Red
     category: items
     group: items-drink
-    description: "A wine as dark as a raven's blood. Ravenheart's only export."
+    description: "A wine as dark as a raven's blood. A valuable export."
     pointCost: 0
     tradeable: true
     weight: 2.5

@@ -15,26 +15,26 @@ words and the stacking rule, and nothing else is allowed to re-derive either.
 ## 1. It reads the catalog as written
 
 The catalog was most of the way here before this existed. Around twenty tag
-descriptions already say **"your melee skill counts as 2 tiers higher"**, and
-four Status tags state their own shift in prose players read. So the unit is
-tiers, and **not one description was reworded** to make this work. Where a tag
-says a number, that number is what it does.
+descriptions already say **"your melee skill counts as 2 tiers higher"**, so the
+unit is tiers, and **not one description was reworded** to make this work. Where
+a tag says a number, that number is what it does.
 
-Four of those are load-bearing enough to name, because the prose and the
-`fighting:` block are two copies of one number and they must never drift:
+Two are load-bearing enough to name, because the prose and the `fighting:`
+block are two copies of one number and they must never drift:
 
 | tag | its own words |
 |---|---|
-| `tipsy` | "Your Fighting skill counts as 1 tier lower." |
-| `wasted` | "Your Fighting skill counts as 2 tiers lower." |
-| `hangover` | "Your fighting skill counts as 1 tier lower." |
 | `opium-high` | "Your fighting skill counts as 1 tier lower." |
+| `crossbow` | "your Ranged Fighting skill counts as half a tier higher due to its ease of use" |
 
-A fifth is the `crossbow`: *"your Ranged Fighting skill counts as half a tier
-higher due to its ease of use"* — the prose carries the number, so the two move
-together or not at all. It read *one tier* until 2026-09-10, when the ranged
-rebalance (§4, The ranged ladder) dropped it to 0.5 and the description was edited to match.
-`db/test/fightingSkill.test.js` pins these.
+The crossbow read *one tier* until 2026-09-10, when the ranged rebalance (§4,
+The ranged ladder) dropped it to 0.5 and the description was edited to match.
+
+The drinking ladder used to sit in that table too — `tipsy`, `wasted` and
+`hangover` each stated their own shift. On 2026-09-11 the numbers moved (§4, The
+drinking ladder) and the sentences came out rather than being rewritten: a rung's cost now
+depends on whether you are a Drunken Master, so no single sentence on the rung
+could be true for everyone reading it.
 
 ## 2. The four classes
 
@@ -44,7 +44,7 @@ entirely on **what the code can know**.
 | Class | Means | Examples |
 |---|---|---|
 | **Tier** | a rung on the ladder | `melee-expert`, `ranged-basic` |
-| **Modifiers** | programmatic, and not about a weapon | Giant, Old, Missing Arm, Reckless Attacker, Flamboyant (*wearing no body armour*), Drunken Master (*while Tipsy*), the Thanati robes |
+| **Modifiers** | programmatic, and not about a weapon | Giant, Old, Missing Arm, Reckless Attacker, Flamboyant (*wearing no body armour*), Drunken Master (*while drunk at all*), the Thanati robes |
 | **Items** | the weapon in your hand, and the skills keyed to one | a Broadsword, Melee (Swords) *with a sword in hand* |
 | **Situational** | the fiction of the moment decides, so a GM does | Duelist, Shield Wall, Guerrilla, Sniper, Monster Hunter, Camouflage |
 
@@ -258,11 +258,25 @@ edits.
 |---|---|
 | `weaponClass: [...]` | an **equipped** weapon is of one of these classes |
 | `holds: [...]` | the character holds all of these tags |
+| `holdsAny: [...]` | the character holds **at least one** of these tags |
 | `equipped: [...]` | all of these are equipped, not merely carried |
 | `unarmoured: [SLOT]` | nothing is equipped in that slot |
 
 Every key present must hold, so a bonus needing several things at once is one
 entry rather than several that cannot see each other.
+
+`holdsAny:` is the one OR in the table, and it exists for a condition that spans
+the rungs of a ladder. Drunken Master is the only user and the reason:
+
+```yaml
+drunken-master:
+  fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted, blind-drunk] } }
+```
+
+The drinking rungs **replace** each other — a second drink clears `tipsy` and
+grants `wasted` — so "drunk at all" can never be written with `holds`, and this
+block spent a while keyed to `tipsy` alone, going dead the moment anybody had a
+second one.
 
 `equipped:` versus `holds:` is the distinction `armorValue.js` already draws
 and enforces — *"A vest in your cart stops nothing"*. A robe you are not
@@ -314,6 +328,32 @@ craft. The **Disabler** stays at 0.3 and off this ladder — it is non-lethal an
 "only useful against unarmed people", so it is a tool, not a gun. The BB Pistol
 (0.1) and the Whip (0.2) are `exotic`, which `fightingSkill.js` does not count
 as ranged at all.
+
+### The drinking ladder
+
+Set 2026-09-11. A drink used to cost a whole band — Tipsy was a flat −1 tier,
+and a tier is exactly one band wide — which made one beer before a fight a
+decision nobody could afford to make lightly. It is a nudge now.
+
+| tag | alone | with Drunken Master |
+|---|---|---|
+| `tipsy` | −0.5 | **+1.4** |
+| `wasted` | −1.2 | **+0.7** |
+| `hangover` | −0.5 | — |
+| `blind-drunk` | −3 | −1.1 |
+| `unconscious` | `cap: pitiful` | — |
+
+Drunken Master is a flat **+1.9** on top of whatever the rung costs, not a
+cancellation. That keeps the rungs in order — the second drink is still worse
+than the first — while making any of them better than staying dry. Blind Drunk
+is the exception on purpose: softened, never repaid. Skill at fighting drunk is
+not skill at fighting blind.
+
+Hangover is outside it. The tag is the morning, and Drunken Master is about the
+night before.
+
+None of these rungs states its number in its own description any more (§1) —
+what a drink costs now depends on who is drinking it.
 
 ### What the door refuses
 

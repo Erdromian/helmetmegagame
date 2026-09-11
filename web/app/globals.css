@@ -680,6 +680,53 @@ input[type="radio"]:focus-visible,
   padding: 7px 14px;
 }
 
+/* A long dialog's own sections — the staging composer chief among it, which
+   is six unrelated zones (targets, numbers, staged tag changes, what they
+   already hold, the catalog, the footer) in one 46rem panel. Unheaded they ran
+   together as one column of controls and the only landmark was a bare
+   .field-label two thirds of the way down. A rule and a heading per zone give
+   the panel a spine to scan; nothing here is a new colour or a new box. */
+.composer-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+
+/* The first group opens the panel, so it needs neither the rule nor the air —
+   the sticky .modal-header is already its top edge. */
+.composer-group:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Same type as .field-label, because that is exactly what it is: the label for
+   a group of fields rather than for one. */
+.composer-group-title {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* The footer of a dialog long enough to scroll. Same trick .modal-header uses
+   at the other end — the panel is one scroll box, so this bleeds back out of
+   its padding and sticks flush to the bottom edge. Opt-in: a short dialog does
+   not want its two buttons detached from the thing they act on, and the
+   ≤640px bottom-sheet rule already sticks EVERY .modal-actions, so this only
+   has to cover the desktop case. */
+.modal-actions--sticky {
+  position: sticky;
+  bottom: calc(var(--sp-4) * -1);
+  z-index: 2;
+  margin: var(--sp-4) calc(var(--sp-4) * -1) calc(var(--sp-4) * -1);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-raised);
+  border-top: 1px solid var(--border);
+}
+
 /* ---- The Move dialog ----------------------------------------------------
    Filing a Move is the one irreversible thing a player does in a day, so the
    dialog carries three things a bare textarea never did: what the ground here
@@ -2573,6 +2620,17 @@ input[type="radio"]:disabled {
 .table-scroll {
   max-height: var(--list-h);
   overflow: auto;
+  /* The containing block for anything absolutely positioned inside the table,
+     which in practice means every `.sr-only` label a row draws (they are
+     `position: absolute`). Without it their containing block is the nearest
+     positioned ancestor — `.app-shell` — so they are laid out at the row's
+     full-table offset and escape this scroller's clip entirely. On /gm/players
+     that gave a 44-row roster a 2228px document inside a 950px desk, and the
+     whole desk scrolled off the top of the window: the one thing a desk shell
+     promises it will never do. Costs nothing anywhere else — the sticky thead
+     below is unaffected, and a scroll container is where an abspos descendant
+     wanted to be anchored in the first place. */
+  position: relative;
 }
 
 /* The same frame for a list that isn't a table — the /notes card board. Only
@@ -3346,14 +3404,23 @@ input[type="radio"]:disabled {
   gap: 1rem 1.5rem;
 }
 
-/* Splits the action bar into its clusters — life/turn, staging, repair — so
-   a destructive verb never sits flush against a harmless one. */
-.dev-bar-sep {
-  width: 1px;
-  align-self: stretch;
-  min-height: 1.5rem;
-  background: var(--border);
+/* The action bar's clusters — Life, Body, Admin. A named group each, because
+   an unbroken run of thirteen bare icons could only be read by hovering every
+   one of them; the hairline rules that used to separate them said a boundary
+   was there without saying what was on either side of it. */
+.dev-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1.5rem;
 }
+
+.dev-bar-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 
 /* The Apply/Cancel bar, pinned to the bottom of the viewport while there are
    pending changes. Sticky rather than fixed so it stays inside the page
@@ -3532,12 +3599,26 @@ input[type="radio"]:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  /* Two bands of chrome at most before the first row of work — see
+     .desk-rail-filter-line below. */
   /* Even padding. It used to open with 0 on top, which /gm/turns hid behind
      the {header} its QueueRail renders first — but the player desk's rail
      starts straight in on the Search field, so its label sat flush against
      the header's bottom rule and read as clipped. */
   padding: 0.75rem;
   border-bottom: 1px solid var(--border);
+}
+
+/* One band of filter chrome: everything in it shares a line and wraps
+   together rather than each control claiming a row of its own. */
+.desk-rail-filter-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.desk-rail-filter-line:empty {
+  display: none;
 }
 
 /* The queue rows: buttons, not table rows, because selection is the verb. */
@@ -3712,6 +3793,44 @@ input[type="radio"]:disabled {
      `margin: 0 auto` only ever centred a card in a column it already filled.
      It DID bite the one place the class escaped to a wide surface, leaving a
      rounded bubble in the middle of the page. The column is the measure. */
+}
+
+/* The Result box's panel. The adjudication card is a stack of hairline-ruled
+   slabs, and the box that IS the job read as the fourth of them. A raised
+   surface with the accent edge gives the card one thing to land on; nothing
+   else in the card takes this treatment, or it stops meaning anything. */
+.desk-result {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+}
+
+/* The Kind switch's consequence line, always rendered so switching Routine to
+   Gambit does not shove the Result box down the screen mid-sentence. Two
+   lines' worth at this size — long enough for the Labor wording to wrap. */
+.desk-kind-note {
+  min-height: 2.2em;
+  margin: 0;
+}
+
+/* Staged rows: one strong line (who and what), one quiet line under it (who
+   staged it, which turn, what delivery said). The eight-element single line
+   this replaced gave a GM no way to skim a tray of twenty. */
+.desk-staged-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.4rem;
+  margin: 0;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+/* The separators are the stylesheet's, not the call site's, so a row that
+   drops its turn number does not leave a dangling middot behind. */
+.desk-staged-sub > *:not(:first-child)::before {
+  content: "· ";
 }
 
 .desk-move-text {
@@ -3912,6 +4031,50 @@ input[type="radio"]:disabled {
 
 .desk-inspector-pins .chip[data-active] {
   border-color: var(--accent);
+}
+
+/* The column with nobody picked. It used to be one paragraph of advice at the
+   top of an otherwise empty third of the desk; now it leads with where the
+   desk actually stands and keeps the advice underneath, quietly. */
+.desk-inspector-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.desk-standing {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+}
+
+.desk-standing-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.desk-standing-row dt {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.desk-standing-row dd {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+/* A standing figure that is work waiting on somebody takes the warm colour —
+   the same one a warn StatusPill uses — so an inbox with mail in it is
+   visible from the far side of the desk. */
+.desk-standing-row dd[data-tone="warn"] {
+  color: var(--warning);
 }
 
 /* A selectable chip (the bulk composer's recipient picker) — checked state
@@ -4648,13 +4811,35 @@ label.chip {
   background: var(--surface-raised);
 }
 
-/* Unread reads bright, the way an unread channel does: full-strength name,
-   and the preview stops being muted. Read rows stay quiet. */
+/* One ladder, three rungs: unread > awaiting > read.
+   - UNREAD is the way an unread channel reads: full-strength name at 700, and
+     the preview stops being muted.
+   - AWAITING (they wrote last, you have read it, nobody marked it handled) is
+     full-strength but not bold — it is work, not news.
+   - READ stays quiet, name included.
+   Before this, unread and awaiting were the same weight plus a small grey
+   pill, so a rail of a hundred rows had two states and one of them was "not
+   selected". */
+.desk-body--players .desk-queue-row .desk-queue-name {
+  color: var(--muted);
+  font-weight: 500;
+}
+.desk-body--players .desk-queue-row[data-awaiting="true"] .desk-queue-name {
+  color: var(--text);
+}
 .desk-body--players .desk-queue-row[data-unread="true"] .desk-queue-name {
   color: var(--text);
+  font-weight: 700;
 }
 .desk-body--players .desk-queue-row[data-unread="true"] .desk-queue-preview {
   color: var(--text);
+}
+
+/* The word, for anyone who does not read weight as meaning. Quiet on purpose:
+   the row's own strength is the signal. */
+.desk-queue-awaiting {
+  color: var(--muted);
+  font-style: italic;
 }
 
 .desk-queue-pin {
@@ -4773,9 +4958,15 @@ label.chip {
   white-space: nowrap;
 }
 
+/* "Why this row matched" (MatchHint.js). Muted, not accented: it is small
+   print explaining a search hit, not a state — and in accent it competed with
+   the name it was explaining. Collapses when the hint renders nothing. */
 .desk-queue-reason {
   font-size: var(--fs-2xs);
-  color: var(--accent-text);
+  color: var(--muted);
+}
+.desk-queue-reason:empty {
+  display: none;
 }
 
 .desk-queue-unread {

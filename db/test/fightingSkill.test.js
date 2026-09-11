@@ -357,13 +357,14 @@ test("Second Wind leaves a state of mind alone", () => {
 
 // --- Drunken Master -------------------------------------------------------
 
-// The drink costs everyone something and costs a Drunken Master nothing — it
-// makes them BETTER, by the same amount on every rung. That flatness is the
-// point: the tag used to cancel Tipsy exactly and do nothing at all past it,
-// so a second drink fell off a cliff, while the description promised Wasted
-// was free. Now the penalty is cancelled outright and a flat tier added on
-// top, which is why the block needs `holdsAny` — the rungs replace each
-// other, so `holds` (AND) could never match more than one of them.
+// The drink costs everyone something and PAYS a Drunken Master — a flat bonus
+// on top of whatever the rung costs, so the rungs stay ordered: a second drink
+// is still worse than the first, just better than sober either way. The tag
+// used to cancel Tipsy exactly and do nothing at all past it, so it read +1 and
+// did +0, and a second drink fell off a cliff while the description promised
+// Wasted was free. It is a plain modifier now, no `cancels` — which is why the
+// block needs `holdsAny`: the rungs replace each other, so `holds` (AND) could
+// never match more than one of them.
 const drunkenMaster = {
   equipped: true,
   tag: {
@@ -371,29 +372,42 @@ const drunkenMaster = {
     name: "Drunken Master",
     fighting: normalizeFighting({
       tree: "both",
-      tiers: 1,
-      cancels: ["tipsy", "wasted", "blind-drunk"],
+      tiers: 1.9,
       when: { holdsAny: ["tipsy", "wasted", "blind-drunk"] },
     }),
   },
 };
 const drink = (slug, tiers) => row(slug, normalizeFighting({ tree: "both", tiers }));
 
+// Measured off a TRAINED character rather than an untrained one, because Blind
+// Drunk's -3 would take a peasant through the floor at 0 and the clamp, not the
+// tag, would be what the numbers showed.
+const trained = row("melee-expert", { tree: "melee", rung: 4 });
+const drySkilled = () => melee([trained]).score;
+
 test("a drink costs everyone else something", () => {
-  const sober = melee([]).score;
-  assert.equal(melee([drink("tipsy", -0.8)]).score - sober, -8);
-  assert.equal(melee([drink("wasted", -1.2)]).score - sober, -12);
-  assert.equal(melee([drink("blind-drunk", -1.2)]).score - sober, -12);
+  const sober = drySkilled();
+  assert.equal(melee([trained, drink("tipsy", -0.5)]).score - sober, -5);
+  assert.equal(melee([trained, drink("wasted", -1.2)]).score - sober, -12);
+  assert.equal(melee([trained, drink("blind-drunk", -3)]).score - sober, -30);
 });
 
-test("a Drunken Master is one tier up on every rung, and sober is still sober", () => {
-  const sober = melee([]).score;
-  for (const [slug, tiers] of [["tipsy", -0.8], ["wasted", -1.2], ["blind-drunk", -1.2]]) {
-    const score = melee([drink(slug, tiers), drunkenMaster]).score;
-    assert.equal(score - sober, POINTS_PER_TIER, `${slug} should be +1 tier`);
+test("a Drunken Master is up on every rung, and sober is still sober", () => {
+  const sober = drySkilled();
+  // The bonus is flat; the OUTCOME is not, because the rungs cost different
+  // amounts. Tipsy is the good place to be and Wasted is still a step down
+  // from it — just a step down from something above sober. Blind Drunk stays
+  // a real loss: the bonus softens it, drinking skill does not restore sight.
+  for (const [slug, tiers, net] of [
+    ["tipsy", -0.5, 14],
+    ["wasted", -1.2, 7],
+    ["blind-drunk", -3, -11],
+  ]) {
+    const score = melee([trained, drink(slug, tiers), drunkenMaster]).score;
+    assert.equal(score - sober, net, `${slug}`);
   }
   // No drink, no bonus — the tag is worth nothing to somebody who stays dry.
-  assert.equal(melee([drunkenMaster]).score, sober);
+  assert.equal(melee([trained, drunkenMaster]).score, sober);
 });
 
 test("holdsAny is OR where holds is AND", () => {

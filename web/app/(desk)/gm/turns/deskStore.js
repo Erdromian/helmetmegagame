@@ -40,6 +40,12 @@ const state = {
   effects: new Map(),
   messages: new Map(),
   turnId: null,
+  // The newest asOfMs any payload has been seeded from. The turn-wipe below is
+  // the one decision in here that is not per-row, so it is the one that needs
+  // its own clock: a STORED snapshot from a previous turn seeds just like a
+  // fresh payload does, and without this it could announce last turn's id,
+  // empty the queue and take the draft the GM is typing with it.
+  seededAsOfMs: -1,
   seeded: false,
   views: EMPTY_VIEWS,
 };
@@ -160,13 +166,15 @@ export function seedDesk(payload) {
   // A new turn opened under the desk. Last turn's queue is not stale data to
   // reconcile, it is a different queue, so drop it rather than letting the
   // tombstone rules argue about it.
-  if (payload.turnId !== state.turnId) {
+  const older = payload.asOfMs < state.seededAsOfMs;
+  if (payload.turnId !== state.turnId && !older) {
     state.moves = new Map();
     state.caving = new Map();
     state.effects = new Map();
     state.messages = new Map();
     state.turnId = payload.turnId ?? null;
   }
+  if (!older) state.seededAsOfMs = payload.asOfMs;
   // New drafts are stamped with whatever turn the desk is showing, and the
   // prune below judges the old ones against it (deskDraft.js).
   noteDeskDraftTurn(state.turnId);
@@ -193,10 +201,15 @@ export function seedDesk(payload) {
   // place that can say a draft's row is gone. Every Move and Caving roll still
   // on the desk is a live draft key; anything else stored under one — last
   // turn's, or a row somebody rejected — is swept (deskDraft.js#pruneDeskDrafts).
-  const liveDraftKeys = new Set();
-  for (const row of liveRows(state.moves)) liveDraftKeys.add(`move:${row.id}`);
-  for (const row of liveRows(state.caving)) liveDraftKeys.add(`caving:${row.id}`);
-  pruneDeskDrafts(liveDraftKeys);
+  // An OLDER payload has no membership authority — it is a stored snapshot
+  // arriving behind the fresh one, and its idea of what is on the desk is a
+  // memory. Letting it prune deleted whatever the GM had open.
+  if (!older) {
+    const liveDraftKeys = new Set();
+    for (const row of liveRows(state.moves)) liveDraftKeys.add(`move:${row.id}`);
+    for (const row of liveRows(state.caving)) liveDraftKeys.add(`caving:${row.id}`);
+    pruneDeskDrafts(liveDraftKeys);
+  }
 
   if (!state.seeded) {
     state.seeded = true;

@@ -40,6 +40,7 @@ import {
   toggleConceal,
   shoutHere,
   rollHere,
+  playHere,
   addMember,
   removeMember,
 } from "./actions";
@@ -100,6 +101,15 @@ export const COMMANDS = [
     where: ["room", "conv"],
     args: [],
     run: (_values, ctx) => rollHere(ctx.placeKey),
+  },
+  {
+    name: "play",
+    description: "Play your instrument, for the room to hear.",
+    // Same gate as /shout and /roll: an instrument is played in front of the
+    // people you are standing with, not into the street or a zone summary.
+    where: ["room", "conv"],
+    args: [],
+    run: (_values, ctx) => playHere(ctx.placeKey),
   },
   {
     name: "look",

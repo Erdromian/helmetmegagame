@@ -17,6 +17,7 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
+import DiscordTime from "@/app/components/DiscordTime";
 import LockChip from "@/app/components/LockChip";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import DevPanelModal from "@/app/components/DevPanelModal";
@@ -110,6 +111,23 @@ export default function OracleDesk({
 
   const page = pageFor(selectedKey);
 
+  // When this turn's chronicle was last touched — the newest editedAt across
+  // every page of it, not just the one on screen, because the header is about
+  // the turn and the rail is about the page. `editedAt` has been shipped to
+  // this component since the desk was built and nothing has ever drawn it, so
+  // a GM opening the Oracle could not tell a page written an hour ago from one
+  // written last week, or an empty turn from a failed run. Local edits count:
+  // pageFor folds in anything saved this session, so saving a page updates
+  // this line without a reload.
+  const lastWritten = useMemo(() => {
+    let newest = null;
+    for (const p of pages) {
+      const at = pageFor(p.key)?.editedAt;
+      if (at && (!newest || at > newest)) newest = at;
+    }
+    return newest;
+  }, [pages, pageFor]);
+
   // The zone rail honours GmZoneView the way every other desk does — as a
   // VIEW. The server still ships every page (GAMEMASTERS.md §1); this hides
   // rows a GM has filtered out, it does not defend them.
@@ -163,6 +181,17 @@ export default function OracleDesk({
                 chronicle, and the select in the actions slot changes it. */}
             <DeskTurnChip turn={turn} />
             <LockChip />
+            {/* Muted text, not a chip: it is a count-style fact, and only
+                warnings take colour in a desk header (DESIGN-SYSTEM §5a). */}
+            <span className="text-sm text-muted">
+              {lastWritten ? (
+                <>
+                  Last written <DiscordTime epoch={Math.floor(Date.parse(lastWritten) / 1000)} format="R" />
+                </>
+              ) : (
+                "Not written yet"
+              )}
+            </span>
           </>
         }
         actions={
