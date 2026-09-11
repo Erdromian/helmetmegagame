@@ -32,7 +32,6 @@ const {
   travelOptions,
   gateOperable,
   isHeldOpen,
-  soundRange,
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
@@ -125,7 +124,7 @@ const {
   gatehouseTurretArmed,
 } = require("@lifeweb/db/lib/gatehouseTurret");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
-const { shoutLine } = require("@lifeweb/db/lib/shout");
+const { shout, deliverShout } = require("@lifeweb/db/lib/shout");
 const { clockFrozen } = require("@lifeweb/db/lib/gameState");
 const { LOBBY_DECLINE_PREFIX } = require("@lifeweb/db/lib/lobby");
 const { handleLobbyDecline } = require("../lib/lobby");
@@ -1898,19 +1897,21 @@ async function handlePlayCommand(interaction) {
 }
 
 // /shout — the one thing a character can say that leaves the room they said
-// it in. Written against handlePlayCommand above, which is the closest
-// existing shape: a player command that makes the world speak, gated, cooled
-// down, and anchored to where the character actually stands.
+// it in. db/lib/shout.js is the shared implementation, the way
+// handlePlayCommand above uses db/lib/instrumentPlay.js: the voice gate, the
+// five-minute cooldown, a soundproof room, a gag, the shouter's presented name
+// and the delivery all live there, so the two faces cannot drift.
 //
-// Nobody is ever named. Not at four hops, not in your own street. That is what
-// makes it usable while concealed, and it is also just true — you hear a shout
-// before you find out whose it was.
-const SHOUT_COOLDOWN_MS = 5 * 60_000;
-const lastShouted = new Map();
-
+// They had. This handler kept its own copy for a while — a cooldown in a Map
+// that died on every restart, no soundproofing, nobody named, and no archive
+// row at all — which meant a shout made on Discord reached nobody on the web
+// and was missing from /archive.
 async function handleShoutCommand(interaction) {
   await ack(interaction);
 
+  // shout() refuses an empty body too, but asking here keeps the better
+  // ordering: somebody who typed nothing should be told to say something
+  // rather than that there is nobody to hear it.
   const text = interaction.options.getString("message")?.trim();
   if (!text) {
     await respond(interaction, "Say something.");
@@ -1919,7 +1920,10 @@ async function handleShoutCommand(interaction) {
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: interaction.user.id, status: "ALIVE" },
-    select: { id: true, locationId: true },
+    // discordUserId because shout() stamps the cooldown's AuditLog row with
+    // it. Without it the row is written with an empty actor and /gm/audit
+    // cannot read a shout back to a person.
+    select: { id: true, locationId: true, discordUserId: true },
   });
   if (!character) {
     await respond(interaction, "You don't have a living character.");
@@ -1939,79 +1943,25 @@ async function handleShoutCommand(interaction) {
     await respond(interaction, "There's nobody here to hear it.");
     return;
   }
-  if (!character.locationId) {
-    await respond(interaction, "You're nowhere.");
+
+  // Every refusal past this point is shout()'s, in finished sentences respond()
+  // prints as they stand — the empty body, no living character, nowhere to
+  // stand, a mute, and the cooldown with its minutes already counted.
+  const result = await shout(prisma, character, text, { placeKey });
+  if (!result.ok) {
+    await respond(interaction, result.error);
     return;
   }
 
-  // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point
-  // of this gate. {tag:bound} blocks acting but never the voice, so a hostage
-  // can still yell for help, which is the one thing being tied up ought to
-  // leave you; {tag:mute} is the mirror of that, talking normally and refused
-  // only here. Checked BEFORE the cooldown is claimed below: a refused shout
-  // must not burn the throat timer.
-  const voice = await loadVoiceState(character.id);
-  if (voice.shoutBlock) {
-    await respond(interaction, `You can't get the words out — you're ${voice.shoutBlock.name}.`);
-    return;
-  }
+  // Delivery, and it cannot fail the shout: the cooldown is already spent, so
+  // a dead channel is one audience short rather than a refusal. That is why
+  // the old `posted === 0` check had to go with it — a shout from a soundproof
+  // room posts to zero Location channels BY DESIGN, and reporting failure on
+  // one was telling the player nothing happened when it had and had cost them
+  // five minutes of throat.
+  await deliverShout(prisma, { placeKey, here: result.here, heard: result.heard });
 
-  const since = Date.now() - (lastShouted.get(character.id) ?? 0);
-  if (since < SHOUT_COOLDOWN_MS) {
-    const minutes = Math.max(1, Math.ceil((SHOUT_COOLDOWN_MS - since) / 60_000));
-    await respond(interaction, `You need about ${minutes} more minute${minutes === 1 ? "" : "s"}.`);
-    return;
-  }
-  // Claimed BEFORE the posting loop, not after: the loop is a couple of dozen
-  // REST calls and takes real seconds, which is exactly long enough for a
-  // second /shout to slip past a cooldown claimed at the end.
-  lastShouted.set(character.id, Date.now());
-
-  const heard = await soundRange(prisma, character.locationId);
-
-  // Sequential, no Promise.all: a fan-out across every Location in earshot
-  // would burst Discord's rate-limit buckets, and this is never urgent. Same
-  // discipline as bot/src/lib/deathSmell.js. Every post is individually
-  // caught, so one dead channel can't swallow the rest of the shout.
-  //
-  // Location CHANNELS only, never the Room threads under them: somebody in a
-  // private back room is behind a door.
-  let posted = 0;
-
-  // Shouting from inside a Room or a Conversation: the thread is where you are
-  // STANDING, and the people beside you must hear it before the street does.
-  // The loop below writes to Location channels only, so without this the one
-  // room that certainly heard you would be the only room that didn't.
-  if (interaction.channel.isThread()) {
-    await interaction.channel
-      .send({ content: shoutLine(text, 0, null), allowedMentions: { parse: [] } })
-      .catch((err) => console.error("Shout into the room failed:", err));
-  }
-
-  for (const place of heard) {
-    if (!place.discordChannelId) continue;
-    try {
-      // parse: [] — no mentions at all. The text is player-typed and this is
-      // the widest broadcast in the game; an "@everyone" in a shout would ping
-      // twenty-nine channels at once. A shout is a noise, not an address, and
-      // it names nobody by design anyway.
-      await postMessage(
-        place.discordChannelId,
-        shoutLine(text, place.distance, place.viaName),
-        undefined,
-        { parse: [] },
-      );
-      posted += 1;
-    } catch (err) {
-      console.error(`Shout into ${place.name} failed:`, err);
-    }
-  }
-
-  if (posted === 0) {
-    await respond(interaction, "Couldn't shout here.");
-    return;
-  }
-  await respond(interaction, "You shout.");
+  await respond(interaction, result.line);
 }
 
 module.exports = {

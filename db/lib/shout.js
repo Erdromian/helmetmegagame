@@ -1,15 +1,19 @@
-// The rewiring the old TODO here asked for is done: bot/src/events/
-// interactionCreate.js#handleShoutCommand calls shout() below instead of
-// keeping its own copy of the gates, and its in-memory cooldown Map is gone.
-// The cooldown is an AuditLog row instead — there is no timestamp column on
-// Character to put it in — so it now survives a bot restart and is shared with
-// the web, which a process-local Map could never be.
-
-// What a shout sounds like from N places away.
+// What a shout sounds like from N places away, who hears it, and how it is
+// delivered.
 //
-// Pure — no prisma, no I/O — so both faces could use it, though only the bot
-// does today. db/lib/locationGraph.js#soundRange answers WHO hears; this file
-// answers WHAT they hear.
+// Both faces call shout() below — bot/src/events/interactionCreate.js
+// #handleShoutCommand and web/app/(app)/chat/actions.js#shoutHere — and so
+// does the turn engine, for a Xom scream. None of them keeps a copy of any of
+// it. The bot used to, including a five-minute cooldown in a process-local
+// Map, and the copy had drifted badly: it wrote no archive row at all, so a
+// shout made on Discord reached nobody on the web and was missing from
+// /archive. The cooldown is an AuditLog row now — there is no timestamp column
+// on Character to put it in — so it survives a restart and one throat is
+// shared across both faces, which a Map could never do.
+//
+// shoutLine/shoutParts are pure — no prisma, no I/O. db/lib/locationGraph.js
+// #soundRange answers WHO hears; they answer WHAT they hear; deliverShout()
+// at the bottom puts it in front of them.
 //
 // The shape of the rule is that distance takes the words away before it takes
 // the direction away. You always learn which way to run. You stop learning
@@ -22,9 +26,11 @@
 // at all, which is the half of the old rule that was doing the work.
 
 const { ambientLine } = require("./ambientLine");
+const { sceneLine } = require("./scene");
+const { postMessage } = require("./discordRest");
 const { soundRange } = require("./locationGraph");
 const { loadVoiceState } = require("./say");
-const { placeKeyForLocation, parsePlaceKey } = require("./placeKey");
+const { placeKeyForLocation, parsePlaceKey, discordTargetForPlaceKey } = require("./placeKey");
 const { muffle } = require("./muffle");
 const {
   CONCEALMENT_TAG_FIELDS,
@@ -208,9 +214,8 @@ const SHOUT_ACTION = "shout";
 // thread. Callers post it into the room they are standing in and then walk
 // `heard`, which is already ordered by distance, nearest first.
 //
-// Posting is the caller's half either way: the bot posts to channels, the web
-// writes a scene row per place AND posts, because the outbox never carries a
-// SYSTEM row.
+// Posting is deliverShout()'s half, below — every caller hands this result
+// straight to it.
 async function shout(prisma, character, text, { placeKey = null } = {}) {
   const body = String(text ?? "").trim();
   if (!body) return { ok: false, error: "Say something." };
@@ -331,4 +336,68 @@ async function shout(prisma, character, text, { placeKey = null } = {}) {
   return { ok: true, muffled, here, heard, line: muffled ? "You shout, but it's muffled." : "You shout." };
 }
 
-module.exports = { shoutLine, shoutParts, shouterNameFor, shout, SHOUT_COOLDOWN_MS };
+
+// --------------------------------------------------------------- delivering
+
+// Put a finished shout in front of the people shout() says can hear it.
+//
+// Two halves per place, and both are needed. The archive row is what Chat
+// shows, what /archive keeps, and the only half a web-only player ever sees.
+// The Discord post is the other face. Neither is downstream of the other: the
+// outbox carries WEB rows only, so a SYSTEM row is never echoed into a channel
+// (db/lib/scene.js), and writing the row beside the post is not a double post.
+//
+// `placeKey` is where the shout was MADE — the thread, when it was made in one.
+// It takes `here`; `heard` takes the Locations around it.
+//
+// THE ORIGIN IS SKIPPED IN `heard`. soundRange includes the Location the
+// shouter is standing in at distance 0, so a caller that shouts FROM a `loc:`
+// key — the turn engine's Xom scream does, because at 04:00 nobody knows which
+// thread anybody was sitting in — would otherwise write that place twice and
+// post to it twice. A caller shouting from a `room:` or `conv:` key can never
+// collide, so this costs them nothing.
+//
+// Sequential, no Promise.all: this is up to a couple of dozen Locations, and a
+// fan-out across all of them would burst Discord's rate-limit buckets. Same
+// discipline as bot/src/lib/deathSmell.js.
+//
+// NOTHING HERE MAY THROW. By the time this is called the shout has happened
+// and the cooldown is spent, so a dead channel or a refused row is one audience
+// short and not a failed shout. Every step is caught on its own.
+async function deliverShout(prisma, { placeKey, here, heard = [] } = {}) {
+  if (placeKey && here) {
+    try {
+      await sceneLine(prisma, { placeKey, text: here.scene.text, lines: here.scene.lines });
+    } catch (err) {
+      console.error(`Shout row for ${placeKey} failed:`, err?.message ?? err);
+    }
+    try {
+      const target = await discordTargetForPlaceKey(prisma, placeKey);
+      const channelId = target?.threadId ?? target?.channelId ?? null;
+      if (channelId) await postMessage(channelId, here.line, undefined, { parse: [] });
+    } catch (err) {
+      console.error(`Shout into ${placeKey} failed:`, err?.message ?? err);
+    }
+  }
+
+  for (const place of heard) {
+    if (place.placeKey === placeKey) continue;
+    try {
+      await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
+    } catch (err) {
+      console.error(`Shout row for ${place.name} failed:`, err?.message ?? err);
+      continue;
+    }
+    if (!place.discordChannelId) continue;
+    try {
+      // parse: [] — no mentions at all. The text is player-typed and this is
+      // the widest broadcast in the game; an "@everyone" in a shout would ping
+      // twenty-nine channels at once. A shout is a noise, not an address.
+      await postMessage(place.discordChannelId, place.line, undefined, { parse: [] });
+    } catch (err) {
+      console.error(`Shout into ${place.name} failed:`, err?.message ?? err);
+    }
+  }
+}
+
+module.exports = { shoutLine, shoutParts, shouterNameFor, shout, deliverShout, SHOUT_COOLDOWN_MS };

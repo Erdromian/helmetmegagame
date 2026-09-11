@@ -49,7 +49,6 @@ const { deliverPrivate, deliverPublic, failuresFor } = require("./stagedDelivery
 const {
   placeKeyForLocation,
   placeKeyForConversation,
-  discordTargetForPlaceKey,
 } = require("./placeKey");
 const { postTurnsAnnouncement } = require("./turnAnnouncement");
 const { runMessageWipe } = require("./messageWipe");
@@ -582,7 +581,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
     });
   }
 
-  const { shout } = require("./shout");
+  const { shout, deliverShout } = require("./shout");
   for (let i = 0; i < list(p.xomShouts).length; i += 1) {
     const scream = list(p.xomShouts)[i];
     await step(`xomShout:${i}`, async () => {
@@ -606,37 +605,13 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
       });
       if (!result.ok) return;
 
-      // Delivery, mirroring Chat's /shout exactly: the place you stand in
-      // first (from `result.here`, which is present even when a sealed room
-      // has emptied `heard`), then `heard`, already ordered nearest-first.
-      // The row goes down before the post — it is the only half a web-only
-      // player ever sees — and every step is caught on its own, because one
-      // dead channel is one audience short and not a failed scream.
-      await sceneLine(prisma, {
-        placeKey,
-        text: result.here.scene.text,
-        lines: result.here.scene.lines,
-      }).catch((err) => console.error(`Xom shout row for ${placeKey} failed:`, err?.message ?? err));
-      try {
-        const target = await discordTargetForPlaceKey(prisma, placeKey);
-        const channelId = target?.threadId ?? target?.channelId ?? null;
-        if (channelId) await postMessage(channelId, result.here.line, undefined, { parse: [] });
-      } catch {
-        // The archive row stands.
-      }
-
-      for (const place of result.heard) {
-        await sceneLine(prisma, {
-          placeKey: place.placeKey,
-          text: place.scene.text,
-          lines: place.scene.lines,
-        }).catch((err) => console.error(`Xom shout row for ${place.name} failed:`, err?.message ?? err));
-        if (!place.discordChannelId) continue;
-        // parse: [] — the widest fan-out in the game takes no mentions.
-        await postMessage(place.discordChannelId, place.line, undefined, { parse: [] }).catch((err) =>
-          console.error(`Xom shout into ${place.name} failed:`, err?.message ?? err),
-        );
-      }
+      // Delivery is db/lib/shout.js#deliverShout, the same call Chat and the
+      // bot make. It matters here more than there: `placeKey` above is a
+      // LOCATION key, and soundRange counts the shouter's own Location as
+      // distance 0, so `here` and `heard[0]` are the same place. deliverShout
+      // skips that collision. Before it did, every Xom scream wrote the
+      // origin's archive row twice and posted to its channel twice.
+      await deliverShout(prisma, { placeKey, here: result.here, heard: result.heard });
     });
   }
 
