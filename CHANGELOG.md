@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Chat on a phone is Discord's channel view
+
+✎ On a phone the feed now takes most of the screen instead of a quarter  
+✎ ≡ opens the places as a drawer from the left; swipe right does the same  
+✎ The people button opens the place, travel and you panels from the right; swipe left does the same  
+✎ The box is one line and grows as you type, on a desktop too  
+✎ Bascinet's pane and the faction panel wear the same head as the feed  
+✎ The keyboard on Android no longer covers the composer  
+− The tab strip, the face strip and the ⋯ sheet on a phone
+
 ## 2026-09-11 · A zone crossing asks before it happens
 
 ✎ Crossing into another zone now asks first — which zone, what it spends, and how many people come with you  
