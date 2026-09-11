@@ -4613,6 +4613,25 @@ model ArchiveEntry {
   // every line said behind a mask the moment it came off.
   presentedAvatarPath String?
 
+  // What the room could SEE of the speaker, frozen at send time — the third
+  // frozen column, and the same argument as the two above it: a live lookup
+  // re-dresses every old line the moment somebody changes clothes.
+  //
+  // db/lib/examineSnapshot.js owns the payload and the rule behind it; this
+  // comment does not restate either, because a shape the schema cannot enforce
+  // is a shape that drifts once it is written down twice.
+  //
+  // Two things that only belong here. NULL means "not frozen" — a row written
+  // before this column, a scene line, an intercom broadcast — and the reader
+  // falls back to the live character. It is NEVER backfilled: there is no
+  // record of what anybody wore then, and stamping today's state onto
+  // yesterday's line is precisely the bug this closes.
+  //
+  // And NEVER put it in a wire select. It holds the character's WHOLE tag
+  // list, hidden rows included; FEED_ROW_SELECT and ARCHIVE_ROW_SELECT
+  // (db/lib/archive.js) must not learn about it.
+  presentedState Json?
+
   content String
 
   // How ✏️ and ❌ find this row again to update or remove it. Null for system

@@ -25,8 +25,10 @@ export function useCharacterMentions() {
 //   directory  — every character whose name is safe to print, so a ping of
 //                somebody in another zone still renders as a person.
 //
-// Both are `{ id, name, updatedAt, avatarPath }[]`. /notes passes only the
-// first, which is right for it: a journal is written about people you know.
+// Both are `{ id, name, updatedAt, avatarPath }[]`, and both pages pass both:
+// /chat's narrow list is the room it stands in, /notes' is everybody not
+// currently presenting as somebody else. The wide one is deliberately blind to
+// hoods, because it is read against OLD lines — see mentionDirectory.js.
 export default function CharacterMentionsProvider({ characters = [], directory = [], children }) {
   const mentionsById = useMemo(() => {
     const map = new Map();

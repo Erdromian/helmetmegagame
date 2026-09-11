@@ -69,6 +69,12 @@ async function lastSightings(prisma, character, { gm = false, discordUserId = nu
     const grouped = await prisma.archiveEntry.groupBy({
       by: ["characterId"],
       where: {
+        // A MESSAGE, not an event. A death or a fulfilled Desire can carry a
+        // characterId, and db/lib/archive.js#recordArchiveEvent can carry a
+        // placeKey — no caller does today, but the first one that does would
+        // otherwise hand somebody an eye pointed at a row db/lib/examineRow.js
+        // refuses outright, which reads as "you can't see them" forever.
+        kind: "MESSAGE",
         placeKey: { in: keys },
         turnNumber: open.number,
         deletedAt: null,

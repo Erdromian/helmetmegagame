@@ -154,10 +154,19 @@ the test that holds it.
 A **mention** in an archived line prints the name the room heard, off the token
 itself (`{char:<id>|<Name>}`, `PROXYING.md` §6) rather than a live lookup — so a
 disguise or a Mulligan rename after the fact cannot rewrite what a line said,
-the same reason `characterName`, `concealedAlias` and `presentedAvatarPath` are
-frozen columns beside the row. Rows written before that fall back to resolving
-live, and are not backfilled: stamping today's names onto them would be the
-rewrite the freeze exists to prevent.
+the same reason `characterName`, `concealedAlias`, `presentedAvatarPath` and
+`presentedState` are frozen columns beside the row. Rows written before that
+fall back to resolving live, and are not backfilled: stamping today's names
+onto them would be the rewrite the freeze exists to prevent.
+
+`presentedState` is the newest of the four and the widest: what the room could
+*see* of the speaker — their appearance, the tags they held and which were worn
+— so that looking at an old line answers for that moment rather than for now
+(`PROXYING.md` §4a). It rides in a packet like any other scalar column, since
+the exporter reads its field list off Prisma's own datamodel rather than a
+hardcoded array. It is deliberately **not** a strict field: a packet written
+before it existed imports fine and those rows simply read live, which is the
+behaviour they had anyway.
 
 **The gate.** A past game is any signed-in user's to read. The current game is
 `GameState.archiveVisible` — GMs always, players only when it's on, enforced

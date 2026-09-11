@@ -43,11 +43,18 @@ export function splitCharPayload(payload) {
 // the same rule, carried in the token itself so it survives being copied into a
 // Note or quoted into a journal entry.
 //
-// The FACE is still live, and gated: it is only drawn when the directory
-// resolves that id AND still presents them under the name the token froze. That
+// The FACE is gated on the same frozen name: it is only drawn when the
+// directory resolves that id AND still calls them what the token froze. That
 // fails safe in both directions, the rule Note.presentedAvatarPath already
 // follows — somebody since renamed loses their face here rather than gaining
-// the wrong one, and somebody since hooded never gains a face at all.
+// the wrong one.
+//
+// It used to depend on a hood as well, and that was backwards: the directory
+// is rebuilt on every render, so the little portrait beside an old mention
+// winked out the moment its subject pulled a mask on anywhere in the world and
+// came back when it came off — a live mask detector, readable by anybody who
+// could see any line that ever named them. Nothing about a mention may change
+// because of what its subject is wearing now (web/lib/mentionDirectory.js).
 //
 // A miss with no frozen name draws a person-shaped blank, because a cuid in
 // braces is not a visible unresolved reference, it is a line that looks broken.

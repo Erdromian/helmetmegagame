@@ -88,6 +88,12 @@ test("archive packet round-trip", { skip: SKIP && "set ARCHIVE_TEST_DATABASE_URL
       // The null that must survive as a null: an empty string here would mean
       // a mask with no name rather than no mask at all.
       concealedAlias: i === 1 ? "Young Man" : null,
+      // The Json column, both ways. A row that froze what the room could see
+      // has to come back byte-identical; a row that never froze one has to
+      // come back as a null rather than throwing on the write, which is what
+      // decodeRow's DbNull is there for — every row written before that column
+      // existed exports as null.
+      presentedState: i === 1 ? { v: 1, n: "Sir Alder", a: null, r: null, s: 3, f: null, c: false, t: [["t-sword", 1, null]] } : undefined,
       deletedAt: i === 2 ? new Date() : null,
       placeKey: `zone:${i}`,
     })),
