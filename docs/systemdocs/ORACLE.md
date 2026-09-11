@@ -83,9 +83,26 @@ turn a GM opened by hand and would fire during a frozen clock when no turn is
 moving. Ticking is also what makes it self-healing: a bot that was down at the
 cutoff drafts as soon as it is back, provided the turn is still open.
 
-It fires two minutes after the cutoff rather than on it, because the Makeshift
-Stage sweep holds `0 3,9,15,21` in the same timezone, and those hours were
-themselves chosen to keep a sweep clear of a turn close.
+**It fires on the cutoff minute, and the six zone calls run at once.** Both of
+those used to be the other way round, and together they cost the window its
+first quarter of an hour: two minutes of settling, then seven calls one after
+another, so the chronicle reached the desk at about 21:16 for a lock at 21:00.
+The settle was there to stay out of the minute the Makeshift Stage sweep holds
+(`0 3,9,15,21`, same timezone), which is a handful of queries against six
+outbound HTTP calls — barely the same resource, and not worth the delay.
+
+The two shapes, measured back to back on the same real turn: **818 seconds in a
+row, 240 at once.** Six together cost about what the slowest zone costs (167s),
+and the rest is the editor (71s), which is the part that cannot move — it reads
+the six pages back out of the database.
+
+What made the calls sequential was real, though: a single mutable Set claiming
+the once-a-turn lines as it went, which only means anything while the calls are
+in order. That claim is settled before any of them start —
+`oracleInput.js#aggregatesSeenByZone` walks the zones in the same order and
+hands each one its own Set — so the six inputs are identical to what the
+in-order version built. Each zone is attempted whatever its neighbours do, and
+a failure comes back as a reason rather than costing the five pages behind it.
 
 **The written pages are the ledger.** Leaving the thunk meant leaving
 `step()`'s `Turn.sideEffectSteps` behind, so `runOracle`'s `skipIfComplete` asks
@@ -96,9 +113,10 @@ zone by zone — because six zone pages are one document, not six jobs:
 - the editor writes the front page over whatever zone pages it finds, so
   filling a missing zone in later leaves a front page that summarises the set
   without it, permanently and silently;
-- `aggregatesSeen` keeps a once-a-turn line in exactly one zone's input, and a
-  second pass starts with an empty set and skips the zone that already consumed
-  the line — so the same fact gets reported twice.
+- the once-a-turn lines are claimed per zone from the turn's own rows, so a
+  pass that rewrites only some of the zones can hand a line to a page that is
+  being rewritten while the page that already carries it stands — and the same
+  fact is reported twice.
 
 **A failure can never fail a turn**, and now it cannot even reach one.
 `runOracle` returns a reason rather than throwing, the cutoff run's `step`

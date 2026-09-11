@@ -23,8 +23,6 @@ const { runOracle } = require("./oracle");
 // fresh count, and this is not worth a column.
 const MAX_ATTEMPTS = 3;
 
-// See the guard below — this keeps the run out of the stage sweep's minute.
-const SETTLE_MS = 2 * 60 * 1000;
 const attempts = new Map();
 
 function spendAttempt(turnId) {
@@ -59,12 +57,14 @@ function cutoffDecision(turn, { now = new Date(), clockFrozen = false } = {}) {
   // hours past its own ending.
   if (!locked) return { draft: false, reason: now < cutoffAt ? "before the cutoff" : "past the turn's end" };
 
-  // Two minutes after the lock, not on it. The Makeshift Stage sweep holds
-  // "0 3,9,15,21" in this same timezone (bot/src/events/ready.js), and its own
-  // comment says those hours were offset off midnight precisely so a sweep
-  // never races a turn close. Opening seven model calls and a full turn load in
-  // that same minute would walk straight back into it.
-  if (now.getTime() - cutoffAt.getTime() < SETTLE_MS) return { draft: false, reason: "settling" };
+  // On the lock itself, not two minutes after it. It used to wait, to keep out
+  // of the minute the Makeshift Stage sweep holds ("0 3,9,15,21", the same
+  // timezone — bot/src/events/ready.js). The wait is worth less than the
+  // minutes are: the zone calls run at once now, so the whole chronicle lands a
+  // few minutes after the Moves lock rather than a quarter of an hour into
+  // the window it is written to be read in. The sweep is a handful of
+  // queries and this is six outbound HTTP calls, so what they contend for is
+  // barely the same resource.
 
   return { draft: true, reason: "at the cutoff" };
 }

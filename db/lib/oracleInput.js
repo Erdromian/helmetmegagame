@@ -10,7 +10,7 @@
 // AuditLog's turnId, tags are filtered to the two categories that actually
 // move, and a concealed character is written with both faces rather than one.
 
-const { auditLinesFor } = require("./oracleAudit");
+const { auditLinesFor, AGGREGATE } = require("./oracleAudit");
 const { moveCutoffAt } = require("./turnClock");
 const {
   CONCEALMENT_TAG_FIELDS,
@@ -237,9 +237,52 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
   return { window, characters, actions, auditRows, beats, chat, names };
 }
 
-// The user message for one zone. `aggregatesSeen` is threaded through the six
-// calls so a once-per-turn line ("hunger was charged") lands in one zone's
-// input rather than all six.
+// The audit rows one zone's page is built from.
+//
+// An audit row carries no zone, so it is placed by its ACTOR's current
+// position. That is approximate — somebody can act in Town and walk to the
+// Fortress before the turn closes — and it is the right approximation: the
+// alternative is a row appearing in no zone's input at all.
+function auditRowsForZone(material, zone) {
+  const here = material.characters.filter((c) => c.zoneId === zone.id);
+  const hereIds = new Set(here.map((c) => c.id));
+  return material.auditRows.filter((row) => {
+    const actor = here.find((c) => c.discordUserId === row.actorDiscordUserId);
+    return Boolean(actor) || (row.targetCharacterId && hereIds.has(row.targetCharacterId));
+  });
+}
+
+// Which once-a-turn lines each zone must NOT report — the map runOracle hands
+// to the six calls, one Set each.
+//
+// "Hunger was charged" is true of the whole game, not of a zone, so exactly one
+// page says it. That used to be a single mutable Set threaded through six calls
+// made in order, which only works while the calls ARE in order; the six run at
+// once now, so the claim is settled here first, before any of them start.
+//
+// Same answer as the sequential version gave: zones are walked in the order
+// runOracle has them, and the first one holding a row of that type claims it.
+// A zone with no such row claims nothing, so a line never lands on a page whose
+// own rows never mentioned it.
+function aggregatesSeenByZone(material, zones) {
+  const seenByZone = new Map();
+  const taken = new Set();
+  for (const zone of zones) {
+    const mine = new Set();
+    for (const row of auditRowsForZone(material, zone)) {
+      const type = row.actionType;
+      if (!AGGREGATE.has(type) || taken.has(type)) continue;
+      taken.add(type);
+      mine.add(type);
+    }
+    seenByZone.set(zone.id, new Set([...AGGREGATE].filter((type) => !mine.has(type))));
+  }
+  return seenByZone;
+}
+
+// The user message for one zone. `aggregatesSeen` is the once-a-turn lines some
+// other zone has already claimed (see above), so "hunger was charged" lands in
+// one zone's input rather than all six.
 function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
   const here = material.characters.filter((c) => c.zoneId === zone.id);
   const hereIds = new Set(here.map((c) => c.id));
@@ -258,15 +301,7 @@ function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
     .filter((action) => hereIds.has(action.characterId) || action.zoneId === zone.id)
     .map((action) => moveLine(action, material.names.byCharacterId.get(action.characterId) ?? "somebody"));
 
-  // An audit row carries no zone, so it is placed by its ACTOR's current
-  // position. That is approximate — somebody can act in Town and walk to the
-  // Fortress before the turn closes — and it is the right approximation: the
-  // alternative is a row appearing in no zone's input at all.
-  const auditHere = material.auditRows.filter((row) => {
-    const actor = here.find((c) => c.discordUserId === row.actorDiscordUserId);
-    return Boolean(actor) || (row.targetCharacterId && hereIds.has(row.targetCharacterId));
-  });
-  const auditLines = auditLinesFor(auditHere, material.names, aggregatesSeen);
+  const auditLines = auditLinesFor(auditRowsForZone(material, zone), material.names, aggregatesSeen);
 
   const beats = material.beats.filter((b) => b.zoneId === zone.id).map((b) => `${b.kind} | ${b.content}`);
 
@@ -338,6 +373,7 @@ function linkCharacterTokens(text, characters) {
 module.exports = {
   LIVE_TAG_CATEGORIES,
   BEAT_KINDS,
+  aggregatesSeenByZone,
   windowBetween,
   turnWindow,
   displayName,
