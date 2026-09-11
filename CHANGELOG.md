@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The turn desk shows a whole fight in one row
+
+✎ A group ambush is one row on the Other tab now, instead of one row per person jumped — everyone caught is listed under it  
+✚ Each person in a fight links straight to the Move they filed, so their Gambit is one click from the row  
+✚ A ✕ beside any fight on the Other tab calls it off and tells both people
+
 ## 2026-09-11 · The Oracle lands at the lock instead of a quarter hour into the window
 
 ✎ The six zone pages are written at the same time rather than one after another  
