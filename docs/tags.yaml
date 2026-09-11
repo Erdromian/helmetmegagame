@@ -469,7 +469,7 @@ tags:
     name: Teaching
     category: skills
     description: "You can train someone in a skill you have. It's a Routine move for you; the learner has to make a Gambit. They'll succeed in a 5 or a 6."
-    pointCost: 5
+    pointCost: 4
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -2704,7 +2704,7 @@ tags:
     group: skills-crafting
     teachable: true
     description: "Lets you tailor, craft, woodwork, and any other form of miscellaneous production. Also fulfills requirements for Dead Simple smithing recipes."
-    pointCost: 5
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -2778,6 +2778,7 @@ tags:
     description: "{tag:saltpeter} is your best friend. Requires Skilled smithing."
     pointCost: 9
     requiredTag: smithing-skilled
+    mastery: true
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -8300,7 +8301,7 @@ tags:
   #   Moderate       7 pt / 14 ⬢ / 1 turn  / smithing-skilled     / melee-/ranged-basic
   #   High Quality   9 pt / 26 ⬢ / 2 turns / smithing-skilled     / melee-/ranged-basic
   #   Exceptional   14 pt / 34 ⬢ / 3 turns / smithing-skilled     / melee-/ranged-basic
-  #   Gunpowder     14 pt / 31 ⬢ / 2 turns / smithing-gunpowder   / ranged-basic
+  #   Gunpowder     14 pt / 29 ⬢ / 2 turns / smithing-gunpowder   / ranged-basic
   #
   # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
   # wood-and-sinew is still wood-and-sinew even at High Quality.
@@ -9311,7 +9312,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 31
+      resourceCost: 29
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
@@ -9338,7 +9339,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 20
+      resourceCost: 19
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
@@ -9364,7 +9365,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 31
+      resourceCost: 29
       skills: [smithing-gunpowder]
       gambit: false
       # The proper explosive is built around the refined charge, not raw

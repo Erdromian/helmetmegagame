@@ -768,7 +768,7 @@ behind:
 
 | Skill gate | Cumulative pt | Rate | Why |
 |---|---|---|---|
-| `crafting` / `smithing` | 5 | 2 ⬢/turn | Dead Simple and Simple both sit here |
+| `crafting` / `smithing` | 5 | 2 ⬢/turn | Dead Simple and Simple both sit here. Crafting's own price fell to 2 on 2026-09-10, but the rate is left at the 5-pt `smithing` reading — the two gate the same Dead Simple rung and it should not pay two different wages |
 | `smithing-skilled` | 10 | 5 ⬢/turn | Moderate, High Quality, Exceptional |
 | `smithing-gunpowder` | 19 | 9 ⬢/turn | Gunpowder — nearly double the skill investment, so nearly double the rate |
 
@@ -799,8 +799,11 @@ The four 1/3-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
 0, so they carry the flat +1 instead and sell at **7**. Three a turn is 3 ⬢/turn, level
 with the rung's full-turn wage — quick work is paid the same rate, not a better one.
 
+A further 5% came off the Gunpowder tier on 2026-09-10 (31→29, 20→19), again without
+re-deriving `sellablePrice`, which widens that margin once more on purpose.
+
 Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
-Pistol (20 ⬢ to make, cheaper than Musketoon/Bomb's 31) still prices to 45, not 59 —
+Pistol (19 ⬢ to make, cheaper than Musketoon/Bomb's 29) still prices to 45, not 59 —
 same relative gap as the tier. A materials-cost rebalance dropped the Gunpowder tier's
 `resourceCost` ~15% (37→31, 23→20) without re-deriving `sellablePrice` off the formula,
 so both sit a little above what a fresh `resourceCost + rate × turnsCost^1.3` run would
