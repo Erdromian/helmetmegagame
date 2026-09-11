@@ -16,6 +16,12 @@ Entries below predate this format and list files instead.
 ✎ With nobody picked, the inspector shows where the desk stands — open, solved, staged, who has not acted  
 ✎ The audit search filters as you type, and the character dev bar's thirteen icons sit in five labelled groups
 
+## 2026-09-11 · A drink is a nudge now, and Drunken Master finally pays
+
+✎ Tipsy costs half a tier instead of a whole one, Wasted 1.2 instead of 2, a Hangover half a tier  
+✎ Drunken Master is worth +1.9 tiers whenever there is a drink in you, so Tipsy lands at +1.4 and Wasted at +0.7 — it used to key on Tipsy alone, cancel it to exactly nothing, and go dead entirely on the second drink  
+✎ The rungs stop stating their own number, since what a drink costs now depends on who is drinking it
+
 ## 2026-09-11 · A tag mentioned inside another tag is readable again on your sheet
 
 ✎ Opening a tag on `/character` that mentions another tag (a wound's cure, a poison's antidote) now lets you hover that mention too, instead of showing dead text
