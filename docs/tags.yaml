@@ -11025,7 +11025,7 @@ tags:
     tradeable: true
     weight: 1.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
