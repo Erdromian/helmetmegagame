@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · A zone crossing asks before it happens
+
+✎ Crossing into another zone now asks first — which zone, what it spends, and how many people come with you  
+✎ Picking a place twice no longer crosses a zone: Go is the only way out of one. A hop inside your own zone is unchanged  
+✎ Enter stops at a crossing too, on the Travel panel and on the map
+
 ## 2026-09-11 · The Censor can teach, and can lecture three at once
 
 ✚ The Censor now starts with Teaching (Lecturing), so he can train up to three people on one Routine
