@@ -90,6 +90,29 @@ const CAVE_MOUTH = ["customs", "depot", "caves-approach"];
 
 // The way down off the mountain, as the people who walk it know it.
 const FORTRESS_TO_TOWN = ["forest-northern-road", "north-gate"];
+
+// The one open road from the cave mouth to the Factory — every other way
+// there is either locked (the three climbs) or a caving crawl, and neither
+// belongs in a starting memory (see the header's HIDDEN-way rule). Picked up
+// at forest-south, which CAVE_MOUTH already borders, and run the same
+// hills/embankment stretch banneret's own road already uses below, so the
+// two tables agree on what that stretch looks like.
+const FACTORY_ROAD = [
+  "forest-riverbend",
+  "forest-deep-forest",
+  "forest-creekside",
+  "forest-headwaters",
+  "forest-cliffs",
+  "forest-northern-road",
+  "forest-embankment",
+  "hills-shadowed-grove",
+  "hills-underlocks",
+  "hills-west",
+  "hills-waterway",
+  "marshes-west",
+  "marshes-woods",
+  "factory",
+];
 const ROLE_MEMORIES = {
   // --- Fortress ---------------------------------------------------------
   baron: FORTRESS_INNER,
@@ -139,9 +162,12 @@ const ROLE_MEMORIES = {
   commoner: TOWN_ALL,
 
   // --- Caves ------------------------------------------------------------
-  merchant: [...CAVE_MOUTH, "forest-south", "south-gate", "square"],
+  // Both trade the Factory's goods, so both know the one open road there —
+  // the Merchant deals in them, and the Docker is the one who actually moves
+  // the crates (Bascinet, 2026-09-11).
+  merchant: [...CAVE_MOUTH, "forest-south", "south-gate", "square", ...FACTORY_ROAD],
   mercenary: [...CAVE_MOUTH, "forest-south"],
-  docker: CAVE_MOUTH,
+  docker: [...CAVE_MOUTH, "forest-south", ...FACTORY_ROAD],
   migrant: [...CAVE_MOUTH, "caves-abandoned-camp"],
 
   // --- Marshes ----------------------------------------------------------
