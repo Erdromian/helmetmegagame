@@ -8896,6 +8896,32 @@ tags:
     sellable: true
     sellablePrice: 6
 
+  sickle:
+    catalog: all
+    name: Sickle
+    category: items
+    group: items-weapons
+    description: "A curved tool. It adds +1 ⬢ to farming labor."
+    laborBonus: { kind: farming, amount: 1 }
+    fighting: { tiers: 0.1, weaponClass: knife }
+    pointCost: 2
+    equippable: true
+    equipSlot: WEAPON
+    tradeable: true
+    weight: 1.5
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 3
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 6
+
   shortbow:
     catalog: all
     name: Shortbow
@@ -9201,6 +9227,35 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 30
+
+  # Not a weapon, so no `fighting`/`requiredTag` — just the Moderate rung's
+  # ⬢/turn/skill columns, the way Workshop Equipment borrows High Quality's.
+  # The mechanical half lives in `db/lib/mounts.js#fastTravelBonus`: equipped
+  # alongside a plain Horse, it turns that horse's one free zone crossing into
+  # two (docs/systemdocs/CARRY.md §3).
+  horseshoes:
+    catalog: all
+    name: Horseshoes
+    category: items
+    group: items-gear
+    description: "Increases the speed of your horse, giving it +1 free zone move."
+    pointCost: 7
+    equippable: true
+    equipSlot: ACCESSORY
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 14
+      skills: [smithing-skilled]
+      gambit: false
+    sellable: true
+    sellablePrice: 21
 
   # Renamed from Bardiche in the Combat Update, slug and all.
   halberd:
