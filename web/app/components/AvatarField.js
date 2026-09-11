@@ -1,13 +1,17 @@
 "use client";
 
 import Switch from "./Switch";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import PortraitMaker from "./PortraitMaker";
-import HoverCard from "./HoverCard";
 import InfoIcon from "./InfoIcon";
 import { useConfirm } from "./ConfirmProvider";
 import FormError from "./FormError";
-import { MAX_AVATAR_UPLOAD_BYTES } from "@/lib/constants";
+import {
+  MAX_AVATAR_PICK_BYTES,
+  MAX_AVATAR_UPLOAD_BYTES,
+  avatarTooBigMessage,
+} from "@/lib/constants";
+import { shrinkImage } from "@/lib/shrinkImage";
 import { resetAvatarToDefault } from "../(app)/character/actions";
 
 // An InfoIcon sits INSIDE the Switch's <label>, so a click on the "?" — which
@@ -48,6 +52,10 @@ export default function AvatarField({
   // { tagName, forced } — or null for a bare face, which is what shuts the
   // conceal switch. Passed down from /character's page through BioForm.
   concealGear = null,
+  // Raised while a picked picture is being shrunk in the browser. BioForm owns
+  // the flag because BioForm renders Save, and Save must not take a click
+  // while the input still holds the original.
+  onBusyChange,
 }) {
   const [fileName, setFileName] = useState("");
   // Said here rather than left to the action. The action's own refusal is still
@@ -57,6 +65,58 @@ export default function AvatarField({
   // a 12MB photo up the wire to be told no.
   const [sizeError, setSizeError] = useState("");
   const [makerOpen, setMakerOpen] = useState(false);
+  const inputRef = useRef(null);
+  // Supersedes an in-flight shrink when a second file is picked: without it a
+  // slow first transcode can finish last and write the picture the player did
+  // NOT choose back into the input.
+  const jobRef = useRef(0);
+
+  const onPick = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setSizeError("");
+      setFileName("");
+      return;
+    }
+    // Refused WITHOUT being decoded. Shrinking means an ordinary photo is fine
+    // now, so the only thing left to refuse is something absurd -- and handing
+    // a 2GB file to the decoder would lock the tab before any check could
+    // speak.
+    if (file.size > MAX_AVATAR_PICK_BYTES) {
+      e.target.value = "";
+      setFileName("");
+      setSizeError(avatarTooBigMessage(file.size, MAX_AVATAR_PICK_BYTES));
+      return;
+    }
+
+    const token = (jobRef.current += 1);
+    setSizeError("");
+    setFileName(file.name);
+    // Before the first await, so there is no frame in which Save is live while
+    // the input still holds the original.
+    onBusyChange?.(true);
+    try {
+      const smaller = await shrinkImage(file);
+      if (jobRef.current !== token) return;
+      // Assigning .files does not fire another change event, so this cannot
+      // re-enter onPick.
+      if (smaller && typeof DataTransfer === "function" && inputRef.current) {
+        const dt = new DataTransfer();
+        dt.items.add(smaller);
+        inputRef.current.files = dt.files;
+      }
+      // Whatever is in the input now -- shrunk, or the original because the
+      // browser could not read it -- still has to clear the server's cap.
+      const posting = inputRef.current?.files?.[0];
+      if (posting && posting.size > MAX_AVATAR_UPLOAD_BYTES) {
+        inputRef.current.value = "";
+        setFileName("");
+        setSizeError(avatarTooBigMessage(posting.size, MAX_AVATAR_UPLOAD_BYTES));
+      }
+    } finally {
+      if (jobRef.current === token) onBusyChange?.(false);
+    }
+  };
   const [resetting, startReset] = useTransition();
   const confirm = useConfirm();
 
@@ -87,42 +147,28 @@ export default function AvatarField({
           </button>
         )}
         {forcedIdentity ? null : uploadsEnabled ? (
-          // The picture lands immediately; a GM sees it on the Other lens and
-          // keeps or rejects it (PORTRAITS.md §1a). The line says both may
-          // happen rather than promising a gate that isn't there.
-          <HoverCard
-            panel="Your picture has been uploaded. A GM will review it later."
-            // .tag-hover forces --font-mono, which is data-only per
-            // DESIGN-SYSTEM.md §1 and wrong on a button label. Every other
-            // HoverCard wraps a chip or a glyph, where mono is correct; this
-            // is the one that wraps a control.
-            style={{ fontFamily: "inherit" }}
-          >
-            <label className="btn" style={{ cursor: "pointer" }}>
-              Browse
-              <input
-                type="file"
-                name="avatar"
-                accept="image/*"
-                style={{ display: "none" }}
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file && file.size > MAX_AVATAR_UPLOAD_BYTES) {
-                    // Clear the input, so Save can't carry a file we already
-                    // know the action will refuse.
-                    e.target.value = "";
-                    setFileName("");
-                    setSizeError(
-                      `That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. It has to be under 5MB.`
-                    );
-                    return;
-                  }
-                  setSizeError("");
-                  setFileName(file?.name ?? "");
-                }}
-              />
-            </label>
-          </HoverCard>
+          // NO HoverCard here, deliberately. This used to wear one, and a
+          // HoverCard PINS OPEN on click (HoverCard.js §"A click … pins the
+          // panel open"). So clicking Browse opened the file picker and left
+          // the note standing next to it — a note that said the picture had
+          // been uploaded and a GM would review it. Players read that as
+          // confirmation, never pressed Save, and their picture never went
+          // anywhere: two uploads landed in the game's first eleven days while
+          // people asked us how long approval takes. A tooltip must not claim
+          // an act that has not happened. What is true at each moment is said
+          // below instead — "Click Save below to finalize." on picking, and
+          // the confirmation in BioForm once the save actually lands.
+          <label className="btn" style={{ cursor: "pointer" }}>
+            Browse
+            <input
+              ref={inputRef}
+              type="file"
+              name="avatar"
+              accept="image/*"
+              style={{ display: "none" }}
+              onChange={onPick}
+            />
+          </label>
         ) : (
           // Uploads are off (GameConfig.avatarUploadsEnabled) — no `avatar`
           // field is posted at all. With the portrait maker off too, everyone
@@ -184,6 +230,13 @@ export default function AvatarField({
           </span>
         ) : null}
       </div>
+
+      {/* Picking a file does not submit anything — the Bio form still has to be
+          saved. Saying so is the whole repair: the note that used to sit here
+          claimed the upload had already happened, so nobody pressed Save. */}
+      {fileName ? (
+        <span className="text-sm text-muted">Click Save below to finalize.</span>
+      ) : null}
 
       <FormError>{sizeError}</FormError>
 

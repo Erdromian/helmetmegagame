@@ -29,13 +29,70 @@ from before the last rename or portrait change.
 They are independent. With uploads off and no picture on file, the field
 reads "Using your letter plaque", exactly as it did before this existed.
 
-**Browse carries a hover note reading "Your image may be approved or
-denied."** There is a queue behind that sentence — see §1a. The upload lands
-immediately either way; what the note promises is that somebody looks at it
-afterwards, which is what actually happens. It used to read "Requires GM
-approval, run your art by the GM", which described a gate the code does not
-have: nothing waits on a GM, and a player who read it literally would think
-their face was not live yet.
+**Browse carries no hover note, and must not be given one.** It wore one for
+the first eleven days and that note is why almost nobody managed to upload
+anything. `HoverCard` **pins open on click**, so clicking Browse opened the
+file picker and left the panel standing beside it — a panel that said the
+picture had been uploaded and a GM would review it. Players read that as
+confirmation and never pressed **Save**, which is the thing that actually
+submits the form. Two uploads landed in that whole period, while players wrote
+in asking how long approval takes. The note before it ("Your image may be
+approved or denied") told the same lie more softly, and the one before that
+("Requires GM approval, run your art by the GM") described a gate the code has
+never had.
+
+The rule that came out of it: **a control's tooltip must not claim an act that
+has not happened.** What is true at each moment is said in the flow instead —
+
+| Moment | What is said, and by whom |
+|---|---|
+| a file is picked | "Click Save below to finalize." — `AvatarField.js`, while `fileName` is set |
+| the save lands, carrying a picture | "Your picture has been uploaded. A GM will review it later." — `BioForm.js`, on `state.avatarUploaded` |
+
+`avatarUploaded` comes back from `updateCharacterProfile` rather than being
+assumed by the form: the upload branch is skipped when uploads are off or no
+file was attached, and a confirmation for a picture nobody sent is the same lie
+in a new place.
+
+## 1b. The browser shrinks it first
+
+`web/lib/shrinkImage.js` downscales a picked photo to `MAX_AVATAR_UPLOAD_EDGE`
+(1024, four times the stored 256) and re-encodes it as webp before the form is
+posted. A 20 MB, 24-megapixel photo goes up as a few hundred KB.
+
+This is a bandwidth optimisation and **never a gate** — the action re-encodes
+whatever arrives and its own size check is still the only thing that decides.
+Every failure inside `shrinkImage` returns null, meaning "post the original",
+so a browser that can do none of this behaves exactly as it did before the
+module existed.
+
+Three numbers, and they are not interchangeable:
+
+- **`MAX_AVATAR_UPLOAD_EDGE`** — what the browser shrinks to.
+- **`MAX_AVATAR_UPLOAD_BYTES`** (5 MB) — what the **server** accepts. The real
+  gate. Reachable now only on the fallback path.
+- **`MAX_AVATAR_PICK_BYTES`** (50 MB) — refused *without being decoded*, because
+  handing a 2 GB file to the decoder would lock the tab before any check could
+  speak.
+
+`web/next.config.mjs` must keep `serverActions.bodySizeLimit` **above** the 5 MB
+cap. A body over that limit is killed by Next before the action runs, and that
+rejection never reaches `useActionState` — which is the other half of why
+uploading never worked.
+
+**Orientation is applied on both sides.** The client passes
+`imageOrientation: "from-image"` to `createImageBitmap`, which bakes EXIF
+rotation into the pixels; the action calls sharp's `.rotate()` **before**
+`.resize()` for everything the browser could not read. Without either, a phone
+held sideways stores a sideways face, since the webp encode drops the
+orientation tag and nothing downstream can recover it. Do **not** add
+`withMetadata()` to that chain — sharp strips metadata by default, and a phone
+photo carries GPS coordinates that `/api/avatar/[characterId]` would then serve
+publicly with a year-long immutable cache.
+
+**Uploads are off in the local seed** (`GameConfig.avatarUploadsEnabled`), so no
+file input renders at all until the flag is flipped — worth knowing before
+concluding the field is broken.
 
 **Reset to Default** clears `avatarData`, `avatarMimeType`, `portrait` and
 `avatarSetAt`, and that is all it does. The timestamp goes with the picture:
