@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The places drawer no longer covers its own rows on a phone
+
+✎ The chime, the tick and the app's links sit under the places instead of over them, and the links are two columns
+
 ## 2026-09-11 · Picking a picture no longer pretends it has been uploaded
 
 ✎ The note on the Browse button said your picture had been uploaded and a GM would review it. It said that before anything had been sent, and it stayed on screen while you chose a file — so people believed it, never pressed Save, and their picture never went anywhere. Two uploads landed in eleven days while players wrote in asking how long approval takes.  
