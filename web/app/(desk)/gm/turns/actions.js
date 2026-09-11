@@ -29,11 +29,19 @@ import {
   cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
+import { deskPatchFor } from "@/lib/deskRows";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 // Required by path, not off the @lifeweb/db barrel: db/lib/attack.js is
 // deliberately not on it (the db/lib/dm.js convention).
 import { cancelAttack } from "@lifeweb/db/lib/attack";
 
+// EVERY MUTATION HERE HANDS BACK THE ROWS IT CHANGED, as `patch` — the shape
+// web/lib/deskRows.js#deskPatchFor builds and the client's desk store folds in
+// (deskStore.js). The desk used to write, then ask the router to fetch the
+// whole page again and hope; when that refresh didn't come back the write had
+// landed and the screen never said so. A patch costs one small re-read and
+// removes the hope.
+//
 // Server actions for the adjudication workspace (/gm/turns). Staged rows
 // apply and deliver only at the turn-end push (db/lib/stagedPush.js);
 // exceptions that act now: Reject, the FEED_PERSON kill, Request review.
@@ -120,7 +128,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
     },
   });
 
-  return { id: row.id };
+  return { id: row.id, patch: await deskPatchFor({ stagedMessageIds: [row.id] }) };
 }
 
 async function updateStagedMessageImpl({ stagedMessageId, content, recipientCharacterIds, zoneId }) {
@@ -159,13 +167,17 @@ async function updateStagedMessageImpl({ stagedMessageId, content, recipientChar
     },
   });
 
-  return {};
+  return { patch: await deskPatchFor({ stagedMessageIds: [existing.id] }) };
 }
 
 async function deleteStagedMessageImpl({ stagedMessageId }) {
   const session = await requireGm();
   const existing = await prisma.stagedMessage.findUnique({ where: { id: stagedMessageId ?? "" } });
-  if (!existing) return {};
+  // Already gone — say so as a removal rather than as nothing, so a desk still
+  // showing the row drops it.
+  if (!existing) {
+    return { patch: await deskPatchFor({ removed: { stagedMessageIds: [stagedMessageId].filter(Boolean) } }) };
+  }
   if (existing.sentAt) throw new UserError("That message already went out.");
 
   await prisma.stagedMessage.delete({ where: { id: existing.id } });
@@ -177,7 +189,7 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
     },
   });
 
-  return {};
+  return { patch: await deskPatchFor({ removed: { stagedMessageIds: [existing.id] } }) };
 }
 
 // Retries a sent-but-partially-failed staged message. PRIVATE re-sends only
@@ -243,7 +255,7 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
     },
   });
 
-  return { resent, stillFailing };
+  return { resent, stillFailing, patch: await deskPatchFor({ stagedMessageIds: [existing.id] }) };
 }
 
 // The composer stages presence ops only (add/remove). Patch and equip belong
@@ -356,7 +368,11 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
     },
   });
 
-  return { count: created.length, batchId };
+  return {
+    count: created.length,
+    batchId,
+    patch: await deskPatchFor({ stagedEffectIds: created.map((r) => r.id) }),
+  };
 }
 
 // A staged character-to-character transfer. Separate from
@@ -414,7 +430,7 @@ async function createStagedTransferImpl({
     },
   });
 
-  return { id: created.id };
+  return { id: created.id, patch: await deskPatchFor({ stagedEffectIds: [created.id] }) };
 }
 
 async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, locationId }) {
@@ -463,13 +479,19 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
     },
   });
 
-  return {};
+  return { patch: await deskPatchFor({ stagedEffectIds: [existing.id] }) };
 }
 
 async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
   const session = await requireGm();
 
   if (batchId) {
+    // Read the ids before deleting them: a deleteMany count tells the desk how
+    // many rows went, not which, and the patch has to name each one.
+    const doomed = await prisma.stagedEffect.findMany({
+      where: { batchId, appliedAt: null },
+      select: { id: true },
+    });
     const { count } = await prisma.stagedEffect.deleteMany({ where: { batchId, appliedAt: null } });
     await prisma.auditLog.create({
       data: {
@@ -478,11 +500,19 @@ async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
         details: { batchId, count },
       },
     });
-    return { count };
+    return {
+      count,
+      patch: await deskPatchFor({ removed: { stagedEffectIds: doomed.map((d) => d.id) } }),
+    };
   }
 
   const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
-  if (!existing) return { count: 0 };
+  if (!existing) {
+    return {
+      count: 0,
+      patch: await deskPatchFor({ removed: { stagedEffectIds: [stagedEffectId].filter(Boolean) } }),
+    };
+  }
   if (existing.appliedAt) throw new UserError("That effect already applied.");
   await prisma.stagedEffect.delete({ where: { id: existing.id } });
   await prisma.auditLog.create({
@@ -492,7 +522,7 @@ async function deleteStagedEffectImpl({ stagedEffectId, batchId }) {
       details: { stagedEffectId: existing.id, count: 1 },
     },
   });
-  return { count: 1 };
+  return { count: 1, patch: await deskPatchFor({ removed: { stagedEffectIds: [existing.id] } }) };
 }
 
 // Moves staged rows a resolved turn's push never got to onto the open turn.
@@ -523,7 +553,14 @@ async function retargetMissedStagingImpl({ effectIds = [], messageIds = [] }) {
     },
   });
 
-  return { effects: effects.count, messages: messages.count };
+  return {
+    effects: effects.count,
+    messages: messages.count,
+    // The retargeted rows flip `missed` on their DTO, which is what clears the
+    // banner — so the patch names every id that was offered, not just the ones
+    // that moved.
+    patch: await deskPatchFor({ stagedEffectIds: effectIds, stagedMessageIds: messageIds }),
+  };
 }
 
 async function lockHolderName(discordUserId) {
@@ -559,7 +596,9 @@ async function claimMoveLockImpl({ actionId }) {
     throw new UserError(`${holder} is adjudicating this Move.`);
   }
 
-  return { ttlMs: MOVE_LOCK_TTL_MS };
+  // The lock is presence, and presence is a row field (lockedByDiscordUserId
+  // on the Move DTO) — so it folds into the desk store like any other change.
+  return { ttlMs: MOVE_LOCK_TTL_MS, patch: await deskPatchFor({ moveIds: [actionId] }) };
 }
 
 async function refreshMoveLockImpl({ actionId }) {
@@ -578,7 +617,7 @@ async function releaseMoveLockImpl({ actionId }) {
     where: { id: actionId ?? "", lockedByDiscordUserId: session.discordUserId },
     data: { lockedByDiscordUserId: null, lockExpiresAt: null },
   });
-  return {};
+  return { patch: await deskPatchFor({ moveIds: [actionId] }) };
 }
 
 // A Gambit always carries a fresh roll, a Routine never does, so switching
@@ -688,7 +727,7 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     },
   });
 
-  return result;
+  return { ...result, patch: await deskPatchFor({ moveIds: [actionId] }) };
 }
 
 // The Caving desk's two buttons, same shape as resolveMoveImpl above.
@@ -726,8 +765,9 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
     },
   });
 
-  if (mode === "save") return { status: roll.resolvedAt ? "RESOLVED" : "OPEN", note: "Saved." };
-  return { status: "RESOLVED" };
+  const patch = await deskPatchFor({ cavingRollIds: [roll.id] });
+  if (mode === "save") return { status: roll.resolvedAt ? "RESOLVED" : "OPEN", note: "Saved.", patch };
+  return { status: "RESOLVED", patch };
 }
 
 // "Reject" on the desk. Deletes the Action outright, since the turn-economy
@@ -741,6 +781,14 @@ async function rejectMoveImpl({ actionId }) {
   if (lockIsLive(action) && action.lockedByDiscordUserId !== session.discordUserId) {
     throw new UserError(`${await lockHolderName(action.lockedByDiscordUserId)} is adjudicating this Move.`);
   }
+
+  // Read before the delete: the staged rows hanging off this Move survive it,
+  // detached (moveId SetNull), and the desk has to be told they moved to the
+  // tray rather than left showing them under a Move that is gone.
+  const [detachedEffects, detachedMessages] = await Promise.all([
+    prisma.stagedEffect.findMany({ where: { moveId: action.id }, select: { id: true } }),
+    prisma.stagedMessage.findMany({ where: { moveId: action.id }, select: { id: true } }),
+  ]);
 
   // A lesson's partner Moves may go with this one (db/lib/lessons.js); the
   // learners it strands are told after commit.
@@ -783,7 +831,15 @@ async function rejectMoveImpl({ actionId }) {
   }
 
   revalidatePath("/character");
-  return { description: action.description, deliveryFailed };
+  return {
+    description: action.description,
+    deliveryFailed,
+    patch: await deskPatchFor({
+      stagedEffectIds: detachedEffects.map((e) => e.id),
+      stagedMessageIds: detachedMessages.map((m) => m.id),
+      removed: { moveIds: [action.id] },
+    }),
+  };
 }
 
 async function getCharacterInspectorImpl({ characterId }) {
@@ -1149,8 +1205,7 @@ async function undoCavingFindImpl({ rollId }) {
   });
 
   await afterInventoryChange(roll.characterId);
-  revalidatePath("/gm/turns");
-  return { ok: true };
+  return { ok: true, patch: await deskPatchFor({ cavingRollIds: [roll.id] }) };
 }
 
 // ─── The uploaded-portrait queue (docs/systemdocs/PORTRAITS.md §1a) ─────────
@@ -1184,7 +1239,6 @@ async function keepAvatarImpl({ characterId }) {
     data: { avatarReviewedAt: new Date() },
   });
 
-  revalidatePath("/gm/turns");
   return { name: character.name };
 }
 
@@ -1237,7 +1291,6 @@ async function rejectAvatarImpl({ characterId }) {
     ).catch((err) => console.error("Avatar rejection DM failed:", err));
   }
 
-  revalidatePath("/gm/turns");
   revalidatePath("/character");
   return { name: character.name };
 }
@@ -1307,7 +1360,6 @@ async function cancelHoldAsGmImpl({ attackId }) {
     );
   }
 
-  revalidatePath("/gm/turns");
   revalidatePath("/gm/audit");
   revalidatePath("/character");
   return { ok: true };

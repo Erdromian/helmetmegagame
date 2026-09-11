@@ -23,13 +23,24 @@ import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { isFieldFocused } from "@/lib/deskKeyGuard";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
+import { seedDesk, useDeskRows } from "./deskStore";
 
 // The adjudication workspace's client shell. Owns selection (which
 // Move shows), inspector (right column + pins), and preview (push
-// dialog). Everything rendered is a DTO from page.js; mutations live in a
-// child that calls a server action and router.refresh()es.
+// dialog).
+//
+// The rows it draws are NOT its props. page.js's payload is folded into the
+// desk store (deskStore.js) and read back out of it, and every mutation folds
+// the rows it changed into that same store. So a write shows up because it
+// happened, not because a router.refresh() came back — which is what the desk
+// used to depend on, and what silently failed whenever the deploy-stale gate
+// had latched.
 
-const REFRESH_MS = 45_000;
+// The backstop, not the update path. Cross-GM staging still only arrives on a
+// tick until the desk grows a live channel, but a GM's own work no longer
+// waits on one — so this can be slow and quiet, the way the player desk's
+// backstop poll is behind its stream (InboxStream.js).
+const REFRESH_MS = 120_000;
 
 // Click-frequency view state, split from QueueRail's RAIL_STORAGE_KEY so the
 // two subscriber sets stay independent.
@@ -151,14 +162,39 @@ export default function Workspace({
   presenceZones,
   stagingLocations,
   factions,
-  moves,
-  cavingRolls,
+  moves: moveRows,
+  cavingRolls: cavingRollRows,
   otherRows,
-  stagedEffects,
-  stagedMessages,
+  stagedEffects: stagedEffectRows,
+  stagedMessages: stagedMessageRows,
   gmProfiles,
   deployVersion,
+  asOfMs,
+  turnId,
 }) {
+  // Writing a module store from an effect is the sanctioned shape here —
+  // it is a setState in an effect that the lint forbids, not this
+  // (SnapshotFresh.js says the same). Both payloads this page can render,
+  // the stored snapshot and the fresh one, come through here; the store keeps
+  // whichever was read later.
+  useEffect(() => {
+    seedDesk({
+      asOfMs,
+      turnId,
+      moves: moveRows,
+      cavingRolls: cavingRollRows,
+      stagedEffects: stagedEffectRows,
+      stagedMessages: stagedMessageRows,
+    });
+  }, [asOfMs, turnId, moveRows, cavingRollRows, stagedEffectRows, stagedMessageRows]);
+
+  // Until the first seed lands (one tick after mount) the props ARE the rows.
+  const deskRows = useDeskRows();
+  const moves = deskRows.seeded ? deskRows.moves : moveRows;
+  const cavingRolls = deskRows.seeded ? deskRows.cavingRolls : cavingRollRows;
+  const stagedEffects = deskRows.seeded ? deskRows.stagedEffects : stagedEffectRows;
+  const stagedMessages = deskRows.seeded ? deskRows.stagedMessages : stagedMessageRows;
+
   const [desk, setDesk] = useSessionState(DESK_STORAGE_KEY, DESK_STORAGE_DEFAULT);
   const [rail, setRail] = useSessionState(RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT);
   // A deep link's lens/turn is a one-shot correction over persisted state,

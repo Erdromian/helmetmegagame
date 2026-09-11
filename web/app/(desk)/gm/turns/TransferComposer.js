@@ -52,7 +52,7 @@ export default function TransferComposer({ roster, defaultFromKey = "", onDone, 
         const res = await createStagedTransfer({ fromKey, toKey, amount });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
-        onDone();
+        onDone(res.patch);
       } catch {
         setError(mutationErrorMessage());
       }

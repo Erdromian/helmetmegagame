@@ -156,9 +156,52 @@ a selection would otherwise 404 on the first poll. And a revalidation of this
 page must be `revalidatePath(TURNS_PATH, "page")` (`web/lib/routes.js`) — a
 dynamic route needs its pattern, not a path that happens to match it. Only
 the **cross-page** actions carry that call now (depot, store, dev panel,
-player desk…); the desk's own actions dropped theirs, because every desk
-call site follows success with `refresh()` and the pair meant rendering
-`page.js` twice per mutation (see the header note in `actions.js`).
+player desk…); the desk's own actions dropped theirs. What is left in
+`actions.js` is only ever another page's — `/character` after a Reject or a
+portrait takedown, `/gm/audit` after a fight is called off — never this one's.
+
+### The desk owns its own rows
+
+What the workspace draws is not its props. Every row page.js ships is folded
+into a client store (`deskStore.js`), the workspace reads its Moves, Caving
+rolls and staged rows back out of it, and **every mutation hands back the rows
+it changed** — `patch`, built by `web/lib/deskRows.js#deskPatchFor` and folded
+into the same store. So a Solve marks the row Solved because the Solve
+happened, not because a page refetch came back afterwards and said so.
+
+That distinction is the whole point. The desk used to write, call
+`router.refresh()`, and hope: when the refresh didn't run — the deploy-stale
+gate had latched (`useDeskVersion.js`), or the answer raced something else —
+the write had landed in the database and the screen never moved. A GM pressed
+Solve, saw Solve still offered, and pressed it again. Nothing on the desk waits
+on a refetch any more. The 120-second poll is a correctness backstop for what
+OTHER GMs are doing, not the way your own work appears.
+
+**The reconciliation rule.** Every row carries `asOfMs`, the database's own
+clock at the moment it was read (`web/lib/pgClock.js` — never the web
+container's `Date.now()`, because the two machines drift and a few hundred
+milliseconds the wrong way is enough to make a fresh row lose to a stale one).
+A newer read replaces a held row **whole**; a tie keeps what is held. Never
+field by field: the fields of one row came from one consistent read, and half
+of a fresh row over half of a stale one can say things neither read ever said.
+A page payload is additionally authoritative about **membership** at its own
+stamp — a row it doesn't name, whose held copy is no older, is gone, which is
+how another GM's Reject reaches you. A patch never is: it says "these
+changed", never "and nothing else exists". Deletes are remembered as
+tombstones, capped, so a payload already in flight when a row was deleted
+can't put it back.
+
+A GM's own half-typed text is not in the store and never should be. The Result
+box and the Caving notes stay component state under `useDirtyGuard`, which is
+what lets a payload land underneath a GM mid-sentence without taking the
+sentence with it.
+
+**One replica, and this depends on it.** The live channels behind the desks
+(`web/lib/feedHub.js`) are a module singleton holding a single Postgres
+`LISTEN` client on `globalThis`. That is correct for exactly one web replica
+and silently wrong for two: each would hold its own hub, and a browser would
+hear only whatever its replica happened to be told. Scaling `web` past one
+instance is a change to the hub, not a slider.
 
 ```
 ┌ header: turn chip · push times · Preview push ─────────────────────┐
@@ -279,7 +322,8 @@ call site follows success with `refresh()` and the pair meant rendering
   names already on screen. Pin the ones an arbitration keeps returning to.
   Fetched on demand via server actions, cached for the page view. Three quick
   edits live here too: the DMs tab carries a composer that sends immediately
-  (»-prefixed, logged, not staged — `sendInspectorDm`); clicking an archived
+  (»-prefixed, logged, not staged — `sendGmDm`, the player desk's own
+  action, shared rather than reimplemented); clicking an archived
   line opens `ArchiveContextModal` (`web/app/components/`), the ~30 messages before/after it in the
   same Discord channel/thread with a jump link when the message still exists
   (`getArchiveContext`); and the Sheet/Tags tabs stage deltas in place — ✕ a
@@ -450,6 +494,9 @@ adjudicable the moment the Ram is a ruin.
 | `.../Workspace.js` | Client shell: selection, inspector context + cache, layout |
 | `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
+| `.../deskStore.js` | The desk's client-owned rows: seed, patch, the newer-wins reconciliation rule |
+| `web/lib/deskRows.js` | The other half, server-side: the shared row CONTEXT (usernames, Catatonic, Location names, the open turn, the clock) and `deskPatchFor`, the patch every mutation hands back |
+| `web/lib/pgClock.js` | `pgNowMs()` — the database's clock, which is the only stamp the store reconciles on. Shared with the player desk's `inboxDelta.js` |
 | `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |

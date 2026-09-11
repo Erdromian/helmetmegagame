@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useTransition } from "react";
 import StatusPill from "@/app/components/StatusPill";
-import { useRefresh } from "@/app/components/useRefresh";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import FormError from "@/app/components/FormError";
 import GmAvatar from "@/app/components/GmAvatar";
@@ -11,6 +10,7 @@ import EffectComposer from "./EffectComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
+import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { chunkCount, effectSummary, effectState, messageState, tagNameLookup, truncate } from "./stagedFormat";
 
@@ -32,7 +32,6 @@ export function StagedEffectRow({
   batchCount,
   gmProfiles,
 }) {
-  const [refresh] = useRefresh();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -63,7 +62,7 @@ export function StagedEffectRow({
       try {
         const res = await deleteStagedEffect(batch ? { batchId: effect.batchId } : { stagedEffectId: effect.id });
         if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
-        refresh();
+        applyDeskPatch(res.patch);
       } catch {
         setDeleteError(mutationErrorMessage());
       }
@@ -124,9 +123,9 @@ export function StagedEffectRow({
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
-          onDone={() => {
+          onDone={(patch) => {
             setEditing(false);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setEditing(false)}
         />
@@ -136,7 +135,6 @@ export function StagedEffectRow({
 }
 
 export function StagedMessageRow({ message, roster, presenceZones, onInspect, gmProfiles }) {
-  const [refresh] = useRefresh();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -168,7 +166,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
       try {
         const res = await deleteStagedMessage({ stagedMessageId: message.id });
         if (!res?.ok) return setDeleteError(res?.error ?? "Something went wrong.");
-        refresh();
+        applyDeskPatch(res.patch);
       } catch {
         setDeleteError(mutationErrorMessage());
       }
@@ -181,7 +179,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
       try {
         const res = await resendStagedMessage({ stagedMessageId: message.id });
         if (!res?.ok) return setResendError(res?.error ?? "Something went wrong.");
-        refresh();
+        applyDeskPatch(res.patch);
       } catch {
         setResendError(mutationErrorMessage());
       }
@@ -256,9 +254,9 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
           <PublicComposer
             existing={message}
             zones={presenceZones}
-            onDone={() => {
+            onDone={(patch) => {
               setEditing(false);
-              refresh();
+              applyDeskPatch(patch);
             }}
             onCancel={() => setEditing(false)}
           />
@@ -266,9 +264,9 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
           <MessageComposer
             existing={message}
             roster={roster}
-            onDone={() => {
+            onDone={(patch) => {
               setEditing(false);
-              refresh();
+              applyDeskPatch(patch);
             }}
             onCancel={() => setEditing(false)}
           />

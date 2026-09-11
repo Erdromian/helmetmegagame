@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
-import { useRefresh } from "@/app/components/useRefresh";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
@@ -14,6 +13,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { resolveCavingRoll, undoCavingFind } from "./actions";
+import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 
 // The arbitration desk for one Caving Die roll — see
@@ -49,7 +49,6 @@ export default function CavingDesk({
   readOnly = false,
   turnLabel = null,
 }) {
-  const [refresh] = useRefresh();
   const confirm = useConfirm();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
 
@@ -83,7 +82,7 @@ export default function CavingDesk({
         const res = await resolveCavingRoll({ cavingRollId: roll.id, gmNotes, mode });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
-        refresh();
+        applyDeskPatch(res.patch);
       } catch {
         setError(mutationErrorMessage());
       }
@@ -111,7 +110,7 @@ export default function CavingDesk({
         // would otherwise leave isAnyDirty() stuck true for the rest of the
         // session, silently pausing the desk's 45s poll.
         markClean();
-        refresh();
+        applyDeskPatch(res.patch);
       } catch {
         setError(mutationErrorMessage());
       }
@@ -241,9 +240,9 @@ export default function CavingDesk({
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />
@@ -255,10 +254,10 @@ export default function CavingDesk({
           initialContent={messagePrefill ?? undefined}
           initialRecipients={messagePrefill != null ? [{ characterId: roll.characterId, name: roll.characterName }] : undefined}
           roster={roster}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
             setMessagePrefill(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => {
             setComposer(null);
@@ -270,9 +269,9 @@ export default function CavingDesk({
         <PublicComposer
           cavingRollId={roll.id}
           zones={presenceZones}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />

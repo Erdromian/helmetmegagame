@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import FormError from "@/app/components/FormError";
-import { useRefresh } from "@/app/components/useRefresh";
 import TagChip from "@/app/components/TagChip";
 import Tooltip from "@/app/components/Tooltip";
 import GmAvatar from "@/app/components/GmAvatar";
@@ -17,6 +16,7 @@ import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import { resolveMove, rejectMove } from "./actions";
+import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { stagingReaches } from "@/lib/stagingReach";
@@ -71,7 +71,6 @@ export default function MoveDesk({
   onOpenDev,
   gmProfiles,
 }) {
-  const [refresh] = useRefresh();
   const router = useRouter();
   const { markDirty, markClean, guardedClose } = useDirtyGuard();
   const confirm = useConfirm();
@@ -136,7 +135,10 @@ export default function MoveDesk({
         const res = await resolveMove({ actionId: move.id, mode, edits });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
-        refresh();
+        // The row on screen changes because the write happened, not because a
+        // page refetch came back (deskStore.js). This is the fix for a Solve
+        // that saved and left the desk still offering Solve.
+        applyDeskPatch(res.patch);
       } catch {
         setError(mutationErrorMessage());
       }
@@ -155,7 +157,7 @@ export default function MoveDesk({
         } else {
           onClose();
         }
-        refresh();
+        applyDeskPatch(res.patch);
       } catch {
         setError(mutationErrorMessage());
       }
@@ -351,9 +353,9 @@ export default function MoveDesk({
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />
@@ -365,10 +367,10 @@ export default function MoveDesk({
           initialContent={messagePrefill ?? undefined}
           initialRecipients={messagePrefill != null ? [{ characterId: move.characterId, name: move.characterName }] : undefined}
           roster={roster}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
             setMessagePrefill(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => {
             setComposer(null);
@@ -381,9 +383,9 @@ export default function MoveDesk({
           moveId={move.id}
           defaultZoneId={move.zoneId}
           zones={presenceZones}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />

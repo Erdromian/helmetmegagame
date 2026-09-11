@@ -5,13 +5,11 @@ import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import TurnsView from "./TurnsView";
 import Loading from "../Skeleton";
-import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
-import { listGuildMembers } from "@/lib/discordGuild";
+import { prisma } from "@lifeweb/db";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { turnEndsAt } from "@lifeweb/db/lib/turnClock";
 import { avatarReviewWhere } from "@lifeweb/db/lib/avatarReview";
-import { placementOf } from "@lifeweb/db/lib/structures";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { TAG_CHIP_FIELDS } from "@/lib/referenceData";
 import { deployVersion } from "@/lib/deployVersion";
@@ -28,6 +26,7 @@ import {
   avatarReviewRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
+import { deskRowContext, structuresByLocation } from "@/lib/deskRows";
 import { ATTACK_INCLUDE, INTERCEPT_HIT_INCLUDE, otherHoldRows } from "@/lib/holdClusters";
 
 // The adjudication workspace's server half: one load, all DTOs, no
@@ -76,7 +75,13 @@ export default async function TurnsWorkspacePage({ params }) {
   if (!session?.discordUserId) redirect("/");
   const { selection } = await params;
   return (
-    <SnapshotPage scope={`gm-turns:${(selection ?? []).join("/")}`} userId={session.discordUserId} render={TurnsView} fallback={<Loading />}>
+    // remountOnFresh={false}: the workspace re-seeds itself when its props
+    // change — every row it draws goes through the desk store, which folds the
+    // stored snapshot and the fresh payload together by the database's clock
+    // (deskStore.js). The remount was there to stop an island holding stale
+    // props in state, and it took the Result box a GM had already started
+    // typing with it. Nothing here needs it any more.
+    <SnapshotPage scope={`gm-turns:${(selection ?? []).join("/")}`} userId={session.discordUserId} render={TurnsView} fallback={<Loading />} remountOnFresh={false}>
       <Suspense fallback={null}>
         <FreshTurnsWorkspace params={params} userId={session.discordUserId} />
       </Suspense>
@@ -105,14 +110,12 @@ async function FreshTurnsWorkspace({ params, userId }) {
     stagedMessages,
     roster,
     presenceZones,
-    stagingLocations,
     tagCatalog,
-    members,
     visibleZones,
     selectableZones,
     gmProfiles,
     resolvedTurns,
-    catatonicTagRows,
+    ctx,
   ] = await Promise.all([
     openTurn
       ? prisma.action.findMany({
@@ -196,12 +199,6 @@ async function FreshTurnsWorkspace({ params, userId }) {
       orderBy: { sortOrder: "asc" },
       select: { id: true, name: true },
     }),
-    // The staged "Relocate to" picker's options, grouped by zone in
-    // docs/zones.yaml order.
-    prisma.location.findMany({
-      orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
-      select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
-    }),
     // The effect composer's search space: the whole catalog. TAG_CHIP_FIELDS
     // is what TagChip/ChipLabel need to render coloured with a working
     // tooltip (group, category, description, …) — this used to be a lean,
@@ -216,7 +213,6 @@ async function FreshTurnsWorkspace({ params, userId }) {
         equippable: true,
       },
     }),
-    listGuildMembers(),
     getVisibleZones(),
     listSelectableZones(),
     getGmProfiles(),
@@ -229,53 +225,24 @@ async function FreshTurnsWorkspace({ params, userId }) {
       orderBy: { number: "desc" },
       select: { id: true, number: true, phase: true },
     }),
-    // Who's AFK right now, for the queue rows' avatar badge — one indexed
-    // read rather than a tags include bolted onto the request and caving
-    // queries above. (Moves don't need it: MOVE_INCLUDE already carries the
-    // held tags, and moveRow reads the slug straight off them.)
-    prisma.characterTag.findMany({
-      where: { tag: { slug: CATATONIC_SLUG }, character: { status: "ALIVE" } },
-      select: { characterId: true },
-    }),
+    // Discord usernames, who is Catatonic, the Location names, and — the part
+    // that matters most — the database's own clock at this read. Every row
+    // below is stamped with it, and the client's desk store keeps the newer of
+    // two copies (deskStore.js), which is what lets the stored snapshot and
+    // the fresh payload both fold in without the page having to remount.
+    deskRowContext({ openTurn }),
   ]);
 
-  const usernameById = new Map(members.map((m) => [m.id, m.username]));
-  const nameFor = (c) => usernameById.get(c.discordUserId) ?? c.discordUserId;
-  const now = new Date();
+  const { usernameById, catatonicIds, locationRows, locationNameById, now, asOfMs } = ctx;
   const gmProfilesById = Object.fromEntries(gmProfiles.map((p) => [p.discordUserId, { username: p.username, avatarUrl: p.avatarUrl }]));
-
-  const catatonicIds = new Set(catatonicTagRows.map((row) => row.characterId));
 
   const tagsById = tagsByIdFor(actions);
 
-  // Every structure standing at a Move filer's Location, loaded in ONE bulk
-  // query rather than one per row (mirrors db/lib/structures.js#structuresAt's
-  // two-query-joined-in-JS shape, just widened to every locationId on the
-  // queue at once), then grouped so moveRow can hand each row its own slice.
-  const moveLocationIds = [...new Set(actions.map((a) => a.character.locationId).filter(Boolean))];
-  const structureRows = moveLocationIds.length
-    ? await prisma.structure.findMany({
-        where: { locationId: { in: moveLocationIds } },
-        // The id tiebreaker keeps two same-instant rows in one stable order,
-        // matching structuresAt.
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      })
-    : [];
-  const structureTypeSlugs = [...new Set(structureRows.map((s) => s.typeSlug))];
-  const structureTypes = structureTypeSlugs.length
-    ? await prisma.tag.findMany({
-        where: { slug: { in: structureTypeSlugs } },
-        select: { slug: true, placement: true },
-      })
-    : [];
-  const structureTypeBySlug = new Map(structureTypes.map((t) => [t.slug, t]));
-  const structuresByLocationId = new Map();
-  for (const row of structureRows) {
-    const type = structureTypeBySlug.get(row.typeSlug) ?? null;
-    const list = structuresByLocationId.get(row.locationId) ?? [];
-    list.push({ ...row, placement: type ? placementOf(type) : null });
-    structuresByLocationId.set(row.locationId, list);
-  }
+  // One bulk load for every Location on the queue, not one query per row —
+  // see web/lib/deskRows.js#structuresByLocation.
+  const structuresByLocationId = await structuresByLocation(
+    actions.map((a) => a.character.locationId),
+  );
 
   const moves = actions.map((a) => moveRow(a, { usernameById, now, structuresByLocationId }));
 
@@ -302,14 +269,6 @@ async function FreshTurnsWorkspace({ params, userId }) {
     ...otherHoldRows(attacks, interceptHits, otherCtx),
     ...avatarsToReview.map((c) => avatarReviewRow(c, otherCtx)),
   ];
-
-  const locationRows = stagingLocations.map((l) => ({
-    id: l.id,
-    name: l.name,
-    zoneId: l.zoneId,
-    zoneName: l.zone?.name ?? null,
-  }));
-  const locationNameById = new Map(locationRows.map((l) => [l.id, l.name]));
 
   const effectCtx = { usernameById, locationNameById, openTurn };
   const messageCtx = { usernameById, openTurn };
@@ -410,6 +369,13 @@ async function FreshTurnsWorkspace({ params, userId }) {
       scope={`gm-turns:${(selection ?? []).join("/")}`}
       userId={userId}
       data={{
+        // The database's own clock at the read above, and the turn these rows
+        // belong to. The client's desk store folds every payload in against
+        // them (deskStore.js): the stored snapshot and the fresh payload both
+        // land, newer wins, and a turn that opened underneath an idle desk
+        // drops the old queue instead of merging with it.
+        asOfMs: asOfMs,
+        turnId: openTurn?.id ?? null,
         initialSelection: parsedSelection,
         initialHistory: initialHistory,
         initialCaving: initialCaving,

@@ -45,7 +45,7 @@ export default function PublicComposer({
           : await createStagedMessage({ kind: "PUBLIC", content, zoneId, moveId, cavingRollId });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
-        onDone();
+        onDone(res.patch);
       } catch {
         setError(mutationErrorMessage());
       }

@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The adjudication desk keeps its own rows now
+
+✎ Staging, solving and rejecting update the desk the moment the server answers, instead of waiting for the page to reload — the case where a write landed but the screen never changed is gone  
+✎ The desk reconciles a late page payload against what you just did, so a slow load no longer undoes a fresh staging or brings back a deleted row
+
 ## 2026-09-11 · Clicking a name on the Players desk is instant now
 
 ✎ Opening a conversation no longer loads a page. It paints in about a tenth of a second, clicking through several people in a row doesn't queue them up any more, and going back to someone you had open a minute ago is free.  

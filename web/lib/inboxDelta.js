@@ -1,6 +1,7 @@
 import { prisma, Prisma } from "@lifeweb/db";
 import { railKindSql, withoutDmNoise, dmPreview } from "./dmThread";
 import { listGuildMembers } from "./discordGuild";
+import { pgNowMs } from "./pgClock";
 
 // The live half of the player desk: "what changed since the last time you
 // asked". The desk's 30s router.refresh() poll can never reseed the open
@@ -22,8 +23,6 @@ const COLD_START_MS = 120_000;
 const TOUCHED_LIMIT = 500;
 const THREAD_LIMIT = 60;
 
-const clockSql = Prisma.sql`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`;
-
 // createdAt is timestamp(3) without a zone, holding UTC (Prisma's convention).
 // `AT TIME ZONE 'UTC'` turns the epoch back into that same nominal UTC
 // timestamp, so the comparison holds whatever the session's TimeZone is.
@@ -37,8 +36,7 @@ export async function getInboxDelta({ gmDiscordUserId, sinceMs, openDiscordUserI
 
   // No cursor yet (first tick, or a page restored from bfcache): look back a
   // couple of minutes rather than at the whole table.
-  const clock = await prisma.$queryRaw(clockSql);
-  const nowMs = Number(clock[0]?.nowMs ?? Date.now());
+  const nowMs = await pgNowMs();
   const effectiveSince = since ?? nowMs - COLD_START_MS;
   const sinceDate = new Date(effectiveSince);
 

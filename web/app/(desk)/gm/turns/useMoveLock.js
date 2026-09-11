@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { claimMoveLock, refreshMoveLock, releaseMoveLock } from "./actions";
+import { applyDeskPatch } from "./deskStore";
 
 // The cooperative move lock's client half, extracted from the old MovePanel:
 // claim on mount, 30s heartbeat, release on unmount, and a sendBeacon for the
@@ -22,6 +23,9 @@ export default function useMoveLock(actionId, { enabled = true } = {}) {
       const res = await claimMoveLock({ actionId });
       if (cancelled) return;
       if (!res?.ok) return setError(res?.error ?? "Could not claim this Move.");
+      // The claim is what puts this GM's face on the rail row, so fold it in
+      // rather than waiting for a poll to notice.
+      applyDeskPatch(res.patch);
       lockedRef.current = true;
       setLocked(true);
     })();
@@ -45,7 +49,7 @@ export default function useMoveLock(actionId, { enabled = true } = {}) {
       cancelled = true;
       clearInterval(beat);
       window.removeEventListener("pagehide", onUnload);
-      if (lockedRef.current) releaseMoveLock({ actionId });
+      if (lockedRef.current) releaseMoveLock({ actionId }).then((res) => applyDeskPatch(res?.patch)).catch(() => {});
       lockedRef.current = false;
       // No setState in cleanup: the desk is keyed by move id, so switching
       // moves remounts the hook with fresh state instead.

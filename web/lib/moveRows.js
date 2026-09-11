@@ -244,6 +244,11 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     createdByDiscordUserId: e.createdByDiscordUserId ?? null,
     turnNumber: e.turn?.number ?? null,
     missed: openTurn ? e.turnId !== openTurn.id && !e.appliedAt : !e.appliedAt,
+    // The staged lists are drawn oldest-first — the order they were queued in
+    // is the order they push in. The desk store sorts its own rows now
+    // (deskStore.js), so the sort key has to ride on the row rather than
+    // living only in the ORDER BY page.js happened to ask for.
+    createdAtMs: e.createdAt.getTime(),
   };
 }
 
@@ -268,6 +273,8 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
     createdByDiscordUserId: m.createdByDiscordUserId ?? null,
     turnNumber: m.turn?.number ?? null,
     missed: openTurn ? m.turnId !== openTurn.id && !m.sentAt : !m.sentAt,
+    // See stagedEffectRow above.
+    createdAtMs: m.createdAt.getTime(),
   };
 }
 

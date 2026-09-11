@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { useRefresh } from "@/app/components/useRefresh";
 import FormError from "@/app/components/FormError";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
 import EffectComposer from "./EffectComposer";
@@ -10,6 +9,7 @@ import TransferComposer from "./TransferComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import { retargetMissedStaging } from "./actions";
+import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import { tagNameLookup } from "./stagedFormat";
 
@@ -65,7 +65,6 @@ export default function StagingTray({
   revealSignal,
   gmProfiles,
 }) {
-  const [refresh] = useRefresh();
   const confirm = useConfirm();
   const [composer, setComposer] = useState(null);
   const [query, setQuery] = useState("");
@@ -176,7 +175,7 @@ export default function StagingTray({
           messageIds: missedMessages.map((m) => m.id),
         });
         if (!res?.ok) return setRetargetError(res?.error ?? "Something went wrong.");
-        refresh();
+        applyDeskPatch(res.patch);
       } catch {
         setRetargetError(mutationErrorMessage());
       }
@@ -321,9 +320,9 @@ export default function StagingTray({
           tagCatalog={tagCatalog}
           presenceZones={presenceZones}
           stagingLocations={stagingLocations}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />
@@ -332,9 +331,9 @@ export default function StagingTray({
         <TransferComposer
           roster={roster}
           factions={factions}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />
@@ -342,9 +341,9 @@ export default function StagingTray({
       {composer === "message" && (
         <MessageComposer
           roster={roster}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />
@@ -352,9 +351,9 @@ export default function StagingTray({
       {composer === "public" && (
         <PublicComposer
           zones={presenceZones}
-          onDone={() => {
+          onDone={(patch) => {
             setComposer(null);
-            refresh();
+            applyDeskPatch(patch);
           }}
           onCancel={() => setComposer(null)}
         />
