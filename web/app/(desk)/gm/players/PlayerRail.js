@@ -415,7 +415,13 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                   ⊘
                 </button>
               </div>
-              <Link href={href} className="desk-queue-link">
+              {/* prefetch={false}: the rail draws every conversation at once
+                  with no pagination, so the default would fire an RSC request
+                  per visible row into a segment that costs a hundred DM rows
+                  and two Discord REST calls. A GM scrolling the rail was
+                  queueing dozens of those against one connection pool, and the
+                  click they actually meant waited behind the lot. */}
+              <Link href={href} prefetch={false} className="desk-queue-link">
                 <div className="desk-queue-top">
                   <CharacterAvatar
                     characterId={row.characterId}

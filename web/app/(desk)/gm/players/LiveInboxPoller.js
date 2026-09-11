@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useSelectedLayoutSegment } from "next/navigation";
 import { applyDelta, getCursorMs } from "./liveInbox";
-import { isDeskStale, noteDeskVersion } from "@/app/components/useDeskVersion";
+import { noteDeskVersion } from "@/app/components/useDeskVersion";
 import { playChime } from "@/app/components/chime";
 import useChimeMuted from "@/app/components/useChimeMuted";
 
@@ -20,8 +20,9 @@ import useChimeMuted from "@/app/components/useChimeMuted";
 // to the tab fires a tick straight away.
 //
 // A setTimeout chain rather than setInterval, so ticks can't pile up behind
-// a slow request. Errors back off; a version change latches the desk stale
-// and stops the loop for good (the chip in the header takes over).
+// a slow request. Errors back off. A version change latches the desk stale so
+// the header's chip offers the new build, but does NOT stop this loop — see
+// the note at the latch below.
 const POLL_MS = 3_000;
 const BACKOFF_MS = [6_000, 12_000, 30_000, 60_000];
 const FULL_EVERY = 20;
@@ -55,7 +56,6 @@ export default function LiveInboxPoller({ deployVersion }) {
 
     async function tick() {
       if (stopped || inFlight) return;
-      if (isDeskStale()) return;
 
       const params = new URLSearchParams();
       const cursor = getCursorMs();
@@ -81,11 +81,16 @@ export default function LiveInboxPoller({ deployVersion }) {
         }
         if (!res.ok) throw new Error(`inbox-delta ${res.status}`);
         const data = await res.json();
-        if (data.version && data.version !== deployVersion) {
-          noteDeskVersion(data.version, deployVersion);
-          stopped = true;
-          return;
-        }
+        // Latch the chip so the GM is offered the new build — but KEEP
+        // POLLING. A stale desk that stops listening is the failure this
+        // whole module exists to prevent: the chime still rang (InboxChime
+        // reads a badge count) while the rail and the open thread quietly
+        // froze, so a GM heard mail arrive and found nothing there until they
+        // reloaded. Since this path is a plain fetch into a client store, it
+        // cannot reach Next's build-mismatch full reload whatever the server
+        // answers — that hazard belongs to router.refresh(), which is
+        // InboxPoller's job and is still correctly stood down by the latch.
+        if (data.version) noteDeskVersion(data.version, deployVersion);
         failures = 0;
         const { inbound } = applyDelta(data, { sinceMs: cursor, announce: !firstTick });
         const hidden = document.visibilityState !== "visible";

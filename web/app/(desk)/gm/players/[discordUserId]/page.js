@@ -6,7 +6,7 @@ import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import PersonView from "./PersonView";
 import Loading from "./Skeleton";
 import { prisma } from "@lifeweb/db";
-import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
+import { getGmSession, listGuildMembers, isGuildRosterKnown } from "@/lib/discordGuild";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { getOpenTurn } from "@/lib/turn";
 import { withoutDmNoise } from "@/lib/dmThread";
@@ -69,7 +69,15 @@ async function FreshPlayerDeskPerson({ params, userId }) {
   // yet is not unknown — they are exactly who a GM opens this page to
   // message first. listGuildMembers() returns [] when Discord is
   // unreachable, so this check must stay additive, not either/or.
-  if (messages.length === 0 && !character && !username) notFound();
+  //
+  // And it must not fire when we never actually heard back from Discord.
+  // listGuildMembers() returns [] on an outage with nothing cached, which is
+  // indistinguishable from a real empty roster if you only look at the list —
+  // so ask isGuildRosterKnown() instead of guessing from its length. Without
+  // this, a Discord blip during the five-minute TTL refresh turned an
+  // ordinary click on a quiet conversation into a not-found page, which is
+  // half of why this desk felt like it randomly refused to open people.
+  if (isGuildRosterKnown() && messages.length === 0 && !character && !username) notFound();
   const label = character?.name ?? username ?? discordUserId;
 
   // The Canon panel's payload loads inside the inspector's Canon tab
