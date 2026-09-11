@@ -75,7 +75,7 @@ export const INSTANT = {
     confirm: () => ({
       title: "Cut Godflesh?",
       message:
-        "You wade out and cut. A day of it — this is your Move for the turn. It rolls 1d6: a 6 pays extra, and a 1 means it grabbed hold of you first.",
+        "You wade out and cut. Once a day, and it costs you no turn. It rolls 1d6: a 6 pays extra, and a 1 means it grabbed hold of you first.",
       confirmLabel: "Cut",
     }),
   },
