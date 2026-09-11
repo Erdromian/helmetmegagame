@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The action bar stops sitting on the words of a run
+
+✎ On a phone the Change / Take back / Look at buttons show only for the message you tap, instead of covering the second line of every run  
+✎ On a desktop the words keep clear of the bar that appears on hover
+
 ## 2026-09-11 · The header says when Moves lock, in your own time
 
 ✚ Every page header now carries a LOCK chip: the time Moves stop being accepted, in your own timezone, counting down in minutes  
