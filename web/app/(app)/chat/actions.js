@@ -73,6 +73,7 @@ import { addRoomGuest, removeRoomGuest, roomGuests } from "@lifeweb/db/lib/roomG
 import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMembers";
 import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
 import { sceneLine } from "@lifeweb/db/lib/scene";
+import { playInstrument } from "@lifeweb/db/lib/instrumentPlay";
 import { parsePlaceKey, isScenePlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
 import { removeThreadMember } from "@lifeweb/db/lib/discordRest";
 import { BELL_ROOM_SLUG, RING_WORD, bellWordMatches, bellCooldown, broadcastBell } from "@lifeweb/db/lib/bell";
@@ -2041,6 +2042,33 @@ export async function rollHere(placeKey) {
   if (!may) return { ok: false, error: "There's nobody here to see it." };
 
   return castDie(prisma, me.character, placeKey);
+}
+
+// /play. db/lib/instrumentPlay.js is the shared implementation the bot's own
+// /play now calls too, so a lute plays the same way on both faces — the same
+// AuditLog-backed cooldown, the same once-a-turn mood soothe for a Musician.
+export async function playHere(placeKey) {
+  const me = await actor({
+    id: true,
+    locationId: true,
+    discordUserId: true,
+    tags: { select: { tag: { select: { slug: true } }, quantity: true } },
+  });
+  if (me.error) return { ok: false, error: me.error };
+
+  // A Room or a Conversation, the same gate /shout and /roll take above: an
+  // instrument is played in front of the people you are standing with.
+  if (!isScenePlaceKey(placeKey)) {
+    return { ok: false, error: "There's nobody here to hear it." };
+  }
+
+  const may = await mayWritePlace(prisma, me.character, placeKey, {
+    gm: false,
+    discordUserId: me.discordUserId,
+  });
+  if (!may) return { ok: false, error: "There's nobody here to hear it." };
+
+  return playInstrument(prisma, { ...me.character, discordUserId: me.discordUserId }, placeKey);
 }
 
 // /look, and the eye in the HERE column. One entry point for both kinds of

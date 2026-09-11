@@ -188,12 +188,14 @@ const DEBTOR_SLUG = "debtor";
 // db/lib/fightingSkill.js, Scavenging by the drop die, Tireless by
 // db/lib/laborAccess.js, Distilling by Craft, Metempsychosis on death.
 //
-// Three are NOT, and deliberately keep their own copies: Manic is spelled out
-// in db/lib/desireGates.js, which has no imports because client components
-// deep-import it (the web/lib/consumeGrants.js precedent CLAUDE.md cites), and
-// Pythagorean sits beside MUSICIAN_SLUG in the bot's own handler. They stay
-// listed here so the registry is the complete set rather than a partial one —
-// the same reason MUTILATE_GATE_SLUG and KISS_BLOCKING_SLUG are listed.
+// One is NOT, and deliberately keeps its own copy: Manic is spelled out in
+// db/lib/desireGates.js, which has no imports because client components
+// deep-import it (the web/lib/consumeGrants.js precedent CLAUDE.md cites).
+// Pythagorean used to sit beside a private MUSICIAN_SLUG in the bot's own
+// handler; both are centralized below now that db/lib/instrumentPlay.js is
+// shared between the bot and the web /play. They stay listed here so the
+// registry is the complete set rather than a partial one — the same reason
+// MUTILATE_GATE_SLUG and KISS_BLOCKING_SLUG are listed.
 // The Health groups that are a WOUND rather than an illness or a state of mind
 // — "a cold is not a wound". Shared because two unrelated systems ask the same
 // question of the same three groups: the mood dial charges for one landing
@@ -212,6 +214,11 @@ const BREWING_DISTILLING_SLUG = "brewing-distilling";
 const LABORING_SCAVENGING_SLUG = "laboring-scavenging";
 const LABORING_TIRELESS_SLUG = "laboring-tireless";
 const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
+// The instrument itself, and the skill that plays it well — shared here so a
+// web /play (Chat) and the bot's /play read the same two slugs instead of
+// each keeping a private copy.
+const INSTRUMENT_SLUG = "instrument";
+const MUSICIAN_SLUG = "musician";
 // The phobias, Brave, Pale, Rough Camper and friends are read by slug inside
 // db/lib/mood.js's multiplier table rather than exported from here.
 
@@ -299,4 +306,6 @@ module.exports = {
   LABORING_SCAVENGING_SLUG,
   LABORING_TIRELESS_SLUG,
   MUSICIAN_PYTHAGOREAN_SLUG,
+  INSTRUMENT_SLUG,
+  MUSICIAN_SLUG,
 };

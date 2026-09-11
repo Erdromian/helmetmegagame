@@ -28,7 +28,6 @@ const {
   stowedMounts,
   performMove,
 } = require("../lib/locationTravel");
-const { applyMood, EVENTS } = require("@lifeweb/db/lib/mood");
 const {
   travelOptions,
   gateOperable,
@@ -62,6 +61,7 @@ const { canSpeakInTarget } = require("../lib/speakTargets");
 const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../lib/interactionGuild");
 const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
 const { placeKeyForChannel, isScenePlaceKey } = require("@lifeweb/db/lib/placeKey");
+const { playInstrument } = require("@lifeweb/db/lib/instrumentPlay");
 const { postAsCharacterTo, loadVoiceState } = require("../lib/proxy");
 const { prepareSpeech, recordSpeech } = require("@lifeweb/db/lib/say");
 const { resolveLaborRate } = require("@lifeweb/db");
@@ -1861,89 +1861,13 @@ async function handleRollCommand(interaction) {
   await respond(interaction, posted ? `You rolled a ${value}.` : "Could not post a roll here.");
 }
 
-// /play: the Instrument tag's one verb. Two lines, and which one you get is
-// decided by whether the player holds Musician — an instrument in the hands of
-// somebody who never learned is the joke the tag exists for.
-//
-// WHY THE ROOM LINE IS FULL SIZE. CLAUDE.md says a line the WORLD says into a
-// channel is `-#` subtext, and the location half below obeys that. The room
-// half deliberately does not, at Bascinet's direction: the room is where the
-// performance is happening, so it is an event in the scene rather than
-// scenery under it. The Location channel only OVERHEARS it, and that half is
-// subtext exactly as the rule says. Don't "fix" the asymmetry — it is the
-// feature.
-const INSTRUMENT_SLUG = "instrument";
-const MUSICIAN_SLUG = "musician";
-// The Pythagorean mastery — triples what a performance is worth to the room.
-const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
-const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
-
-// In-memory, keyed by character id, volatile across a bot restart — the same
-// shape as the ticket guard in bot/src/lib/reportChannel.js. A restart
-// clearing a flavour cooldown costs nothing, and the alternative is a schema
-// column and a migration for a joke.
-const PLAY_COOLDOWN_MS = 5 * 60_000;
-const lastPlayed = new Map();
-
-const PLAY_SOOTHE_AUDIT_ACTION = "mood_soothed_play";
-
-// +10 mood to every living character standing at the musician's Location, the
-// musician included. The ration is an AuditLog row per listener with turnId
-// set (REQUESTS.md §1a); /play is rate-limited to one a few minutes and a
-// room holds a dozen people at most, so the rows stay few. The band DM goes
-// out through the sender db/index.js registered.
-async function sootheListeners(musician, { triple = false } = {}) {
-  if (!musician.locationId) return;
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
-  if (!openTurn) return;
-  const listeners = await prisma.character.findMany({
-    where: { locationId: musician.locationId, status: "ALIVE" },
-    select: { id: true },
-  });
-  const soothedAlready = new Set(
-    (
-      await prisma.auditLog.findMany({
-        where: {
-          actionType: PLAY_SOOTHE_AUDIT_ACTION,
-          turnId: openTurn.id,
-          targetCharacterId: { in: listeners.map((c) => c.id) },
-        },
-        select: { targetCharacterId: true },
-      })
-    ).map((row) => row.targetCharacterId),
-  );
-  for (const { id } of listeners) {
-    if (soothedAlready.has(id)) continue;
-    await prisma.$transaction(async (tx) => {
-      // Musician (Pythagorean) triples it. Passed as an explicit `base`
-      // rather than added to mood.js's MULTIPLIERS: that table is only
-      // consulted for harm, and it keys on the LISTENER's tags — this is the
-      // player's own doing, and it lands on everyone in the room.
-      await applyMood(tx, id, { kind: "MUSIC", base: EVENTS.MUSIC * (triple ? 3 : 1) });
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: musician.discordUserId ?? "system",
-          actionType: PLAY_SOOTHE_AUDIT_ACTION,
-          targetCharacterId: id,
-          turnId: openTurn.id,
-          details: { musicianId: musician.id, locationId: musician.locationId },
-        },
-      });
-    });
-  }
-}
-
-// Three glyphs, repeats allowed — "a random combination of 3", not three
-// distinct ones, so ♩♩♪ is a legal result.
-function noteFlourish() {
-  return Array.from({ length: 3 }, () => NOTE_GLYPHS[Math.floor(Math.random() * NOTE_GLYPHS.length)]).join("");
-}
-
+// /play: the Instrument tag's one verb. db/lib/instrumentPlay.js is the
+// shared implementation — the web's Chat composer offers the same command
+// (COMMANDS.md), and a cooldown or a mood soothe that only one face knew
+// about would be a lute a player could dodge by switching apps.
 async function handlePlayCommand(interaction) {
   await ack(interaction);
 
-  // findAliveCharacter returns a bare row; the tag gate needs the tags, so
-  // this reads them in the one query rather than making a second.
   const character = await prisma.character.findFirst({
     where: { discordUserId: interaction.user.id, status: "ALIVE" },
     include: { tags: { include: { tag: true } } },
@@ -1953,17 +1877,11 @@ async function handlePlayCommand(interaction) {
     return;
   }
 
-  const held = (slug) => character.tags.some((ct) => ct.tag?.slug === slug && ct.quantity > 0);
-  if (!held(INSTRUMENT_SLUG)) {
-    await respond(interaction, "You have nothing to play.");
-    return;
-  }
-
   // Where: a Room or a Conversation, and nowhere else (db/lib/placeKey.js
   // #isScenePlaceKey). That refuses a zone #summary and #cerberon, which are
-  // not places anyone is standing — and the open street too, which this used
-  // to allow: a Location channel is scenery with no Send on it, so playing
-  // into one was performing to a room the game says nobody is talking in.
+  // not places anyone is standing — and the open street too: a Location
+  // channel is scenery with no Send on it, so playing into one would be
+  // performing to a room the game says nobody is talking in.
   const channel = interaction.channel;
   const placeKey = channel
     ? await placeKeyForChannel(prisma, { channelId: channel.id, parentId: channel.parent?.id })
@@ -1973,44 +1891,8 @@ async function handlePlayCommand(interaction) {
     return;
   }
 
-  const since = Date.now() - (lastPlayed.get(character.id) ?? 0);
-  if (since < PLAY_COOLDOWN_MS) {
-    const minutes = Math.max(1, Math.ceil((PLAY_COOLDOWN_MS - since) / 60_000));
-    await respond(interaction, `Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.`);
-    return;
-  }
-
-  const line = held(MUSICIAN_SLUG)
-    ? `You hear an instrument playing, beautifully. ${noteFlourish()}`
-    : `You hear an instrument playing, badly. ${noteFlourish()}`;
-
-  // The room first, and its result is what decides whether this counted. A
-  // failed overhear must not cost the player their cooldown or swallow the
-  // performance.
-  const posted = await channel.send(`${line}`).catch(() => null);
-  if (!posted) {
-    await respond(interaction, "Couldn't play here.");
-    return;
-  }
-  lastPlayed.set(character.id, Date.now());
-
-  // A musician's playing settles everyone in earshot, once per listener per
-  // turn (docs/systemdocs/MOOD.md). Only a MUSICIAN's: a bad performance calms
-  // nobody. Wrapped, so the dial can never swallow the performance.
-  if (held(MUSICIAN_SLUG)) {
-    await sootheListeners(character, { triple: held(MUSICIAN_PYTHAGOREAN_SLUG) }).catch((err) =>
-      console.error(`/play: soothing failed for ${character.id}:`, err.message ?? err),
-    );
-  }
-
-  // ...and the street outside hears it, small. The gate above leaves only a
-  // Room or a Conversation, both of which are threads under their Location's
-  // channel, so the parent is always there and always the street.
-  if (channel.parent) {
-    await channel.parent.send(ambientLine(line)).catch(() => null);
-  }
-
-  await respond(interaction, "You play.");
+  const result = await playInstrument(prisma, character, placeKey);
+  await respond(interaction, result.ok ? result.line : result.error);
 }
 
 // /shout — the one thing a character can say that leaves the room they said

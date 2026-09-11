@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Play your lute from the website too
+
+✎ Playing an instrument now works from Chat, not just Discord — same cooldown and mood lift either way
+
 ## 2026-09-11 · The adjudication desk stops wiping your work
 
 ✎ Picking a Move no longer makes the next save, solve, pin or background check redraw the whole desk — the redraw was what ate your Result box, an open composer, the zone filter and the selection  
