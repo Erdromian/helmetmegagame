@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import CheckField from "@/app/components/CheckField";
 import StatusPill from "@/app/components/StatusPill";
 import Select from "@/app/components/Select";
 import GmAvatar from "@/app/components/GmAvatar";
@@ -1050,11 +1051,14 @@ export default function QueueRail({
             filterDefs={moveFilterDefs}
             searchPlaceholder="name, role, @handle, zone:…"
           >
+            {/* CheckField, not a bare <input type="checkbox"> in a
+                hand-rolled <label> — the exact shape DESIGN-SYSTEM §5a names.
+                Outside .field it fell back to unstyled browser chrome and was
+                the one white box on the desk. */}
             {hiddenTravelCount > 0 && (
-              <label className="field-label flex items-center gap-1.5" style={{ fontWeight: "normal" }}>
-                <input type="checkbox" checked={!hideTravel} onChange={(e) => setHideTravel(!e.target.checked)} />
+              <CheckField checked={!hideTravel} onChange={(e) => setHideTravel(!e.target.checked)}>
                 Show {hiddenTravelCount} travel
-              </label>
+              </CheckField>
             )}
           </RailFilters>
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>

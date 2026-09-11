@@ -13,9 +13,12 @@
 // Per-domain label/tone maps stay where they are. A Move's statuses and a
 // Request's are genuinely different vocabularies with their own justifying
 // comments; what universalizes is the rendering, not the meanings.
-export default function StatusPill({ tone = "neutral", children, className = "" }) {
+// `title` is passed through because several states are only half a sentence
+// on their own -- "Catching up" wants to say what is catching up with what.
+// It is the one extra prop; a status still cannot be handed a colour.
+export default function StatusPill({ tone = "neutral", children, className = "", title }) {
   return (
-    <span className={`status-pill ${className}`.trim()} data-tone={tone}>
+    <span className={`status-pill ${className}`.trim()} data-tone={tone} title={title}>
       {children}
     </span>
   );
@@ -47,3 +50,16 @@ export function EnumPill({ map, value, className = "" }) {
     </StatusPill>
   );
 }
+
+// LobbyEntry.status, for /gm/dev's lobby roster. The seat's own words rather
+// than the enum's: "Seat offered" says what ASSIGNED means to the person
+// reading the table, and the two that need chasing (declined, expired) are
+// the only ones that take a colour.
+export const LOBBY_STATUS = {
+  READY: { label: "Ready", tone: "good" },
+  ASSIGNED: { label: "Seat offered", tone: "neutral" },
+  CREATED: { label: "Created", tone: "good" },
+  DECLINED: { label: "Declined", tone: "muted" },
+  EXPIRED: { label: "Expired", tone: "warn" },
+  UNASSIGNED: { label: "In the lobby", tone: "muted" },
+};

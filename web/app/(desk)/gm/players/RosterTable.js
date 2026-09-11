@@ -172,7 +172,9 @@ export default function RosterTable({
     <div className="flex flex-col gap-4">
       <div className="segmented self-start" role="group" aria-label="Roster view">
         <button type="button" aria-pressed={view === "players"} onClick={() => setView("players")}>
-          Players ({characters.length})
+          {/* inView, not `characters` — the tab said 40 while the table
+              below it showed the 6 in the zones this GM has picked. */}
+          Players ({inView.length})
         </button>
         <button type="button" aria-pressed={view === "factions"} onClick={() => setView("factions")}>
           Factions ({factionCount})

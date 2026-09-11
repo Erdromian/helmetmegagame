@@ -7,7 +7,6 @@ import DevPanelView from "./DevPanelView";
 import Loading from "./Skeleton";
 import { getGmSession } from "@/lib/discordGuild";
 import { loadDevPanelProps } from "@/lib/devPanelData";
-import PageShell from "@/app/components/PageShell";
 
 // The GM's one-stop character editor. Gated on GM membership rather than
 // superadmin, because it is where every CharacterLink in the app points and

@@ -412,9 +412,13 @@ export default function ConversationPane({
             name={label}
             onOpen={() => setDevPanelOpen(true)}
           />
+          {/* A fixed width, because the three labels this button wears are
+              very different lengths and everything to its left jumped sideways
+              every time a claim changed hands. */}
           <button
             type="button"
-            className="btn-quiet"
+            className="btn-quiet text-center"
+            style={{ width: "11rem" }}
             disabled={claimedByOther || pending}
             onClick={toggleClaim}
           >
@@ -424,15 +428,19 @@ export default function ConversationPane({
                 : "Release claim"
               : "Claim conversation"}
           </button>
-          {/* Twin of the Escape key handler above — same destination, so the
-              keycap label doubles as the hint that the key works. */}
+          {/* Twin of the Escape key handler above. It used to be LABELLED
+              "Esc", which reads as a keycap sitting in a row of verbs rather
+              than as a thing to press; a close mark is what a pane's own
+              corner control looks like everywhere else, and the key still
+              gets said, in the tooltip. */}
           <button
             type="button"
             className="btn-quiet"
-            title="Back to the roster"
+            title="Close — or press Esc"
+            aria-label="Close this conversation"
             onClick={() => selectConversation(null)}
           >
-            Esc
+            ✕
           </button>
         </div>
       </div>

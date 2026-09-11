@@ -16,7 +16,7 @@ import GmZoneRail from "@/app/components/GmZoneRail";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
 import DevPanelModal from "@/app/components/DevPanelModal";
-import DeskHeader from "@/app/components/DeskHeader";
+import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import { isAnyDirty } from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -600,20 +600,24 @@ export default function Workspace({
         title="Adjudication"
         meta={
           <>
-            <span className="chip">
-              {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
-            </span>
+            {/* Rank: the turn and the lock are chips because they are the two
+                facts the whole desk is keyed to. Everything after them is a
+                count or a clock, and counts do not need a bubble each — six
+                equal-weight chips in a row have no first thing to read. They
+                run together as one muted line instead, and only a warning
+                takes colour. */}
+            <DeskTurnChip turn={openTurn} />
             <LockChip />
             <DeskStreamChip />
-            <span className="chip chip-quiet">{solvedCount}/{moves.length} solved</span>
-            <span className="text-xs text-muted" title="Push fires at midnight CT">
-              {formatCountdown(pushMinutes)}
-            </span>
-            {lastRefreshedAt && (
-              <span className="text-xs text-muted">
-                updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            <span className="text-xs text-muted">
+              <span title="Moves marked solved, of the Moves filed this turn">
+                {solvedCount}/{moves.length} solved
               </span>
-            )}
+              <span title="Push fires at midnight CT"> · {formatCountdown(pushMinutes)}</span>
+              {lastRefreshedAt && (
+                <> · updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
+              )}
+            </span>
             {/* isAnyDirty() is a plain module counter, read at render time. */}
             {isAnyDirty() && <span className="text-xs text-accent">paused — unsaved edits</span>}
           </>

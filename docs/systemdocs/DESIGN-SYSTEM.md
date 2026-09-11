@@ -187,7 +187,7 @@ an error. Each now has one component.
 | Nothing here | `EmptyState`, or `EmptyRow` in a table | A bespoke `<p className="text-muted">` |
 | In flight / failed | `SubmitButton` and `FormError` | A `<form action>` with no pending state |
 
-Four things about these are load-bearing:
+Five things about these are load-bearing:
 
 - **`CheckField` and `Switch` carry no `"use client"`.** Nine of the app's
   booleans are in `/gm/dev`, a *server* component posting through a form
@@ -202,6 +202,19 @@ Four things about these are load-bearing:
   click also bubbles to the label — toggling the control the icon was only
   meant to explain. Place the icon as a sibling of `Switch`/`CheckField`, not
   a child.
+- **A chip is a LABEL; a `StatusPill` is a STATE.** This is the line the GM
+  desks kept crossing, and it is what made them read as messy: `.chip` was a
+  turn label, an id, a filter toggle, a count and a warning all at once, so a
+  dropped live feed looked exactly like the turn number beside it. The rule:
+  a chip names a thing that simply *is* (the turn, a zone, a tag, an id) and
+  takes no tone; anything that could be **going wrong, done, or waiting** is a
+  `StatusPill` with a tone — or an `EnumPill` when the value is a DB enum.
+  Two corollaries the desks now follow. **Resting states are `neutral`.**
+  "Staged" is what every row on the push tray is, so drawing it `warn` left
+  the one row that had actually missed a push looking like the twenty that had
+  not. And **a count is neither.** `N unread`, `N awaiting`, `5/17 solved` are
+  numbers, not states: they run together as one muted text line beside the
+  chips, so a header has a first thing to read instead of six equal bubbles.
 - **`StatusPill` takes a tone, not a colour.** Callers say what a state *means*
   and the stylesheet decides how that looks, so a status cannot reach for a
   colour the themes have not solved. Per-domain label maps stay local — a

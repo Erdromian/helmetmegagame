@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
 import EmptyState from "@/app/components/EmptyState";
+import { EnumPill, LOBBY_STATUS } from "@/app/components/StatusPill";
 
 // Who is in the lobby, and what they asked for. Read-only: the roll happens
 // on Preview and Start (docs/systemdocs/LOBBY.md §3). After Start the same
@@ -81,7 +82,9 @@ export default function LobbyRoster({ rows, started }) {
                 {started ? (
                   r.assigned ?? <span className="text-muted">{r.status === "UNASSIGNED" ? "lobby" : "—"}</span>
                 ) : (
-                  <span className="chip">{r.status}</span>
+                  // A raw READY/ASSIGNED/EXPIRED in a grey chip, which is
+                  // exactly what EnumPill exists to stop (DESIGN-SYSTEM §5a).
+                  <EnumPill map={LOBBY_STATUS} value={r.status} />
                 )}
               </td>
               <td className="text-xs text-muted">

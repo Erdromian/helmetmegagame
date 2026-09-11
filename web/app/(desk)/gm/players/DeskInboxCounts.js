@@ -34,10 +34,16 @@ export default function DeskInboxCounts({ rows, rowsAsOfMs }) {
     return () => setNavUnread(null);
   }, [unread]);
 
+  // One muted run, not two chips. These are counts, and the header's chips
+  // are reserved for the two facts the desk is keyed to (the turn and the
+  // lock) — a count in a bubble beside them claimed the same rank as the turn
+  // and made the header a row of six equal things.
+  if (unread === 0 && awaiting === 0) return null;
   return (
-    <>
-      {unread > 0 && <span className="chip chip-quiet">{unread} unread</span>}
-      {awaiting > 0 && <span className="chip chip-quiet">{awaiting} awaiting</span>}
-    </>
+    <span className="text-xs text-muted">
+      {[unread > 0 ? `${unread} unread` : null, awaiting > 0 ? `${awaiting} awaiting` : null]
+        .filter(Boolean)
+        .join(" · ")}
+    </span>
   );
 }

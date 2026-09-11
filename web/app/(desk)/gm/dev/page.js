@@ -59,7 +59,7 @@ import LobbyRoster from "./LobbyRoster";
 import SeatsOut from "./SeatsOut";
 import AssignmentPreview from "./AssignmentPreview";
 import { isSpawnOnly } from "@/lib/characterCreation";
-import DeskHeader from "@/app/components/DeskHeader";
+import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import OpsNav from "./OpsNav";
 import SendLetterForm from "./SendLetterForm";
@@ -150,8 +150,14 @@ function reportLabel(report) {
 // reads that env var directly any more (db/lib/roleIds.js), and this is a
 // label, not a gate. Somebody holding both roles reads as Trial GM, which is
 // a state nobody should be in — the trial role is what you hold *instead*.
+// A standing is a state, so it is a StatusPill with a tone rather than a chip:
+// full and trial GMs are access-identical (CLAUDE.md), and the whole point of
+// this column is that it is the ONE surface telling them apart. Two identical
+// grey chips did not.
 function gmStanding(member) {
-  return member.roles.includes(TRIAL_GM_ROLE_ID) ? "Trial GM" : "Gamemaster";
+  return member.roles.includes(TRIAL_GM_ROLE_ID)
+    ? { label: "Trial GM", tone: "warn" }
+    : { label: "Gamemaster", tone: "good" };
 }
 
 export default async function DevPanelPage({ searchParams }) {
@@ -717,9 +723,7 @@ export default async function DevPanelPage({ searchParams }) {
         title="Dev Panel"
         meta={
           <>
-            <span className="chip">
-              {openTurnRecord ? `${describeTurn(openTurnRecord).label} — OPEN` : "No open turn"}
-            </span>
+            <DeskTurnChip turn={openTurnRecord} />
             <LockChip />
           </>
         }
@@ -1147,8 +1151,8 @@ export default async function DevPanelPage({ searchParams }) {
                         </span>
                       </td>
                       <td>
-                        <span className="chip">{gmStanding(m)}</span>
-                        {isSuperadmin(m.id) && <span className="chip">Master</span>}
+                        <StatusPill tone={gmStanding(m).tone}>{gmStanding(m).label}</StatusPill>
+                        {isSuperadmin(m.id) && <StatusPill tone="accent">Master</StatusPill>}
                       </td>
                       <td>
                         <CharacterLink
@@ -1230,8 +1234,14 @@ export default async function DevPanelPage({ searchParams }) {
 
           {section === "danger" ? (
             <section className="ops-section">
+              {/* Every other section on this panel opens with one — without
+                  it the Danger section began with a card and read as somebody
+                  else's page. */}
+              <div className="ops-section-head">
+                <h2 className="section-title">Archive &amp; restart</h2>
+              </div>
               <div className="desk-card flex flex-col gap-3">
-                <h2 className="section-title">Archive this game</h2>
+                <h3 className="section-title">Archive this game</h3>
                 <p className="ops-lede">
                   Writes the whole transcript out as one file and checks it can be read back. Deletes nothing, and
                   safe to press twice. Restart Game will not keep a game that has not been through here.
@@ -1243,7 +1253,7 @@ export default async function DevPanelPage({ searchParams }) {
               </div>
 
               <div className="desk-card panel-danger flex flex-col gap-3">
-                <h2 className="section-title">Restart Game</h2>
+                <h3 className="section-title">Restart Game</h3>
                 <p className="ops-lede">Wipes all game data and reopens Turn 1. Cannot be undone.</p>
                 <WipeGameButton hasPacket={Boolean(state?.game?.exportKey)} />
               </div>

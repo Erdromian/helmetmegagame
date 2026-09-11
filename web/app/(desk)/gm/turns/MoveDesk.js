@@ -448,9 +448,11 @@ export default function MoveDesk({
           {pending ? "Working…" : "Save"}
         </button>
         {solved ? (
-          <button type="button" className="btn" onClick={() => run("unsolve")} disabled={disabled}>
-            {pending ? "Working…" : "Reopen"}
-          </button>
+          <Tooltip text="Puts the Move back in the queue. Nothing staged is lost.">
+            <button type="button" className="btn" onClick={() => run("unsolve")} disabled={disabled}>
+              {pending ? "Working…" : "Reopen"}
+            </button>
+          </Tooltip>
         ) : (
           <Tooltip text="Marks the staging complete. Nothing applies until the push.">
             <button type="button" className="btn" onClick={() => run("solve")} disabled={disabled}>

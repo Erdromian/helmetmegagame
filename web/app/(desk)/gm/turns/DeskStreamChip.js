@@ -1,6 +1,7 @@
 "use client";
 
 import { useDeskStreamState } from "./deskStreamStore";
+import StatusPill from "@/app/components/StatusPill";
 
 // Says so when the adjudication desk's live channel has dropped to its
 // backstop poll.
@@ -15,9 +16,12 @@ export default function DeskStreamChip() {
   const state = useDeskStreamState();
   if (state === "live") return null;
   const fatal = state === "fatal";
+  // A warning, not a neutral label: the desk is running on its backstop
+  // poll. It used to be a plain .chip, indistinguishable from the turn
+  // chip beside it, which is the one thing a dropped stream must not be.
   return (
-    <span
-      className="chip"
+    <StatusPill
+      tone={fatal ? "bad" : "warn"}
       title={
         fatal ?
           "The live connection could not be opened — you may be signed out. Your own work still saves and shows; other GMs' staging arrives every two minutes. Reload to restore the live desk."
@@ -25,6 +29,6 @@ export default function DeskStreamChip() {
       }
     >
       {fatal ? "Live desk off" : "Catching up"}
-    </span>
+    </StatusPill>
   );
 }

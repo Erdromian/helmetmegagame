@@ -202,12 +202,19 @@ export default function StagingTray({
               </span>
             )}
           </span>
-          {/* "show/hide" rather than "expand", so it doesn't read as a second
-              copy of the full-screen Expand button sitting right beside it. */}
-          <span className="text-xs text-muted">{open ? "▾ hide" : "▴ show"}</span>
+          {/* A caret, not a worded control. Two worded affordances side by
+              side ("▾ hide" and "⤢ Expand") read as a pair of alternatives
+              when they are a caret on the bar itself plus one real button. */}
+          <span className="text-xs text-muted" aria-hidden="true">{open ? "▾" : "▴"}</span>
         </button>
-        <button type="button" className="btn-quiet" onClick={toggleExpand}>
-          {expanded ? "⤡ Shrink" : "⤢ Expand"}
+        <button
+          type="button"
+          className="btn-quiet"
+          onClick={toggleExpand}
+          title={expanded ? "Shrink the tray back into the desk" : "Expand the tray to fill the desk"}
+          aria-label={expanded ? "Shrink the tray" : "Expand the tray"}
+        >
+          {expanded ? "⤡" : "⤢"}
         </button>
       </div>
 

@@ -3706,8 +3706,12 @@ input[type="radio"]:disabled {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   padding: 1rem;
-  max-width: 52rem;
-  margin: 0 auto;
+  /* No max-width. This used to cap at 52rem and centre itself, which was a
+     reading measure for a full-page column — but the desks' middle column is
+     already narrower than that at every tier, so the cap never bit and the
+     `margin: 0 auto` only ever centred a card in a column it already filled.
+     It DID bite the one place the class escaped to a wide surface, leaving a
+     rounded bubble in the middle of the page. The column is the measure. */
 }
 
 .desk-move-text {
@@ -4636,8 +4640,12 @@ label.chip {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
+/* Hover is NOT selection. Both used to paint --field-bg, so dragging a
+   pointer down a hundred-row rail lit up fake selections behind the real one.
+   Selection keeps --field-bg plus its inset accent bar; hover gets the raised
+   surface instead — visible, and never confusable with the open row. */
 .desk-body--players .desk-queue-row:hover {
-  background: var(--field-bg);
+  background: var(--surface-raised);
 }
 
 /* Unread reads bright, the way an unread channel does: full-strength name,
@@ -4689,8 +4697,11 @@ label.chip {
   color: var(--text);
 }
 
+/* Handled is a done mark, not a highlight: it goes positive, and only the
+   pin keeps the accent. Three marks sharing one colour meant a GM had to read
+   the glyph itself to tell pinned from handled from muted. */
 .desk-queue-done[aria-pressed="true"] {
-  color: var(--accent-text);
+  color: var(--positive);
 }
 
 .desk-queue-mute {
@@ -4708,8 +4719,11 @@ label.chip {
   color: var(--text);
 }
 
+/* Muted is the opposite of accented — it says "out of the working set", so
+   it reads as struck-through text at full strength rather than lighting up. */
 .desk-queue-mute[aria-pressed="true"] {
-  color: var(--accent-text);
+  color: var(--text);
+  text-decoration: line-through;
 }
 
 /* A revealed muted row: still readable, visibly out of the working set. The

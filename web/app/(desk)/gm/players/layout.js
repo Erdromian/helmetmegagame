@@ -5,7 +5,7 @@ import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
 import { railKindSql, dmPreview } from "@/lib/dmThread";
 import PlayerRail from "./PlayerRail";
-import DeskHeader from "@/app/components/DeskHeader";
+import DeskHeader, { DeskTurnChip } from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import InboxPoller from "./InboxPoller";
 import InboxStream from "./InboxStream";
@@ -268,11 +268,9 @@ export default async function PlayerDeskLayout({ children }) {
         title="Players"
         meta={
           <>
-            <span className="chip">
-              {openTurn
-                ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}`
-                : "No turn open"}
-            </span>
+            {/* Same rank as /gm/turns: turn and lock are chips, the counts
+                below are one muted run (DeskInboxCounts.js). */}
+            <DeskTurnChip turn={openTurn} />
             <LockChip />
             <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
             <InboxStreamChip />

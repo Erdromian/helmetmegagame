@@ -44,8 +44,11 @@ export function effectSummary(effect, tagNames) {
 export function effectState(effect) {
   if (effect.appliedError) return { label: "Errored", tone: "bad" };
   if (effect.applied) return { label: "Applied", tone: "good" };
-  if (effect.missed) return { label: "Missed push", tone: "bad" };
-  return { label: "Staged", tone: "warn" };
+  // Missed push is the warning; Staged is the normal resting state of every
+  // row on the desk and was wearing the warning colour, so the one row that
+  // actually needed chasing did not stand out from the twenty that did not.
+  if (effect.missed) return { label: "Missed push", tone: "warn" };
+  return { label: "Staged", tone: "neutral" };
 }
 
 export function messageState(message) {
@@ -61,8 +64,10 @@ export function messageState(message) {
   }
   if (message.sent && message.deliveryFailures) return { label: "Sent, some failed", tone: "bad" };
   if (message.sent) return { label: "Sent", tone: "good" };
-  if (message.missed) return { label: "Missed push", tone: "bad" };
-  return { label: "Staged", tone: "warn" };
+  // Same vocabulary as effectState above: the miss is the warning, staged is
+  // the resting state.
+  if (message.missed) return { label: "Missed push", tone: "warn" };
+  return { label: "Staged", tone: "neutral" };
 }
 
 // One short line per recipient who is not simply done — "Ada: DMs closed",

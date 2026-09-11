@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The GM pages speak one visual language
+
+✎ A warning is now amber or red everywhere — Missed push, an overdue seat, a dropped live feed — instead of the same grey pill as a label  
+✎ Every GM page shows the same turn chip in the same place, including when no turn is open  
+✎ The desk headers rank their chips: turn and lock stay, counts become quiet text, only problems get colour  
+✎ On the Players rail, pinned, handled and muted no longer light the same colour, and hovering a row no longer looks like selecting it  
+✎ Dev sits with the other Gamemaster pages in the side nav  
+✎ A dozen small labels fixed: Claimed · you, a close button instead of one labelled Esc, the roster tab counts what it shows, the tray's hide/expand pair is one control
+
 ## 2026-09-11 · The GM desks fit a tablet and a phone
 
 ✎ Under about 1024px wide the inspector becomes a panel you open from the header, so the desk itself gets the room  
