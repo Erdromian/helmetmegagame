@@ -6088,7 +6088,7 @@ tags:
       gambit: false
       items: [old-coin]
     sellable: true
-    sellablePrice: 23
+    sellablePrice: 29
 
   # HIDDEN recipe (nekker-pheromones is non-public; Chris 2026-09-07): the
   # trapper's insurance. Not consumable by hand — db/lib/cavingPass.js spends
@@ -6623,7 +6623,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   bear-trap:
     catalog: all
@@ -6669,7 +6669,7 @@ tags:
       skills: [crafting, fundamentalist]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   skeleton-wedge:
     catalog: all
@@ -8591,7 +8591,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 12
+    sellablePrice: 15
   # A `customizableSkill: smithing-skilled` below is the +1 ⬢ door onto a
   # smith's own name and words (CRAFTING.md §4a), and the rung it names is
   # who may open it — the top of the Smithing ladder, whatever tier the piece
@@ -8624,7 +8624,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   hatchet:
     catalog: all
@@ -8649,7 +8649,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   # Three tools that exist only to make a Laboring specialisation pay better.
   # Priced against docs/systemdocs/TAGS.md 4a: minor edges at 2, the Plow at 5
@@ -8680,7 +8680,7 @@ tags:
     # Dead Simple convention (cost + 1), NOT the depot wage floor: at 0 turns
     # the free ration would mint the margin as a free action (4/turn on top of
     # an untouched labor day). The depot's 12 stays the impatience premium.
-    sellablePrice: 4
+    sellablePrice: 5
     depotPrice: 12
 
   # Prospecting's own tool, same shape as Fishing Rod above — every other
@@ -8709,7 +8709,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
     depotPrice: 12
 
   trapping-gear:
@@ -8735,7 +8735,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 16
+    sellablePrice: 20
     depotPrice: 26
 
   # No `equipped` on the bonus: a plow is not something you hold, it is
@@ -8768,7 +8768,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 14
+    sellablePrice: 18
 
   sling:
     catalog: all
@@ -8794,7 +8794,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   quarterstaff:
     catalog: all
@@ -8820,7 +8820,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   cudgel:
     catalog: all
@@ -8847,7 +8847,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   # Deliberately not craftable — see SMITHING.md §3.
   truncheon:
@@ -8894,7 +8894,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   shortbow:
     catalog: all
@@ -8921,7 +8921,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   # ─── Simple ────────────────────────────────────────────────────────────────
   spear:
@@ -8951,7 +8951,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 8
 
   dagger:
     catalog: all
@@ -8979,7 +8979,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 8
 
   silver-knife:
     catalog: all
@@ -9008,7 +9008,7 @@ tags:
       # flat 6 ⬢ materials cost, unchanged in total.
       items: [silver]
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 8
 
   gladius:
     catalog: all
@@ -9036,7 +9036,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   phrygian-spear:
     catalog: all
@@ -9063,7 +9063,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 8
 
   javelin:
     catalog: all
@@ -9089,7 +9089,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   longbow:
     catalog: all
@@ -9117,7 +9117,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   mace:
     catalog: all
@@ -9145,7 +9145,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   battle-axe:
     catalog: all
@@ -9174,7 +9174,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   # ─── Moderate ──────────────────────────────────────────────────────────────
   knuckle-duster:
@@ -9200,7 +9200,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 21
+    sellablePrice: 26
 
   # Renamed from Bardiche in the Combat Update, slug and all.
   halberd:
@@ -9230,7 +9230,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 21
+    sellablePrice: 26
 
   broadsword:
     catalog: all
@@ -9258,7 +9258,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 21
+    sellablePrice: 26
 
   war-hammer:
     catalog: all
@@ -9287,7 +9287,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 21
+    sellablePrice: 26
 
   # ─── High Quality ──────────────────────────────────────────────────────────
   bastard-sword:
@@ -9317,7 +9317,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   rapier:
     catalog: all
@@ -9347,7 +9347,7 @@ tags:
       # comes off for the ingot it spends.
       items: [steel]
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   sabre:
     catalog: all
@@ -9373,7 +9373,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   katana:
     catalog: all
@@ -9403,7 +9403,7 @@ tags:
       # comes off for the ingot it spends.
       items: [steel]
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   silver-spear:
     catalog: all
@@ -9433,7 +9433,7 @@ tags:
       # flat 26 ⬢ materials cost, unchanged in total.
       items: [silver]
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   lucerne:
     catalog: all
@@ -9460,7 +9460,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   zweihander:
     catalog: all
@@ -9487,7 +9487,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   # HIDDEN recipe (aberrant-heart is non-public; Chris 2026-09-07). Fights as
   # Exceptional tier — the ladder's own language — and its second mechanic
@@ -9545,7 +9545,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   # ─── Gunpowder ─────────────────────────────────────────────────────────────
   musketoon:
@@ -9574,7 +9574,7 @@ tags:
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
-    sellablePrice: 59
+    sellablePrice: 74
 
   bore-pistol:
     catalog: all
@@ -9601,7 +9601,7 @@ tags:
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
-    sellablePrice: 45
+    sellablePrice: 56
 
   bomb:
     catalog: all
@@ -9630,7 +9630,7 @@ tags:
       # saltpeter (Chris 2026-09-05) — {tag:black-powder} is its own recipe.
       items: [black-powder]
     sellable: true
-    sellablePrice: 59
+    sellablePrice: 74
 
   # ─── Special / concealed ───────────────────────────────────────────────────
   # A gentleman's sidearm, sold complete — no smithing recipe attached.
@@ -10333,7 +10333,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 41
+    sellablePrice: 51
     depotPrice: 68
 
   surgical-equipment:
@@ -13063,7 +13063,7 @@ tags:
     # Re-derived at the Skilled rung when the grenade dropped off Gunpowder
     # (DEPOT.md §4's formula: 6 + round(5 × 1^1.3) = 11; 14 was the
     # Gunpowder-rate answer).
-    sellablePrice: 11
+    sellablePrice: 14
 
   phrygian-tears:
     catalog: all
@@ -13701,7 +13701,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 17
+    sellablePrice: 21
 
   iron-hook:
     catalog: all
@@ -13728,7 +13728,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 17
+    sellablePrice: 21
 
   prosthetic-hand:
     catalog: all
@@ -13755,7 +13755,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 29
+    sellablePrice: 36
 
   glass-eye:
     catalog: all
@@ -13782,7 +13782,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 31
+    sellablePrice: 39
 
   # Same shape as {tag:aberrant-heart}: an ingredient and nothing else,
   # `catalog: gm` exactly like the heart (medical-pass plan, M5) — players
@@ -14042,7 +14042,7 @@ tags:
       resourceCost: 26
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   gladiator-helmet:
     catalog: gm
@@ -14073,7 +14073,7 @@ tags:
       skills: [smithing-skilled]
     depotPrice: 45
     sellable: true
-    sellablePrice: 27
+    sellablePrice: 34
 
   tribunal-helmet:
     catalog: gm
@@ -14388,7 +14388,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 4
 
   hood:
     catalog: all
@@ -14502,7 +14502,7 @@ tags:
       resourceCost: 3
       skills: [crafting]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   mail-coif:
     catalog: all
@@ -14532,7 +14532,7 @@ tags:
       resourceCost: 6
       skills: [smithing]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   gas-mask:
     catalog: gm
@@ -14582,7 +14582,7 @@ tags:
       resourceCost: 6
       skills: [smithing]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   # Priced level with {tag:simple-helm} — same plates, plus a lamp. Bought
   # rather than forged: the lamp is station work, so it sits on the Depot shelf.
@@ -14637,7 +14637,7 @@ tags:
       resourceCost: 26
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   bishops-mitre:
     catalog: gm
@@ -14697,7 +14697,7 @@ tags:
       resourceCost: 3
       skills: [crafting]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   buckler:
     catalog: all
@@ -14724,7 +14724,7 @@ tags:
       resourceCost: 3
       skills: [crafting]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   # ─── Simple (2 pt / 6 ⬢ / 1 turn) ───
   shield:
@@ -14753,7 +14753,7 @@ tags:
       resourceCost: 6
       skills: [crafting]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   pavise:
     catalog: all
@@ -14780,7 +14780,7 @@ tags:
       resourceCost: 6
       skills: [crafting]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   # ─── Moderate (3 pt / 14 ⬢ / 1 turn, skilled smithing) ───
   # HIDDEN recipe (non-public ingredient, Chris 2026-09-07): the tailor's
@@ -14814,7 +14814,7 @@ tags:
       gambit: false
       items: [graga-sac]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 12
 
   mail-shirt:
     catalog: all
@@ -14842,7 +14842,7 @@ tags:
       resourceCost: 14
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 21
+    sellablePrice: 26
 
   # ─── High Quality (4 pt / 26 ⬢ / 2 turns, skilled smithing) ───
   brigandine:
@@ -14875,7 +14875,7 @@ tags:
       # comes off for the ingot it spends.
       items: [steel]
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   breastplate:
     catalog: all
@@ -14903,7 +14903,7 @@ tags:
       resourceCost: 26
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 42
+    sellablePrice: 52
 
   # ─── Exceptional (6 pt / 34 ⬢ / 3 turns, skilled smithing) ───
   spacesuit:
@@ -14954,7 +14954,7 @@ tags:
       # comes off for the ingot it spends.
       items: [steel]
     sellable: true
-    sellablePrice: 61
+    sellablePrice: 76
 
   # --- Setting-specific --------------------------------------------------
 
@@ -15333,7 +15333,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   factory-key:
     catalog: gm
