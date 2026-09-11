@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Searching the rail no longer holds up your next click
+
+✎ Typing in the rail's search box used to block whatever you did next, because the search and the click went through the same queue — so 'type a name, click the row' made the click wait for a scan of every message in the game. It doesn't any more, and a search you've typed past is now abandoned instead of running to the end.
+
 ## 2026-09-11 · Opening a conversation stops asking Discord twice
 
 ✎ The desk was fetching the whole server member list twice over to draw one conversation — once for names, once for GM faces — on two separate caches that expired at different moments. It reads it once now. This was the slowest thing on the page, and the reason opening somebody sometimes hung for seconds with no pattern to it.  
