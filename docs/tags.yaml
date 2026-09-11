@@ -10178,7 +10178,7 @@ tags:
     tradeable: true
     weight: 0.5
     stackable: true
-    visible: true
+    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
@@ -14112,7 +14112,7 @@ tags:
     concealsIdentity: true
     forcesConceal: true
     concealSprite: silvermask
-    visible: true
+    visible: worn
     tradeable: true
     weight: 3
     purchasable: false
