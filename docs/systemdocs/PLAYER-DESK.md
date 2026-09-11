@@ -342,11 +342,57 @@ client, not a support inbox.
   character is still found by name, role, faction and handle.)
 
 - Mark-read fires from a client effect, never during RSC render — otherwise
-  Next's link prefetch marks a conversation read on hover. It is the one
-  action on the desk that deliberately does **not** `revalidatePath`: the
-  cursor it moves is this GM's alone, the live poll sees it within seconds,
-  and re-running the whole layout for it was the desk's most frequent full
-  re-render.
+  a render marks a conversation read without anybody opening it. (The rail
+  no longer prefetches — its rows are buttons now, §5a — but the rule stands
+  on its own.) It is the one action on the desk that deliberately does **not**
+  `revalidatePath`: the cursor it moves is this GM's alone, the stream sees it
+  within seconds, and re-running the whole layout for it was the desk's most
+  frequent full re-render.
+
+## 5a. Opening somebody is not a navigation
+
+Clicking a name in the rail used to be a real Next navigation into a
+`[discordUserId]` segment, and it was the slowest thing a GM did. Three
+separate causes, all measured:
+
+- **Every rail row was a prefetching `<Link>`**, and the rail draws all of
+  them with no pagination. Each prefetch was an RSC request into a segment
+  costing a hundred DM rows and two Discord REST calls. Ten of those in flight
+  together took five seconds, essentially serialised — so the click a GM
+  actually meant waited behind a queue they never asked for.
+- **Two of those Discord calls were the same call.** `getGmProfiles()` was
+  fetching the whole guild separately from `listGuildMembers()`, on a second
+  five-minute TTL that expired independently. It derives now.
+- **An RSC navigation cannot be cancelled.** Even with the first two fixed,
+  clicking a third person still meant the first two renders ran to completion.
+
+So selection is client state. `selection.js` holds who is open;
+`DeskMiddle.js` draws that conversation over the roster; `threadStore.js`
+caches what has been loaded; and the thread comes from `GET /api/gm/thread`,
+which is **abortable** — a click you have moved on from stops costing anything
+the moment you move on. Reopening somebody you looked at a minute ago makes no
+request at all.
+
+**The URL is still real.** Every selection writes `history.pushState` and
+`popstate` writes back, so Back and Forward work, a pasted
+`/gm/players/<id>` works, ⌘K works, audit-log links work, and the
+`next.config` redirect from the old `/gm/messages/<id>` still lands. The URL
+follows the selection instead of causing it.
+
+**The desk has one route.** `[[...selection]]/page.js` is an optional
+catch-all — the shape `/gm/turns` already uses — rather than a roster page
+beside a `[discordUserId]` sibling. It has to stay mounted whether or not
+somebody is open, so that closing a conversation reveals the roster rather
+than an empty column. It never reads its own `selection` param; that is the
+store's job.
+
+**What is still a server action, and why.** Sending a DM, claiming, muting and
+✓-ing still are: they are mutations, they are rare, and they want the
+revalidation. What moved to GETs is everything a GM does *while meaning to do
+something else* — the rail's content search, the thread's first page, and
+paging back through history. A pending server action blocks client-side
+navigation, and those three were the ones most likely to be in flight when a
+GM clicked.
 
 ## 6. The inspector
 
@@ -404,9 +450,10 @@ branches, so this turn paints without waiting on the past-turns fetch.
 `InspectorHost.js` is the client half. Which person the column shows is
 **derived, never stored**:
 
-- `useSelectedLayoutSegment()` is the `[discordUserId]` the child route is on,
-  so opening a conversation points the inspector at that player with nobody
-  having to tell it;
+- `useSelection()` is who the rail has open (`players/selection.js`), so
+  opening a conversation points the inspector at that player with nobody
+  having to tell it. It used to be `useSelectedLayoutSegment()`, back when
+  opening somebody was a route;
 - a `useState` **override** holds the last person clicked in the inspector's
   own search box or pin row, which is how a GM looks at somebody *other* than
   the open conversation.
@@ -581,12 +628,15 @@ navigation. That hazard belongs to `router.refresh()`, which is
 | `app/api/gm/inbox-delta/route.js` | The same delta as a GET, for the 30s backstop |
 | `web/lib/feedHub.js` | `subscribeToAllDms` + `handleGmDm` — the desk's half of the DM fan-out |
 | `PlayerRail.js` | The inbox rail: search (widens to the roster, pauses filters), zone filter, Needs-reply toggle, pins, the ✓ needs-no-reply mark, the ⊘ mute and its Show-muted toggle |
-| `page.js` / `RosterTable.js` | The fleet view + bulk verbs |
+| `[[...selection]]/page.js` / `RosterTable.js` | The fleet view + bulk verbs. The desk's ONLY route — the catch-all keeps it mounted while a conversation is open (§5a) |
+| `selection.js` | Who is open, as client state, with the URL kept in step by pushState (§5a) |
+| `threadStore.js` | The conversations this tab has loaded, so reopening one costs no request (§5a) |
+| `DeskMiddle.js` | Draws the open conversation over the roster, and owns the abortable fetch (§5a) |
 | `FactionsPanel.js` | The faction hierarchy view |
 | `actions.js` | DM send/page, content search, canon load, read cursors, claims, staging, broadcast |
-| `[discordUserId]/page.js` | Thread load + the open Move's id |
-| `[discordUserId]/PersonShell.js` | The person view's wrapper (conversation only) |
-| `[discordUserId]/ConversationPane.js` | Thread + composer, optimistic send |
+| `app/api/gm/thread/route.js` | One conversation as a GET: header + newest page, or an older page from a cursor (§5a) |
+| `conversation/PersonShell.js` | The person view's wrapper (conversation only) |
+| `conversation/ConversationPane.js` | Thread + composer, optimistic send |
 | `InspectorHost.js` | The shared inspector's player-desk half: derived selection, pins, the Canon prelude |
 | `components/InspectorColumn.js` | The shared inspector itself (ADJUDICATION.md §3) |
 | `SceneTab.js` | The **Scene** tab — Chat's `Feed`, read-only, on one place at a time through `/api/feed?place=` (CHAT.md §8) |

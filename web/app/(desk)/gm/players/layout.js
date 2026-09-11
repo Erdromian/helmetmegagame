@@ -14,6 +14,8 @@ import DeskInboxCounts from "./DeskInboxCounts";
 import { deployVersion } from "@/lib/deployVersion";
 import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
 import InspectorHost from "./InspectorHost";
+import DeskMiddle from "./DeskMiddle";
+import { getGmProfiles } from "@/lib/gmProfiles";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import BulkMessageButton from "./BulkMessageButton";
 
@@ -25,9 +27,10 @@ import BulkMessageButton from "./BulkMessageButton";
 export default async function PlayerDeskLayout({ children }) {
   const { session } = await getGmSession();
 
-  const [guildMembers, visibleZones, selectableZones, openTurn, characters, characterTags, allTags, stagedEffects] =
+  const [guildMembers, gmProfiles, visibleZones, selectableZones, openTurn, characters, characterTags, allTags, stagedEffects] =
     await Promise.all([
     listGuildMembers(),
+    getGmProfiles(),
     getVisibleZones(),
     listSelectableZones(),
     getOpenTurn(),
@@ -283,7 +286,14 @@ export default async function PlayerDeskLayout({ children }) {
           visibleZoneNames={visibleZones?.map((z) => z.name) ?? null}
           myDiscordUserId={session.discordUserId}
         />
-        {children}
+        {/* The roster arrives as {children} and stays mounted; DeskMiddle
+            draws the open conversation over it. gmProfiles and the acting
+            GM's id are desk-wide, so they are handed down once here rather
+            than fetched per conversation — which is what opening somebody
+            used to pay a Discord round trip for. */}
+        <DeskMiddle gmProfiles={gmProfiles} myDiscordUserId={session.discordUserId}>
+          {children}
+        </DeskMiddle>
         {/* The third column is the shell's, not the person view's: it stays
             put across a navigation (the roster included), which is the whole
             point of a persistent inspector. */}

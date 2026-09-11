@@ -38,11 +38,6 @@ const PING_MS = 25_000;
 // players — raises one notification per row. Coalescing them into a single
 // delta costs a beat of latency and saves running the CTE a hundred times.
 const COALESCE_MS = 120;
-// The clock cursor only ever moves forward, but a frame the client never
-// received would take its rows with it. The overlap inboxDelta.js already
-// applies (10s, deduped by id) covers the ordinary case; this is the belt for
-// a write that commits while a frame is in flight.
-const COLD_START_MS = 120_000;
 
 export async function GET(request) {
   const { session, isGm } = await getGmSession();
@@ -51,12 +46,7 @@ export async function GET(request) {
   if (!session?.discordUserId || !isGm) return new Response(null, { status: 204 });
 
   const gmDiscordUserId = session.discordUserId;
-  const { searchParams } = new URL(request.url);
-  // Which conversation the GM has open, so the frame can carry its rows as
-  // well as the rail patch. Only ever a lookup key — the delta re-reads it
-  // through the desk's own filter and nothing is trusted about it.
-  const open = searchParams.get("open") || null;
-  const sinceParam = Number(searchParams.get("since"));
+  const sinceParam = Number(new URL(request.url).searchParams.get("since"));
   const since = Number.isFinite(sinceParam) && sinceParam > 0 ? sinceParam : null;
 
   const encoder = new TextEncoder();
@@ -78,39 +68,97 @@ export async function GET(request) {
       // so the run that is finishing knows to go round again rather than drop
       // the news.
       let dirty = false;
+      let unsubscribe = null;
+      let ping = null;
+      // Rows the hub has handed us since the last frame, per conversation.
+      // The hub re-reads every DirectMessage through the desk's filter anyway
+      // (feedHub.js#handleGmDm); carrying that row here rather than throwing
+      // it away is what lets this stream serve EVERY conversation instead of
+      // one named in the URL — see the note on `open` below.
+      let pendingRows = new Map();
 
+      // Declared, and wired to the request, BEFORE the first await. A consumer
+      // that disconnects during that await would otherwise hit the no-op
+      // finishStream above and leak both the interval and the subscription.
+      const finish = () => {
+        if (closed) return;
+        closed = true;
+        clearInterval(ping);
+        clearTimeout(timer);
+        unsubscribe?.();
+        try {
+          controller.close();
+        } catch {
+          // Already closed by the runtime.
+        }
+      };
+      finishStream = finish;
+      if (request.signal.aborted) {
+        finish();
+        return;
+      }
+      request.signal.addEventListener("abort", finish, { once: true });
+
+      // A failed enqueue means the consumer is gone. It must call finish(),
+      // NOT just set `closed` — finish() opens with `if (closed) return`, so
+      // setting the flag here would make every later cleanup path a no-op and
+      // strand the ping interval and, worse, the subscribeToAllDms callback in
+      // a process-wide Set for the life of the container. Every DM in the game
+      // would then keep waking a stream nobody is reading.
       const write = (text) => {
         if (closed) return;
         try {
           controller.enqueue(encoder.encode(text));
         } catch {
-          closed = true;
+          finish();
         }
       };
 
-      // One delta, from wherever the cursor is, out as one frame.
+      // One frame: the rail delta, plus whatever rows arrived for any
+      // conversation since the last one.
+      //
+      // THERE IS NO `open` PARAMETER. It used to take one, so the server could
+      // include the open thread's rows — which meant the client had to tear
+      // the EventSource down and reopen it every time the GM clicked a
+      // different person. That was tolerable when switching was a page
+      // navigation; now that it is a click, it would be a reconnect per click,
+      // and every reconnect suppressed the chime for whatever arrived during
+      // it. Shipping rows for every touched conversation instead costs nothing
+      // extra (the hub has already read them) and lets one connection last as
+      // long as the tab.
       //
       // Failures are logged and swallowed: the cursor stays put, so the next
-      // notification (or the client's own backstop poll) picks up everything
-      // this run missed. Throwing here would kill the stream for a blip.
-      const pushDelta = async ({ full = false } = {}) => {
+      // notification — or the client's own backstop poll — picks up whatever
+      // this run missed. Throwing here would kill the stream over a blip.
+      const pushDelta = async () => {
         if (closed) return;
         if (running) {
           dirty = true;
           return;
         }
         running = true;
+        const rows = pendingRows;
+        pendingRows = new Map();
         try {
           const delta = await getInboxDelta({
             gmDiscordUserId,
             sinceMs: cursorMs > 0 ? cursorMs : null,
-            openDiscordUserId: open,
-            full,
           });
           if (closed) return;
           cursorMs = delta.cursorMs;
-          write(`event: delta\ndata: ${JSON.stringify({ version: deployVersion(), ...delta })}\n\n`);
+          const threads = [...rows.entries()].map(([discordUserId, messages]) => ({
+            discordUserId,
+            messages,
+          }));
+          write(
+            `event: delta\ndata: ${JSON.stringify({ version: deployVersion(), ...delta, threads })}\n\n`,
+          );
         } catch (err) {
+          // Put the rows back so they ride the next frame rather than dying
+          // with this one.
+          for (const [id, list] of rows) {
+            pendingRows.set(id, [...(pendingRows.get(id) ?? []), ...list]);
+          }
           console.error("Inbox stream delta failed:", err);
         } finally {
           running = false;
@@ -121,61 +169,45 @@ export async function GET(request) {
         }
       };
 
-      const schedule = () => {
+      // A function DECLARATION, not a const arrow: pushDelta's finally block
+      // refers to it, and with a const that reference is one line-move away
+      // from a temporal-dead-zone ReferenceError.
+      function schedule() {
         if (closed || timer) return;
         timer = setTimeout(() => {
           timer = null;
           void pushDelta();
         }, COALESCE_MS);
         timer.unref?.();
-      };
+      }
 
-      // The opening frame, before any subscription, so a tab that has just
-      // reconnected knows where it stands. A stream opened with no cursor
-      // looks back a couple of minutes rather than at the whole table —
-      // inboxDelta.js does that itself, but being explicit here documents
-      // that a fresh desk is seeded by its own server render, not by this.
-      if (cursorMs <= 0) cursorMs = 0;
-      await pushDelta({ full: Boolean(open) });
-
-      // Subscribe AFTER the first delta, never before: a row landing between
-      // the read and the subscribe would otherwise reach nobody. The cursor
-      // has already moved past the read, so anything in that window is above
-      // it and the next frame catches it.
-      const unsubscribe = subscribeToAllDms((row) => {
+      // Subscribe BEFORE the first delta. A row landing in between is buffered
+      // in pendingRows and goes out with that frame; the other order would
+      // leave a gap nothing covered. Seeing a row twice is free — the client
+      // dedupes on id.
+      unsubscribe = subscribeToAllDms((row) => {
         if (row?.resync) {
-          // The hub's pg client dropped and came back. Rows written in the gap
-          // were fanned out to nobody, but the cursor cannot have advanced
-          // during an outage — no frames went out — so they are all above it
-          // and one delta fills the hole.
-          if (cursorMs > 0) cursorMs = Math.max(0, cursorMs - COLD_START_MS);
+          // The hub's pg client dropped and came back, so rows written in the
+          // gap were fanned out to nobody. The cursor cannot have advanced
+          // during an outage — no frames went out — so everything missed is
+          // above it and one delta fills the hole.
           schedule();
           return;
+        }
+        if (row?.discordUserId) {
+          const list = pendingRows.get(row.discordUserId);
+          if (list) list.push(row);
+          else pendingRows.set(row.discordUserId, [row]);
         }
         schedule();
       });
 
       // Railway's proxy closes an idle connection, and so do some corporate
       // ones. A comment line keeps it warm and costs nothing to parse.
-      const ping = setInterval(() => write(": ping\n\n"), PING_MS);
+      ping = setInterval(() => write(": ping\n\n"), PING_MS);
       ping.unref?.();
 
-      const finish = () => {
-        if (closed) return;
-        closed = true;
-        clearInterval(ping);
-        clearTimeout(timer);
-        unsubscribe();
-        try {
-          controller.close();
-        } catch {
-          // Already closed by the runtime.
-        }
-      };
-
-      finishStream = finish;
-      if (request.signal.aborted) finish();
-      else request.signal.addEventListener("abort", finish, { once: true });
+      await pushDelta();
     },
   });
 

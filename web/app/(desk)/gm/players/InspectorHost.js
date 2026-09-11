@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { useSelectedLayoutSegment } from "next/navigation";
+import { useSelection } from "./selection";
 import InspectorColumn from "@/app/components/InspectorColumn";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import usePins from "@/app/components/usePins";
@@ -15,7 +15,7 @@ import GmZoneRail from "@/app/components/GmZoneRail";
 // navigation inside the desk.
 //
 // Which person it shows is DERIVED, not stored: `segment`
-// (useSelectedLayoutSegment(), the [discordUserId] the route is on) points
+// (selection.js, who the rail has open) points
 // the inspector at whoever's conversation is open; `override` is the last
 // person clicked in the inspector's own search/pin row, and is ignored once
 // the route moves past the segment it was set under. All computed during
@@ -31,7 +31,7 @@ export default function InspectorHost({
   bulkCharacters,
   tagCatalog,
 }) {
-  const segment = useSelectedLayoutSegment();
+  const segment = useSelection();
   const [override, setOverride] = useState(null); // { segment, value }
   const [cache, setCache] = useState(() => new Map());
   const [devPanel, setDevPanel] = useState(null);

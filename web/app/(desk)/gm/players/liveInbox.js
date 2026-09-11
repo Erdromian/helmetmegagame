@@ -79,23 +79,35 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
     changed = true;
   }
 
+  // Two shapes arrive here, and both are folded the same way. `thread`
+  // (singular) is the backstop poll's, which asks about one conversation —
+  // whichever is open. `threads` (plural) is the stream's: it carries rows for
+  // EVERY conversation that moved, because the stream no longer takes an
+  // "open" parameter (see api/gm/inbox-stream). Folding both through one
+  // function is what keeps the two paths from drifting.
   const thread = delta?.thread;
-  if (thread?.discordUserId && Array.isArray(thread.messages) && thread.messages.length > 0) {
-    const fresh = thread.messages.filter((m) => m?.id && !state.seen.has(m.id));
-    if (fresh.length > 0) {
-      for (const m of fresh) {
-        state.seen.add(m.id);
-        if (announce && m.direction === "INBOUND") {
-          inbound.push({ id: m.id, discordUserId: thread.discordUserId });
-        }
+  const threadList = [
+    ...(thread?.discordUserId ? [thread] : []),
+    ...(Array.isArray(delta?.threads) ? delta.threads : []),
+  ];
+  const openThreadIds = new Set(threadList.map((t) => t.discordUserId));
+
+  for (const t of threadList) {
+    if (!t?.discordUserId || !Array.isArray(t.messages) || t.messages.length === 0) continue;
+    const fresh = t.messages.filter((m) => m?.id && !state.seen.has(m.id));
+    if (fresh.length === 0) continue;
+    for (const m of fresh) {
+      state.seen.add(m.id);
+      if (announce && m.direction === "INBOUND") {
+        inbound.push({ id: m.id, discordUserId: t.discordUserId });
       }
-      const current = state.feeds.get(thread.discordUserId) ?? EMPTY_FEED;
-      const merged = Object.freeze([...current, ...fresh].sort(byTimeThenId));
-      const feeds = new Map(state.feeds);
-      feeds.set(thread.discordUserId, merged);
-      state.feeds = feeds;
-      changed = true;
     }
+    const current = state.feeds.get(t.discordUserId) ?? EMPTY_FEED;
+    const merged = Object.freeze([...current, ...fresh].sort(byTimeThenId));
+    const feeds = new Map(state.feeds);
+    feeds.set(t.discordUserId, merged);
+    state.feeds = feeds;
+    changed = true;
   }
 
   // Inbound rows on conversations that are NOT open never reach `feeds` (the
@@ -106,7 +118,8 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
   if (announce && Array.isArray(delta?.rail)) {
     for (const patch of delta.rail) {
       if (patch?.lastDirection !== "INBOUND") continue;
-      if (patch.discordUserId === thread?.discordUserId) continue;
+      // Already announced above, as a row rather than as a rail patch.
+      if (openThreadIds.has(patch.discordUserId)) continue;
       if (!(patch.lastAtMs > sinceMs)) continue;
       const key = `rail:${patch.discordUserId}:${patch.lastAtMs}`;
       if (state.seen.has(key)) continue;

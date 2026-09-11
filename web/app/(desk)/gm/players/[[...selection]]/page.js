@@ -3,17 +3,27 @@ import { auth } from "@/lib/auth";
 import { Suspense } from "react";
 import SnapshotPage from "@/lib/snapshot/SnapshotPage";
 import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
-import RosterView from "./RosterView";
-import Loading from "./Skeleton";
+import RosterView from "../RosterView";
+import Loading from "../Skeleton";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { cursedUserIds } from "@lifeweb/db/lib/curse";
 import { listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
 
-// The desk with nobody selected: the roster, spanning the whole pane rather
-// than leaving a dossier column empty beside it. Selecting someone in the rail
-// swaps this out for their conversation — fleet view, then person view.
+// The roster, and the desk's ONLY route.
+//
+// An optional catch-all (the same shape /gm/turns uses) rather than a plain
+// page beside a [discordUserId] sibling, because selecting a conversation is
+// no longer a navigation — it is client state (players/selection.js), and the
+// URL follows it by pushState. This route therefore has to stay mounted
+// whether or not somebody is open, so that closing a conversation reveals the
+// roster underneath instead of an empty column.
+//
+// The `selection` param is deliberately unread here. It exists so
+// /gm/players/<id> resolves to a real route on a cold load; who is open is
+// read from the path by the selection store, and DeskMiddle draws the
+// conversation over this.
 //
 // The heavy loads live here rather than in the layout on purpose. The tag
 // catalog and the faction tree are only needed by this view, and the layout

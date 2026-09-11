@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useSelectedLayoutSegment } from "next/navigation";
+import { useSelection } from "./selection";
 import { applyDelta, getCursorMs } from "./liveInbox";
 import { noteDeskVersion } from "@/app/components/useDeskVersion";
 import { noteInboxStreamUp, noteInboxStreamDown, noteInboxStreamFatal } from "./inboxStreamStore";
@@ -41,16 +41,23 @@ const RECONNECT_MAX_MS = 30_000;
 const FATAL_AFTER = 4;
 
 export default function InboxStream({ deployVersion }) {
-  const segment = useSelectedLayoutSegment();
+  const segment = useSelection();
   const [muted] = useChimeMuted();
 
-  // Read at fire time through refs, so toggling the chime doesn't tear the
-  // stream down and rebuild it. The open conversation is different: it is in
-  // the stream's URL, so a change there does reopen — see the effect deps.
+  // BOTH read at fire time through refs, and the open conversation especially.
+  // It used to be an effect dependency, because it rode in the stream's URL —
+  // which meant every click on a different person tore the EventSource down
+  // and built a new one. That was survivable when switching was a page
+  // navigation; now that it is a click it would be a reconnect per click, and
+  // every reconnect suppressed the chime for whatever landed during it. The
+  // stream carries every conversation now, so this is only used to decide
+  // whether to ring.
   const mutedRef = useRef(muted);
+  const segmentRef = useRef(segment);
   useEffect(() => {
     mutedRef.current = muted;
-  }, [muted]);
+    segmentRef.current = segment;
+  }, [muted, segment]);
 
   useEffect(() => {
     let source = null;
@@ -60,10 +67,18 @@ export default function InboxStream({ deployVersion }) {
     let reconnectTimer = null;
     let backstopTimer = null;
     let backstopInFlight = null;
-    // The first frame of a connection reports what was already there — on a
-    // fresh desk that is the last two minutes, which the GM has not been away
-    // from. Ringing for it would chime on every reconnect.
-    let firstFrame = true;
+    // Suppress the chime for the FIRST frame of a cold desk only.
+    //
+    // That frame reports what was already on screen when the GM arrived — with
+    // no cursor, inboxDelta looks back two minutes — and ringing for it would
+    // chime on arrival every time. But it must NOT be re-armed on a reconnect
+    // or a wake: that frame is precisely the backlog the GM missed, the rail's
+    // announce path is skipped wholesale when announce is false, and the
+    // cursor has already moved past those rows, so no later frame carries them
+    // again. Silently swallowing the ping for a stream blip is the exact
+    // failure this desk was fixed for. The rail path guards itself properly
+    // anyway (liveInbox.js compares lastAtMs against the cursor asked with).
+    let firstFrame = getCursorMs() <= 0;
 
     // One delta in, folded and announced. Shared by the stream and the
     // backstop so the two cannot drift in how they treat a frame.
@@ -73,7 +88,7 @@ export default function InboxStream({ deployVersion }) {
       const { inbound } = applyDelta(data, { sinceMs: cursor, announce });
       if (inbound.length === 0) return;
       const hidden = document.visibilityState !== "visible";
-      const ring = inbound.some((m) => hidden || m.discordUserId !== segment);
+      const ring = inbound.some((m) => hidden || m.discordUserId !== segmentRef.current);
       if (ring && !mutedRef.current) playChime();
     }
 
@@ -84,7 +99,6 @@ export default function InboxStream({ deployVersion }) {
       const params = new URLSearchParams();
       const cursor = getCursorMs();
       if (cursor > 0) params.set("since", String(Math.floor(cursor)));
-      if (segment) params.set("open", segment);
 
       const es = new EventSource(`/api/gm/inbox-stream?${params}`);
       source = es;
@@ -130,8 +144,6 @@ export default function InboxStream({ deployVersion }) {
       const wait = base / 2 + Math.random() * (base / 2);
       reconnectTimer = setTimeout(() => {
         reconnectTimer = null;
-        // A fresh connection reports its own backlog; that is not news either.
-        firstFrame = true;
         openStream();
       }, wait);
     }
@@ -143,7 +155,7 @@ export default function InboxStream({ deployVersion }) {
       const params = new URLSearchParams();
       const cursor = getCursorMs();
       if (cursor > 0) params.set("since", String(Math.floor(cursor)));
-      if (segment) params.set("open", segment);
+      if (segmentRef.current) params.set("open", segmentRef.current);
       // Ask for the open thread outright rather than the window since the
       // cursor. The rail has this poll as its backstop; the open thread has
       // nothing else, so the one slow tick is where it gets repaired.
@@ -185,7 +197,6 @@ export default function InboxStream({ deployVersion }) {
       if (!source && !stopped) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
-        firstFrame = true;
         openStream();
       }
       void backstopTick();
@@ -207,7 +218,8 @@ export default function InboxStream({ deployVersion }) {
       window.removeEventListener("online", onWake);
       window.removeEventListener("pageshow", onWake);
     };
-  }, [deployVersion, segment]);
+    // `segment` is deliberately NOT a dependency — see segmentRef above.
+  }, [deployVersion]);
 
   return null;
 }

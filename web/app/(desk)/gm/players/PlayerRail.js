@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
-import { usePathname } from "next/navigation";
 import ZoneChip from "@/app/components/ZoneChip";
 import Select from "@/app/components/Select";
 import usePins from "@/app/components/usePins";
@@ -12,6 +10,7 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 import useNowTick from "@/app/components/useNowTick";
 import { mergeRailRows, useRailPatches } from "./liveInbox";
 import { inVisibleZones } from "@/lib/zones";
+import { useSelection, selectConversation } from "./selection";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 import {
   markConversationRead,
@@ -63,7 +62,7 @@ function relativeTime(ms, now) {
 }
 
 export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNames, myDiscordUserId }) {
-  const pathname = usePathname();
+  const selected = useSelection();
   // The prop is only the seed: once the picker in the inspector has moved,
   // the live answer is in the client (GmZoneViewProvider), so the rail
   // re-filters on the click instead of waiting on a revalidate.
@@ -126,7 +125,10 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
           cache: "no-store",
           signal: controller.signal,
         });
-        if (!res.ok) return;
+        // 204 is "not a GM any more", and res.ok is TRUE for a 204 — so
+        // without this the next line parses an empty body and throws into the
+        // catch. Right outcome, wrong reason; say it on purpose.
+        if (res.status === 204 || !res.ok) return;
         const data = await res.json();
         if (controller.signal.aborted) return;
         setContentHits({ q, hits: data.hits ?? [] });
@@ -377,8 +379,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
 
       <div className="desk-queue">
         {visible.map(({ row, match, contentHits: hitCount }) => {
-          const href = `/gm/players/${row.discordUserId}`;
-          const active = pathname === href;
+          const active = selected === row.discordUserId;
           const pinned = isPinned(row);
           const handled = isHandled(row);
           const muted = isMuted(row);
@@ -427,13 +428,16 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                   ⊘
                 </button>
               </div>
-              {/* prefetch={false}: the rail draws every conversation at once
-                  with no pagination, so the default would fire an RSC request
-                  per visible row into a segment that costs a hundred DM rows
-                  and two Discord REST calls. A GM scrolling the rail was
-                  queueing dozens of those against one connection pool, and the
-                  click they actually meant waited behind the lot. */}
-              <Link href={href} prefetch={false} className="desk-queue-link">
+              {/* A button, not a Link. Opening somebody is client state now
+                  (selection.js) — the URL still changes, by pushState, but the
+                  router is not asked to navigate. That is what lets a click
+                  you have moved on from be abandoned instead of run to
+                  completion with the next one queued behind it. */}
+              <button
+                type="button"
+                className="desk-queue-link"
+                onClick={() => selectConversation(row.discordUserId)}
+              >
                 <div className="desk-queue-top">
                   <CharacterAvatar
                     characterId={row.characterId}
@@ -481,7 +485,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                     in messages · {hitCount}
                   </div>
                 )}
-              </Link>
+              </button>
               {row.unreadCount > 0 && (
                 <span className="desk-queue-unread mono">{row.unreadCount}</span>
               )}
