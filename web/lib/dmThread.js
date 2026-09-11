@@ -53,7 +53,7 @@ export function railKindSql(alias) {
 
 // The raw twin of withoutDmNoise, for the one raw-SQL caller that asks the
 // THREAD question rather than the rail one: the desk's message-content search
-// (gm/players/actions.js#searchConversations). It has to match what opening
+// (app/api/gm/conversation-search). It has to match what opening
 // the person would show, notices included — a GM who remembers reading a line
 // on somebody's thread and cannot search for it has been told the search is
 // broken, and searching only the rail's rows is exactly that.

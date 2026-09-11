@@ -14,7 +14,7 @@ import { getGmSession, sendDm } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getOpenTurn } from "@/lib/turn";
-import { withoutDmNoise, threadKindSql } from "@/lib/dmThread";
+import { withoutDmNoise } from "@/lib/dmThread";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 
@@ -163,42 +163,6 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
 //
 // Returns counts and the newest match time per player; the rail merges these
 // under its fuzzy hits rather than replacing them.
-const CONVERSATION_SEARCH_LIMIT = 50;
-const CONVERSATION_SEARCH_MIN = 3;
-
-export async function searchConversations({ q }) {
-  return guarded(async () => {
-    await requireGm();
-    const query = String(q ?? "").trim();
-    if (query.length < CONVERSATION_SEARCH_MIN) return { hits: [] };
-
-    // LIKE metacharacters escaped so a query containing % or _ searches for
-    // those characters instead of turning into a wildcard. Backslash is
-    // Postgres's default LIKE escape character, so no ESCAPE clause is needed.
-    const pattern = `%${query.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
-
-    const rows = await prisma.$queryRaw`
-      SELECT dm."discordUserId",
-             COUNT(*)::int AS "hits",
-             MAX(dm."createdAt") AS "lastAt"
-      FROM "DirectMessage" dm
-      WHERE dm."content" ILIKE ${pattern}
-        AND ${threadKindSql("dm")}
-      GROUP BY dm."discordUserId"
-      ORDER BY MAX(dm."createdAt") DESC
-      LIMIT ${CONVERSATION_SEARCH_LIMIT}
-    `;
-
-    return {
-      hits: rows.map((r) => ({
-        discordUserId: r.discordUserId,
-        hits: r.hits,
-        lastAtMs: r.lastAt ? new Date(r.lastAt).getTime() : 0,
-      })),
-    };
-  });
-}
-
 export async function markConversationRead({ playerDiscordUserId }) {
   return guarded(async () => {
     const session = await requireGm();

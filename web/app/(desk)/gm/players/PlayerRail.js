@@ -15,7 +15,6 @@ import { inVisibleZones } from "@/lib/zones";
 import { useVisibleZoneNames } from "@/app/components/GmZoneViewProvider";
 import {
   markConversationRead,
-  searchConversations,
   setConversationHandled,
   setConversationMuted,
 } from "./actions";
@@ -34,7 +33,7 @@ import {
 // that is one preview line per conversation — so "find the thread where we
 // talked about the barley" could not work at all. Anything at least this long
 // also goes to the server as an ILIKE over every message
-// (actions.js#searchConversations), debounced, and its hits are merged in
+// (/api/gm/conversation-search), debounced, and its hits are merged in
 // UNDER the fuzzy ones: a name match is still what a GM usually means.
 const CONTENT_SEARCH_MIN = 3;
 const CONTENT_SEARCH_DEBOUNCE_MS = 300;
@@ -99,7 +98,6 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
   // here, exists to catch). Clearing the box therefore drops the hits for
   // free: they simply stop matching the current query.
   const [contentHits, setContentHits] = useState(null);
-  const [, startSearchTransition] = useTransition();
   // Optimistic ✓ marks, so the glyph lights the instant it is clicked instead
   // of waiting on the revalidation. Keyed on the conversation's last-message
   // time as well as the id, so the entry stops matching — and the server's
@@ -113,19 +111,33 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
   // standing, so nothing about a new message should take it back.
   const [mutedOverride, setMutedOverride] = useState({});
 
+  // A plain fetch, not a server action. An action would ride the router's
+  // serial queue, so this scan — an ILIKE over every DirectMessage — would
+  // hold up the very next thing the GM did, and "type a name, click the row"
+  // is the most ordinary sequence on this desk. A GET is off that queue and
+  // can be aborted, so a superseded search stops costing anything at once.
   useEffect(() => {
     const q = query.trim();
     if (q.length < CONTENT_SEARCH_MIN) return undefined;
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      startSearchTransition(async () => {
-        const res = await searchConversations({ q });
-        if (cancelled || !res?.ok) return;
-        setContentHits({ q, hits: res.hits });
-      });
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/gm/conversation-search?q=${encodeURIComponent(q)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (controller.signal.aborted) return;
+        setContentHits({ q, hits: data.hits ?? [] });
+      } catch {
+        // Aborted by the next keystroke, or offline. The rail still filters on
+        // name, role, faction, handle, zone and tag without this — content
+        // hits only ever widen the result.
+      }
     }, CONTENT_SEARCH_DEBOUNCE_MS);
     return () => {
-      cancelled = true;
+      controller.abort();
       clearTimeout(timer);
     };
   }, [query]);
