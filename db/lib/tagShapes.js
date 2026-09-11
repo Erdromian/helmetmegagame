@@ -830,6 +830,21 @@ function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml"
   return { taste: taste.trim(), mood, into, ...(cures ? { cures: true } : {}) };
 }
 
+// `inlayValue` — TRINKETS.md: what a raw material adds to a minted Trinket's
+// sell price when a smith inlays it. Modeled on `cooked` above as an
+// optional numeric annotation on a raw-material tag, but far more permissive
+// — see the schema comment on Tag.inlayValue for why. Just a positive whole
+// number, or absent.
+function normalizeInlayValue(value, { slug, label = "docs/tags.yaml" } = {}) {
+  if (value == null) return null;
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(
+      `${label}: tag "${slug}" inlayValue must be a positive whole number`,
+    );
+  }
+  return value;
+}
+
 // `cooked` deliberately does NOT require `consumable`. Being cookable and
 // being edible are different claims, and the six body parts are the case that
 // proves it: nobody gnaws a raw hand, and a hand in a stew is very much a
@@ -1245,6 +1260,7 @@ module.exports = {
   COOKED_TASTE_MAX,
   INGREDIENT_SLOTS_MAX,
   normalizeCooked,
+  normalizeInlayValue,
   validateCooked,
   normalizeIngredientSlots,
   validateIngredientSlots,

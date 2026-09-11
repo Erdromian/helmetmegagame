@@ -81,6 +81,7 @@ function buildSideEffectPayload(fields) {
     lessonDms: fields.lessonDms ?? [],
     researchDms: fields.researchDms ?? [],
     confessionDms: fields.confessionDms ?? [],
+    trinketDms: fields.trinketDms ?? [],
     tagExpiryDms: fields.tagExpiryDms ?? [],
     turretBursts: fields.turretBursts ?? [],
     depotLocationId: fields.depotLocationId ?? null,
@@ -174,6 +175,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
   await eachDm("lesson", p.lessonDms, (dm) => plainDm(dm, "Lesson"));
   await eachDm("research", p.researchDms, (dm) => plainDm(dm, "Research"));
   await eachDm("confession", p.confessionDms, (dm) => plainDm(dm, "Confession"));
+  await eachDm("trinket", p.trinketDms, (dm) => plainDm(dm, "Trinket"));
   await eachDm("tagExpiry", p.tagExpiryDms, (dm) => plainDm(dm, "Tag progression"));
 
   // A gun going off is heard well past the room it is in. Before the DMs

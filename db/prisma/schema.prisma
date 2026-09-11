@@ -2980,6 +2980,18 @@ model Tag {
   // comment on db/lib/tagShapes.js#normalizeCooked.
   cooked Json?
 
+  // What this raw material is worth as a Trinket INLAY (TRINKETS.md): added
+  // to a minted Trinket's sell price when the smith slots it. A second,
+  // narrower "what does this contribute as an ingredient" annotation beside
+  // `cooked` above, deliberately not folded into it — Trinket and Cooking are
+  // two separate ingredient pools (a smith does not season a Trinket with
+  // onion, and a cook does not inlay a stew with malachite), and
+  // `resolveIngredientSlots`'s caller tells the two apart by which of these
+  // two columns is non-null. No `into`, no `cures` interaction, and no
+  // restriction against `craftable`/`equippable` — unlike `cooked`, an inlay
+  // ingredient (Iron) can happily also be a recipe ingredient elsewhere.
+  inlayValue Int?
+
   // The ingredient slugs that went into THIS dish, in the order the cook
   // slotted them. Written only on rows minted by a cooking craft
   // (mintCustomCraft), empty on every catalog row and every other mint.

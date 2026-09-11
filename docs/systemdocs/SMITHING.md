@@ -309,3 +309,7 @@ Off the ladder:
 |---|---|---|
 | Salvage Plate | 2 | No skill gate. |
 | Energy Shield | 0 | Not smith work at all — Merchant stock at 145 ⬢, or the rarest rung of cave loot. |
+
+Off the ladder in the other direction: **Trinket**, `smithing`-gated and a
+whole Move like everything above, but priced by a die roll rather than a
+row in either table — see [`TRINKETS.md`](TRINKETS.md).

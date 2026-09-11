@@ -35,6 +35,7 @@ const {
   normalizeResists,
   validateResists,
   normalizeCooked,
+  normalizeInlayValue,
   validateCooked,
   normalizeIngredientSlots,
   validateIngredientSlots,
@@ -873,6 +874,8 @@ async function syncTagsFromYaml(prisma) {
       // deliberately absent — only a mint ever writes that, and this sync
       // never sees a minted row.
       cooked: normalizeCooked(entry.cooked, { slug: entry.slug, normalizeInto: normalizeConsumesInto }),
+      // Trinket's own ingredient pool (TRINKETS.md), sibling of `cooked`.
+      inlayValue: normalizeInlayValue(entry.inlayValue, { slug: entry.slug }),
       requirementIngredientSlots: normalizeIngredientSlots(entry.requirement?.ingredientSlots, { slug: entry.slug }),
       mealMood: entry.mealMood ?? null,
       ...normalizeCustom(entry.custom, { slug: entry.slug, customizable: entry.customizable ?? false }),

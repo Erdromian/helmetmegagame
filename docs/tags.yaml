@@ -6041,6 +6041,104 @@ tags:
     sellable: true
     sellablePrice: 8
 
+  # Trinket's own ore (TRINKETS.md), Prospecting-sourced like {tag:silver}.
+  # inlayValue is what it adds to a minted Trinket's sell price when a smith
+  # slots it in — a second, separate ingredient annotation from `cooked`, not
+  # a recipe of its own.
+  malachite:
+    catalog: all
+    name: Malachite
+    category: items
+    group: items-gear
+    description: "A green mineral."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 6
+    inlayValue: 6
+
+  hematite:
+    catalog: all
+    name: Hematite
+    category: items
+    group: items-gear
+    description: "A red ore."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 3
+    inlayValue: 3
+
+  # Smelted from {tag:hematite}, same shape as {tag:steel} smelting from coal.
+  # Also carries its own inlayValue — a smith who never lit the forge for a
+  # separate ore still has something to inlay a Trinket with.
+  iron:
+    catalog: all
+    name: Iron
+    category: items
+    group: items-gear
+    description: "A workable iron ingot."
+    pointCost: 0
+    tradeable: true
+    weight: 2
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0
+      resourceCost: 0
+      skills: [smithing]
+      items: [hematite]
+      gambit: false
+    sellable: true
+    sellablePrice: 5
+    inlayValue: 3
+
+  # The base row a Trinket is minted FROM (TRINKETS.md). NOT craftable in the
+  # ordinary sense — there is no Craft-dialog entry point for it, on purpose:
+  # a Trinket's whole point is that its quality is unknown until the turn
+  # ends, and the normal Craft dialog shows you exactly what you are about to
+  # get. `web/app/(app)/character/trinketActions.js` is the recipe's real
+  # gate (smithing + a forge + a whole Move, priced there as constants, not
+  # read off this row's `requirement`) — this row exists only so
+  # `mintCustomCraft` has a base shape (category, group, weight, sellable…)
+  # to clone when the die comes up. `craftable` stays false and `pointCost` 0
+  # so nothing anywhere ever offers it for purchase or for the Craft button.
+  trinket:
+    # `secret` — the strictest catalog value, "nobody sees it" — since this
+    # row is a clone source only and is never itself held or offered
+    # anywhere (`catalog: none` is not a real value; CATALOG_BY_YAML in
+    # db/lib/syncTags.js only knows secret/gm/all).
+    catalog: secret
+    name: Trinket
+    category: items
+    group: items-gear
+    description: "A trinket. When making it, a Gambit die is rolled. The quality is random but influenced by your skill. It is very valuable to the merchant."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    # A minted Trinket always carries its own computed price
+    # (sellablePriceOverride, db/lib/trinketPass.js); this is only what the
+    # never-minted catalog row itself would claim, and nothing ever holds it.
+    sellablePrice: 14
+
   # Refined saltpeter, and the one ingredient that is itself CRAFTED — the
   # gunpowder smith's intermediate step on the way to a {tag:bomb}. Public
   # on purpose (Chris 2026-09-05): the chain is meant to be read off the

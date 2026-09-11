@@ -182,7 +182,10 @@ import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryAdmits, rowWeight } from "@lifeweb/db/lib/carry";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { gambitModifierTotal, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
-import { createWithRetry } from "@lifeweb/db/lib/paperMint";
+import {
+  mintCustomCraft as dbMintCustomCraft,
+  unmintCustomCraft as dbUnmintCustomCraft,
+} from "@lifeweb/db/lib/customCraftMint";
 import {
   CUSTOM_SURCHARGE,
   INSCRIPTION_MAX,
@@ -190,7 +193,6 @@ import {
   customCraftFields,
   mayCustomize,
   customCraftFor,
-  customCraftName,
 } from "@/lib/customCraft";
 import { mergeDishGrants, mergeDishCures, tasteLine } from "@/lib/cooking";
 import { formatManifest, formatStack } from "@lifeweb/db/lib/roomStash";
@@ -440,11 +442,16 @@ async function requireWorkshop(character, tag) {
 // Membership is not a list on the recipe — it is "any tag carrying a `cooked`
 // block", which is why the caller resolves the rows and hands them in as
 // `cookableBySlug`. A recipe never has to be edited to accept a new
-// ingredient, and this function never has to know what any of them are.
+// ingredient, and this function never has to know what any of them are. That
+// genericity is what lets `web/app/(app)/character/trinketActions.js` reuse
+// this exact function for a SECOND, disjoint pool — "any tag carrying an
+// `inlayValue`" — by handing in its own map under the same name. The two
+// pools never overlap: cooking and Trinket read different columns, so a stew
+// ingredient can never be slotted into a Trinket and vice versa.
 // `ingredientChoices` arrives ALREADY cleaned (trimmed, blanks dropped) — the
 // caller has to clean it anyway to look the rows up, and cleaning it twice is
 // how the two copies drift.
-function resolveIngredientSlots(character, tag, quantity, ingredientChoices, cookableBySlug) {
+export async function resolveIngredientSlots(character, tag, quantity, ingredientChoices, cookableBySlug) {
   const slots = tag.requirementIngredientSlots;
   const plan = { spend: [], cookedFrom: [] };
   const picks = ingredientChoices ?? [];
@@ -705,7 +712,7 @@ async function recheckGrantsUnderLock(tx, character, tag) {
 }
 
 // Who pays: you, a room here, or a person here. Defaults to you.
-async function resolveCraftPayer(character, payerKey, cost) {
+export async function resolveCraftPayer(character, payerKey, cost) {
   const key = payerKey || `character:${character.id}`;
   const payer = await resolveParty(key);
   if (!payer) throw new UserError("That payer isn't here any more — pick another.");
@@ -923,155 +930,23 @@ async function spendCraftMove(
 // different-words mint picks up a "(2)" via the retry. The caller deletes a
 // freshly minted row if the transaction it fed then fails.
 //
-// What is deliberately NOT copied: the requirement block (an item has no
-// recipe to advertise), depotPrice (the Depot's book must never list a
-// player's words — its query also filters `ephemeral` as a second lock),
-// and catalogVisibility (the GM default keeps a mint out of the public
-// catalog; referenceData ships an ephemeral row only to who holds it).
-// "(rich spices)" for a dish nobody named, or "" when it has no ingredients
-// or none of them taste of anything. `cookedTastes` is the caller's lookup,
-// already loaded — this runs outside the craft transaction and must not
-// query.
-function cookedTasteSuffix(cookedFrom, cookedTastes) {
-  const tastes = cookedFrom.map((slug) => cookedTastes?.get(slug) ?? "").filter(Boolean);
-  return tastes.length ? ` (${tastes.join(", ")})` : "";
+// The mint itself now lives in db/lib/customCraftMint.js — Trinket's
+// turn-end pass (db/lib/trinketPass.js) needs it too, and db/lib can never
+// require anything under web/, so the only way to share it was to move it
+// there and have this side become the thin wrapper: catch the plain Error
+// that side throws and reraise it as the UserError a server action needs.
+// Every existing call site (cooking, the Death Mask, …) is unchanged.
+export async function mintCustomCraft(db, baseTag, opts) {
+  try {
+    return await dbMintCustomCraft(db, baseTag, opts);
+  } catch (err) {
+    if (err instanceof UserError) throw err;
+    throw new UserError(err.message);
+  }
 }
 
-async function mintCustomCraft(
-  db,
-  baseTag,
-  { name, description, literal = false, cookedFrom = [], cookedTastes = null },
-) {
-  // `literal` is the Death Mask's door: the name arrives finished ("Death
-  // Mask of Ada" — stamped from the corpse, never typed) and must not gain
-  // the "(Death Mask)" suffix a player-worded custom wears, because the base
-  // identity is already the first two words.
-  // An unnamed dish is named after what it TASTES of: "Lavish Meal (rich
-  // spices)". Tag.name is NOT unique (schema.prisma says so at the column),
-  // so this sits happily beside the catalog's own "Lavish Meal".
-  //
-  // Without it a cook's own pantry is unreadable. Every Lavish Meal has an
-  // ingredient, so every one of them mints; two unnamed dishes — one built on
-  // saffron, one on feces — would be two rows with the same name and the same
-  // stock description, and their cook would have no way to tell which was
-  // which before biting. "Nothing tells them apart" is the right rule for two
-  // DIFFERENT cooks and a bad joke inside one kitchen.
-  //
-  // A taste is coarser than an ingredient ("meat" covers a boar loin and a
-  // human foot), and the two undetectable poisons have no taste at all, so
-  // this gives away less than it looks. A cook who wants to hide something
-  // types a name, which is what a name is for.
-  const tasteSuffix = literal ? "" : cookedTasteSuffix(cookedFrom, cookedTastes);
-  const composedName = literal
-    ? name
-    : name || description
-      ? customCraftName(baseTag.name, name)
-      : `${baseTag.name}${tasteSuffix}`;
-  const composedDescription = description || baseTag.description;
-  // THE INGREDIENTS ARE PART OF THE IDENTITY. Reuse used to key on the words
-  // alone, which was right when the words were all a mint carried. A dish
-  // carries what went into it, so two cooks who both type "Steak Dinner" —
-  // one over saffron, one over feces — must NOT land on one row, or one of
-  // them is serving the other's dinner. Sorted, so [onion, saffron] and
-  // [saffron, onion] are one dish rather than two.
-  //
-  // Nothing on any surface tells the two rows apart, which is deliberate
-  // (Bascinet, 2026-09-09): a dish says what it tastes of and never what it
-  // was made with.
-  //
-  // STORED sorted, not just compared sorted, because Postgres array equality
-  // is order-sensitive and a key that did not match what was written would
-  // reuse nothing and mint a row per craft. The cost is that the taste
-  // sentence reads alphabetically rather than in the order the cook slotted
-  // them, which is a fair trade for two cooks who picked the same two things
-  // in different orders landing on one dish.
-  const key = [...cookedFrom].sort();
-  const existing = await db.tag.findFirst({
-    where: {
-      custom: true,
-      ephemeral: true,
-      name: composedName,
-      description: composedDescription,
-      cookedFrom: { equals: key },
-    },
-  });
-  if (existing) return { tag: existing, minted: false };
-  const stamp = Date.now().toString(36);
-  const rand = Math.random().toString(36).slice(2, 7);
-  const tag = await createWithRetry(db, (attempt) => ({
-    slug: `custom-craft-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`,
-    name: attempt ? `${composedName} (${attempt + 1})` : composedName,
-    description: composedDescription,
-    custom: true,
-    ephemeral: true,
-    craftable: false,
-    customizable: false,
-    pointCost: 0,
-    category: baseTag.category,
-    groupId: baseTag.groupId ?? null,
-    tradeable: baseTag.tradeable,
-    weightLbs: baseTag.weightLbs,
-    stackable: baseTag.stackable,
-    inspectVisibility: baseTag.inspectVisibility,
-    equippable: baseTag.equippable,
-    equipSlot: baseTag.equipSlot,
-    equipLayer: baseTag.equipLayer,
-    twoHanded: baseTag.twoHanded,
-    // What this is a copy of. A mint's slug is fresh, so every rule that reads
-    // a held tag's slug back — the Spillway's cutting tools and body armour
-    // (db/lib/godflesh.js), a weapon's torture bonus (db/lib/torture.js) —
-    // resolves through this or stops seeing the thing entirely.
-    customOfSlug: baseTag.slug,
-    // The weapon's own combat block: its class and what it is worth in a
-    // fight (db/lib/fightingSkill.js). Without it a custom sword counts as
-    // nothing at all — cosmetic, which is not what the smith paid for.
-    fighting: baseTag.fighting ?? undefined,
-    // Combat/utility stats a customizable weapon or armor piece carries —
-    // missing these meant a "Custom Breastplate" minted with zero armor and
-    // a "Custom Knight's Helmet" that no longer concealed anyone.
-    meleeArmor: baseTag.meleeArmor,
-    ballisticArmor: baseTag.ballisticArmor,
-    concealsIdentity: baseTag.concealsIdentity,
-    forcesConceal: baseTag.forcesConceal,
-    concealSprite: baseTag.concealSprite,
-    laborBonus: baseTag.laborBonus ?? undefined,
-    carryBonus: baseTag.carryBonus,
-    removable: baseTag.removable,
-    consumable: baseTag.consumable,
-    consumesInto: baseTag.consumesInto,
-    consumesIntoOneOf: baseTag.consumesIntoOneOf ?? undefined,
-    consumesIntoUnless: baseTag.consumesIntoUnless ?? undefined,
-    consumesIntoDurations: baseTag.consumesIntoDurations ?? undefined,
-    consumesIntoResources: baseTag.consumesIntoResources,
-    // What this dish was made of, and its recipe's own small mood. Everything
-    // else about a dish is derived from these two at the moment somebody eats
-    // it (web/lib/cooking.js) — deliberately, so an ingredient retuned in the
-    // catalog retunes the dinners already in people's pockets.
-    //
-    // `cooked` is NOT copied: it says what a tag contributes as an
-    // INGREDIENT, and a dish is not one. Cooking a stew into a second stew is
-    // not a thing.
-    cookedFrom: key,
-    mealMood: baseTag.mealMood,
-    sellable: baseTag.sellable,
-    sellablePrice: baseTag.sellablePrice,
-    defaultDurationTurns: baseTag.defaultDurationTurns,
-    expiresInto: baseTag.expiresInto ?? undefined,
-  }));
-  if (!tag)
-    throw new UserError("Couldn't find a free name for that — try different words.");
-  return { tag, minted: true };
-}
-
-// Best-effort undo of a mint whose craft transaction failed: the guard on
-// `custom` means this can never touch a catalog row, and a row somebody
-// already holds is FK-pinned and simply survives (prune's problem, not
-// ours). Failures are swallowed — the craft's own error is the one to show.
-async function unmintCustomCraft(db, grant) {
-  if (!grant?.minted) return;
-  await db.tag
-    .deleteMany({ where: { id: grant.tag.id, custom: true, ephemeral: true } })
-    .catch(() => {});
+export async function unmintCustomCraft(db, grant) {
+  return dbUnmintCustomCraft(db, grant);
 }
 
 async function grantCrafted(
@@ -1312,7 +1187,7 @@ async function craftRequestImpl({
   // here because the mint runs outside the craft transaction and must not
   // open a query of its own.
   const cookedTastes = new Map(cookableRows.map((t) => [t.slug, t.cooked?.taste ?? ""]));
-  const slotPlan = resolveIngredientSlots(character, tag, quantity, posted, cookableBySlug);
+  const slotPlan = await resolveIngredientSlots(character, tag, quantity, posted, cookableBySlug);
   // One plan from here on: the ingredients a dish spends are spent the same
   // way, under the same lock, and land in the same `details.consumed`.
   //

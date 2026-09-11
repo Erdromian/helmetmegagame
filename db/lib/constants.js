@@ -52,6 +52,11 @@ const BUTCHER_SLUG = "butcher";
 // to. Workshop Equipment gates smithing and building; Surgical Equipment is
 // +1 on a medical Gambit.
 const WORKSHOP_EQUIPMENT_SLUG = "workshop-equipment";
+// Trinket's skilled floor (TRINKETS.md): a smith holding this cannot roll
+// below Normal on a Trinket Gambit. Read straight off the sheet by
+// db/lib/trinketPass.js — not through a Gambit modifier, so mixing in
+// Hunger/mood could never make the floor's guarantee unreliable.
+const SMITHING_SKILLED_SLUG = "smithing-skilled";
 // Packaging Equipment is the third standing kit, alongside the two above:
 // having it in reach is what turns the Package button on. Unlike those two it
 // is not craftable — there are exactly two in the world, one on the Godard
@@ -277,6 +282,7 @@ module.exports = {
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
+  SMITHING_SKILLED_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,

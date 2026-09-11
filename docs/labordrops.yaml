@@ -149,7 +149,11 @@ laborType:
   # padded around, and Gold Fleck joins as new mid-tier "good stuff". The die
   # is where this specialization is meant to make its money (LABORDROPS.md
   # §2b) — base pay stays exactly where LABORING.md put it.
-  prospecting:  # ⬢ EV/labor 5.34 · hit 76%
+  prospecting:  # ⬢ EV/labor 5.34 · hit 76% — header stale, Trinket ore added 2026-09-11, db:audit-labor-drops owed
+    1:  # a floor for hematite: face 1 carried nothing before it
+      - { slug: hematite, rarity: common }  # a red ore, easy to spot even on a bad day — sells 3 ⬢
+    3:  # a floor for malachite, same reasoning: face 3 carried nothing before it
+      - { slug: malachite, rarity: uncommon }  # a green mineral, worth an inlay — sells 6 ⬢
     2:  # EV 2.13 ⬢ · hit 100%
       - { slug: sweets, rarity: common }  # a rarity, tucked away and forgotten — sells 2 ⬢
       - { slug: nightshade-herb, rarity: common }  # sells 2 ⬢
