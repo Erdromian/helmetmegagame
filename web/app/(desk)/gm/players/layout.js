@@ -8,7 +8,8 @@ import PlayerRail from "./PlayerRail";
 import DeskHeader from "@/app/components/DeskHeader";
 import LockChip from "@/app/components/LockChip";
 import InboxPoller from "./InboxPoller";
-import LiveInboxPoller from "./LiveInboxPoller";
+import InboxStream from "./InboxStream";
+import InboxStreamChip from "./InboxStreamChip";
 import DeskInboxCounts from "./DeskInboxCounts";
 import { deployVersion } from "@/lib/deployVersion";
 import { DeskStaleRefreshGate, DeskStaleChip } from "@/app/components/useDeskVersion";
@@ -74,7 +75,26 @@ export default async function PlayerDeskLayout({ children }) {
   // hunger notice could otherwise sit at the top of the inbox looking like
   // mail. A notice is invisible to the rail now (dmThread.js#railKindSql), so
   // the two questions have the same answer.
-  const [latestMessages, unreadRows, everDmedUserIds, claims, clock] = await Promise.all([
+  // The clock FIRST, on its own, and not in the Promise.all below.
+  //
+  // rowsAsOfMs is the watermark mergeRailRows uses to decide whether a live
+  // patch is newer than these rows; a patch only applies when its own stamp is
+  // strictly later. Read alongside the queries, the stamp could land AFTER a
+  // message the queries had already missed — so the rows lacked the message,
+  // the watermark claimed to be newer than it, and the patch carrying it was
+  // discarded. The desk chimed and showed nothing until a reload, which is
+  // half of what GMs meant by "I heard the ping but there's nothing there".
+  //
+  // Reading it first makes the stamp a floor rather than a ceiling: never
+  // later than the data it describes. The cost is that an almost-simultaneous
+  // patch can now apply when it had nothing new to add, which is a redundant
+  // repaint corrected by the next frame. Losing a message is permanent;
+  // repainting one is not. inboxDelta.js already reads its clock first for
+  // exactly this reason, so the two sides now agree.
+  const clock = await prisma.$queryRaw`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`;
+  const rowsAsOfMs = Number(clock[0].nowMs);
+
+  const [latestMessages, unreadRows, everDmedUserIds, claims] = await Promise.all([
     prisma.$queryRaw`
       SELECT DISTINCT ON ("discordUserId")
         "discordUserId", "id", "direction", "content", "authorDiscordUserId", "source", "createdAt"
@@ -108,11 +128,7 @@ export default async function PlayerDeskLayout({ children }) {
         ],
       },
     }),
-    // Database clock, not the web container's — a clock mismatch would make
-    // every live-inbox patch win or none.
-    prisma.$queryRaw`SELECT (EXTRACT(EPOCH FROM now()) * 1000)::double precision AS "nowMs"`,
   ]);
-  const rowsAsOfMs = Number(clock[0].nowMs);
 
   const latestByUser = new Map(latestMessages.map((m) => [m.discordUserId, m]));
   const unreadByUser = new Map(unreadRows.map((r) => [r.discordUserId, r.unreadCount]));
@@ -245,6 +261,7 @@ export default async function PlayerDeskLayout({ children }) {
             </span>
             <LockChip />
             <DeskInboxCounts rows={rows} rowsAsOfMs={rowsAsOfMs} />
+            <InboxStreamChip />
           </>
         }
         actions={
@@ -288,7 +305,7 @@ export default async function PlayerDeskLayout({ children }) {
       </GmZoneViewProvider>
 
       <InboxPoller deployVersion={deployVersion()} />
-      <LiveInboxPoller deployVersion={deployVersion()} />
+      <InboxStream deployVersion={deployVersion()} />
     </div>
     </DeskStaleRefreshGate>
   );

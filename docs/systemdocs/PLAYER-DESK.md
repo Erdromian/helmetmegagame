@@ -461,79 +461,125 @@ desk's own actions. `markConversationRead` is the deliberate exception (§5).
 
 ## 9a. The live inbox
 
-Before this, a player's reply never reached an open conversation until the
-GM reloaded: the pane's state is seeded once, and the desk's only refresh
-was `InboxPoller.js`'s 30s gated `router.refresh()`, which re-renders the
-layout but can't reseed the pane. Now the desk has a fast path and a
-backstop, and it's important which is which.
+A player's reply reaches an open desk because Postgres says so, not because
+the desk asked. The chain is the one Chat already runs (CHAT.md §3), with one
+link added for the GM chair:
 
-**The fast path** is `LiveInboxPoller.js`: every ~3s it fetches
-`GET /api/gm/inbox-delta?since=…&open=…` and folds the answer into
-`liveInbox.js`, a module-level store read through `useSyncExternalStore`.
-The route (`web/app/api/gm/inbox-delta/route.js`, over
-`web/lib/inboxDelta.js`) answers with what moved since `since`: for every
-touched conversation, its last message time and direction, the preview, this
-GM's unread count and the handled/muted/claim state; plus, for the open
-conversation, the message rows themselves. It is a **route handler, not a
-server action**, on purpose — a server action runs through the router's
-serial action queue, so a poll in flight would hold up the GM's own send, a
-POST can't be aborted, and a plain fetch can never reach Next's build-mismatch
-full reload whatever the server answers. It is also **not** SSE or
-LISTEN/NOTIFY: for five GMs a 3s poll is indistinguishable from instant, and
-a dropped stream that looks alive is exactly the failure class this desk has
-already been burned by.
+    a DirectMessage is inserted, by anyone
+      -> the DirectMessage_notify trigger raises NOTIFY bascinet_dm
+         -> web/lib/feedHub.js, one LISTEN per web process
+            -> subscribeToAllDms, the desk's fan-out
+               -> /api/gm/inbox-stream, one SSE stream per desk tab
+                  -> InboxStream.js -> liveInbox.js -> the rail and the pane
 
-**Every timestamp comes from Postgres's clock.** `createdAt` is set by the
-database; the web container's `Date.now()` is a different machine, and a
-few hundred ms of drift the wrong way would blind the cursor for good. The
-response carries `nowMs` from `SELECT now()`, the client hands it straight
-back as the next `since` (minus a 10s overlap — `createdAt` is transaction
-start, and the client dedupes by id anyway), and `layout.js` stamps its rows
-with the same clock as `rowsAsOfMs`.
+**The trigger fires for every row and always did.** Nothing in code sends this
+notification — `db/lib/dmNotify.js` explains why a trigger rather than a call
+in each writer — so the three `sendDm` twins, the bot's inbound logger, Chat's
+composer and the next one somebody adds are all covered without knowing it.
+
+**What the desk subscribes to is the firehose.** A player's conversation
+belongs to one account, so `subscribeToDm` is keyed by recipient; the desk's
+inbox is every conversation at once, and keying that would mean a few hundred
+subscriptions and a resubscribe whenever somebody new wrote in. So
+`subscribeToAllDms` takes no key at all. It is a nudge and never an
+authorisation — `/api/gm/inbox-stream` has already established the reader is a
+GM through `getGmSession()`, and re-reads every row it sends through the
+desk's own filter. A non-GM gets 204 and no stream.
+
+**The row is read twice, once per chair.** `handleDm` and `handleGmDm` in the
+hub do not share a read, because the two chairs disagree about both rows and
+columns: the player's filter keeps mention relays and drops the author, the
+desk's drops the relays and needs the author to say who answered. Sharing one
+read would mean one chair quietly inheriting the other's rules — the class of
+bug `withoutDmNoise`'s `perspective` exists to prevent. `GM_DM_SELECT` /
+`gmDmRow` in `web/lib/dmThread.js` are the desk's half.
+
+**The payload did not change when the trigger did.** A frame on the stream is
+the same `{nowMs, cursorMs, rail, thread}` that `web/lib/inboxDelta.js` has
+always produced, folded by the same `applyDelta`. What moved is only *when* it
+is built: on a notification instead of every three seconds. Bursts — a
+broadcast, a turn announcement reaching a hundred players — are coalesced over
+120ms so the delta's query runs once rather than a hundred times.
+
+**Every timestamp still comes from Postgres's clock**, never `Date.now()`: the
+web container and the database are different machines, and a few hundred ms of
+drift the wrong way would blind the cursor for good. Both sides now read that
+clock BEFORE the queries it stamps, so a stamp is a floor rather than a
+ceiling — never later than the data it describes. Read the other way round, a
+layout's watermark could land after a message its own queries had missed, and
+then `mergeRailRows` discarded the patch carrying that message as "older than
+the rows". The desk chimed and showed nothing until a reload.
 
 **The merge rule.** A patch lays over a rail row only when the patch is newer
-than the row (`liveInbox.js#mergeRailRows`), as a whole — its fields came
-from one consistent read. A revalidated layout arrives with a newer stamp,
-so older patches simply stop applying; nothing prunes them in an effect. The
-merge happens *before* the rail's ✓/⊘ overrides look at a row, because the
-✓ override is keyed on the row's last-message time and has to see the live
-one to un-stick when a new message lands. The header's `N unread · N
-awaiting` chips count the same merged rows (`DeskInboxCounts.js` over
-`railCounts.js`), so the header can't disagree with the rail. Someone the
-rail has never seen — a guild member with no character writing for the
-first time — arrives as a whole row inside the patch, built server-side
-from the member cache.
+than the row (`liveInbox.js#mergeRailRows`), as a whole — its fields came from
+one consistent read. The merge happens *before* the rail's ✓/⊘ overrides look
+at a row, because the ✓ override is keyed on the row's last-message time and
+has to see the live one to un-stick when a new message lands. The header's
+`N unread · N awaiting` chips count the same merged rows
+(`DeskInboxCounts.js` over `railCounts.js`), so the header cannot disagree
+with the rail. Someone the rail has never seen — a guild member with no
+character writing for the first time — arrives as a whole row inside the
+patch, built server-side from the member cache.
 
-**The backstop** is the 30s `InboxPoller`, unchanged. It still owns
-everything the delta can't see: another GM's claim or ✓ on an untouched
-conversation, staged effects, roster and tag changes. The delta is allowed
-to miss; the refresh is what makes that safe. The open thread has no such
-backstop, so every 20th tick the poll asks for the last 60 rows outright.
+**Two backstops, because one live path is not enough.** This section used to
+argue against a stream outright: "a dropped stream that looks alive is exactly
+the failure class this desk has already been burned by." That objection was
+right about the risk and wrong about the alternative — the failure it feared
+had already happened inside the poll, which latched itself off after a deploy
+and stopped rescheduling while the chime went on ringing. So the stream is
+carried by two independent things:
 
-**Polling continues while the tab is hidden.** Browsers throttle a hidden
-page's timers to about one a minute on their own, and the chime while a GM
-is off in Discord is the single most useful thing this delivers. Coming back
-to the tab fires a tick at once. The chime rings for an inbound message on
-any conversation but the open one, or on any conversation when the tab is
-hidden — and `chime.js` remembers when it last rang, so `InboxChime.js` (fed
-by the 30s refresh's badge count) doesn't ring a second time for the same
-arrival.
+- **`resyncDm`.** When the hub's pg client drops and reconnects, rows written
+  in the gap were fanned out to nobody. Every open stream is handed a
+  `{resync:true}` sentinel, winds its cursor back, and re-asks. The cursor
+  cannot have advanced during the outage — no frames went out — so everything
+  missed is above it.
+- **A 30s poll**, the old fast path demoted. It hits the same
+  `/api/gm/inbox-delta` with `full=1`, so the open thread (which has no other
+  backstop) is repaired outright rather than from a cursor. It rings the chime
+  too: a GM whose stream died should still hear their mail.
 
-**Deploys.** Every response carries the build version; a mismatch latches
-the same `stale` flag the 30s poll uses (`useDeskVersion.js#noteDeskVersion`)
-and stops the loop, so the "Updated — reload when ready" chip shows in ~3s
-instead of ~30s. A failed request — a switchover blip, a timeout, being
-offline — backs off (6s → 60s) and keeps the cursor where it was. Nothing on
-this path ever reloads the page.
+And the desk **says** when it is running on the backstop. `InboxStreamChip.js`
+over `inboxStreamStore.js` puts "Catching up" in the header after two
+consecutive drops, or "Live feed off" if the stream never opened at all (a 204
+closes an `EventSource` without ever firing `open`, which is what being signed
+out looks like from here). A live path that has quietly stopped is worse than
+one that never existed; this is the part §9a was right to insist on.
+
+**The tab owns its reconnect**, not `EventSource`. Its own retry replays the
+URL it was opened with, pinning `since` to a cursor that is stale by the
+second attempt. `InboxStream.js` closes and reopens from wherever this tab
+actually got to, backing off 1s to 30s with jitter so five GMs who dropped
+together do not return in the same millisecond. `visibilitychange`, `online`
+and `pageshow` each retry at once rather than waiting out a backoff.
+
+**The chime** rings for an inbound message on any conversation but the open
+one, or on any conversation while the tab is hidden. The first frame of a
+connection is never announced — it reports what was already there, and a
+reconnect is not news. `chime.js` remembers when it last rang, so
+`InboxChime.js` (fed by the 30s refresh's badge count) does not ring a second
+time for the same arrival.
+
+**Deploys.** Every frame carries the build version; a mismatch latches the
+same `stale` flag (`useDeskVersion.js#noteDeskVersion`) and the header offers
+the reload. It does **not** stop the stream or the backstop: both are plain
+GETs into a client store, and neither can reach Next's build-mismatch full
+navigation. That hazard belongs to `router.refresh()`, which is
+`InboxPoller`'s job and is still correctly stood down by the latch.
 
 ## 10. File map
 
 | File | Role |
 |---|---|
 | `(desk)/gm/players/layout.js` | Desk shell + all rail data (the union query), stamped with the DB clock |
-| `LiveInboxPoller.js` / `liveInbox.js` | The 3s delta poll and the store it fills — patches for the rail, the message feed for the open pane (§9a) |
+| `InboxStream.js` / `liveInbox.js` | The SSE stream and the store it fills — patches for the rail, the message feed for the open pane (§9a) |
+| `inboxStreamStore.js` / `InboxStreamChip.js` | Whether the desk is live or on its backstop poll, and the header chip that says so (§9a) |
+| `InboxPoller.js` | The 30s `router.refresh()` for everything the stream cannot see — roster edits, staged effects, another GM's action |
 | `DeskInboxCounts.js` / `railCounts.js` | The header's unread/awaiting chips, counted over the live-merged rows |
-| `web/lib/inboxDelta.js` + `app/api/gm/inbox-delta/route.js` | The delta query and its GM-gated GET |
+| `web/lib/inboxDelta.js` | The delta query — the payload for BOTH the stream and the backstop poll |
+| `app/api/gm/inbox-stream/route.js` | The desk's SSE stream: GM-gated, pushed off `bascinet_dm` (§9a) |
+| `app/api/gm/inbox-delta/route.js` | The same delta as a GET, for the 30s backstop |
+| `web/lib/feedHub.js` | `subscribeToAllDms` + `handleGmDm` — the desk's half of the DM fan-out |
 | `PlayerRail.js` | The inbox rail: search (widens to the roster, pauses filters), zone filter, Needs-reply toggle, pins, the ✓ needs-no-reply mark, the ⊘ mute and its Show-muted toggle |
 | `page.js` / `RosterTable.js` | The fleet view + bulk verbs |
 | `FactionsPanel.js` | The faction hierarchy view |

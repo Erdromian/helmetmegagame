@@ -186,7 +186,12 @@ one `sendDm` away — and NOTIFY is transactional, delivered at COMMIT, so the
 "after the insert, never inside it" rule of §2 is kept by Postgres itself.
 `feedHub.js` holds the LISTEN on its one client, re-reads the row through the
 noise filter, and fans the player's shape to `subscribeToDm(discordUserId)`;
-the stream writes it as `event: dm`. **No cursor and no catch-up**: the pane
+the stream writes it as `event: dm`. The **GM desk rides the same
+notification** — `subscribeToAllDms`, keyed on nothing, because a desk wants
+every conversation at once (PLAYER-DESK.md §9a). The hub reads the row a
+second time for that chair rather than reshaping this one: the two filters
+disagree (a mention relay is the player's and not the desk's) and so do the
+columns (the desk needs the author, the player must never see it). **No cursor and no catch-up**: the pane
 fetches its page on open and again on every reconnect — the tab's own
 reconnects included, since `Chat.js` reopens the stream itself (§3) — through
 `dmStore.js#noteDmReconnect`, and the store dedupes by id. A `router.refresh()`
@@ -197,9 +202,10 @@ a reconnect and a DM landing in that window was lost to an open pane.
 INBOUND row, `source: "player"`, `meta: { via: "play" }` — exactly what the
 bot logs for a DM typed into Discord (`messageCreate.js`). Nothing goes to
 Discord because there is nothing to send: the bot cannot speak as the player
-in their own DM. The desk picks the row up on its 3 s poll like any inbound,
-and the GM's answer goes out through `sendDm` to Discord *and* the table, so
-it reaches the player on whichever face they are on. The send is optimistic
+in their own DM. The row reaches the desk the same way it reaches
+any other reader — the trigger above, fanned to whichever GM has the desk
+open — and the GM's answer goes out through `sendDm` to Discord *and* the
+table, so it reaches the player on whichever face they are on. The send is optimistic
 the desk's way: the row draws `pending` at once and retires when its twin
 lands, whichever of the stream or the action brings it first. Both actions
 gate on the **account**, not on a living character — the page is what needs
