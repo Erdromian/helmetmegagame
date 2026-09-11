@@ -1679,7 +1679,11 @@ export async function sendToGms(content, clientNonce) {
   const nonce = clientNonce ? String(clientNonce).trim().slice(0, 64) : null;
   if (nonce) {
     const already = await prisma.directMessage.findFirst({
-      where: { clientNonce: nonce },
+      // A nonce is a posted value, not proof of who posted it — scope the
+      // lookup to this player's own inbound row so a guessed/replayed nonce
+      // can never hand back somebody else's DirectMessage (CLAUDE.md: never
+      // trust a posted id).
+      where: { clientNonce: nonce, discordUserId: me.discordUserId, direction: "INBOUND" },
       select: PLAYER_DM_SELECT,
     });
     if (already) return { ok: true, row: playerDmRow(already) };

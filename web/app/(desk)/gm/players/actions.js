@@ -93,7 +93,13 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
     // row is already here and this returns it rather than sending twice.
     const nonce = clientNonce ? String(clientNonce).trim().slice(0, 64) : null;
     if (nonce) {
-      const already = await prisma.directMessage.findFirst({ where: { clientNonce: nonce } });
+      // A nonce is a posted value, not proof of which conversation it belongs
+      // to — scope the lookup to this conversation's outbound row so a
+      // guessed/replayed nonce can never hand back another player's
+      // DirectMessage (CLAUDE.md: never trust a posted id).
+      const already = await prisma.directMessage.findFirst({
+        where: { clientNonce: nonce, discordUserId: playerDiscordUserId, direction: "OUTBOUND" },
+      });
       if (already) {
         const page = await getDmThreadPage({ discordUserId: playerDiscordUserId });
         return { message: already, messages: page?.messages ?? null, hasMore: page?.hasMore ?? null };
@@ -118,7 +124,11 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
     // best-effort — when that write is the thing that failed, `created` is
     // null and the client keeps its placeholder.
     const created = nonce
-      ? await prisma.directMessage.findFirst({ where: { clientNonce: nonce } })
+      // Same scoping as the pre-send lookup above — a posted nonce alone
+      // must never resolve to another conversation's row.
+      ? await prisma.directMessage.findFirst({
+          where: { clientNonce: nonce, discordUserId: playerDiscordUserId, direction: "OUTBOUND" },
+        })
       : sent?.id
         ? await prisma.directMessage.findFirst({ where: { discordMessageId: sent.id, direction: "OUTBOUND" } })
         : null;
