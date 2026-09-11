@@ -172,6 +172,12 @@ async function fetchGuildMembers() {
     username: m.user.username,
     globalName: m.user.global_name ?? null,
     avatar: m.user.avatar ?? null,
+    // The SERVER-specific avatar, which is a different picture from the one
+    // above: `m.avatar` is the face somebody set for this guild, `m.user
+    // .avatar` the one they wear everywhere. Carried here so gmProfiles.js can
+    // build the GM roster out of this list instead of fetching the identical
+    // /guilds/:id/members?limit=1000 a second time — see its own note.
+    guildAvatar: m.avatar ?? null,
     roles: m.roles ?? [],
   }));
 }
