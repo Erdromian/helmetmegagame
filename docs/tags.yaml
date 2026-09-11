@@ -3061,8 +3061,14 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "You fight better with a drink in you. While {tag:tipsy}, your fighting skill counts as 1 tier higher, and being {tag:wasted} costs you nothing at all."
-    fighting: { tree: both, tiers: 1, when: { holds: [tipsy] } }
+    description: "Your fighting skill is higher when you're drunk."
+    # `holdsAny`, not `holds`: the drinking rungs REPLACE each other, so a
+    # second drink clears {tag:tipsy} and grants {tag:wasted}. Keyed to tipsy
+    # alone this went dead past the first drink, and against tipsy's old -1 it
+    # cancelled out to exactly nothing — a tag that read +1 and did +0.
+    # A flat bonus on top of whatever the drink costs, so the rungs stay
+    # ordered: tipsy lands at +1.4, wasted at +0.7.
+    fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted, blind-drunk] } }
     pointCost: 5
     requiredTag: alcoholic
     visible: false
@@ -3366,16 +3372,16 @@ tags:
   # you the one above instead. So tipsy -> wasted -> unconscious, and the only
   # way down is to stop.
   #
-  # None of the Fighting penalties below is enforced in code — no line in the
-  # repo reads `tipsy`. They are numbers a GM weighs while adjudicating a
-  # fight, which is how the original Tipsy has always worked.
+  # The Fighting penalties below are ordinary generic `fighting:` blocks, not
+  # special cases: no line of code branches on `tipsy`. The one place a rung is
+  # named by slug is Drunken Master's `holdsAny`, which is a catalog entry too.
   tipsy:
     catalog: gm
     name: Tipsy
     category: status
     group: status-debuffs
-    description: "You feel warm, but a bit uncoordinated. Your Fighting skill counts as 1 tier lower."
-    fighting: { tree: both, tiers: -1 }
+    description: "You feel warm, but a bit uncoordinated."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3387,8 +3393,8 @@ tags:
     name: Wasted
     category: status
     group: status-debuffs
-    description: "You are in a bit of a stupor and are having trouble controlling your body. Your Fighting skill counts as 2 tiers lower."
-    fighting: { tree: both, tiers: -2 }
+    description: "You are in a bit of a stupor and are having trouble controlling your body."
+    fighting: { tree: both, tiers: -1.2 }
     pointCost: 0
     visible: true
     purchasable: false
@@ -3436,8 +3442,8 @@ tags:
     name: Hangover
     category: status
     group: status-debuffs
-    description: "Ugh... Your fighting skill counts as 1 tier lower."
-    fighting: { tree: both, tiers: -1 }
+    description: "Ugh..."
+    fighting: { tree: both, tiers: -0.5 }
     pointCost: 0
     visible: true
     purchasable: false
