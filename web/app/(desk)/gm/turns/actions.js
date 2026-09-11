@@ -16,6 +16,7 @@ import {
   failuresFor,
   isRetryable,
 } from "@lifeweb/db/lib/stagedDelivery";
+import { publicPostTargets } from "@lifeweb/db/lib/publicPostTargets";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
 import { dropCharacterTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
@@ -200,7 +201,8 @@ async function deleteStagedMessageImpl({ stagedMessageId }) {
 }
 
 // Retries a sent-but-partially-failed staged message. PRIVATE re-sends only
-// the failed recipients; PUBLIC re-posts to the summary channel. A clean
+// the failed recipients; PUBLIC re-posts to whichever channels bounced — the
+// summary channel, or the Location channels of a cave level. A clean
 // resend clears deliveryFailures with Prisma.DbNull, not JS null.
 async function resendStagedMessageImpl({ stagedMessageId }) {
   const session = await requireGm();
@@ -208,7 +210,9 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
     where: { id: stagedMessageId ?? "" },
     include: {
       recipients: { include: { character: { select: { id: true, name: true, discordUserId: true } } } },
-      zone: { select: { discordSummaryChannelId: true } },
+      // The channel is resolved by publicPostTargets below; kind and name
+      // are for the sentence a GM reads when there is nowhere to post.
+      zone: { select: { name: true, kind: true } },
       deliveries: true,
     },
   });
@@ -270,20 +274,32 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
     // just got through to must not still be listed as failing here.
     stillFailing = await failuresFor(prisma, existing.id);
   } else {
-    const channelId = existing.zone?.discordSummaryChannelId;
-    if (!channelId) throw new UserError("That zone has no summary channel configured.");
+    // One #summary for a surface zone; every Location channel for a cave
+    // level, which has none (db/lib/publicPostTargets.js, ADJUDICATION.md §1).
+    const { zone, targets } = await publicPostTargets(prisma, existing.zoneId);
+    if (!targets.length) {
+      throw new UserError(
+        zone?.kind === "CAVE_LEVEL"
+          ? "That cave has no Location channels to post into yet."
+          : "That zone has no summary channel configured.",
+      );
+    }
     // A declaration that reached Discord already has its Hall row; one that
     // never posted has none, and a resend is the only thing that will write
-    // it. `sent` on the row is the question, not whether this is a retry.
+    // it. Still one question even now that a run can land partly: any SENT row
+    // means a run where something went out, and that run wrote the row.
     const posted = deliveries.some((d) => d.state === "SENT");
     const { sent, skipped } = await deliverPublic(prisma, {
       stagedMessage: existing,
-      channelId,
+      targets,
+      zone,
       zoneId: existing.zoneId,
       writeSceneLine: !posted,
     });
     resent = sent;
-    held = skipped ? 1 : 0;
+    // A count now, not a boolean — a fan-out can have several channels held by
+    // a push running right now.
+    held = skipped;
     // Derived from the rows, the same way PRIVATE does it. The raw `failed`
     // this used to return is only ever this run's own bounce, so a post that
     // failed here and was retried by a push a second later stayed listed as

@@ -217,7 +217,9 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     prisma.zone.findMany({
       where: { kind: { not: "CAVE_GROUP" } },
       orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true },
+      // `kind` so the composer can say where a cave declaration actually goes:
+      // a CAVE_LEVEL has no #summary and fans out to its Location channels.
+      select: { id: true, name: true, kind: true },
     }),
     // The effect composer's search space: the whole catalog. TAG_CHIP_FIELDS
     // is what TagChip/ChipLabel need to render coloured with a working

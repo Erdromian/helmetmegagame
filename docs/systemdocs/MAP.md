@@ -45,7 +45,10 @@ promoting Caves and Depths to surface zones because the Caving Die fires on a
 one parent also means Caves and Depths share one GM seat, which is what the old
 Caves seat already did across three levels. The consequence to know about is
 that neither has a `#summary` of its own, so **a gate underground would have
-nowhere to announce** — none is drawn there today.
+nowhere to announce** — none is drawn there today. That is a gate's problem
+specifically, not a general rule about the caves being unreachable: a staged
+public declaration for either level fans out to every Location channel in it
+instead (`ADJUDICATION.md` §1).
 
 A zone itself is never a place you can stand in any more — only a Location
 is. Every presence zone (`SURFACE` or `CAVE_LEVEL`) must list at least one

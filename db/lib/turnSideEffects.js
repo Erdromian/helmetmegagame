@@ -41,6 +41,7 @@ const { stillAlive } = require("./deathTeardown");
 const { reconcileCharacterRoleNames } = require("./characterRoleNames");
 const { refreshLiveRooms } = require("./syncZones");
 const { broadcastToZones } = require("./worldBroadcast");
+const { publicPostTargets } = require("./publicPostTargets");
 const { postGameEnded } = require("./gameEnd");
 const { syncSpectatorAccess } = require("./spectatorAccess");
 const { sceneLine, sceneLineAt } = require("./scene");
@@ -770,37 +771,57 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
         content: post.content,
         createdByDiscordUserId: null,
       };
-      const { sent, failed } = await deliverPublic(prisma, {
+      // Resolved LIVE, not carried in the payload. Where a declaration goes is
+      // a list now — one #summary, or every Location channel in a cave level
+      // (db/lib/publicPostTargets.js) — and a list of channel ids frozen at
+      // turn-close and replayed by a resumed push hours later is the same stale
+      // -payload problem the turn and the wipe switch are re-read for below.
+      const { zone, targets } = await publicPostTargets(prisma, post.zoneId);
+      const { sent, failed, skipped, attempted } = await deliverPublic(prisma, {
         stagedMessage,
-        channelId: post.zoneSummaryChannelId,
+        targets,
+        zone,
         zoneId: post.zoneId,
         // The push is always the FIRST attempt at a declaration, so the Hall
         // row is always its to write. Only Resend has a reason to skip it.
         writeSceneLine: true,
       });
+      // Derived from the rows, not from this run's own bounces — the same fix
+      // and the same reason as the PRIVATE block above: a channel a Resend
+      // running beside this one just got through to must not still be listed
+      // as failing here.
+      const rowFailures = await failuresFor(prisma, post.stagedMessageId).catch(() => failed);
       await prisma.stagedMessage
         .update({
           where: { id: post.stagedMessageId },
           data: {
-            // A post with no channel never went anywhere, so it is not stamped
-            // sent — it stays in the tray as unsent work, the way it did.
+            // A post that reached NO channel never went anywhere, so it is not
+            // stamped sent — it stays in the tray as unsent work, the way it
+            // did. One that reached some of them is stamped: it did reach
+            // players, the bounces live on their own rows for Resend to retry,
+            // and leaving it unstamped would get it re-selected by the next
+            // push and re-posted to every channel that already has it.
             ...(sent ? { sentAt: new Date() } : {}),
-            deliveryFailures: failed.length ? failed : Prisma.DbNull,
+            deliveryFailures: rowFailures.length ? rowFailures : Prisma.DbNull,
           },
         })
         .catch((err) =>
           console.error(`Failed to stamp public post ${post.stagedMessageId}:`, err),
         );
-      if (failed.length) {
+      if (failed.length || skipped) {
         console.error(
-          `Public declaration ${post.stagedMessageId} failed to post:`,
-          failed.map((f) => f.error).join("; "),
+          `Public declaration ${post.stagedMessageId} reached ${sent} of ${attempted} channels:`,
+          failed.map((f) => `${f.name ?? "the channel"}: ${f.error}`).join("; ") || "the rest were held",
         );
         deliveryFailures.push({
           stagedMessageId: post.stagedMessageId,
-          attempted: 1,
-          delivered: 0,
+          attempted,
+          delivered: sent,
           failed,
+          // Claimed by a run happening right now. Neither a send nor a bounce,
+          // and leaving it out makes the audit row's counts fail to add up —
+          // which reads as lost mail. Same shape the PRIVATE block uses.
+          ...(skipped ? { skipped } : {}),
         });
       }
     });

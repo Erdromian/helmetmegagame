@@ -20,14 +20,15 @@ day of work survives a refresh):
 | What | Model | At the push |
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
-| **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`**. The composer requires a real, standable zone (the `Caves` group seat is excluded from the picker), so a row always has one to post to. If that zone's summary channel isn't configured, the post is skipped and recorded on `deliveryFailures` — never lost. A post survives the wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). |
+| **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`** — except underground, where there is no `#summary` at all: a `CAVE_LEVEL` zone (Caves, Depths) fans the declaration out to **every Location channel in the level**, one `Delivery` row per channel (`db/lib/publicPostTargets.js`). Full size and verbatim in both places; a declaration is a GM speaking, not scenery, so it wears no `-#`. If there is nowhere at all to post — an unprovisioned `#summary`, or a cave whose Locations have no channels yet — the post is skipped and recorded on `deliveryFailures`, never lost. A post survives the wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). The cave copies then live under the Location cadence, which is **every** turn rather than Dawn-only, so they get one turn where a `#summary` copy gets up to two. |
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, zoneId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper, so a GM can stage several at once; asking for more than one of a non-stackable tag stages `force: true` right alongside it (`TAGS.md` §5a). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive a player's Transfer and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 
 ### 1a. One row per send: the `Delivery` table
 
 **Every send a staged message makes has its own row** — one per PRIVATE
-recipient, one for a PUBLIC row's post — and `db/lib/stagedDelivery.js` is the
+recipient, and one per CHANNEL a PUBLIC row posts into (a single `#summary`,
+or one per Location for a cave fan-out) — and `db/lib/stagedDelivery.js` is the
 only code that writes them. The push and the **Resend** button run the same
 function.
 
@@ -60,6 +61,18 @@ How it works now:
   row, and the rest were neither delivered to nor listed as failing. A PUBLIC
   row's key ends in `public` for the same reason — that shared empty tail was
   also the one a public post used.
+- **A cave fan-out's rows key on the LOCATION**, `public:loc:<locationId>`, and
+  a `#summary` post keeps the bare `public` tail it has always had. That second
+  half is load-bearing rather than tidy: production is full of
+  `staged:<id>:public` rows, and changing that tail would write a second row on
+  every declaration ever pushed — which reads as *never attempted*, so one GM
+  pressing Resend re-posts a declaration already sitting in the channel.
+  `db/test/stagedDelivery.test.js` asserts the surface key byte-for-byte.
+  The Location and **not its channel id**, because `db:sync-zones` and the
+  channel doctor both rewrite `Location.discordChannelId` on re-provisioning: a
+  channel-id tail would orphan a SENT row the moment that happened, and the next
+  push would post the declaration into the same room twice. Same lesson as "the
+  character, not their Discord account" directly above.
 - Each send **claims** its row first: `updateMany` from `PENDING`/`FAILED`
   (or a stale `IN_FLIGHT`) to `IN_FLIGHT`. Count 0 means somebody else has it —
   a concurrent push, or a GM pressing Resend mid-push — and this run sends
@@ -77,7 +90,14 @@ How it works now:
   `FAILED` would invite the next attempt to send a DM the player has already
   read. The public half is the same shape — post, stamp, and only then the
   `/play` row, whose own failure costs the web feed one line and never costs
-  Discord a second post.
+  Discord a second post. A fan-out has one post-and-stamp pair **per channel**,
+  but still exactly **one `/play` row per message**: the Hall row is the zone's,
+  and `db/lib/feedAccess.js` gives a cave character their zone's feed already,
+  so seven copies of one declaration is precisely what a fan-out must not
+  become. It is written below the loop, gated on at least one channel having
+  landed — which is what keeps Resend's `writeSceneLine: !posted` correct now
+  that a run can land partly: any SENT row means a run where something went
+  out, and that run wrote the row.
 - `StagedMessage.sentAt` and `deliveryFailures` are still written — the tray,
   the missed-push banner and every already-pushed turn read them — but they are
   **derived** from these rows now rather than being the only record. So a
@@ -130,7 +150,10 @@ Two consequences worth knowing:
 
 - **A multi-chunk declaration still survives the wipe.** The wipe's cutoff
   is the side-effect thunk's start time, and the public-post loop runs earlier
-  in that same thunk, so every chunk postdates the cutoff.
+  in that same thunk, so every chunk postdates the cutoff. That holds for a cave
+  fan-out too — its copies sit in Location channels, which are wiped every turn
+  rather than Dawn-only, so they survive the turn they landed in and go with the
+  next one.
 - **Resend re-posts the whole body.** `postMessageBatched` and `postDmBatched`
   are sequential and throw on the first chunk that fails, so a failure partway
   leaves the earlier chunks delivered. Resending then duplicates them. This is

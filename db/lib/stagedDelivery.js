@@ -23,7 +23,11 @@
 const dm = require("./dm");
 const { DM_KIND } = require("./dmKinds");
 const { dedupeKey, describeFailure } = require("./dmPolicy");
-const { postMessageBatched } = require("./discordRest");
+// The MODULE, for the reason the `dm` require above gives. This was a
+// destructured `postMessageBatched` for a long time, which is why the public
+// half of this file had no tests: the swap the DM tests do through the require
+// cache could not reach a binding captured at load time.
+const discordRest = require("./discordRest");
 const { sceneLineAt } = require("./scene");
 
 // How long a claim is honoured before another run may take the row back. A
@@ -46,9 +50,19 @@ const STALE_CLAIM_MS = 5 * 60 * 1000;
 // wrote one row for the lot of them and the rest were never delivered and never
 // even listed as failing. It also collided with the PUBLIC key, which is why
 // that one is now the literal word "public" rather than a shared empty tail.
+//
+// A PUBLIC message may now have SEVERAL rows — one per channel it posts into,
+// which underground is one per Location (db/lib/publicPostTargets.js). Those
+// carry their own `publicKey`, and the summary target's is the bare word
+// "public", so a surface zone's key comes out byte-identical to the one this
+// produced when a public row was always a single null recipient. That equality
+// is load-bearing: production is full of `staged:<id>:public` rows, and a
+// changed tail would write a second row on every already-pushed declaration
+// and invite Resend to post it again. db/test/stagedDelivery.test.js asserts
+// it so nobody tidies the tail into something prettier.
 function deliveryKeyFor(stagedMessageId, recipient = null) {
   const recipientKey = recipient
-    ? (recipient.characterId ?? recipient.discordUserId ?? null)
+    ? (recipient.publicKey ?? recipient.characterId ?? recipient.discordUserId ?? null)
     : "public";
   return dedupeKey({ scope: "staged", subjectId: stagedMessageId, recipientKey });
 }
@@ -188,75 +202,171 @@ async function deliverPrivate(prisma, { stagedMessage, recipients, onlyFailed = 
   return { sent, failed, skipped };
 }
 
-// The PUBLIC half: one post into the zone's #summary, plus the Hall's own row.
+// The PUBLIC half: a post into every channel the declaration reaches, plus the
+// Hall's own row.
+//
+// It used to be exactly one channel — the zone's #summary — because for a
+// SURFACE zone that is still the whole answer. Underground there is no
+// #summary at all, so a cave declaration posts into every Location channel in
+// the level instead (db/lib/publicPostTargets.js). `targets` is that list, and
+// a SURFACE zone simply hands over a list of one.
+//
+// ONE DELIVERY ROW PER CHANNEL, which is what §1a asks for in the first place
+// ("every send a staged message makes has its own row"). A fan-out recorded as
+// a single row would have to choose between marking itself SENT with two of
+// seven channels delivered, or FAILED and re-posting to the five that already
+// have it. That is exactly the bug the table was built to kill, and seven
+// channels is seven chances to hit it.
 //
 // `writeSceneLine` is the resend's one real decision. A resend after a post
 // that SUCCEEDED must not write a second /play row — the first one stands —
 // but a resend after one that FAILED must write the row, because there is
 // none. So the caller passes `!priorPostSucceeded`, which for the push is
-// always true and for Resend is read off the Delivery row's state.
-async function deliverPublic(prisma, { stagedMessage, channelId, zoneId, writeSceneLine = true }) {
-  const [delivery] = await ensureDeliveries(prisma, { stagedMessage, recipients: [] });
+// always true and for Resend is read off the Delivery rows' states.
+async function deliverPublic(
+  prisma,
+  { stagedMessage, targets = [], zone = null, zoneId, writeSceneLine = true },
+) {
+  const rows = await ensureDeliveries(prisma, { stagedMessage, recipients: targets });
+  const placeholderKey = deliveryKeyFor(stagedMessage.id, null);
 
-  if (!channelId) {
-    const failure = { error: "no summary channel configured", status: null };
+  // Nowhere to post. For a surface zone that is an unprovisioned #summary — a
+  // real fault, and the sentence is unchanged so an old lastError blob and a
+  // new one read the same. For a cave level it means the Locations have no
+  // channels yet, which is a different fault and says so.
+  if (!targets.length) {
+    const failure = {
+      error:
+        zone?.kind === "CAVE_LEVEL"
+          ? "no location channels in this cave"
+          : "no summary channel configured",
+      status: null,
+    };
     // Guarded, not a blind update: a row that is already SENT, or IN_FLIGHT
     // under somebody else's claim, must not be flipped to FAILED by a caller
     // that merely could not find a channel. Doing so told the tray a post that
     // had gone out had bounced, and invited a GM to send it twice.
+    //
+    // BY KEY, not by position. This used to take rows[0], which was safe while
+    // a public message had exactly one row and is not any more: a cave message
+    // that fanned out and later lost its channels has N rows, and the oldest of
+    // them may well be a SENT Location. The placeholder is the only row this
+    // branch owns.
     const marked = await prisma.delivery.updateMany({
-      where: { id: delivery.id, state: { notIn: ["SENT", "IN_FLIGHT"] } },
+      where: {
+        stagedMessageId: stagedMessage.id,
+        dedupeKey: placeholderKey,
+        state: { notIn: ["SENT", "IN_FLIGHT"] },
+      },
       data: { state: "FAILED", claimedAt: null, lastError: failure },
     });
-    if (!marked.count) return { sent: 0, failed: [], skipped: true };
-    return { sent: 0, failed: [failure], skipped: false };
+    if (!marked.count) return { sent: 0, failed: [], skipped: 1, attempted: 0 };
+    return { sent: 0, failed: [failure], skipped: 0, attempted: 0 };
   }
-  if (delivery.state === "SENT") return { sent: 0, failed: [], skipped: true };
-  if (!(await claimDelivery(prisma, delivery))) return { sent: 0, failed: [], skipped: true };
 
-  try {
-    // Batched: a declaration over 2000 characters posts as several messages in
-    // order rather than being rejected. See ADJUDICATION.md §1.
-    await postMessageBatched(channelId, stagedMessage.content);
-  } catch (err) {
-    const failure = describeFailure(err);
+  // The "nowhere to post" row a previous attempt left behind, now that there IS
+  // somewhere. Without this it stays FAILED forever: nothing will ever send it,
+  // so the tray reads "Sent · 1 failed" for good and the Resend button stays lit
+  // with nothing left to retry.
+  //
+  // Never a surface zone's real row — for a surface zone the summary target's
+  // own key IS the placeholder key, so the guard below excludes it. SENT and
+  // IN_FLIGHT are never touched either way: the rows are the record.
+  const targetKeys = new Set(targets.map((t) => deliveryKeyFor(stagedMessage.id, t)));
+  if (!targetKeys.has(placeholderKey)) {
     await prisma.delivery
-      .update({
-        where: { id: delivery.id },
-        data: { state: "FAILED", claimedAt: null, lastError: failure },
+      .deleteMany({
+        where: {
+          stagedMessageId: stagedMessage.id,
+          dedupeKey: placeholderKey,
+          state: { notIn: ["SENT", "IN_FLIGHT"] },
+        },
       })
-      .catch((markErr) => console.error(`Failed to mark delivery ${delivery.id}:`, markErr));
-    return { sent: 0, failed: [failure], skipped: false };
+      .catch((err) =>
+        console.error(`Pruning the placeholder delivery for ${stagedMessage.id} failed:`, err),
+      );
   }
 
-  // THE POST HAPPENED. Everything below is bookkeeping, and none of it may turn
-  // a delivered post back into a failure — a FAILED row here is an invitation to
-  // post the declaration a second time. Each half gets its own try and its own
-  // loud log instead.
-  try {
-    await prisma.delivery.update({
-      where: { id: delivery.id },
-      data: { state: "SENT", sentAt: new Date(), claimedAt: null, lastError: null },
-    });
-  } catch (markErr) {
-    console.error(
-      `POST SENT BUT NOT STAMPED — delivery ${delivery.id} (staged message ${stagedMessage.id}) reached the summary channel and the row is still IN_FLIGHT:`,
-      markErr,
-    );
+  const byKey = new Map(rows.map((row) => [row.dedupeKey, row]));
+  let sent = 0;
+  let skipped = 0;
+  const failed = [];
+
+  // Sequential, one channel at a time, never Promise.all. A burst of parallel
+  // posts is how an integration earns a 429 and then an IP ban — the same
+  // discipline db/lib/worldBroadcast.js keeps, and for the same reason.
+  for (const target of targets) {
+    const delivery = byKey.get(deliveryKeyFor(stagedMessage.id, target));
+    // A row that could not be written. Nothing to claim, so nothing to send:
+    // counted as held rather than sent or bounced, so the caller's numbers add up.
+    if (!delivery) {
+      skipped += 1;
+      continue;
+    }
+    if (delivery.state === "SENT") {
+      skipped += 1;
+      continue;
+    }
+    // Somebody else holds it — a concurrent push, or a GM's Resend.
+    if (!(await claimDelivery(prisma, delivery))) {
+      skipped += 1;
+      continue;
+    }
+
+    try {
+      // Batched: a declaration over 2000 characters posts as several messages in
+      // order rather than being rejected. See ADJUDICATION.md §1.
+      await discordRest.postMessageBatched(target.channelId, stagedMessage.content);
+    } catch (err) {
+      const failure = describeFailure(err);
+      await prisma.delivery
+        .update({
+          where: { id: delivery.id },
+          data: { state: "FAILED", claimedAt: null, lastError: failure },
+        })
+        .catch((markErr) => console.error(`Failed to mark delivery ${delivery.id}:`, markErr));
+      failed.push({ name: target.name ?? null, ...failure });
+      continue;
+    }
+
+    // THE POST HAPPENED. Everything below is bookkeeping, and none of it may turn
+    // a delivered post back into a failure — a FAILED row here is an invitation to
+    // post the declaration a second time. The stamp gets its own try and its own
+    // loud log instead, per channel: a fan-out has one of these pairs each.
+    try {
+      await prisma.delivery.update({
+        where: { id: delivery.id },
+        data: { state: "SENT", sentAt: new Date(), claimedAt: null, lastError: null },
+      });
+    } catch (markErr) {
+      console.error(
+        `POST SENT BUT NOT STAMPED — delivery ${delivery.id} (staged message ${stagedMessage.id}) reached ${target.name ?? "the summary channel"} and the row is still IN_FLIGHT:`,
+        markErr,
+      );
+    }
+    sent += 1;
   }
 
-  if (writeSceneLine && zoneId) {
-    // The Hall's half: one SYSTEM row in the zone's feed, beside the post. The
-    // declaration is GM-authored and already signed, so it is not signed again.
-    // The push always wrote this and Resend never did, which is how a resent
-    // declaration used to reach Discord and never reach /play. Its failure costs
-    // the web feed one row; it does not cost Discord a second post.
+  // ONE row per message, never one per channel. The Hall row is the ZONE's —
+  // /play gives a cave character their zone's feed already
+  // (db/lib/feedAccess.js), so seven copies of the same declaration is exactly
+  // what a fan-out must not become.
+  //
+  // Gated on `sent` so the old semantics survive intact: a declaration that
+  // reached nobody writes no row, and the later Resend writes it because
+  // `posted` is still false. Any SENT row implies a run where `sent` was above
+  // zero, which implies this was attempted — which is what makes the caller's
+  // `writeSceneLine: !posted` still correct now that a run can land partly.
+  if (writeSceneLine && zoneId && sent > 0) {
+    // The declaration is GM-authored and already signed, so it is not signed
+    // again. Its failure costs the web feed one row; it does not cost Discord
+    // a second post.
     await sceneLineAt(prisma, { zoneId, text: stagedMessage.content, signed: false }).catch((err) =>
       console.error(`Hall row for staged message ${stagedMessage.id} failed:`, err),
     );
   }
 
-  return { sent: 1, failed: [], skipped: false };
+  return { sent, failed, skipped, attempted: targets.length };
 }
 
 // The rows a message pushed BEFORE this table existed never got.
@@ -281,6 +391,13 @@ async function backfillLegacyDeliveries(prisma, { stagedMessage, recipients, pri
   const isPublic = stagedMessage.kind === "PUBLIC";
   // A PUBLIC message has one row and no recipients: it failed if the blob says
   // anything at all, and succeeded otherwise.
+  //
+  // Still `[null]` even though a public message can now fan out to several
+  // channels, and deliberately so. This only ever runs on a message with a
+  // sentAt and no rows — a message pushed before the Delivery table existed,
+  // every one of which posted to a #summary, because a cave declaration has
+  // never successfully posted anything. So the one legacy-keyed row it
+  // reconstructs is the right row, and it is the one a surface target claims.
   const list = isPublic ? [null] : (recipients ?? []);
 
   const rows = list.map((r) => {

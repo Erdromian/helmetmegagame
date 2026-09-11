@@ -45,7 +45,9 @@ export const STAGED_EFFECT_INCLUDE = {
 
 export const STAGED_MESSAGE_INCLUDE = {
   recipients: { include: { character: { select: { id: true, name: true, updatedAt: true } } } },
-  zone: { select: { id: true, name: true } },
+  // `kind` so the tray can say where a declaration actually goes: a cave
+  // level has no #summary and fans out to its Location channels instead.
+  zone: { select: { id: true, name: true, kind: true } },
   turn: { select: { id: true, number: true } },
   // One row per send (db/lib/stagedDelivery.js). The tray used to be able to
   // say only "Sent, some failed" off a JSON blob; with these it can say which
@@ -266,6 +268,7 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
     content: m.content,
     zoneId: m.zoneId,
     zoneName: m.zone?.name ?? null,
+    zoneKind: m.zone?.kind ?? null,
     recipients: m.recipients.map((r) => ({
       characterId: r.character.id,
       name: r.character.name,

@@ -3737,12 +3737,26 @@ model Delivery {
 
   // Snapshots, no FK — the log-table convention (ARCHITECTURE.md). The name is
   // what a GM reads in "failed: Ada", and it has to keep reading right after
-  // the character is gone.
+  // the character is gone. On a cave declaration's fan-out row it is the
+  // LOCATION's name, so the tray reads "Customs: Missing Access"; null on a
+  // #summary row, which the tray renders as "the channel".
   discordUserId String?
   name          String?
 
-  // Stable across the push and every later resend. Partial on nothing: a
-  // PUBLIC row's key ends in "public", and there is exactly one per message.
+  // Stable across the push and every later resend. Partial on nothing.
+  //
+  // A PUBLIC message has one row per CHANNEL it posts into. For a surface zone
+  // that is the one #summary and the key ends in the bare word "public" — the
+  // key it has always had, kept byte-identical because production is full of
+  // them and a changed tail would write a second row on every declaration ever
+  // pushed. A CAVE_LEVEL zone has no #summary, so its declaration fans out to
+  // every Location channel in the level and each row's key ends in
+  // "public:loc:<locationId>" (db/lib/publicPostTargets.js).
+  //
+  // The LOCATION, not its channel id: syncZones and the channel doctor both
+  // rewrite Location.discordChannelId on re-provisioning, and a channel-id tail
+  // would orphan a SENT row and post the declaration into that room twice.
+  //
   // A PRIVATE row's ends in the CHARACTER id, not the Discord one — a recipient
   // who never linked Discord has no id, and keying on it collapsed every such
   // recipient onto one row (and onto the PUBLIC row's key besides).

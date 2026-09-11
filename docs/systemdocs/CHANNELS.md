@@ -77,7 +77,9 @@ role (§3).
 > and the turn line. **Talk happens in a Room thread, a Conversation or the
 > zone's `#summary`** — all of them a scene somebody chose to be in. Three
 > things carry the rule: the `@everyone` **`SendMessages` deny** in
-> `locationChannelSpec` (§3),
+> `locationChannelSpec` (§3) — which the bot posts straight past, as it does for
+> arrivals, smells and the turn line, and now for a cave level's public
+> declarations, which have no `#summary` to land in (`ADJUDICATION.md` §1) —
 > `bot/src/lib/channels.js#isDesignatedTupperChannel` stops treating a
 > top-level Location channel as a tupper channel (so a GM typing there is left
 > alone rather than reposted under a mask), and `/chat` draws no composer on a
@@ -888,7 +890,9 @@ newer than the cutoff is skipped whole.
 
 Two things depend on it. The first is that the turn's own adjudication
 survives: the staged public declarations are
-posted to `#summary` at the top of the same thunk that runs the wipe at the
+posted to `#summary` — or, for the two cave levels, into every Location channel
+in the level (`ADJUDICATION.md` §1) — at the top of the same thunk that runs the
+wipe at the
 bottom, and before the cutoff existed they were deleted seconds after landing —
 `StagedMessage` stamped `sentAt`, so nothing showed it had happened. The second
 is that a player posting *during* the wipe keeps their message. The wipe is
@@ -901,7 +905,7 @@ zone loop runs every turn either way — it has to, for the Locations under it:
 | Target | When | Behaviour |
 |---|---|---|
 | a zone's `#summary` | **Dawn only** | every message deleted |
-| a Location channel | every turn | every top-level message deleted **except the pinned anchor** |
+| a Location channel | every turn | every top-level message deleted **except the pinned anchor**. Underground this also carries the level's public declarations, which therefore live one turn rather than a `#summary`'s two |
 | a Room | every turn | every message deleted **except the starter** (`Room.starterMessageId`); unarchived if it had idled into the archive |
 | a Conversation | every turn | deleted outright — thread, `PlayerThread` row and its invites. There is no persistence any more |
 | a thread newer than the cutoff | every turn | left entirely — a Conversation someone opened while this very wipe was running isn't destroyed mid-use; it comes under the ordinary rules next turn |
