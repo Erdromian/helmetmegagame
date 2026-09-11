@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The message desk hears a reply the moment it lands
+
+✎ A player's reply now appears on the Players desk by itself — in the rail and in the open conversation — instead of waiting for the desk to go and ask. It arrives in a fraction of a second.  
+✎ The desk no longer chimes for a message it then fails to show you. There was a timing hole where it could hear something arrive and throw it away a moment later; you would only see it after a reload.  
+✎ When the live connection does drop, the desk says so in the header rather than looking healthy and quietly showing you nothing. It keeps working in the meantime, just up to half a minute behind.  
+✎ The desk stopped asking the database what changed twenty times a minute per person, which was part of why clicking around it felt slow.
+
 ## 2026-09-11 · The message desk stops stalling and going deaf
 
 ✎ Opening somebody on the Players desk is quicker. The desk was quietly loading every conversation in the rail in the background just in case you clicked it, so the one you actually clicked queued up behind the rest.  
