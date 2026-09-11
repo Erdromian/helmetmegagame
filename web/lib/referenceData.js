@@ -2,12 +2,14 @@ import { prisma, PRODUCTION_RATES, computeRate, formatRate } from "@lifeweb/db";
 import { carryCaps, carryBonusLine, MULT_SCALE } from "@lifeweb/db/lib/carry";
 import { FIGHTING_TAG_FIELDS } from "@lifeweb/db/lib/fightingSkill";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
+import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { documentSource, isWritten, readerFromCharacter } from "@/lib/documentAccess";
 import { toDocumentPreviewText } from "@/lib/documentPreview";
 import { redactWithheldRecipes } from "@/lib/recipeCatalog";
+import { appraise } from "@/lib/appraisal";
 
 // The three datasets behind the {tag:…} / {resource:…} / {document:…}
 // inline reference syntax. The root layout calls these
@@ -202,6 +204,15 @@ export const TAG_CHIP_FIELDS = {
   ...DESIRE_UNLOCK_SELECT,
 };
 
+// Appraisal's raw input (web/lib/appraisal.js's "Worth" line). Deliberately
+// NOT folded into TAG_CHIP_FIELDS above: that select is also spread by GM
+// surfaces (moveRows.js, peoplePools.js, the /gm/turns desk) that never call
+// appraise() on their rows, and shipping sellablePrice there unappraised
+// would leak the raw ⬢/obol number to every browser regardless of whether the
+// viewer holds the skill. Callers that DO run appraise() spread this in
+// alongside TAG_CHIP_FIELDS.
+export const APPRAISAL_SELECT = { sellablePrice: true };
+
 // Session-dependent, so it must never be cached across callers.
 export async function getVisibleTags() {
   const session = await auth();
@@ -220,6 +231,7 @@ export async function getVisibleTags() {
 
   // A signed-out caller, or one with no living character, holds nothing.
   const held = new Set((character?.tags ?? []).map((ct) => ct.tagId));
+  const canAppraise = (character?.tags ?? []).some((ct) => ct.tag.slug === APPRAISAL_SLUG);
 
   // Runtime-minted rows — written paper, sealed letters, crates, headstones —
   // are game state, not catalog, and there is no ceiling on how many of them
@@ -232,7 +244,7 @@ export async function getVisibleTags() {
   // ids are the filter.
   const tags = await prisma.tag.findMany({
     where: { OR: [{ ephemeral: false }, { id: { in: [...held] } }] },
-    select: { ...TAG_CHIP_FIELDS, ...PAPER_FIELDS },
+    select: { ...TAG_CHIP_FIELDS, ...PAPER_FIELDS, ...APPRAISAL_SELECT },
   });
 
   const viewer = {
@@ -256,6 +268,7 @@ export async function getVisibleTags() {
     tags
       .filter((tag) => !tag.group?.requiredTagId || held.has(tag.group.requiredTagId))
       .map(composePaper(viewer, held))
+      .map((tag) => appraise(tag, canAppraise))
       .map(stripEmptyUnlocks)
       .map(stripWeightless)
       .map(cookedTasteOnly),

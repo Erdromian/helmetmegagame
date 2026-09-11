@@ -1,5 +1,6 @@
 import { prisma, startingTagSlugs } from "@lifeweb/db";
-import { TAG_CHIP_FIELDS, stripEmptyUnlocks, cookedTasteOnly } from "@/lib/referenceData";
+import { TAG_CHIP_FIELDS, APPRAISAL_SELECT, stripEmptyUnlocks, cookedTasteOnly } from "@/lib/referenceData";
+import { appraise } from "@/lib/appraisal";
 
 // A buy menu is not a recipe book. It prints a recipe only where the trade
 // that gates it is public knowledge — every wax seal in the game is made by a
@@ -42,7 +43,10 @@ function recipeFields(t) {
 // (the store passes the buyer's held ids, so an unpurchasable held tag still
 // reaches the client's byId map). `includeRoleStartingTags` does the same for
 // role-locked starting tags the creation wizard needs to display.
-export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartingTags = false } = {}) {
+export async function loadPointBuyCatalog(
+  extraTagIds = [],
+  { includeRoleStartingTags = false, canAppraise = false } = {},
+) {
   const or = [{ purchasable: true }];
   if (extraTagIds.length) or.push({ id: { in: extraTagIds } });
   if (includeRoleStartingTags) {
@@ -64,6 +68,7 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
       // rendered nothing on the whole buying screen. Spread it, don't retype
       // it. The group gate and requiredTag ride along inside it.
       ...TAG_CHIP_FIELDS,
+      ...APPRAISAL_SELECT,
       // One override, then a buying menu's own business. TAG_CHIP_FIELDS asks
       // each requirement skill for id/slug/name only, and recipeFields() below
       // has to know that skill's own catalog gate — without this every skill
@@ -110,12 +115,17 @@ export async function loadPointBuyCatalog(extraTagIds = [], { includeRoleStartin
   return tags.map(({ conflictsWith, catalogVisibility, ...t }) =>
     // cookedTasteOnly for the reason referenceData.js gives: an ingredient's
     // mood and its hidden effects must not cross, only its taste.
-    cookedTasteOnly(
-      stripEmptyUnlocks({
-        ...t,
-        conflictsWithIds: conflictsWith.map((c) => c.id),
-        ...recipeFields(t),
-      }),
+    // appraise() runs last so it strips the raw sellablePrice column off
+    // every row regardless of `canAppraise` — see web/lib/appraisal.js.
+    appraise(
+      cookedTasteOnly(
+        stripEmptyUnlocks({
+          ...t,
+          conflictsWithIds: conflictsWith.map((c) => c.id),
+          ...recipeFields(t),
+        }),
+      ),
+      canAppraise,
     ),
   );
 }

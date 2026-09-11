@@ -153,6 +153,7 @@ zones:
               - Courtier
               - Obol x25
               - Post-Christian
+              - Appraisal
             doc_elements:
               - godking
               - squeeze
@@ -348,6 +349,7 @@ zones:
               - Sabre
               - Major's Insignia
               - Obol x4
+              - Appraisal
             doc_elements:
               - godking
               - courtstructure
@@ -1071,6 +1073,7 @@ zones:
               - Ravenhearter
               - Cooking (Basic)
               - Brewing (Basic)
+              - Appraisal
             doc_elements:
               - townstarting
               - alcoholdrugs
@@ -1136,6 +1139,7 @@ zones:
               - Silencer
               - Obol x20
               - Nobility
+              - Appraisal
             doc_elements:
               - godking
               - squeeze
@@ -1157,6 +1161,7 @@ zones:
             starting_location: depot
             starting_tags:
               - Depot Keycard
+              - Appraisal
             doc_elements:
               - townstarting
               - merchant
@@ -1251,6 +1256,7 @@ zones:
               - Armored Gloves
               - Factory Key
               - Banneret's Key
+              - Appraisal
             doc_elements:
               - godking
               - godardfactory
@@ -1289,6 +1295,7 @@ zones:
               - Armored Gloves
               - Factory Key
               - Banneret's Key
+              - Appraisal
             doc_elements:
               - godardfactory
               - medical

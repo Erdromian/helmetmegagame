@@ -1237,6 +1237,16 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  appraisal:
+    catalog: all
+    name: Appraisal
+    category: general
+    group: general-traits
+    description: "You can see an item's worth in obols."
+    pointCost: 1
+    purchasable: true
+    purchasableAfterStart: true
+
   ambidextrous:
     catalog: all
     name: Ambidextrous
@@ -6579,7 +6589,7 @@ tags:
     category: items
     group: items-gear
     description: "A radio hardset to a certain frequency."
-    pointCost: 20
+    pointCost: 4
     tradeable: true
     weight: 3
     stackable: true
@@ -7957,7 +7967,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-debutante, courtier-court-physician, courtier-court-artist, courtier-master-engineer]
     group: items-gear
-    description: "Live to run your manor from outside the fortress gates. Gives an {tag:heirloom}, a {tag:rapier} and two {tag:manor-key}."
+    description: "Live to run your manor from outside the fortress gates. Gives an {tag:heirloom}, a {tag:rapier}, two {tag:manor-key} and {tag:appraisal}."
     pointCost: 5
     tradeable: true
     weight: 2
@@ -7970,6 +7980,7 @@ tags:
       - manor-key
       - heirloom
       - rapier
+      - appraisal
 
   courtier-debutante:
     catalog: all
@@ -8013,7 +8024,7 @@ tags:
     onlyRoles: [courtier]
     conflictsWith: [courtier-herald, courtier-seasoned-knight, courtier-tutor, courtier-chaplain, courtier-carouser, courtier-manor-lord, courtier-debutante, courtier-court-physician, courtier-master-engineer]
     group: items-gear
-    description: "Live to paint portraits of the Baron and his family. Gives {tag:artist}, {tag:musician}, and an {tag:instrument}."
+    description: "Live to paint portraits of the Baron and his family. Gives {tag:artist}, {tag:musician}, an {tag:instrument} and {tag:appraisal}."
     pointCost: 5
     tradeable: true
     weight: 2
@@ -8025,6 +8036,7 @@ tags:
       - dancer
       - musician
       - instrument
+      - appraisal
 
   # Builder (Expert) alone, with no Builder (Skilled) beside it: parentTag is a
   # replacing tier chain, so the top rung is the whole ladder.
