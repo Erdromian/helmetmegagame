@@ -25,7 +25,7 @@ import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/
 const HUB_KEY = "__bascinetFeedHub";
 // Bumped whenever createHub() gains a field, so a hot reload backfills an
 // older hub instead of throwing on the missing one. See hub().
-const HUB_SHAPE = 3;
+const HUB_SHAPE = 4;
 const BACKOFF_MIN_MS = 1000;
 const BACKOFF_MAX_MS = 60_000;
 
@@ -83,6 +83,15 @@ function createHub() {
     // Whether this hub has ever held a LISTEN. A connect after that is a
     // RE-connect, and everything raised in the gap is gone — see resyncDm.
     everConnected: false,
+    // Which channels the LIVE client is actually listening on. Not the same
+    // question as "has it connected": hub() backfills a hub built by an older
+    // copy of this file on a hot reload, and a channel added to CHANNELS since
+    // then has a field here but no LISTEN on the session that is already open —
+    // which is how the desk channel came to be subscribed to by a hub that was
+    // never told about it, silently, with the stream up and no frames on it.
+    // connect() reconciles this against CHANNELS every time it is called,
+    // including the early return when a client already exists.
+    listened: new Set(),
   };
 }
 
@@ -469,11 +478,29 @@ function scheduleReconnect() {
   timer.unref?.();
 }
 
+const CHANNELS = [FEED_CHANNEL, PRESENCE_CHANNEL, TYPING_CHANNEL, DM_CHANNEL, DESK_CHANNEL];
+
+// Issue a LISTEN for every channel this session is not already on. Idempotent
+// and cheap — the ordinary call is five Set lookups and no query.
+async function listenAll(client, h) {
+  for (const channel of CHANNELS) {
+    if (h.listened.has(channel)) continue;
+    // Channel names are module constants, never anything a caller supplies.
+    await client.query(`LISTEN ${channel}`);
+    h.listened.add(channel);
+  }
+}
+
 // A single Client, not a Pool: LISTEN belongs to one session, and a pooled
 // connection can be handed to another query between notifications.
 async function connect() {
   const h = hub();
-  if (h.client || h.connecting) return;
+  if (h.client) {
+    // Already connected — but not necessarily to everything. See `listened`.
+    await listenAll(h.client, h).catch((err) => console.error("Feed hub LISTEN failed:", err));
+    return;
+  }
+  if (h.connecting) return;
   if (!process.env.DATABASE_URL) {
     console.warn("Feed hub: no DATABASE_URL, the live feed will not update.");
     return;
@@ -487,6 +514,9 @@ async function connect() {
     if (err) console.error("Feed hub listener error:", err);
     if (h.client === client) h.client = null;
     h.connecting = false;
+    // The session is gone and so are its LISTENs; the next connect re-issues
+    // them all.
+    h.listened = new Set();
     client.removeAllListeners();
     client.end().catch(() => {});
     scheduleReconnect();
@@ -519,13 +549,10 @@ async function connect() {
 
   try {
     await client.connect();
-    // Both channels on the ONE client: LISTEN belongs to a session, and a
+    // Every channel on the ONE client: LISTEN belongs to a session, and a
     // second connection would double the reconnect logic for no gain.
-    await client.query(`LISTEN ${FEED_CHANNEL}`);
-    await client.query(`LISTEN ${PRESENCE_CHANNEL}`);
-    await client.query(`LISTEN ${TYPING_CHANNEL}`);
-    await client.query(`LISTEN ${DM_CHANNEL}`);
-    await client.query(`LISTEN ${DESK_CHANNEL}`);
+    h.listened = new Set();
+    await listenAll(client, h);
     h.client = client;
     h.connecting = false;
     h.backoffMs = BACKOFF_MIN_MS;

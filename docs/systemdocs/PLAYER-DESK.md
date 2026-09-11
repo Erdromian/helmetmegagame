@@ -272,8 +272,15 @@ client, not a support inbox.
   sending "ok" twice retired both placeholders against the first row to land
   and the second send looked as though it had never happened. And it makes a
   re-send safe — `sendGmDm` looks the nonce up before it posts anything, so a
-  send that reached Discord but lost its answer returns the row already there
-  rather than delivering a second copy. A partial unique index backs that up
+  send that was **logged** and then lost its answer returns the row already
+  there rather than delivering a second copy. The nonce is written with the
+  log row, which `sendDm` writes *after* the Discord POST, so one window stays
+  open and is worth knowing about: a send that reached Discord and then lost
+  its log write (the container swapped between the two, or the insert failed
+  for something other than the nonce already being there) leaves nothing for
+  Retry to find, and Retry delivers twice. Closing it means reserving the
+  nonce before the POST and filling the row in after, across all three
+  `sendDm` transports. A partial unique index backs the dedupe up
   in the database (`db/test/dmNonce.test.js`); every writer with no composer
   behind it passes null, which the index allows.
 - **A failed send stays where it was written.** The row keeps its place with
@@ -282,8 +289,8 @@ client, not a support inbox.
   safe only while a GM sat still waiting for the answer: the draft is per
   conversation and shared with whatever they have started typing since, so a
   slow failure overwrote a sentence in progress. Retry re-sends under the same
-  nonce, so exactly one message is delivered whatever actually happened the
-  first time.
+  nonce, so exactly one message is delivered in every case the
+  nonce can see — and the one case it cannot is named above.
 - **The player's side arrives live.** The pane's page state is seeded once,
   and used to stay that way until the GM sent something. Now it unions that
   page with the live feed for this conversation (§9a) during render — never
@@ -609,7 +616,14 @@ wait for the next frame to learn about it and the nav rail's Players badge —
 server-rendered, with no patch consumer at all — never learned about it. Now
 the pane notes the read in the store the moment it fires
 (`liveInbox.js#noteConversationRead`), `markConversationRead` hands back the
-cursor it actually wrote, and the override is re-noted with that value. It
+cursor it actually wrote, and the override is re-noted with that value —
+**replacing** the first note rather than having to beat it. That distinction is
+the whole of a bug: the first note guesses the cursor from the BROWSER's clock,
+so a machine running two minutes fast claimed to have read two minutes of
+messages it had never seen, and because the store only ever raised an override,
+the server's real answer was thrown away. Every message the player sent in that
+window arrived already counted as read and the badge simply never came back.
+Raising is right between two guesses; the server's answer is not a guess. It
 clears when the server's own rows echo a `lastReadAtMs` at or past it
 (`reconcileReadOverrides`, called from an effect so `mergeRailRows` stays
 pure), or on age if that echo never comes. An override touches one field, the

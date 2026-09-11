@@ -35,6 +35,20 @@ const FATAL_AFTER = 4;
 
 const DRAFT_KEY = { moves: (row) => `move:${row.id}`, cavingRolls: (row) => `caving:${row.id}` };
 
+// A row whose work is FINISHED is never buffered, for the same reason a
+// removal isn't: there is nothing left for the GM to write, and holding the
+// frame back would leave them narrating into a card that has already been
+// solved somewhere else. MoveDesk drops its draft when the Solved row lands,
+// which is the other half of this. A Caving roll is not in here on purpose —
+// a resolved roll's Result box stays editable (CavingDesk.js), so a resolve is
+// not the end of anybody's sentence.
+const TERMINAL = { moves: (row) => row.reviewStatus === "SOLVED", cavingRolls: () => false };
+
+function buffers(field, row) {
+  if (TERMINAL[field](row)) return false;
+  return deskDraftHeld(DRAFT_KEY[field](row));
+}
+
 // Split a frame into what can land now and what has to wait.
 //
 // THE DIRTY GUARD. A GM typing into a Move's Result box while another GM edits
@@ -54,11 +68,13 @@ function split(patch) {
   for (const field of Object.keys(DRAFT_KEY)) {
     const rows = patch[field];
     if (!Array.isArray(rows) || rows.length === 0) continue;
-    const keep = rows.filter((row) => !deskDraftHeld(DRAFT_KEY[field](row)));
+    const keep = rows.filter((row) => !buffers(field, row));
     if (keep.length === rows.length) continue;
     if (fold === patch) fold = { ...patch };
-    held = held ?? { asOfMs: patch.asOfMs };
-    held[field] = rows.filter((row) => deskDraftHeld(DRAFT_KEY[field](row)));
+    // The turn stamp rides along, so a buffered frame is still judged against
+    // the turn it was built for when it finally lands (deskStore.js).
+    held = held ?? { asOfMs: patch.asOfMs, turnId: patch.turnId };
+    held[field] = rows.filter((row) => buffers(field, row));
     fold[field] = keep;
   }
   return { fold, held };

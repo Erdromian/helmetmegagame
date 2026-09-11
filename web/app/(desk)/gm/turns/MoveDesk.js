@@ -17,7 +17,7 @@ import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import { resolveMove, rejectMove } from "./actions";
 import { applyDeskPatch } from "./deskStore";
-import { clearDeskDraft, useDeskDraft, writeDeskDraft } from "./deskDraft";
+import { clearDeskDraft, deskDraftFresh, useDeskDraft, writeDeskDraft } from "./deskDraft";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { stagingReaches } from "@/lib/stagingReach";
@@ -83,7 +83,12 @@ export default function MoveDesk({
     () => draft ?? { moveKind: move.moveKind, resultMessage: move.resultMessage ?? "" },
     [draft, move.moveKind, move.resultMessage],
   );
-  const { markDirty, markClean, guardedClose } = useDirtyGuard({ alsoDirty: !!draft });
+  // A cold draft is still guarded on close and on unload; it just stops
+  // standing the desk's backstop poll down (useDirtyGuard, deskDraft.js).
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({
+    alsoDirty: !!draft,
+    alsoDirtyHoldsPoll: deskDraftFresh(draftKey),
+  });
   const confirm = useConfirm();
   const { locked, error: lockError } = useMoveLock(move.id);
 
@@ -107,6 +112,16 @@ export default function MoveDesk({
   // drift if the label's wording ever does.
   const solved = move.reviewStatus === "SOLVED";
   const disabled = pending || !locked;
+
+  // Somebody else solved this Move while a draft sat on it. The row is done,
+  // so the draft is not unsaved work any more — it is stale narration sitting
+  // on top of a closed card, and leaving it there would show the GM their own
+  // half-sentence over a Solved badge and go on claiming the desk is dirty.
+  // Dropping it hands the editor back the saved values, which is what a Solve
+  // by this GM does too.
+  useEffect(() => {
+    if (solved && draft) clearDeskDraft(draftKey);
+  }, [solved, draft, draftKey]);
 
   const setEdit = useCallback(
     (key, value) => {

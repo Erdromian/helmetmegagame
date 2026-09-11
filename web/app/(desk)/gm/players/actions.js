@@ -89,8 +89,12 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
 
     // The composer's own id for this send. It is what retires the optimistic
     // row (matching on the TEXT retired both of two "ok"s at once), and it is
-    // what makes Retry safe: if the first attempt got as far as Discord, the
-    // row is already here and this returns it rather than sending twice.
+    // what makes Retry safe: if the first attempt got as far as being LOGGED,
+    // the row is already here and this returns it rather than sending twice.
+    // The gap is logging, not sending — sendDm posts to Discord and writes the
+    // row afterwards, so a send that reached Discord and then lost its log
+    // write leaves nothing here to find and a Retry does deliver twice. See
+    // ConversationPane.js#deliver.
     const nonce = clientNonce ? String(clientNonce).trim().slice(0, 64) : null;
     if (nonce) {
       // A nonce is a posted value, not proof of which conversation it belongs

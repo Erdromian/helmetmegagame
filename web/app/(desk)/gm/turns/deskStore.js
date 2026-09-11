@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { noteDeskDraftTurn, pruneDeskDrafts } from "./deskDraft";
 
 // The adjudication desk's client-owned model of its own rows — the Moves,
 // Caving rolls and staged effects/messages the workspace draws.
@@ -54,8 +55,15 @@ export function subscribe(cb) {
   return () => listeners.delete(cb);
 }
 
-function getSnapshot() {
+// The frozen views, readable without React. `useDeskRows` is the ordinary way
+// in; this is the same value for anything that is not a component — and it is
+// what lets the store's arbitration be exercised on its own.
+export function deskRowsSnapshot() {
   return state.views;
+}
+
+function getSnapshot() {
+  return deskRowsSnapshot();
 }
 
 function getServerSnapshot() {
@@ -137,16 +145,6 @@ const TYPES = [
   ["messages", "stagedMessages", "stagedMessageIds"],
 ];
 
-export function resetDesk() {
-  state.moves = new Map();
-  state.caving = new Map();
-  state.effects = new Map();
-  state.messages = new Map();
-  state.seeded = false;
-  state.views = EMPTY_VIEWS;
-  emit();
-}
-
 // A whole page payload. Unlike a patch this is AUTHORITATIVE ABOUT MEMBERSHIP
 // at its own `asOfMs`: a row it doesn't name, whose held copy is no older than
 // the payload, is gone — somebody else's Reject or Delete, which is exactly
@@ -169,6 +167,9 @@ export function seedDesk(payload) {
     state.messages = new Map();
     state.turnId = payload.turnId ?? null;
   }
+  // New drafts are stamped with whatever turn the desk is showing, and the
+  // prune below judges the old ones against it (deskDraft.js).
+  noteDeskDraftTurn(state.turnId);
 
   const asOfMs = payload.asOfMs;
   let changed = false;
@@ -188,6 +189,15 @@ export function seedDesk(payload) {
     }
   }
 
+  // A page payload is authoritative about membership, which makes it the one
+  // place that can say a draft's row is gone. Every Move and Caving roll still
+  // on the desk is a live draft key; anything else stored under one — last
+  // turn's, or a row somebody rejected — is swept (deskDraft.js#pruneDeskDrafts).
+  const liveDraftKeys = new Set();
+  for (const row of liveRows(state.moves)) liveDraftKeys.add(`move:${row.id}`);
+  for (const row of liveRows(state.caving)) liveDraftKeys.add(`caving:${row.id}`);
+  pruneDeskDrafts(liveDraftKeys);
+
   if (!state.seeded) {
     state.seeded = true;
     changed = true;
@@ -202,10 +212,22 @@ export function seedDesk(payload) {
 // NO membership authority — a patch says "these changed", never "and nothing
 // else exists". Shape:
 //
-//   { asOfMs, moves, cavingRolls, stagedEffects, stagedMessages,
+//   { asOfMs, turnId, moves, cavingRolls, stagedEffects, stagedMessages,
 //     removed: { moveIds, cavingRollIds, stagedEffectIds, stagedMessageIds } }
 export function applyDeskPatch(patch) {
   if (!patch || !Number.isFinite(patch.asOfMs)) return;
+  // THE TURN GATE. Every patch says which turn the desk it was built for was
+  // showing (deskRows.js#deskPatchFor). A mutation asks about rows by id and
+  // does not test whether they are still on the desk, so a Solve that lands
+  // across the turn-end push comes back holding a row from the turn that just
+  // closed — and the store holds rows, not queries, so nothing downstream
+  // would catch it dropping into the new turn's queue. A patch for a turn this
+  // desk is not showing has nothing to say to it.
+  //
+  // Only once the desk has been seeded: before that there is no turn to
+  // compare against, and dropping the first frames would be worse than folding
+  // them in and letting the first payload arbitrate.
+  if (state.seeded && patch.turnId !== undefined && (patch.turnId ?? null) !== state.turnId) return;
   const asOfMs = patch.asOfMs;
   let changed = false;
 

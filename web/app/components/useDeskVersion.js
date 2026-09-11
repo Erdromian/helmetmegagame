@@ -17,10 +17,8 @@ const CRUMB_KEY = "gm-desk-version-crumb";
 
 // `baseline` is the build this desk's page rendered from, handed in by
 // DeskStaleRefreshGate (useRefresh.js) so a mutation result can be judged
-// without prop-drilling the version to every call site. `checkedAt` is when
-// /api/desk-version last answered "ok", so a refresh that follows a poll's
-// own check doesn't pay for a second one.
-const state = { stale: false, lastSeen: null, baseline: null, checkedAt: 0 };
+// without prop-drilling the version to every call site.
+const state = { stale: false, lastSeen: null, baseline: null };
 const listeners = new Set();
 
 function subscribe(callback) {
@@ -38,11 +36,6 @@ export function setDeskBaseline(version) {
 
 export function deskBaseline() {
   return state.baseline;
-}
-
-// True when /api/desk-version answered "ok" within the last `ms`.
-export function checkedRecently(ms) {
-  return state.checkedAt > 0 && Date.now() - state.checkedAt < ms;
 }
 
 function latch() {
@@ -69,7 +62,6 @@ export async function checkDeskVersion(baseline) {
     /* offline, timing out, or mid-switchover — all mean "don't refresh now",
        never "reload the page" */
   }
-  if (outcome === "ok") state.checkedAt = Date.now();
   if (outcome === "stale") latch();
   // Breadcrumb for the mount-time diagnostic line (Workspace.js): after a
   // reload it says whether the last poll before it saw a new build, a dead

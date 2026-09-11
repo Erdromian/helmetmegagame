@@ -27,6 +27,7 @@ import {
   tagsByIdFor,
 } from "@/lib/moveRows";
 import { deskRowContext, structuresByLocation } from "@/lib/deskRows";
+import { pgNowMs } from "@/lib/pgClock";
 import { ATTACK_INCLUDE, INTERCEPT_HIT_INCLUDE, otherHoldRows } from "@/lib/holdClusters";
 
 // The adjudication workspace's server half: one load, all DTOs, no
@@ -225,15 +226,13 @@ async function FreshTurnsWorkspace({ params, userId }) {
       orderBy: { number: "desc" },
       select: { id: true, number: true, phase: true },
     }),
-    // Discord usernames, who is Catatonic, the Location names, and — the part
-    // that matters most — the database's own clock at this read. Every row
-    // below is stamped with it, and the client's desk store keeps the newer of
-    // two copies (deskStore.js), which is what lets the stored snapshot and
-    // the fresh payload both fold in without the page having to remount.
+    // Discord usernames, who is Catatonic and the Location names. The clock
+    // every row is stamped with is NOT in here — it is read below, after this
+    // whole batch has resolved.
     deskRowContext({ openTurn }),
   ]);
 
-  const { usernameById, catatonicIds, locationRows, locationNameById, now, asOfMs } = ctx;
+  const { usernameById, catatonicIds, locationRows, locationNameById, now } = ctx;
   const gmProfilesById = Object.fromEntries(gmProfiles.map((p) => [p.discordUserId, { username: p.username, avatarUrl: p.avatarUrl }]));
 
   const tagsById = tagsByIdFor(actions);
@@ -243,6 +242,18 @@ async function FreshTurnsWorkspace({ params, userId }) {
   const structuresByLocationId = await structuresByLocation(
     actions.map((a) => a.character.locationId),
   );
+
+  // THE CLOCK IS READ LAST, and the order is load-bearing. Every row shipped
+  // below is stamped with `asOfMs`, and the client's desk store keeps the
+  // newer of two copies of a row (deskStore.js) — which is what lets the
+  // stored snapshot and the fresh payload both fold in without the page having
+  // to remount. Read the clock alongside the queries instead and this payload
+  // can carry a stamp from AFTER a Solve whose rows it was read before,
+  // out-ranking that Solve's own patch and putting the Move back in the queue.
+  // Read after every query has resolved and the stamp can only under-claim,
+  // which is the direction the newer-wins rule is safe in. Same order, and the
+  // same reason, in deskRows.js#deskPatchFor.
+  const asOfMs = await pgNowMs();
 
   const moves = actions.map((a) => moveRow(a, { usernameById, now, structuresByLocationId }));
 

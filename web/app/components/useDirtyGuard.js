@@ -32,7 +32,21 @@ export function isAnyDirty() {
 // It is a plain boolean the caller derives, ORed into `dirty`; its
 // contribution to the counter is owned by its own effect below rather than by
 // markDirty/markClean, so the two can never fight over one instance's 1.
-export default function useDirtyGuard({ enabled = true, initialDirty = false, alsoDirty = false } = {}) {
+//
+// `alsoDirtyHoldsPoll` is the one place those two audiences come apart. A
+// draft restored from storage is unsaved work for as long as it exists — it is
+// guarded on close and on unload, no argument. But it is only SOMEBODY WRITING
+// RIGHT NOW for as long as somebody is writing, and isAnyDirty() is what
+// stands the 120s backstop poll down. A draft left on a row last week held
+// that poll down for ever, so a caller whose outside content has gone cold
+// passes false and keeps the close guard without keeping the desk frozen.
+// Typing calls markDirty(), which gates the poll again for this sitting.
+export default function useDirtyGuard({
+  enabled = true,
+  initialDirty = false,
+  alsoDirty = false,
+  alsoDirtyHoldsPoll = true,
+} = {}) {
   const confirm = useConfirm();
   const [selfDirty, setDirty] = useState(initialDirty);
   const dirty = selfDirty || alsoDirty;
@@ -82,12 +96,12 @@ export default function useDirtyGuard({ enabled = true, initialDirty = false, al
   }, []);
 
   useEffect(() => {
-    if (!alsoDirty) return undefined;
+    if (!alsoDirty || !alsoDirtyHoldsPoll) return undefined;
     dirtyInstances += 1;
     return () => {
       dirtyInstances = Math.max(0, dirtyInstances - 1);
     };
-  }, [alsoDirty]);
+  }, [alsoDirty, alsoDirtyHoldsPoll]);
 
   useEffect(() => {
     if (!enabled || !dirty) return undefined;

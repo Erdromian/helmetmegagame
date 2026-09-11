@@ -2,12 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import {
-  checkDeskVersion,
-  checkedRecently,
-  isDeskStale,
-  setDeskBaseline,
-} from "./useDeskVersion";
+import { checkDeskVersion, isDeskStale, setDeskBaseline } from "./useDeskVersion";
 
 const RefreshContext = createContext(null);
 
@@ -55,15 +50,24 @@ export function RefreshGate({ skipWhen, children }) {
 // that once a poll has noticed, but between a deploy landing and the next
 // tick every post-mutation refresh() was unguarded. So ask first: skip
 // outright if the latch is already set, otherwise check the running build and
-// refresh only on a match. A check the poll just made counts as this one's.
+// refresh only on a match.
+//
+// RETURNS A PROMISE FOR WHETHER IT REFRESHED, always — the deferred branch
+// used to drop its promise on the floor, so a caller could neither wait for
+// the check nor find out that it had said no. `refresh` is itself the
+// provider's transition-wrapping callback (RefreshProvider), so the deferred
+// call is inside the same owned transition the immediate one is; what was
+// missing was only the outcome.
 export function safeRefresh(baseline, refresh) {
-  if (isDeskStale()) return;
-  if (!baseline || checkedRecently(3000)) {
+  if (isDeskStale()) return Promise.resolve(false);
+  if (!baseline) {
     refresh();
-    return;
+    return Promise.resolve(true);
   }
-  checkDeskVersion(baseline).then((outcome) => {
-    if (outcome === "ok") refresh();
+  return checkDeskVersion(baseline).then((outcome) => {
+    if (outcome !== "ok") return false;
+    refresh();
+    return true;
   });
 }
 

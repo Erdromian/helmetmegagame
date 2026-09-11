@@ -14,7 +14,7 @@ import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { resolveCavingRoll, undoCavingFind } from "./actions";
 import { applyDeskPatch } from "./deskStore";
-import { clearDeskDraft, useDeskDraft, writeDeskDraft } from "./deskDraft";
+import { clearDeskDraft, deskDraftFresh, useDeskDraft, writeDeskDraft } from "./deskDraft";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
 
 // The arbitration desk for one Caving Die roll — see
@@ -57,7 +57,12 @@ export default function CavingDesk({
   const draftKey = `caving:${roll.id}`;
   const draft = useDeskDraft(draftKey);
   const gmNotes = draft?.gmNotes ?? roll.gmNotes ?? "";
-  const { markDirty, markClean, guardedClose } = useDirtyGuard({ alsoDirty: !!draft });
+  // A cold draft is still guarded on close and on unload; it just stops
+  // standing the desk's backstop poll down (useDirtyGuard, deskDraft.js).
+  const { markDirty, markClean, guardedClose } = useDirtyGuard({
+    alsoDirty: !!draft,
+    alsoDirtyHoldsPoll: deskDraftFresh(draftKey),
+  });
 
   useEffect(() => {
     registerEscape?.(() => guardedClose(onClose));

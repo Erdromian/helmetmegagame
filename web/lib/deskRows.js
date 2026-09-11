@@ -4,14 +4,15 @@
 // payload, once per render) and a server action (a patch, once per mutation).
 // moveRows.js already keeps the two from drifting on the SHAPE of a row; this
 // file keeps them from drifting on the CONTEXT a row is built with — the
-// Discord usernames, who is Catatonic, the Location names, the open turn, and
-// the database's own clock at the moment of the read.
+// Discord usernames, who is Catatonic, the Location names and the open turn.
 //
-// That clock is the load-bearing part. Every row goes into the client's desk
-// store stamped with it, and the store keeps the newer of two copies
-// (deskStore.js). Stamp a patch with the web container's Date.now() instead
-// and a GM's own Solve can lose to the page payload that was already in
-// flight when they pressed it.
+// The database's own clock belongs with them and is deliberately NOT read
+// here — see deskRowContext. Every row goes into the client's desk store
+// stamped with it and the store keeps the newer of two copies (deskStore.js),
+// so both WHERE it comes from and WHEN it is taken matter: the web container's
+// Date.now() would let a GM's own Solve lose to a page payload already in
+// flight, and a clock read alongside the rows rather than after them would let
+// a payload built before that Solve out-rank it.
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { placementOf } from "@lifeweb/db/lib/structures";
 import { listGuildMembers } from "./discordGuild";
@@ -60,8 +61,13 @@ export async function structuresByLocation(locationIds) {
 // before anything else, for the push countdown); anything else lets this fetch
 // it. Pass `null` to mean "there genuinely is no open turn" — leaving it out
 // is what asks for a read.
-export async function deskRowContext({ openTurn, needStructuresFor } = {}) {
-  const [members, catatonicTagRows, locations, asOfMs, fetchedTurn] = await Promise.all([
+// NO CLOCK HERE, deliberately. `asOfMs` is read by the caller AFTER its own row
+// queries have resolved — see page.js and deskPatchFor below — because a clock
+// taken alongside the rows is a clock taken BEFORE the rows were finished
+// being read, and the desk store's newer-wins rule (deskStore.js) then hands a
+// stale payload the authority of a fresh one.
+export async function deskRowContext({ openTurn } = {}) {
+  const [members, catatonicTagRows, locations, fetchedTurn] = await Promise.all([
     listGuildMembers(),
     // Who is AFK right now, for the queue rows' avatar badge — one indexed
     // read rather than a tags include bolted onto every query above it.
@@ -76,7 +82,6 @@ export async function deskRowContext({ openTurn, needStructuresFor } = {}) {
       orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
       select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } },
     }),
-    pgNowMs(),
     openTurn === undefined
       ? prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } })
       : null,
@@ -96,8 +101,6 @@ export async function deskRowContext({ openTurn, needStructuresFor } = {}) {
     locationNameById: new Map(locationRows.map((l) => [l.id, l.name])),
     openTurn: openTurn === undefined ? fetchedTurn : openTurn,
     now: new Date(),
-    asOfMs,
-    structuresByLocationId: needStructuresFor ? await structuresByLocation(needStructuresFor) : new Map(),
   };
 }
 
@@ -159,6 +162,17 @@ export async function deskPatchFor({
     liveActions.map((a) => a.character.locationId),
   );
 
+  // THE CLOCK IS READ LAST, and the order is load-bearing. Every row in this
+  // patch is stamped with `asOfMs` and the desk store keeps the newer of two
+  // copies of a row (deskStore.js). Read the clock alongside the rows — which
+  // is what deskRowContext used to do — and a payload whose rows were read
+  // BEFORE somebody's Solve can still carry a stamp from after it, out-ranking
+  // the Solve's own patch and putting the Move back in the queue. Read after
+  // every query has resolved and the stamp can only ever under-claim: the rows
+  // are at least as fresh as the clock says they are, which is the direction
+  // the newer-wins rule is safe in.
+  const asOfMs = await pgNowMs();
+
   // Only an id that came back and was then dropped as off-desk is excused; an
   // id that did not come back at all is genuinely gone whatever this flag says.
   const gone = (asked, found) => {
@@ -167,7 +181,12 @@ export async function deskPatchFor({
   };
 
   return {
-    asOfMs: ctx.asOfMs,
+    asOfMs,
+    // Which turn the desk this patch is for was showing. applyDeskPatch drops
+    // a patch that does not match: a mutation asks about rows by id, so a
+    // Solve landing across the turn-end push would otherwise deal a row from
+    // the closed turn into the new turn's queue.
+    turnId: openTurnId,
     moves: liveActions.map((a) => moveRow(a, { ...ctx, structuresByLocationId })),
     cavingRolls: liveRolls.map((c) => cavingRollRow(c, ctx)),
     stagedEffects: liveEffects.map((e) => stagedEffectRow(e, ctx)),

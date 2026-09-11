@@ -162,10 +162,21 @@ export function applyDelta(delta, { sinceMs = 0, announce = true } = {}) {
 // The GM has read this conversation, said here before the server has been
 // told — or before it has answered. mergeRailRows lays it over the row as a
 // last step, so the badge clears on the click rather than on the next frame.
-export function noteConversationRead(discordUserId, cursorMs) {
+//
+// Two callers, and they mean different things. The optimistic one guesses the
+// cursor from the BROWSER's clock, which is a guess about another machine's
+// time and can be minutes out in either direction. The server's answer is the
+// cursor that was actually written, so it REPLACES the guess rather than
+// having to beat it: a browser running two minutes fast would otherwise leave
+// its own over-claiming guess standing, and every inbound message the player
+// sent in those two minutes would arrive already counted as read — the badge
+// simply not coming back. Raising is right between two guesses; replacing is
+// right when the truth arrives.
+export function noteConversationRead(discordUserId, cursorMs, { fromServer = false } = {}) {
   if (!discordUserId || !Number.isFinite(cursorMs)) return;
   const prev = state.readOverrides.get(discordUserId);
-  if (prev && prev.cursorMs >= cursorMs) return;
+  if (!fromServer && prev && prev.cursorMs >= cursorMs) return;
+  if (prev && prev.cursorMs === cursorMs) return;
   const next = new Map(state.readOverrides);
   next.set(discordUserId, { cursorMs, atMs: Date.now() });
   state.readOverrides = next;

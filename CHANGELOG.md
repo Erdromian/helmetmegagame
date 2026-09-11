@@ -6,6 +6,20 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The desk's own tidy-ups
+
+✎ A page load that started before another GM's Solve can no longer make the Move look unsolved for a moment  
+✎ A half-written Result box on a Move somebody else solved is dropped rather than shown over the Solved card, and an old forgotten draft no longer stops the desk checking for changes  
+✎ The unread badge tracks the game's clock, not your computer's, so a fast clock can't hide new mail  
+✎ Retrying a message that deliberately began with » keeps it
+
+## 2026-09-11 · Resend only reaches the people who never got the message
+
+− On a message pushed before the delivery ledger existed, Resend rebuilds the ledger from what the push recorded, so it retries only the recipients who bounced instead of everyone  
+− A message that reached Discord but whose bookkeeping failed is never resent; it stays claimed and is reported  
+− A recipient who bounced during the push is retried when the push resumes  
+− Two recipients without a Discord account no longer collapse into one delivery
+
 ## 2026-09-11 · Every message the push sends is written down per recipient
 
 ✎ A staged message now records, per recipient, whether it went out — the tray shows Sent · 1 failed and names who bounced, and Resend retries only them  

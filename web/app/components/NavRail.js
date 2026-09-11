@@ -105,6 +105,7 @@ export default function NavRail({ items }) {
           // PLAYER_NAV sets no section at all, so a player sees none of these —
           // the whole feature costs them nothing.
           const divide = i > 0 && item.section !== items[i - 1].section;
+          const badge = badgeFor(item);
           return (
             <Fragment key={item.href}>
             {divide && (
@@ -126,7 +127,7 @@ export default function NavRail({ items }) {
             >
               <Icon aria-hidden="true" />
               <span>{item.label}</span>
-              {badgeFor(item) > 0 && <span className="rail-item-badge mono">{badgeFor(item)}</span>}
+              {badge > 0 && <span className="rail-item-badge mono">{badge}</span>}
               <RailLinkPending />
             </Link>
             </Fragment>

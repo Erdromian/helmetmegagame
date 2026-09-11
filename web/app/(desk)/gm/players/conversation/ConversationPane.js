@@ -139,7 +139,11 @@ export default function ConversationPane({
     noteConversationRead(discordUserId, Date.now());
     markConversationRead({ playerDiscordUserId: discordUserId }).then((result) => {
       if (result?.ok && Number.isFinite(result.lastReadAtMs)) {
-        noteConversationRead(discordUserId, result.lastReadAtMs);
+        // `fromServer` — this REPLACES the Date.now() guess above rather than
+        // having to be newer than it. A browser clock running fast would
+        // otherwise leave its own over-claim standing and hide the badge for
+        // every message that arrives before the real clock catches up.
+        noteConversationRead(discordUserId, result.lastReadAtMs, { fromServer: true });
       }
     });
   }, [displayed, discordUserId]);
@@ -182,8 +186,18 @@ export default function ConversationPane({
   // the rest of the time: the draft is per conversation and shared with
   // whatever they started typing next, so a slow failure overwrote a sentence
   // in progress. The failed line stays where it is instead, with Retry and
-  // Discard on it — and Retry reuses the nonce, so a send that actually
-  // reached Discord before the answer got lost cannot land twice.
+  // Discard on it — and Retry reuses the nonce, so a send whose ANSWER got
+  // lost cannot land twice: the row is already on the table under that nonce
+  // and sendGmDm hands it back instead of posting again.
+  //
+  // One window that does not cover, honestly: the nonce is written when the DM
+  // is LOGGED, which is after the Discord POST (web/lib/discordGuild.js#sendDm).
+  // A send that reached Discord and then lost its log write — the container
+  // swapped between the two, or the log insert itself failed for something
+  // other than the nonce already being there — leaves no row for Retry to find,
+  // and Retry posts a second copy. Closing it means reserving the nonce before
+  // the POST and filling the row in afterwards, which is a change to all three
+  // sendDm transports and is not made here.
   const deliver = useCallback(
     (message, tempId, nonce) => {
       startTransition(async () => {
@@ -247,7 +261,11 @@ export default function ConversationPane({
       discordUserId,
       direction: "OUTBOUND",
       // Matches what sendDm actually writes, so the row does not visibly
-      // reflow when the real one replaces it.
+      // reflow when the real one replaces it. `sentText` is the bare thing
+      // that was handed to the server, kept so Retry can resend exactly it —
+      // deriving it back out of `content` meant stripping a leading "» ", and
+      // a GM who deliberately opened their message with one lost it.
+      sentText: message,
       content: `» ${message}`,
       authorDiscordUserId: myDiscordUserId,
       source: "gm_reply",
@@ -264,8 +282,9 @@ export default function ConversationPane({
     deliver(message, tempId, nonce);
   }
 
-  // Retry sends the same words under the same nonce. The bare text is what
-  // the server wants, so strip the `»` the optimistic row wears.
+  // Retry sends the same words under the same nonce, taken from `sentText` —
+  // the bare text this row was sent with — rather than unpicked from the `»`
+  // the row wears. The fallback is for a row from before that field existed.
   const retrySend = useCallback(
     (row) => {
       setError(null);
@@ -275,7 +294,7 @@ export default function ConversationPane({
           m.id === row.id ? { ...m, pending: true, failed: false, error: null } : m,
         ),
       }));
-      deliver(row.content.replace(/^» /, ""), row.id, row.clientNonce);
+      deliver(row.sentText ?? row.content.replace(/^» /, ""), row.id, row.clientNonce);
     },
     [deliver],
   );
