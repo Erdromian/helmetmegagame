@@ -11,6 +11,7 @@ import MoveHistoryDesk from "./MoveHistoryDesk";
 import CavingDesk from "./CavingDesk";
 import { getMoveHistory } from "./actions";
 import InspectorColumn from "@/app/components/InspectorColumn";
+import useInspectorOverlay, { InspectorToggle } from "@/app/components/useInspectorOverlay";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import StagingTray from "./StagingTray";
 import PushPreview from "./PushPreview";
@@ -281,6 +282,7 @@ export default function Workspace({
   // knows characters, so it prunes the "c:" namespace against the roster.
   const knownPinIdentities = useMemo(() => new Set(roster.map((c) => `c:${c.id}`)), [roster]);
   const { pins: pinned, togglePin } = usePins({ knownIdentities: knownPinIdentities });
+  const { setOpen: setInspectorOpen } = useInspectorOverlay();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [devPanel, setDevPanel] = useState(null); // { characterId, name } or null
   const onOpenDev = useCallback((characterId, name) => setDevPanel({ characterId, name }), []);
@@ -553,6 +555,10 @@ export default function Workspace({
   function inspect(characterId, name, tab) {
     if (!characterId) return;
     setInspected({ characterId, name });
+    // On a narrow screen the inspector is a closed overlay, so looking
+    // somebody up has to open it — otherwise the click answers with nothing.
+    // An event handler, never an effect (react-hooks/set-state-in-effect).
+    setInspectorOpen(true);
     if (tab) setTabRequest((prev) => ({ tab, token: (prev?.token ?? 0) + 1 }));
   }
 
@@ -615,6 +621,7 @@ export default function Workspace({
         actions={
           <>
             <DeskStaleChip />
+            <InspectorToggle />
             <button type="button" className="btn-quiet" onClick={() => setPreviewOpen(true)}>
               Preview push
             </button>
@@ -625,7 +632,10 @@ export default function Workspace({
       {/* The zone view lives in the client from here down, so the queue
           re-filters on the click rather than on a revalidate. */}
       <GmZoneViewProvider initialZoneNames={visibleZoneNames}>
-      <div className="desk-body">
+      {/* data-selected is what the one-screen-at-a-time tier reads: under
+          ~800px the queue and the open row take turns, rather than stacking
+          into a column nobody can see the bottom of (globals.css). */}
+      <div className="desk-body desk-body--turns" data-selected={selected ? "" : undefined}>
         <QueueRail
           moves={moves}
           cavingRolls={cavingRolls}
@@ -654,6 +664,12 @@ export default function Workspace({
         />
 
         <main className="desk-main">
+          {/* Narrow tiers only: the queue is not on screen beside this, so
+              there has to be a way back to it. Same destination and same
+              dirty guard as the panel's own Close. */}
+          <button type="button" className="btn-quiet desk-back" onClick={deselect}>
+            ← Back to queue
+          </button>
           {selectedMove ? (
             <MoveDesk
               key={selectedMove.id}

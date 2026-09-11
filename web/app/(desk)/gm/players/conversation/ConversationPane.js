@@ -20,7 +20,7 @@ import {
   claimConversation,
   releaseConversation,
 } from "../actions";
-import { useDmDraft, writeDmDraft } from "../dmDraft";
+import { useDmDraft, writeDmDraft, dmDraftFresh } from "../dmDraft";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { selectConversation } from "../selection";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
@@ -77,7 +77,17 @@ export default function ConversationPane({
   // beforeunload prompt off: the reply is mirrored to storage (dmDraft.js)
   // and comes back after a reload, so asking "are you sure" — on every ⌘R,
   // and on the stale chip's own reload — would warn about nothing.
-  useDirtyGuard({ enabled: false, alsoDirty: content.trim().length > 0 });
+  //
+  // It only holds the poll down while somebody is ACTUALLY WRITING, the same
+  // 10-minute rule the adjudication desk's Result box follows
+  // (useDirtyGuard.js#alsoDirtyHoldsPoll, deskDraft.js). A half-typed reply
+  // left in a conversation last week is still shown and still restored — it
+  // just stops freezing the whole desk's backstop poll for ever.
+  useDirtyGuard({
+    enabled: false,
+    alsoDirty: content.trim().length > 0,
+    alsoDirtyHoldsPoll: dmDraftFresh(discordUserId),
+  });
 
   // What the live poll has brought in for this conversation since the page
   // was seeded (liveInbox.js), unioned with the server page during render —
@@ -375,6 +385,17 @@ export default function ConversationPane({
     <div className="desk-convo">
       <div className="desk-convo-head">
         <div className="flex items-center gap-2 min-w-0">
+          {/* Narrow tiers only (globals.css): down there the roster and the
+              rail are not on screen beside this, so the way back has to be
+              in the conversation itself. Same destination as Esc. */}
+          <button
+            type="button"
+            className="btn-quiet desk-back"
+            title="Back to the roster"
+            onClick={() => selectConversation(null)}
+          >
+            ← Back
+          </button>
           <CharacterAvatar characterId={characterId} name={label} version={avatarVersion} size={32} zoomable />
           <h2 className="section-title truncate">{label}</h2>
           {zoneName ? <ZoneChip zoneName={zoneName} /> : null}

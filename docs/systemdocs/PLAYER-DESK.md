@@ -59,6 +59,16 @@ exempted: it stacks and keeps the shared 45vh cap, exactly like the one on
 the 45vh cap on their rails — there, the rail is a queue and the main pane is
 the work.
 
+Two tiers above that one belong to the GM desks alone (`DESIGN-SYSTEM.md`
+§9). **Under 1024px** the inspector stops being the third column and becomes
+an overlay behind an **Inspector** button in the header — so the 720px note
+above now only describes what the *rail* does, and the inspector no longer
+stacks under the conversation at any width. **Under 800px**, opening somebody
+hides the rail as well as the roster and the conversation takes the screen,
+with **← Back** in the conversation header as the way out (the same
+destination as Esc). With nobody open, the rail and the roster stack exactly
+as they always did.
+
 Routes are keyed on **`discordUserId`, not `characterId`**: that is what
 `DirectMessage` keys on (no character FK, by design), every character has one,
 and it keeps working for a conversation whose character is gone.
@@ -433,6 +443,14 @@ half-written sentence. It deliberately does *not* arm the browser's
 beforeunload prompt: the draft is mirrored to storage (`dmDraft.js`) and comes
 back after a reload, so asking "are you sure" on every ⌘R would warn about
 nothing.
+
+It pauses the poll only while somebody is **actually writing** — the same
+10-minute freshness rule the adjudication desk's Result box follows
+(`useDirtyGuard.js#alsoDirtyHoldsPoll`, `turns/deskDraft.js`). A draft is
+stamped when it is typed into and counts as cold once it is that old, or as
+soon as it comes back out of storage on a reload. Before that, a half-typed
+reply left in some conversation last week stood the backstop poll down for
+ever, and the desk simply stopped refreshing.
 
 **What is still a server action, and why.** Sending a DM, claiming, muting and
 ✓-ing still are: they are mutations, they are rare, and they want the

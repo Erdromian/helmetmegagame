@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The GM desks fit a tablet and a phone
+
+✎ Under about 1024px wide the inspector becomes a panel you open from the header, so the desk itself gets the room  
+✎ Under about 800px the queue or roster and the desk take turns on screen — pick a row, work it, then Back to queue  
+✎ A half-typed reply in the Players desk only pauses the background check for ten minutes, not forever
+
 ## 2026-09-11 · The desk's own tidy-ups
 
 ✎ A page load that started before another GM's Solve can no longer make the Move look unsolved for a moment  

@@ -19,6 +19,7 @@ import DeskMiddle from "./DeskMiddle";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import BulkMessageButton from "./BulkMessageButton";
+import { InspectorToggle } from "@/app/components/useInspectorOverlay";
 
 // The player desk's server half. Owns the rail's data; the child route
 // loads its own conversation. The rail is the union of "everyone with a
@@ -280,6 +281,7 @@ export default async function PlayerDeskLayout({ children }) {
         actions={
           <>
             <DeskStaleChip />
+            <InspectorToggle />
             <BulkMessageButton characters={bulkCharacters} />
           </>
         }

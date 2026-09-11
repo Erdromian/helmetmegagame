@@ -28,8 +28,19 @@ import { useCallback, useSyncExternalStore } from "react";
 
 const EMPTY = "";
 
+// How long a draft counts as somebody mid-sentence. Past it the draft is
+// still shown, still restored and still guarded — it just stops standing the
+// desk's backstop poll down (useDirtyGuard.js#alsoDirtyHoldsPoll). Same
+// number and same reasoning as the adjudication desk's own drafts
+// (turns/deskDraft.js): a reply left open last week is recoverable text, not
+// an interrupted sentence, and it used to pause the poll indefinitely.
+const DRAFT_FRESH_MS = 10 * 60 * 1000;
+
 // discordUserId -> draft string. The source of truth.
 const drafts = new Map();
+// discordUserId -> when it was last typed into, this tab. A draft seeded back
+// out of localStorage has no stamp and counts as cold, which is what it is.
+const writtenAt = new Map();
 const listeners = new Set();
 
 export function dmDraftKey(discordUserId) {
@@ -68,6 +79,8 @@ export function writeDmDraft(discordUserId, value) {
   if (!discordUserId) return;
   const next = value ?? EMPTY;
   drafts.set(discordUserId, next);
+  if (next) writtenAt.set(discordUserId, Date.now());
+  else writtenAt.delete(discordUserId);
   emit();
   try {
     if (next) window.localStorage.setItem(dmDraftKey(discordUserId), next);
@@ -76,6 +89,15 @@ export function writeDmDraft(discordUserId, value) {
     // Full, private, or blocked. The draft is safe in memory for this tab's
     // lifetime; only surviving a reload is lost.
   }
+}
+
+// Whether this conversation's draft was typed into recently enough to count
+// as somebody writing right now. Read by ConversationPane for its poll gate.
+export function dmDraftFresh(discordUserId, nowMs = Date.now()) {
+  if (!discordUserId) return false;
+  const at = writtenAt.get(discordUserId);
+  if (!at) return false;
+  return nowMs - at < DRAFT_FRESH_MS;
 }
 
 function subscribeDmDraft(callback) {

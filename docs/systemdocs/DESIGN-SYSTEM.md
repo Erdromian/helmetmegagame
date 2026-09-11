@@ -464,6 +464,30 @@ Tailwind `sm:` is 640px, so between 640 and 720 a page has desktop padding
 under a mobile nav bar. That gap is known and deliberately left alone —
 unifying it means touching every page.
 
+**The two GM desks own two more, and nothing else may read them.**
+`/gm/turns` and `/gm/players` are three fixed columns — rail, work, inspector
+— which leaves the middle one about 40px wide on a 768px screen. So they, and
+only they, carry two extra tiers in `globals.css`:
+
+- **Under 1024px the inspector stops being a column** and becomes an overlay
+  panel behind an `Inspector` button in the desk header
+  (`components/useInspectorOverlay.js`, one sessionStorage key shared by both
+  desks). It is the column to give up because it is the one a GM opens on
+  purpose. The overlay is `position: fixed` at `z-index: 40` — the one
+  stacking context this family has, and 40 rather than anything lower because
+  `Modal.js` renders in-tree, so a dialog opened inside the inspector is
+  trapped at that level and has to clear the mobile nav bar's 30.
+- **Under 800px the desk shows one screen at a time.** Pick a Move (or open a
+  conversation) and the rail steps aside; a `← Back to queue` / `← Back`
+  button at the top of the work is the way back. Stacking the two instead just
+  made a column whose bottom half nobody scrolls to.
+
+`/gm/audit` keeps its three columns at every width: its inspector is a
+different component with no toggle, and hiding it would put the row detail out
+of reach. Both new blocks sit **after** `.desk-body--players`' own declaration
+in the file — a media query adds no specificity, so a rule for that class
+written earlier simply loses to it.
+
 **One route hides that bar: `/chat`.** Under 720px Chat is Discord's channel
 view — the page header and the bottom bar both go, the scene has the whole
 screen, and the app's links ride the foot of the ≡ places drawer instead
@@ -491,6 +515,11 @@ block in `globals.css`. They are not 44px on desktop on purpose: at `--fs-xs`
 they are ~31px there, and raising that everywhere is a redesign, not a fix. A
 small control inside a table row — the row checkbox on `/gm/players`, say —
 gets its hit area from the cell's padding rather than from a bigger box.
+
+The desk tiers above put their own two controls — the header's `Inspector`
+toggle and the middle column's Back button — on `(pointer: coarse)` rather
+than on a width, because the case a width test misses is exactly the one those
+tiers are for: a 1024px tablet.
 
 `.map-controls` is the one place that raises the floor for itself, under
 `(pointer: coarse)` rather than at 720px. Its `−` / `+` / Reset are

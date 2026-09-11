@@ -244,6 +244,25 @@ player desk…); the desk's own actions dropped theirs. What is left in
 `actions.js` is only ever another page's — `/character` after a Reject or a
 portrait takedown, `/gm/audit` after a fight is called off — never this one's.
 
+### Narrow screens
+
+Three fixed columns crush the middle one on anything smaller than a big
+laptop, so the desk drops a column at a time (`DESIGN-SYSTEM.md` §9 has the
+rules; this is what a GM sees).
+
+- **Under 1024px** the inspector is no longer beside the work. An
+  **Inspector** button in the desk header opens it as an overlay from the
+  right, and `Close inspector` inside it puts it away; clicking any character
+  name opens it too, so looking somebody up still answers. Whether it is open
+  is per-tab view state, shared with `/gm/players` so it stays as you left it
+  between the desks.
+- **Under 800px** the queue and the open row take turns. Picking a Move hides
+  the rail and gives the Move the screen, with **← Back to queue** at the top
+  of it — the same deselect the panel's own Close does, dirty guard included.
+  Nothing picked, and the queue is the whole desk.
+
+Above 1024px nothing changed: three columns, as before.
+
 ### The desk owns its own rows
 
 What the workspace draws is not its props. Every row page.js ships is folded

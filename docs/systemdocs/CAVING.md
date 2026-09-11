@@ -232,6 +232,12 @@ nothing to say about a monster it never adjudicated. The Caving lens reads the
 same rule and prints *"Resolved automatically at the push"*, so a GM reading
 back a past turn is never told a colleague handled something nobody did.
 
+A GM resolving the same roll at the same instant is not overwritten and not
+double-counted: the pass re-reads only the rows its own update actually
+changed (`resolvedAt` set, `resolvedByDiscordUserId` still null) before
+naming names, so a roll the GM reached first is left with the GM's resolver
+id and never shows up as the push's doing.
+
 One `caving_auto_resolved` audit row per push names every roll and caver it let
 go — "who can suddenly walk out of the Caves" being the question that row is
 there to answer.
