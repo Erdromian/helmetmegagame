@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · You can whisper with a hood and hand it things, helmet on
+
+✚ Take a masked stranger aside: Converse from their row in Here, with them already ticked  
+✚ Let one into a conversation or a private room — the + Add button and /add list them as "a young man"  
+✚ Transfer sits on a hood's row too. It always reached them; the dropdown was the only way to find it  
+✎ Heal, Loot, Bind, Harm, Kiss, Teach and Confess call somebody by their forced name — a Beast was listed under the name underneath it  
+✎ Nothing about a mask leaks by being invited: the page is never told who is behind one, and the room hears "a young man was added"  
+✎ Discord is unchanged. /add there names a character by their role, and a hood has no role to name
+
 ## 2026-09-11 · The action bar stops sitting on the words of a run
 
 ✎ On a phone the Change / Take back / Look at buttons show only for the message you tap, instead of covering the second line of every run  
