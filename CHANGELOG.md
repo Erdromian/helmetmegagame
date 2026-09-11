@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The Oracle lands at the lock instead of a quarter hour into the window
+
+✎ The six zone pages are written at the same time rather than one after another  
+✎ It starts on the Moves lock itself, not two minutes after  
+✎ The Oracle's rail item is an eye
+
 ## 2026-09-11 · You can whisper with a hood and hand it things, helmet on
 
 ✚ Take a masked stranger aside: Converse from their row in Here, with them already ticked  
