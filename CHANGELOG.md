@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · A resolved caving encounter's Result can be edited again
+
+✎ The Result box on a caving encounter stays editable after you mark it resolved — a Save button now sits beside Mark resolved, the same way the Move desk works. Before this, resolving an encounter took away the only button that saved the box, so anything typed afterwards looked accepted and was thrown away when the desk closed.
+
 ## 2026-09-11 · Quotes with formatting inside them are highlighted again
 
 ✎ Quoted speech is tinted again when there is anything formatted inside it — italics, bold, strikethrough, a link, somebody's name. It never was, which quietly meant most quotes, for as long as the tint has existed.  
