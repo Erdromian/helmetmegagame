@@ -504,6 +504,33 @@ function resolveRecipeItems(character, tag, quantity, ingredientChoice) {
       plan.hold.push({ kind: "group", slug: item.slug, label: item.label });
       continue;
     }
+    if (item.kind === "customOf") {
+      // A mint of this recipe never keeps the base slug — its only trace of
+      // where it came from is `customOfSlug` (mintCustomCraft). The base row
+      // itself still counts, for the rare case it's what's actually held.
+      // Several candidates: take the least remarkable one (lowest mealMood,
+      // then oldest), not a picker — the player is spending a commodity, not
+      // choosing a flavour.
+      const candidates = held
+        .filter((ct) => ct.tag.customOfSlug === item.slug || ct.tag.slug === item.slug)
+        .sort((a, b) => (a.tag.mealMood ?? 0) - (b.tag.mealMood ?? 0) || a.acquiredAt - b.acquiredAt);
+      const ct = candidates[0];
+      if (!ct) throw new UserError(`Making that needs ${item.label}.`);
+      if (item.keep) {
+        plan.hold.push({ kind: "tag", slug: ct.tag.slug, label: item.label });
+        continue;
+      }
+      const needed = quantity * (item.count ?? 1);
+      if (ct.quantity < needed) {
+        throw new UserError(
+          needed > 1
+            ? `Making ${quantity > 1 ? `${quantity} of those` : "that"} takes ${needed} × ${item.label}, and you have ${ct.quantity}.`
+            : `Making that needs ${item.label}.`,
+        );
+      }
+      plan.spend.push({ tagId: ct.tagId, tagName: ct.tag.name ?? item.label, quantity: needed });
+      continue;
+    }
     let slug = item.slug;
     if (item.kind === "anyOf") {
       const choice =
