@@ -6280,6 +6280,125 @@ tags:
       - silver
       - steel
 
+  # A second crate — bigger than Ore Package, but not by much (constants.js:
+  # "a crate's consumesInto repeats a slug per unit"). Priced the same way as
+  # Ore Package: the sum of its contents (3×4 + 1×5 + 2×8).
+  rich-ore-package:
+    catalog: all
+    name: Rich Ore Package
+    category: items
+    group: items-gear
+    description: "A crate of ore, heavier than most — extra Coal and a second ingot of Steel alongside the Silver."
+    pointCost: 0
+    tradeable: true
+    weight: 10
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 33
+    consumable: true
+    consumesInto:
+      - coal
+      - coal
+      - coal
+      - silver
+      - steel
+      - steel
+
+  # One of six modest Keen Eye finds (docs/labordrops.yaml's requiresTag
+  # pool) — MANY medium prizes across every face of the die, rather than a
+  # few outsized ones on just two or three (Bascinet, 2026-09-20: the first
+  # item-only pass leaned on three 40-60 ⬢ single items and came out spiky).
+  # All six are dedicated to that pool rather than reusing Ore Chunk/Gold
+  # Fleck, which are already priced into several OTHER tables — changing
+  # their sellablePrice to tune Keen Eye would have rippled into every one
+  # of those.
+  ore-sample:
+    catalog: all
+    name: Ore Sample
+    category: items
+    group: items-gear
+    description: "A promising streak, panned out and pocketed whole."
+    pointCost: 0
+    tradeable: true
+    weight: 3
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 33
+
+  # A sack rather than a sorted crate — one of the six, see Ore Sample above.
+  ore-sack:
+    catalog: all
+    name: Ore Sack
+    category: items
+    group: items-gear
+    description: "A sack of ore, heavier than it looks."
+    pointCost: 0
+    tradeable: true
+    weight: 6
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 30
+
+  # The smallest of the six — see Ore Sample above.
+  ore-speck:
+    catalog: all
+    name: Ore Speck
+    category: items
+    group: items-gear
+    description: "A speck of ore, easy to miss — unless you're looking for it."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 21
+
+  # One of the six — see Ore Sample above.
+  ore-vein:
+    catalog: all
+    name: Ore Vein
+    category: items
+    group: items-gear
+    description: "A short run of ore, worth following to its end."
+    pointCost: 0
+    tradeable: true
+    weight: 4
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 30
+
+  # One of the six — see Ore Sample above.
+  ore-nugget:
+    catalog: all
+    name: Ore Nugget
+    category: items
+    group: items-gear
+    description: "A single nugget, heavier in the hand than it looks."
+    pointCost: 0
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 24
+
   # Bought from the Depot rather than made: nothing in Ravenheart produces it,
   # which is what puts it on the shelf at all (TAGS.md §5, `depotPrice`). It is
   # deliberately NOT `sellable` — a sell price under the buy price is a loop

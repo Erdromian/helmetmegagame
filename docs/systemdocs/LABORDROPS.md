@@ -192,24 +192,45 @@ in a bucket (Forest's regional table had no face 6 at all) is the safest
 place to add fresh content, since there's nothing there yet to dilute.
 
 **Keen Eye (the `requiresTag` pool nested under `laborType.prospecting`,
-LABORDROPS.md §2a) learned the same lesson the hard way.** Its first two
-designs used tag grants only, and both were verified "never hurts" against
-the OLD uniform draw — but that property doesn't carry over to the rarity
-system: a `requiresTag` entry still just JOINS whatever band its rarity
-lands in, so it only helps if it's worth more than that band's existing
-members, and at two Forest locations (Headwaters, Sparse Field) it was worth
-less and Keen Eye came out net NEGATIVE. The fix: a flat `"+N"` (a
-RESOURCES entry) sits in its own `resources` band, which nothing else in
-Prospecting's tables uses, so it never competes with an existing entry for
-share and its contribution is the same fixed amount at every location that
-face reaches — a genuine, location-independent guarantee rather than
-something that has to be re-verified by hand every time the surrounding
-table changes. One gotcha found the hard way: putting it on a face the base
-`laborType.prospecting` bucket doesn't otherwise touch (face 3, at a
-location with nothing else configured there) makes the "+N" the pool's
-ONLY entry, which wins the WHOLE face instead of its column's own share —
-see `db/lib/labordropsRarity.js`'s "sole occupant" case. Keep a
-`requiresTag` resources bonus on faces the base table already populates.
+LABORDROPS.md §2a) learned the same lesson the hard way, across four
+redesigns.** Its first pass used tag grants only, verified "never hurts"
+against the OLD uniform draw — but that property doesn't carry over to the
+rarity system: a `requiresTag` entry still just JOINS whatever band its
+rarity lands in, so it only helps if it's worth more than that band's
+existing members, and at a couple of Forest locations it was worth less and
+Keen Eye came out net NEGATIVE. A flat `"+N"` (a RESOURCES entry) fixed the
+guarantee — its own untouched `resources` band, immune to dilution — but
+traded items for coin, which wasn't the skill's flavor (Bascinet: "use item
+drops"). Rebuilding the guarantee with items needs a sharper rule than "pick
+an unused rarity": it has to be one that can never become the band the
+LEFTOVER (every tier nobody authored) flows to, or one big value in that
+slot detonates — an early pass put a 51 ⬢ item at a rarity most locations
+had nothing earlier than live, so that rarity inherited almost the FACE's
+entire probability instead of its own column share, and the average shot
+past +5 ⬢/labor from one slot.
+
+**The rule that held: only use a rarity STRICTLY LATER, in TIERS order
+(`db/lib/labordropsRarity.js`), than whatever the base table's own ungated
+entries ALWAYS put on that face.** That earlier tier is always live, so it
+always wins the "commonest" tiebreak instead, and the grant's share is
+capped at its own column percentage, full stop. `laborType.prospecting`
+guarantees a floor at faces 2/4/5/6; the shared `global.1` mishap pool plays
+the same role at face 1 (ultracommon, always live everywhere). Face 3 needed
+a fix first — nothing reached it globally, so Hills' and Forest's regional
+tables (`laborTypeZone.prospecting`) each picked up a small face-3 entry
+specifically to give every location a floor there too, closing the last gap
+(a location with NOTHING on a face is the "sole occupant" trap: an add-on
+there wins the WHOLE face instead of its column's share).
+
+**Bascinet's last ask ("less spiky... use every number 1-6, many medium
+prizes instead of juggernauts") is also the shape that held up best.** Six
+modest items (14-33 ⬢ each) spread across all six faces, rather than three
+big ones (51-60 ⬢) on three — same total floor and average, thinner spread.
+One exception worth flagging: face 5's next-safe rarity (`extremely-rare`)
+is already crowded with 4-42 ⬢ gear at several locations (a Basement
+Lockbox worth 61 ⬢ ASSUMED among them), so that slot is kept smaller than
+the other five on purpose rather than sized to match — it can't win the
+tiebreak, but a big item there would still dilute the high rollers it joins.
 
 **A genuinely rare spot — the Ore Vein, eventually — should NOT scale EV up
 with its rarity.** Keep the EV in the same band as an ordinary location's
