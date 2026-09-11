@@ -10,6 +10,9 @@ import { carryStatus } from "@lifeweb/db/lib/carry";
 import { cookedTasteOnly } from "@/lib/referenceData";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
+import { getMyFactionRole } from "@/lib/factionPermissions";
+import { taxRoster } from "@lifeweb/db/lib/taxTargets";
+import { TAXMAN_SLUG } from "@lifeweb/db/lib/constants";
 
 // "What can I see from here" — the reads a player-action dialog makes the
 // moment it opens (web/app/components/actions/useRoster.js), so the roster it
@@ -50,13 +53,14 @@ export async function loadActionRoster({ need = [] } = {}) {
   const wants = new Set(Array.isArray(need) ? need.map(String) : []);
   const out = { ok: true };
 
-  const openTurn = wants.has("people") ? await getOpenTurn() : null;
-  const [people, rooms, gameConfig] = await Promise.all([
+  const openTurn = wants.has("people") || wants.has("tax") ? await getOpenTurn() : null;
+  const [people, rooms, gameConfig, tax] = await Promise.all([
     wants.has("people")
       ? loadPeoplePools(character, { discordUserId: session.discordUserId, openTurn })
       : null,
     wants.has("rooms") ? loadStashRooms(character) : null,
     wants.has("self") ? prisma.gameConfig.findUnique({ where: { id: 1 } }) : null,
+    wants.has("tax") ? loadTaxRoster(character, openTurn) : null,
   ]);
 
   if (people) {
@@ -75,6 +79,7 @@ export async function loadActionRoster({ need = [] } = {}) {
     };
   }
   if (wants.has("rooms")) out.rooms = rooms ?? [];
+  if (wants.has("tax")) out.tax = tax ?? { canTax: false, members: [], rooms: [] };
   if (wants.has("corpses")) {
     // The same already-filtered door list the server re-check uses, so a
     // locked room's floor is never a scouting target (CORPSES.md).
@@ -111,6 +116,25 @@ export async function loadActionRoster({ need = [] } = {}) {
 // old comment named, is a bare redirect to /character now.) withSightings is what gives a row its face and its eye
 // (db/lib/sightings.js); the Discord button asks without it, because a list
 // of names has no faces to withhold.
+// TaxDialog's roster: the character's own faction (with each member's ⬢),
+// the resources sitting in every room they can reach in their own zone, and
+// whether they may tax at all. isOfficer is re-checked at file time too —
+// this is what the dialog shows, never what the server trusts.
+async function loadTaxRoster(character, openTurn) {
+  const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
+  const canTax = heldSlugs.has(TAXMAN_SLUG) && !character.concealed;
+  if (!canTax || !character.factionId) return { canTax: false, members: [], rooms: [] };
+
+  const { isOfficer } = await getMyFactionRole(character.discordUserId, character.factionId);
+  if (!isOfficer) return { canTax: false, members: [], rooms: [] };
+
+  const [members, rooms] = await Promise.all([
+    taxRoster(prisma, character, { openTurnNumber: openTurn?.number ?? null }),
+    loadStashRooms(character, { scope: "zone" }),
+  ]);
+  return { canTax: true, members, rooms };
+}
+
 export async function loadPeopleHere() {
   const who = await me();
   if (who.error) return { ok: false, error: who.error };

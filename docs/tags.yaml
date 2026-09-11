@@ -2364,6 +2364,20 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # The tax button. Purchasable by anyone — it is self-limiting, since it does
+  # nothing unless the holder is also a faction's Leader or Treasurer
+  # (Character.isLeader/isTreasurer, plain booleans, not tags — TAGS.md §6).
+  # Headman and Meister start with it (docs/roles.yaml).
+  taxman:
+    catalog: all
+    name: Taxman
+    category: general
+    group: general-traits
+    description: "While the leader or treasurer of a faction, you can use the taxation button to automatically tax your subjects. You must be in the same zone as whoever you're taxing."
+    pointCost: 2
+    purchasable: true
+    purchasableAfterStart: true
+
   # --- Brigands -------------------------------------------------------------
   brigand:
     catalog: gm

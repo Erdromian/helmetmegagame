@@ -318,6 +318,7 @@ zones:
               - Meister's Key
               - Bird
               - Obol x5
+              - Taxman
             doc_elements:
               - godking
               - squeeze
@@ -857,8 +858,6 @@ zones:
                 On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Headman!
               - >-
                 Your main job is to tax people. You are beholden to the Meister, the Baron's taxperson, and things have gotten nasty in the past when the tithe didn't meet expectations. If the Silo's not full next time he comes, it won't be a pretty day. You also ought to pay tithe to the Church, for all they do for the town, and pay the Sheriff, for their work.
-              - >-
-                Laborers produce far more than they need to eat. Take everything they have, and call the Sheriff if they won't budge. You tax people by using the Transfer Resources button. Speak to them to resolve how much you should be taking. For convenience, Transfer Resources allows you to take from anyone without them having to send it to you — but to keep the sanctity of the game, you should make sure you have permission.
             difficulty: hard
             multiple: false
             starting_resources: 1
@@ -876,6 +875,7 @@ zones:
               - Headman's Cap
               - Sewer Key
               - Headman's Key
+              - Taxman
             doc_elements:
               - townstarting
               - farming

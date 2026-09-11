@@ -30,6 +30,7 @@ const LINES = {
   teach: (res, ctx) => `Offer sent — the lesson happens if they accept.`,
   confess: () => `Offer sent — they hear you if they accept.`,
   kiss: () => `Waiting on response.`,
+  tax: () => `Filed.`,
   consume: (res, ctx) => `${named(ctx, "It")} used up.`,
   destroy: (res, ctx) => `${named(ctx, "It")} destroyed.`,
   transfer: (res, ctx) => ctx?.line ?? `Moved.`,
