@@ -6,6 +6,13 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Quotes with formatting inside them are highlighted again
+
+✎ Quoted speech is tinted again when there is anything formatted inside it — italics, bold, strikethrough, a link, somebody's name. It never was, which quietly meant most quotes, for as long as the tint has existed.  
+✎ ||Spoilers|| with formatting inside them stay hidden now too, the same bug and the same fix.  
+✎ A name or a price with formatting in it no longer breaks the little chip it sits in, so a character called Bob *the Blade* Marley reads as a mention instead of as raw braces.  
+✚ A test that fails if any of that stops working again.
+
 ## 2026-09-11 · Chat on a phone is Discord's channel view
 
 ✎ On a phone the feed now takes most of the screen instead of a quarter  
