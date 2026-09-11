@@ -2647,16 +2647,16 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # A Musician MASTERY: triples what /play is worth to everyone who hears it.
-  # Gated on Musician because the mood half of /play already lives inside that
-  # check (bot/src/events/interactionCreate.js) — without the parent, playing
-  # badly soothes nobody and this would be worth nothing.
+  # A Musician MASTERY: quadruples what /play is worth to everyone who hears
+  # it. Gated on Musician because the mood half of /play already lives inside
+  # that check (db/lib/instrumentPlay.js) — without the parent, playing badly
+  # soothes nobody and this would be worth nothing.
   musician-pythagorean:
     catalog: all
     name: Musician (Pythagorean)
     category: skills
     teachable: false
-    description: "Your music is complex and absorbing. It lifts everyone who hears it three times as much."
+    description: "Your music is complex and absorbing. It makes everyone ecstatic, buffing their mood massively."
     pointCost: 14
     requiredTag: musician
     visible: false

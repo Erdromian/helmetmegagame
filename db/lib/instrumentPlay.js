@@ -45,7 +45,7 @@ function held(character, slug) {
 // musician included. The ration is an AuditLog row per listener with turnId
 // set (REQUESTS.md §1a); /play is rate-limited to one every few minutes and a
 // room holds a dozen people at most, so the rows stay few.
-async function sootheListeners(prisma, musician, { triple = false } = {}) {
+async function sootheListeners(prisma, musician, { quadruple = false } = {}) {
   if (!musician.locationId) return;
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
   if (!openTurn) return;
@@ -68,11 +68,11 @@ async function sootheListeners(prisma, musician, { triple = false } = {}) {
   for (const { id } of listeners) {
     if (soothedAlready.has(id)) continue;
     await prisma.$transaction(async (tx) => {
-      // Musician (Pythagorean) triples it. Passed as an explicit `base`
+      // Musician (Pythagorean) quadruples it. Passed as an explicit `base`
       // rather than added to mood.js's MULTIPLIERS: that table is only
       // consulted for harm, and it keys on the LISTENER's tags — this is the
       // player's own doing, and it lands on everyone in the room.
-      await applyMood(tx, id, { kind: "MUSIC", base: EVENTS.MUSIC * (triple ? 3 : 1) });
+      await applyMood(tx, id, { kind: "MUSIC", base: EVENTS.MUSIC * (quadruple ? 4 : 1) });
       await tx.auditLog.create({
         data: {
           actorDiscordUserId: musician.discordUserId ?? "system",
@@ -142,7 +142,7 @@ async function playInstrument(prisma, character, placeKey) {
   // turn (MOOD.md). Only a MUSICIAN's: a bad performance calms nobody.
   // Wrapped, so the dial can never swallow the performance.
   if (isMusician) {
-    await sootheListeners(prisma, character, { triple: held(character, MUSICIAN_PYTHAGOREAN_SLUG) }).catch((err) =>
+    await sootheListeners(prisma, character, { quadruple: held(character, MUSICIAN_PYTHAGOREAN_SLUG) }).catch((err) =>
       console.error(`play: soothing failed for ${character.id}:`, err.message ?? err),
     );
   }
