@@ -1148,7 +1148,12 @@ global CLIs. To make one able to build, run, and deploy:
   it a retried send can reach a player twice. The
   `DirectMessage_notify` trigger (`CHAT.md` §2b) is the fifth — Prisma does
   not model triggers, so `migrate diff` never mentions it either way, but a
-  hand-written "fix drift" migration must not drop it.
+  hand-written "fix drift" migration must not drop it. The adjudication desk's
+  four are the same shape and the same answer: `Action_notify`,
+  `CavingRoll_notify`, `StagedEffect_notify` and `StagedMessage_notify`, which
+  raise `bascinet_desk` so a second GM's desk updates live (`ADJUDICATION.md`
+  §3). `Action_notify` is COLUMN-SCOPED; recreating it without its `UPDATE OF`
+  list would wake every open desk for every write in a turn-end push.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

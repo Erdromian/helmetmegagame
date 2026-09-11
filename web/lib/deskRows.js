@@ -108,12 +108,24 @@ export async function deskRowContext({ openTurn, needStructuresFor } = {}) {
 // that is what makes Delete and Reject cost one call instead of two, and it
 // means a row somebody else deleted a second earlier is reported honestly
 // rather than lingering on the asking GM's screen.
+//
+// `onDeskOnly` is the LIVE CHANNEL's flag and nothing else uses it. A mutation
+// only ever asks about rows the GM was already looking at, so it needs no such
+// test. The stream does: it is handed whatever ids Postgres announced, and the
+// turn-end push stamps `appliedEffects` on every Action in the game
+// (db/lib/stagedPush.js). Without this, closing a turn would deal a hundred
+// LAST turn's Moves onto every open desk's queue as live work — the desk store
+// holds rows, not queries, so nothing downstream would have caught it. The
+// predicate below is page.js's own membership rule, copied deliberately rather
+// than shared: they are two reads of the same question, and if page.js's ever
+// moves this one has to be changed to match on purpose.
 export async function deskPatchFor({
   moveIds = [],
   cavingRollIds = [],
   stagedEffectIds = [],
   stagedMessageIds = [],
   removed = {},
+  onDeskOnly = false,
 } = {}) {
   const ctx = await deskRowContext();
 
@@ -132,10 +144,23 @@ export async function deskPatchFor({
       : [],
   ]);
 
+  // Off the desk is not the same as gone — the row exists, this desk is
+  // simply not the place it belongs — so a dropped id is reported as neither a
+  // row nor a removal, and the client keeps whatever it holds.
+  const openTurnId = ctx.openTurn?.id ?? null;
+  const onDesk = (rows, predicate) => (onDeskOnly ? rows.filter(predicate) : rows);
+  const ofOpenTurn = (r) => openTurnId != null && r.turnId === openTurnId;
+  const liveActions = onDesk(actions, ofOpenTurn);
+  const liveRolls = onDesk(rolls, ofOpenTurn);
+  const liveEffects = onDesk(effects, (e) => ofOpenTurn(e) || e.appliedAt == null);
+  const liveMessages = onDesk(messages, (m) => ofOpenTurn(m) || m.sentAt == null);
+
   const structuresByLocationId = await structuresByLocation(
-    actions.map((a) => a.character.locationId),
+    liveActions.map((a) => a.character.locationId),
   );
 
+  // Only an id that came back and was then dropped as off-desk is excused; an
+  // id that did not come back at all is genuinely gone whatever this flag says.
   const gone = (asked, found) => {
     const here = new Set(found.map((r) => r.id));
     return asked.filter((id) => !here.has(id));
@@ -143,10 +168,10 @@ export async function deskPatchFor({
 
   return {
     asOfMs: ctx.asOfMs,
-    moves: actions.map((a) => moveRow(a, { ...ctx, structuresByLocationId })),
-    cavingRolls: rolls.map((c) => cavingRollRow(c, ctx)),
-    stagedEffects: effects.map((e) => stagedEffectRow(e, ctx)),
-    stagedMessages: messages.map((m) => stagedMessageRow(m, ctx)),
+    moves: liveActions.map((a) => moveRow(a, { ...ctx, structuresByLocationId })),
+    cavingRolls: liveRolls.map((c) => cavingRollRow(c, ctx)),
+    stagedEffects: liveEffects.map((e) => stagedEffectRow(e, ctx)),
+    stagedMessages: liveMessages.map((m) => stagedMessageRow(m, ctx)),
     removed: {
       moveIds: [...(removed.moveIds ?? []), ...gone(moveIds, actions)],
       cavingRollIds: [...(removed.cavingRollIds ?? []), ...gone(cavingRollIds, rolls)],

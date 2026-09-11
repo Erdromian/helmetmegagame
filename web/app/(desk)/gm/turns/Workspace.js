@@ -25,6 +25,8 @@ import { isFieldFocused } from "@/lib/deskKeyGuard";
 import { dialogHoldsKeyboard } from "@/app/components/Modal";
 import { GmZoneViewProvider } from "@/app/components/GmZoneViewProvider";
 import { seedDesk, useDeskRows } from "./deskStore";
+import DeskStream from "./DeskStream";
+import DeskStreamChip from "./DeskStreamChip";
 
 // The adjudication workspace's client shell. Owns selection (which
 // Move shows), inspector (right column + pins), and preview (push
@@ -37,10 +39,11 @@ import { seedDesk, useDeskRows } from "./deskStore";
 // used to depend on, and what silently failed whenever the deploy-stale gate
 // had latched.
 
-// The backstop, not the update path. Cross-GM staging still only arrives on a
-// tick until the desk grows a live channel, but a GM's own work no longer
-// waits on one — so this can be slow and quiet, the way the player desk's
-// backstop poll is behind its stream (InboxStream.js).
+// The backstop, not the update path. A GM's own work folds in from the action
+// that did it (deskStore.js) and another GM's arrives on the live channel
+// (DeskStream.js), so this is the third thing that would have to fail — slow
+// and quiet, the way the player desk's backstop poll sits behind its stream
+// (InboxStream.js).
 const REFRESH_MS = 120_000;
 
 // Click-frequency view state, split from QueueRail's RAIL_STORAGE_KEY so the
@@ -583,6 +586,9 @@ export default function Workspace({
     // Once a deploy latches `stale`, refreshes under this gate skip instead
     // of hard-reloading across the build boundary.
     <DeskStaleRefreshGate version={deployVersion}>
+    {/* Inside the gate on purpose: the resync sentinel's refresh is then the
+        guarded one, and cannot cross a deploy boundary. */}
+    <DeskStream deployVersion={deployVersion} />
     <div className="desk-shell">
       <DeskHeader
         title="Adjudication"
@@ -592,6 +598,7 @@ export default function Workspace({
               {openTurn ? `Turn ${openTurn.number} · ${openTurn.phase === "DAWN" ? "Dawn" : "Dusk"}` : "No turn open"}
             </span>
             <LockChip />
+            <DeskStreamChip />
             <span className="chip chip-quiet">{solvedCount}/{moves.length} solved</span>
             <span className="text-xs text-muted" title="Push fires at midnight CT">
               {formatCountdown(pushMinutes)}

@@ -41,6 +41,18 @@ function subscribe(callback) {
   return () => listeners.delete(callback);
 }
 
+// Exported for DeskStream.js, which buffers a live frame for a row somebody is
+// mid-sentence in and drains the buffer when the draft is cleared. The draft
+// map IS the desk's record of which rows are dirty — keyed, unlike
+// useDirtyGuard's global counter, which cannot say WHICH panel is dirty.
+export const subscribeToDeskDrafts = subscribe;
+
+// Whether a row is holding unsaved text right now. `key` is the same
+// "move:<id>" / "caving:<id>" the editors use.
+export function deskDraftHeld(key) {
+  return readDeskDraft(key) != null;
+}
+
 // Seeded from storage ONCE per key, then never read from storage again. A
 // refusal or a bad JSON blob memoises null, so a blocked accessor isn't
 // retried on every render.

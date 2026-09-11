@@ -174,8 +174,8 @@ That distinction is the whole point. The desk used to write, call
 gate had latched (`useDeskVersion.js`), or the answer raced something else —
 the write had landed in the database and the screen never moved. A GM pressed
 Solve, saw Solve still offered, and pressed it again. Nothing on the desk waits
-on a refetch any more. The 120-second poll is a correctness backstop for what
-OTHER GMs are doing, not the way your own work appears.
+on a refetch any more. The 120-second poll is a correctness backstop, not the
+way anybody's work appears.
 
 **The reconciliation rule.** Every row carries `asOfMs`, the database's own
 clock at the moment it was read (`web/lib/pgClock.js` — never the web
@@ -192,9 +192,68 @@ tombstones, capped, so a payload already in flight when a row was deleted
 can't put it back.
 
 A GM's own half-typed text is not in the store and never should be. The Result
-box and the Caving notes stay component state under `useDirtyGuard`, which is
-what lets a payload land underneath a GM mid-sentence without taking the
-sentence with it.
+box and the Caving notes live in `deskDraft.js`, keyed by row and mirrored to
+`localStorage`, which is what lets a payload land underneath a GM mid-sentence
+without taking the sentence with it.
+
+### The live channel
+
+The other GMs' half. Four Postgres triggers announce every change to an
+`Action` (column-scoped), a `CavingRoll`, a `StagedEffect` or a `StagedMessage`
+on `bascinet_desk` (`db/lib/deskNotify.js`, migration
+`20260921030000_desk_notify`); `web/lib/feedHub.js` fans the bare `{t, id, op}`
+out to every open desk; `/api/gm/desk-stream` coalesces a quarter-second of ids
+and re-reads them in **one** `deskPatchFor()` call; `DeskStream.js` folds the
+result through the very same `applyDeskPatch()` a button's patch goes through.
+A frame from the stream and a frame from a Solve are indistinguishable once
+they land, and the store's newer-wins rule arbitrates between them without
+either knowing about the other.
+
+Four things about it are deliberate.
+
+**A trigger, not a `pg_notify()` in each writer.** The writers are spread
+across all three packages — the actions here, `db/lib/stagedPush.js`, the
+caving pass, `db/lib/moveEconomy.js`, the Dev Panel — and the next one is one
+`create()` away. Same reasoning as `DirectMessage_notify` (CHAT.md §2b).
+
+**The `Action` trigger is column-scoped.** `Action` is written on every filing,
+every travel stub and the whole turn-end push. It fires only for the seven
+columns a queue row actually draws — `moveReviewStatus`, `resultMessage`,
+`moveKind`, `reviewedByDiscordUserId`, `lockedByDiscordUserId`,
+`lockExpiresAt`, `appliedEffects` — plus every INSERT and DELETE, because a new
+Move belongs on the queue and a rejected one has to leave it. A `craftBudget`
+or a `confirmDmMessageId` write wakes nobody.
+
+**The stream sends only what belongs on a desk.** `deskPatchFor`'s
+`onDeskOnly` flag re-applies page.js's own membership rule — the open turn's
+Moves and Caving rolls, staged rows of the open turn or not yet delivered.
+Without it, closing a turn would deal a hundred of LAST turn's Moves onto every
+open queue, because `stagedPush.js` stamps `appliedEffects` on all of them and
+the store holds rows rather than queries. An id dropped this way is reported as
+neither a row nor a removal: off the desk is not the same as gone.
+
+**A frame for a row somebody is typing into is buffered, not folded.** Their
+text is already safe — the draft wins over the row wherever one exists — but
+the rest of the card would still swap, and a Kind switch flipping mid-sentence
+is the desk moving while somebody writes on it. The frame lands when the draft
+clears, which is what every save, solve and reject does. **Removals are never
+buffered**: if another GM rejected the Move being written on, holding that back
+would leave a GM narrating a row that no longer exists.
+
+No zone gate, matching the page: `/gm/turns` ships every row and the rail
+filters client-side, so a GM widening their zones with a click finds the rows
+already there. A stream that shipped less than the page would make the click a
+lie. And the stream is not a gate in the other direction either — the route
+establishes the reader is a GM and re-reads everything it sends; subscribing to
+the hub grants nothing.
+
+When the hub's Postgres client drops and comes back, rows written in the gap
+reached nobody. Unlike the inbox there is no cursor to re-ask from — a patch is
+a list of ids, not a window in time — so the tab is told to fetch the page
+once, through the same deploy gate every other refresh here goes through. If
+the stream itself drops twice in a row, a "Catching up" chip says so
+(`deskStreamStore.js`, `DeskStreamChip.js`) and the 120s poll carries the desk:
+a live path that has quietly stopped is worse than one that never existed.
 
 **One replica, and this depends on it.** The live channels behind the desks
 (`web/lib/feedHub.js`) are a module singleton holding a single Postgres
@@ -514,7 +573,11 @@ adjudicable the moment the Ram is a ruin.
 | `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
 | `.../deskStore.js` | The desk's client-owned rows: seed, patch, the newer-wins reconciliation rule |
-| `web/lib/deskRows.js` | The other half, server-side: the shared row CONTEXT (usernames, Catatonic, Location names, the open turn, the clock) and `deskPatchFor`, the patch every mutation hands back |
+| `.../deskDraft.js` | What a GM has typed and not saved — the Result boxes and the Kind switch, keyed by row, mirrored to `localStorage`. Also the desk's record of WHICH rows are dirty, which is what `DeskStream.js` buffers against |
+| `db/lib/deskNotify.js` | `bascinet_desk` — the channel four Postgres triggers announce a changed desk row on (migration `20260921030000_desk_notify`) |
+| `web/app/api/gm/desk-stream/route.js` | The live channel's server half: coalesces a beat of ids from the hub and answers with one `deskPatchFor` frame |
+| `.../DeskStream.js` / `deskStreamStore.js` / `DeskStreamChip.js` | Its client half: the EventSource and its own reconnect, the dirty-row buffer, and the chip that says when the desk has dropped to its backstop poll |
+| `web/lib/deskRows.js` | The other half, server-side: the shared row CONTEXT (usernames, Catatonic, Location names, the open turn, the clock) and `deskPatchFor`, the patch every mutation hands back and the live channel re-reads with |
 | `web/lib/pgClock.js` | `pgNowMs()` — the database's clock, which is the only stamp the store reconciles on. Shared with the player desk's `inboxDelta.js` |
 | `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |

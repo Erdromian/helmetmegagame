@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · The adjudication desk goes live
+
+✎ What another GM stages, solves or rejects shows up on your desk within a second, no reload — a small chip in the header says when the desk has dropped back to its slower check  
+✎ If you are mid-sentence in a Result box, another GM's edit to that same Move waits until you save rather than overwriting you
+
 ## 2026-09-11 · The GM desks stop losing what you typed
 
 ✎ A half-written Result box survives a reload, a deploy or a wrong click — it comes back exactly as you left it, until you save or solve  
