@@ -1,5 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { prisma, concealedAlias } = require("@lifeweb/db");
+const { prisma } = require("@lifeweb/db");
 const { setVisibleZones } = require("@lifeweb/db/lib/gmZoneView");
 const { syncGmZoneRoles } = require("@lifeweb/db/lib/gmZoneRoles");
 const { isUnaffiliated } = require("@lifeweb/db/lib/factionConstants");
@@ -69,6 +69,7 @@ const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
 const { castDie } = require("@lifeweb/db/lib/roll");
+const { toggleConceal } = require("@lifeweb/db/lib/conceal");
 const { messageLink } = require("../lib/mentions");
 const { addThreadMember, removeThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
@@ -177,11 +178,6 @@ const { OPEN_BUTTON_ID: REPORT_OPEN_ID, CLOSE_BUTTON_ID: REPORT_CLOSE_ID } = req
 // db/lib/locationAnchorRow.js, the travel flow's in
 // bot/src/lib/locationTravel.js).
 const CONVERSE_ROOM_PREFIX = "conv:room:";
-
-// "a young man" / "an old woman" — the alias as it reads mid-sentence.
-function withArticle(word) {
-  return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
-}
 
 const ZONE_VIEW_ID = "zoneview:pick";
 
@@ -1497,68 +1493,20 @@ async function handleConverseCreate(interaction, roomId) {
 
 // /conceal: a standing state, not a per-message prefix. While it is on, every
 // message proxies under the alias with the unknown silhouette, and Who's here
-// lists the alias instead of the name. A held forcesName tag refuses the
-// toggle outright — that identity is fixed, and there is nothing to hide.
+// lists the alias instead of the name. db/lib/conceal.js#toggleConceal is the
+// rule — the same one the web's Chat composer asks — and this handler is only
+// the Discord end of it.
+//
+// findAliveCharacter rather than actingCharacter, deliberately: /conceal is
+// registered ANYWHERE (bot/src/lib/commands.js), so it has to work in a DM,
+// where there is no guild and no member to resolve. It touches none of
+// interaction.guild, .member or .channel, and it should stay that way.
 async function handleConcealCommand(interaction) {
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
-  if (!character) {
-    await respond(interaction, "You don't have a living character.");
-    return;
-  }
-
-  const forcedName = await loadForcedName(prisma, character.id);
-  if (forcedName) {
-    await respond(interaction, `You are ${forcedName} now.`);
-    return;
-  }
-
-  // Concealment is a property of what you are wearing, not a free action. With
-  // a bare face there is nothing to toggle; under something that forces it,
-  // there is no choice to make in either direction. The column is left alone in
-  // that second case, so whatever the player last chose is what they go back to
-  // when the thing comes off.
-  //
-  // The forced line has to say which way the refusal points, and the old one
-  // ("take it off first") said the opposite of the truth: a forcesConceal piece
-  // is ALREADY hiding you — presentedIdentity conceals on piece.forced alone —
-  // so a player who read that reasonably concluded their helmet had broken
-  // concealment rather than granted it. Name the piece where we know it.
-  const concealment = await loadConcealment(prisma, character.id);
-  if (!concealment) {
-    await respond(interaction, "Your face is exposed. Wear a hood or helmet.");
-    return;
-  }
-  if (concealment.forced) {
-    await respond(
-      interaction,
-      concealment.name
-        ? `You're already hidden by the ${concealment.name}.`
-        : "You're already hidden by what you're wearing.",
-    );
-    return;
-  }
-
-  const concealed = !character.concealed;
-  await prisma.character.update({ where: { id: character.id }, data: { concealed } });
-  await prisma.auditLog
-    .create({
-      data: {
-        actorDiscordUserId: interaction.user.id,
-        actionType: "character_conceal_toggled",
-        targetCharacterId: character.id,
-        details: { concealed },
-      },
-    })
-    .catch((err) => console.error("Conceal audit log failed:", err));
-
-  await respond(
-    interaction,
-    concealed
-      ? `You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**.`
-      : "You're no longer concealed.",
-  );
+  const result = await toggleConceal(prisma, character);
+  await respond(interaction, result.ok ? result.line : result.error);
 }
 
 // Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js).
