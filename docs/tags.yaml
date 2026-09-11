@@ -2922,8 +2922,8 @@ tags:
     category: skills
     group: skills-fighting
     teachable: true
-    description: "You have practiced forming a shield wall. When standing within reach of 2 or more other Cerberi, your melee skill counts as 2 tiers higher."
-    fighting: { tree: melee, tiers: 2, situational: true }
+    description: "While fighting with at least 2 other Cerberi, the combat skill of you and anyone else that has this tag is one level higher."
+    fighting: { tree: melee, tiers: 1, situational: true }
     pointCost: 8
     requiredTag: melee-basic
     visible: false
