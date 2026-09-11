@@ -8,7 +8,8 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
-import { travelFoot, openedByLabel } from "@/lib/travelCost";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { crossingConfirm, travelFoot, openedByLabel } from "@/lib/travelCost";
 import { loadMap } from "./actions";
 import { travelTo } from "../chat/actions";
 
@@ -83,6 +84,7 @@ export default function MapBoard({ onClose = null }) {
   const [layer, setLayer] = useState(null);
   const { run, pending, error } = useActionRunner();
   const coarse = useIsCoarsePointer();
+  const confirm = useConfirm();
   // useId() returns a string with punctuation React reserves (":r0:"), which
   // is legal in an id but not in a url(#…) reference. Stripped to word
   // characters so the mask resolves.
@@ -512,14 +514,24 @@ export default function MapBoard({ onClose = null }) {
   // Travel, in one place. The Go button, a second click on a node and Enter are
   // three doors onto the same call — travelTo, which re-derives every gate
   // server-side whatever any of them thought (MAP.md §6c).
-  const go = (locationId) =>
-    run(travelTo, { locationId }, {
+  //
+  // A zone crossing asks first, in the shared confirm, and is down to one door:
+  // the card's Go. It spends something, it carries whoever is with you, and it
+  // cannot be walked back for free — and a player crossed one by double-
+  // clicking. A hop inside the zone is untouched.
+  const go = async (node) => {
+    if (node.crossesZone) {
+      const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0);
+      if (!(await confirm(asked))) return;
+    }
+    run(travelTo, { locationId: node.id }, {
       onOk: () => {
         setSel(null);
         setNonce((n) => n + 1);
         router.refresh();
       },
     });
+  };
 
   // Enter goes to the place you have picked.
   //
@@ -538,6 +550,9 @@ export default function MapBoard({ onClose = null }) {
     const picked = data.nodes.find((n) => n.id === sel);
     const standing = data.you.locationId ? data.nodes.find((n) => n.id === data.you.locationId) : null;
     if (!canTravelTo(picked, standing)) return undefined;
+    // Not for a crossing. Enter is the keyboard's half of the second click, and
+    // a crossing no longer goes on either — the card's Go does.
+    if (picked.crossesZone) return undefined;
 
     const onKey = (e) => {
       if (e.key !== "Enter" || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
@@ -545,7 +560,7 @@ export default function MapBoard({ onClose = null }) {
       // somebody pressing Enter on Cancel means cancel.
       if (e.target?.closest?.("input, textarea, select, button, [contenteditable]")) return;
       e.preventDefault();
-      go(sel);
+      go(picked);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -657,13 +672,15 @@ export default function MapBoard({ onClose = null }) {
                     // guard above. Anywhere you cannot go, it still just
                     // unpicks.
                     //
-                    // Not on a finger. A stray tap on a phone is easy and this
-                    // one spends a crossing, so on a coarse pointer the second
-                    // tap unpicks like any other and Go on the card — which is
-                    // on screen the moment you pick, since the sheet opens — is
+                    // Not on a finger, and not for a zone crossing on any
+                    // pointer. A stray tap on a phone is easy and a crossing
+                    // spends something either way, so there the second tap
+                    // unpicks like any other and Go on the card — which is on
+                    // screen the moment you pick, since the sheet opens — is
                     // the only door. canTravelTo is untouched: this narrows a
                     // gesture, not the rule about where you may walk.
-                    if (!coarse && canTravelTo(n, here) && !pending) go(n.id);
+                    if (n.crossesZone && canTravelTo(n, here)) return;
+                    if (!coarse && canTravelTo(n, here) && !pending) go(n);
                     else setSel(null);
                   }}
                 >
@@ -771,7 +788,7 @@ export default function MapBoard({ onClose = null }) {
             pending={pending}
             error={error}
             onCancel={() => setSel(null)}
-            onGo={() => go(card.id)}
+            onGo={() => go(card)}
           />
         ) : (
           <EmptyState>You aren&apos;t on the map yet.</EmptyState>

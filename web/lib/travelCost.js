@@ -36,3 +36,35 @@ export function travelFoot(option, freeLeft, mounted) {
 export function openedByLabel(tagName) {
   return `Opened by your ${tagName}.`;
 }
+
+// The question asked before a zone crossing, on both surfaces.
+//
+// A crossing is the one move here that is expensive and cannot be taken back:
+// it spends a travel or the whole Move, it drags whoever is with you along, and
+// it lands at once. A hop inside a zone is none of those things and is never
+// asked about. So this exists, and travelFoot's local "free" case has no
+// counterpart below.
+//
+// Built here rather than in either component for the reason travelFoot is: two
+// surfaces, one sentence. `freeLeft` is the DESTINATION's own count, not the
+// header's ambient one — a boat's bonus is earned per crossing.
+export function crossingConfirm(option, freeLeft, partySize = 0) {
+  const price =
+    (freeLeft ?? 0) > 0
+      ? "This spends one of your travels."
+      : "You have no travels left, so this spends your Move for the turn.";
+  // Said out loud because it is the half of an accidental crossing that costs
+  // somebody else their afternoon too.
+  const party =
+    partySize > 0
+      ? partySize === 1
+        ? " One person comes with you."
+        : ` ${partySize} people come with you.`
+      : "";
+  return {
+    title: `Cross into ${option.zoneName}?`,
+    message: `${option.name} is in ${option.zoneName}. ${price}${party}`,
+    confirmLabel: "Go",
+    cancelLabel: "Stay",
+  };
+}
