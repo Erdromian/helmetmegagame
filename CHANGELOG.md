@@ -6,6 +6,34 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-11 · Appraisal: see an item's worth in obols
+
+✎ New skill, Appraisal (1 pt): shows a tag's worth in obols on its tooltip  
+✚ Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper start with it  
+✚ The Manor Lord and Court Artist courtier kits grant it too  
+✎ Radio's price corrected to 4 points
+
+## 2026-09-11 · Sickle and Horseshoes join the smith's ladder
+
+✚ Sickle: Dead Simple, +1 ⬢ to farming labor, a very small melee edge  
+✚ Horseshoes: Moderate, gives a Horse one extra free zone move
+
+## 2026-09-11 · Flatten the crafting wage curve, and lift the middle of it
+
+− The ladder now pays 9, 10, 16, 18 and 22.5 a turn from the quick pieces up to gunpowder, where it used to run 3 to 15 — two and a half fold instead of five, so the early rungs are somewhere you can work rather than somewhere you pass through  
+− Moderate and High Quality got the most; the small stuff a little  
+− The top of the ladder did not move — everything under it came up
+
+## 2026-09-11 · Intercept no longer needs an unspent Move
+
+− The refusal on laying in wait once your Move is filed
+
+## 2026-09-11 · Smiths and crafters get paid about a quarter more for everything
+
+− Every sell price on the smithing and crafting ladder is up ~25%, so a day at the anvil is worth having against a day in the fields  
+− The bottom of the ladder got the most: a Dead Simple piece now clears 2 instead of 1, and the Simple rung sells at 12 rather than the 11 the multiplier gave, so the quick pieces beneath it cannot out-earn it  
+− Trapping Gear keeps its wage floor at 20 rather than falling to its rung's 12
+
 ## 2026-09-11 · Fewer boxes doing the same job on the GM desks
 
 ✎ The Players desk has two search boxes instead of four: Search inbox on the rail and Filter roster on the roster  
