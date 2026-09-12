@@ -5995,6 +5995,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
+    # A Trinket ingredient (TRINKETS.md §3) — cheap and common, the smallest
+    # inlay value in the catalog.
+    inlayValue: 2
 
   # The first of several ingredients Prospecting is meant to source
   # (LABORDROPS.md §2b) — {tag:silver-knife} and {tag:silver-spear} both spend
@@ -6019,6 +6022,8 @@ tags:
     depotPrice: 8
     sellable: true
     sellablePrice: 5
+    # A Trinket ingredient (TRINKETS.md §3).
+    inlayValue: 5
 
   # Coal and a spell at the forge folded into a usable ingot, same shape as
   # {tag:black-powder} below: priced at cost, resourceCost (4) over a 4-⬢
@@ -6284,6 +6289,9 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 4
+    # A Trinket ingredient (TRINKETS.md §3) — the priciest inlay in the
+    # catalog.
+    inlayValue: 10
 
   nightshade-herb:
     catalog: all
@@ -6469,6 +6477,8 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 12
+    # A Trinket ingredient (TRINKETS.md §3).
+    inlayValue: 9
 
   # A whole haul, sorted rather than raw — one Coal, one Silver, one Steel
   # already smelted, bundled the way the Depot's own crates are (`DEPOT.md`
@@ -6886,6 +6896,8 @@ tags:
     sellable: true
     sellablePrice: 8
     depotPrice: 13
+    # A Trinket ingredient (TRINKETS.md §3).
+    inlayValue: 8
 
   # What the Painting spends (Chris 2026-09-06). catalog: all on purpose — a
   # gm-catalog ingredient would pull the Painting into the hidden-recipe rule
