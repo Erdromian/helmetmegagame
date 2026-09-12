@@ -6663,7 +6663,7 @@ tags:
     group: items-gear
     description: "Synthetic liquid that can be consumed to gain {tag:fertilized-fields}."
     pointCost: 2
-    depotPrice: 5
+    depotPrice: 4
     tradeable: true
     weight: 3
     stackable: true
@@ -10365,7 +10365,7 @@ tags:
     group: items-food
     description: "Butter. A delicacy."
     pointCost: 0
-    depotPrice: 9
+    depotPrice: 8
     tradeable: true
     weight: 0.5
     stackable: true
@@ -11187,7 +11187,7 @@ tags:
     group: items-drink
     description: "A Mudghara, special import. It has a robust, heavy flavor."
     pointCost: 0
-    depotPrice: 5
+    depotPrice: 4
     sellable: true
     sellablePrice: 3
     tradeable: true
@@ -11248,7 +11248,7 @@ tags:
     group: items-paper
     description: "A ream of blank sheets. It can be consumed into paper."
     pointCost: 1
-    depotPrice: 3
+    depotPrice: 2
     tradeable: true
     weight: 2
     stackable: true
@@ -12291,9 +12291,9 @@ tags:
     group: items-gear
     description: "A small red tube. It's loud."
     pointCost: 0
-    depotPrice: 3
+    depotPrice: 2
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
     tradeable: true
     weight: 0.2
     stackable: true
@@ -12311,7 +12311,7 @@ tags:
     group: items-food
     description: "A sweet treat. What a rarity!"
     pointCost: 0
-    depotPrice: 4
+    depotPrice: 3
     sellable: true
     sellablePrice: 2
     tradeable: true
@@ -12376,7 +12376,7 @@ tags:
     group: items-food
     description: "A sweet viscous substance. What a rarity!"
     pointCost: 0
-    depotPrice: 4
+    depotPrice: 3
     sellable: true
     sellablePrice: 2
     tradeable: true
@@ -12396,7 +12396,7 @@ tags:
     group: items-gear
     description: "A paper lantern. Can be lit on the bottom to rise into the air. Used to celebrate something special."
     pointCost: 0
-    depotPrice: 4
+    depotPrice: 3
     sellable: true
     sellablePrice: 2
     tradeable: true
@@ -12418,7 +12418,7 @@ tags:
     # Task 11: raised above the plain-alcohol band (5 ⬢) to sit roughly level
     # with ravenheart-red — its only price is sellablePrice 14, since it has
     # no depotPrice of its own (not depot-importable). See DEPOT.md §3.
-    depotPrice: 10
+    depotPrice: 9
     sellable: true
     sellablePrice: 7
     tradeable: true
@@ -12934,11 +12934,11 @@ tags:
       skills: [brewing-basic]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 3
     # The one local brew the Depot also sells, for a Merchant who would rather
     # not wait on a brewer. Six against a sell-back of four, so importing it
     # and dumping it straight back is a losing trade. See DEPOT.md §3.
-    depotPrice: 5
+    depotPrice: 4
 
   holy-water:
     catalog: all
