@@ -4885,7 +4885,7 @@ tags:
     name: Cripple
     category: health
     group: health-maiming
-    description: "The legs were cruelly removed."
+    description: "The legs were cruelly removed. You go nowhere without help."
     fighting: { tree: both, tiers: -2 }
     pointCost: 0
     conflictsWith: [quick-footed, peg-leg]
@@ -5044,7 +5044,7 @@ tags:
     name: Pain Shock
     category: health
     group: health-minor
-    description: "You're … Off in la-la-land."
+    description: "You're … Off in la-la-land. You can't find your own way anywhere."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     visible: true
@@ -5236,7 +5236,7 @@ tags:
     purchasableAfterStart: false
     # The Merchant is the only mid-game source, so the price is meant to hurt:
     # a free zone move every turn is the strongest thing on the assets shelf.
-    depotPrice: 90
+    depotPrice: 84
     sellable: true
     sellablePrice: 54
     craftable: true
@@ -6041,7 +6041,7 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 8
+    depotPrice: 7
     sellable: true
     sellablePrice: 5
     # A Trinket ingredient (TRINKETS.md §3).
@@ -6078,7 +6078,7 @@ tags:
       skills: [smithing]
       gambit: false
       items: [coal]
-    depotPrice: 13
+    depotPrice: 12
     sellable: true
     sellablePrice: 8
 
@@ -6917,7 +6917,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 8
-    depotPrice: 13
+    depotPrice: 12
     # A Trinket ingredient (TRINKETS.md §3).
     inlayValue: 8
 
@@ -8667,7 +8667,7 @@ tags:
     # look like the bargain it is. See docs/systemdocs/DEPOT.md §3.
     sellable: true
     sellablePrice: 80
-    depotPrice: 134
+    depotPrice: 125
     sealedShipping: true
 
   #Cave weapons
@@ -8842,7 +8842,7 @@ tags:
     # the free ration would mint the margin as a free action (4/turn on top of
     # an untouched labor day). The depot's 12 stays the impatience premium.
     sellablePrice: 6
-    depotPrice: 12
+    depotPrice: 11
 
   # Prospecting's own tool, same shape as Fishing Rod above — every other
   # specialization has one made for the work, this was the one gap
@@ -8871,7 +8871,7 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 6
-    depotPrice: 12
+    depotPrice: 11
 
   trapping-gear:
     catalog: all
@@ -8897,7 +8897,7 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 24
-    depotPrice: 26
+    depotPrice: 25
 
   # No `equipped` on the bonus: a plow is not something you hold, it is
   # something in your shed. The horse is the whole cost of it — and that is
@@ -9858,7 +9858,7 @@ tags:
     description: "A gentleman's cane, filled with three feet of steel."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 7
-    depotPrice: 23
+    depotPrice: 21
     equippable: true
     equipSlot: WEAPON
     tradeable: true
@@ -10341,7 +10341,7 @@ tags:
     group: items-food
     description: "Foreign spices. Tastes delicious in meals."
     pointCost: 0
-    depotPrice: 15
+    depotPrice: 14
     tradeable: true
     weight: 0
     stackable: true
@@ -10365,7 +10365,7 @@ tags:
     group: items-food
     description: "Butter. A delicacy."
     pointCost: 0
-    depotPrice: 10
+    depotPrice: 9
     tradeable: true
     weight: 0.5
     stackable: true
@@ -10550,7 +10550,7 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 60
-    depotPrice: 68
+    depotPrice: 63
 
   surgical-equipment:
     catalog: all
@@ -10566,7 +10566,7 @@ tags:
     weight: 12
     sellable: true
     sellablePrice: 19
-    depotPrice: 31
+    depotPrice: 29
 
   # +1 on a torture roll for anyone working within reach (db/lib/torture.js,
   # docs/systemdocs/TORTURE.md). Not a smithing recipe and not on the ladder:
@@ -10710,7 +10710,7 @@ tags:
     # something you have to go down and find. See docs/systemdocs/DEPOT.md §3.
     sellable: true
     sellablePrice: 116
-    depotPrice: 194
+    depotPrice: 180
     sealedShipping: true
 
   #Artifacts
@@ -10819,7 +10819,7 @@ tags:
     # The Depot imports these, and it does not have to haul them anywhere.
     sellable: true
     sellablePrice: 103
-    depotPrice: 171
+    depotPrice: 159
 
   sawn-off-double-barrel:
     catalog: gm
@@ -12418,7 +12418,7 @@ tags:
     # Task 11: raised above the plain-alcohol band (5 ⬢) to sit roughly level
     # with ravenheart-red — its only price is sellablePrice 14, since it has
     # no depotPrice of its own (not depot-importable). See DEPOT.md §3.
-    depotPrice: 11
+    depotPrice: 10
     sellable: true
     sellablePrice: 7
     tradeable: true
@@ -12439,7 +12439,7 @@ tags:
     group: items-gear
     description: "A black box that can serve as a portable speaker."
     pointCost: 0
-    depotPrice: 11
+    depotPrice: 10
     sellable: true
     sellablePrice: 7
     tradeable: true
@@ -12472,7 +12472,7 @@ tags:
     description: "A thin leather implement that can be used to punish heretics or those who have not paid their taxes."
     fighting: { tiers: 0.2, weaponClass: exotic }
     pointCost: 0
-    depotPrice: 11
+    depotPrice: 10
     sellable: true
     sellablePrice: 7
     tradeable: true
@@ -12490,7 +12490,7 @@ tags:
     group: items-gear
     description: "A metal vessel which substances can be poured into to diffuse through the room."
     pointCost: 0
-    depotPrice: 12
+    depotPrice: 11
     sellable: true
     sellablePrice: 7
     tradeable: true
@@ -12511,7 +12511,7 @@ tags:
     group: items-gear
     description: "You can immediately tell when a meal is poisoned. This item is reusable."
     pointCost: 9
-    depotPrice: 22
+    depotPrice: 20
     sellable: true
     sellablePrice: 13
     tradeable: true
@@ -12527,7 +12527,7 @@ tags:
     group: items-gear
     description: "A black bag large enough to fit a person. Muffles sounds from inside."
     pointCost: 0
-    depotPrice: 22
+    depotPrice: 20
     sellable: true
     sellablePrice: 13
     tradeable: true
@@ -12544,7 +12544,7 @@ tags:
     group: items-gear
     description: "An odd contraption with a spot to place the eyes. Heavily magnifies small objects placed under it."
     pointCost: 0
-    depotPrice: 29
+    depotPrice: 27
     sellable: true
     sellablePrice: 17
     tradeable: true
@@ -12601,7 +12601,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 70
+    depotPrice: 65
     sealedShipping: true
     sellable: true
     sellablePrice: 42
@@ -12613,7 +12613,7 @@ tags:
     group: items-armor
     description: "A bulletproof vest and pad combination."
     pointCost: 0
-    depotPrice: 34
+    depotPrice: 32
     sealedShipping: true
     sellable: true
     sellablePrice: 20
@@ -12636,7 +12636,7 @@ tags:
     group: assets-companions
     description: "A pet monkey! Why, how exquisite!"
     pointCost: 0
-    depotPrice: 22
+    depotPrice: 20
     sellable: true
     sellablePrice: 13
     tradeable: true
@@ -12652,7 +12652,7 @@ tags:
     description: "A large, well-trained fighting dog ready to obey commands."
     fighting: { situational: true }
     pointCost: 0
-    depotPrice: 38
+    depotPrice: 35
     sellable: true
     sellablePrice: 23
     tradeable: true
@@ -12669,7 +12669,7 @@ tags:
     poison: true
     description: "A small vial of a clear substance."
     pointCost: 0
-    depotPrice: 45
+    depotPrice: 42
     sealedShipping: true
     sellable: true
     sellablePrice: 27
@@ -12690,7 +12690,7 @@ tags:
     group: items-gear
     description: "A small vial containing a wriggling mass that will eat all material it finds. Can be used to effectively clean up crime scenes."
     pointCost: 0
-    depotPrice: 52
+    depotPrice: 48
     sealedShipping: true
     sellable: true
     sellablePrice: 31
@@ -12710,7 +12710,7 @@ tags:
     group: items-special
     description: "A hideous little monster that will understand your simple instructions and carry them out."
     pointCost: 0
-    depotPrice: 75
+    depotPrice: 70
     sealedShipping: true
     sellable: true
     sellablePrice: 45
@@ -12727,7 +12727,7 @@ tags:
     group: items-gear
     description: "A metal cylinder that can be equipped to a firearm to muffle its shots."
     pointCost: 0
-    depotPrice: 74
+    depotPrice: 69
     sellable: true
     sellablePrice: 44
     equippable: true
@@ -12746,7 +12746,7 @@ tags:
     group: items-drink
     description: "A small vial of liquid that can be drunk to immediately cure all stages of infection."
     pointCost: 0
-    depotPrice: 82
+    depotPrice: 76
     sellable: true
     sellablePrice: 49
     tradeable: true
@@ -12769,7 +12769,7 @@ tags:
     laborBonus: { kind: hunting, amount: 2 }
     fighting: { tiers: 0.8, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 149
+    depotPrice: 139
     sealedShipping: true
     sellable: true
     sellablePrice: 89
@@ -12795,7 +12795,7 @@ tags:
     description: "A semi-automatic rifle chambered in .308."
     fighting: { tiers: 1, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 213
+    depotPrice: 198
     sealedShipping: true
     sellable: true
     sellablePrice: 128
@@ -12816,7 +12816,7 @@ tags:
     description: "An experimental fully automatic rifle that belongs to the past."
     fighting: { tiers: 1.2, weaponClass: firearm }
     pointCost: 0
-    depotPrice: 443
+    depotPrice: 412
     sealedShipping: true
     sellable: true
     sellablePrice: 266
@@ -12837,7 +12837,7 @@ tags:
     description: "A gleaming sword fit for the highest of nobility. Light, strong, and unimaginably sharp."
     fighting: { tiers: 1, weaponClass: sword }
     pointCost: 0
-    depotPrice: 189
+    depotPrice: 176
     sealedShipping: true
     sellable: true
     sellablePrice: 113
@@ -12857,7 +12857,7 @@ tags:
     description: "A sword with a blade of pure silver. Might be useful…"
     fighting: { tiers: 0.5, weaponClass: sword }
     pointCost: 0
-    depotPrice: 123
+    depotPrice: 114
     sellable: true
     sellablePrice: 74
     tradeable: true
@@ -12876,7 +12876,7 @@ tags:
     description: "A small pistol that shoots nonlethal, but still painful, bullets."
     fighting: { tiers: 0.1, weaponClass: exotic }
     pointCost: 0
-    depotPrice: 61
+    depotPrice: 57
     sellable: true
     sellablePrice: 37
     tradeable: true
@@ -13309,7 +13309,7 @@ tags:
       items: [nightshade, cave-fungus]
     sellable: true
     sellablePrice: 22
-    depotPrice: 36
+    depotPrice: 33
     sealedShipping: true
 
   advanced-poppy:
@@ -13553,7 +13553,7 @@ tags:
       resourceCost: 8
       skills: [brewing-skilled]
       gambit: false
-    depotPrice: 15
+    depotPrice: 14
     sellable: true
     sellablePrice: 10
     requiredTag: brigand
@@ -14287,7 +14287,7 @@ tags:
       turnsCost: 1
       resourceCost: 14
       skills: [smithing-skilled]
-    depotPrice: 45
+    depotPrice: 42
     sellable: true
     sellablePrice: 34
 
@@ -14487,6 +14487,10 @@ tags:
     weight: 1
     purchasable: false
     purchasableAfterStart: false
+    # Not touched by the 2026-09-11 across-the-board Merchant cut: this row
+    # was already sellablePrice > depotPrice before that pass (a pre-existing
+    # sync-guard violation, unrelated to it — db:sync-tags already flags it).
+    # Cutting further only widens the loop; leave it for whoever fixes that.
     depotPrice: 5
     sellable: true
     sellablePrice: 7
@@ -14809,7 +14813,7 @@ tags:
     group: items-headgear
     description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢."
     pointCost: 5
-    depotPrice: 14
+    depotPrice: 13
     equippable: true
     equipSlot: HEAD
     equipLayer: 2
@@ -15214,7 +15218,7 @@ tags:
     weight: 2
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 145
+    depotPrice: 135
     sellable: true
     sellablePrice: 87
 
@@ -15412,7 +15416,7 @@ tags:
     consumable: true
     sellable: true
     sellablePrice: 16
-    depotPrice: 26
+    depotPrice: 24
 
   # --- Health: Grievous Wound ---------------------------------------------
   # Tier 5 (Very minor surgery) on the cure ladder — TAGS.md §5c.
@@ -15719,4 +15723,4 @@ tags:
     # Priced at about 65% of a {tag:flamethrower}, the shelf it shares.
     sellable: true
     sellablePrice: 76
-    depotPrice: 126
+    depotPrice: 117
