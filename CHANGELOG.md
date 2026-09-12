@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · Shouts on Discord reach the website now
+
+✎ Shouting on Discord wrote nothing down, so a shout made there was a shout the website never heard and the archive never kept. Every shout now lands on both faces, wherever it was made  
+✎ A shout on Discord names who shouted, goes quiet in a soundproof room, and stops carrying when you are tied up — none of which it did before  
+✎ One five-minute throat across both apps. Shouting on Discord and then on the web used to beat the timer once  
+✎ A die rolled on Discord shows up in Chat and the archive, and says who threw it  
+✚ A web-only character can invite somebody to a conversation from Discord  
+✎ Letting somebody into a private room needs a key or a guest row of your own, not just standing outside it  
+✎ A guest let in from Discord sees the room in Chat straight away, with no reload  
+✎ Xom's screams no longer arrive twice in the Location they were screamed in
+
 ## 2026-09-11 · Public declarations reach the caves
 
 ✎ A public declaration staged for the Caves or the Depths used to go nowhere — there is no summary channel underground, so it was quietly marked undeliverable and no player ever read it  
