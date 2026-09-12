@@ -6,6 +6,15 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · Gamemasters get a real right column in Chat, and the scene fills the screen
+
+✎ The chat feed uses the whole middle column again. It had been capped at a reading measure, which sat to one side, so on a wide monitor the scene read as cropped down the middle  
+✚ A GM reading a place now sees who is standing in it, its description and Examine lines, what is standing on the ground, every room with its stash and the keys that open it, and which ways out are open, shut or held  
+✚ A GM sees through a hood: the real name, with what the room sees beside it. Clicking a name opens the Dev Panel over the chat without leaving it  
+✚ A GM can say a line into the place they already have open, instead of going to the Dev Panel and picking it out of a dropdown  
+✎ A GM's ambient line reached Discord and never reached the web. It writes to the transcript now, so web-only players see the scenery too  
+✚ A GM on a phone has a right column at all now. There was no button to open one
+
 ## 2026-09-12 · Shouts on Discord reach the website now
 
 ✎ Shouting on Discord wrote nothing down, so a shout made there was a shout the website never heard and the archive never kept. Every shout now lands on both faces, wherever it was made  

@@ -25,7 +25,32 @@ export async function loadFaction(factionId) {
           resources: true,
           accessTagSlugs: true,
           location: { select: { name: true, zoneId: true, zone: { select: { name: true } } } },
-          tags: { select: { id: true, quantity: true, tag: { select: { name: true } } } },
+          // Full enough for a TagChip hover (FactionConsole.js's silo table) —
+          // description, group colour, requirement/armour — not just the name
+          // a chip with no panel behind it used to settle for.
+          tags: {
+            select: {
+              id: true,
+              quantity: true,
+              tag: {
+                select: {
+                  id: true,
+                  name: true,
+                  description: true,
+                  mastery: true,
+                  group: { select: { color: true } },
+                  weightLbs: true,
+                  meleeArmor: true,
+                  ballisticArmor: true,
+                  requirementTurns: true,
+                  requirementPerTurn: true,
+                  requirementResources: true,
+                  requirementGambit: true,
+                  requirementSkills: { select: { name: true } },
+                },
+              },
+            },
+          },
         },
       },
       characters: {

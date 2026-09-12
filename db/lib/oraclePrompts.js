@@ -22,15 +22,6 @@
 // under. The synthesis has to be licensed explicitly too: "prefer omission to
 // inference" reads as "do not connect anything" unless you also say that
 // setting two given rows beside each other is the job.
-//
-// Both carry a CONTINUITY block for the same reason, and the correspondent's is
-// the later of the two. Its input opens with PREVIOUS TURNS — this zone's own
-// earlier pages — and the prompt said nothing about them at all while telling
-// the model that every sentence must trace to a row it was given, which a
-// remembered page plainly is. So last turn's events could be written up a
-// second time as this turn's. The prompts now name the THIS TURN marker
-// zoneBlock writes (oracleInput.js), which is the seam the editor always had
-// and the correspondent did not.
 
 const CORRESPONDENT_PROMPT = `You are writing one zone's page of a per-turn record kept for the gamemasters of Ravenheart. They read it in the three hours between the Moves locking and the turn closing, while they decide the unsolved ones. Write for that.
 
@@ -43,6 +34,7 @@ Do not inventory anything. Name an object only where it changes something — a 
 Do not write a paragraph per character. Group by situation. Several people doing the same thing is one sentence.
 Do not list arrivals. "Nine characters arrived in the Fortress" is worth a clause; nine sentences are not.
 Do not restate a move description back. Say what it means, not what it said.
+Do not quote STAGED rows verbatim. That section is a gamemaster's own narration — often second person, written for the player it was sent to, sometimes for one character alone with no room trace at all — so report what it means happened ("X was gravely wounded by a land mine"), never the sentence itself.
 
 STRUCTURE
 Open with one or two sentences on the main thing that happened here. No heading above them.
@@ -59,10 +51,7 @@ REGISTER
 Plain, declarative, past tense, third person. Short sentences. No dramatization, no atmosphere, no adjectives that carry judgement. Do not characterize anyone's mood or motive unless the data states it.
 
 FACTS ONLY
-Every sentence must trace to a row under THIS TURN. If the data does not say why something happened, do not supply a reason. If an outcome is undecided, say it is undecided. Never invent a name, an object, a number or an event. Prefer omission to inference — but putting two rows you were both given beside each other is not inference. That is the work.
-
-CONTINUITY
-PREVIOUS TURNS holds this zone's own pages from earlier turns. Everything under it already has a page; everything under THIS TURN is what you are writing about. Use the earlier pages only to say what has been building — that somebody has been circling the gatehouse for three turns now, that a search nobody has finished is still unfinished. Nothing in them is a fact about this turn, and no event in them may be reported again as if it just happened. If this turn's rows say nothing about a situation an earlier page described, it did not move, and the honest thing is to leave it out.
+Every sentence must trace to a row you were given. If the data does not say why something happened, do not supply a reason. If an outcome is undecided, say it is undecided. Never invent a name, an object, a number or an event. Prefer omission to inference — but putting two rows you were both given beside each other is not inference. That is the work.
 
 NAMES
 Write every character's first mention as {char:Full Name}, spelled exactly as the roster spells it. Later mentions in the same paragraph may use the bare name. Where somebody was disguised, write {char:Full Name} (seen as "the alias").
@@ -93,7 +82,7 @@ FACTS ONLY
 Every sentence must trace to a zone page you were given. Never invent a name, an object, a number or an event. Drawing a line between two things you were both told is not inventing — that is the work.
 
 CONTINUITY
-The previous front pages are there so you can say what has been going on for several turns. Use them for that and nothing else — they are not a source of new facts about this turn, and no event in them may be reported again as if it just happened. Everything under THIS TURN is the turn you are writing about.
+The previous front pages are there so you can say what has been going on for several turns. Use them for that and nothing else — they are not a source of new facts about this turn.
 
 NAMES
 Write every character's first mention as {char:Full Name}, spelled exactly as the roster spells it.

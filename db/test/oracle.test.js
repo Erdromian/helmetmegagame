@@ -11,7 +11,14 @@ const test = require("node:test");
 const assert = require("node:assert");
 
 const { auditLinesFor, INCLUDED } = require("../lib/oracleAudit");
-const { windowBetween, linkCharacterTokens, aggregatesSeenByZone, zoneBlock } = require("../lib/oracleInput");
+const {
+  windowBetween,
+  linkCharacterTokens,
+  aggregatesSeenByZone,
+  zoneBlock,
+  describeStagedEffect,
+  resolveSeat,
+} = require("../lib/oracleInput");
 const { moveCutoffAt } = require("../lib/turnClock");
 const { cutoffDecision } = require("../lib/oracleCutoff");
 const { splitEditorReply, correspondentPrompt, editorPrompt } = require("../lib/oraclePrompts");
@@ -464,62 +471,126 @@ test("a THREADS line dressed as a heading is not the separator", () => {
   assert.match(body, /### THREADS/);
 });
 
-// The fence between an earlier page and this turn's rows. Without it the zone
-// block read as one undivided context and a correspondent could report last
-// turn's events again as this turn's — which is what both prompts' CONTINUITY
-// blocks now name the marker to prevent.
+// The turn's own narration and mechanics, staged during adjudication and
+// invisible to everything else the Oracle reads until this landed
+// (docs/systemdocs/ORACLE.md).
 
-function blockMaterial() {
+test("describeStagedEffect renders each key it knows and skips the rest", () => {
+  assert.equal(describeStagedEffect({ resources: 5 }), "+5 ⬢");
+  assert.equal(describeStagedEffect({ resources: -5 }), "-5 ⬢");
+  assert.equal(describeStagedEffect({ tagPoints: 2 }), "+2 tag pts");
+  assert.equal(
+    describeStagedEffect({ tags: [{ op: "add", name: "Splint" }, { op: "remove", name: "Bruised" }] }),
+    "granted Splint, removed Bruised",
+  );
+  assert.equal(describeStagedEffect({ location: { to: "x" } }), "relocated");
+  assert.equal(describeStagedEffect({ transfer: { amount: 12 } }), "12 ⬢ transferred");
+  assert.equal(describeStagedEffect({}), "");
+  assert.equal(describeStagedEffect(null), "");
+});
+
+function baseMaterial(overrides = {}) {
   return {
-    characters: [{ id: "c1", zoneId: "z1", name: "Ada Vance" }],
+    characters: [],
     actions: [],
     auditRows: [],
     beats: [],
     chat: [],
-    names: { byCharacterId: new Map([["c1", "Ada Vance"]]), byDiscordUserId: new Map() },
+    stagedMessages: [],
+    stagedEffects: [],
+    seatByZoneId: new Map(),
+    names: { byCharacterId: new Map(), byDiscordUserId: new Map() },
+    ...overrides,
   };
 }
 
-const ZONE = { id: "z1", name: "Town" };
+const ZONE = { id: "zone-1", name: "Fortress" };
+const OTHER_ZONE = { id: "zone-2", name: "Town" };
+// A child zone under ZONE's seat — the Caves/Depths-under-Underground shape
+// (db/lib/seatZone.js). CAVE_ZONE_ID is never itself a seat, only ever a
+// zoneId a character/row can carry.
+const CAVE_ZONE_ID = "zone-1-caves";
+const CAVE_SEAT_MAP = new Map([[CAVE_ZONE_ID, ZONE.id]]);
 
-test("a remembered page is fenced off from this turn's rows", () => {
-  const { text } = zoneBlock(blockMaterial(), ZONE, {
-    aggregatesSeen: new Set(),
-    memory: ["[turn 11]\nThe gatehouse stayed shut."],
-    turnNumber: 12,
+test("a PUBLIC staged message lands on its own zone's page", () => {
+  const material = baseMaterial({
+    stagedMessages: [{ kind: "PUBLIC", content: "The gate held.", zoneId: ZONE.id, recipients: [] }],
   });
-
-  assert.match(text, /PREVIOUS TURNS/);
-  // The marker sits BETWEEN the remembered page and the roster, or it fences
-  // nothing.
-  assert.ok(text.indexOf("PREVIOUS TURNS") < text.indexOf("THIS TURN (12)"));
-  assert.ok(text.indexOf("THIS TURN (12)") < text.indexOf("PRESENT"));
+  const { text } = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
+  assert.match(text, /STAGED\nPUBLIC \| The gate held\./);
 });
 
-test("a turn with nothing remembered gets no dangling marker", () => {
-  // Nothing to fence off, so the marker would only be a heading over the whole
-  // block — and the first page of a game is the common case, not a rare one.
-  const { text } = zoneBlock(blockMaterial(), ZONE, {
-    aggregatesSeen: new Set(),
-    memory: [],
-    turnNumber: 1,
+test("a PRIVATE staged message with no room trace lands by its recipient's zone", () => {
+  const material = baseMaterial({
+    stagedMessages: [
+      {
+        kind: "PRIVATE",
+        content: "You have stepped on a land mine.",
+        zoneId: null,
+        recipients: [{ character: { zoneId: ZONE.id } }],
+      },
+    ],
   });
+  const here = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
+  assert.match(here.text, /STAGED\nPRIVATE \| You have stepped on a land mine\./);
 
-  assert.doesNotMatch(text, /THIS TURN/);
-  assert.doesNotMatch(text, /PREVIOUS TURNS/);
+  const elsewhere = zoneBlock(material, OTHER_ZONE, { aggregatesSeen: new Set() });
+  assert.doesNotMatch(elsewhere.text, /STAGED/);
 });
 
-test("both prompts name the marker the block actually writes", () => {
-  // The prompts point at THIS TURN by name, so renaming the section in
-  // zoneBlock without editing them would leave the fence unexplained.
-  const { text } = zoneBlock(blockMaterial(), ZONE, {
-    aggregatesSeen: new Set(),
-    memory: ["[turn 11]\nThe gatehouse stayed shut."],
-    turnNumber: 12,
+test("a staged effect is named for its target and dropped when it describes nothing", () => {
+  const material = baseMaterial({
+    stagedEffects: [
+      { targetCharacterId: "c1", appliedEffect: { resources: 10 }, targetCharacter: { zoneId: ZONE.id, name: "Ada Vance" } },
+      { targetCharacterId: "c2", appliedEffect: {}, targetCharacter: { zoneId: ZONE.id, name: "Bram Holt" } },
+    ],
   });
+  const { text } = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
+  assert.match(text, /STAGED\nAda Vance: \+10 ⬢/);
+  assert.doesNotMatch(text, /Bram Holt/);
+});
 
-  assert.match(text, /^THIS TURN \(12\)$/m);
-  assert.match(correspondentPrompt({}), /THIS TURN/);
-  assert.match(correspondentPrompt({}), /PREVIOUS TURNS/);
-  assert.match(editorPrompt({}), /THIS TURN/);
+// The presence/seat split (db/lib/seatZone.js): a character actually standing
+// in a child zone (the Caves, under the Underground seat) must still show up
+// on the SEAT's page — this is the "nobody is there" bug (ORACLE.md's own
+// zoneBlock, fixed 2026-09-11).
+
+test("a character in a child zone counts toward its seat zone's roster and moves", () => {
+  const material = baseMaterial({
+    characters: [{ id: "c1", name: "Doctor Neze", zoneId: CAVE_ZONE_ID, tags: [] }],
+    actions: [{ id: "a1", characterId: "c1", zoneId: CAVE_ZONE_ID, moveKind: "ROUTINE", moveReviewStatus: "SOLVED", description: "Digging." }],
+    seatByZoneId: CAVE_SEAT_MAP,
+  });
+  const { text, counts } = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
+  assert.match(text, /PRESENT \(1\)\n- Doctor Neze/);
+  assert.match(text, /MOVES\n/);
+  assert.equal(counts.present, 1);
+  assert.equal(counts.moves, 1);
+
+  const elsewhere = zoneBlock(material, OTHER_ZONE, { aggregatesSeen: new Set() });
+  assert.match(elsewhere.text, /PRESENT\nNobody\./);
+});
+
+test("a child zone's beats, chat and staged rows land on the seat's page", () => {
+  const material = baseMaterial({
+    beats: [{ kind: "DEATH", zoneId: CAVE_ZONE_ID, content: "Someone died." }],
+    chat: [{ zoneId: CAVE_ZONE_ID, characterName: "Ada", content: "Help!" }],
+    stagedMessages: [
+      { kind: "PRIVATE", content: "You have stepped on a land mine.", zoneId: null, recipients: [{ character: { zoneId: CAVE_ZONE_ID } }] },
+    ],
+    stagedEffects: [
+      { targetCharacterId: "c1", appliedEffect: { resources: -5 }, targetCharacter: { zoneId: CAVE_ZONE_ID, name: "Doctor Neze" } },
+    ],
+    seatByZoneId: CAVE_SEAT_MAP,
+  });
+  const { text } = zoneBlock(material, ZONE, { aggregatesSeen: new Set() });
+  assert.match(text, /NOTABLE\nDEATH \| Someone died\./);
+  assert.match(text, /CHAT\nAda: Help!/);
+  assert.match(text, /STAGED\n[\s\S]*land mine/);
+  assert.match(text, /Doctor Neze: -5 ⬢/);
+});
+
+test("resolveSeat falls back to the raw id for a zone the map doesn't know", () => {
+  assert.equal(resolveSeat("mystery-zone", new Map()), "mystery-zone");
+  assert.equal(resolveSeat(null, new Map()), null);
 });

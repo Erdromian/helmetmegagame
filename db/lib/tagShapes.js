@@ -33,12 +33,24 @@ function normalizeTagChain(field, entries, label) {
   });
 }
 
+// `dead` is a reserved token in an expiry chain, not a tag — there is no such
+// row in the catalog, because death is a Character.status rather than
+// something you hold. It means "this one kills at its own close, with no
+// Dying turn in between", and db/lib/tagExpiryPass.js applies it by stamping
+// the Dying grant for THIS turn instead of the next one, so
+// db/lib/dyingDeathPass.js does the actual killing exactly as it always has.
+// Three wounds carry it: arterial-bleed, phrygian-toxin and crucified.
+const DEAD_TOKEN = "dead";
+
 // The two rules every chain shares: each slug exists, and a tag may not list
 // itself. The self check's failure mode differs per field, so each validator
-// below names its own.
-function validateChainSlugs(field, normalized, { selfSlug, knownSlugs, label, selfProblem }) {
+// below names its own. `allowDead` opens the reserved token to expiresInto and
+// nothing else — curing a wound must never be able to kill, so removesInto
+// leaves it closed and the unknown-tag error below catches it.
+function validateChainSlugs(field, normalized, { selfSlug, knownSlugs, label, selfProblem, allowDead = false }) {
   for (const { oneOf } of normalized ?? []) {
     for (const slug of oneOf) {
+      if (slug === DEAD_TOKEN && allowDead) continue;
       if (!knownSlugs.has(slug)) {
         throw new Error(`${label}: tag "${selfSlug}" ${field} references unknown tag "${slug}"`);
       }
@@ -72,9 +84,18 @@ function validateExpiresInto(normalized, { selfSlug, knownSlugs, durationTurns, 
     knownSlugs,
     label,
     selfProblem: "the sweep would delete the fresh grant. Use a two-tag loop instead.",
+    allowDead: true,
   });
   if (normalized && !(durationTurns > 0)) {
     throw new Error(`${label}: tag "${selfSlug}" sets expiresInto but has no durationTurns — nothing would ever fire it`);
+  }
+  // `dead` may be the whole chain or one side of a coin flip, but it may not
+  // ride alongside another entry: entries are all granted at once, and there
+  // is nobody left to hold the other one.
+  if ((normalized?.length ?? 0) > 1 && normalized.some(({ oneOf }) => oneOf.includes(DEAD_TOKEN))) {
+    throw new Error(
+      `${label}: tag "${selfSlug}" expiresInto lists "${DEAD_TOKEN}" beside another entry — the holder is dead, so nothing else could land`,
+    );
   }
 }
 
@@ -1231,6 +1252,7 @@ function validateFighting(normalized, { selfSlug, tagSlugs, equippable, label = 
 }
 
 module.exports = {
+  DEAD_TOKEN,
   LABOR_BONUS_KINDS,
   normalizeFighting,
   validateFighting,

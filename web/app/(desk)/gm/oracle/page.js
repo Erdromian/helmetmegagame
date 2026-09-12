@@ -100,7 +100,12 @@ export default async function OraclePage({ searchParams }) {
         zoneId: true,
         role: { select: { name: true } },
         faction: { select: { name: true } },
-        zone: { select: { name: true } },
+        // seatZoneId too — the rail's per-zone headcount below has to land a
+        // character actually standing in a cave LEVEL (Caves, Depths) on the
+        // cave GROUP's row (Underground), the same presence/seat split
+        // db/lib/seatZone.js exists for. Character.zoneId alone reads
+        // "Caves" and the badge for Underground silently never counts them.
+        zone: { select: { name: true, seatZoneId: true } },
       },
     }),
     getVisibleZones(),
@@ -139,7 +144,8 @@ export default async function OraclePage({ searchParams }) {
   const counts = {};
   for (const zone of zones) counts[zone.id] = { present: 0 };
   for (const character of characters) {
-    if (counts[character.zoneId]) counts[character.zoneId].present += 1;
+    const seatId = character.zone?.seatZoneId ?? character.zoneId;
+    if (counts[seatId]) counts[seatId].present += 1;
   }
 
   const requested = typeof params?.page === "string" ? params.page : null;

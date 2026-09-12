@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { tagsById as buildTagsById } from "@/lib/characterCreation";
 import { tagDuration, turnsLeft } from "@/lib/turnFormat";
 import ChipLabel from "@/app/components/ChipLabel";
+import TagChip from "@/app/components/TagChip";
 import QuantityField from "@/app/components/QuantityField";
 import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 import CustomTagDialog from "@/app/components/CustomTagDialog";
@@ -284,9 +285,17 @@ function HeldRow({ tag, holding, openTurn, busy, onSetQuantity, onRemove, onPatc
     <li className="dev-tag-row" data-busy={busy || undefined}>
       <span className="flex flex-wrap items-baseline gap-2 flex-1 min-w-0">
         {/* `holding.name` is the snapshot name (what the character actually
-            holds); `tag`, the live catalog row (absent if it's since fallen
-            out of the catalog), supplies only the colour. */}
-        <ChipLabel tag={{ name: holding.name, group: tag?.group ?? null }} />
+            holds); `tag`, the live catalog row, is what a hover reads —
+            absent only if it's since fallen out of the catalog, the same
+            "unknown tag" case EffectComposer.js's own tag chips fall back on. */}
+        {/* quantity only when stackable — the ×N badge for a non-stackable
+            hold above 1 is the sibling span just below, and ChipLabel/
+            TagChip would otherwise print the count twice. */}
+        {tag ? (
+          <TagChip tag={tag} quantity={stackable ? holding.quantity : 1} />
+        ) : (
+          <ChipLabel tag={{ name: holding.name, group: null }} />
+        )}
         {!stackable && holding.quantity > 1 && (
           <span className="mono text-xs text-muted">×{holding.quantity}</span>
         )}

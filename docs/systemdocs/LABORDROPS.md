@@ -335,7 +335,7 @@ pool happening to be `nothing`.
 
 `global.1` is the first real use of the Global bucket, and it's a
 demonstration of what Global is *for*: three self-clearing minor mishaps
-(`bruised`, `vomiting`, `aching` — 2-3 turns, no mechanical cost beyond the
+(`bruised`, `vomiting`, `aching` — 1-2 turns, no mechanical cost beyond the
 tag) with no hunting/farming/fishing-specific equivalent in the catalog, so
 one shared pool covers a bad roll for every labor type at once — Basic and
 Skilled included, which is why `db:audit-labor-drops`'s combined view reports

@@ -170,7 +170,7 @@ async function buildPlayerProps(session, me) {
       tags: canOpen
         ? room.tags
             .filter((rt) => rt.quantity > 0)
-            .map((rt) => ({ id: rt.id, name: rt.tag.name, quantity: rt.quantity }))
+            .map((rt) => ({ id: rt.id, quantity: rt.quantity, tag: rt.tag }))
         : [],
       ledger: [],
       ledgerBlocked: false,

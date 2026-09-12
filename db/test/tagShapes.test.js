@@ -16,6 +16,10 @@ const {
   validateResists,
   normalizeTurnsCost,
   validateHealableRequirement,
+  normalizeExpiresInto,
+  validateExpiresInto,
+  normalizeRemovesInto,
+  validateRemovesInto,
 } = require("../lib/tagShapes");
 
 const knownSlugs = new Set([
@@ -274,4 +278,45 @@ test("validateHealableRequirement mirrors normalizeTurnsCost's guard for the GM 
   assert.doesNotThrow(() => validateHealableRequirement(0, { healable: true, selfSlug: "custom-wound" }));
   assert.doesNotThrow(() => validateHealableRequirement(2, { healable: true, selfSlug: "custom-wound" }));
   assert.doesNotThrow(() => validateHealableRequirement(null, { healable: false, selfSlug: "custom-sword" }));
+});
+
+// The reserved `dead` token (TAGS.md §5c). It is not a catalog slug, so the
+// only thing standing between "this wound kills at its own close" and a typo
+// is this validator.
+const expiryCtx = { selfSlug: "arterial-bleed", knownSlugs, durationTurns: 1, label: "test" };
+
+test("validateExpiresInto accepts the reserved dead token on its own", () => {
+  assert.doesNotThrow(() => validateExpiresInto(normalizeExpiresInto(["dead"]), expiryCtx));
+});
+
+test("validateExpiresInto accepts dead as one side of a coin flip", () => {
+  assert.doesNotThrow(() =>
+    validateExpiresInto(normalizeExpiresInto([{ oneOf: ["dead", "bruised"] }]), expiryCtx),
+  );
+});
+
+test("validateExpiresInto refuses dead riding alongside another entry — nobody is left to hold it", () => {
+  assert.throws(
+    () => validateExpiresInto(normalizeExpiresInto(["dead", "bruised"]), expiryCtx),
+    /beside another entry/,
+  );
+});
+
+test("validateExpiresInto still refuses a genuinely unknown slug", () => {
+  assert.throws(
+    () => validateExpiresInto(normalizeExpiresInto(["deceased"]), expiryCtx),
+    /unknown tag "deceased"/,
+  );
+});
+
+test("validateRemovesInto refuses dead — curing a wound must never be able to kill", () => {
+  assert.throws(
+    () =>
+      validateRemovesInto(normalizeRemovesInto(["dead"]), {
+        selfSlug: "arterial-bleed",
+        knownSlugs,
+        label: "test",
+      }),
+    /unknown tag "dead"/,
+  );
 });

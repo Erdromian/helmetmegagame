@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { sortForMode, menuCategories, filterTagsByQuery, formatCost, costColor } from "@/lib/characterCreation";
-import ChipText from "@/app/components/ChipText";
-import ChipLabel from "@/app/components/ChipLabel";
+import TagChip from "@/app/components/TagChip";
 import InfoIcon from "@/app/components/InfoIcon";
 
 const CUSTOM_TAG_TOOLTIP =
@@ -242,7 +241,11 @@ function BrowserRow({
             />
           </label>
         )}
-        <ChipLabel tag={tag} />
+        {/* TagChip's hover already carries the description (and the
+            requirement/fighting/armour rows the old click-to-expand
+            disclosure never showed at all) — reading a row no longer takes a
+            click. */}
+        <TagChip tag={tag} />
         <span className="text-sm" style={{ color: costColor(tag.pointCost) }}>
           {formatCost(tag.pointCost)}
         </span>
@@ -254,14 +257,9 @@ function BrowserRow({
           </span>
         )}
         {showCategoryChip && <span className="chip">{tag.category}</span>}
-        {tag.description && (
-          <details className="text-sm text-muted">
-            <summary className="text-xs cursor-pointer">
-              {matchedDescriptionOnly ? "matches description" : "description"}
-            </summary>
-            <ChipText text={tag.description} as="p" className="text-sm text-muted" />
-          </details>
-        )}
+        {/* Still worth a line: this is WHY the row surfaced under a search
+            that didn't match its name, not a copy of what hovering shows. */}
+        {matchedDescriptionOnly && <span className="text-xs text-muted">matches description</span>}
       </span>
 
       <span className="flex flex-wrap items-center gap-2">{renderActions?.(tag, { held, staged })}</span>

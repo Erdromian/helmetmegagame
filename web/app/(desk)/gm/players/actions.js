@@ -375,8 +375,28 @@ export async function getPlayerCanon({ characterId }) {
         pendingEffects.flatMap((e) => (e.payload?.tagOps ?? []).map((op) => op.tagId).filter(Boolean)),
       ),
     ];
+    // Full enough for a TagChip hover (CanonTab.js) — description, group
+    // colour, requirement/armour/fighting — not just the name a chip with no
+    // panel behind it used to settle for.
     const tags = tagIds.length
-      ? await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true, name: true } })
+      ? await prisma.tag.findMany({
+          where: { id: { in: tagIds } },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            mastery: true,
+            group: { select: { color: true } },
+            weightLbs: true,
+            meleeArmor: true,
+            ballisticArmor: true,
+            requirementTurns: true,
+            requirementPerTurn: true,
+            requirementResources: true,
+            requirementGambit: true,
+            requirementSkills: { select: { name: true } },
+          },
+        })
       : [];
 
     return {
@@ -399,7 +419,7 @@ export async function getPlayerCanon({ characterId }) {
           createdAt: r.stagedMessage.createdAt.toISOString(),
         })),
         pendingEffects: pendingEffects.map((e) => ({ id: e.id, payload: e.payload })),
-        tagNames: Object.fromEntries(tags.map((t) => [t.id, t.name])),
+        tags,
       },
     };
   });

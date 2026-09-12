@@ -12,7 +12,8 @@ import PublicComposer from "./PublicComposer";
 import { deleteStagedEffect, deleteStagedMessage, resendStagedMessage } from "./actions";
 import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
-import { chunkCount, effectSummary, effectState, deliveryNotes, messageState, tagNameLookup, truncate } from "./stagedFormat";
+import { chunkCount, effectSummary, effectSegments, effectState, deliveryNotes, messageState, tagLookup, truncate } from "./stagedFormat";
+import EffectSegments from "./EffectSegments";
 
 // The staged-row lists the desk and the tray share: every row shows what it
 // will do at the push, who queued it, and edit/delete — which stay live right
@@ -22,7 +23,7 @@ import { chunkCount, effectSummary, effectState, deliveryNotes, messageState, ta
 
 export function StagedEffectRow({
   effect,
-  tagNames,
+  tagsById,
   tagCatalog,
   roster,
   presenceZones,
@@ -52,8 +53,8 @@ export function StagedEffectRow({
     const ok = await confirm({
       title: batch ? "Delete this mass apply?" : "Delete this staged effect?",
       message: batch
-        ? `Drops the effect for all ${batchCount ?? "its"} targets — ${effectSummary(effect, tagNames)}.`
-        : `${effect.targetName ?? "Transfer"} — ${effectSummary(effect, tagNames)}. It won't apply at the push.`,
+        ? `Drops the effect for all ${batchCount ?? "its"} targets — ${effectSummary(effect, tagsById)}.`
+        : `${effect.targetName ?? "Transfer"} — ${effectSummary(effect, tagsById)}. It won't apply at the push.`,
       confirmLabel: "Delete",
       cancelLabel: "Keep it",
     });
@@ -90,7 +91,9 @@ export function StagedEffectRow({
           ) : (
             <span className="desk-name">Transfer</span>
           )}{" "}
-          <span className="mono">{effectSummary(effect, tagNames)}</span>
+          <span className="mono">
+            <EffectSegments segments={effectSegments(effect, tagsById)} />
+          </span>
         </p>
         <p className="desk-staged-sub">
           {showBatch && effect.batchId ? <span>Mass apply</span> : null}
@@ -294,7 +297,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
 }
 
 export default function StagedItems({ effects, messages, tagCatalog, roster, presenceZones, stagingLocations, onInspect, empty, gmProfiles }) {
-  const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
+  const tagsById = useMemo(() => tagLookup(tagCatalog), [tagCatalog]);
 
   if (!effects.length && !messages.length) {
     return <p className="text-sm text-muted">{empty ?? "Nothing staged."}</p>;
@@ -306,7 +309,7 @@ export default function StagedItems({ effects, messages, tagCatalog, roster, pre
         <StagedEffectRow
           key={e.id}
           effect={e}
-          tagNames={tagNames}
+          tagsById={tagsById}
           tagCatalog={tagCatalog}
           roster={roster}
           presenceZones={presenceZones}

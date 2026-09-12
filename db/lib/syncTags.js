@@ -11,6 +11,7 @@ const { docsPath, repoPath } = require("./repoPaths");
 const { CORPSE_GROUP_SLUG } = require("./constants");
 const { PAPER_GROUP_SLUG } = require("./paper");
 const {
+  DEAD_TOKEN,
   normalizeRequirementItems,
   validateRequirementItems,
   normalizeFighting,
@@ -254,6 +255,12 @@ async function syncTagsFromYaml(prisma) {
     }
   }
   const allTagSlugs = new Set(tagEntries.map((t) => t.slug));
+  // `dead` is the reserved expiry token (db/lib/tagShapes.js), not a slug. A
+  // real tag claiming it would be shadowed silently — every chain naming it
+  // would kill instead of granting it — so the catalog may not have one.
+  if (allTagSlugs.has(DEAD_TOKEN)) {
+    throw new Error(`docs/tags.yaml: "${DEAD_TOKEN}" is the reserved expiresInto token and cannot be a tag slug`);
+  }
   // The escalation ladder is checked across the whole document, not per tag:
   // the per-tag rule below catches a tag pointing at itself, but only this
   // can catch tipsy -> wasted -> tipsy, and the consume resolver walks the

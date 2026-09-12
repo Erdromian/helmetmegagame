@@ -5,7 +5,8 @@ import { noteActionVersion } from "@/app/components/useDeskVersion";
 import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
-import { effectSummary, truncate } from "@/app/(desk)/gm/turns/stagedFormat";
+import { effectSegments, tagLookup, truncate } from "@/app/(desk)/gm/turns/stagedFormat";
+import EffectSegments from "@/app/(desk)/gm/turns/EffectSegments";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { getPlayerCanon, stageDmAsMessage } from "./actions";
 import { writeDmDraft } from "./dmDraft";
@@ -48,7 +49,7 @@ export default function CanonTab({ characterId, discordUserId }) {
   }, [characterId]);
 
   const canon = state.canon;
-  const tagNames = useMemo(() => new Map(Object.entries(canon?.tagNames ?? {})), [canon]);
+  const tagsById = useMemo(() => tagLookup(canon?.tags ?? []), [canon]);
 
   function insert(text) {
     writeDmDraft(discordUserId, text);
@@ -135,7 +136,7 @@ export default function CanonTab({ characterId, discordUserId }) {
           <p className="field-label">Staged effects</p>
           {pendingEffects.map((e) => (
             <p key={e.id} className="text-sm text-muted mono">
-              {effectSummary(e.payload, tagNames)}
+              <EffectSegments segments={effectSegments(e.payload, tagsById)} />
             </p>
           ))}
         </div>

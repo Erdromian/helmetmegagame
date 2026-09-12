@@ -12,14 +12,18 @@
 // one and a slug missing from it emits nothing, so a chain into a withheld tag
 // is not named anyway via the app-wide {tag:…} provider ChipText resolves
 // against. Leave it out and every slug in the chain is emitted.
+// `dead` is the one entry that is not a slug at all — the reserved expiry
+// token (db/lib/tagShapes.js). It has no catalog row to resolve against, so it
+// is written out as the plain word and skips the bySlug filter that would
+// otherwise drop it and leave the row blank.
 export function chainTokens(chain, bySlug = null) {
   const entries = Array.isArray(chain) ? chain : null;
   if (!entries?.length) return null;
   return entries
     .map((entry) =>
       (entry?.oneOf ?? [])
-        .filter((slug) => !bySlug || bySlug.has(slug))
-        .map((slug) => `{tag:${slug}}`)
+        .filter((slug) => slug === "dead" || !bySlug || bySlug.has(slug))
+        .map((slug) => (slug === "dead" ? "dead" : `{tag:${slug}}`))
         .join(" or "),
     )
     .filter(Boolean)

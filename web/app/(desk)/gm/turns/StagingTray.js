@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import FormError from "@/app/components/FormError";
 import { StagedEffectRow, StagedMessageRow } from "./StagedItems";
-import StagingStrip from "./StagingStrip";
 import EffectComposer from "./EffectComposer";
 import TransferComposer from "./TransferComposer";
 import MessageComposer from "./MessageComposer";
@@ -12,7 +11,7 @@ import PublicComposer from "./PublicComposer";
 import { retargetMissedStaging } from "./actions";
 import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
-import { tagNameLookup } from "./stagedFormat";
+import { tagLookup } from "./stagedFormat";
 
 // The bottom tray: everything queued for the push, in one honest list —
 // including rows detached from a rejected Move, mass-apply batches, and the
@@ -32,8 +31,8 @@ function matchesQuery(needle, ...haystacks) {
 }
 
 // An effect row matches on target, staging GM, or any of its staged tags.
-function effectMatches(effect, query, tagNames) {
-  const tagLabels = (effect.tagOps ?? []).map((t) => tagNames.get(t.tagId) ?? "");
+function effectMatches(effect, query, tagsById) {
+  const tagLabels = (effect.tagOps ?? []).map((t) => tagsById.get(t.tagId)?.name ?? "");
   return matchesQuery(query, effect.targetName, effect.createdByUsername, ...tagLabels);
 }
 
@@ -44,8 +43,8 @@ function messageMatches(message, query) {
   return matchesQuery(query, message.content, message.createdByUsername, message.zoneName, ...recipientNames);
 }
 
-function batchMatches(group, query, tagNames) {
-  return group.some((e) => effectMatches(e, query, tagNames));
+function batchMatches(group, query, tagsById) {
+  return group.some((e) => effectMatches(e, query, tagsById));
 }
 
 export default function StagingTray({
@@ -87,7 +86,7 @@ export default function StagingTray({
     if (kindFilter !== "all") setKindFilter("all");
   }
 
-  const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
+  const tagsById = useMemo(() => tagLookup(tagCatalog), [tagCatalog]);
   const normalizedQuery = query.trim().toLowerCase();
 
   function toggleExpand() {
@@ -146,10 +145,10 @@ export default function StagingTray({
   const showPublic = kindFilter === "all" || kindFilter === "public";
 
   const filteredBatches = showEffects
-    ? effectGroups.batches.filter((group) => batchMatches(group, normalizedQuery, tagNames))
+    ? effectGroups.batches.filter((group) => batchMatches(group, normalizedQuery, tagsById))
     : [];
   const filteredSingles = showEffects
-    ? effectGroups.singles.filter((e) => effectMatches(e, normalizedQuery, tagNames))
+    ? effectGroups.singles.filter((e) => effectMatches(e, normalizedQuery, tagsById))
     : [];
   const filteredMessages = stagedMessages.filter((m) => {
     if (m.kind === "PUBLIC" ? !showPublic : !showPrivate) return false;
@@ -222,15 +221,19 @@ export default function StagingTray({
       {open && (
         <div className="desk-tray-body">
           <div className="flex flex-wrap items-center gap-2">
-            <StagingStrip
-              onEffect={() => setComposer("effect")}
-              onTransfer={() => setComposer("transfer")}
-              onMessage={() => setComposer("message")}
-              onPublic={() => setComposer("public")}
-            />
-            {/* The only Preview push in the app — the desk header used to
-                carry a second one. */}
-            <button type="button" className="btn-secondary" onClick={onOpenPreview}>
+            <button type="button" className="btn-quiet" onClick={() => setComposer("effect")}>
+              + Effect
+            </button>
+            <button type="button" className="btn-quiet" onClick={() => setComposer("transfer")}>
+              + Transfer
+            </button>
+            <button type="button" className="btn-quiet" onClick={() => setComposer("message")}>
+              + Message
+            </button>
+            <button type="button" className="btn-quiet" onClick={() => setComposer("public")}>
+              + Public
+            </button>
+            <button type="button" className="btn-quiet" onClick={onOpenPreview}>
               Preview push
             </button>
             {missedEffects.length + missedMessages.length > 0 && (
@@ -276,7 +279,7 @@ export default function StagingTray({
               </p>
               <StagedEffectRow
                 effect={group[0]}
-                tagNames={tagNames}
+                tagsById={tagsById}
                 tagCatalog={tagCatalog}
                 roster={roster}
                 presenceZones={presenceZones}
@@ -292,7 +295,7 @@ export default function StagingTray({
             <StagedEffectRow
               key={e.id}
               effect={e}
-              tagNames={tagNames}
+              tagsById={tagsById}
               tagCatalog={tagCatalog}
               roster={roster}
               presenceZones={presenceZones}

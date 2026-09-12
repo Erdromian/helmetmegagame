@@ -17,6 +17,8 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { EditIcon, TrashIcon } from "@/app/components/icons";
 import { formatCost, costColor } from "@/lib/characterCreation";
 import TagDetailSheet from "@/app/components/TagDetailSheet";
+import ChipLabel from "@/app/components/ChipLabel";
+import Tooltip from "@/app/components/Tooltip";
 import { updateCustomTag, deleteCustomTag } from "./actions";
 
 const FILTER_DEFS = [
@@ -113,18 +115,25 @@ export default function TagCatalog({ tags, groups, categories, canDelete }) {
                 <td>
                   {/* The name opens the read-only detail sheet — full
                       description, chain, links. A button rather than a row
-                      onClick so the keyboard reaches it. */}
+                      onClick so the keyboard reaches it. The row itself is a
+                      chip (colour, mastery star) with a quick-read tooltip —
+                      `pinnable={false}` because the button is already a
+                      control of its own (Tooltip.js's own IconButton
+                      precedent), so a second pin-on-click here would just be
+                      clutter under the sheet this click already opens. */}
                   <button
                     type="button"
-                    className="text-left font-[inherit] cursor-pointer"
+                    className="text-left cursor-pointer"
                     onClick={() => setViewing(t)}
                   >
-                    {t.name}
+                    <Tooltip text={t.description} pinnable={false}>
+                      <ChipLabel tag={{ name: t.name, group: t.groupColor ? { color: t.groupColor } : null, mastery: t.mastery }} />
+                    </Tooltip>
                   </button>
                   <div className="mono text-xs text-muted">{t.slug}</div>
                 </td>
                 <td className="mono text-sm">{t.category}</td>
-                <td className="text-sm text-muted">{t.groupName ?? "—"}</td>
+                <td className="text-sm" style={t.groupColor ? { color: t.groupColor } : undefined}>{t.groupName ?? "—"}</td>
                 <td className="mono text-sm" style={{ color: costColor(t.pointCost) }}>
                   {formatCost(t.pointCost)}
                 </td>
