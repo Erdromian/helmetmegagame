@@ -2,14 +2,15 @@
 
 import { useMemo } from "react";
 import Modal from "@/app/components/Modal";
-import { chunkCount, effectSummary, tagNameLookup, truncate } from "./stagedFormat";
+import { chunkCount, effectSegments, tagLookup, truncate } from "./stagedFormat";
+import EffectSegments from "./EffectSegments";
 
 // What the push will actually do, grouped by recipient character — every DM
 // they'll get, the net staged deltas, their own Move's declared numbers —
 // plus the public declarations. Pure client derivation over data the page
 // already holds; nothing here fetches.
 export default function PushPreview({ moves, stagedEffects, stagedMessages, tagCatalog, onClose, onInspect, onReveal }) {
-  const tagNames = useMemo(() => tagNameLookup(tagCatalog), [tagCatalog]);
+  const tagsById = useMemo(() => tagLookup(tagCatalog), [tagCatalog]);
 
   const perCharacter = useMemo(() => {
     const map = new Map();
@@ -32,7 +33,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
       // row into one shared "no character" entry.
       const id = e.targetCharacterId ?? `party:${e.id}`;
       const name = e.targetCharacterId ? e.targetName : "Transfer";
-      entry(id, name).effects.push({ id: e.id, text: effectSummary(e, tagNames) });
+      entry(id, name).effects.push({ id: e.id, segments: effectSegments(e, tagsById) });
     }
     for (const msg of stagedMessages) {
       if (msg.sent || msg.kind !== "PRIVATE") continue;
@@ -48,7 +49,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
       .map(([id, v]) => ({ id, ...v }))
       .filter((v) => v.declared || v.effects.length || v.messages.length)
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [moves, stagedEffects, stagedMessages, tagNames]);
+  }, [moves, stagedEffects, stagedMessages, tagsById]);
 
   const publicPosts = stagedMessages.filter((m) => m.kind === "PUBLIC" && !m.sent);
 
@@ -81,7 +82,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
               {c.effects.map((e) => (
                 <li key={e.id}>
                   <button type="button" className="desk-preview-line mono" onClick={() => onReveal?.(e.id)}>
-                    staged: {e.text}
+                    staged: <EffectSegments segments={e.segments} />
                   </button>
                 </li>
               ))}

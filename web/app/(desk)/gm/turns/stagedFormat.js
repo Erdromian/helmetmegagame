@@ -11,8 +11,11 @@ export function chunkCount(content) {
   return chunkMessage((content ?? "").trim()).length;
 }
 
-export function tagNameLookup(tagCatalog) {
-  return new Map(tagCatalog.map((t) => [t.id, t.name]));
+// id -> the full catalog row, not just the name — effectSegments below needs
+// the whole tag for a hoverable TagChip, the same row TagCatalogBrowser and
+// EffectComposer.js's own tag chips already render from.
+export function tagLookup(tagCatalog) {
+  return new Map(tagCatalog.map((t) => [t.id, t]));
 }
 
 // A staged row created before Silos were removed can still carry a
@@ -22,21 +25,38 @@ function partyLabel(party) {
   return party.name;
 }
 
-// "+3 ⬢ · +Explosion Burns · −Fine Meal ×2"
-export function effectSummary(effect, tagNames) {
-  const parts = [];
+// "+3 ⬢ · +Explosion Burns · −Fine Meal ×2", as segments rather than a
+// joined string — a `"tagchip"` segment carries the live tag row (when it's
+// still in the catalog) so a renderer can show a real hoverable TagChip
+// instead of a name with nothing behind it. `tagsById` is a Map(id -> full
+// tag row), from tagLookup() above.
+export function effectSegments(effect, tagsById) {
+  const segs = [];
   if (effect.transfer) {
     const { from, to, amount } = effect.transfer;
-    parts.push(`${partyLabel(from)} → ${partyLabel(to)} · ${amount} ⬢`);
+    segs.push({ k: "text", v: `${partyLabel(from)} → ${partyLabel(to)} · ${amount} ⬢` });
   }
-  if (effect.resources) parts.push(`${effect.resources > 0 ? "+" : ""}${effect.resources} ⬢`);
-  if (effect.tagPoints) parts.push(`${effect.tagPoints > 0 ? "+" : "−"}${Math.abs(effect.tagPoints)} tp`);
+  if (effect.resources) segs.push({ k: "text", v: `${effect.resources > 0 ? "+" : ""}${effect.resources} ⬢` });
+  if (effect.tagPoints) {
+    segs.push({ k: "text", v: `${effect.tagPoints > 0 ? "+" : "−"}${Math.abs(effect.tagPoints)} tp` });
+  }
   for (const op of effect.tagOps ?? []) {
-    const name = tagNames.get(op.tagId) ?? "a tag";
-    const qty = op.quantity != null && op.quantity > 1 ? ` ×${op.quantity}` : "";
-    parts.push(`${op.op === "add" ? "+" : "−"}${name}${qty}`);
+    const tag = tagsById.get(op.tagId) ?? null;
+    const qty = op.quantity != null && op.quantity > 1 ? op.quantity : null;
+    segs.push({ k: "tagchip", op: op.op, tag, name: tag?.name ?? "a tag", quantity: qty });
   }
-  if (effect.locationId) parts.push(`→ ${effect.locationName ?? "?"}`);
+  if (effect.locationId) segs.push({ k: "text", v: `→ ${effect.locationName ?? "?"}` });
+  return segs;
+}
+
+// The plain-text form, for a confirm dialog's sentence — nowhere for a
+// HoverCard to portal to inside one of those, so this just names the tag.
+export function effectSummary(effect, tagsById) {
+  const parts = effectSegments(effect, tagsById).map((seg) => {
+    if (seg.k === "text") return seg.v;
+    const qty = seg.quantity ? ` ×${seg.quantity}` : "";
+    return `${seg.op === "add" ? "+" : "−"}${seg.name}${qty}`;
+  });
   return parts.join(" · ") || "nothing";
 }
 

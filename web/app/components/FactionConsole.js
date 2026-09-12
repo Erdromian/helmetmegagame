@@ -11,6 +11,7 @@ import CheckField from "./CheckField";
 import { useConfirm } from "./ConfirmProvider";
 import { useTableState, SortHeader, FilterBar } from "./DataTable";
 import SiloLedger from "./SiloLedger";
+import TagChip from "./TagChip";
 import Pager from "./Pager";
 import FormError from "./FormError";
 import { useRefresh } from "./useRefresh";
@@ -195,7 +196,9 @@ function SiloTab({ faction, silo, isOfficer, rooms, run, pending }) {
           <tbody>
             {silo.tags.map((t) => (
               <tr key={t.id}>
-                <td>{t.name}</td>
+                <td>
+                  <TagChip tag={t.tag} />
+                </td>
                 <td className="mono">{t.quantity}</td>
               </tr>
             ))}

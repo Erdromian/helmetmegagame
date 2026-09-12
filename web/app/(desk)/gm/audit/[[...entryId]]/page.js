@@ -115,7 +115,30 @@ async function FreshAudit({ params, searchParams, userId }) {
   // id -> name for everything a `details` blob can point at, so a sentence can
   // say "Black Hills" where the payload says a cuid. Tags are the only list here
   // with real size, and it is a few hundred rows of two columns.
-  const tags = await prisma.tag.findMany({ select: { id: true, name: true } });
+  //
+  // Wider than that alone for AuditSegments' hover: a `details` blob never
+  // carries a tag's id (only `tagName`, written long before this), so a
+  // chip is resolved by NAME against this same catalog rather than by id —
+  // matching the "fallen out of the catalog" fallback every other tag chip
+  // in the app already has, for the same reason (a rename since the row was
+  // written just misses the hover rather than showing the wrong tag).
+  const tags = await prisma.tag.findMany({
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      mastery: true,
+      group: { select: { color: true } },
+      weightLbs: true,
+      meleeArmor: true,
+      ballisticArmor: true,
+      requirementTurns: true,
+      requirementPerTurn: true,
+      requirementResources: true,
+      requirementGambit: true,
+      requirementSkills: { select: { name: true } },
+    },
+  });
   const names = Object.fromEntries([
     ...tags.map((t) => [t.id, t.name]),
     ...factions.map((f) => [f.id, f.name]),
@@ -188,6 +211,9 @@ async function FreshAudit({ params, searchParams, userId }) {
         // One shared id -> name map rather than a copy per row: at 60 rows and a
         // few hundred tags, hanging it off each DTO would be most of the payload.
         names: names,
+        // The full catalog, for AuditSegments' hover chips — resolved by name,
+        // see the query comment above.
+        tags: tags,
         pinned: pinned ? toDto(pinned) : null,
         selectedId: selectedId,
         total: total,

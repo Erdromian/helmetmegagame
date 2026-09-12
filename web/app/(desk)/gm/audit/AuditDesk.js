@@ -25,6 +25,7 @@ const REFRESH_MS = 20_000;
 export default function AuditDesk({
   entries,
   names,
+  tags,
   pinned,
   selectedId,
   total,
@@ -119,6 +120,12 @@ export default function AuditDesk({
     return entries.find((e) => e.id === selected) ?? (pinned?.id === selected ? pinned : null);
   }, [entries, pinned, selected]);
 
+  // A `details` blob names a tag by NAME, never by id (auditNarrative.js's
+  // `d.tagName`) — this is the one place that resolves one back to a live
+  // catalog row for AuditSegments' hover chip, same fallback as every other
+  // tag chip in the app when the name no longer matches (renamed, deleted).
+  const tagsByName = useMemo(() => new Map((tags ?? []).map((t) => [t.name, t])), [tags]);
+
   const download = async () => {
     setExporting(true);
     setNotice("");
@@ -211,6 +218,7 @@ export default function AuditDesk({
           <AuditFeed
             entries={entries}
             names={names}
+            tagsByName={tagsByName}
             selectedId={selected}
             onSelect={select}
             absoluteTime={absoluteTime}
@@ -222,6 +230,7 @@ export default function AuditDesk({
         <AuditInspector
           entry={current}
           names={names}
+          tagsByName={tagsByName}
           onFilter={set}
           selectableZones={selectableZones}
           visibleZoneIds={visibleZoneIds}
