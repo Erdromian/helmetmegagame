@@ -814,7 +814,9 @@ tags:
     pointCost: 14
     visible: true
     purchasable: true
-    purchasableAfterStart: true
+    # Creation-only (Bascinet, 2026-09-11): a body this size is who you
+    # started as, not a mid-game purchase.
+    purchasableAfterStart: false
     carryBonus: 0.75
     # Giant, Strong and Pack Mule are one fiction — a big body that hauls —
     # so they never stack. Authored here and on Strong; db:sync-tags mirrors
