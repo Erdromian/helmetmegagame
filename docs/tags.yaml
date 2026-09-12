@@ -5254,18 +5254,21 @@ tags:
         - tag: horse
           keep: true
         - customOf: lavish-meal
-      skills: [arelitz]
+      skills: [arelitz-breeding]
 
   # The gate on the whole family below, added 2026-09-11 — none of these four
   # recipes carried a skill requirement at all before this, so anyone holding
-  # a horse and the ingredients could breed any of them.
-  arelitz:
+  # a horse and the ingredients could breed any of them. Mastery (Bascinet's
+  # call): nobody starts the game able to breed one, same posture as
+  # Smithing (Gunpowder).
+  arelitz-breeding:
     catalog: all
-    name: Arelitz
+    name: Arelitz Breeding
     category: skills
     teachable: true
-    description: "You can breed a horse into one of its stranger, stronger forms."
-    pointCost: 5
+    description: "You are a master of the ancient art of breeding Arelitz, horse-hybrids that have various effects, including the {tag:arelitz-ovum} and {tag:arelitz-warbeast}"
+    pointCost: 15
+    mastery: true
     purchasable: true
     purchasableAfterStart: true
 
@@ -5292,7 +5295,7 @@ tags:
       turnsCost: 1
       gambit: false
       items: [horse, graga-sac]
-      skills: [arelitz]
+      skills: [arelitz-breeding]
 
   arelitz-ovum:
     catalog: all
@@ -5315,7 +5318,7 @@ tags:
       turnsCost: 1
       gambit: false
       items: [horse, fish-roe]
-      skills: [arelitz]
+      skills: [arelitz-breeding]
 
   arelitz-thoroughbred:
     catalog: all
@@ -5339,7 +5342,7 @@ tags:
       resourceCost: 10
       gambit: false
       items: [horse]
-      skills: [arelitz]
+      skills: [arelitz-breeding]
 
   arelitz-egg:
     catalog: all
