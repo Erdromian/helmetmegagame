@@ -548,6 +548,11 @@ Simple rung and miscellaneous production, not a rung of the smithing chain
 (`SMITHING.md` §1).
 **Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:
 false` rows; what it costs is its recipe (`TORTURE.md` §5), not a price.
+**Appraisal is 1** — below the 2-point floor, Bascinet's call: it grants no
+advantage in play, only a readout of a number the catalog already held
+(`Tag.sellablePrice`), so it doesn't earn a full Minor band. Seven roles
+(Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper) and two
+Courtier kits (Manor Lord, Court Artist) get it free in `starting_tags`.
 
 **The Personality batch of 2026-09-05 sits partly off-band too, again
 Bascinet's call rather than a new scale.** Poor Swimmer is −1 (below the −2

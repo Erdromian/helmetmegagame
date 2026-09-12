@@ -449,7 +449,40 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
 // projection under the dialog reads. It lives here rather than being a second
 // query in Chat's page: two answers to "which doors are open to you" is
 // exactly what web/lib/peoplePools.js exists to stop.
-export async function loadStashRooms(character) {
+//
+// `scope: "zone"` is Taxman's read: every room in the character's whole zone
+// they can get into, resources only — no tag stacks, since the tax dialog has
+// no use for them and they're the expensive half of this query. The access
+// check (`accessibleRooms`/`roomAccessKeys`) is identical either way; widening
+// the `where` in place is the point — a second, competing query here is
+// exactly what this function's own header warns against.
+export async function loadStashRooms(character, { scope = "location" } = {}) {
+  if (scope === "zone") {
+    if (!character?.zoneId) return [];
+    const [rows, keys] = await Promise.all([
+      prisma.room.findMany({
+        where: { location: { zoneId: character.zoneId } },
+        orderBy: [{ location: { sortOrder: "asc" } }, { sortOrder: "asc" }, { name: "asc" }],
+        select: {
+          id: true,
+          name: true,
+          kind: true,
+          accessTagSlugs: true,
+          resources: true,
+          location: { select: { id: true, name: true } },
+        },
+      }),
+      roomAccessKeys(prisma, character.id),
+    ]);
+    return accessibleRooms(rows, keys.heldSlugs, keys.guestRoomIds).map((room) => ({
+      id: room.id,
+      name: room.name,
+      resources: room.resources,
+      locationId: room.location.id,
+      locationName: room.location.name,
+    }));
+  }
+
   if (!character?.locationId) return [];
   const [rows, keys] = await Promise.all([
     prisma.room.findMany({

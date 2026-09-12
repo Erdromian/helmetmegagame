@@ -22,24 +22,11 @@ of what a watch said at the time.
 It carries a Location, a mode, a message, a list of typed names, and two
 dragnet flags.
 
-**Setting or editing one is free, but not once your Move is spent.** A Move
-already filed this turn refuses the save, unless that Move is a **Gambit** —
-`db/lib/combatGate.js`, shared with Attack, which states the reasoning in
-`ATTACK.md` §5a. The sentence:
-
-> You've already used your Move this turn. You should only lay in wait if you
-> plan to use your Gambit on whoever walks into it.
-
-The refusal covers an **edit** as well as a new watch, because the upsert is how
-both happen and rewriting who you are waiting for, with your turn already gone,
-is the same lever — which is why **Stop watching** hangs off whether a watch
-really exists rather than off what the form currently says: clearing the name
-chips must not take away the only way out of a live watch.
-
-**Stopping** a watch is never gated, and neither is Release:
-those are the way out, and `stopInterceptImpl` and `releaseHeldImpl` carry no
-such check. A watch that was already set fires normally — the gate is on laying
-the trap, not on springing it.
+**Setting or editing one is free**, whether or not your Move for the turn is
+already spent — laying in wait carries no gate of its own (Attack keeps its
+own, unrelated to this: `db/lib/combatGate.js`, `ATTACK.md` §5a). **Stopping**
+a watch and **Release** are likewise never gated, and `setInterceptImpl`,
+`stopInterceptImpl` and `releaseHeldImpl` carry no such check.
 
 **It is anchored.** `locationId` is stamped from where its owner stood when
 they saved it, and the watch works there and nowhere else. **Any move at all
@@ -356,13 +343,9 @@ only possible answer is *They're already free.*
 `web/app/components/actions/InterceptDialog.js` on `ActionDialog`, and it loads
 whatever watch is set so it can be reopened and edited at any time.
 
-**The icon on the strip never greys**, §1's refusal included. That refusal is a
-fact about your own sheet, so the metagaming rule at the top of
-`actionRegistry.js` would allow it — but **Save inside the dialog** greys
-instead, with the sentence at the top of the body, because Stop watching and Let
-them go live down here and a dead icon would strand anybody who set a watch and
-then filed a Routine. It is the shape `CraftDialog.js` already uses for
-`hasMoved`.
+**The icon on the strip never greys.** Setting or editing a watch is free
+regardless of what you've filed this turn, so neither the strip nor Save
+inside the dialog has anything to grey for it.
 
 **Nothing in it is a tooltip** (`SHEET.md` §3). Both mode sentences print on the
 page, both at once rather than only the chosen one; the dialog names the place
@@ -415,7 +398,6 @@ Nothing here is destructive, so no `restore` snapshot is owed (`REQUESTS.md` §2
 | `db/lib/locationGraph.js` | `resolveNeighbors` draws the refusal on every way |
 | `db/lib/escort.js` | Refuses to attach somebody being held |
 | `db/lib/attack.js` | What an Ambush actually files (`ATTACK.md`) |
-| `db/lib/combatGate.js` | The spent-Move refusal on a save, shared with Attack |
 | `db/lib/dmAnswer.js` | `answerInterceptHold` — Release, shared by both faces |
 | `web/app/(app)/character/interceptActions.js` | Load, save, stop, release |
 | `web/app/components/actions/InterceptDialog.js` | The dialog |

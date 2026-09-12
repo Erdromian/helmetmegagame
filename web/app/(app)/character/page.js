@@ -31,13 +31,16 @@ import {
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
 import { CERBERON_SLUG, WARRANT_BADGE_SLUGS } from "@lifeweb/db/lib/wanted";
+import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import {
   BUTCHER_SLUG,
   MUTILATE_GATE_SLUGS,
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
+  TAXMAN_SLUG,
 } from "@lifeweb/db/lib/constants";
+import { getMyFactionRole } from "@/lib/factionPermissions";
 import {
   hasAttribute,
   GODFLESH_ATTRIBUTE,
@@ -77,6 +80,7 @@ import {
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { cookedTasteOnly } from "@/lib/referenceData";
+import { appraise } from "@/lib/appraisal";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
@@ -504,7 +508,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Held ids widen the store catalog so unpurchasable held tags (a
   // GM-granted item) still reach the client's byId map.
   const heldIds = character.tags.map((ct) => ct.tagId);
-  const storeTags = await loadPointBuyCatalog(heldIds);
+  // Appraisal's readout (web/lib/appraisal.js). A fact about your own sheet —
+  // computed here rather than off heldSlugs (declared later) since this is
+  // the earliest point in the loader both this call and the sheet mapping
+  // below need it.
+  const canAppraise = character.tags.some((ct) => ct.tag.slug === APPRAISAL_SLUG);
+  const storeTags = await loadPointBuyCatalog(heldIds, { canAppraise });
   const heldSet = new Set(heldIds);
   const storeHeldTags = storeTags
     .filter((t) => heldSet.has(t.id))
@@ -903,6 +912,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // own sheet's facts too. cerberonActions.js re-checks both.
   const isCerberon = heldSlugs.has(CERBERON_SLUG);
   const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugs.has(slug));
+  // The Tax button (docs/tags.yaml's `taxman` description). Holding the tag,
+  // being a faction officer, and not being concealed are all facts about your
+  // own sheet — taxRequestImpl re-checks every one of them.
+  const canTax = Boolean(
+    heldSlugs.has(TAXMAN_SLUG) &&
+      !character.concealed &&
+      character.factionId &&
+      (await getMyFactionRole(session.discordUserId, character.factionId)).isOfficer,
+  );
   const hideout = isThanati ? await hideoutRoom(prisma) : null;
   const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
   // Set Hideout's picker: the rooms at this Location the leader can get into.
@@ -1038,7 +1056,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       // Cooking's cut runs first (docs/systemdocs/COOKING.md): `cooked` is
       // narrowed to its taste and `cookedFrom` dropped, so a dish never says
       // what it was made with. Everything below works on the narrowed tag.
-      const tagRow = cookedTasteOnly(ctRest.tag);
+      // Appraisal's readout (web/lib/appraisal.js): strips the raw
+      // sellablePrice column and, only for an appraiser, replaces it with
+      // valueObols. Bare `include: { tag: … }` above pulled the raw column
+      // for every row regardless of who is looking, same as poisonedCount.
+      const tagRow = appraise(cookedTasteOnly(ctRest.tag), canAppraise);
       // Crate-manifest leak (fix round M4b, fix 1): `ct.tag.crateContents`
       // carries the SAME two secret columns per line item, for a crate a
       // player packed themselves (packageItemsRequestImpl) — the outer
@@ -1286,6 +1308,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,
       isCerberon: isCerberon,
+      canTax: canTax,
       canWarrant: canWarrant,
       atHideout: atHideout,
       hideoutRooms: hideoutRooms,

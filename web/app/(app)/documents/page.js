@@ -17,6 +17,8 @@ import { redactWithheldRecipes } from "@/lib/recipeCatalog";
 import { buildSkillAncestry, satisfiedSkillIds } from "@/lib/healRequests";
 import { GRIMOIRE_DOCUMENT_KEY, expandGrimoire } from "@/lib/grimoire";
 import { ensureRiteWords } from "@lifeweb/db/lib/riteWords";
+import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
+import { appraise } from "@/lib/appraisal";
 
 export const metadata = { title: "Documents" };
 
@@ -228,11 +230,15 @@ async function FreshDocuments() {
 
   const assigned = roleCharter ? [roleCharter, ...assignedDocs] : assignedDocs;
 
+  // Appraisal's readout (web/lib/appraisal.js). A fact about the reader's own
+  // sheet, same as heldTagIds below.
+  const canAppraise = (characterRow?.tags ?? []).some((ct) => ct.tag.slug === APPRAISAL_SLUG);
+
   // Tag Catalog tab: field shape mirrors /gm/dev/tags minus GM-only extras
   // (held counts, `custom`). Filtered server-side through catalogTags so a
   // withheld tag never reaches the browser — same posture as the document
   // tabs above.
-  const mappedTags = tagRows.map((t) => ({
+  const mappedTags = tagRows.map((t) => appraise({
     id: t.id,
     name: t.name,
     slug: t.slug,
@@ -316,7 +322,11 @@ async function FreshDocuments() {
     // recipe now; this still tells a reader the thing is raised on the ground
     // rather than carried away in a pocket.
     placement: t.placement,
-  }));
+    // Appraisal's readout (web/lib/appraisal.js) turns the raw sellablePrice
+    // column above into valueObols for an appraiser, and strips it either
+    // way — an over-broad select this tab has carried for a while must not
+    // ship the number to a reader who hasn't earned it.
+  }, canAppraise));
 
   const heldTagIds = (characterRow?.tags ?? []).map((ct) => ct.tagId);
   // Parsed, not raw: the column may carry a count ("obol x5") and catalogTags

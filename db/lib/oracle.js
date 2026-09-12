@@ -161,7 +161,7 @@ async function runCorrespondent(prisma, { turn, zone, material, config, aggregat
     zoneId: zone.id,
     take: config.oracleMemoryTurns,
   });
-  const block = zoneBlock(material, zone, { aggregatesSeen, memory });
+  const block = zoneBlock(material, zone, { aggregatesSeen, memory, turnNumber: turn.number });
 
   const result = await complete(config, {
     system: correspondentPrompt(config),

@@ -63,9 +63,10 @@ import {
   addConversationMember,
   removeConversationMember,
   conversationMembers,
+  conversationMemberIds,
 } from "@lifeweb/db/lib/conversations";
 import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
-import { shout } from "@lifeweb/db/lib/shout";
+import { shout, deliverShout } from "@lifeweb/db/lib/shout";
 import { XOM_SHRINE_ROOM_SLUG, grantXom } from "@lifeweb/db/lib/xom";
 import { openConversationThread } from "@lifeweb/db/lib/conversationOpen";
 import { castDie } from "@lifeweb/db/lib/roll";
@@ -74,7 +75,7 @@ import { presentedNameOf, resolveMemberToken } from "@lifeweb/db/lib/presentedMe
 import { notifyPresence } from "@lifeweb/db/lib/presenceNotify";
 import { sceneLine } from "@lifeweb/db/lib/scene";
 import { playInstrument } from "@lifeweb/db/lib/instrumentPlay";
-import { parsePlaceKey, isScenePlaceKey, discordTargetForPlaceKey } from "@lifeweb/db/lib/placeKey";
+import { parsePlaceKey, isScenePlaceKey } from "@lifeweb/db/lib/placeKey";
 import { removeThreadMember } from "@lifeweb/db/lib/discordRest";
 import { BELL_ROOM_SLUG, RING_WORD, bellWordMatches, bellCooldown, broadcastBell } from "@lifeweb/db/lib/bell";
 import {
@@ -1968,53 +1969,20 @@ export async function shoutHere(text, placeKey = null) {
     return { ok: false, error: result.error, retryAfter: result.retryAfter ?? null };
   }
 
-  // The room you are standing in hears you first. The loop below writes to
-  // Location places only — a Room thread is behind a door, and a shout does
-  // not go through every door in the street — but the one door you are inside
-  // of would otherwise be the only place that did not hear you.
+  // Everything from here down is DELIVERY, and db/lib/shout.js#deliverShout
+  // is all of it — the room you stand in first, then the street and its
+  // neighbours. Three callers used to carry this loop character-for-character
+  // (here, the bot, and the turn engine's Xom scream) and the one that went
+  // stale is why a Discord shout reached nobody on the web.
   //
-  // `result.here` rather than a distance-0 entry out of `heard`: a soundproof
-  // room empties `heard`, and this post is then the whole of the delivery.
-  // Everything from here down is DELIVERY. The shout itself has already
-  // happened — shout() claimed the cooldown and settled who heard it — so
-  // nothing below may throw its way back to the caller. It used to: only the
+  // It never throws. The shout has already happened — shout() claimed the
+  // cooldown and settled who heard it — so a failed row or a dead channel is
+  // one audience short, not a failed shout. That used to leak: only the
   // postMessage calls were guarded, so a sceneLine that failed on the ninth of
   // twenty-nine places turned an already-committed shout into a rejected
   // promise, which the composer read as "it didn't send" and left the words
-  // sitting in the box. One audience short is not a failed shout.
-  try {
-    await sceneLine(prisma, { placeKey, text: result.here.scene.text, lines: result.here.scene.lines });
-  } catch (err) {
-    console.error(`Shout row for ${placeKey} failed:`, err?.message ?? err);
-  }
-  try {
-    const target = await discordTargetForPlaceKey(prisma, placeKey);
-    const channelId = target?.threadId ?? target?.channelId ?? null;
-    if (channelId) await postMessage(channelId, result.here.line, undefined, { parse: [] });
-  } catch {
-    // The archive row stands. A thread that refused the post is one
-    // audience short, not a failed shout.
-  }
-
-  for (const place of result.heard) {
-    try {
-      // The row first: it is what Chat shows and what /archive keeps, and
-      // it is the only half a web-only player ever sees.
-      await sceneLine(prisma, { placeKey: place.placeKey, text: place.scene.text, lines: place.scene.lines });
-    } catch (err) {
-      console.error(`Shout row for ${place.name} failed:`, err?.message ?? err);
-      continue;
-    }
-    if (!place.discordChannelId) continue;
-    try {
-      // parse: [] — no mentions at all. The text is player-typed and this is
-      // the widest broadcast in the game; an "@everyone" in a shout would ping
-      // twenty-nine channels at once. A shout is a noise, not an address.
-      await postMessage(place.discordChannelId, place.line, undefined, { parse: [] });
-    } catch (err) {
-      console.error(`Shout into ${place.name} failed:`, err?.message ?? err);
-    }
-  }
+  // sitting in the box.
+  await deliverShout(prisma, { placeKey, here: result.here, heard: result.heard });
 
   return { ok: true, line: result.line };
 }
@@ -2138,19 +2106,14 @@ async function conversationHere(character, placeKey, { sightings = null } = {}) 
   });
   if (!conversation) return { error: "That conversation is gone." };
 
-  // The raw ids stay HERE, on the server. `members` is the presented list and
-  // carries no id for anybody in a hood (db/lib/presentedMembers.js) — which
-  // is also why the membership gate below is answered off `memberIds` rather
-  // than off the rows: your own row is a hood like any other when you are
-  // wearing one, and matching on a withheld id would lock you out of your own
-  // conversation.
-  const memberIds = (
-    await prisma.playerThreadMember.findMany({
-      where: { playerThreadId: conversation.id },
-      orderBy: { createdAt: "asc" },
-      select: { characterId: true },
-    })
-  ).map((row) => row.characterId);
+  // The raw ids stay HERE, on the server — db/lib/conversations.js is where
+  // both faces read them, so the bot and this cannot disagree about who is in
+  // a conversation. `members` below is the presented list and carries no id
+  // for anybody in a hood (db/lib/presentedMembers.js), which is why the gate
+  // is answered off `memberIds` rather than off those rows: your own row is a
+  // hood like any other when you are wearing one, and matching on a withheld
+  // id would lock you out of your own conversation.
+  const memberIds = await conversationMemberIds(prisma, conversation.id);
   if (!memberIds.includes(character.id)) {
     return { error: "You're not in this conversation." };
   }

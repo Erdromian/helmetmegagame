@@ -42,6 +42,10 @@ export default function PublicComposer({
   // visible so the GM can trim it, rather than being silently cut at the cap.
   const over = content.length > GM_MESSAGE_MAX_LENGTH;
   const chunkCount = useMemo(() => chunkMessage(content.trim()).length, [content]);
+  // A cave level has no #summary channel and never did, so a declaration there
+  // posts into every Location channel in the level instead (ADJUDICATION.md
+  // §1). Worth saying before the GM writes it, not after it has gone out.
+  const underground = zones.find((z) => z.id === zoneId)?.kind === "CAVE_LEVEL";
 
   function submit() {
     setError(null);
@@ -82,7 +86,11 @@ export default function PublicComposer({
               setContent(e.target.value);
               markDirty();
             }}
-            placeholder="What everyone learns when the turn ends. Posts to the summary channel."
+            placeholder={
+              underground
+                ? "What everyone learns when the turn ends. Posts to every Location channel down here."
+                : "What everyone learns when the turn ends. Posts to the summary channel."
+            }
           />
           {over ? (
             <span className="text-xs text-danger">
@@ -110,6 +118,11 @@ export default function PublicComposer({
               </option>
             ))}
           </Select>
+          {underground && (
+            <span className="text-xs text-muted">
+              No summary channel down here — this lands in every Location in the zone.
+            </span>
+          )}
         </label>
 
         <FormError>{error}</FormError>

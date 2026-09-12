@@ -37,6 +37,7 @@ const { settleCarry } = require("./carry");
 const { releaseHeldBy, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
 const { recordArchiveEvent } = require("./archive");
+const { refuseTax } = require("./tax");
 
 // Nothing to do, drawn as the reason under the message. Shared so the four
 // families refuse in the same words.
@@ -160,6 +161,13 @@ async function answerLobbySeat(prisma, { id, discordUserId }) {
   return { ok: result.ok, line: result.ok ? result.line : result.reason, ...empty() };
 }
 
+// The Refuse click. One button, and it declines — there is no accept, the
+// same LOBBY_SEAT shape as answerLobbySeat above.
+async function answerPendingTax(prisma, { id, discordUserId }) {
+  const result = await refuseTax(prisma, { pendingTaxId: id, discordUserId });
+  return { ok: result.ok, line: result.ok ? result.line : result.reason, ...empty() };
+}
+
 async function answerKeyedWay(prisma, { id, discordUserId, choice }) {
   const result = await holdKeyedOpen(prisma, { discordUserId, linkId: id, hold: choice === DM_CHOICE.ACCEPT });
   if (!result.ok) return { ok: false, line: result.error, ...empty() };
@@ -255,6 +263,8 @@ async function answerDmAction(prisma, { action, choice, discordUserId }) {
       return answerInterceptHold(prisma, args);
     case DM_ACTION.ATTACK_HOLD:
       return answerAttackHold(prisma, args);
+    case DM_ACTION.PENDING_TAX:
+      return answerPendingTax(prisma, args);
     default:
       return { ok: false, line: GONE, ...empty() };
   }

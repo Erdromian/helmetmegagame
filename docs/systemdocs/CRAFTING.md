@@ -75,7 +75,13 @@ of it:
   are hold-checks with no single stack to draw from, so the number would mean
   nothing. It rides the chip as `uses Paper ×10`.
 - `gambit` is ignored: crafting is always a Routine. The sweep cleared it on
-  the two brews that carried one (BREWING.md).
+  the two brews that carried one (BREWING.md). **Trinket is the one
+  deliberate exception** — but it does not work by this flag actually doing
+  anything: `{tag:trinket}` carries no `requirement:` block at all and never
+  goes near `craftRequestImpl`. It has its own bespoke request action
+  instead, because a self-spoiling recipe (the Craft dialog shows you the
+  result before you commit) is a contradiction the dialog can't express. See
+  [`TRINKETS.md`](TRINKETS.md) §2.
 
 **Smith's work also needs a forge.** A recipe naming a `smithing-*` or
 `builder-*` skill requires Workshop Equipment in reach — held, or set up in a

@@ -6,6 +6,51 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-12 · Shouts on Discord reach the website now
+
+✎ Shouting on Discord wrote nothing down, so a shout made there was a shout the website never heard and the archive never kept. Every shout now lands on both faces, wherever it was made  
+✎ A shout on Discord names who shouted, goes quiet in a soundproof room, and stops carrying when you are tied up — none of which it did before  
+✎ One five-minute throat across both apps. Shouting on Discord and then on the web used to beat the timer once  
+✎ A die rolled on Discord shows up in Chat and the archive, and says who threw it  
+✚ A web-only character can invite somebody to a conversation from Discord  
+✎ Letting somebody into a private room needs a key or a guest row of your own, not just standing outside it  
+✎ A guest let in from Discord sees the room in Chat straight away, with no reload  
+✎ Xom's screams no longer arrive twice in the Location they were screamed in
+
+## 2026-09-11 · Public declarations reach the caves
+
+✎ A public declaration staged for the Caves or the Depths used to go nowhere — there is no summary channel underground, so it was quietly marked undeliverable and no player ever read it  
+✚ Underground a declaration now posts into every Location channel on that level, word for word, so everyone down there reads it wherever they happen to be standing  
+✎ The tray now says which rooms took it and which bounced, and Resend retries only the ones that missed
+
+## 2026-09-11 · Appraisal: see an item's worth in obols
+
+✎ New skill, Appraisal (1 pt): shows a tag's worth in obols on its tooltip  
+✚ Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper start with it  
+✚ The Manor Lord and Court Artist courtier kits grant it too  
+✎ Radio's price corrected to 4 points
+
+## 2026-09-11 · Sickle and Horseshoes join the smith's ladder
+
+✚ Sickle: Dead Simple, +1 ⬢ to farming labor, a very small melee edge  
+✚ Horseshoes: Moderate, gives a Horse one extra free zone move
+
+## 2026-09-11 · Flatten the crafting wage curve, and lift the middle of it
+
+− The ladder now pays 9, 10, 16, 18 and 22.5 a turn from the quick pieces up to gunpowder, where it used to run 3 to 15 — two and a half fold instead of five, so the early rungs are somewhere you can work rather than somewhere you pass through  
+− Moderate and High Quality got the most; the small stuff a little  
+− The top of the ladder did not move — everything under it came up
+
+## 2026-09-11 · Intercept no longer needs an unspent Move
+
+− The refusal on laying in wait once your Move is filed
+
+## 2026-09-11 · Smiths and crafters get paid about a quarter more for everything
+
+− Every sell price on the smithing and crafting ladder is up ~25%, so a day at the anvil is worth having against a day in the fields  
+− The bottom of the ladder got the most: a Dead Simple piece now clears 2 instead of 1, and the Simple rung sells at 12 rather than the 11 the multiplier gave, so the quick pieces beneath it cannot out-earn it  
+− Trapping Gear keeps its wage floor at 20 rather than falling to its rung's 12
+
 ## 2026-09-11 · Fewer boxes doing the same job on the GM desks
 
 ✎ The Players desk has two search boxes instead of four: Search inbox on the rail and Filter roster on the roster  

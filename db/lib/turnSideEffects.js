@@ -41,6 +41,7 @@ const { stillAlive } = require("./deathTeardown");
 const { reconcileCharacterRoleNames } = require("./characterRoleNames");
 const { refreshLiveRooms } = require("./syncZones");
 const { broadcastToZones } = require("./worldBroadcast");
+const { publicPostTargets } = require("./publicPostTargets");
 const { postGameEnded } = require("./gameEnd");
 const { syncSpectatorAccess } = require("./spectatorAccess");
 const { sceneLine, sceneLineAt } = require("./scene");
@@ -48,7 +49,6 @@ const { deliverPrivate, deliverPublic, failuresFor } = require("./stagedDelivery
 const {
   placeKeyForLocation,
   placeKeyForConversation,
-  discordTargetForPlaceKey,
 } = require("./placeKey");
 const { postTurnsAnnouncement } = require("./turnAnnouncement");
 const { runMessageWipe } = require("./messageWipe");
@@ -80,6 +80,7 @@ function buildSideEffectPayload(fields) {
     lessonDms: fields.lessonDms ?? [],
     researchDms: fields.researchDms ?? [],
     confessionDms: fields.confessionDms ?? [],
+    trinketDms: fields.trinketDms ?? [],
     tagExpiryDms: fields.tagExpiryDms ?? [],
     turretBursts: fields.turretBursts ?? [],
     depotLocationId: fields.depotLocationId ?? null,
@@ -173,6 +174,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
   await eachDm("lesson", p.lessonDms, (dm) => plainDm(dm, "Lesson"));
   await eachDm("research", p.researchDms, (dm) => plainDm(dm, "Research"));
   await eachDm("confession", p.confessionDms, (dm) => plainDm(dm, "Confession"));
+  await eachDm("trinket", p.trinketDms, (dm) => plainDm(dm, "Trinket"));
   await eachDm("tagExpiry", p.tagExpiryDms, (dm) => plainDm(dm, "Tag progression"));
 
   // A gun going off is heard well past the room it is in. Before the DMs
@@ -579,7 +581,7 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
     });
   }
 
-  const { shout } = require("./shout");
+  const { shout, deliverShout } = require("./shout");
   for (let i = 0; i < list(p.xomShouts).length; i += 1) {
     const scream = list(p.xomShouts)[i];
     await step(`xomShout:${i}`, async () => {
@@ -603,37 +605,13 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
       });
       if (!result.ok) return;
 
-      // Delivery, mirroring Chat's /shout exactly: the place you stand in
-      // first (from `result.here`, which is present even when a sealed room
-      // has emptied `heard`), then `heard`, already ordered nearest-first.
-      // The row goes down before the post — it is the only half a web-only
-      // player ever sees — and every step is caught on its own, because one
-      // dead channel is one audience short and not a failed scream.
-      await sceneLine(prisma, {
-        placeKey,
-        text: result.here.scene.text,
-        lines: result.here.scene.lines,
-      }).catch((err) => console.error(`Xom shout row for ${placeKey} failed:`, err?.message ?? err));
-      try {
-        const target = await discordTargetForPlaceKey(prisma, placeKey);
-        const channelId = target?.threadId ?? target?.channelId ?? null;
-        if (channelId) await postMessage(channelId, result.here.line, undefined, { parse: [] });
-      } catch {
-        // The archive row stands.
-      }
-
-      for (const place of result.heard) {
-        await sceneLine(prisma, {
-          placeKey: place.placeKey,
-          text: place.scene.text,
-          lines: place.scene.lines,
-        }).catch((err) => console.error(`Xom shout row for ${place.name} failed:`, err?.message ?? err));
-        if (!place.discordChannelId) continue;
-        // parse: [] — the widest fan-out in the game takes no mentions.
-        await postMessage(place.discordChannelId, place.line, undefined, { parse: [] }).catch((err) =>
-          console.error(`Xom shout into ${place.name} failed:`, err?.message ?? err),
-        );
-      }
+      // Delivery is db/lib/shout.js#deliverShout, the same call Chat and the
+      // bot make. It matters here more than there: `placeKey` above is a
+      // LOCATION key, and soundRange counts the shouter's own Location as
+      // distance 0, so `here` and `heard[0]` are the same place. deliverShout
+      // skips that collision. Before it did, every Xom scream wrote the
+      // origin's archive row twice and posted to its channel twice.
+      await deliverShout(prisma, { placeKey, here: result.here, heard: result.heard });
     });
   }
 
@@ -770,37 +748,57 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
         content: post.content,
         createdByDiscordUserId: null,
       };
-      const { sent, failed } = await deliverPublic(prisma, {
+      // Resolved LIVE, not carried in the payload. Where a declaration goes is
+      // a list now — one #summary, or every Location channel in a cave level
+      // (db/lib/publicPostTargets.js) — and a list of channel ids frozen at
+      // turn-close and replayed by a resumed push hours later is the same stale
+      // -payload problem the turn and the wipe switch are re-read for below.
+      const { zone, targets } = await publicPostTargets(prisma, post.zoneId);
+      const { sent, failed, skipped, attempted } = await deliverPublic(prisma, {
         stagedMessage,
-        channelId: post.zoneSummaryChannelId,
+        targets,
+        zone,
         zoneId: post.zoneId,
         // The push is always the FIRST attempt at a declaration, so the Hall
         // row is always its to write. Only Resend has a reason to skip it.
         writeSceneLine: true,
       });
+      // Derived from the rows, not from this run's own bounces — the same fix
+      // and the same reason as the PRIVATE block above: a channel a Resend
+      // running beside this one just got through to must not still be listed
+      // as failing here.
+      const rowFailures = await failuresFor(prisma, post.stagedMessageId).catch(() => failed);
       await prisma.stagedMessage
         .update({
           where: { id: post.stagedMessageId },
           data: {
-            // A post with no channel never went anywhere, so it is not stamped
-            // sent — it stays in the tray as unsent work, the way it did.
+            // A post that reached NO channel never went anywhere, so it is not
+            // stamped sent — it stays in the tray as unsent work, the way it
+            // did. One that reached some of them is stamped: it did reach
+            // players, the bounces live on their own rows for Resend to retry,
+            // and leaving it unstamped would get it re-selected by the next
+            // push and re-posted to every channel that already has it.
             ...(sent ? { sentAt: new Date() } : {}),
-            deliveryFailures: failed.length ? failed : Prisma.DbNull,
+            deliveryFailures: rowFailures.length ? rowFailures : Prisma.DbNull,
           },
         })
         .catch((err) =>
           console.error(`Failed to stamp public post ${post.stagedMessageId}:`, err),
         );
-      if (failed.length) {
+      if (failed.length || skipped) {
         console.error(
-          `Public declaration ${post.stagedMessageId} failed to post:`,
-          failed.map((f) => f.error).join("; "),
+          `Public declaration ${post.stagedMessageId} reached ${sent} of ${attempted} channels:`,
+          failed.map((f) => `${f.name ?? "the channel"}: ${f.error}`).join("; ") || "the rest were held",
         );
         deliveryFailures.push({
           stagedMessageId: post.stagedMessageId,
-          attempted: 1,
-          delivered: 0,
+          attempted,
+          delivered: sent,
           failed,
+          // Claimed by a run happening right now. Neither a send nor a bounce,
+          // and leaving it out makes the audit row's counts fail to add up —
+          // which reads as lost mail. Same shape the PRIVATE block uses.
+          ...(skipped ? { skipped } : {}),
         });
       }
     });

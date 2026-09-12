@@ -346,7 +346,7 @@ Nothing here is destructive, so no `restore` snapshot is owed
 | File | Role |
 |---|---|
 | `db/lib/attack.js` | The whole mechanism — the band gate, the row, both holds, the lines |
-| `db/lib/combatGate.js` | §5a — the spent-Move refusal, shared with Intercept |
+| `db/lib/combatGate.js` | §5a — the spent-Move refusal |
 | `db/lib/locationMove.js` | `closeFightsOnMove` — a relocation ends the fight |
 | `db/lib/characterDeath.js` | A dead man is in no fight |
 | `db/lib/fightingSkill.js` | `bandRank`, and nothing else changed |

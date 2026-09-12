@@ -50,7 +50,7 @@ The Spear, Dagger, Silver Knife and Phrygian Spear are `turnsCost: 1/3` —
 a spearhead or a knife is not a day at the anvil — so three of them fit in
 one Routine ([`CRAFTING.md`](CRAFTING.md) §2a). Everything else about the
 rung (6 ⬢, the pt, the skill gate, the forge) is unchanged, and they sell
-at 7 rather than the tier's 9 ([`DEPOT.md`](DEPOT.md) §4). The Gladius,
+at 9 rather than the tier's 16 ([`DEPOT.md`](DEPOT.md) §4). The Gladius,
 Mace and Battle Axe stay a full turn — a sword blade or a flanged head is
 real forging.
 
@@ -309,3 +309,7 @@ Off the ladder:
 |---|---|---|
 | Salvage Plate | 2 | No skill gate. |
 | Energy Shield | 0 | Not smith work at all — Merchant stock at 145 ⬢, or the rarest rung of cave loot. |
+
+Off the ladder in the other direction: **Trinket**, `smithing`-gated and a
+whole Move like everything above, but priced by a die roll rather than a
+row in either table — see [`TRINKETS.md`](TRINKETS.md).

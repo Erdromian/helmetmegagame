@@ -1,5 +1,5 @@
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const { prisma, concealedAlias } = require("@lifeweb/db");
+const { prisma } = require("@lifeweb/db");
 const { setVisibleZones } = require("@lifeweb/db/lib/gmZoneView");
 const { syncGmZoneRoles } = require("@lifeweb/db/lib/gmZoneRoles");
 const { isUnaffiliated } = require("@lifeweb/db/lib/factionConstants");
@@ -32,7 +32,6 @@ const {
   travelOptions,
   gateOperable,
   isHeldOpen,
-  soundRange,
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
@@ -42,14 +41,13 @@ const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { reconcileNarrowcastAccess } = require("@lifeweb/db/lib/locationMove");
 const {
   syncCharacterRoomAccess,
-  recordRoomThread,
   accessibleRooms,
   roomAccessKeys,
-  heldTagSlugs,
 } = require("@lifeweb/db/lib/roomAccess");
 const {
   addConversationMember,
   removeConversationMember,
+  isConversationMember,
 } = require("@lifeweb/db/lib/conversations");
 const { settleCarry, deliverCarryDrop } = require("@lifeweb/db/lib/carry");
 const { sendDm } = require("../lib/dm");
@@ -58,7 +56,7 @@ const { buildMoveModal } = require("../lib/moveModal");
 const { confirmMove } = require("../lib/moveConfirm");
 const { buildSpeakModal } = require("../lib/speakModal");
 const { canSpeakInTarget } = require("../lib/speakTargets");
-const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../lib/interactionGuild");
+const { resolveActingMember, isGmMember, findAliveCharacter } = require("../lib/interactionGuild");
 const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
 const { placeKeyForChannel, isScenePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const { playInstrument } = require("@lifeweb/db/lib/instrumentPlay");
@@ -69,9 +67,12 @@ const { touchCharacterActivity } = require("@lifeweb/db/lib/characterActivity");
 const { dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { HEALTH_CATEGORY } = require("@lifeweb/db/lib/medicalVision");
 const { moveWindow, epochSeconds } = require("@lifeweb/db/lib/turnClock");
-const { rollDie } = require("@lifeweb/db/lib/moveEffects");
+const { castDie } = require("@lifeweb/db/lib/roll");
+const { toggleConceal } = require("@lifeweb/db/lib/conceal");
+const { addRoomGuest, removeRoomGuest } = require("@lifeweb/db/lib/roomGuests");
+const { notifyPresence } = require("@lifeweb/db/lib/presenceNotify");
 const { messageLink } = require("../lib/mentions");
-const { addThreadMember, removeThreadMember } = require("@lifeweb/db/lib/discordRest");
+const { addThreadMember } = require("@lifeweb/db/lib/discordRest");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const {
   WHOS_HERE_PREFIX,
@@ -125,7 +126,7 @@ const {
   gatehouseTurretArmed,
 } = require("@lifeweb/db/lib/gatehouseTurret");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
-const { shoutLine } = require("@lifeweb/db/lib/shout");
+const { shout, deliverShout } = require("@lifeweb/db/lib/shout");
 const { clockFrozen } = require("@lifeweb/db/lib/gameState");
 const { LOBBY_DECLINE_PREFIX } = require("@lifeweb/db/lib/lobby");
 const { handleLobbyDecline } = require("../lib/lobby");
@@ -157,6 +158,8 @@ const {
 } = require("../lib/noticeboardPanel");
 const { OFFER_ACCEPT_PREFIX, OFFER_DECLINE_PREFIX } = require("@lifeweb/db/lib/offerRow");
 const { handleOfferAccept, handleOfferDecline } = require("../lib/offers");
+const { PENDING_TAX_DECLINE_PREFIX } = require("@lifeweb/db/lib/tax");
+const { handleTaxDecline } = require("../lib/tax");
 const {
   THREAT_SPAWN_ACCEPT_PREFIX,
   THREAT_SPAWN_DECLINE_PREFIX,
@@ -176,11 +179,6 @@ const { OPEN_BUTTON_ID: REPORT_OPEN_ID, CLOSE_BUTTON_ID: REPORT_CLOSE_ID } = req
 // db/lib/locationAnchorRow.js, the travel flow's in
 // bot/src/lib/locationTravel.js).
 const CONVERSE_ROOM_PREFIX = "conv:room:";
-
-// "a young man" / "an old woman" — the alias as it reads mid-sentence.
-function withArticle(word) {
-  return `${/^[aeiou]/i.test(word) ? "an" : "a"} ${word}`;
-}
 
 const ZONE_VIEW_ID = "zoneview:pick";
 
@@ -393,10 +391,18 @@ async function handleThreadMemberCommand(interaction, action) {
     return;
   }
 
+  // Being a member IS the permission, and membership is the ROWS
+  // (db/lib/conversations.js) — not Discord's thread-member list, which this
+  // used to fetch. A web-only character is in the rows and in no thread
+  // anywhere, so they were shut out of a door they were standing behind.
+  const actor = await findAliveCharacter(interaction.user.id);
   const gm = isGmMember(interaction);
   if (!gm) {
-    const member = await channel.members.fetch(interaction.user.id).catch(() => null);
-    if (!member) {
+    if (!actor) {
+      await respond(interaction, "You don't have a living character.");
+      return;
+    }
+    if (!(await isConversationMember(prisma, row.id, actor.id))) {
       await respond(interaction, "You're not in this conversation.");
       return;
     }
@@ -416,7 +422,7 @@ async function handleThreadMemberCommand(interaction, action) {
   // standing there in a hood — so the whole point of the disguise came apart
   // at the door. presentedNameOf is the same resolver the web strip and the
   // HERE column go through (db/lib/presentedMembers.js).
-  const shown = await presentedNameOf(prisma, target.id, await actingCharacter(interaction, { select: { id: true } }));
+  const shown = await presentedNameOf(prisma, target.id, actor);
 
   if (action === "remove") {
     // The ROW is what membership is now (db/lib/conversations.js); the thread
@@ -425,12 +431,16 @@ async function handleThreadMemberCommand(interaction, action) {
     await prisma.playerThreadInvite
       .deleteMany({ where: { threadId: channel.id, characterId: target.id } })
       .catch((err) => console.error("Failed to delete thread invite:", err));
-    try {
-      await channel.members.remove(target.discordUserId);
-    } catch (err) {
-      console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
-      await respond(interaction, "Couldn't remove them. The bot may be missing Manage Threads.");
-      return;
+    // A web-only member holds no thread seat to take away, and the row above
+    // is the whole of the removal for them.
+    if (target.discordUserId) {
+      try {
+        await channel.members.remove(target.discordUserId);
+      } catch (err) {
+        console.error(`Failed to remove ${target.discordUserId} from thread ${channel.id}:`, err);
+        await respond(interaction, "Couldn't remove them. The bot may be missing Manage Threads.");
+        return;
+      }
     }
     await respond(interaction, `${shown} was removed.`, { fleeting: true });
     return;
@@ -452,7 +462,7 @@ async function handleThreadMemberCommand(interaction, action) {
   // A "web only" target is out of every channel on purpose (CHAT.md §6), so
   // the row above is the whole of the add: they see the conversation on /chat
   // and the invite row replays the Discord half if they ever come back off it.
-  if (target.locationId === row.locationId && !target.webOnly) {
+  if (target.locationId === row.locationId && !target.webOnly && target.discordUserId) {
     try {
       await addThreadMember(channel.id, target.discordUserId);
     } catch (err) {
@@ -482,112 +492,50 @@ async function notifyLetIn(interaction, target, threadName, placeName, threadId)
   await sendDm(user, `» *You were let into ${where}.*\n${link}`, { kind: DM_KIND.QUIET }).catch(() => { });
 }
 
-// The Room half of /add and /remove.
+// The Room half of /add and /remove. db/lib/roomGuests.js is the rule — the
+// same one the web's member strip asks — and this is only the Discord end of
+// it: resolve the target from the role picker, then hand the id down.
 //
-// Who may work the door: anyone STANDING here who can get in — a key or a
-// guest row, plus their own feet. A GM may always.
-//
-// That used to be read off Discord thread membership, which was the same set
-// back when membership tracked presence. It no longer does (db/lib/
-// roomAccess.js, 2026-09-06): a keyholder is a member of every room their key
-// opens, everywhere on the map, so the old check had quietly become "holds a
-// key" and let somebody three zones away let a guest into a room they were
-// nowhere near. The location comparison is the thing that was always meant.
-//
-// /remove refuses a key-holder on purpose. Their key is what admits them, and
-// the next arrival or tag change would let them straight back in; taking the
-// key is the real removal, so say so rather than doing something that undoes
-// itself.
+// The role, rather than a user, is the whole reason /add takes one: the picker
+// then names characters and never Discord accounts, so inviting somebody
+// cannot reveal who plays them (bot/src/lib/commands.js).
 async function handleRoomGuestCommand(interaction, action, room) {
-  if (room.kind !== "PRIVATE") {
-    await respond(interaction, "Anyone standing here can already walk in.");
-    return;
-  }
-
-  const gm = isGmMember(interaction);
-  if (!gm) {
-    const standing = await findAliveCharacter(interaction.user.id);
-    if (!standing || !room.locationId || standing.locationId !== room.locationId) {
-      await respond(interaction, "You're not in this room.");
-      return;
-    }
-  }
-
   const role = interaction.options.getRole("character");
   const target = await prisma.character.findFirst({
     where: { discordRoleId: role.id, status: "ALIVE" },
+    select: { id: true },
   });
   if (!target) {
+    // Worded for somebody who picked a ROLE, which is what this face offers.
+    // db/lib/roomGuests.js says "That isn't a living character." to a caller
+    // that picked a person.
     await respond(interaction, "That isn't a living character's role.");
-    return;
-  }
-  // What to CALL them, for the same reason the conversation half above does
-  // it: a door opening or refusing is not the moment to say who is under the
-  // hood standing in front of it.
-  const shown = await presentedNameOf(prisma, target.id, await actingCharacter(interaction, { select: { id: true } }));
-  if (target.locationId !== room.locationId) {
-    await respond(interaction, `${shown} isn't here to be let in.`);
-    return;
-  }
-
-  if (action === "remove") {
-    const held = await heldTagSlugs(prisma, target.id);
-    if (room.accessTagSlugs.some((slug) => held.has(slug))) {
-      await respond(interaction, "They have a key. You can't remove them.");
-      return;
-    }
-    await prisma.roomGuest
-      .deleteMany({ where: { roomId: room.id, characterId: target.id } })
-      .catch((err) => console.error("Failed to delete room guest:", err));
-    // No account behind the character means there is no thread member to drop.
-    // Calling with an undefined id fails, and the catch below would report it
-    // as a missing bot permission — a wrong answer to a question nobody asked.
-    if (!target.discordUserId) {
-      await respond(interaction, `${shown} was shown out.`, { fleeting: true });
-      return;
-    }
-    try {
-      await removeThreadMember(room.discordThreadId, target.discordUserId);
-      // The record has to follow, or the diff in syncCharacterRoomAccess sees
-      // no disagreement and this eviction un-does itself on the next sync.
-      await recordRoomThread(prisma, target.id, room.id, false);
-    } catch (err) {
-      console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err);
-      await respond(interaction, "Couldn't remove them. The bot may be missing Manage Threads.");
-      return;
-    }
-    await respond(interaction, `${shown} was shown out.`, { fleeting: true });
     return;
   }
 
   const actor = await findAliveCharacter(interaction.user.id);
-  await prisma.roomGuest
-    .upsert({
-      where: { roomId_characterId: { roomId: room.id, characterId: target.id } },
-      update: {},
-      create: { roomId: room.id, characterId: target.id, invitedById: actor?.id ?? null },
-    })
-    .catch((err) => console.error("Failed to record room guest:", err));
-
-  // The guest ROW above is the grant; thread membership is only Discord's copy
-  // of it, and a "web only" character has no Discord copy of anything
-  // (CHAT.md §6). Their record is left saying "not in the thread", which is
-  // true, and the web feed shows them the room off the guest row regardless.
-  if (!target.webOnly) {
-    try {
-      await addThreadMember(room.discordThreadId, target.discordUserId);
-      // Without this the guest is never shown out: the mover's recompute only
-      // acts where entitlement and the record DISAGREE, and an unrecorded
-      // membership agrees with "not entitled" forever. See recordRoomThread.
-      await recordRoomThread(prisma, target.id, room.id, true);
-    } catch (err) {
-      console.error(`Failed to add ${target.discordUserId} to room ${room.id}:`, err);
-    }
+  const args = { actor, roomId: room.id, characterId: target.id, gm: isGmMember(interaction) };
+  const result = action === "remove" ? await removeRoomGuest(prisma, args) : await addRoomGuest(prisma, args);
+  if (!result.ok) {
+    await respond(interaction, result.error);
+    return;
   }
-  await notifyLetIn(interaction, target, room.name, room.location?.name, room.discordThreadId);
-  await respond(interaction, `${shown} was let in.`, {
-    fleeting: true,
-  });
+
+  // The guest's own Chat has to hear about the door as well — the row changed
+  // what places they can read. The web has always done this; the bot never
+  // did, so a guest added from Discord sat looking at a page that would not
+  // show them the room until they reloaded it.
+  await notifyPresence(prisma, result.target.id).catch(() => {});
+  if (result.notify) {
+    await notifyLetIn(
+      interaction,
+      result.target,
+      result.notify.threadName,
+      result.notify.placeName,
+      result.notify.threadId,
+    );
+  }
+  await respond(interaction, result.line, { fleeting: true });
 }
 
 // The Council Room's Intercom button, and its modal.
@@ -1496,68 +1444,20 @@ async function handleConverseCreate(interaction, roomId) {
 
 // /conceal: a standing state, not a per-message prefix. While it is on, every
 // message proxies under the alias with the unknown silhouette, and Who's here
-// lists the alias instead of the name. A held forcesName tag refuses the
-// toggle outright — that identity is fixed, and there is nothing to hide.
+// lists the alias instead of the name. db/lib/conceal.js#toggleConceal is the
+// rule — the same one the web's Chat composer asks — and this handler is only
+// the Discord end of it.
+//
+// findAliveCharacter rather than actingCharacter, deliberately: /conceal is
+// registered ANYWHERE (bot/src/lib/commands.js), so it has to work in a DM,
+// where there is no guild and no member to resolve. It touches none of
+// interaction.guild, .member or .channel, and it should stay that way.
 async function handleConcealCommand(interaction) {
   await ack(interaction);
 
   const character = await findAliveCharacter(interaction.user.id);
-  if (!character) {
-    await respond(interaction, "You don't have a living character.");
-    return;
-  }
-
-  const forcedName = await loadForcedName(prisma, character.id);
-  if (forcedName) {
-    await respond(interaction, `You are ${forcedName} now.`);
-    return;
-  }
-
-  // Concealment is a property of what you are wearing, not a free action. With
-  // a bare face there is nothing to toggle; under something that forces it,
-  // there is no choice to make in either direction. The column is left alone in
-  // that second case, so whatever the player last chose is what they go back to
-  // when the thing comes off.
-  //
-  // The forced line has to say which way the refusal points, and the old one
-  // ("take it off first") said the opposite of the truth: a forcesConceal piece
-  // is ALREADY hiding you — presentedIdentity conceals on piece.forced alone —
-  // so a player who read that reasonably concluded their helmet had broken
-  // concealment rather than granted it. Name the piece where we know it.
-  const concealment = await loadConcealment(prisma, character.id);
-  if (!concealment) {
-    await respond(interaction, "Your face is exposed. Wear a hood or helmet.");
-    return;
-  }
-  if (concealment.forced) {
-    await respond(
-      interaction,
-      concealment.name
-        ? `You're already hidden by the ${concealment.name}.`
-        : "You're already hidden by what you're wearing.",
-    );
-    return;
-  }
-
-  const concealed = !character.concealed;
-  await prisma.character.update({ where: { id: character.id }, data: { concealed } });
-  await prisma.auditLog
-    .create({
-      data: {
-        actorDiscordUserId: interaction.user.id,
-        actionType: "character_conceal_toggled",
-        targetCharacterId: character.id,
-        details: { concealed },
-      },
-    })
-    .catch((err) => console.error("Conceal audit log failed:", err));
-
-  await respond(
-    interaction,
-    concealed
-      ? `You now speak as **${withArticle(concealedAlias(character).toLowerCase())}**.`
-      : "You're no longer concealed.",
-  );
+  const result = await toggleConceal(prisma, character);
+  await respond(interaction, result.ok ? result.line : result.error);
 }
 
 // Moves close MOVE_LOCK_HOURS before the turn ends (db/lib/turnClock.js).
@@ -1835,17 +1735,24 @@ async function handleHealPick(interaction, characterId) {
   });
 }
 
-// The one die a player rolls for themselves; posted as a plain bot message
-// rather than a public interaction reply, which would carry Discord's
-// "@account used /roll" header and out the player behind the character
-// (PROXYING.md).
+// The one die a player rolls for themselves. db/lib/roll.js#castDie is the
+// shared implementation, as it is for the web's Chat composer — it writes the
+// die as a SYSTEM archive row and posts the same sentence to Discord, rather
+// than a public interaction reply, which would carry Discord's "@account used
+// /roll" header and out the player behind the character (PROXYING.md).
+//
+// This handler used to post `» *A die is cast* — **N**` and record nothing, so
+// a die rolled on Discord was a die Chat and /archive never saw. It is also
+// why the roller is named now: a die is an act, not a noise, and a concealed
+// roller is named by their alias.
 async function handleRollCommand(interaction) {
   await ack(interaction);
 
   // A die is cast in front of people, so the same gate the other two
   // moment-to-moment verbs use: a Room or a Conversation and nowhere else
-  // (db/lib/placeKey.js#isScenePlaceKey). This had no gate at all, and would
-  // roll into whatever channel it was typed in — the street, a zone #summary,
+  // (db/lib/placeKey.js#isScenePlaceKey). castDie does not ask this — it takes
+  // any place key — so the gate stays here, where it was. Without it a die
+  // rolls into whatever channel it was typed in: the street, a zone #summary,
   // #turns.
   const channel = interaction.channel;
   const placeKey = channel
@@ -1856,9 +1763,16 @@ async function handleRollCommand(interaction) {
     return;
   }
 
-  const value = rollDie(6);
-  const posted = await interaction.channel?.send(`» *A die is cast* — **${value}**`).catch(() => null);
-  await respond(interaction, posted ? `You rolled a ${value}.` : "Could not post a roll here.");
+  // The whole row: castDie needs age, gender, concealed and webOnly to work
+  // out what to call the roller.
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "You don't have a living character.");
+    return;
+  }
+
+  const result = await castDie(prisma, character, placeKey);
+  await respond(interaction, result.ok ? result.line : result.error);
 }
 
 // /play: the Instrument tag's one verb. db/lib/instrumentPlay.js is the
@@ -1896,19 +1810,21 @@ async function handlePlayCommand(interaction) {
 }
 
 // /shout — the one thing a character can say that leaves the room they said
-// it in. Written against handlePlayCommand above, which is the closest
-// existing shape: a player command that makes the world speak, gated, cooled
-// down, and anchored to where the character actually stands.
+// it in. db/lib/shout.js is the shared implementation, the way
+// handlePlayCommand above uses db/lib/instrumentPlay.js: the voice gate, the
+// five-minute cooldown, a soundproof room, a gag, the shouter's presented name
+// and the delivery all live there, so the two faces cannot drift.
 //
-// Nobody is ever named. Not at four hops, not in your own street. That is what
-// makes it usable while concealed, and it is also just true — you hear a shout
-// before you find out whose it was.
-const SHOUT_COOLDOWN_MS = 5 * 60_000;
-const lastShouted = new Map();
-
+// They had. This handler kept its own copy for a while — a cooldown in a Map
+// that died on every restart, no soundproofing, nobody named, and no archive
+// row at all — which meant a shout made on Discord reached nobody on the web
+// and was missing from /archive.
 async function handleShoutCommand(interaction) {
   await ack(interaction);
 
+  // shout() refuses an empty body too, but asking here keeps the better
+  // ordering: somebody who typed nothing should be told to say something
+  // rather than that there is nobody to hear it.
   const text = interaction.options.getString("message")?.trim();
   if (!text) {
     await respond(interaction, "Say something.");
@@ -1917,7 +1833,10 @@ async function handleShoutCommand(interaction) {
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: interaction.user.id, status: "ALIVE" },
-    select: { id: true, locationId: true },
+    // discordUserId because shout() stamps the cooldown's AuditLog row with
+    // it. Without it the row is written with an empty actor and /gm/audit
+    // cannot read a shout back to a person.
+    select: { id: true, locationId: true, discordUserId: true },
   });
   if (!character) {
     await respond(interaction, "You don't have a living character.");
@@ -1937,79 +1856,25 @@ async function handleShoutCommand(interaction) {
     await respond(interaction, "There's nobody here to hear it.");
     return;
   }
-  if (!character.locationId) {
-    await respond(interaction, "You're nowhere.");
+
+  // Every refusal past this point is shout()'s, in finished sentences respond()
+  // prints as they stand — the empty body, no living character, nowhere to
+  // stand, a mute, and the cooldown with its minutes already counted.
+  const result = await shout(prisma, character, text, { placeKey });
+  if (!result.ok) {
+    await respond(interaction, result.error);
     return;
   }
 
-  // SHOUT, not ACT and not SPEAK — and those distinctions are the whole point
-  // of this gate. {tag:bound} blocks acting but never the voice, so a hostage
-  // can still yell for help, which is the one thing being tied up ought to
-  // leave you; {tag:mute} is the mirror of that, talking normally and refused
-  // only here. Checked BEFORE the cooldown is claimed below: a refused shout
-  // must not burn the throat timer.
-  const voice = await loadVoiceState(character.id);
-  if (voice.shoutBlock) {
-    await respond(interaction, `You can't get the words out — you're ${voice.shoutBlock.name}.`);
-    return;
-  }
+  // Delivery, and it cannot fail the shout: the cooldown is already spent, so
+  // a dead channel is one audience short rather than a refusal. That is why
+  // the old `posted === 0` check had to go with it — a shout from a soundproof
+  // room posts to zero Location channels BY DESIGN, and reporting failure on
+  // one was telling the player nothing happened when it had and had cost them
+  // five minutes of throat.
+  await deliverShout(prisma, { placeKey, here: result.here, heard: result.heard });
 
-  const since = Date.now() - (lastShouted.get(character.id) ?? 0);
-  if (since < SHOUT_COOLDOWN_MS) {
-    const minutes = Math.max(1, Math.ceil((SHOUT_COOLDOWN_MS - since) / 60_000));
-    await respond(interaction, `You need about ${minutes} more minute${minutes === 1 ? "" : "s"}.`);
-    return;
-  }
-  // Claimed BEFORE the posting loop, not after: the loop is a couple of dozen
-  // REST calls and takes real seconds, which is exactly long enough for a
-  // second /shout to slip past a cooldown claimed at the end.
-  lastShouted.set(character.id, Date.now());
-
-  const heard = await soundRange(prisma, character.locationId);
-
-  // Sequential, no Promise.all: a fan-out across every Location in earshot
-  // would burst Discord's rate-limit buckets, and this is never urgent. Same
-  // discipline as bot/src/lib/deathSmell.js. Every post is individually
-  // caught, so one dead channel can't swallow the rest of the shout.
-  //
-  // Location CHANNELS only, never the Room threads under them: somebody in a
-  // private back room is behind a door.
-  let posted = 0;
-
-  // Shouting from inside a Room or a Conversation: the thread is where you are
-  // STANDING, and the people beside you must hear it before the street does.
-  // The loop below writes to Location channels only, so without this the one
-  // room that certainly heard you would be the only room that didn't.
-  if (interaction.channel.isThread()) {
-    await interaction.channel
-      .send({ content: shoutLine(text, 0, null), allowedMentions: { parse: [] } })
-      .catch((err) => console.error("Shout into the room failed:", err));
-  }
-
-  for (const place of heard) {
-    if (!place.discordChannelId) continue;
-    try {
-      // parse: [] — no mentions at all. The text is player-typed and this is
-      // the widest broadcast in the game; an "@everyone" in a shout would ping
-      // twenty-nine channels at once. A shout is a noise, not an address, and
-      // it names nobody by design anyway.
-      await postMessage(
-        place.discordChannelId,
-        shoutLine(text, place.distance, place.viaName),
-        undefined,
-        { parse: [] },
-      );
-      posted += 1;
-    } catch (err) {
-      console.error(`Shout into ${place.name} failed:`, err);
-    }
-  }
-
-  if (posted === 0) {
-    await respond(interaction, "Couldn't shout here.");
-    return;
-  }
-  await respond(interaction, "You shout.");
+  await respond(interaction, result.line);
 }
 
 module.exports = {
@@ -2118,6 +1983,14 @@ module.exports = {
           return void (await handleThreatSpawnDecline(
             interaction,
             interaction.customId.slice(THREAT_SPAWN_DECLINE_PREFIX.length),
+          ));
+        }
+        // Arrives in a DM on a tax (docs/tags.yaml's `taxman` description), so
+        // guild/member are null.
+        if (interaction.customId.startsWith(PENDING_TAX_DECLINE_PREFIX)) {
+          return void (await handleTaxDecline(
+            interaction,
+            interaction.customId.slice(PENDING_TAX_DECLINE_PREFIX.length),
           ));
         }
         // Arrives in a DM on an assignment (docs/systemdocs/LOBBY.md §4), so

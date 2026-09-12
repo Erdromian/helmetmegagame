@@ -28,6 +28,17 @@ Caves keeps Customs and gains the **Depot** as a Location of its own; the
 Station and Chrome City are retired, their prose kept in a comment at the
 bottom of `docs/zones.yaml`.
 
+**A public declaration underground lands in every room.** Neither level has a
+`#summary` — that is what "no channels of its own" means — so a GM's staged
+public declaration for the Caves or the Depths posts into **every Location
+channel in that level** instead, full size and word for word, one `Delivery` row
+per channel (`db/lib/publicPostTargets.js`, `ADJUDICATION.md` §1). It is a blunt
+answer and deliberately so: there is nowhere else down here for it to go, and
+before this the declaration was simply marked "no summary channel configured"
+and no player ever read it. One consequence to know when writing one: everybody
+on the level reads it wherever they are standing, so word it as news travelling
+the caves rather than as something happening in the room.
+
 The public **Caving** document (`docs/documents.yaml`, key `caving`) is the
 player-facing brief — what the levels are, what to bring, and that the die
 exists. `Role.docElements` grants it to `migrant` and `mercenary`, and it's

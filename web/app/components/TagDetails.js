@@ -157,6 +157,16 @@ export default function TagDetails({
         {fighting && <Meta label="In a fight">{fighting}</Meta>}
         {armor && <Meta label="Armour">{armor}</Meta>}
         {weight && <Meta label="Weight">{weight}</Meta>}
+        {/* Appraisal's readout (docs/systemdocs/TAGS.md §4a): only present
+            on a tag object at all when the viewer holds the skill — see
+            web/lib/appraisal.js. Drawn even when the tag has no price, so an
+            appraiser can tell the skill fired rather than wondering whether
+            the row was left out. */}
+        {"valueObols" in tag && (
+          <Meta label="Worth">
+            <span className="mono">{tag.valueObols != null ? `${tag.valueObols} ¢` : "—"}</span>
+          </Meta>
+        )}
         {/* Where it goes and what it costs to put there. This used to say
             only "Hands: Two", which named the one gear rule a buyer could
             already guess and none of the ones they couldn't — that a coif

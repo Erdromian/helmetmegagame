@@ -71,7 +71,10 @@ async function structuresAt(prisma, locationId, { statuses = null } = {}) {
 // Where building is refused. DERIVED from columns the game already
 // maintains, not a hand-authored denylist: indoors (you do not raise a
 // palisade in the Cathedral's nave), a CAVE_LEVEL zone (no #summary
-// underground, so nothing built there could ever announce — MAP.md §1),
+// underground, so nothing built there could ever announce — MAP.md §1; a
+// staged public declaration DOES reach the caves now, by fanning out to
+// every Location channel in the level, but that is a GM speaking once at a
+// turn end, not a standing announcer a structure could own),
 // and the `noBuild` attribute for the genuine one-offs the registry names
 // (the Depot, the Lifeweb's ground). `location` needs
 // { indoors, attributes, zone: { kind } }.

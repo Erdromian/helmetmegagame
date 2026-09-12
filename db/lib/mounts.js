@@ -20,6 +20,10 @@ const FAST_TRAVEL_SLUGS = new Set(["horse", "motorcycle", "arelitz-warbeast", "a
 // fastTravelCapacity below — that part isn't tied to FAST_TRAVEL_SLUGS at all.
 const WATER_TRAVEL_SLUGS = new Set(["fishing-boat"]);
 
+// Horseshoes buy the horse specifically one more crossing — not the
+// Thoroughbred or Warbeast (already bred/built for speed, and neither wears a
+// shoe the way a plain horse does) and not the Motorcycle (no hooves at all).
+
 // Where a boat is any use. Zone SLUGS, not names — `hills` is the Black
 // Hills.
 const WATER_ZONE_SLUGS = new Set(["forest", "hills", "marshes"]);
@@ -35,6 +39,8 @@ const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, ...WATER_TRAVEL_SLUGS, "ca
 // poling — so equipping one refuses while the other is out
 // (web/app/(app)/character/equipActions.js).
 const BOAT_CONFLICT_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart"]);
+
+const HORSESHOE_SLUG = "horseshoes";
 
 // The slugs a character currently has in play: everything they hold, minus any
 // stowable that is not equipped.
@@ -73,9 +79,11 @@ function fastTravelCapacity(activeSlugs) {
 
 // The extra zone crossings a fast-travel mount buys, on top of the base move
 // every character gets. Every fast-travel slug is worth 1 except the
-// Thoroughbred, which is bred for exactly this and is worth 2.
+// Thoroughbred, which is bred for exactly this and is worth 2. Horseshoes add
+// one more, but only under a plain Horse — see the slug's own comment above.
 function fastTravelBonus(activeSlugs) {
   if (activeSlugs.has("arelitz-thoroughbred")) return 2;
+  if (activeSlugs.has("horse")) return activeSlugs.has(HORSESHOE_SLUG) ? 2 : 1;
   return isMounted(activeSlugs) ? 1 : 0;
 }
 
@@ -128,6 +136,7 @@ module.exports = {
   WATER_ZONE_SLUGS,
   BOAT_CONFLICT_SLUGS,
   STOWABLE_SLUGS,
+  HORSESHOE_SLUG,
   equippedSlugs,
   fastTravelCapacity,
   fastTravelBonus,

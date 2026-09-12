@@ -24,6 +24,10 @@ const LABORING_HUNTING_SLUG = "laboring-hunting";
 const LABORING_FISHING_SLUG = "laboring-fishing";
 const LABORING_PROSPECTING_SLUG = "laboring-prospecting";
 const CATATONIC_SLUG = "catatonic-afk";
+// The tax button's gate (docs/systemdocs/TAGS.md, TaxDialog.js). Held plus
+// isLeader/isTreasurer of the holder's own faction is what shows the button —
+// the tag alone does nothing without the seat.
+const TAXMAN_SLUG = "taxman";
 // Over a carry cap (db/lib/carry.js). Granted and cleared by settleCarry,
 // never by a player; read by the travel gate in db/lib/locationTravel.js.
 const OVERBURDENED_SLUG = "overburdened";
@@ -48,6 +52,11 @@ const BUTCHER_SLUG = "butcher";
 // to. Workshop Equipment gates smithing and building; Surgical Equipment is
 // +1 on a medical Gambit.
 const WORKSHOP_EQUIPMENT_SLUG = "workshop-equipment";
+// Trinket's skilled floor (TRINKETS.md): a smith holding this cannot roll
+// below Normal on a Trinket Gambit. Read straight off the sheet by
+// db/lib/trinketPass.js — not through a Gambit modifier, so mixing in
+// Hunger/mood could never make the floor's guarantee unreliable.
+const SMITHING_SKILLED_SLUG = "smithing-skilled";
 // Packaging Equipment is the third standing kit, alongside the two above:
 // having it in reach is what turns the Package button on. Unlike those two it
 // is not craftable — there are exactly two in the world, one on the Godard
@@ -267,11 +276,13 @@ module.exports = {
   LABORING_FISHING_SLUG,
   LABORING_PROSPECTING_SLUG,
   CATATONIC_SLUG,
+  TAXMAN_SLUG,
   OVERBURDENED_SLUG,
   STEALTH_SLUG,
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
+  SMITHING_SKILLED_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,

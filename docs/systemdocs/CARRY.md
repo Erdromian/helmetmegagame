@@ -225,6 +225,12 @@ passenger seats. They sit in the `MOUNT` slot (`TAGS.md`, "equipSlot"): a
 horse, a motorcycle or a boat is *ridden* (layer 1) and a cart is *towed*
 (layer 2), so a horse and a cart go together and a horse and a boat do not.
 
+`horseshoes` is a plain `ACCESSORY`, not a third `MOUNT` layer, and does
+nothing on its own — `fastTravelBonus()` (`db/lib/mounts.js`) only counts it
+while a plain **Horse** is equipped alongside it, turning that horse's one
+extra crossing into two. It does nothing for the Thoroughbred or Warbeast
+(already bred/built for speed) or the Motorcycle (no hooves).
+
 **Seats, from `fastTravelCapacity()`:** a Horse alone is 2, and a Cart upgrades
 that pair to 6 — the biggest ride there is. They count the **rider**, so a
 horse seats you and one other. Overfilling them is not refused; it costs the

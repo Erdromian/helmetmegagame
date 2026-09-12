@@ -346,7 +346,11 @@ async function runStagedPushPass(prisma, turn) {
           character: { select: { id: true, name: true, discordUserId: true } },
         },
       },
-      zone: { select: { name: true, discordSummaryChannelId: true } },
+      // The channel is NOT read here. Where a public declaration goes is
+      // resolved live at delivery time (db/lib/publicPostTargets.js), because
+      // for a cave level it is a LIST of Location channels and a list frozen
+      // into the payload goes stale. The name is for the tray.
+      zone: { select: { name: true } },
     },
   });
 
@@ -363,9 +367,9 @@ async function runStagedPushPass(prisma, turn) {
         stagedMessageId: message.id,
         content: message.content,
         zoneName: message.zone?.name ?? null,
-        // Every PUBLIC row carries a real (non-CAVE_GROUP) zone.
+        // Every PUBLIC row carries a real (non-CAVE_GROUP) zone. The zone is
+        // all the thunk needs: it resolves the channels itself.
         zoneId: message.zoneId ?? null,
-        zoneSummaryChannelId: message.zone?.discordSummaryChannelId ?? null,
       });
       continue;
     }

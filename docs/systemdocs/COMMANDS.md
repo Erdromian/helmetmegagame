@@ -288,6 +288,22 @@ It is a **shout** boundary, not a sound boundary. The whisper poll still leaks
 Conversation fragments up into the parent Room every fifteen minutes
 (`db/lib/whisperLeak.js`); only `subtle` suppresses that.
 
+**Every place that hears a shout gets a row as well as a post.** The archive
+row is what Chat draws and what `/archive` keeps, and it is the only half a
+web-only player ever sees; the Discord post is the other face. Neither is
+downstream of the other — the outbox carries `WEB` rows only, so a `SYSTEM`
+row is never echoed into a channel (`db/lib/scene.js`) — so writing the row
+beside the post is not a double post, it is the whole delivery.
+`db/lib/shout.js#deliverShout` does both, for all three callers: Chat, the
+bot, and the turn engine's Xom scream.
+
+One thing it has to watch. `soundRange` counts the shouter's own Location at
+distance 0, so a caller shouting from a `loc:` place key names that place
+twice — once as where the shout was made, once as the nearest thing that heard
+it. `shoutAudience` drops the second. A shout made from a Room or a
+Conversation can never collide, which is why only the Xom scream was ever
+posting itself twice.
+
 **Rate limits.** One shout is up to a couple of dozen REST posts, so the posting
 loop is sequential with every post individually caught, the discipline
 `bot/src/lib/deathSmell.js` documents — never `Promise.all`. On top of that
@@ -755,19 +771,24 @@ out of the handler into `db/lib` and both faces call it.
 | `/add`, `/remove` (conversation half) | `db/lib/conversations.js` | the same two |
 | `/move` `/travel` `/converse` | already shared | `submitMove`, `TravelNodes`, `ConverseDialog` |
 
-**The bot has not been rewired yet.** Each of those new `db/lib` modules opens
-with a `TODO(rewire)` comment naming the handler and the lines it duplicates,
-so the switch is one later change with no behaviour in it. Until it happens,
-two things run in parallel and are worth knowing about:
+**The bot is rewired.** It was not for a while, and each of those `db/lib`
+modules carried a `TODO(rewire)` naming the handler it duplicated. The
+handlers call the shared rule now and keep only what is genuinely Discord's:
+acknowledging the interaction, resolving the character from the user id, the
+place gate off the channel, and — for `/add` and `/remove` — turning the role
+picker's choice into a character id.
 
-- **`/shout` has two cooldowns.** The bot's is a five-minute in-memory `Map`;
-  the shared one is the newest `AuditLog` row with `actionType: "shout"` for
-  the character, because there is no timestamp column on `Character` and the
-  batch that added this carried no migration. A player who shouts on Discord
-  and then on the web can beat the timer once, until the rewiring.
-- **`/roll` records nothing on the bot's side.** `castDie` writes a `SYSTEM`
-  archive row so Chat and `/archive` both see the die; the bot's handler
-  still posts a plain message that no row remembers.
+Three things the drift had cost, for the record, because each was live:
+
+- **`/shout` had two cooldowns.** The bot's was a five-minute in-memory `Map`,
+  the shared one an `AuditLog` row (there is no timestamp column on
+  `Character`). A player who shouted on Discord and then on the web beat the
+  timer once. One throat now.
+- **A shout made on Discord reached nobody on the web.** The bot's copy posted
+  to channels and wrote no archive row, and the bot's own posts are never
+  archived (`bot/src/events/messageCreate.js` skips bot authors), so the shout
+  was missing from Chat and from `/archive` both.
+- **`/roll` recorded nothing on the bot's side**, for the same reason.
 
 **Where the moment-to-moment three may be used, on either face.** `/shout`,
 `/play` and `/roll` run in a **Room or a conversation and nowhere else**. One

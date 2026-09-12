@@ -156,9 +156,14 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
     message.sent &&
     (deliveryRows.length ? deliveryRows.some((d) => d.state === "FAILED") : failureCount > 0);
 
+  // Underground there is no summary channel, so a cave declaration posts into
+  // every Location channel in the level instead (ADJUDICATION.md §1). Saying
+  // "summary channel" there was simply untrue.
   const recipientNames =
     message.kind === "PUBLIC"
-      ? `the ${message.zoneName ?? "zone's"} summary channel`
+      ? message.zoneKind === "CAVE_LEVEL"
+        ? `every channel in ${message.zoneName ?? "the caves"}`
+        : `the ${message.zoneName ?? "zone's"} summary channel`
       : message.recipients.map((r) => r.name).join(", ") || "nobody";
 
   async function onDelete() {

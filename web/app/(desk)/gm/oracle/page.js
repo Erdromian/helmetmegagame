@@ -109,7 +109,18 @@ export default async function OraclePage({ searchParams }) {
 
   const front = rows.find((row) => !row.zone) ?? null;
 
-  const pages = rows.map((row) => ({
+  // Deterministic, front page first: `pages[0]` below is only ever read when
+  // `front` is ALSO missing (a turn nobody wrote anything for), but when that
+  // happens it should still be reproducible rather than whatever order
+  // Postgres happened to hand back rows in — the query above carries no
+  // `orderBy` of its own.
+  const orderedRows = [...rows].sort((a, b) => {
+    if (!a.zone) return -1;
+    if (!b.zone) return 1;
+    return a.zone.name.localeCompare(b.zone.name);
+  });
+
+  const pages = orderedRows.map((row) => ({
     key: row.zone?.slug ?? FRONT_PAGE,
     id: row.id,
     title: row.zone?.name ?? `Turn ${turn.number}`,
@@ -132,7 +143,21 @@ export default async function OraclePage({ searchParams }) {
   }
 
   const requested = typeof params?.page === "string" ? params.page : null;
-  const selectedKey = pages.some((p) => p.key === requested) ? requested : (front ? FRONT_PAGE : (pages[0]?.key ?? FRONT_PAGE));
+  // A REAL target — the front page, or a seat zone that just has nothing
+  // written for it this turn — is kept as-is, never swapped for someone
+  // else's page. Losing this used to send every click at a page-less zone to
+  // whichever row `pages[0]` happened to be (DB order, no `orderBy`), which
+  // read as "you can only click on the one zone that has a page, everything
+  // else jumps to some other zone's chronicle." A page-less target still
+  // resolves to `null` through OracleDesk.js's `pageFor()`, which is what
+  // draws its existing "Nothing written for this turn yet." empty state —
+  // this only decides which rail button that empty state highlights.
+  const isRealTarget = requested === FRONT_PAGE || zones.some((z) => z.slug === requested);
+  const selectedKey = isRealTarget
+    ? requested
+    : front
+      ? FRONT_PAGE
+      : (pages[0]?.key ?? FRONT_PAGE);
 
   const roster = characters.map((character) => ({
     id: character.id,

@@ -976,13 +976,10 @@ and a one-line box:
 
   Three of these are the first web twins of commands that were **Discord-only**
   — `/conceal`, `/shout` and `/roll` — which is to say a "web only" character
-  simply could not do them before. The extraction is faithful and the bot has
-  **not been rewired yet**: each new `db/lib` module opens with a
-  `TODO(rewire)` naming the handler it duplicates, so switching the bot over is
-  one later change with no behaviour in it. Until then two cooldowns exist for
-  `/shout` — the bot's in-memory `Map` and this one's `AuditLog` row — because
-  there is no timestamp column on `Character` to share and this batch carries
-  no migration.
+  simply could not do them before. The bot has been switched over too, so
+  there is one implementation of each and one cooldown: `/shout`'s is the
+  newest `AuditLog` row with `actionType: "shout"` for the character, read by
+  both faces, because there is no timestamp column on `Character` to share.
 
   **A shout writes to both faces itself.** `db/lib/shout.js#shout` answers who
   hears it and what they hear; the action then writes one `sceneLine` row per
