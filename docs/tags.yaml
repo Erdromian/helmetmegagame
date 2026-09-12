@@ -3388,7 +3388,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
-    expiresInto: [dying]
+    expiresInto: [dead]
 
   # --- The drinking ladder (docs/systemdocs/BREWING.md) --------------------
   #
@@ -3885,7 +3885,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [festering]
     healable: true
     requirement:
@@ -4028,7 +4028,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     healable: true
     requirement:
       turnsCost: 0
@@ -4047,7 +4047,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 4
+    durationTurns: 3
     removesInto: [recovering]
     healable: true
     requirement:
@@ -4066,7 +4066,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto:
       - oneOf: [infected, scarred]
     removesInto: [bandaged]
@@ -4088,7 +4088,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [infected]
     removesInto: [bandaged, scarred]
     healable: true
@@ -4108,7 +4108,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [drained]
     healable: true
     requirement:
@@ -4128,7 +4128,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [infected]
     removesInto: [stitched-up]
     healable: true
@@ -4148,7 +4148,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [dying]
     removesInto: [stitched-up, drained]
     healable: true
@@ -4169,7 +4169,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
-    expiresInto: [dying]
+    expiresInto: [dead]
     removesInto: [stitched-up, drained]
     healable: true
     requirement:
@@ -4226,7 +4226,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 4
+    durationTurns: 3
     removesInto: [recovering]
     healable: true
     requirement:
@@ -4264,7 +4264,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [necrosis]
     removesInto: [bandaged]
     healable: true
@@ -4285,7 +4285,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [dying]
     removesInto: [stitched-up, recovering]
     healable: true
@@ -4306,7 +4306,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [sepsis]
     removesInto: [stitched-up, recovering]
     healable: true
@@ -4346,7 +4346,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [missing-fingers]
     removesInto: [splinted]
     healable: true
@@ -4366,7 +4366,7 @@ tags:
     pointCost: -11
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [sepsis]
     removesInto: [stitched-up]
     healable: true
@@ -4403,7 +4403,7 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [drained]
     removesInto: [drained]
     healable: true
@@ -4423,7 +4423,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [drained]
     removesInto: [drained]
     healable: true
@@ -4443,7 +4443,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [sepsis]
     removesInto: [drained]
     healable: true
@@ -4463,7 +4463,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [scarred]
     removesInto: [scarred]
     healable: true
@@ -4517,7 +4517,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [dying]
     healable: true
     requirement:
@@ -4535,7 +4535,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [drained]
     removesInto: [drained]
     healable: true
@@ -4586,7 +4586,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 4
+    durationTurns: 3
     expiresInto: [exploded-chest]
     removesInto: [stitched-up]
     healable: true
@@ -4606,7 +4606,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [dying]
     removesInto: [stitched-up, recovering]
     healable: true
@@ -4628,7 +4628,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
 
   shell-shocked:
     catalog: all
@@ -4676,7 +4676,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
 
   # The Rite of Madness's yield (docs/systemdocs/THANATI.md §9). Nothing in
   # code enforces the attacking — the rule lives in the words and a GM holds
@@ -4693,7 +4693,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
 
   blind:
     catalog: all
@@ -4986,7 +4986,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
 
   # The rung below Vomiting: what a body part or a raw cave mushroom does to
   # somebody half the time, where Vomiting is the other half. Shaped exactly
@@ -5005,7 +5005,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
 
   # --- Pain ---------------------------------------------------------------
   aching:
@@ -5019,7 +5019,7 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
 
   severe-pain:
     catalog: all
@@ -5032,7 +5032,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     healable: true
     requirement:
       turnsCost: 0
@@ -5089,7 +5089,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
-    expiresInto: [dying]
+    expiresInto: [dead]
     removesInto: [drained]
     healable: true
     requirement:
@@ -5120,7 +5120,7 @@ tags:
     pointCost: -3
     purchasable: true
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [no-migraine]
 
   no-migraine:
@@ -5149,7 +5149,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 4
+    durationTurns: 3
 
   stitched-up:
     catalog: all
@@ -5161,7 +5161,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
     expiresInto: [scarred]
 
   cauterized:
@@ -5187,7 +5187,7 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
 
   bandaged:
     catalog: all
@@ -5199,7 +5199,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
 
   wired-jaw:
     catalog: all
@@ -5211,7 +5211,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 4
+    durationTurns: 3
 
   # --- assets -------------------------------------------------------
   # `tradeable` decides what can be handed over OR lifted off a body, so every
@@ -14075,7 +14075,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [choking]
     removesInto: [recovering]
     healable: true
@@ -14116,7 +14116,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [necrosis]
     removesInto: [stitched-up]
     healable: true
@@ -15408,7 +15408,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 2
+    durationTurns: 1
     expiresInto: [infected]
     removesInto: [stitched-up]
     healable: true
@@ -15431,7 +15431,7 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 3
+    durationTurns: 2
     expiresInto:
       - oneOf: [infected, recovering]
     healable: true

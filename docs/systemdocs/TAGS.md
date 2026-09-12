@@ -1467,22 +1467,26 @@ the untreated-wound chain, and it is the thing that makes a doctor worth
 finding:
 
 ```
-Infected ──2t──▶ Festering ──1t──▶ Feverish ──1t──▶ Sepsis ──1t──▶ Dying ──1t──▶ dead
+Infected ──1t──▶ Festering ──1t──▶ Feverish ──1t──▶ Sepsis ──1t──▶ Dying ──1t──▶ dead
                      └────1t────▶ Necrosis ──2t──▶ Missing Leg *or* Missing Arm
 
-Stuffed ──4t──▶ Exploded Chest ──2t──▶ Dying ──1t──▶ dead
+Stuffed ──3t──▶ Exploded Chest ──1t──▶ Dying ──1t──▶ dead
+
+Arterial Bleed ──1t──▶ dead        Phrygian Toxin ──1t──▶ dead
+Crucified ──1t──▶ dead             Choking ──1t──▶ Dying ──1t──▶ dead
 ```
 
-Dying is the one step that isn't an `expiresInto` — nothing follows it in the
-catalog. Its `durationTurns: 1` is a countdown that `db/lib/dyingDeathPass.js`
-reads at the close (`TURN-ENGINE.md` §2 4b), which is why the arrow points at
-"dead" rather than at another tag.
+Dying is the one *tag* that isn't an `expiresInto` target — nothing follows it
+in the catalog. Its `durationTurns: 1` is a countdown that
+`db/lib/dyingDeathPass.js` reads at the close (`TURN-ENGINE.md` §2 4b). The
+three arrows that point straight at "dead" are the reserved token, below.
 
-Five turns from Infected to Dying, six to dead, and five to a lost limb — the
-two branches land together on purpose. It used to be nine, which was long enough that a
-player could ignore an infection for a week and a half and still find a doctor
-in time. Five is short enough to be a real problem and long enough that a
-doctor two zones away is still a plan.
+Four turns from Infected to Dying, five to dead, and three to a lost limb. It
+used to be nine, then six, and one turn is now one real day of somebody's life
+— long enough that a doctor in the next zone is a plan, short enough that
+ignoring a wound overnight is a decision rather than a rounding error. Note
+what the cut does to the two branches: the limb arrives first now, and the
+death branch two turns behind it.
 
 **Five wounds feed the chain, and three of them are a coin flip.** `deep-wound`,
 `severe-burns` and `grievous-wound` go septic for certain; `burned` splits
@@ -1511,7 +1515,47 @@ expiresInto: [festering]                    # one
 expiresInto: [feverish, necrosis]           # both, at once
 expiresInto:
   - oneOf: [missing-leg, missing-arm]       # a coin flip
+expiresInto: [dead]                         # this one kills at its own close
 ```
+
+### `dead`, the reserved token
+
+`dead` is the one entry in a chain that is **not a slug**. There is no such tag
+— death is a `Character.status`, not something you hold — and it means *this
+wound kills at its own close, with no Dying turn in between*. Three carry it:
+**Arterial Bleed**, **Phrygian Toxin** and **Crucified**. Blood spurting three
+feet out took two real days to finish somebody while they routed through Dying,
+which was one day too many for what the description promises.
+
+**Nothing new kills anyone**, and that is the point of how it is built.
+`tagExpiryPass.js` keeps its "only ever grants" invariant: on the token it
+grants **Dying stamped for the current turn** (`expiresTurn: turn.number`)
+rather than the next one. `dyingDeathPass.js` runs after it in `TURN_PASSES`
+and matches `expiresTurn <= turn.number`, so it does the killing in that same
+close, and the corpse, the role deletion and the side-effect thunk all come
+from the one place they always did.
+
+Four rules, enforced in `db/lib/tagShapes.js`:
+
+- **`expiresInto` only.** `removesInto` rejects it as an unknown tag, because
+  curing a wound must never be able to kill.
+- **It may be the whole chain, or one side of a `oneOf` coin flip**, but it may
+  not ride alongside another entry — entries all land at once, and there is
+  nobody left to hold the other one.
+- **The grant overwrites an existing Dying clock.** The pass writes these rows
+  one at a time instead of through `createMany({ skipDuplicates: true })`: a
+  character already on death's door with a later clock would otherwise have the
+  fatal row silently dropped and survive the close.
+- **Increased Recovery cannot stall it.** `chainReachesDying()` counts the
+  token, so Mercy slows the march but never cancels the arrival — the same rule
+  a chain into `dying` has always had.
+
+It is deliberately **YAML-only**: the GM tag form's `expiresInto` picker lists
+real slugs and does not offer it. A field that kills with no Dying turn in
+between should not be one click away in a modal.
+
+Choking keeps its `[dying]` on purpose. It is the one of the four where
+somebody hammering your back is a plausible save.
 
 `normalizeExpiresInto` normalises every entry to `{ oneOf: [...] }` — a bare
 slug is a pick of one — so the stored `Tag.expiresInto` Json, the pass, and
@@ -1540,7 +1584,8 @@ rules match the ones §5b lists for consuming, for the same reasons:
 
 - **A successor a character already holds is left completely alone**, its own
   clock included (`skipDuplicates`). Re-granting would silently reset a
-  condition they were most of the way through.
+  condition they were most of the way through. The `dead` token is the one
+  exception, and is written outside that batch for exactly this reason.
 - **A successor starts its own clock**, `turn.number + defaultDurationTurns`,
   the same absolute-turn expression every other writer uses. A successor with
   no catalog duration is granted permanent — which is what Missing Leg and
@@ -1548,17 +1593,22 @@ rules match the ones §5b lists for consuming, for the same reasons:
   `durationTurns: 1`, which is a countdown to death rather than to recovery.
 - **Nothing can fire twice in one pass.** Every duration is at least 1 and the
   sweep matches `expiresTurn <= turn.number`, so a tag granted while closing
-  turn N cannot also expire on turn N.
+  turn N cannot also expire on turn N. The `dead` token grants Dying *at* turn
+  N deliberately, and it is safe for the same reason stated a different way:
+  Dying has no `expiresInto`, so there is nothing for it to fire into.
 - **A dead character's sheet stops moving.** Their rows still get swept; they
   just don't progress into anything.
 
-**Nothing in the pass kills anyone** — but the chain no longer stops at
-`dying` either. Every terminal chain still lands there, and `dying` now
-carries `durationTurns: 1`: one turn on death's door, then
-`db/lib/dyingDeathPass.js` ends it at the next close, automatically
-(`TURN-ENGINE.md` §2 4b).
+**Nothing in the pass kills anyone** — not even a `dead` chain, which only
+moves a Dying clock forward by one turn. Every terminal chain still lands on
+`dying`, and `dying` carries `durationTurns: 1`: one turn on death's door,
+then `db/lib/dyingDeathPass.js` ends it at the next close, automatically
+(`TURN-ENGINE.md` §2 4b). What the token changes is only *which* close that
+is.
 
-That turn is the whole design. `dying` is visible and carries a tier-7 cure,
+That turn is the whole design, and three wounds are exempt from it on purpose
+(the `dead` token above) because their descriptions promise otherwise.
+`dying` is visible and carries a tier-7 cure,
 so a heroic save is still on the table — a medic with Medical (Expert), a
 Gambit, 14 ⬢ and one turn can pull someone back. What went away is the version
 where a character sat on death's door indefinitely because no GM had got to
