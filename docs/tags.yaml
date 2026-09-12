@@ -5254,6 +5254,20 @@ tags:
         - tag: horse
           keep: true
         - customOf: lavish-meal
+      skills: [arelitz]
+
+  # The gate on the whole family below, added 2026-09-11 — none of these four
+  # recipes carried a skill requirement at all before this, so anyone holding
+  # a horse and the ingredients could breed any of them.
+  arelitz:
+    catalog: all
+    name: Arelitz
+    category: skills
+    teachable: true
+    description: "You can breed a horse into one of its stranger, stronger forms."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
 
   # --- Arelitz — horse-hybrids bred with a graga sac, fish roe or plain ⬢.
   # Each recipe spends the horse; only Reproduction (above) keeps it.
@@ -5278,6 +5292,7 @@ tags:
       turnsCost: 1
       gambit: false
       items: [horse, graga-sac]
+      skills: [arelitz]
 
   arelitz-ovum:
     catalog: all
@@ -5300,6 +5315,7 @@ tags:
       turnsCost: 1
       gambit: false
       items: [horse, fish-roe]
+      skills: [arelitz]
 
   arelitz-thoroughbred:
     catalog: all
@@ -5323,6 +5339,7 @@ tags:
       resourceCost: 10
       gambit: false
       items: [horse]
+      skills: [arelitz]
 
   arelitz-egg:
     catalog: all
