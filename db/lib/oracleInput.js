@@ -133,11 +133,63 @@ function moveLine(action, name) {
   return `${bits.join(" | ")}\n  "${String(action.description ?? "").replace(/\s+/g, " ").trim()}"`;
 }
 
+// A StagedEffect's `appliedEffect` snapshot into one line, same posture as
+// db/lib/moveEffects.js#describeMoveEffects: short and deterministic rather
+// than prose, and silently skipping a key it doesn't recognise rather than
+// throwing — a shape this file hasn't been taught yet should read as nothing
+// worth reporting, not as a crash.
+function describeStagedEffect(snapshot) {
+  const bits = [];
+  if (Number.isInteger(snapshot?.resources) && snapshot.resources !== 0) {
+    bits.push(`${snapshot.resources > 0 ? "+" : ""}${snapshot.resources} ⬢`);
+  }
+  if (Number.isInteger(snapshot?.tagPoints) && snapshot.tagPoints !== 0) {
+    bits.push(`${snapshot.tagPoints > 0 ? "+" : ""}${snapshot.tagPoints} tag pts`);
+  }
+  if (Array.isArray(snapshot?.tags) && snapshot.tags.length) {
+    const granted = snapshot.tags.filter((t) => t.op === "add").map((t) => t.name);
+    const removed = snapshot.tags.filter((t) => t.op === "remove").map((t) => t.name);
+    if (granted.length) bits.push(`granted ${granted.join(", ")}`);
+    if (removed.length) bits.push(`removed ${removed.join(", ")}`);
+  }
+  if (snapshot?.location) bits.push("relocated");
+  if (snapshot?.transfer) bits.push(`${snapshot.transfer.amount} ⬢ transferred`);
+  return bits.join(", ");
+}
+
 // Load once, slice per zone. Six queries for the whole turn rather than six per
 // zone: the correspondents run in parallel and would otherwise stampede the
 // pool at exactly the moment turn rollover is already contending for it.
+// zoneId -> its seat zone's id, for every zone — not just the six seats.
+// Presence is finer than the seats a GM/correspondent is scoped to
+// (`db/lib/seatZone.js`): the two cave levels, `caves` and `depths`, are
+// CHILD zones of the seat `underground`, so `Character.zoneId` (and every
+// other zoneId this file reads) can legitimately read `caves` for a
+// character standing exactly where the Underground correspondent is meant to
+// see them.
+//
+// `seatZone.js`'s own comment claims every writer already stamps the seat id
+// on Action/StagedMessage rows, but the live data disagrees — most Action
+// rows carry the raw presence zoneId, only `db/lib/locationTravel.js:544`
+// actually calls `seatZoneIdFor`. So this file resolves defensively rather
+// than trust that invariant: every zoneId comparison below goes through this
+// map first. A future query that compares a raw `zoneId === zone.id` without
+// it will quietly lose the cave levels the same way this bug did.
+async function loadSeatByZoneId(prisma) {
+  const zones = await prisma.zone.findMany({ select: { id: true, seatZoneId: true } });
+  return new Map(zones.map((z) => [z.id, z.seatZoneId ?? z.id]));
+}
+
+// `seatByZoneId` is optional so this stays safe against a caller/fixture that
+// predates it and never built one; a map really is expected once `material`
+// comes from `loadTurnMaterial`.
+function resolveSeat(zoneId, seatByZoneId) {
+  return seatByZoneId?.get(zoneId) ?? zoneId;
+}
+
 async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
   const window = await turnWindow(prisma, turn);
+  const seatByZoneId = await loadSeatByZoneId(prisma);
 
   const characters = await prisma.character.findMany({
     where: { status: "ALIVE" },
@@ -162,7 +214,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
     },
   });
 
-  const [actions, auditRows, beats, chat] = await Promise.all([
+  const [actions, auditRows, beats, chat, stagedMessages, stagedEffects] = await Promise.all([
     // Moves go by the WINDOW too, not by turnId, and for a reason that only
     // shows up once the run moved to the cutoff: the auto-labor pass files a
     // Move for everybody who filed none, and it does that at the PUSH — three
@@ -222,6 +274,45 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
           select: { zoneId: true, characterName: true, concealedAlias: true, content: true },
         })
       : Promise.resolve([]),
+    // A GM's own turn narration — the tray a GM fills during adjudication,
+    // ADJUDICATION.md §1 — SENT by the window's push, same reasoning as the
+    // Move comment above: a message staged during N's three-hour window and
+    // sent at N's push is created after N's page exists, so it belongs to
+    // N+1's window and this is where it is caught. Read by sentAt, the same
+    // column stagedPush.js stamps once delivery is actually attempted, so a
+    // row still sitting in the tray (nothing pushed yet) is correctly
+    // invisible — the Oracle reports what happened, not what a GM is drafting.
+    //
+    // PUBLIC and PRIVATE are both read: a PRIVATE row went out as a DM, never
+    // through the room's own channel, so it never became a chat line or an
+    // ArchiveEntry at all — the Oracle had no other way to learn a landmine
+    // took someone's leg off if the only trace of it was a DM. This is a GM
+    // tool query, not a player-facing feed, so the privacy argument that keeps
+    // a PRIVATE staged message off chat and the archive does not apply here.
+    prisma.stagedMessage.findMany({
+      where: { sentAt: { gte: window.from, lt: window.to } },
+      select: {
+        kind: true,
+        content: true,
+        zoneId: true,
+        recipients: { select: { character: { select: { zoneId: true } } } },
+      },
+    }),
+    // The mechanical half of the same tray — a resource burn, a tag grant,
+    // a staged relocation (StagedEffect, ADJUDICATION.md §1). `appliedAt` is
+    // this row's own delivery stamp, so the window logic is identical to the
+    // narration query above. `targetCharacterId` is nullable only for a
+    // Room -> Room transfer (schema comment on the column), which has no zone
+    // of its own to land in and is dropped by describeStagedEffect below
+    // finding no character to place it against.
+    prisma.stagedEffect.findMany({
+      where: { appliedAt: { gte: window.from, lt: window.to } },
+      select: {
+        targetCharacterId: true,
+        appliedEffect: true,
+        targetCharacter: { select: { zoneId: true, name: true } },
+      },
+    }),
   ]);
 
   const names = {
@@ -234,7 +325,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
     if (character.discordUserId) names.byDiscordUserId.set(character.discordUserId, label);
   }
 
-  return { window, characters, actions, auditRows, beats, chat, names };
+  return { window, characters, actions, auditRows, beats, chat, stagedMessages, stagedEffects, seatByZoneId, names };
 }
 
 // The audit rows one zone's page is built from.
@@ -244,7 +335,7 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
 // Fortress before the turn closes — and it is the right approximation: the
 // alternative is a row appearing in no zone's input at all.
 function auditRowsForZone(material, zone) {
-  const here = material.characters.filter((c) => c.zoneId === zone.id);
+  const here = material.characters.filter((c) => resolveSeat(c.zoneId, material.seatByZoneId) === zone.id);
   const hereIds = new Set(here.map((c) => c.id));
   return material.auditRows.filter((row) => {
     const actor = here.find((c) => c.discordUserId === row.actorDiscordUserId);
@@ -283,16 +374,8 @@ function aggregatesSeenByZone(material, zones) {
 // The user message for one zone. `aggregatesSeen` is the once-a-turn lines some
 // other zone has already claimed (see above), so "hunger was charged" lands in
 // one zone's input rather than all six.
-//
-// The THIS TURN line is a fence, not decoration. PREVIOUS TURNS carries this
-// zone's own earlier pages, which are finished prose about events that already
-// have a page — and without a marker between them and the roster, the block
-// read as one undivided context, so a correspondent could report last turn's
-// events again as this turn's. The editor always had that seam (runEditor's
-// `THIS TURN (n)`, oracle.js) and the correspondent did not. Both prompts name
-// the marker now, so moving or renaming it means editing them too.
-function zoneBlock(material, zone, { aggregatesSeen, memory = [], turnNumber = null }) {
-  const here = material.characters.filter((c) => c.zoneId === zone.id);
+function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
+  const here = material.characters.filter((c) => resolveSeat(c.zoneId, material.seatByZoneId) === zone.id);
   const hereIds = new Set(here.map((c) => c.id));
 
   const roster = here.map((character) => {
@@ -306,31 +389,58 @@ function zoneBlock(material, zone, { aggregatesSeen, memory = [], turnNumber = n
   });
 
   const moves = material.actions
-    .filter((action) => hereIds.has(action.characterId) || action.zoneId === zone.id)
+    .filter(
+      (action) =>
+        hereIds.has(action.characterId) || resolveSeat(action.zoneId, material.seatByZoneId) === zone.id,
+    )
     .map((action) => moveLine(action, material.names.byCharacterId.get(action.characterId) ?? "somebody"));
 
   const auditLines = auditLinesFor(auditRowsForZone(material, zone), material.names, aggregatesSeen);
 
-  const beats = material.beats.filter((b) => b.zoneId === zone.id).map((b) => `${b.kind} | ${b.content}`);
+  const beats = material.beats
+    .filter((b) => resolveSeat(b.zoneId, material.seatByZoneId) === zone.id)
+    .map((b) => `${b.kind} | ${b.content}`);
+
+  // A GM's own turn narration and its mechanical effects (StagedMessage/
+  // StagedEffect, loaded in the window above). A PUBLIC message lands by its
+  // own zoneId; a PRIVATE one — a DM with no room trace at all — lands by
+  // wherever its recipient(s) are NOW, the same live-position approximation
+  // auditRowsForZone above already makes for an audit row with no zone of its
+  // own. One line per message even with several recipients here, since it is
+  // one thing that was said, not one per reader.
+  const staged = [
+    ...(material.stagedMessages ?? [])
+      .filter(
+        (m) =>
+          resolveSeat(m.zoneId, material.seatByZoneId) === zone.id ||
+          (m.recipients ?? []).some((r) => resolveSeat(r.character?.zoneId, material.seatByZoneId) === zone.id),
+      )
+      .map((m) => `${m.kind} | ${m.content}`),
+    ...(material.stagedEffects ?? [])
+      .filter((e) => resolveSeat(e.targetCharacter?.zoneId, material.seatByZoneId) === zone.id)
+      .map((e) => [e.targetCharacter?.name ?? "somebody", describeStagedEffect(e.appliedEffect)])
+      .filter(([, line]) => line)
+      .map(([name, line]) => `${name}: ${line}`),
+  ];
 
   const chat = material.chat
-    .filter((m) => m.zoneId === zone.id)
+    .filter((m) => resolveSeat(m.zoneId, material.seatByZoneId) === zone.id)
     .map((m) => `${m.concealedAlias ?? m.characterName ?? "someone"}: ${m.content}`);
 
   const sections = [
     `ZONE: ${zone.name}`,
     memory.length ? `PREVIOUS TURNS\n${memory.join("\n\n")}` : null,
-    memory.length ? (turnNumber == null ? "THIS TURN" : `THIS TURN (${turnNumber})`) : null,
     roster.length ? `PRESENT (${roster.length})\n${roster.join("\n")}` : "PRESENT\nNobody.",
     moves.length ? `MOVES\n${moves.join("\n")}` : null,
     auditLines.length ? `EVENTS\n${auditLines.join("\n")}` : null,
+    staged.length ? `STAGED\n${staged.join("\n")}` : null,
     beats.length ? `NOTABLE\n${beats.join("\n")}` : null,
     chat.length ? `CHAT\n${chat.join("\n")}` : null,
   ].filter(Boolean);
 
   return {
     text: sections.join("\n\n"),
-    counts: { present: roster.length, moves: moves.length, events: auditLines.length + beats.length },
+    counts: { present: roster.length, moves: moves.length, events: auditLines.length + beats.length + staged.length },
   };
 }
 
@@ -389,4 +499,6 @@ module.exports = {
   loadTurnMaterial,
   zoneBlock,
   linkCharacterTokens,
+  describeStagedEffect,
+  resolveSeat,
 };
