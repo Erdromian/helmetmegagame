@@ -3524,9 +3524,9 @@ tags:
     name: Fertilized Fields
     category: status
     group: status-buffs
-    description: "Your fields are richly fed. Farming produces +4 ⬢."
+    description: "Your fields are richly fed. Farming produces +8 ⬢."
     pointCost: 0
-    laborBonus: { kind: farming, amount: 4, equipped: false }
+    laborBonus: { kind: farming, amount: 8, equipped: false }
     visible: false
     purchasable: false
     purchasableAfterStart: false
