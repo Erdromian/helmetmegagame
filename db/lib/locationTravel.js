@@ -27,10 +27,13 @@ const { expiryForGrant } = require("./grantExpiry");
 const { addToStack } = require("./tagWrites");
 const { sendDm } = require("./dm");
 
-// Legs too badly hurt to walk a whole zone for free. A Peg Leg is absent on
-// purpose — Bascinet's call, a wooden leg still walks. An equipped mount
-// cancels every one of these, because the horse is doing the walking.
-const LAMED_SLUGS = new Set(["crippled-leg", "missing-leg", "sprained-ankle"]);
+// Too hurt, or too dazed, to make a whole zone's walk for free. Three are
+// legs — a Peg Leg is absent on purpose, Bascinet's call, a wooden leg still
+// walks — and Pain Shock joins them for the other reason: not injured enough
+// to stop you, just too out of it to find your own way anywhere. An equipped
+// mount cancels every one of these, because the horse is doing the walking
+// (or, for Pain Shock, the finding).
+const LAMED_SLUGS = new Set(["crippled-leg", "missing-leg", "sprained-ankle", "pain-shock", "cripple"]);
 
 const CHARACTER_SELECT = {
   id: true,

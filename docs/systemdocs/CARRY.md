@@ -186,6 +186,12 @@ crossing per *day*. Now:
   crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
   walking any number of people is free.
 - Overburdened sets the allowance to **0**.
+- A **lamed** character's allowance is also 0 — a leg too hurt to carry you
+  (`crippled-leg`, `cripple`, `missing-leg`, `sprained-ankle`) or too dazed to
+  find your way (`pain-shock`). `LAMED_SLUGS` in `db/lib/locationTravel.js`.
+  A mount cancels it outright — the horse does the walking — and it's the
+  free crossing that's gone, not the ability to cross: pay the Move, or have
+  someone Escort you.
 - Past the allowance, a crossing files the `MOVE` Action as it always did.
   Once you have acted, you cannot cross.
 - A **free** crossing lands at once. A **paid** one is a day's walk and only
