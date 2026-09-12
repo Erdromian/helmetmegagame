@@ -11,7 +11,7 @@ const test = require("node:test");
 const assert = require("node:assert");
 
 const { auditLinesFor, INCLUDED } = require("../lib/oracleAudit");
-const { windowBetween, linkCharacterTokens, aggregatesSeenByZone } = require("../lib/oracleInput");
+const { windowBetween, linkCharacterTokens, aggregatesSeenByZone, zoneBlock } = require("../lib/oracleInput");
 const { moveCutoffAt } = require("../lib/turnClock");
 const { cutoffDecision } = require("../lib/oracleCutoff");
 const { splitEditorReply, correspondentPrompt, editorPrompt } = require("../lib/oraclePrompts");
@@ -462,4 +462,64 @@ test("a THREADS line dressed as a heading is not the separator", () => {
   const { body, threads } = splitEditorReply("The turn.\n\n### THREADS\nA | B");
   assert.equal(threads.length, 0);
   assert.match(body, /### THREADS/);
+});
+
+// The fence between an earlier page and this turn's rows. Without it the zone
+// block read as one undivided context and a correspondent could report last
+// turn's events again as this turn's — which is what both prompts' CONTINUITY
+// blocks now name the marker to prevent.
+
+function blockMaterial() {
+  return {
+    characters: [{ id: "c1", zoneId: "z1", name: "Ada Vance" }],
+    actions: [],
+    auditRows: [],
+    beats: [],
+    chat: [],
+    names: { byCharacterId: new Map([["c1", "Ada Vance"]]), byDiscordUserId: new Map() },
+  };
+}
+
+const ZONE = { id: "z1", name: "Town" };
+
+test("a remembered page is fenced off from this turn's rows", () => {
+  const { text } = zoneBlock(blockMaterial(), ZONE, {
+    aggregatesSeen: new Set(),
+    memory: ["[turn 11]\nThe gatehouse stayed shut."],
+    turnNumber: 12,
+  });
+
+  assert.match(text, /PREVIOUS TURNS/);
+  // The marker sits BETWEEN the remembered page and the roster, or it fences
+  // nothing.
+  assert.ok(text.indexOf("PREVIOUS TURNS") < text.indexOf("THIS TURN (12)"));
+  assert.ok(text.indexOf("THIS TURN (12)") < text.indexOf("PRESENT"));
+});
+
+test("a turn with nothing remembered gets no dangling marker", () => {
+  // Nothing to fence off, so the marker would only be a heading over the whole
+  // block — and the first page of a game is the common case, not a rare one.
+  const { text } = zoneBlock(blockMaterial(), ZONE, {
+    aggregatesSeen: new Set(),
+    memory: [],
+    turnNumber: 1,
+  });
+
+  assert.doesNotMatch(text, /THIS TURN/);
+  assert.doesNotMatch(text, /PREVIOUS TURNS/);
+});
+
+test("both prompts name the marker the block actually writes", () => {
+  // The prompts point at THIS TURN by name, so renaming the section in
+  // zoneBlock without editing them would leave the fence unexplained.
+  const { text } = zoneBlock(blockMaterial(), ZONE, {
+    aggregatesSeen: new Set(),
+    memory: ["[turn 11]\nThe gatehouse stayed shut."],
+    turnNumber: 12,
+  });
+
+  assert.match(text, /^THIS TURN \(12\)$/m);
+  assert.match(correspondentPrompt({}), /THIS TURN/);
+  assert.match(correspondentPrompt({}), /PREVIOUS TURNS/);
+  assert.match(editorPrompt({}), /THIS TURN/);
 });

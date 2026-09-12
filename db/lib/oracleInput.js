@@ -283,7 +283,15 @@ function aggregatesSeenByZone(material, zones) {
 // The user message for one zone. `aggregatesSeen` is the once-a-turn lines some
 // other zone has already claimed (see above), so "hunger was charged" lands in
 // one zone's input rather than all six.
-function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
+//
+// The THIS TURN line is a fence, not decoration. PREVIOUS TURNS carries this
+// zone's own earlier pages, which are finished prose about events that already
+// have a page — and without a marker between them and the roster, the block
+// read as one undivided context, so a correspondent could report last turn's
+// events again as this turn's. The editor always had that seam (runEditor's
+// `THIS TURN (n)`, oracle.js) and the correspondent did not. Both prompts name
+// the marker now, so moving or renaming it means editing them too.
+function zoneBlock(material, zone, { aggregatesSeen, memory = [], turnNumber = null }) {
   const here = material.characters.filter((c) => c.zoneId === zone.id);
   const hereIds = new Set(here.map((c) => c.id));
 
@@ -312,6 +320,7 @@ function zoneBlock(material, zone, { aggregatesSeen, memory = [] }) {
   const sections = [
     `ZONE: ${zone.name}`,
     memory.length ? `PREVIOUS TURNS\n${memory.join("\n\n")}` : null,
+    memory.length ? (turnNumber == null ? "THIS TURN" : `THIS TURN (${turnNumber})`) : null,
     roster.length ? `PRESENT (${roster.length})\n${roster.join("\n")}` : "PRESENT\nNobody.",
     moves.length ? `MOVES\n${moves.join("\n")}` : null,
     auditLines.length ? `EVENTS\n${auditLines.join("\n")}` : null,

@@ -387,6 +387,24 @@ get from a spreadsheet.
 
 It reads `body`, which is **the edited text where a GM has rewritten one**.
 
+**The memory is fenced, and for a while only half of it was.** A remembered page
+is finished prose about events that already have a page, so it sits in its own
+labelled block — `PREVIOUS TURNS` for a zone, `PREVIOUS FRONT PAGES` for the
+editor — followed by a `THIS TURN (n)` marker, and both prompts carry a
+CONTINUITY block saying the earlier pages are there to show what has been
+building and are not facts about this turn.
+
+The editor had both from the start. The correspondent had neither: its memory
+block ran straight into `PRESENT` with no marker between them, and its prompt
+never mentioned the earlier pages at all while telling it that *every sentence
+must trace to a row you were given* — which a `PREVIOUS TURNS` block plainly is.
+So a zone page could report last turn's events a second time as this turn's, and
+nothing in the input or the instructions said otherwise. The marker is written by
+`oracleInput.js#zoneBlock` only when there is memory to fence off, since the
+first turn of a game has none and a bare heading over the whole block fences
+nothing. Both prompts name it, so renaming the section means editing them too;
+three tests in `db/test/oracle.test.js` hold the order and that pairing.
+
 That is the entire correction mechanism. **There is no regenerate.** If a page
 is wrong, a GM rewrites it, and:
 
