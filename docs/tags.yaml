@@ -10379,6 +10379,26 @@ tags:
       mood: 30
     sellable: true
     sellablePrice: 6
+
+  canned-crabmeat:
+    catalog: all
+    name: Canned Crabmeat
+    category: items
+    group: items-food
+    description: "A can of food, labeled VOLGOGA CRAB. It smells fishy. The label has a faded drawing of a crab."
+    pointCost: 0
+    depotPrice: 2
+    tradeable: true
+    weight: 1
+    stackable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [ate-meal]
+    sellable: true
+    sellablePrice: 1
+
   fine-meal:
     catalog: all
     name: Fine Meal
