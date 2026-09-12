@@ -8246,8 +8246,11 @@ tags:
     equippable: true
     equipSlot: ACCESSORY
     sellable: true
-    sellablePrice: 15
-    depotPrice: 25
+    # Nerfed (Bascinet, 2026-09-11): the Merchant's price came down to 6 ⬢,
+    # and sellablePrice moves with it — must stay below depotPrice or buying
+    # and selling in a loop prints Resources (db/lib/syncTags.js).
+    sellablePrice: 3
+    depotPrice: 6
 
   suspicious-game-set:
     catalog: all
