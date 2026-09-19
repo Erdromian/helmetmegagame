@@ -1098,18 +1098,40 @@ them:
 
 - **The charset is `kenney_1bit_16`, 32x32 glyphs of 16px**, vendored at
   `docs/assets/maps/charset/`. It is pure white on transparency, so a glyph is
-  a 1-bit mask; the build packs only the ~130 glyphs a map actually uses into
-  the JSON as base64 rather than shipping a cropped atlas PNG. `'0'` is glyph
-  947 and `'A'` is 979 — read off the sheet, not assumed.
+  a 1-bit mask; the build packs only the glyphs a map actually uses into the
+  JSON as base64 rather than shipping a cropped atlas PNG. `'0'` is glyph 947
+  and `'A'` is 979 — read off the sheet, not assumed.
+- **The transforms are BAKED INTO THOSE MASKS**, one slot per (glyph,
+  rotation) pair in use, and the compiled cell is `[index, slot, channel]`
+  with no rotation left in it. Playscii's transform table therefore exists
+  exactly once, in `scripts/map/build-maps.js`. It is written down that way
+  because the first renderer kept its own copy with two cases transposed and
+  turned 79 of `barony1`'s cells — most of them cave wall — the wrong way
+  round. Baking costs 141 slots instead of 106 glyphs, about 4.5KB. **A
+  renderer that cannot rotate cannot rotate wrongly**; do not reintroduce a
+  runtime transform.
 - **The palette is 1-indexed**, slot 0 being Playscii's transparent one. The
-  five channels are indices 1, 2, 3, 12 and 13. **36 cells on `barony1` are
-  painted with slot 0 as a foreground**, which is almost certainly a slip of
-  the brush; the build reports them as the `unset` channel rather than
-  silently dropping or guessing them.
+  five channels are indices 1, 2, 3, 12 and 13, and `nodes.yaml` deliberately
+  maps **no** channel to slot 0 — an unmapped slot is reported, never drawn.
+  That is not fussiness: slot 0 was briefly given a channel of its own, which
+  painted 34 house glyphs nobody had drawn on purpose across the east side of
+  Town. They were only in the file because a transparent foreground is
+  invisible in Playscii, so nothing ever showed the mistake.
 - **Glyph 168 is a solid block**, and it is what the rock is painted with —
-  710 cells of `barony2` alone. That is the "wallage" the vignette exists to
+  689 cells of `barony2` alone. That is the "wallage" the vignette exists to
   thin out. The renderer fades it by *coverage*, dithering the block down
   toward nothing, not by dimming it to a flat wash.
+
+**Anything under that block is invisible in Playscii and not in the browser**,
+because the vignette thins the rock until whatever was buried shows through.
+The build **reports** those cells; it deliberately does not cull them. The
+obvious rule — drop everything under an opaque glyph — would have thrown away
+the **rust river** at the east end of `barony1` (19 `heat` cells at x 33-38,
+y 16-23), which is buried in the rock on purpose and is meant to read through
+the stone as it thins. `npm run map:scrub` is the tidy-up for the rest: it
+clears transparent-slot glyphs and buried cells from the masters, keeps the
+`heat` ones, matches every cell's exact contents before touching it, and is a
+dry run unless given `-- --apply`.
 
 `Zone.mapPolygon` / `mapLabelX` / `mapLabelY` stay as dead as §6d leaves them;
 none of this reads them.

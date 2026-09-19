@@ -40,12 +40,21 @@ const OUT = path.join(ROOT, "web", "public", "assets", "maps");
 const CHARSET_PNG = path.join(SRC, "charset", "kenney_1bit_16.png");
 const CHARSET_META = path.join(SRC, "charset", "kenney_1bit_16.char");
 
-// Playscii's eight per-cell transforms. Verified against Bascinet's own
-// screenshots rather than taken from the source: rendering every candidate
-// ordering and correlating with the screenshot picks this one, and each value
-// independently prefers itself. In practice xform 7 carries ~99% of the
-// transformed cells and they are almost all the solid rock block, which is
-// symmetric — so only the cave-edge pieces (168-171) really depend on this.
+// Playscii's eight per-cell transforms, indexed [row][col].
+//
+// THIS IS THE ONLY COPY, and it stays that way on purpose. The transforms are
+// BAKED INTO THE PACKED MASKS below, so a cell in the compiled JSON points at
+// an already-rotated glyph and no renderer ever applies one. The first web
+// renderer written against this data did carry its own copy, transposed cases
+// 1 and 3 against this table, and turned 79 of barony1's cells — most of them
+// the cave-edge pieces 169-171 — the wrong way round. Baking costs 144 mask
+// slots instead of 106 on barony1, about 4.5KB, and makes that unrepresentable.
+//
+// Verified against Bascinet's own screenshots rather than read off Playscii's
+// source: for every cell whose only content is one glyph, score all eight
+// candidates against the screenshot by intersection-over-union and take the
+// best. Stored 0 resolves to 0 (33 samples), 3 to 3, 4 to 4 (10), 6 to 6 (7),
+// with no disagreement.
 const XFORM = {
   0: (m, x, y, n) => m[y][x],
   1: (m, x, y, n) => m[n - 1 - x][y], // rotate 90
@@ -56,6 +65,11 @@ const XFORM = {
   6: (m, x, y, n) => m[x][y], // transpose
   7: (m, x, y, n) => m[n - 1 - x][n - 1 - y], // anti-transpose
 };
+
+// The solid block the rock is painted with, and the only fully-opaque glyph
+// either map uses. Anything under it is invisible in Playscii but NOT in a
+// renderer that fades the rock, so the build says so — see `buried` below.
+const ROCK_GLYPH = 168;
 
 // 1-9 then A-Z, which is how a node's system code is drawn. The charset puts
 // '0' at 947, so the digits run 947-956; the letters start at 979. Both were
@@ -177,9 +191,19 @@ function compileMap(id, spec, table, cs) {
   const unknownFg = new Map();
 
   // --- the art. Layer 5 (index 4) is the node layer and is never drawn.
-  const used = new Set();
+  // A cell is [index, slot, channel]: `slot` already carries the transform,
+  // so there is nothing left for a renderer to rotate.
+  const used = new Set(); // "<char>:<xform>"
   const artLayers = [];
   let voidChannel = null;
+  const rockAt = [];
+  for (let li = 0; li < 4; li++) {
+    rockAt.push(new Set());
+    for (let i = 0; i < layers[li].tiles.length; i++) {
+      if (layers[li].tiles[i].char === ROCK_GLYPH) rockAt[li].add(i);
+    }
+  }
+  const buried = [];
   for (let li = 0; li < 4; li++) {
     const cells = [];
     for (let i = 0; i < layers[li].tiles.length; i++) {
@@ -188,8 +212,11 @@ function compileMap(id, spec, table, cs) {
       if (!t.char) continue;
       const ch = channelOf[t.fg];
       if (ch === undefined) unknownFg.set(t.fg, (unknownFg.get(t.fg) ?? 0) + 1);
-      used.add(t.char);
-      cells.push([i, t.char, ch ?? `fg${t.fg}`, t.xform]);
+      for (let above = li + 1; above < 4; above++) {
+        if (rockAt[above].has(i)) { buried.push([i % W, Math.floor(i / W), ch ?? `fg${t.fg}`]); break; }
+      }
+      used.add(`${t.char}:${t.xform}`);
+      cells.push([i, `${t.char}:${t.xform}`, ch ?? `fg${t.fg}`]);
     }
     artLayers.push(cells);
   }
@@ -244,24 +271,36 @@ function compileMap(id, spec, table, cs) {
     slugs.set(n.slug, n.name);
   }
 
-  // --- the glyphs actually used, as a packed 1-bit mask
-  const order = [...used].sort((a, b) => a - b);
+  // --- the glyphs actually used, transformed, as a packed 1-bit mask
+  const order = [...used].sort();
   const index = {};
-  const bits = Buffer.alloc(order.length * ((cs.cell * cs.cell) / 8));
-  order.forEach((g, slot) => {
-    index[g] = slot;
+  const N = cs.cell;
+  const bits = Buffer.alloc(order.length * ((N * N) / 8));
+  order.forEach((key, slot) => {
+    index[key] = slot;
+    const [g, t] = key.split(":").map(Number);
     const m = glyphMask(cs, g);
-    const base = slot * ((cs.cell * cs.cell) / 8);
-    for (let y = 0; y < cs.cell; y++) {
-      for (let x = 0; x < cs.cell; x++) {
-        if (!m[y][x]) continue;
-        const bit = y * cs.cell + x;
+    const fn = XFORM[t] ?? XFORM[0];
+    const base = slot * ((N * N) / 8);
+    for (let y = 0; y < N; y++) {
+      for (let x = 0; x < N; x++) {
+        if (!fn(m, x, y, N)) continue;
+        const bit = y * N + x;
         bits[base + (bit >> 3)] |= 0x80 >> (bit & 7);
       }
     }
   });
+  // Re-key the cells onto slot numbers now that every key has one.
+  for (const cells of artLayers) for (const c of cells) c[1] = index[c[1]];
 
   nodes.sort((a, b) => (a.zone === b.zone ? a.code.localeCompare(b.code) : a.zone.localeCompare(b.zone)));
+
+  // Which slots ARE the solid rock block, in every orientation it was painted
+  // in. The renderer stipples these as the vignette thins them, and it can no
+  // longer ask "is this glyph 168" because cells carry slots now.
+  const stoneSlots = order
+    .map((key, slot) => (Number(key.split(":")[0]) === (table.stoneBlock ?? ROCK_GLYPH) ? slot : -1))
+    .filter((s) => s >= 0);
 
   return {
     doc: {
@@ -271,13 +310,14 @@ function compileMap(id, spec, table, cs) {
       h: H,
       cell: cs.cell,
       voidChannel: voidChannel ?? "void",
-      stoneBlock: table.stoneBlock ?? null,
+      stoneSlots,
       glyphs: { cell: cs.cell, count: order.length, index, bits: bits.toString("base64") },
       layers: artLayers,
       nodes,
     },
     problems,
     unknownFg,
+    buried,
   };
 }
 
@@ -296,7 +336,7 @@ function main() {
 
   let failed = false;
   for (const [id, spec] of Object.entries(table.maps)) {
-    const { doc, problems, unknownFg } = compileMap(id, spec, table, cs);
+    const { doc, problems, unknownFg, buried } = compileMap(id, spec, table, cs);
     const outPath = path.join(OUT, `${id}.json`);
     fs.writeFileSync(outPath, JSON.stringify(doc));
 
@@ -316,6 +356,17 @@ function main() {
     }
     for (const [fg, n] of unknownFg) {
       console.warn(`         note: ${n} cells painted with palette slot ${fg}, which nodes.yaml does not map to a channel`);
+    }
+    // Not culled on purpose: the rust river at the east end of barony1 is
+    // buried rock-side and Bascinet wants it reading through the stone. A
+    // rule that dropped every buried cell would drop the river too, so this
+    // only says what is down there. `npm run map:scrub` is the tidy-up.
+    if (buried.length) {
+      const what = {};
+      for (const b of buried) what[b[2]] = (what[b[2]] ?? 0) + 1;
+      console.warn(`         note: ${buried.length} cells sit under solid rock and only show once the vignette thins it ` +
+        `(${Object.entries(what).map(([c, n]) => `${c} ${n}`).join(", ")}) — ` +
+        `${buried.slice(0, 6).map((b) => `(${b[0]},${b[1]})`).join(" ")}${buried.length > 6 ? " …" : ""}`);
     }
     for (const p of problems) {
       console.error(`         ERROR ${p}`);

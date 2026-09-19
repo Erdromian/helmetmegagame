@@ -1522,56 +1522,50 @@
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
-      },
-      {
-       "bg": 1,
-       "char": 0,
-       "fg": 2,
        "xform": 0
       },
       {
@@ -1756,21 +1750,27 @@
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
+       "fg": 2,
+       "xform": 0
+      },
+      {
+       "bg": 1,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
@@ -1810,9 +1810,9 @@
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
@@ -1858,9 +1858,9 @@
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
@@ -2056,9 +2056,9 @@
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
@@ -2302,21 +2302,21 @@
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
@@ -2548,21 +2548,21 @@
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
@@ -3232,9 +3232,9 @@
       },
       {
        "bg": 1,
-       "char": 168,
+       "char": 0,
        "fg": 12,
-       "xform": 7
+       "xform": 0
       },
       {
        "bg": 1,
@@ -11831,7 +11831,7 @@
       }
      ],
      "visible": 1,
-     "z": 0.0
+     "z": 0
     },
     {
      "name": "Layer 0",
@@ -17742,7 +17742,7 @@
       }
      ],
      "visible": 1,
-     "z": 0.0
+     "z": 0
     },
     {
      "name": "Layer 4",
@@ -23653,7 +23653,7 @@
       }
      ],
      "visible": 1,
-     "z": 0.0
+     "z": 0
     },
     {
      "name": "Layer 5",
@@ -29564,7 +29564,7 @@
       }
      ],
      "visible": 1,
-     "z": 0.0
+     "z": 0
     }
    ]
   }

@@ -12,19 +12,22 @@
 
 # Playscii palette index -> the semantic channel the renderer paints it with.
 # The colour itself is a CSS token, decided per theme at render time — the art
-# never carries a hex. Index 0 is the palette's transparent slot; 35 cells on
-# barony1 are painted with it (see `unset` in the build report), which is
-# almost certainly a slip of the brush rather than a choice.
+# never carries a hex.
+#
+# Index 0 is DELIBERATELY ABSENT: it is Playscii's transparent slot and draws
+# nothing. Mapping it to a channel once put 34 phantom houses on the eastern
+# side of town, which nobody had drawn on purpose. An unmapped slot is
+# reported by the build, so a stray one gets noticed rather than painted.
 channels:
-  0: unset
   1: void      # the background black
   2: lit       # white — the foreground detail
   3: heat      # rust — water, forge-light, the lake
   12: stone    # the rock, and the solid fill around the carved map
   13: filler   # grey — secondary decoration
 
-# Glyph 168 is the solid block the rock is painted with. The vignette needs to
-# know it to fade the rock out; nothing else treats it specially.
+# Glyph 168 is the solid block the rock is painted with, and the only
+# fully-opaque glyph in either map. The vignette needs to know it to fade the
+# rock out, and the build uses it to spot cells buried underneath it.
 stoneBlock: 168
 
 maps:
