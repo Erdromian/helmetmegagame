@@ -1027,6 +1027,11 @@ double-click and Enter read.
 
 ### 6d. The plate
 
+**This section describes the plate `/map` draws today, and it is on its way
+out — see §6f for the two Playscii plates replacing it.** Nothing in §6f is
+wired into `MapBoard.js` yet, so everything below is still true of the running
+board.
+
 `docs/assets/map-nodes.json` places every Location on the art in image pixels,
 read at runtime through `web/lib/mapNodes.js` (the `web/lib/handbook.js`
 pattern, `docsPath()` rather than `__dirname`). A Location the table does not
@@ -1049,6 +1054,65 @@ rims, the cores, the ways — is tokens all the way down.
 
 `Zone.mapPolygon` / `mapLabelX` / `mapLabelY` are still there and still always
 null: they described the retired panel's four rhombi, and nothing reads them.
+
+### 6f. The two Playscii plates
+
+**The world went underground, and the map was redrawn for it.** There are two
+plates now, both authored in [Playscii](http://vectorpoem.com/playscii/) and
+both committed under `docs/assets/maps/`:
+
+| Plate | Holds | Later |
+|---|---|---|
+| `barony1.psci` | Town, Fortress, Black Hills | Caves, placed in the rock |
+| `barony2.psci` | Undertown | The Depths, placed in the rock |
+
+Wilderness is gone as a zone — it was folded into Black Hills, which is why
+that zone's codes `6`-`A` are `recode`d in the node table rather than
+repainted in the art.
+
+**The `.psci` is the master and nothing exports a PNG any more.** §6d's plate
+was a raster with a parallel table of pixel coordinates, which is what forced
+`make-map-river.py` into existence: the art carried one hardcoded accent
+(`#57a9bc`) and the only way to theme it was to cut it out to an alpha mask.
+`npm run map:build` (`scripts/map/build-maps.js`) compiles both `.psci` files
+into `web/public/assets/maps/<id>.json`, and two things fall out of that:
+
+- **Every cell names a CHANNEL, not a colour.** `void`, `stone`, `lit`,
+  `heat`, `filler` — mapped from the Playscii palette index by
+  `docs/assets/maps/nodes.yaml`. The colour is a CSS token chosen at render
+  time, so the whole plate follows the theme and the river hack retires with
+  it.
+- **Node positions come out of the drawing.** Layer 5 of each map is a hidden
+  layer of markers: the glyph is the location's system code (`1`-`9`, then
+  `A`-`Z`) and the marker's *colour* is its zone. Nothing keeps a pixel
+  coordinate by hand. `nodes.yaml` only says what each code is called.
+
+The build fails loudly on a marker with no entry in the table, an entry with
+no marker, a duplicate code in a zone, or a marker colour the table does not
+name. Adding Caves is one more `- fg:` group in `nodes.yaml` once the markers
+are painted — no code change.
+
+Three details are worth writing down because they were established by
+measurement, not by reading a spec, and a future change could quietly undo
+them:
+
+- **The charset is `kenney_1bit_16`, 32x32 glyphs of 16px**, vendored at
+  `docs/assets/maps/charset/`. It is pure white on transparency, so a glyph is
+  a 1-bit mask; the build packs only the ~130 glyphs a map actually uses into
+  the JSON as base64 rather than shipping a cropped atlas PNG. `'0'` is glyph
+  947 and `'A'` is 979 — read off the sheet, not assumed.
+- **The palette is 1-indexed**, slot 0 being Playscii's transparent one. The
+  five channels are indices 1, 2, 3, 12 and 13. **36 cells on `barony1` are
+  painted with slot 0 as a foreground**, which is almost certainly a slip of
+  the brush; the build reports them as the `unset` channel rather than
+  silently dropping or guessing them.
+- **Glyph 168 is a solid block**, and it is what the rock is painted with —
+  710 cells of `barony2` alone. That is the "wallage" the vignette exists to
+  thin out. The renderer fades it by *coverage*, dithering the block down
+  toward nothing, not by dimming it to a flat wash.
+
+`Zone.mapPolygon` / `mapLabelX` / `mapLabelY` stay as dead as §6d leaves them;
+none of this reads them.
 
 ### 6e. The board on a phone
 

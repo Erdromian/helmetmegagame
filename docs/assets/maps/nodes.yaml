@@ -1,0 +1,107 @@
+# The map's node table.
+#
+# The ART is authored in Playscii, in the .psci files beside this one. Every
+# location is a marker on the hidden LAYER 5 of its map: the glyph is the
+# location's system code (1-9, then A-Z) and the marker's COLOUR says which
+# zone it belongs to. So the drawing owns where a place is, and this file owns
+# what it is called. Nothing keeps a pixel coordinate by hand any more.
+#
+# `npm run map:build` reads both, and fails loudly on a marker with no entry
+# here, an entry with no marker, a duplicate code, or a colour this file does
+# not name. See docs/systemdocs/MAP.md.
+
+# Playscii palette index -> the semantic channel the renderer paints it with.
+# The colour itself is a CSS token, decided per theme at render time — the art
+# never carries a hex. Index 0 is the palette's transparent slot; 35 cells on
+# barony1 are painted with it (see `unset` in the build report), which is
+# almost certainly a slip of the brush rather than a choice.
+channels:
+  0: unset
+  1: void      # the background black
+  2: lit       # white — the foreground detail
+  3: heat      # rust — water, forge-light, the lake
+  12: stone    # the rock, and the solid fill around the carved map
+  13: filler   # grey — secondary decoration
+
+# Glyph 168 is the solid block the rock is painted with. The vignette needs to
+# know it to fade the rock out; nothing else treats it specially.
+stoneBlock: 168
+
+maps:
+  barony1:
+    file: barony1.psci
+    name: The Barony
+    # Caves go here later, in the rock, as a fifth marker colour. Adding them
+    # is one more `- fg:` group below — no code change.
+    groups:
+      - fg: 7
+        zone: town
+        nodes:
+          "1": Gatehouse
+          "2": Square
+          "3": Soilery
+          "4": { name: Cathedral, slug: cathedral }
+          "5": Alleys
+          "6": Smithies
+          "7": Inn
+          "8": Residences
+          "9": { name: Sanctuary, slug: sanctuary }
+          "A": Graveyard
+
+      - fg: 6
+        zone: fortress
+        nodes:
+          "1": { name: Garrison, slug: garrison }
+          "2": Gatehouse
+          "3": Court
+          "4": { name: Keep, slug: keep }
+          "5": Tower
+
+      # Black Hills, first half — these keep the codes they are drawn with.
+      - fg: 8
+        zone: black-hills
+        nodes:
+          "1": Bridge
+          "2": West River
+          "3": Shadows
+          "4": Refuse Pit
+          "5": East River
+
+      # The old Wilderness, folded into Black Hills. The markers are still
+      # drawn with their original codes, so `recode` renumbers them onto the
+      # back of the first half rather than making anybody repaint the art.
+      - fg: 10
+        zone: black-hills
+        recode: { "2": "6", "4": "7", "5": "8", "9": "9", "3": "A" }
+        nodes:
+          "6": { name: Gullies, slug: hills-gullies }
+          "7": { name: Underlocks, slug: hills-underlocks }
+          "8": { name: Grand Ravine, slug: hills-grand-ravine }
+          "9": { name: Cliffs, slug: hills-cliffs }
+          "A": { name: Godard Factory, slug: factory }
+
+  barony2:
+    file: barony2.psci
+    name: Undertown
+    # The Depths go here later, in the rock, as a second marker colour.
+    groups:
+      - fg: 7
+        zone: undertown
+        nodes:
+          "1": { name: Undercroft, slug: undercroft }
+          "2": Residences
+          "3": { name: Lifeweb, slug: lifeweb }
+          "4": Sewer
+          "5": { name: Depot, slug: depot }
+          "6": Merchant
+          "7": Poorhouse
+          "8": Den
+          "9": Den Interior
+          "A": Slums
+          "B": Order Chambers
+          "C": Lake
+          "D": Alleys
+          "E": Basements
+          "F": Hole in the Wall
+          "G": Nook
+          "H": Island
