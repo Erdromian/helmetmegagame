@@ -16333,6 +16333,27 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # No armour value: it is a face, not a plate. Priced with the Plague Doctor
+  # and the Rat at 2, and it forces the concealment — a horned devil is not a
+  # thing you wear openly as yourself.
+  evil-mask:
+    catalog: gm
+    name: Evil Mask
+    category: items
+    group: items-headgear
+    sprite: evil-mask
+    description: "A mask with a haunted expression."
+    pointCost: 2
+    equippable: true
+    equipSlot: HEAD
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: evil-mask
+    visible: worn
+    weight: 1
+    purchasable: false
+    purchasableAfterStart: false
+
   rat-mask:
     catalog: gm
     name: Rat Mask
@@ -16703,6 +16724,72 @@ tags:
       skills: [smithing-skilled]
     sellable: true
     sellablePrice: 62
+
+  # The Bascinet and the Infantry Helmet are deliberate twins of the two above:
+  # same plates, same bench, different look. The Bascinet matches the Knight's
+  # Helmet exactly (Bascinet's call, 2026-09-19) and the Infantry Helmet matches
+  # the Simple Helm — so nobody has to weigh two numbers to pick a face, and a
+  # smith who can make one can make the other for the same 25 ⬢ or 6 ⬢.
+  bascinet:
+    catalog: all
+    name: Bascinet
+    category: items
+    group: items-headgear
+    sprite: hevhelm
+    description: "A thick, heavy helmet."
+    pointCost: 9
+    equippable: true
+    equipSlot: HEAD
+    melee: 0.44
+    ballistic: 0.13
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: hevhelm
+    visible: worn
+    weight: 6
+    stackable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
+    requirement:
+      turnsCost: 2
+      resourceCost: 25
+      skills: [smithing-skilled]
+    sellable: true
+    sellablePrice: 62
+
+  # Open at the face like the Simple Helm, so it conceals without forcing it:
+  # the wearer decides with /conceal.
+  infantry-helmet:
+    catalog: all
+    name: Infantry Helmet
+    category: items
+    group: items-headgear
+    sprite: openskulliron
+    description: "A practical helmet used by fighting forces and mercenaries."
+    pointCost: 5
+    equippable: true
+    equipSlot: HEAD
+    melee: 0.31
+    ballistic: 0.09
+    concealsIdentity: true
+    concealSprite: openskulliron
+    visible: worn
+    weight: 4
+    stackable: true
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    customizable: true
+    customizableSkill: smithing-skilled
+    requirement:
+      turnsCost: 1
+      resourceCost: 6
+      skills: [smithing]
+    sellable: true
+    sellablePrice: 16
 
   bishops-mitre:
     catalog: gm

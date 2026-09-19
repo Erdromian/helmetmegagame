@@ -45,3 +45,13 @@ A tag names its file through `sprite:` in `docs/tags.yaml`, which
 TagGroup's lucide glyph instead, exactly as the whole catalog did before.
 No font from either repo is shipped. They are third-party and not covered by
 the grant.
+
+## One file that is not from OpenSourceWeb
+
+`evil-mask.png` (and its plated twin `web/assets/helms/evil-mask.png`) came
+from Bascinet, not from the library above. It was handed over as a large PNG
+and downsampled back to its native 31 px grid here — no pixel is redrawn or
+recoloured. Its provenance is not recorded, so **it is not covered by the
+CC BY-SA grant this file describes**. If the art turns out to be someone
+else's, that is the file to pull, and the `evil-mask` tag falls back to its
+group glyph the moment `sprite:` comes off it.
