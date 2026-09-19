@@ -40,6 +40,9 @@ import {
   sentReceiptDm,
   replyButtonRow,
   canReadLetters,
+  BIRD_SLUG,
+  BIRD_RESTING,
+  birdRestingToday,
 } from "@lifeweb/db/lib/bird";
 import { sendBirdReply } from "@lifeweb/db/lib/birdReply";
 import {
@@ -3241,6 +3244,20 @@ export async function birdMessageRequestImpl({
   const allowance = birdAllowanceFrom(
     await structuresAt(prisma, character.locationId, { statuses: WORKING_STATUSES }),
   );
+  // A bird that changed hands today won't fly until tomorrow, so one bird is
+  // one letter a day however it's passed round (db/lib/bird.js#birdRestingToday).
+  // A Rookery's flights are the building's birds, so it doesn't apply there.
+  if (allowance <= BASE_BIRD_SENDS_PER_DAY) {
+    const bird = character.tags.find((ct) => ct.tag.slug === BIRD_SLUG);
+    const dayStart = await prisma.turn.findFirst({
+      where: { dayNumber: openTurn.dayNumber },
+      orderBy: { startedAt: "asc" },
+      select: { startedAt: true },
+    });
+    if (birdRestingToday(bird?.acquiredAt, dayStart?.startedAt)) {
+      throw new UserError(BIRD_RESTING);
+    }
+  }
   // Only consulted when a building is doing something. The ordinary
   // once-a-day bird needs no cooldown — the day IS the cooldown.
   if (allowance > BASE_BIRD_SENDS_PER_DAY) {

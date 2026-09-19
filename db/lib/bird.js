@@ -45,6 +45,13 @@ function canSendBird(tags) {
   return hasSlug(tags, BIRD_SLUG) && canReadLetters(tags) && !hasSlug(tags, STUPID_SLUG);
 }
 
+// The day's limit follows the BIRD, not the sender: passing one bird round a circle of friends used to send a letter each. A bird has no identity across a handoff (non-stackable, so every move deletes one CharacterTag row and creates another, stamped acquiredAt = now), so a stamp carried on the bird would leak through the ~30 paths a tag moves by. Instead a bird that reached you today won't fly until tomorrow. `dayStartedAt` is when the first turn of today's in-game day opened.
+const BIRD_RESTING = "Your bird is still getting used to you. It will fly tomorrow.";
+function birdRestingToday(acquiredAt, dayStartedAt) {
+  if (!acquiredAt || !dayStartedAt) return false;
+  return new Date(acquiredAt).getTime() >= new Date(dayStartedAt).getTime();
+}
+
 // The letter as the recipient sees it. The DM no longer holds the words — the PAPER does, now in their hands — so an illiterate recipient can walk the object to someone who can read instead of being handed runes and a footnote. Deliberately does NOT say whether it's sealed or what's on it — both are facts about the object, on their sheet. The `»` prefix is added by sendDm itself; the sender's line is written bare here.
 function deliveryDm({ senderName, letterName }) {
   return (
@@ -92,6 +99,9 @@ module.exports = {
   birdZones,
   isBirdReachableZone,
   canSendBird,
+  BIRD_SLUG,
+  BIRD_RESTING,
+  birdRestingToday,
   deliveryDm,
   replyDm,
   sentReceiptDm,

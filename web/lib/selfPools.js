@@ -19,6 +19,8 @@ import {
 import {
   canSendBird as holdsBirdAndLetters,
   birdZones as birdZonesOf,
+  BIRD_SLUG,
+  birdRestingToday,
 } from "@lifeweb/db/lib/bird";
 import {
   BASE_BIRD_SENDS_PER_DAY,
@@ -211,7 +213,22 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
     : BASE_BIRD_SENDS_PER_DAY;
   const sameDay =
     Boolean(openTurn) && character.birdTurnId === String(describeTurn(openTurn).day);
-  const birdSentToday = sameDay && (character.birdDaySends ?? 0) >= birdAllowance;
+  // A bird that changed hands today rests until tomorrow (db/lib/bird.js#birdRestingToday); not under a Rookery.
+  const birdResting =
+    hasBird && Boolean(openTurn) && birdAllowance <= BASE_BIRD_SENDS_PER_DAY
+      ? birdRestingToday(
+          tags.find((ct) => ct.tag.slug === BIRD_SLUG)?.acquiredAt,
+          (
+            await prisma.turn.findFirst({
+              where: { dayNumber: openTurn.dayNumber },
+              orderBy: { startedAt: "asc" },
+              select: { startedAt: true },
+            })
+          )?.startedAt,
+        )
+      : false;
+  const birdSentToday =
+    birdResting || (sameDay && (character.birdDaySends ?? 0) >= birdAllowance);
 
   // Recipient list is EVERY character regardless of status; a letter to a dead name never arrives.
   const birdTargets = hasBird

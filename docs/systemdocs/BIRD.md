@@ -167,6 +167,18 @@ before anything else in the transaction. Read the column in one statement and
 write it in another and two tabs both pass; a loser aborts before a letter has
 been written or a request filed.
 
+**The limit follows the bird, not only the sender.** The day claim sits on the
+sender, so a game-two player found they could send a letter, hand the bird to a
+friend, and have them send one too — round a circle, as many as they liked. So
+a Bird that reached your hands today won't fly until tomorrow
+(`db/lib/bird.js#birdRestingToday`, against the bird row's `acquiredAt` and the
+first turn of today's day). It keys on arrival rather than on a stamp the bird
+carries because a bird has no identity across a handoff: it is non-stackable, so
+every move deletes one `CharacterTag` row and creates another, through ~30
+different paths. A stamp would have to survive all of them; `acquiredAt` already
+does. An honest gift waits a day too. A Rookery's flights are the building's
+birds and skip this check.
+
 ## 7. What a GM sees
 
 A `BIRD_MESSAGE` Request naming the letter that went and carrying a

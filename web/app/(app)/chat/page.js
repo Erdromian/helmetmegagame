@@ -234,6 +234,9 @@ async function FreshChat({ userId }) {
                   // strip draws the same "2t"/"last" the sheet's chips do, and
                   // without this every expiring affliction reads as permanent.
                   expiresTurn: true,
+                  // When it reached them — a Bird that changed hands today
+                  // rests until tomorrow (db/lib/bird.js#birdRestingToday).
+                  acquiredAt: true,
                   poisonedCount: true,
                   poisonPayload: true,
                   // requirementSkills named explicitly for the same reason
