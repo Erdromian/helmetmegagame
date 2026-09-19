@@ -48,10 +48,12 @@ the grant.
 
 ## One file that is not from OpenSourceWeb
 
-`evil-mask.png` (and its plated twin `web/assets/helms/evil-mask.png`) came
-from Bascinet, not from the library above. It was handed over as a large PNG
-and downsampled back to its native 31 px grid here — no pixel is redrawn or
-recoloured. Its provenance is not recorded, so **it is not covered by the
-CC BY-SA grant this file describes**. If the art turns out to be someone
-else's, that is the file to pull, and the `evil-mask` tag falls back to its
-group glyph the moment `sprite:` comes off it.
+`evil-mask.png` and `bastards-helmet.png` (and their plated twins in
+`web/assets/helms/`) came from Bascinet, not from the library above. The Evil Mask was handed over as a large PNG and
+downsampled back to its native 31 px grid; the Bastard's Helmet arrived at
+32 px and had the strap below row 23 cropped off, so the head fills the frame
+the way every other helm's does. No pixel in either is redrawn or recoloured.
+Their provenance is not recorded, so **they are not covered by the CC BY-SA
+grant this file describes**. If either turns out to be someone else's, that is
+the file to pull, and the tag falls back to its group glyph the moment
+`sprite:` comes off it.

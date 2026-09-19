@@ -16791,6 +16791,30 @@ tags:
     sellable: true
     sellablePrice: 16
 
+  # The Bastard's own, so GM-granted rather than forged: nobody buys one and no
+  # bench makes one. Sits a step under the Knight's Helmet, which is what the
+  # 0.41 / 0.11 is doing — though both still read as Good / Meager to a player,
+  # since a band is 0.2 wide (TAGS.md, `melee` / `ballistic`).
+  bastards-helmet:
+    catalog: gm
+    name: Bastard's Helmet
+    category: items
+    group: items-headgear
+    sprite: bastards-helmet
+    description: "A peculiar helmet with goggles, a gas mask, and a red tail, worn by the Bastard."
+    pointCost: 8
+    equippable: true
+    equipSlot: HEAD
+    melee: 0.41
+    ballistic: 0.11
+    concealsIdentity: true
+    forcesConceal: true
+    concealSprite: bastards-helmet
+    visible: worn
+    weight: 6
+    purchasable: false
+    purchasableAfterStart: false
+
   bishops-mitre:
     catalog: gm
     name: Bishop's Mitre
