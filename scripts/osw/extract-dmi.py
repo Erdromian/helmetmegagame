@@ -66,8 +66,17 @@ def split(path, outdir):
                 name = safe(st["name"])
                 if st["dirs"] > 1: name += "_" + dn[d]
                 if st["frames"] > 1: name += "_f%d" % (fr+1)
-                seen[name] = seen.get(name, 0) + 1
-                if seen[name] > 1: name += "_%d" % seen[name]
+                # BYOND state names are case-sensitive, so two states like
+                # "F_l_arm2" and "f_l_arm2" both exist here and both get
+                # written -- but they land on the SAME path on any
+                # case-insensitive filesystem (Windows, default macOS), so
+                # one silently clobbers the other on checkout. Folding case
+                # into the dedup key catches that the same way an exact
+                # repeat is already caught, and keeps the numbering stable
+                # regardless of which filesystem writes the files.
+                key = name.lower()
+                seen[key] = seen.get(key, 0) + 1
+                if seen[key] > 1: name += "_%d" % seen[key]
                 tile = im.crop((x, y, x+w, y+h))
                 if not tile.getbbox(): continue   # skip fully blank cells
                 tile.save(os.path.join(outdir, name + ".png"))
