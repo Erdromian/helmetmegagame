@@ -1,0 +1,450 @@
+<title>Ravenheart Sound Board</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap">
+<style>
+  :root {
+    --ground: #f2efe9;
+    --panel: #fbfaf7;
+    --panel-2: #eae5db;
+    --ink: #221f1b;
+    --ink-soft: #5d574d;
+    --ink-faint: #8c8477;
+    --rule: #ddd6c8;
+    --brass: #8a6416;
+    --brass-lit: #b9862a;
+    --brass-wash: #f0e4c8;
+    --live: #2f6f4f;
+    --shadow: 0 1px 0 rgba(34,31,27,.06);
+    --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    --font-display: "IBM Plex Serif", Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #17161a;
+      --panel: #201f24;
+      --panel-2: #2a282e;
+      --ink: #ece7dd;
+      --ink-soft: #a9a294;
+      --ink-faint: #7c7568;
+      --rule: #34323a;
+      --brass: #d6a445;
+      --brass-lit: #f0c063;
+      --brass-wash: #3a3021;
+      --live: #6fc39a;
+      --shadow: 0 1px 0 rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #17161a;
+    --panel: #201f24;
+    --panel-2: #2a282e;
+    --ink: #ece7dd;
+    --ink-soft: #a9a294;
+    --ink-faint: #7c7568;
+    --rule: #34323a;
+    --brass: #d6a445;
+    --brass-lit: #f0c063;
+    --brass-wash: #3a3021;
+    --live: #6fc39a;
+    --shadow: 0 1px 0 rgba(0,0,0,.35);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-bottom: 96px;
+  }
+  * { box-sizing: border-box; }
+  h1, h2 { text-wrap: balance; margin: 0; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+  header.top {
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
+  }
+  .masthead { padding-block: 22px 16px; display: grid; gap: 10px; }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 5vw, 38px);
+    letter-spacing: -.01em;
+  }
+  .sub { color: var(--ink-soft); max-width: 62ch; }
+  .sub code { font-family: var(--font-mono); font-size: .88em; color: var(--brass); }
+
+  .counts {
+    display: flex; flex-wrap: wrap; gap: 6px 18px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding-block: 0 16px;
+  }
+  input[type="search"] {
+    flex: 1 1 220px; min-width: 0;
+    font: inherit; color: var(--ink);
+    background: var(--ground);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 8px 10px;
+  }
+  input[type="search"]:focus-visible,
+  button:focus-visible, a:focus-visible {
+    outline: 2px solid var(--brass-lit); outline-offset: 1px;
+  }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 14px; }
+  .chip {
+    font: 500 12px/1 var(--font-mono);
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: 7px 10px; border-radius: 2px; cursor: pointer;
+    background: transparent; color: var(--ink-soft);
+    border: 1px solid var(--rule);
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--brass-wash); color: var(--brass);
+    border-color: var(--brass);
+  }
+
+  section.group { padding-block: 26px 4px; }
+  .group-head {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule); padding-bottom: 8px; margin-bottom: 14px;
+  }
+  h2 {
+    font: 600 13px/1 var(--font-mono);
+    letter-spacing: .14em; text-transform: uppercase; color: var(--brass);
+  }
+  .group-head .n {
+    font: 400 12px/1 var(--font-mono); color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .group-head p { margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+  .grid {
+    display: grid; gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  }
+  .cue {
+    display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: center;
+    width: 100%; text-align: left; cursor: pointer;
+    font: inherit; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule);
+    border-radius: 2px; padding: 8px 10px;
+    box-shadow: var(--shadow);
+  }
+  .cue:hover { border-color: var(--brass); }
+  .cue .glyph {
+    display: grid; place-items: center; height: 22px; width: 22px;
+    color: var(--brass); font-size: 11px;
+  }
+  .cue .name {
+    font-family: var(--font-mono); font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  .cue .path {
+    display: block; font-size: 11px; color: var(--ink-faint);
+    font-family: var(--font-mono); overflow-wrap: anywhere;
+  }
+  .cue[data-state="playing"] {
+    border-left-color: var(--live); background: var(--panel-2);
+  }
+  .cue[data-state="playing"] .glyph { color: var(--live); }
+  .cue[data-state="loading"] .glyph { color: var(--ink-faint); }
+  .cue[data-state="error"] { border-left-color: #a3402f; }
+
+  .bars { display: flex; gap: 2px; align-items: flex-end; height: 13px; }
+  .bars i { width: 3px; background: currentColor; height: 4px; display: block; }
+  .cue[data-state="playing"] .bars i { animation: jig .9s infinite ease-in-out; }
+  .bars i:nth-child(2) { animation-delay: .15s; }
+  .bars i:nth-child(3) { animation-delay: .3s; }
+  @keyframes jig { 0%,100% { height: 4px; } 50% { height: 13px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .cue[data-state="playing"] .bars i { animation: none; height: 9px; }
+  }
+
+  .empty { color: var(--ink-soft); padding: 40px 0; }
+
+  footer.notes {
+    border-top: 1px solid var(--rule); margin-top: 34px;
+    padding-block: 20px 8px; color: var(--ink-soft); font-size: 13px;
+  }
+  footer.notes a { color: var(--brass); }
+  footer.notes p { max-width: 68ch; }
+
+  .dock {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    background: var(--panel); border-top: 1px solid var(--rule);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .dock-in {
+    max-width: 1120px; margin: 0 auto; padding: 10px 16px;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .now { flex: 1 1 200px; min-width: 0; }
+  .now .label {
+    font: 500 10px/1.4 var(--font-mono); letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  .now .title {
+    font-family: var(--font-mono); font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .btn {
+    font: 500 12px/1 var(--font-mono); letter-spacing: .06em;
+    text-transform: uppercase; cursor: pointer;
+    padding: 9px 11px; border-radius: 2px;
+    background: var(--ground); color: var(--ink);
+    border: 1px solid var(--rule);
+  }
+  .btn[aria-pressed="true"] {
+    background: var(--brass-wash); color: var(--brass); border-color: var(--brass);
+  }
+  .vol { display: flex; align-items: center; gap: 8px; }
+  .vol label {
+    font: 500 10px/1 var(--font-mono); letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  input[type="range"] { width: 92px; accent-color: var(--brass); }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="masthead">
+      <h1>Ravenheart Sound Board</h1>
+      <p class="sub">The 662 sounds exported from OpenSourceWeb into
+        <code>assets/osw-sounds/</code>, grouped by what a sound is for. Click
+        one to hear it. Nothing downloads until you do &mdash; each file streams
+        from the source repository at commit <code id="commit"></code>.</p>
+      <div class="counts" id="counts"></div>
+    </div>
+    <div class="controls">
+      <input type="search" id="q" placeholder="Search 662 sounds by name, e.g. bardiche, mail, torch" aria-label="Search sounds">
+      <button class="btn" id="loop" aria-pressed="false" title="Repeat the playing sound until you stop it">Loop</button>
+      <button class="btn" id="random">Surprise me</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+</header>
+
+<main class="wrap" id="board"></main>
+
+<footer class="notes wrap">
+  <p><strong>Where these come from.</strong> OpenSourceWeb, the open-licensed
+    archive of the BYOND game Lifeweb / Farweb. Its icons and sounds are
+    <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>;
+    the code is not, and none of it is here. Source:
+    <a href="https://github.com/SS13-Special-Codebases-Archive/OpenSourceWeb">SS13-Special-Codebases-Archive/OpenSourceWeb</a>.</p>
+  <p>This board plays the exported set. The full source tree holds 3,559 files
+    and 484 MB, most of it unusable here &mdash; 616 vox words, 170 MIDI files,
+    the piano and violin note banks, 229 MB of jukebox music. To pull something
+    this export left behind, edit the lists in
+    <code>scripts/osw/export-sounds.py</code> and run it again.</p>
+</footer>
+
+<div class="dock">
+  <div class="dock-in">
+    <div class="now">
+      <div class="label" id="state-label">Nothing playing</div>
+      <div class="title" id="now-title">Pick a sound above</div>
+    </div>
+    <div class="vol">
+      <label for="vol">Vol</label>
+      <input type="range" id="vol" min="0" max="100" value="70" aria-label="Volume">
+    </div>
+    <button class="btn" id="stop">Stop</button>
+  </div>
+</div>
+
+<script>
+  const DATA = {"commit":"edb003dc8ff5009476a9bcb74e79206039fb3390","groups":[{"key":"ui","blurb":"Clicks, switches, beeps, page turns, coins. A control being used.","files":["effects/Load_Character_Preset.ogg","effects/coin_m.ogg","effects/coininsert.ogg","effects/drawer_sound.ogg","effects/lever.ogg","effects/lightswitch.ogg","effects/lightswitch_1.ogg","effects/lightswitch_2.ogg","effects/lightswitch_3.ogg","effects/lightswitch_4.ogg","effects/moeda.ogg","effects/newBuzzer.ogg","effects/pageturn1.ogg","effects/pageturn2.ogg","effects/pageturn3.ogg","effects/pop.ogg","effects/rustle1.ogg","effects/rustle2.ogg","effects/rustle3.ogg","effects/snap.ogg","effects/ui_lockpicking_pickmovement_01.ogg","effects/ui_lockpicking_pickmovement_02.ogg","effects/ui_lockpicking_pickmovement_03.ogg","effects/ui_lockpicking_pickmovement_04.ogg","effects/xylophone1.ogg","effects/xylophone2.ogg","effects/xylophone3.ogg","items/Ratchet.ogg","items/Screwdriver.ogg","items/Wirecutter.ogg","items/use_card.ogg","items/zip.ogg","lfwbsounds/sign_this.ogg","lfwbsounds/special_toggle.ogg","machines/beep5.ogg","machines/buzz-sigh.ogg","machines/buzz-two.ogg","machines/chime.ogg","machines/click.ogg","machines/console_error.ogg","machines/console_success.ogg","machines/copier.ogg","machines/ding.ogg","machines/lockenable.ogg","machines/lockreset.ogg","machines/lwButton.ogg","machines/paistartup.ogg","machines/ping.ogg","machines/scan_beep.ogg","machines/signal.ogg","machines/twobeep.ogg","machines/warning-buzzer.ogg"]},{"key":"notify","blurb":"Mail, alarms, knocking at a door, a ring, a radio.","files":["effects/adminhelp.ogg","effects/alert.ogg","effects/arrival.ogg","effects/confession_print.ogg","effects/crisis.ogg","effects/crisis2.ogg","effects/danger_alarm.ogg","effects/ear_ring.ogg","effects/klaxon_alarm.ogg","effects/knockknock1.ogg","effects/knockknock2.ogg","effects/knockknock3.ogg","effects/knockknock4.ogg","effects/knockknock5.ogg","effects/knockknock6.ogg","effects/mail1.ogg","effects/mail2.ogg","effects/mail3.ogg","effects/mail4.ogg","effects/mail_generic.ogg","effects/mail_old.ogg","effects/mail_rare.ogg","effects/minor_ear_ring.ogg","effects/mob_ringing.ogg","effects/mob_ringing2.ogg","effects/radio.ogg","effects/radio1.ogg","effects/radio2.ogg","effects/radio3.ogg","effects/short_ear_ring.ogg","effects/siren.ogg","items/countdown.ogg","items/dialtone.ogg","items/phone_busy.ogg","items/phone_calling.ogg","items/phone_pickup.ogg","items/phone_ring.ogg","lfwbsounds/airlock_deny2.ogg","lfwbsounds/death_alarm.ogg","lfwbsounds/radio_chatter.ogg","machines/Alarm.ogg","machines/door_locked.ogg"]},{"key":"ambience","blurb":"Rooms with a sound of their own. Most of these loop.","files":["ambience/alarm4.ogg","ambience/ambi2.ogg","ambience/ambiatm1.ogg","ambience/ambicha1.ogg","ambience/ambicha2.ogg","ambience/ambicha3.ogg","ambience/ambicha4.ogg","ambience/ambieng1.ogg","ambience/ambigen1.ogg","ambience/ambigen10.ogg","ambience/ambigen11.ogg","ambience/ambigen12.ogg","ambience/ambigen13.ogg","ambience/ambigen14.ogg","ambience/ambigen2.ogg","ambience/ambigen3.ogg","ambience/ambigen4.ogg","ambience/ambigen5.ogg","ambience/ambigen6.ogg","ambience/ambigen7.ogg","ambience/ambigen8.ogg","ambience/ambigen9.ogg","ambience/ambimalf.ogg","ambience/ambimine.ogg","ambience/ambimo1.ogg","ambience/ambimo2.ogg","ambience/ambisin1.ogg","ambience/ambisin2.ogg","ambience/ambisin3.ogg","ambience/ambisin4.ogg","ambience/ambispace.ogg","ambience/clank_loop.ogg","ambience/harbor.ogg","ambience/lifeweb2b.ogg","ambience/loop_airy1.ogg","ambience/loop_airy2.ogg","ambience/loop_airy4.ogg","ambience/loop_airy5.ogg","ambience/loop_machineroom.ogg","ambience/loop_machineroom2.ogg","ambience/loop_machineroom3.ogg","ambience/loop_machineroom4.ogg","ambience/loop_vent.ogg","ambience/seag1.ogg","ambience/seag2.ogg","ambience/seag3.ogg","ambience/shipambience.ogg","ambience/shore.ogg","ambience/signal.ogg","ambience/spookymaint1.ogg","ambience/spookymaint2.ogg","ambience/spookyspace1.ogg","ambience/spookyspace2.ogg","ambience/tstation.ogg","effects/fire.ogg","effects/newfireloop.ogg","effects/torch_big.ogg","effects/torch_small.ogg","effects/vent.ogg","effects/wind/wind_2_1.ogg","effects/wind/wind_2_2.ogg","effects/wind/wind_3_1.ogg","effects/wind/wind_4_1.ogg","effects/wind/wind_4_2.ogg","effects/wind/wind_5_1.ogg","machines/hiss.ogg","machines/loop_altar.ogg","misc/TestLoop1.ogg","misc/altar.ogg","misc/charon_loop.ogg","misc/interference.ogg"]},{"key":"music","blurb":"Eight tracks, plus the suspense, tension and Thanati stings.","files":["ThanatiLP/ThanatiLP_1.ogg","ThanatiLP/ThanatiLP_10.ogg","ThanatiLP/ThanatiLP_11.ogg","ThanatiLP/ThanatiLP_12.ogg","ThanatiLP/ThanatiLP_13.ogg","ThanatiLP/ThanatiLP_14.ogg","ThanatiLP/ThanatiLP_2.ogg","ThanatiLP/ThanatiLP_3.ogg","ThanatiLP/ThanatiLP_4.ogg","ThanatiLP/ThanatiLP_5.ogg","ThanatiLP/ThanatiLP_6.ogg","ThanatiLP/ThanatiLP_7.ogg","ThanatiLP/ThanatiLP_8.ogg","ThanatiLP/ThanatiLP_9.ogg","fortress_suspense/suspense1.ogg","fortress_suspense/suspense2.ogg","fortress_suspense/suspense3.ogg","fortress_suspense/suspense4.ogg","fortress_suspense/suspense5.ogg","fortress_suspense/suspense6.ogg","fortress_suspense/suspense7.ogg","fortress_suspense/suspense8.ogg","fortress_suspense/suspense_thanati.ogg","fortress_suspense/suspense_xom.ogg","music/haruspex-combat.ogg","music/haruspex.ogg","music/hiding.ogg","music/morning.ogg","music/outpost.ogg","music/ravenheart_combat1.ogg","music/sacred_dagger.ogg","music/to_hell.ogg","tension/caught.ogg","tension/caught2.ogg","tension/tension.ogg","tension/tension2.ogg","tension/tension3.ogg","tension/tension4.ogg","tension/tension5.ogg","tension/tension6.ogg","tension/tension7.ogg","tension/tension8.ogg"]},{"key":"weapons","blurb":"Swinging, blocking, hitting mail, hitting a person.","files":["armornew/blunt_heavy.ogg","armornew/blunt_heavy2.ogg","armornew/blunt_heavy3.ogg","armornew/blunt_light.ogg","armornew/blunt_light2.ogg","armornew/blunt_light3.ogg","armornew/hard_fist.ogg","armornew/hard_fist2.ogg","armornew/hard_fist3.ogg","armornew/slash1.ogg","armornew/slash2.ogg","armornew/slash3.ogg","armornew/slash4.ogg","armornew/slash5.ogg","armornew/slash_heavy.ogg","armornew/slash_heavy2.ogg","armornew/slash_heavy3.ogg","armornew/slash_heavy4.ogg","armornew/slash_light.ogg","armornew/slash_light2.ogg","armornew/slash_light3.ogg","armornew/slash_light4.ogg","armornew/smallstab.ogg","armornew/smallstab2.ogg","armornew/smallstab_heavy.ogg","armornew/smallstab_light.ogg","armornew/soft_fist1.ogg","armornew/soft_fist2.ogg","armornew/soft_fist3.ogg","armornew/spearthroughmail.ogg","armornew/spearthroughmail2.ogg","armornew/spearthroughmail3.ogg","armornew/spearthroughmail4.ogg","armornew/stab_heavy1.ogg","armornew/stab_heavy2.ogg","armornew/stab_heavy3.ogg","armornew/stab_light.ogg","armornew/stab_light2.ogg","armornew/stab_light3.ogg","armornew/sword_hit1.ogg","armornew/sword_hit2.ogg","combat2020/CombatFail_Fem1.ogg","combat2020/CombatFail_Fem2.ogg","combat2020/CombatFail_Fem3.ogg","combat2020/CombatFail_Fem4.ogg","combat2020/CombatFail_Fem5.ogg","combat2020/CombatFail_Fem6.ogg","combat2020/CombatFail_Kid1.ogg","combat2020/CombatFail_Kid2.ogg","combat2020/CombatFail_Kid3.ogg","combat2020/CombatFail_Male1.ogg","combat2020/CombatFail_Male2.ogg","combat2020/CombatFail_Male3.ogg","combat2020/CombatFail_Male4.ogg","combat2020/CombatFail_Male5.ogg","combat2020/hard_fist.ogg","combat2020/head_explodie_01.ogg","combat2020/head_explodie_02.ogg","combat2020/head_explodie_03.ogg","combat2020/head_explodie_04.ogg","combat2020/headbutt.ogg","combat2020/struggle_1.ogg","combat2020/struggle_2.ogg","combat2020/struggle_3.ogg","combat2020/struggle_4.ogg","effects/bars_hit.ogg","effects/bone_crack.ogg","effects/get_stuck3.ogg","effects/getstuck_dagger.ogg","effects/metalwall.ogg","effects/shield2.ogg","effects/shieldbash.ogg","effects/wallhit.ogg","effects/wallhit2.ogg","effects/wallhit3.ogg","effects/woodhit.ogg","lfwbcombatuse/npc_kill_chop_01.ogg","lfwbcombatuse/npc_kill_chop_02.ogg","lfwbcombatuse/npc_kill_chop_03.ogg","lfwbcombatuse/npc_kill_slash_01.ogg","lfwbcombatuse/npc_kill_slash_02.ogg","lfwbcombatuse/npc_kill_slash_03.ogg","lfwbcombatuse/npc_kill_smash_01.ogg","lfwbcombatuse/npc_kill_smash_02.ogg","lfwbcombatuse/npc_kill_smash_03.ogg","lfwbcombatuse/parry.ogg","lfwbcombatuse/rapier.ogg","lfwbcombatuse/swing_01.ogg","lfwbcombatuse/swing_02.ogg","lfwbcombatuse/swing_03.ogg","projectilesnew/blt_flesh1.ogg","projectilesnew/blt_flesh2.ogg","projectilesnew/blt_flesh3.ogg","projectilesnew/boyarin1.ogg","projectilesnew/boyarin2.ogg","projectilesnew/boyarin3.ogg","projectilesnew/bullet_heavy.ogg","projectilesnew/bullet_light.ogg","projectilesnew/bullethit1.ogg","projectilesnew/bullethit2.ogg","projectilesnew/bullethit3.ogg","projectilesnew/bullethit4.ogg","projectilesnew/ric1.ogg","projectilesnew/ric2.ogg","projectilesnew/ric3.ogg","projectilesnew/ric4.ogg","projectilesnew/rifle1.ogg","projectilesnew/rifle2.ogg","projectilesnew/rifle_cock.ogg","projectilesnew/rifle_loadmag.ogg","projectilesnew/rifle_unload.ogg","projectilesnew/rifleclip.ogg","projectilesnew/rock1.ogg","projectilesnew/rock2.ogg","projectilesnew/rock3.ogg","projectilesnew/rock4.ogg","projectilesnew/rock5.ogg","projectilesnew/smg_fire_new.ogg","projectilesnew/smg_fire_new2.ogg","weapons/2hswing.ogg","weapons/Genhit.ogg","weapons/axe_drop.ogg","weapons/axe_sheath.ogg","weapons/axe_unsheath.ogg","weapons/bardiche1.ogg","weapons/bardiche2.ogg","weapons/bardiche3.ogg","weapons/bardiche4.ogg","weapons/bash1.ogg","weapons/bash2.ogg","weapons/blade1.ogg","weapons/blade_parry1.ogg","weapons/blade_parry2.ogg","weapons/blade_parry3.ogg","weapons/bladeparry1.ogg","weapons/bladeparry2.ogg","weapons/bladeparry3.ogg","weapons/bladeparry4.ogg","weapons/bladeslice.ogg","weapons/bow_draw.ogg","weapons/bow_string.ogg","weapons/cablecuff.ogg","weapons/club.ogg","weapons/crossbow_fire.ogg","weapons/crossbow_sheath.ogg","weapons/crossbow_unsheath.ogg","weapons/dagger_draw.ogg","weapons/dagger_sheath.ogg","weapons/drop_sword.ogg","weapons/flail_swing.ogg","weapons/flailhit.ogg","weapons/gavel.ogg","weapons/genhit1.ogg","weapons/genhit2.ogg","weapons/genhit3.ogg","weapons/handcuffs.ogg","weapons/klevec.ogg","weapons/klevec2.ogg","weapons/klevec3.ogg","weapons/knife_drop.ogg","weapons/knife_equip.ogg","weapons/mace_draw.ogg","weapons/net_captured.ogg","weapons/net_equip.ogg","weapons/pierce.ogg","weapons/punch1.ogg","weapons/punch2.ogg","weapons/punch3.ogg","weapons/punch4.ogg","weapons/punchmiss.ogg","weapons/sabre_draw.ogg","weapons/slash.ogg","weapons/slashmiss.ogg","weapons/slice.ogg","weapons/smash.ogg","weapons/staff_equip.ogg","weapons/sword_sheath_01.ogg","weapons/sword_sheath_02.ogg","weapons/sword_unsheath_01.ogg","weapons/sword_unsheath_02.ogg","weapons/sword_unsheath_03.ogg","weapons/tablehit1.ogg","weapons/throwtap.ogg","weapons/thudswoosh.ogg","weapons/wpn_swing_axe_01.ogg","weapons/wpn_swing_axe_02.ogg"]},{"key":"labour","blurb":"The forge, the mine, the bench, the shovel.","files":["effects/carve1.ogg","effects/carve2.ogg","effects/cavein.ogg","effects/dig_shovel.ogg","effects/empty_shovel.ogg","effects/fabric_production.ogg","effects/forge.ogg","effects/gemdrop.ogg","effects/gemdrop1.ogg","effects/gemdrop2.ogg","effects/melee_wood_destroy_01.ogg","effects/melee_wood_destroy_02.ogg","effects/metal_block_04.ogg","effects/npc_human_pickaxe_01.ogg","effects/npc_human_pickaxe_02.ogg","effects/npc_human_pickaxe_03.ogg","effects/npc_human_pickaxe_05.ogg","effects/npc_human_wood_drop_01.ogg","effects/npc_human_wood_drop_02.ogg","effects/quench_barrel1.ogg","effects/quench_barrel2.ogg","effects/seedsplanted.ogg","effects/sewing.ogg","effects/sharpen_long1.ogg","effects/sharpen_long2.ogg","effects/sharpen_short1.ogg","effects/sharpen_short2.ogg","effects/shovel_drop.ogg","effects/smelter_sound.ogg","effects/stonestone.ogg","effects/wood_chop_01.ogg","effects/wood_chop_02.ogg","effects/wood_chop_03.ogg","effects/wood_chop_04.ogg","items/Crowbar.ogg","items/Deconstruct.ogg","items/Screwdriver2.ogg","items/Welder.ogg","items/Welder2.ogg","items/breaksound.ogg","items/haircut.ogg","items/polaroid1.ogg","items/polaroid2.ogg","items/poster_being_created.ogg","items/poster_ripped.ogg","items/scissors.ogg","lfwbsounds/cut_fail.ogg","lfwbsounds/smelter_fin.ogg","lfwbsounds/suture.ogg"]},{"key":"world","blurb":"Doors, chests, ladders, water, torches, footsteps.","files":["effects/Glassbr1.ogg","effects/Glassbr2.ogg","effects/Glasshit.ogg","effects/climb.ogg","effects/door_close2.ogg","effects/door_open2.ogg","effects/doorcreaky.ogg","effects/drsc_treasure_close_01.ogg","effects/drsc_treasure_open_01.ogg","effects/drsc_wardrobe_close_01.ogg","effects/drsc_wardrobe_open_02.ogg","effects/fallsmash.ogg","effects/footsteps/dirt/dirt1.wav","effects/footsteps/dirt/dirt2.wav","effects/footsteps/dirt/dirt3.wav","effects/footsteps/dirt/dirt4.wav","effects/footsteps/grass/grass1.wav","effects/footsteps/grass/grass2.wav","effects/footsteps/grass/grass3.wav","effects/footsteps/grass/grass4.wav","effects/footsteps/snow/snowstep1.ogg","effects/footsteps/snow/snowstep2.ogg","effects/footsteps/snow/snowstep3.ogg","effects/footsteps/snow/snowstep4.ogg","effects/footsteps/wood/wood_step1.ogg","effects/footsteps/wood/wood_step1_old.ogg","effects/footsteps/wood/wood_step2.ogg","effects/footsteps/wood/wood_step2_old.ogg","effects/footsteps/wood/wood_step3.ogg","effects/footsteps/wood/wood_step3_old.ogg","effects/footsteps/wood/wood_step4.ogg","effects/footsteps/wood/wood_step4_old.ogg","effects/footsteps/wood/wood_step5.ogg","effects/footsteps/wood/wood_step5_old.ogg","effects/footsteps/wood/wood_step6.ogg","effects/footsteps/wood/wood_step6_old.ogg","effects/footsteps/wood/wood_step7.ogg","effects/footsteps/wood/wood_step7_old.ogg","effects/footsteps/wood/wood_step8.ogg","effects/footsteps/wood/wood_step8_old.ogg","effects/gateclose.ogg","effects/gateopen.ogg","effects/glass_step.ogg","effects/glassknock.ogg","effects/ladder.ogg","effects/lockpick_break.ogg","effects/ontable.ogg","effects/smallfall.ogg","effects/stonedoor_openclose.ogg","effects/torch_fixture0.ogg","effects/torch_fixture1.ogg","effects/torch_light.ogg","effects/torch_pickup.ogg","effects/torch_snuff.ogg","effects/trap.ogg","effects/trap_arm.ogg","effects/wlocked1.ogg","effects/wlocked2.ogg","effects/wood_close.ogg","effects/wood_open.ogg","effects/wooden_move.ogg","lfwbsounds/double_close.ogg","lfwbsounds/double_open1.ogg","lfwbsounds/iron_crate_close.ogg","lfwbsounds/iron_crate_open.ogg","lfwbsounds/lava_close.ogg","lfwbsounds/lava_open.ogg","machines/closet_close.ogg","machines/closet_open.ogg","machines/lightbreak.ogg","machines/maint_close.ogg","machines/maint_open.ogg","misc/chairfall.ogg","misc/cloth_rip.ogg","misc/rollermove.ogg","misc/slip.ogg","water/slosh.ogg","water/slosh1.wav","water/slosh2.wav","water/slosh3.wav","water/slosh4.wav","water/step_water1.ogg","water/step_water2.ogg","water/step_water3.ogg","water/step_water4.ogg","water/water_max1.ogg","water/water_max2.ogg"]},{"key":"body","blurb":"Eating, breathing, hurting, a heartbeat going wrong.","files":["effects/Heart Beat.ogg","effects/badmood1.ogg","effects/badmood2.ogg","effects/badmood3.ogg","effects/badmood4.ogg","effects/blood1.ogg","effects/blood2.ogg","effects/blood3.ogg","effects/bodyfall1.ogg","effects/bodyfall2.ogg","effects/crunchychewing.ogg","effects/drown.ogg","effects/drown_female.ogg","effects/flesh_drop.ogg","effects/glass_drink1.ogg","effects/glass_drink2.ogg","effects/gurgle1.ogg","effects/gurgle2.ogg","effects/heartbeat_scared.ogg","effects/heartbeatfailure.ogg","effects/hungry1.ogg","effects/hungry2.ogg","effects/hungry3.ogg","effects/hungry4.ogg","effects/man_pain1.ogg","effects/man_pain2.ogg","effects/man_pain3.ogg","effects/reg_eat1.ogg","effects/reg_eat2.ogg","effects/splat.ogg","effects/squelch1.ogg","effects/squishy.ogg","effects/throat.ogg","effects/tourniquet.ogg","effects/woman_pain2.ogg","effects/woman_pain3.ogg","effects/woman_pain4.ogg","items/drink.ogg","items/eatfood.ogg","lfwbsounds/bones.ogg","lfwbsounds/fear_scream1.ogg","lfwbsounds/fear_scream2.ogg","lfwbsounds/fear_woman1.ogg","lfwbsounds/fear_woman2.ogg","lfwbsounds/newheart.ogg","lfwbsounds/shlep.ogg","voice/emotes/cough/cough_01.ogg","voice/emotes/cough/cough_female.ogg","voice/emotes/cough/cough_oldman.ogg","voice/emotes/sigh/sigh_female.ogg","voice/emotes/sigh/sigh_male.ogg","voice/emotes/snores/snore1.ogg","voice/emotes/snores/snore2.ogg","voice/emotes/whimper/whimper_female.ogg","voice/emotes/whimper/whimper_male.ogg"]},{"key":"lifeweb","blurb":"The Tower's own noises. Grates, keys, a sacrifice.","files":["LW2/LWS_handle.ogg","LW2/LW_CLOSE2.ogg","LW2/LW_OPEN2.ogg","LW2/grate1.ogg","LW2/grate2.ogg","LW2/grate3.ogg","LW2/grate4.ogg","LW2/grate5.ogg","LW2/grate6.ogg","LW2/keyhit_01.ogg","LW2/keyhit_02.ogg","LW2/keyhit_03.ogg","LW2/keyhit_04.ogg","LW2/keyhit_05.ogg","LW2/keyhit_06.ogg","LW2/lwButton.ogg","LW2/lw_free.ogg","LW2/lw_sacrificed1.ogg","LW2/lw_sacrificed2.ogg","LW2/lw_sacrificed3.ogg","LW2/lw_sacrificed4.ogg","LW2/lwshock.ogg","LW2/squirm1.ogg","LW2/squirm2.ogg","LW2/squirm3.ogg","LW2/squirm4.ogg","LW2/squirm5.ogg","ambience/lifeweb2b.ogg","lfwbsounds/bishop_banish.ogg","lfwbsounds/grue1.ogg","lfwbsounds/grue_kill.ogg","lfwbsounds/oldways_convert.ogg","lfwbsounds/rebirth.ogg","lfwbsounds/seen_wonder.ogg","lfwbsounds/thanati_key.ogg","lfwbsounds/they_absorb.ogg","lfwbsounds/they_contact1.ogg","lfwbsounds/they_learn.ogg","lfwbsounds/wonder.ogg","lfwbsounds/wonder_secret_known.ogg","lfwbsounds/wondermaker.ogg"]},{"key":"creatures","blurb":"The rats, strygh, graga, tzanch, arelitz.","files":["effects/arl_step.ogg","effects/ghost.ogg","effects/ghost2.ogg","effects/graga_attack6.ogg","effects/graga_life1.ogg","effects/graga_life2.ogg","effects/graga_step1.ogg","effects/graga_step2.ogg","effects/kthanid_attack.ogg","effects/kthanid_life.ogg","effects/kthanid_move.ogg","effects/kthanid_pain.ogg","effects/kthanid_spot.ogg","effects/maggot1.ogg","effects/maggot2.ogg","effects/maggotd.ogg","effects/mousesqueek.ogg","effects/rat_attack.ogg","effects/rat_death.ogg","effects/rat_life.ogg","effects/rat_life2.ogg","effects/rat_pack.ogg","effects/screech.ogg","effects/strygh_attack_01.ogg","effects/strygh_attack_02.ogg","effects/strygh_death_01.ogg","effects/strygh_life1.ogg","effects/strygh_life2.ogg","effects/strygh_spot.ogg","effects/tzanz_walk2.ogg","effects/tzanzlife1.ogg","effects/tzanzlife2.ogg","effects/tzanzlife3.ogg","lfwbsounds/bark.ogg","lfwbsounds/bee_attack1.ogg","lfwbsounds/lump_active.ogg","lfwbsounds/lump_spawn.ogg"]}]};
+  const RAW = "https://raw.githubusercontent.com/SS13-Special-Codebases-Archive/OpenSourceWeb/"
+    + DATA.commit + "/sound/";
+
+  const board = document.getElementById("board");
+  const chips = document.getElementById("chips");
+  const counts = document.getElementById("counts");
+  const q = document.getElementById("q");
+  const nowTitle = document.getElementById("now-title");
+  const stateLabel = document.getElementById("state-label");
+  const loopBtn = document.getElementById("loop");
+  const stopBtn = document.getElementById("stop");
+  const randomBtn = document.getElementById("random");
+  const vol = document.getElementById("vol");
+  document.getElementById("commit").textContent = DATA.commit.slice(0, 7);
+
+  const audio = new Audio();
+  audio.preload = "none";
+  audio.volume = 0.7;
+  let current = null;           // the playing .cue button
+  let filter = "all";
+
+  const base = (p) => p.split("/").pop().replace(/\.(ogg|wav|mp3)$/i, "");
+
+  // Build the board once; filtering only toggles hidden.
+  for (const g of DATA.groups) {
+    const sec = document.createElement("section");
+    sec.className = "group";
+    sec.dataset.key = g.key;
+
+    const head = document.createElement("div");
+    head.className = "group-head";
+    head.innerHTML = '<h2>' + g.key + '</h2><span class="n">'
+      + g.files.length + ' sounds</span><p>' + g.blurb + '</p>';
+    sec.appendChild(head);
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    for (const rel of g.files) {
+      const b = document.createElement("button");
+      b.className = "cue";
+      b.type = "button";
+      b.dataset.src = RAW + rel.split("/").map(encodeURIComponent).join("/");
+      b.dataset.name = base(rel).toLowerCase();
+      b.innerHTML = '<span class="glyph"><span class="bars"><i></i><i></i><i></i></span></span>'
+        + '<span class="name">' + base(rel)
+        + '<span class="path">' + rel + '</span></span>';
+      grid.appendChild(b);
+    }
+    sec.appendChild(grid);
+    board.appendChild(sec);
+
+    const chip = document.createElement("button");
+    chip.className = "chip";
+    chip.type = "button";
+    chip.dataset.key = g.key;
+    chip.setAttribute("aria-pressed", "false");
+    chip.textContent = g.key + " " + g.files.length;
+    chips.appendChild(chip);
+
+    const c = document.createElement("span");
+    c.textContent = g.key + " " + g.files.length;
+    counts.appendChild(c);
+  }
+
+  const all = document.createElement("button");
+  all.className = "chip";
+  all.type = "button";
+  all.dataset.key = "all";
+  all.setAttribute("aria-pressed", "true");
+  all.textContent = "all 662";
+  chips.prepend(all);
+
+  const empty = document.createElement("p");
+  empty.className = "empty";
+  empty.textContent = "Nothing matches that. Try a shorter word.";
+  empty.hidden = true;
+  board.appendChild(empty);
+
+  function apply() {
+    const term = q.value.trim().toLowerCase();
+    let shown = 0;
+    for (const sec of board.querySelectorAll("section.group")) {
+      const inGroup = filter === "all" || filter === sec.dataset.key;
+      let n = 0;
+      for (const cue of sec.querySelectorAll(".cue")) {
+        const hit = inGroup && (!term || cue.dataset.name.includes(term));
+        cue.hidden = !hit;
+        if (hit) n++;
+      }
+      sec.hidden = n === 0;
+      sec.querySelector(".n").textContent = n + " sounds";
+      shown += n;
+    }
+    empty.hidden = shown > 0;
+  }
+
+  function setState(cue, state) {
+    if (cue) cue.dataset.state = state;
+  }
+
+  function play(cue) {
+    if (current === cue && !audio.paused) { stop(); return; }
+    if (current && current !== cue) setState(current, "");
+    current = cue;
+    setState(cue, "loading");
+    stateLabel.textContent = "Loading";
+    nowTitle.textContent = cue.querySelector(".path").textContent;
+    audio.src = cue.dataset.src;
+    audio.loop = loopBtn.getAttribute("aria-pressed") === "true";
+    audio.play().catch(() => {
+      setState(cue, "error");
+      stateLabel.textContent = "Would not play";
+      nowTitle.textContent = "Could not load " + cue.querySelector(".path").textContent;
+    });
+  }
+
+  function stop() {
+    audio.pause();
+    audio.removeAttribute("src");
+    setState(current, "");
+    current = null;
+    stateLabel.textContent = "Nothing playing";
+    nowTitle.textContent = "Pick a sound above";
+  }
+
+  audio.addEventListener("playing", () => {
+    setState(current, "playing");
+    stateLabel.textContent = audio.loop ? "Playing, on loop" : "Playing";
+  });
+  audio.addEventListener("ended", () => {
+    setState(current, "");
+    stateLabel.textContent = "Finished";
+  });
+  audio.addEventListener("error", () => {
+    if (!current) return;
+    setState(current, "error");
+    stateLabel.textContent = "Would not play";
+  });
+
+  board.addEventListener("click", (e) => {
+    const cue = e.target.closest(".cue");
+    if (cue) play(cue);
+  });
+
+  chips.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    filter = chip.dataset.key;
+    for (const c of chips.children) {
+      c.setAttribute("aria-pressed", String(c === chip));
+    }
+    apply();
+  });
+
+  q.addEventListener("input", apply);
+
+  loopBtn.addEventListener("click", () => {
+    const on = loopBtn.getAttribute("aria-pressed") !== "true";
+    loopBtn.setAttribute("aria-pressed", String(on));
+    audio.loop = on;
+    if (current && !audio.paused) {
+      stateLabel.textContent = on ? "Playing, on loop" : "Playing";
+    }
+  });
+
+  stopBtn.addEventListener("click", stop);
+
+  randomBtn.addEventListener("click", () => {
+    const pool = [...board.querySelectorAll(".cue")].filter((c) => !c.hidden);
+    if (!pool.length) return;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    pick.scrollIntoView({ block: "center", behavior: "smooth" });
+    play(pick);
+  });
+
+  vol.addEventListener("input", () => { audio.volume = vol.value / 100; });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { stop(); q.blur(); }
+    if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+  });
+
+  apply();
+</script>
