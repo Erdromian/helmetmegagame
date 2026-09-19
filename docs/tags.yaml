@@ -588,19 +588,6 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  underquarter-basements:
-    catalog: all
-    name: Underquarter Basements
-    category: general
-    group: general-location
-    description: "You know about the knocked-through basements under the Underquarter, and the way into them through the sewers."
-    pointCost: 0
-    tradeable: false
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
   convoy-directions:
     catalog: all
     name: Convoy Directions

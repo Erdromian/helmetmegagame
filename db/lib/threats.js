@@ -102,13 +102,13 @@ const THREATS = [
     zone: "Anywhere",
     party: THANATI_PARTY,
     brief: THANATI_BRIEF,
-    assign: { tagPoints: 4, tagSlugs: ["thanati", "underquarter-basements", "literate"] },
+    assign: { tagPoints: 4, tagSlugs: ["thanati", "literate"] },
     spawn: {
       gender: "ROLL",
       roleSlug: null,
       resources: 3,
       tagPoints: 4,
-      tagSlugs: ["underquarter-basements", "literate", "obol x4"],
+      tagSlugs: ["literate", "obol x4"],
     },
   },
   {
@@ -120,13 +120,13 @@ const THREATS = [
     zone: "Anywhere",
     party: THANATI_PARTY,
     brief: THANATI_LEADER_BRIEF,
-    assign: { tagPoints: 7, tagSlugs: ["thanati", "thanati-leader", "underquarter-basements", "literate"] },
+    assign: { tagPoints: 7, tagSlugs: ["thanati", "thanati-leader", "literate"] },
     spawn: {
       gender: "ROLL",
       roleSlug: null,
       resources: 3,
       tagPoints: 7,
-      tagSlugs: ["thanati-mask", "underquarter-basements", "literate", "obol x4"],
+      tagSlugs: ["thanati-mask", "literate", "obol x4"],
     },
   },
   // THE TRIBUNAL. Both carry `spawn.locationSlug`, which nothing else does — the seat knows where its own shuttle puts down.
