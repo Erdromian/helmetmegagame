@@ -431,9 +431,11 @@ zones:
             description: >-
               A place to store the smiths' goods.
             stash:
-              resources: 2
+              resources: 16
               items:
                 workshop-equipment: 1
+                iron: 1
+                malachite: 2
       town-7:
         name: The Old Cock Inn
         attributes:
@@ -646,6 +648,10 @@ zones:
             access: [cerberus-key, barons-key]
             description: >-
               Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
+            stash:
+              items:
+                cigarette: 1
+                radio-bracelet-cerberon: 2
           # No door, deliberately. The Cerberon's goods sit in the open, where
           # anybody standing in the hall can walk off with them — the room is
           # the Garrison's common one, not a strongroom. A cerberus-key on it
@@ -695,6 +701,9 @@ zones:
             access: [cerberus-key, barons-key]
             description: >-
               In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
+            stash:
+              items:
+                truncheon: 4
           fortress-1-8:
             name: Stables
             access: [cerberus-key, barons-key]
@@ -729,6 +738,7 @@ zones:
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
             description: >-
               A pair of thin, menacing watchtowers lined with spikes and draped with the Raven banner.
+            stash: [crossbow]
       fortress-3:
         name: Court
         attributes:
@@ -766,6 +776,10 @@ zones:
             access: [in-the-pit]
             description: >-
               A wet room. It smells like rotting bodies.
+            stash:
+              items:
+                human-flesh: 1
+                bone: 3
           fortress-3-6:
             name: Chapel of the Silver Cross
             description: >-
@@ -894,6 +908,10 @@ zones:
             access: [servant-key, servant, barons-key, hands-key]
             description: >-
               It has bunked cots and a long table for the servants to share their meals.
+            stash:
+              items:
+                cigarette: 1
+                obol: 2
           fortress-4-c:
             name: The Charon
             access: [barons-key]
@@ -904,6 +922,11 @@ zones:
             access: [barons-key, baroness-key]
             description: >-
               A hidden room for the Baron and Baroness to lie in wait should everything go wrong. It connects to the Charon.
+            stash:
+              items:
+                ration-box: 3
+                tinned-butter: 1
+                paper: 3
           # The upper end of the Baron's lift; the cage at the bottom is in the
           # Undercroft. The edge itself is `hidden: elevator-key`.
           fortress-4-e:
