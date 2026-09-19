@@ -721,7 +721,7 @@ async function applyWoundMood(tx, characterId, tagIds, opts = {}) {
 // REQUESTS.md §1a pattern, and a rare one. A first placement (creation, a
 // spawn, a GM dropping somebody in from nowhere) has no `from` and charges
 // nothing: nobody walked. Takes the singleton client; opens its own tx.
-const CATHEDRAL_LOCATION_SLUG = "cathedral";
+const CATHEDRAL_LOCATION_SLUG = "town-4";
 const CATHEDRAL_AUDIT_ACTION = "mood_cathedral";
 async function applyArrivalMood(prisma, { characterId, fromLocationId, toLocationId }) {
   if (!characterId || !toLocationId || !fromLocationId || fromLocationId === toLocationId) return null;

@@ -3,7 +3,7 @@
 const { formatMoveAmount } = require("./formatTagRequirement");
 
 const RESEARCH_TAG_SLUG = "research";
-const CATHEDRAL_LOCATION_SLUG = "cathedral";
+const CATHEDRAL_LOCATION_SLUG = "town-4";
 
 // Machine-marker idiom (db/lib/offerExpiryPass.js), never rendered (MoveDesk.js), refused on a player Edit (moves.js).
 // `(?:^|\n)`: stagedPush.js APPENDS "auto:silent_close" via newline join, so matching must work mid-string too.

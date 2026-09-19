@@ -197,6 +197,12 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
       stable: entry.stable,
       live: entry.live,
       locationId: location.id,
+      // The AUTHORED contents, recorded but not poured: Start Game turns
+      // these into real RoomTag rows once (db/lib/roomStash.js). The importer
+      // deliberately creates no items itself — it runs BEFORE db:sync-tags in
+      // the working order (SYNC.md), so half the slugs would have no Tag row
+      // to point at yet.
+      stashSeed: entry.stash?.resources > 0 || entry.stash?.items?.length ? entry.stash : undefined,
     };
     if (apply) {
       const room = await prisma.room.create({ data });
@@ -206,10 +212,6 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
       roomsBySlug.set(entry.slug, { ...data, id: `dry:${entry.slug}` });
     }
     report.created.rooms.push(entry.slug);
-
-    if (entry.stash?.resources > 0 || entry.stash?.items?.length) {
-      report.warnings.push(`room "${entry.slug}" has a stash in the YAML — seed from /gm/dev/zones, not the importer`);
-    }
   }
 
   // --- LocationLink ------------------------------------------------------

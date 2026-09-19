@@ -26,15 +26,24 @@ game's starting layout (`npm run db:import-zones -- --apply`): it's additive,
 never updates an existing row and never deletes one — see `SYNC.md` for the
 format and `DEV-PANEL.md` for the editor.
 
-**How a Location is slugged.** A built place takes a bare slug and a bare
-name — `keep`, `factory`, `cathedral`, `customs`. Open country takes its zone as
-a prefix — `forest-creekside`, `hills-gullies`, `marshes-village`,
-`depths-obelisk` — because a ravine and a river are things every zone has one
-of, and the slug is also the Discord channel name. The wilderness used to be
-numbered instead (`forest-7`, `Depths 3`), with the hand-drawn map's number
-buried in the slug and a different one in the display name; the drawing's
-number now lives in `map_node:`, which nothing but a person reads. The Black
-Hills zone slug is `hills`.
+**How a Location is slugged: it is the map code.** A Location's slug is its
+zone plus its system code off the Playscii plate — `town-1` is the Gatehouse,
+`fortress-5` the Tower, `undertown-a` the Slums. A Room's is its Location's
+slug plus its own number within that Location, in authoring order: `town-2-3`
+is the Square's Warehouse. Codes run 1-9 then a-z, and each zone starts again
+at 1, which is what the zone prefix is for.
+
+The point is that a slug is a coordinate, not a name. Renaming a place is a
+`name:` edit and nothing else, so no constant, test or doc that named it goes
+stale — and `docs/assets/maps/nodes.yaml` addresses the same places by the
+same codes, so the plate links straight at them.
+
+Zones not yet renumbered still carry descriptive slugs: the Black Hills
+(`hills`, plus `hills-gullies` and the rest), the Caves and the Depths. Each
+of those keeps a `slug:` override in `nodes.yaml` until its own pass lands.
+The older rule — bare slugs for built places, zone-prefixed ones for open
+country — was solving collisions between a ravine here and a ravine there,
+and a coordinate cannot collide.
 
 Zones still come in three kinds:
 
@@ -900,7 +909,7 @@ commits — after, because `travelOptions` reads the tags it just granted.
 **Leaving a slug out of that table is not a guarantee it stays dark**, and it is
 worth being clear about why. `recordArrival` paints every *listed* neighbour of
 a seeded Location, and a locked way is listed — so `hills-mountain` reaches all
-thirteen Fortress seats through the locked `servant-wing` climb whether the
+thirteen Fortress seats through the locked Black Hills climb whether the
 table names it or not, which is correct: you can see a mountain from the road.
 What leaving a slug out really protects is a **hidden** way, since
 `travelOptions` drops those before the sighting write ever runs. The table is
@@ -1132,6 +1141,42 @@ the stone as it thins. `npm run map:scrub` is the tidy-up for the rest: it
 clears transparent-slot glyphs and buried cells from the masters, keeps the
 `heat` ones, matches every cell's exact contents before touching it, and is a
 dry run unless given `-- --apply`.
+
+### 6g. The plate and the master are the same places now
+
+Until 2026-09-19 the plate and `docs/zones.yaml` were two descriptions of the
+barony that had drifted apart: the plate drew a Gatehouse, a Soilery, an Alleys
+and a Residences that the master did not have, and the master still carried a
+`forest` and a `marshes` for a surface the setting had destroyed. The rework
+made them agree for Town, the Fortress and a skeleton Undertown.
+
+**Slug == map code** is what keeps them in step. A Location is `town-1`, a Room
+is `town-2-3`, so the plate's node addresses its Location directly and
+`build-maps.js` derives the slug rather than looking it up. A `slug:` override
+on a node now means only one thing: that zone has not been renumbered yet.
+
+**`npm run map:check` is the guard** (`scripts/map/check-places.js`), read-only
+and exit-1 on a problem. It asks five questions:
+
+1. Is every slug unique across zones, locations and rooms?
+2. Does every `access:` and `stash:` slug name a real tag? Nothing else checks
+   this — the importer cannot, because tags sync *after* zones.
+3. Does every connection name two real Locations, each edge stated once?
+4. Does every node on the plate have a Location, and every Location in a
+   renumbered zone have a node?
+5. Can you walk there? An unreachable Location is a Discord channel nobody can
+   ever stand in.
+
+A Location in a zone still on the `PENDING` list, or one with no rooms written
+yet, is reported as a **note** rather than a problem — that is the Undertown's
+twelve skeletons waiting for their own pass.
+
+**Stashes seed themselves now.** A `stash:` block rides onto the Room as
+`Room.stashSeed` when `db:import-zones` creates it, and Start Game turns the
+whole lot into real `RoomTag` rows in one pass (`db/lib/roomStashSeed.js`),
+guarded by `Room.seededStashSlugs` so nothing is ever poured twice. Standing a
+game up used to mean a superadmin pressing "Seed these items now" once per
+room, by hand, across eighty-odd rooms.
 
 **A place is marked by a crosshair, not a number.** Two glyphs out of the
 charset's own reticle row (474-479), named in `nodes.yaml` under `uiGlyphs`

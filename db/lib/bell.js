@@ -4,7 +4,7 @@
 const { broadcastSound } = require("./soundBroadcast");
 
 // The Cathedral's Bell Tower, hardcoded for the db/lib/roleIds.js reason.
-const BELL_ROOM_SLUG = "cathedral-bell-tower";
+const BELL_ROOM_SLUG = "town-4-1";
 
 // How far the peal reaches, in hops, and how far it stays full size — further than /shout's four,
 // out to the edges of the Marshes and Black Hills. The underground hears nothing (soundBroadcast decides).

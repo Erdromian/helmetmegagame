@@ -22,15 +22,15 @@ const POSTER_TURNS = 30;
 const NOTICE_SPECS = {
   WANTED: {
     author: "The Cerberon",
-    roomSlugs: ["garrison-mess-hall", "garrison-censors-office"],
-    boardLocationSlug: "square",
+    roomSlugs: ["fortress-1-4", "fortress-1-2"],
+    boardLocationSlug: "town-2",
     text: (name, zoneName) => `WANTED: ${name}. Last seen in the ${zoneName}.`,
     needsZone: true,
   },
   DEBTOR: {
     author: "The Merchant",
-    roomSlugs: ["depot-merchants-office", "depot-storefront"],
-    boardLocationSlug: "depot",
+    roomSlugs: ["undertown-5-3", "undertown-5-1"],
+    boardLocationSlug: "undertown-5",
     text: (name) => `DEBTOR: ${name}. Owes: ${DEBTOR_DEBT_OBOLS} obols. Send the dockers.`,
     needsZone: false,
   },

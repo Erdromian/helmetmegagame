@@ -1,13 +1,16 @@
-// The Gatehouse turret: the machinegun in the fortress yard. Opposite of the
+// The Gatehouse turret: the machinegun over the Residences. Opposite of the
 // Depot turret in the one way that matters: the Merchant's gun reads faces
 // and spares one, this one spares nobody, no list/keycard/rank — arm it and
-// it fires on whoever's in the yard, Censor included, which is why the switch
+// it fires on whoever's in the residences, Censor included, which is why the switch
 // is a physical button in the Censor's Office and not a page anyone can
 // reach. Rolls on the shipped table (db/lib/depotTurret.js#DEFAULT_TURRET_TABLE);
 // armour still bends the curve. Takes `prisma` as a parameter (db/lib/dm.js).
 const { sweepTurretAt, applyTurretShot, rollTurretOnArrivalAt, turretDmFor } = require("./turretPass");
 
-const GATEHOUSE_LOCATION_SLUG = "gatehouse";
+// The gun stands over the Residences (town-8-1, the Fortress Stairs) since
+// the 2026-09-19 map rework. Its switch stayed in the Censor's Office, a
+// zone away, which is the whole shape of this feature.
+const RESIDENCES_LOCATION_SLUG = "town-8";
 
 const DEATH_CONTENT = "Shot by a turret.";
 
@@ -23,7 +26,7 @@ const GATEHOUSE_TURRET_DM = {
 // Scenery, not an announcement — `-#` subtext (db/lib/ambientLine.js), the only
 // warning anybody standing under the gun gets.
 //
-// BOTH guns speak these. They named the yard until the Depot's turret moved onto
+// BOTH guns speak these. They named the residences until the Depot's turret moved onto
 // a wall switch of its own (DEPOT.md §0i) and wanted a pair just like them; two
 // near-identical pairs is how they drift, so the location word came out instead
 // and the Depot's own lines were deleted. The channel they are spoken into is
@@ -52,7 +55,7 @@ async function runGatehouseTurretPass(prisma, turn) {
     return { turretShots: 0, turretOutcomes: [], dms: [], deaths: [], burstLocationId: null };
   }
 
-  const { shots, locationId } = await sweepTurretAt(prisma, { locationSlug: GATEHOUSE_LOCATION_SLUG });
+  const { shots, locationId } = await sweepTurretAt(prisma, { locationSlug: RESIDENCES_LOCATION_SLUG });
 
   const dms = [];
   const outcomes = [];
@@ -86,7 +89,7 @@ function rollGatehouseTurretOnArrival(prisma, { characterId, toLocationId, turn 
     characterId,
     toLocationId,
     turn,
-    locationSlug: GATEHOUSE_LOCATION_SLUG,
+    locationSlug: RESIDENCES_LOCATION_SLUG,
     armed: async () => ({ armed: await gatehouseTurretArmed(prisma) }),
     deathContent: DEATH_CONTENT,
     deathReason: DEATH_REASON,
@@ -107,7 +110,7 @@ module.exports = {
   ARM_WORD,
   DISARM_WORD,
   turretWordMatches,
-  GATEHOUSE_LOCATION_SLUG,
+  RESIDENCES_LOCATION_SLUG,
   GATEHOUSE_TURRET_DM,
   TURRET_ARMED_LINE,
   TURRET_DISARMED_LINE,

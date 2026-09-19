@@ -1555,6 +1555,17 @@ model Room {
   // reason accessTagSlugs above is: zones and tags sync independently.
   seededStashSlugs String[] @default([])
 
+  // What docs/zones.yaml says SHOULD be in this room on the day the game
+  // opens, as { resources, items: [[slug, quantity], ...] }. Written by
+  // db:import-zones when it creates the room and by the /gm/dev/zones editor;
+  // turned into real RoomTag rows once, by Start Game (db/lib/roomStashSeed.js).
+  //
+  // Separate from the live RoomTag rows on purpose — this is the AUTHORED
+  // contents, which stay readable after players have carried half of it off,
+  // so a GM can see what a room was meant to hold. seededStashSlugs above is
+  // what stops it ever being poured in twice.
+  stashSeed Json?
+
   // The Quest that minted this room, if any. A quest room is the ONE Room in
   // the game that docs/zones.yaml does not master: a GM stages it at runtime
   // from /gm/dev?s=quests, so syncZones.js's stale-room prune skips every row

@@ -25,16 +25,15 @@ const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
 // The one room with a big red button on the wall (docs/zones.yaml). Named
 // here rather than imported from gatehouseTurret.js, which pulls in the whole turret engine.
-const CENSOR_OFFICE_ROOM_SLUG = "garrison-censors-office";
+const CENSOR_OFFICE_ROOM_SLUG = "fortress-1-2";
 
-// The four rooms that work a gate. Every modular edge in docs/zones.yaml has
+// The three rooms that work a gate. Every modular edge in docs/zones.yaml has
 // exactly one of these; Open/Close renders on that room's starter post and
 // NOWHERE ELSE — the winch is in the tower, not on the open road.
 const WATCHTOWER_ROOM_SLUGS = new Set([
-  "gatehouse-watchtower", //  fortress/gatehouse <-> fortress/road
-  "customs-watchtower", //    caves/customs      <-> caves/caves-approach
-  "north-gate-watchtower", // town/north-gate    <-> forest/forest-northern-road
-  "south-gate-watchtower", // town/south-gate    <-> forest/forest-south
+  "fortress-2-3", //       fortress/fortress-2 <-> town/town-8
+  "town-1-2", //           town/town-1         <-> hills/hills-bridge
+  "customs-watchtower", // caves/customs       <-> caves/caves-approach
 ]);
 
 // Not a prefix but one fixed id: travel needs no location context, since the handler reads the mover's own locationId.

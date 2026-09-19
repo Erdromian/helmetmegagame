@@ -86,7 +86,7 @@
 # seats carry both. The difference matters: coin in your hand can be stolen or
 # pickpocketed, and coin in the bank cannot, but the bank can only pay out what
 # is actually sitting in the Keep's Vault. Every treasury figure here is a
-# claim on that pile (docs/zones.yaml, `undercroft-vault`), so raising one
+# claim on that pile (docs/zones.yaml, `undertown-1-7`), so raising one
 # means checking `npm run db:audit-vault-backing` still exits 0.
 #
 # `starting_zone` (role-level) is a Zone **slug** from docs/zones.yaml — it

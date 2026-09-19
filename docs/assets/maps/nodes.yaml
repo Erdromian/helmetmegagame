@@ -56,32 +56,36 @@ maps:
           "1": Gatehouse
           "2": Square
           "3": Soilery
-          "4": { name: Cathedral, slug: cathedral }
+          "4": Cathedral
           "5": Alleys
           "6": Smithies
-          "7": Inn
+          "7": The Old Cock Inn
           "8": Residences
-          "9": { name: Sanctuary, slug: sanctuary }
+          "9": Sanctuary
           "A": Graveyard
 
       - fg: 6
         zone: fortress
         nodes:
-          "1": { name: Garrison, slug: garrison }
+          "1": Garrison
           "2": Gatehouse
           "3": Court
-          "4": { name: Keep, slug: keep }
+          "4": Keep
           "5": Tower
 
       # Black Hills, first half — these keep the codes they are drawn with.
+      # The Black Hills have NOT been renumbered onto map-code slugs yet, so
+      # every node here carries a `slug:` override pointing at the Location
+      # that place actually is today. The overrides all go away in that
+      # zone's own pass, the way Town's and the Fortress's did.
       - fg: 8
         zone: black-hills
         nodes:
-          "1": Bridge
-          "2": West River
-          "3": Shadows
-          "4": Refuse Pit
-          "5": East River
+          "1": { name: Bridge, slug: hills-bridge }
+          "2": { name: West River, slug: hills-west }
+          "3": { name: Shadows, slug: hills-shadowed-grove }
+          "4": { name: Refuse Pit, slug: hills-north }
+          "5": { name: East River, slug: hills-waterway }
 
       # The old Wilderness, folded into Black Hills. The markers are still
       # drawn with their original codes, so `recode` renumbers them onto the
@@ -104,11 +108,11 @@ maps:
       - fg: 7
         zone: undertown
         nodes:
-          "1": { name: Undercroft, slug: undercroft }
+          "1": Undercroft
           "2": Residences
-          "3": { name: Lifeweb, slug: lifeweb }
+          "3": Lifeweb
           "4": Sewer
-          "5": { name: Depot, slug: depot }
+          "5": Depot
           "6": Merchant
           "7": Poorhouse
           "8": Den

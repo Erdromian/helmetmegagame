@@ -15,7 +15,7 @@ const SHACKLED_SLUG = "shackled";
 const PIOUS_SLUG = "pious";
 const WEAPON_GROUP_SLUG = "items-weapons";
 // A slug list rather than a Location attribute, so it needs no zone sync.
-const HALLOWED_LOCATION_SLUGS = Object.freeze(["cathedral"]);
+const HALLOWED_LOCATION_SLUGS = Object.freeze(["town-4"]);
 
 function pick(list) {
   return list.length ? list[Math.floor(Math.random() * list.length)] : null;

@@ -15,41 +15,34 @@
 // kit half of the table has no home in roles.yaml anyway. Deliberately NOT on
 // the @lifeweb/db barrel; require it by path.
 
-const FORTRESS_CORE = [
-  "keep",
-  "garrison",
-  "gatehouse",
-  "servant-wing",
-  "lifeweb",
-  "road",
-  "manors",
-];
+// Every slug below is a MAP CODE (docs/zones.yaml) — `town-4` is the
+// Cathedral, `fortress-5` the Tower. A place can be renamed without this
+// table going stale, which is the point of coding them.
+
+const FORTRESS_CORE = ["fortress-1", "fortress-2", "fortress-3", "fortress-4", "fortress-5"];
 
 // The Undercroft is the inner circle's alone — the Baron's elevator starts
-// there, and a Squire who has never been told does not get to know.
-const FORTRESS_INNER = [...FORTRESS_CORE, "undercroft"];
+// there, and a Squire who has never been told does not get to know. It sits
+// in the Undertown now, at the bottom of the Keep's lift.
+const FORTRESS_INNER = [...FORTRESS_CORE, "undertown-1"];
 
+// All ten of the town's places. It is one walled town underground now, so
+// everybody who lives in it knows the whole of it.
 const TOWN_ALL = [
-  "square",
-  "old-cock-inn",
-  "north-gate",
-  "cathedral",
-  "sanctuary",
-  "underquarter",
-  "south-gate",
-];
-
-const MARSHES_ALL = [
-  "marshes-village",
-  "factory",
-  "marshes-north",
-  "marshes-west",
-  "marshes-woods",
-  "marshes-drowned",
-  "marshes-south",
+  "town-1", // Gatehouse
+  "town-2", // Square
+  "town-3", // Soilery
+  "town-4", // Cathedral
+  "town-5", // Alleys
+  "town-6", // Smithies
+  "town-7", // The Old Cock Inn
+  "town-8", // Residences
+  "town-9", // Sanctuary
+  "town-a", // Graveyard
 ];
 
 const HILLS_ALL = [
+  "hills-bridge",
   "hills-underlocks",
   "hills-shadowed-grove",
   "hills-west",
@@ -60,30 +53,30 @@ const HILLS_ALL = [
   "hills-cliffs",
 ];
 
+// The Marshes were deleted with the surface. The Factory came over into the
+// Black Hills, so the seats whose whole life was the Factory know it and the
+// water around it rather than a zone that no longer exists.
+const FACTORY_CLUSTER = ["factory", "hills-waterway", "hills-cliffs", "hills-gullies", "hills-grand-ravine"];
+
 // As much of the caves as somebody who works customs has reason to know. NOT
 // the abandoned camp — that's a bigger reveal than a trade seat has earned;
-// the Migrant, who lives there, gets it below.
-const CAVE_MOUTH = ["customs", "depot", "caves-approach"];
+// the Migrant, who lives there, gets it below. The Depot moved into the
+// Undertown but it is still the shop on the other side of the sentry post.
+const CAVE_MOUTH = ["customs", "caves-approach", "undertown-5"];
 
-// The way down off the mountain, as the people who walk it know it.
-const FORTRESS_TO_TOWN = ["forest-northern-road", "north-gate"];
+// The way between the fortress and the town: one manned gate, at the top of
+// the Residences' stairs.
+const FORTRESS_TO_TOWN = ["fortress-2", "town-8"];
 
-// The one open road from the cave mouth to the Factory — every other way is
+// The one open road from the town out to the Factory — every other way is
 // locked or a caving crawl, neither belonging in a starting memory.
 const FACTORY_ROAD = [
-  "forest-riverbend",
-  "forest-deep-forest",
-  "forest-creekside",
-  "forest-headwaters",
-  "forest-cliffs",
-  "forest-northern-road",
-  "forest-embankment",
+  "town-1",
+  "hills-bridge",
   "hills-shadowed-grove",
   "hills-underlocks",
   "hills-west",
   "hills-waterway",
-  "marshes-west",
-  "marshes-woods",
   "factory",
 ];
 const ROLE_MEMORIES = {
@@ -98,18 +91,11 @@ const ROLE_MEMORIES = {
   servant: FORTRESS_CORE,
   incarn: FORTRESS_CORE,
   squire: FORTRESS_CORE,
-  // meister: the tithe run. cerberus: the Cerberon man both town gates and the cave-mouth one.
-  meister: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "square"],
-  minstrel: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "square", "old-cock-inn"],
+  // meister: the tithe run. cerberus: the Cerberon man the town gate and the cave-mouth one.
+  meister: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-2"],
+  minstrel: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-2", "town-7"],
   censor: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN],
-  cerberus: [
-    ...FORTRESS_CORE,
-    ...FORTRESS_TO_TOWN,
-    "square",
-    "south-gate",
-    "forest-south",
-    "customs",
-  ],
+  cerberus: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-1", "town-2", "hills-bridge", "customs"],
 
   // Town
   bishop: TOWN_ALL,
@@ -125,39 +111,30 @@ const ROLE_MEMORIES = {
   pusher: TOWN_ALL,
   innkeeper: TOWN_ALL,
   "inn-staff": TOWN_ALL,
-  sheriff: [...TOWN_ALL, "forest-south", "forest-northern-road"],
-  // headman: collects from the farms. mortus: the vow, always knows the way there.
-  headman: [...TOWN_ALL, "forest-south", "farms", "forest-northern-road"],
-  mortus: [...TOWN_ALL, "forest-northern-road", "manors", "road", "gatehouse", "lifeweb"],
+  sheriff: [...TOWN_ALL, ...FORTRESS_TO_TOWN, "hills-bridge"],
+  // headman: collects from the Soilery, which is inside the walls now. mortus:
+  // the vow, always knows the way down to the Tower.
+  headman: [...TOWN_ALL, ...FORTRESS_TO_TOWN],
+  mortus: [...TOWN_ALL, ...FORTRESS_TO_TOWN, "undertown-3"],
 
   // Caves. merchant: trades the Factory's goods.
-  merchant: [...CAVE_MOUTH, "forest-south", "south-gate", "square", ...FACTORY_ROAD],
-  mercenary: [...CAVE_MOUTH, "forest-south"],
-  docker: [...CAVE_MOUTH, "forest-south", ...FACTORY_ROAD],
+  merchant: [...CAVE_MOUTH, "town-2", ...FACTORY_ROAD],
+  mercenary: [...CAVE_MOUTH],
+  docker: [...CAVE_MOUTH, ...FACTORY_ROAD],
   migrant: [...CAVE_MOUTH, "caves-abandoned-camp"],
 
-  // Marshes
-  fisherman: MARSHES_ALL,
-  geschef: ["factory", "marshes-village", "marshes-south", "marshes-woods", "marshes-north"],
-  refugee: ["factory", "marshes-village", "marshes-south", "marshes-woods"],
+  // The Factory
+  fisherman: FACTORY_CLUSTER,
+  geschef: FACTORY_CLUSTER,
+  refugee: ["factory", "hills-waterway", "hills-cliffs"],
   // banneret rides the Squeeze up to town, so he knows every step.
-  banneret: [
-    ...MARSHES_ALL,
-    "hills-waterway",
-    "hills-west",
-    "hills-underlocks",
-    "hills-shadowed-grove",
-    "forest-embankment",
-    "forest-northern-road",
-    "north-gate",
-    "square",
-  ],
+  banneret: [...FACTORY_CLUSTER, ...FACTORY_ROAD, "town-2"],
 
   // Black Hills
   "tribunal-ordinator": HILLS_ALL,
   tribune: HILLS_ALL,
   brigand: HILLS_ALL,
-  "brigand-leader": [...HILLS_ALL, "forest-embankment"],
+  "brigand-leader": [...HILLS_ALL, "factory"],
 };
 
 // A tag a character starts with can add roads they have walked, on top of

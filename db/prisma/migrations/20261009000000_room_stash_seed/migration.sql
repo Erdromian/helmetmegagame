@@ -1,0 +1,13 @@
+-- A Room remembers what docs/zones.yaml says it should START with, apart from
+-- what is actually in it right now.
+--
+-- db:import-zones used to only WARN that a room had a `stash:` block and point
+-- at the editor, which meant standing up a fresh game was a superadmin
+-- pressing "Seed these items now" once per room, by hand, across ~90 rooms.
+-- The authored contents live here instead, and Start Game pours them in once
+-- (db/lib/roomStashSeed.js), guarded by the "seededStashSlugs" column beside this
+-- one so nothing is ever seeded twice.
+--
+-- Nullable with no default and no backfill: a room that predates this simply
+-- has no authored stash recorded, which is exactly true.
+ALTER TABLE "Room" ADD COLUMN "stashSeed" JSONB;

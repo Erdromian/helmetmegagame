@@ -6,7 +6,7 @@ const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
 
 // The Council Room, hardcoded for the db/lib/roleIds.js reason.
-const INTERCOM_ROOM_SLUG = "keep-council-room";
+const INTERCOM_ROOM_SLUG = "fortress-4-1";
 
 // Zone slugs the PA does not reach. `hills` is the Black Hills.
 const OUT_OF_RANGE_ZONE_SLUGS = ["hills"];

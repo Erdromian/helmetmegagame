@@ -105,7 +105,7 @@ import {
   DISARM_WORD,
   turretWordMatches,
   gatehouseTurretArmed,
-  GATEHOUSE_LOCATION_SLUG,
+  RESIDENCES_LOCATION_SLUG,
   TURRET_ARMED_LINE,
   TURRET_DISARMED_LINE,
 } from "@lifeweb/db/lib/gatehouseTurret";
@@ -1524,7 +1524,7 @@ export async function toggleTurret({ roomId, word } = {}) {
   // The yard hears it, and that is the only warning anybody in it gets. Best
   // effort — the switch is thrown either way.
   const gatehouse = await prisma.location
-    .findUnique({ where: { slug: GATEHOUSE_LOCATION_SLUG }, select: { discordChannelId: true } })
+    .findUnique({ where: { slug: RESIDENCES_LOCATION_SLUG }, select: { discordChannelId: true } })
     .catch(() => null);
   if (gatehouse?.discordChannelId) {
     const line = next ? TURRET_ARMED_LINE : TURRET_DISARMED_LINE;

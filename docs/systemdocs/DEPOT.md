@@ -126,7 +126,7 @@ on top.
 ## 0c. The Railyard, and the train
 
 The Railyard is a **real room** — a thread under the Depot channel, authored in
-`docs/zones.yaml` as `depot-railyard`, and **public**. It replaced the Landing
+`docs/zones.yaml` as `undertown-5-2`, and **public**. It replaced the Landing
 Pad, which was behind a Depot Keycard.
 
 **Anybody can walk in, and crates land here.** That is a known hole and it is
@@ -311,7 +311,7 @@ above zero.
 **An account is a claim, and a TREASURY claim is hard-backed.**
 
 - `BankAccount.balanceObols` is the claim. `Depot.accountObols` is gone.
-- The **Vault** is `undercroft-vault`, a real room behind the Baron's key,
+- The **Vault** is `undertown-1-7`, a real room behind the Baron's key,
   carrying **480 obols** in `docs/zones.yaml`. Every TREASURY account draws on
   that pile and nothing else.
 - **Nobody seeds that pile automatically, and this is the trap.**
@@ -624,7 +624,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) — open to everyone, read-only unless you are standing there |
 | Location | `depot` — the berth at the cave mouth, one plain hop east of `customs`, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
-| Rooms | `depot-storefront` (the ATM and the drop box), `depot-railyard` (the train and the crates, behind a keycard), `depot-merchants-office` (the gun), `depot-cargo-bay` |
+| Rooms | `undertown-5-1` (the ATM and the drop box), `undertown-5-2` (the train and the crates, behind a keycard), `undertown-5-3` (the gun), `undertown-5-4` |
 | Gates | the manifests (§0e), plus `depot-keycard` for a sealed crate. `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
 | Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |

@@ -12,13 +12,13 @@
 // Where it stops. A ROOM slug (docs/zones.yaml), under the Depot location, and
 // it must follow whichever Location the platforms sit in — get this wrong and
 // every delivery reports that a GM needs to run the zone sync.
-const RAILYARD_ROOM_SLUG = "depot-railyard";
+const RAILYARD_ROOM_SLUG = "undertown-5-2";
 
 // The Merchant's own room, where the station's counter is and where the ATM
 // hangs. Named here rather than imported from depot.js so the affordance
 // catalog can reach it without pulling the price tables in.
-const STOREFRONT_ROOM_SLUG = "depot-storefront";
-const MERCHANTS_OFFICE_ROOM_SLUG = "depot-merchants-office";
+const STOREFRONT_ROOM_SLUG = "undertown-5-1";
+const MERCHANTS_OFFICE_ROOM_SLUG = "undertown-5-3";
 
 // Turn parity, and it is about what happens at the turn's CLOSE, not about
 // where the train is standing while the turn is open. Closing an EVEN turn

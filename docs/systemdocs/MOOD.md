@@ -123,7 +123,7 @@ HAVEN (the `haven` attribute: Inn, Keep, Sanctuary) > INDOORS
 (`Location.indoors`, and a `safe` cave Location, which is why Customs and the
 Depot are a roof and not the dark) > CAVE (`zone.kind === CAVE_LEVEL`) >
 WILDERNESS (the `wilderness` attribute: every Forest, Black Hills and Marshes
-Location except `factory`, `farms` and `marshes-village`) > OPEN (everything
+Location except `factory`) > OPEN (everything
 else outdoors).
 Both attributes live in `db/lib/locationAttributes.js` and print on Examine.
 

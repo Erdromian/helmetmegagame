@@ -29,13 +29,23 @@
 # - id: a stable slug, used to match this entry to its DB row across syncs.
 #   Zones, locations and rooms share ONE slug namespace.
 #
-#   **A ROOM's id is always `<location-stem>-<room>`** — `keep-throne-room`,
-#   `inn-cellar`, `customs-watchtower`. The stem is the Location's short name,
-#   not always its literal id (`old-cock-inn` gives `inn-`, `forest-headwaters`
-#   gives `headwaters-`). Follow it and a collision is impossible; three rooms
-#   in this file used to carry a comment explaining which id was already taken,
-#   and the rule replaces all of them. Display `name` is untouched by this:
-#   two rooms may both be called "Road" as long as their ids differ.
+#   **A SLUG IS THE MAP CODE, NOT THE NAME.** A Location's id is its zone
+#   plus its system code off the Playscii plate — `town-1`, `fortress-3`,
+#   `undertown-a` — and a Room's is its Location's id plus its own number
+#   within that Location, in the order they are written here: `town-2-3`,
+#   `fortress-4-b`. Codes run 1-9 then a-z, and every zone starts again at 1,
+#   which is what the zone prefix is for.
+#
+#   The point is that a slug never moves. Renaming a place is a `name:` edit
+#   and nothing else, so no code constant, test or doc that named the place
+#   goes stale — and the plate in docs/assets/maps/nodes.yaml addresses the
+#   same places by the same codes, so the map links straight at them with no
+#   lookup table in between. Display `name` is entirely free: two rooms may
+#   both be called "Street", and the Old Cock Inn is `town-7`.
+#
+#   The zones not yet renumbered — the Black Hills, the Caves, the Depths —
+#   still carry descriptive slugs, and `nodes.yaml` carries a `slug:` override
+#   for each. Those go away as each zone's pass lands.
 #
 #   Renaming an entry
 #   later means changing `name` here, NOT `id` — a changed `id` is treated as
@@ -81,13 +91,16 @@
 #           obol: 3
 #           cleaning-powder: 1
 #
-#   The importer does NOT seed a stash from this any more — it only warns that
-#   the room has one and points at the editor. Seeding stash is a live action
-#   now: the "Seed these items now" button at `/gm/dev/zones` writes the
-#   RoomTag rows and remembers what it seeded (`Room.seededStashSlugs`), so
-#   re-running it can neither undo a player carrying the anvil off nor
-#   quietly duplicate it. A stash block here just documents the room's
-#   intended starting contents for whoever seeds it.
+#   The importer records this on the Room as `stashSeed` but creates no items
+#   from it. The items appear when the GAME STARTS — the lobby's Start Game
+#   seeds every room's authored stash in one pass (db/lib/roomStashSeed.js), and
+#   writes each slug into `Room.seededStashSlugs` as it goes. That list is the
+#   whole guard: a slug already in it is never seeded again, so no later
+#   import, re-run or press of the editor's "Seed these items now" button can
+#   undo a player carrying the anvil off or quietly duplicate it.
+#
+#   So a stash edited here BEFORE the game opens lands by itself, and one
+#   edited after it opens is a job for /gm/dev/zones.
 # - structures (locations only): what was simply always STANDING there, like
 #   the Square's cross. A flat list of tag slugs that carry a `placement:`
 #   block in docs/tags.yaml:
@@ -127,23 +140,19 @@
 # The dormant `map:` block is gone. It described the retired /map plate's four
 # rhombi, and the geography it described no longer exists.
 #
-# HOW A LOCATION IS NAMED AND SLUGGED. Two rules, and the split is between
-# built places and open country.
+# THE SURFACE IS GONE. The setting went fully underground, so the `forest`
+# and `marshes` zones were deleted outright with this rework — every place in
+# them, and every edge to them. The Godard Factory is the one thing that
+# survived the Marshes; it stands in the Black Hills now, which is where the
+# plate has always drawn it. The Farms went the other way and became the
+# Soilery inside the town walls, which is what its `soilery:` placeholder was
+# always waiting for.
 #
-#   A BUILT place — the Keep, the Factory, the Cathedral, the Depot — takes a
-#   bare slug and a bare name. There is one of each in the barony and nobody
-#   says "the Fortress Keep".
-#
-#   OPEN COUNTRY takes its zone as a prefix: `forest-river`, `hills-ravine`,
-#   `marshes-village`, `depths-runnel`. A ravine and a river are the sort of
-#   thing every zone has one of, so the zone is part of the name, and the
-#   Discord channel reads #hills-ravine.
-#
-# The wilderness used to be numbered — "Forest 7", "Depths 3" — with the
-# number from Bascinet's hand-drawn map buried in the `id` and a different,
-# sequential number in the `name`. Nothing lined up. The places are named
-# after what is actually there now, and the drawing's number lives in
-# `map_node:` where it can be read.
+# The old naming rule — bare slugs for built places, zone-prefixed ones for
+# open country — is retired for any zone that has been renumbered. The code
+# rule above replaces it. What it was really solving was collisions between a
+# ravine here and a ravine there, and a slug that is a coordinate cannot
+# collide.
 #
 # ---------------------------------------------------------------------------
 # connections: the whole travel graph. ONE entry per edge — it is undirected,
@@ -208,9 +217,27 @@ zones:
     kind: surface
     sort: 1
     description: >-
-      Ants in the marshy chaff. The town is surrounded by an old wall of ancient ceramite, so old it looks exhumed from the ground, patched by wooden palisade. Decayed electric lights illuminate the narrow streets. Speakers blare the Baron's words. It is claustrophobic — salt-of-the-earth, virtuous, and degenerate types all in one disease-ridden congregation.
+      The town of Ravenheart is built on top of itself. Many have basements, and there are stairs everywhere leading down to the Undertown. Decayed electric lights illuminate the narrow streets, while speakers blare the Baron's words.
     locations:
-      square:
+      town-1:
+        name: Gatehouse
+        description: >-
+          A large gate with sharpened bars like spears. A grated metal bridge crosses the moat. There are murder holes in the roof and arrow slits in the walls, sufficient to repel invaders.
+        rooms:
+          town-1-1:
+            name: Gate
+            description: >-
+              Rusted grates surround you.
+          # The winch for the Black Hills gate is worked from HERE, so getting
+          # into this room IS the authority to shut it —
+          # db/lib/placeAffordances.js puts the gate button on this starter.
+          town-1-2:
+            name: Watchhouse
+            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
+            description: >-
+              The winch to the gate is here, and you can also shoot people through holes in the walls. This is a hard place to assault.
+            stash: [shortbow, spear]
+      town-2:
         name: Square
         # The public board (docs/systemdocs/PAPERWORK.md). The Square is where
         # everything in Town gets announced, so it is where things get nailed up.
@@ -220,117 +247,65 @@ zones:
         # Crucify button works here from day one.
         structures: [crucifix]
         description: >-
-          An open clearing — you can actually see the sky, finally. There's a simple platform with gallows at the center. Since the inquisition's arrival, the gallows beams have come to serve the additional purpose of a crucifix. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down. Follow winding streets and alleyways to domiciles ranging from modest homes to opulent manors.
+          An open clearing with a crucifix in the center. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down.
         rooms:
-          square-courtyard:
+          town-2-1:
+            name: Road
+            description: >-
+              Black cobblestones surrounded by squat homes. There is a crucifix on a platform. People often come to watch the executions. You can see the Cathedral up ahead, looming large.
+          town-2-2:
             name: Courtyard
             description: >-
               A rectangular patch of salted earth. Spectator stands awaiting bloodshed surround it. Perfect place for a duel, competition or random bout of violence!
-          square-market-row:
-            name: Market Row
-            description: >-
-              Lines of stalls and tents perched against buildings. You can find all sorts of bargains here, if buying random crap is your kind of thing.
-          square-smithery:
-            name: Smithery
-            description: >-
-              The dull clanging ringing against your ears rises in intensity as you approach. Arms, armor and accoutrements are lined up behind the counter, waiting to be purchased.
-          square-warehouse:
+          town-2-3:
             name: Warehouse
             description: >-
               A long building storing food and other public goods.
-            access: [headmans-key]
+            access: [headmans-key, smithy-key, sanctuary-key, barons-key, hands-key, bannerets-key, depot-keycard, soilers-key]
             stash:
               resources: 4
               items:
                 cheese: 1
                 paper: 12
                 hatchet: 1
-          square-smithery-storeroom:
-            name: Smithery Storeroom
-            description: >-
-              Bar iron, charcoal, and the tools too good to leave out where a customer could lift them.
-            access: [smithy-key, headmans-key]
-            stash:
-              resources: 2
-              items:
-                workshop-equipment: 1
-      # Promoted out of the Square, where it was a room, because the map makes
-      # it a place you walk to. Its prose is unchanged.
-      old-cock-inn:
-        name: The Old Cock Inn
+      town-3:
+        name: Soilery
+        # The Farms rework this Location's `soilery:` placeholder was waiting
+        # for. `stable:` moved with it, onto town-3-3.
         attributes:
-          haven: true
-        indoors: true
+          soilery: true
         description: >-
-          The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
+          The soilery is a set of plots and sheds in the recess of the eastern walls. There are also stables with arelitz.
         rooms:
-          inn-street:
-            name: Street
+          town-3-1:
+            name: Farms
             description: >-
-              The street outside the inn, where unlucky people end up. There's a porch — a fine place to smoke a cigarette.
-          inn-bar:
-            name: Bar
-            description: >-
-              Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers.
-          inn-second-floor:
-            name: Second Floor
-            description: >-
-              Upstairs, there's a felt-padded, multipurpose game table. It's quieter here. You can look down over the railing and onto the bar. A sign says: "DENNIS'S WING"
-          inn-balcony:
-            name: Balcony
-            description: >-
-              Sometimes it's busy out here, sometimes relaxing. You can look out onto the streets.
-          inn-kitchen:
-            name: Kitchen
-            description: >-
-              Where the staff hangs out. There's a big oven.
-            access: [inn-key]
-          inn-cellar:
-            name: Cellar
-            description: >-
-              A low roof; you almost hit your head. Shelves and kegs illuminated by wall candles set in a ram's horn.
-            access: [inn-key]
+              Low-set vines spread on trellises, mixing in a polyculture of plump helmets, potatoes, and carrots. UV lights powered by the Lifeweb simulate sunlight.
             stash:
-              resources: 3
               items:
-                cheese: 1
-                alcohol: 1
-                cigarette: 3
-          inn-room-a:
-            name: Room A
+                work-knife: 1
+          town-3-2:
+            name: Silo
+            access: [barons-key, soilers-key, hands-key, headmans-key]
             description: >-
-              A room to stay.
-            access: [room-a-key]
-          inn-room-b:
-            name: Room B
+              Foodstuff and seeds are stored here.
+            stash:
+              items:
+                wheat-seed-bag: 2
+                potato-seed-bag: 2
+                carrot-seed-bag: 1
+                plump-helmet-seed-bag: 1
+                wheat: 4
+                potato: 4
+          # The Stable (ARELITZ.md). db/lib/stablePass.js follows the flag, so
+          # it needed no code change to move here off the old farms-stable.
+          town-3-3:
+            name: Stable
+            access: [barons-key, soilers-key, hands-key, headmans-key]
+            stable: true
             description: >-
-              A room to stay.
-            access: [room-b-key]
-          inn-room-c:
-            name: Room C
-            description: >-
-              A room to stay. Two beds.
-            access: [room-c-key]
-      # Named "Gate" in play; the id is north-gate because the Gatehouse
-      # already owns "gate".
-      north-gate:
-        name: North Gate
-        description: >-
-          A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
-        rooms:
-          north-gate-gateway:
-            name: Gateway
-            description: >-
-              Rusted grates surround you.
-          # Both town gates, the fortress and Customs all have a room named
-          # "Watchtower" in play; the stem is what tells them apart.
-          north-gate-watchtower:
-            name: Watchtower
-            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
-            description: >-
-              Looks out onto the river. You can see the Keep up in the mountain. Has a grate you could open and throw stuff down into.
-            stash: [shortbow, spear]
-      cathedral:
+              Where the arelitz are kept. Some of them are unruly, while others are tame. It smells like placenta.
+      town-4:
         name: Cathedral
         indoors: true
         # The Shackle button works where Dungeons stand (docs/tags.yaml).
@@ -338,19 +313,19 @@ zones:
         description: >-
           Stained limestone erected modestly upon a sedimentary-like stack of ancient buildings. Hundreds of candles light the ornate interior.
         rooms:
-          cathedral-bell-tower:
+          town-4-1:
             name: Bell Tower
             description: >-
               A grand, bronze bell sits up here watching over the town, waiting for a tug from below to let it sound across the land. Some vagrant has painstakingly scraped their initials into it.
-          cathedral-confessionals:
+          town-4-2:
             name: Confessionals
             description: >-
               Cramped and dark, the confession box was the church's primary source of information until the arrival of the inquisition and their more proactive methods. If the bishop is feeling generous, he may even take your confession free of charge.
-          cathedral-order-chambers:
+          town-4-3:
             name: Order Chambers
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
-            access: [order-key]
+            access: [order-key, bishops-key]
             soundproof: true
             stash:
               items:
@@ -362,38 +337,214 @@ zones:
                 padded-cap: 1
                 crossbow: 1
                 tear-gas-grenade: 3
-          cathedral-hall:
+          town-4-4:
             name: Hall
             description: >-
               Lines of pews illuminated by stained glass, facing an ornate altar.
-          cathedral-pantry:
+          town-4-5:
             name: Pantry
             description: >-
               Shelves of bread, oil, and candles.
-            access: [cathedral-key]
+            access: [cathedral-key, barons-key]
             stash:
               resources: 3
               items:
                 cooking-all-you-need-to-know: 1
-          cathedral-vestry:
+          town-4-6:
             name: Vestry
             description: >-
               The Chaplains and Bishop privately congregate here.
-            access: [cathedral-key]
+            access: [cathedral-key, barons-key]
             stash:
               items:
                 vestments: 2
                 cross: 1
-          cathedral-scriptorium:
+          town-4-7:
             name: Scriptorium
             description: >-
               It's a cavern: books and tables immaculately organized, but towards the back, the stench of old books hosting colonies of mold is overwhelming. Every surface is stacked with piles of long forgotten scrawlings of past generations. Holy seals bearing quotes of scripture are stamped haphazardly.
-            access: [cathedral-key]
+            access: [cathedral-key, barons-key]
             stash:
               items:
                 paper: 20
                 bishops-wax-stamp: 1
-      sanctuary:
+      town-5:
+        name: Alleys
+        description: >-
+          The shadowy alleyways between the homes are safer than anywhere in the Undertown, but still have their occasional shanking incidents. There are tunnels leading down into the sewers.
+        rooms:
+          town-5-1:
+            name: Alleyways
+            description: >-
+              You can't see much further. You could explore here, but for what purpose?
+          town-5-2:
+            name: Art Gallery
+            access: [tunnel-rat]
+            description: >-
+              An abandoned art gallery. Its paintings are mostly gone.
+            stash: [painting]
+          # The other end of the tunnels the Location's description promises.
+          # Gated the same way the old Underquarter sewer grate was.
+          town-5-3:
+            name: Toilets
+            access: [sewer, tunnel-rat, sewer-key]
+            description: >-
+              An old latrine system set up during the 1066 dysentery crisis, leading down into the sewers.
+            stash:
+              items:
+                feces: 4
+          # Was `underquarter-basements`, moved here whole when the
+          # Underquarter came off the map. The Thanati grants are gone — it is
+          # a room you reach by knowing the tunnels now, not a cult's hideout —
+          # but the robes are still in the pile.
+          town-5-4:
+            name: Basements
+            access: [caving]
+            soundproof: true
+            description: >-
+              Four connected basements, their separating walls knocked down. Originally some sort of hidden den, this now is a perfect place for organizing. It's accessed through the sewers.
+            stash:
+              resources: 8
+              items:
+                sewer-key: 1
+                elevator-key: 1
+                obol: 4
+                dagger: 4
+                vegetable-stew: 1
+                black-robes: 1
+                paper: 19
+      town-6:
+        name: Smithies
+        # "Some possessing industrial forges" — one standing Forge, so every
+        # workshop-gated recipe works here on day one (docs/tags.yaml `forge`).
+        structures: [forge]
+        description: >-
+          A conglomeration of several smithery buildings, some possessing industrial forges.
+        rooms:
+          town-6-1:
+            name: Blacksmiths
+            description: >-
+              The dull clanging ringing against your ears rises in intensity as you approach. Arms, armor and accoutrements are lined up behind the counter, waiting to be purchased.
+          town-6-2:
+            name: Storeroom
+            access: [smithy-key, headmans-key, barons-key]
+            description: >-
+              A place to store the smiths' goods.
+            stash:
+              resources: 2
+              items:
+                workshop-equipment: 1
+      town-7:
+        name: The Old Cock Inn
+        attributes:
+          haven: true
+        indoors: true
+        description: >-
+          The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
+        rooms:
+          town-7-1:
+            name: Street
+            description: >-
+              The street outside the inn, where unlucky people end up. There's a porch — a fine place to smoke a cigarette.
+          town-7-2:
+            name: Bar
+            description: >-
+              Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers.
+          town-7-3:
+            name: Second Floor
+            description: >-
+              Upstairs, there's a felt-padded, multipurpose game table. It's quieter here. You can look down over the railing and onto the bar. A sign says: "DENNIS'S WING"
+          town-7-4:
+            name: Balcony
+            description: >-
+              Sometimes it's busy out here, sometimes relaxing. You can look out onto the streets.
+          town-7-5:
+            name: Kitchen
+            description: >-
+              Where the staff hangs out. There's a big oven.
+            access: [inn-key]
+          town-7-6:
+            name: Cellar
+            description: >-
+              A low roof; you almost hit your head. Shelves and kegs illuminated by wall candles set in a ram's horn.
+            access: [inn-key]
+            stash:
+              resources: 3
+              items:
+                cheese: 1
+                alcohol: 1
+                cigarette: 3
+          town-7-7:
+            name: Room A
+            description: >-
+              A room to stay.
+            access: [room-a-key]
+          town-7-8:
+            name: Room B
+            description: >-
+              A room to stay.
+            access: [room-b-key]
+          town-7-9:
+            name: Room C
+            description: >-
+              A room to stay. Two beds.
+            access: [room-c-key]
+      town-8:
+        name: Residences
+        description: >-
+          There's no need for pitched roofs underground, so most of the homes here have flat roofs. Chimneys are strictly banned due to the pollution. Some of the homes are boarded up.
+        rooms:
+          # The Gatehouse turret's gun stands over this room now
+          # (db/lib/gatehouseTurret.js). Its switch is still the big red button
+          # in the Censor's Office, a zone away.
+          town-8-1:
+            name: Fortress Stairs
+            description: >-
+              The fortress is set upon a hill. The stairs started all the way when you first entered the town, but they steeply increase here. A large turret looms above, watching the clearing.
+          town-8-2:
+            name: Street
+            description: >-
+              The cobblestones outside of the homes.
+          town-8-3:
+            name: Garage Home
+            access: [garage-home-key]
+            description: >-
+              A home with a winch-powered garage, formerly used as a shopfront. It has a terrace for overlooking the street.
+            stash:
+              items:
+                starting-wares: 1
+                old-coin: 1
+          town-8-4:
+            name: Squat Home
+            access: [squat-home-key]
+            description: >-
+              A small home set into the side of another. It seems to have previously been used as a workshop.
+            stash:
+              resources: 8
+              items:
+                workshop-equipment: 1
+          town-8-5:
+            name: Painted Home
+            access: [painted-home-key]
+            description: >-
+              It was painted green, but the paint is chipping. It has a terrace and a cellar.
+            stash:
+              items:
+                obol: 1
+          town-8-6:
+            name: Painted Home Cellar
+            access: [painted-home-key]
+            description: >-
+              A place for storing your goods.
+            stash:
+              items:
+                ravenheart-red: 1
+          town-8-7:
+            name: Large Home
+            access: [large-home-key]
+            description: >-
+              An unusually large home set right next to the fortress stairs. It has a good view of the surroundings.
+      town-9:
         name: Sanctuary
         attributes:
           haven: true
@@ -406,257 +557,234 @@ zones:
         description: >-
           A squat but elegant place built into the ruins of an old fort. Immaculately clean, bathed by light. The Barons funded it with electrical and mechanical equipment, but not all of it works — the wooden contraptions are more reliable.
         rooms:
-          sanctuary-ward:
+          town-9-1:
             name: Ward
             description: >-
               A long, tiled room. There are small bedframes on either side. Potted plants offer the patients a quiet hope.
-          sanctuary-esculaps-office:
+          town-9-2:
             name: Esculap's Office
             description: >-
               Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
-            access: [sanctuary-key]
+            access: [sanctuary-key, barons-key]
             soundproof: true
             stash:
               items:
                 paper: 15
                 esculaps-wax-stamp: 1
-          sanctuary-operating-theater:
+          town-9-3:
             name: Operating Theater
             description: >-
               A small room, windowless. A single surgery bed rests at the centre, surrounded by tables with all manner of instruments neatly arranged. An anaesthetic system is hooked up to the surgery bed, mercifully letting patients sleep through the operation. A freezer box sits in the corner awaiting generous organ donations.
-            access: [sanctuary-key]
+            access: [sanctuary-key, barons-key]
             stash: [surgical-equipment]
-          sanctuary-supply-storage:
+          town-9-4:
             name: Supply Storage
             description: >-
               Neatly organized shelves, labeled, archived, illuminated by standardized electric lights. Possibly the most valuable place in Ravenheart.
-            access: [sanctuary-key]
+            access: [sanctuary-key, barons-key]
             stash:
               resources: 24
               items:
                 obol: 15
                 cleaning-powder: 1
                 surgical-equipment: 2
-          sanctuary-garden:
+          town-9-5:
             name: Garden
             description: >-
               A nice place to sit and think.
-      underquarter:
-        name: Underquarter
+      town-a:
+        name: Graveyard
         description: >-
-          Squat buildings, piled into discomfort.
-        # Not rich ground — a scrounge through scrap shacks and a gambling
-        # den's spare change, not a dig site (Bascinet, 2026-09-10).
+          The citizens of Ravenheart are buried here, usually with small wooden crucifixes. There are a couple of mass graves dug during previous calamities, when the Mortii couldn't keep up.
         rooms:
-          underquarter-shacks:
-            name: Shacks
+          town-a-1:
+            name: Paths
             description: >-
-              These crudely constructed dwellings — scrap metal, wood — were never designed to last, and yet here they remain. Very few have proper owners, even fewer have working locks. An endless cycle of vagrants staking claim to an empty shack, before being turfed off by another. There are old abandoned lots too, dozens of empty buildings without purpose.
-          underquarter-abandoned-theater:
-            name: Abandoned Theater
+              A path going through the graves. Plants manage to grow.
+          town-a-2:
+            name: Shrine to a Maiden
             description: >-
-              Once a bustling center of culture, this place now serves as a home for an ever-growing population of the destitute. A side room functions as a gambling den. Neon lights soak the interior, illuminating the felted gambling tables. There is a counter at the far end of the room with a bell waiting for patrons to ring it and have their worldly desires fulfilled.
-          underquarter-bathhouse:
-            name: Bathhouse
-            description: >-
-              One of the newer parts of the town, the bath house offers a central communal bath. The water is off-color — it doesn't smell good. Alternatively, paid showers line the walls, providing fresh clean water in return for a coin inserted into a slot.
-          underquarter-alleyways:
-            name: Alleyways
-            description: >-
-              It's dark and dirty in here.
-          underquarter-sewers:
-            name: Sewers
-            description: >-
-              Automated machineries used to provide plumbing, but now it's still and dirty. The sewer grate is locked.
-            access: [sewer, tunnel-rat, sewer-key]
-            soundproof: true
-            stash:
-              items:
-                feces: 6
-          underquarter-basements:
-            name: Basements
-            description: >-
-              Four connected basements, their separating walls knocked down. Originally some sort of hidden den, this now is a perfect place for organizing. It's accessed through the sewers.
-            access: [underquarter-basements, thanati, thanati-leader]
-            soundproof: true
-            stash:
-              resources: 8
-              items:
-                sewer-key: 1
-                elevator-key: 1
-                obol: 4
-                dagger: 4
-                fine-meal: 1
-                black-robes: 1
-                paper: 19
-          underquarter-pushers-room:
-            name: Pusher's Room
-            description: >-
-              A den to conduct shady deals, lit by neon. Connected to the Abandoned Theater.
-            access: [pushers-key]
-          underquarter-organ-shop:
-            name: Organ Shop
-            description: >-
-              A dark room below street level with a crude operating table. A small window near the roof lets in some of the street's light.
-            access: [tunnel-rat]
-            stash:
-              items:
-                cleaning-powder: 1
-                obol: 12
-      south-gate:
-        name: South Gate
-        description: >-
-          A gatehouse, usually unmanned, protecting the town from invaders. There's a bridge fording the small creek.
-        rooms:
-          south-gate-gateway:
-            name: Gateway
-            description: >-
-              The most traveled gate. Tired horses draw half-full wagons.
-          south-gate-watchtower:
-            name: Watchtower
-            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
-            description: >-
-              Looks out onto the river. You can see the Keep up in the mountain. Has a grate you could open and throw stuff down into.
-            stash: [buckler, broadsword, obol]
-
+              It reads: PRISCILLA, 1013. Blessed are the pure in heart, for they shall see God.
   fortress:
     name: Fortress
     kind: surface
     sort: 2
-    description: |-
-      The fortress and its small surrounding estates rise nobly from the wooded hills, the keep itself visible behind the walls. They look down upon the town. A stone bridge fords the river.
-
-      The Lifeweb emits primordial green fires.
+    description: >-
+      The fortress rises imposingly from a stone hill. The castle of Ravenheart was built a hundred years ago by Baron Casimir the Great, and has withstood many assaults from foul creatures. Its windows are barred by metal. Shrubby trees grow around its sides.
     locations:
-      gatehouse:
+      fortress-1:
+        name: Garrison
+        attributes:
+          noticeboard: true
+        # The Shackle button works where Dungeons stand (docs/tags.yaml).
+        structures: [dungeons]
+        description: >-
+          The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
+        rooms:
+          # The counter you talk to the garrison across. The only room here
+          # anybody may simply walk into — everything past it is Cerberon.
+          fortress-1-1:
+            name: Entrance
+            description: >-
+              A wolf's head hangs over the counter, which is separated from the room by metal bars. There's a bust of a former baron.
+          # The big red button is the turret's switch. The gun itself stands
+          # over the Residences now (db/lib/gatehouseTurret.js); the switch
+          # deliberately did not move with it.
+          fortress-1-2:
+            name: Censor's Office
+            access: [censors-key, cerberus-key, barons-key]
+            soundproof: true
+            description: >-
+              The Censor's office is spacious, with a small portrait of his beloved Baron perched on the wall. A caged window looks out over the training ground below. There is a big red button on the wall.
+            stash:
+              items:
+                paper: 8
+                censors-wax-stamp: 1
+                cerberus-key: 3
+          fortress-1-3:
+            name: Barracks
+            access: [cerberus-key, barons-key]
+            description: >-
+              Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
+          # No door, deliberately. The Cerberon's goods sit in the open, where
+          # anybody standing in the hall can walk off with them — the room is
+          # the Garrison's common one, not a strongroom. A cerberus-key on it
+          # would also be a key that works every gate in the game, handed out
+          # for the sake of a bar and some tables.
+          fortress-1-4:
+            name: Mess Hall
+            description: >-
+              The Cerberon's few goods are stored here. There are tables, a bar, and a window looking into the courtyard.
+            stash:
+              resources: 2
+              items:
+                alcohol: 1
+          fortress-1-5:
+            name: Armory
+            description: >-
+              Gargoyles flank a statue of the good Baron Casimir the Great. Halberds, shields mounted on the walls, and a single electric chandelier hanging from the rafters.
+            access: [armory-key, barons-key]
+            stash:
+              items:
+                radio-bracelet-cerberon: 3
+                truncheon: 4
+                halberd: 2
+                broadsword: 1
+                gladius: 2
+                mace: 3
+                dagger: 2
+                spear: 3
+                buckler: 4
+                shield: 3
+                longbow: 2
+                breastplate: 2
+                simple-helm: 4
+                cerberus-helmet: 4
+                mail-coif: 3
+                mail-shirt: 4
+                padded-armor: 5
+                padded-cap: 3
+          fortress-1-6:
+            name: Dungeons
+            access: [censors-key, incarns-key, cerberus-key, barons-key]
+            soundproof: true
+            description: >-
+              Rows of cells behind iron bars, each with a lock only accessible by members of the garrison.
+          fortress-1-7:
+            name: Training Yard
+            access: [cerberus-key, barons-key]
+            description: >-
+              In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
+          fortress-1-8:
+            name: Stables
+            access: [cerberus-key, barons-key]
+            description: >-
+              A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human. Good and mean dogs both are caged along the back wall, ready to hunt unruly peasants.
+            stash:
+              items:
+                hound: 2
+                arelitz: 1
+      fortress-2:
         name: Gatehouse
         attributes:
           noticeboard: true
-        description: |-
-          Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Keep, and further yet, to the Lifeweb tower. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis.
-
-          There is a triple-barreled machinegun in the center of the yard, on a rotor. It seems to be off.
+        description: >-
+          Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Court, and further yet, to the Keep. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis.
         rooms:
-          gatehouse-gate:
+          fortress-2-1:
             name: Gate
             description: >-
               Menacing iron, with several inset windows, built by a paranoid man. There are old logs to the side, piled and bound.
-          gatehouse-yard:
+          fortress-2-2:
             name: Yard
             description: >-
-              The constant rains have raised vines across the fortress walls, which flower white and pink.
-          # `fortress-watchtower`, not `watchtower` — Customs holds that slug,
-          # and the two town gates hold the other obvious ones. It is named
-          # "Watchtower" in play like all four.
-          #
+              A former baroness raised vines across the fortress walls, which flower white and pink.
           # The portcullis winch is worked from HERE, not from the Gatehouse
-          # anchor and not from the Road: db/lib/roomStarterRow.js puts the
-          # gate button on this room's starter. Hence the access list: getting
-          # in here IS the authority to work the winch, so it is the only
-          # answer to "who may shut the gate".
-          gatehouse-watchtower:
+          # anchor: db/lib/placeAffordances.js puts the gate button on this
+          # room's starter. Hence the access list — getting in here IS the
+          # authority to work the winch, so it is the only answer to "who may
+          # shut the gate".
+          fortress-2-3:
             name: Watchtower
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
             description: >-
               A pair of thin, menacing watchtowers lined with spikes and draped with the Raven banner.
-      # Promoted out of the Gatehouse, where it was a room. On Bascinet's map
-      # this is the node drawn as "Gardens". Its prose is unchanged.
-      lifeweb:
-        name: Lifeweb
-        description: >-
-          A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
-        attributes:
-          noBuild: true
-        # Seeded despite noBuild — nobody builds Dungeons; the sync warns and
-        # seeds anyway. The Shackle button works here.
-        structures: [dungeons]
-        rooms:
-          lifeweb-outside:
-            name: Outside
-            description: >-
-              The door to the Lifeweb is in front of you. The grass is especially alive here.
-          lifeweb-inner:
-            name: Inner Lifeweb
-            access: [mortus-key]
-            description: >-
-              Pistons and machinery connect to pumps and tubes, all terminating in the chair in the center of the room. Strap someone in, adjust the ventricles, prepare the injection site, and decide whether to drain them fully or leave them alive. Sealed hatches lead into maintenance tunnels.
-          lifeweb-mortus-shacks:
-            name: Mortus Shacks
-            access: [mortus-key]
-            description: >-
-              Tucked into the wall. The Baron tolerates their presence, as pitiful as they are.
-            stash:
-              items:
-                obol: 1
-                paper: 4
-                hatchet: 1
-                cudgel: 1
-                mortus-rags: 1
-                mortus-key: 1
-      servant-wing:
-        name: Servant Wing
-        description: >-
-          Steam puffs from the electric heatvents, choking the tight passages. Kitchens and other rooms provide a respite where the servants gather to work. Their quarters are just closets with stacked cots.
-        rooms:
-          servants-storehouse:
-            name: Storehouse
-            description: >-
-              A larder and a cellar combined in one, holding the keep's goods.
-            stash:
-              resources: 3
-              items:
-                fine-meal: 1
-                paper: 5
-                meisters-wax-stamp: 1
-          servants-quarters:
-            name: Servant's Quarters
-            access: [servant, barons-key, hands-key]
-            description: >-
-              Bunks, a stove and a long table, all of it worn smooth. The one room in the Keep the nobility has no reason to enter.
-          # `fortress-kitchen`, not `kitchen` — the Old Cock Inn holds that slug.
-          servants-kitchen:
-            name: Kitchen
-            description: >-
-              An industrial operation, with racks of ovens, a heavy granite table, and thick cleavers.
-            stash: [work-knife]
-          servants-workshop:
-            name: Workshop
-            description: >-
-              A place to sew, do laundry, and build simple things.
-            stash: [workshop-equipment]
-          # The second `destroys` room in the game, after the Factory's
-          # Spillway. See docs/systemdocs/CARRY.md.
-          servants-latrines:
-            name: Latrines
-            description: >-
-              A chute into the darkness. Anything stored here is lost permanently.
-            destroys: true
-      keep:
-        name: Keep
+      fortress-3:
+        name: Court
         attributes:
           haven: true
         indoors: true
-        description: |-
-          Stone walls reinforced with ceramite, the color of terracotta and steel, draped with the Baron's fluttering heraldry. Old electric lamps of various colors illuminate the warm, comfortable interiors.
-
-          The gates open into a hallway branching into the Keep's many rooms. Past gargoyle-studded columns, the throne room. Stairs lead downwards into the Undercroft and upwards into the Quarters.
+        # "Stairs lead down into the Undercroft" — Bascinet wrote Underquarter,
+        # which came off the map in this rework; the Undercroft is what the
+        # stairs from here actually reach (see `connections:`).
+        description: >-
+          The interiors are kept warm and vibrant by old electric apparati. It's a haven away from the caves, comfortable, decked with pigtail rugs. Raven banners reminds the court of its lineage. Gargoyle-studded columns lead to the first room: the throne room. Stairs lead down into the Undercroft and further up into the keep.
         rooms:
-          keep-throne-room:
+          fortress-3-1:
             name: Throne Room
             description: |-
               Intimately small, with an ornately carved wooden throne. The floor is uniformly tiled with ceramite bricks aside from a trapdoor directly in front of the throne. Benches form concentric circles near the entrance. There's an elevated arcade to the left, and a hearth to the right.
 
               There's a trapdoor in the center. You can hear something rumbling in the darkness.
-          keep-great-hall:
-            name: Great Hall
-            description: >-
-              The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards into the forest. There is a huge painting of Baron Casimir the Great.
-          keep-nook:
+          fortress-3-2:
             name: Nook
             access: [behind-the-painting]
             description: >-
               An empty room. It has unfinished sketches of a nude man in various poses across the walls.
-          keep-council-room:
+          fortress-3-3:
+            name: Great Hall
+            description: >-
+              The roof vaults over rows of banqueted tables. There's a balcony; the view plunges downwards onto the town. There is a huge painting of Baron Casimir the Great.
+          fortress-3-4:
+            name: Terrace
+            description: >-
+              A sprawling terrace with herbs, flowers, and even a mini-hedge maze. The perfect place for a nighttime party.
+          # The far end of the throne room's trapdoor. `in-the-pit` is GM-given
+          # on the way down, which is the only way anybody arrives.
+          fortress-3-5:
+            name: Graga Pit
+            access: [in-the-pit]
+            description: >-
+              A wet room. It smells like rotting bodies.
+          fortress-3-6:
+            name: Chapel of the Silver Cross
+            description: >-
+              Courtiers come here to pray. The Silver Cross of Ravenheart is locked away behind the altar, accessible by the Incarn's key.
+          fortress-3-7:
+            name: Cross Room
+            access: [incarns-key]
+            description: >-
+              Behind the chapel, the cross itself is stored in an ornate altar.
+            stash: [silver-cross]
+      fortress-4:
+        name: Keep
+        attributes:
+          haven: true
+        indoors: true
+        description: >-
+          Reinforced with ceramite, it has survived many assaults. A balcony overlooks the town. The interiors are less spacious than the Court's, but substantially more mazelike and defensible.
+        rooms:
+          fortress-4-1:
             name: Council Room
             access: [barons-key, hands-key, meisters-key, censors-key]
             description: >-
@@ -664,7 +792,7 @@ zones:
             stash:
               items:
                 paper: 4
-          keep-library:
+          fortress-4-2:
             name: Library
             description: >-
               Rows upon rows of bookcases, most of which lie empty. Various offices of members of the court branch off from here.
@@ -691,7 +819,7 @@ zones:
           # Was one "Noble Chambers". Three rooms now, each with its own key —
           # and the Baron's opens all three, which is rather the point of being
           # the Baron. The Baroness's key opens his chambers alone.
-          keep-barons-chambers:
+          fortress-4-3:
             name: Baron's Chambers
             access: [barons-key, baroness-key]
             description: >-
@@ -701,7 +829,7 @@ zones:
                 obol: 19
                 paper: 2
                 dagger: 1
-          keep-heirs-chamber:
+          fortress-4-4:
             name: Heir's Chamber
             access: [heirs-key, barons-key]
             description: >-
@@ -710,7 +838,7 @@ zones:
               items:
                 obol: 2
                 broadsword: 1
-          keep-successors-chamber:
+          fortress-4-5:
             name: Successor's Chamber
             access: [successors-key, barons-key]
             description: >-
@@ -720,12 +848,92 @@ zones:
                 obol: 1
                 tea: 1
                 love-lies-and-lays-of-larry-luca-life-1-royal-loyal-lynn: 1
-          keep-terrace:
-            name: Terrace
+          fortress-4-6:
+            name: Baron's Study
+            access: [barons-key]
             description: >-
-              A sprawling terrace with herbs, flowers, and even a mini-hedge maze. The perfect place for a nighttime party.
-          keep-meisters-office:
-            name: Meister's Office
+              Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
+            stash:
+              items:
+                armory-key: 1
+                elevator-key: 1
+                paper: 20
+                barons-wax-stamp: 1
+          fortress-4-7:
+            name: Storehouse
+            access: [barons-key, hands-key, servant-key]
+            description: >-
+              A larder and a cellar combined in one, holding the keep's goods.
+            stash:
+              resources: 3
+              items:
+                vegetable-stew: 1
+                paper: 5
+                meisters-wax-stamp: 1
+          fortress-4-8:
+            name: Kitchen
+            access: [barons-key, hands-key, servant-key]
+            description: >-
+              An industrial operation, with racks of ovens, a heavy granite table, and thick cleavers.
+            stash: [work-knife]
+          fortress-4-9:
+            name: Workshop
+            access: [barons-key, hands-key, servant-key]
+            description: >-
+              A place to sew, do laundry, and build simple things.
+            stash: [workshop-equipment]
+          # The second `destroys` room in the game, after the Factory's
+          # Spillway. See docs/systemdocs/CARRY.md.
+          fortress-4-a:
+            name: Latrines
+            description: >-
+              A chute into the darkness. Anything stored here is lost permanently.
+            destroys: true
+          fortress-4-b:
+            name: Servant's Quarters
+            access: [servant-key, servant, barons-key, hands-key]
+            description: >-
+              It has bunked cots and a long table for the servants to share their meals.
+          fortress-4-c:
+            name: The Charon
+            access: [barons-key]
+            description: >-
+              A sealed gate. The Baron's key opens this.
+          fortress-4-d:
+            name: Panic Room
+            access: [barons-key, baroness-key]
+            description: >-
+              A hidden room for the Baron and Baroness to lie in wait should everything go wrong. It connects to the Charon.
+          # The upper end of the Baron's lift; the cage at the bottom is in the
+          # Undercroft. The edge itself is `hidden: elevator-key`.
+          fortress-4-e:
+            name: Elevator Room
+            access: [elevator-key]
+            description: >-
+              A cage suspended over the darkness. Use the pressure plate to descend.
+      fortress-5:
+        name: Tower
+        indoors: true
+        description: >-
+          A tall, solitary tower.
+        rooms:
+          fortress-5-1:
+            name: Alchemist's Room
+            access: [tunnel-rat, medical-expert]
+            description: >-
+              An abandoned room with medical components.
+            stash:
+              resources: 5
+              items:
+                antibiotics: 1
+                antidote: 1
+                mulligan-potion: 1
+                invisibility-potion: 1
+                graga-sac: 1
+                cave-fungus: 1
+                eth-lod: 1
+          fortress-5-2:
+            name: Meister's Study
             access: [meisters-key, barons-key]
             soundproof: true
             description: >-
@@ -734,8 +942,8 @@ zones:
               items:
                 paper: 25
                 states-of-matter: 1
-          keep-hands-office:
-            name: Hand's Office
+          fortress-5-3:
+            name: Hand's Study
             access: [hands-key, barons-key]
             soundproof: true
             description: >-
@@ -745,170 +953,54 @@ zones:
                 paper: 7
                 cleaning-powder: 1
                 hands-wax-stamp: 1
-          # The far end of the throne room's trapdoor. `in-the-pit` is GM-given
-          # on the way down, which is the only way anybody arrives.
-          keep-graga-pit:
-            name: Graga Pit
-            access: [in-the-pit]
-            description: >-
-              Wet stone, a long way down, and something breathing in the dark that is much larger than you are.
-          keep-the-charon:
-            name: The Charon
-            description: >-
-              A sealed gate. The Baron's key opens this.
-            access: [barons-key]
-          keep-reliquary-chapel:
-            name: Reliquary Chapel
-            description: >-
-              Courtiers come here to pray. The Silver Cross of Ravenheart is locked away behind the altar, accessible by the Incarn's key.
-          keep-cross-room:
-            name: Cross Room
-            access: [incarns-key]
-            description: >-
-              Behind the chapel, the cross itself is stored in an ornate altar.
-            stash: [silver-cross]
-          keep-barons-study:
-            name: Baron's Study
-            description: >-
-              Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
-            access: [barons-key]
-            stash:
-              items:
-                armory-key: 1
-                elevator-key: 1
-                paper: 20
-                barons-wax-stamp: 1
-      garrison:
-        name: Garrison
-        attributes:
-          noticeboard: true
-        # The Shackle button works where Dungeons stand (docs/tags.yaml).
-        structures: [dungeons]
-        description: >-
-          The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
-        rooms:
-          # The counter you talk to the garrison across. The only room here
-          # anybody may simply walk into — everything past it is Cerberon.
-          garrison-entrance:
-            name: Entrance
-            description: >-
-              A wolf's head hangs over the counter, which is separated from the room by metal bars. There's a bust of a former baron.
-          garrison-censors-office:
-            name: Censor's Office
-            access: [censors-key, cerberus-key]
-            soundproof: true
-            description: >-
-              The Censor's office is spacious, with a small portrait of his beloved Baron perched on the wall. A caged window looks out over the training ground below. There is a big red button on the wall.
-            stash:
-              items:
-                paper: 8
-                censors-wax-stamp: 1
-                cerberus-key: 3
-          garrison-barracks:
-            name: Barracks
-            access: [cerberus-key]
-            description: >-
-              Rows of bunks stand at attention. All but a handful are orderly and unused, might be a sign it's time to find some new recruits.
-          # No door, deliberately. The Cerberon's goods sit in the open, where
-          # anybody standing in the hall can walk off with them — the room is
-          # the Garrison's common one, not a strongroom. A cerberus-key on it
-          # would also be a key that works every gate in the game, handed out
-          # for the sake of a bar and some tables.
-          garrison-mess-hall:
-            name: Mess Hall
-            description: >-
-              The Cerberon's few goods are stored here. There are tables, a bar, and a window looking into the courtyard.
-            stash:
-              resources: 2
-              items:
-                alcohol: 1
-          garrison-armory:
-            name: Armory
-            description: >-
-              Gargoyles flank a statue of the good Baron Casimir the Great. Halberds, shields mounted on the walls, and a single electric chandelier hanging from the rafters.
-            access: [armory-key]
-            stash:
-              items:
-                radio-bracelet-cerberon: 3
-                truncheon: 4
-                halberd: 2
-                broadsword: 1
-                gladius: 2
-                mace: 3
-                dagger: 2
-                spear: 3
-                buckler: 4
-                shield: 3
-                longbow: 2
-                breastplate: 2
-                simple-helm: 4
-                cerberus-helmet: 4
-                mail-coif: 3
-                mail-shirt: 4
-                padded-armor: 5
-                padded-cap: 3
-          garrison-dungeons:
-            name: Dungeons
-            access: [censors-key, incarns-key, cerberus-key]
-            soundproof: true
-            description: >-
-              Rows of cells behind iron bars, each with a lock only accessible by members of the garrison.
-          garrison-oubliette:
-            name: Oubliette
-            access: [censors-key, incarns-key, cerberus-key]
-            soundproof: true
-            description: >-
-              If you throw a man in here, they're not getting out.
-          garrison-training-yard:
-            name: Training Yard
-            access: [cerberus-key]
-            description: >-
-              In the garrison's central courtyard, surrounded by elevated platforms, a patch of packed earth serves as a sparring ground for recruits and veterans alike. There is a box of wooden training weapons.
-          garrison-stables:
-            name: Stables
-            access: [cerberus-key]
-            description: >-
-              A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human. Good and mean dogs both are caged along the back wall, ready to hunt unruly peasants.
-            stash:
-              items:
-                hound: 2
-                horse: 1
-      undercroft:
+  # The town under the town. Codes 1-H come from the barony2 plate in
+  # docs/assets/maps/nodes.yaml, and every one of them has a Location here so
+  # the map can link to a real place. Most are SKELETONS on purpose — a name
+  # and a slug and nothing else — because Bascinet has not written the
+  # Undertown's rooms yet. The three that arrived with prose already attached
+  # (Undercroft and Lifeweb out of the Fortress, the Depot out of the Caves)
+  # kept theirs. An unwritten description is literally "".
+  undertown:
+    name: Undertown
+    kind: surface
+    sort: 3
+    description: >-
+      Under the town's floorboards, the older town: a warren of cut stone and rusted pipe that Ravenheart was built on top of and then forgot about. The lights down here are the ones nobody has replaced.
+    locations:
+      undertown-1:
         name: Undercroft
         indoors: true
         description: >-
           Pillars uphold the keep from collapsing onto the barrels of wine and antiquities. There are deeper passages.
-        # Not rich ground — old coin and a shrine's own offerings, not the
-        # Vault down the hall (Bascinet, 2026-09-10).
         rooms:
-          undercroft-sauna:
+          undertown-1-1:
             name: Sauna
             description: >-
               A bath and a sauna. The Baron's preferred way to wash. The water is kept at a comfortably warm temperature, and is actually changed, unlike the public bathhouse.
-          undercroft-cistern:
+          undertown-1-2:
             name: Cistern
             description: >-
               Dark, connected rooms with ornate pillars, full of knee-high water. A starry tile mosaic is visible beneath the water.
-          undercroft-tombs:
+          undertown-1-3:
             name: Tombs
             description: >-
               The Baron's progenitors bear faces of varying humanity.
-          undercroft-bricked-up-door:
+          undertown-1-4:
             name: Bricked-up Door
             description: >-
               Where does this go…? It wouldn't be easy to open this passageway.
-          undercroft-ancient-shrine:
+          undertown-1-5:
             name: Ancient Shrine
             description: >-
               A shrine to Thoth, the Old God of art, magnificence, and inspiration. How has this not been destroyed yet?
-          # The near end of the Baron's lift. The edge itself is
-          # `hidden: elevator-key` in `connections:`; this is the cage.
-          undercroft-elevator-room:
+          # The lower end of the Baron's lift; the cage at the top is in the
+          # Keep. The edge itself is `hidden: elevator-key` in `connections:`.
+          undertown-1-6:
             name: Elevator Room
             access: [elevator-key]
             description: >-
               A cage suspended over the darkness. Use the pressure plate to descend.
-          undercroft-vault:
+          undertown-1-7:
             name: Vault
             access: [barons-key]
             description: >-
@@ -929,371 +1021,137 @@ zones:
                 obol: 480
                 painting: 1
                 nuclear-device: 1
-      road:
-        name: Road
-        map_node: 11
+      undertown-2:
+        name: Residences
+        description: ""
+      undertown-3:
+        name: Lifeweb
         description: >-
-          Green hills and a long white road, sinuous as a snake: grasshoppers buzz in the daisies. The Gatehouse bristles with Cerberi.
-        rooms:
-          road-stretch:
-            name: Road
-            description: >-
-              Just a little ways longer.
-          road-shrine:
-            name: Shrine
-            description: >-
-              A mossy shrine erected to honor a forgotten saint. Its cloaked statue, bolted to a pedestal, is the size of a doll. Its face was marred by vandals.
-          # The same tag that locks the climb down to the Hills in
-          # `connections:` — one skill, one kind of ground.
-          road-ledge:
-            name: Ledge
-            access: [mountaineering]
-            description: >-
-              There's a drop off, stopped by a ledge. The sure-footed and careful can pick their way down and crouch in the shade of a wizened, nigh-horizontal oak tree.
-      manors:
-        name: Manors
-        description: >-
-          Homes surrounded by high stone walls, overgrown with flowers, with a nice gateway and ornate galleries. There's a deconstructed machine gun nest on one of the semicircle balconies, no longer functional.
-        rooms:
-          manors-road:
-            name: Road
-            description: >-
-              Halfway up the hill.
-          # What `manor-key` has been for since it was written. Until now it
-          # opened nothing.
-          manors-manor:
-            name: Manor
-            access: [manor-key]
-            description: >-
-              The landscaping is incomplete, with grasses growing through the stones. However, the interior is well kept, with an old rug, a wine cabinet, and a hearth.
-            stash:
-              items:
-                paper: 23
-                ravenheart-red: 1
-                instrument: 1
-                sabre: 1
-          manors-cellar:
-            name: Cellar
-            access: [manor-key]
-            description: >-
-              Damp and dark.
-            stash:
-              items:
-                obol: 4
-                cave-fungus: 1
-          manors-garden:
-            name: Garden
-            access: [manor-key]
-            description: >-
-              A walled garden for growing herbs.
-
-  forest:
-    name: Forest
-    kind: surface
-    sort: 3
-    description: >-
-      Streams part mossy boulders under the green shadows of spruce and beech. The rustling of leaves in the wind is occasionally interjected by the sounds of things moving in the undergrowth. There are marshes, creeks, and bountiful visages. The trees thin on their approach to the mountains.
-    locations:
-      forest-headwaters:
-        name: Headwaters
+          A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
         attributes:
-          wilderness: true
-        map_node: 1
-        description: >-
-          The trees thin, giving way to tough grass, slippery granite, and cold streams. A purple haze hangs over the rocky, inhospitable soil, but water gathers in root-webbed pockets between boulders — before disappearing under loose stone and surfacing again farther downhill. A rattling mountain wind moves freely through the gaps in the sinewy canopy, carrying spray from the falls and the constant rattle of shifting scree. Scrabbling up the mossy rocks would be difficult.
+          noBuild: true
+        # Seeded despite noBuild — nobody builds Dungeons; the sync warns and
+        # seeds anyway. The Shackle button works here.
+        structures: [dungeons]
         rooms:
-          headwaters-gravel-field:
-            name: Gravel Field
+          undertown-3-1:
+            name: Outside
             description: >-
-              A broad spill of loose stone slopes beneath the cliffs, every step sending pebbles whispering downhill. Ash blown from distant lands settles on the hardy grass, almost burying the flesh-colored mountain flowers that survive between the rocks.
+              The door to the Lifeweb is in front of you. The grass is especially alive here.
+          undertown-3-2:
+            name: Inner Lifeweb
+            access: [mortus-key]
+            description: >-
+              Pistons and machinery connect to pumps and tubes, all terminating in the chair in the center of the room. Strap someone in, adjust the ventricles, prepare the injection site, and decide whether to drain them fully or leave them alive. Sealed hatches lead into maintenance tunnels.
+          undertown-3-3:
+            name: Mortus Shacks
+            access: [mortus-key]
+            description: >-
+              Tucked into the wall. The Baron tolerates their presence, as pitiful as they are.
             stash:
               items:
-                rock: 1
-          headwaters-basins:
-            name: Basins
-            description: >-
-              A narrow waterfall plunges into deep, cold pools. You can't see the bottom. The waterfall obscures a small network of caverns. Stacked stones are all that remain of an ancient bathhouse.
-          # The old Cave room's stash, kept intact under the room that replaced it.
-          headwaters-lower-baths:
-            name: Lower Baths
-            description: >-
-              A cracked stairwell beneath the warmest basin descends into chambers preserved beneath the ruins, where clear water still passes through carved channels in the stone. Mineral deposits cover an old doorway.
-            access: [caving]
-            stash:
-              items:
-                obol: 32
-                gladius: 1
-                gladiator-helmet: 1
-      forest-cliffs:
-        name: Cliffs
-        attributes:
-          wilderness: true
-        map_node: 2
-        description: >-
-          Granite walls rise abruptly among the trees, their faces striped with runoff and pale colonies of lichen. Blue pine grows wherever roots can find purchase, sometimes jutting sideways from cracks high above the forest floor. The ground is divided into shelves, narrow gullies, and sudden drops that make even nearby places awkward to reach. Dark fissures appear between roots and fallen stone, some ending after a few feet and others breathing cold air from somewhere deeper.
-        rooms:
-          cliffs-path:
-            name: Cliffside Path
-            description: >-
-              A dirt trail hugs the base of the cliffs beneath a large boulder shaped vaguely like a weathered head. Behind it, several narrow openings lead into darkness where the mountain has split apart.
-          cliffs-den:
-            name: Den
-            description: >-
-              A low cave smells strongly of damp fur, old blood, and wet leaves. Bones have been pushed toward the edges while a bed of grass and shredded bark occupies the driest corner.
-            access: [forester]
-          cliffs-elevator:
-            name: Elevator
-            # The near end of the Baron's lift, whose edge out of
-            # fortress/undercroft is `hidden: elevator-key` in `connections:`.
-            description: >-
-              Beyond one of the deeper fissures, natural stone abruptly gives way to an iron cage suspended inside a perfectly vertical shaft. A rusted winch sits beside it, its cables disappearing upward farther than torchlight can reach.
-            access: [elevator-key]
-      forest-creekside:
-        name: Creekside
-        attributes:
-          wilderness: true
-        map_node: 3
-        description: >-
-          A creek runs through a ditch, tearing through the purple floor-carpet of mushrooms and decomposing material beneath scraggly trees, slipping around boulders and roots before gathering briefly in quieter pools. Ferns crowd the banks and low branches hang almost to the surface, turning the water silver-green beneath the leaves. An old trail follows the stream where the ground allows it, repeatedly vanishing beneath moss or storm-fallen timber. Farther along, the forest has grown almost completely around the remains of an old station.
-        rooms:
-          creekside-split-rock:
-            name: Split Rock
-            description: >-
-              A great moss-covered boulder divides the creek neatly in two, forcing the water around either side in narrow rushing channels. Its flattened crown rises above the undergrowth and offers a rare view along the stream. Thousands of pounds of mushroom colonies cling onto its base.
-          creekside-waystation:
-            name: Waystation
-            description: |-
-              The purpose of the decrepit, mossy wood is hard to discern. The frontmost room is collapsed, and ancient swords are stabbed into the ground, one of their owners now a desiccated corpse.
-
-              The main chamber has old pans and tools, and a mangled pitchfork. Light enters through the decayed roof.
-            stash:
-              resources: 1
-              items:
-                hatchet: 1
-                paper: 1
-          creekside-supply-room:
-            name: Supply Room
-            description: >-
-              A reinforced inner door guards the only part of the lodge that remained reliably dry. Behind it, dusty shelves still hold tools, wrapped bundles, and supplies protected from decades of rain.
-            access: [foresters-key]
-            stash:
-              items:
-                supply-kit: 2
-          creekside-root-cellar:
-            name: Root Cellar
-            description: >-
-              A mat of ivy conceals a low wooden hatch pressed between two roots behind the lodge. Cold stone steps descend to shelves of empty jars and a narrow drainage channel where water quietly disappears beneath the wall.
-            access: [forester]
-            stash:
-              items:
-                foresters-key: 1
-      forest-northern-road:
-        name: Northern Road
-        attributes:
-          wilderness: true
-        map_node: 4
-        description: >-
-          The road climbs towards the Fortress in long switchbacks cut into the wooded hillside. Rough stone steps reinforce the steepest stretches while old retaining walls bulge beneath roots that have slowly forced their way through the masonry. The canopy occasionally opens without warning, revealing the Town below before closing around the road again. Weather and traffic have worn the route deeply into the mountain.
-        rooms:
-          northern-road-ascent:
-            name: Ascent
-            description: >-
-              A sun-bleached Ravenheart banner hangs from a post overlooking one of the sharper turns, surrounded by old swords stabbed into the ground. An old wagon lies toppled and broken, the wood warped. From here, the river catches the light far beneath the trees and rooftops appear small enough to cover with a hand.
-          northern-road-shrine:
-            name: Wayside Shrine
-            description: >-
-              A shallow stone niche has been cut into the uphill bank around the worn figure of an unnamed saint. Coins, dried flowers, ribbons, and little personal objects collected beneath it.
-            stash:
-              items:
-                old-coin: 3
                 obol: 1
-      forest-west-riverbank:
-        name: West Riverbank
+                paper: 4
+                hatchet: 1
+                cudgel: 1
+                mortus-rags: 1
+                mortus-key: 1
+      undertown-4:
+        name: Sewer
+        description: ""
+      # The merchant's berth, moved out of the Caves with the rest of the
+      # town. `safe:` no longer has a Caving Die to hold off — Undertown is a
+      # surface zone — but `wheels:` and `depot:` still do real work.
+      undertown-5:
+        name: Depot
+        indoors: true
         attributes:
-          wilderness: true
-        map_node: 5
+          depot: true
+          noticeboard: true
+          safe: true
+          wheels: true
         description: >-
-          The creek widens here into a slow, black river beneath trees whose roots knot through the banks like exposed fingers. Old docks lean over the water at uneven angles, some ending abruptly where whole sections have rotted away, while fishing line and scraps of cloth sway from branches overhead. The current is too sluggish to hear.
+          Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
         rooms:
-          riverbank-large-dock:
-            name: Large Dock
+          undertown-5-1:
+            name: Storefront
             description: >-
-              A broad timber dock reaches far over the dark water, its outer posts disappearing somewhere beneath the surface.
-          riverbank-banks:
-            name: River Banks
+              An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
+            stash: [tea, sugar-candy]
+          # PUBLIC on purpose, and eyes open: crates land here, so anybody
+          # can walk in and carry one off. That is a known hole nobody has
+          # closed yet — the alternative was a cargo room only Dockers could
+          # reach, which defeats opening the counter up in the first place.
+          undertown-5-2:
+            name: Railyard
+            live: train
             description: >-
-              The banks descended through mud and exposed roots into warm, shallow water. Scratches and footprints gather along the shore.
-      forest-deep-forest:
-        name: Deep Forest
-        attributes:
-          wilderness: true
-        map_node: 6
-        description: >-
-          The trees gather so tightly here that daylight reaches the ground only in thin green shafts, leaving the undergrowth drowned in perpetual dusk. Thorn, fern, and hanging moss choke the spaces between trunks, while old paths wander into dead ends or circle back upon themselves without obvious reason. There are small bioluminescent flowers to guide the way. Strange little remnants appear beneath the leaves: worked stones, rotted fence posts, fragments of walls.
-        rooms:
-          deep-forest-brambles:
-            name: Brambles
+              Rusted overhangs, overgrown with wilted, sunthirsted vines, occlude the cargo hub. A deep railway bisects the platforms. Every other turn, a cargo train rolls in.
+          undertown-5-3:
+            name: Merchant's Office
+            access: [merchants-license]
+            soundproof: true
             description: >-
-              Thorny growth closes over the forest until there is scarcely enough room to squeeze between trunks. Old strips of cloth hang from the briars at shoulder height, snagged there by travelers who continued deeper.
-          deep-forest-clearing:
-            name: Clearing
-            description: >-
-              A large fallen tree has dragged several others down with it, opening a patch of soft grass beneath the otherwise unbroken canopy. The surrounding trees lean inward around the clearing. There's a clear shaft of warm sunlight, and a few birds are chirping.
-            access: [forester]
-          deep-forest-sylvan-shrine:
-            name: Sylvan Shrine
-            # TODO: a "Pray" button here should strip a character's belief tags
-            # and grant old-ways-sylvia, unless they hold `fundamentalist`. A
-            # Room carries no `attributes:` — only a Location does — so there
-            # is nowhere in this file to hang it. Needs its own piece of work.
-            description: >-
-              Deep between the trees stands a broken sculpture of antlers, weathered until it is difficult to tell whether it was carved from stone or bone. Small offerings lie beneath it in varying states of decay.
-            access: [old-ways-sylvia, forester]
+              A desk, filing cabinets, and a big red button.
             stash:
               items:
-                honey: 1
-      forest-riverbend:
-        name: Riverbend
-        attributes:
-          wilderness: true
-        map_node: 7
-        description: >-
-          The river turns sharply through a stretch of woodland broken by storms, where dead trees lie piled against one another in pale heaps and enormous root plates rise from the mud like walls. Pools of brown, decayed sludge fill the holes they left behind, deep enough in places that their bottoms cannot be seen. Beyond the bank, an old ravine cuts into the hillside beneath leaning timber and remnants of collapsed workings.
-        rooms:
-          riverbend-river-bank:
-            name: River Bank
+                paper: 32
+          undertown-5-4:
+            name: Cargo Bay
+            access: [depot-keycard]
             description: >-
-              The remains of an old path follow the river between heaps of deadfall, appearing only where plenty of leaves have failed to cover its stones. Several trees beside it bear shallow cuts at roughly head height, continuing toward the cliffs until the trail vanishes completely.
-          riverbend-ravine:
-            name: Ravine
-            description: >-
-              A steep muddy ravine opens beneath the trees, littered with rain-filled pits and splintered timber. At its far end, rotten beams brace a collapsed mineshaft whose entrance has been sealed beneath tons of stone.
-            access: [mountaineering]
-      forest-south:
-        name: South Forest
-        attributes:
-          wilderness: true
-        map_node: 8
-        description: >-
-          Four roads meet beneath a sparse opening in the canopy where generations of travelers have worn the earth bare. Old signs, nailed boards, and crude charms crowd the trees. Two husked, purple bodies still hang beside the junction, turning slowly whenever enough wind reaches them. What you can see of the sky is thick, purple, and grave.
-        # The two men in the description hang from this.
-        structures: [crucifix]
-        rooms:
-          south-crossroads:
-            name: Crossroads
-            description: >-
-              People pass frequently through here, avoiding each other's glances.
-      forest-sparse-field:
-        name: Sparse Field
-        attributes:
-          wilderness: true
-        map_node: 9
-        description: >-
-          The forest gives way abruptly to an open waste of mud, stumps, and gray grass beneath the oppressive sky. Rotting timber, abandoned carts and rusted equipment lie scattered across the clearing. At its center sprawls an overgrown prison complex, its walls and watchtowers sinking slowly beneath vines, moss, and years of neglect.
-        # An abandoned prison's worth of scrap and rusted equipment scattered
-        # across the field — as good a scavenging ground as the Forest has.
-        rooms:
-          sparse-field-lumber-field:
-            name: Lumber Field
-            description: >-
-              Rows of felled trunks lie half-sunk in the mud, many left where they fell when the work crews abandoned the clearing. Rusted saws and broken hauling chains disappear beneath the grass, while the remaining stumps have begun sprouting pale fungi from their cut faces.
-          sparse-field-cellblock:
-            name: Cellblock
-            description: >-
-              Rows of narrow cells face a central corridor. Pale mycelium has overtaken the gaps in the rock, creating a superorganism. Several cells contain bodies dried against bunks or walls. The floors are metallic and grated, the same rusted ceramite featured in the Keep.
-          sparse-field-office:
-            name: Office
-            description: >-
-              Broad windows overlook both the yard and work fields. A blackened ring of prison keys hangs behind the desk beneath a wall where somebody drove a blade directly through an old map of the forest.
-          # Drafted as a second room called "Office". Renamed so the two are
-          # tellable apart in a travel list; the prose is untouched.
-          sparse-field-property:
-            name: Property Room
-            description: >-
-              Numbered shelves contain the property taken from Graywall's prisoners: boots, knives, jewelry, and letters.
-            access: [graywall-key]
+              Shelves on either side, stacked high with crates.
             stash:
+              resources: 4
               items:
-                jewelry: 2
-                trench-knife: 1
-                work-knife: 2
-                paper: 13
-                bannerets-wax-stamp: 1
-                obol: 6
-                brigandine: 1
-                supply-kit: 1
-          sparse-field-outcrop:
-            name: Outcrop
-            description: >-
-              A cluster of granite boulders rises sharply above the stripped field, providing an uninterrupted view across Graywall, the old logging grounds, and the forest beyond. From this height, narrow trails and breaks in the distant treeline become visible that cannot be seen from below.
-            access: [mountaineering]
-            stash:
-              items:
-                graywall-key: 1
-      forest-embankment:
-        name: Embankment
-        attributes:
-          wilderness: true
-        map_node: 10
-        description: >-
-          The road narrows where the river presses against a steep, root-bound embankment, leaving scarcely enough room for carts to pass abreast. Old masonry emerges from beneath the soil here, stained black by moisture and disappearing beneath trees that have grown directly through it. Water trickles continuously from somewhere inside the bank, carrying leaves, rust, and occasional scraps of refuse toward the river. Even in daylight, the culvert beyond remains dark enough that its far end cannot be seen.
-        rooms:
-          embankment-road:
-            name: Road
-            description: >-
-              The roadway is squeezed tightly between the river and the wooded rise, with dense brush overlooking both approaches. There is little room to leave it without climbing the bank or entering the water.
-          embankment-culvert-gate:
-            name: Culvert Gate
-            description: >-
-              A heavy iron grate seals a low stone passage beneath the embankment, its bars half-consumed by roots and rust. Water slips beneath it from somewhere deeper inside, and old scratches score the masonry immediately beyond the gate as though something heavy had repeatedly been dragged through.
-            access: [sewer-key]
-            stash:
-              items:
-                feces: 3
-      forest-east-river:
-        name: East River
-        attributes:
-          wilderness: true
-        map_node: 36
-        description: >-
-          The river forces its way through a steep canyon where dead trees cling to the slopes above black water. Ruined masonry, rusted weapons, and pieces of worked metal frequently wash from upstream and lodge between the rocks.
-        rooms:
-          east-river-bridge:
-            name: Bridge
-            description: >-
-              A weathered wooden bridge spans the canyon where the banks briefly draw close, its supports wedged between old stone foundations much older than the timber above them.
-      farms:
-        name: Farms
-        description: >-
-          Smoke rises from thatch-roofed houses on the other side of the river from the town. They're slightly elevated, just above the cattails, but still vulnerable. There's a small guard tower.
-        # Placeholder for the Farms rework: stands in for a real Soilery until the whole Location is redesigned.
-        attributes: { soilery: true }
-        rooms:
-          farms-fields:
-            name: Fields
-            description: >-
-              Low walls of piled rocks separate the road from expansive fields of wheat. There's carts and empty crates, used for the harvest.
-            stash:
-              items:
-                work-knife: 1
-          # The Stable (ARELITZ.md) — a placeholder Room the same way `farms`
-          # itself is a placeholder Location for Soilery: when the Farms
-          # rework lands, `stable: true` moves to whatever Room replaces this
-          # one and db/lib/stablePass.js needs no code change to follow it.
-          farms-stable:
-            name: Stable
-            description: >-
-              A low, timber-roofed stable built onto the side of the fields. Straw covers the floor, and something large is breathing in the dark past the gate.
-            stable: true
-          farms-village-green:
-            name: Village Green
-            description: >-
-              Several plum trees surround a large, dead oak. The hamlet's informal gathering place.
-          farms-old-church:
-            name: Old Church
-            description: >-
-              A miniature stone church with a cross inside. There's a cart laid on its side.
-
+                cheese: 1
+                obol: 10
+                cargo-crate: 1
+                paper: 6
+                merchants-wax-stamp: 1
+                # The Company's own crating bench, alongside the Factory's
+                # in factory-logistics-room. The Depot sells the crates and
+                # the Merchant fills them, so the outfit that ships the
+                # goods can pack them without walking to the Black Hills.
+                # Untradeable, so it is a fixture here and weighs nothing —
+                # see the note on the tag in docs/tags.yaml.
+                packaging-equipment: 1
+      undertown-6:
+        name: Merchant
+        description: ""
+      undertown-7:
+        name: Poorhouse
+        description: ""
+      undertown-8:
+        name: Den
+        description: ""
+      undertown-9:
+        name: Den Interior
+        description: ""
+      undertown-a:
+        name: Slums
+        description: ""
+      undertown-b:
+        name: Order Chambers
+        description: ""
+      undertown-c:
+        name: Lake
+        description: ""
+      undertown-d:
+        name: Alleys
+        description: ""
+      undertown-e:
+        name: Basements
+        description: ""
+      undertown-f:
+        name: Hole in the Wall
+        description: ""
+      undertown-g:
+        name: Nook
+        description: ""
+      undertown-h:
+        name: Island
+        description: ""
   hills:
     name: Black Hills
     kind: surface
@@ -1588,48 +1446,12 @@ zones:
             description: >-
               Making the more manageable climb up one of the shorter cliffs, the top gives a view of the barren hills and valleys to the West, and sodden marshes to the South. You can just about make out the town itself at the other end of the valley.
             access: [mountaineering, climbing]
-
-  marshes:
-    name: Marshes
-    kind: surface
-    sort: 5
-    description: >-
-      Thick reeds crowd open-ended ponds. The western reaches are wooded swamps; placid clearings are rare in the fetid bogs. The east is more open, and eventually leads into an endless landscape of purple wetness.
-    locations:
-      marshes-village:
-        name: Village
+      # Black Hills 1 on the plate, and the town's one way out onto the
+      # hills. Bare prose for now — the Black Hills renumber is its own pass.
+      hills-bridge:
+        name: Bridge
         description: >-
-          Half-submerged houses connected by bridges, their owners gone. Cypress forms a thick treeline all around, their bases packed with cattails. There's big fish in the water.
-        attributes:
-          godflesh: true
-        rooms:
-          village-bridges:
-            name: Bridges
-            description: >-
-              Algae clings to the bridges, connecting flooded homes.
-          village-bighook-maw:
-            name: Bighook Maw
-            description: >-
-              An abandoned pub. The cellar's still there, but it's flooded. You'd have to be a good swimmer to get in there.
-          # Private, so the thread itself is invisible to anyone who can't
-          # swim — the nearest thing the schema has to a hidden room.
-          village-flooded-cellar:
-            name: Cellar
-            description: >-
-              A waterlogged cellar. There's a crate down there — you'd have to be a good swimmer to get it.
-            access: [strong-swimmer]
-            stash:
-              items:
-                flooded-crate: 1
-          village-old-hut:
-            name: Old Hut
-            description: >-
-              A hut elevated over the marsh, half an hour's walk out of the village proper. The village's last inhabited building.
-            access: [fishermans-key]
-            stash:
-              items:
-                obol: 2
-                rat: 1
+          A weathered wooden bridge spans the canyon where the banks briefly draw close, its supports wedged between old stone foundations much older than the timber above them. The town's gate stands at the near end.
       factory:
         name: Godard Factory
         indoors: true
@@ -1692,137 +1514,7 @@ zones:
                 paper: 9
                 bannerets-wax-stamp: 1
                 cigarette: 1
-      marshes-north:
-        name: North Marshes
-        map_node: 31
-        description: >-
-          The land flattens into water, reeds, and the cloudy sky. Warm shallows stretch between muddy hummocks beneath clouds of mosquitos, while low yellow fog rolls through wherever the water turns stagnant. Wind rustles through the reeds in great bands, carrying the smell of rot and distant splashing much farther than expected.
-        attributes:
-          wilderness: true
-          godflesh: true
-        rooms:
-          north-marshes-cages:
-            name: Cages
-            description: >-
-              Iron cages stand on isolated hummocks along the decrepit, ramshackle path. Most rusted open and empty. A few remain locked, their lower halves submerged into parts of the marsh, with scratches covering the bars from the inside.
-          north-marshes-reeds:
-            name: Reeds
-            description: >-
-              Shoulder-high reeds spread in every direction, swallowing trails only a few yards after they are made.
-          north-marshes-longwater:
-            name: Longwater
-            description: >-
-              One of the few dependable channels through the marsh. The dark water runs slow but deep enough for a skiff. Long wakes disturb the surface where nothing can be seen beneath, while mosquitos gather thickly over the warmer banks.
-      marshes-west:
-        name: West Marshes
-        map_node: 32
-        description: >-
-          Broad old trees gather along slow, dark channels, their limbs stretching low enough to almost brush the water. Grass grows thick on the higher banks, while lilies and floating weeds collect in the quieter bends below. The woods feel open at first glance, dappled with warm light and broad patches of green, but the ground is divided by creeks, flooded hollows, and soft banks that give way underfoot. Frogs call from the water and insects hang in the still air beneath the canopy.
-        attributes:
-          wilderness: true
-          godflesh: true
-        rooms:
-          west-marshes-backwater:
-            name: Backwater
-            description: >-
-              A horseshoe bend cut off from the main current, thick with lilies, duckweed, and insects. Fish disturb the otherwise glassy surface, and fallen branches gather in heaps wherever the water narrows. The frogs can be heard loudly.
-          west-marshes-fallen-crossing:
-            name: Fallen Crossing
-            description: >-
-              A storm-toppled oak bridges one of the deepest channels from bank to bank. Its upper branches have been cut away over the years, leaving a broad, weather-smoothed road.
-          west-marshes-frog-hollow:
-            name: Frog Hollow
-            description: >-
-              Behind a curtain of reeds, a narrow side-channel opens into a sheltered pool almost completely enclosed by roots and low branches. Hundreds of frogs gather along the muddy banks, on half-sunken logs, and across broad lily pads, filling the hollow with a constant chorus of croaks.
-            access: [forester, animal-friend]
-            stash:
-              items:
-                old-coin: 9
-      marshes-woods:
-        name: Woods
-        map_node: 33
-        description: >-
-          Trees knot together above narrow ridges of mud and thickets wide enough to force travelers into whatever passages remain open. The air hangs hot and wet beneath the canopy, heavy with mosquitos and the sweet-sour smell of flooded vegetation. Pale fog settles into the lowest hollows and turns trunks into indistinct shapes.
-        attributes:
-          wilderness: true
-          godflesh: true
-        rooms:
-          woods-hanging-trees:
-            name: Hanging Trees
-            description: >-
-              A cluster of trees that bear hundreds of ribbons, bells, bones, and scraps of clothing tied high among the branches, some old enough to have been swallowed halfway into the bark.
-          woods-deadfall:
-            name: Deadfall
-            description: >-
-              An entire patch of forest was flattened during some long-past storm. Uprooted trees have left pits full of rainwater beside great walls of exposed roots, while new saplings grow through the bleached remains of the old forest.
-          woods-mirebed:
-            name: Mirebed
-            description: >-
-              Beneath interlocking roots, an area opens into a dry island of peat and old bone. Curled at its center lies something enormous beneath a blanket of moss: a lion-like body the size of a cottage, one horned head tucked beneath a folded wing, while a second shape — another neck — disappears beneath its mane. Each breath slow, and mushrooms have begun growing from the mud accumulated along its back. It sleeps no matter what you do.
-            access: [forester, tracking]
-            stash:
-              items:
-                hematite: 2
-      marshes-drowned:
-        name: Drowned Marshes
-        map_node: 34
-        description: >-
-          This place is open. The drowned basin spreads beneath an open sky, its surface broken by the occasional raft of floating vegetation. In still weather, the surface becomes perfectly reflective, doubling the trees and clouds until the horizon seems uncertain. There is little shelter and less solid ground, only water stretching between scattered remnants of what once grew there.
-        attributes:
-          wilderness: true
-          godflesh: true
-        rooms:
-          drowned-marshes-stillwater:
-            name: Stillwater
-            description: >-
-              The basin's center is deep, exposed, and almost entirely free of vegetation. On calm days the water becomes mirror-flat, making distant trees and clouds difficult to distinguish from their reflections.
-          drowned-marshes-crypt:
-            name: Crypt
-            description: >-
-              A drowned burial chamber rests beneath the tower, its niches filled with black water and pale silt. Several sarcophagi have split open under the pressure. A narrow opening beneath the eaves leads into an air pocket trapped against the ceiling. Rusted hooks and a heavy iron bell remain inside, along with whatever was abandoned when the water rose.
-            access: [strong-swimmer]
-            stash:
-              items:
-                obol: 4
-                cross: 1
-                vestments: 1
-      marshes-south:
-        name: South Marshes
-        map_node: 35
-        description: >-
-          Wet grass and pale limestone share the ground in uneasy patches, cut through by clear streams that vanish abruptly into cracks in the earth. Shallow hollows gather rainwater between shelves of exposed stone, while larger depressions fall away into shadow beneath hanging roots and scrub.
-        attributes:
-          wilderness: true
-          godflesh: true
-        rooms:
-          south-marshes-pocked-grounds:
-            name: Pocked Grounds
-            description: >-
-              Shallow hollows interrupt an otherwise open stretch of wet grass. Most are harmless bowls of mud and rainwater, though several conceal narrow openings between limestone shelves.
-          south-marshes-great-sink:
-            name: Great Sink
-            description: >-
-              A huge depression has collapsed into the limestone, leaving a steep bowl lined with scrub, loose rock, and exposed roots. At its lowest point, several cave mouths disappear beneath an overhang where daylight barely reaches.
-          south-marshes-rootmouth:
-            name: Rootmouth
-            description: >-
-              A seemingly ordinary hollow beneath an old tree conceals a crack large enough to squeeze through. Its roots hang into a narrow limestone chamber below, twisted around fallen stones like ropes. A ledge follows the wall above a subterranean stream before disappearing deeper beneath the fen.
-            access: [caving]
-            stash:
-              items:
-                graga-corpse: 1
-  # --- Underground (group) ---
-  # Category + GM seat only, NOT a standable place: no #summary, no "Zone:
-  # Underground" access role, and it never appears in connections. Its
-  # `levels:` map is flattened by the sync into two real zones (caves /
-  # depths), each shaped like a surface zone minus `kind`; their Location
-  # channels parent to this one category.
-  #
-  # The kinds are kept rather than promoting Caves and Depths to surface
-  # zones because the Caving Die only rolls on a CAVE_LEVEL arrival
-  # (docs/systemdocs/CAVING.md), and a CAVE_LEVEL needs a CAVE_GROUP parent.
-  # Sharing a parent also means they share one GM seat, which is what the
-  # Caves seat already did across three levels.
+
   underground:
     name: Underground
     kind: group
@@ -1869,67 +1561,6 @@ zones:
                     paper: 8
                     shortbow: 1
                     spear: 1
-          # The merchant's berth, over the cave-river from the sentry post. A
-          # built place, so a bare slug and a bare name (there is one Depot).
-          # `safe:` is not decoration here: without it this is a CAVE_LEVEL
-          # arrival like any other and the Caving Die would roll on every
-          # single shop trip.
-          depot:
-            name: Depot
-            indoors: true
-            # A shop that ships crates by the wagonload, over a bridge built to
-            # carry them. See the Factory on `wheels`.
-            attributes:
-              depot: true
-              noticeboard: true
-              safe: true
-              wheels: true
-            description: >-
-              Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
-            rooms:
-              depot-storefront:
-                name: Storefront
-                description: >-
-                  An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
-                stash: [tea, sugar-candy]
-              # PUBLIC on purpose, and eyes open: crates land here, so anybody
-              # can walk in and carry one off. That is a known hole nobody has
-              # closed yet — the alternative was a cargo room only Dockers could
-              # reach, which defeats opening the counter up in the first place.
-              depot-railyard:
-                name: Railyard
-                live: train
-                description: >-
-                  Rusted overhangs, overgrown with wilted, sunthirsted vines, occlude the cargo hub. A deep railway bisects the platforms. Every other turn, a cargo train rolls in.
-              depot-merchants-office:
-                name: Merchant's Office
-                access: [merchants-license]
-                soundproof: true
-                description: >-
-                  A desk, filing cabinets, and a big red button.
-                stash:
-                  items:
-                    paper: 32
-              depot-cargo-bay:
-                name: Cargo Bay
-                access: [depot-keycard]
-                description: >-
-                  Shelves on either side, stacked high with crates.
-                stash:
-                  resources: 4
-                  items:
-                    cheese: 1
-                    obol: 10
-                    cargo-crate: 1
-                    paper: 6
-                    merchants-wax-stamp: 1
-                    # The Company's own crating bench, alongside the Factory's
-                    # in factory-logistics-room. The Depot sells the crates and
-                    # the Merchant fills them, so the outfit that ships the
-                    # goods can pack them without walking to the Marshes.
-                    # Untradeable, so it is a fixture here and weighs nothing —
-                    # see the note on the tag in docs/tags.yaml.
-                    packaging-equipment: 1
           # Underground is where mining actually pays: 0.9 in the Caves and
           # 1.1 in the Depths, against 0.2–0.3 on the surface of the Black
           # Hills (MINING.md §3). Mines, tunnels and an ore vein were already
@@ -2298,52 +1929,32 @@ zones:
                 access: [caving]
 
 connections:
-  # --- Fortress ---------------------------------------------------------
-  - [fortress/servant-wing, fortress/lifeweb]
-  - [fortress/servant-wing, fortress/keep]
-  - [fortress/servant-wing, fortress/undercroft]
-  - [fortress/lifeweb, fortress/gatehouse]
-  - [fortress/keep, fortress/undercroft]
-  - [fortress/keep, fortress/garrison]
-  - [fortress/keep, fortress/gatehouse]
-  - [fortress/garrison, fortress/gatehouse]
-  - [fortress/road, fortress/manors]
-  # The one edge that is two things at once. A Cerberus on the gate reads
-  # everyone's papers, and the portcullis winch can be dropped by anyone with
-  # the authority to work it.
-  - pair: [fortress/gatehouse, fortress/road]
-    announce: true_name
-    modular:
-      open: true
-
   # --- Town -------------------------------------------------------------
-  - [town/north-gate, town/cathedral]
-  - [town/north-gate, town/sanctuary]
-  - [town/north-gate, town/square]
-  - [town/cathedral, town/square]
-  - [town/sanctuary, town/square]
-  - [town/sanctuary, town/old-cock-inn]
-  - [town/sanctuary, town/underquarter]
-  - [town/underquarter, town/old-cock-inn]
-  - [town/underquarter, town/square]
-  - [town/square, town/old-cock-inn]
-  - [town/square, town/south-gate]
+  - [town/town-1, town/town-2]
+  - [town/town-2, town/town-3]
+  - [town/town-2, town/town-4]
+  - [town/town-2, town/town-7]
+  - [town/town-2, town/town-8]
+  - [town/town-3, town/town-4]
+  - [town/town-4, town/town-7]
+  - [town/town-5, town/town-8]
+  - [town/town-5, town/town-9]
+  - [town/town-5, town/town-6]
+  - [town/town-6, town/town-7]
+  - [town/town-6, town/town-8]
+  - [town/town-8, town/town-9]
+  - [town/town-8, town/town-a]
+  - [town/town-9, town/town-a]
 
-  # --- Forest -----------------------------------------------------------
-  - [forest/forest-headwaters, forest/forest-cliffs]
-  - [forest/forest-headwaters, forest/forest-creekside]
-  - [forest/forest-cliffs, forest/forest-northern-road]
-  - [forest/forest-creekside, forest/forest-west-riverbank]
-  - [forest/forest-creekside, forest/forest-deep-forest]
-  - [forest/forest-northern-road, forest/forest-embankment]
-  - [forest/forest-west-riverbank, forest/forest-deep-forest]
-  - [forest/forest-west-riverbank, forest/forest-riverbend]
-  - [forest/forest-deep-forest, forest/forest-riverbend]
-  - [forest/forest-riverbend, forest/forest-south]
-  - [forest/forest-south, forest/forest-sparse-field]
-  - [forest/forest-embankment, forest/forest-east-river]
+  # --- Fortress ---------------------------------------------------------
+  - [fortress/fortress-1, fortress/fortress-2]
+  - [fortress/fortress-1, fortress/fortress-3]
+  - [fortress/fortress-2, fortress/fortress-3]
+  - [fortress/fortress-3, fortress/fortress-4]
+  - [fortress/fortress-4, fortress/fortress-5]
 
   # --- Black Hills ------------------------------------------------------
+  - [hills/hills-bridge, hills/hills-shadowed-grove]
   - [hills/hills-underlocks, hills/hills-shadowed-grove]
   - [hills/hills-underlocks, hills/hills-west]
   - [hills/hills-west, hills/hills-north]
@@ -2353,16 +1964,16 @@ connections:
   - [hills/hills-gullies, hills/hills-grand-ravine]
   - [hills/hills-gullies, hills/hills-cliffs]
   - [hills/hills-grand-ravine, hills/hills-cliffs]
-
-  # --- Marshes ----------------------------------------------------------
-  - [marshes/marshes-north, marshes/marshes-west]
-  - [marshes/marshes-north, marshes/marshes-village]
-  - [marshes/marshes-west, marshes/marshes-woods]
-  - [marshes/marshes-woods, marshes/factory]
-  - [marshes/marshes-drowned, marshes/marshes-village]
-  - [marshes/marshes-drowned, marshes/marshes-south]
-  - [marshes/marshes-south, marshes/factory]
-  - [marshes/marshes-village, marshes/factory]
+  # The Factory came over from the Marshes with that zone's deletion — on the
+  # plate it is Black Hills A, at the far end past the water.
+  - [hills/hills-waterway, hills/factory]
+  - [hills/hills-cliffs, hills/factory]
+  # The Mountain's only ways in. Both climbs used to come off the Road and the
+  # Forest headwaters, and both of those places are gone, so this one keeps it
+  # reachable on the same terms.
+  - pair: [hills/hills-mountain, hills/hills-underlocks]
+    locked: mountaineering
+    on_foot: true
 
   # --- Caves ------------------------------------------------------------
   # The gate in the cave mouth. Nobody stands on it, so it records what a
@@ -2375,19 +1986,6 @@ connections:
   - [caves/caves-approach, caves/caves-abandoned-camp]
   - [caves/caves-walkways, caves/caves-brooding-grounds]
   - [caves/caves-brooding-grounds, caves/caves-abandoned-camp]
-  # Over the cave-river, from the sentry post to the shop. A plain pair on
-  # purpose: same zone, so it is free on the location-move cooldown, and both
-  # ends are `indoors`, which already parks a mount at the door — `on_foot`
-  # would refuse the crossing instead of stabling the horse. This edge is the
-  # whole reason these two can be separate Locations; the last time they were,
-  # it was missing, and a migrant who cleared customs could not walk to the
-  # shop.
-  - [caves/customs, caves/depot]
-  # The mushroom forest's own way into the cargo bay, which is how the
-  # merchant's crates get in without passing the sentry at the gate.
-  - pair: [caves/depot, caves/caves-brooding-grounds]
-    hidden: caving
-    on_foot: true
 
   # --- Depths -----------------------------------------------------------
   - [depths/depths-steel-wall, depths/depths-obelisk]
@@ -2398,70 +1996,57 @@ connections:
   - [depths/depths-crystal-chambers, depths/depths-chasm]
 
   # --- Between zones — each of these costs the Move ----------------------
-  - [fortress/manors, forest/forest-northern-road]
-  - [forest/forest-south, forest/farms]
-  - [forest/forest-sparse-field, forest/farms]
-  - [forest/forest-east-river, forest/farms]
-  - [forest/forest-south, caves/customs]
-  - [forest/forest-embankment, hills/hills-shadowed-grove]
+  - [town/town-9, fortress/fortress-2]
+  - [town/town-a, fortress/fortress-2]
+  - [town/town-2, undertown/undertown-a]
+  - [fortress/fortress-3, undertown/undertown-1]
   - [caves/caves-abandoned-camp, depths/depths-last-chance]
   - [caves/caves-abandoned-camp, depths/depths-fork]
   - [depths/depths-chasm, hills/hills-cliffs]
-  - [hills/hills-waterway, marshes/marshes-north]
-  - [hills/hills-waterway, marshes/marshes-west]
-  - [hills/hills-cliffs, marshes/marshes-north]
+  # Over the cave-river, from the sentry post to the shop. The Depot moved
+  # into the Undertown with the rest of the town, so this crossing costs the
+  # Move now — but it still has to exist, because without it a migrant who
+  # cleared customs cannot reach the shop. That happened once already.
+  - [caves/customs, undertown/undertown-5]
 
-  # The town's two gates. Neither is manned, so both record what a passer-by
-  # would have seen rather than who it actually was.
-  - pair: [forest/forest-northern-road, town/north-gate]
-    announce: concealed
+  # The two manned gates. A Cerberus on each reads everyone's papers, and the
+  # winch can be dropped by anyone who can get into the watch room above it —
+  # town-1-2 for the Black Hills gate, fortress-2-3 for the portcullis.
+  - pair: [town/town-1, hills/hills-bridge]
+    announce: true_name
     modular:
       open: true
-  - pair: [forest/forest-south, town/south-gate]
-    announce: concealed
+  - pair: [town/town-8, fortress/fortress-2]
+    announce: true_name
     modular:
       open: true
 
-  # The Baron's elevator: the Undercroft's deeper passages come out in the
-  # forest below the cliffs. Given as a starting tag to the Hand and the
-  # Baron.
+  # The Baron's lift, top to bottom: the Keep's cage down into the Undercroft.
+  # Given as a starting tag to the Hand and the Baron.
   #
   # Keyed, so whoever rides it is asked whether to leave it open behind them
   # for 24 hours — which is how anybody without the key gets to follow.
-  - pair: [fortress/undercroft, forest/forest-cliffs]
+  - pair: [fortress/fortress-4, undertown/undertown-1]
     hidden: elevator-key
     keyed: true
     on_foot: true
 
-  # The three climbs. All LOCKED rather than hidden — you can see a mountain
-  # perfectly well from the road, and understand just as well that you cannot
-  # get up it. All on foot: no horse goes over a pass.
-  - pair: [fortress/road, hills/hills-underlocks]
-    locked: mountaineering
-    on_foot: true
-  - pair: [fortress/servant-wing, hills/hills-mountain]
-    locked: mountaineering
-    on_foot: true
-  - pair: [forest/forest-headwaters, hills/hills-mountain]
-    locked: mountaineering
+  # The tunnels the Alleys' description promises, down into the Undertown's
+  # sewers. Hidden, so a player who does not know the tunnels never learns
+  # they are there. Only ONE tag fits on an edge, so this is `tunnel-rat`
+  # alone; the Toilets room at the top of it still admits a sewer-key too.
+  - pair: [town/town-5, undertown/undertown-4]
+    hidden: tunnel-rat
     on_foot: true
 
-  # The four crawls. Hidden, so a player without Caving never learns they are
-  # there at all, and on foot, because they are crawls.
-  - pair: [forest/forest-sparse-field, caves/caves-walkways]
-    hidden: caving
-    on_foot: true
-  - pair: [caves/caves-walkways, marshes/marshes-woods]
-    hidden: caving
-    on_foot: true
-  - pair: [depths/depths-grand-chamber, marshes/marshes-south]
-    hidden: caving
+  # The way down to the Lifeweb from among the graves. LOCKED rather than
+  # hidden — everyone knows the Mortii go down there, and knows they cannot.
+  - pair: [town/town-a, undertown/undertown-3]
+    locked: mortus-key
     on_foot: true
 
-  # The culvert into the Underquarter's sewers. LOCKED rather than hidden —
-  # a grating in a riverbank is not a secret — and keyed, so whoever unlocks it
-  # is asked whether to leave it open behind them.
-  - pair: [forest/forest-embankment, town/underquarter]
-    locked: sewer-key
-    keyed: true
+  # The mushroom forest's own way into the cargo bay, which is how the
+  # merchant's crates get in without passing the sentry at the gate.
+  - pair: [undertown/undertown-5, caves/caves-brooding-grounds]
+    hidden: caving
     on_foot: true

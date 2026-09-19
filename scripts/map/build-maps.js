@@ -228,7 +228,12 @@ function compileMap(id, spec, table, cs) {
     zoneOfFg.set(group.fg, group);
     for (const [code, entry] of Object.entries(group.nodes)) {
       const name = typeof entry === "string" ? entry : entry.name;
-      const slug = (typeof entry === "string" ? null : entry.slug) ?? `${group.zone}-${slugify(name)}`;
+      // The slug IS the map code, zone-prefixed: `town-1`, `fortress-3`,
+      // `undertown-a`. A place can be renamed without its slug moving, which
+      // is why the plate can address docs/zones.yaml directly with no lookup
+      // table. `slug:` on a node is an OVERRIDE for a zone that has not been
+      // renumbered yet (the Black Hills), and goes away with that zone's pass.
+      const slug = (typeof entry === "string" ? null : entry.slug) ?? `${group.zone}-${String(code).toLowerCase()}`;
       wanted.set(`${group.fg}:${code}`, { zone: group.zone, code, name, slug });
     }
   }

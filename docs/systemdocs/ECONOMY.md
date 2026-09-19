@@ -58,7 +58,7 @@ Every entry has two ends, and each is one of:
 
 - `character:<id>` — a purse
 - `room:<id>` — a stash, **and also the Keep's Vault**. The Vault needs no
-  model of its own: it is `undercroft-vault`, a room with coin in it
+  model of its own: it is `undertown-1-7`, a room with coin in it
 - `bank:<accountId>` — one player's claim. `bank:clearing` is its book
   counterparty: no live balance, exempt from reconcile, exactly like mint and
   burn. It exists so that a movement whose coin leg is already booked by the tag

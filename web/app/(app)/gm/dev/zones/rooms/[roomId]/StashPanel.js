@@ -11,7 +11,7 @@ import { seedRoomStash } from "../../actions";
 // quantity is play state (players carry it off), and the one thing this
 // panel is allowed to do to it is add MORE, once, from a fresh authoring
 // list. Everyday quantity moves stay in Transfer/Storage on the player side.
-export default function StashPanel({ roomId, resources, stash, seededStashSlugs, canSuper }) {
+export default function StashPanel({ roomId, resources, stash, seededStashSlugs, stashSeed, canSuper }) {
   const { run, pending, error } = useActionRunner();
   const [result, setResult] = useState(null);
 
@@ -25,6 +25,14 @@ export default function StashPanel({ roomId, resources, stash, seededStashSlugs,
       onOk: (res) => setResult(`Seeded ${res.seeded} slug${res.seeded === 1 ? "" : "s"}.`),
     });
   }
+
+  // What the master says this room STARTS with, which stays readable after
+  // players have carried half of it off. Same shape parse.js normalises a
+  // `stash:` block into; resources are a tag like any other.
+  const authored = [
+    ...(stashSeed?.resources > 0 ? [`resources: ${stashSeed.resources}`] : []),
+    ...(stashSeed?.items ?? []).map(([slug, quantity]) => `${slug}: ${quantity}`),
+  ];
 
   return (
     <Panel title="Stash">
@@ -57,6 +65,12 @@ export default function StashPanel({ roomId, resources, stash, seededStashSlugs,
         </tbody>
       </table>
 
+      {authored.length > 0 && (
+        <p className="text-muted text-sm">
+          <strong>Authored</strong> (docs/zones.yaml, poured in once by Start Game):{" "}
+          <span className="mono">{authored.join(", ")}</span>
+        </p>
+      )}
       {canSuper && (
         <>
           <FormError>{error}</FormError>

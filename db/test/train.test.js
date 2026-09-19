@@ -159,16 +159,16 @@ test("the Dropbox hangs off the Depot LOCATION, so it is reachable from any room
 });
 
 test("and again on the Railyard, where somebody meeting the train already is", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "depot-railyard" })), ["Storage", "Dropbox"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-2" })), ["Storage", "Dropbox"]);
 });
 
 test("the ATM is the Storefront's, and the Storefront no longer carries the box", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "depot-storefront" })), ["Storage", "ATM"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })), ["Storage", "ATM"]);
 });
 
 test("the Merchant's gun is on his own office wall and nowhere else", () => {
-  assert.ok(labels(roomAffordances({ id: "r", slug: "depot-merchants-office" })).includes("Toggle Turret"));
-  assert.equal(labels(roomAffordances({ id: "r", slug: "depot-railyard" })).includes("Toggle Turret"), false);
+  assert.ok(labels(roomAffordances({ id: "r", slug: "undertown-5-3" })).includes("Toggle Turret"));
+  assert.equal(labels(roomAffordances({ id: "r", slug: "undertown-5-2" })).includes("Toggle Turret"), false);
 });
 
 test("the anchor's buttons still chunk under Discord's five-per-row cap", () => {

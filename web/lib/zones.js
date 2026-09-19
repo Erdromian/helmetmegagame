@@ -4,9 +4,8 @@
 export const ZONE_KEYS = [
   "fortress",
   "town",
-  "forest",
+  "undertown",
   "hills",
-  "marshes",
   "caves",
   "depths",
 ];

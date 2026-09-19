@@ -8,6 +8,7 @@ import { validateNewSlug, validateUniqueName } from "@lifeweb/db/lib/placeValida
 import { retirePlace, unretirePlace, hardDeleteBlockers, hardDeletePlace } from "@lifeweb/db/lib/placeDeletable";
 import { enqueueMirror } from "@lifeweb/db/lib/discordMirror/queue";
 import { ATTRIBUTES, attributesFromInput } from "@lifeweb/db/lib/locationAttributes";
+import { seedRoomStashRows } from "@lifeweb/db/lib/roomStashSeed";
 
 // /gm/dev/zones — the GM place editor. Every writer here re-validates
 // everything server-side (a disabled button is a hint, not a lock), writes
@@ -393,9 +394,9 @@ export async function hardDeleteRoom(roomId) {
   });
 }
 
-// "Seed these items now" — writes RoomTag rows and appends to
-// seededStashSlugs, the same guard seedRoomStash uses so a re-run (or the
-// eventual db:import-zones) can never refill a slug players already emptied.
+// "Seed these items now" — the hand version of what Start Game does to every
+// room at once. Both go through db/lib/roomStash.js, so the never-seed-twice
+// guard is one piece of code rather than two that have to agree.
 export async function seedRoomStash(roomId, text) {
   return guarded(async () => {
     const session = await requireDev("super");
@@ -418,31 +419,18 @@ export async function seedRoomStash(roomId, text) {
     }
     if (wanted.length === 0) throw new UserError("Nothing to seed — write one \"slug: count\" per line.");
 
-    const already = new Set(room.seededStashSlugs ?? []);
-    const toSeed = wanted.filter(([slug]) => !already.has(slug));
-    if (toSeed.length === 0) return { seeded: 0 };
+    const out = await seedRoomStashRows(prisma, room, wanted);
+    // A typo is worth saying out loud HERE, where somebody just typed it —
+    // the bulk pass only reports unknown slugs, because one bad slug in the
+    // YAML should not cost eighty other rooms their contents.
+    if (out.unknown.length) {
+      throw new UserError(`Unknown tag slug${out.unknown.length === 1 ? "" : "s"}: ${out.unknown.join(", ")}.`);
+    }
+    if (out.seeded === 0) return { seeded: 0 };
 
-    const tags = await prisma.tag.findMany({ where: { slug: { in: toSeed.map(([slug]) => slug) } } });
-    const bySlug = new Map(tags.map((t) => [t.slug, t]));
-    const missing = toSeed.filter(([slug]) => !bySlug.has(slug)).map(([slug]) => slug);
-    if (missing.length) throw new UserError(`Unknown tag slug${missing.length === 1 ? "" : "s"}: ${missing.join(", ")}.`);
-
-    await prisma.$transaction([
-      ...toSeed.map(([slug, quantity]) =>
-        prisma.roomTag.upsert({
-          where: { roomId_tagId: { roomId, tagId: bySlug.get(slug).id } },
-          update: { quantity: { increment: quantity } },
-          create: { roomId, tagId: bySlug.get(slug).id, quantity },
-        }),
-      ),
-      prisma.room.update({
-        where: { id: roomId },
-        data: { seededStashSlugs: [...already, ...toSeed.map(([slug]) => slug)] },
-      }),
-    ]);
-    await audit(session, "gm_room_stash_seeded", { roomId, slugs: toSeed.map(([slug, q]) => `${slug}:${q}`) });
+    await audit(session, "gm_room_stash_seeded", { roomId, slugs: wanted.map(([slug, q]) => `${slug}:${q}`) });
     revalidatePath(`/gm/dev/zones/rooms/${roomId}`);
-    return { seeded: toSeed.length };
+    return { seeded: out.seeded };
   });
 }
 

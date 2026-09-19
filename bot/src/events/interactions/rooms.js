@@ -43,7 +43,7 @@ const {
   bellWordMatches,
 } = require("../../lib/bellModal");
 const {
-  GATEHOUSE_LOCATION_SLUG,
+  RESIDENCES_LOCATION_SLUG,
   TURRET_ARMED_LINE,
   TURRET_DISARMED_LINE,
   gatehouseTurretArmed,
@@ -313,7 +313,7 @@ async function handleTurretSubmit(interaction, roomId) {
   await prisma.gameState.update({ where: { id: 1 }, data: { gatehouseTurretArmed: next } });
 
   const gatehouse = await prisma.location // the yard's only warning; best-effort, switch throws either way
-    .findUnique({ where: { slug: GATEHOUSE_LOCATION_SLUG }, select: { discordChannelId: true } })
+    .findUnique({ where: { slug: RESIDENCES_LOCATION_SLUG }, select: { discordChannelId: true } })
     .catch(() => null);
   if (gatehouse?.discordChannelId) {
     const line = next ? TURRET_ARMED_LINE : TURRET_DISARMED_LINE;

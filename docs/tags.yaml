@@ -5864,9 +5864,9 @@ tags:
       # bootstrap — you cannot build the first forge without one — and there
       # is no such loop here.
       fieldwork: true
-      locations: [old-cock-inn]
+      locations: [town-7]
       examine: "it'll actively produce alcohol as long as a brewer is around."
-      yields: { tag: alcohol, room: inn-cellar, quantity: 1, skill: brewing-basic }
+      yields: { tag: alcohol, room: town-7-6, quantity: 1, skill: brewing-basic }
 
   rookery:
     catalog: all
@@ -8653,6 +8653,120 @@ tags:
       items:
         - tag: smithy-key
           keep: true
+
+  # ---- The map rework's keys (2026-09-19) ------------------------------
+  # Six doors that had no key before the Town became the Soilery, the
+  # Residences and a Keep with servants in it. All of them follow the shape
+  # of the keys above: weightless, stackable, invisible on the sheet.
+
+  soilers-key:
+    catalog: gm
+    name: "Soiler's Key"
+    category: items
+    group: items-keys
+    sprite: key
+    description: "A wooden key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  servant-key:
+    catalog: gm
+    name: Servant Key
+    category: items
+    group: items-keys
+    sprite: key
+    description: "A metal key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The Bishop's own way into the Order Chambers, beside the Order's key.
+  bishops-key:
+    catalog: gm
+    name: "Bishop's Key"
+    category: items
+    group: items-keys
+    sprite: key3
+    description: "An old key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The four homes in the Residences. Every home is locked and every key is
+  # named after its door, so a key found on a body says which house it opens.
+  # One description and one sprite between them, deliberately: telling them
+  # apart is meant to take asking, or trying the lock.
+  #
+  # Only the Garage Home's is for sale. It sits on the MERCHANT manifest, so
+  # the Merchant's Licence is what opens the shelf — a house is the Company's
+  # to sell, not something you order off the general counter.
+  garage-home-key:
+    catalog: gm
+    name: Garage Home Key
+    category: items
+    group: items-keys
+    sprite: key2
+    description: "A key to one of the homes in residences."
+    manifest: merchant
+    pointCost: 0
+    depotPrice: 10
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  squat-home-key:
+    catalog: gm
+    name: Squat Home Key
+    category: items
+    group: items-keys
+    sprite: key2
+    description: "A key to one of the homes in residences."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  painted-home-key:
+    catalog: gm
+    name: Painted Home Key
+    category: items
+    group: items-keys
+    sprite: key2
+    description: "A key to one of the homes in residences."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  large-home-key:
+    catalog: gm
+    name: Large Home Key
+    category: items
+    group: items-keys
+    sprite: key2
+    description: "A key to one of the homes in residences."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
 
   headmans-key:
     catalog: gm

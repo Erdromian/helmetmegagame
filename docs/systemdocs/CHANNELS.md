@@ -477,7 +477,7 @@ this reason. Anything that prunes Rooms must carry the same guard. Players
 still cannot create one; a GM can.
 
 **A room's id is always `<location-stem>-<room>`** — `keep-throne-room`,
-`inn-cellar`, `customs-watchtower`. Zones, locations and rooms share one slug
+`town-7-6`, `customs-watchtower`. Zones, locations and rooms share one slug
 namespace, so without the stem the obvious id is often already gone: there are
 four rooms called "Watchtower" and two called "Road". Display names are
 unaffected. Four room slugs are also hardcoded in JS and must move with the
@@ -1118,7 +1118,7 @@ it diffs the live overwrites against the spec for you.
 
 ## The Railyard
 
-`depot-railyard`, a PUBLIC thread under the Depot Location's channel, authored
+`undertown-5-2`, a PUBLIC thread under the Depot Location's channel, authored
 in `docs/zones.yaml` with no `access:` list at all. It replaced the Landing Pad,
 which was PRIVATE behind `depot-keycard` — so the membership work the channel
 doctor used to do for that room is simply gone, and the Depot feature adds

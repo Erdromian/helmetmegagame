@@ -76,11 +76,12 @@ Rooms share one slug namespace** — a Location named like its own zone would
 make "which thing is `town`?" ambiguous everywhere slugs are read, so the sync
 rejects a duplicate across all three lists.
 
-Locations follow one naming rule, split between built places and open country.
-A built place takes a bare slug — `keep`, `factory`, `cathedral`, `depot`.
-Open country takes its zone as a prefix — `forest-creekside`, `hills-gullies`,
-`marshes-village` — because every zone has a ravine and a river, and the slug
-is also the Discord channel name.
+A Location's slug is its **map code**: the zone, then its system code off the
+Playscii plate — `town-1`, `fortress-5`, `undertown-a`. A Room's is its
+Location's slug plus its own number, `town-2-3`. Codes run 1-9 then a-z and
+restart per zone. The zones not yet renumbered (the Black Hills, the Caves,
+the Depths) still carry descriptive slugs like `hills-gullies`. See `MAP.md`
+for why a slug is a coordinate rather than a name.
 
 A changed `id` is not a rename: the old entry is pruned and a new one
 provisioned from scratch, losing its Discord objects. Rename by editing `name`.
@@ -382,7 +383,7 @@ everything else from YAML.
 | `db:set-bot-avatar` | Pushes `docs/assets/bot-icon.png` to the bot user's avatar. |
 | `db:open-rp-channels` | Between games: opens every roleplay channel to the whole guild. Dry-run by default; writes an undo snapshot first. The next `db:mirror` re-walls them. |
 | `db:open-bank-accounts` | Opens a fingerprinted `BankAccount` for every living character whose role carries `bank_account:` in `docs/roles.yaml` and has none yet, and closes out the retired `Depot` account. Dry-run by default; `-- --apply` writes. See `CHARACTERS.md`, `DEPOT.md` §0g. |
-| `db:audit-vault-backing` | Read-only: sums every TREASURY `BankAccount`'s claim against the real `obol` tags sitting in the Vault (`undercroft-vault`), so a GM can see the backing before somebody at the ATM finds out the hard way. See `DEPOT.md` §0g. |
+| `db:audit-vault-backing` | Read-only: sums every TREASURY `BankAccount`'s claim against the real `obol` tags sitting in the Vault (`undertown-1-7`), so a GM can see the backing before somebody at the ATM finds out the hard way. See `DEPOT.md` §0g. |
 | `db:backup` | Takes a Railway volume backup now (`scripts/db/railway-backup.sh`). `migrate.sh` runs it before every migration. |
 
 ## 5. Where the code lives

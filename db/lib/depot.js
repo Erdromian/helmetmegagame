@@ -14,16 +14,19 @@ function isMerchantRole(slug) {
   return slug === MERCHANT_ROLE_SLUG;
 }
 
-// The Meister's office, and the room whose key decides who reads /treasury.
+// The Meister's study, and the room whose key decides who reads /treasury.
 // A ROOM rather than a tag: the terminal is a thing on a desk, so the gate is
-// standing in the Keep and being able to get through that door — whichever key
-// docs/zones.yaml says opens it. See docs/systemdocs/DEPOT.md §0h.
-const MEISTERS_OFFICE_ROOM_SLUG = "keep-meisters-office";
-const KEEP_LOCATION_SLUG = "keep";
+// standing in the Tower and being able to get through that door — whichever
+// key docs/zones.yaml says opens it. See docs/systemdocs/DEPOT.md §0h.
+//
+// The study was in the Keep until the 2026-09-19 map rework moved it up the
+// Tower. These two have to name the SAME place or the gate is unsatisfiable.
+const MEISTERS_OFFICE_ROOM_SLUG = "fortress-5-2";
+const TOWER_LOCATION_SLUG = "fortress-5";
 
 // Where the counter is — a LOCATION slug (docs/zones.yaml), one hop east of Customs via
 // `connections:`. Buying and selling both require standing here, same as the Lifeweb requiring the Fortress.
-const DEPOT_LOCATION_SLUG = "depot";
+const DEPOT_LOCATION_SLUG = "undertown-5";
 
 // The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays RESOURCE_EXPORT_PRICE for them back, so the
 // round trip always loses money — the spread can never be run in a loop to print obols (db/lib/syncTags.js
@@ -49,7 +52,7 @@ function normalizeQuantity(raw) {
 module.exports = {
   MERCHANT_LICENSE_SLUG,
   MEISTERS_OFFICE_ROOM_SLUG,
-  KEEP_LOCATION_SLUG,
+  TOWER_LOCATION_SLUG,
   MERCHANT_ROLE_SLUG,
   isMerchantRole,
   DEPOT_LOCATION_SLUG,

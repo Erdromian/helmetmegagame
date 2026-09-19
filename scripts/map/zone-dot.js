@@ -27,9 +27,10 @@ const ZONES_PATH = path.join(ROOT, "docs", "zones.yaml");
 
 const MINING_EMOJI = "⛏️";
 
-// Mirrors db/lib/mounts.js#WATER_ZONE_SLUGS as its own small copy — this
-// reads docs/zones.yaml, not the game's runtime state.
-const WATER_ZONES = new Set(["forest", "hills", "marshes"]);
+// The zones with open water in them. Its own small copy — this reads
+// docs/zones.yaml, not the game's runtime state. Forest and Marshes went
+// with the surface; the Black Hills keep the waterway.
+const WATER_ZONES = new Set(["hills"]);
 
 // `kind: group` zones (Underground) never appear in connections themselves —
 // only their `levels:` do, each a real zone id. Flatten them here so the
@@ -112,9 +113,8 @@ function edgeAttrs(edge) {
 const ZONE_FILL = {
   town: "#fdf6d3",
   fortress: "#e9def2",
-  forest: "#deefe0",
+  undertown: "#efe4d2",
   hills: "#ece1cb",
-  marshes: "#dbe9f5",
   caves: "#e4e4e4",
   depths: "#c8ccd6",
 };

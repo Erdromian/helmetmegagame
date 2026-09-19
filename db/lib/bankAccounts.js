@@ -25,7 +25,7 @@ const { OBOL_SLUG } = require("./depotState");
 // Where the coin actually is. A ROOM slug (docs/zones.yaml) — the Keep's own
 // vault, behind the Baron's key, which is the point: the town's money is
 // somewhere a person can walk to, and rob.
-const VAULT_ROOM_SLUG = "undercroft-vault";
+const VAULT_ROOM_SLUG = "undertown-1-7";
 
 const TREASURY = "TREASURY";
 const OFFSHORE = "OFFSHORE";

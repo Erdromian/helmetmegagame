@@ -54,6 +54,7 @@ export default async function DevRoomPage({ params }) {
           resources={resourcesOf(room)}
           stash={stash}
           seededStashSlugs={room.seededStashSlugs}
+          stashSeed={room.stashSeed ?? null}
           canSuper={tier === "super"}
         />
       </PageShell>

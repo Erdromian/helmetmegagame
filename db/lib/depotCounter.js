@@ -18,7 +18,7 @@ const {
   DEPOT_LOCATION_SLUG,
   MERCHANT_LICENSE_SLUG,
   MEISTERS_OFFICE_ROOM_SLUG,
-  KEEP_LOCATION_SLUG,
+  TOWER_LOCATION_SLUG,
 } = require("./depot");
 const { DEPOT_KEYCARD_SLUG, loadDepot } = require("./depotState");
 const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
@@ -417,7 +417,7 @@ async function canReadTreasury(prisma, discordUserId) {
     select: { id: true, location: { select: { slug: true } } },
   });
   if (!character) return { ok: false, error: "You don't have a living character." };
-  if (character.location?.slug !== KEEP_LOCATION_SLUG) {
+  if (character.location?.slug !== TOWER_LOCATION_SLUG) {
     return { ok: false, error: "The terminal is in the Meister's office." };
   }
 

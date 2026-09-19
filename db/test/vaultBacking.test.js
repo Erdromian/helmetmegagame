@@ -120,25 +120,25 @@ function fakePrisma({ locationSlug, heldSlugs = [] }) {
 }
 
 test("the Meister's own key, standing in the Keep, opens the desk", async () => {
-  const out = await canReadTreasury(fakePrisma({ locationSlug: "keep", heldSlugs: ["meisters-key"] }), "u1");
+  const out = await canReadTreasury(fakePrisma({ locationSlug: "fortress-5", heldSlugs: ["meisters-key"] }), "u1");
   assert.equal(out.ok, true);
 });
 
 test("the Baron's key opens it too, because the door's own list says so", async () => {
   // Read off Room.accessTagSlugs rather than named in code, so re-keying the
   // office in docs/zones.yaml moves this with it.
-  const out = await canReadTreasury(fakePrisma({ locationSlug: "keep", heldSlugs: ["barons-key"] }), "u1");
+  const out = await canReadTreasury(fakePrisma({ locationSlug: "fortress-5", heldSlugs: ["barons-key"] }), "u1");
   assert.equal(out.ok, true);
 });
 
 test("the right key in the wrong place is refused — the terminal is a thing on a desk", async () => {
-  const out = await canReadTreasury(fakePrisma({ locationSlug: "depot", heldSlugs: ["meisters-key"] }), "u1");
+  const out = await canReadTreasury(fakePrisma({ locationSlug: "undertown-5", heldSlugs: ["meisters-key"] }), "u1");
   assert.equal(out.ok, false);
   assert.match(out.error, /office/i);
 });
 
 test("standing in the Keep with no key is refused", async () => {
-  const out = await canReadTreasury(fakePrisma({ locationSlug: "keep", heldSlugs: ["depot-keycard"] }), "u1");
+  const out = await canReadTreasury(fakePrisma({ locationSlug: "fortress-5", heldSlugs: ["depot-keycard"] }), "u1");
   assert.equal(out.ok, false);
 });
 
