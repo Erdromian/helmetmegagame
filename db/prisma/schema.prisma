@@ -6062,3 +6062,26 @@ model OocMute {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// A late-join seat that is OPEN. One row per candidate role slug in
+// db/lib/lateJoin.js#LATE_JOIN_ROLE_SLUGS, written by the Dev Panel's Late
+// joins section and by the Bastard's Call reinforcements button.
+//
+// The slug is the primary key and there is no Role relation, for the reason
+// Tag.excludedRoleSlugs gives: the candidate list is code (db/lib/lateJoin.js),
+// a row here is only the GM's answer about it, and a Role row that has not been
+// synced yet must not stop a GM opening the seat ahead of the sync.
+//
+// `slots` is the CAP, not what is left -- how many of them are spent is
+// counted off the Character rows holding the role, exactly the way every other
+// seat count in the game is (db/lib/roleCapacity.js#seatHolderStatuses). A
+// second column would be a second copy of the truth and would be wrong the
+// moment a GM deleted a character by hand.
+model LateJoinRole {
+  roleSlug String  @id
+  enabled  Boolean @default(false)
+  slots    Int     @default(0)
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+}

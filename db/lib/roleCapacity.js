@@ -17,8 +17,23 @@ function roleCapacity(role, playerCount) {
 // comes back into whatever is actually left — in a full game, these two.
 const REOPENING_SEAT_ROLE_SLUGS = ["bum", "migrant"];
 
-// Roles that exist ONLY as a GM spawn — kept here so the roll (db/lib/roleAssignment.js) and the picker read one list.
-const SPAWN_ONLY_ROLE_SLUGS = ["tribunal-ordinator", "tribune"];
+// Roles that never appear in the ordinary creation picker — kept here so the
+// roll (db/lib/roleAssignment.js) and the picker read one list. Two ways in:
+// a GM spawn (THREATS.md §4), and a late join the GM has opened
+// (db/lib/lateJoin.js), which draws its own "Special" section ABOVE the social
+// buckets rather than un-hiding the seat here.
+const SPAWN_ONLY_ROLE_SLUGS = [
+  "tribunal-ordinator",
+  "tribune",
+  // The Bastard's invading party. The Bastard seat itself is the leader; the
+  // other five are what Call reinforcements opens.
+  "bastard",
+  "bastard-infantry",
+  "bastard-heavy-infantry",
+  "bastard-rifleman",
+  "bastard-healer",
+  "bastard-engineer",
+];
 
 function isSpawnOnly(role) {
   return SPAWN_ONLY_ROLE_SLUGS.includes(role?.slug);

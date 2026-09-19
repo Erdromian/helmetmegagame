@@ -163,6 +163,15 @@ export default function CreateCharacterWizard({
   // role step is skipped, the seat is shown as a banner with its deadline,
   // and createCharacter forces the role whatever the form says.
   lockedRole = null,
+  // The late-join seats a GM has opened (db/lib/lateJoin.js), drawn in their
+  // own section ABOVE the social buckets. `{ roles: [] }` is the ordinary
+  // case, and an empty section draws nothing at all.
+  specialGroup = null,
+  // This player's last body is still unburied, and the only reason they are
+  // looking at a wizard is that a late-join seat is open (db/lib/curse.js,
+  // page.js). The buckets are hidden outright rather than greyed: every one of
+  // them is a seat the curse actually refuses.
+  cursedToSpecial = false,
 }) {
 
   const [step, setStep] = useState(lockedRole ? 1 : 0);
@@ -195,7 +204,17 @@ export default function CreateCharacterWizard({
   const [heldUntil, setHeldUntil] = useState(null);
   const [reserving, setReserving] = useState(false);
 
-  const allRoles = useMemo(() => groups.flatMap((g) => g.roles), [groups]);
+  // The Special section is part of the picker, so it is part of the role
+  // lookup too — a late-join seat that the rest of the wizard could not find by
+  // id would take the player to a blank Tags step.
+  const specialRoles = useMemo(() => specialGroup?.roles ?? [], [specialGroup]);
+  // Memoized, or `allRoles` below would see a fresh array every render and
+  // rebuild on each one.
+  const pickerGroups = useMemo(() => (cursedToSpecial ? [] : groups), [cursedToSpecial, groups]);
+  const allRoles = useMemo(
+    () => [...specialRoles, ...pickerGroups.flatMap((g) => g.roles)],
+    [specialRoles, pickerGroups],
+  );
   const role = allRoles.find((r) => r.id === roleId) ?? null;
 
   const byId = useMemo(() => buildTagsById(tags), [tags]);
@@ -419,10 +438,38 @@ export default function CreateCharacterWizard({
 
       {step === 0 && (
         <div className="flex flex-col gap-6">
+          {/* The late joins a GM has opened, first and on their own, because
+              they are not a bucket: every social bucket below is a place in
+              Ravenheart's order and every seat here is somebody arriving from
+              outside it (db/lib/lateJoin.js). */}
+          {specialRoles.length > 0 && (
+            <section key={specialGroup.slug} className="flex flex-col gap-3">
+              <h2 className="panel-header">{specialGroup.name}</h2>
+              {cursedToSpecial && (
+                <p className="text-sm text-muted">
+                  Your body is still in the ground, so Ravenheart is closed to you. These seats
+                  are not Ravenheart&apos;s.
+                </p>
+              )}
+              <div className="grid gap-2 sm:grid-cols-2">
+                {specialRoles.map((r) => (
+                  <RoleCard
+                    key={r.id}
+                    role={r}
+                    cap={r.cap}
+                    taken={r.taken}
+                    selected={r.id === roleId}
+                    disabled={!r.selectable || (r.cap !== null && r.taken >= r.cap)}
+                    onSelect={pickRole}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
           {/* Seven social buckets, not five zones — db/lib/roleGroups.js. The
               starting zone moved off the heading and onto the card, because a
               bucket holds more than one of them now. */}
-          {groups.map((group) => (
+          {pickerGroups.map((group) => (
             <section key={group.slug} className="flex flex-col gap-3">
               <h2 className="panel-header">{group.name}</h2>
               <div className="grid gap-2 sm:grid-cols-2">

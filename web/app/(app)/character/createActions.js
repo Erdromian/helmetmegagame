@@ -42,6 +42,7 @@ import {
   onRoster,
 } from "@/lib/discordGuild";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
+import { lateJoinOpeningFor, lateJoinCapacity } from "@lifeweb/db/lib/lateJoin";
 import {
   computeBudget,
   isSpawnOnly,
@@ -147,6 +148,14 @@ export async function createCharacter(formData) {
   ]);
   if (!role) return { error: "That role no longer exists." };
 
+  // A LATE JOIN (db/lib/lateJoin.js) is a spawn-only seat the GM has opened to
+  // whoever wants it. Read once, here, and then used for three separate
+  // answers below: it lets the seat past the spawn-only refusal, past the
+  // curse, and it replaces roleCapacity() as the cap inside the transaction.
+  const lateJoin = await lateJoinOpeningFor(prisma, role.slug);
+  const lateJoinSeats = lateJoinCapacity(lateJoin);
+  const openLateJoin = lateJoinSeats > 0;
+
   // Launch gate: the game running (or ended) AND this member approved — the
   // real enforcement boundary, not the wizard's UI. Superadmin bypasses both.
   const bypass = isSuperadmin(discordUserId);
@@ -157,8 +166,9 @@ export async function createCharacter(formData) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
-  // Never pickable — the picker not listing these is a hint, not a lock.
-  if (isSpawnOnly(role)) {
+  // Never pickable — the picker not listing these is a hint, not a lock. A
+  // late join the GM has opened is the exception, and the only one.
+  if (isSpawnOnly(role) && !openLateJoin) {
     return assignedEntry
       ? { error: "Your assigned seat can only be spawned by a GM." }
       : { error: "That role isn't open to anyone." };
@@ -174,7 +184,9 @@ export async function createCharacter(formData) {
   // used to leave Migrant and Bum open at six fewer points; now nobody gets
   // made until the corpse is dealt with. A roll seat is no exemption — that
   // window belongs to the lobby, long before anybody has died.
-  if (!bypass && cursed) {
+  // A late-join seat is exempt, on purpose: what the curse costs you is your
+  // place in Ravenheart, and this is somebody arriving from outside it.
+  if (!bypass && cursed && !openLateJoin) {
     return { error: CURSED_REFUSAL };
   }
 
@@ -346,7 +358,13 @@ export async function createCharacter(formData) {
       // heldSeats counts seated characters plus others' holds/assignments; the caller's own are left out.
       await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
       const held = await heldSeats(tx, role, { excludeDiscordUserId: discordUserId });
-      if (held >= roleCapacity(role, effectivePlayerCount(config, state))) {
+      // A late join's cap is the GM's number of chairs, not a share of the
+      // roster — re-read under the lock, since a GM closing the door between
+      // the check above and here must win.
+      const cap = openLateJoin
+        ? lateJoinCapacity(await lateJoinOpeningFor(tx, role.slug))
+        : roleCapacity(role, effectivePlayerCount(config, state));
+      if (held >= cap) {
         throw new Error("ROLE_FULL");
       }
       // Release the caller's own hold in the same transaction.
@@ -563,7 +581,10 @@ export async function reserveRoleAction(roleId) {
   if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
-  if (isSpawnOnly(role)) {
+  // Same late-join exception createCharacter makes, for the same reason: a
+  // seat the GM has opened is pickable, and the curse does not reach it.
+  const openLateJoin = lateJoinCapacity(await lateJoinOpeningFor(prisma, role.slug)) > 0;
+  if (isSpawnOnly(role) && !openLateJoin) {
     return { error: "That role isn't open to anyone." };
   }
   const leaderWhitelisted = bypass || isLeaderWhitelisted(member);
@@ -572,7 +593,7 @@ export async function reserveRoleAction(roleId) {
   }
   // Same full stop as createCharacter: a cursed player must not hold a seat
   // they can never fill.
-  if (!bypass && (await isPlayerCursed(prisma, discordUserId))) {
+  if (!bypass && !openLateJoin && (await isPlayerCursed(prisma, discordUserId))) {
     return { error: CURSED_REFUSAL };
   }
   if (!isRoleSelectable({ role, leaderWhitelisted })) {

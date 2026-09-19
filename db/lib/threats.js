@@ -17,6 +17,11 @@
 // scores objectives with; seats with no `party` are SOLO in the reveal.
 const THANATI_PARTY = { key: "thanati", name: "Thanati" };
 const TRIBUNAL_PARTY = { key: "tribunal", name: "Tribunal" };
+// The invading party. Its six roles are LATE JOINS (db/lib/lateJoin.js), not
+// spawns: only the leader's seat is handed out from here, and the five soldiers
+// arrive through the picker once a GM -- or the Bastard's own Call
+// reinforcements button -- has opened the chairs.
+const BASTARD_PARTY = { key: "bastard", name: "The Bastard" };
 
 // THE ONE EXCEPTION TO "NO PROSE IN THE CATALOG": the Thanati have no Role of
 // their own (spawn.roleSlug is null, the GM picks a cover role), so nowhere
@@ -44,6 +49,18 @@ const THREATS = [
     slug: "bastard",
     name: "Bastard",
     optIn: { whitelist: true },
+    assignable: true,
+    seatTagSlug: "bastard",
+    zone: "Hills",
+    party: BASTARD_PARTY,
+    assign: { tagPoints: 2, tagSlugs: ["bastard", "tactician", "literate", "brave", "rough-camper", "outsider"] },
+    spawn: {
+      gender: "ROLL",
+      roleSlug: "bastard",
+      resources: 1,
+      tagPoints: 2,
+      tagSlugs: ["obol x4"],
+    },
   },
   {
     slug: "demoness",

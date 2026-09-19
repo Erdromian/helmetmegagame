@@ -411,3 +411,18 @@ documents:
     tags:
       - Grimoire
     description: "{grimoire}"
+  # The Bastard's party. This is docs/archive/windlander.yaml's `campstarting`
+  # with everything that named the Windlands, the wind, the masks, the clans
+  # and the long march cut out of it. PLACEHOLDER — nothing has been written
+  # back in its place: the party is no longer from the Windlands and where it
+  # IS from is Bascinet's to write.
+  bastardstarting:
+    name: Party Starting Packet
+    public: false
+    tags: []
+    description: |-
+      The air is still here near Ravenheart. This could be a home. What will life be without having to move to find food?
+
+      You are ready to fight. However, food stores are running low.
+
+      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**

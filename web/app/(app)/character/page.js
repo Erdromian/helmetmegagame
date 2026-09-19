@@ -65,6 +65,12 @@ import {
 } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
 import { groupRoles } from "@lifeweb/db/lib/roleGroups";
+import {
+  LATE_JOIN_GROUP,
+  LATE_JOIN_ROLE_SLUGS,
+  loadLateJoinRoles,
+  openLateJoinRows,
+} from "@lifeweb/db/lib/lateJoin";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockStatus, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
@@ -135,6 +141,14 @@ async function loadCreationData(discordUserId) {
   // else's live wizard-in-progress hold; excludes the viewer's own hold.
   const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
 
+  // LATE JOINS (db/lib/lateJoin.js): the seats a GM has opened, drawn in their
+  // own "Special" section above the social buckets. `slots` is the cap here
+  // rather than roleCapacity() — a late join is a door somebody opened by hand,
+  // so the number of chairs is the GM's answer, not a function of the roster.
+  // `taken` still comes from takenCounts, so a live wizard hold counts against
+  // the seat exactly as it does on every other card.
+  const lateJoin = await loadLateJoinRoles(prisma, { roles: roleRows.filter((r) => LATE_JOIN_ROLE_SLUGS.includes(r.slug)) });
+
   const cursed = await isPlayerCursed(prisma, discordUserId);
   // Presentation only; the server action re-checks regardless.
   const superadmin = isSuperadmin(discordUserId);
@@ -155,6 +169,7 @@ async function loadCreationData(discordUserId) {
   };
   const leaderWhitelisted = superadmin || isLeaderWhitelisted(member);
   const playerCount = effectivePlayerCount(config, state);
+  const roleCard = makeRoleCard({ leaderWhitelisted, takenByRole });
 
   return {
     gate,
@@ -178,37 +193,53 @@ async function loadCreationData(discordUserId) {
         name: group.name,
         // Spawn-only seats are withheld outright, not greyed — see
         // characterCreation.js#isSpawnOnly.
-        roles: group.roles.filter((role) => !isSpawnOnly(role)).map((role) => {
-          const cap = roleCapacity(role, playerCount);
-          return {
-            id: role.id,
-            name: role.name,
-            intro: role.intro,
-            slug: role.slug,
-            // Null for ordinary seats; set on the four dynasty roles.
-            lockedGender: role.lockedGender,
-            difficulty: role.difficulty,
-            startingLocationName: role.startingLocation?.name ?? null,
-            startingZoneName: role.startingLocation?.zone?.name ?? null,
-            extraStartingPoints: role.extraStartingPoints,
-            // Parsed, because the wizard matches these against catalog tag
-            // slugs and an entry may carry a count ("obol x5").
-            startingTagSlugs: startingTagSlugs(role.startingTagSlugs),
-            // Drives the "Whitelist only" hover on a greyed card, and the ★
-            // beside the name: a reserved seat, vouched players only.
-            requiresWhitelist: role.requiresWhitelist,
-            whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
-            // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
-            cap: cap === Infinity ? null : cap,
-            taken: takenByRole.get(role.id) ?? 0,
-            selectable: isRoleSelectable({ role, leaderWhitelisted }),
-            // Resolved server-side so a client component never drags
-            // PrismaClient into the browser bundle.
-            lastNameLocked: isDynastyMember(role.slug),
-          };
-        }),
+        roles: group.roles
+          .filter((role) => !isSpawnOnly(role))
+          .map((role) => roleCard(role, roleCapacity(role, playerCount))),
       }))
       .filter((g) => g.roles.length > 0),
+    // The late-join seats a GM has opened, above the buckets. Empty is the
+    // normal case, and the wizard draws no heading for an empty one.
+    specialGroup: {
+      slug: LATE_JOIN_GROUP.slug,
+      name: LATE_JOIN_GROUP.name,
+      roles: openLateJoinRows(lateJoin).map((row) => roleCard(row.role, row.slots)),
+    },
+  };
+}
+
+// One role card, shared by the social buckets and the Special section so the
+// two can never disagree about what a seat looks like. `cap` is passed in
+// because the two answer it differently: a bucket seat scales with the roster
+// (roleCapacity), a late join is however many chairs the GM opened.
+function makeRoleCard({ leaderWhitelisted, takenByRole }) {
+  return function roleCard(role, cap) {
+    return {
+      id: role.id,
+      name: role.name,
+      intro: role.intro,
+      slug: role.slug,
+      // Null for ordinary seats; set on the four dynasty roles.
+      lockedGender: role.lockedGender,
+      difficulty: role.difficulty,
+      startingLocationName: role.startingLocation?.name ?? null,
+      startingZoneName: role.startingLocation?.zone?.name ?? null,
+      extraStartingPoints: role.extraStartingPoints,
+      // Parsed, because the wizard matches these against catalog tag
+      // slugs and an entry may carry a count ("obol x5").
+      startingTagSlugs: startingTagSlugs(role.startingTagSlugs),
+      // Drives the "Whitelist only" hover on a greyed card, and the ★
+      // beside the name: a reserved seat, vouched players only.
+      requiresWhitelist: role.requiresWhitelist,
+      whitelistBlocked: role.requiresWhitelist && !leaderWhitelisted,
+      // Infinity doesn't serialize; uncapped roles cross as null -> "∞".
+      cap: cap === Infinity ? null : cap,
+      taken: takenByRole.get(role.id) ?? 0,
+      selectable: isRoleSelectable({ role, leaderWhitelisted }),
+      // Resolved server-side so a client component never drags
+      // PrismaClient into the browser bundle.
+      lastNameLocked: isDynastyMember(role.slug),
+    };
   };
 }
 
@@ -313,7 +344,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     // An unburied body stops creation dead (db/lib/curse.js). Shown here so a
     // player isn't handed a wizard that refuses on Confirm; createActions.js
     // re-checks it, since a server action is a public endpoint.
-    if (creation.cursed && !gate.superadmin) return fresh({ kind: "cursed" });
+    // A LATE JOIN IS THE ONE WAY PAST IT (db/lib/lateJoin.js): an unburied body
+    // costs you your place in Ravenheart, and a late-join seat is somebody
+    // arriving from outside it — so where a GM has opened one, the wizard opens
+    // too, narrowed to the Special section. createCharacter enforces the same
+    // narrowing, since a server action is a public endpoint.
+    const cursedToSpecial = creation.cursed && !gate.superadmin;
+    if (cursedToSpecial && creation.specialGroup.roles.length === 0) {
+      return fresh({ kind: "cursed" });
+    }
     // A seat from the roll, still inside its window — wizard opens on Tags with the role fixed. createCharacter enforces the same lock.
     const assigned = await prisma.lobbyEntry.findFirst({
       where: { discordUserId: session.discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() } },
@@ -324,7 +363,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       creation.groups.some((g) => g.roles.some((r) => r.id === assigned.assignedRoleId))
         ? { id: assigned.assignedRoleId, expiresAt: assigned.expiresAt.toISOString() }
         : null;
-    return fresh({ kind: "wizard", wizard: { ...creation, lockedRole } });
+    return fresh({ kind: "wizard", wizard: { ...creation, lockedRole, cursedToSpecial } });
   }
 
   const [

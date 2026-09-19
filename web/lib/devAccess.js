@@ -19,6 +19,7 @@ export const SECTION_TIER = {
 
   assignments: "gm",
   antagonists: "gm",
+  latejoins: "gm",
 
   // Deleting a quest takes the record of who touched it, so THAT verb asks for super (questActions.js).
   quests: "gm",

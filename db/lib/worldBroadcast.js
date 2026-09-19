@@ -47,10 +47,18 @@ async function broadcastToZones(prisma, content, { mentionEveryone = false } = {
 
 // Every Location channel. `text` is wrapped in ambientLine here, not by the
 // caller, since a line the WORLD says is `-#` subtext (CLAUDE.md).
-async function ambientEverywhere(prisma, text, { signed = true } = {}) {
+//
+// `zoneKinds` narrows the fan-out to those Zone.kind values -- the Deep Beast
+// Horn passes ["SURFACE"], because a horn blown up top is not heard down a cave
+// (db/lib/deepBeastHorn.js). Omitted means every zone, which is what the nuke
+// and the shuttle want.
+async function ambientEverywhere(prisma, text, { signed = true, zoneKinds = null } = {}) {
   const content = ambientLine(text, [], { signed });
   const locations = await prisma.location.findMany({
-    where: { discordChannelId: { not: null } },
+    where: {
+      discordChannelId: { not: null },
+      ...(zoneKinds?.length ? { zone: { kind: { in: zoneKinds } } } : {}),
+    },
     select: { id: true, name: true, discordChannelId: true },
     orderBy: { name: "asc" },
   });

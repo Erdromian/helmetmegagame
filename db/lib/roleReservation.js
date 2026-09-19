@@ -8,6 +8,7 @@
 // seat-cap math this builds on) IS in the barrel, so requiring by path keeps
 // the two call shapes distinct.
 const { roleCapacity } = require("./roleCapacity");
+const { lateJoinOpeningFor, lateJoinCapacity } = require("./lateJoin");
 const { heldSeats, heldSeatsByRole } = require("./seatCount");
 
 // Long enough to read the tag menu, short enough that an abandoned tab frees
@@ -29,7 +30,11 @@ async function reserveRole(prisma, discordUserId, roleId, playerCount) {
     const role = await tx.role.findUnique({ where: { id: roleId } });
     if (!role) return { ok: false, reason: "ROLE_NOT_FOUND" };
 
-    const cap = roleCapacity(role, playerCount);
+    // A late join's cap is the number of chairs a GM opened (db/lib/lateJoin.js),
+    // not a share of the roster. Asked under the same row lock as everything
+    // else here, so closing the door mid-wizard wins.
+    const opening = await lateJoinOpeningFor(tx, role.slug);
+    const cap = opening?.enabled ? lateJoinCapacity(opening) : roleCapacity(role, playerCount);
     // Caller's own hold on THIS role doesn't count against itself.
     if ((await heldSeats(tx, role, { excludeDiscordUserId: discordUserId })) >= cap) {
       return { ok: false, reason: "ROLE_FULL" };

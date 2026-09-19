@@ -26,6 +26,7 @@ import {
 } from "@/lib/threats";
 import { PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { roleCapacity, seatHolderStatuses } from "@lifeweb/db/lib/roleCapacity";
+import { loadLateJoinRoles } from "@lifeweb/db/lib/lateJoin";
 import {
   updateGameConfig,
   updateDepot,
@@ -52,6 +53,7 @@ import { hasNoticeboard } from "@lifeweb/db/lib/noticeboard";
 import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignmentsTable";
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
+import LateJoinsPanel from "@/app/(app)/gm/dev/threats/LateJoinsPanel";
 import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
 import BulkActions from "./BulkActions";
 import { VERB_KEYS, PLACE_KINDS } from "./bulkVerbs";
@@ -293,6 +295,7 @@ export default async function DevPanelPage({ searchParams }) {
   let spawnLocations = [];
   let seatRows = [];
   let pendingSpawns = [];
+  let lateJoinRows = [];
   let riteWordRows = [];
   let riteAttemptRows = [];
   // The Objectives cards under the roster (THREATS.md §6a).
@@ -765,6 +768,19 @@ export default async function DevPanelPage({ searchParams }) {
       });
 
       spawnLocations = locationRows.map((l) => ({ id: l.id, name: l.name, zoneName: l.zone?.name ?? "" }));
+      break;
+    }
+    case "latejoins": {
+      // Flattened here rather than in the client: the panel is a table of
+      // plain values, and a Role row carries far more than it draws.
+      lateJoinRows = (await loadLateJoinRoles(prisma)).map((row) => ({
+        roleSlug: row.roleSlug,
+        roleName: row.role?.name ?? null,
+        startingZoneName: row.role?.startingLocation?.zone?.name ?? null,
+        enabled: row.enabled,
+        slots: row.slots,
+        taken: row.taken,
+      }));
       break;
     }
     case "antagonists": {
@@ -1392,6 +1408,18 @@ export default async function DevPanelPage({ searchParams }) {
               />
             </section>
             </>
+          ) : null}
+
+          {section === "latejoins" ? (
+            <section className="ops-section">
+              <div className="ops-section-head">
+                <h2 className="section-title">Late joins</h2>
+              </div>
+              <p className="text-sm text-muted">
+                Enable and set up late join roles that people can select and respawn as.
+              </p>
+              <LateJoinsPanel rows={lateJoinRows} />
+            </section>
           ) : null}
 
           {section === "antagonists" ? (

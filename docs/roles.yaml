@@ -1617,3 +1617,188 @@ groups:
         - godking
         - ravenhearteconomy
         - courtstructure
+
+    # ─── The Bastard's party ────────────────────────────────────────────
+    # An invading force, not a Ravenheart estate. All six are late-join seats
+    # (db/lib/lateJoin.js): hidden from the ordinary picker, drawn in the
+    # picker's own "Special" section only once a GM has opened them, or once
+    # the Bastard has bought one with Call reinforcements.
+    #
+    # PLACEHOLDER — these six carry the Bastard's Camp text from
+    # docs/archive/windlander.yaml with every line that named the Windlands,
+    # the Windriders or the Broken Spears cut out of it. Nothing has been
+    # written to replace those lines: the party has no home any more, and where
+    # they come from is Bascinet's to decide. The five soldier seats below are
+    # bare on purpose for the same reason.
+    bastard:
+      name: Bastard
+      whitelist: true
+      intro: >-
+        You have thirty days to take Ravenheart. Unite your Lieutenants, feed your men, and march — it's your people's only hope.
+      description:
+        - >-
+          Your job is very difficult. Your people are naturally inclined to kill each other instead of cooperate, and if you don't act fast enough, you will starve. You must plan, communicate, organize, and lead to be effective. Above all, be proactive.
+        - >-
+          The way in which you take Ravenheart is important. Do you want to be known as a tyrant or as a liberator?
+        - >-
+          You have noble blood. It's possible that you are the bastard of someone in the Baron's lineage, and thus you share blood with him.
+        - >-
+          There is someone sympathetic to your cause within the walls of the Baron's keep.
+      difficulty: hard
+      multiple: false
+      examine_visible: false
+      starting_zone: hills
+      starting_location: hills-waterway
+      extra_starting_points: 2
+      starting_tags:
+        - Bastard
+        - Melee II
+        - Ranged I
+        - Tactician
+        - Sabre
+        - Buckler
+        - Bastard's Helmet
+        - Bastard's Garb
+        - Deep Beast Horn
+        - Brigandine
+        - Mail Coif
+        - Nobility
+        - Literate
+        - Brave
+        - Rough Camper
+        - Outsider
+      doc_elements:
+        - bastardstarting
+
+    bastard-infantry:
+      name: Infantry
+      intro: >-
+        A spear in the line. The cheapest thing the Bastard can put in front of a wall, and he will.
+      description:
+        - >-
+          You are one of the Bastard's foot soldiers. You go where the line goes.
+      difficulty: easy
+      multiple: true
+      weight: unlimited
+      examine_visible: false
+      starting_zone: hills
+      starting_location: hills-waterway
+      starting_tags:
+        - Melee I
+        - Spear
+        - Dagger
+        - Light Infantry Armour
+        - Infantry Helmet
+        - Rough Camper
+        - Outsider
+      doc_elements:
+        - bastardstarting
+
+    bastard-heavy-infantry:
+      name: Heavy Infantry
+      intro: >-
+        You go in first, and you go in wearing everything the party could find.
+      description:
+        - >-
+          You are one of the Bastard's heavy foot. Doors, shield walls and narrow places are yours.
+      difficulty: normal
+      multiple: true
+      weight: unlimited
+      examine_visible: false
+      starting_zone: hills
+      starting_location: hills-waterway
+      starting_tags:
+        - Melee II
+        - Battle Axe
+        - Shield
+        - Dagger
+        - Heavy Infantry Armor
+        - Bascinet
+        - Tough
+        - Strong
+        - Rough Camper
+        - Outsider
+      doc_elements:
+        - bastardstarting
+
+    bastard-rifleman:
+      name: Rifleman
+      intro: >-
+        You carry the one thing in the party that kills from across a room.
+      description:
+        - >-
+          You are the Bastard's rifleman. There is no second musketoon, and there is not much powder for the first.
+      difficulty: normal
+      multiple: true
+      weight: unlimited
+      examine_visible: false
+      starting_zone: hills
+      starting_location: hills-waterway
+      starting_tags:
+        - Ranged III
+        - Melee I
+        - Musketoon
+        - Trench Knife
+        - Light Infantry Armour
+        - Infantry Helmet
+        - Spotter
+        - Rough Camper
+        - Outsider
+      doc_elements:
+        - bastardstarting
+
+    bastard-healer:
+      name: Healer
+      intro: >-
+        Keep them standing. You have a bag, and when the bag is empty you have nothing.
+      description:
+        - >-
+          You are the Bastard's healer. The party has no sanctuary and no surgery — if you want a table to work on, take one.
+      difficulty: normal
+      multiple: true
+      weight: unlimited
+      examine_visible: false
+      starting_zone: hills
+      starting_location: hills-waterway
+      starting_tags:
+        - Medical III
+        - Melee I
+        - Dagger
+        - Salvage Plate
+        - Black Market Autoinjector x2
+        - Buffout x2
+        - Ambrosia
+        - Rough Camper
+        - Outsider
+      doc_elements:
+        - bastardstarting
+
+    bastard-engineer:
+      name: Engineer
+      intro: >-
+        Walls are a problem you have solved before.
+      description:
+        - >-
+          You are the Bastard's engineer. Ladders, charges and whatever the party needs building or unbuilding.
+      difficulty: normal
+      multiple: true
+      weight: unlimited
+      examine_visible: false
+      starting_zone: hills
+      starting_location: hills-waterway
+      starting_tags:
+        - Siege Engineer
+        - Smithing II
+        - Crafting
+        - Melee I
+        - Dagger
+        - Salvage Plate
+        - C4
+        - Dynamite Stick x2
+        - Crude Grenade x3
+        - Cart
+        - Resources x55
+        - Rough Camper
+        - Outsider
+      doc_elements:
+        - bastardstarting

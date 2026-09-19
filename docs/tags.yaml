@@ -14589,7 +14589,7 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.68
+    melee: 0.55
     ballistic: 0.7
     weight: 30
     visible: true
@@ -14616,7 +14616,7 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    melee: 0.66
+    melee: 0.38
     ballistic: 0.66
     visible: true
     purchasable: false
@@ -17197,8 +17197,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    melee: 0.53
-    ballistic: 0.18
+    melee: 0.5
+    ballistic: 0.16
     visible: worn
     weight: 25
     stackable: true
@@ -17229,7 +17229,7 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.53
+    melee: 0.55
     ballistic: 0.18
     visible: true
     weight: 20
@@ -17921,3 +17921,51 @@ tags:
     sellable: true
     sellablePrice: 84
     depotPrice: 140
+
+  # ─── The Bastard's party ──────────────────────────────────────────────
+  # The invading force's seat tag and its two pieces of kit. The five soldier
+  # roles beside it (docs/roles.yaml `other:`) carry no seat tag of their own —
+  # only the leader does, because only the leader has a button.
+
+  # The seat tag, same shape as {tag:demoness} and {tag:judge}: 0-cost,
+  # unpurchasable, granted by the role. It is what puts Call reinforcements on
+  # the sheet (web/app/components/CallReinforcementsButton.js) and what
+  # db/lib/threats.js walks back to find who holds the seat.
+  bastard:
+    catalog: secret
+    name: Bastard
+    category: general
+    description: "You are the leader of an invading party. You have the ability to summon reinforcements."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Reuses the trumpet's `horn` sprite on purpose — Bascinet's call, so the two
+  # read as the same class of object on the rail.
+  deep-beast-horn:
+    catalog: gm
+    name: Deep Beast Horn
+    category: items
+    group: items-gear
+    sprite: horn
+    description: "A foul horn, which allows you to sound off into the distance."
+    pointCost: 0
+    weight: 5
+    visible: true
+    stackable: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Brought back from docs/archive/windlander.yaml (retired 2026-09-02) for the
+  # Bastard's engineer, with its Windlands group dropped: the skill was never
+  # about the Windlands, it was about getting past a wall.
+  siege-engineer:
+    catalog: all
+    name: Siege Engineer
+    category: skills
+    group: skills-crafting
+    teachable: true
+    description: "You can make simple siege engines, build ladders, and such. Useful for getting past walls."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true

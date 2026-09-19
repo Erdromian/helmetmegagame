@@ -16,6 +16,8 @@ import DetailTile from "./DetailTile";
 import { MOOD_DETAIL } from "./MoodPanel";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
+import SoundHornButton from "./SoundHornButton";
+import CallReinforcementsButton from "./CallReinforcementsButton";
 import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
 
@@ -46,6 +48,8 @@ export default function LedgerBand({
   craftProjects = [],
   sitesHere = [],
   hasTrumpet = false,
+  hasHorn = false,
+  isBastard = false,
   isSelf = true,
   hungerWarning = null,
 }) {
@@ -251,7 +255,13 @@ export default function LedgerBand({
         />
       </div>
 
-      {isSelf && <ActionGrid variant="strip">{hasTrumpet && <SoundTrumpetButton />}</ActionGrid>}
+      {isSelf && (
+        <ActionGrid variant="strip">
+          {hasTrumpet && <SoundTrumpetButton />}
+          {hasHorn && <SoundHornButton />}
+          {isBastard && <CallReinforcementsButton />}
+        </ActionGrid>
+      )}
     </section>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
+import { BASTARD_TAG_SLUG, DEEP_BEAST_HORN_SLUG } from "@lifeweb/db/lib/lateJoin";
 import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 // Submodule path, not the @lifeweb/db barrel — this is a client component and
 // the barrel drags PrismaClient into the browser bundle (ARCHITECTURE.md §2).
@@ -213,6 +214,15 @@ export default function CharacterSheet({
   const hasTrumpet = character.tags?.some(
     (ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG,
   );
+  // Held, not equipped, for the same reason: you pick a horn up to blow it.
+  const hasHorn = character.tags?.some(
+    (ct) => (ct?.tag?.slug ?? ct?.slug) === DEEP_BEAST_HORN_SLUG,
+  );
+  // The seat tag, not a role check — who holds a seat is derived from the tag
+  // everywhere else too (THREATS.md §2), so a GM's hand grant works.
+  const isBastard = character.tags?.some(
+    (ct) => (ct?.tag?.slug ?? ct?.slug) === BASTARD_TAG_SLUG,
+  );
   // The two facts the rig needs beyond the slot rule, because equipActions.js
   // refuses on them too: a cart is not set up indoors — bar the places built
   // to be driven into (locationAttributes.js#parksMounts) — and a queasy stomach
@@ -346,6 +356,8 @@ export default function CharacterSheet({
           craftProjects={craftProjects}
           sitesHere={sitesHere}
           hasTrumpet={hasTrumpet}
+          hasHorn={hasHorn}
+          isBastard={isBastard}
           isSelf={isSelf}
           hungerWarning={hungerWarning}
         />

@@ -1873,6 +1873,7 @@ module.exports = {
   ...require("./lib/presentedIdentity"),
   ...require("./lib/threats"),
   ...require("./lib/roleCapacity"),
+  ...require("./lib/lateJoin"),
   ...require("./lib/gameState"),
   ...require("./lib/gameConfigFields"),
   ...require("./lib/depot"),
