@@ -18,7 +18,7 @@ Credit the source. Bascinet's public credit is the Credits section of
 ## What this folder is for
 
 **A library to pick from, not something the app serves.** It sits outside
-`web/public/` on purpose: 11,239 files have no business in a deploy. When a
+`web/public/` on purpose: 14,193 files have no business in a deploy. When a
 sprite is wanted for something, copy it into the folder that surface owns —
 `web/public/assets/items/` for an item tag's art, `web/assets/helms/` for a
 concealing helm — and reference it from there.
@@ -33,6 +33,28 @@ Bascinet already uses it in three places:
 
 Each of those folders carries its own ATTRIBUTION.md, because each is a
 redistribution in its own right.
+
+## The 2026-09-19 rescue
+
+A directory literally named `--help` was carrying a second, fuller extraction
+of the same source: 25,520 files, committed by accident in `8a6352a4`. The
+extractor used to take only an output directory, so running it as
+`extract-dmi.py --help` — asking it for usage — quietly wrote the whole
+library into a folder of that name, and `git add -A` swept it in. That CLI bug
+was fixed in the same commit; the folder was not noticed.
+
+Before deleting it, the **2,624 item-scale sprites it held that this library
+did not** were moved in here: weapons, clothing, prosthetics, surgical tools,
+mining gear, amulets, candles, paper, cult and the food and kitchen sheets —
+the sorts of things a character holds, wears or eats, which is what a tag's
+art usually needs.
+
+The other 11,657 were station infrastructure — 4,248 door frames, 1,450
+atmospherics, pipes, machines, monitors, computer terminals, status displays,
+wall decals — and were dropped. Nothing about a low-fantasy underground barony
+wants an airlock. If any of it is ever wanted, it is one command away:
+`scripts/osw/extract-dmi.py <clone> <out>` against OpenSourceWeb at the
+pinned commit above.
 
 ## What is in here, and what is not
 
