@@ -30,6 +30,19 @@ channels:
 # rock out, and the build uses it to spot cells buried underneath it.
 stoneBlock: 168
 
+# Glyphs the INTERFACE draws that the art never does, so the build has to be
+# told to pack them. Both are from the charset's reticle row (row 14, glyphs
+# 474-479) so the marker over a place is made of the same 1-bit pixels as
+# everything under it, rather than a shape from somewhere else.
+#
+# A place is marked by a crosshair, not a number: `faint` sits on every place
+# you can see, `locked` only on the one you have picked and the one you are
+# standing in. `faint` is 24 lit pixels of corner tick — enough to say
+# "something is here", quiet enough to put on fifty cells at once.
+uiGlyphs:
+  faint: 476    # four corner ticks, hollow
+  locked: 475   # corner brackets, centre ticks, open middle
+
 maps:
   barony1:
     file: barony1.psci

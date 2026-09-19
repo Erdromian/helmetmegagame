@@ -1133,6 +1133,26 @@ clears transparent-slot glyphs and buried cells from the masters, keeps the
 `heat` ones, matches every cell's exact contents before touching it, and is a
 dry run unless given `-- --apply`.
 
+**A place is marked by a crosshair, not a number.** Two glyphs out of the
+charset's own reticle row (474-479), named in `nodes.yaml` under `uiGlyphs`
+and packed into the JSON's `ui` block because the art never draws them:
+
+- **`faint` (476)** — four corner ticks, 24 lit pixels — sits on every place
+  you can see. Enough to say something is here; quiet enough to put on fifty
+  cells at once.
+- **`locked` (475)** — corner brackets and centre ticks — sits only on the
+  place you have picked and the place you are standing in, and carries the
+  name under it.
+
+Where you stand reads white and what you picked keeps its zone's colour, so
+the two loud marks never read as the same thing. Two details are load-bearing
+rather than decorative, both found by looking at it: a faint mark needs a
+**1px dark drop behind it** or it vanishes, because its corner ticks land
+exactly where a building's own white outline already is; and it needs to sit
+near half opacity rather than a third, for the same reason. Numbers were what
+this replaced — fifty digits floating over the art read as a spreadsheet, not
+a map.
+
 `Zone.mapPolygon` / `mapLabelX` / `mapLabelY` stay as dead as §6d leaves them;
 none of this reads them.
 

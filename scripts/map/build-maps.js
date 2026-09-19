@@ -271,7 +271,10 @@ function compileMap(id, spec, table, cs) {
     slugs.set(n.slug, n.name);
   }
 
-  // --- the glyphs actually used, transformed, as a packed 1-bit mask
+  // --- the glyphs actually used, transformed, as a packed 1-bit mask.
+  // The interface's own glyphs ride along: the art never draws a reticle, but
+  // the renderer needs one and has nowhere else to get 1-bit pixels from.
+  for (const g of Object.values(table.uiGlyphs ?? {})) used.add(`${g}:0`);
   const order = [...used].sort();
   const index = {};
   const N = cs.cell;
@@ -302,6 +305,9 @@ function compileMap(id, spec, table, cs) {
     .map((key, slot) => (Number(key.split(":")[0]) === (table.stoneBlock ?? ROCK_GLYPH) ? slot : -1))
     .filter((s) => s >= 0);
 
+  const ui = {};
+  for (const [name, g] of Object.entries(table.uiGlyphs ?? {})) ui[name] = index[`${g}:0`];
+
   return {
     doc: {
       id,
@@ -311,6 +317,7 @@ function compileMap(id, spec, table, cs) {
       cell: cs.cell,
       voidChannel: voidChannel ?? "void",
       stoneSlots,
+      ui,
       glyphs: { cell: cs.cell, count: order.length, index, bits: bits.toString("base64") },
       layers: artLayers,
       nodes,
