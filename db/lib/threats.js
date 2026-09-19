@@ -277,6 +277,22 @@ function antagonistNames(slugs) {
   return OPT_IN_THREATS.filter((t) => held.has(t.slug)).map(optInName);
 }
 
+// The one line under the "Enable antagonist roles" box, on both the lobby and
+// the creation wizard. It lives here so the two surfaces can never drift.
+const ANTAGONIST_BLURB =
+  "Antagonist roles are randomly selected at game start, or become available later on. " +
+  "An antagonist is expected to drop their roleplay to focus on completing their objectives, " +
+  "but gets unique gameplay styles and mechanics.";
+
+// Every opt-in seat the player may actually take. The lobby and the wizard ask
+// one question now — "antagonist roles: yes or no" — so a yes means all of
+// these, and a whitelisted seat only joins the list for somebody who holds the
+// whitelist. The column is still a list of slugs, which is what keeps the
+// assignment roll and every GM surface unchanged.
+function takeableAntagonistSlugs({ whitelisted = false } = {}) {
+  return OPT_IN_THREATS.filter((t) => whitelisted || !optInWhitelisted(t)).map((t) => t.slug);
+}
+
 // Slugs a player without the Whitelist role may not tick; server drops them too.
 const WHITELISTED_OPT_IN_SLUGS = new Set(OPT_IN_THREATS.filter(optInWhitelisted).map((t) => t.slug));
 
@@ -411,4 +427,6 @@ module.exports = {
   ANTAGONIST_SLUGS,
   normalizeAntagonistSlugs,
   antagonistNames,
+  takeableAntagonistSlugs,
+  ANTAGONIST_BLURB,
 };

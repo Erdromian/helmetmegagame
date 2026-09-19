@@ -30,7 +30,7 @@ import {
   GENDER_LABELS,
 } from "@/lib/characterName";
 import { randomCharacterName } from "@/lib/nameCorpus";
-import { ANTAGONISTS, antagonistNames, optInName, optInWhitelisted } from "@/lib/threats";
+import { takeableAntagonistSlugs, ANTAGONIST_BLURB } from "@/lib/threats";
 
 // Identity comes AFTER Role and Tags, and has to: a title is earned from the
 // role you took and the tags you hold (db/lib/titles.js), so there is nothing
@@ -148,8 +148,9 @@ export default function CreateCharacterWizard({
   // The living Baron's surname, or null if nobody holds the seat yet. Only
   // read for a role whose `lastNameLocked` is set — see db/lib/dynasty.js.
   dynastyName = null,
-  // Whether this player holds the Whitelist role. Greys the whitelisted
-  // antagonist boxes; the server drops those slugs regardless.
+  // Whether this player holds the Whitelist role. Decides whether ticking the
+  // antagonist box includes the whitelisted seats; the server drops those
+  // slugs regardless.
   whitelisted = false,
   // GameConfig.playPanelEnabled. With Chat off there is nowhere else to play
   // from, so the "Play from the web" switch is not offered — the same gate
@@ -287,10 +288,8 @@ export default function CreateCharacterWizard({
     }
   }
 
-  function toggleAntagonist(slug) {
-    setAntagonists((prev) =>
-      prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug],
-    );
+  function toggleAntagonist(on) {
+    setAntagonists(on ? takeableAntagonistSlugs({ whitelisted }) : []);
   }
 
   // The role is already picked by the time Identity renders, so the last-name
@@ -340,7 +339,7 @@ export default function CreateCharacterWizard({
       oneWord(firstName) &&
       (lastNameLocked || !lastName.trim() || oneWord(lastName)) &&
       Boolean(effectiveGender)) ||
-    // Antagonists is optional: ticking nothing is a real answer, not an
+    // Antagonists is optional: leaving the box clear is a real answer, not an
     // unfinished one.
     step === 3 ||
     step === LAST_STEP;
@@ -585,51 +584,10 @@ export default function CreateCharacterWizard({
       {step === 3 && (
         <div className="panel flex flex-col gap-4 p-4">
           <h2 className="panel-header">Antagonists (optional)</h2>
-          <p className="text-sm text-muted">
-            Threat roles are assigned after game start. You can select the ones you&apos;d be open to receiving here.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {ANTAGONISTS.map((a) => {
-              const locked = optInWhitelisted(a) && !whitelisted;
-              const box = (
-                <CheckField
-                  key={a.slug}
-                  checked={antagonists.includes(a.slug)}
-                  onChange={() => toggleAntagonist(a.slug)}
-                  disabled={locked}
-                  className={locked ? "is-locked" : ""}
-                >
-                  {optInName(a)}
-                </CheckField>
-              );
-              // Greyed, not hidden: a whitelisted box is still a thing that
-              // exists, the same way a whitelisted role card is.
-              return locked ? (
-                <Tooltip key={a.slug} text="Whitelist only" className="block">
-                  {box}
-                </Tooltip>
-              ) : (
-                box
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              className="btn-quiet"
-              onClick={() =>
-                setAntagonists(ANTAGONISTS.filter((a) => whitelisted || !optInWhitelisted(a)).map((a) => a.slug))
-              }
-            >
-              Select all
-            </button>
-            <button type="button" className="btn-quiet" onClick={() => setAntagonists([])}>
-              Clear
-            </button>
-            <span className="text-sm text-muted">
-              {antagonists.length} of {ANTAGONISTS.length} selected
-            </span>
-          </div>
+          <CheckField checked={antagonists.length > 0} onChange={(e) => toggleAntagonist(e.target.checked)}>
+            Enable antagonist roles
+          </CheckField>
+          <p className="text-sm text-muted">{ANTAGONIST_BLURB}</p>
         </div>
       )}
 
@@ -652,18 +610,8 @@ export default function CreateCharacterWizard({
               </dd>
             </div>
             <div>
-              <dt className="text-muted">Open to</dt>
-              <dd className="flex flex-wrap gap-2">
-                {antagonists.length === 0 ? (
-                  <span className="text-muted">no antagonist roles</span>
-                ) : (
-                  antagonistNames(antagonists).map((n) => (
-                    <span key={n} className="chip">
-                      {n}
-                    </span>
-                  ))
-                )}
-              </dd>
+              <dt className="text-muted">Antagonist roles</dt>
+              <dd>{antagonists.length === 0 ? <span className="text-muted">Off</span> : "Enabled"}</dd>
             </div>
           </dl>
           <div className="flex flex-wrap items-center gap-2 text-sm">

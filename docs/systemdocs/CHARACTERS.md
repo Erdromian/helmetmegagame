@@ -48,12 +48,16 @@ The wizard has five steps:
    the character sheet shows it disabled with a "make your case to a GM"
    tooltip. `Character.name` remains as a denormalized mirror of the join.
    See §1b.
-4. **Antagonists** — eleven checkboxes, all off, naming the antagonist seats a
-   GM hands out in secret (the Demoness, the Judge…). Pure consent data:
+4. **Antagonists** — one checkbox, off, "Enable antagonist roles", over the
+   line that says what an antagonist actually signs up for. Pure consent data:
    nothing in the game grants from `Character.antagonistOptIns` or gates on it
    — it exists so a GM choosing who receives one can tell who is willing. Also
-   **optional** — ticking nothing is a real answer, so `canAdvance` is
+   **optional** — leaving it clear is a real answer, so `canAdvance` is
    unconditionally true here too.
+
+   The step used to name each seat. It does not any more: the list told a
+   player which antagonists exist, which is half of what the secrecy in
+   `THREATS.md` is for, and made a yes/no question look like a shopping list.
 
    **Most of these are decoys.** Only two of the eleven are real seats today,
    and a GM may hand one to somebody who ticked nothing at all. That is the

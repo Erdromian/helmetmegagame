@@ -18,4 +18,6 @@ export {
   ANTAGONIST_SLUGS,
   normalizeAntagonistSlugs,
   antagonistNames,
+  takeableAntagonistSlugs,
+  ANTAGONIST_BLURB,
 } from "@lifeweb/db/lib/threats";

@@ -56,8 +56,12 @@ debounced on the client):
   `set_job_preference_level`). Whitelisted seats are greyed for a player
   without the Whitelist role and dropped server-side if posted anyway.
 - **If none are available** — Migrant (the default) or Return to lobby.
-- **Antagonist opt-ins** — the twelve public boxes (`THREATS.md` §1), the
-  whitelisted ones greyed the same way.
+- **Antagonist opt-in** — one box, "Enable antagonist roles". Ticking it
+  stores every opt-in seat the player may take (`takeableAntagonistSlugs`),
+  whitelisted ones included only for a player who holds the Whitelist role;
+  unticking stores none. The column is still a list of slugs, so the roll and
+  the GM tables are unchanged — the player is just no longer asked to pick
+  from twelve public names.
 - **Ready** — a `LobbyEntry` row, `status: READY`. Unready deletes it.
 
 `PlayerPreference` is keyed by Discord user and **survives Restart Game**: a

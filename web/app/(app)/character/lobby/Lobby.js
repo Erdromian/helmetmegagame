@@ -8,7 +8,7 @@ import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
-import { ANTAGONISTS, optInName, optInWhitelisted } from "@/lib/threats";
+import { takeableAntagonistSlugs, ANTAGONIST_BLURB } from "@/lib/threats";
 import { LEVELS, setPriority, pickedNothing } from "@lifeweb/db/lib/playerPreferences";
 import { savePreferences, setReady, setUnready } from "../lobbyActions";
 
@@ -136,22 +136,11 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
     edit({ ...draft.current, priorities: setPriority(draft.current.priorities, slug, level) });
   }
 
-  function toggleOptIn(slug) {
-    const held = draft.current.antagonistOptIns;
-    const next = held.includes(slug) ? held.filter((s) => s !== slug) : [...held, slug];
-    edit({ ...draft.current, antagonistOptIns: next });
-  }
-
-  // All/None over the boxes the player may actually tick. A whitelisted seat
-  // they don't hold is left exactly as it is either way — the server drops it
-  // anyway, and ticking it here would only bounce back on the next save.
-  function setAllOptIns(on) {
-    const takeable = ANTAGONISTS.filter((a) => whitelisted || !optInWhitelisted(a)).map((a) => a.slug);
-    const held = draft.current.antagonistOptIns;
-    const next = on
-      ? [...new Set([...held, ...takeable])]
-      : held.filter((slug) => !takeable.includes(slug));
-    edit({ ...draft.current, antagonistOptIns: next });
+  // One question, not a list. A tick means every seat this player may take;
+  // an untick means none. The column stays a list of slugs, so the assignment
+  // roll and the GM surfaces never learn that the UI changed.
+  function toggleOptIn(on) {
+    edit({ ...draft.current, antagonistOptIns: on ? takeableAntagonistSlugs({ whitelisted }) : [] });
   }
 
   function changeJobless(value) {
@@ -208,40 +197,11 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
           </label>
 
           <section className="panel flex flex-col gap-2 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h2 className="panel-header">Antagonists</h2>
-              <span className="flex gap-1">
-                <button type="button" className="btn-quiet text-xs" onClick={() => setAllOptIns(true)}>
-                  All
-                </button>
-                <button type="button" className="btn-quiet text-xs" onClick={() => setAllOptIns(false)}>
-                  None
-                </button>
-              </span>
-            </div>
-            <div className="flex flex-col gap-1">
-              {ANTAGONISTS.map((a) => {
-                // Two separate facts. `gated` is about the SEAT and is true
-                // for everyone, which is what the Whitelist mark says — a
-                // player who HOLDS the whitelist can still tell which of their
-                // boxes are the gated ones. `locked` is about this player and
-                // is what greys the row out.
-                const gated = optInWhitelisted(a);
-                const locked = gated && !whitelisted;
-                return (
-                  <CheckField
-                    key={a.slug}
-                    checked={optIns.includes(a.slug)}
-                    onChange={() => toggleOptIn(a.slug)}
-                    disabled={locked}
-                    className={locked ? "is-locked" : ""}
-                  >
-                    {optInName(a)}
-                    {gated ? <span className="ml-2 text-xs text-muted">Whitelist</span> : null}
-                  </CheckField>
-                );
-              })}
-            </div>
+            <h2 className="panel-header">Antagonists</h2>
+            <CheckField checked={optIns.length > 0} onChange={(e) => toggleOptIn(e.target.checked)}>
+              Enable antagonist roles
+            </CheckField>
+            <p className="text-sm text-muted">{ANTAGONIST_BLURB}</p>
           </section>
         </aside>
 
