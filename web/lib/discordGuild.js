@@ -14,7 +14,7 @@ import {
   hasContributorRole,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
-import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
+import { applyDeathWithVampireOverride, announceVampireAsh } from "@lifeweb/db/lib/vampireDeath";
 import { openDeadchatTo } from "@lifeweb/db/lib/deadchat";
 import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
 import {
@@ -496,11 +496,25 @@ export async function killCharacter(character, reason = null) {
   }
 
   // Shared with the turn engine's catatonic death pass so the two death
-  // paths can't drift.
-  await applyDeathToRow(prisma, character, {
+  // paths can't drift. Read fresh, not off `character` — callers hand this
+  // function varying shapes, and the ash announcement below needs the
+  // location row, not just an id.
+  const row = await prisma.character
+    .findUnique({ where: { id: character.id }, select: { locationId: true } })
+    .catch(() => null);
+
+  await applyDeathWithVampireOverride(prisma, { ...character, locationId: row?.locationId ?? null }, {
     expectStatus: "DEAD",
     content: `${character.name} died.`,
-  }).catch((err) => console.error(`Death row cleanup failed for ${character.id}:`, err));
+  })
+    .then(async (result) => {
+      if (!result.ash || !row?.locationId) return;
+      const location = await prisma.location
+        .findUnique({ where: { id: row.locationId }, select: { id: true, name: true, discordChannelId: true } })
+        .catch(() => null);
+      await announceVampireAsh(prisma, character.name, location);
+    })
+    .catch((err) => console.error(`Death row cleanup failed for ${character.id}:`, err));
 
   // The Deadchat seat (db/lib/deadchat.js) — a per-member overwrite on one channel, replacing the
   // Ghost role that used to go here. Note the order this inherits and must keep: revokeAllCharacterAccess

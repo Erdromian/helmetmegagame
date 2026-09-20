@@ -1,0 +1,83 @@
+// Builds the Blood menu's server-resolved view (docs/systemdocs/VAMPIRE.md
+// §6) for web/app/(app)/character/page.js — same posture as
+// web/lib/selfPools.js's loadDesireView: everything BloodPanel.js needs to
+// render is decided here, so the client component only draws it. The action
+// itself (web/app/(app)/character/actions/bloodAbility.js) re-checks every
+// one of these independently; this is a UI convenience, never the authority.
+import { prisma } from "@lifeweb/db";
+import { pickerName } from "@/lib/peopleHere";
+import { INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
+import { THRALL_SLUG } from "@lifeweb/db/lib/constants";
+import { clampBlood, bloodUrgencyBand } from "@lifeweb/db/lib/vampire";
+import { ABILITIES, abilityCooldownTurns, isOnCooldown } from "@lifeweb/db/lib/vampireBloodAbilities";
+
+const URGENCY_LABELS = {
+  flush: "Flush",
+  satiated: "Satiated",
+  thirsty: "Thirsty",
+  famished: "Famished",
+  bloodcrazed: "Bloodcrazed",
+};
+
+async function resolveCooldownVariable() {
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { vampireBloodAbilityCooldownVariable: true },
+  });
+  return config?.vampireBloodAbilityCooldownVariable ?? 5;
+}
+
+export async function loadVampireBlood(character, { here, openTurn }) {
+  const heldSlugs = new Set((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  const bloodLevel = clampBlood(character.vampireBloodLevel);
+  const cooldowns = character.vampireBloodAbilityCooldowns ?? {};
+  const variable = await resolveCooldownVariable();
+  const openTurnNumber = openTurn?.number ?? 0;
+
+  const abilities = ABILITIES.map((ability) => {
+    const reasons = [];
+    if (ability.requiredTagSlug && !heldSlugs.has(ability.requiredTagSlug)) {
+      reasons.push(`Needs ${ability.requiredTagSlug.replace(/-/g, " ")}.`);
+    }
+    if (bloodLevel < ability.bloodCost) reasons.push("Not enough blood.");
+    if (isOnCooldown(cooldowns, ability.key, openTurnNumber)) reasons.push("Recovering.");
+    if (ability.itemCost) {
+      const held = (character.tags ?? []).find((ct) => ct.tag?.slug === ability.itemCost.slug);
+      if (!held || held.quantity < ability.itemCost.quantity) reasons.push("Needs a Heart.");
+    }
+    return {
+      key: ability.key,
+      name: ability.name,
+      description: ability.description,
+      bloodCost: ability.bloodCost,
+      cooldownTurns: abilityCooldownTurns(ability, variable),
+      available: reasons.length === 0,
+      reason: reasons[0] ?? null,
+    };
+  });
+
+  // Bare character ids, deliberately NOT pickerKey's hood-token shape —
+  // Enthral/Nourish resolve their target with a plain
+  // prisma.character.findUnique in the action, so a concealed identity here
+  // would resolve to nothing rather than the wrong person. A narrow, known
+  // gap: a hooded incapacitated victim or thrall doesn't show up to pick.
+  const incapacitatedHere = (here ?? [])
+    .filter((c) => c.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug)))
+    .map((c) => ({ id: c.id, name: pickerName(c) }));
+  const thrallsHere = (here ?? [])
+    .filter((c) => c.tags.some((ct) => ct.tag.slug === THRALL_SLUG))
+    .map((c) => ({ id: c.id, name: pickerName(c) }));
+  const locations = await prisma.location.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  return {
+    bloodLevel,
+    urgencyLabel: URGENCY_LABELS[bloodUrgencyBand(bloodLevel)] ?? "Flush",
+    abilities,
+    locations,
+    incapacitatedHere,
+    thrallsHere,
+  };
+}

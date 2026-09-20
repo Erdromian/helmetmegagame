@@ -7,7 +7,7 @@
 // holder warned, never killed outright. Slotted after stagedPush and
 // tagExpiry so a same-close cure or staged removal beats the axe. Discord
 // work is returned as `deaths`/`warnings` for the side-effect thunk.
-const { DYING_SLUG } = require("./constants");
+const { DYING_SLUG, VAMPIRE_SLUG } = require("./constants");
 const { applyDeathToRow } = require("./characterDeath");
 const { alivePassCharacters } = require("./aliveCharacters");
 
@@ -42,9 +42,18 @@ async function runDyingDeathPass(prisma, turn) {
     });
   }
 
+  // A Vampire is immune to this clock (docs/systemdocs/VAMPIRE.md §7 —
+  // "do not die from regular injuries expiring into the dying tag... They
+  // will remain on death's door from injuries, not dying until they are
+  // either finished off or use regeneration"). Excluded from the doomed
+  // query outright rather than skipped in the loop, so they never get
+  // stamped as "killed" nor drop out of the warned list below — a vampire
+  // sitting on an expired Dying clock keeps getting the same eve-of warning
+  // every close, same as anyone else, they just never die from it.
   const doomed = await alivePassCharacters(prisma, {
     where: {
       tags: { some: { tagId: dyingTag.id, expiresTurn: { not: null, lte: turn.number } } },
+      NOT: { tags: { some: { tag: { slug: VAMPIRE_SLUG } } } },
     },
     select: { id: true, name: true, discordUserId: true, discordRoleId: true, zoneId: true },
   });
