@@ -203,8 +203,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       flags.push(`unknown ingredient ${slug}`);
       return 0;
     }
-    if (t.sellablePrice != null) return t.sellablePrice;
+    // What a maker pays for one: the Depot's price where the shelf sells it (a round trip with the
+    // Merchant buys its inputs there), otherwise what it would fetch instead.
     if (t.depotPrice != null) return t.depotPrice;
+    if (t.sellablePrice != null) return t.sellablePrice;
     flags.push(`unpriced input: ${slug}`);
     return 0;
   }
@@ -929,6 +931,27 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   ).length;
 
   // --- what the docs say, against what this says --------------------------------
+  // What the Merchant's floor pays a maker per Move, by the cumulative skill points the recipe is gated
+  // behind, with every ⬢ bought at the Depot's import price (DEPOT.md §4). Prices are set from this table:
+  // sell = inputs at the Depot's price + import price × ⬢ + round(rate × turns^1.3). Read here as the
+  // intent the catalog is checked against, so a new recipe priced off the old ⬢-at-1 arithmetic shows up.
+  const PROFIT_RATE_BY_POINTS = { 0: 2, 2: 2, 5: 4, 10: 8, 15: 12, 19: 15 };
+  const rateAt = (pts) => PROFIT_RATE_BY_POINTS[Object.keys(PROFIT_RATE_BY_POINTS).map(Number).filter((k) => k <= pts).sort((a, b) => b - a)[0]];
+  // Priced by their own shelf rather than by a wage, so the table does not apply: the forge (infrastructure,
+  // its shelf price is what a smith without one pays), two Black Market weapons whose shelf prices sit
+  // below their material, and a cheap potion the shelf sells for less than its ⬢.
+  const HELD_BACK = new Set(["workshop-equipment", "trench-knife", "knuckle-duster", "mulligan-potion"]);
+  const tierFamilies = ["smithing", "crafting", "brewing"];
+  const profitRows = activities
+    .filter((a) => a.kind === "craft" && a.revenue > 0 && tierFamilies.includes(a.craftFamily ?? a.family) && a.netPerTurnBuy != null && !HELD_BACK.has(a.slug))
+    .map((a) => ({ slug: a.slug, name: a.name, family: a.craftFamily ?? a.family, points: a.skillPoints, rate: rateAt(a.skillPoints), got: a.netPerTurnBuy }));
+  const offRate = profitRows.filter((r) => Math.abs(r.got - r.rate) > Math.max(2, 0.5 * r.rate));
+  const profitTiers = [...new Set(profitRows.map((r) => r.points))].sort((a, b) => a - b).map((pts) => {
+    const rows = profitRows.filter((r) => r.points === pts);
+    const got = rows.map((r) => r.got);
+    return { points: pts, rate: rateAt(pts), n: rows.length, min: Math.min(...got), max: Math.max(...got), median: median(got), families: [...new Set(rows.map((r) => r.family))] };
+  });
+  const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);
   const red = byId("craft:ravenheart-red");
   const potato = byId("farm:potato");
   const claims = [
@@ -956,11 +979,18 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "DEPOT.md §4",
-      claim: "Ravenheart Red pays about 12 ¢ a turn",
-      docValue: 12,
-      model: red ? round1(red.netPerTurnSell) : null,
-      ok: red && Math.abs(red.netPerTurnSell - 12) < 0.5,
-      note: "The doc prices the alcohol at its 4 ¢ shelf price, but it is on the Merchant's shelf. Made at home it is 0.25 Move and 2 ⬢ more, which is what the model does.",
+      claim: "Every Depot-sold smithing, crafting and brewing recipe earns its skill tier's profit per Move (2 / 4 / 8 / 12 / 15 at 2 / 5 / 10 / 15 / 19 points) with ⬢ bought at the Depot",
+      docValue: `${profitRows.length} recipes on the table`,
+      model: offRate.length ? `${offRate.length} off it: ${offRate.slice(0, 5).map((r) => `${r.name} ${round1(r.got)} against ${r.rate}`).join(", ")}${offRate.length > 5 ? ", …" : ""}` : `${profitRows.length} on it`,
+      ok: offRate.length === 0,
+      note: "Within 2 ¢ or half the rate, whichever is wider, since prices are whole ¢ and a quarter-Move craft moves in steps of 4 ¢ a turn. Workshop Equipment, Trench Knife, Knuckle Duster and the Mulligan Potion are held back: their shelf prices are their own decisions.",
+    },
+    {
+      doc: "DEPOT.md §4",
+      claim: "More skill points never pay less: the median profit per Move rises with each tier",
+      docValue: "rising",
+      model: profitTiers.map((t) => `${t.points} pts: ${round1(t.median)}`).join(", "),
+      ok: tiersRise,
     },
     {
       doc: "FACTORY.md §6",
@@ -1118,19 +1148,6 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       note: "Code comment in depotTurret.js says three fifths dying or dead, and ARMOR_GAIN is 0.25, not the 3 the doc's armour formula uses.",
     },
     {
-      doc: "DEPOT.md §4",
-      claim: "No smithing recipe out-earns the Gunpowder rung (about 22.5 ¢ a turn); the curve never falls",
-      docValue: 22.5,
-      model: (() => {
-        const top = activities
-          .filter((a) => a.family === "smithing" && a.netPerTurnSell != null)
-          .sort((a, b) => b.netPerTurnSell - a.netPerTurnSell)[0];
-        return `${round1(top.netPerTurnSell)} (${top.name})`;
-      })(),
-      ok: activities.filter((a) => a.family === "smithing" && a.netPerTurnSell != null).every((a) => a.netPerTurnSell <= 23),
-      note: "Iron, Glass Eye, Prosthetic Hand and the iron-cored 1-turn pieces sit above the rungs the doc says they cannot overtake.",
-    },
-    {
       doc: "COOKING.md §2a",
       claim: "31 named cooking recipes",
       docValue: 31,
@@ -1163,6 +1180,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     resourceBalance,
     foodFloor,
     foodTiers,
+    profitTiers,
+    profitRows,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },

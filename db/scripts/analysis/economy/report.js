@@ -302,14 +302,29 @@ function sectionBaselines() {
   ];
   return `<section><h2>Baselines: the easy crafts</h2>
 <p class="lede">What somebody can earn from a standing start, using only what is easy to get. A recipe is <b>easy</b> when every input is on the Depot's general shelf, is farmed, is an ore on at least ${fmt(100 * 0.1, 0)}% of Prospecting presses, is a cave find on at least 1 in 50 arrivals, or is a craft from those. ⬢ comes from the Depot at ${params.rv.buy} ¢, and the second column shows the pay if the crafter mined it instead. Recipes that need an ore supply of more than two Prospectors per crafter are flagged and left out of the baselines. ${params.obolFamilies.length ? `<b>Smithing recipes can pay their ⬢ in obols, one for one</b> (the game refuses this for every other craft), so a smith does not have to import ⬢ at all: the “paid in obols” column is a smith's real wage, and the “bought” column is what a smith would earn by importing anyway.` : `No craft can be paid in obols, so the “bought” column is every crafter's real wage.`} These baselines are what the rest of the report compares against.</p>
+<h3>What skill points pay</h3>
+<p class="lede">The catalog is priced from one wage table (<code>DEPOT.md</code> §4): a maker who buys every ⬢ at the Depot's ${params.rv.buy} ¢, crafts, and sells to the Depot clears a set profit per Move for each rung of skill points, and more points always pay more. The floor is meant to be thin. ${model.profitRows.length} smithing, crafting and brewing recipes are on the table; ${model.profitTiers.length ? "the ones held back (Workshop Equipment, Trench Knife, Knuckle Duster, Mulligan Potion) are priced by their own shelf" : ""}.</p>
+${table({
+    cols: [
+      { h: "Skill points", num: true, get: (t) => t.points },
+      { h: "Rate ¢ / Move", num: true, get: (t) => t.rate },
+      { h: "Recipes", num: true, get: (t) => t.n },
+      { h: "Lowest", num: true, get: (t) => fmt(t.min), sort: (t) => t.min },
+      { h: "Median", num: true, get: (t) => fmt(t.median), sort: (t) => t.median },
+      { h: "Highest", num: true, get: (t) => fmt(t.max), sort: (t) => t.max },
+      { h: "Families", get: (t) => t.families.join(", ") },
+    ],
+    rows: model.profitTiers,
+  })}
+<h3>The easy crafts</h3>
 ${table({ cols: baseCols, rows: model.baselines })}
 
 <h3>Smithing</h3>
-<p class="lede">Every smithing recipe needs Workshop Equipment within reach. Iron, Copper and Nickel head the list but need one ore per quarter Move, which is far more than Prospectors can supply, so read them as ceilings.</p>
+<p class="lede">Every smithing recipe needs Workshop Equipment within reach. Rows are sorted by ¢ a turn with ⬢ bought at the Depot: the Gunpowder rung leads, then the 10-point gear, then the 5-point gear and the ore smelts, which now sit level with the rest of their rung. A recipe with the same inputs and price as another is one line.</p>
 ${table({ cols: craftCols(), rows: collapse(L.smithing, sigOfSlug).slice(0, 30), filters: [{ label: "Skill", get: (a) => a.skill }] })}
 
 <h3>Crafting (the basic skill)</h3>
-<p class="lede">Crafting costs 2 points and needs no forge. At the Depot's ⬢ price the Dead Simple pieces (Sling, Quarterstaff, Padded Armor and the rest) earn nothing: they sell for 6 ¢ and cost 3 ⬢, which is 6 ¢ to buy. They only pay if you mine your own ⬢. The Prospector's Pick is the one crafting recipe that pays on bought ⬢.</p>
+<p class="lede">Crafting costs 2 points and needs no forge. The quarter-Move pieces (Sling, Quarterstaff, Padded Armor and the rest) sell for what their ⬢ costs at the Depot, so a round trip earns nothing; the one-Move pieces (Longbow, Shield, Pavise) clear ${fmt(model.profitTiers.find((t) => t.points === 2)?.rate, 0)} ¢ a Move. Crafting pays the least because it takes the fewest points.</p>
 ${table({ cols: craftCols(), rows: collapse(L.crafting, sigOfSlug).slice(0, 30), filters: [{ label: "Skill", get: (a) => a.skill }] })}
 
 <h3>Brewing</h3>
