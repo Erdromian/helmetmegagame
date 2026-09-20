@@ -60,3 +60,15 @@ https://github.com/SS13-Special-Codebases-Archive/OpenSourceWeb
 Its README licenses the icons *and sounds* under that grant. The repository's
 code is GPLv3/AGPLv3 and none of it is here. Credit the source; Bascinet's
 public credit is the Credits section of `docs/handbook.md`.
+
+## The boards
+
+Six artifact pages play 1,474 sounds — far more than the 664 in this folder,
+because they are built straight from a clone rather than from the export. Each
+cue shows its path in the source tree, so anything worth keeping can be added to
+the lists in `scripts/osw/export-sounds.py` and pulled in here.
+
+They are built from `scripts/osw/sound-board.template.html`. **Build from the
+template, never from `sound-player.html`** — that file is a finished board with
+its cue list already substituted in, and building from it silently ships the old
+board's cues against the new board's files.
