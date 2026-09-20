@@ -232,7 +232,9 @@ async function canHearPing(prisma, character, placeKey) {
   if (!character || character.status !== "ALIVE") return false;
   const parsed = parsePlaceKey(placeKey);
   if (!parsed) return false;
-  if (parsed.kind === "dead" || parsed.kind === "party") return false;
+  // The Game channel joins them, for a third reason: nothing in it is addressed to anybody. It is
+  // the game talking to the whole roster, so a name inside a turn note is prose, not a ping.
+  if (parsed.kind === "dead" || parsed.kind === "party" || parsed.kind === "game") return false;
   if (parsed.kind === "net") {
     if (!NARROWCAST_SLUGS.includes(parsed.id)) return false;
     const ctx = await buildNarrowcastContext(prisma, character.id);

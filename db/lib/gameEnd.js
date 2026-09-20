@@ -8,6 +8,7 @@
 const { Prisma } = require("@prisma/client");
 const { buildEpilogue, formatEpilogue } = require("./epilogue");
 const { postMessageBatched } = require("./discordRest");
+const { postGameEndToGame, retractGameEndFromGame } = require("./gameChannel");
 
 async function endGameInDb(db, { closingNote = null, reason = "gm", actorDiscordUserId = "system" } = {}) {
   const state = await db.gameState.findUnique({ where: { id: 1 }, include: { game: true } });
@@ -37,6 +38,11 @@ async function endGameInDb(db, { closingNote = null, reason = "gm", actorDiscord
     })
     .catch((err) => console.error("game_ended audit failed:", err));
 
+  // The web's copy, written HERE rather than beside the Discord post: postGameEnded is also what
+  // the superadmin's Repost button calls, and a repost must not put a second reveal in the feed.
+  // Best-effort, like every other write in this function after the ending itself.
+  await postGameEndToGame(db, epilogue).catch((err) => console.error("Game channel reveal failed:", err));
+
   return { ended: true, epilogue, post: formatEpilogue(epilogue) };
 }
 
@@ -65,6 +71,10 @@ async function resumeGameInDb(db, { actorDiscordUserId = "system" } = {}) {
   await db.auditLog
     .create({ data: { actorDiscordUserId, actionType: "game_resumed", details: { gameId: state.gameId } } })
     .catch((err) => console.error("game_resumed audit failed:", err));
+  // …and the same reasoning reaches the web. The #turns post stands, because a Discord post cannot
+  // be unsent — but the Game channel's block is still on the wall, and a running game does not want
+  // to tell everybody who scrolls that it is over.
+  await retractGameEndFromGame(db).catch((err) => console.error("Game channel reveal retraction failed:", err));
   return { resumed: true };
 }
 

@@ -51,7 +51,7 @@ async function openSession(db, { now = new Date() } = {}) {
     });
   }
 
-  return { ok: true, openedAt: now, line: "The game is in session." };
+  return { ok: true, openedAt: now, open: true, line: "The game is in session." };
 }
 
 // Close it. The open turn is left exactly as it is — closing a session is not a turn advance, and a sitting that resumes
@@ -67,7 +67,7 @@ async function closeSession(db, { now = new Date() } = {}) {
   });
   if (claimed.count === 0) return { ok: false, reason: "ALREADY_CLOSED" };
 
-  return { ok: true, closedAt: now, line: "The game is no longer in session." };
+  return { ok: true, closedAt: now, open: false, line: "The game is no longer in session." };
 }
 
 // What the per-minute cron should do about the schedule, as a word rather than a branch, so it is testable without a clock

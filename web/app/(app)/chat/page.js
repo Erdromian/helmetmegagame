@@ -103,6 +103,11 @@ async function FreshChat({ userId }) {
   // ghost falls through to the full Chat below, read-only over every zone,
   // the way a GM with no character does (db/lib/feedAccess.js#ghostPlacesFor).
   if (!viewer.character && !viewer.gm && !viewer.ghost) {
+    // Plus the Game channel, which is the one place with no seat behind it:
+    // the turn opening is what #turns tells the whole guild, so somebody
+    // waiting on a character can read it while they wait
+    // (db/lib/feedAccess.js#placesFor). It still opens on Bascinet.
+    const waitingPlaces = await placesFor(prisma, null, viewer.options);
     return (
       <SnapshotFresh
         scope="play"
@@ -110,7 +115,7 @@ async function FreshChat({ userId }) {
         data={{
           kind: "dm",
           chat: {
-            initialPlaces: [],
+            initialPlaces: waitingPlaces,
             initialPlace: DM_PLACE_KEY,
             initialRows: [],
             initialSeq: "0",

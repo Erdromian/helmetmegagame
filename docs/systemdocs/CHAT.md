@@ -336,6 +336,98 @@ excludes it. Do **not** reach for `kind: CONVERSATION` to solve that — "Ada
 wants to bind you" sitting in the GM inbox as mail is the exact bug `kind` was
 built to end.
 
+## 2c. The Game channel is `#turns`, read
+
+`#turns` on Discord is **one rolling message** — the turn announcement, a
+banner and the two console buttons on a single post, deleted and reposted every
+turn (`TURN-ENGINE.md` §4). Nothing in it survives the turn it was posted in, so
+a player reading the game on the web never saw the turn open at all: the right
+column's `TurnCard` counts down to a cutoff, but there was no record of what the
+game actually said.
+
+**Game** (`game:main`, `db/lib/placeKey.js`) is that record. Unlike Bascinet
+above, it is a **real archive place** — ordinary `ArchiveEntry` rows with a
+`placeKey`, so the feed, the unread mark, search, the SSE stream and `/archive`
+all reach it with nothing special written for them.
+
+**Nobody writes into it.** `db/lib/feedAccess.js#gamePlace` builds the row with
+`canSpeak: false` and no parameter to make it anything else, so `mayWritePlace`
+refuses every seat — and the two chat trees draw **no composer at all** there,
+not a disabled one, since a box you cannot type in says somebody somewhere can.
+A GM is refused too, which is the one place on the desk that is true: the Game
+channel is a mirror of `#turns`, and a GM line in it would be a post with no
+Discord counterpart. A GM with something to say puts it in the turn's note.
+
+**Everybody reads it**, including somebody with no character at all. A player
+waiting on a seat or between characters gets it as the one row in their column
+(`placesFor`'s no-character return), because the turn opening is not a secret —
+it is what `#turns` tells the whole guild.
+
+**Three kinds of post**, and they are the row's `channelKind`:
+
+| `channelKind` | Written by | Draws as |
+|---|---|---|
+| `turn` | `postTurnToGame`, from the turn thunk's wrapup step and Start Game | a block: the number, the day and date, the note, the clock |
+| `session` | `postSessionToGame`, from `db/lib/sessionNotice.js` | one subtext line, as it reads on Discord |
+| `gameend` | `postGameEndToGame`, from `db/lib/gameEnd.js#endGameInDb` | a block: the reveal |
+
+All three go through `db/lib/gameChannel.js` and nothing else, so no call site
+hand-builds a row.
+
+**A turn is written where a turn turns**, not where the console is reposted.
+`postTurnsAnnouncement` has callers that only rebuild the Discord message —
+`/gm/dev`'s console repost, and End Game clearing the Move cutoff — and a repost
+must not put a second turn in the feed. On top of that `postTurnToGame` returns
+early if a `turn` row for that number already exists. The same reasoning puts
+the epilogue write in `endGameInDb` rather than in `postGameEnded`, which the
+superadmin's **Repost** button also calls.
+
+**Resume takes the ending back down.** `resumeGameInDb` retracts the `gameend`
+row (`retractArchiveRow`, so the stream hears about it), while the Discord post
+stands — a post cannot be unsent, but a running game should not tell everybody
+who scrolls that it is over.
+
+**The wire format is text, not JSON** (`db/lib/turnPostText.js`, zero requires
+so the block renderer may import it). `content` is a short header block of
+`Key: value` lines, a blank line, then a markdown body:
+
+```
+Turn: 14
+Day: 7
+Date: September 27th, 2026
+Clock: This turn ends at <t:1758999600:t>, or <t:1758999600:R>.
+
+The road north is closed.
+```
+
+Text, because `/archive` prints `content` as prose and the feed's search is an
+`ILIKE` over the same column — a JSON blob would read as noise in one and match
+noise in the other. The parser takes lines until the first blank and treats
+anything without a `Key:` in front of it as body, so a row this module never
+wrote still renders as something a person can read.
+
+**The `<t:…>` tags survive on purpose.** They render as a live local time and a
+ticking relative in each reader's own zone (`db/lib/discordMarkup.js`,
+`web/app/components/remarkDiscord.js`), so a stored clock never goes stale —
+the one thing the web does here that the Discord post it copies cannot. What
+does *not* come along is Discord's own chrome: the `-#` subtext prefix and the
+`<@&role>` ping are how that channel dresses a line, and the block has a byline
+instead.
+
+**Drawing it**: `web/app/(app)/chat/blockRows.js`, shared by both chat trees.
+The turn's head is the numeral in `--font-serif` under a small caps `TURN` —
+the blackletter is spoken for by the decree, and two proclamation faces in one
+feed would say the same thing twice. The clock sits under a hairline at the foot
+in the mono face, because it is the one part of the post that is machine output.
+The ending *does* wear the blackletter, and is the only other row in the channel
+that does.
+
+**It survives the wipe.** `db/lib/feedWipe.js#isPersistentPlace` counts
+`game:` alongside `dead:` (§7) — a turn post wiped the moment the next turn
+opened would be a channel that is empty every time anybody looked at it. It
+still stops at the previous-game floor, so a new game starts with no memory of
+the last one's turns.
+
 ## 3. Realtime: server-sent events from the web process
 
 `web/lib/feedHub.js` keeps **one** `pg.Client` per web process (on
@@ -926,9 +1018,13 @@ a 48px head and a one-line composer:
   line for when it is not, under the tab strip — the row that is on screen
   whichever pane is open and on a phone, which is where a stream drops most.
 - **`PlacesColumn.js`** draws the column, and since the zone split it draws it
-  in two halves. The top is the places that belong to **no zone**: **Mail**
-  (the Bascinet conversation, §2b, then Deadchat, one section — the mockup
-  draws them together) and **Radio** (the frequencies carried, §5d).
+  in two halves. The top is the places that belong to **no zone**: first
+  **Bascinet** (§2b) and **Game** (§2c) as two bare rows under no heading at
+  all, then **Radio** (the frequencies carried, §5d) and **Other** (Deadchat).
+  The two bare rows used to be a **Mail** section with Bascinet and Deadchat
+  under it; one word over two unlike things said they were one thing, and Game
+  is a third that is neither. A rule under the pair does the separating a
+  heading used to do, without claiming they are a category.
   Everything below that is **grouped by
   zone**, the way Discord groups channels into categories, each group headed by
   a horizontal divider carrying the zone's name — `—— TOWN ——`,
@@ -2333,6 +2429,12 @@ watermarks**, because the wipe has two cadences:
 |---|---|---|
 | `GameConfig.feedWipeSeq` | every turn | `loc:` / `room:` / `conv:` places |
 | `GameConfig.feedWipeSummarySeq` | Dawn only | `zone:` places |
+
+Two places sit above both of them. `isPersistentPlace` answers yes for `dead:`
+and `game:` — Deadchat because a ghost finding yesterday's conversation on
+Discord and an empty room here is the two faces disagreeing, and the Game
+channel because a turn post wiped as the next turn opens is a channel that is
+always empty (§2c). Both still stop at the previous-game floor.
 
 Both are set in one `update` so the pair can never half-land.
 `db/lib/feedWipe.js` is the whole of it — `markFeedWiped(prisma, { summaries })`

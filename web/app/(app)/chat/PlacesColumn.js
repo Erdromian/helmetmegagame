@@ -152,12 +152,11 @@ export default function PlacesColumn({
   // a turn result lands (CHAT.md §2b), and the frequencies in your pack.
   // Neither is a room on the map, so neither belongs under a zone's divider.
   //
-  // Mail is the mockup's own section: the Bascinet conversation THEN
-  // Deadchat, one heading — not the two folds this used to be. Deadchat is
-  // mail rather than a place in the same sense the Bascinet DM is: it is
-  // somewhere you ended up, not somewhere on the map, and for a ghost it is
-  // the only row in the whole column they can answer.
-  const mail = places.filter((p) => p.kind === "dm");
+  // THE TWO STANDALONE ROWS, and they are deliberately not a section. Bascinet
+  // is the conversation with the people running the game; Game is what the game
+  // itself says (db/lib/gameChannel.js). Neither is mail, neither is a place on
+  // the map, and heading two unlike rows "Mail" said they were one thing.
+  const pinned = [...places.filter((p) => p.kind === "dm"), ...places.filter((p) => p.kind === "game")];
   // Deadchat is its own section, "Other" — neither mail nor a place on the map.
   const other = places.filter((p) => p.kind === "dead");
   // Radio section: standing nets, plus the party chat (which is nowhere for the
@@ -177,6 +176,7 @@ export default function PlacesColumn({
     for (const place of places) {
       if (
         place.kind === "dm" ||
+        place.kind === "game" ||
         place.kind === "net" ||
         place.kind === "party" ||
         place.kind === "dead"
@@ -228,7 +228,21 @@ export default function PlacesColumn({
           three columns with two bars between them and a gap where the third
           should be. */}
       <p className="bar">Places</p>
-      <Section title="Mail" places={mail} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} sectionKey="mail" collapsed={collapsed} onToggle={toggle} />
+      {/* Bare rows, no heading and no fold — see `pinned` above. */}
+      {pinned.length > 0 && (
+        <div className="chat-section chat-section--pinned">
+          {pinned.map((place) => (
+            <PlaceRow
+              key={place.placeKey}
+              place={place}
+              active={place.placeKey === selected}
+              unread={place.placeKey !== selected && isUnread(seen, place.placeKey, newest(place))}
+              count={notified?.get(place.placeKey) ?? 0}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
       <Section title="Radio" places={radio} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} sectionKey="radio" collapsed={collapsed} onToggle={toggle} />
       <Section title="Other" places={other} selected={selected} seen={seen} notified={notified} newest={newest} onSelect={onSelect} sectionKey="other" collapsed={collapsed} onToggle={toggle} />
       {groups.map((group) => {

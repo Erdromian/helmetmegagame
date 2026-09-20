@@ -250,6 +250,16 @@ dead marked with their turn. `formatEpilogue` is the `**Game Ended**` post to
 `#turns`; `/archive` renders the same object, GM-only, exactly as it does
 mid-game. Resume undoes the phase.
 
+**The reveal lands in `/chat` too**, in the **Game channel** (`CHAT.md` §2c),
+built from the same epilogue object by `db/lib/gameChannel.js#postGameEndToGame`
+and through `db/lib/epilogue.js`'s own `factsLine`/`rosterLine`, so the two
+posts can never disagree about who died. The write is in `endGameInDb` rather
+than beside the Discord post, because `postGameEnded` is also what the
+superadmin's **Repost** button calls and a repost must not put a second reveal
+in the feed. **Resume retracts that row** — the Discord post stands, since a
+post cannot be unsent, but a running game should not go on telling everybody who
+scrolls that it is over.
+
 `Game` is one row per game (dates, note, epilogue). **A game is its id** —
 there was a creation ordinal beside it until 2026-09-09, and `ARCHIVE.md`
 §"Identity" is why it went. `GameState.gameId` points at the current one; every

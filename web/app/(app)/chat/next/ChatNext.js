@@ -764,8 +764,16 @@ export default function ChatNext(props) {
                   a system line, the web twin of Discord's /gm. Minimal on
                   the SPEAKING side — no character, no hood, no slowmode, no
                   pending queue — but the `/` line is the player's own, minus
-                  the entries that need a body standing somewhere. */}
-              {gm && selected && !selected.canSpeak && !selected.vantage ? (
+                  the entries that need a body standing somewhere.
+
+                  THE GAME CHANNEL gets no composer at all, for anybody — not a
+                  disabled one, which would only say that somebody somewhere can
+                  type in it. It is the game's own voice, written only by
+                  db/lib/gameChannel.js, and even a GM line there would be a post
+                  with no #turns counterpart, which is the one thing a mirror of
+                  that channel cannot have. A GM with something to say puts it in
+                  the turn's note. */}
+              {selected?.kind === "game" ? null : gm && selected && !selected.canSpeak && !selected.vantage ? (
                 <GmSystemComposer
                   key={selectedKey}
                   placeKey={selectedKey}

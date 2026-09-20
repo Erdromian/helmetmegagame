@@ -112,11 +112,16 @@ export default function PlacesColumn({
     count: notified?.get(place.placeKey) ?? 0,
   });
 
-  const { mail, radio, other, groups, liveKeys } = useMemo(() => {
+  const { pinned, radio, other, groups, liveKeys } = useMemo(() => {
     const rows = places.map(decorate);
     const of = (kind) => rows.filter((p) => p.kind === kind);
 
-    const mailRows = of("dm");
+    // THE TWO STANDALONE ROWS, and they are deliberately not a section. Bascinet
+    // is the conversation with the people running the game; Game is what the
+    // game itself says (db/lib/gameChannel.js). Neither is mail, neither is a
+    // place on the map, and heading two unlike rows "Mail" said they were one
+    // thing. They draw bare, under the bar, in this order.
+    const pinnedRows = [...of("dm"), ...of("game")];
     // Deadchat has a section of its own, "Other": it is neither mail nor a
     // place on the map, and for a ghost it is the one row they can answer.
     const otherRows = of("dead");
@@ -132,7 +137,7 @@ export default function PlacesColumn({
     const byZone = new Map();
     const loose = [];
     for (const place of rows) {
-      if (["dm", "dead", "net", "party"].includes(place.kind)) continue;
+      if (["dm", "game", "dead", "net", "party"].includes(place.kind)) continue;
       if (!place.zoneId) {
         loose.push(place);
         continue;
@@ -150,14 +155,15 @@ export default function PlacesColumn({
     // Every fold key this column can draw right now. foldStore prunes anything
     // stored that is not in here — a conversation that closed, a street walked
     // out of — so the remembered set cannot grow forever.
-    const keys = new Set(["mail", "radio"]);
+    // No "mail" key any more: the two rows above it draw with no fold to remember.
+    const keys = new Set(["radio", "other"]);
     for (const group of out) {
       const k = group.zoneId ?? "loose-zone";
       keys.add(k);
       for (const s of ["summary", "here", "rooms", "conversations", "elsewhere"]) keys.add(`${k}:${s}`);
     }
 
-    return { mail: mailRows, radio: radioRows, other: otherRows, groups: out, liveKeys: keys };
+    return { pinned: pinnedRows, radio: radioRows, other: otherRows, groups: out, liveKeys: keys };
     // `decorate` closes over selected/seen/notified/newest, all of which are in
     // the dep list; it is deliberately not a useCallback, since it is cheap and
     // hoisting it would only move the same dependencies somewhere less obvious.
@@ -174,7 +180,17 @@ export default function PlacesColumn({
     <nav className="chat-places" aria-label="Places">
       <p className="bar">Places</p>
 
-      <Section title="Mail" places={mail} foldKey="mail" shut={shut("mail")} onToggle={onToggle} onSelect={onSelect} />
+      {/* Bare rows, no heading and no fold — see `pinnedRows` above. They keep a
+          wrapper so the CSS can give them the indent a section heading would
+          otherwise have set, and a rule under them so the first real heading
+          does not read as theirs. */}
+      {pinned.length > 0 && (
+        <div className="chat-section chat-section--pinned">
+          {pinned.map((place) => (
+            <Row key={place.placeKey} place={place} onSelect={onSelect} />
+          ))}
+        </div>
+      )}
       <Section title="Radio" places={radio} foldKey="radio" shut={shut("radio")} onToggle={onToggle} onSelect={onSelect} />
       <Section title="Other" places={other} foldKey="other" shut={shut("other")} onToggle={onToggle} onSelect={onSelect} />
 

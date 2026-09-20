@@ -266,6 +266,11 @@ async function recordArchiveEvent(prisma, entry) {
         characterName: entry.character?.name ?? entry.characterName ?? null,
         content: entry.content ?? "",
         placeKey: entry.placeKey ?? null,
+        // Carried the same way recordArchiveMessage carries it. An event used to have no way to say
+        // WHAT KIND of thing it was, so every system row drew as one anonymous subtext line — which
+        // is exactly what the Game channel's turn and epilogue blocks need to be told apart
+        // (db/lib/gameChannel.js, web/app/(app)/chat/blockRows.js).
+        channelKind: entry.channelKind ?? null,
         source: entry.source ?? "SYSTEM",
       },
     });

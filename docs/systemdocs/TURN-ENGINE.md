@@ -642,6 +642,31 @@ carried moved onto the clock line rather than sitting alone on a line of its
 own, and the line is omitted entirely when no ping role is configured, so the
 message never carries a stray blank line.
 
+**The web gets its own copy, and it is not this string.** `db/lib/gameChannel.js`
+writes the same turn into the **Game channel** in `/chat` (`CHAT.md` §2c) — an
+archive place, so it stays put instead of being deleted with the rolling message.
+The two cannot disagree about the clock, because `db/turnCalendar.js#turnFacts`
+is where the day, the in-world date and the one clock sentence are computed, and
+both `buildTurnAnnouncement` and the Game channel's `formatTurnPost` dress the
+same three facts rather than recomputing them.
+
+Two things to keep straight if you touch this:
+
+- **The write goes where a turn TURNS, not where the console is reposted.**
+  `postTurnsAnnouncement` is also called to rebuild the Discord message without
+  a turn having turned — `/gm/dev`'s console repost, and End Game clearing the
+  Move cutoff — so the Game channel write lives at
+  `turnSideEffects/steps/turnWrapup.js` and at Start Game instead. On top of
+  that, `postTurnToGame` returns early if a post for that turn number is already
+  there.
+- **It happens above the Discord guards.** `postTurnsAnnouncement` returns
+  early with no guild or token, which is every checkout before launch. A game
+  somebody is reading on the web still has a turn opening, so the archive write
+  must not sit behind that gate.
+
+The turn's web push points at the Game channel now (`/chat#game:main`). It used
+to open Bascinet, which has nothing to do with the turn.
+
 It was three messages once — banner, announcement, and a console anchor
 deliberately kept separate so it would not "jump above and below the
 announcement twice a day". The cost of holding it still was worse: the

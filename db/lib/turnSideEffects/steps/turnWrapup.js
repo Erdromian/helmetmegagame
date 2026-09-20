@@ -1,5 +1,7 @@
 const { postTurnsAnnouncement } = require("../../turnAnnouncement");
 const { runMessageWipe } = require("../../messageWipe");
+const { postTurnToGame } = require("../../gameChannel");
+const { clockStatus } = require("../../gameState");
 
 async function wrapUpTurn({ prisma, p, step }, sideEffectsStartedAt) {
   // The banner. The row is re-read rather than carried, so a resumed run in a
@@ -13,6 +15,16 @@ async function wrapUpTurn({ prisma, p, step }, sideEffectsStartedAt) {
         console.error("Failed to post turn announcement:", err),
       ),
     );
+    // The web's copy of the same announcement (db/lib/gameChannel.js). Written HERE, where a turn
+    // actually turns, rather than inside postTurnsAnnouncement — three of that function's callers
+    // only repost the Discord console, and a repost must not write a second turn into the feed.
+    await step("turnGameChannel", async () => {
+      const clock = await clockStatus(prisma);
+      return postTurnToGame(prisma, newTurn, p.note ?? null, {
+        clockFrozen: clock.frozen,
+        frozenReason: clock.reason,
+      }).catch((err) => console.error("Failed to write the turn to the Game channel:", err));
+    });
   }
 
   // The wipe runs on EVERY turn. Only the zone summaries keep a slower life —

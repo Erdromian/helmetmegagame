@@ -13,7 +13,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
 import { formatTurnLabel } from "@/lib/turnFormat";
-import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
+import BlockRow, { BLOCK_KINDS } from "../blockRows";
 import MembersStrip from "../MembersStrip";
 import usePlaceMembers from "../usePlaceMembers";
 import FeedSearch from "../FeedSearch";
@@ -60,16 +60,11 @@ const AT_BOTTOM_PX = 64;
 // A gap this long starts a new run — the same figure the old feed used.
 const RUN_GAP_MS = 7 * 60 * 1000;
 
-// The two kinds that draw as a bordered block across the log rather than as a
-// line in it: a heading, the words at reading size, a rule top and bottom.
 // The same five minutes db/lib/say.js#EDIT_WINDOW_MS enforces. A NUMBER
 // rather than an import: requiring from @lifeweb/db in a "use client" file
 // drags Prisma and node:fs into the browser bundle. The server is the one
 // that decides; this only decides whether to draw a button.
 const EDIT_WINDOW_MS = 5 * 60_000;
-
-const BLOCK_KINDS = new Set(["intercom", "decree"]);
-const INTERCOM_PREFIX = /^you hear a voice from the intercom:\s*/i;
 
 function timeLabel(iso) {
   if (!iso) return null;
@@ -89,7 +84,7 @@ const ROW_VERBS = [
 
 // WHAT THE WORLD SAYS, rather than what a person said. Everything with no
 // speaker: a gate grinding open, a smell, somebody moving goods around a
-// stash — and the two that draw as a whole block, the intercom and a decree.
+// stash — and the four that draw as a whole block (../blockRows.js).
 //
 // It is a separate component because it drives TranscriptLine's OTHER
 // variants, and those variants are the entire reason a shout does not look
@@ -97,27 +92,9 @@ const ROW_VERBS = [
 // this exists to prevent: ambient scenery came out at full weight, reading as
 // an interruption rather than as the room.
 const SystemRow = memo(function SystemRow({ row, zone = null }) {
-  if (BLOCK_KINDS.has(row.channelKind)) {
-    const decree = row.channelKind === "decree";
-    // A decree carries its own title, written by a GM: the row is the title, a
-    // blank line, then the words. The title is the blackletter heading; the
-    // byline says what kind of thing this is and where it was read. A PA has
-    // no title of its own, so its heading says both in one line.
-    const parts = decree ? splitDecree(row.content) : null;
-    const body = decree ? parts.body : String(row.content ?? "").replace(INTERCOM_PREFIX, "");
-    return (
-      <TranscriptLine
-        variant="block"
-        channelKind={row.channelKind}
-        headingFace={decree ? "blackletter" : "caps"}
-        heading={decree ? (parts.title || zone || "Ravenheart") : zone ? `Intercom · ${zone}` : "Intercom"}
-        byline={decree ? (zone ? `${DECREE_LABEL} · ${zone}` : DECREE_LABEL) : null}
-        seq={row.seq}
-      >
-        <ChatMarkdown content={body} />
-      </TranscriptLine>
-    );
-  }
+  // The intercom, a decree, a turn and a game ending draw as a bordered block
+  // across the log; both feeds share that renderer (../blockRows.js).
+  if (BLOCK_KINDS.has(row.channelKind)) return <BlockRow row={row} zone={zone} />;
   return (
     <TranscriptLine variant="system" channelKind={row.channelKind} seq={row.seq}>
       <ChatMarkdown content={row.content} />

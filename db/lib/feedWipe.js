@@ -89,8 +89,14 @@ function isSummaryPlace(placeKey) {
 //
 // It still stops at `persist` (the previous-game floor), so a new game starts with an empty
 // Deadchat rather than the last game's dead still talking.
+//
+// The GAME CHANNEL is persistent for a related reason: it is the record of the turns themselves
+// (db/lib/gameChannel.js), and a turn post wiped at the moment the next turn opens would be a
+// channel that is empty every time anybody looks at it. It stops at `persist` too, so a new game
+// starts with no memory of the last one's turns.
 function isPersistentPlace(placeKey) {
-  return typeof placeKey === "string" && placeKey.startsWith("dead:");
+  if (typeof placeKey !== "string") return false;
+  return placeKey.startsWith("dead:") || placeKey.startsWith("game:");
 }
 
 // A reader picking ONE number for a mixed set of places must use this, or a zone row above the turn floor gets dropped as "already sent".

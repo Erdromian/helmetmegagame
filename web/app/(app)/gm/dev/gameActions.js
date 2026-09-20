@@ -21,6 +21,7 @@ import { endGameInDb, resumeGameInDb, postGameEnded } from "@lifeweb/db/lib/game
 import { formatEpilogue } from "@lifeweb/db/lib/epilogue";
 import { syncSpectatorAccess } from "@lifeweb/db/lib/spectatorAccess";
 import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
+import { postTurnToGame } from "@lifeweb/db/lib/gameChannel";
 import { openSession, closeSession } from "@lifeweb/db/lib/session";
 import { speakIntoTurns } from "@lifeweb/db/lib/sessionNotice";
 import { zonedTimeToUtc, TIME_ZONE } from "@lifeweb/db/lib/turnClock";
@@ -179,6 +180,12 @@ export async function startGame() {
     await postTurnsAnnouncement(prisma, outcome.turn, startedLine()).catch((err) =>
       console.error("Game started announcement failed:", err),
     );
+    // The web's copy of the same first turn (db/lib/gameChannel.js). Start Game is one of the two
+    // places a turn actually opens; the other is the turn thunk's wrapup step. The console REPOSTS
+    // elsewhere on this page deliberately do not write one.
+    await postTurnToGame(prisma, outcome.turn, startedLine()).catch((err) =>
+      console.error("Game started: the Game channel write failed:", err),
+    );
   });
   return { ok: true, assigned: outcome.assigned.length, returned: outcome.returned.length };
 }
@@ -303,7 +310,7 @@ export async function startSessionNow() {
   // Best-effort and after the write, the posture every other Discord call on
   // this page takes: the row is the truth and the line is a courtesy.
   after(() =>
-    speakIntoTurns(prisma, result.line).catch((err) => console.error("Session notice failed:", err)),
+    speakIntoTurns(prisma, result).catch((err) => console.error("Session notice failed:", err)),
   );
   refresh();
   return { ok: true };
@@ -323,7 +330,7 @@ export async function closeSessionNow() {
   }
   await audit(session, "session_closed", { scheduled: false });
   after(() =>
-    speakIntoTurns(prisma, result.line).catch((err) => console.error("Session notice failed:", err)),
+    speakIntoTurns(prisma, result).catch((err) => console.error("Session notice failed:", err)),
   );
   refresh();
   return { ok: true };

@@ -201,6 +201,19 @@
   margin-bottom: var(--sp-2);
 }
 
+/* Bascinet and the Game channel, at the top of the column with no heading over
+   them (PlacesColumn.js). Two unlike rows under one word said they were one
+   thing, so the word went — but a heading is also what sets the run's top
+   margin and what separates it from the run below, and without one these two
+   sat flush against the bar and against Radio's heading as though they were
+   part of it. A little air above and a rule below do the same two jobs the
+   heading was doing, without claiming the rows are a category. */
+.chat-section--pinned {
+  margin: var(--sp-2) 0 var(--sp-2);
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border);
+}
+
 /* Every column's own head, ported from the mockup's `.bar` (docs/design/mockups/chat/index.html):
    a bg2.png metal strip, uppercase 10px bold, one shared recipe for the places
    head, the feed head (ChatHead.js) and any block heading that wants it.
@@ -1219,6 +1232,126 @@
 .tline--block[data-kind="decree"] .tline-block-body {
   font-family: var(--font-serif);
   line-height: 1.35;
+}
+
+/* ── The Game channel (db/lib/gameChannel.js, CHAT.md) ─────────────────────
+   The turn and the end of the game, in the same notice block as the two above.
+   Neither invents a colour or a ground: the border and --sunk-wash-deep are
+   what make a block a block, and only the type changes. */
+
+/* THE TURN'S HEAD is the number itself. --font-display (blackletter) is spoken
+   for by the decree and by the ending below, and two proclamation faces in one
+   feed would say the same thing twice — so the turn wears the serif instead,
+   at a size that still reads as a head rather than as a line. The word sits
+   above the numeral in the micro-label vocabulary, so the eye lands on the
+   figure and takes the word as its caption. */
+.tline--block[data-face="ordinal"] .tline-block-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  letter-spacing: var(--ls-tight);
+  text-transform: none;
+  color: var(--text-hi);
+}
+
+.tline--block[data-face="ordinal"] .turn-word {
+  font-family: var(--font-sans);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tline--block[data-face="ordinal"] .turn-ord {
+  font-size: var(--fs-3xl);
+  line-height: 0.9;
+}
+
+/* THE CLOCK is the one part of a turn post that is machine output, so it wears
+   the machine's face and sits under a hairline at the foot — a stamp on a
+   docket rather than a sentence in the notice. Its <t:…> tags render as a live
+   local time in each reader's own zone (web/app/components/remarkDiscord.js),
+   which is the one thing this block does that the Discord post it copies
+   cannot. `p` inside it, because ChatMarkdown wraps its own paragraph. */
+.tline--block[data-kind="turn"] .turn-clock {
+  margin: var(--sp-3) 0 0;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+
+.tline--block[data-kind="turn"] .turn-clock,
+.tline--block[data-kind="turn"] .turn-clock p {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* The turn's own words, when a GM wrote any, read like a decree's: this is the
+   world addressing the whole roster, not a machine reporting. */
+.tline--block[data-kind="turn"] .tline-block-body > :not(.turn-clock) {
+  font-family: var(--font-serif);
+  line-height: 1.35;
+}
+
+/* THE END OF THE GAME wears the blackletter, and this is the one other place in
+   the feed that does: an ending is the world speaking in its own voice, which
+   is exactly what the decree's face is for. It is a title rather than a shout,
+   so it sits below the decree's 26px. */
+.tline--block[data-kind="gameend"] .tline-block-head {
+  font-size: 22px;
+}
+
+.tline--block[data-kind="gameend"] .tline-block-body {
+  font-family: var(--font-serif);
+  line-height: 1.35;
+}
+
+/* The closing note: what the Discord post says with a `»`, in a face that has
+   no chevrons. A pull-quote, so the GM's own words are not read as part of the
+   roster underneath them. */
+.tline--block[data-kind="gameend"] .end-note {
+  margin: 0 0 var(--sp-3);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--border);
+  font-style: italic;
+  color: var(--text-hi);
+}
+
+/* Thirty names in one column is a scroll; in two it is a memorial. The turn's
+   own body is never a list, so this is scoped to the ending. */
+.tline--block[data-kind="gameend"] .tline-block-body ul {
+  margin: var(--sp-1) 0 var(--sp-3);
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 600px) {
+  .tline--block[data-kind="gameend"] .tline-block-body ul {
+    /* `columns`, not a grid: a grid fills ACROSS, so a roster reads left, right,
+       left, right and an odd count leaves a hole in the middle. A column reads
+       down one side and then down the other, which is how a list of names is
+       read, and it balances an odd count on its own. */
+    columns: 2;
+    column-gap: var(--sp-4);
+  }
+
+  .tline--block[data-kind="gameend"] .tline-block-body li {
+    break-inside: avoid;
+  }
+}
+
+.tline--block[data-kind="gameend"] .tline-block-body strong {
+  font-family: var(--font-sans);
+  font-size: var(--fs-3xs);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 /* A shout heard at distance 0 — your OWN place (db/lib/shout.js). Louder than

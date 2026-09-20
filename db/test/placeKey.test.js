@@ -10,6 +10,7 @@ const {
   placeKeyForNet,
   placeKeyForZone,
   parsePlaceKey,
+  GAME_PLACE_KEY,
   isScenePlaceKey,
   isOocPlaceKey,
 } = require("../lib/placeKey");
@@ -32,6 +33,7 @@ test("every registered special channel has a parseable key", () => {
 
 test("the four older kinds still parse, and a bogus kind still does not", () => {
   assert.deepEqual(parsePlaceKey("zone:abc123"), { kind: "zone", id: "abc123" });
+  assert.deepEqual(parsePlaceKey(GAME_PLACE_KEY), { kind: "game", id: "main" });
   assert.equal(parsePlaceKey("nets:abc"), null);
   assert.equal(parsePlaceKey("net:"), null);
   assert.equal(parsePlaceKey("net"), null);

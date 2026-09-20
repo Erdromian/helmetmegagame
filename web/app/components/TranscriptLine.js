@@ -46,10 +46,14 @@
  *   with two heading faces, which is the whole point of the variant.
  * @param {import("react").ReactNode} [p.heading=null]
  *   variant="block" only: the line over the notice. "Intercom · Keep".
- * @param {"caps"|"blackletter"} [p.headingFace="caps"]
+ * @param {"caps"|"blackletter"|"ordinal"} [p.headingFace="caps"]
  *   variant="block" only. "caps" is the PA — a small-caps micro-label, because a
  *   loudspeaker is a machine. "blackletter" is the world speaking in its own
- *   voice, which is the one thing --font-display is for (REDESIGN.md §1).
+ *   voice, which is the one thing --font-display is for (REDESIGN.md §1) — a
+ *   decree and the end of a game. "ordinal" is the Game channel's turn post: a
+ *   large serif numeral, a second notice face that is plainly not a proclamation.
+ *   The value lands on data-face and the CSS does the rest; it is not branched on
+ *   here.
  * @param {import("react").ReactNode} [p.byline=null]
  *   variant="block" only: a second, quieter line under the heading.
  * @param {string|null} [p.channelKind=null]

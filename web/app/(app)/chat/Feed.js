@@ -9,12 +9,9 @@ import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import Modal from "@/app/components/Modal";
 import Select from "@/app/components/Select";
+import BlockRow, { BLOCK_KINDS } from "./blockRows";
 import useComposerAutosize from "./useComposerAutosize";
 import { formatTurnLabel } from "@/lib/turnFormat";
-// Safe from a client file: db/lib/decreeText.js has zero requires, the same rule
-// db/lib/dmKinds.js keeps — see EDIT_WINDOW_MS below for what one require of
-// @lifeweb/db would drag into the browser bundle.
-import { DECREE_LABEL, splitDecree } from "@lifeweb/db/lib/decreeText";
 import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
@@ -125,44 +122,11 @@ function timeLabel(iso) {
 // (`"shout-near"`, still fully audible on Discord too) draws at ordinary
 // size, and anything past that keeps no tag and falls through to the default
 // subtext — matching its muffled `-#` treatment on Discord.
-// Discord's copy of an intercom line opens with the words the PA is wearing as a
-// heading here, so the body would say it twice. Cut on the web only — the row
-// itself is untouched, and Discord still reads what it always read (REDESIGN.md
-// §9, "a web-only feature is presentation").
-const INTERCOM_PREFIX = /^you hear a voice from the intercom:\s*/i;
-
-// The two rows that are a NOTICE rather than a line: the PA and a decree. One
-// component, two heading faces (TranscriptLine's variant="block").
-const BLOCK_KINDS = new Set(["intercom", "decree"]);
-
 const SystemRow = memo(function SystemRow({ row, zone = null }) {
-  // The intercom and the decree draw as a bordered block across the log
-  // (REDESIGN.md §6): a heading, the words at reading size, a rule top and
-  // bottom. Everything else is one line, and its channelKind goes straight onto
-  // data-kind for the CSS to key off — the five-way branch that used to live here.
-  if (BLOCK_KINDS.has(row.channelKind)) {
-    const decree = row.channelKind === "decree";
-    // A decree carries its own title, written by the GM: the row is the title,
-    // a blank line, then the words (db/lib/decreeText.js, which has zero
-    // requires precisely so a client file may read it). The title is the
-    // blackletter heading and the byline says what kind of thing this is and
-    // where it was read — the intercom's heading says both in one line because
-    // a PA has no title of its own.
-    const parts = decree ? splitDecree(row.content) : null;
-    const body = decree ? parts.body : String(row.content ?? "").replace(INTERCOM_PREFIX, "");
-    return (
-      <TranscriptLine
-        variant="block"
-        channelKind={row.channelKind}
-        headingFace={decree ? "blackletter" : "caps"}
-        heading={decree ? (parts.title || zone || "Ravenheart") : zone ? `Intercom · ${zone}` : "Intercom"}
-        byline={decree ? (zone ? `${DECREE_LABEL} · ${zone}` : DECREE_LABEL) : null}
-        seq={row.seq}
-      >
-        <ChatMarkdown content={body} />
-      </TranscriptLine>
-    );
-  }
+  // The intercom, a decree, a turn and a game ending draw as a bordered block
+  // across the log rather than as a line in it (REDESIGN.md §6). One renderer,
+  // shared with the rebuilt feed next door: ./blockRows.js.
+  if (BLOCK_KINDS.has(row.channelKind)) return <BlockRow row={row} zone={zone} />;
   return (
     <TranscriptLine variant="system" channelKind={row.channelKind} seq={row.seq}>
       <ChatMarkdown content={row.content} />
@@ -2048,7 +2012,13 @@ export default function Feed({
       )}
       </div>
 
-      {!readOnly && gm && place && !place.canSpeak ? (
+      {/* The Game channel gets NO composer at all, for anybody — not a disabled
+          one, which would only say that somebody somewhere can type in it. It
+          is the game's own voice, written only by db/lib/gameChannel.js, and
+          even a GM line in it would be a post with no #turns counterpart, which
+          is the one thing a mirror of that channel cannot have. A GM with
+          something to say says it in the turn's note. */}
+      {!readOnly && gm && place && !place.canSpeak && place.kind !== "game" ? (
         <GmSystemComposer
           key={placeKey}
           placeKey={placeKey}
@@ -2061,7 +2031,7 @@ export default function Feed({
         />
       ) : null}
 
-      {!readOnly && place && !(gm && !place.canSpeak) && (
+      {!readOnly && place && place.kind !== "game" && !(gm && !place.canSpeak) && (
         <div className="chat-composer">
           {place.canSpeak ? (
             <>

@@ -14,6 +14,7 @@ const { clearMessagesExcept } = require("./discordRest");
 const { isTurnsChannel } = require("./turnsChannelAccess");
 const { TURN_BANNER_DIR, turnBannerPath } = require("./turnBanner");
 const { pushToUser, vapidPublicKey } = require("./webPush");
+const { GAME_PLACE_KEY } = require("./placeKey");
 
 // #turns is ONE rolling message: announcement, banner and console on a
 // single post, deleted and reposted each turn. Discord renders content, then
@@ -75,7 +76,9 @@ async function pushTurnOpen(prisma, text) {
     await pushToUser(prisma, player.discordUserId, {
       title: "The turn has opened",
       body: firstLine,
-      url: "/chat#gm",
+      // The Game channel, where the announcement they were just woken for is written down
+      // (db/lib/gameChannel.js). It used to open Bascinet, which had nothing to do with the turn.
+      url: `/chat#${GAME_PLACE_KEY}`,
     }).catch(() => {});
     await new Promise((resolve) => setTimeout(resolve, TURN_PUSH_GAP_MS));
   }

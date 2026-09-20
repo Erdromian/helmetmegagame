@@ -36,6 +36,11 @@ function placeKeyForParty(partyThreadId) {
 // constant rather than a function of anything — exported so nobody hand-writes the string.
 const DEADCHAT_PLACE_KEY = "dead:main";
 
+// The Game channel: what #turns says, read on the web (CHAT.md). One instance, no row, so the id
+// half is the constant "main" the same way Deadchat's is. Nobody writes into it — db/lib/feedAccess.js
+// builds the row with canSpeak false — so there is no minting function, only this.
+const GAME_PLACE_KEY = "game:main";
+
 // Memoised for a minute (like archive.js#currentGameId): hot path, layout rarely changes.
 const CHANNEL_TTL_MS = 60 * 1000;
 const channelMemo = new Map(); // channelId -> { key, at }
@@ -131,6 +136,13 @@ async function archiveContextForPlaceKey(prisma, placeKey) {
     return { zoneId: null, zoneName: null, channelKind: "deadchat", threadName: null };
   }
 
+  // The Game channel belongs to no zone either, and — unlike every other place — its rows stamp
+  // their OWN channelKind at write time ("turn", "session", "gameend", db/lib/gameChannel.js),
+  // which is what the feed branches on. So this arm returns a null kind rather than one of its own:
+  // anything else here would overwrite the word the writer chose. It also has to sit above the
+  // zone fall-through, or "main" is looked up as a zone id on every call.
+  if (parsed.kind === "game") return empty;
+
   if (parsed.kind === "loc") {
     const location = await prisma.location.findUnique({
       where: { id: parsed.id },
@@ -198,7 +210,7 @@ function parsePlaceKey(placeKey) {
   const kind = placeKey.slice(0, at);
   const id = placeKey.slice(at + 1);
   if (!id) return null;
-  if (!["loc", "room", "conv", "zone", "net", "dead", "party"].includes(kind)) return null;
+  if (!["loc", "room", "conv", "zone", "net", "dead", "party", "game"].includes(kind)) return null;
   return { kind, id };
 }
 
@@ -333,6 +345,10 @@ async function discordTargetForPlaceKey(prisma, placeKey) {
     return channelId ? { channelId, threadId: null } : null;
   }
 
+  // The Game channel deliberately has no target. It is a READ OF #turns, never a second writer
+  // into it: db/lib/turnAnnouncement.js owns that channel and sweeps it. A target here would
+  // make the outbox post a duplicate of the announcement under the bot's webhook.
+
   return null;
 }
 
@@ -340,6 +356,7 @@ module.exports = {
   placeKeyForNet,
   placeKeyForParty,
   DEADCHAT_PLACE_KEY,
+  GAME_PLACE_KEY,
   placeKeyForChannel,
   discordTargetForPlaceKey,
   archiveContextForPlaceKey,

@@ -48,14 +48,14 @@ function gameDate(day) {
   return `${MONTHS[d.getUTCMonth()]} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()}`;
 }
 
-// Shared by the bot's cron-triggered turn advance and the GM dashboard's
-// manual "End turn" action so the announcement text (and the ping logic behind
-// it) only exists in one place instead of being duplicated
-// per transport (Discord.js channel.send vs. REST postMessage).
-function buildTurnAnnouncement(turn, note, { clockFrozen = false, frozenReason = null } = {}) {
+// The FACTS of a turn — the day, the in-world date and the one clock sentence —
+// with no dressing on them. Both faces read this and then dress it their own
+// way: #turns adds the `-#` subtext header, the ping role and the console footer
+// (buildTurnAnnouncement, below), and the web's Game channel lays the same three
+// out as a block (db/lib/gameChannel.js). Computing the times twice is how the
+// two would come to disagree about when Moves close.
+function turnFacts(turn, { clockFrozen = false, frozenReason = null } = {}) {
   const day = turn.dayNumber ?? Math.ceil(turn.number / 2);
-  const pingRoleId = process.env.DISCORD_TURN_PING_ROLE_ID;
-  const ping = pingRoleId ? `<@&${pingRoleId}>` : "";
   const { endsAt, cutoffAt, hasLock } = moveWindow(turn, { clockFrozen });
   const endEpoch = epochSeconds(endsAt);
   const cutoffEpoch = epochSeconds(cutoffAt);
@@ -71,14 +71,25 @@ function buildTurnAnnouncement(turn, note, { clockFrozen = false, frozenReason =
       : hasLock
         ? `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R> | Moves must be sent by <t:${cutoffEpoch}:t>, or <t:${cutoffEpoch}:R>.`
         : `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R>.`;
+  return { day, date: gameDate(day), clock };
+}
+
+// Shared by the bot's cron-triggered turn advance and the GM dashboard's
+// manual "End turn" action so the announcement text (and the ping logic behind
+// it) only exists in one place instead of being duplicated
+// per transport (Discord.js channel.send vs. REST postMessage).
+function buildTurnAnnouncement(turn, note, options = {}) {
+  const { day, date, clock } = turnFacts(turn, options);
+  const pingRoleId = process.env.DISCORD_TURN_PING_ROLE_ID;
+  const ping = pingRoleId ? `<@&${pingRoleId}>` : "";
   // The bookkeeping rides in `-#` subtext so it does not compete with the line
   // players actually read. There used to be a one-word scene line above the
   // clock — "Dawn." or "Dusk." — and with the phases gone it has nothing left
   // to say, so the ping it carried moves onto the clock line rather than
   // sitting alone on a line of its own.
-  const header = `-# Day ${day}, Turn ${turn.number} | ${gameDate(day)}`;
+  const header = `-# Day ${day}, Turn ${turn.number} | ${date}`;
   const body = `${header}\n\n${ping ? `${ping}\n` : ""}${clock}`;
   return note ? `${body}\n\n${note}` : body;
 }
 
-module.exports = { gameDate, GAME_YEAR, buildTurnAnnouncement };
+module.exports = { gameDate, GAME_YEAR, turnFacts, buildTurnAnnouncement };

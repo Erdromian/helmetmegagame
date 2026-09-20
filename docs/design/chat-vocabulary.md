@@ -100,7 +100,10 @@ heading and every badge carries it. Nothing else does.
 The test: *does this head a box, or a list inside a box?* Box → girder. List →
 quiet.
 
-**Every BLOCK's head is a GIRDER.** There is currently one that is not; see §8.
+**Every BLOCK's head is a GIRDER**, with one standing exception: the notice
+block in the feed (`.tline-block-head`), whose head is a **title** rather than a
+section head, and wears one of four faces depending on what kind of notice it
+is. See §8.
 
 ## 5. Rows, and their four states
 
@@ -156,7 +159,7 @@ line by line. These are drift, not decisions — each one is a rule broken.
 |---|---|---|
 | `.chat-person` | `all: unset`, no fill and no border at rest; only gains one on hover | A CHIP's border and fill are permanent, not hover-only. Either it is a CHIP or it is a ROW — pick one (it is a ROW) |
 | `.chat-details-fold` | `--fs-2xs` (11px) | QUIET headings are rung 10. `.sect` does it correctly at `--fs-3xs`; these two do the same job at two sizes |
-| `.tline-block-head` | `--fs-2xs`, no strip | It heads a BLOCK, so it is a GIRDER. The only BLOCK in chat whose head is not |
+| `.tline-block-head` | `--fs-2xs`, no strip — and four faces now (`data-face`: the PA's caps, the decree's and the game ending's blackletter, the turn's serif numeral) | It heads a BLOCK, so it is a GIRDER. The only BLOCK in chat whose head is not — and by now that is a decision rather than drift: a notice in the middle of the log is a **title**, not a section head, and the face is what says which kind of notice it is. What stays a rule: nothing else may use these faces, so every one is scoped by `data-face`/`data-kind` |
 | `.chat-places-tail` | `background: var(--bg)` | It is pinned inside a COLUMN, so it takes the column's value, not flat ground |
 | `.chat-search` | `--surface-raised` | Pinned over the feed → takes the feed's ground. Currently *lighter* than what it covers |
 | `.chat-notices` | `--surface` | Same bar, same job, third different value |

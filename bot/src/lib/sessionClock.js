@@ -52,7 +52,7 @@ async function tickSessionClock(now = new Date()) {
     .catch((err) => console.error("Failed to log the session change:", err));
 
   // Discord last, and never inside the write: the row is the truth, the line is a courtesy.
-  await speakIntoTurns(prisma, result.line).catch((err) => console.error("Failed to announce the session change:", err));
+  await speakIntoTurns(prisma, result).catch((err) => console.error("Failed to announce the session change:", err));
   return due;
 }
 

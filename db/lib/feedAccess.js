@@ -14,6 +14,7 @@ const {
   placeKeyForParty,
   parsePlaceKey,
   DEADCHAT_PLACE_KEY,
+  GAME_PLACE_KEY,
 } = require("./placeKey");
 const {
   SPECIAL_CHANNELS,
@@ -117,6 +118,20 @@ function deadchatPlace({ canSpeak }) {
   });
 }
 
+// THE GAME CHANNEL: what #turns says, read on the web (db/lib/gameChannel.js). Every seat gets it
+// and no seat speaks in it, so unlike Deadchat there is no canSpeak parameter to pass — the turn
+// opening, a sitting starting, the game ending. It belongs to no zone, so it draws above the zone
+// dividers with Bascinet, and it is never first in anybody's list: `places[0]` is the place Chat
+// opens on, and a ghost must still land in Deadchat and a GM on their zones.
+function gamePlace() {
+  return place({
+    placeKey: GAME_PLACE_KEY,
+    kind: "game",
+    name: "Game",
+    canSpeak: false,
+  });
+}
+
 // The radio nets this character is on. A net travels with the radio, not a
 // Location or zone, and uses the SAME rule that writes the Discord overwrites
 // (db/lib/specialChannels.js) — a receive-only bracelet is canSpeak false here
@@ -189,11 +204,16 @@ async function partyPlacesFor(prisma, characterId) {
 async function placesFor(prisma, character, { gm = false, ghost = false, discordUserId = null } = {}) {
   if (gm) return gmPlacesFor(prisma, discordUserId, { ghost });
   if (ghost) return ghostPlacesFor(prisma, discordUserId);
-  if (!character?.id) return [];
+  // Signed in, in the guild, and between characters — waiting on a seat, or
+  // re-rolling. They have no scene to read, but the turn is not a secret: it is
+  // what #turns tells the whole guild. So the Game channel is the one row they
+  // get, rather than an empty column (web/app/(app)/chat/page.js draws it).
+  if (!character?.id) return [gamePlace()];
   // A radio works even with no Location, so the column isn't empty.
   const nets = await netPlacesFor(prisma, character.id);
   const parties = await partyPlacesFor(prisma, character.id);
-  if (!character.locationId) return [...parties, ...nets];
+  // The Game channel is not a place on the map, so it is there even for somebody who is nowhere yet.
+  if (!character.locationId) return [...parties, ...nets, gamePlace()];
 
   const location = await prisma.location.findUnique({
     where: { id: character.locationId },
@@ -307,6 +327,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
 
   list.push(...parties);
   list.push(...nets);
+  list.push(gamePlace());
 
   return list;
 }
@@ -425,7 +446,7 @@ async function gmPlacesFor(prisma, discordUserId, { ghost = false } = {}) {
   //
   // Unless the GM is dead themselves: then Deadchat is their seat as much as anybody's, and they
   // speak there as their last character, the way the say route already resolves a ghost.
-  return [...places, deadchatPlace({ canSpeak: ghost })];
+  return [...places, deadchatPlace({ canSpeak: ghost }), gamePlace()];
 }
 
 // The ghost seat, on the web — and since the Ghost role went, the ONLY place it exists. A dead
@@ -451,7 +472,7 @@ async function ghostPlacesFor(prisma, discordUserId) {
     channellessSummaries: false,
     nets: SPECIAL_CHANNELS.filter((entry) => entry.ghostsMaySee),
   });
-  return [deadchatPlace({ canSpeak: true }), ...places];
+  return [deadchatPlace({ canSpeak: true }), ...places, gamePlace()];
 }
 
 // The read-only list both watchers above draw from: every place inside
