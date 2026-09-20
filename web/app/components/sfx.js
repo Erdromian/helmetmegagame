@@ -111,30 +111,99 @@ const LOOPS = {
   "rite-loop": { maxMs: 8 * 60 * 1000 },
 };
 
-// Two of these are LOUD on purpose and the rest are furniture. A quiet cue at the same
-// gain as an alarm either buries the cue or makes the alarm a joke, so each carries its
-// own level, multiplied by the listener's volume.
+// Levels are MEASURED, not guessed. The files come from one library but not one mastering
+// session: across the set they span 27dB, so a gain picked by ear on a hot file makes a
+// bag of turnips louder than the cathedral bell. Every cue below is scaled so that it
+// lands on the target for the kind of thing it is:
+//
+//   -29  your own boots, heard every time you walk.
+//   -26  furniture. You put something on, you moved something, a line went out.
+//   -23  a thing you did. A day's work, a hand on somebody, a meal.
+//   -20  the world, heard by the room. A gate, a gun, a body coming apart.
+//   -16  made to be heard. The alarm, the bell, the horn.
+//   -32  the drone.
+//
+// The number is the file's K-weighted level (BS.1770 pre-filter, peak 50ms window) and the
+// gain is 10^((target - measured)/20) — for a cue with several files, off their average, so
+// one loud step in eight does not drag the other seven down. So a NEW CUE IS MEASURED AND
+// GETS ITS OWN ENTRY: it does not ride the fallback below, which exists only so a forgotten
+// one still plays. `named` sits with the world rather than the alarms on purpose — it is a
+// notification, not a siren.
 const GAIN = {
-  alarm: 1,
-  bell: 1,
-  horn: 1,
-  // Bascinet's two calls, by ear: the wet one louder than everything, the machinegun
-  // quieter than it wants to be.
-  gib: 0.875,
-  gunfire: 0.56,
-  boom: 0.9,
-  "rite-loop": 0.45,
-  turret: 0.9,
-  named: 0.8,
-  refuse: 0.5,
-  "refuse-money": 0.6,
-  "equip-lock": 0.6,
-  "equip-cloth": 0.6,
-  // Bascinet's ear again: the torch pickup was 30 % too loud for something you do all day.
-  loot: 0.49,
-  "step-carpet": 0.5,
-  "step-wood": 0.5,
-  "step-earth": 0.5,
+  // Your own boots.
+  "step-carpet": 0.6,
+  "step-wood": 0.57,
+  "step-earth": 0.54,
+
+  // Furniture.
+  "equip-lock": 0.23,
+  "equip-cloth": 0.98,
+  "equip-shield": 0.13,
+  "equip-blade": 0.15,
+  "equip-mail": 0.18,
+  "equip-gun": 0.56,
+  "equip-revolver": 0.18,
+  loot: 0.13,
+  pocket: 0.32,
+  stash: 0.29,
+  page: 1,
+  photo: 0.19,
+  write: 0.15,
+  pin: 0.15,
+  coin: 0.12,
+  "success-soft": 0.18,
+  "seal-break": 0.3,
+  tear: 0.3,
+  refuse: 0.4,
+  "refuse-money": 0.12,
+  "nuke-ping": 0.31,
+  "radio-send": 0.17,
+  "radio-hear": 0.23,
+
+  // A thing you did.
+  success: 0.16,
+  mine: 0.22,
+  farm: 0.42,
+  smith: 0.18,
+  craft: 0.51,
+  dig: 0.46,
+  heal: 0.42,
+  bind: 0.18,
+  unbind: 0.27,
+  harm: 0.11,
+  butcher: 0.16,
+  eat: 0.56,
+  drink: 1,
+  crate: 0.25,
+  "nuke-arm": 0.27,
+
+  // The world, heard by the room. `crate` and `gate-open` are the same file at two levels,
+  // and so are `write`/`pin` against `seal-break`/`tear` — a box in your hands is not a
+  // gate across the zone. The pool is per file but the volume is set per play, so this is
+  // an ordinary thing to want.
+  "gate-open": 0.35,
+  "gate-shut": 0.43,
+  spawn: 0.34,
+  convert: 0.34,
+  initiate: 0.29,
+  teleport: 0.38,
+  lifeweb: 0.14,
+  rise: 0.34,
+  quake: 0.32,
+  landing: 0.21,
+  gib: 0.52,
+  boom: 0.28,
+  gunfire: 0.14,
+  turret: 0.36,
+  named: 0.27,
+
+  // Made to be heard.
+  alarm: 0.48,
+  bell: 0.77,
+  horn: 0.37,
+
+  // The drone.
+  "rite-loop": 0.16,
 };
 
 // A held key or a double-click must not machine-gun. Per NAME, not global: mining while a

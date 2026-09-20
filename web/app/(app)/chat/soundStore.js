@@ -15,8 +15,12 @@ import { useSyncExternalStore } from "react";
 // rest. The snapshot is a STRING, not an object, because useSyncExternalStore compares by
 // identity and a fresh object every read is an infinite render loop.
 
+// The slider only ever ATTENUATES. Every cue carries its own measured gain
+// (web/app/components/sfx.js), so the levelling is done before this number is reached and
+// full is the level the game was tuned at — a lower default would just mean the quietest
+// files could never reach their tier.
 const KEY = "bascinet:sound";
-const DEFAULT = { on: true, volume: 0.7 };
+const DEFAULT = { on: true, volume: 1 };
 
 const listeners = new Set();
 let cached = null;

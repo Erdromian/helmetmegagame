@@ -2199,6 +2199,37 @@ Four rules keep it from being a nuisance, all in `web/app/components/sfx.js`:
 - **A floor of 120ms per cue and four sounds per half-second**, so a held key or a
   burst of scene rows cannot machine-gun.
 
+**Every cue's level is measured, not chosen by ear.** The files came out of one
+library but not one mastering session, and across the set they span 27dB — which
+is how a bag of turnips changing hands ended up louder than the cathedral bell.
+So `GAIN` in `web/app/components/sfx.js` carries an entry for every cue, scaled
+to a target for the kind of thing the sound is:
+
+| Target | What sits there |
+|---|---|
+| −29 | Your own boots, heard every time you walk. |
+| −26 | Furniture. Putting something on, moving something, a line going out. |
+| −23 | A thing you did. A day's work, a hand on somebody, a meal. |
+| −20 | The world, heard by the room. A gate, a gun, a body coming apart. |
+| −16 | Made to be heard: the alarm, the bell, the horn. |
+| −32 | The drone. |
+
+The measurement is the file's K-weighted level — the BS.1770 pre-filter, then the
+loudest 50ms window — and the gain is `10^((target − measured)/20)`, taken off
+the average for a cue with several files so that one loud step in eight does not
+drag the other seven down with it. A 50ms
+window rather than the standard 400ms one because most of these are shorter than
+that, and a gate is heard as a knock rather than as an average.
+
+So **adding a cue means measuring its file and writing its own entry**, never
+guessing a number: the `?? 0.7` fallback is there so a forgotten cue still plays,
+not as a level. `named` sits with the world rather than the alarms on purpose —
+it is a notification, not a siren.
+
+The listener's slider multiplies all of this and **only ever attenuates**: it
+defaults to full, because the levelling is already done by the time the number is
+reached and a lower default would just put the quietest files out of reach.
+
 The switch is per browser (`chat/soundStore.js`, localStorage through
 `useSyncExternalStore` like `seenStore.js` beside it), **on by default**, and
 mounted twice: `ChatHead`'s right edge and `.chat-places-foot` beside the bell and
