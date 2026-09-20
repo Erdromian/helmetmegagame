@@ -57,7 +57,7 @@ Helmet 10, Wooden Leg and Iron Hook 7, Workshop Equipment 17. Recipes that work 
 Katana, Brigandine, Plate Armor, Silver Spear, the Bomb) were fitted the same way.
 
 **Four small pieces of metalwork run under the Simple rung's Turns column.**
-The Spear, Dagger, Silver Knife and Phrygian Spear are `turnsCost: 0.25` —
+The Spear, Dagger and Phrygian Spear are `turnsCost: 0.25` —
 a spearhead or a knife is not a day at the anvil — so four of them fit in
 one Routine ([`CRAFTING.md`](CRAFTING.md) §2a). Everything else about the
 rung (the pt, the skill gate, the forge) is unchanged, and they take 3 ⬢ and sell
@@ -66,7 +66,8 @@ breaks even at the counter, against the Simple rung's own 2 ¢ a Move, and §4's
 rule is that quick work is never paid better than the rung above it. They were
 thirds selling at 9 until costs became decimals in 9/2026 — the price came
 down with the extra unit. The Silver Knife is the odd one out and always was:
-1 ⬢ and a silver ingot in, 22 out. The Gladius, Mace and Battle Axe stay a
+1 ⬢ and a silver ingot in, 23 out, and it takes half a Move, two to a Routine, so a
+round trip through the Merchant clears about 2 ¢ a Move like the rest of the rung. The Gladius, Mace and Battle Axe stay a
 full turn — a sword blade or a flanged head is real forging.
 
 **The two gate columns mean different things and are enforced on different
@@ -208,7 +209,7 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Shortbow | Dead Simple | `crafting` |
 | Spear | Simple | 0.25 turns — four to a Routine (§2) |
 | Dagger | Simple | 0.25 turns — four to a Routine (§2) |
-| Silver Knife | Simple | 0.25 turns — four to a Routine (§2). Spends one `silver` — its 6 ⬢ total is unchanged, the resourceCost is just 1 ⬢ of it now (2026-09-09). |
+| Silver Knife | Simple | 0.5 turns — two to a Routine (§2). Spends one `silver` — its 6 ⬢ total is unchanged, the resourceCost is just 1 ⬢ of it now (2026-09-09). |
 | Gladius | Simple | |
 | Phrygian Spear | Simple | 0.25 turns — four to a Routine (§2) |
 | Javelin | Simple | `ranged-basic` — it is thrown, not held. |
@@ -256,9 +257,9 @@ off.
 **The three smelts** replaced `{tag:steel}` on 2026-09-18, when `coal` and
 `steel` both left the game with the Prospecting rework (`MINING.md`). `iron`
 took steel's slot at steel's prices (8 back, 13 off the shelf), so a smith with
-no prospector to hand can still buy one off the Merchant. Both came down with
-the wage table, since an ingot is a 1 ¢ ore and a quarter Move: it sells back
-for 2 and the shelf charges 3 (`DEPOT.md` §4). `copper` and `nickel` are the same recipe over a different ore and
+no prospector to hand can still buy one off the Merchant. It sells
+back for 2 now, since an ingot is a 1 ¢ ore and a quarter Move (`DEPOT.md` §4); the
+shelf still charges 13, which keeps buying one to crack it for ⬢ from paying. `copper` and `nickel` are the same recipe over a different ore and
 feed Trinkets rather than gear.
 
 They cost **0 ⬢**, not steel's 4: the ore IS the cost now, and an ore is

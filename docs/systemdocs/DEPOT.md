@@ -868,7 +868,7 @@ buying one mid-game is still a real decision.
 | `whip` | 10 | 7 | Equippable |
 | `machete` | 11 | — | Black Market. Equippable, 0.3 tiers as a `sword` |
 | `iron` | 13 | 8 | Craftable (`smithing`, spends `hematite` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. It took `steel`'s numbers and its slot when steel and coal left the game on 2026-09-18. |
-| `silver` | 14 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
+| `silver` | 19 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
 | `jewelry` | 14 | 8 | Also a 2-pt creation pick |
 | `mining-helmet` | 15 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
 | `bomb-collar` | 15 | — | Black Market. The loose collar; Apply Collar spends one to write `bomb-collar-locked` (`COLLAR.md`) |
@@ -1059,10 +1059,12 @@ already carries the work; that is what stops the premium compounding up a chain 
 
 These deviate from the wage table on purpose, by up to 0.9 times the raw input, and the ⬢ cost
 of each was still fitted so the price stays near where it was wherever the input leaves room.
-The ones that moved most: Iron 8 → 2 and its shelf price 13 → 3, Copper 6 → 2, Nickel 5 → 2, Black
+The ones that moved most: Iron 8 → 2 (the shelf stays at 13), Copper 6 → 2, Nickel 5 → 2, Black
 Powder 6 → 15, Pure Luck 65 → 109 (its heart is 55), Deadeye Drops and Mindbreaker Toxin 5 → 13,
-Bliss 3 → 7, Silver Knife 13 → 22. A bar at 2 ¢ is cheap, and cheap is meant: a smith who buys Iron
-off the shelf pays 3 ¢ for what is a 1 ¢ ore and a quarter Move.
+Bliss 3 → 7, Silver Knife 13 → 23 (half a Move, two to a Routine). A bar at 2 ¢ is cheap, and cheap is meant. One catch: an ingot can also be consumed
+for Resources (Iron 5, Copper 4, Nickel 3), which at the 1 ¢ sell-back is worth more than the
+Merchant now pays for it, so nobody will sell a bar to the counter. The shelf price stays at 13
+so that buying Iron and cracking it never pays; drop it below 5 and it would print coin.
 
 **Alcohol is made of crops, not Resources.** Two crops of wheat or potato (the picker takes
 either) and a quarter Move, no ⬢, so it costs a brewer about 2 ¢ against the 4 ¢ shelf price

@@ -6858,7 +6858,7 @@ tags:
     # opens it.
     consumable: true
     consumesIntoResources: 5
-    depotPrice: 3
+    depotPrice: 13
     sellable: true
     sellablePrice: 2
     inlayValue: 12
@@ -6936,7 +6936,7 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesIntoResources: 6
-    depotPrice: 14
+    depotPrice: 19
     sellable: true
     sellablePrice: 10
     inlayValue: 13
@@ -9449,17 +9449,17 @@ tags:
   # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
   # wood-and-sinew is still wood-and-sinew even at High Quality.
   #
-  # Four small pieces of metalwork — spear, dagger, silver-knife,
-  # phrygian-spear — run under the Simple rung's turn: turnsCost 0.25, four
-  # to a Routine, a spearhead or a knife not being a day at the anvil (Chris
+  # Three small pieces of metalwork — spear, dagger, phrygian-spear — run
+  # under the Simple rung's turn: turnsCost 0.25, four to a Routine (the
+  # silver-knife takes 0.5, two to a Routine, since 2026-09-20), a spearhead or a knife not being a day at the anvil (Chris
   # 2026-09-07). The markup formula still rounds to 0 at a quarter turn
   # (2 × 0.25^1.3 = 0.33), so they keep Dead Simple's flat +1 rather than the
   # tier's — see DEPOT.md §4. They sell at 8: four a Routine pays 8 ⬢ a turn,
   # under the Simple rung's own 10, and §4's rule is that quick work is never
   # paid better than the rung above it. (Thirds selling at 9 until costs became
   # decimals in 9/2026 — the price came down with the extra unit.) Everything
-  # else (6 ⬢, pt, skill, forge) is the tier's. The silver-knife is the odd one
-  # out and always was: 1 ⬢ in, 9 out.
+  # else (pt, skill, forge) is the tier's. The silver-knife is the odd one out
+  # and always was: 1 ⬢ and an ingot in, 23 out.
   #
   # ─── Dead Simple ───────────────────────────────────────────────────────────
 
@@ -9812,7 +9812,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 0.25
+      turnsCost: 0.5
       resourceCost: 1
       skills: [smithing]
       gambit: false
@@ -9820,7 +9820,7 @@ tags:
       # flat 6 ⬢ materials cost, unchanged in total.
       items: [silver]
     sellable: true
-    sellablePrice: 22
+    sellablePrice: 23
 
   gladius:
     catalog: all
