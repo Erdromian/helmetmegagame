@@ -185,7 +185,7 @@ function clauseAppliesToSlot(clause, { slotIndex, desireSlots }) {
   return false;
 }
 
-// { all: true } beats { families } beats { tiers, exceptFamilies }.
+// { all: true } beats { families } beats { named } beats { tiers, exceptFamilies }.
 function lockedReasonForTemplate(template, pairs, scope = { slotIndex: null, desireSlots: 2 }) {
   const templateFamilies = template.families || [];
   const inScope = pairs.filter(({ clause }) => clauseAppliesToSlot(clause, scope));
@@ -199,6 +199,12 @@ function lockedReasonForTemplate(template, pairs, scope = { slotIndex: null, des
   for (const { clause, sourceName } of inScope) {
     if (!Array.isArray(clause.families)) continue;
     if (clause.families.some((f) => templateFamilies.includes(f))) return `Locked by ${sourceName}`;
+  }
+  // An exact list, so nothing to except from and no shape to compare — either
+  // this Desire is named or it is not.
+  for (const { clause, sourceName } of inScope) {
+    if (!Array.isArray(clause.named)) continue;
+    if (clause.named.includes(template.slug)) return `Locked by ${sourceName}`;
   }
   for (const { clause, sourceName } of inScope) {
     if (!Array.isArray(clause.tiers)) continue;
@@ -241,8 +247,11 @@ function describeDesireLocks(heldTags, familyNames) {
     } else if (Array.isArray(clause.families)) {
       notes.push(`${sourceName} shuts ${list(clause.families)}.`);
     }
-    // A whole-catalog TIER lock says nothing here on purpose — Nobility's own
-    // catalog row already reads "Locked by Nobility". The bottom-slot tier clause above still speaks since an Addiction has no row of its own.
+    // A whole-catalog TIER lock, and a `named` list, both say nothing here on
+    // purpose — every row either one shuts already reads "Locked by <tag>", so
+    // a summary line would state the same fact twice. Nobility is the `named`
+    // case. The bottom-slot tier clause above still speaks since an Addiction
+    // has no row of its own.
   }
   return notes;
 }

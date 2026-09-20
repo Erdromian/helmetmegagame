@@ -4,9 +4,17 @@
 //
 // Input from YAML is `desires: { locks: [ ...clauses ] }` — an ARRAY with
 // union semantics, each clause exactly one of { all: true }, { families: [...] },
-// or { tiers: [...] }, plus an optional `exceptFamilies: [...]` (meaningful
-// only alongside `tiers` or `all`) and an optional `slot: bottom`, which
-// narrows the clause to the character's last Desire slot.
+// { tiers: [...] } or { named: [...] }, plus an optional `exceptFamilies: [...]`
+// (meaningful only alongside `tiers` or `all`) and an optional `slot: bottom`,
+// which narrows the clause to the character's last Desire slot.
+//
+// `named` is an exact list of Desire slugs, and it exists because the other
+// three all describe a SHAPE. Nobility is the case that needs naming instead:
+// what a noble may not stoop to is a judgment per Desire, not a tier — it used
+// to be `tiers: [1]`, which after a point rescale shut most of the catalog.
+// Nothing validates the slugs here, since tags sync before desires do and the
+// catalog may not be in the database yet; db/test/desireNamedLocks.test.js
+// checks them against docs/desires.yaml instead.
 
 const TIER_WHITELIST = new Set([1, 2, 3, 4, 5]);
 const SLOT_SCOPES = new Set(["bottom"]);
@@ -32,6 +40,7 @@ function normalizeClause(clause) {
   if (clause?.all === true) out.all = true;
   if (isNonEmptyArray(clause?.families)) out.families = [...clause.families].sort();
   if (isNonEmptyArray(clause?.tiers)) out.tiers = [...clause.tiers].sort((a, b) => a - b);
+  if (isNonEmptyArray(clause?.named)) out.named = [...clause.named].map(String).sort();
   if (isNonEmptyArray(clause?.exceptFamilies)) out.exceptFamilies = [...clause.exceptFamilies].sort();
   if (clause?.slot != null) out.slot = String(clause.slot);
   return out;
@@ -55,10 +64,10 @@ function validateDesireLocks(locks, { slug, families }) {
 
 function validateClause(clause, { slug, index, families }) {
   const label = `docs/tags.yaml: tag "${slug}" desires.locks[${index}]`;
-  const keys = ["all", "families", "tiers"].filter((k) => clause?.[k] != null && clause[k] !== false);
+  const keys = ["all", "families", "tiers", "named"].filter((k) => clause?.[k] != null && clause[k] !== false);
   if (keys.length !== 1) {
     throw new Error(
-      `${label} must have exactly one of "all", "families", or "tiers" — found ${keys.length === 0 ? "none" : keys.join(", ")}`,
+      `${label} must have exactly one of "all", "families", "tiers", or "named" — found ${keys.length === 0 ? "none" : keys.join(", ")}`,
     );
   }
 
@@ -68,6 +77,9 @@ function validateClause(clause, { slug, index, families }) {
   // would fire instead and mask the more specific one.
   if (clause.exceptFamilies != null && "families" in clause) {
     throw new Error(`${label} has both "families" and "exceptFamilies" — a families clause is already the exact list, excepting from it makes no sense`);
+  }
+  if (clause.exceptFamilies != null && "named" in clause) {
+    throw new Error(`${label} has both "named" and "exceptFamilies" — a named clause is already the exact list, excepting from it makes no sense`);
   }
   if (clause.exceptFamilies != null && !("tiers" in clause) && clause.all !== true) {
     throw new Error(`${label} has exceptFamilies but no "tiers" or "all" — exceptFamilies only modifies those`);

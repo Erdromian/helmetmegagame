@@ -151,6 +151,9 @@ const DEBTOR_SLUG = "debtor";
 const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "health-infection"]);
 
 const LUCKY_SLUG = "lucky";
+// Lucky's opposite, and deliberately narrower: it pulls the Gambit die alone
+// (db/lib/gambitDie.js), never the Caving Die or the laboring die.
+const MISFORTUNE_SLUG = "misfortune";
 const MANIC_SLUG = "manic";
 const METEMPSYCHOSIS_SLUG = "metempsychosis";
 // A pure counter (db/lib/reincarnate.js): one stack added per life spent, never removed by rolling.
@@ -314,6 +317,7 @@ module.exports = {
   DEBTOR_SLUG,
   WOUND_TAG_GROUPS,
   LUCKY_SLUG,
+  MISFORTUNE_SLUG,
   MANIC_SLUG,
   METEMPSYCHOSIS_SLUG,
   HEIGHTENED_PSYCHOSIS_SLUG,

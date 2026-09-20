@@ -279,7 +279,14 @@ export default function TagRail({
             const shared = {
               ct,
               note: noteFor(ct, card),
-              verbs: card.key === "Health" || ct.tag.slug === RESEARCH_TAG_SLUG ? verbsFor(ct) : null,
+              // `consumable` is here so a thing you can open carries its Use
+              // button whatever card it happens to sit on. A kit moved out of
+              // Items to keep it from being stolen is still a kit, and losing
+              // the button left the player no direct way to unpack it.
+              verbs:
+                card.key === "Health" || ct.tag.consumable || ct.tag.slug === RESEARCH_TAG_SLUG
+                  ? verbsFor(ct)
+                  : null,
               open: openId === id,
               onToggle: () => setOpenId((was) => (was === id ? null : id)),
               currentTurn,
