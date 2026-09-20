@@ -839,9 +839,24 @@ one when you mean the other.
   `/map` (§6). It is per character, it only ever grows, and **nothing ever
   unlearns a row** — seen once, drawn forever.
 - **`Vantage`** (`db/lib/vantages.js`) is the **channel** fog, per turn. A row
-  says "this character walked out of here and is still watching it", and every
-  row goes the moment they leave the zone or the day turns
-  (`CHANNELS.md` §3aa).
+  says "this character walked out of here and is still watching it", and it is
+  **one step and no further**: the light stays on only while that place is
+  still directly next door to where they stand. Walk on past it and it goes
+  out; the day turning puts out whatever is left (`CHANNELS.md` §3aa).
+
+  The zone has nothing to do with it. Walking out through a gate leaves the
+  street behind you lit exactly as any other single step would — whether that
+  gate happens to be a zone boundary is not the player's business, so a
+  vantage can sit in a zone its owner is not standing in. This used to be the
+  zone rule instead, which meant a turn's walking lit every street you had
+  passed through and handed one person a reading seat over half a zone.
+
+  How it is read cheaply: `Vantage.anchorLocationId` is where the character
+  stood when the row was last confirmed next door, so a read is one equality
+  rather than a walk of the link graph. Adjacency is worked out **once**, by
+  `applyLocationMoveSideEffects`, on the move that changes it — which also
+  means a row left behind by a prune that failed to run reads as dark the
+  instant they move.
 
 `applyLocationMoveSideEffects` writes both, a few lines apart, which is exactly
 why they need different names. It takes a `walked` flag, defaulting **false**,
