@@ -63,14 +63,13 @@ function loadZones() {
   return parseZonesYaml(yaml.load(raw));
 }
 
-test("both authored railroad edges survive the parser with the flag set", () => {
+test("the authored railroad edge survives the parser with the flag set", () => {
   const { connections } = loadZones();
   const rails = connections.filter((c) => c.railroad);
   const pairs = rails.map((c) => [c.a, c.b].sort().join(" <-> ")).sort();
-  assert.deepEqual(pairs, [
-    "depths-chasm <-> undertown-5",
-    "grand-ravine <-> undertown-5",
-  ]);
+  // One tunnel. There were two until the Grand Ravine one was replaced by a
+  // climb down to the Chasm — the Ravine reaches the deep on foot now.
+  assert.deepEqual(pairs, ["depths-chasm <-> undertown-5"]);
 });
 
 test("every railroad edge crosses a zone, which is what keeps the auto-walk off them", () => {

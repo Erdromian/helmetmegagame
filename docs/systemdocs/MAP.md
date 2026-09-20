@@ -342,11 +342,12 @@ same two sentences. A tunnel is also never taken by the `/map` board's
 double-click or Enter shortcut: `canGestureTo` refuses one, because a gesture
 that skips the dialog would skip the only warning there is.
 
-Two edges carry it today, both out of the Depot: `undertown-5 ↔ hills/grand-ravine`
-and `undertown-5 ↔ depths/depths-chasm`. Both cross a zone, which is what keeps
-§3c's auto-walk off them — `walkWithinZone` is same-zone only. **Author a
-same-zone railroad edge and that stops being true**, so `db/test/railroad.test.js`
-asserts the property rather than trusting it.
+One edge carries it today, out of the Depot: `undertown-5 ↔ depths/depths-chasm`.
+There were two — the other ran to the Grand Ravine, which reaches the deep on
+foot now instead, by a `locked: climbing` descent into the Chasm. It crosses a
+zone, which is what keeps §3c's auto-walk off it — `walkWithinZone` is same-zone
+only. **Author a same-zone railroad edge and that stops being true**, so
+`db/test/railroad.test.js` asserts the property rather than trusting it.
 
 The decision and the death live in `db/lib/railroad.js`; it is called from
 `applyLocationMoveSideEffects` **after** the move commits, beside the turrets and

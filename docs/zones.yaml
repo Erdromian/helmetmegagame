@@ -2170,7 +2170,6 @@ connections:
   - [fortress/fortress-3, undertown/undertown-1]
   - [caves/caves-abandoned-camp, depths/depths-last-chance]
   - [caves/caves-abandoned-camp, depths/depths-fork]
-  - [depths/depths-chasm, hills/cliffs]
   # Over the cave-river, from the sentry post to the shop. The Depot moved
   # into the Undertown with the rest of the town, so this crossing costs the
   # Move now — but it still has to exist, because without it a migrant who
@@ -2272,12 +2271,36 @@ connections:
     on_foot: true
 
   # --- The railroad ------------------------------------------------------
-  # Two tunnels out of the Depot, and the cargo train is in one of them every
-  # other turn (db/lib/train.js). Go in while it is out on the line and there
-  # is nothing left to bury — db/lib/railroad.js, and the unconditional
-  # confirm in web/lib/travelCost.js#crossingConfirm is the only warning
-  # anybody gets. Ordinary border crossings otherwise: they cost the Move.
-  - pair: [undertown/undertown-5, hills/grand-ravine]
-    railroad: true
+  # One tunnel out of the Depot, and the cargo train is in it every other turn
+  # (db/lib/train.js). Go in while it is out on the line and there is nothing
+  # left to bury — db/lib/railroad.js, and the unconditional confirm in
+  # web/lib/travelCost.js#crossingConfirm is the only warning anybody gets. An
+  # ordinary border crossing otherwise: it costs the Move.
+  #
+  # There were two. The other ran to the Grand Ravine, and the Ravine reaches
+  # the deep on foot now instead — see the climb below.
   - pair: [undertown/undertown-5, depths/depths-chasm]
     railroad: true
+
+  # --- Into the deep from the Black Hills --------------------------------
+  # The Chasm used to open at the Cliffs. It opens at the Grand Ravine now, and
+  # it is a climb rather than a walk: LOCKED rather than hidden, because the
+  # hills are visibly full of holes and the question is whether you can make
+  # the descent, not whether you know it is there.
+  #
+  # The Cliffs keep their cave-mouth prose and no longer have anything behind
+  # it. That is deliberate.
+  - pair: [depths/depths-chasm, hills/grand-ravine]
+    locked: climbing
+
+  # The walkways hang over the water the river runs into (hills/east-river's
+  # own description: "Ravenheart's river rushes east into the caves").
+  - [caves/caves-walkways, hills/east-river]
+
+  # The road from the town bridge to the cave mouth. Until now the Entrance
+  # could only be reached from the Depot — you had to already be inside
+  # Ravenheart to arrive at the place people arrive at.
+  - [caves/customs, hills/bridge]
+
+  # The Grand Chamber's Deep Sea and the Undertown's Lake are the same water.
+  - [undertown/undertown-c, depths/depths-grand-chamber]
