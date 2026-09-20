@@ -43,6 +43,9 @@ const ESCORT_SELECT = {
     select: {
       tagId: true,
       equipped: true,
+      // What mounts.js#mountRestingThisTurn checks a fast-travel mount's
+      // handoff against — see locationTravel.js's CHARACTER_SELECT for why.
+      acquiredAt: true,
       tag: { select: { slug: true, name: true, ...CONCEALMENT_TAG_FIELDS, forcedName: true } },
     },
   },

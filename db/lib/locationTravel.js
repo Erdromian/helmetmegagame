@@ -6,7 +6,15 @@ const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival, cavingHoldFor, cavingHeldIds } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG, TIRED_SLUG, EXHAUSTED_SLUG, LUCKY_SLUG } = require("./constants");
-const { isMounted, blocksOnFoot, equippedSlugs, fastTravelCapacity, fastTravelBonus, STOWABLE_SLUGS } = require("./mounts");
+const {
+  isMounted,
+  blocksOnFoot,
+  equippedSlugs,
+  fastTravelCapacity,
+  fastTravelBonus,
+  mountRestingThisTurn,
+  STOWABLE_SLUGS,
+} = require("./mounts");
 const { rollWithEdge, edgeFor } = require("./advantage");
 const { nextFatigueSlug } = require("./fatigue");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
@@ -37,7 +45,9 @@ const CHARACTER_SELECT = {
   heldUntil: true,
   heldReason: true,
   // `name` rides along for stowedMounts(), which puts it in a sentence.
-  tags: { select: { equipped: true, tag: { select: { slug: true, name: true } } } },
+  // `acquiredAt` is what mountRestingThisTurn (db/lib/mounts.js) reads to tell
+  // a mount that just changed hands from one that's been ridden all along.
+  tags: { select: { equipped: true, acquiredAt: true, tag: { select: { slug: true, name: true } } } },
 };
 
 // How many zone crossings this character gets for free this turn, before a crossing
@@ -47,7 +57,7 @@ const CHARACTER_SELECT = {
 // How many are LEFT right now, for surfaces that must say so before a player commits
 // (Travel confirm, character sheet).
 function freeMovesLeft(character, config, openTurn, partySize = 0) {
-  return movesLeft(moveAllowance(character, config, partySize), character, openTurn);
+  return movesLeft(moveAllowance(character, config, partySize, openTurn?.startedAt ?? null), character, openTurn);
 }
 
 // The arithmetic both the display above and the spend below run: base and bonus are
@@ -251,13 +261,13 @@ async function vomitOnTheRide(prisma, row, openTurn) {
   }
 }
 
-function freeZoneMoves(character, config, partySize = 0) {
-  const { base, bonus } = moveAllowance(character, config, partySize);
+function freeZoneMoves(character, config, partySize = 0, turnStartedAt = null) {
+  const { base, bonus } = moveAllowance(character, config, partySize, turnStartedAt);
   return base + bonus;
 }
 
-// The same rules, split into the two pools now spent in order: BONUS is whatever a mount is buying for this crossing; BASE is the flat per-turn allowance everybody gets.
-function moveAllowance(character, config, partySize = 0) {
+// The same rules, split into the two pools now spent in order: BONUS is whatever a mount is buying for this crossing; BASE is the flat per-turn allowance everybody gets. `turnStartedAt` (the open turn's own startedAt) is what fastTravelBonus checks a mount's acquiredAt against — a mount that changed hands this turn buys no bonus (mounts.js#mountRestingThisTurn).
+function moveAllowance(character, config, partySize = 0, turnStartedAt = null) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return { base: 0, bonus: 0 };
   const base = config?.freeZoneMovesPerTurn ?? 1;
@@ -265,7 +275,7 @@ function moveAllowance(character, config, partySize = 0) {
   // An arelitz carries you whatever your legs are, so it's checked FIRST and cancels
   // lameness outright rather than adding one to a zero — but only while the party FITS it (fastTravelCapacity counts the rider: an arelitz seats two, a cart six, mounts.js). No cap on party size — going over just costs the mount's extra crossing, so an overloaded arelitz is never WORSE than legs, only no better.
   if (isMounted(active)) {
-    return { base, bonus: fitsMount(active, partySize) ? fastTravelBonus(active) : 0 };
+    return { base, bonus: fitsMount(active, partySize) ? fastTravelBonus(active, held, turnStartedAt) : 0 };
   }
   if (held.some((ct) => LAMED_SLUGS.has(ct.tag?.slug))) return { base: 0, bonus: 0 };
   return { base, bonus: 0 };
@@ -296,6 +306,9 @@ function freeZoneMovesReason(character, partySize = 0, turn = null) {
     // reason they cannot read off their own sheet.
     if (!fitsMount(active, partySize)) {
       return `You're taking more people than your ${fastTravelCapacity(active)} seats, so you've lost the free move.`;
+    }
+    if (mountRestingThisTurn(held, turn?.openTurn?.startedAt)) {
+      return "Your mount just changed hands — it won't buy you a bonus crossing until next turn.";
     }
     return null;
   }
@@ -489,12 +502,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       if (crossedZone) {
         // A crossing spends a FREE ZONE MOVE first, only spending the Move once those run
         // out (CARRY.md §2) — a peasant walks town->forest free, then pays for the fortress, and the way back waits for next turn. The allowance is claimed by a conditional updateMany whose WHERE is the check, so two tabs can't both spend the last one; a differing turn id resets the counter in the same statement, so nothing ever has to sweep this field. partyPreview, not the re-authorized list — seats are spent on who you SET OUT with, since somebody the gate drops at the threshold already took a saddle for this crossing.
-        const allowance = moveAllowance(
-          character,
-          config,
-          { fromZoneSlug: currentLocation.zone?.slug, toZoneSlug: targetLocation.zone?.slug },
-          partyPreview.length,
-        );
+        const allowance = moveAllowance(character, config, partyPreview.length, openTurn.startedAt);
         const sameTurn = character.zoneMovesTurnId === openTurn.id;
         const spentFree = sameTurn ? (character.zoneMovesUsed ?? 0) : 0;
         const spentBonus = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;

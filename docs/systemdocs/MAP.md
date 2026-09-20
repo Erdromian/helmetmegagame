@@ -450,6 +450,16 @@ narrow-way case is untouched, because `dismountForNarrowWay` runs *inside* the
 transaction before any of this arithmetic — a rider who cannot get their horse
 through the gap never earns the bonus to begin with (§2c).
 
+**The bonus follows the mount, not only the rider.** A mount that changed
+hands this turn — Transfer, a stable pickup, anything that (re)wrote its
+`CharacterTag` row — doesn't buy its bonus crossing until next turn
+(`mounts.js#mountRestingThisTurn`, checked against the row's own
+`acquiredAt`). Same shape as the Bird's once-a-day claim (`BIRD.md` §6),
+scoped to the turn instead of the day since the bonus itself refreshes every
+turn: without it, one arelitz handed off mid-turn could buy two different
+riders a free crossing on the same lap. The base free move is untouched —
+only the mount's own bonus is gated.
+
 The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`, with
 `zoneMovesBonusUsed` counting how many of those went on a bonus, all three
 claimed by a conditional `updateMany` whose WHERE is the check, so two tabs

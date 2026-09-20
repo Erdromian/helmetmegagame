@@ -43,9 +43,35 @@ function fastTravelCapacity(activeSlugs) {
   return 0;
 }
 
+// The equipped fast-travel tag row itself, so its own acquiredAt can be read —
+// activeSlugs alone (a bare Set) has no history on it.
+function fastTravelMountTag(characterTags = []) {
+  return (characterTags ?? []).find((ct) => FAST_TRAVEL_SLUGS.has(ct?.tag?.slug) && ct.equipped === true);
+}
+
+// A mount that changed hands THIS TURN doesn't buy its bonus crossing until
+// next turn — same shape as the Bird's once-a-day claim
+// (db/lib/bird.js#birdRestingToday), scoped to the turn instead of the day
+// because the bonus itself refreshes every turn (see moveAllowance's comment
+// in locationTravel.js). A mount's CharacterTag row has no identity across a
+// handoff either: the motorcycle is non-stackable, so a Transfer deletes the
+// sender's row and creates the recipient's fresh; the arelitz is stackable,
+// but tagWrites.js#addToStack stamps acquiredAt = now() on every top-up too
+// ("a fresh acquisition of the units that just landed"). Either way the
+// recipient's row reads as newly acquired — so without this a single mount
+// handed off mid-turn could buy two different riders a bonus crossing in the
+// same turn.
+function mountRestingThisTurn(characterTags, turnStartedAt) {
+  if (!turnStartedAt) return false;
+  const mount = fastTravelMountTag(characterTags);
+  if (!mount?.acquiredAt) return false;
+  return new Date(mount.acquiredAt).getTime() >= new Date(turnStartedAt).getTime();
+}
+
 // Extra zone crossings a fast-travel mount buys. An arelitz is worth 1, 2
-// with Arelitz Tack.
-function fastTravelBonus(activeSlugs) {
+// with Arelitz Tack. Zero while the mount itself is resting this turn.
+function fastTravelBonus(activeSlugs, characterTags = [], turnStartedAt = null) {
+  if (mountRestingThisTurn(characterTags, turnStartedAt)) return 0;
   if (activeSlugs.has("arelitz")) return activeSlugs.has(ARELITZ_TACK_SLUG) ? 2 : 1;
   return isMounted(activeSlugs) ? 1 : 0;
 }
@@ -79,6 +105,8 @@ module.exports = {
   equippedSlugs,
   fastTravelCapacity,
   fastTravelBonus,
+  fastTravelMountTag,
+  mountRestingThisTurn,
   isMounted,
   blocksOnFoot,
   stowedMounts,

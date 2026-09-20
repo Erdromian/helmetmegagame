@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-20 · An arelitz that changed hands this turn won't buy its bonus crossing
+
+✎ Fixed the same bug behind the Bird's once-a-day fix, this time for the arelitz's fast-travel bonus: a mount handed off mid-turn could buy two different riders a free zone crossing
+
 ## 2026-09-19 · A gibbed body no longer lies around, and bodies no longer ride in parties
 
 ✎ A vaporised character leaves nothing behind: they no longer show on who's here, can't be looted, and can't be dragged along  
