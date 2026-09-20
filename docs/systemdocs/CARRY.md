@@ -308,22 +308,19 @@ back on from the equip board. (An **Automatically ride my mount** switch used
 to do that on arrival; it was removed, and `Character.autoMount` is an orphan
 column now.)
 
-**`wheels: true` is the exception, and it is authored.** `indoors` was
-answering two questions with one column — is there a roof over this place (the
-mood dial, whether a palisade can be raised in it) and do
-wheels stay outside — and a warehouse is a yes to the first and a no to the
-second. So a Location may carry the `wheels` attribute (`MAP.md` §1b) and admit
-a cart and a horse while keeping its roof for everything else. Three places
-have it: the **Godard Factory**, whose Logistics Room has a ramp down to dry
-ground and whose whole business is loading crates of Squeeze onto a wagon;
-**Customs**, a gate built to be driven through; and the **Depot**, a shop that
-ships by the wagonload. Without it the last hundred feet of every Squeeze run
-were done on foot, one 68 lb crate a trip, because an unequipped cap is 71 lb.
-The Factory is on the surface, so `parksMounts` already let its wagon through
-before the attribute is even read — `wheels` still earns its keep there on the
-Examine line, which reads once as "Wheels" instead of twice as "Wheels" and
-"Indoors". Underground, on Customs and the Depot, it is load-bearing: without
-it those two would park a mount at the door same as the rest of the Caves.
+**There is no exception any more.** `indoors` was answering two questions with
+one column — is there a roof over this place (the mood dial, whether a palisade
+can be raised in it) and do wheels stay outside — and a warehouse is a yes to
+the first and a no to the second. The `wheels` attribute existed to split them,
+and three places wore it: the **Godard Factory**, the **Depot** and **Customs**.
+
+The split that survived is a different one. A surface roof stopped parking
+anything, so `parksMounts` was already letting the Factory's and the Depot's
+wagons through before the attribute was read — on those two it only ever
+shortened the Examine line. That left it load-bearing on exactly one Location,
+the cave mouth, which was a gate built to be driven through. When that gate went
+so did the attribute, and the Entrance parks a mount at the door like the rest
+of the Caves.
 
 Every reader that asks "may a mount be out here" goes through
 `locationAttributes.js#parksMounts(location)` rather than the column — the

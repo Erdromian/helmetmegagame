@@ -47,7 +47,6 @@ const CENSOR_OFFICE_ROOM_SLUG = "fortress-1-2";
 const GATE_CONTROL_ROOMS = new Map([
   ["fortress-2-3", null], //       fortress/fortress-2 <-> town/town-8
   ["town-1-2", null], //           town/town-1         <-> hills/bridge
-  ["customs-watchtower", null], // caves/customs       <-> caves/caves-approach
   // The Den's basement stairs, worked from the Exactor's desk. Not a
   // watchtower at all — the first gate in the game whose winch is in an office.
   ["undertown-9-3", "Shutters"], // undertown/undertown-9 <-> undertown/undertown-8

@@ -331,14 +331,16 @@ hidden category the same way it applied to that one.)
 
 The same field also gates a group **inside a visible category**, which is how
 body membership is modelled: `general-cerberon` ("Cerberon", behind `cerberon`)
-and `general-brigand` ("Brigands", behind `brigand`) sit in `general`, so the
+sits in `general`, so the
 General tab stays because `general-traits` and `general-social` are ungated —
 only the group vanishes. Same rule about not repeating the gate on the members.
+(`general-brigand` was the other one, deleted 2026-09-20 — its tags are
+ordinary traits now.)
 
-Note where the two keys live: `cerberon` and `brigand` are in
-`general-traits`, **outside** the groups they open. A gated group cannot hold
-its own key — nobody would ever be able to see it. Both are
-`purchasable: false` and arrive from `roles.yaml` `starting_tags`, which is
+Note where the key lives: `cerberon` is in
+`general-traits`, **outside** the group it opens. A gated group cannot hold
+its own key — nobody would ever be able to see it. It is
+`purchasable: false` and arrives from `roles.yaml` `starting_tags`, which is
 also why the Add Tag picker has to fold held tags into its `byId` map (below).
 
 Three things make a category actually hidden rather than merely empty:
@@ -654,7 +656,7 @@ may have a handful of problems, worth only so much trouble in total.
 
 Only what was bought through the point-buy menu counts against either
 (`CharacterTag.source === "POINT_BUY"`): a role's free drawback (the Meister's
-Frail, the Headman's Old) arrives as `GM_GRANT`, and so does anything a GM or
+Frail, the Geschef's Old) arrives as `GM_GRANT`, and so does anything a GM or
 a turn effect inflicts, so neither eats into a player's allowance. A GM grant
 can still push someone past both, deliberately — the same bypass every other
 gate has (§3).
@@ -1061,10 +1063,7 @@ them).
 - `teachable` — whether this tag is a skill Learn Skill / Teach Skill will
   offer. Set `true` on every entry in the `skills` category except the
   Teaching tree itself (Teaching and Drill Instructor are `false` — you can't
-  be taught to teach) and Research (also `false` — it arrives only
-  through the Scholastic's `starting_tags`, and studying it yourself in the
-  Cathedral is the whole point, not something a lesson can hand you), not
-  derived from the category; the one rule is
+  be taught to teach), not derived from the category; the one rule is
   `db/lib/lessons.js#teachableSkills` (`LESSONS.md` §2).
 - `consumable` / `consumesInto` — whether a player can use this tag up, and
   what it becomes. Live; see §5b.
@@ -1072,9 +1071,10 @@ them).
   instead of simply being swept away. Live; see §5c.
 - `miningBonus` — what this tag adds to a day's mining, e.g.
   `miningBonus: { amount: 1 }`. `equipped` defaults **true**; `requiresTag`
-  gates it on holding something else. Bonuses sum, and three tags carry one
-  today: Prospector's Pick, Mining Helmet and the Claim Stake structure
-  (`placement.miningBonus`). Normalised and validated in `db/lib/tagShapes.js`,
+  gates it on holding something else. Bonuses sum, and two tags carry one
+  today: the Pickaxe and the Mining Helmet. `placement.miningBonus` does the
+  same for a structure, and nothing uses it since the Claim Stake was deleted
+  (`MINING.md` §4). Normalised and validated in `db/lib/tagShapes.js`,
   which throws on a bonus that requires equipping a tag that is not
   `equippable`, and on a `requiresTag` naming a tag that does not exist. There
   was a `kind:` key here too, naming which of the four Laboring types the bonus
@@ -2340,7 +2340,7 @@ robe in somebody's bag showed on a look.)
   pistol; the Shortbow and Javelin; the Buckler and
   Energy Shield; the small worn signals (badges, pins, keys, Jewelry, the
   Ordinator's Insignia, the Scrying Eye); armor that goes under clothes (Padded
-  Armor, Brigandine); and small tools (Prospector's Pick, Barbed Net,
+  Armor, Brigandine); and small tools (the Pickaxe, Barbed Net,
   Horseshoes). On you, it shows. In your bag, it doesn't.
 - **`true`** — only what you cannot hide by not holding it: mounts and carts,
   the Shield and Pavise, armor from Light Infantry Armour up, long weapons

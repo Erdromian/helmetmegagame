@@ -382,8 +382,7 @@ granted with a `Name xN` suffix (`Obol x25`), parsed by `db/lib/startingTags.js`
 
 **Who gets one at creation** is `bank_account:` in `docs/roles.yaml`:
 `treasury` for nearly every seat, `offshore` for the Merchant and his Dockers,
-and **absent for the Black Hills** — the Tribunal and the Brigands arrive
-without one. Anyone else (a spawned antagonist, a threat handed a body
+and **absent for the Black Hills** — the Tribunal arrives without one. Anyone else (a spawned antagonist, a threat handed a body
 mid-game) opens one at the counter with a **Create an account** button: one
 click, no cost, opens empty.
 
@@ -767,17 +766,29 @@ one made offworld. That is the point of the seat; what changed is that ⬢ and
 Ration Boxes are on the general shelf, and the drink and drug shelf is one chip
 away (§0e).
 
-**⬢ themselves are a ware, at 2 ¢ each in and 1 ¢ each out.** They are the
+**⬢ themselves are a ware, at 3 ¢ each in and 1 ¢ each out.** They are the
 one line on either table the order path handles by hand — `RESOURCE_WARE_ID` is
 the `resources` tag's own slug rather than a cuid, so it can never collide with
 a real ware's id, and `depotOrderImpl` splits it out before anything reaches a
-`Tag` lookup. It is on the general manifest, so anybody may order it. The 2:1 spread is doing real work. It means
+`Tag` lookup. It is on the general manifest, so anybody may order it. The 3:1 spread is doing real work. It means
 importing food is a losing trade, which is the whole reason it exists: the
 Merchant should be shipping things Ravenheart cannot make, not undercutting its
 farmers with cheaper grain. And because the buy price is strictly above the
 sell price, no amount of round-tripping prints an obol — the same invariant
 `db/lib/syncTags.js` enforces for every priced tag, just held by hand here
 since there is no row to check.
+
+**It was 2:1 until 2026-09-20, and the buy side is what moved.** At 2 ¢ the
+station was an unlimited ⬢ faucet with no scarcity behind it, so a crafter never
+had to find a prospector — which makes the Mine button's whole payout
+(`MINING.md`) a thing nobody needs to buy. 3 ¢ widens the price a prospector can
+ask from 1–2 ¢ to 1–3 ¢, which is the room a negotiation needs.
+
+**Do not raise it past 3 without re-reading §4's smithed-gear formula.** That
+formula is `resourceCost + wage` and credits material at **1 ¢ per ⬢** while the
+station charges 3, so a smith who buys rather than mines is already eating twice
+his `resourceCost` in unpriced cost. At 3 the low rungs still clear; at 4 Dead
+Simple and Simple stop paying for anyone without their own supply.
 
 **Paper undercuts everything, and the station sells it by the ream.** A
 `stack-of-paper` is 3 ¢ and consumes into twenty sheets, so writing costs a
@@ -938,8 +949,8 @@ the difference between that and the column below is his margin. Nothing in code
 sets what he pays a player; that is his negotiation.
 
 **⬢ sell back at 1 ¢ each**, through the drop box like any other ware. This is
-the only way material becomes money, and it costs half its face value, since the
-station charges 2 ¢ for the same ⬢ coming down (§3). Anybody may do it
+the only way material becomes money, and it costs two thirds of its face value,
+since the station charges 3 ¢ for the same ⬢ coming down (§3). Anybody may do it
 now, which is the point: a labourer with a cart of material and no buyer has a
 counter to walk it to.
 
@@ -952,15 +963,16 @@ Four bands, about 106 tags in total:
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~3× a good farming day | `squeeze` **5** a cube — 8 cubes is a shift, so 40 ¢ (`FACTORY.md` §6). Cut from 7 on 2026-09-20. Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
-| Body parts | low, on purpose | `eye` 8, `heart` 8, `hand` 5, `foot` 4, `stomach` 4, `tongue` 3 |
+| Body parts | low, on purpose | `eye` 10, `heart` 10, `hand` 6, `foot` 5, `stomach` 5, `tongue` 4 |
 
 **The station buys body parts now** (`CORPSES.md`, `TORTURE.md` §6). It is a coin
 faucet hanging off a free action — Mutilate costs nothing and every death mints
 a body — so the number that matters is the whole LADDER, not one part:
 `db/lib/mutilate.js` takes nine pieces off one subject, which at these prices is
-**49 ¢ a body**, against 30–42 ⬢ of material for a specialised day's labour. Price the
+**61 ¢ a body**, against 30–42 ⬢ of material for a specialised day's labour. Price the
 ladder, never the piece; the first pass priced the piece and a corpse came to
-94 ¢. The eye and the heart are dearer than the rest because the rites eat those
+94 ¢. The ladder was 49 ¢ until 2026-09-20, which left butchering worth less
+than a day's honest work for something far nastier to do. The eye and the heart are dearer than the rest because the rites eat those
 two (`THANATI.md` §9), so a cultist and the Merchant now want the same organs.
 
 **The Thanati's own shelf is not this depot** (`THANATI.md` §3). It is a code

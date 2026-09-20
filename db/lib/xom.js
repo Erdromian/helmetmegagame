@@ -1,6 +1,6 @@
 // Old Ways (Xom), the fifth Old Way and the only one nobody can buy. Picked up
 // by pressing Pray in the Shrine of an Old Man (docs/zones.yaml,
-// depths-chasm), and no other route. Every turn close rolls once on the table
+// depths-7, the Chasm), and no other route. Every turn close rolls once on the table
 // below — db/lib/xomPass.js does the rolling, this file holds the table.
 // WHY THE TABLE IS HERE AND NOT IN YAML: six of the thirteen rows are
 // distinct CODE PATHS (gib, teleport, conversation, shout, a mass grant), so
@@ -16,7 +16,7 @@ const OLD_WAYS_XOM_SLUG = "old-ways-xom";
 
 // Hardcoded for the db/lib/roleIds.js reason: one guild, one correct value.
 // Must match the room id in docs/zones.yaml exactly.
-const XOM_SHRINE_ROOM_SLUG = "chasm-shrine-of-an-old-man";
+const XOM_SHRINE_ROOM_SLUG = "depths-7-4";
 
 // The Beliefs group. Every tag carries `exclusive: true`, enforced by buy
 // paths but not by a grant — Pray has to enforce it itself. See grantXom below.

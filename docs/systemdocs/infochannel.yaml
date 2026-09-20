@@ -36,7 +36,7 @@
 #   + intro text only (no description/tags/threats), grouped into the same
 #   seven social buckets /character's picker uses (db/lib/roleGroups.js).
 #   It names NO ZONE, deliberately — a zone heading told everyone where the
-#   Brigands camp. Edit roles.yaml, rerun `npm run db:sync-info-channel`,
+#   the outlaws camp. Edit roles.yaml, rerun `npm run db:sync-info-channel`,
 #   and the thread updates itself. (The generator key stays `roles-intro` even though the
 #   thread is titled "Fates" — the rename is presentation-only, the game
 #   system's own term stays "roles" everywhere else.)

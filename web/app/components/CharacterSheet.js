@@ -119,13 +119,6 @@ export default function CharacterSheet({
   surgicalSitePenalty = false,
   // Lessons and Craft (LESSONS.md, CRAFTING.md), all built in character/page.js.
   hasMoved = false,
-  // Research (CRAFTING.md §2b), same posture: three facts built
-  // once in character/page.js and handed straight to the provider, which
-  // composes them into canResearch/researchHint for the Research row in
-  // the tag rail.
-  holdsResearch = false,
-  atCathedral = false,
-  researchOptions = [],
   teachCostsMove = true,
   knownRecipeIds = [],
   deathMaskCorpses = [],
@@ -269,9 +262,6 @@ export default function CharacterSheet({
         hasSurgicalSite={hasSurgicalSite}
         surgicalSitePenalty={surgicalSitePenalty}
         hasMoved={hasMoved}
-        holdsResearch={holdsResearch}
-        atCathedral={atCathedral}
-        researchOptions={researchOptions}
         teachCostsMove={teachCostsMove}
         knownRecipeIds={knownRecipeIds}
         deathMaskCorpses={deathMaskCorpses}

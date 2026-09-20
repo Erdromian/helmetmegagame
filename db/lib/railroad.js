@@ -76,6 +76,10 @@ async function railroadGibOnArrival(prisma, { characterId, fromLocationId, toLoc
     turn: turn ?? null,
     gib: true,
     content: RAILROAD_DEATH_CONTENT(character.name),
+    // Named, like collar.js and xomPass.js do. Without it the tag-wipe row
+    // applyDeathToRow writes lands under the generic "system:death" actor,
+    // which is the one audit line that says what the train actually took.
+    cause: { kind: "system", system: "railroad" },
   });
   // Something else already killed them this turn. Not ours to announce.
   if (!claimed) return null;

@@ -1,9 +1,15 @@
-// The `wheels` attribute: an indoors Location a cart may come into anyway
-// (CARRY.md §3). `indoors` used to answer two questions at once; wheels
-// splits "is there a roof" from "do wheels stay outside". A second split
-// rides on top of it now: an indoors roof only parks a mount underground
-// (`zone.kind === "CAVE_LEVEL"`) — a surface chapel keeps its roof for the
-// mood dial but admits a horse same as the square outside it.
+// Who takes your arelitz at the door. `indoors` used to answer two questions at
+// once — is there a roof, and do wheels stay outside — and the split that
+// survives is the one that matters: an indoors roof only parks a mount
+// UNDERGROUND (`zone.kind === "CAVE_LEVEL"`). A surface chapel keeps its roof
+// for the mood dial and for building, but admits a cart same as the square
+// outside it.
+//
+// The `wheels` attribute used to except a place built to be driven into — the
+// Godard Factory, the Depot, and the cave mouth. It is gone (CARRY.md §3), and
+// the last test below is what keeps it gone: the registry is a closed world, so
+// a stray `wheels:` left in the YAML would be a sync problem rather than a
+// silent no-op.
 const test = require("node:test");
 const assert = require("node:assert");
 const fs = require("node:fs");
@@ -15,35 +21,42 @@ const { placeClassOf } = require("../lib/mood");
 const { canBuildHere } = require("../lib/structures");
 
 const CHAPEL = { indoors: true, attributes: { haven: true }, zone: { kind: "SURFACE" } };
-const FACTORY = { indoors: true, attributes: { refinery: true, wheels: true }, zone: { kind: "SURFACE" } };
+const FACTORY = { indoors: true, attributes: { refinery: true }, zone: { kind: "SURFACE" } };
 const FIELD = { indoors: false, attributes: {}, zone: { kind: "SURFACE" } };
 const CRYPT = { indoors: true, attributes: {}, zone: { kind: "CAVE_LEVEL" } };
-const CRYPT_WITH_WHEELS = { indoors: true, attributes: { wheels: true }, zone: { kind: "CAVE_LEVEL" } };
+const OPEN_CAVE = { indoors: false, attributes: {}, zone: { kind: "CAVE_LEVEL" } };
 
-test("parksMounts: only an underground roof parks a cart; wheels excepts it anyway", () => {
+test("parksMounts: an underground roof parks a cart, and nothing else does", () => {
   assert.equal(parksMounts(CHAPEL), false);
   assert.equal(parksMounts(FACTORY), false);
   assert.equal(parksMounts(FIELD), false);
   assert.equal(parksMounts(CRYPT), true);
-  assert.equal(parksMounts(CRYPT_WITH_WHEELS), false);
+  // A roof is half the rule. Underground with no roof authored parks nothing —
+  // which no real Location is today, since every Caves/Depths place is
+  // `indoors: true`, but the function must not read the zone alone.
+  assert.equal(parksMounts(OPEN_CAVE), false);
   // Nowhere at all is nowhere to park: a caller with no Location loaded must
   // never blind-refuse an equip.
   assert.equal(parksMounts(null), false);
 });
 
-test("wheels moves nothing but the cart", () => {
+test("a surface roof is still a roof for everything but the cart", () => {
   assert.equal(placeClassOf(FACTORY), "INDOORS");
   assert.match(canBuildHere(FACTORY).reason, /indoors/);
 });
 
-test("a wheels Location says so once, not twice", () => {
-  const lines = describeLocation(FACTORY);
-  assert.ok(lines.some((line) => line.startsWith("**Wheels**")));
-  assert.ok(!lines.some((line) => line.startsWith("**Indoors**")));
-  assert.ok(describeLocation(CHAPEL).some((line) => line.startsWith("**Indoors**")));
+test("every indoors Location says which kind of roof it has, exactly once", () => {
+  const surface = describeLocation(FACTORY);
+  assert.ok(surface.some((line) => line.startsWith("**Indoors**: you can still bring")));
+  assert.equal(surface.filter((line) => line.startsWith("**Indoors**")).length, 1);
+
+  const underground = describeLocation(CRYPT);
+  assert.ok(underground.some((line) => line.startsWith("**Indoors**: you can't equip")));
+
+  assert.ok(describeLocation(FIELD).some((line) => line.startsWith("**Outdoors**")));
 });
 
-test("the three places that carry wheels are the three the docs name", () => {
+test("no Location carries `wheels` any more, and the registry would reject one", () => {
   const doc = yaml.load(fs.readFileSync(path.join(__dirname, "../../docs/zones.yaml"), "utf8"));
   const found = [];
   const walk = (node) => {
@@ -52,6 +65,6 @@ test("the three places that carry wheels are the three the docs name", () => {
     for (const value of Object.values(node)) walk(value);
   };
   walk(doc);
-  assert.deepEqual(found.sort(), ["Customs", "Depot", "Godard Factory"]);
-  assert.ok(ATTRIBUTES.wheels, "the sync rejects a key the registry doesn't know");
+  assert.deepEqual(found, [], "a leftover `wheels:` would fail the zone sync as an unknown key");
+  assert.equal(ATTRIBUTES.wheels, undefined, "the registry is the closed world the sync validates against");
 });

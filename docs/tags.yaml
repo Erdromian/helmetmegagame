@@ -563,8 +563,7 @@ tags:
     purchasable: false
 
   # The Court — general-court is gated behind `courtier` at the group level,
-  # same idiom as general-cerberon/general-brigand, so none of these need their
-  # own requiredTag.
+  # same idiom as general-cerberon, so none of these need their own requiredTag.
   # A token price. Knighthood is mostly conferred -- the Baron's hand, or the
   # Seasoned Knight kit below -- so the point is not what it buys you but that
   # you had to spend something to claim it at creation. Creation only: the
@@ -594,7 +593,7 @@ tags:
     name: Teaching
     category: skills
     description: "You can train someone in a skill you have, and it costs you no Move at all — up to 3 people a turn. They'll succeed in a 5 or a 6. Without this tag, teaching takes your whole turn and they need a 6."
-    pointCost: 4
+    pointCost: 3
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -616,7 +615,7 @@ tags:
     category: general
     group: general-court
     description: "You are a fantastic dancer. Unlocks Desires about dancing."
-    pointCost: 2
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
@@ -635,23 +634,6 @@ tags:
   # docs/zones.yaml and nothing else, so it weighs nothing, cannot be bought
   # and cannot be handed over — you either were shown the place or you were
   # not. Somebody bringing a newcomer in has to grant it deliberately.
-  ravine-camp:
-    catalog: all
-    name: Ravine Camp
-    category: general
-    group: general-location
-    description: "You know about the Brigand camp in the Black Hills ravine."
-    pointCost: 0
-    tradeable: false
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Not an item, so there is no Destroy button on it — which is right: you
-    # cannot un-know where a place is, and binning it would have locked a
-    # Brigand out of their own camp for good, untradeable meaning nobody could
-    # hand them another.
-
   sewer:
     catalog: all
     name: Sewer
@@ -1086,18 +1068,38 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # A Skill, not a general trait. Reading is a thing you were taught, and the
+  # category was only ever deciding the chip's colour and where the row sits —
+  # `teachable` is what Learn Skill and Teach Skill read (db/lib/lessons.js),
+  # and it is set here regardless. Groupless on purpose, the way musician,
+  # butcher, climbing and stealth are: there is no literacy family to join.
   literate:
     catalog: all
-    name: Literate
-    category: general
-    group: general-traits
+    name: Literacy
+    category: skills
     description: "You can read and write, something most people in Ravenheart cannot do."
     pointCost: 4
-    # Teachable because the Scholastic's teach-literacy Desire asks for it, and
-    # because learn-a-skill covers it. Without the flag neither was reachable.
+    # Teachable because learn-a-skill covers it — teaching somebody their
+    # letters is a lesson like any other.
     teachable: true
     purchasable: true
     purchasableAfterStart: true
+
+  # Sits beside Literacy on purpose: they are the two ends of the same
+  # question. Slow blocks learning outright and blocks reading the way
+  # Stupid does, so it conflicts with Literacy rather than stacking on it.
+  # Stupid is the super-tag — gaining Stupid strips Slow, in
+  # db/lib/tagWrites.js.
+  slow:
+    catalog: all
+    name: Slow
+    category: general
+    group: general-traits
+    description: "This person is too slow to learn. You can't learn skills, and you can't read."
+    pointCost: -6
+    conflictsWith: [literate]
+    purchasable: true
+    purchasableAfterStart: false
 
   light-sleeper:
     catalog: all
@@ -2290,7 +2292,7 @@ tags:
     exclusive: true
 
   # The fifth Old Way, and the only one nobody can buy: it is handed out by the
-  # Pray button in the Shrine of an Old Man (docs/zones.yaml, depths-chasm) and
+  # Pray button in the Shrine of an Old Man (docs/zones.yaml, depths-7) and
   # by nothing else. Holding it puts the character on db/lib/xomPass.js's
   # weighted table, once per turn close, for the rest of their life —
   # see docs/systemdocs/TURN-ENGINE.md.
@@ -2583,52 +2585,28 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # --- Brigands -------------------------------------------------------------
-  brigand:
-    catalog: gm
-    name: Brigand
-    category: general
-    group: general-traits
-    description: "You live outside the law and the walls."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
-  # Two Brigand-group entries that are skills in everything but their category.
-  # The Brigand gate is a GROUP gate (taggroups.yaml `general-brigand`), and a
-  # group's category has to match its tags', so a brigand-only competence has
-  # to be filed under `general` — same reason Forger and Pickpocketing (Skilled)
-  # already are. (Pickpocketing (Basic) used to be a third; it left the group on
-  # 2026-09-16 and is open to everyone now.)
+  # The last tag out of the Brigand group, which was deleted on 2026-09-20
+  # along with the Brigand seat it gated. Stays `general` rather than `skills`:
+  # biting hard is a thing you are, not a thing you were taught.
   biter:
-    catalog: gm
+    catalog: all
     name: Biter
     category: general
-    group: general-brigand
+    group: general-traits
     description: "You are a ferocious and uninhibited biter. It works even when you're {tag:bound}."
     fighting: { tree: melee, tiers: 0.3 }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
-  camouflage:
-    catalog: gm
-    name: Camouflage
-    category: general
-    group: general-brigand
-    teachable: true
-    description: "You blend into the forest. Useful for ambushes."
-    fighting: { situational: true }
-    pointCost: 3
-    purchasable: true
-    purchasableAfterStart: true
-
+  # Out of the Brigand group on 2026-09-20 and made an ordinary skill: forging
+  # a hand is a craft you learn, not a thing you are born into a camp holding.
+  # The gate was never on the tag, it was on the group.
   forger:
-    catalog: gm
-    name: Forger
-    category: general
-    group: general-brigand
+    catalog: all
+    name: Forgery
+    category: skills
+    teachable: true
     description: "You know how to make letters, seals, and writing appear as though another wrote it. Allows you to craft wax seals."
     pointCost: 2
     purchasable: true
@@ -2639,10 +2617,10 @@ tags:
   # purpose: db:sync-tags is upsert-only, so renaming in place keeps every
   # Brigand who already bought it. general-traits carries no requiredTag, which
   # is the whole of "anyone may learn this now" — the gate was never on the tag,
-  # it was on the group (taggroups.yaml `general-brigand`).
+  # it was on the group.
   pickpocket:
     catalog: all
-    name: Pickpocketing (Basic)
+    name: Pickpocketing I
     # See comment above: slug stays `pickpocket` on purpose, so the rename
     # keeps every Brigand who already bought it. keepSlug: true tells the
     # syncer this drift is deliberate.
@@ -2659,13 +2637,16 @@ tags:
   # purchase and leave every gate in db/lib/pickpocket.js having to accept
   # either tag to mean the same thing.
   #
-  # Still in general-brigand, so the Basic rung is open to everyone and the
-  # second one is not.
+  # Out of the Brigand group on 2026-09-20: both rungs are open to everyone now,
+  # and the pair reads as a ladder the way Brewing I/II/III does.
   pickpocketing-skilled:
     catalog: all
-    name: Pickpocketing (Skilled)
+    name: Pickpocketing II
+    # Roman-numeral rung name; slug kept as-is so nobody loses the tag and the
+    # requiredTag reference above stays valid.
+    keepSlug: true
     category: general
-    group: general-brigand
+    group: general-traits
     description: "Your pickpocketing almost always succeeds."
     pointCost: 2
     requiredTag: pickpocket
@@ -2673,34 +2654,11 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  brigand-leader:
-    catalog: gm
-    name: Brigand Leader
-    category: general
-    group: general-brigand
-    description: "The camp in the Black Hills answers to you."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
-  # The new general `climbing` skill overlaps this brigand-gated trait.
-  # Gunboat to decide whether one of them should go.
-  acrobat:
-    catalog: gm
-    name: Acrobat
-    category: general
-    group: general-brigand
-    description: "Your exploits are of some renown."
-    pointCost: 3
-    purchasable: true
-    purchasableAfterStart: true
-
   wanted:
-    catalog: gm
+    catalog: all
     name: Wanted
     category: general
-    group: general-brigand
+    group: general-traits
     description: "The Cerberon know your face and have a reward on your head."
     pointCost: -5
     # named, not true: they know your FACE. A hood or a Disguise Kit's false
@@ -2722,21 +2680,6 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # The Scholastic's own craft, granted only through `scholastic.starting_tags`
-  # (docs/roles.yaml) — 0-point, unpurchasable, like every other role grant
-  # (TAGS.md §4a). Not teachable: it is the role's own work, not a lesson,
-  # the same exception the Teaching tree carries on `teachable` (TAGS.md
-  # "teachable" note, `teaching-drill-instructor` above).
-  research:
-    catalog: gm
-    name: Research
-    category: skills
-    teachable: false
-    description: "The Cathedral's archives hold many secrets. Use them to research forgotten uses for ingredients, revealing secret recipes."
-    pointCost: 0
-    purchasable: false
-    purchasableAfterStart: false
-
   caving:
     catalog: all
     name: Caving
@@ -2753,7 +2696,7 @@ tags:
     category: skills
     teachable: true
     description: "Well, it's lovely, but I'm not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these… You can craft a {tag:painting}, but it takes 4 turns."
-    pointCost: 5
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -2872,22 +2815,21 @@ tags:
     category: skills
     teachable: true
     description: "You used to go up the mountains as a child."
-    pointCost: 5
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
   # The one Skill that reads on a gate crossing
   # (db/lib/locationMove.js#announceLevelFor). It moves the announcement down
   # one step: an unmanned gate says nothing at all, a manned one describes you
-  # instead of naming you. Price left at 5 — Bascinet's call when it stopped
-  # being flavour, so it stays on the ordinary Moderate band.
+  # instead of naming you.
   stealth:
     catalog: all
     name: Stealth
     category: skills
     teachable: true
     description: "You are adept at sneaking around and concealing yourself. Others will be less likely to spot you doing so."
-    pointCost: 5
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -3320,7 +3262,7 @@ tags:
   # Construction
   builder-skilled:
     catalog: all
-    name: Builder I
+    name: Building I
     # Roman-numeral rung name (game 3 tier rename); slug kept as-is
     # so no character loses the tag and every parentTag/requiredTag
     # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
@@ -3336,7 +3278,7 @@ tags:
 
   builder-expert:
     catalog: all
-    name: Builder II
+    name: Building II
     # Roman-numeral rung name (game 3 tier rename); slug kept as-is
     # so no character loses the tag and every parentTag/requiredTag
     # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
@@ -6281,30 +6223,10 @@ tags:
       # the examine above in the readout. Blank keeps the stock text.
       inscribable: true
 
-  # Prospecting's own structure, same shape as the Fish Weir above — the one
-  # bonus category the specialization had no presence in at all until now
-  # (Bascinet, 2026-09-10).
-  claim-stake:
-    catalog: all
-    name: Claim Stake
-    category: assets
-    group: assets-structures
-    description: "A stake driven into the ground, marking a claim. Gives an additional 1 ⬢ when Prospecting where erected."
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [builder-skilled]
-      gambit: false
-    placement:
-      fieldwork: true
-      examine: "a stake driven deep, claiming this ground."
-      miningBonus: { amount: 1 }
+  # The Claim Stake stood here and was removed on 2026-09-20. It was the only
+  # structure in the game carrying a `placement.miningBonus`, so that block is
+  # now a mechanism with no user — see MINING.md §4. Nothing else has to change
+  # to add one back.
 
   forge:
     catalog: all
@@ -7966,7 +7888,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 2
+    # 3 in, 1 out since 2026-09-20. The sell price is deliberately unchanged —
+    # mining pays more now, and a day's ⬢ plus its stones already sits where it
+    # should against a smith's turn and a Factory shift (MINING.md, DEPOT.md §4).
+    # What moved is the BUY side: at 2 ¢ the station was an endless ⬢ faucet
+    # undercutting the prospector the rework exists to make worth hiring.
+    depotPrice: 3
     sellable: true
     sellablePrice: 1
 
@@ -8028,7 +7955,7 @@ tags:
     category: items
     group: items-gear
     sprite: minisatchel
-    description: "A purse of useful things."
+    description: "A purse of coins. Can be opened for 3 ¢."
     pointCost: 0
     weight: 0
     stackable: true
@@ -8036,8 +7963,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto: []
-    consumesIntoResources: 3
+    consumesInto: [obol, obol, obol]
+    consumesIntoResources: 0
 
   skinned-cave-rat:
     catalog: gm
@@ -8588,7 +8515,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     visible: false
-    requiredTag: brigand
 
   sewer-key:
     catalog: gm
@@ -9041,29 +8967,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-
-  headmans-key:
-    catalog: gm
-    name: Headman's Key
-    category: items
-    group: items-keys
-    sprite: key
-    description: "A small key."
-    pointCost: 0
-    stackable: true
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: headmans-key
-          keep: true
 
   room-a-key:
     catalog: gm
@@ -9599,16 +9502,18 @@ tags:
     sellable: true
     sellablePrice: 6
 
-  # Prospecting's own tool, same shape as Fishing Rod above — every other
-  # specialization has one made for the work, this was the one gap
-  # (Bascinet, 2026-09-10).
-  prospectors-pick:
+  # The gate on mining, not a bonus to it (docs/systemdocs/MINING.md §2). Was
+  # "Prospector's Pick" until 2026-09-20, when Prospecting stopped being what
+  # lets you dig and the tool took over — a pick named after the skill reads
+  # like it belongs to the skill, and it belongs to anybody. Made on the same
+  # terms as a Hatchet, since it is the same piece of forge work.
+  pickaxe:
     catalog: all
-    name: "Prospector's Pick"
+    name: Pickaxe
     category: items
     group: items-gear
     sprite: pickaxe
-    description: "A short-handled pick. While equipped, Prospecting produces an additional 1 ⬢."
+    description: "A short-handled pick. You need one in hand to mine at all, and while equipped it turns up an additional 1 ⬢."
     pointCost: 2
     miningBonus: { amount: 1 }
     equippable: true
@@ -9622,7 +9527,7 @@ tags:
     requirement:
       turnsCost: 0.25
       resourceCost: 3
-      skills: [crafting]
+      skills: [smithing]
       gambit: false
     sellable: true
     sellablePrice: 8
@@ -10593,8 +10498,10 @@ tags:
   # free action and every death mints a body, so the arithmetic that matters is
   # the whole ladder at once: db/lib/mutilate.js takes nine pieces off one
   # subject (two eyes, two hands, two feet, tongue, stomach, heart), which at
-  # these numbers is 49 ⬢ against 30-42 ⬢ for a specialised labour day. At the
-  # first pass it was 94 ⬢ and this comment claimed otherwise.
+  # these numbers is 61 ¢ against 30-42 ⬢ for a specialised labour day — one
+  # obol is one ⬢ (DEPOT.md §0), so the comparison still holds. At the first
+  # pass it was 94 ¢ and this comment claimed otherwise; the ladder was then
+  # lifted a fifth, from 49 ¢, because a body was worth too little for the work.
   #
   # The eye and the heart are dearer than the rest because the rites eat those
   # two (db/lib/rites.js).
@@ -10617,7 +10524,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 10
     cooked:
       taste: "organs"
       mood: -40
@@ -10638,7 +10545,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 4
     cooked:
       taste: "organs"
       mood: -40
@@ -10659,7 +10566,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 5
+    sellablePrice: 6
     cooked:
       taste: "meat"
       mood: -40
@@ -10680,7 +10587,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
     cooked:
       taste: "meat"
       mood: -40
@@ -10717,7 +10624,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
     cooked:
       taste: "organs"
       mood: -40
@@ -10738,7 +10645,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 10
     cooked:
       taste: "organs"
       mood: -40
@@ -14092,7 +13999,7 @@ tags:
     group: items-paper
     sprite: book
     bookText: |-
-      Play together, eat cheese, make cheese, go to the inn, get drunk, do a surgical operation, eat another rat, run for headman, work in the fields, stand guard, learn literature, plant a tree, cosplay as a dog to intimidate cats, wear a fancy hat,...
+      Play together, eat cheese, make cheese, go to the inn, get drunk, do a surgical operation, eat another rat, run for sheriff, work in the fields, stand guard, learn literature, plant a tree, cosplay as a dog to intimidate cats, wear a fancy hat,...
     pointCost: 0
     weight: 1.5
     visible: false
@@ -14189,8 +14096,8 @@ tags:
 
   # THE SIX COURTIER SEALS are the one place a tag is both bought and made, and
   # TAGS.md §4's "nothing is both" invariant is knowingly bent here. A courtier
-  # buys their own mark at creation; a Forger (Brigands only, general-brigand)
-  # FORGES somebody else's at 1 turn and 2 ⬢. That is the whole feature — the
+  # buys their own mark at creation; a character with Forgery FORGES somebody
+  # else's at 1 turn and 2 ⬢. That is the whole feature — the
   # point cost is the honest route and the recipe is the dishonest one, and
   # they are meant to reach the same object. It is not an Add Tag loophole:
   # §3b removed the menu's buy route, so `craftable` here only ever costs
@@ -15899,7 +15806,6 @@ tags:
     depotPrice: 17
     sellable: true
     sellablePrice: 10
-    requiredTag: brigand
 
   invisibility-potion:
     catalog: all
@@ -16135,39 +16041,6 @@ tags:
     sellable: true
     sellablePrice: 20
 
-  # HIDDEN recipe (aberrant-heart is non-public; medical pass, 2026-09-08),
-  # and the tag itself is secret on top of that: unlike {tag:white-honey},
-  # this one isn't public knowledge with a hidden ingredient, it's a genuine
-  # secret. Nothing drops aberrant-heart yet (loot-table pass) — buildable
-  # the day that lands, inert until then. The one item door onto a tier-7
-  # cure that isn't a Gambit: Dying is always a roll through Heal, but an
-  # item cure never rolls, the same way White Honey bypasses envenomated's
-  # own tier. Chris 2026-09-08: this is a FULL cure, not a mere improvement.
-  last-breath:
-    catalog: secret
-    name: Last Breath
-    category: items
-    group: items-drink
-    sprite: pwinebottle
-    description: "Rendered from an aberrant heart, black and thick. A lifesaving coagulation."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    cures: [dying]
-    requirement:
-      turnsCost: 3
-      resourceCost: 11
-      skills: [brewing-expert]
-      gambit: false
-      items: [aberrant-heart]
-    sellable: true
-    sellablePrice: 100
-
   # The medical mirror of {tag:forge} (SMITHING.md §2a): a standing site
   # rather than a kit you haul. Satisfies the surgery-site rule the same way
   # a forge satisfies Workshop Equipment — `provides: [surgical-equipment]`
@@ -16343,7 +16216,7 @@ tags:
     sellable: true
     sellablePrice: 20
 
-  # HIDDEN recipes, same door as {tag:last-breath}: the tag's own
+  # HIDDEN recipes: the tag's own
   # catalogVisibility (not just the ingredient's) withholds it from the
   # Craft menu until the crafter is BOTH medical-expert AND already holding
   # a {tag:cybernetic-core} (web/lib/tagRequests.js#computeKnownRecipeIds).
@@ -17275,20 +17148,6 @@ tags:
     equipSlot: HEAD
     visible: worn
     weight: 1
-    purchasable: false
-    purchasableAfterStart: false
-
-  headmans-cap:
-    catalog: gm
-    name: Headman's Cap
-    category: items
-    group: items-headgear
-    description: "A feathered cap for the head of the Headman."
-    pointCost: 0
-    equippable: true
-    equipSlot: HEAD
-    visible: worn
-    weight: 0.5
     purchasable: false
     purchasableAfterStart: false
 

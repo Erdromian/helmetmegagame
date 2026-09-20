@@ -119,9 +119,10 @@ key on.
 | Looted while alive | ROBBED | −10 | `lootCharacterRequestImpl` |
 
 **Place classes** come from `placeClassOf(location)`, in this precedence:
-HAVEN (the `haven` attribute: Inn, Keep, Sanctuary) > INDOORS
-(`Location.indoors`, and a `safe` cave Location, which is why Customs and the
-Depot are a roof and not the dark) > CAVE (`zone.kind === CAVE_LEVEL`) >
+HAVEN (the `haven` attribute: Inn, Keep, Sanctuary) > CAVE
+(`zone.kind === CAVE_LEVEL`, and underground a roof buys nothing — the `safe`
+attribute that made the cave mouth read as a room is gone) > INDOORS
+(`Location.indoors`) >
 WILDERNESS (the `wilderness` attribute: every Forest, Black Hills and Marshes
 Location except `factory`) > OPEN (everything
 else outdoors).
@@ -426,8 +427,7 @@ Outsider stopped requiring Rough Camper on 2026-09-20 and is a base tag now;
 Spelunker still asks for it. Rough Camper dropped to 1 point in the same pass.
 
 **Who starts with what** (`docs/roles.yaml`, `db/lib/threats.js`): Rough Camper
-and Outsider on both Brigands and the Tribune; those two plus Brave on the
-Tribunal Ordinator; Rough Camper and Spelunker on the Mercenary; the Demoness
+and Outsider on the Tribune; those two plus Brave on the Tribunal Ordinator; Rough Camper and Spelunker on the Mercenary; the Demoness
 seat assigns Rough Camper, the Judge assigns Rough Camper, Outsider and Brave.
 
 ## 8. Nobles

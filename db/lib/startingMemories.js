@@ -61,10 +61,10 @@ const FACTORY_CLUSTER = ["factory", "east-river", "cliffs", "gullies", "grand-ra
 // As much of the caves as somebody who works customs has reason to know. NOT
 // the abandoned camp — that's a bigger reveal than a trade seat has earned;
 // the Migrant, who lives there, gets it below. Both ends of the crossing out
-// of the caves: the Depot is the freight platform the sentry post lets onto,
-// and the Merchant's berth one hop past it is the shop somebody working
-// customs would actually have reason to know.
-const CAVE_MOUTH = ["customs", "caves-approach", "undertown-5", "undertown-6"];
+// of the caves: the Depot is the freight platform the Entrance lets onto, and
+// the Merchant's berth one hop past it is the shop somebody working customs
+// would actually have reason to know.
+const CAVE_MOUTH = ["caves-1", "caves-2", "undertown-5", "undertown-6"];
 
 // The way between the fortress and the town: one manned gate, at the top of
 // the Residences' stairs.
@@ -105,12 +105,11 @@ const ROLE_MEMORIES = {
   meister: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-2"],
   minstrel: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-2", "town-7"],
   censor: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN],
-  cerberus: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-1", "town-2", "bridge", "customs"],
+  cerberus: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-1", "town-2", "bridge", "caves-1"],
 
   // Town
   bishop: TOWN_ALL,
   chaplain: TOWN_ALL,
-  scholastic: TOWN_ALL,
   esculap: TOWN_ALL,
   serpent: TOWN_ALL,
   inquisitor: TOWN_ALL,
@@ -122,16 +121,14 @@ const ROLE_MEMORIES = {
   innkeeper: TOWN_ALL,
   "inn-staff": TOWN_ALL,
   sheriff: [...TOWN_ALL, ...FORTRESS_TO_TOWN, "bridge"],
-  // headman: collects from the Soilery, which is inside the walls now. mortus:
-  // the vow, always knows the way down to the Tower.
-  headman: [...TOWN_ALL, ...FORTRESS_TO_TOWN],
+  // mortus: the vow, always knows the way down to the Tower.
   mortus: [...TOWN_ALL, ...FORTRESS_TO_TOWN, "undertown-3"],
 
   // Caves. merchant: trades the Factory's goods.
   merchant: [...CAVE_MOUTH, "town-2", ...FACTORY_ROAD],
   mercenary: [...CAVE_MOUTH],
   docker: [...CAVE_MOUTH, ...FACTORY_ROAD],
-  migrant: [...CAVE_MOUTH, "caves-abandoned-camp"],
+  migrant: [...CAVE_MOUTH, "caves-5"],
 
   // The Factory
   geschef: FACTORY_CLUSTER,
@@ -142,8 +139,6 @@ const ROLE_MEMORIES = {
   // Black Hills
   "tribunal-ordinator": HILLS_ALL,
   tribune: HILLS_ALL,
-  brigand: HILLS_ALL,
-  "brigand-leader": [...HILLS_ALL, "factory"],
 };
 
 // A tag a character starts with can add roads they have walked, on top of

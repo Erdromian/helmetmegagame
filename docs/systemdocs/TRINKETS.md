@@ -11,24 +11,34 @@ them the way `CONFESSION.md` reads as a delta from `LESSONS.md`.
 Making a Trinket rolls a d6, same as any other Gambit
 (`db/lib/advantage.js`), and the face maps straight onto a tier:
 
-| Face | Tier | Sells for |
-|---|---|---|
-| 1 | Awful | 5 ¢ |
-| 2 | Poor | 8 ¢ |
-| 3 | Normal | 14 ¢ |
-| 4 | Good | 22 ¢ |
-| 5 | Excellent | 34 ¢ |
-| 6 | Masterwork | 60 ¢ |
+| Face | Tier | Bare | × its stones |
+|---|---|---|---|
+| 1 | Awful | 1 ¢ | ×0.5 |
+| 2 | Poor | 7 ¢ | ×0.75 |
+| 3 | Normal | 15 ¢ | ×1 |
+| 4 | Good | 19 ¢ | ×1.25 |
+| 5 | Excellent | 23 ¢ | ×1.5 |
+| 6 | Masterwork | 27 ¢ | ×2 |
 
 **The glyph is ¢, and this table said ⬢ until 2026-09-20.** A Trinket's price
 is written to `sellablePrice`, which is money — see `DEPOT.md` §0. The same
 error was in the two player-facing strings in `db/lib/trinketPass.js`, which
 told every smith their work was worth a number of the wrong unit.
 
-That is the whole reveal: a Trinket's price to the Merchant IS its tier, read
-straight off the table (`db/lib/trinketPass.js`'s `TIERS` array). There is no
-hidden second roll and no per-item variance — the die decides the tier, the
-tier decides the price, full stop.
+A Trinket's price to the Merchant is `round(base + mult × the summed inlay)`,
+read straight off that table (`db/lib/trinketPass.js`'s `TIERS` array). There is
+no hidden second roll and no per-item variance — the die decides the tier, the
+tier and the stones decide the price, full stop.
+
+**The tier MULTIPLIES the stones; it did not always.** Until 2026-09-20 it was a
+flat addend, so a Masterwork and an Awful built from the same materials differed
+by a constant 55 however good those materials were. The better the stone, the
+less the smith mattered — exactly backwards for a system whose whole purpose is
+to make the prospector and the smith need each other. Multiplying makes a good
+smith worth finding precisely when somebody has brought something worth working.
+The bare prices came down in the same pass and for the same reason: a Trinket
+made of nothing should be worth nearly nothing, and a masterful one made of
+nothing is a very well-made trinket made of nothing.
 
 ### The skilled floor
 
@@ -229,7 +239,7 @@ being misread as each other.
 ## 5. Minting the result
 
 At turn end (`db/lib/trinketPass.js`, in the same `TURN_PASSES` slot as
-Lessons/Research/Confessions — order among the four does not matter, they
+Lessons/Confessions — order among the three does not matter, they
 share no state): the stored die is clamped by the floor, mapped to a tier,
 the ingredient values are summed on top, and the result is minted through
 `mintCustomCraft` — moved to `db/lib/customCraftMint.js` for exactly this
@@ -248,10 +258,10 @@ identity as the ingredients are.
 
 The reveal DM names both things a bare die face cannot: the tier, and what got
 made — "🎲 Your Gambit for turn 14: **6**. The forge gives you a
-**Masterwork** Trinket: **Masterwork Trinket** (worth 60 ¢ to the merchant)."
-(An inlaid Malachite would read 66 ¢ instead — the tier's base price plus the
-ingredient's own `inlayValue`, §3.) A player with no memory of this table has
-no way to know a 6 is good news without being told in the same breath.
+**Masterwork** Trinket: **Masterwork Trinket** (worth 27 ¢ to the merchant)."
+(An inlaid Malachite would read 39 ¢ instead — the tier's bare price plus twice
+the ingredient's own `inlayValue`, §1 and §3.) A player with no memory of this
+table has no way to know a 6 is good news without being told in the same breath.
 
 ## 6. Why `mintCustomCraft` had to move
 

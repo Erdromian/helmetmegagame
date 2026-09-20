@@ -29,7 +29,7 @@ import {
   GENDERS,
   GENDER_LABELS,
 } from "@/lib/characterName";
-import { randomCharacterName } from "@/lib/nameCorpus";
+import { randomCharacterName, cultureForRole } from "@/lib/nameCorpus";
 import { takeableAntagonistSlugs, ANTAGONIST_BLURB } from "@/lib/threats";
 
 // Identity comes AFTER Role and Tags, and has to: a title is earned from the
@@ -229,7 +229,7 @@ export default function CreateCharacterWizard({
   // agree or the wizard lets through a build the server rejects.
   const remaining = budget - effectiveTotalCost(selectedTags, byId, grantedIds);
   // Only what's bought here counts against the cap — a role's free drawback
-  // (the Meister's Frail, the Headman's Old) lands as GM_GRANT and sits in
+  // (the Meister's Frail, the Geschef's Old) lands as GM_GRANT and sits in
   // grantedTags, which this deliberately doesn't look at.
   // Two ceilings, and the build has to clear both — TAGS.md §4a.
   const drawbackCount = negativeTagCount(selectedTags);
@@ -330,8 +330,14 @@ export default function CreateCharacterWizard({
   // she is titled. A locked last name is left untouched rather than rolled
   // and discarded (db/lib/nameCorpus.js), and NEUTRAL draws from both, which
   // is the honest answer rather than a fallback.
+  // The Bastard's party names itself from its own three registers rather than
+  // the general pool (db/lib/nameCorpus.js) -- null for every other seat.
   function rollName() {
-    const rolled = randomCharacterName({ gender: effectiveGender || "NEUTRAL", lastNameLocked });
+    const rolled = randomCharacterName({
+      gender: effectiveGender || "NEUTRAL",
+      lastNameLocked,
+      culture: cultureForRole(role?.slug),
+    });
     setFirstName(rolled.firstName);
     if (!lastNameLocked) setLastName(rolled.lastName ?? "");
   }

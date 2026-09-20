@@ -155,8 +155,8 @@ function examineReadout({
     ],
     // ABSENT, never "hidden" — a viewer without sight and nothing-to-read look the same.
     desire: canSeeDesire ? { text: lastDesire?.text ?? null, points: lastDesire?.points ?? null } : null,
-    // Most seats are public offices, so a look reads the title. The four that
-    // are not — the Brigands and the Tribunal — carry `examine_visible: false`
+    // Most seats are public offices, so a look reads the title. The two that
+    // are not — the Tribunal — carry `examine_visible: false`
     // and never reach here at all: the line they said froze no title
     // (db/lib/examineSnapshot.js), which is also why this reads
     // `visibleRoleTitle` and never `subject.roleTitle`. A raw Character row

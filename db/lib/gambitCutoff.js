@@ -31,7 +31,7 @@ const { ensureGambitDie } = require("./gambitDie");
 // modal draft (PENDING_TYPE) is not a Move.
 //
 // `playerFiled` IS THE DISCRIMINATOR, and getting it wrong is the sharpest edge in this file.
-// Research, the forge's Trinket, an above-skill heal, a lesson and a confession all file their own
+// The forge's Trinket, an above-skill heal, a lesson and a confession all file their own
 // Gambits with the die already in the row. `diceRoll: null` used to exclude them for free; now that
 // a player's own Gambit carries a die from submit, it no longer tells them apart. `diceModifier:
 // null` ALONE would be wrong in the other direction — trinketPass.js deliberately leaves the

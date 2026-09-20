@@ -101,7 +101,7 @@ that crop up to the cap** (`GameConfig.farmMaxCrops`, 50 by default, editable
 on `/gm/dev` mid-round) — the doc caps the sowing, not the seed. Seed bags
 are Merchant-stocked (`depotPrice: 4`), and the Silo (`town-3-2`) now stashes
 six of them — two wheat, two potato, one carrot, one plump-helmet, plus 4 wheat
-and 4 potato — behind `[barons-key, soilers-key, hands-key, headmans-key]`. The
+and 4 potato — behind `[barons-key, soilers-key, hands-key]`. The
 Farms Room (`town-3-1`) still stashes only `work-knife: 1`. This paragraph said
 no seed was stashed anywhere until 2026-09-20.
 

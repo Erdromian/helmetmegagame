@@ -18,11 +18,15 @@ right) and is worth re-tuning per background.
 
 The constants below are those original per-photo defaults, and every one of
 them is overridable from the command line. The banner currently in the repo is
-NOT the bare defaults — docs/assets/info-banner.png was built over
-bascinetbase.png with the treatment turned off and the blur halved:
+NOT the bare defaults — docs/assets/info-banner.png was built with the
+treatment turned off and the blur halved:
 
-    make-banner.py bascinetbase.png --crop-bottom 0 --brightness 1.0 \\
+    make-banner.py info-banner-source.webp --crop-bottom 0 --brightness 1.0 \\
         --saturation 1.0 --blur 0.000615
+
+That source image IS committed, beside this script, so the banner can be
+rebuilt exactly. The earlier background (bascinetbase.png) never was, which
+left the command above impossible to re-run.
 """
 
 import argparse

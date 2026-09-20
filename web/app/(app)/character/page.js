@@ -8,6 +8,7 @@ import {
   knownTeachableSkills,
   teachesFree,
 } from "@lifeweb/db/lib/lessons";
+import { cultureForRole } from "@lifeweb/db/lib/nameCorpus";
 import {
   prisma,
   roleCapacity,
@@ -116,12 +117,6 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { computeKnownRecipeIds } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
-import {
-  RESEARCH_TAG_SLUG,
-  CATHEDRAL_LOCATION_SLUG,
-  loadResearchCatalog,
-  researchableHeld,
-} from "@lifeweb/db/lib/research";
 // For the SEARCH offers' presented faces only — see pendingOffers below.
 import { seenAs, identityOf, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
@@ -389,9 +384,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     frozen,
     nukeState, // the bomb's clock (TagChip.js) — world state, every sheet shows it
     mine, // same server action Chat's YOU column polls, so the two never disagree
-    // The Research picker's held-ingredients shortlist (CRAFTING.md §2b) — a
-    // dedicated read, since tagCatalog's select doesn't carry `catalogVisibility`.
-    researchCatalog,
   ] = await Promise.all([
     getOpenTurn(),
     // getVisibleTags doesn't select purchasable/craftable, so this comes
@@ -411,7 +403,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         mastery: true, // ChipLabel's mastery star
         sprite: true, // TagIcon's item art; null falls back to the group glyph
         craftable: true,
-        catalogVisibility: true, // a SECRET recipe's own discovery gate (M3 review, last-breath)
+        catalogVisibility: true, // a SECRET recipe's own discovery gate (M3 review, cybernetic-arm)
         recipePublic: true, // Maggot Milk's escape hatch — see schema.prisma#Tag.recipePublic
         // The custom-item opt-in (CRAFTING.md): shows its name/description
         // fields only when this crosses, resolved against the rung below.
@@ -470,16 +462,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     // The turn card in the sheet's band paints from this, so it is read on
     // every load rather than gated on a scope.
     myMove(),
-    loadResearchCatalog(prisma),
   ]);
-
-  // Research (CRAFTING.md §2b): held ingredients in ANY recipe, server-computed so the menu can't drift from researchRequestImpl.
-  const holdsResearch = character.tags.some((ct) => ct.tag?.slug === RESEARCH_TAG_SLUG);
-  const atCathedral = character.location?.slug === CATHEDRAL_LOCATION_SLUG;
-  const researchOptions = researchableHeld(character.tags, researchCatalog).map((ct) => ({
-    slug: ct.tag.slug,
-    name: ct.tag.name,
-  }));
 
   // Desires: slots and evaluated catalog, built in web/lib/selfPools.js, which Chat's YOU column reads too.
   const {
@@ -610,6 +593,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         title: character.title,
         lastName: character.lastName,
         lastNameLocked: isDynastyMember(character.role?.slug),
+        // Keeps a rename inside the party's own registers.
+        culture: cultureForRole(character.role?.slug),
         gender: character.gender,
       }
     : null;
@@ -1240,9 +1225,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       miracleTargets: miracleTargets,
       miraclesLeft: miraclesLeft,
       hasMoved: Boolean(currentAction),
-      holdsResearch: holdsResearch,
-      atCathedral: atCathedral,
-      researchOptions: researchOptions,
       teachCostsMove: teachCostsMove,
       knownRecipeIds: knownRecipeIds,
       deathMaskCorpses: deathMaskCorpses,

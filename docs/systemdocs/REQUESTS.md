@@ -114,7 +114,6 @@ reason.
 | `FEED_PERSON` | Mortus feeds someone to the Lifeweb | blood added | Draws the blood back (never revives) |
 | `request_last_words` | While Dying: says one thing into a room or conversation they can be heard in, and then dies. Gated on SPEAK, never ACT — Dying takes your hands and leaves your voice (`TAGS.md` §5f). The words go out first and the death is claimed second, because a dead character can no longer write anywhere; a refused message kills nobody | — | Nothing. A GM revives from `/gm/dev` like any other death |
 | `HEAL_CHARACTER` | Treats a `healable` affliction on anyone at their Location, concealed or not — a hood costs you your name, not your treatment (`PROXYING.md` §5); a hooded patient shows only the wounds the medic could actually see. Billed to a payer — yourself, a Room stash here, or a person here. An affliction with `removesInto` leaves its treated form on the patient (`TAGS.md` §5c) | cost; put the affliction back (which also takes the aftermath off) | Restores the tag with its original expiry, takes back the aftermath, refunds the payer |
-| `RESEARCH` | A Scholastic in the Cathedral spends their Move as a GAMBIT studying a held ingredient — the die and the Hunger/Mood modifier are rolled and stored at submit, same as a Lesson's. Nobody adjudicates it: the Research pass resolves it at turn close, not a GM (`TURN-ENGINE.md` §2, `CRAFTING.md` §2b) | — | Nothing to undo once the pass has resolved it; before then, Reject the Action to give the Move back |
 | `request_stepstone` | Spends a Stepstone to stand in any **surface** Location, known or not (`MAP.md` §3b) — the underground is the one refusal, so the stone cannot drop somebody past the caving gate. No ⬢, no Move, no adjacency, no Action, but a hold still stops it. Escorts are cut loose and no gate line is posted | — | Restores the bottle and the old `locationId`/`zoneId` |
 | `CHANGE_NAME` | Takes a new honorific/first/last name | — | Restores the previous name |
 | `CAVING_LOOT` | Nothing — the turn engine files it when a Caving Die rolls a 6 (`CAVING.md`) | — | Drops the find |
@@ -244,7 +243,7 @@ Three notes on deliberate choices:
   here as well as made. That was 155 tags, every one of them also priced in
   `/store`, and Add Tag costs nothing but a written reason. It was therefore
   strictly cheaper than paying Tag Points, and players used it that way:
-  Butcher, Horse, Stealth, Literate, Ranged I, Workshop, Game Master.
+  Butcher, Horse, Stealth, Literacy, Ranged I, Workshop, Game Master.
   The help text asking them not to was the tell that the option should never
   have been on the menu. The two economies are now split at the door —
   `/store` spends points against catalog prices, Add Tag (Craft) spends turns

@@ -1940,9 +1940,12 @@ Four things are read-only:
 - **A Location is scenery, not speech** (§5b). `canSpeak: false`. The box is
   still drawn there, but only as a command line — nothing typed into it is
   ever said aloud (see the slash-commands bullet under "The parts").
-- **Everywhere you have been this turn but are not now.** Walking into a
-  Location lights it and it stays lit, until you leave the zone or the day
-  turns (`db/lib/vantages.js`, `CHANNELS.md` §3aa). `placesFor` appends each
+- **The street you walked out of, while it is still next door.** Walking out
+  of a Location lights it, and it stays lit while it is directly adjacent to
+  where you stand — walk on past it and it goes dark, and whatever is left
+  goes when the day turns (`db/lib/vantages.js`, `CHANNELS.md` §3aa). One
+  step, never two, and the zone does not come into it: a street on the far
+  side of a gate you just walked through is still next door. `placesFor` appends each
   lit Location, the rooms a door opens for you there, and the conversations you
   are in there — every one of them `canSpeak: false` and `vantage: true`, with
   no per-place exception to get wrong. That single rule is the exact mirror of
@@ -1950,7 +1953,8 @@ Four things are read-only:
   two faces answering differently about a street you are not standing in.
 
   The column draws them together under **Elsewhere**, in italics, after
-  Conversations; the composer there reads *“You aren’t in this location.”* The
+  Conversations, each stamped with its own zone rather than yours; the
+  composer there reads *"You aren't in this location."* The
   noticeboard is not offered from one, and neither are a place's affordances —
   the board is a thing you walk up to.
 

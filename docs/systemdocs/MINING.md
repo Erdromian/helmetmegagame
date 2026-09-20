@@ -4,9 +4,10 @@ How a character turns a day into ⬢, and sometimes into stone. One button, one
 coefficient per place — press **Mine** where there is a seam to work, spend the
 whole turn, and get paid on the press.
 
-**Anybody can press it.** Prospecting is not the gate; it is what the day is
-worth. Without the skill you get a small amount of ⬢ and nothing else. With it
-you get roughly four times as much and a roll on the prospecting loot table.
+**A pickaxe is the gate, and Prospecting is the boost.** Anybody holding a pick
+can dig, and gets ⬢ and a draw on the loot table for it. The skill multiplies
+the ⬢ by 1.7 and moves the draw to a richer column — it makes a day worth more,
+it never makes one possible.
 
 Read this before touching `db/lib/mining.js`, `db/lib/miningYield.js`,
 `web/app/(app)/character/actions/mine.js`, the prospecting half of
@@ -52,31 +53,54 @@ One tag, `prospecting`, name **Prospecting**, 7 points. No `parentTag`, no
 `requiredTag`, nothing above it and nothing below it. You either know rock from
 ore or you do not.
 
-**It is a multiplier, not a gate** (changed 2026-09-18). It used to refuse the
-button outright — "You wouldn't know rock from ore" — on the reasoning that an
-unskilled day paying nothing was a trap. What that actually did was hide a
-whole verb from most of the roster and make the Caves somewhere only one build
-had any business going. Anybody can shift rock; you do not need to be told
-which way up a pick goes.
+**It is a multiplier, not a gate** (changed 2026-09-18), and since 2026-09-20 it
+is a multiplier on *both* halves of the yield rather than a gate on either. It
+used to refuse the button outright — "You wouldn't know rock from ore" — on the
+reasoning that an unskilled day paying nothing was a trap. What that actually
+did was hide a whole verb from most of the roster and make the Caves somewhere
+only one build had any business going. Anybody can shift rock; you do not need
+to be told which way up a pick goes. **The gate is the Pickaxe now** (§1a).
 
 So it buys two things, and nothing else:
 
-| | Base range | Loot roll |
+| | ⬢ | Loot column |
 |---|---|---|
-| With Prospecting | **4–16** | yes |
-| Without | **0–6** | **never** |
+| With Prospecting | base **× 1.7** | the skilled one |
+| Without | base | the plain one |
 
-Both ranges are a BASE. Everything downstream — the place's coefficient, tools,
-Soft Hands, Lazy, the Lifeweb — scales both alike, so a rich seam beats a poor
-one either way and skilled digging beats unskilled everywhere. A flat 0–6 would
-have made an unskilled day in the Black Hills out-earn a skilled one there,
-which is the wrong way round.
+There is **one** base range, `6–12`, and everybody who can swing a pick gets it.
+The skill's 1.7 multiplies into the same number the two dials do, so it is worth
+the same *proportion* everywhere: a rich seam beats a poor one for both diggers,
+and the skilled digger beats the unskilled one in both places. That ordering is
+the whole reason it is a multiplier and not a second flat range — a flat
+unskilled band would have let an unskilled day in a good seam out-earn a skilled
+one in a bad seam, which is the wrong way round.
 
-The loot roll is not "unlikely" without the skill, it is **skipped**
-(`db/lib/moveEffects.js`). There is no rate to tune there.
+The loot roll is **no longer skipped** without the skill. An unskilled digger
+draws on the plain column and a prospector draws on a column about 20% richer
+(§3b) — so a slave with a borrowed pick still turns up stones, just poorer ones.
+`db/lib/moveEffects.js` reads the skill only to pick the column.
 
 `soilery` is its sibling in the same tag group (`skills-work`) and gates the
 Farm button. Neither gates the other.
+
+## 1a. The Pickaxe is the gate
+
+`pickaxe`, name **Pickaxe**, 2 points. **You cannot press Mine without one** —
+`computeMiningAccess` refuses, the button greys, and the server action throws the
+same string. It was "Prospector's Pick" until 2026-09-20; a tool named after the
+skill read like it belonged to the skill, and it belongs to anybody.
+
+**Held, not equipped.** `ctx.tagSlugs` is the whole check. The pick's own
+`miningBonus` still wants to be worn for its +1 (§4), so carrying one in the pack
+lets you dig at base — which is the right answer for a borrowed pick and needs no
+extra plumbing.
+
+Made on a Hatchet's terms (`smithing`, 3 ⬢, a quarter turn), because it is the
+same piece of forge work. The Depot stocks it at 13 ¢. The Prospector and the
+Slave start with one, and there are three in the Exactor's Office
+(`undertown-9-3`) — the Slaves' tools being in his safe rather than their hands
+is his whole grip on them.
 
 ## 2. What a place is worth
 
@@ -91,9 +115,9 @@ One `LocationMining` row per minable Location, and **the row is the gate**:
 
 **The sheet's Mine button only ever shows in the Caves.** `resolveMiningRateFrom`
 still reads whatever `LocationMining` row a character stands on, so the
-Black Hills and the Depths (`depths-chasm` included) are still priced and
+Black Hills and the Depths (`depths-7` included) are still priced and
 still drift, but `/character` (`web/app/(app)/character/page.js`) shows the
-button to anyone holding Prospecting and greys it — "You need to be in the
+button to anyone holding a pickaxe and greys it — "You need to be in the
 caves." — everywhere outside the `caves` zone. There is currently no player
 surface that reaches a mining payout anywhere but the Caves.
 
@@ -106,13 +130,13 @@ every turn close, and it is the only number a payout reads.
 | The Black Hills | 0.2–0.3 |
 | The Caves | 0.9 |
 | The Depths | 1.1 |
-| `depths-chasm` | 1.4 |
+| `depths-7` | 1.4 |
 | Everywhere else | no row |
 
 The Black Hills are surface rock: worth working if you are already up there,
 never worth the walk on its own. Underground is where mining actually pays.
-`depths-chasm` is the exception the map earned — it is the one place with an
-authored ore vein (`chasm-ore-vein`), and flattening it to the Depths' baseline
+`depths-7` is the exception the map earned — it is the one place with an
+authored ore vein (`depths-7-3`), and flattening it to the Depths' baseline
 would have deleted the only "dig HERE" anybody wrote down.
 
 Geography is authored live at `/gm/dev/zones` now, not by re-syncing YAML
@@ -126,13 +150,16 @@ creates a row only for a Location that does not have one, and never updates.
 1. **Exhausted** refuses. Tired does not — see §5.
 2. **Incapacitated** refuses (`INCAPACITATING_SLUGS`): bound, bleeding out, on
    the floor, out cold.
-3. **No row, or a row at 0** — "There's nothing to mine here." This is the only
+3. **No pickaxe** refuses — "You need a pickaxe to break rock." (§1a).
+4. **No row, or a row at 0** — "There's nothing to mine here." This is the only
    place-shaped refusal there is, and it is what greys the button in Town.
-4. **The base range** — 4–16 holding Prospecting, 0–6 without — times
+5. **The base range**, `6–12` for everybody, times
    `GameConfig.productionCoefficient` (the global dial, 0.9 out of the box)
-   times the Location's `current`. The result carries `prospecting: true|false`
-   back to the caller, which is what decides the loot roll; nothing downstream
-   should re-derive it from the tag.
+   times the Location's `current` times **1.7 if they hold Prospecting**. All
+   four are one multiplication, which is what keeps the skill worth the same
+   proportion everywhere. The result carries `prospecting: true|false` back to
+   the caller, which is what picks the loot column; nothing downstream should
+   re-derive it from the tag.
 6. **Tools** are added flat, after the scaling, so a tool is worth the same
    everywhere (§4).
 7. **Soft Hands** halves what is left, rounded down.
@@ -164,8 +191,8 @@ let it be.
 
 ## 3b. The prospecting loot table
 
-On top of the ⬢, a character holding Prospecting rolls once per press on a
-weighted table. **It is the Caving Die's machinery, reused** — same file
+On top of the ⬢, **every** Mine press draws once on a weighted table. **It is
+the Caving Die's machinery, reused** — same file
 (`db/lib/cavingLoot.js`), same six tier names, same two-stage draw: land on a
 tier by the standing zone's column, then pick uniformly inside it.
 
@@ -178,21 +205,32 @@ never worth what it cost. Do not bring it back.
 
 ### The columns
 
-| Tier | Caves | Depths | Black Hills |
-|---|---|---|---|
-| Ultracommon | 62% | 18% | — |
-| Common | 26% | 24% | — |
-| Uncommon | 9% | 28% | — |
-| Rare | 2.8% | 22% | — |
-| Extremely rare | 0.15% | 6% | — |
-| Nearly impossible | 0.05% | 2% | — |
+Two per zone, because Prospecting boosts the draw rather than unlocking it. The
+plain column is what a pickaxe alone gets you; the skilled one is what the tag
+buys, roughly 20% richer.
+
+| Tier | Caves | Caves +P | Depths | Depths +P | Black Hills |
+|---|---|---|---|---|---|
+| Ultracommon | 62% | 54.4% | 18% | 5% | — |
+| Common | 26% | 31.2% | 24% | 25% | — |
+| Uncommon | 9% | 10.8% | 28% | 32% | — |
+| Rare | 2.8% | 3.36% | 22% | 27% | — |
+| Extremely rare | 0.15% | 0.18% | 6% | 8% | — |
+| Nearly impossible | 0.05% | 0.06% | 2% | 3% | — |
+
+The Caves' skilled column is computed: every tier above Ultracommon times 1.2,
+with the remainder taken off the top row. The Depths' is **hand-set**, because
+the same arithmetic there lands Ultracommon at 1.6% — correct, and it reads as a
+bug rather than a boost, since 82% of that column is already above Ultracommon.
+5% is the smallest number that still looks deliberate.
 
 **The Black Hills have no column at all, and that absence IS the rule.** They
 are minable for ⬢ and hold nothing worth finding — surface rock, worth working
 if you are already up there. `drawProspectingLoot` returns null for a zone with
 no column rather than throwing, which is the one way it differs from
 `drawLoot`: mining somewhere with no stones in it is an ordinary outcome, not a
-misconfiguration.
+misconfiguration. The skill does not buy a column where there is none, so a
+prospector in the Hills finds nothing either.
 
 ### The contents
 
@@ -246,13 +284,16 @@ loudly instead of quietly.
 ## 4. Tools
 
 A tag with a `miningBonus:` block adds a flat number of ⬢ while it is held (or
-worn — `equipped` defaults true). Three carry one:
+worn — `equipped` defaults true). Two carry one:
 
 | Tag | Bonus |
 |---|---|
-| Prospector's Pick | +1 |
+| Pickaxe | +1 |
 | Mining Helmet | +1 |
-| Claim Stake (a Structure, `placement.miningBonus`) | +1 |
+
+The Pickaxe is the odd one, because it is also the **gate** (§1a): you cannot
+mine without one at all, and its +1 is what wearing it rather than stowing it
+buys on top.
 
 There was a `kind:` key naming which of the four Laboring types a bonus paid
 into, and a typo in it silently made a tool worthless. A bonus is just a bonus
@@ -263,6 +304,15 @@ they do **not** stack: the best one only, so a location-wide bonus cannot
 multiply by occupancy. Ties keep the older structure. A structure must be
 `COMPLETE` — the same reading `equipmentReach.js` takes, which is what gives
 Damage teeth.
+
+**Nothing uses that today.** The Claim Stake was the only structure carrying a
+`placement.miningBonus`, and it was deleted on 2026-09-20 — a 6 ⬢ Builder-Skilled
+build for a permanent +1 at one Location was strictly better than carrying the
+tool that does the same thing, and it made the good seams campable in exactly the
+way the drift pass (§6) exists to prevent. So `structureTools()` returns `[]` for
+every Location in the game. The machinery is left standing on purpose: it is a
+general rule with no example right now, and adding a structure back is one YAML
+block with no code change.
 
 **Weapon bonuses do not stack either** — only the best-paying weapon counts.
 Nothing mining carries one today, but the rule is cheap and a pick is one edit
@@ -331,7 +381,7 @@ numbers move anyway.
 | < 1.55 | Ample |
 | ≥ 1.55 | Bountiful |
 
-At base, only `depths-chasm` wears Ample; nothing wears Bountiful.
+At base, only `depths-7` wears Ample; nothing wears Bountiful.
 
 ## 8. File map
 
@@ -347,4 +397,4 @@ At base, only `depths-chasm` wears Ample; nothing wears Bountiful.
 | `db/lib/tagShapes.js` | `normalizeMiningBonus` / `validateMiningBonus` |
 | `db/lib/examineLocation.js` | The Examine readout |
 | `docs/zones.yaml` | Every `mining:` value |
-| `docs/tags.yaml` | Prospecting, Soilery, and every `miningBonus:` |
+| `docs/tags.yaml` | Prospecting, Soilery, the Pickaxe, and every `miningBonus:` |

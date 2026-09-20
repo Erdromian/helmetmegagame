@@ -454,12 +454,9 @@ async function runStagedPushPass(prisma, turn) {
   // what it did, in one line. A settled lesson carries appliedEffects and never
   // reaches `unapplied` anyway — the marker check still earns its place for a
   // lesson accepted BEFORE that change shipped, which is OPEN with no effects.
-  // A research Gambit is excluded for the same reason: db/lib/researchPass.js
-  // already told the researcher the die and what it turned up.
   const gambitRollNotices = [];
   for (const action of unapplied) {
     if ((action.gmNotes ?? "").includes("auto:lesson")) continue;
-    if ((action.gmNotes ?? "").includes("auto:research")) continue;
     // A break-in Gambit resolves automatically and tells the player the
     // outcome (breakInDm below) — the bare "you rolled X" notice would just
     // be a confusing, contextless second message ahead of it.

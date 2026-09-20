@@ -118,14 +118,12 @@ Marshes Location except the factory, the farms and the marshes village), and
 `haven` marks a Location whose roof gives extra relief at turn close — the
 Inn, the Keep and the Sanctuary.
 
-A third, `wheels`, is the one authored exception to the `indoors` column: an
-indoors Location wearing it admits a cart and a horse anyway (`CARRY.md` §3).
-The Godard Factory, Customs and the Depot carry it. It changes nothing else —
-those three keep their roof for the mood dial and for whether anything can be
-built in them. `indoors` itself only parks a mount at
-all **underground** (`zone.kind === "CAVE_LEVEL"`) — a surface roof no longer
-takes the reins away, so `wheels` matters in practice on Customs and the
-Depot, the two underground places that carry it.
+There used to be a third, `wheels`, an authored exception letting an indoors
+Location admit a cart anyway. It is gone. `indoors` only parks a mount
+**underground** (`zone.kind === "CAVE_LEVEL"`) — a surface roof no longer takes
+the reins away at all, which left the attribute doing real work on exactly one
+Location, and that one was the cave mouth's cart gate. The gate went, so the
+exception went with it (`CARRY.md` §3).
 
 Every key must exist in the registry in `db/lib/locationAttributes.js`, which
 is the only module that reads the column. An unknown key is reported as a sync
@@ -344,11 +342,12 @@ same two sentences. A tunnel is also never taken by the `/map` board's
 double-click or Enter shortcut: `canGestureTo` refuses one, because a gesture
 that skips the dialog would skip the only warning there is.
 
-Two edges carry it today, both out of the Depot: `undertown-5 ↔ hills/grand-ravine`
-and `undertown-5 ↔ depths/depths-chasm`. Both cross a zone, which is what keeps
-§3c's auto-walk off them — `walkWithinZone` is same-zone only. **Author a
-same-zone railroad edge and that stops being true**, so `db/test/railroad.test.js`
-asserts the property rather than trusting it.
+One edge carries it today, out of the Depot: `undertown-5 ↔ depths/depths-7`.
+There were two — the other ran to the Grand Ravine, which reaches the deep on
+foot now instead, by a `locked: climbing` descent into the Chasm. It crosses a
+zone, which is what keeps §3c's auto-walk off it — `walkWithinZone` is same-zone
+only. **Author a same-zone railroad edge and that stops being true**, so
+`db/test/railroad.test.js` asserts the property rather than trusting it.
 
 The decision and the death live in `db/lib/railroad.js`; it is called from
 `applyLocationMoveSideEffects` **after** the move commits, beside the turrets and
@@ -535,8 +534,8 @@ extra free hop the instant they can act again.
 
 **The Caving Die rolls on arrival** for the mover and everyone in their
 party, on any `CAVE_LEVEL` destination — and arrival is now the *only*
-time it rolls, so walking is what wakes the dark. A Location wearing the
-`safe` attribute is exempt; Customs and the Depot are the two (`CAVING.md` §2).
+time it rolls, so walking is what wakes the dark. Nowhere underground is
+exempt; the `safe` attribute that excused two places is gone (`CAVING.md` §2a).
 
 `performLocationMove` returns `{ ok, oldLocation, oldZone, targetLocation,
 targetZone, crossedZone, spentTurn, usedHorse, moved: [{ character,
@@ -709,7 +708,7 @@ explicit that `listed` is weaker than `passable` — a locked door or a shut
 portcullis is listed on purpose, so you know it's there and cannot open it.
 The stone does not care. The Undercroft is reached
 by a `hidden: elevator-key` connection and the Charon is down there; the
-Brigand camp, the Keep and the Underquarter are all surface Locations behind
+ravine camp, the Keep and the Underquarter are all surface Locations behind
 gates a stone-holder no longer needs to open. The caves are the one thing still
 walled off, which is what keeps the caving gate and the Caving Die meaning
 something.
@@ -879,9 +878,24 @@ one when you mean the other.
   `/map` (§6). It is per character, it only ever grows, and **nothing ever
   unlearns a row** — seen once, drawn forever.
 - **`Vantage`** (`db/lib/vantages.js`) is the **channel** fog, per turn. A row
-  says "this character walked out of here and is still watching it", and every
-  row goes the moment they leave the zone or the day turns
-  (`CHANNELS.md` §3aa).
+  says "this character walked out of here and is still watching it", and it is
+  **one step and no further**: the light stays on only while that place is
+  still directly next door to where they stand. Walk on past it and it goes
+  out; the day turning puts out whatever is left (`CHANNELS.md` §3aa).
+
+  The zone has nothing to do with it. Walking out through a gate leaves the
+  street behind you lit exactly as any other single step would — whether that
+  gate happens to be a zone boundary is not the player's business, so a
+  vantage can sit in a zone its owner is not standing in. This used to be the
+  zone rule instead, which meant a turn's walking lit every street you had
+  passed through and handed one person a reading seat over half a zone.
+
+  How it is read cheaply: `Vantage.anchorLocationId` is where the character
+  stood when the row was last confirmed next door, so a read is one equality
+  rather than a walk of the link graph. Adjacency is worked out **once**, by
+  `applyLocationMoveSideEffects`, on the move that changes it — which also
+  means a row left behind by a prune that failed to run reads as dark the
+  instant they move.
 
 `applyLocationMoveSideEffects` writes both, a few lines apart, which is exactly
 why they need different names. It takes a `walked` flag, defaulting **false**,
@@ -960,8 +974,8 @@ sighting the post-commit hook dropped heals itself the next time they look.
 
 **The fog does not start fully closed.** A character is made knowing the places
 their life would have taught them — the home cluster, plus the road their trade
-actually walks. A Headman opens the board already seeing the Farms he has taxed
-for years; a Banneret sees every step of the run up to town. The table is
+actually walks. A Sheriff opens the board already seeing the bridge he has
+walked for years; a Banneret sees every step of the run up to town. The table is
 `db/lib/startingMemories.js`, keyed by role slug. It has a second half keyed by
 a starting tag, `KIT_MEMORIES`, which is **empty**: the three Commoner kit
 crates were its only entries and went with the role, and the mechanism is kept
@@ -971,12 +985,12 @@ commits — after, because `travelOptions` reads the tags it just granted.
 **Leaving a slug out of that table is not a guarantee it stays dark**, and it is
 worth being clear about why. `recordArrival` paints every *listed* neighbour of
 a seeded Location, and a locked way is listed — so a seat seeded in the Caves
-reaches `customs` through the gate it may not open whether the table names it
+reaches `caves-1` through the gate it may not open whether the table names it
 or not, which is correct: you can see a door you have no key to.
 What leaving a slug out really protects is a **hidden** way, since
 `travelOptions` drops those before the sighting write ever runs. The table is
 therefore written to the standard of "would this seat's life have taught them
-this", not "is this a secret" — the cargo-bay seats stop at `caves-approach`
+this", not "is this a secret" — the cargo-bay seats stop at `caves-2`
 rather than the Migrants' camp, because the camp is one open road from the
 brooding grounds and two from the mouth of the Depths.
 

@@ -134,13 +134,13 @@ test("situational entries are listed and never summed", () => {
     row("guerrilla", { tree: "both", points: 20, situational: true }),
     // No tier and no tree at all, and it still has to reach the list — that
     // list is the whole reason such a tag carries a block.
-    row("camouflage", { situational: true }),
+    row("reckless-attacker", { situational: true }),
   ];
   const r = melee(tags);
   assert.equal(r.score, UNTRAINED, "nothing situational reaches the number");
   assert.equal(r.situational.length, 3);
   assert.equal(r.situational.find((s) => s.label === "melee-duelist").tiers, 2);
-  assert.equal(r.situational.find((s) => s.label === "camouflage").tiers, null);
+  assert.equal(r.situational.find((s) => s.label === "reckless-attacker").tiers, null);
   // The condition text came out of the catalog: a situational says only that a
   // gamemaster decides it, and which moment is the description's job.
   assert.ok(r.situational.every((s) => !("when" in s)));

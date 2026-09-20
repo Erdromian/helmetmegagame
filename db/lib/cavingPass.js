@@ -3,7 +3,6 @@
 // arrival rolls uncapped — the walk cooldown (GameConfig.locationMoveCooldownSeconds)
 // is the only brake. Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
-const { hasAttribute, SAFE_ATTRIBUTE } = require("./locationAttributes");
 const { addToStack } = require("./tagWrites");
 const { applyMood } = require("./mood");
 const { rollWithAdvantage } = require("./advantage");
@@ -122,10 +121,12 @@ async function rollCaving(prisma, character, turn, location) {
   });
 }
 
-// Bails quietly on a surface Location, SAFE, no open turn, or any error at all — a caving roll must never fail the move that caused it.
+// Bails quietly on a surface Location, no open turn, or any error at all — a caving roll must never fail the move that caused it.
 async function rollCavingOnArrival(prisma, character, location) {
+  // Underground is the whole gate now. The `safe` attribute used to except
+  // the cave mouth; it was deleted with the watchtower it belonged to, so the
+  // Die rolls everywhere below ground, the Entrance included.
   if (location?.zone?.kind !== "CAVE_LEVEL") return null;
-  if (hasAttribute(location, SAFE_ATTRIBUTE)) return null;
 
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
   if (!turn) return null;

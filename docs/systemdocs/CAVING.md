@@ -67,10 +67,9 @@ than being dropped, the same posture every other retired enum value in this
 codebase gets — nothing writes it any more.
 
 **`rollCavingOnArrival(prisma, character, location)`** owns the whole gate.
-Four ways it quietly returns `null`, and one of them is new:
+Three ways it quietly returns `null`:
 
 - the Location's zone is not a `CAVE_LEVEL`;
-- the Location is **safe** — `hasAttribute(location, "safe")`, see below;
 - there is no `OPEN` turn (mid-restart);
 - anything at all threw.
 
@@ -96,22 +95,24 @@ Three callers:
   had dropped underground, and without this a staged relocation into the Depths
   would roll nothing at all until the character walked.
 
-### 2a. The cave mouth is safe
+### 2a. There is no safe ground any more
 
-`Location.attributes.safe` (`db/lib/locationAttributes.js`) exempts a Location
-from the Die, and **Customs and the Depot are the only two places that wear
-it**. Between them they are the cave mouth: a sentry, a floodlight, a campfire
-and, one plain hop east, a shop. Nothing stalks a place that busy. Customs is
-also where every migrant lands, and rolling a 1 on somebody's first step into
-the game was the worst first impression the map had.
+`Location.attributes.safe` used to exempt a Location from the Die, and Customs
+and the Depot were the only two that wore it. Both are gone: the attribute was
+deleted from the registry outright, and with it the one line in
+`cavingPass.js` that read it. **Underground is the whole gate now** — every
+`CAVE_LEVEL` arrival rolls, with no exception anywhere on the map.
 
-It is an attribute rather than a slug comparison in `cavingPass.js` for the
-reason `MAP.md` §1b gives: a system that owns a place should ask what is true
-about the place. Examine prints it on the spot — "**Safe**: the Caving Die
-doesn't roll here." — so a player choosing where to camp can read the answer
-instead of inferring it from a week of quiet rolls. The line names the Die
-rather than just promising safety, because the attribute means *this* one
-specific thing and a surface Location's silence must not read as a warning.
+It went with the watchtower. Customs was a sentry, a floodlight and a campfire,
+and nothing stalked a place that busy; the Entrance that replaced it is a dark
+cave mouth where a few people are dying, and its one room says so out loud —
+*"It's not safe here."* An exemption that survived the fiction justifying it
+would have been the map telling a player the opposite of the prose.
+
+The cost is real and was accepted deliberately: the Entrance is where every
+migrant lands (`docs/roles.yaml`), so a 1 on somebody's first step into the
+game is now possible. That is the first impression the Entrance is meant to
+make.
 
 **One consequence worth stating plainly.** Same-zone travel is free, so a caver
 who walks the level rolls once per step where the old turn-start pass rolled
@@ -487,7 +488,6 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | The one trigger | `db/lib/cavingPass.js#rollCavingOnArrival` |
 | The zone hold a 1 puts on you | `db/lib/cavingPass.js#cavingHoldFor` (§2c) |
 | Its callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#applyBulkAction` (its Move verb) |
-| The safe-Location exemption | `db/lib/locationAttributes.js` (`safe`), authored in `docs/zones.yaml` |
 | Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |
 | Kind labels | `web/lib/cavingLabels.js` |
 | Loot grant, and taking it back | `db/lib/cavingPass.js`, `web/app/(desk)/gm/turns/actions.js#undoCavingFind` |

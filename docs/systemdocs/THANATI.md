@@ -198,7 +198,7 @@ all — a rule about the payload, not about the string.
 `_Word of the Circle:_ {word:phrase}`. `{word:…}` is a token whose payload is
 the text; `DocumentMarkdown`, `RichText` and `ChipText` render it as a
 `.chip.word-chip`. Documents have no literacy gate, which is why every seat
-kit grants Literate.
+kit grants Literacy.
 
 ## 6. GM surface
 

@@ -238,17 +238,19 @@ for. If a mood hit is ever wanted, it belongs on the **noticed** band alone.
 
 | | slug | cost | who |
 |---|---|---|---|
-| Pickpocketing (Basic) | `pickpocket` | 3 | anyone |
-| Pickpocketing (Skilled) | `pickpocketing-skilled` | 2 | Brigands |
+| Pickpocketing I | `pickpocket` | 3 | anyone |
+| Pickpocketing II | `pickpocketing-skilled` | 2 | anyone |
 
-**The slug did not change, on purpose.** `db:sync-tags` is upsert-only, so
-renaming in place keeps every Brigand who already bought the old Pickpocket.
+**Neither slug changed, on purpose.** `db:sync-tags` is upsert-only, so
+renaming in place keeps everybody who already bought either rung. Both carry
+`keepSlug: true` to tell the syncer the drift is deliberate.
 
-**What opened it to everyone was the GROUP, not the tag.** `pickpocket` moved
-from `general-brigand` — which carries `requiredTag: brigand` in
-`docs/taggroups.yaml` — to `general-traits`, which carries no gate. The member
+**What opened them to everyone was the GROUP, not the tags.** Both moved out
+of `general-brigand` — which carried `requiredTag: brigand` — into
+`general-traits`, which carries no gate: the basic rung on 2026-09-16, the
+second on 2026-09-20 when the Brigand group was deleted outright. The member
 tags of a gated group deliberately never repeat the gate themselves
-(`TAGS.md`), so moving the tag is the whole of the change.
+(`TAGS.md`), so moving the tag was the whole of the change.
 
 **Skilled uses `requiredTag`, not `parentTag`.** A prerequisite that does *not*
 replace, so a master holds both rungs and pays 5 in total. `parentTag` would

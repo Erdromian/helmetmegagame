@@ -215,7 +215,7 @@ tray as "unattached" for the GM to keep or drop.
   the lock without one.
   The pass picks its rows on **`playerFiled: true` and `diceModifier: null`**.
   Not `diceRoll: null`, which is what it used to use — a player's Gambit carries
-  a die from submit now, so that no longer tells it apart from Research, the
+  a die from submit now, so that no longer tells it apart from the
   forge's Trinket, an above-skill heal, a lesson or a confession, all of which
   file their own Gambits pre-rolled. And not `diceModifier: null` alone, because
   the Trinket deliberately leaves the modifier null and must not be stamped with
@@ -266,12 +266,10 @@ tray as "unattached" for the GM to keep or drop.
   regardless of what else the push sent them.
 - **Some Gambits never reach a GM at all.** A heal Gambit (`TAGS.md` §5c)
   sits OPEN on this desk because a GM has to read the roll and decide what it
-  did. Lessons and Research don't: each is resolved entirely by its own turn
-  pass — Lessons rolls, grants and DMs a learner before this desk ever sees
-  the row; Research does the same for a Scholastic's studied ingredient
-  (`TURN-ENGINE.md` §2, `CRAFTING.md` §2b) — so by the time either shows up
-  here it is already `SOLVED`, `resultMessage` filled in, and the DM already
-  sent. The row still surfaces between file and close like any other Move; a
+  did. A Lesson doesn't: it is resolved entirely by its own turn pass, which
+  rolls, grants and DMs a learner before this desk ever sees the row
+  (`TURN-ENGINE.md` §2) — so by the time it shows up here it is already
+  `SOLVED`, `resultMessage` filled in, and the DM already sent. The row still surfaces between file and close like any other Move; a
   GM overwriting `resultMessage` on it is a real edit, not a no-op, and the
   written line stands — the same guard a Lesson's own GM-authored result
   gets.

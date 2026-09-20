@@ -37,6 +37,15 @@ documents:
       - Soilery
     # [PLAYER TEXT — Bascinet to rewrite]
     description: ""
+  mining:
+    name: Mining
+    public: false
+    tags:
+      - Prospecting
+      - Pickaxe
+    roles: [prospector, slave]
+    description: |-
+      Mining yields resources and precious metals, which can be inlayed by smiths into the lucrative trinkets. To mine, you must have a Pickaxe. The Prospecting skill boosts both your resource and precious metal yield.
   combat:
     name: Combat
     public: true
@@ -252,6 +261,15 @@ documents:
       The Baron highly values the Banneret's work on the Squeeze, as it singlehandedly funds Ravenheart's warchest. Squeeze has no use for anyone in Ravenheart, but without its production, Ravenheart wouldn't be able to grow at all. Its production is very dangerous.
 
       Squeeze sells for 7 ¢ at the Merchant's Depot. The Merchant has, in the past, traditionally taken 1 or 2 ¢ per, leaving the Banneret with 5 or 6 per cube.
+  economy:
+    name: Economy
+    public: true
+    tags: []
+    roles: [meister, baron, hand]
+    description: |-
+      Ravenheart's economy functions in a simple way. Crafters and producers sell their goods at the depot's Dropbox, which is automatically collected into the seller's account. A sell tax, set by the Meister, is automatically withheld. Interesting goods can be bought from the Merchant.
+
+      Everyone's ATMs are backed by the treasury in the Keep, so if everyone draws at the same time, the Keep will be unable to pay its dues.
   godardfactory:
     name: Godard Factory
     public: false
@@ -331,7 +349,7 @@ documents:
     public: false
     tags:
       - Thanati
-    roles: [bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+    roles: [bishop, chaplain, inquisitor, practicus, preacher]
     description: |-
       The Thanati are a violent death cult, seeking to bring an end to this reality. In their eyes it is flawed and broken, and must be torn down so that their lord, Tzchernobog can rebuild it anew. Only when the last human observer ceases to exist can this reality end.
 

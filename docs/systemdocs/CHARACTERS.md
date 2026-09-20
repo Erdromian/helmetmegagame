@@ -224,8 +224,7 @@ the 10-char cap holds with the catalog as it stands.
 | Monastic | tag `mortus`, role `incarn` | Brother / Sister / Sibling |
 | Bishop | role `bishop` | one word |
 | Doctor | tag `medical-skilled`, roles `esculap` `serpent` | one word |
-| Professor | role `scholastic` | one word |
-| Master | roles `metalsmith` `innkeeper` `headman` | one word |
+| Master | roles `metalsmith` `innkeeper` | one word |
 
 **A player never picks between Lord, Lady and Noble.** Their gender decides
 that; the dropdown picks between Lord and Sir. So `earnedTitles()` returns one
@@ -437,8 +436,8 @@ Worth knowing because it was written and synced for every role and **rendered
 nowhere at all** until that card existed — an edit to `description` used to
 reach no one.
 
-**Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Judge,
-the NPC monsters, the Brigands — those seats are assigned
+**Threats are not in `roles.yaml`.** Sympathizer, the Demoness, the Judge
+and the NPC monsters — those seats are assigned
 by hand by a GM and must never appear in the player-facing picker, so they are
 prose in `db/lib/threats.js` rather than role data (`THREATS.md`). They used to sit in
 `zones[].threats[]`, carrying a full role's worth of fields that no sync ever
@@ -535,9 +534,8 @@ on.
 decides whether examining somebody prints their role. It defaults to **true**,
 which is the opposite of every other flag in that file, and on purpose: nearly
 every seat here is a public office, and the Bishop, the Sheriff and the
-Innkeeper are known to be what they are. Four carry `examine_visible: false`:
-**Brigand Leader, Brigand, Tribunal Ordinator and Tribune**, the seats that live
-on not being known.
+Innkeeper are known to be what they are. Two carry `examine_visible: false`:
+**Tribunal Ordinator and Tribune**, the seats that live on not being known.
 
 An opaque seat reads as **nothing at all** — not "Unknown". A hidden role and a
 character with no role look identical, the same way a Desire nobody may read is
@@ -582,8 +580,8 @@ Picking a role decides almost everything:
 - `bank_account` — opens a `BankAccount` fingerprinted to the new character:
   `treasury` for nearly every seat (hard-backed by the real `obol` tags in
   the Keep's Vault), `offshore` for the Merchant and his Dockers (no vault
-  behind it). Absent for the Black Hills — the Tribunal and the Brigands
-  arrive with no account at all, and open one later at the counter's
+  behind it). Absent for the Black Hills — the Tribunal
+  arrives with no account at all, and open one later at the counter's
   **Create an account** button, the same as any spawned antagonist. The
   account itself opens EMPTY; a starting purse is physical `Obol xN` tags
   from `starting_tags` instead, because a seeded balance on day one would be
@@ -644,7 +642,7 @@ never claim back more than you started with. Both dropped together on
 hole: a count cap spends the same slot on a −1 as on a −11, and a point cap
 alone never stops a pile of small ones. The role's own starting tags land as
 `GM_GRANT` and never pass through the purchase path, so the Meister's free
-Frail and the Headman's Old count against neither. `TAGS.md` §4a is the full
+Frail and the Geschef's Old count against neither. `TAGS.md` §4a is the full
 rule.
 
 Leftover points are kept, not lost: they land on `Character.tagPoints`.

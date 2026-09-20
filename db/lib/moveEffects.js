@@ -142,18 +142,20 @@ const MOVE_EFFECTS = {
   miningDrop: {
     read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
-      const prospecting = await tx.characterTag.findFirst({
+      // NOT a gate any anymore — the skill picks which column gets drawn, and an unskilled digger
+      // still turns up stones, just poorer ones (db/lib/cavingLoot.js). The gate on pressing Mine
+      // at all is the Pickaxe, and it is enforced upstream in db/lib/mining.js.
+      const prospecting = !!(await tx.characterTag.findFirst({
         where: { characterId: action.characterId, tag: { slug: PROSPECTING_SLUG } },
         select: { id: true },
-      });
-      if (!prospecting) return 0;
+      }));
 
       // The table is keyed by zone SLUG; the Action carries the id it was filed at, which is the right one to read — a character who walked out of
       // the caves after pressing Mine still dug where they dug.
       const zone = action.zoneId
         ? await tx.zone.findUnique({ where: { id: action.zoneId }, select: { slug: true } })
         : null;
-      const drawn = zone ? drawProspectingLoot(zone.slug) : null;
+      const drawn = zone ? drawProspectingLoot(zone.slug, { prospecting }) : null;
       if (!drawn) return 0;
 
       const tag = await tx.tag.findUnique({

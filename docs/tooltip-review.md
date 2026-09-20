@@ -77,7 +77,6 @@ as a heading:
   its label. Candidate.
 - `NavRail.js:130,138` — mute/unmute, sign out. Icon-only buttons, so the title
   is the only name they have. **Keep**.
-- `chat/PlaceCard.js:137` — `researchHint`.
 - `map/MapBoard.js:831` — which tag opened a route; `:906` — "Exert yourself for
   another free travel."
 - `archive/ArchiveTranscript.js:115,151` — "Only {zone}" / "Only {speaker}"

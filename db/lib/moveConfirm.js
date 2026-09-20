@@ -23,7 +23,7 @@ async function confirmMove(prisma, action, actorDiscordUserId) {
     // CONFIRMED without one. ensureGambitDie hands back the turn's existing die
     // when there is one, so a re-file after a withdraw gets the same number.
     // `diceRoll == null` is belt and braces rather than a real branch — only
-    // fileMove's rows reach here, and Research/Trinket/heal/Lessons/Confession
+    // fileMove's rows reach here, and Trinket/heal/Lessons/Confession
     // file their own Gambits with the die already in the row and never confirm
     // through this path. If one ever did, its die is its own.
     const gambit =

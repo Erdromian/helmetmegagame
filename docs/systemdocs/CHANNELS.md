@@ -149,12 +149,20 @@ swaps it as needed (§ below); nothing else grants access.
 
 A character does **not** hold exactly one Location overwrite. They hold one for
 the street they stand in, and one for **every street they walked out of this
-turn and have not left the zone of** — the fog of war
-(`db/lib/vantages.js`). Walking into a Location lights it, and it stays lit
-until one of exactly two things puts every light out at once:
+turn that is still directly next door** — the fog of war
+(`db/lib/vantages.js`). Walking out of a Location lights it, and it stays lit
+until one of exactly two things puts it out:
 
-- **leaving the zone**, or
-- **the turn shifting**.
+- **walking on past it**, so it is no longer next door, or
+- **the turn shifting**, which puts out whatever is left.
+
+**One step, never two.** Walk A to B to C and A goes dark as you reach C,
+unless C happens to touch A as well. **And the zone does not come into it** —
+walking out through a gate leaves the street behind you lit exactly as any
+other single step would, so a watched street can sit in a zone its watcher is
+not standing in. It used to be the zone rule instead: every street you had
+walked through stayed open until you crossed a boundary, which over a turn's
+walking was a reading seat over half a zone.
 
 The difference between the two states is the overwrite's **masks** — the
 overwrite itself is the same call either way (`db/lib/zoneChannelSpec.js`):
@@ -186,15 +194,19 @@ Where a character **stands** is still `Character.locationId` and is never a
 `Vantage` row. That is what makes the turn wipe a bare `deleteMany` with
 nothing to put back.
 
-Each row carries two **snapshot columns** — the turn it was lit in and the zone
-it sits in — and every reader filters on both. A wipe that fails to run
-therefore leaves rows that already read as dark to `placesFor` and to the
-doctor, rather than a leak; the doctor takes their overwrites off on its next
-pass (§6). The wipes are the belt, the filter is the braces.
+Each row carries two **snapshot columns** — the turn it was lit in, and
+`anchorLocationId`, the place the character stood in when the row was last
+confirmed next door — and every reader filters on both. Adjacency is worked
+out **once**, by the move that changes it, so a read is one equality rather
+than a walk of the link graph. A prune that fails to run therefore leaves rows
+that already read as dark to `placesFor` and to the doctor the moment the
+character moves, rather than a leak; the doctor takes their overwrites off on
+its next pass (§6). The wipes are the belt, the filter is the braces.
 
 The web says the same thing from the same rows: `placesFor` lists each watched
 Location and its rooms with `canSpeak: false` and draws them under
-**Elsewhere** in Chat's left column (`CHAT.md` §3). The composer there reads
+**Elsewhere** in Chat's left column (`CHAT.md` §3), each stamped with its
+**own** zone rather than the watcher's, since the two can now differ. The composer there reads
 *"You aren't in this location."*
 
 One consequence worth knowing: a Location anchor's buttons are pressed **in the
@@ -477,9 +489,9 @@ this reason. Anything that prunes Rooms must carry the same guard. Players
 still cannot create one; a GM can.
 
 **A room's id is always `<location-stem>-<room>`** — `keep-throne-room`,
-`town-7-6`, `customs-watchtower`. Zones, locations and rooms share one slug
-namespace, so without the stem the obvious id is often already gone: there are
-four rooms called "Watchtower" and two called "Road". Display names are
+`town-7-6`, `fortress-2-3`. Zones, locations and rooms share one slug
+namespace, so without the stem the obvious id is often already gone: two rooms
+each are called "Gate", "Road", "Street", "Bar" and "Kitchen". Display names are
 unaffected. Four room slugs are also hardcoded in JS and must move with the
 YAML — `INTERCOM_ROOM_SLUG` (`db/lib/intercom.js`), `BELL_ROOM_SLUG`
 (`db/lib/bell.js`), `CENSOR_OFFICE_ROOM_SLUG` and `WATCHTOWER_ROOM_SLUGS`
@@ -761,7 +773,10 @@ Two scopes:
   This is also the **backstop for the turn shift.** A `Vantage` row is invalid
   the moment its turn is no longer the open one, so the cheap pass that runs at
   the end of every turn advance closes whatever the expiry step missed. The
-  expiry step is what makes it prompt, not what makes it correct.
+  expiry step is what makes it prompt, not what makes it correct. It is the
+  same backstop for a move: a row whose `anchorLocationId` is not where its
+  owner now stands is invalid too, so a prune the move pipeline failed to
+  finish is closed here.
 - **full** — all of the above plus the expensive halves: zone and **Location
   channel overwrites** vs the spec (the *role* half; occupancy is cheap-scope),
   leftover per-member overwrites on zone channels — **`member-overwrite`**, and

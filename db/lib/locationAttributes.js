@@ -3,11 +3,9 @@
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SOILERY_ATTRIBUTE = "soilery";
-const SAFE_ATTRIBUTE = "safe";
-// WILDERNESS/HAVEN read by the mood dial (db/lib/mood.js#placeClassOf); WHEELS by db/lib/indoors.js, alongside the `indoors` column.
+// WILDERNESS/HAVEN read by the mood dial (db/lib/mood.js#placeClassOf).
 const WILDERNESS_ATTRIBUTE = "wilderness";
 const HAVEN_ATTRIBUTE = "haven";
-const WHEELS_ATTRIBUTE = "wheels";
 
 // key -> { type, options?, describe(value, ctx) -> string|null }; null
 // describe means matched-on-only. `type` (default "boolean" when absent) is
@@ -45,12 +43,6 @@ const ATTRIBUTES = {
     describe: () => "**Soilery**: you can sow and reap crops here.",
   },
 
-  // Ground the Caving Die skips (db/lib/cavingPass.js) — said out loud so a player can read the answer.
-  safe: {
-    type: "boolean",
-    describe: () => "**Safe**: Caving dice don't roll here.",
-  },
-
   // Open country (docs/systemdocs/MOOD.md); costs mood to walk in, more to end turn here — Rough Camper / Outsider soften it.
   wilderness: {
     type: "boolean",
@@ -61,12 +53,6 @@ const ATTRIBUTES = {
   haven: {
     type: "boolean",
     describe: () => "**Haven**: ending your turn here calms your nerves.",
-  },
-
-  // Splits the roof question (`indoors`) from the wheels one. Means nothing outdoors.
-  wheels: {
-    type: "boolean",
-    describe: () => "**Wheels**: you can bring a cart or an arelitz in here.",
   },
 
   // A public board to pin a paper to. What Noticeboard matches on. See docs/systemdocs/PAPERWORK.md.
@@ -102,22 +88,21 @@ function authoredLines(location, ctx = {}) {
   return lines;
 }
 
-// Real column, `wheels` the one authored exception. Only parks a mount
-// underground (`zone.kind === "CAVE_LEVEL"`) — every Caves/Depths Location is
+// Real column, and no exceptions left. Only parks a mount underground
+// (`zone.kind === "CAVE_LEVEL"`) — every Caves/Depths Location is
 // `indoors: true`, so that's the one place a roof still costs the reins; a
-// surface roof no longer does. "Cart out here?" readers use this; ROOF
-// readers keep reading `indoors` straight.
+// surface roof no longer does. The `wheels` attribute used to except a place
+// built to be driven into, and went with the cave mouth's gate. "Cart out
+// here?" readers use this; ROOF readers keep reading `indoors` straight.
 function parksMounts(location) {
-  if (!location?.indoors || hasAttribute(location, WHEELS_ATTRIBUTE)) return false;
+  if (!location?.indoors) return false;
   return location?.zone?.kind === "CAVE_LEVEL";
 }
 
 // Both halves print — silence outdoors would mean the rule is only stated
-// where it bites. A `wheels` Location says nothing; already said above. Reads
-// `parksMounts`'s answer, not the raw `indoors` column, since a surface
-// Location no longer parks anything at the door.
+// where it bites. Reads `parksMounts`'s answer, not the raw `indoors` column,
+// since a surface Location no longer parks anything at the door.
 function placementLine(location) {
-  if (hasAttribute(location, WHEELS_ATTRIBUTE)) return null;
   if (!location?.indoors) return "**Outdoors**: you can use your arelitz or cart here.";
   return parksMounts(location)
     ? "**Indoors**: you can't equip a cart or arelitz here."
@@ -269,10 +254,8 @@ module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
   SOILERY_ATTRIBUTE,
-  SAFE_ATTRIBUTE,
   WILDERNESS_ATTRIBUTE,
   HAVEN_ATTRIBUTE,
-  WHEELS_ATTRIBUTE,
   parksMounts,
   depotLines,
   structureLines,

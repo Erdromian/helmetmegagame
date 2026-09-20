@@ -168,10 +168,12 @@ Desire. `notTags`/`notRoles` are never part of it — a forbidden pairing is
 not something an OR may open.
 
 It exists because AND makes a **purchasable** gating tag dead weight to
-everyone outside the role. Esoteric costs 5 points and says "Unlocks Desires
-about esotericism", but all four Desires behind it also demanded the
-Scholastic role, so a Serpent who bought it saw nothing change — the rows
-evaluated `locked`, and `/character` drops those server-side. The same shape
+everyone outside the role. The worked example was Esoteric: it costs 5 points
+and says "Unlocks Desires about esotericism", but all four Desires behind it
+also demanded the Scholastic role, so a Serpent who bought it saw nothing
+change — the rows evaluated `locked`, and `/character` drops those
+server-side. (Those four are gated on the tag alone now, the Scholastic
+having been removed, but the shape is what the rule is for.) The same shape
 had also quietly killed **role** entries: `bury-a-body` offered `chaplain`,
 who can never hold the role-exclusive `mortus` tag, and `imprison-someone`
 offered `sheriff`, who never holds `cerberon`.

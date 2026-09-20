@@ -217,8 +217,8 @@ column fails closed the same way.
 an ordering rule: pressing Attack first and filing a Routine afterwards is not
 refused by anything, because `db/lib/moves.js#fileMove` knows nothing about
 holds. And the exception is the Move's *kind*, not its contents — the auto-filed
-Gambits (`auto:lesson`, `auto:confession`, `auto:heal_gambit`, the Cathedral
-research one) are nobody's combat declaration but read as one here.
+Gambits (`auto:lesson`, `auto:confession`, `auto:heal_gambit`) are nobody's
+combat declaration but read as one here.
 
 **Break off is never gated.** `cancelAttackImpl` carries no such check, on
 purpose: it is the way out for exactly the player this refuses, and locking it

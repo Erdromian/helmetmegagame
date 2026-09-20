@@ -1,5 +1,5 @@
 // The Trinket turn-end pass (docs/systemdocs/TRINKETS.md), run from
-// db/index.js#resolveNeeds() alongside Lessons/Research/Confessions — order
+// db/index.js#resolveNeeds() alongside Lessons/Confessions — order
 // doesn't matter, they share no state.
 //
 // Every OPEN Trinket Gambit is rolled here: the stored die face, clamped up
@@ -21,14 +21,20 @@ const { addToStack } = require("./tagWrites");
 const TRINKET_GMNOTES = "auto:trinket";
 
 // Face -> tier (TRINKETS.md §1). Index 0 is unused (a d6 never rolls it).
+//
+// `base` is what a bare Trinket sells for; `mult` is what the smith's hands do to the STONES.
+// The tier used to be a flat addend on top of the inlay sum, which meant a Masterwork and an Awful
+// built from the same materials differed by a constant 55 no matter how good the materials were —
+// so the better the stone, the less the die mattered. Multiplying instead keeps the smith worth
+// finding exactly when the prospector has brought something worth working.
 const TIERS = [
   null,
-  { name: "Awful", price: 5 },
-  { name: "Poor", price: 8 },
-  { name: "Normal", price: 14 },
-  { name: "Good", price: 22 },
-  { name: "Excellent", price: 34 },
-  { name: "Masterwork", price: 60 },
+  { name: "Awful", base: 1, mult: 0.5 },
+  { name: "Poor", base: 7, mult: 0.75 },
+  { name: "Normal", base: 15, mult: 1 },
+  { name: "Good", base: 19, mult: 1.25 },
+  { name: "Excellent", base: 23, mult: 1.5 },
+  { name: "Masterwork", base: 27, mult: 2 },
 ];
 
 // A smith holding {tag:smithing-skilled} never rolls Awful or Poor.
@@ -94,7 +100,7 @@ async function runTrinketPass(prisma, turn) {
             })
           : [];
         const inlaySum = inlayRows.reduce((sum, t) => sum + (t.inlayValue ?? 0), 0);
-        const price = tier.price + inlaySum;
+        const price = Math.round(tier.base + tier.mult * inlaySum);
         // The Arkenstone's +1 (TRINKETS.md) rides onto the minted clone the
         // same way its inlayValue rides onto the price. Summed like the price
         // is, but in practice never more than one: resolveIngredientSlots

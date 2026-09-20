@@ -237,7 +237,7 @@ Each ends with something that runs.
    carrying the repeated word.
 
    The CHILDREN are mounted, not rewritten. `PlaceCard` carries the fixtures
-   and the Depot / Factory / Research doors, `TravelNodes` the crossing
+   and the Depot / Factory doors, `TravelNodes` the crossing
    confirm, `PartyRack` the escort offers; they are deep game surfaces, and
    the named risk here is a rewrite losing one quietly. They are restyled from
    `chat-next.css` instead.
@@ -389,7 +389,7 @@ indicator · disabled states per place kind · Enter-vs-send by pointer type.
 
 **Player aside (all eight blocks)** — You frame (mood, resources, purse, carry,
 StatusStrip) · TurnCard · HereList + per-person menu · Waiting on you ·
-PlaceCard (fixtures, Examine, Depot/Factory/Research/Map) · PartyRack ·
+PlaceCard (fixtures, Examine, Depot/Factory/Map) · PartyRack ·
 RoomPanel (stash) · TravelNodes · ThingsDrawer · DesiresBlock · Sheet link.
 
 **GM aside** — tab strip (Place/Room/Travel/GM) · GmHereList opening the Dev

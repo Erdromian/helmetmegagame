@@ -333,7 +333,7 @@ of ten through.
 
 ### 2d-bis. Pray, at the Shrine of an Old Man
 
-One room button, in `chasm-shrine-of-an-old-man` at the bottom of the Chasm
+One room button, in `depths-7-4` at the bottom of the Chasm
 (`docs/zones.yaml`, gated `access: [caving]`). It grants `{tag:old-ways-xom}`
 and is the only way into that tag — nothing else in the game hands it out.
 Declared like every other room-bound button, as one `ROOM_AFFORDANCES` entry in

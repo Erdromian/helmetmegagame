@@ -138,10 +138,6 @@ export default function ChatAside({
   // second copy of it here.
   const requestActions = useRequestActions();
   const openAction = requestActions?.open ?? null;
-  // Research (CRAFTING.md §2b): same canResearch/researchHint pool the sheet's
-  // Research row reads (TagRail.js).
-  const canResearch = requestActions?.pools?.canResearch ?? false;
-  const researchHint = requestActions?.pools?.researchHint ?? null;
 
   // Travel/Who's here?/Secret rooms?/Examine filtered out: this column answers
   // those by being on the page. They stay in db/lib/placeAffordances.js for
@@ -300,8 +296,6 @@ export default function ChatAside({
             onConverse={openConverse}
             depotHref={depotHref}
             onFactory={canSeeExtract && openAction ? () => openAction("extract") : null}
-            onResearch={canResearch && openAction ? () => openAction("research") : null}
-            researchHint={researchHint}
             onOpenMap={onOpenMap}
             pending={pending}
           />
