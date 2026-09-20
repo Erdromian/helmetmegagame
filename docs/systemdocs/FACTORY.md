@@ -118,20 +118,21 @@ commits at the press, and the cubes come off the line at the turn push
   Logistics Room serves the whole floor and nobody hauls a 28 lb lump around
   all day to prove they own it.
 - **The output** is 8 Squeeze, and the Godflesh is consumed.
+- **Fatigue.** A day on the floor steps the same **Tired → Exhausted** ladder
+  a day's mining does (`MINING.md` §5, `db/lib/fatigue.js`). Escalates rather
+  than granting Exhausted outright — a shift here is the same order of effort
+  as a day in the seam, not Farming's uniquely brutal single day. Exhausted
+  refuses the next shift; the refusal check lives in the Refine button itself
+  (`web/app/(app)/character/actions/refine.js`) and the sheet's tooltip asks the
+  same function (`refineFatigueRefusal`), the payout in `db/lib/moveEffects.js`'s
+  `refined` entry, same as Mining's. Somebody refining flat out works every other
+  turn. Refine did this while it was a Labor, lost it in the 2026-09-18 Labor
+  strip without anyone deciding it should, and has it again.
 - **No skill needed.** The floor wanted one until 2026-09-10, on the grounds
   that it is work rather than a vending machine. The trouble was that the
   Laboring ladder priced ⬢ and a shift here pays none, so the gate bought
   nothing and stood the Factory's own people off its floor. Anybody who can get
   in can work it, and Prospecting has nothing to say about a refinery.
-- **It tires you.** A shift steps the Tired and Exhausted ladder the way a day's
-  mining does (`db/lib/fatigue.js`): Tired blocks nothing, a second shift in a
-  row makes you Exhausted, and Exhausted refuses the next shift until it lapses.
-  Somebody refining flat out works every other turn. The step lands at the turn
-  push with the cubes: the `exhausted` entry in `db/lib/moveEffects.js` reads
-  the Refine button's marker as well as the Mine button's. Refine did this while
-  it was a Labor, lost it in the 2026-09-18 Labor strip without anyone deciding
-  it should, and has it again since 2026-09-20. The button greys, and the action
-  refuses, with the same sentence Mine gives (`refineFatigueRefusal`).
 - **Five at a time.** At most 5 people may refine in one turn
   (`REFINERY_MAX_WORKERS` in `db/lib/refinery.js`). The sixth is told "Too many
   people are producing Squeeze at the factory this turn." and keeps their Move,
@@ -346,17 +347,24 @@ check at all before this, only the global `tupperAutocorrectEnabled` flag.
 
 ## 8. Moonshine, and going blind
 
-`brewing-basic`, **0 ⬢**, **no Move** (since 2026-09-20), and
-`requirement.items: [godflesh]` — the Refuse Pit gives you the ingredient.
-**One Godflesh per bottle, and it is used up**, like every other spent
-ingredient (`BREWING.md` §4). It used to be a hold-check, which made the still a
-strictly better use of a haul than the Factory; spending it puts the two in
-honest competition. With no Move and no ration on a 0-turn recipe, the lump is
-the whole throttle. Moonshine sells for 3 ¢, against the 40 ¢ the same Godflesh
-makes as cubes, so it is not an income tap.
+`brewing-basic`, **0 ⬢**, and `requirement.items: [godflesh]` — the marsh gives
+you the ingredient. **One Godflesh per bottle, and it is used up**, like every
+other spent ingredient (`BREWING.md` §4). It used to be a hold-check, which
+made the still a strictly better use of a haul than the Factory; spending it
+puts the two in honest competition. The rest of the throttle stands: Moonshine
+sells for 3 ¢, against the 40 ¢ the same Godflesh makes as cubes, so it is not
+an income tap.
 
-Drinking it grants Tipsy, **Blind Drunk** (2 turns, blocks Examine with no
-corrective) and one **Damaged Vision**, which is permanent and stacks.
+**It brews at 0.25 turns now, the same as Alcohol** — it is the same kind of
+work, and the Godflesh is what makes it cost anything.
+
+Drinking it grants Tipsy and one **Damaged Vision**, which is permanent and
+stacks. Tipsy walks the ordinary drink ladder from there — keep drinking and
+you get Wasted, then Unconscious (`BREWING.md` §5a), the same as any other
+booze. **Blind Drunk is gone from the catalog entirely** — it was a second
+special case doing the same job the eyes already do, and Moonshine was the only
+thing that ever granted it. The Damaged Vision stack is what makes Moonshine
+different now.
 
 **At five, `db/lib/visionDecayPass.js` takes the whole stack and grants Blind.**
 That tag already existed — −8, tier-7 cure, `removesInto: [night-blind]` — and
@@ -375,8 +383,7 @@ clock and knows nothing about quantities.
 
 The last two are the interesting ones. Literacy and the eyes are asked as **one
 question** so no caller can check half of it — and `readBlock` is the fuller
-form, since it also catches Blind Drunk itself and Nearsighted with the
-spectacles in a sack.
+form, since it also catches Nearsighted with the spectacles in a sack.
 
 A blind recipient gets exactly what an illiterate one gets: the real letter, on
 their sheet, as an object they can carry to somebody who reads

@@ -24,7 +24,7 @@ const { addCharacterResources } = require("./resourceStack");
 const { TIRED_SLUG, EXHAUSTED_SLUG, ARELITZ_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { expiryFrom } = require("./turnFormat");
-const { nextFatigueSlug, grantExhaustedOutright } = require("./fatigue");
+const { applyFatigueStep, revertFatigueStep, grantExhaustedOutright } = require("./fatigue");
 const { drawProspectingLoot } = require("./cavingLoot");
 const { PROSPECTING_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
@@ -39,73 +39,28 @@ const MOVE_EFFECTS = {
     revert: (tx, action, value) => addResources(tx, action.characterId, -value),
   },
 
-  // Two days in the seam before a rest, tracked by db/lib/fatigue.js's Tired -> Exhausted ladder. Mine and Refine both climb it from a Move —
-  // db/lib/mining.js#computeMiningAccess and db/lib/refinery.js#refineFatigueRefusal refuse the next day only on Exhausted. Gated on each button's
-  // own marker. A refining shift lands at the turn push rather than the press, which changes nothing here: the grant is stamped from the closing
-  // turn, and the expiry sweep runs after the push. The snapshot key stays "exhausted" even for a Tired grant, or older rows stop reverting.
+  // Two days in the seam before a rest, tracked by db/lib/fatigue.js's Tired -> Exhausted ladder. Mining is the one thing that climbs it from a
+  // Move — db/lib/mining.js#computeMiningAccess refuses the next day only on Exhausted. Gated on the Mine button's own marker. The snapshot key stays
+  // "exhausted" even for a Tired grant, or older rows stop reverting.
   exhausted: {
-    read: (action) => (action.gmNotes === AUTO_MINE_NOTE || action.gmNotes === AUTO_REFINE_NOTE ? 1 : 0),
+    read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
-      const heldTired = await tx.characterTag.findFirst({
-        where: { characterId: action.characterId, tag: { slug: TIRED_SLUG } },
-        select: { id: true, expiresTurn: true },
-      });
-      // The Mine and Refine gates already refused an Exhausted character, so this is always Tired or nothing.
-      const targetSlug = nextFatigueSlug(new Set(heldTired ? [TIRED_SLUG] : []));
-      if (!targetSlug) return 0; // defensive: nothing left to escalate to
-      const [tag, turn] = await Promise.all([
-        tx.tag.findUnique({
-          where: { slug: targetSlug },
-          select: { id: true, defaultDurationTurns: true },
-        }),
-        tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } }),
-      ]);
-      if (!tag || !turn) {
-        if (!tag) console.error(`Mining payout: no "${targetSlug}" tag — run npm run db:sync-tags. Mining won't be limited.`);
-        return 0;
-      }
-      // Escalating: the Tired row is consumed by the upgrade, or the character ends up holding both.
-      if (heldTired) await tx.characterTag.delete({ where: { id: heldTired.id } });
-      // skipDuplicates: an existing Tired/Exhausted keeps its own clock (same rule as db/lib/tagExpiryPass.js).
-      await tx.characterTag.createMany({
-        data: [{
-          characterId: action.characterId,
-          tagId: tag.id,
-          source: "EVENT",
-          expiresTurn: expiryFrom(turn.number + 1, tag.defaultDurationTurns ?? 1),
-        }],
-        skipDuplicates: true,
-      });
-      // Snapshotted for revert: which tag this granted, and (if escalated) the exact expiry the consumed Tired row carried.
-      return { slug: targetSlug, replacedTired: heldTired ? { expiresTurn: heldTired.expiresTurn } : null };
+      const turn = await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } });
+      if (!turn) return 0;
+      // The Mine gate already refused an Exhausted character, so applyFatigueStep is always
+      // granting Tired or Exhausted here, never a no-op.
+      return (await applyFatigueStep(tx, action.characterId, turn.number)) ?? 0;
     },
     revert: async (tx, action, snapshot) => {
-      // Legacy shape: rows pushed before this ladder existed recorded a bare `1`, always meaning a plain Exhausted grant.
-      const grantedSlug = snapshot && typeof snapshot === "object" ? snapshot.slug : EXHAUSTED_SLUG;
-      const grantedTag = await tx.tag.findUnique({ where: { slug: grantedSlug }, select: { id: true } });
-      if (grantedTag) {
-        await tx.characterTag.deleteMany({ where: { characterId: action.characterId, tagId: grantedTag.id } });
-      }
-      const replacedTired = snapshot && typeof snapshot === "object" ? snapshot.replacedTired : null;
-      if (replacedTired) {
-        const tiredTag = await tx.tag.findUnique({ where: { slug: TIRED_SLUG }, select: { id: true } });
-        if (tiredTag) {
-          await tx.characterTag.createMany({
-            data: [{
-              characterId: action.characterId,
-              tagId: tiredTag.id,
-              source: "EVENT",
-              expiresTurn: replacedTired.expiresTurn,
-            }],
-            skipDuplicates: true,
-          });
-        }
-      }
+      await revertFatigueStep(tx, action.characterId, snapshot);
     },
   },
 
   // A day spent on the Godard Factory floor: one Godflesh becomes eight Squeeze (db/lib/refinery.js). Filed by the Refine button, which is the
-  // only thing that stamps this marker.
+  // only thing that stamps this marker. Climbs the same Tired -> Exhausted ladder Mining does
+  // (db/lib/fatigue.js) — a day on the floor is the same order of effort as a day in the seam, so
+  // Refine escalates the ladder rather than granting Exhausted outright the way Farming does.
+  // web/app/(app)/character/actions/refine.js's own EXHAUSTED_SLUG gate refuses the next shift.
   refined: {
     read: (action) => (action.gmNotes === AUTO_REFINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
@@ -118,14 +73,25 @@ const MOVE_EFFECTS = {
         });
         locationId = character?.locationId ?? null;
       }
-      // 0, not null: applyMoveEffects falls back to the READ value when apply reports nothing.
-      if (!locationId) return 0;
       const { applyRefinery } = require("./refinery");
-      return (await applyRefinery(tx, action.characterId, locationId)) ?? 0;
+      // { empty: true } still means a day was spent on the floor, so fatigue applies even when
+      // there was no Godflesh left to work — the same reasoning "0, not null" below.
+      const refined = locationId ? ((await applyRefinery(tx, action.characterId, locationId)) ?? { empty: true }) : { empty: true };
+
+      const turn = await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } });
+      const fatigue = turn ? await applyFatigueStep(tx, action.characterId, turn.number) : null;
+
+      // 0, not null: applyMoveEffects falls back to the READ value when apply reports nothing.
+      if (!locationId && !fatigue) return 0;
+      return { ...refined, fatigue };
     },
     revert: async (tx, action, snapshot) => {
       const { revertRefinery } = require("./refinery");
       await revertRefinery(tx, action.characterId, snapshot);
+      // Guarded: revertFatigueStep treats a falsy snapshot as the legacy "plain Exhausted grant"
+      // shape (db/lib/fatigue.js), so it must only be called when applyFatigueStep actually
+      // granted something.
+      if (snapshot?.fatigue) await revertFatigueStep(tx, action.characterId, snapshot.fatigue);
     },
   },
 
@@ -384,6 +350,7 @@ function describeMoveEffects(applied) {
           ? "nothing to refine — no Godflesh here"
           : `+${value.produced?.quantity ?? 0} Squeeze, −1 Godflesh`,
       );
+      if (value.fatigue) parts.push(value.fatigue.slug === TIRED_SLUG ? "Tired" : "Exhausted");
     }
     else if (key === "farmed") parts.push(harvestLine(value.rows));
     else if (key === "brokeIn") {

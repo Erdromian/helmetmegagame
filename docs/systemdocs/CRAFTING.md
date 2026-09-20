@@ -45,6 +45,14 @@ of it:
   refunded on cancel or on undo-by-GM of a mid-project turn. Paid by
   **yourself, a Room stash here, or a person standing here** (payer select;
   a person is DM'd "*X paid N ⬢ from your purse toward Y*").
+
+  **It is paid in ⬢ and nothing else.** An obol is one ⬢, but it is not a ⬢
+  (`DEPOT.md` §0) and no recipe takes one. Smithing was the single exception —
+  `resolveObolSpend` let a smith put held coin toward the bill at 1:1 — and it
+  was removed on 2026-09-20 for contradicting that rule and for making the
+  Depot's 3 ¢ import price meaningless to the trade that buys the most ⬢. If a
+  crafter has coin and no material, the counter is the way across, at the
+  station's rate. Do not add a second one.
 - `turnsCost` — the WORK one unit takes, in Moves, as a **decimal on the
   exact grid** `db/lib/tagShapes.js#SUB_MOVE_COSTS` names: `0.05`, `0.1`,
   `0.125`, `0.2`, `0.25`, `0.5`, `0.75`, plus `0` and any whole number. **0**

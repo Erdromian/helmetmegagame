@@ -147,6 +147,8 @@ export async function pickpocketRequestImpl({ targetKey }) {
   const budgetLbs = pickpocketBudgetLbs(character.tags);
   const roll = rollWithAdvantage(character.tags, 6);
   const outcome = pickpocketOutcome(roll.die + bonus);
+  // Read ONCE, here, and frozen onto the row below. See the reopen branch.
+  const felt = holdingRows(target);
 
   // The insert IS the claim. A P2002 means this target was already tried this
   // turn — EXCEPT when the existing row is this turn's and untouched, in which
@@ -156,6 +158,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
   // the roll that actually happened is allowed to speak.
   let attempt;
   let fresh = true;
+  let rows = felt;
   try {
     attempt = await prisma.pickpocketAttempt.create({
       data: {
@@ -166,6 +169,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
         bonus,
         outcome,
         budgetLbs,
+        revealed: felt,
       },
     });
     await logAudit(prisma, {
@@ -201,6 +205,13 @@ export async function pickpocketRequestImpl({ targetKey }) {
     });
     if (!attempt || attempt.spentLbs > 0)
       throw new UserError(`You already went through ${seenAs(identityOf(target))}'s pockets this turn.`);
+    // The frozen list, not a fresh scan. A reopened dialog replays the one look
+    // the attempt bought — otherwise a thief who reached in and cancelled could
+    // keep the dialog open all turn and watch things arrive in and leave
+    // somebody's pockets, which is a far wider exposure than the verb is for.
+    // A row written before that column existed has no snapshot; it falls back
+    // to the old live read, which is no worse than what it already had.
+    if (Array.isArray(attempt.revealed)) rows = attempt.revealed;
   }
 
   if (attempt.outcome === FAILED) {
@@ -222,7 +233,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
     targetName: seenAs(identityOf(target)),
     budgetLbs: attempt.budgetLbs,
     spentLbs: attempt.spentLbs,
-    rows: holdingRows(target),
+    rows,
   };
 }
 

@@ -7,7 +7,7 @@ const held = (...slugs) => slugs.map((slug) => ({ tag: { slug } }));
 
 test("an ordinary body is the base weight", () => {
   assert.equal(corpseBodyWeight([]), BASE_CORPSE_LBS);
-  assert.equal(corpseBodyWeight(held("literate", "brave")), BASE_CORPSE_LBS);
+  assert.equal(corpseBodyWeight(held("literacy", "brave")), BASE_CORPSE_LBS);
 });
 
 test("a plain body fits under the default carry cap", () => {

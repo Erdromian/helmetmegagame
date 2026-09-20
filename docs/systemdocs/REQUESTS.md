@@ -130,7 +130,7 @@ reason.
 | `FAST_TRAVEL` | **Retired.** A mount now adds a free zone move instead (CARRY.md §2a). Old rows stay undoable | — | Sends them back and returns the ride |
 | `EXTRACT_GODFLESH` | The **Harvest Godflesh** button: cuts Godflesh out of a marsh tile. Costs no Move — once per turn, claimed on `Character.extractTurnKey`. Needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the turn stays claimed |
 | `PACKAGE_ITEMS` | Packs up to 150 lb of held goods into one crate weighing half that, with a line the packer types. Needs Packaging Equipment in reach; costs no Move (`FACTORY.md` §5) | — | Prises the crate open, returns the contents, deletes the runtime Tag |
-| `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literate`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
+| `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literacy`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
 | `DEPOT_BUY` | Orders an import off the orbital station at its `depotPrice`. Standing at the Depot, plus whichever manifest the ware sits on — general shelf needs nothing, the black market needs a Silver Chip, everything else needs the Merchant's Licence (`DEPOT.md` §0e). Delivered as crates at the next train arrival, not on the spot | — | Returns the goods, refunds the ⬢ |
 | `DEPOT_SELL` | Drops a `sellable` tag in the dropbox at the Depot; it settles at its `sellablePrice`, minus the sell tax, at the next departure (`DEPOT.md` §0f) | — | Buys it back with its original expiry, takes the ⬢ |
 | `DEPOT_CREDIT` | Draws on or repays the Company's 75-obol credit line, crediting or debiting the Merchant's own account (`DEPOT.md` §0g) | — | Reverses the obols and the tab together |
@@ -280,7 +280,7 @@ Hunger is the Needs layer, and one of two things that modify a Gambit die
 
 It is now a 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), not a
 streak. Two Status tags read off it — `hungry` (`docs/tags.yaml`,
-`durationTurns: 1`, granted at `HUNGRY_THRESHOLD` (30) or below) and
+`durationTurns: 1`, granted at `HUNGRY_THRESHOLD` (35) or below) and
 `starving` (granted at `STARVING_THRESHOLD` (0) or below) — neither
 `purchasable`, neither destroyable (Status never is).
 

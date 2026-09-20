@@ -281,7 +281,7 @@ the rungs of a ladder. Drunken Master is the only user and the reason:
 
 ```yaml
 drunken-master:
-  fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted, blind-drunk] } }
+  fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted] } }
 ```
 
 The drinking rungs **replace** each other — a second drink clears `tipsy` and
@@ -351,14 +351,11 @@ decision nobody could afford to make lightly. It is a nudge now.
 | `tipsy` | −0.5 | **+1.4** |
 | `wasted` | −1.2 | **+0.7** |
 | `hangover` | −0.5 | — |
-| `blind-drunk` | −3 | −1.1 |
 | `unconscious` | `cap: pitiful` | — |
 
 Drunken Master is a flat **+1.9** on top of whatever the rung costs, not a
 cancellation. That keeps the rungs in order — the second drink is still worse
-than the first — while making any of them better than staying dry. Blind Drunk
-is the exception on purpose: softened, never repaid. Skill at fighting drunk is
-not skill at fighting blind.
+than the first — while making any of them better than staying dry.
 
 Hangover is outside it. The tag is the morning, and Drunken Master is about the
 night before.

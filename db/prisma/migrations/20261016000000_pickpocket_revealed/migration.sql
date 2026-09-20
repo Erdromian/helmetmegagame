@@ -1,0 +1,13 @@
+-- A spent pickpocket attempt should buy ONE look, not a live feed.
+--
+-- The reopen path (a P2002 on the claim) reads the existing attempt back and
+-- hands the same die over, which is right — a refreshed page must not cost the
+-- attempt or reroll it. But it also re-read the target's holdings fresh every
+-- time, so a thief who reached in once and cancelled could keep reopening the
+-- dialog and watch things arrive in and leave somebody's pockets for the rest
+-- of the turn. That is a much wider exposure than the verb is for.
+--
+-- So the list is frozen onto the row at the roll and replayed on reopen.
+-- Nullable: rows written before this migration have no snapshot and fall back
+-- to the old live read, which is no worse than what they already had.
+ALTER TABLE "PickpocketAttempt" ADD COLUMN "revealed" JSONB;

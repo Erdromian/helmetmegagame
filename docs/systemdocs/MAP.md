@@ -475,7 +475,7 @@ Quick-Footed and Caffeinated each vote to keep the better of
 two dice, Fat and Old to keep the worse; the count decides and a tie rolls
 once (`EXERT_BETTER_SLUGS` / `EXERT_WORSE_SLUGS`). Refused while riding,
 boated on the water, lamed, too hurt to march (`EXERT_REFUSAL_SLUGS`: Arterial
-Bleed, Punctured Lung, Gut Wound, Sepsis, Blind Drunk — none of which restrict
+Bleed, Punctured Lung, Gut Wound, Sepsis — none of which restrict
 ACT), Exhausted (top of the ladder: nothing left to lose but the ankle would
 make it a free gamble) or Overburdened, and once a turn — `exertRefusal` is
 the list, and the surfaces ask it before drawing the button. No Action is filed, so a push on never shows

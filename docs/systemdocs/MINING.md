@@ -326,15 +326,15 @@ day running escalates it to Exhausted, which refuses the next day until it
 decays. Left alone, Exhausted degrades to Tired and Tired clears, so the
 practical shape is that somebody mining flat out works every other turn.
 
-A shift at the Factory steps the same ladder through the same `exhausted` entry
-in `db/lib/moveEffects.js` (`FACTORY.md` §4), so mining and refining tire each
-other: a day of one leaves you Tired for the other. Farm takes Exhausted outright
-instead (`SOILERY.md` §5a).
+A shift at the Factory steps the same ladder (`FACTORY.md` §4), so mining and
+refining tire each other: a day of one leaves you Tired for the other. Farm takes
+Exhausted outright instead (`SOILERY.md` §5a).
 
 That module is **not** a mining file, despite living beside one for a long
-time. Some of its callers have nothing to do with a day's mining: the dawn
-affliction pass escalates it for a bad night's sleep, and travel push-on
-escalates it for the Exert die (`MAP.md` §3). Keep it neutral.
+time. A day on the Factory floor climbs the same ladder the same way
+(`FACTORY.md` §4). Two of its other callers have nothing to do with a day's
+work: the dawn affliction pass escalates it for a bad night's sleep, and
+travel push-on escalates it for the Exert die (`MAP.md` §3). Keep it neutral.
 
 ## 6. Drift — what the land does on its own
 

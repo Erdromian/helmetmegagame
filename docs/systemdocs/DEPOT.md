@@ -784,6 +784,11 @@ had to find a prospector — which makes the Mine button's whole payout
 (`MINING.md`) a thing nobody needs to buy. 3 ¢ widens the price a prospector can
 ask from 1–2 ¢ to 1–3 ¢, which is the room a negotiation needs.
 
+**That price only means anything because obols stopped paying recipes**, the
+same day (§4, "The two open holes in this"). While a smith could settle a recipe in coin at 1:1, the
+import price was a number only non-smiths ever met. The two changes are one
+decision and should be reverted together or not at all.
+
 **Do not raise it past 3 without re-reading §4's smithed-gear formula.** That
 formula is `resourceCost + wage` and credits material at **1 ¢ per ⬢** while the
 station charges 3, so a smith who buys rather than mines is already eating twice
@@ -1150,9 +1155,17 @@ margin — but an obol is weightless and a ⬢ is a pound, so it turned a cart o
 raw material into something that fits in a pocket, free, forever. The recipe is
 gone from `docs/tags.yaml` and does not come back. Coin enters the world through
 the station and nowhere else, which is what makes a purse worth exactly as much
-as your ability to reach a counter. Paying a recipe's cost *with* held obols
-still works (`resolveObolSpend` in `requestActions.js`); that half was never the
-problem.
+as your ability to reach a counter.
+
+**The other half went on 2026-09-20.** Paying a smithing recipe's cost *with*
+held obols (`resolveObolSpend`) is gone too. It was not a mint, so it survived
+the first pass — but it contradicted §0's whole point, that ⬢ are material and
+coin is money, and it made §3's import price meaningless to the one trade that
+buys the most ⬢: a smith could settle the same bill in coin at 1:1 rather than
+pay 3 ¢ a unit. A recipe is paid in ⬢ now, by every family, with no exception.
+(Both notes here and in `docs/tags.yaml` used to cite `requestActions.js`; that
+file is a re-export wrapper and never held the logic — it lived in
+`web/app/(app)/character/actions/crafting.js`.)
 
 ## 5. The credit line
 

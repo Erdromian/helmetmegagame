@@ -8,14 +8,21 @@ const { HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, ATE_MEAL_SLUG } = require("./cons
 
 const HUNGER_MAX = 100;
 const HUNGER_MIN = 0;
-const HUNGER_DECAY_PER_TURN = 10;
-const HUNGER_DECAY_FAST_METABOLISM = 20;
+// A full meter is a little under three turns, so eating is a thing you do
+// most days rather than once a week. Fast Metabolism is +14 rather than the
+// double it used to be: at 70 a basic cooked meal could not keep up with the
+// decay at all, which made the tag unplayable rather than expensive.
+const HUNGER_DECAY_PER_TURN = 35;
+const HUNGER_DECAY_FAST_METABOLISM = 49;
 
 // <= is Hungry, <= is Starving. Starving sits INSIDE the Hungry range on
 // purpose — a character at or below 0 is both hungry and starving at once
 // (both tags may be held together); it is only the Gambit modifier
 // (db/lib/gambitModifier.js) that picks one and never sums them.
-const HUNGRY_THRESHOLD = 30;
+//
+// Hungry is exactly one turn's decay wide, so the word means "you have a day
+// left" rather than an amount nobody is shown.
+const HUNGRY_THRESHOLD = 35;
 const STARVING_THRESHOLD = 0;
 
 // One-time mood hit, charged only on the turn a character crosses DOWN into

@@ -34,13 +34,10 @@ const HANDS = [
 // the same shape gambitModifier.js gives a mood ("a mood is one number so the
 // three can never sum").
 //
-// It matters, because the chain is not as tidy as it looks. Tipsy escalates
-// into Wasted, so those two are never held together — but Blind Drunk is a
-// separate tag off a bad drink, and NOTHING stops it landing on somebody
-// already Wasted. Summed, that pair is a silent −4 and a 6 that still fails,
-// which is a worse punishment than either tag claims to be.
+// It matters even though the chain looks tidy: Tipsy escalates into Wasted, so
+// those two are never held together, and summing them would be a silent −3 and
+// a 6 that still fails — a worse punishment than either tag claims to be.
 const DRINK = [
-  ["blind-drunk", "Blind Drunk", -2],
   ["wasted", "Wasted", -2],
   ["tipsy", "Tipsy", -1],
 ];

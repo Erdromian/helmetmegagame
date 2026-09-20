@@ -1,5 +1,5 @@
 // Whether a character can read a piece of writing right now. Letters are a
-// SKILL (the `literate` tag); eyes are a CONDITION (db/lib/examineVision.js
+// SKILL (the `literacy` tag); eyes are a CONDITION (db/lib/examineVision.js
 // owns that half). Both have to be true.
 //
 // ONE MESSAGE FOR EVERY CAUSE: a blind man and an illiterate one see exactly
@@ -11,8 +11,8 @@
 // refuse, and neither should drift from the other.
 const { examineBlock } = require("./examineVision");
 
-const LITERATE_SLUG = "literate";
-// Squeeze brain damage. Wins over `literate`: the letters are gone.
+const LITERACY_SLUG = "literacy";
+// Squeeze brain damage. Wins over `literacy`: the letters are gone.
 const STUPID_SLUG = "stupid";
 // The milder one, and the same answer: a Slow character never made it as far
 // as letters. Stupid is its super-tag — gaining Stupid strips Slow
@@ -35,7 +35,7 @@ function slugSet(characterTags) {
 function readBlock(characterTags = [], where = {}) {
   if (examineBlock(characterTags, where)) return CANNOT_READ;
   const slugs = slugSet(characterTags);
-  if (!slugs.has(LITERATE_SLUG)) return CANNOT_READ;
+  if (!slugs.has(LITERACY_SLUG)) return CANNOT_READ;
   if (slugs.has(STUPID_SLUG) || slugs.has(SLOW_SLUG)) return CANNOT_READ;
   return null;
 }
@@ -45,4 +45,4 @@ function canRead(characterTags = [], where = {}) {
   return readBlock(characterTags, where) === null;
 }
 
-module.exports = { readBlock, canRead, CANNOT_READ, LITERATE_SLUG, SLOW_SLUG };
+module.exports = { readBlock, canRead, CANNOT_READ, LITERACY_SLUG, SLOW_SLUG };

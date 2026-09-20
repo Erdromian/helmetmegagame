@@ -53,8 +53,9 @@ export async function refineRequestImpl() {
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
 
-  // A day at the vats tires you the way a day in the seam does (db/lib/fatigue.js): only
-  // Exhausted refuses. The sheet's tooltip asks the same function.
+  // A day on the floor climbs the same Tired -> Exhausted ladder Mining does (the `refined` entry in
+  // db/lib/moveEffects.js, db/lib/fatigue.js). Only Exhausted refuses, matching
+  // db/lib/mining.js#computeMiningAccess. The sheet's tooltip asks the same function.
   const fatigue = refineFatigueRefusal((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
   if (fatigue) throw new UserError(fatigue);
 

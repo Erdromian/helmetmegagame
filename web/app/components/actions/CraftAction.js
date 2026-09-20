@@ -7,7 +7,7 @@ import ActionDialog from "./ActionDialog";
 import useSubmit from "./useSubmit";
 import { useConfirm } from "../ConfirmProvider";
 import { useActionPools } from "./poolsContext";
-import { craftFamily, moveFamilyOf } from "@/lib/tagRequests";
+import { moveFamilyOf } from "@/lib/tagRequests";
 // The craft Move budget. Pure arithmetic, no prisma — the same module the
 // server enforces with, so the dialog's numbers and the server's refusals
 // come from one place (docs/systemdocs/CRAFTING.md §2a).
@@ -89,9 +89,6 @@ export default function CraftAction({ presets, onDone, onClose }) {
   const [customDescription, setCustomDescription] = useState("");
   const [inscription, setInscription] = useState("");
   const [payerKey, setPayerKey] = useState(selfId ? `character:${selfId}` : "");
-  // Smithing only (SMITHING.md, requestActions.js#resolveObolSpend): held
-  // Obols put toward this craft's cost before the payer covers the rest.
-  const [obolsSpent, setObolsSpent] = useState("0");
   const confirm = useConfirm();
   const { submit: run, busy, error } = useSubmit();
   const mode = "craft";
@@ -248,21 +245,11 @@ export default function CraftAction({ presets, onDone, onClose }) {
       ),
     [characterTags],
   );
-  // Smithing only — an obol is one ⬢ (DEPOT.md), so a smith may put some of
-  // their own held Obols toward this craft's cost, the rest billed to the
-  // usual payer (SMITHING.md, requestActions.js#resolveObolSpend). Read off
-  // the sheet the same way every other ingredient count on this form is.
-  const isSmithing = chosen ? craftFamily(chosen) === "smithing" : false;
   const craftResourceCost = useMemo(() => {
     if (mode !== "craft" || !chosen) return 0;
     const { surcharge } = customCraftFor(chosen, { customName, customDescription });
     return ((chosen.requirementResources ?? 0) + surcharge) * craftQty;
   }, [mode, chosen, customName, customDescription, craftQty]);
-  const heldObols = heldBySlug.get("obol") ?? 0;
-  const obolsSpentNum = isSmithing
-    ? Math.min(Math.max(0, Number(obolsSpent) || 0), heldObols, craftResourceCost)
-    : 0;
-  const craftRemainingResourceCost = craftResourceCost - obolsSpentNum;
   // Why a recipe can't be picked at all right now. Ingredients first — a
   // spent ingredient you don't hold blocks the recipe Move or no Move, and
   // greyed-with-a-reason beats a refusal after the confirm. `group` entries
@@ -365,7 +352,6 @@ export default function CraftAction({ presets, onDone, onClose }) {
     setCustomName("");
     setCustomDescription("");
     setInscription("");
-    setObolsSpent("0");
   }
 
   // Any Craft that spends ⬢ or a Move asks twice. Confirm is awaited OUTSIDE
@@ -375,10 +361,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
       const turns = chosen.requirementTurns ?? 1;
       const qty = craftQty;
       // The same price craftRequestImpl charges, so the confirm can never
-      // quote less than the bill (web/lib/customCraft.js). Hoisted above so
-      // the Obols input and this confirm always agree on the total.
+      // quote less than the bill (web/lib/customCraft.js).
       const cost = craftResourceCost;
-      const resourcesCost = craftRemainingResourceCost;
       const what = qty > 1 ? `${qty}× ${chosen.name}` : chosen.name;
       // What this costs of the Move, in the player's words. Three shapes: it
       // opens the turn's Routine, it spends from a Routine already started,
@@ -418,11 +402,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
               ? `${what} takes ${turns} turns of work.`
               : `Make ${what}?`,
             cost > 0
-              ? obolsSpentNum > 0
-                ? resourcesCost > 0
-                  ? `${cost} ⬢: ${obolsSpentNum} from your own Obols, ${resourcesCost} paid now by ${payerLabel(healParties, payerKey)}, and not refunded if you stop.`
-                  : `${cost} ⬢, all ${obolsSpentNum} from your own Obols, and not refunded if you stop.`
-                : `${cost} ⬢ ${cost === 1 ? "is" : "are"} paid now by ${payerLabel(healParties, payerKey)}, and not refunded if you stop.`
+              ? `${cost} ⬢ ${cost === 1 ? "is" : "are"} paid now by ${payerLabel(healParties, payerKey)}, and not refunded if you stop.`
               : null,
             moveLine,
             // The one-line Move note is signed-off copy; the budget wording is not.
@@ -501,8 +481,6 @@ export default function CraftAction({ presets, onDone, onClose }) {
       // when it read as free. The server refuses to bill past this, so a
       // stale tab gets a retry instead of a silent Move charge.
       billedSeen: String(craftCost?.billedQty ?? 0),
-      // Smithing only; resolveObolSpend ignores this on any other recipe.
-      obolsSpent: String(obolsSpentNum),
     });
   }
 
@@ -532,8 +510,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
     // A 0-turn craft inside its free allowance never needed a Move and
     // still doesn't; everything else has to fit in what the turn has left
     // (CRAFTING.md §2a). craftRequest refuses the same cases regardless. A
-    // payer is only needed for whatever Obols don't already cover.
-    return Boolean(craftRemainingResourceCost === 0 || payerKey) && craftMoveOk;
+    // payer is only needed when the recipe actually costs something.
+    return Boolean(craftResourceCost === 0 || payerKey) && craftMoveOk;
   })();
 
   const title = "Craft";
@@ -623,9 +601,6 @@ export default function CraftAction({ presets, onDone, onClose }) {
         parties={healParties}
         selfId={selfId}
         hasMoved={hasMoved}
-        obolsSpent={obolsSpent}
-        onObolsSpent={setObolsSpent}
-        heldObols={heldObols}
       />
     </ActionDialog>
   );

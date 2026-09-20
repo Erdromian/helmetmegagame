@@ -33,11 +33,10 @@ const RESTRICTIONS = {
   unconscious: [ACT, SHOUT],
   mute: [SHOUT],
 
-  // KISS only (ACT states above already block it via expandCaps): no consent (asleep, blind-drunk,
+  // KISS only (ACT states above already block it via expandCaps): no consent (asleep,
   // hallucinating, madness, sepsis, pain-shock, stupid), the mouth itself (broken-jaw, wired-jaw,
   // choking, vomiting), or nothing left (gibbed, exploded-chest). Illness is absent — TAGS.md §5f.
   asleep: [KISS],
-  "blind-drunk": [KISS],
   hallucinating: [KISS],
   madness: [KISS],
   sepsis: [KISS],

@@ -36,14 +36,16 @@ test("Refine and Mine refuse on exactly the same tag: the ladder is one ladder",
   }
 });
 
-test("a refining shift steps the ladder at the push, the same as a day's mining", () => {
-  const read = MOVE_EFFECTS.exhausted.read;
-  assert.equal(read({ gmNotes: AUTO_REFINE_NOTE }), 1);
-  assert.equal(read({ gmNotes: AUTO_MINE_NOTE }), 1);
+test("a refining shift steps the ladder exactly once: the `refined` entry does it, the `exhausted` entry is Mine's", () => {
+  // Refine applies its own fatigue step inside `refined` (db/lib/moveEffects.js). If `exhausted` read the
+  // Refine marker too, one shift would climb two rungs, Tired straight to Exhausted.
+  assert.equal(MOVE_EFFECTS.refined.read({ gmNotes: AUTO_REFINE_NOTE }), 1);
+  assert.equal(MOVE_EFFECTS.exhausted.read({ gmNotes: AUTO_REFINE_NOTE }), 0);
+  assert.equal(MOVE_EFFECTS.exhausted.read({ gmNotes: AUTO_MINE_NOTE }), 1);
   // Farming takes its own lockout and a craft or a hand-filed Move takes none.
-  assert.equal(read({ gmNotes: "auto:farm" }), 0);
-  assert.equal(read({ gmNotes: "auto:craft" }), 0);
-  assert.equal(read({ gmNotes: null }), 0);
+  assert.equal(MOVE_EFFECTS.exhausted.read({ gmNotes: "auto:farm" }), 0);
+  assert.equal(MOVE_EFFECTS.exhausted.read({ gmNotes: "auto:craft" }), 0);
+  assert.equal(MOVE_EFFECTS.exhausted.read({ gmNotes: null }), 0);
 });
 
 test("the seat count is this turn's refining shifts and nothing else", async () => {

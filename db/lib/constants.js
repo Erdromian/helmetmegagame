@@ -168,6 +168,11 @@ const IMPERTURBABLE_SLUG = "imperturbable";
 const CHANGA_HIGH_SLUG = "changa-high";
 const SECOND_WIND_SLUG = "second-wind";
 const BREWING_DISTILLING_SLUG = "brewing-distilling";
+// What Distilling actually doubles. It used to be the whole brewing FAMILY, which was
+// 31 recipes — every medicine, both cybernetic limbs, Pure Luck at 65 ¢ — off one tag.
+// Narrowed to the two drinks on 2026-09-20, which is what the name always described and
+// what its 3-point price is now set against (BREWING.md, TAGS.md §4a).
+const DISTILLING_DOUBLES_SLUGS = new Set(["alcohol", "moonshine"]);
 const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
 // The instrument, and the skill that plays it well — shared so web /play (Chat) and the bot's /play read the same slugs.
 const INSTRUMENT_SLUG = "instrument";
@@ -329,6 +334,7 @@ module.exports = {
   CHANGA_HIGH_SLUG,
   SECOND_WIND_SLUG,
   BREWING_DISTILLING_SLUG,
+  DISTILLING_DOUBLES_SLUGS,
   MUSICIAN_PYTHAGOREAN_SLUG,
   INSTRUMENT_SLUG,
   MUSICIAN_SLUG,

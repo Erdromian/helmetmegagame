@@ -33,11 +33,11 @@ nothing. The finishing audit row records what was spent
 
 Moonshine is the only recipe in the game that costs **0 ⬢** and still has a
 real ingredient, and that is deliberate rather than an oversight: the marsh
-hands you the Godflesh, and since 2026-09-20 it costs no Move, so the throttle
-is the lump alone: at 3 ¢ a bottle it undercuts any day's work badly enough to be
-nobody's living. What it costs is the drinker's eyes, a notch at a time
-(`FACTORY.md` §8) — and one whole Godflesh a bottle, which is what stops it
-undercutting the Factory's refining.
+hands you the Godflesh, the throttle is the Godflesh, and at 3 ⬢ a bottle it
+undercuts a farming day badly enough to be nobody's living. What it costs is
+the drinker's eyes, a notch at a time (`FACTORY.md` §8) — and, since the pass
+that made ingredients real, one whole Godflesh a bottle, which is what stops
+it undercutting the Factory's refining.
 
 ## 1. Skills
 
@@ -63,7 +63,7 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 | `bliss` | 0 | 0 (max 2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 (max 2/turn) | — | — |
 | `alcohol` | 2 | 0.25 | — | `tipsy` (and up the ladder — §5a) |
-| `moonshine` | **0** | **0** | `godflesh` | `tipsy` (ladder, §5a), `blind-drunk` (2t), `damaged-vision` |
+| `moonshine` | **0** | 0.25 | `godflesh` | `tipsy` (ladder, §5a), `damaged-vision` |
 | `molotov-cocktail` | 2 | 0 (max 2/turn) | `alcohol` | — |
 | `cleaning-powder` | 2 | 0.5 | — | — |
 | `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |
@@ -340,10 +340,20 @@ document; it is already two places.
 
 ## Brewing (Distilling)
 
-A `mastery` tag (`TAGS.md` §4a) gated on Brewing II: every brewing
-recipe yields **two** of its item for the price of one.
+An ordinary 3-point skills tag gated on Brewing II, and the Innkeeper's starting
+pick: **Alcohol and Moonshine** yield **two** for the price of one.
 
-The doubling lives in `grantCrafted` (`web/app/(app)/character/requestActions.js`),
+**Two slugs, not the brewing family** (narrowed 2026-09-20,
+`DISTILLING_DOUBLES_SLUGS` in `db/lib/constants.js`). It used to test
+`craftFamily(recipeTag) === "brewing"`, which doubled all **31** brewing
+recipes: every medicine, both cybernetic limbs, Dreamer's Draught, Pure Luck at
+65 ¢. That is a vastly bigger thing than "you draw twice as much out of the same
+mash" ever described, and it is why the tag sat at 14 points in the mastery band
+and still looked cheap. It is the two drinks now, which is what the name always
+said and what the 3-point price is set against. **Adding a slug to that set is a
+real balance decision** — price it here first.
+
+The doubling lives in `grantCrafted` (`web/app/(app)/character/actions/crafting.js`),
 the single grant every craft path funnels through, rather than beside its three
 callers — and deliberately **downstream of the ingredient plan and the ⬢
 spend**, both of which are computed from `quantity` and must stay that way.
@@ -351,9 +361,9 @@ Doubling the cost as well would make the tag do nothing.
 
 Two details that are easy to get wrong:
 
-- **The family is read off `baseTag ?? tag`, not `tag`.** When a recipe mints a
-  custom row the minted tag carries no `requirementSkills`, so `craftFamily()`
-  would read it as the generic `craft` and quietly stop doubling.
+- **The recipe is read off `baseTag ?? tag`, not `tag`.** When a recipe mints a
+  custom row the minted tag carries none of the recipe's own fields — including
+  its slug — so `tag` alone would quietly stop doubling.
 - **The audit row's `quantity` stays the RECIPE RUNS**, not the units granted.
   The per-turn rations in `web/lib/requests.js` count that field, so billing
   the doubled output would halve a Distilling brewer's own `perTurn`

@@ -98,7 +98,7 @@ is its own column rather than an alias:
   has a mouth.
 - **`broken-jaw` loses it** and keeps ACT. The injury *is* the mouth.
 
-The `KISS`-only rows are three groups: nobody home (`asleep`, `blind-drunk`,
+The `KISS`-only rows are three groups: nobody home (`asleep`,
 `hallucinating`, `madness`, `sepsis`, `pain-shock`, `stupid`,
 `disabled-shocked`), the mouth (`broken-jaw`, `wired-jaw`, `choking`,
 `vomiting`), and nothing left (`gibbed`, `exploded-chest`).

@@ -85,7 +85,7 @@ const WINDED_SLUG = "winded";
 // wounds that kill untreated, and the two states that take your wits the way
 // Pain Shock does. None of them restrict ACT (db/lib/incapacitation.js), so
 // without this they could push on. Bascinet's list, 2026-09-12.
-const EXERT_REFUSAL_SLUGS = new Set(["arterial-bleed", "punctured-lung", "gut-wound", "sepsis", "blind-drunk"]);
+const EXERT_REFUSAL_SLUGS = new Set(["arterial-bleed", "punctured-lung", "gut-wound", "sepsis"]);
 // The traits that pull the die (db/lib/advantage.js#rollWithEdge): a runner
 // and a stimulant keep the better of two, "more easily tired out by physical
 // activity" and "slower" keep the worse. Lucky counts as it does on every

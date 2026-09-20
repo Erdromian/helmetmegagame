@@ -1073,7 +1073,7 @@ tags:
   # `teachable` is what Learn Skill and Teach Skill read (db/lib/lessons.js),
   # and it is set here regardless. Groupless on purpose, the way musician,
   # butcher, climbing and stealth are: there is no literacy family to join.
-  literate:
+  literacy:
     catalog: all
     name: Literacy
     category: skills
@@ -1097,7 +1097,7 @@ tags:
     group: general-traits
     description: "This person is too slow to learn. You can't learn skills, and you can't read."
     pointCost: -6
-    conflictsWith: [literate]
+    conflictsWith: [literacy]
     purchasable: true
     purchasableAfterStart: false
 
@@ -2602,7 +2602,7 @@ tags:
   # Out of the Brigand group on 2026-09-20 and made an ordinary skill: forging
   # a hand is a craft you learn, not a thing you are born into a camp holding.
   # The gate was never on the tag, it was on the group.
-  forger:
+  forgery:
     catalog: all
     name: Forgery
     category: skills
@@ -3195,7 +3195,7 @@ tags:
     # cancelled out to exactly nothing — a tag that read +1 and did +0.
     # A flat bonus on top of whatever the drink costs, so the rungs stay
     # ordered: tipsy lands at +1.4, wasted at +0.7.
-    fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted, blind-drunk] } }
+    fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted] } }
     pointCost: 5
     requiredTag: alcoholic
     visible: false
@@ -3389,13 +3389,12 @@ tags:
     category: skills
     group: skills-brewing
     teachable: false
-    description: "You draw twice as much out of the same mash. Every brewing recipe you follow yields two of its item for the price of one."
-    pointCost: 9
+    description: "When brewing alcohol or moonshine, you produce double for the same price."
+    pointCost: 3
     requiredTag: brewing-skilled
     visible: false
     purchasable: true
     purchasableAfterStart: true
-    mastery: true
 
   brewing-expert:
     catalog: all
@@ -6158,7 +6157,7 @@ tags:
     name: Bird
     category: assets
     group: assets-companions
-    description: "An intelligent bird. It can send letters if you're {tag:literate}."
+    description: "An intelligent bird. It can send letters if you have {tag:literacy}."
     pointCost: 5
     visible: true
     tradeable: true
@@ -7932,8 +7931,13 @@ tags:
     # through the Merchant and the train and nowhere else, which is what makes
     # a purse of them worth exactly as much as your ability to reach the Depot.
     #
-    # Paying a recipe's cost WITH held obols still works (resolveObolSpend,
-    # requestActions.js) — that half was never the problem.
+    # NOR DOES A RECIPE TAKE THEM. Paying a smithing recipe's cost with held
+    # obols used to work (resolveObolSpend, in actions/crafting.js — never in
+    # requestActions.js, whatever the old comment here claimed). Removed
+    # 2026-09-20. An obol is still one ⬢, but the two stopped being the same
+    # KIND of thing in 9/2026: ⬢ are material, coin is money, and a coin
+    # paying a recipe was the last hole in that rule. It also made the Depot's
+    # price for ⬢ meaningless to the trade that buys the most of them.
 
   cross:
     catalog: gm
@@ -7979,18 +7983,28 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 19
+    mealMood: -10
     consumable: true
     consumesInto:
       - oneOf: [ate-meal, vomiting]
-    cooked:
-      taste: "meat"
-      mood: 4
-      into: []
 
-  # --- The Ration Box's bad draws. All four consumesInto ate-meal too — a
-  # meal, just a bad one — and their negative mood comes off db/lib/mood.js's
-  # CONSUME_RELIEF table, keyed on the item itself (see the comment there on
-  # why the item's own entry has to win outright over ate-meal's +5 floor).
+  # --- The Ration Box's draws. Each is a meal, just a mediocre one, and each
+  # carries a `mealHunger`/`mealMood` pair rather than a `cooked:` block. That
+  # is deliberate and does two things at once. A present `mealMood` — zero
+  # counts — puts the item on the DISH branch in
+  # web/app/(app)/character/actions/misc.js, so it skips the flat -10 every RAW
+  # foodstuff pays and its mood is exactly the figure written here. And having
+  # no `cooked:` block keeps it out of every recipe's ingredient slots, since
+  # `cooked: { not: null }` IS the membership test (see the note on
+  # requirement.ingredientSlots in db/lib/tagShapes.js). Without that second
+  # half these were the cheapest hunger in the game and went straight into the
+  # Soilery's own recipes as bulk filler, which is the opposite of the two
+  # separate food economies they exist to be one half of.
+  #
+  # The spread runs 31-36 with the rat well below it, so which draw you pull
+  # matters. Cold Soup and the Kebab are merely bland and cost no mood; the
+  # other three are unpleasant and cost -10.
   moldy-bread:
     catalog: gm
     name: Moldy Bread
@@ -8004,14 +8018,10 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 31
+    mealMood: -10
     consumable: true
     consumesInto: [ate-meal]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
 
   grasshopper-kebab:
     catalog: gm
@@ -8026,14 +8036,10 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 34
+    mealMood: 0
     consumable: true
     consumesInto: [ate-meal]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
 
   jellied-meats:
     catalog: gm
@@ -8047,14 +8053,10 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 33
+    mealMood: -10
     consumable: true
     consumesInto: [ate-meal]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
 
   budget-cold-soup:
     catalog: gm
@@ -8069,19 +8071,20 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 36
+    mealMood: 0
     consumable: true
     consumesInto: [ate-meal]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
 
-  # Opened, not merely eaten — a random pick among the five bad draws above,
-  # plus a chance of nothing at all (the reserved "nothing" word,
+  # Opened, not merely eaten — a random pick among the five draws above, plus
+  # a chance of nothing at all (the reserved "nothing" word,
   # db/lib/syncTags.js / web/lib/consumeGrants.js). No sellablePrice: a box
   # this cheap and this unpleasant is not something the Depot buys back.
+  #
+  # The empty sixth face is the whole design. One box a turn averages 25.5
+  # hunger against a 35 decay, so a man living out of these does not starve —
+  # he just never quite catches up, and about a week in he is Hungry and has to
+  # either buy two a turn or find somebody who farms.
   ration-box:
     catalog: gm
     name: Ration Box
@@ -8091,7 +8094,7 @@ tags:
     description: "A cardboard container with a faded stamp. The lettering says VOLGOGA. You can open it and hopefully find some food."
     manifest: general
     pointCost: 0
-    depotPrice: 1
+    depotPrice: 3
     weight: 1
     stackable: true
     visible: false
@@ -11481,7 +11484,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 3
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: ""
     consumable: true
     consumesInto: [ate-meal, dined]
@@ -11508,7 +11511,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 5
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11536,7 +11539,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 7
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11564,7 +11567,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 3
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11591,7 +11594,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 5
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11619,7 +11622,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 5
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11655,7 +11658,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 7
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11683,7 +11686,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 4
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11711,7 +11714,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 3
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "acrid"
     mealTasteForm: "adjective"
     consumable: true
@@ -11769,7 +11772,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 6
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11796,7 +11799,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 2
-    mealHunger: 24
+    mealHunger: 30
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11824,7 +11827,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 2
-    mealHunger: 24
+    mealHunger: 30
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11909,7 +11912,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 6
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "fishy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11941,7 +11944,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 8
-    mealHunger: 36
+    mealHunger: 38
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11969,7 +11972,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 8
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11997,7 +12000,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 10
-    mealHunger: 24
+    mealHunger: 30
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12032,7 +12035,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 10
-    mealHunger: 20
+    mealHunger: 15
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12062,7 +12065,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 15
-    mealHunger: 20
+    mealHunger: 15
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12091,7 +12094,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 18
-    mealHunger: 20
+    mealHunger: 30
     mealTaste: "cheesy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12120,7 +12123,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 15
-    mealHunger: 45
+    mealHunger: 46
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12155,7 +12158,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 20
-    mealHunger: 26
+    mealHunger: 18
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
@@ -12185,7 +12188,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 15
-    mealHunger: 20
+    mealHunger: 15
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12216,7 +12219,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 30
-    mealHunger: 54
+    mealHunger: 51
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
@@ -12275,7 +12278,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 28
-    mealHunger: 60
+    mealHunger: 54
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12302,7 +12305,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 40
-    mealHunger: 45
+    mealHunger: 46
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12330,7 +12333,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 72
+    mealHunger: 56
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12357,7 +12360,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 30
-    mealHunger: 66
+    mealHunger: 56
     mealTaste: "rich"
     mealTasteForm: "adjective"
     consumable: true
@@ -12444,7 +12447,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 54
+    mealHunger: 51
     mealTaste: "rich"
     mealTasteForm: "adjective"
     consumable: true
@@ -12471,7 +12474,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 50
-    mealHunger: 60
+    mealHunger: 54
     mealTaste: "toxic"
     mealTasteForm: "adjective"
     consumable: true
@@ -12508,7 +12511,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 18
-    mealHunger: 10
+    mealHunger: 12
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
@@ -12921,7 +12924,7 @@ tags:
     category: items
     group: items-special
     sprite: book
-    description: "A strange kind of book: you can only read it once. Your breath slows when you near it. [You must be {tag:literate} to understand its contents.]"
+    description: "A strange kind of book: you can only read it once. Your breath slows when you near it. [You must have {tag:literacy} to understand its contents.]"
     pointCost: 0
     weight: 5
     visible: false
@@ -14124,7 +14127,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-duo-of-saints:
@@ -14145,7 +14148,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-regal-cross:
@@ -14166,7 +14169,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-fleur-de-lis:
@@ -14187,7 +14190,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-mounted-knight:
@@ -14208,7 +14211,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-ox:
@@ -14229,7 +14232,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   # The offices' own stamps. These are never bought — each one starts in the
@@ -14270,7 +14273,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   barons-wax-stamp:
@@ -14290,7 +14293,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   esculaps-wax-stamp:
@@ -14310,7 +14313,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   meisters-wax-stamp:
@@ -14330,7 +14333,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   censors-wax-stamp:
@@ -14350,7 +14353,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   hands-wax-stamp:
@@ -14370,7 +14373,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   bishops-wax-stamp:
@@ -14390,7 +14393,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   inquisitors-wax-stamp:
@@ -14410,7 +14413,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   # The one stamp with no mark in this file. The Merchant's bears his actual
@@ -14439,7 +14442,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   coffee:
@@ -17936,14 +17939,16 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
-    consumesInto: [tipsy, blind-drunk, damaged-vision]
-    # Costs no ⬢ and no Move — the marsh gives you the ingredient. One
+    consumesInto: [tipsy, damaged-vision]
+    # Drinking it walks the ordinary drink ladder — tipsy, then wasted if you
+    # keep going — and the eyes are what makes it moonshine rather than beer.
+    # Costs no ⬢ at all — the marsh gives you the ingredient. One
     # {tag:godflesh} goes INTO the bottle now and does not come back, which is
     # what limits it: there is no ration on a 0-turn recipe, so the lump is the
     # whole throttle, and a lump made into 3 ¢ of drink is 40 ¢ of Squeeze not
     # made (docs/systemdocs/BREWING.md, FACTORY.md §8).
     requirement:
-      turnsCost: 0
+      turnsCost: 0.25
       resourceCost: 0
       skills: [brewing-basic]
       gambit: false
@@ -17953,20 +17958,6 @@ tags:
     cooked:
       taste: "booze"
       mood: 10
-
-  # Refuses a push on (MAP.md §3, EXERT_REFUSAL_SLUGS in db/lib/locationTravel.js).
-  blind-drunk:
-    catalog: gm
-    name: Blind Drunk
-    category: status
-    group: status-debuffs
-    description: "You can barely see. That drink is bad!"
-    fighting: { tree: both, tiers: -3 }
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 2
 
   # Permanent, stackable, and the only tag in the catalog a turn pass counts.
   # At 5 the whole stack is swept and {tag:blind} lands in its place —

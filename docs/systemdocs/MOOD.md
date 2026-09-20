@@ -269,7 +269,7 @@ they did before.
 | End the turn OPEN (a settled place, outdoors) | +5 **to Fine only** | mood pass |
 | End the turn INDOORS | +7 **to Fine only** | mood pass |
 | End the turn in a HAVEN | +14 **to Fine only** | mood pass |
-| Consume anything that lands you tipsy / wasted / unconscious / blind-drunk / high / euphoric | +35 | `consumeTagRequestImpl` |
+| Consume anything that lands you tipsy / wasted / unconscious / high / euphoric | +35 | `consumeTagRequestImpl` |
 | Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +17 | same |
 | Eat a **cooked dish** | its own small figure plus its ingredients', §6a | `dishMoodTerms` |
 | Consume a treat — `sweets`, `honey`, `fish-roe`, `pumpkin` | +9 | same |
