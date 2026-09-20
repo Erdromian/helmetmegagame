@@ -1088,6 +1088,8 @@ groups:
         - Mortus Rags
         - Melee I
         - Cudgel
+        - Shovel
+        - Corpse Salts
       doc_elements:
         - respawning
     bum:

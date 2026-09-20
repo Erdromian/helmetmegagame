@@ -46,8 +46,8 @@ export default function EngraveDialog({ mode, onDone, onClose }) {
           data-autofocus
         />
       </label>
-      {/* PLACEHOLDER — Bascinet's wording pending. It is half a Move now, not a whole turn. */}
-      <p className="text-xs text-muted">Costs {ENGRAVE_RESOURCE_COST} ⬢ and half your turn.</p>
+      {/* PLACEHOLDER — Bascinet's wording pending. */}
+      <p className="text-xs text-muted">Costs {ENGRAVE_RESOURCE_COST} ⬢ and your whole Move. A Shovel does not help here.</p>
     </ActionDialog>
   );
 }

@@ -1140,13 +1140,8 @@ zones:
         # seeds anyway. The Shackle button works here.
         structures: [dungeons]
         rooms:
-          undertown-3-1:
-            name: Outside
-            description: >-
-              The door to the Lifeweb is in front of you. The grass is especially alive here.
           undertown-3-2:
             name: Inner Lifeweb
-            access: [mortus-key]
             description: >-
               Pistons and machinery connect to pumps and tubes, all terminating in the chair in the center of the room. Strap someone in, adjust the ventricles, prepare the injection site, and decide whether to drain them fully or leave them alive. Sealed hatches lead into maintenance tunnels.
           undertown-3-3:
@@ -1162,6 +1157,8 @@ zones:
                 cudgel: 1
                 mortus-rags: 1
                 mortus-key: 1
+                shovel: 3
+                corpse-salts: 1
       undertown-4:
         name: Sewer
         description: ""

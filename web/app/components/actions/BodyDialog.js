@@ -20,6 +20,10 @@ const VERBS = {
     fit: (c) => c.human,
     run: (c) => buryCharacterRequest({ tagId: c.tagId, sourceKey: c.sourceKey }),
     note: () => null,
+    // Said unconditionally rather than read off what is equipped: the dialog
+    // has no equip list to check, and plumbing one in to save a clause would
+    // buy a player nothing they cannot see on their own sheet.
+    cost: "Costs your whole Move — half with a Shovel equipped.",
   },
   butcher: {
     title: "Butcher",
@@ -27,6 +31,7 @@ const VERBS = {
     fit: () => true,
     run: (c) => butcherCorpseRequest({ tagId: c.tagId, sourceKey: c.sourceKey }),
     note: (c) => `gives ${yieldLabel(c)}`,
+    cost: null,
   },
 };
 
@@ -65,6 +70,7 @@ export default function BodyDialog({ mode, onDone, onClose }) {
         value={key}
         onChange={setKey}
       />
+      {verb.cost ? <p className="text-xs text-muted">{verb.cost}</p> : null}
     </ActionDialog>
   );
 }

@@ -14,6 +14,7 @@ const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
+const { runCorpseSenseSweep } = require("@lifeweb/db/lib/corpseSense");
 const { tickPhones } = require("@lifeweb/db/lib/phone");
 const { PHONE_RING_INTERVAL_MS } = require("@lifeweb/db/lib/phoneText");
 const { runCharonSweep } = require("@lifeweb/db/lib/charonSweep");
@@ -293,6 +294,26 @@ module.exports = {
         .catch((err) => console.error("Rite sweep failed:", err))
         .finally(() => {
           riteSweepRunning = false;
+        });
+    });
+
+    // Corpse Sense DMs its holder the way to the nearest body every twenty
+    // minutes (db/lib/corpseSense.js). Every MINUTE, not every twenty: the
+    // interval is per-character and replayed from AuditLog, so a per-minute
+    // tick picks the clock back up wherever a restart dropped it instead of
+    // drifting by however long the bot was gone. Costs one query on a minute
+    // where nobody has taken salts.
+    let corpseSenseSweepRunning = false;
+    cron.schedule("* * * * *", () => {
+      if (corpseSenseSweepRunning) return;
+      corpseSenseSweepRunning = true;
+      runCorpseSenseSweep(prisma)
+        .then(({ pinged }) => {
+          if (pinged) console.log(`Corpse sense: ${pinged} pinged.`);
+        })
+        .catch((err) => console.error("Corpse sense sweep failed:", err))
+        .finally(() => {
+          corpseSenseSweepRunning = false;
         });
     });
 

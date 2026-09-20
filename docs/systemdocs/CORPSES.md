@@ -290,12 +290,26 @@ and every livestock row carries `human: false`. The room announcement reads
 
 ## 7. Bury and Engrave
 
-**Both cost half a Move**, and they take it off the same ledger crafting uses
+**Both cost a whole Move**, and they take it off the same ledger crafting uses
 (`Action.craftBudget`, `CRAFTING.md` §2a) rather than the whole-Move
-`fileAutoRoutine` path they used to file. So a burial and an afternoon at the
-anvil fit in one turn, and so do two burials. They go through
-`resolveCraftMove` outside the transaction and `spendCraftMove` inside it,
-exactly like a 0.5-turn recipe, and pass `notes: "auto:craft auto:bury"` — the
+`fileAutoRoutine` path they used to file. Digging a grave or cutting a stone by
+hand is a day's work, and a turn holds one of them and nothing else.
+
+**A Shovel halves the digging.** While one is equipped, Bury costs half a Move
+instead — two bodies in the ground in a turn, or one burial and an afternoon at
+the anvil. That is the whole reason both verbs stayed on the shared ledger
+rather than moving to `requireFreeMove`: a whole-Move need bills through it
+perfectly well and simply consumes all of it, so the shovel case still has
+somewhere to spend its other half. The shovel is read off `CharacterTag.equipped`
+at the moment of the bury — a shovel in the pack digs nothing — and the need is
+resolved **once**, before `resolveCraftMove`, then threaded into `spendCraftMove`,
+so unequipping between the fast check and the locked one cannot bill a price the
+gate never charged.
+
+**Engrave ignores the shovel.** A shovel digs a grave; it does not carve a stone.
+
+They go through `resolveCraftMove` outside the transaction and `spendCraftMove`
+inside it, exactly like a recipe, and pass `notes: "auto:craft auto:bury"` — the
 `auto:craft` half is what `checkCraftMove` recognises as a shareable ledger,
 the other half is the marker saying which button filed it.
 
@@ -317,7 +331,7 @@ corpse is refused — "There's no soul in that one."
 
 **Engrave is the answer to a body nobody can find**, so it is the one action
 here with no corpse and no reach check, and it searches **every zone**. It costs
-**3 ⬢** and half a Move, frees the soul the way burying does, and leaves a
+**2 ⬢** and a whole Move, frees the soul the way burying does, and leaves a
 `{name}'s Headstone` tag on the engraver.
 
 Engrave inherited Bury's **typed** first name, and the reasoning that kept it
@@ -337,6 +351,58 @@ channel, as ambient subtext (`speakHere` in `requestActions.js`, over the shared
 `speakAtSite`/`ambientLine` pair). The Location is the actor's in both cases —
 for Engrave that is the only sensible one, since the body may be anywhere and
 the carving is not.
+
+## 7a. Corpse Salts and the nose it gives you
+
+**Corpse Salts is the Mortii's own recipe**, and secret in the ordinary way:
+`requirement.skills: [mortus]` means only a Mortus can ever make it, and no
+`recipePublic`, so you have to have held one to know how. 1 ⬢ and a quarter
+Move. Consuming it grants **Corpse Sense**, which lives one turn.
+
+While that tag is held, its owner is DM'd every **twenty real minutes**:
+
+- `You smell a corpse in {room}.` — a body at their own Location, in a room
+  they can actually get into.
+- `You smell a corpse nearby, but you don't know where.` — a body at their own
+  Location, behind a door they have no key to.
+- `You smell a corpse in the direction of {location}.` — anything further off,
+  out to **seven hops**.
+- `You smell a corpse somewhere nearby.` — the same, when the way there runs
+  through a hidden link.
+
+**Only a person's body counts** (`Tag.corpseOfCharacterId`); a Nekker rots
+unnoticed.
+
+**The direction rule is the shout's, to the letter.** `db/lib/corpseSense.js`
+calls the same `soundRange` shouting does, at seven hops instead of three, and
+uses the same `viaName`: the smeller's **own neighbour** one step back toward
+the body, never the body's own Location, and **nothing at all** across a hidden
+way. A smell that named the room a body was in, from four Locations off, would
+be a better search tool than walking there — and naming a hidden way would
+punch a hole in the thing that makes it hidden. The nearest body wins even when
+its direction has to be withheld: this withholds rather than pointing at a
+farther one whose way it could name.
+
+**A corpse in a living character's pack does not count.** It sits at a Location
+but in no Room, so it could only ever produce the "don't know where" line — a
+worse signal that would also mask a real body in a room you can walk into. It
+would also turn a smell into a people-tracker: at seven hops, a courier
+carrying a body would be a beacon re-pinging every twenty minutes to everyone
+who had taken salts.
+
+**There is no state column.** The twenty-minute clock is replayed from the
+`AuditLog` rows each ping already writes (`corpse_sense_ping`) — the trick
+`db/lib/speechRateLimit.js` uses for shout's cooldown. It survives a bot
+restart, is shared across both faces, costs no schema, and puts every ping on
+`/gm/audit` for free. A minute with nothing in range **writes no row**, so the
+clock does not advance on a silence and a body coming into reach is reported on
+the next tick.
+
+The sweep runs **every minute** from `bot/src/events/ready.js`, not every
+twenty: the interval is per-character and stored, so a per-minute tick picks
+the clock back up wherever a restart dropped it. It costs one query on a minute
+where nobody is holding the tag. Consuming the salts pings immediately rather
+than waiting for the sweep to notice.
 
 ## 8. `Tag.requirementItems` — the enforced ingredient
 
@@ -474,8 +540,9 @@ A GM repairing a mistake has to be able to put the body back.
 | Sheet-follows-corpse | `db/lib/corpseFollow.js` |
 | Rot | `db/lib/corpseRotPass.js` (`TURN_PASSES` `"corpseRot"`) |
 | The smell | `bot/src/lib/deathSmell.js`, armed in `bot/src/events/ready.js` |
+| Corpse Sense, and its minute sweep | `db/lib/corpseSense.js`, armed in `bot/src/events/ready.js` |
 | Headstones | `db/lib/headstone.js` |
 | The three actions | `web/app/(app)/character/requestActions.js` |
 | Buttons, dialogs | `actionRegistry.js`, `RequestActionsProvider.js`, `icons.js` |
 | Ingredient shape | `db/lib/tagShapes.js`, `db/lib/syncTags.js`, `db/lib/formatTagRequirement.js` |
-| Constants | `CORPSE_GROUP_SLUG`, `BUTCHER_SLUG`, `HUMAN_FLESH_SLUG`, `ENGRAVE_RESOURCE_COST`, `CORPSE_ROT_TURNS` in `db/lib/constants.js` |
+| Constants | `CORPSE_GROUP_SLUG`, `BUTCHER_SLUG`, `HUMAN_FLESH_SLUG`, `ENGRAVE_RESOURCE_COST`, `CORPSE_ROT_TURNS`, `SHOVEL_SLUG`, `CORPSE_SALTS_SLUG`, `CORPSE_SENSE_SLUG` in `db/lib/constants.js` |
