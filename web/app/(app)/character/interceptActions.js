@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { sendDm } from "@/lib/discordGuild";
-import { guarded, UserError } from "@/lib/actionResult";
+import { acting, guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
@@ -221,11 +221,11 @@ export async function loadIntercept() {
   return guarded(() => loadInterceptImpl());
 }
 export async function setIntercept(input) {
-  return guarded(() => setInterceptImpl(input ?? {}));
+  return acting(() => setInterceptImpl(input ?? {}));
 }
 export async function stopIntercept() {
-  return guarded(() => stopInterceptImpl());
+  return acting(() => stopInterceptImpl());
 }
 export async function releaseHeld(input) {
-  return guarded(() => releaseHeldImpl(input ?? {}));
+  return acting(() => releaseHeldImpl(input ?? {}));
 }

@@ -2,6 +2,7 @@
 // and /location (bot) both come through here; web app writers (creation, GM teleport, Bulk Move) are raw relocations and don't. Validates the hop, enforces the same-zone cooldown or files the Move a zone crossing costs, walks the mover's escort party along, and performs **no Discord side effects** — the caller runs locationMove.js#applyLocationMoveSideEffects over `moved`.
 // EVERY crossing lands at once, paid or free — the Move is still spent, and you are there (MAP.md §3). Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
+const { sessionGate } = require("./betweenSessions");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival, cavingHoldFor, cavingHeldIds } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
@@ -351,6 +352,13 @@ class MoveRefused extends Error {
 // can never be the hole that skips the free-crossing arithmetic.
 async function performLocationMove(prisma, character, targetLocation, { exert = false, skipCooldown = false } = {}) {
   if (!targetLocation?.zone) throw new Error("performLocationMove needs targetLocation.zone");
+
+  // Shut between sittings (SESSIONS.md §5). This is the floor, not the policy — both faces refuse the button long
+  // before here — but every crossing in the game funnels through this one function, so a surface that forgets to ask
+  // still cannot walk somebody across the map with no GM in the room. A GM's own move does not come this way; it goes
+  // straight to applyLocationMoveSideEffects.
+  const session = await sessionGate(prisma);
+  if (!session.ok) return { ok: false, reason: session.message };
 
   // The MOVER's own state — escorting asks whether the TARGET is helpless, but "can this
   // character walk at all" was never asked before this gate existed, so a bound, paralyzed or unconscious character could stroll out of the room they were held in. Every crossing funnels through here (locationGraph.js), so this one gate covers the bot's picker, /location, and the staged push alike.

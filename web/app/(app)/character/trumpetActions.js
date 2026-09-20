@@ -7,6 +7,7 @@ import { prisma } from "@lifeweb/db";
 import { TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { broadcastTrumpet, TRUMPET_COOLDOWN_MS } from "@lifeweb/db/lib/trumpet";
+import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
 import { auth } from "@/lib/auth";
 
 // Sounding a trumpet is heard across the Location graph — db/lib/trumpet.js
@@ -22,6 +23,10 @@ const lastSounded = new Map();
 export async function soundTrumpet() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
+
+  // Shut between sittings: a player may talk and nothing else (SESSIONS.md §5).
+  const gate = await sessionGate(prisma);
+  if (!gate.ok) return { ok: false, error: gate.message };
 
   // From the session, never a posted id — a server action is a public endpoint.
   const character = await prisma.character.findFirst({

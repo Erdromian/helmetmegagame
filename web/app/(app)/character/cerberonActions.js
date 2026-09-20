@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { guarded, UserError } from "@/lib/actionResult";
+import { acting, guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -219,10 +219,10 @@ async function checkWantedImpl() {
 }
 
 export async function arrestWarrantRequest(input) {
-  return guarded(() => arrestWarrantRequestImpl(input ?? {}));
+  return acting(() => arrestWarrantRequestImpl(input ?? {}));
 }
 export async function removeWarrantRequest(input) {
-  return guarded(() => removeWarrantRequestImpl(input ?? {}));
+  return acting(() => removeWarrantRequestImpl(input ?? {}));
 }
 export async function checkWanted() {
   return guarded(() => checkWantedImpl());

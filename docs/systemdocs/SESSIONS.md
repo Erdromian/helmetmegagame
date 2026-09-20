@@ -126,10 +126,81 @@ GM who forgot the game was shut.
   session there is no deadline, and saying so is more use than a time nobody is
   counting down to.
 
-**Only the Move economy is shut.** Travel, Speak and roleplay are not gated on
-this, exactly as they are not gated on the Move cutoff (`TURN-ENGINE.md` §6a):
-the freeze is about the queue a GM has to adjudicate, not about whether people
-may talk to each other.
+**Between sittings a player may talk, and nothing else.** That is the whole
+policy, and it is not the same as the Move cutoff (`TURN-ENGINE.md` §6a), which
+only shuts the queue a GM has to adjudicate. A session boundary shuts the
+*game*: travel, transfers, theft, crafting, mining, farming, healing, searching,
+kissing, torture, collars, Bird letters, writing on paper, claiming a Desire —
+all of it waits for the next sitting.
+
+It used to be otherwise. This doc said *"Only the Move economy is shut"*, and
+everything free — Travel, Transfer, Steal, Kiss, Search, Loot, Bind, Brand,
+Godflesh — reached the database between sessions with no GM in the room. It
+does not any more.
+
+Four things stay open, and they have one thing in common: none of them changes
+the world.
+
+- **Reading.** The sheet, the map, Examine, Who's here?, a notice on a board,
+  the roster. Reading is never an act.
+- **Equipping and unequipping.** It costs no Move even in session, and what is
+  on your own body is nobody else's afternoon.
+- **The lobby and character creation.** They sit outside the game, so a
+  boundary inside the game is not theirs to answer to. A late-join seat offer
+  and a threat-spawn offer are the same shape.
+- **Everything a GM does.** They run the sitting; they work whenever they like.
+
+### 5a. The roleplay knob
+
+**"Allow roleplaying in between sessions"** — `GameConfig.roleplayBetweenSessions`,
+**on by default**, on `/gm/dev?s=turn` beside Game type.
+
+It decides the one thing left: the talking. On, a player may speak in a room —
+on the web feed and in Discord alike — while everything else is shut. Off, the
+freeze is total and speech is refused with the same sentence.
+
+**Three things count as talking without going through `say.js`**, and they are
+easy to miss: `/shout`, `/roll` and `/play`. A shout carries across the
+Location graph and a die or a lute lands in the room as scenery, so they follow
+this knob rather than the act gate — and because `prepareSpeech` never sees
+them, they say so at their own call sites (`speech: true` on `chat/actions.js`'s
+`actor`, `SPEECH_COMMANDS` in the bot's router).
+
+`/ooc` is not on that list. It is out of character by definition, like writing
+to a GM or changing what is over your face, so a boundary inside the game does
+not reach it.
+
+The knob is meaningless in Persistent, where there is no "between" to ask
+about.
+
+### 5b. Where the gate lives
+
+`db/lib/betweenSessions.js#sessionGate(db, { acting })`, one predicate for both
+faces. `acting: true` is the default and the strict answer, so a caller that
+forgets the option gets the safe one; `acting: false` is the speech case, and
+the only one the knob reaches.
+
+It is deliberately **not** `movesOpen`. That gate needs an open turn and folds
+`NO_TURN` and `LOCKED` into the same answer, so a caller asking it about Travel
+would refuse between turns as well.
+
+Four hooks carry the policy, and three more sit under them as a floor:
+
+| Where | What it covers |
+|---|---|
+| `web/lib/actionResult.js#acting()` | Every verb on `/character`. It is `guarded()` plus the gate, so a verb is `acting(…)` and a read stays `guarded(…)`. |
+| `web/app/(app)/chat/actions.js#actor(select, { acting })` | The chat surface. Per action rather than in the hub, because the talking lives in that file too. |
+| `db/lib/say.js#prepareSpeech` | Speech, both faces — the web composer, the Discord proxy, and the catch-up pass. The one place the knob is read. |
+| `bot/src/events/interactionCreate.js` | Every Discord command, button, select and modal, as an **allowlist**. A new surface is shut by default, so a new read-only or speech button must be added to `OPEN_PREFIXES` or it will refuse out of session. |
+| `db/lib/locationTravel.js#performLocationMove` | The floor under travel — every crossing in the game funnels through it. |
+| `web/lib/moveSpend.js#fileAutoRoutine` | The floor under the Move economy: no `Action` row is written between sittings. |
+| `db/lib/moves.js` and the rest of `movesOpen`'s callers | Unchanged — filing a Move was already shut. |
+
+The bot's check is raced at 800ms and **fails open**, the same bargain
+`handleMoveOpen` already strikes: it runs before the three-second
+acknowledgement on every interaction, including the ones that open a modal and
+so cannot be deferred first. A slow pool must cost a refusal, never the click —
+and what slips through meets the floor anyway.
 
 ## 6. The GM surface
 
@@ -144,6 +215,8 @@ page (`web/app/(desk)/gm/dev/SessionPanel.js`, actions in
   an hour or six out depending on where the container happened to run.
 - **Start now** and **Close now**. Closing confirms first, since it shuts the
   game for everybody.
+- **Allow roleplaying in between sessions**, in the Turn clock knobs just
+  above — §5a.
 
 Both boxes may be cleared. A GM taking the schedule off is how a session
 becomes hand-driven, so an empty box is an instruction rather than a slip.
@@ -154,7 +227,8 @@ becomes hand-driven, so an empty box is an instruction rather than a slip.
 |---|---|
 | `db/lib/session.js` | `openSession`, `closeSession`, `sessionDue`, `sessionSnapshot` |
 | `db/lib/gameState.js` | `inSession`, `isClockRunning`, `frozenReason`, `clockStatus` |
-| `db/lib/turnGate.js` | `movesOpen`, `gateMessage` — the chokepoint |
+| `db/lib/turnGate.js` | `movesOpen`, `gateMessage` — the Move chokepoint |
+| `db/lib/betweenSessions.js` | `sessionGate`, `gateFor` — the freeze, §5b |
 | `db/lib/sessionNotice.js` | The `#turns` line, REST, shared by both faces |
 | `bot/src/lib/sessionClock.js` | The per-minute turn and session polls |
 | `web/app/(desk)/gm/dev/SessionPanel.js` | The GM panel |

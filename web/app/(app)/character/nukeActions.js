@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { guarded, UserError } from "@/lib/actionResult";
+import { acting, guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import {
@@ -167,8 +167,8 @@ export async function readPointer() {
   return guarded(() => readPointerImpl());
 }
 export async function armNuke(input) {
-  return guarded(() => armNukeImpl(input));
+  return acting(() => armNukeImpl(input));
 }
 export async function disarmNuke(input) {
-  return guarded(() => disarmNukeImpl(input));
+  return acting(() => disarmNukeImpl(input));
 }

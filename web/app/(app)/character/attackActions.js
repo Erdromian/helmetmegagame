@@ -6,7 +6,7 @@ import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { sendDm } from "@/lib/discordGuild";
-import { guarded, UserError } from "@/lib/actionResult";
+import { acting, guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { resolveHereTarget } from "@/lib/hereTarget";
@@ -241,8 +241,8 @@ export async function loadAttacks() {
   return guarded(() => loadAttacksImpl());
 }
 export async function attackCharacterRequest(input) {
-  return guarded(() => attackCharacterImpl(input ?? {}));
+  return acting(() => attackCharacterImpl(input ?? {}));
 }
 export async function cancelAttackRequest(input) {
-  return guarded(() => cancelAttackImpl(input ?? {}));
+  return acting(() => cancelAttackImpl(input ?? {}));
 }

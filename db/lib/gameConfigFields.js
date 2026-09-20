@@ -137,6 +137,11 @@ const FIELDS = [
     label: "Game type",
     info: "Sessions freezes the whole game between sittings. Schedule one in the Sessions panel.",
   },
+  {
+    key: "roleplayBetweenSessions", type: "bool", group: "clock", default: true,
+    label: "Allow roleplaying in between sessions",
+    info: "Between sittings players may still talk. Everything else is shut either way. Sessions only.",
+  },
 
   // --- Catatonic -------------------------------------------------------------
   {

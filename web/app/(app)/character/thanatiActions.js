@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { guarded, UserError } from "@/lib/actionResult";
+import { acting, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
@@ -340,14 +340,14 @@ async function purchaseGearImpl({ items, currency, purse }) {
 }
 
 export async function recallComrades() {
-  return guarded(() => recallComradesImpl());
+  return acting(() => recallComradesImpl());
 }
 export async function recoverEquipment() {
-  return guarded(() => recoverEquipmentImpl());
+  return acting(() => recoverEquipmentImpl());
 }
 export async function setHideout(input) {
-  return guarded(() => setHideoutImpl(input ?? {}));
+  return acting(() => setHideoutImpl(input ?? {}));
 }
 export async function purchaseGear(input) {
-  return guarded(() => purchaseGearImpl(input ?? {}));
+  return acting(() => purchaseGearImpl(input ?? {}));
 }

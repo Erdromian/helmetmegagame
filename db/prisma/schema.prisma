@@ -450,6 +450,12 @@ model GameConfig {
   // touch GameState.phase, so one game can run several of them (SESSIONS.md).
   gameMode GameMode @default(PERSISTENT)
 
+  // Between sittings the game is shut: a player may talk and nothing else
+  // (db/lib/betweenSessions.js). This knob decides whether even the talking
+  // stays open. Off means a total freeze, speech included, on both faces.
+  // Meaningless in PERSISTENT, where there is no "between" to ask about.
+  roleplayBetweenSessions Boolean @default(true)
+
   // Master switch for letting a player upload their own profile picture.
   // Off means AvatarField's file input doesn't render and
   // updateCharacterProfile ignores a posted `avatar` field even if one

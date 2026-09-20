@@ -14,7 +14,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { guarded, UserError } from "@/lib/actionResult";
+import { acting, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
@@ -197,5 +197,5 @@ async function trinketRequestImpl({ name, description, ingredientSlugs }) {
 }
 
 export async function trinketRequest(input) {
-  return guarded(() => trinketRequestImpl(input ?? {}));
+  return acting(() => trinketRequestImpl(input ?? {}));
 }

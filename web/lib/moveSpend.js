@@ -4,6 +4,7 @@
 import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
 import { movesOpen } from "@lifeweb/db/lib/turnGate";
+import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
 
 export async function requireFreeMove(character, openTurn) {
   if (!openTurn) throw new UserError("No turn is open.");
@@ -33,6 +34,12 @@ export async function fileAutoRoutine(
   craftBudget = null,
   { deferEffects = false, farmPlan = null } = {},
 ) {
+  // The floor under the session gate (SESSIONS.md §5). Every verb that files a Move for a player is refused long before
+  // here by acting() in web/lib/actionResult.js, and movesOpen() refuses it again above — but nothing may write an
+  // Action row between sittings, so the last word is asked on the caller's own transaction client.
+  const session = await sessionGate(tx);
+  if (!session.ok) throw new UserError(session.message);
+
   try {
     return await tx.action.create({
       data: {

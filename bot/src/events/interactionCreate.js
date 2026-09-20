@@ -65,6 +65,9 @@ const {
   CONVERSE_NAME_FIELD,
 } = require("../lib/converseModal");
 const { ack, respond, scheduleDismiss } = require("../lib/respond");
+const { prisma } = require("@lifeweb/db");
+const { sessionGate } = require("@lifeweb/db/lib/betweenSessions");
+const { isGmMember } = require("../lib/interactionGuild");
 const { BIRD_REPLY_PREFIX, BIRD_REPLY_PICK_PREFIX } = require("@lifeweb/db/lib/bird");
 const { handleBirdReplyOpen, handleBirdReplyPick } = require("../lib/birdReply");
 const { NOTICEBOARD_PREFIX } = require("@lifeweb/db/lib/locationAnchorRow");
@@ -179,10 +182,84 @@ const {
   handleOocCommand,
 } = require("./interactions/actions");
 
+
+// --- The session gate ------------------------------------------------------
+//
+// Between sittings the game is shut and a player may TALK and nothing else (SESSIONS.md §5). Every command, button,
+// select and modal on Discord comes through the one execute() below, so the gate sits there once rather than in fifty
+// handlers — and it is an ALLOWLIST, so a button somebody adds next year is shut by default. That is the safe
+// direction, but it does mean a NEW READ-ONLY OR SPEECH SURFACE MUST BE ADDED HERE or it will refuse out of session.
+//
+// Speech itself is not decided here: db/lib/say.js#prepareSpeech is the one answer both faces share, and it is what
+// honours "Allow roleplaying in between sessions". The modal still has to OPEN, which is why say:open is on the list.
+const OPEN_COMMANDS = new Set([
+  // GM work, whenever they like. Each of these handlers gates on isGmMember itself.
+  "gm", "zone", "dm", "heal", "add", "remove",
+  // Out of character, or about how a player is PRESENTED rather than what they do. None of it is the game.
+  "ooc", "message", "conceal",
+]);
+
+// Roleplay that does NOT go through db/lib/say.js — a shout carries across the Location graph, a die roll and a music
+// cue land in the room as scenery. They are talking, so they follow the roleplay knob rather than the act gate, and
+// they need saying here because prepareSpeech never sees them.
+const SPEECH_COMMANDS = new Set(["shout", "roll", "play"]);
+
+// Prefixes that stay clickable: reading, looking, and opening the Speak modal.
+const OPEN_PREFIXES = [
+  "say:open", "say:send:",
+  WHOS_HERE_PREFIX, EXAMINE_PREFIX, SECRET_ROOMS_PREFIX, NOTICE_READ_PREFIX,
+  // Arrive in a DM to somebody with no character yet — a seat offer and a lobby assignment sit outside the game the
+  // way character creation does, so a session boundary is not theirs to answer to.
+  THREAT_SPAWN_ACCEPT_PREFIX, THREAT_SPAWN_DECLINE_PREFIX, LOBBY_DECLINE_PREFIX,
+];
+
+// Speech, act, or never gated at all.
+function gateKindFor(interaction) {
+  if (interaction.isChatInputCommand()) {
+    if (OPEN_COMMANDS.has(interaction.commandName)) return null;
+    return SPEECH_COMMANDS.has(interaction.commandName) ? "speech" : "act";
+  }
+  return "act";
+}
+
+function alwaysOpen(interaction) {
+  if (interaction.isChatInputCommand()) return gateKindFor(interaction) === null;
+  // Anything execute() does not itself route — an autocomplete, say — is not ours to refuse.
+  if (!interaction.isButton() && !interaction.isStringSelectMenu() && !interaction.isModalSubmit()) return true;
+  const id = interaction.customId ?? "";
+  return OPEN_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
+
+// The refusal sentence, or false to carry on. A GM is never refused — they run the sitting.
+//
+// Raced at 800ms and failing OPEN, the same bargain handleMoveOpen already strikes (interactions/actions.js): this read
+// happens before the three-second acknowledgement on EVERY interaction, including the ones that open a modal and so
+// cannot be deferred first. A slow pool must cost a refusal, never the click. What slips through still meets the gate
+// again deeper down — db/lib/locationTravel.js, web/lib/moveSpend.js and db/lib/say.js all ask it themselves, so
+// failing open here loses nothing but the tidy sentence.
+async function shutOut(interaction) {
+  if (alwaysOpen(interaction) || isGmMember(interaction)) return false;
+  const acting = gateKindFor(interaction) !== "speech";
+  const gate = await Promise.race([
+    sessionGate(prisma, { acting }).catch((err) => {
+      console.error("Session gate check failed:", err);
+      return { ok: true };
+    }),
+    new Promise((resolve) => setTimeout(() => resolve({ ok: true }), 800)),
+  ]);
+  return gate.ok ? false : gate.message;
+}
+
 module.exports = {
   name: "interactionCreate",
   async execute(interaction) {
     try {
+      const shut = await shutOut(interaction);
+      if (shut) {
+        // A modal-opening interaction is acknowledged by showModal(), which we are not calling — so this one reply
+        // is both the refusal and the ack, and respond() writes the "» *…*" an ephemeral reply wears.
+        return void (await respond(interaction, shut));
+      }
       if (interaction.isChatInputCommand()) {
         if (interaction.commandName === "gm") return void (await handleGmCommand(interaction));
         if (interaction.commandName === "zone") return void (await handleZoneCommand(interaction));

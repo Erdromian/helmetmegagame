@@ -20,6 +20,7 @@ const { MESSAGE_LIMIT, MAX_SAY_PIECES, tooManyPieces } = require("./sayLimits");
 const { echoSpeech } = require("./gateEcho");
 const { deadchatSpeakerName } = require("./deadchat");
 const { containsOoc, OOC_REFUSAL } = require("./oocGuard");
+const { sessionGate } = require("./betweenSessions");
 
 
 // Same number on both faces: past it, ✏️/❌ refuse, and so do ✎/✕ on the web.
@@ -86,6 +87,13 @@ async function prepareSpeech(
   { character, placeKey, content, source = "WEB", skipSlowmode = false, ghost = false } = {},
 ) {
   if (!character?.id) return { ok: false, refusal: "You don't have a living character." };
+
+  // Between sittings the game is shut and talking is the ONE thing left open — unless a GM has closed even that
+  // ("Allow roleplaying in between sessions", SESSIONS.md §5). Both faces funnel through here, so this is the whole
+  // answer for speech: the web composer, the Discord proxy, and the catch-up pass that re-proxies what was typed while
+  // the bot was away. Deadchat rides through it too, which is right — a ghost talking is still talking.
+  const session = await sessionGate(prisma, { acting: false });
+  if (!session.ok) return { ok: false, refusal: session.message };
 
   const web = source !== "DISCORD";
 
@@ -270,6 +278,11 @@ async function sayInPieces(
 ) {
   const raw = content ?? "";
   if (!raw.trim()) return { ok: false, refusal: "There wasn't anything in your message." };
+
+  // Asked once here as well as per piece, for the same reason the OOC check below is: refusing on piece three would
+  // leave the first two standing in the room. prepareSpeech is still the lock.
+  const session = await sessionGate(prisma, { acting: false });
+  if (!session.ok) return { ok: false, refusal: session.message };
 
   // Checked over the WHOLE text, before it is split: a marker in the third
   // piece would otherwise refuse only that piece, leaving the first two

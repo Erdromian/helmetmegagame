@@ -650,7 +650,8 @@ America/Chicago — so a GM can adjudicate what was filed before the push
 button refuses to open the modal after the cutoff, and submit re-checks because
 a modal can sit open on screen across it. Either way the refusal is ephemeral
 and names the cutoff and the next turn's start. Travel, Speak and requests are
-untouched.
+untouched **by the cutoff** — a session boundary is a different question and
+shuts all but the speaking (`SESSIONS.md` §5).
 
 Submitting runs every gate the old `#turns` message flow ran — living
 character, open turn, before the cutoff, hasn't already acted, non-empty body —

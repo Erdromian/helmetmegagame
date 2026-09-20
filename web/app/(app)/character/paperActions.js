@@ -25,7 +25,7 @@ import {
 } from "@lifeweb/db/lib/presentedIdentity";
 import { cleanCustomText } from "@/lib/customCraft";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
-import { guarded, UserError } from "@/lib/actionResult";
+import { acting, UserError } from "@/lib/actionResult";
 import { auth } from "@/lib/auth";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
@@ -188,11 +188,11 @@ async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId, title: 
 // --- public surface ---------------------------------------------------
 
 export async function writePaper(input) {
-  return guarded(() => writePaperImpl(input));
+  return acting(() => writePaperImpl(input));
 }
 
 export async function sealLetter(input) {
-  return guarded(() => sealLetterImpl(input));
+  return acting(() => sealLetterImpl(input));
 }
 
 // The text of a paper the caller can read, for the Write dialog's box. Composed through paperDescription so a reader who's since gone blind or left their spectacles gets the same refusal here as everywhere.

@@ -10,6 +10,7 @@ import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/li
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
 import { clockStatus } from "@lifeweb/db/lib/gameState";
+import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
 import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { resolveDmActions } from "@/lib/dmActions";
@@ -141,9 +142,22 @@ import { thingGroups } from "./thingRows";
 // logic lives in db/lib, so the Discord button and web dialog run one implementation.
 
 // `select` widens the acting-character query for whichever action needs more.
-async function actor(select) {
+//
+// `acting` is the session gate: between sittings the game is shut and a player may only talk (SESSIONS.md §5), so every
+// action here that CHANGES something passes { acting: true }. Every reader, /ooc and toggleConceal pass neither and stay
+// open. Ordinary speech has its own answer inside db/lib/say.js, the one both faces share.
+//
+// `speech: true` is for the three that ARE talking but never reach say.js — a shout across the Location graph, a die
+// roll, a music cue. They follow "Allow roleplaying in between sessions" rather than the act gate.
+//
+// The gate cannot live unconditionally in here, precisely because the talking lives in this file too.
+async function actor(select, { acting = false, speech = false } = {}) {
   const session = await auth();
   if (!session?.discordUserId) return { error: "You are not signed in." };
+  if (acting || speech) {
+    const gate = await sessionGate(prisma, { acting });
+    if (!gate.ok) return { error: gate.message };
+  }
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
     select: select ?? {
@@ -225,7 +239,7 @@ export async function photographRow(seq) {
     locationId: true,
     discordUserId: true,
     tags: { select: { quantity: true, tag: { select: { slug: true } } } },
-  });
+  }, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const character = me.character;
 
@@ -630,7 +644,7 @@ export async function loadParty() {
 
 // Pick somebody up. FORCED and CONSENTED attach at once; anyone else is asked. Re-derived — the panel's verdict is a hint.
 export async function bringAlong(targetKey) {
-  const me = await actor(MOVER_SELECT);
+  const me = await actor(MOVER_SELECT, { acting: true });
   if (me.error) return { ok: false, error: me.error };
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
@@ -662,7 +676,7 @@ export async function bringAlong(targetKey) {
 
 // Put somebody down. Always allowed: letting go is never gated.
 export async function putDown(targetKey) {
-  const me = await actor(MOVER_SELECT);
+  const me = await actor(MOVER_SELECT, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   // A key, like the picker that offered it. allowDead: you can be carrying a
   // body, and putting one down is exactly as ungated as putting anyone down.
@@ -681,7 +695,7 @@ export async function putDown(targetKey) {
 
 // Answering an ask from the web. Same two functions the bot's buttons call, so the two faces can't drift.
 export async function answerEscort({ offerId, accept } = {}) {
-  const me = await actor(MOVER_SELECT);
+  const me = await actor(MOVER_SELECT, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const offer = await prisma.offer.findFirst({
     where: { id: offerId ?? "", kind: "ESCORT", status: "PENDING", responderId: me.character.id },
@@ -703,7 +717,7 @@ export async function answerEscort({ offerId, accept } = {}) {
 // `exert`: the Push on button — one more crossing on a die instead of the
 // Move (MAP.md §3). performLocationMove refuses it wherever it doesn't apply.
 export async function travelTo({ locationId, exert = false } = {}) {
-  const me = await actor(MOVER_SELECT);
+  const me = await actor(MOVER_SELECT, { acting: true });
   if (me.error) return { ok: false, error: me.error };
 
   const target = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
@@ -822,7 +836,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
 // ------------------------------------------------------------------- gates
 
 export async function flipGate(linkId) {
-  const me = await actor(GATE_CHARACTER_SELECT);
+  const me = await actor(GATE_CHARACTER_SELECT, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const result = await toggleGate(prisma, {
     character: me.character,
@@ -835,7 +849,7 @@ export async function flipGate(linkId) {
 }
 
 export async function holdKeyed(linkId) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const result = await holdKeyedOpen(prisma, { discordUserId: me.discordUserId, linkId, hold: true });
   return result.ok ? { ok: true, line: result.line, note: result.note } : { ok: false, error: result.error };
@@ -898,7 +912,7 @@ export async function readNotice(postId) {
 }
 
 export async function tearNotice(postId) {
-  const me = await actor(BOARD_ACTOR_SELECT);
+  const me = await actor(BOARD_ACTOR_SELECT, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const ctx = await boardHere(me.character);
   if (ctx.error) return { ok: false, error: ctx.error };
@@ -923,7 +937,7 @@ export async function tearNotice(postId) {
 }
 
 export async function pinNotice(tagId) {
-  const me = await actor(BOARD_ACTOR_SELECT);
+  const me = await actor(BOARD_ACTOR_SELECT, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const ctx = await boardHere(me.character);
   if (ctx.error) return { ok: false, error: ctx.error };
@@ -1315,7 +1329,7 @@ const INVITE_LIMIT = 10;
 
 // `inviteRefs` are character ids, or the bare hood token a concealed row carries instead — the same pair lookAt/addMember/removeMember take.
 export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
 
   const trimmed = String(name ?? "").trim().slice(0, 90);
@@ -1407,7 +1421,7 @@ export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
 // Pray, at the Shrine of an Old Man. A confirm, not the bell's type-the-word
 // dialog: this disturbs nobody, but hands you a permanent tag that can kill you.
 export async function pray({ roomId } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const found = await roomHere(me.character, roomId, XOM_SHRINE_ROOM_SLUG, "There's no shrine here.");
   if (found.error) return { ok: false, error: found.error };
@@ -1461,7 +1475,7 @@ export async function pray({ roomId } = {}) {
 }
 
 export async function ringBell({ roomId, word } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const found = await roomHere(me.character, roomId, BELL_ROOM_SLUG, "There's no bell here.");
   if (found.error) return { ok: false, error: found.error };
@@ -1515,7 +1529,7 @@ export async function turretState(roomId) {
 }
 
 export async function toggleTurret({ roomId, word } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const found = await roomHere(me.character, roomId, null, "There isn't a button here.");
   if (found.error) return { ok: false, error: found.error };
@@ -1560,7 +1574,7 @@ export async function toggleTurret({ roomId, word } = {}) {
 }
 
 export async function speakOnIntercom({ roomId, body } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const found = await roomHere(me.character, roomId, INTERCOM_ROOM_SLUG, "There's no intercom here.");
   if (found.error) return { ok: false, error: found.error };
@@ -1601,7 +1615,7 @@ export async function speakOnIntercom({ roomId, body } = {}) {
 
 // A quest's Interact button, the web half of the pair (QUESTS.md). Both faces call the same questInteract, so they can't drift.
 export async function interactWithQuest({ questId, intention } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
 
   const result = await questInteract(prisma, {
@@ -1622,7 +1636,7 @@ export async function interactWithQuest({ questId, intention } = {}) {
 // --------------------------------------------------------------------- you
 
 export async function submitMove({ moveKind, description } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const result = await fileMove(prisma, {
     character: me.character,
@@ -1716,7 +1730,7 @@ export async function myMove() {
 // Rewrite a Gambit that hasn't locked yet. Every gate is re-run in db/lib/moves.js —
 // the Change button is a hint, not the lock (CLAUDE.md, "a server action is a public endpoint").
 export async function editMyMove({ actionId, description } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
 
   const result = await editMove(prisma, {
@@ -1732,7 +1746,7 @@ export async function editMyMove({ actionId, description } = {}) {
 
 // Take a Gambit back and get the day returned. Deleting the row IS the refund.
 export async function withdrawMyMove({ actionId } = {}) {
-  const me = await actor();
+  const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
 
   const result = await withdrawMove(prisma, {
@@ -2031,7 +2045,7 @@ export async function waitingOnYou() {
 }
 
 export async function answerWaiting({ kind, id, accept } = {}) {
-  const me = await actor({ id: true, name: true, discordUserId: true, status: true });
+  const me = await actor({ id: true, name: true, discordUserId: true, status: true }, { acting: true });
   if (me.error) return { ok: false, error: me.error };
 
   if (kind === "offer") {
@@ -2113,7 +2127,7 @@ export async function toggleConceal() {
 // Sequential, no Promise.all — up to a couple dozen Locations would burst
 // Discord's rate limit. Every post is caught on its own, so one dead channel can't swallow the rest.
 export async function shoutHere(text, placeKey = null) {
-  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
+  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true }, { speech: true });
   if (me.error) return { ok: false, error: me.error };
 
   // WHERE, then WHETHER, and both before shout() — which claims the five-minute
@@ -2225,7 +2239,7 @@ export async function rollHere(placeKey) {
     locationId: true,
     discordMirrored: true,
     discordUserId: true,
-  });
+  }, { speech: true });
   if (me.error) return { ok: false, error: me.error };
 
   // A Room or a Conversation, the same gate /shout takes above: a die is cast
@@ -2254,7 +2268,7 @@ export async function playHere(placeKey) {
     locationId: true,
     discordUserId: true,
     tags: { select: { tag: { select: { slug: true } }, quantity: true } },
-  });
+  }, { speech: true });
   if (me.error) return { ok: false, error: me.error };
 
   // A Room or a Conversation, the same gate /shout and /roll take above: a
@@ -2467,7 +2481,7 @@ export async function placeMembers(placeKey) {
 }
 
 export async function addMember(placeKey, ref) {
-  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
+  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true }, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const parsed = parsePlaceKey(placeKey);
   if (!parsed) return { ok: false, error: "That place is gone." };
@@ -2562,7 +2576,7 @@ function resolveMemberRef(ref, memberIds) {
 // carries (db/lib/presentedMembers.js). The token resolves only inside the
 // roster of the place it was minted from — safe to hand out.
 export async function removeMember(placeKey, ref) {
-  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true });
+  const me = await actor({ id: true, name: true, locationId: true, discordUserId: true }, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const parsed = parsePlaceKey(placeKey);
   if (!parsed) return { ok: false, error: "That place is gone." };

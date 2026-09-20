@@ -25,6 +25,7 @@ import {
 } from "@lifeweb/db/lib/lateJoin";
 import { broadcastDeepBeastHorn, HORN_COOLDOWN_MS } from "@lifeweb/db/lib/deepBeastHorn";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
+import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import { readCharacterResources, takeCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { auth } from "@/lib/auth";
@@ -56,6 +57,9 @@ function holds(character, slug) {
 
 export async function callReinforcements({ roleSlug, quantity = 1 } = {}) {
   const { discordUserId, character } = await me();
+  // Shut between sittings: a player may talk and nothing else (SESSIONS.md §5).
+  const gate = await sessionGate(prisma);
+  if (!gate.ok) return { ok: false, error: gate.message };
   if (!character) return { ok: false, error: "No living character." };
   if (!holds(character, BASTARD_TAG_SLUG)) {
     return { ok: false, error: "Only the Bastard calls reinforcements." };
@@ -145,6 +149,9 @@ export async function callReinforcements({ roleSlug, quantity = 1 } = {}) {
 
 export async function soundDeepBeastHorn() {
   const { discordUserId, character } = await me();
+  // Shut between sittings: a player may talk and nothing else (SESSIONS.md §5).
+  const gate = await sessionGate(prisma);
+  if (!gate.ok) return { ok: false, error: gate.message };
   if (!character) return { ok: false, error: "No living character." };
   if (!holds(character, DEEP_BEAST_HORN_SLUG)) {
     return { ok: false, error: "You aren't carrying the horn." };
