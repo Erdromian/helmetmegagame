@@ -3403,7 +3403,7 @@ tags:
     group: skills-brewing
     teachable: false
     description: "You draw twice as much out of the same mash. Every brewing recipe you follow yields two of its item for the price of one."
-    pointCost: 6
+    pointCost: 9
     requiredTag: brewing-skilled
     visible: false
     purchasable: true
