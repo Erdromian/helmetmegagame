@@ -58,8 +58,8 @@ test("validatePlan: rejects a non-integer or non-positive planted count", () => 
 test("validatePlan: rejects a total over FARM_MAX_CROPS, even split across crops", () => {
   const result = validatePlan(
     [
-      { crop: "wheat", planted: 30 },
-      { crop: "potato", planted: 21 },
+      { crop: "wheat", planted: 70 },
+      { crop: "potato", planted: 60 },
     ],
     licensedAll,
   );

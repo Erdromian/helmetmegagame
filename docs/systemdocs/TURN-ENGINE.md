@@ -706,10 +706,8 @@ it reads as too steep, `HUNGRY_ONSET` is the figure to soften, not
 Every food in the catalog is priced against that 35, and the three tiers are
 meant to read as one number each — a raw ingredient is about **a third of a
 turn** (the 6-18 band, centring on 12), a basic cooked meal is **one turn**
-(30-42, most of them exactly 35), and a skilled cooked meal is **about a turn
-and a half** (46-56). The skilled tier is deliberately not two full turns: the
-meter caps at 100, and a recipe that already fills most of it leaves its own
-ingredient slots nothing to add. Price a new recipe by which of those three
+(30-42, most of them exactly 35), and a skilled cooked meal is **about two turns**
+(64-76, centring on 70). Price a new recipe by which of those three
 sentences it belongs to, not by scaling off a neighbouring recipe.
 
 What raises the meter is eating, not a turn spent fed: a raw foodstuff

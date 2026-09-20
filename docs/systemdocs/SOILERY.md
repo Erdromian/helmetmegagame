@@ -2,7 +2,7 @@
 
 A design-doc-driven farming verb: a character holding **Soilery**, the skill,
 standing on `soilery`-attributed ground, spends a seed bag's licence and sows
-up to a GM-tunable cap of crops (`GameConfig.farmMaxCrops`, 50 out of the
+up to a GM-tunable cap of crops (`GameConfig.farmMaxCrops`, 120 out of the
 box, editable on `/gm/dev` mid-round with no deploy) in one Move. The crops
 and a fatigue lockout land when the turn is pushed, not when the button is
 pressed.
@@ -27,9 +27,14 @@ half of this same body of work; its full mechanics live there, not here, see
 
 `E:\bascinet\v3\Soilery.docx` specs a farming system: characters with the
 farming skill, standing on farmland, consume seed bags and sow up to a
-GM-tunable cap of crops (50 by default) in one action; the crops (with a
+GM-tunable cap of crops (120 by default) in one action; the crops (with a
 1-in-6 per-unit wither chance) and a fatigue lockout land when the turn is
 pushed. Cooking (the doc's page 2) needed no new code at all — see §6.
+
+With the Exhausted→Tired two-turn lockout and the 71 lb carry cap, this
+produces the design's economy: three staggered farmers each yield a 1-turn
+harvest cycle (120 sown, ~100 harvested after wither, ~50 lb) feeding 100
+people (one harvest × 100 meals × 35 hunger per turn = 3500 hunger, exact).
 
 Farming pays **no ⬢**. It pays in crops, which is the whole point of it — the
 one button that puts food on the map rather than money in a purse. Mining is
@@ -90,7 +95,7 @@ The Farm dialog and the server action both read which crops a character may
 sow the same way: `db/lib/soilery.js#sowableCrops(characterTags)` filters its
 `CROPS` table (the canonical sowing-slug/crop-slug pairing) down to whichever
 sowing tags the character currently holds. **One bag licenses any amount of
-that crop up to the cap** (`GameConfig.farmMaxCrops`, 50 by default, editable
+that crop up to the cap** (`GameConfig.farmMaxCrops`, 120 by default, editable
 on `/gm/dev` mid-round) — the doc caps the sowing, not the seed. Seed bags
 are Merchant-stocked (`depotPrice: 4`), and the Silo (`town-3-2`) now stashes
 six of them — two wheat, two potato, one carrot, one plump-helmet, plus 4 wheat
@@ -131,7 +136,7 @@ that commits now and resolves its dice at push.
    — full server-side re-validation (the client's plan is advisory only):
    rejects an unlicensed crop, a non-integer or non-positive count, a total
    of 0, or a total over `maxCrops` (read from `GameConfig.farmMaxCrops`,
-   falling back to `FARM_MAX_CROPS` (50) if unset — editable on `/gm/dev`
+   falling back to `FARM_MAX_CROPS` (120) if unset — editable on `/gm/dev`
    with no deploy).
 
 **Inside one `$transaction`**: `lockCharacter`, then the sowing licences are
@@ -393,4 +398,4 @@ entry the same way every other farmPlan field is.
 | The sheet-side Farm gate (`canSeeFarm`/`farmBlocked`/`canFarm`) | `web/app/(app)/character/page.js` |
 | The Farm verb strip entry | `web/app/components/actionRegistry.js` (`mode: "farm"`) |
 | The Farm dialog itself | `web/app/components/actions/FarmDialog.js`, registered in `web/app/components/actions/index.js` |
-| The GM-tunable sow cap (`GameConfig.farmMaxCrops`, default 50, `FARM_MAX_CROPS` is the code fallback) | `db/prisma/schema.prisma`, `db/lib/gameConfigFields.js` (`/gm/dev?s=config`, "Economy" group) |
+| The GM-tunable sow cap (`GameConfig.farmMaxCrops`, default 120, `FARM_MAX_CROPS` is the code fallback) | `db/prisma/schema.prisma`, `db/lib/gameConfigFields.js` (`/gm/dev?s=config`, "Economy" group) |
