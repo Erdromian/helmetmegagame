@@ -7620,11 +7620,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 1
+      resourceCost: 2
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 6
 
   bear-trap:
     catalog: all
