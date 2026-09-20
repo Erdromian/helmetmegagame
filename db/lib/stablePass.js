@@ -81,6 +81,11 @@ async function runStablePass(prisma, turn) {
   const overflowRoom = config.stableOverflowRoomSlug
     ? await prisma.room.findUnique({ where: { slug: config.stableOverflowRoomSlug }, select: { id: true } })
     : null;
+  if (config.stableOverflowRoomSlug && !overflowRoom) {
+    console.error(
+      `Stable pass: overflow Room "${config.stableOverflowRoomSlug}" does not exist — capacity eviction skipped. Set one at /gm/dev?s=config.`,
+    );
+  }
 
   let fed = 0;
   let laid = 0;

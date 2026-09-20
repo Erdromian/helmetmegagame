@@ -79,7 +79,7 @@ const FIELDS = [
     info: "Most arelitz (adults, unruly, and brood) one Stable room may hold before the excess is evicted",
   },
   {
-    key: "stableOverflowRoomSlug", type: "string", group: "economy", default: "farms-fields",
+    key: "stableOverflowRoomSlug", type: "string", group: "economy", default: "town-3-1",
     label: "Stable overflow room",
     info: "Room slug an overflowing Stable evicts its excess arelitz to. A missing or unresolvable slug skips the eviction rather than deleting anything.",
   },

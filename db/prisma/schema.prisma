@@ -632,11 +632,12 @@ model GameConfig {
   stableCapacity Int @default(10)
 
   // Where an overflowing stable's excess arelitz/brood are relocated to —
-  // "the streets/field" in the design doc. A Room slug rather than a second
-  // Location attribute, so a GM can retarget it with no deploy. A missing or
-  // unresolvable slug makes db/lib/stablePass.js skip the eviction and log,
-  // rather than delete anything. See ARELITZ.md.
-  stableOverflowRoomSlug String @default("farms-fields")
+  // "the streets/field" in the design doc, which is town-3-1 (Farms), the open
+  // plots next door to the Stable in the same Location. A Room slug rather than
+  // a second Location attribute, so a GM can retarget it with no deploy. A
+  // missing or unresolvable slug makes db/lib/stablePass.js skip the eviction
+  // and log, rather than delete anything. See ARELITZ.md.
+  stableOverflowRoomSlug String @default("town-3-1")
 
   // Per-DAY rates for the Vampire's two meters (docs/systemdocs/VAMPIRE.md).
   // db/lib/vampirePass.js scales these by the closing Turn's own

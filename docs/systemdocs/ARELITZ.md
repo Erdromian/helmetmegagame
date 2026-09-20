@@ -116,21 +116,21 @@ Hatched eggs become `arelitz-hatchling` on the same floor.
 **4. Evict past capacity.** Total arelitz + unruly + all three brood rungs,
 against `GameConfig.stableCapacity` (default 10, GM-tunable at `/gm/dev`,
 same pattern as `farmMaxCrops`). Over capacity, evict the excess to
-`GameConfig.stableOverflowRoomSlug` (default `"farms-fields"`) —
+`GameConfig.stableOverflowRoomSlug` (default `"town-3-1"`, the Farms plots
+next door to the Stable in the same Location) —
 **youngest brood first, then unruly, then broken-in last** (somebody's
 property is the last thing shoved out the door). A missing or unresolvable
 overflow Room slug skips the eviction and logs, rather than deleting
 anything.
 
-> **That default is a live bug, and it means the capacity cap does nothing.**
-> The Farms rework renamed the Rooms to `town-3-1`/`town-3-2`/`town-3-3`, so
-> no zone defines `farms-fields` any more. `db/lib/stablePass.js:172` returns
-> early when it cannot resolve the overflow Room — the safe behaviour, and the
-> reason this fails silently rather than loudly — so on a fresh database step 4
-> never runs and a stable grows past 10 unchecked. Fixing it means changing the
-> `@default` in `db/prisma/schema.prisma:627` and
-> `db/lib/gameConfigFields.js:82` to a Room that exists, which is a migration
-> and therefore its own pass, not a catalog edit.
+> That default used to read `farms-fields`, a Room the Farms rework had already
+> renamed away, so `db/lib/stablePass.js` could never resolve it and step 4
+> never ran — the cap did nothing at all on a fresh database. Fixed by
+> `20260920000000_stable_overflow_room`, which moves the column default and
+> repairs any row still holding the dead slug. The early return is still there
+> and is still right: an overflow Room that cannot be found skips the eviction
+> rather than deleting an animal it has nowhere to put. It just says so on the
+> console now.
 
 ## 5. Butchering
 

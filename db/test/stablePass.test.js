@@ -12,7 +12,7 @@
 // total), 9 adults ate 18 of the 20 wheat and laid 9 eggs, one of those 9
 // hatched, and the resulting 12-strong stable (over the default capacity of
 // 10) evicted its 2 youngest brood (the newly-aged youngling and the fresh
-// hatchling) to farms-fields, in that order.
+// hatchling) to town-3-1, in that order.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const { hatchCount } = require("../lib/stablePass");
