@@ -280,7 +280,7 @@ Hunger is the Needs layer, and one of two things that modify a Gambit die
 
 It is now a 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), not a
 streak. Two Status tags read off it — `hungry` (`docs/tags.yaml`,
-`durationTurns: 1`, granted at `HUNGRY_THRESHOLD` (30) or below) and
+`durationTurns: 1`, granted at `HUNGRY_THRESHOLD` (35) or below) and
 `starving` (granted at `STARVING_THRESHOLD` (0) or below) — neither
 `purchasable`, neither destroyable (Status never is).
 

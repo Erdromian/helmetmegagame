@@ -676,7 +676,7 @@ exit — taking the announcement, the console text and the button row with it.
 ## 5. Hunger
 
 A 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), decaying by
-`HUNGER_DECAY_PER_TURN` (10, doubled to 20 by `fast-metabolism`) at the close of
+`HUNGER_DECAY_PER_TURN` (35, raised to 49 by `fast-metabolism`) at the close of
 every turn. `hungerless` pins the meter at `HUNGER_MAX` (100), clears
 `starvingSinceTurn`, and is skipped entirely. **Hunger costs no ⬢ at all any
 more** — the old upkeep (pay 1 ⬢, or 2 with a Big Appetite, or go Hungry) is
@@ -686,7 +686,8 @@ Gambit penalty and `HUNGER_STREAK_CAP`. `hungerStreak` is an orphan column now
 below.
 
 Two thresholds carve the meter into bands, not one escalating streak:
-**Hungry** at `HUNGRY_THRESHOLD` (30) or below, **Starving** at
+**Hungry** at `HUNGRY_THRESHOLD` (35 — exactly one turn's decay, so the word
+means "you have a day left") or below, **Starving** at
 `STARVING_THRESHOLD` (0) or below — nested, not exclusive, since Starving sits
 *inside* the Hungry range (`db/lib/hunger.js#bandOf`/`#crossings`). A
 character at or under 0 holds both tags at once; only the Gambit modifier
@@ -695,7 +696,21 @@ character at or under 0 holds both tags at once; only the Gambit modifier
 the first time — not merely remaining in one already held — charges a
 one-time **−30** mood hit (`HUNGRY_ONSET`/`STARVING_ONSET`, `MOOD.md`); a
 single turn's decay crossing both bands at once still charges exactly the two
-hits that fired, never a third for the distance travelled.
+hits that fired, never a third for the distance travelled. Note that at a 35
+decay against a 35 threshold those two hits land on CONSECUTIVE closes for
+anybody who simply stops eating — −60 over two turns, before the nightly
+ambient −5/−10 on top. That is a live question rather than a settled one; if
+it reads as too steep, `HUNGRY_ONSET` is the figure to soften, not
+`STARVING_ONSET`.
+
+Every food in the catalog is priced against that 35, and the three tiers are
+meant to read as one number each — a raw ingredient is about **a third of a
+turn** (the 6-18 band, centring on 12), a basic cooked meal is **one turn**
+(30-42, most of them exactly 35), and a skilled cooked meal is **about a turn
+and a half** (46-56). The skilled tier is deliberately not two full turns: the
+meter caps at 100, and a recipe that already fills most of it leaves its own
+ingredient slots nothing to add. Price a new recipe by which of those three
+sentences it belongs to, not by scaling off a neighbouring recipe.
 
 What raises the meter is eating, not a turn spent fed: a raw foodstuff
 restores `foodHungerFor(tag)` (its own `cooked.hunger`, or `Tag.mealHunger`

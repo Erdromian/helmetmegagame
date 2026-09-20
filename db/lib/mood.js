@@ -163,11 +163,15 @@ const CONSUME_RELIEF = Object.freeze({
   cigarette: 9,
   // Any proper meal at all, and the floor under every food above.
   "ate-meal": 6,
-  // The Ration Box's bad draws (moldy-bread, grasshopper-kebab, jellied-meats,
+  // The Ration Box's draws (moldy-bread, grasshopper-kebab, jellied-meats,
   // budget-cold-soup, skinned-cave-rat) are deliberately NOT here any more,
-  // same reason as Maggot Milk above: each now carries its own `cooked.mood`/
-  // `cooked.hunger` and is priced by the raw-food rule
-  // (db/lib/hunger.js#rawFoodMoodTerms) instead. honeyed-cakes left this table
+  // same reason as Maggot Milk above: each carries its own `mealMood`/
+  // `mealHunger` pair and is priced by dishMoodTerms below. They used to hold
+  // `cooked.mood`/`cooked.hunger` and go through the raw-food rule
+  // (db/lib/hunger.js#rawFoodMoodTerms); the move off `cooked` is what takes
+  // them out of every recipe's ingredient slots, and the move onto `mealMood`
+  // is what lets the two bland ones cost exactly nothing rather than paying
+  // the flat penalty every raw foodstuff owes. honeyed-cakes left this table
   // the same way when it became a proper Skilled Cooking Meal, priced by
   // dishMoodTerms below.
 });
@@ -807,9 +811,9 @@ async function applyArrivalMood(prisma, { characterId, fromLocationId, toLocatio
 // What one consume is worth. An item with its OWN entry is authoritative —
 // that number is what the item is, and it wins outright, sign and all. That
 // matters most for a negative entry: it has to actually land negative rather
-// than being swallowed by ate-meal's +5 floor (the Ration Box's bad draws
-// used to need exactly this, before they moved onto `cooked.mood` instead —
-// see the table above). An item with no entry of its own falls back to the
+// than being swallowed by ate-meal's +5 floor (the Ration Box's draws used to
+// need exactly this, before they moved onto `cooked.mood` and then onto
+// `mealMood` — see the table above). An item with no entry of its own falls back to the
 // largest figure among what it granted — most
 // drinks are keyed on the STATUS they grant (Coffee has no entry; its relief
 // comes from Caffeinated's) rather than the item itself. 0 for a stew.
@@ -863,7 +867,15 @@ function dishMoodTerms(mealMood, ingredientMoods = []) {
   const relief = (mealMood ?? 0) + moods.filter((m) => m > 0).reduce((a, m) => a + m, 0);
   const harm = moods.filter((m) => m < 0).reduce((a, m) => a + m, 0);
   const terms = [];
-  if (relief) terms.push({ kind: "MEAL", base: relief });
+  // A net-NEGATIVE base is disgust, not a fright, so nothing scales it — the
+  // same rule db/lib/hunger.js#rawFoodMoodTerms already states for raw food.
+  // Without this it would land as a MEAL term down resolveDelta's harm branch,
+  // where Brave (x0.5), Rage (x0) and a Heartforged Blade (x0) all apply, and
+  // a brave character would find bad food half as unpleasant. Inert for every
+  // authored recipe — each carries a positive mealMood — and there for the
+  // Ration Box's draws, which are the only negative figures in the catalog.
+  if (relief > 0) terms.push({ kind: "MEAL", base: relief });
+  else if (relief < 0) terms.push({ kind: "DISGUST", base: relief, noMultiplier: true });
   if (harm) terms.push({ kind: "DISGUST", base: harm, noMultiplier: true });
   return terms;
 }

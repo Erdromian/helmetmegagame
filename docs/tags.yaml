@@ -7984,18 +7984,28 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 19
+    mealMood: -10
     consumable: true
     consumesInto:
       - oneOf: [ate-meal, vomiting]
-    cooked:
-      taste: "meat"
-      mood: 4
-      into: []
 
-  # --- The Ration Box's bad draws. All four consumesInto ate-meal too — a
-  # meal, just a bad one — and their negative mood comes off db/lib/mood.js's
-  # CONSUME_RELIEF table, keyed on the item itself (see the comment there on
-  # why the item's own entry has to win outright over ate-meal's +5 floor).
+  # --- The Ration Box's draws. Each is a meal, just a mediocre one, and each
+  # carries a `mealHunger`/`mealMood` pair rather than a `cooked:` block. That
+  # is deliberate and does two things at once. A present `mealMood` — zero
+  # counts — puts the item on the DISH branch in
+  # web/app/(app)/character/actions/misc.js, so it skips the flat -10 every RAW
+  # foodstuff pays and its mood is exactly the figure written here. And having
+  # no `cooked:` block keeps it out of every recipe's ingredient slots, since
+  # `cooked: { not: null }` IS the membership test (see the note on
+  # requirement.ingredientSlots in db/lib/tagShapes.js). Without that second
+  # half these were the cheapest hunger in the game and went straight into the
+  # Soilery's own recipes as bulk filler, which is the opposite of the two
+  # separate food economies they exist to be one half of.
+  #
+  # The spread runs 31-36 with the rat well below it, so which draw you pull
+  # matters. Cold Soup and the Kebab are merely bland and cost no mood; the
+  # other three are unpleasant and cost -10.
   moldy-bread:
     catalog: gm
     name: Moldy Bread
@@ -8009,14 +8019,10 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 31
+    mealMood: -10
     consumable: true
     consumesInto: [ate-meal]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
 
   grasshopper-kebab:
     catalog: gm
@@ -8031,14 +8037,10 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 34
+    mealMood: 0
     consumable: true
     consumesInto: [ate-meal]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
 
   jellied-meats:
     catalog: gm
@@ -8052,14 +8054,10 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 33
+    mealMood: -10
     consumable: true
     consumesInto: [ate-meal]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
 
   budget-cold-soup:
     catalog: gm
@@ -8074,19 +8072,20 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
+    mealHunger: 36
+    mealMood: 0
     consumable: true
     consumesInto: [ate-meal]
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 12
-      into: []
 
-  # Opened, not merely eaten — a random pick among the five bad draws above,
-  # plus a chance of nothing at all (the reserved "nothing" word,
+  # Opened, not merely eaten — a random pick among the five draws above, plus
+  # a chance of nothing at all (the reserved "nothing" word,
   # db/lib/syncTags.js / web/lib/consumeGrants.js). No sellablePrice: a box
   # this cheap and this unpleasant is not something the Depot buys back.
+  #
+  # The empty sixth face is the whole design. One box a turn averages 25.5
+  # hunger against a 35 decay, so a man living out of these does not starve —
+  # he just never quite catches up, and about a week in he is Hungry and has to
+  # either buy two a turn or find somebody who farms.
   ration-box:
     catalog: gm
     name: Ration Box
@@ -8096,7 +8095,7 @@ tags:
     description: "A cardboard container with a faded stamp. The lettering says VOLGOGA. You can open it and hopefully find some food."
     manifest: general
     pointCost: 0
-    depotPrice: 1
+    depotPrice: 3
     weight: 1
     stackable: true
     visible: false
@@ -11482,7 +11481,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 3
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: ""
     consumable: true
     consumesInto: [ate-meal, dined]
@@ -11509,7 +11508,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 5
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11537,7 +11536,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 7
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11565,7 +11564,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 3
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11592,7 +11591,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 5
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11620,7 +11619,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 5
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11656,7 +11655,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 7
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11684,7 +11683,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 4
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11712,7 +11711,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 3
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "acrid"
     mealTasteForm: "adjective"
     consumable: true
@@ -11770,7 +11769,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 6
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11797,7 +11796,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 2
-    mealHunger: 24
+    mealHunger: 30
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11825,7 +11824,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 2
-    mealHunger: 24
+    mealHunger: 30
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11910,7 +11909,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 6
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "fishy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11942,7 +11941,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 8
-    mealHunger: 36
+    mealHunger: 38
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11970,7 +11969,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 8
-    mealHunger: 30
+    mealHunger: 35
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11998,7 +11997,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 10
-    mealHunger: 24
+    mealHunger: 30
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12033,7 +12032,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 10
-    mealHunger: 20
+    mealHunger: 15
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12063,7 +12062,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 15
-    mealHunger: 20
+    mealHunger: 15
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12092,7 +12091,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 18
-    mealHunger: 20
+    mealHunger: 30
     mealTaste: "cheesy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12121,7 +12120,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 15
-    mealHunger: 45
+    mealHunger: 46
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12156,7 +12155,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 20
-    mealHunger: 26
+    mealHunger: 18
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
@@ -12186,7 +12185,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 15
-    mealHunger: 20
+    mealHunger: 15
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12217,7 +12216,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 30
-    mealHunger: 54
+    mealHunger: 51
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
@@ -12276,7 +12275,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 28
-    mealHunger: 60
+    mealHunger: 54
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12303,7 +12302,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 40
-    mealHunger: 45
+    mealHunger: 46
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12331,7 +12330,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 72
+    mealHunger: 56
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12358,7 +12357,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 30
-    mealHunger: 66
+    mealHunger: 56
     mealTaste: "rich"
     mealTasteForm: "adjective"
     consumable: true
@@ -12445,7 +12444,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 54
+    mealHunger: 51
     mealTaste: "rich"
     mealTasteForm: "adjective"
     consumable: true
@@ -12472,7 +12471,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 50
-    mealHunger: 60
+    mealHunger: 54
     mealTaste: "toxic"
     mealTasteForm: "adjective"
     consumable: true
@@ -12509,7 +12508,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 18
-    mealHunger: 10
+    mealHunger: 12
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
