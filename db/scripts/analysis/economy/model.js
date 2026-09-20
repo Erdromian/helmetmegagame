@@ -134,7 +134,7 @@ function craftFamilyOf(skills) {
 // One obol is one ⬢ (ECONOMY.md §1), so paying a cost in obols values a ⬢ at exactly 1 obol.
 const OBOL_PAR = 1;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", obolPath = "auto" } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto" } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
@@ -159,6 +159,13 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   // 1 ¢ sell-back instead. Both are always in the tables, named.
   if (resourceValue !== "buy" && resourceValue !== "sell") throw new Error("resourceValue must be 'buy' or 'sell'");
   const rvMain = resourceValue === "sell" ? rv.sell : rv.buy;
+  // What a Prospector's own ⬢ is worth. A Prospector will not get the Depot's import price, which is what a
+  // buyer pays only when nobody else has any to sell, and would not take the 1 ¢ sell-back from another
+  // player either. The two meet in the middle, so the headline mining figures value a mined ⬢ at the
+  // midpoint of the Depot's two prices (2 ¢ at 3 in and 1 out). `--mined-value buy|sell` moves it to either end.
+  rv.mid = (rv.buy + rv.sell) / 2;
+  if (!["buy", "mid", "sell"].includes(minedValue)) throw new Error("minedValue must be 'buy', 'mid' or 'sell'");
+  const rvMined = rv[minedValue];
   const productionCoefficient = schemaDefault("productionCoefficient");
   const farmMaxCrops = schemaDefault("farmMaxCrops");
   const startingTagPoints = schemaDefault("startingTagPoints");
@@ -172,6 +179,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     resourceTagCopy,
     sellTaxRate,
     rvMain,
+    rvMined,
+    minedValue,
     obolFamilies,
     obolPath,
     resourceValue,
@@ -454,10 +463,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
         resourcesPerPress: resources,
         lootEv: loot.ev,
         dropsPerAction: loot.ev,
-        perAction: resources * rvMain + loot.ev,
-        baseNetPerTurn: resources * rvMain * mineDuty,
-        netPerTurn: (resources * rvMain + loot.ev) * mineDuty,
+        perAction: resources * rvMined + loot.ev,
+        baseNetPerTurn: resources * rvMined * mineDuty,
+        netPerTurn: (resources * rvMined + loot.ev) * mineDuty,
         netPerTurnSell: (resources * rv.sell + loot.ev) * mineDuty,
+        netPerTurnMid: (resources * rv.mid + loot.ev) * mineDuty,
         netPerTurnBuy: (resources * rv.buy + loot.ev) * mineDuty,
         flags,
       });
@@ -806,6 +816,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       source: shelf === "general" ? "Depot, general shelf" : shelf ? `Depot, ${shelf} shelf` : "not sold at the Depot",
       basis: t.depotPrice != null ? "buy" : "sell",
       moves: t.requirement?.turnsCost ?? null,
+      // Nobody wrote a hunger figure for it: the game falls back to the flat default (db/lib/hunger.js).
+      defaulted: !Number.isInteger(t.mealHunger) && !Number.isInteger(t.cooked?.hunger) && hunger.foodHungerFor(t) > 0,
       costPerPersonTurn: cost == null ? null : cost * perPersonTurn,
       lbPerPersonTurn: (t.weight ?? 0) * perPersonTurn,
     });
@@ -819,6 +831,32 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     anyone: generalShelf[0] ?? null,
     anyShelf: buyable[0] ?? null,
     ceilingPerHunger: generalShelf[0] ? (generalShelf[0].buy ?? 0) / generalShelf[0].hunger : null,
+  };
+  // The Box's own draws are priced as a set (a spread around, not up to, a turn), so the tier check leaves them out.
+  const boxTag = get(foodFloor.anyone?.slug);
+  const boxDraws = (boxTag?.consumesInto ?? [])
+    .flatMap((x) => (typeof x === "string" ? [x] : x.oneOf ? x.oneOf : [x.slug]))
+    .map((o) => (typeof o === "string" ? o : o?.slug))
+    .filter((o) => o && o !== "nothing");
+  foodFloor.draws = boxDraws.length;
+  foodFloor.outcomes = boxDraws.length + ((boxTag?.consumesInto ?? []).some((x) => typeof x !== "string" && x.oneOf?.includes("nothing")) ? 1 : 0);
+  // TURN-ENGINE.md §5 prices every food against one turn's decay: a raw ingredient about a third of a
+  // turn (6-18 of 35), a basic cooked meal one turn (30-42), a skilled meal a turn and a half (46-56).
+  // The bands are held as fractions of a turn, so a change to the decay that leaves the foods where they
+  // were pushes them out of their band, which is exactly the drift this exists to catch. A change that
+  // moves both together passes, and the figures in the report follow it.
+  const FOOD_TIER_BANDS = { raw: [6 / 35, 18 / 35], basic: [30 / 35, 42 / 35], skilled: [46 / 35, 56 / 35] };
+  const tierOf = (turnsOfFood) => Object.keys(FOOD_TIER_BANDS).find((k) => turnsOfFood >= FOOD_TIER_BANDS[k][0] - 1e-9 && turnsOfFood <= FOOD_TIER_BANDS[k][1] + 1e-9) ?? null;
+  for (const f of foods) {
+    f.turnsOfFood = f.hunger / params.hungerDecay;
+    f.tier = f.kind === "box" || boxDraws.includes(f.slug) ? "box" : tierOf(f.turnsOfFood);
+  }
+  const foodTiers = {
+    bands: FOOD_TIER_BANDS,
+    counts: Object.fromEntries(["raw", "basic", "skilled", "box"].map((k) => [k, foods.filter((f) => f.tier === k).length])),
+    offTier: foods.filter((f) => f.tier == null),
+    defaulted: foods.filter((f) => f.defaulted),
+    boxTurns: foodFloor.anyone ? foodFloor.anyone.hunger / params.hungerDecay : null,
   };
 
   // Supply against demand: how many farmers does a town need?
@@ -862,7 +900,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     .sort((a, b) => b.medianBurn - a.medianBurn);
   params.minerResourcesPerTurn = minerPerTurn;
 
-  // A Prospector's worth, three ways: ⬢ sold back at the Depot, ⬢ as the Depot would charge you for
+  // A Prospector's worth, four ways: ⬢ bartered at the midpoint (the headline), ⬢ sold back at the Depot, ⬢ as the Depot would charge you for
   // them (what they are worth to somebody who must hold them), and ⬢ paid to a smith, who puts one
   // obol toward one ⬢ and so will pay no more than that. Drops are the same in all three.
   const prospectorValue = activities
@@ -872,6 +910,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       resourcesPerTurn: a.resourcesPerPress * a.duty,
       dropsPerTurn: a.dropsPerAction * a.duty,
       atSell: a.netPerTurnSell,
+      atMid: a.netPerTurnMid,
       atBuy: a.netPerTurnBuy,
       atSmith: (a.resourcesPerPress * OBOL_PAR + a.dropsPerAction) * a.duty,
     }));
@@ -881,7 +920,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     .filter((t) => t.miningBonus?.amount)
     .map((t) => {
       const price = t.depotPrice ?? t.sellablePrice ?? null;
-      const perTurn = t.miningBonus.amount * rv.sell * mineDuty;
+      const perTurn = t.miningBonus.amount * rvMined * mineDuty;
       return { slug: t.slug, name: t.name, price, bonus: t.miningBonus.amount, paybackTurns: price != null ? price / perTurn : null };
     });
 
@@ -1009,6 +1048,27 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: hunger.HUNGER_DECAY_PER_TURN === 35 && hunger.HUNGRY_THRESHOLD === 35,
     },
     {
+      doc: "TURN-ENGINE.md §5",
+      claim: "Every food sits in one of three tiers against a turn's decay: raw about a third (6-18 of 35), basic cooked one turn (30-42), skilled about a turn and a half (46-56)",
+      docValue: "none outside",
+      model: foodTiers.offTier.length ? `${foodTiers.offTier.length} outside: ${foodTiers.offTier.slice(0, 6).map((f) => `${f.name} ${f.hunger}`).join(", ")}${foodTiers.offTier.length > 6 ? ", …" : ""}` : "none outside",
+      ok: foodTiers.offTier.length === 0,
+    },
+    {
+      doc: "TURN-ENGINE.md §5",
+      claim: "Every food has a hunger figure of its own; none rides on the flat default",
+      docValue: "0 defaulted",
+      model: foodTiers.defaulted.length ? `${foodTiers.defaulted.length} defaulted to ${hunger.DEFAULT_FOOD_HUNGER}: ${foodTiers.defaulted.slice(0, 6).map((f) => f.name).join(", ")}${foodTiers.defaulted.length > 6 ? ", …" : ""}` : "0 defaulted",
+      ok: foodTiers.defaulted.length === 0,
+    },
+    {
+      doc: "tags.yaml, Ration Box",
+      claim: "One Ration Box a turn does not quite feed a person: it averages under a turn's decay but over half of it",
+      docValue: "between 0.5 and 1 turn",
+      model: foodTiers.boxTurns == null ? "no Ration Box on the general shelf" : `${Math.round(foodFloor.anyone.hunger * 10) / 10} of ${params.hungerDecay} (${Math.round(foodTiers.boxTurns * 100) / 100} turn)`,
+      ok: foodTiers.boxTurns != null && foodTiers.boxTurns < 1 && foodTiers.boxTurns > 0.5,
+    },
+    {
       doc: "DEPOT.md §3",
       claim: "Sell-back is 60% of the buy price, rounded",
       docValue: "60%",
@@ -1102,6 +1162,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     priceRule,
     resourceBalance,
     foodFloor,
+    foodTiers,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },

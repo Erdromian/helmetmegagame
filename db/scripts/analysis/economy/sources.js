@@ -446,8 +446,16 @@ function buildSources({ list, bySlug, players }) {
       ? [...items.map((i) => ({ name: i.label, rank: i.rank })), ...(workshop ? [{ name: "Workshop Equipment", rank: wsRank }] : [])].sort((a, b) => b.rank - a.rank)[0].name
       : null;
     const hidden = items.some((i) => i.slugs.some((s) => (get(s)?.catalog ?? "all") !== "all")) && !r.recipePublic;
+    // Two recipes are the same line when everything that goes in and everything the maker is paid is the
+    // same: the whole requirement (skills, Moves, ⬢, items, ingredient slots, yield and any per-turn cap),
+    // the standing equipment, and the sell price. A dish also carries the hunger and mood it gives, since
+    // that is what a cook is paid in. `recipePublic` only says who may see the recipe, so it stays out.
+    const { recipePublic: _visible, ...inputs } = r;
+    const stable = (v) => (Array.isArray(v) ? v.map(stable) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, stable(v[k])])) : v);
+    const sig = JSON.stringify(stable({ inputs, workshop, sell: t.sellablePrice ?? null, meal: [t.mealHunger ?? null, t.mealMood ?? null] }));
     recipes.push({
       slug: t.slug,
+      sig,
       name: t.name,
       skill: (r.skills ?? []).join(", ") || "—",
       moves: r.turnsCost ?? 0,
