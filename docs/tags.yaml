@@ -411,7 +411,7 @@ tags:
     catalog: secret
     name: Vampire
     category: general
-    description: "A creature of the night, they must feed continually feed on the blood of mortals to retain their eternal youth. Vampires also have an attachment to the mortal coil, if they give in to their desires too freely, they may end up turning fully to their thirst for blood."
+    description: "A creature of the night, they must continually feed on the blood of mortals to retain their eternal youth. Vampires also have an attachment to the mortal coil, if they give in to their desires too freely, they may end up turning fully to their thirst for blood."
     pointCost: 0
     purchasable: false
 
