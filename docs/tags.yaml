@@ -2290,7 +2290,7 @@ tags:
     exclusive: true
 
   # The fifth Old Way, and the only one nobody can buy: it is handed out by the
-  # Pray button in the Shrine of an Old Man (docs/zones.yaml, depths-chasm) and
+  # Pray button in the Shrine of an Old Man (docs/zones.yaml, depths-7) and
   # by nothing else. Holding it puts the character on db/lib/xomPass.js's
   # weighted table, once per turn close, for the rest of their life —
   # see docs/systemdocs/TURN-ENGINE.md.

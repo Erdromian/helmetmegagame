@@ -69,7 +69,7 @@ test("the authored railroad edge survives the parser with the flag set", () => {
   const pairs = rails.map((c) => [c.a, c.b].sort().join(" <-> ")).sort();
   // One tunnel. There were two until the Grand Ravine one was replaced by a
   // climb down to the Chasm — the Ravine reaches the deep on foot now.
-  assert.deepEqual(pairs, ["depths-chasm <-> undertown-5"]);
+  assert.deepEqual(pairs, ["depths-7 <-> undertown-5"]);
 });
 
 test("every railroad edge crosses a zone, which is what keeps the auto-walk off them", () => {

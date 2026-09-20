@@ -342,7 +342,7 @@ same two sentences. A tunnel is also never taken by the `/map` board's
 double-click or Enter shortcut: `canGestureTo` refuses one, because a gesture
 that skips the dialog would skip the only warning there is.
 
-One edge carries it today, out of the Depot: `undertown-5 ↔ depths/depths-chasm`.
+One edge carries it today, out of the Depot: `undertown-5 ↔ depths/depths-7`.
 There were two — the other ran to the Grand Ravine, which reaches the deep on
 foot now instead, by a `locked: climbing` descent into the Chasm. It crosses a
 zone, which is what keeps §3c's auto-walk off it — `walkWithinZone` is same-zone
@@ -970,12 +970,12 @@ commits — after, because `travelOptions` reads the tags it just granted.
 **Leaving a slug out of that table is not a guarantee it stays dark**, and it is
 worth being clear about why. `recordArrival` paints every *listed* neighbour of
 a seeded Location, and a locked way is listed — so a seat seeded in the Caves
-reaches `customs` through the gate it may not open whether the table names it
+reaches `caves-1` through the gate it may not open whether the table names it
 or not, which is correct: you can see a door you have no key to.
 What leaving a slug out really protects is a **hidden** way, since
 `travelOptions` drops those before the sighting write ever runs. The table is
 therefore written to the standard of "would this seat's life have taught them
-this", not "is this a secret" — the cargo-bay seats stop at `caves-approach`
+this", not "is this a secret" — the cargo-bay seats stop at `caves-2`
 rather than the Migrants' camp, because the camp is one open road from the
 brooding grounds and two from the mouth of the Depths.
 

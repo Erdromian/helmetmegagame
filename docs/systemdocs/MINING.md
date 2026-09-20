@@ -91,7 +91,7 @@ One `LocationMining` row per minable Location, and **the row is the gate**:
 
 **The sheet's Mine button only ever shows in the Caves.** `resolveMiningRateFrom`
 still reads whatever `LocationMining` row a character stands on, so the
-Black Hills and the Depths (`depths-chasm` included) are still priced and
+Black Hills and the Depths (`depths-7` included) are still priced and
 still drift, but `/character` (`web/app/(app)/character/page.js`) shows the
 button to anyone holding Prospecting and greys it — "You need to be in the
 caves." — everywhere outside the `caves` zone. There is currently no player
@@ -106,13 +106,13 @@ every turn close, and it is the only number a payout reads.
 | The Black Hills | 0.2–0.3 |
 | The Caves | 0.9 |
 | The Depths | 1.1 |
-| `depths-chasm` | 1.4 |
+| `depths-7` | 1.4 |
 | Everywhere else | no row |
 
 The Black Hills are surface rock: worth working if you are already up there,
 never worth the walk on its own. Underground is where mining actually pays.
-`depths-chasm` is the exception the map earned — it is the one place with an
-authored ore vein (`chasm-ore-vein`), and flattening it to the Depths' baseline
+`depths-7` is the exception the map earned — it is the one place with an
+authored ore vein (`depths-7-3`), and flattening it to the Depths' baseline
 would have deleted the only "dig HERE" anybody wrote down.
 
 Geography is authored live at `/gm/dev/zones` now, not by re-syncing YAML
@@ -326,7 +326,7 @@ numbers move anyway.
 | < 1.55 | Ample |
 | ≥ 1.55 | Bountiful |
 
-At base, only `depths-chasm` wears Ample; nothing wears Bountiful.
+At base, only `depths-7` wears Ample; nothing wears Bountiful.
 
 ## 8. File map
 
