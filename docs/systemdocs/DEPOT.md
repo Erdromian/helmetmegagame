@@ -964,15 +964,16 @@ Four bands, about 106 tags in total:
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~3× a good farming day | `squeeze` **5** a cube — 8 cubes is a shift, so 40 ¢ (`FACTORY.md` §6). Cut from 7 on 2026-09-20. Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
-| Body parts | low, on purpose | `eye` 8, `heart` 8, `hand` 5, `foot` 4, `stomach` 4, `tongue` 3 |
+| Body parts | low, on purpose | `eye` 10, `heart` 10, `hand` 6, `foot` 5, `stomach` 5, `tongue` 4 |
 
 **The station buys body parts now** (`CORPSES.md`, `TORTURE.md` §6). It is a coin
 faucet hanging off a free action — Mutilate costs nothing and every death mints
 a body — so the number that matters is the whole LADDER, not one part:
 `db/lib/mutilate.js` takes nine pieces off one subject, which at these prices is
-**49 ¢ a body**, against 30–42 ⬢ of material for a specialised day's labour. Price the
+**61 ¢ a body**, against 30–42 ⬢ of material for a specialised day's labour. Price the
 ladder, never the piece; the first pass priced the piece and a corpse came to
-94 ¢. The eye and the heart are dearer than the rest because the rites eat those
+94 ¢. The ladder was 49 ¢ until 2026-09-20, which left butchering worth less
+than a day's honest work for something far nastier to do. The eye and the heart are dearer than the rest because the rites eat those
 two (`THANATI.md` §9), so a cultist and the Merchant now want the same organs.
 
 **The Thanati's own shelf is not this depot** (`THANATI.md` §3). It is a code

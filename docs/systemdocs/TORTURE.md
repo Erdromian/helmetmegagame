@@ -207,9 +207,11 @@ so a part the Depot bought would be a ⬢ faucet hanging off a free action. That
 argument was right about the shape and the answer is the number rather than a
 refusal: what matters is the LADDER, not one press. `MUTILATE_PARTS` takes nine
 pieces off one subject — two eyes, two hands, two feet, tongue, stomach, heart —
-so a whole body is 49 ⬢ at 8/8/5/4/4/3, against 30–42 ⬢ for a specialised day's
-labour. Butchering a prisoner is worth about a day of honest work, which is the
-line it should sit on. The first pass priced it at 94 ⬢, nearly three days, and
+so a whole body is 61 ¢ at 10/10/6/5/5/4, against 30–42 ⬢ for a specialised
+day's labour — one obol is one ⬢ (`DEPOT.md` §0), so the two compare directly.
+Butchering a prisoner is worth about a day of honest work, which is the
+line it should sit on. It was 49 ¢ until 2026-09-20, a shade under that line.
+The first pass priced it at 94 ¢, nearly three days, and
 that is the mistake to avoid if these are ever retuned: price the ladder, never
 the piece. They stay `tradeable` too, so the market between players is still the
 livelier one.
