@@ -327,9 +327,10 @@ buttons do everywhere else in the app.
 beside any row of a consumable tag wherever it sits —
 Use, Equip/Unequip, Give, Destroy, Heal. That last clause is what keeps a thing
 you can open from losing its Use button by being filed somewhere other than
-Items: a courtier kit moved to General to put it out of a thief's reach is
-still a kit, and Consume from the verb strip was the only way left to unpack
-it. The predicates are Chat's
+Items — a crate moved to General to put it out of a thief's reach is still a
+crate, and Consume from the verb strip would be the only way left to unpack it.
+Nothing in the catalog is filed that way today; the clause is there so nothing
+ever loses the button by being refiled. The predicates are Chat's
 (`play/thingRows.js#thingVerbs`, the same sets the Things drawer reads), the
 handlers are the sheet's own dialogs through `RequestActionsProvider.open`
 with the tag preselected, or `equipActions.js#toggleEquip`. Heal opens the

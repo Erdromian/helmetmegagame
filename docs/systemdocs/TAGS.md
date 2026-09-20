@@ -584,8 +584,9 @@ drawback that shows up once a turn at most.
 **Appraisal is 1** — below the 2-point floor: it grants no
 advantage in play, only a readout of a number the catalog already held
 (`Tag.sellablePrice`), so it doesn't earn a full Minor band. Seven roles
-(Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper) and the
-Court Artist Courtier kit get it free in `starting_tags`.
+(Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper) get it free in
+`starting_tags`. The two Courtier kits that also handed it over are gone with
+the rest of them; a courtier buys it now, like anything else.
 
 **Several Personality and combat/trait tags sit off-band too, each a
 deliberate call rather than a new scale:**

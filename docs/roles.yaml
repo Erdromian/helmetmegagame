@@ -154,7 +154,7 @@ groups:
       multiple: false
       starting_zone: fortress
       starting_location: fortress-4
-      extra_starting_points: 7
+      extra_starting_points: 5
       whitelist: true
       starting_tags:
         - Armory Key
@@ -287,7 +287,7 @@ groups:
       multiple: false
       starting_zone: fortress
       starting_location: fortress-4
-      extra_starting_points: 7
+      extra_starting_points: 5
       whitelist: true
       starting_tags:
         - Armory Key
@@ -387,6 +387,11 @@ groups:
       weight: 6
       starting_zone: fortress
       starting_location: fortress-4
+      # In place of the ten Courtier kits, which were removed for being a
+      # second point economy sitting on top of this one: ten crates, each with
+      # its own price and its own conflict list, deciding a courtier's whole
+      # sheet before they reached the catalog. The points buy the same things.
+      extra_starting_points: 7
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -1377,7 +1382,7 @@ groups:
       weight: unlimited
       starting_zone: caves
       starting_location: caves-abandoned-camp
-      extra_starting_points: 6
+      extra_starting_points: 4
       starting_tags: [Pale]
       doc_elements: [caving]
     mercenary:

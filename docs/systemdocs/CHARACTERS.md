@@ -604,6 +604,16 @@ no trade was granted the Farmer kit, because the three `commoner-*` kits were
 point-buy tags gated on that role and nothing forced a choice. The role, the
 kits and the fallback are all gone.
 
+**The ten Courtier kits went the same way in 9/2026**, and for a plainer
+reason: they were a second point economy stacked on the real one. Each was a
+crate gated `onlyRoles: [courtier]`, holding far more than it charged (the
+Tutor, 17 points of tags for 4; the Seasoned Knight, 42 for 9), and between
+them they decided a courtier's whole sheet before the player ever reached the
+catalog. A courtier now draws `extra_starting_points: 7` and buys what they
+want with it. Everything the crates held is purchasable except `chaplain` and
+`sanctuary-key`, which are GM grants now — and `sanctuary-key` is still handed
+out by two other seats, so nothing lost a route into the Sanctuary.
+
 ## 3. The point economy
 
 ```
@@ -1064,13 +1074,15 @@ never touches the new body's `tagPoints` budget and is invisible to
 `maxDrawbackTags`/`maxDrawbackPoints`, which only count `POINT_BUY` rows.
 
 **A role that offers a package CHOICE gets one picked at random, its cost
-adjusted for.** Commoner is the one seat today shaped that way: three tags
-(`commoner-farmer`/`-fisherman`/`-hunter`) gated `onlyRoles: [commoner]` that
-all `conflictsWith` each other (§"The starting package" above).
+adjusted for.** **No seat is shaped that way today.** Two were: the three
+`commoner-*` trade kits, which went with the Commoner role, and the ten
+`courtier-*` kits, removed in 9/2026 — each was a mutually-conflicting clique
+gated `onlyRoles:`, and a courtier's seven `extra_starting_points` replaced the
+lot (§"The starting package" above).
 `db/lib/reincarnate.js#pickPackageTags` finds any such mutually-conflicting
-clique off the catalog directly rather than a hardcoded slug list, so it
-covers Commoner today and whatever role is shaped the same way tomorrow with
-no code change here. The picked tag's `pointCost` comes straight off the
+clique off the catalog directly rather than a hardcoded slug list, so it needs
+no code change either way: with no clique left it picks nothing, and it will
+cover whatever role is shaped this way tomorrow. The picked tag's `pointCost` comes straight off the
 budget before it is stamped onto `tagPoints`, the same as a player spending on
 it themselves would — a reincarnated Commoner does not get a free trade kit
 *and* a full untouched budget. A role-locked tag with no conflicting sibling
