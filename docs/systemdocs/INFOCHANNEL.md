@@ -38,8 +38,9 @@ posture as `docs/zones.yaml`, just without the reconcile semantics (see §4).
 
 The message actually posted to `#info` is **not** just `main_message`
 verbatim — the script appends a generated directory listing after it: for
-each category, an optional bold heading line (`***{category name}:***`,
-skipped when the category has no `name`) followed by one line per thread,
+each category, an optional bold heading line (`**{category name}**` — bold
+only, no colon, not italicized; skipped when the category has no `name`),
+then that category's `intro` if it has one, followed by one line per thread,
 each a Discord thread mention (`<#threadId>`, which Discord renders as a
 clickable `#thread-title` link). This listing can only be generated *after*
 the threads exist, since thread IDs are assigned by Discord at creation
