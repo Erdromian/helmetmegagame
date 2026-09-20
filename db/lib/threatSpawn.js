@@ -124,7 +124,21 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
         ? await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } })
         : null;
 
-  const { gender, firstName, lastName, honorific } = rollSpawnIdentity(threat.spawn);
+  // WHAT A SPAWN IS WORTH. A spawned character never sees the wizard, so the
+  // seat's own `tagPoints` used to be their whole budget -- which quietly made
+  // every antagonist poorer than the player beside them, who got the base
+  // budget and their role's bonus before spending a point. So it is the same
+  // three terms the wizard adds up (web/lib/characterCreation.js#computeBudget)
+  // plus the seat's grant on top: base + the role's bonus + the seat's own.
+  // The ASSIGN path is deliberately NOT this -- it hands `tagPoints` to a
+  // character who already spent a creation budget, so the seat's grant alone
+  // is the right number there.
+  const spawnBudget =
+    (config?.startingTagPoints ?? 8) +
+    (spawn.role?.extraStartingPoints ?? 0) +
+    (threat.spawn.tagPoints ?? 0);
+
+  const { gender, firstName, lastName, honorific } = rollSpawnIdentity(threat.spawn, spawn.role);
   const name = formatCharacterName({ honorific, firstName, title: null, lastName });
 
   // Stamped before the transaction: a tag with a catalog duration must arrive already carrying expiresTurn, since nothing backfills it later.
@@ -164,7 +178,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
           roleTitle: spawn.role.name,
           locationId: location?.id ?? null,
           zoneId: location?.zoneId ?? null,
-          tagPoints: threat.spawn.tagPoints ?? 0,
+          tagPoints: spawnBudget,
         },
       });
 

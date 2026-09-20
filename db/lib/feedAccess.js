@@ -305,12 +305,10 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
     ),
   ];
 
-  // THE FOG OF WAR (db/lib/vantages.js): the streets walked out of earlier
-  // this turn, still watched, all of them read-only. After Here/Rooms so the
-  // place you actually stand in is never buried under the places you don't.
-  list.push(
-    ...(await vantagePlacesFor(prisma, { id: character.id, zoneId: zoneStamp.zoneId }, keys, location.id, zoneStamp)),
-  );
+  // THE FOG OF WAR (db/lib/vantages.js): the streets walked out of this turn
+  // that are still next door, read-only. After Here/Rooms so the place you
+  // actually stand in is never buried under the places you don't.
+  list.push(...(await vantagePlacesFor(prisma, { id: character.id, locationId: location.id }, keys, location.id)));
 
   if (location.zone) {
     list.push(
@@ -350,7 +348,7 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
 // guest row is spent by walking out (db/lib/roomAccess.js), so a room somebody
 // was let into does NOT follow them into the fog — only a key or a quest does.
 // No Scrying Eye here either: the eye is for the room you are standing in.
-async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneStamp) {
+async function vantagePlacesFor(prisma, character, keys, hereLocationId) {
   const vantages = await vantagesFor(prisma, character).catch((err) => {
     console.error(`Vantage places failed for ${character?.id}:`, err.message ?? err);
     return [];
@@ -367,7 +365,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneSta
     const [row, rooms, conversations] = await Promise.all([
       prisma.location.findUnique({
         where: { id: locationId },
-        select: { id: true, name: true, description: true },
+        select: { id: true, name: true, description: true, zone: { select: { id: true, name: true } } },
       }),
       prisma.room.findMany({
         where: { locationId, retiredAt: null },
@@ -384,8 +382,11 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneSta
       ...reachable.filter((room) => room.kind === "PRIVATE"),
     ];
 
-    // A vantage is always in the zone stood in — vantagesFor is scoped by
-    // zoneId — so it carries the caller's stamp and groups under that zone.
+    // Its OWN zone, not the caller's: one step out through a gate is still one
+    // step, so a vantage can now sit in a zone the character is not standing
+    // in. The places column cuts vantages into Elsewhere ahead of the zone
+    // grouping, but the stamp is what names the zone when it does.
+    const stamp = { zoneId: row.zone?.id ?? null, zoneName: row.zone?.name ?? null };
     out.push(
       place({
         placeKey: placeKeyForLocation(row.id),
@@ -394,7 +395,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneSta
         description: row.description,
         canSpeak: false,
         vantage: true,
-        ...zoneStamp,
+        ...stamp,
       }),
       ...ordered.map((room) =>
         place({
@@ -405,7 +406,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneSta
           roomKind: room.kind,
           canSpeak: false,
           vantage: true,
-          ...zoneStamp,
+          ...stamp,
         }),
       ),
       ...conversations.map((conversation) =>
@@ -415,7 +416,7 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId, zoneSta
           name: `${row.name} · ${conversation.name}`,
           canSpeak: false,
           vantage: true,
-          ...zoneStamp,
+          ...stamp,
         }),
       ),
     );

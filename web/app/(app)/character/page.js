@@ -8,6 +8,7 @@ import {
   knownTeachableSkills,
   teachesFree,
 } from "@lifeweb/db/lib/lessons";
+import { cultureForRole } from "@lifeweb/db/lib/nameCorpus";
 import {
   prisma,
   roleCapacity,
@@ -603,6 +604,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         title: character.title,
         lastName: character.lastName,
         lastNameLocked: isDynastyMember(character.role?.slug),
+        // Keeps a rename inside the party's own registers.
+        culture: cultureForRole(character.role?.slug),
         gender: character.gender,
       }
     : null;

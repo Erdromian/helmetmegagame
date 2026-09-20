@@ -15,6 +15,9 @@
 // the real seats among the decoys. No prose here except `brief` below — a
 // seated player reads the Role's own charter. A PARTY is the group a seat
 // scores objectives with; seats with no `party` are SOLO in the reveal.
+// Pure, no prisma -- safe to require from a catalog module (db/lib/nameCorpus.js).
+const { randomCharacterName, cultureForRole } = require("./nameCorpus");
+
 const THANATI_PARTY = { key: "thanati", name: "Thanati" };
 const TRIBUNAL_PARTY = { key: "tribunal", name: "Tribunal" };
 // The invading party. Its six roles are LATE JOINS (db/lib/lateJoin.js), not
@@ -55,7 +58,7 @@ const THREATS = [
     party: BASTARD_PARTY,
     assign: { tagPoints: 2, tagSlugs: ["bastard", "tactician", "literate", "brave", "rough-camper", "outsider"] },
     spawn: {
-      gender: "ROLL",
+      gender: "MAN",
       roleSlug: "bastard",
       resources: 1,
       tagPoints: 2,
@@ -427,11 +430,23 @@ function randomSpawnName(gender) {
 // HERE, never written: Character.gender is an enum of MAN/WOMAN/NEUTRAL and
 // Prisma rejects the sentinel. `honorific` is the seat's rank, a string or a
 // list to roll from; a seat without one arrives untitled, as they all used to.
-function rollSpawnIdentity(spawn) {
-  const gender = spawn.gender === "ROLL" ? pick(["MAN", "WOMAN"]) : (spawn.gender ?? "NEUTRAL");
+function rollSpawnIdentity(spawn, role = null) {
+  // The Role's own lock beats the seat's roll, so `gender: MAN` in
+  // docs/roles.yaml holds whichever door the character came through. A seat
+  // with no Role of its own (the Demoness, the Judge, both Thanati) has no
+  // lock to read and falls back to what the catalog says.
+  const rolled = spawn.gender === "ROLL" ? pick(["MAN", "WOMAN"]) : (spawn.gender ?? "NEUTRAL");
+  const gender = role?.lockedGender ?? rolled;
   const rank = spawn.honorific ?? null;
   const pool = NAME_POOLS[spawn.namePool];
-  const drawn = pool ? pick(pool) : { firstName: randomSpawnName(gender), lastName: null };
+  // The Bastard's party draws from its own three registers rather than the
+  // shared spawn list, the same as it does in the creation wizard.
+  const culture = cultureForRole(role?.slug);
+  const drawn = pool
+    ? pick(pool)
+    : culture
+      ? randomCharacterName({ gender, culture })
+      : { firstName: randomSpawnName(gender), lastName: null };
   return {
     gender,
     firstName: drawn.firstName,

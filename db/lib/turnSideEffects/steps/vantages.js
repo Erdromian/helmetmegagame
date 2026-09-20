@@ -3,9 +3,9 @@ const { expireVantages } = require("../../vantages");
 const { notifyPresence } = require("../../presenceNotify");
 
 // The turn shift puts every light out (db/lib/vantages.js). A character keeps
-// watching the streets they walked through, and the new day is one of the two
-// things that ends that — the other is leaving the zone, which the move itself
-// handles.
+// watching the street they walked out of, and the new day is one of the two
+// things that ends that — the other is walking on past it, which the move
+// itself handles by pruning to what is still next door.
 //
 // FIRST in the thunk, ahead of applyRelocations and runXomOutcomes: those move
 // people, and a move can light a vantage of its own. `keepTurnId` is the turn
