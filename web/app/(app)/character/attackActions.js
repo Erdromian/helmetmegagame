@@ -13,6 +13,7 @@ import { resolveHereTarget } from "@/lib/hereTarget";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { HERE_FIELDS } from "@lifeweb/db/lib/presence";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { IDENTITY_SELECT, identityOf, seenAs } from "@lifeweb/db/lib/intercept";
 import { attackMoveBlock } from "@lifeweb/db/lib/combatGate";
@@ -178,6 +179,9 @@ async function attackCharacterImpl({ targetKey, targetCharacterId }) {
         // A character name is player-typed, so it rides in these lines. The
         // same belt the Intercept DMs wear, and it costs nothing.
         allowedMentions: { parse: [] },
+        // The defender hears a blade come out of its sheath. ATTACK.md holds BOTH sides,
+        // so telling only the one who filed it would be half the news.
+        sfx: SFX.BLADE_DRAWN,
       }).catch(() => {});
     }
   });
@@ -227,7 +231,7 @@ async function cancelAttackImpl({ targetKey, targetCharacterId }) {
   });
 
   if (target?.discordUserId && target.status === "ALIVE") {
-    after(() => sendDm(target.discordUserId, ATTACK_CALLED_OFF_DM, { allowedMentions: { parse: [] } }).catch(() => {}));
+    after(() => sendDm(target.discordUserId, ATTACK_CALLED_OFF_DM, { allowedMentions: { parse: [] }, sfx: SFX.UNBIND }).catch(() => {}));
   }
   revalidate();
   return { ok: true, line: `You break off from ${seen}.` };

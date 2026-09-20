@@ -766,6 +766,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
       authorDiscordUserId: dm.authorDiscordUserId ?? null,
       components: dm.components,
       meta: dm.meta,
+      sfx: dm.sfx,
       // Belt to cleanMessage() already stripping broadcast pings.
       allowedMentions: { parse: [] },
     }).catch(() => {});

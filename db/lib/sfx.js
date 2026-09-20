@@ -60,8 +60,13 @@ const SFX = {
   EAT: "eat",
   DRINK: "drink",
 
-  // Word reaching one person.
+  // Word reaching one person. These ride DirectMessage.sfx — the third carrier, for the
+  // half of the game that happens TO somebody. A DM is addressed to one account, so it
+  // reaches them wherever they are standing.
   NAMED: "named",
+  MESSAGE: "message",
+  HELD: "held",
+  BLADE_DRAWN: "blade-drawn",
   RADIO_SEND: "radio-send",
   RADIO_HEAR: "radio-hear",
   // Nothing plays this yet: there is no open-a-document surface. Kept so the file it
@@ -73,6 +78,8 @@ const SFX = {
   GATE_OPEN: "gate-open",
   GATE_SHUT: "gate-shut",
   TURRET: "turret",
+  INTERCOM: "intercom",
+  GAVEL: "gavel",
   GUNFIRE: "gunfire",
   ALARM: "alarm",
   // The bell and the horn are no longer the same noise. The bell is a cathedral bell

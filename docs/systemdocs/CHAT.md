@@ -2165,7 +2165,7 @@ for a GM or a ghost — their column is every room in the game.
 The web face makes noises. Discord cannot and never will, so this is one of the
 few places the two faces deliberately differ.
 
-There are exactly **two carriers**, and no third one is wanted:
+There are exactly **three carriers**, and no fourth one is wanted:
 
 - **A line a place said.** `ArchiveEntry.sfx` holds a token — `gate-open`,
   `alarm`, `convert` — put there by whatever wrote the line. It rides
@@ -2174,6 +2174,14 @@ There are exactly **two carriers**, and no third one is wanted:
   the browser can do something the words cannot. `db/lib/scene.js`,
   `db/lib/placeLine.js` and `db/lib/soundBroadcast.js` all take `{ sfx }` and
   pass it through, so giving an existing world event a sound is one argument.
+- **A line addressed to one person.** `DirectMessage.sfx`, put there by whoever
+  called `sendDm` — the same token, through `db/lib/dmPolicy.js#dmLogRow`, which
+  is the one place all three `sendDm` transports build their row. The `dm` SSE
+  event carries it (§2b) and `web/lib/dmThread.js#playerDmRow` is its validation
+  door. This is the only carrier that can reach the person a thing happened
+  **to**: being ambushed, a blade drawn on you, hands in your pockets. None of
+  those writes a scene line, so before this they were silent no matter how loud
+  the moment was. Heard wherever they are standing — a DM is not a place.
 - **An action's own answer.** `guarded()` (`web/lib/actionResult.js`) puts
   `sfx: "refuse"` on every refusal, so every refused action in the game buzzes
   without a single call site knowing sound exists. A success opts in by returning
@@ -2198,6 +2206,11 @@ Four rules keep it from being a nuisance, all in `web/app/components/sfx.js`:
 - **Only a visible tab**, except for being named. That one is a notification.
 - **A floor of 120ms per cue and four sounds per half-second**, so a held key or a
   burst of scene rows cannot machine-gun.
+- **One sound per line.** A row plays the cue it carries, or the radio it came over,
+  or `named` for your name in it — and only if none of those took it does the plain
+  `message` pop fire. So the intercom is the intercom rather than the intercom and a
+  pop, and a system line nobody has given a voice to still says something. Give one a
+  token later and it takes that instead, with no change to the rule.
 
 **Every cue's level is measured, not chosen by ear.** The files came out of one
 library but not one mastering session, and across the set they span 27dB — which

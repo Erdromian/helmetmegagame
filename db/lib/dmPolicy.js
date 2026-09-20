@@ -39,6 +39,10 @@ function dmLogRow({ discordUserId, content, opts = {}, discordMessageId = null, 
     clientNonce: opts.clientNonce ?? null,
     // ?? undefined: an explicit null is rejected by Prisma for a Json? column.
     meta: opts.meta ?? undefined,
+    // The noise this line makes when it lands in a browser. A TOKEN from db/lib/sfx.js —
+    // not validated here, because this file has no requires and never will; the read side
+    // (web/lib/dmThread.js) is the door, exactly as it is for a scene row.
+    sfx: opts.sfx ?? null,
   };
 }
 

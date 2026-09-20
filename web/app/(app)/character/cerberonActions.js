@@ -10,6 +10,7 @@ import { logAudit } from "@/lib/requests";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { FULL_NAME_LIMIT } from "@/lib/characterName";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import {
   WANTED_SLUG,
   CERBERON_SLUG,
@@ -121,6 +122,10 @@ async function arrestWarrantRequestImpl({ name: rawName }) {
       matched > 1
         ? `A warrant is out on ${name} — ${matched} men answer to that name.`
         : `A warrant is out on ${name}.`,
+    // The issuer's own tab and nowhere else. The wanted man is told NOTHING — no paper
+    // goes up and no DM is sent (see above), and a sound in his ear would be the one
+    // thing in this action that gave him warning.
+    sfx: SFX.GAVEL,
   };
 }
 

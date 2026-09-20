@@ -283,6 +283,7 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
       authorDiscordUserId: dm.authorDiscordUserId ?? null,
       components: dm.components,
       meta: dm.meta,
+      sfx: dm.sfx,
       allowedMentions: { parse: [] }, // belt-and-braces: cleanMessage() already stripped broadcast pings
     }).catch((err) => console.error(`Intercept DM to ${dm.discordUserId} failed:`, err.message ?? err));
   }

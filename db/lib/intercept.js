@@ -9,6 +9,7 @@ const { matchesTypedName } = require("./characterName");
 const { blockerFor, ACT } = require("./incapacitation");
 const { reFor } = require("./discordMarkup");
 const { DM_KIND } = require("./dmKinds");
+const { SFX } = require("./sfx");
 // For the auto-search refusal note only: it is guidance sitting under somebody's
 // own catch line rather than a notice of its own, which is what `-#` is for
 // (CLAUDE.md, "Bot message style"). The helper is used for its per-line prefixing.
@@ -337,6 +338,9 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
           ...(hit.watch.message ? [`» ${hit.watch.message}`] : []),
         ].join("\n"),
         kind: DM_KIND.NOTICE,
+        // A net closing, in the stopped person's own browser. The third carrier (CHAT.md
+        // 5b): being ambushed happens TO you, and nothing on the road says it out loud.
+        sfx: SFX.HELD,
         authorDiscordUserId: hit.watch.message ? hit.interceptor.discordUserId ?? null : null,
       });
     } else {
@@ -349,6 +353,7 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
         ].join("\n"),
         // NOTICE even with typed words in it — it's the game delivering a stop; as CONVERSATION every stop on the road pinged the GM inbox.
         kind: DM_KIND.NOTICE,
+        sfx: SFX.HELD,
         authorDiscordUserId: hit.interceptor.discordUserId ?? null,
       });
     }

@@ -2,10 +2,11 @@
 
 import { soundSetting } from "@/app/(app)/chat/soundStore";
 
-// The whole of sound in Bascinet. Two callers, and only two:
+// The whole of sound in Bascinet. Three callers, and only three:
 //
 //   playSfx("mine")           an action you took, heard in your tab alone
 //   playSfx(row.sfx)          a line a place said, heard by everyone watching it
+//   playSfx(dm.sfx)           a line addressed to you, heard by you wherever you stand
 //
 // Everything else — which sound a gate makes, whether a refusal buzzes — is decided at the
 // call site and arrives here as a NAME. That is the point: a sound is a property of the
@@ -75,6 +76,9 @@ const CUES = {
 
   // Word reaching you.
   named: "newBuzzer",
+  message: "pop",
+  held: "net_captured",
+  "blade-drawn": "sword_unsheath_01",
   "radio-send": "radio",
   "radio-hear": "radio_chatter",
   page: "pageturn1",
@@ -83,6 +87,8 @@ const CUES = {
   "gate-open": "wood_open",
   "gate-shut": "wlocked1",
   turret: "warning-buzzer",
+  intercom: "radio3",
+  gavel: "gavel",
   gunfire: "smg_fire_new",
   alarm: "Alarm",
   bell: "cathedral-bell",
@@ -196,8 +202,19 @@ const GAIN = {
   gunfire: 0.14,
   turret: 0.36,
   named: 0.27,
+  gavel: 0.22,
+  // Addressed to one person. These arrive on a DM rather than on a line a place said, and
+  // they sit with the world rather than the alarms for the same reason `named` does.
+  held: 1,
+  "blade-drawn": 0.19,
 
-  // Made to be heard.
+  // Heard every time somebody speaks, so it lives down with the boots. `pop` is the
+  // quietest file in the library and still only just clears the floor at this target.
+  message: 1,
+
+  // Made to be heard. The intercom belongs here and not with the world: a PA is a
+  // loudspeaker, which is the same argument db/lib/intercom.js makes for its full-size text.
+  intercom: 0.43,
   alarm: 0.48,
   bell: 0.77,
   horn: 0.37,

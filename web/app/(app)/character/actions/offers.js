@@ -202,6 +202,9 @@ export async function searchRequestImpl({ targetKey }) {
       components: offer.dm.components,
       meta: offer.dm.meta,
       source: "player_event",
+      // Hands going through your pockets, heard by the person being searched and nobody
+      // else — SEARCH.md keeps a search between the two of them.
+      sfx: SFX.POCKET,
     }).catch((err) => console.error(`Search offer DM to ${target.id} failed:`, err)),
   );
 

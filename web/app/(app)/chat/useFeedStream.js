@@ -179,6 +179,13 @@ export default function useFeedStream({
           const row = JSON.parse(event.data);
           if (row?.seq) noteSeq(row.seq);
           applyRow(row.placeKey, row);
+          // Whether anything below has already made this row's noise. A line gets ONE
+          // sound: the cue it carries, or the radio it came over, or your name in it — and
+          // only if none of those took it does the plain `message` pop at the bottom fire.
+          // That ordering is the whole rule. It means the intercom is the intercom rather
+          // than the intercom and a pop, and it means a decree or any other system line
+          // nobody has given a voice to still says something.
+          let spoke = false;
           // A line the WORLD made a noise saying (db/lib/sfx.js names the sound, the row
           // carries it). Only for the place being READ: a gate two zones away is somebody
           // else's afternoon, and this is also what keeps radio chatter to the net that is
@@ -196,6 +203,7 @@ export default function useFeedStream({
             !isOwnRow(row, self?.characterId, self?.speakerKey)
           ) {
             playSfx("radio-hear");
+            spoke = true;
           }
           // A drone belongs to the place it started in. Anything landing somewhere else
           // while it plays means the reader has moved on, and it stops.
@@ -207,6 +215,7 @@ export default function useFeedStream({
             Date.now() - new Date(row.sentAt).getTime() < 60000
           ) {
             playSfx(row.sfx);
+            spoke = true;
           }
           // Somebody spoke in the conversation or private room that is OPEN.
           // A `places` frame only ever fires for the VIEWER's own presence, so
@@ -246,12 +255,29 @@ export default function useFeedStream({
             // not the count is raised: somebody looking straight at the place still wants
             // to know their name was said, and that is exactly the case `reading` suppresses.
             playSfx("named");
+            spoke = true;
             if (!reading) {
               noteNotified(key, {
                 title: `${self.name ?? "You"} was named`,
                 body: row.name ? `${row.name} said your name` : "Somebody said your name",
               });
             }
+          }
+          // And if nothing above spoke for it: somebody said something in the place you
+          // are reading. The quietest cue in the game, because it is far and away the most
+          // frequent one — and it steps aside for anything with a voice of its own, so a
+          // line that carries a cue never also pops. Never your own words. Fresh only: a
+          // reconnect replays the backlog, and a room popping forty times is how somebody
+          // turns sound off for good.
+          if (
+            !spoke &&
+            !row.sfx &&
+            row.placeKey === selectedRef.current &&
+            !isOwnRow(row, self?.characterId, self?.speakerKey) &&
+            row.sentAt &&
+            Date.now() - new Date(row.sentAt).getTime() < 60000
+          ) {
+            playSfx("message");
           }
         } catch {
           // A malformed frame is not worth tearing the stream down over.
@@ -323,6 +349,15 @@ export default function useFeedStream({
             return;
           }
           addDmRow(row);
+          // The third carrier (CHAT.md 5b): a line addressed to ONE account, which is the
+          // only way a sound reaches the person a thing happened TO — an ambush closing on
+          // them, a blade drawn on them, hands going through their pockets. No place check:
+          // a DM finds them wherever they are standing, which is the point of it. Fresh
+          // only, for the same reason a scene cue is: a reconnect refetches the page and a
+          // minute-old ambush going off in somebody's ears would be a lie.
+          if (row?.sfx && row.createdAt && Date.now() - new Date(row.createdAt).getTime() < 60000) {
+            playSfx(row.sfx);
+          }
           // Quiet only while the pane is open AND somebody is looking at it.
           const reading = selectedRef.current === DM_PLACE_KEY && document.visibilityState === "visible";
           if (row?.direction === "OUTBOUND" && !reading) {

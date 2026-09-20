@@ -4324,6 +4324,14 @@ model DirectMessage {
   // drop it. Decline, the way the trgm indexes are declined.
   clientNonce String?
 
+  // The noise this line makes in the reader's browser, if it makes one. A token from
+  // db/lib/sfx.js, never a filename — the third sound carrier (CHAT.md 5b), and the only
+  // one that can reach ONE person: a scene line is heard by everyone reading that place,
+  // and a guarded() result only by whoever clicked. Being caught in an ambush, an attack
+  // filed on you and a search of your pockets all arrive here and nowhere else.
+  // Null for the overwhelming majority of DMs, which say nothing out loud.
+  sfx String?
+
   @@index([discordUserId, createdAt])
   @@index([createdAt])
   @@index([direction, discordUserId, createdAt]) // unread scans

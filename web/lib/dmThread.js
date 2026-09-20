@@ -1,5 +1,6 @@
 import { Prisma } from "@lifeweb/db";
 import { DM_KIND, MENTION_SOURCE } from "@lifeweb/db/lib/dmKinds";
+import { isSfx } from "@lifeweb/db/lib/sfx";
 
 // "Is this row conversation?" decides the RAIL; "is this row drawable?" decides a THREAD. Both key on `DirectMessage.kind` alone.
 const IS_DRAWABLE = { kind: { not: DM_KIND.QUIET } };
@@ -51,6 +52,7 @@ export const PLAYER_DM_SELECT = {
   createdAt: true,
   meta: true,
   clientNonce: true,
+  sfx: true,
 };
 
 // Wider than PLAYER_DM_SELECT: authorDiscordUserId for dmPreview, `kind` for notice styling.
@@ -92,5 +94,8 @@ export function playerDmRow(row) {
     meta: row.meta ?? null,
     clientNonce: row.clientNonce ?? null,
     createdAt: row.createdAt.toISOString(),
+    // The one validation door for the DM carrier, mirroring db/lib/archive.js#feedRowShape
+    // for a scene row: a token nothing recognises leaves as null and plays nothing.
+    sfx: isSfx(row.sfx) ? row.sfx : null,
   };
 }

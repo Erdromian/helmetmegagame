@@ -4,6 +4,7 @@
 // @lifeweb/db barrel (db/lib/dm.js convention).
 const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
+const { SFX } = require("./sfx");
 
 // The Council Room, hardcoded for the db/lib/roleIds.js reason.
 const INTERCOM_ROOM_SLUG = "fortress-4-1";
@@ -65,6 +66,9 @@ async function broadcastIntercom(prisma, text) {
       text: content.replace(/^@here\s+/, ""),
       signed: false,
       channelKind: "intercom",
+      // A PA has a sound BEFORE it has words, and that is the part that makes people look
+      // up. Same argument as the full-size text above: this is not scenery.
+      sfx: SFX.INTERCOM,
     });
   }
   return { sent, failed };
