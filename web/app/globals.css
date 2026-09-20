@@ -166,6 +166,18 @@
 :root {
   color-scheme: dark;
 
+  /* HOW LIT THE GROUND IS, and the one number that sets it. The chatbg tile is
+     drawn in four places — `.grain` behind every other page, and directly on
+     the chat shell and feed (chat.css, chat-next.css) — and they have to agree,
+     or the app stands on a different ground than the page people look at
+     longest. `.grain` reads this as an opacity; the chat draws, which cannot
+     use opacity without fading their own content, lay `--ground-veil` over the
+     tile instead. Both come off this one value, so dialling it moves all four.
+     1 is the tile at full strength. The panel-separation figures quoted further
+     down (1.16 at full) move with it. */
+  --ground-strength: 0.77;
+  --ground-veil: color-mix(in srgb, var(--bg) calc((1 - var(--ground-strength)) * 100%), transparent);
+
   --bg: #0d0b08;
   --surface: #171310;
   --surface-raised: #211b16;
@@ -544,9 +556,9 @@ body:has(.chat-shell) .grain {
      by how lit the ground is. At 0.35 a panel separates by 1.065 no matter
      how black it goes — pure black tops out at 1.107. At 1.0 the same panel
      measures 1.16, which is chat's own figure.
-     If this ever wants dialling back, it is this one number, and the
-     separation figures above move with it. */
-  opacity: 1;
+     Dialled back from 1 via --ground-strength (:root), which the chat draws
+     read too so all four copies of the tile stay at one strength. */
+  opacity: var(--ground-strength);
   background-image: url("/assets/chrome/chatbg.png");
   background-repeat: repeat;
   background-size: 512px 512px;
