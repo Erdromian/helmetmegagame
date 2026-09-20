@@ -4,6 +4,7 @@
 //   npm run economy:report                    # -> economy-report/index.html
 //   npm run economy:report -- --players 150   # a bigger town
 //   npm run economy:report -- --turns 40      # a longer game (fatigue over N turns)
+//   npm run economy:report -- --free-moves 2  # free zone crossings a turn (2 with a mount)
 //   npm run economy:report -- --out /tmp/x    # somewhere else
 //
 // Read-only: touches no database and posts nothing. The output directory is
@@ -24,8 +25,9 @@ const REPO = path.resolve(__dirname, "../../../..");
 const outDir = path.resolve(flag("out", path.join(REPO, "economy-report")));
 const players = Number(flag("players", 100));
 const gameTurns = Number(flag("turns", 30));
+const freeMoves = flag("free-moves", null) == null ? null : Number(flag("free-moves", null));
 
-const model = buildModel({ players, gameTurns });
+const model = buildModel({ players, gameTurns, freeMoves });
 const { params } = model;
 
 let commit = "unknown";
@@ -53,9 +55,10 @@ function table({ cols, rows, id, sortable = true }) {
         `<tr>${cols
           .map((c) => {
             const v = c.get(r);
-            const sortVal = c.sort ? c.sort(r) : c.num ? v : String(v ?? "");
+            // A sort key only when it differs from what is shown; the sorter reads the text otherwise.
+            const sortAttr = c.sort ? ` data-v="${esc(c.sort(r) ?? "")}"` : "";
             const style = c.style ? c.style(r) : "";
-            return `<td class="${c.num ? "num" : ""}" data-v="${esc(sortVal ?? "")}"${style ? ` style="${style}"` : ""}>${
+            return `<td${c.num ? ' class="num"' : ""}${sortAttr}${style ? ` style="${style}"` : ""}>${
               c.raw ? v : esc(v ?? "—")
             }</td>`;
           })
@@ -166,7 +169,7 @@ const allRanked = [...model.activities].sort((a, b) => (money(b) ?? -1e9) - (mon
 
 const RANK = model.sources.ranks;
 const rankChip = (r) =>
-  r === 0 ? `<span class="rk r0">none</span>` : `<span class="rk r${r}" title="${esc(RANK.find((x) => x.id === r)?.meaning)}">${esc(RANK.find((x) => x.id === r)?.label)}</span>`;
+  r === 0 ? `<span class="rk r0">none</span>` : `<span class="rk r${r}">${RANK.find((x) => x.id === r)?.label}</span>`;
 const wage = (key) => model.wages.find((w) => w.key === key)?.value;
 const floorW = wage("Unskilled miner (Caves)");
 const proW = wage("Prospector (Caves)");
@@ -181,6 +184,7 @@ const headlines = [
   `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns nothing from the counter, since no dish can be sold there, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
   `Mining is the only source of ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves) yet a median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
   `Food demand is small and steady: ${players} players burn ${players * params.hungerDecay} hunger a turn. One Farm action makes ~${fmt(potatoFood.personTurnsPerFarm, 0)} person-turns of food, so about <b>${fmt(potatoFood.farmersNeeded, 0)} farmers</b> feed the whole town.`,
+  `Mixing verbs pays: a character with Soilery who farms once every third turn and refines on the other two makes ${fmt(model.combos.loadouts.filter((l) => l.points <= 8).sort((x, y) => y.withFactory.rate - x.withFactory.rate)[0].withFactory.rate)} ¢ a turn, against ${fmt(model.combos.alone.find((a) => /^Refine/.test(a.label)).rate)} refining alone and ${fmt(model.combos.alone.find((a) => /^Farm/.test(a.label)).rate)} farming alone. Mining never earns a slot while Refine is open. This ignores hauling cubes to the Depot to sell them.`,
   `Fatigue: mining can be pressed ${fmt(model.fatigue.byId.mine.steady * 100, 0)}% of turns and farming ${fmt(model.fatigue.byId.farm.steady * 100, 0)}%. Refining, cutting Godflesh, crafting and butchering can be pressed every turn.`,
   `A Prospector's press in the Caves is worth ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").resourcesPerPress * params.rv.sell)} ¢ of ⬢ plus ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").dropsPerAction, 2)} ¢ of drops; in the Depths the drops are ${fmt(model.activities.find((a) => a.id === "mine:Depths:skilled").dropsPerAction, 2)} ¢.`,
   `${model.sources.summary.special} of ${model.sources.summary.recipes} recipes need a special item (${model.sources.summary.copies} of those only copy a key). Of the rest, ${model.sources.summary.byHardest[4]} are held back by a Scarce item and ${model.sources.summary.byHardest[5]} by an item with no known source.`,
@@ -270,6 +274,81 @@ ${table({ cols: cookCols, rows: L.cooking.slice(0, 12) })}
 <p class="lede">Brewing, cooking and Crafting never need a forge. Only smithing does, so the question is what the smithing family can do without one. The answer is the crafting-skill recipes plus Workshop Equipment itself, which is exempt from its own requirement.</p>
 ${table({ cols: craftCols(), rows: L.noWorkshop.slice(0, 8) })}
 <p class="lede">Best without a forge: <b>${esc(L.noWorkshop[0]?.name)}</b> at ${fmt(L.noWorkshop[0]?.netPerTurnBuy)} ¢ a turn (${fmt(L.noWorkshop[0]?.netPerTurnSell)} ¢ with mined ⬢), against ${fmt(baselineOf("Skilled smith")?.value)} ¢ for a skilled smith with one. Where the forge comes from: ${ws ? ws.routes.map(esc).join("; ") : "n/a"}. A Smithing II smith can make their own: ${weAct ? `${fmt(weAct.resourceCost, 0)} ⬢ and ${fmt(weAct.totalMoves, 0)} Moves, worth ${weAct.revenue} ¢ if sold` : ""}. The Metalsmith starts with the Smithy Key to the Storeroom's, and the Engineer starts with Smithing II, so the forge is a small blocker for the main smiths and a real one for everybody else.</p>
+</section>`;
+}
+
+function sectionCombos() {
+  const c = model.combos;
+  const label = (l) => l.skills.join(" + ");
+  const bestUnder = (pts, key) => c.loadouts.filter((l) => l.points <= pts).sort((x, y) => y[key].rate - x[key].rate || x.points - y.points)[0];
+  const steps = (key) => {
+    const out = [];
+    for (const s of c.staircase) {
+      const pick = s[key];
+      if (!out.length || label(out[out.length - 1].l) !== label(pick)) out.push({ points: s.points, l: pick });
+    }
+    return out;
+  };
+  const stepCols = (key) => [
+    { h: "From points", num: true, get: (r) => r.points },
+    { h: "Loadout", get: (r) => label(r.l) },
+    { h: "Costs", num: true, get: (r) => `${r.l.points} pt`, sort: (r) => r.l.points },
+    { h: "¢ / turn", num: true, get: (r) => fmt(r.l[key].rate), sort: (r) => r.l[key].rate },
+    { h: `Over ${c.gameTurns} turns`, num: true, get: (r) => fmt(r.l[key].total, 0), sort: (r) => r.l[key].total },
+    { h: "Schedule", get: (r) => r.l[key].pattern, style: () => "font-family:var(--mono);letter-spacing:1px" },
+    { h: "Where", get: (r) => r.l[key].zones, style: () => "font-family:var(--mono);letter-spacing:1px" },
+  ];
+  const aloneCols = [
+    { h: "Activity", get: (r) => r.label },
+    { h: "¢ / turn", num: true, get: (r) => fmt(r.rate), sort: (r) => r.rate },
+    { h: `Over ${c.gameTurns} turns`, num: true, get: (r) => fmt(r.total, 0), sort: (r) => r.total },
+    { h: "Schedule", get: (r) => r.pattern, style: () => "font-family:var(--mono);letter-spacing:1px" },
+  ];
+  const startCols = [
+    { h: "Skills", get: (l) => label(l) },
+    { h: "Points", num: true, get: (l) => l.points },
+    { h: "With the Factory", num: true, get: (l) => fmt(l.withFactory.rate), sort: (l) => l.withFactory.rate },
+    { h: "Schedule", get: (l) => l.withFactory.pattern, style: () => "font-family:var(--mono);letter-spacing:1px" },
+    { h: "Without it", num: true, get: (l) => fmt(l.noFactory.rate), sort: (l) => l.noFactory.rate },
+    { h: "Schedule", get: (l) => l.noFactory.pattern, style: () => "font-family:var(--mono);letter-spacing:1px" },
+  ];
+  const startRows = c.loadouts.filter((l) => l.points <= 8).sort((x, y) => y.withFactory.rate - x.withFactory.rate || y.noFactory.rate - x.noFactory.rate).filter((l, i, arr) => arr.findIndex((x) => label(x) === label(l)) === i).slice(0, 10);
+  const bars = [];
+  for (const s of steps("withFactory")) bars.push({ label: `${label(s.l)} (${s.l.points} pt), with Factory`, value: s.l.withFactory.rate, color: "var(--c1)" });
+  for (const s of steps("noFactory")) bars.push({ label: `${label(s.l)} (${s.l.points} pt), no Factory`, value: s.l.noFactory.rate, color: "var(--c0)" });
+  const farmAlone = c.alone.find((a) => /^Farm/.test(a.label));
+  const refAlone = c.alone.find((a) => /^Refine/.test(a.label));
+  const start = bestUnder(8, "withFactory");
+  const startNo = bestUnder(8, "noFactory");
+  const cubes = params.refineryYield;
+  const lbs = cubes * (model.params.squeezeLbs ?? 17);
+  const zoneRows = Object.entries(c.crossings).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v}</td><td>${v <= c.free ? "free" : v === c.free + 1 ? `costs the Move` : "two or more turns"}</td></tr>`).join("");
+  const verbRows = model.combos.verbs.map((v) => `<tr><td>${esc(v.label)}</td><td>${esc(v.zone ?? "anywhere")}</td><td class="num">${fmt(v.value)}</td><td>${v.fatigue ? "climbs the ladder" : "no fatigue"}</td><td>${v.needs.length ? esc(v.needs.join(", ")) : "no skill"}</td></tr>`).join("");
+  return `<section><h2>Combining activities</h2>
+<p class="lede">Each day-verb is rationed by something different, so they can fill each other's gaps. This is a planner, not a guess: it searches every schedule for the best one, turn by turn, using the game's own fatigue gates. It is exact within the rules below.</p>
+<ul class="ranks">
+<li><b>The Move.</b> One a turn. Mine, Farm and Refine each take all of it, and crafts share it in fractions, so a turn is one day-verb or a craft mix, never both.</li>
+<li><b>Fatigue.</b> Mine and Farm climb the Tired and Exhausted ladder and Refine does not, so Refine can fill the turns Farm or Mine lock you out of.</li>
+<li><b>Skill points.</b> Farm needs Soilery (7) and Mine needs Prospecting (7), so a starting budget of ${params.startingTagPoints} cannot hold both. Refine and cutting Godflesh need no skill.</li>
+<li><b>Place.</b> Hops inside a zone are free, and a turn allows ${c.free} free zone crossing${c.free === 1 ? "" : "s"} (a mount adds one; <code>--free-moves</code> changes it). A crossing beyond that costs the Move, so nearby workplaces do not cost formal Moves.</li>
+</ul>
+<h3>Where the work is</h3>
+<div class="tablewrap"><table><thead><tr><th>Verb</th><th>Zone</th><th class="num">¢ per press</th><th>Fatigue</th><th>Needs</th></tr></thead><tbody>${verbRows}</tbody></table></div>
+<div class="tablewrap"><table><thead><tr><th>Trip</th><th class="num">Crossings</th><th>Cost</th></tr></thead><tbody>${zoneRows}</tbody></table></div>
+<h3>Each activity on its own</h3>
+${table({ cols: aloneCols, rows: c.alone })}
+<h3>The best mix at each skill budget</h3>
+<p class="lede">The schedule reads one letter a turn: <b>R</b> Refine, <b>F</b> Farm, <b>M</b> Mine, <b>C</b> a craft, <b>·</b> rest. The second row is the zone: T town, H hills, D depths, C caves. ${start && farmAlone && refAlone ? `With the Factory, a character with Soilery farms once in three turns and refines on the other two, for <b>${fmt(start.withFactory.rate)} ¢ a turn</b>, against ${fmt(refAlone.rate)} refining alone and ${fmt(farmAlone.rate)} farming alone. That works because Farm's lockout does not stop Refine, and a farm turn pays ${fmt(model.activities.find((a) => a.kind === "farm")?.perAction)} ¢ against a refine turn's ${fmt(model.activities.find((a) => a.id === "factory:refine-supplied")?.perAction)}.` : ""}</p>
+<h4>With the Factory open</h4>
+${table({ cols: stepCols("withFactory"), rows: steps("withFactory") })}
+<h4>Without it (full, out of reach, or no Godflesh)</h4>
+<p class="lede">With Refine off the table, the mixes are worth more to compare. ${startNo ? `At the starting budget the best is ${esc(label(startNo))} at ${fmt(startNo.noFactory.rate)} ¢ a turn.` : ""} Mining never earns a slot on a turn Refine is available, and even without it a craft beats Mining on the off turns.</p>
+${table({ cols: stepCols("noFactory"), rows: steps("noFactory") })}
+${barChart({ rows: bars, unit: " ¢", labelW: 330, fmtVal: (v) => fmt(v, 1) })}
+<h3>What a starting character (${params.startingTagPoints} points) can reach</h3>
+${table({ cols: startCols, rows: startRows })}
+<h3>What this leaves out</h3>
+<p class="lede">The plan sells nothing and carries nothing. A refining day is ${cubes} cubes at ${fmt(model.params.squeezeLbs ?? 17, 0)} lb, so ${fmt(lbs, 0)} lb (${fmt(lbs / 2, 0)} lb crated), against a ${params.carryWeightLbs} lb carry cap, and an Overburdened character cannot cross zones at all. Turning cubes into ¢ means a trip to the Depot in Undertown, which is one crossing from both the town and the hills, so a plain walker cannot refine and sell in the same turn without a mount or cart. The 53 ¢ figure is a ceiling on Moves and fatigue, not a wage. Also left out: the 1-in-6 injury on every Godflesh cut, a forge for smithing, seed bags and ⬢ bought at the Depot, and how many other players want the same seat.</p>
 </section>`;
 }
 
@@ -597,7 +676,7 @@ document.querySelectorAll('table.sortable').forEach(t=>{
     t.querySelectorAll('th').forEach(x=>x.classList.remove('sort-asc','sort-desc'));
     th.classList.add(asc?'sort-asc':'sort-desc');
     const rows=[...t.tBodies[0].rows];
-    rows.sort((a,b)=>{const x=a.cells[i].dataset.v,y=b.cells[i].dataset.v,nx=parseFloat(x),ny=parseFloat(y);
+    rows.sort((a,b)=>{const x=a.cells[i].dataset.v??a.cells[i].textContent,y=b.cells[i].dataset.v??b.cells[i].textContent,nx=parseFloat(x),ny=parseFloat(y);
       const r=(!isNaN(nx)&&!isNaN(ny))?nx-ny:String(x).localeCompare(String(y));return asc?r:-r});
     rows.forEach(r=>t.tBodies[0].appendChild(r));
   }));
@@ -608,7 +687,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -630,6 +709,12 @@ const md = [
   "| Role | Recipe | Points | ¢/turn bought | ¢/turn mined |",
   "|---|---|---:|---:|---:|",
   ...model.baselines.map((b) => `| ${b.role} | ${b.key.split(": ")[1]} | ${b.skillPoints} | ${fmt(b.value)} | ${fmt(b.valueMined)} |`),
+  "",
+  "## Combined activities",
+  "",
+  "| Skills | Points | With the Factory | Without it |",
+  "|---|---:|---:|---:|",
+  ...model.combos.loadouts.filter((l) => l.points <= 8).sort((x, y) => y.withFactory.rate - x.withFactory.rate).filter((l, i, a) => a.findIndex((x) => x.skills.join() === l.skills.join()) === i).slice(0, 8).map((l) => `| ${l.skills.join(" + ")} | ${l.points} | ${fmt(l.withFactory.rate)} | ${fmt(l.noFactory.rate)} |`),
   "",
   "## Which work tires you",
   "",
@@ -679,7 +764,14 @@ const itemsCsv = [
   ),
 ].join("\n");
 
+const combosCsv = [
+  ["skills", "points", "craft", "rateWithFactory", "totalWithFactory", "scheduleWithFactory", "rateNoFactory", "totalNoFactory", "scheduleNoFactory"].join(","),
+  ...model.combos.loadouts.map((l) =>
+    [l.skills.join(" + "), l.points, l.craft?.name ?? "", l.withFactory.rate.toFixed(2), l.withFactory.total.toFixed(0), l.withFactory.pattern, l.noFactory.rate.toFixed(2), l.noFactory.total.toFixed(0), l.noFactory.pattern].map(csvCell).join(","),
+  ),
+].join("\n");
 fs.mkdirSync(outDir, { recursive: true });
+fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
 fs.writeFileSync(path.join(outDir, "item-sources.csv"), itemsCsv);
 fs.writeFileSync(path.join(outDir, "index.html"), html);

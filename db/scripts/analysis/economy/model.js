@@ -24,6 +24,7 @@ const mutilate = require("../../../lib/mutilate");
 const corpses = require("../../../lib/corpses");
 const { buildSources, RULES: SOURCE_RULES } = require("./sources");
 const { fatigueModel } = require("./fatigue");
+const { buildCombos } = require("./combos");
 const { turretTable } = require("../../../lib/depotTurret");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -106,7 +107,7 @@ function corpseOrgans() {
   return mutilate.harvestableOrgans([]).map((o) => ({ slug: o.itemSlug, quantity: o.quantity }));
 }
 
-function buildModel({ players = 100, gameTurns = 30 } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
@@ -128,6 +129,8 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
     productionCoefficient,
     farmMaxCrops,
     startingTagPoints,
+    carryWeightLbs: schemaDefault("carryWeightLbs"),
+    squeezeLbs: get("squeeze")?.weight ?? null,
     hungerDecay: hunger.HUNGER_DECAY_PER_TURN,
     hungerMax: hunger.HUNGER_MAX,
     witherIn: soilery.WITHER_IN,
@@ -629,6 +632,16 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
     { key: "Factory solo", value: byId("factory:solo")?.netPerTurnSell },
   ].filter((w) => w.value != null && w.value > 0);
 
+  // --- combining day-verbs ----------------------------------------------------
+  const combos = buildCombos({
+    activities,
+    fatigue,
+    bySlug,
+    params,
+    gameTurns,
+    free: freeMoves ?? schemaDefault("freeZoneMovesPerTurn"),
+  });
+
   // --- the price ladder ------------------------------------------------------
   const priceLadder = list
     .filter((t) => t.depotPrice != null && t.slug !== "resources")
@@ -895,6 +908,7 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
     priceLadder,
     priceRule,
     resourceBalance,
+    combos,
     shortlists: { ...shortlists, cookingAll: cookRows },
     baselines,
     cheapestMeal,

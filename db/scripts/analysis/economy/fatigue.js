@@ -126,6 +126,18 @@ function readersOfLadder() {
   return hits.sort();
 }
 
+// The close of turn n: the verb's grant (staged push), then the expiry sweep,
+// which turns a lapsed Exhausted into Tired. `held` maps slug -> last live turn.
+function closeTurn(held, n, verb, dur, into) {
+  if (verb) verb.grant(held, n, dur);
+  for (const [slug, last] of [...held]) {
+    if (last <= n) {
+      held.delete(slug);
+      for (const next of into[slug] ?? []) if (!held.has(next)) held.set(next, expiryFrom(n + 1, dur[next]));
+    }
+  }
+}
+
 function simulate(verb, dur, into, turns) {
   const held = new Map(); // slug -> last live turn
   const acted = [];
@@ -133,14 +145,7 @@ function simulate(verb, dur, into, turns) {
     for (const [slug, last] of held) if (last < n) held.delete(slug); // defensive; the sweep below normally clears them
     const refused = verb.refused([...held.keys()]);
     acted.push(!refused);
-    // Close of turn n: staged push first, then the expiry sweep.
-    if (!refused) verb.grant(held, n, dur);
-    for (const [slug, last] of [...held]) {
-      if (last <= n) {
-        held.delete(slug);
-        for (const next of into[slug] ?? []) if (!held.has(next)) held.set(next, expiryFrom(n + 1, dur[next]));
-      }
-    }
+    closeTurn(held, n, refused ? null : verb, dur, into);
   }
   return acted;
 }
@@ -190,9 +195,10 @@ function fatigueModel({ bySlug, gameTurns = 30 }) {
     byId: Object.fromEntries(rows.map((r) => [r.id, r])),
     rows,
     durations: dur,
+    into,
     readers: readersOfLadder(),
     gameTurns,
   };
 }
 
-module.exports = { fatigueModel };
+module.exports = { fatigueModel, VERBS, closeTurn };
