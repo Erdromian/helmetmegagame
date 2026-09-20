@@ -21,7 +21,6 @@ import {
   Drama,
   Ban,
   Dog,
-  VenetianMask,
   Crown,
   MapPin,
   HeartPulse,
@@ -80,7 +79,6 @@ export const TAG_GROUP_ICONS = {
   "general-restrictions": glyph(Ban, "RestrictionsIcon"),
   "general-interests": glyph(Heart, "InterestsIcon"),
   "general-cerberon": glyph(Dog, "CerberonIcon"),
-  "general-brigand": glyph(VenetianMask, "BrigandIcon"),
   "general-court": glyph(Crown, "CourtIcon"),
   "general-location": glyph(MapPin, "OriginIcon"),
 

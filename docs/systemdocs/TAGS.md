@@ -331,14 +331,16 @@ hidden category the same way it applied to that one.)
 
 The same field also gates a group **inside a visible category**, which is how
 body membership is modelled: `general-cerberon` ("Cerberon", behind `cerberon`)
-and `general-brigand` ("Brigands", behind `brigand`) sit in `general`, so the
+sits in `general`, so the
 General tab stays because `general-traits` and `general-social` are ungated —
 only the group vanishes. Same rule about not repeating the gate on the members.
+(`general-brigand` was the other one, deleted 2026-09-20 — its tags are
+ordinary traits now.)
 
-Note where the two keys live: `cerberon` and `brigand` are in
-`general-traits`, **outside** the groups they open. A gated group cannot hold
-its own key — nobody would ever be able to see it. Both are
-`purchasable: false` and arrive from `roles.yaml` `starting_tags`, which is
+Note where the key lives: `cerberon` is in
+`general-traits`, **outside** the group it opens. A gated group cannot hold
+its own key — nobody would ever be able to see it. It is
+`purchasable: false` and arrives from `roles.yaml` `starting_tags`, which is
 also why the Add Tag picker has to fold held tags into its `byId` map (below).
 
 Three things make a category actually hidden rather than merely empty:

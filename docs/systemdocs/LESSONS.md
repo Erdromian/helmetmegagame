@@ -53,7 +53,7 @@ Constants: `db/lib/constants.js` (`TEACHING_SLUG`, `DRILL_INSTRUCTOR_SLUG`,
 
 A tag is a **skill** for this purpose when `Tag.teachable` is true — a flag in
 `docs/tags.yaml`, not a category heuristic (TAGS.md §5). It is set on most of
-the `skills` category and on two general traits (Literate, Camouflage), and
+the `skills` category and on one general trait (Literate), and
 deliberately withheld from two kinds of skill:
 
 - **masteries**, the 12–15 point capstones — a capstone must not be had for

@@ -563,8 +563,7 @@ tags:
     purchasable: false
 
   # The Court — general-court is gated behind `courtier` at the group level,
-  # same idiom as general-cerberon/general-brigand, so none of these need their
-  # own requiredTag.
+  # same idiom as general-cerberon, so none of these need their own requiredTag.
   # A token price. Knighthood is mostly conferred -- the Baron's hand, or the
   # Seasoned Knight kit below -- so the point is not what it buys you but that
   # you had to spend something to claim it at creation. Creation only: the
@@ -2611,40 +2610,28 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # Two Brigand-group entries that are skills in everything but their category.
-  # The Brigand gate is a GROUP gate (taggroups.yaml `general-brigand`), and a
-  # group's category has to match its tags', so a brigand-only competence has
-  # to be filed under `general` — same reason Forger and Pickpocketing (Skilled)
-  # already are. (Pickpocketing (Basic) used to be a third; it left the group on
-  # 2026-09-16 and is open to everyone now.)
+  # The last tag out of the Brigand group, which was deleted on 2026-09-20
+  # along with the Brigand seat it gated. Stays `general` rather than `skills`:
+  # biting hard is a thing you are, not a thing you were taught.
   biter:
-    catalog: gm
+    catalog: all
     name: Biter
     category: general
-    group: general-brigand
+    group: general-traits
     description: "You are a ferocious and uninhibited biter. It works even when you're {tag:bound}."
     fighting: { tree: melee, tiers: 0.3 }
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
-  camouflage:
-    catalog: gm
-    name: Camouflage
-    category: general
-    group: general-brigand
-    teachable: true
-    description: "You blend into the forest. Useful for ambushes."
-    fighting: { situational: true }
-    pointCost: 3
-    purchasable: true
-    purchasableAfterStart: true
-
+  # Out of the Brigand group on 2026-09-20 and made an ordinary skill: forging
+  # a hand is a craft you learn, not a thing you are born into a camp holding.
+  # The gate was never on the tag, it was on the group.
   forger:
-    catalog: gm
-    name: Forger
-    category: general
-    group: general-brigand
+    catalog: all
+    name: Forgery
+    category: skills
+    teachable: true
     description: "You know how to make letters, seals, and writing appear as though another wrote it. Allows you to craft wax seals."
     pointCost: 2
     purchasable: true
@@ -2655,10 +2642,10 @@ tags:
   # purpose: db:sync-tags is upsert-only, so renaming in place keeps every
   # Brigand who already bought it. general-traits carries no requiredTag, which
   # is the whole of "anyone may learn this now" — the gate was never on the tag,
-  # it was on the group (taggroups.yaml `general-brigand`).
+  # it was on the group.
   pickpocket:
     catalog: all
-    name: Pickpocketing (Basic)
+    name: Pickpocketing I
     # See comment above: slug stays `pickpocket` on purpose, so the rename
     # keeps every Brigand who already bought it. keepSlug: true tells the
     # syncer this drift is deliberate.
@@ -2675,13 +2662,16 @@ tags:
   # purchase and leave every gate in db/lib/pickpocket.js having to accept
   # either tag to mean the same thing.
   #
-  # Still in general-brigand, so the Basic rung is open to everyone and the
-  # second one is not.
+  # Out of the Brigand group on 2026-09-20: both rungs are open to everyone now,
+  # and the pair reads as a ladder the way Brewing I/II/III does.
   pickpocketing-skilled:
     catalog: all
-    name: Pickpocketing (Skilled)
+    name: Pickpocketing II
+    # Roman-numeral rung name; slug kept as-is so nobody loses the tag and the
+    # requiredTag reference above stays valid.
+    keepSlug: true
     category: general
-    group: general-brigand
+    group: general-traits
     description: "Your pickpocketing almost always succeeds."
     pointCost: 2
     requiredTag: pickpocket
@@ -2689,34 +2679,11 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  brigand-leader:
-    catalog: gm
-    name: Brigand Leader
-    category: general
-    group: general-brigand
-    description: "The camp in the Black Hills answers to you."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
-  # The new general `climbing` skill overlaps this brigand-gated trait.
-  # Gunboat to decide whether one of them should go.
-  acrobat:
-    catalog: gm
-    name: Acrobat
-    category: general
-    group: general-brigand
-    description: "Your exploits are of some renown."
-    pointCost: 3
-    purchasable: true
-    purchasableAfterStart: true
-
   wanted:
-    catalog: gm
+    catalog: all
     name: Wanted
     category: general
-    group: general-brigand
+    group: general-traits
     description: "The Cerberon know your face and have a reward on your head."
     pointCost: -5
     # named, not true: they know your FACE. A hood or a Disguise Kit's false
@@ -14200,8 +14167,8 @@ tags:
 
   # THE SIX COURTIER SEALS are the one place a tag is both bought and made, and
   # TAGS.md §4's "nothing is both" invariant is knowingly bent here. A courtier
-  # buys their own mark at creation; a Forger (Brigands only, general-brigand)
-  # FORGES somebody else's at 1 turn and 2 ⬢. That is the whole feature — the
+  # buys their own mark at creation; a character with Forgery FORGES somebody
+  # else's at 1 turn and 2 ⬢. That is the whole feature — the
   # point cost is the honest route and the recipe is the dishonest one, and
   # they are meant to reach the same object. It is not an Add Tag loophole:
   # §3b removed the menu's buy route, so `craftable` here only ever costs
