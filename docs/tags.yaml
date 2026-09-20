@@ -7928,7 +7928,12 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    depotPrice: 2
+    # 3 in, 1 out since 2026-09-20. The sell price is deliberately unchanged —
+    # mining pays more now, and a day's ⬢ plus its stones already sits where it
+    # should against a smith's turn and a Factory shift (MINING.md, DEPOT.md §4).
+    # What moved is the BUY side: at 2 ¢ the station was an endless ⬢ faucet
+    # undercutting the prospector the rework exists to make worth hiring.
+    depotPrice: 3
     sellable: true
     sellablePrice: 1
 

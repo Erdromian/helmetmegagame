@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-20 · The Depot pays the same for ⬢ and charges half again more
+
+✎ The station now sells Resources at 3 ¢ rather than 2, so buying your way past a prospector costs something  
+✎ It still pays 1 ¢ for them, unchanged — a day's digging already sits level with a smith's turn
+
 ## 2026-09-20 · Mining reworked: a pickaxe to dig, Prospecting to dig well
 
 ✚ A Pickaxe is now what lets you mine at all — the Prospector's Pick renamed, and smiths make them on a Hatchet's terms  

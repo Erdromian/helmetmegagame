@@ -767,17 +767,29 @@ one made offworld. That is the point of the seat; what changed is that ⬢ and
 Ration Boxes are on the general shelf, and the drink and drug shelf is one chip
 away (§0e).
 
-**⬢ themselves are a ware, at 2 ¢ each in and 1 ¢ each out.** They are the
+**⬢ themselves are a ware, at 3 ¢ each in and 1 ¢ each out.** They are the
 one line on either table the order path handles by hand — `RESOURCE_WARE_ID` is
 the `resources` tag's own slug rather than a cuid, so it can never collide with
 a real ware's id, and `depotOrderImpl` splits it out before anything reaches a
-`Tag` lookup. It is on the general manifest, so anybody may order it. The 2:1 spread is doing real work. It means
+`Tag` lookup. It is on the general manifest, so anybody may order it. The 3:1 spread is doing real work. It means
 importing food is a losing trade, which is the whole reason it exists: the
 Merchant should be shipping things Ravenheart cannot make, not undercutting its
 farmers with cheaper grain. And because the buy price is strictly above the
 sell price, no amount of round-tripping prints an obol — the same invariant
 `db/lib/syncTags.js` enforces for every priced tag, just held by hand here
 since there is no row to check.
+
+**It was 2:1 until 2026-09-20, and the buy side is what moved.** At 2 ¢ the
+station was an unlimited ⬢ faucet with no scarcity behind it, so a crafter never
+had to find a prospector — which makes the Mine button's whole payout
+(`MINING.md`) a thing nobody needs to buy. 3 ¢ widens the price a prospector can
+ask from 1–2 ¢ to 1–3 ¢, which is the room a negotiation needs.
+
+**Do not raise it past 3 without re-reading §4's smithed-gear formula.** That
+formula is `resourceCost + wage` and credits material at **1 ¢ per ⬢** while the
+station charges 3, so a smith who buys rather than mines is already eating twice
+his `resourceCost` in unpriced cost. At 3 the low rungs still clear; at 4 Dead
+Simple and Simple stop paying for anyone without their own supply.
 
 **Paper undercuts everything, and the station sells it by the ream.** A
 `stack-of-paper` is 3 ¢ and consumes into twenty sheets, so writing costs a
@@ -938,8 +950,8 @@ the difference between that and the column below is his margin. Nothing in code
 sets what he pays a player; that is his negotiation.
 
 **⬢ sell back at 1 ¢ each**, through the drop box like any other ware. This is
-the only way material becomes money, and it costs half its face value, since the
-station charges 2 ¢ for the same ⬢ coming down (§3). Anybody may do it
+the only way material becomes money, and it costs two thirds of its face value,
+since the station charges 3 ¢ for the same ⬢ coming down (§3). Anybody may do it
 now, which is the point: a labourer with a cart of material and no buyer has a
 counter to walk it to.
 

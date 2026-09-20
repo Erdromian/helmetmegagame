@@ -58,7 +58,16 @@ const ATM_LOCATION_SLUGS = new Set([
 // The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays RESOURCE_EXPORT_PRICE for them back, so the
 // round trip always loses money — the spread can never be run in a loop to print obols (db/lib/syncTags.js
 // enforces the same invariant for every priced tag).
-const RESOURCE_IMPORT_PRICE = 2;
+//
+// THESE TWO ARE THE REAL PRICES. The `resources` tag carries a matching depotPrice/sellablePrice, but
+// the depot page and its order action both hand-build the ⬢ row off these constants rather than off the
+// tag (the tag query excludes RESOURCE_WARE_ID outright), so the tag's copy is decorative for this
+// surface and read only by things pricing AGAINST ⬢. Change both together or they drift apart silently.
+//
+// Import went 2 -> 3 on 2026-09-20 with the mining rework (MINING.md, DEPOT.md §3). At 2 the station was
+// an unlimited ⬢ faucet, so a crafter never had to find a prospector. Export is deliberately unchanged:
+// a mining day pays more now, and its ⬢ plus its stones already sit level with a smith's turn.
+const RESOURCE_IMPORT_PRICE = 3;
 const RESOURCE_EXPORT_PRICE = 1;
 
 // The id the ⬢ row carries on the Order and Price List tables. It was a sentinel when Resources weren't
