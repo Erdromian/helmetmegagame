@@ -382,21 +382,12 @@ export async function resolveCraftPayer(character, payerKey, cost) {
   return payer;
 }
 
-// Smithing only: an obol is one ⬢ (DEPOT.md), so a smith may pay in any mix of the two — some off their own coin, the rest through the usual payer. Clamped to the recipe's own total (excess obols wasted); refused outright, not silently clamped, if the smith doesn't hold that many — else the payer gets billed for a mistake that wasn't theirs.
-const OBOL_SLUG = "obol";
-function resolveObolSpend(character, tag, totalCost, rawObolsSpent) {
-  if (craftFamily(tag) !== "smithing") return { obolsSpent: 0, line: null };
-  const obolsSpent = parseCount(rawObolsSpent, { min: 0, max: totalCost }) ?? 0;
-  if (!obolsSpent) return { obolsSpent: 0, line: null };
-  const held = character.tags.find((ct) => ct.tag?.slug === OBOL_SLUG);
-  if (!held || held.quantity < obolsSpent) {
-    throw new UserError(`You're carrying ${held?.quantity ?? 0} Obols.`);
-  }
-  return {
-    obolsSpent,
-    line: { tagId: held.tagId, tagName: held.tag.name ?? "Obol", quantity: obolsSpent },
-  };
-}
+// A recipe is paid in ⬢ and nothing else. Smithing used to be the one exception —
+// resolveObolSpend let a smith put held Obols toward the cost at 1:1 — and it was removed on
+// 2026-09-20. An obol is still one ⬢, but they stopped being the same KIND of thing in 9/2026
+// (DEPOT.md §0): ⬢ are material, coin is money, and a coin paying a recipe was the last hole
+// in that rule. It also made the Depot's price for ⬢ meaningless to the one trade that buys
+// the most of them. Do not add it back.
 
 // requireFreeMove and fileAutoRoutine moved to web/lib/moveSpend.js so Thanati's Recover Equipment (thanatiActions.js) spends a Move by the same two rules as Bury, Engrave and Extract.
 
@@ -583,8 +574,6 @@ export async function craftRequestImpl({
   inscription,
   // Units the dialog TOLD the player would bill against their Move (0 if shown free). The server refuses to bill more than acknowledged — a stale tab whose free allowance ran out elsewhere gets a retry, not a silent Move charge; "Declining crafts nothing" is enforced here, not just in the dialog.
   billedSeen: rawBilledSeen,
-  // Smithing only (resolveObolSpend re-checks): held Obols to put toward this recipe's cost, rest billed to the usual payer. Ignored on any other recipe.
-  obolsSpent: rawObolsSpent,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
 
@@ -648,20 +637,7 @@ export async function craftRequestImpl({
   const custom = mayCustom ? customWanted : { name: "", description: "", active: false };
   const surcharge = mayCustom ? customSurcharge : 0;
   const turns = tag.requirementTurns ?? 1;
-  const totalCost = ((tag.requirementResources ?? 0) + surcharge) * quantity;
-  const { obolsSpent, line: obolSpendLine } = resolveObolSpend(
-    character,
-    tag,
-    totalCost,
-    rawObolsSpent,
-  );
-  // MERGED BY TAG, same reasoning as the ingredient-slot merge above: a recipe naming `obol` as its own ingredient must not draw against the same stack twice under two separate plan entries.
-  if (obolSpendLine) {
-    const existing = itemPlan.spend.find((s) => s.tagId === obolSpendLine.tagId);
-    if (existing) existing.quantity += obolSpendLine.quantity;
-    else itemPlan.spend.push(obolSpendLine);
-  }
-  const cost = totalCost - obolsSpent;
+  const cost = ((tag.requirementResources ?? 0) + surcharge) * quantity;
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
 

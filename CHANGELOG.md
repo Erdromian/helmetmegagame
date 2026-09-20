@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-20 · A recipe is paid in material, never in coin
+
+− Paying a smithing recipe with your own Obols  
+✎ ⬢ are the only way to pay any recipe now, which is what makes the Depot's price for them mean something
+
 ## 2026-09-20 · The Depot pays the same for ⬢ and charges half again more
 
 ✎ The station now sells Resources at 3 ¢ rather than 2, so buying your way past a prospector costs something  

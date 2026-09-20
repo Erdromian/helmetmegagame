@@ -7932,8 +7932,13 @@ tags:
     # through the Merchant and the train and nowhere else, which is what makes
     # a purse of them worth exactly as much as your ability to reach the Depot.
     #
-    # Paying a recipe's cost WITH held obols still works (resolveObolSpend,
-    # requestActions.js) — that half was never the problem.
+    # NOR DOES A RECIPE TAKE THEM. Paying a smithing recipe's cost with held
+    # obols used to work (resolveObolSpend, in actions/crafting.js — never in
+    # requestActions.js, whatever the old comment here claimed). Removed
+    # 2026-09-20. An obol is still one ⬢, but the two stopped being the same
+    # KIND of thing in 9/2026: ⬢ are material, coin is money, and a coin
+    # paying a recipe was the last hole in that rule. It also made the Depot's
+    # price for ⬢ meaningless to the trade that buys the most of them.
 
   cross:
     catalog: gm
