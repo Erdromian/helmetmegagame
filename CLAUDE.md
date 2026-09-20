@@ -273,6 +273,7 @@ you pick the right doc — they are never enough to change code with.
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
 | [`THREATS.md`](docs/systemdocs/THREATS.md) | You're touching the antagonist seats — the threat catalog, Assign, mid-round Spawn, or the two Threats sections on `/gm/dev` |
+| [`VAMPIRE.md`](docs/systemdocs/VAMPIRE.md) | You're touching the Vampire — blood level or humanity, their checkpoint tags, the forced Bloodcrazed/Wight compulsion, or **anything that asks whether a feeding should restore blood** (it never does automatically — see that doc) |
 | [`ORACLE.md`](docs/systemdocs/ORACLE.md) | You're touching the per-turn chronicle — `/gm/oracle`, the zone writers and the editor, the prompts, or **anything that calls a language model** |
 | [`REDESIGN.md`](docs/systemdocs/REDESIGN.md) | You want the record of the game 3 redesign — what it was going for, the decisions Bascinet made, and which phase landed what. `DESIGN-SYSTEM.md` holds the rules now; this doc no longer duplicates them |
 

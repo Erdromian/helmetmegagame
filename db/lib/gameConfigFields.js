@@ -19,6 +19,7 @@ const GROUPS = [
   { key: "desires", name: "Desires" },
   { key: "clock", name: "Turn clock" },
   { key: "catatonic", name: "Catatonic" },
+  { key: "vampire", name: "Vampire" },
   { key: "features", name: "Features" },
   { key: "discord", name: "Discord" },
 ];
@@ -145,6 +146,18 @@ const FIELDS = [
   {
     key: "catatonicDeathTurns", type: "int", group: "catatonic", default: 4, min: 0, max: 60,
     label: "Death after N Catatonic turns (0 = off)",
+  },
+
+  // --- Vampire -----------------------------------------------------------
+  {
+    key: "vampireBloodDecayPerDay", type: "int", group: "vampire", default: 34, min: 0, max: 100,
+    label: "Blood decay / day",
+    info: "Scaled by the closing turn's own length — 3 days to empty a full meter at the default.",
+  },
+  {
+    key: "vampireHumanityRegenPerDay", type: "int", group: "vampire", default: 10, min: 0, max: 100,
+    label: "Humanity regen / day",
+    info: "Scaled the same way. Stops entirely once a vampire holds Bestial.",
   },
 
   // --- Features --------------------------------------------------------------

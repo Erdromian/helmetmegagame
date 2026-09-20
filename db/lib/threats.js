@@ -196,6 +196,27 @@ const THREATS = [
       tagPoints: 10,
     },
   },
+  // Assign-only, deliberately no `spawn` block — every other entry above
+  // that carries `assign` also carries `spawn`, and this is the first
+  // exception. A Vampire is an existing, opted-in player a GM hands the seat
+  // to (docs/systemdocs/VAMPIRE.md); it is never a brand-new arrival, so
+  // there is nothing for a Spawn offer to hand over. No Role of its own
+  // (no unique kit/items in scope yet — the Blood Abilities menu is a
+  // separate future task), so `brief` carries what a Role's own charter
+  // would otherwise say, per this file's own rule for a seat with no Role.
+  {
+    slug: "vampire",
+    name: "Vampire",
+    optIn: true,
+    assignable: true,
+    seatTagSlug: "vampire",
+    zone: "Anywhere",
+    brief: [
+      "You are a Vampire. Your blood level and your humanity are yours to manage — read the Vampire document for the full mechanics.",
+      "Feed on the living, or lose yourself to the thirst. Losing your humanity for good costs you the ability to hide what you are.",
+    ],
+    assign: { tagPoints: 0, tagSlugs: ["vampire"] },
+  },
   // Retired (docs/archive/windlander.yaml); the box stays as a decoy.
   {
     slug: "windlander",

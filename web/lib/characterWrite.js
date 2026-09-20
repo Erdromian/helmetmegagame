@@ -16,6 +16,7 @@ import {
   applyTagOpsInTx as applyTagOpsInTxDb,
 } from "@lifeweb/db/lib/tagOps";
 import { clampMood } from "@lifeweb/db/lib/mood";
+import { clampBlood, clampHumanity } from "@lifeweb/db/lib/vampire";
 import { readCharacterResources, setCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { UserError } from "@/lib/actionResult";
 import { dynastyLastName } from "@/lib/dynasty";
@@ -37,6 +38,8 @@ export const EDITABLE_FIELDS = [
   "resources",
   "tagPoints",
   "mood",
+  "vampireBloodLevel",
+  "vampireHumanity",
   "turnPingOptIn",
   "avatarUploadBlocked",
 ];
@@ -150,6 +153,10 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
   }
   // The mood dial's own clamp (MOOD.md), so the rounding rule lives in one place.
   if ("mood" in picked) data.mood = clampMood(Number(picked.mood));
+  // The Vampire's two meters (VAMPIRE.md) — same clamp-lives-in-one-place
+  // reasoning as mood above.
+  if ("vampireBloodLevel" in picked) data.vampireBloodLevel = clampBlood(Number(picked.vampireBloodLevel));
+  if ("vampireHumanity" in picked) data.vampireHumanity = clampHumanity(Number(picked.vampireHumanity));
   // tagPoints is allowed to go negative on purpose (CHARACTERS.md) — clamping at 0 would let a broke player take a drawback's points for free.
   if ("tagPoints" in picked) data.tagPoints = intOrNull(picked.tagPoints) ?? 0;
   if ("turnPingOptIn" in picked) data.turnPingOptIn = bool(picked.turnPingOptIn);

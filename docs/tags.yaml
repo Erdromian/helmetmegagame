@@ -401,6 +401,20 @@ tags:
         - all: true
           exceptFamilies: [demoness]
 
+  # The Vampire's seat tag (db/lib/threats.js). Same posture as `judge`
+  # above: role-granted, never bought, no group — the point cost is
+  # cosmetic. It exists so the threat roster can find who holds the seat
+  # without a column to keep in sync. `secret` for the same reason Judge is:
+  # an antagonist seat has no business showing up in the player's Tag
+  # Catalog. See docs/systemdocs/VAMPIRE.md.
+  vampire:
+    catalog: secret
+    name: Vampire
+    category: general
+    description: "You are a Vampire."
+    pointCost: 0
+    purchasable: false
+
   # The Thanati Leader's mark on top of the thanati Belief below — the roster
   # tells the two seats apart by this tag (db/lib/threats.js).
   thanati-leader:
@@ -1733,8 +1747,12 @@ tags:
     description: "Your skin is pale as milk, marking you as a recent migrant from the Caves."
     pointCost: 0
     visible: true
-    # Role-granted only (the Migrant's starting tag). Closed to the point-buy
-    # menu because Saint gates on it — buying Pale would buy the gate.
+    # Role-granted only — two granters now, not one. The Migrant's starting
+    # tag, and (docs/systemdocs/VAMPIRE.md) db/lib/vampirePass.js, which
+    # grants the same slug at blood <= 66 per the design doc's own
+    # instruction to reuse it rather than mint a second pallor tag. Closed to
+    # the point-buy menu because Saint gates on it — buying Pale would buy
+    # the gate.
     purchasable: false
     purchasableAfterStart: false
 
@@ -3502,6 +3520,157 @@ tags:
     purchasableAfterStart: false
     durationTurns: 1
     fighting: { tree: both, tiers: -1 }
+
+  # --- The Vampire (docs/systemdocs/VAMPIRE.md) --------------------------
+  # Two checkpoint-tag tracks, granted/dropped every turn close by
+  # db/lib/vampirePass.js off Character.vampireBloodLevel/vampireHumanity.
+  # Blood urgency (flush/satiated/thirsty/famished/bloodcrazed) is hidden and
+  # mutually exclusive — always exactly one held. Appearance (pale, reused
+  # from above; black-sclera) is visible and additive. Humanity
+  # (humane/estranged/disturbed/warped) is hidden and mutually exclusive;
+  # bestial/wight are its permanent terminal state at 0 and carry no
+  # durationTurns. All are role-granted only, never bought.
+  flush:
+    catalog: gm
+    name: Flush
+    category: status
+    group: status-vampire
+    description: "The blood of a mortal courses through your veins, rejuvenating you."
+    gambitBonus: 1
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  satiated:
+    catalog: gm
+    name: Satiated
+    category: status
+    group: status-vampire
+    description: "Your thirst for human blood is satisfied."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  thirsty:
+    catalog: gm
+    name: Thirsty
+    category: status
+    group: status-vampire
+    description: "Your appetite for blood is growing, it would be wise to find a victim soon..."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  famished:
+    catalog: gm
+    name: Famished
+    category: status
+    group: status-vampire
+    description: "You can barely contain your insatiable urge for blood! If you do not find a victim soon, you will lose all control."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  # Not visible itself, per the design doc — the visible tell at 0 blood is
+  # Pale + Black Sclera, already held by the time this grants. Forces the
+  # feeding Gambit + Attack compulsion: db/lib/vampireCompulsion.js.
+  bloodcrazed:
+    catalog: gm
+    name: Bloodcrazed
+    category: status
+    group: status-vampire
+    description: "You have lost all control of yourself and will prey upon the first person you see!"
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  black-sclera:
+    catalog: gm
+    name: Black Sclera
+    category: status
+    group: status-vampire
+    description: "The whites of their eyes look like bottomless black pits!"
+    visible: true
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  humane:
+    catalog: gm
+    name: Humane
+    category: status
+    group: status-vampire
+    description: "Your connection to the mortal world around you is secure, for now."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  estranged:
+    catalog: gm
+    name: Estranged
+    category: status
+    group: status-vampire
+    description: "You feel markedly detached from the rest of the world."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  disturbed:
+    catalog: gm
+    name: Disturbed
+    category: status
+    group: status-vampire
+    description: "You have lost any sense of remorse for the horrible things you've done."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  warped:
+    catalog: gm
+    name: Warped
+    category: status
+    group: status-vampire
+    description: "You find yourself at odds with the mortal world, and the those who inhabit it."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  # Permanent — no durationTurns. Disables vampireHumanity regen for as long
+  # as this is held, checked by the tag rather than the number, so a GM
+  # manually raising humanity back up does not quietly restart it.
+  bestial:
+    catalog: gm
+    name: Bestial
+    category: status
+    group: status-vampire
+    description: "No more a human, your inner nature has broken free and can be subdued no longer!"
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Permanent — no durationTurns. Same forced feeding-Gambit + Attack
+  # compulsion as Bloodcrazed (db/lib/vampireCompulsion.js), for as long as
+  # this is held.
+  wight:
+    catalog: gm
+    name: Wight
+    category: status
+    group: status-vampire
+    description: "A pale ghoul with vicious fangs! It lurks in search of blood."
+    visible: true
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
 
   catatonic-afk:
     catalog: gm

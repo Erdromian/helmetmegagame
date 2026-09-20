@@ -6,6 +6,7 @@ import { TITLE_WORDS, NAME_LIMITS, AGE_MIN, AGE_MAX, GENDERS, GENDER_LABELS } fr
 // The dial's own ends, not a copy of them: this input sat on a hardcoded 64 and
 // went stale the day Ecstatic raised the ceiling (docs/systemdocs/MOOD.md).
 import { MOOD_MAX, MOOD_MIN } from "@lifeweb/db/lib/mood";
+import { BLOOD_MAX, BLOOD_MIN, HUMANITY_MAX, HUMANITY_MIN, bloodUrgencyBand } from "@lifeweb/db/lib/vampire";
 
 // Every scalar on the Character row a GM may set, in one tab.
 //
@@ -198,6 +199,43 @@ export default function IdentityTab({ staged, lastNameLocked, locations, roles, 
               value={staged.mood ?? 0}
               onChange={(e) => onField("mood", Number(e.target.value))}
               className={touched("mood")}
+            />
+          </label>
+        </div>
+      </section>
+
+      {/* Only meaningful for a character holding the Vampire seat
+          (docs/systemdocs/VAMPIRE.md) — its own section rather than folded
+          into Economy above, since these numbers mean nothing on anyone
+          else's sheet. */}
+      <section className="panel flex flex-col gap-3 p-4">
+        <h2 className="panel-header">Vampire</h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="field">
+            <span className="field-label">Blood level</span>
+            <input
+              type="number"
+              min={BLOOD_MIN}
+              max={BLOOD_MAX}
+              step={1}
+              value={staged.vampireBloodLevel ?? 100}
+              onChange={(e) => onField("vampireBloodLevel", Number(e.target.value))}
+              className={touched("vampireBloodLevel")}
+            />
+            <span className="text-sm opacity-70">
+              {bloodUrgencyBand(staged.vampireBloodLevel ?? 100)}
+            </span>
+          </label>
+          <label className="field">
+            <span className="field-label">Humanity</span>
+            <input
+              type="number"
+              min={HUMANITY_MIN}
+              max={HUMANITY_MAX}
+              step={1}
+              value={staged.vampireHumanity ?? 100}
+              onChange={(e) => onField("vampireHumanity", Number(e.target.value))}
+              className={touched("vampireHumanity")}
             />
           </label>
         </div>

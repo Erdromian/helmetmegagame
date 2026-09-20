@@ -619,6 +619,14 @@ model GameConfig {
   // unresolvable slug makes db/lib/stablePass.js skip the eviction and log,
   // rather than delete anything. See ARELITZ.md.
   stableOverflowRoomSlug String @default("farms-fields")
+
+  // Per-DAY rates for the Vampire's two meters (docs/systemdocs/VAMPIRE.md).
+  // db/lib/vampirePass.js scales these by the closing Turn's own
+  // turnLengthHours / 24, so "3 days to empty" and "10 a day" hold true
+  // regardless of the server's turn length. 34/day empties a full 100 in 3
+  // days (100/3, rounded); 10/day matches the design doc's own figure.
+  vampireBloodDecayPerDay    Int @default(34)
+  vampireHumanityRegenPerDay Int @default(10)
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button
@@ -2137,6 +2145,20 @@ model Character {
   // Starving threshold. Used to count the consecutive turns that eventually
   // grant `dying` (STARVING_DEATH_TURNS in db/lib/hunger.js).
   starvingSinceTurn Int?
+
+  // The Vampire's two 0-100 stats (docs/systemdocs/VAMPIRE.md). Meaningless
+  // on a character not holding the `vampire` seat tag, same posture as
+  // hungerValue on a Hungerless one. Named with a `vampire` prefix rather
+  // than bare `bloodLevel`/`humanity` — this repo already has an unrelated,
+  // load-bearing "blood" concept (Character.lifewebBlood, the Lifeweb Tower;
+  // see CLAUDE.md), and the prefix keeps a `grep -i blood` from confusing the
+  // two. Decays/regens once a turn in db/lib/vampirePass.js, scaled by the
+  // closing Turn's own turnLengthHours so "3 days to empty" / "10 a day"
+  // hold true whatever the server's turn length is set to. Never shown to a
+  // player as a number — the sheet only ever shows the tag chips these
+  // stats drive.
+  vampireBloodLevel Int @default(100)
+  vampireHumanity   Int @default(100)
 
   // The mood dial, +64 down to −100 (docs/systemdocs/MOOD.md). Nothing shows
   // the number to a player; db/lib/mood.js projects the band it falls in onto

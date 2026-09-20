@@ -141,6 +141,13 @@ groups:
   status-debuffs:
     name: Debuffs
     category: status
+  # The Vampire's checkpoint tags (docs/systemdocs/VAMPIRE.md), off both the
+  # blood-level and humanity meters. Kept as one group rather than split
+  # across Buffs/Debuffs — most of these are informational bands, not a
+  # buff or a debuff.
+  status-vampire:
+    name: Vampirism
+    category: status
   items-food:
     name: Food
     category: items
