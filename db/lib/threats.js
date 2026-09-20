@@ -229,8 +229,8 @@ const THREATS = [
     seatTagSlug: "vampire",
     zone: "Anywhere",
     brief: [
-      "You are a Vampire. Your blood level and your humanity are yours to manage — read the Vampire document for the full mechanics.",
-      "Feed on the living, or lose yourself to the thirst. Losing your humanity for good costs you the ability to hide what you are.",
+      "You are a Vampire. You must feed on hapless mortals to sustain yourself. You have a blood and humanity stat, manage them carefully. View your vampire document for more information.",
+      "Let none know of your true nature, they would not understand your gift and seek to end your immortal life.",
     ],
     assign: { tagPoints: 0, tagSlugs: ["vampire"] },
   },
