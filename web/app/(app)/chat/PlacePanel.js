@@ -10,6 +10,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
 import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
+import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
 import {
   loadAffordances,
   flipGate,
@@ -22,6 +23,7 @@ import {
   openConversation,
   ringBell,
   pray,
+  playSlots,
   turretState,
   toggleTurret,
   speakOnIntercom,
@@ -100,9 +102,12 @@ export function usePlaceActions(initialAffordances, onChanged) {
       setError(null);
       setNotice(null);
       if (entry.kind === "gate") {
+        // A room that named its control is asked about that ("The shutters
+        // come down"), not about a way to somewhere — db/lib/placeAffordances.js.
+        const thing = entry.control ? `The ${entry.control.toLowerCase()}` : `The way to ${entry.farName}`;
         const ask = entry.isOpen
-          ? { title: "Shut the way?", message: `The way to ${entry.farName} closes.`, confirmLabel: "Shut it" }
-          : { title: "Open the way?", message: `The way to ${entry.farName} opens.`, confirmLabel: "Open it" };
+          ? { title: "Shut it?", message: `${thing} closes.`, confirmLabel: "Shut it" }
+          : { title: "Open it?", message: `${thing} opens.`, confirmLabel: "Open it" };
         // Confirm first, transition second — never inside startTransition
         // (DESIGN-SYSTEM.md §8).
         if (!(await confirm(ask))) return;
@@ -157,6 +162,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       )}
       {dialog?.kind === "bell" && <BellDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "pray" && <PrayDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "slots" && <SlotDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
       {dialog?.kind === "dropbox" && <DropBoxDialog onClose={close} onDone={say} />}
@@ -477,6 +483,36 @@ function PrayDialog({ entry, onClose, onDone }) {
   );
 }
 
+// The Den's slot machine. One confirm, because the whole act is deciding to
+// put five obols in — everything after that is the machine's business, and it
+// tells the room what it did (db/lib/slotMachine.js).
+function SlotDialog({ entry, onClose, onDone }) {
+  const { run, pending, error } = useActionRunner();
+  return (
+    <Modal open title="The slot machine" onClose={onClose}>
+      <p className="text-sm text-muted">{SLOT_PROMPT}</p>
+      <FormError>{error}</FormError>
+      <div className="modal-actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={pending}
+          onClick={() =>
+            run(playSlots, { roomId: entry.roomId }, {
+              onOk: (res) => {
+                onDone(res);
+                onClose();
+              },
+            })
+          }
+        >
+          Enter coins
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
 function TurretDialog({ entry, onClose, onDone }) {
   const [state, setState] = useState(null);
   const { run, pending, error } = useActionRunner();
@@ -540,9 +576,11 @@ function TurretDialog({ entry, onClose, onDone }) {
 
 // -------------------------------------------------------------- the counter
 
-// The ATM, the drop box and the Merchant's gun are fixtures on walls at the
-// Depot (db/lib/placeAffordances.js), so they open from here and from Discord
-// rather than from /depot. Every one of them re-checks the standing, the
+// The ATM, the drop box and the Merchant's gun are fixtures on walls
+// (db/lib/placeAffordances.js), so they open from here and from Discord rather
+// than from /depot. The drop box and the gun are the Depot's alone; the ATM is
+// wherever db/lib/depot.js#ATM_ROOM_SLUGS says there is one — the Depot's
+// counter, the Inn's bar and the Den's. Every one of them re-checks the standing, the
 // papers and the money on the server — a dialog outlives somebody walking out
 // of the room, which is the whole reason none of this is decided here.
 //

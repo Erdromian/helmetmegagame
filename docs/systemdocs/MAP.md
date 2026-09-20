@@ -41,6 +41,15 @@ same codes, so the plate links straight at them.
 Zones not yet renumbered still carry descriptive slugs: the Black Hills
 (`hills`, plus `hills-gullies` and the rest), the Caves and the Depths. Each
 of those keeps a `slug:` override in `nodes.yaml` until its own pass lands.
+
+One of those slugs now reads oddly and is staying as it is: `hills-north` is
+called the **Refuse Pit**, which is what the plate has always labelled it and
+what `docs/documents.yaml` has always told the Baron, the Tribune and the
+Ordinator the lift comes down in. The name moved to match the drawing; the slug
+is a coordinate and does not move for a rename. The Baron's lift moved with it —
+`fortress-4` ↔ `hills-north`, `hidden: elevator-key`, and the Elevator Room at
+the bottom of the shaft is `north-hills-elevator` rather than the Undercroft's
+old `undertown-1-6`.
 The older rule — bare slugs for built places, zone-prefixed ones for open
 country — was solving collisions between a ravine here and a ravine there,
 and a coordinate cannot collide.

@@ -64,6 +64,11 @@ const REASONS = {
   // The Meister's cut of a settled sale, coin into the Keep's Vault. Beside TAX
   // rather than a sink: the money does not stop existing, it changes hands.
   SELL_TAX: { flow: FLOW.TRANSFER, label: "Sell tax" },
+  // The Den's slot machine (db/lib/slotMachine.js). A TRANSFER on both legs:
+  // a stake and a payout both change hands between a player and the Exactor,
+  // and neither mints nor burns a coin — which is the whole reason the machine
+  // is backed by a person's account rather than by nothing.
+  SLOTS: { flow: FLOW.TRANSFER, label: "Slot machine" },
   // Kept, unwritten: the generator is gone, but a reason is a plain string and
   // deleting one blanks the old rows that name it.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },

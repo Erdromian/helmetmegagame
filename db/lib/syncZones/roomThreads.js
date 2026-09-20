@@ -15,7 +15,7 @@ const {
   listArchivedPrivateThreads,
 } = require("../discordRest");
 const { locationAnchorRows, locationGateRow } = require("../locationAnchorRow");
-const { roomStarterRow, WATCHTOWER_ROOM_SLUGS } = require("../roomStarterRow");
+const { roomStarterRow, WATCHTOWER_ROOM_SLUGS, gateControlIn } = require("../roomStarterRow");
 const { linksFor, endpoints, gateOperable } = require("../locationGraph");
 const { hashBody } = require("./shared");
 const { buildRoomBody, buildAnchorBody } = require("./bodies");
@@ -136,7 +136,7 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
 
 // Reads the graph rather than the sync's own state, since the button handler
 // refreshes an anchor too and has no sync state to hand.
-async function gatesFor(prisma, locationId) {
+async function gatesFor(prisma, locationId, control = null) {
   const links = await linksFor(prisma, locationId);
   return links
     .filter((link) => gateOperable(link))
@@ -144,6 +144,7 @@ async function gatesFor(prisma, locationId) {
       linkId: link.id,
       isOpen: link.isOpen,
       farName: endpoints(link, locationId).far.name,
+      control,
     }))
     .sort((x, y) => x.farName.localeCompare(y.farName));
 }
@@ -155,7 +156,7 @@ async function gatesFor(prisma, locationId) {
 async function roomComponents(prisma, room, locationId) {
   const rows = [roomStarterRow(room)];
   if (WATCHTOWER_ROOM_SLUGS.has(room.slug)) {
-    rows.push(locationGateRow(await gatesFor(prisma, locationId)));
+    rows.push(locationGateRow(await gatesFor(prisma, locationId, gateControlIn(room.slug))));
   }
   return rows.filter(Boolean);
 }

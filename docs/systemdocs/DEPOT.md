@@ -104,7 +104,7 @@ What your tags decide is the **shelf**, and one seat's paperwork:
 
 | Holder | Can |
 |---|---|
-| **Anyone, standing there** | Order off the general manifest, use the ATM at the counter, put things in the drop box beside it, open an account. |
+| **Anyone, standing there** | Order off the general manifest, use the ATM at the counter, put things in the drop box beside it, open an account. The ATM also stands in the Den's bar (§0g). |
 | **Silver Chip** | …plus the black market: drink, smoke and worse. |
 | **Depot Keycard** | Open a sealed crate. Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
 | **Merchant's Licence** | …plus the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
@@ -335,6 +335,9 @@ above zero.
   TREASURY account the coin comes physically out of the Vault, and a withdrawal
   the Vault cannot cover is **refused, never clamped** — a clamp would hand
   somebody less than they asked for and say nothing.
+- **There are three of them** — the counter's, the Inn's and the Den's. Same
+  machine, same accounts, same Vault behind them; §0l has the list and what
+  did not follow it out of the Depot.
 - An **OFFSHORE** account skips all of that. There is no pile behind it.
 - **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 75) is
   drawn and repaid in obols, and credits the Merchant's own account. The cap is
@@ -632,20 +635,22 @@ Prices print in ¢ throughout, whole, with no decimals anywhere. There is no
 not a reason to offer the other glyph.
 
 **The ATM, the drop box and the gun are not on this page.** They are fixtures on
-walls — `db/lib/placeAffordances.js` — so each is a button on a Room's starter
+walls — `db/lib/placeAffordances.js`, and the ATM's walls are listed in
+`db/lib/depot.js#ATM_ROOM_SLUGS` — so each is a button on a Room's starter
 post on Discord and a dialog in Chat's place panel on the web, and `/depot`
 carries the tab you compare numbers on. The rules behind all three live once in
 `db/lib/depotCounter.js` so both faces answer the same way; the Discord half is
 deliberately thinner, because it is for the moment you are standing at the
 machine with your phone out.
 
-## 0l. There are two ATMs
+## 0l. There are three ATMs
 
-The counter's own machine is on the Storefront. The second is in **the Inn's
-bar** (`town-7-2`), and it is the machine alone: no counter behind it, no
-ordering, no drop box, no sell window, no credit line. A player drinking in town
-can check a balance, take coin out, put coin in and open an account, and that is
-the whole of it.
+The counter's own machine is on the Storefront. The other two are in **the
+Inn's bar** (`town-7-2`) and **the Den's bar** (`undertown-8-1`), and each is
+the machine alone: no counter behind it, no ordering, no drop box, no sell
+window, no credit line. A player drinking in town or in the Den can check a
+balance, take coin out, put coin in and open an account, and that is the whole
+of it.
 
 Both are named once, in `db/lib/depot.js` — `ATM_ROOM_SLUGS` for where the
 button draws (`db/lib/placeAffordances.js`) and `ATM_LOCATION_SLUGS` for where
@@ -663,6 +668,47 @@ stands has never decided what is behind it.
 To put a third machine somewhere, add its room and its location to those two
 sets. Nothing else needs to know.
 
+## 0m. The slot machine, in the Den
+
+Not the Depot's, and in this file because it is the other money fixture bolted
+to a wall. It stands in the **Den's Casino** (`undertown-8-3`) and the code is
+`db/lib/slotMachine.js`, with the table and the prompt split into the
+zero-require `db/lib/slotText.js` so Chat's dialog can read them without
+dragging Prisma into the browser.
+
+Three dice, 5 ¢ a spin, in real coin out of your hand:
+
+| outcome | ways of 216 | pays |
+|---|---|---|
+| three alike | 6 (2.8%) | **50 ¢** — "Jackpot!" |
+| a run, any order (1-2-3 or 4-5-6) | 12 (5.6%) | 15 ¢ |
+| exactly a pair | 90 (41.7%) | 6 ¢ |
+| nothing | 108 (50.0%) | — |
+
+Half of spins pay, and the expected return is 4.72 ¢ against a 5 ¢ stake — a
+**5.6% house edge**. The edge is in the money rather than in how often the
+lights come on, which is how a real machine keeps its cut and still feels worth
+another five. `db/test/slotMachine.test.js` fails if a retune leaves that band.
+
+**The house is a person.** Stakes credit the living Exactor's account and
+payouts are drawn from it, so a good night at the machine costs him and a bad
+one keeps him — and his account is TREASURY-class, so the coin leg goes through
+the Keep's Vault exactly as the ATM's does (§0g). Nothing here mints an obol.
+
+Three consequences worth knowing:
+
+- **It refuses a spin it could not pay out on**, checked against the jackpot
+  rather than against what this pull happens to roll, and *before* it takes the
+  coins. A machine that swallows your five and then cannot hand over the
+  jackpot is a con. In practice the Exactor has to keep about 50 ¢ banked or
+  the Casino goes dark, which is a job somebody has to do.
+- **No Exactor, no machine.** If nobody is alive in the seat it refuses, and
+  says the coin box's owner is nowhere to be found.
+- **The room is told, and the player is told separately.** The line names
+  whoever the room would *see* — a hooded player reads as "A young man", the
+  same as anywhere else — and it goes out on both faces at once, with the same
+  sound (`db/lib/sfx.js`'s four `slot-*` tokens).
+
 ## 1. What it is
 
 A railway terminus in the Caves, tethered to an orbital station the Merchant's
@@ -679,7 +725,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) — open to everyone, read-only unless you are standing there |
 | Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
-| Rooms | `undertown-5-1` (the ATM and the drop box), `undertown-5-2` (the train and the crates, behind a keycard), `undertown-5-3` (the gun), `undertown-5-4`. The Inn's bar carries a second ATM (§0l) |
+| Rooms | `undertown-5-1` (the ATM and the drop box), `undertown-5-2` (the train and the crates, behind a keycard), `undertown-5-3` (the gun), `undertown-5-4`. The Inn's and the Den's bars carry ATMs of their own (§0l) |
 | Gates | the manifests (§0e), plus `depot-keycard` for a sealed crate. `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
 | Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |

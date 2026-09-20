@@ -167,6 +167,12 @@ coin is the same money changing coat — the call `DEPOT_ATM` already made.
 themselves on rows written before the rework, and deleting a reason blanks those
 rows on the panel.
 
+**`SLOTS` arrived with the Den** (`DEPOT.md` §0m). A `TRANSFER` on both legs,
+and deliberately so: a stake and a payout both change hands between a player
+and the Exactor, and neither mints nor burns a coin. The machine is backed by a
+person's account rather than by nothing, which is the whole reason it can be
+robbed and the whole reason it is not a faucet.
+
 **`UNATTRIBUTED` is a feature.** A write that reaches a hook with no context is
 recorded under that reason rather than dropped, so an un-hooked call site shows
 up on the panel as its own bar instead of quietly missing. `applyTransfer` used

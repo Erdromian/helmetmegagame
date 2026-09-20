@@ -20,6 +20,9 @@ const {
 const { ATM_ROOM_SLUGS } = require("./depot");
 const { BELL_ROOM_SLUG } = require("./bell");
 const { XOM_SHRINE_ROOM_SLUG } = require("./xom");
+// The slug only; requiring the machine itself would pull the ledger and the
+// Vault in behind it, the posture CENSOR_OFFICE_ROOM_SLUG above already takes.
+const CASINO_ROOM_SLUG = "undertown-8-3";
 const { linksFor, gateOperable, endpoints, isHeldOpen } = require("./locationGraph");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 
@@ -27,14 +30,29 @@ const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 // here rather than imported from gatehouseTurret.js, which pulls in the whole turret engine.
 const CENSOR_OFFICE_ROOM_SLUG = "fortress-1-2";
 
-// The three rooms that work a gate. Every modular edge in docs/zones.yaml has
-// exactly one of these; Open/Close renders on that room's starter post and
-// NOWHERE ELSE — the winch is in the tower, not on the open road.
-const WATCHTOWER_ROOM_SLUGS = new Set([
-  "fortress-2-3", //       fortress/fortress-2 <-> town/town-8
-  "town-1-2", //           town/town-1         <-> hills/hills-bridge
-  "customs-watchtower", // caves/customs       <-> caves/caves-approach
+// The rooms that work a gate, against what that room calls its control. Every
+// modular edge in docs/zones.yaml has exactly one of these; Open/Close renders
+// on that room's starter post and NOWHERE ELSE — the winch is in the tower,
+// not on the open road.
+//
+// `null` takes the default label, which names the far side, because a
+// watchtower can stand over two gates and "Close" alone would be a coin flip.
+// A room with exactly one gate may name the thing it actually moves instead.
+const GATE_CONTROL_ROOMS = new Map([
+  ["fortress-2-3", null], //       fortress/fortress-2 <-> town/town-8
+  ["town-1-2", null], //           town/town-1         <-> hills/hills-bridge
+  ["customs-watchtower", null], // caves/customs       <-> caves/caves-approach
+  // The Den's basement stairs, worked from the Exactor's desk. Not a
+  // watchtower at all — the first gate in the game whose winch is in an office.
+  ["undertown-9-3", "Shutters"], // undertown/undertown-9 <-> undertown/undertown-8
 ]);
+
+const WATCHTOWER_ROOM_SLUGS = new Set(GATE_CONTROL_ROOMS.keys());
+
+/** What this room calls its gate control, or null for the default label. */
+function gateControlIn(roomSlug) {
+  return GATE_CONTROL_ROOMS.get(roomSlug) ?? null;
+}
 
 // Not a prefix but one fixed id: travel needs no location context, since the handler reads the mover's own locationId.
 const TRAVEL_CUSTOM_ID = "loc:open";
@@ -53,6 +71,7 @@ const ROOM_PRAY_PREFIX = "room:pray:";
 const ROOM_ATM_PREFIX = "room:atm:";
 const ROOM_DROPBOX_PREFIX = "room:dropbox:";
 const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
+const ROOM_SLOTS_PREFIX = "room:slots:";
 
 // The Dropbox's help and empty lines live in ./dropboxText.js (zero requires,
 // so the two client components that show them can import it); re-exported
@@ -127,9 +146,9 @@ const ROOM_AFFORDANCES = [
   // to a wall: you have to be standing at it, and both faces should be able to
   // say so. Most accounts draw on the Keep's Vault through it
   // (db/lib/bankAccounts.js); the Merchant's and the Docker's do not. There are
-  // two of them now (db/lib/depot.js#ATM_ROOM_SLUGS) — the counter's own on the
-  // Storefront, and the Inn's, which is the machine alone with no counter
-  // behind it.
+  // three of them now (db/lib/depot.js#ATM_ROOM_SLUGS) — the counter's own on
+  // the Storefront, the Inn's, and the Den's, and the last two are the machine
+  // alone with no counter behind it.
   {
     id: "atm",
     label: "ATM",
@@ -157,6 +176,15 @@ const ROOM_AFFORDANCES = [
     tone: DANGER,
     prefix: ROOM_DEPOT_TURRET_PREFIX,
     when: (room) => room?.slug === MERCHANTS_OFFICE_ROOM_SLUG,
+  },
+  // The Den's slot machine. The only affordance that takes money off you for
+  // an outcome nobody controls (db/lib/slotMachine.js).
+  {
+    id: "slots",
+    label: "Slot Machine",
+    tone: PLAIN,
+    prefix: ROOM_SLOTS_PREFIX,
+    when: (room) => room?.slug === CASINO_ROOM_SLUG,
   },
   // The Shrine of an Old Man: the only button that hands you a permanent tag that can kill you, with no way back off it.
   {
@@ -197,10 +225,13 @@ function roomAffordances(room) {
   }));
 }
 
-// The label a gate button wears. Far side named because a location can hold
-// two gates and "Close" alone would be a coin flip.
-function gateLabel({ isOpen, farName }) {
-  return `${isOpen ? "Close" : "Open"} the way to ${farName}`;
+// The label a gate button wears. Far side named by default, because a location
+// can hold two gates and "Close" alone would be a coin flip — unless the room
+// working it named its own control, in which case that is the truer word for
+// what the click does ("Close Shutters").
+function gateLabel({ isOpen, farName, control = null }) {
+  const verb = isOpen ? "Close" : "Open";
+  return control ? `${verb} ${control}` : `${verb} the way to ${farName}`;
 }
 
 // EVERYTHING this character can do where they are standing, one ordered
@@ -236,21 +267,23 @@ async function affordancesFor(prisma, character) {
     }
   }
 
-  // Reaching the watchtower IS the permission — anyone the tower's `access:` list lets in may work the gate.
-  const towerHere = open.some((room) => WATCHTOWER_ROOM_SLUGS.has(room.slug));
+  // Reaching the room IS the permission — anyone its `access:` list lets in may work the gate.
+  const gateRoom = open.find((room) => WATCHTOWER_ROOM_SLUGS.has(room.slug)) ?? null;
+  const control = gateRoom ? gateControlIn(gateRoom.slug) : null;
   const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
   for (const link of links ?? []) {
     if (!gateOperable(link)) continue;
-    if (!towerHere) continue;
+    if (!gateRoom) continue;
     const farName = endpoints(link, character.locationId).far.name;
     out.push({
       id: "gate",
       kind: "gate",
       linkId: link.id,
-      label: gateLabel({ isOpen: link.isOpen, farName }),
+      label: gateLabel({ isOpen: link.isOpen, farName, control }),
       tone: link.isOpen ? DANGER : GO,
       isOpen: link.isOpen,
       farName,
+      control,
     });
   }
 
@@ -293,11 +326,15 @@ module.exports = {
   ROOM_ATM_PREFIX,
   ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
+  ROOM_SLOTS_PREFIX,
   DROPBOX_HELP,
   DROPBOX_EMPTY,
   QUEST_INTERACT_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
+  CASINO_ROOM_SLUG,
   WATCHTOWER_ROOM_SLUGS,
+  GATE_CONTROL_ROOMS,
+  gateControlIn,
   ROOM_AFFORDANCES,
   locationAffordances,
   roomAffordances,

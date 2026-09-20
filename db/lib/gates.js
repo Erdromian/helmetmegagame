@@ -10,6 +10,7 @@ const { gateOperable, endpoints, isHeldOpen, KEYED_OPEN_MS } = require("./locati
 const { publicRoomsIn } = require("./gateEcho");
 const { roomLine, locationLine } = require("./placeLine");
 const { SFX } = require("./sfx");
+const { gateControlIn } = require("./placeAffordances");
 
 // `character` needs { id, locationId }. Working a gate reads nothing else — the winch is in the
 // watchtower, so the room they clicked in already answered who they are.
@@ -64,7 +65,12 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
   // and both Location channels. Best-effort and swallowed — the flip has already committed,
   // and a line nobody heard must never look like a gate that did not move.
   try {
-    const text = wantOpen ? "A gate opens." : "A gate closes.";
+    // "A gate" is right for a portcullis and wrong for the Den's basement
+    // shutters, so a gate whose room named its control is announced by that
+    // word instead (db/lib/placeAffordances.js#GATE_CONTROL_ROOMS).
+    const control = await controlWordFor(prisma, [link.aId, link.bId]);
+    const thing = control ? `The ${control.toLowerCase()}` : "A gate";
+    const text = wantOpen ? `${thing} opens.` : `${thing} closes.`;
     const sfx = wantOpen ? SFX.GATE_OPEN : SFX.GATE_SHUT;
     // Sequential, not Promise.all: each of these posts to Discord, and a burst is how you
     // meet a rate limit (db/lib/soundBroadcast.js is sequential for the same reason).
@@ -87,6 +93,21 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
     locationIds: [link.aId, link.bId],
     line: wantOpen ? `You open the way to ${farName}.` : `You shut the way to ${farName}.`,
   };
+}
+
+// The word the rooms at either end of this edge use for the thing that moves,
+// or null for an ordinary gate. One query over both ends, because an edge is
+// worked from exactly one room and it may be at either of them.
+async function controlWordFor(prisma, locationIds) {
+  const rooms = await prisma.room.findMany({
+    where: { locationId: { in: locationIds } },
+    select: { slug: true },
+  });
+  for (const room of rooms) {
+    const control = gateControlIn(room.slug);
+    if (control) return control;
+  }
+  return null;
 }
 
 // The answer to "leave it open for the next 24 hours?" — the DM's Yes/No, and Chat's Hold open button.

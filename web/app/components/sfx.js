@@ -106,6 +106,12 @@ const CUES = {
   pin: "sign_this",
   tear: "poster_ripped",
   "rite-loop": "loop_altar",
+
+  // The Den's slot machine. Coins in, then one of three answers.
+  "slot-spin": "coin_m",
+  "slot-win": "gemdrop",
+  "slot-jackpot": "wonder",
+  "slot-lose": "newBuzzer",
 };
 
 // The cues that do not stop on their own. A rite holds the altar's drone under the room
@@ -157,6 +163,10 @@ const GAIN = {
   write: 0.15,
   pin: 0.15,
   coin: 0.12,
+  "slot-spin": 0.12,
+  "slot-win": 0.2,
+  "slot-jackpot": 0.24,
+  "slot-lose": 0.14,
   "success-soft": 0.18,
   "seal-break": 0.3,
   tear: 0.3,

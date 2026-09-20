@@ -1045,6 +1045,12 @@ groups:
         - Collar Key
         - Silver Chip
         - Literate
+        # Every door in the Den. The two room keys are his second copies —
+        # there is another pair on the desk in his office (docs/zones.yaml).
+        - Den Key
+        - Exactor's Key
+        - Room A Key (Den)
+        - Room B Key (Den)
 
   # Soil
   soil:
@@ -1228,7 +1234,7 @@ groups:
       starting_tags:
         - Ravenhearter
         - Brewing II
-        - Pusher's Key
+        - Den Key
         - Silver Chip
         - Heroin x2
         - Changa
@@ -1330,6 +1336,8 @@ groups:
         - seductive
         - Ration Box x2
         - Cigarette
+        - Den Key
+        - Courtesan's Key
     slave:
       name: Slave
       intro: >-

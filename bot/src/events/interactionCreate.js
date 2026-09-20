@@ -36,6 +36,7 @@ const {
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
+  ROOM_SLOTS_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -119,6 +120,7 @@ const {
 } = require("./interactions/admin");
 const {
   PRAY_CONFIRM_PREFIX,
+  SLOTS_CONFIRM_PREFIX,
   handleIntercomOpen,
   handleQuestOpen,
   handleQuestSubmit,
@@ -126,6 +128,8 @@ const {
   handleBellOpen,
   handlePrayOpen,
   handlePrayConfirm,
+  handleSlotsOpen,
+  handleSlotsConfirm,
   handleBellSubmit,
   handleTurretSubmit,
   handleIntercomSubmit,
@@ -336,6 +340,14 @@ module.exports = {
         }
         if (interaction.customId.startsWith(ROOM_PRAY_PREFIX)) {
           return void (await handlePrayOpen(interaction, interaction.customId.slice(ROOM_PRAY_PREFIX.length)));
+        }
+        // The confirm before the open, for the reason Pray's pair gives just
+        // above: "room:slots:go:<id>" also starts with the open prefix.
+        if (interaction.customId.startsWith(SLOTS_CONFIRM_PREFIX)) {
+          return void (await handleSlotsConfirm(interaction));
+        }
+        if (interaction.customId.startsWith(ROOM_SLOTS_PREFIX)) {
+          return void (await handleSlotsOpen(interaction, interaction.customId.slice(ROOM_SLOTS_PREFIX.length)));
         }
         if (interaction.customId.startsWith(ROOM_BELL_PREFIX)) {
           return void (await handleBellOpen(interaction, interaction.customId.slice(ROOM_BELL_PREFIX.length)));

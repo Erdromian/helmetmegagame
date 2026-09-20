@@ -4,6 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
 import { questInteract } from "@lifeweb/db/lib/quests";
+import { playSlots as playSlotsInDb, CASINO_ROOM_SLUG } from "@lifeweb/db/lib/slotMachine";
 import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
@@ -1571,6 +1572,25 @@ export async function toggleTurret({ roomId, word } = {}) {
       ? "The button toggles on."
       : "The button toggles off.",
   };
+}
+
+// The Den's slot machine (db/lib/slotMachine.js). Everything that decides
+// anything is in there, so this face and Discord's button cannot drift: the
+// rules, the money and the line the room reads are one implementation. All
+// this does is find the acting session and the open turn.
+export async function playSlots({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  // A server action is a public endpoint, so the room the dialog was drawn
+  // against is checked here too rather than trusted. The machine re-checks the
+  // door and the standing as well — this only refuses a wrong room early.
+  const found = await roomHere(me.character, roomId, CASINO_ROOM_SLUG, "There's no slot machine here.");
+  if (found.error) return { ok: false, error: found.error };
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const result = await playSlotsInDb(prisma, me.discordUserId, { turn });
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
+  return { ok: true, line: result.line, sfx: result.sfx };
 }
 
 export async function speakOnIntercom({ roomId, body } = {}) {

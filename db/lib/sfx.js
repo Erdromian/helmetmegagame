@@ -75,6 +75,14 @@ const SFX = {
 
   // The world, heard by everyone reading the place it happened in. These ride
   // ArchiveEntry.sfx on a line that is being written anyway.
+  // The Den's slot machine (db/lib/slotMachine.js). Four moments, because a
+  // machine that made one noise for winning and losing would not be a machine
+  // anybody played twice.
+  SLOT_SPIN: "slot-spin",
+  SLOT_WIN: "slot-win",
+  SLOT_JACKPOT: "slot-jackpot",
+  SLOT_LOSE: "slot-lose",
+
   GATE_OPEN: "gate-open",
   GATE_SHUT: "gate-shut",
   TURRET: "turret",

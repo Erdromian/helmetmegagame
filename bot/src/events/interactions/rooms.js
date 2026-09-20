@@ -1,6 +1,7 @@
 // Room-anchor interaction handlers: the Intercom, Quest interact, the
-// Watchtower turret, the Bell Tower, and Prayer at the Shrine of an Old Man —
-// each one's open (button/select) and submit (modal) pair.
+// Watchtower turret, the Bell Tower, Prayer at the Shrine of an Old Man and
+// the Den's slot machine — each one's open (button/select) and submit
+// (modal, or confirm button) pair.
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const {
@@ -35,6 +36,8 @@ const {
 } = require("../../lib/turretModal");
 const { BELL_ROOM_SLUG, bellCooldown, broadcastBell } = require("@lifeweb/db/lib/bell");
 const { XOM_SHRINE_ROOM_SLUG, grantXom } = require("@lifeweb/db/lib/xom");
+const { CASINO_ROOM_SLUG, playSlots } = require("@lifeweb/db/lib/slotMachine");
+const { SLOT_PROMPT } = require("@lifeweb/db/lib/slotText");
 const { SFX } = require("@lifeweb/db/lib/sfx");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 const {
@@ -224,6 +227,44 @@ async function handlePrayConfirm(interaction, roomId) {
 }
 
 
+// The Den's slot machine. A confirm, like Pray, rather than a modal: there is
+// nothing to type, and money leaving your hand deserves one press to say so.
+// Every rule, every refusal and the line the room reads are in
+// db/lib/slotMachine.js, so this face and Chat's cannot drift.
+const SLOTS_CONFIRM_PREFIX = "room:slots:go:";
+
+async function handleSlotsOpen(interaction, roomId) {
+  await ack(interaction);
+  const room = await prisma.room.findUnique({ where: { id: roomId }, select: { slug: true } });
+  if (room?.slug !== CASINO_ROOM_SLUG) {
+    await respond(interaction, "There's no slot machine here.");
+    return;
+  }
+  await respond(interaction, {
+    content: SLOT_PROMPT,
+    components: [
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`${SLOTS_CONFIRM_PREFIX}${roomId}`)
+          .setLabel("Enter coins")
+          .setStyle(ButtonStyle.Secondary),
+      ),
+    ],
+  });
+}
+
+async function handleSlotsConfirm(interaction) {
+  await ack(interaction);
+  // The open turn, for the ledger stamp and the ration-free audit row. Null is
+  // fine — the machine runs between turns the same as during one.
+  const turn = await prisma.turn
+    .findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } })
+    .catch(() => null);
+  const result = await playSlots(prisma, interaction.user.id, { turn });
+  await respond(interaction, result.ok ? result.line : result.error);
+  if (result.ok) scheduleDismiss(interaction);
+}
+
 async function handleBellSubmit(interaction, roomId) {
   await ack(interaction);
 
@@ -398,6 +439,9 @@ async function handleIntercomSubmit(interaction, roomId) {
 
 module.exports = {
   PRAY_CONFIRM_PREFIX,
+  SLOTS_CONFIRM_PREFIX,
+  handleSlotsOpen,
+  handleSlotsConfirm,
   handleIntercomOpen,
   handleQuestOpen,
   handleQuestSubmit,

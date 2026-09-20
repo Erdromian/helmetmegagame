@@ -927,8 +927,8 @@ zones:
                 ration-box: 3
                 tinned-butter: 1
                 paper: 3
-          # The upper end of the Baron's lift; the cage at the bottom is in the
-          # Undercroft. The edge itself is `hidden: elevator-key`.
+          # The upper end of the Baron's lift; the cage at the bottom is in
+          # the Refuse Pit. The edge itself is `hidden: elevator-key`.
           fortress-4-e:
             name: Elevator Room
             access: [elevator-key]
@@ -1016,13 +1016,6 @@ zones:
             name: Ancient Shrine
             description: >-
               A shrine to Thoth, the Old God of art, magnificence, and inspiration. How has this not been destroyed yet?
-          # The lower end of the Baron's lift; the cage at the top is in the
-          # Keep. The edge itself is `hidden: elevator-key` in `connections:`.
-          undertown-1-6:
-            name: Elevator Room
-            access: [elevator-key]
-            description: >-
-              A cage suspended over the darkness. Use the pressure plate to descend.
           undertown-1-7:
             name: Vault
             access: [barons-key]
@@ -1145,12 +1138,98 @@ zones:
       undertown-7:
         name: Poorhouse
         description: ""
+      # The Exactor's house, and the one place in the Undertown that is open
+      # to anybody with coin. Three seats start standing in it (the Exactor,
+      # the Pusher and the Courtesan, docs/roles.yaml), which is why it is the
+      # first of the Undertown skeletons to get written.
       undertown-8:
         name: Den
-        description: ""
+        indoors: true
+        description: >-
+          The den's comfortable interior is separated by wooden dividers, sectioning off the booths from the hookah lounge and the bar. For the client's comfort, all the lights are dimmed, and there's soft music playing. There's private rooms further in.
+        rooms:
+          undertown-8-1:
+            name: Bar
+            description: >-
+              You can buy all sorts of things here. There's a cash machine bolted to the wall at the end of the counter.
+            stash:
+              items:
+                alcohol: 4
+                cigarette: 6
+          undertown-8-2:
+            name: Dressing Room
+            access: [courtesans-key]
+            description: >-
+              A room with mirrors and clothes, for preparing yourself before meeting customers.
+            stash:
+              items:
+                bar-soap: 2
+                perfume: 4
+                cigarette: 1
+                disguise-kit: 1
+          # The slot machine is a button on this room's starter post, not a
+          # stash item — db/lib/slotMachine.js, and the affordance that draws
+          # it in db/lib/placeAffordances.js.
+          undertown-8-3:
+            name: Casino
+            description: >-
+              A felt table for playing with dice. There's also a slot machine.
+          undertown-8-4:
+            name: Room A
+            access: [den-room-a-key]
+            description: >-
+              A comfortable but cramped room.
+          undertown-8-5:
+            name: Room B
+            access: [den-room-b-key]
+            description: >-
+              A comfortable but cramped room.
+      # Behind the Den Key, and shuttable from inside: the edge up to the Den
+      # is `modular:` and its winch is the Exactor's Office below, which is the
+      # only room in the game that works a gate without being a watchtower.
       undertown-9:
         name: Den Interior
-        description: ""
+        indoors: true
+        description: >-
+          Stairs descend into a converted basement.
+        rooms:
+          undertown-9-1:
+            name: Dining Room
+            description: >-
+              An unusually normal dining room, where the Den's staff meets and talks.
+            stash:
+              items:
+                ration-box: 1
+          # The Pusher's homebase. It wears no `access:` of its own — the whole
+          # basement is already behind the Den Key, and the Pusher's Key it
+          # used to want was removed from the game with this pass.
+          undertown-9-2:
+            name: Drug Lab
+            description: >-
+              The Pusher's homebase.
+            stash:
+              resources: 8
+              items:
+                cave-fungus: 2
+                mindbreaker-toxin: 1
+                nekker-pheromones: 1
+          undertown-9-3:
+            name: Exactor's Office
+            access: [exactors-key]
+            soundproof: true
+            description: >-
+              A desk, a ledger, and a winch for the shutters over the stairs.
+            stash:
+              resources: 4
+              items:
+                silver-chip: 1
+                obol: 39
+                mulligan-potion: 2
+                mace: 1
+                light-infantry-armour: 1
+                balaclava: 2
+                den-room-a-key: 1
+                den-room-b-key: 1
       undertown-a:
         name: Slums
         description: ""
@@ -1272,13 +1351,16 @@ zones:
                 eye: 1
                 bone: 8
                 ravens-eye: 1
+      # The bottom of the Baron's lift, and what the Keep throws away. The map
+      # plate has called this the Refuse Pit since it was drawn
+      # (docs/assets/maps/nodes.yaml); the name here finally agrees with it.
       hills-north:
-        name: North Hills
+        name: Refuse Pit
         attributes:
           wilderness: true
         map_node: 26
         description: >-
-          The path loses coherence as its stones give rise to gravel and stamped earth. All the trees nearby have lost their leaves and show no signs of growing anytime soon. Hollow winds kick up blackened dirt, unbound by grass or root.
+          A depression in the cave floor. The path loses coherence as its stones give rise to gravel and stamped earth. Hollow winds kick up blackened dirt, unbound by grass or root, and everything the Keep is finished with ends up down here.
         # An abandoned homestead with a locked hatch, and a basement full of
         # unlabelled tinctures, below — a real scavenging site.
         mining: 0.25
@@ -1312,6 +1394,16 @@ zones:
             description: >-
               Resting in a small clearing, covered with intricate carvings. The nature of the stone's origin and purpose elude you. Dark green grass grows at its base, surviving off its energy since the sun abandoned them.
             access: [esoteric, old-ways-thoth, superstitious]
+          # The lower end of the Baron's lift; the cage at the top is in the
+          # Keep. The edge itself is `hidden: elevator-key` in `connections:`.
+          # It hung in the Undercroft until 2026-09-20 — docs/documents.yaml
+          # has always told the Baron, the Tribune and the Ordinator that the
+          # lift comes down in the Refuse Pit, and now it does.
+          north-hills-elevator:
+            name: Elevator Room
+            access: [elevator-key]
+            description: >-
+              A cage suspended over the darkness. Use the pressure plate to descend.
       hills-waterway:
         name: Fracturing Waterway
         attributes:
@@ -2002,15 +2094,40 @@ connections:
     modular:
       open: true
 
-  # The Baron's lift, top to bottom: the Keep's cage down into the Undercroft.
+  # The Baron's lift, top to bottom: the Keep's cage down into the Refuse Pit.
   # Given as a starting tag to the Hand and the Baron.
   #
   # Keyed, so whoever rides it is asked whether to leave it open behind them
   # for 24 hours — which is how anybody without the key gets to follow.
-  - pair: [fortress/fortress-4, undertown/undertown-1]
+  - pair: [fortress/fortress-4, hills/hills-north]
     hidden: elevator-key
     keyed: true
     on_foot: true
+
+  # The Den, off the Slums. Without this the Den is an island, and the three
+  # seats that start standing in it could never leave.
+  - [undertown/undertown-a, undertown/undertown-8]
+
+  # Down the stairs into the Exactor's basement. Locked AND modular at once:
+  # the Den Key opens the door, and the winch in the Exactor's Office shuts it
+  # to everybody, key or no key.
+  - pair: [undertown/undertown-8, undertown/undertown-9]
+    locked: den-key
+    on_foot: true
+    modular:
+      open: true
+
+  # The Den's back door, out through the water. Only ONE tag fits on an edge,
+  # so this is `strong-swimmer` alone — the Den Key already opens the front,
+  # and the swim is the half worth gating. Hidden, so nobody who cannot make
+  # the swim ever learns the way is there.
+  - pair: [undertown/undertown-9, undertown/undertown-c]
+    hidden: strong-swimmer
+    on_foot: true
+
+  # …and the Lake's other shore, so it is a place rather than a one-way
+  # trapdoor out of somebody's basement.
+  - [undertown/undertown-4, undertown/undertown-c]
 
   # The tunnels the Alleys' description promises, down into the Undertown's
   # sewers. Hidden, so a player who does not know the tunnels never learns

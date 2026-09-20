@@ -279,7 +279,7 @@ Fifteen rooms carry it, and they are the places you would tie somebody up in:
 the Vault, the Oubliette, the Dungeons, the Order Chambers, the Charon, the
 Nook behind the painting, the windowless Operating Theater, the Underquarter
 Basements and Organ Shop, and the cellars and crypts — the Inn's, the Manor's,
-Creekside's Root Cellar, the North Hills Basement, the flooded Village cellar,
+Creekside's Root Cellar, the Refuse Pit's Basement, the flooded Village cellar,
 the drowned Marshes Crypt. The Graga Pit deliberately is **not**: the thing
 rumbling under the throne room is supposed to be heard. Neither are the
 Echoing Halls, whose whole description is that sound carries there.

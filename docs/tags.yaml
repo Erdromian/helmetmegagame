@@ -7995,6 +7995,9 @@ tags:
     group: items-gear
     sprite: nanotrasen-grenade
     description: "A sealed canister. Can be thrown to obscure vision, cause choking, and irritate people's skin."
+    manifest: black-market
+    depotPrice: 25
+    sealedShipping: true
     pointCost: 0
     weight: 1.5
     stackable: true
@@ -8947,29 +8950,6 @@ tags:
         - tag: headmans-key
           keep: true
 
-  pushers-key:
-    catalog: gm
-    name: Pusher's Key
-    category: items
-    group: items-keys
-    sprite: key
-    description: "A small key."
-    pointCost: 0
-    stackable: true
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: pushers-key
-          keep: true
-
   room-a-key:
     catalog: gm
     name: Room A Key
@@ -9037,6 +9017,128 @@ tags:
       gambit: false
       items:
         - tag: room-c-key
+          keep: true
+
+  # ------------------------------------------------------------------
+  # The Den (docs/zones.yaml, undertown-8 and undertown-9). The Den Key opens
+  # the stairs down to the Exactor's basement; the other four open one room
+  # each. The Den's own Room A and Room B are NOT the Inn's above — those keys
+  # (room-a-key … room-c-key) belong to town-7, which is why these carry the
+  # place in their name.
+  # ------------------------------------------------------------------
+  den-key:
+    catalog: gm
+    name: Den Key
+    category: items
+    group: items-keys
+    sprite: key1
+    description: "A metal key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 0.25
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: den-key
+          keep: true
+
+  exactors-key:
+    catalog: gm
+    name: "Exactor's Key"
+    category: items
+    group: items-keys
+    sprite: key3
+    description: "A metal key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 0.25
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: exactors-key
+          keep: true
+
+  courtesans-key:
+    catalog: gm
+    name: "Courtesan's Key"
+    category: items
+    group: items-keys
+    sprite: key2
+    description: "A wooden key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 0.25
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: courtesans-key
+          keep: true
+
+  den-room-a-key:
+    catalog: gm
+    name: Room A Key (Den)
+    category: items
+    group: items-keys
+    sprite: key2
+    description: "A wooden key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 0.25
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: den-room-a-key
+          keep: true
+
+  den-room-b-key:
+    catalog: gm
+    name: Room B Key (Den)
+    category: items
+    group: items-keys
+    sprite: key2
+    description: "A wooden key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 0.25
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: den-room-b-key
           keep: true
 
   mortus-key:
@@ -9228,6 +9330,9 @@ tags:
     sprite: duelista
     description: "A classic revolver with six chambers."
     fighting: { tiers: 0.7, weaponClass: firearm }
+    manifest: black-market
+    depotPrice: 90
+    sealedShipping: true
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -9271,6 +9376,11 @@ tags:
     group: items-weapons
     description: "A deadly knife with brass knuckles embedded on the grip. While equipped, torture-related Gambits gain +1."
     fighting: { tiers: 0.3, weaponClass: knife }
+    # Two over a dagger, as asked. A dagger has no counter price of its own, so
+    # the anchor is its sellablePrice of 8 read back through the shelf's ~0.6
+    # spread — about 14 — and this sits at 16.
+    manifest: black-market
+    depotPrice: 16
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -9434,6 +9544,8 @@ tags:
     sprite: club
     description: "A heavy stick meant to hit people."
     fighting: { tiers: 0.3, weaponClass: club }
+    manifest: black-market
+    depotPrice: 10
     pointCost: 2
     equippable: true
     equipSlot: WEAPON
@@ -9760,6 +9872,11 @@ tags:
     sprite: knuckleduster
     description: "Connected metal rings meant to be worn on one's fingers to pack a heavier punch."
     fighting: { tiers: 0.2, weaponClass: unarmed }
+    # Priced as the cheap thug's tool it reads as. Its sellablePrice of 30 is
+    # an outlier against the rest of the ladder and is left alone rather than
+    # dragged along — selling one to the Depot was never the point of it.
+    manifest: black-market
+    depotPrice: 12
     pointCost: 3
     equippable: true
     equipSlot: WEAPON
@@ -10266,6 +10383,9 @@ tags:
     sprite: stunnerpistol
     description: "A non-lethal energy pistol, only useful against unarmed people. After enough shots, the target's muscles fail and they fall to the floor, cramping and groaning. Powered by disposable batteries imported by the Baron."
     fighting: { tiers: 0.3, weaponClass: firearm }
+    manifest: black-market
+    depotPrice: 60
+    sealedShipping: true
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -12713,6 +12833,9 @@ tags:
     sprite: dshotgun-sawn
     description: "A two-shot shotgun that is more easily concealable than its normal counterpart."
     fighting: { tiers: 0.8, weaponClass: firearm }
+    manifest: black-market
+    depotPrice: 120
+    sealedShipping: true
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -14313,7 +14436,12 @@ tags:
     category: items
     group: items-gear
     sprite: bottle3
-    description: "Makes you smell good."
+    # The mechanical half is `consumesInto: [alluring-scent]` below, and
+    # Alluring Scent is worth +20 to a kiss (db/lib/kiss.js#KISS_APPEARANCE) —
+    # a quarter of what the Courtesan's own Seductive carries. Saying so on the
+    # tag is the only way an ordinary person finds out.
+    description: "Makes you smell good. This makes your kisses have more powerful effects."
+    manifest: black-market
     pointCost: 0
     depotPrice: 2
     weight: 0.5
@@ -14608,6 +14736,10 @@ tags:
     group: items-armor
     sprite: bulletproof
     description: "A bulletproof vest and pad combination."
+    # The chip's shelf rather than the Merchant's since 2026-09-20. A ware sits
+    # on exactly one manifest (db/lib/depotManifests.js), so this is a move,
+    # not an addition — it is off the licence shelf now.
+    manifest: black-market
     pointCost: 0
     depotPrice: 37
     sealedShipping: true
@@ -14634,6 +14766,23 @@ tags:
     depotPrice: 40
     sellable: true
     sellablePrice: 24
+    tradeable: true
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The Hound's shady cousin, and on the chip's shelf rather than the
+  # Merchant's: nobody imports a monkey through customs with paperwork.
+  monkey:
+    catalog: gm
+    name: Monkey
+    category: assets
+    group: assets-companions
+    sprite: monkeycube
+    description: "A small, clever, badly behaved animal. It will do simple things if it feels like it."
+    manifest: black-market
+    pointCost: 0
+    depotPrice: 40
     tradeable: true
     visible: true
     purchasable: false
@@ -16619,6 +16768,8 @@ tags:
     group: items-headgear
     sprite: balaclava
     description: "A sock to be worn around one's head."
+    manifest: black-market
+    depotPrice: 3
     pointCost: 2
     equippable: true
     equipSlot: HEAD
