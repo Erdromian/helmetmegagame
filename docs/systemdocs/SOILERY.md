@@ -62,12 +62,12 @@ second life as a paying Laboring tier priced against a Location's
 being that. Laboring is gone and so is that tier. **Soilery** is one flat
 7-point skill that turns on one button, and there is nothing else it does.
 
-**Crops sell for 1 ¢** (2026-09-20). Farming is for eating, not for cash. At 2 ¢
-a Farm action netted about 79 ¢ after the seed bag and paid about 26 ¢ a turn
-across its 3-turn lockout, which made it the best wage in the game after the
-Factory. At 1 ¢ it nets about 38 ¢ and pays about 13 ¢ a turn, in line with a
-starting smith. Wheat was already at the floor: prices are whole numbers, so 1 ¢
-is as low as a crop goes short of not selling at all.
+**Food crops do not sell** (2026-09-20). Farming is for eating, not for cash: a plant
+brings in three crops, a field of fifty comes home as about 125, and at any price a crop
+sells for that would have made the Soilery the best wage in the game by accident. Tobacco
+is the one exception, at 2 ¢ a leaf. `npm run economy:report` prices a Farm action as food
+at the Ration Box's price per hunger and tobacco as cash, and checks both against the Factory
+shift.
 
 ## 2. The `soilery` Location attribute
 

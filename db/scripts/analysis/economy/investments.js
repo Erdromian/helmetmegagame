@@ -171,20 +171,20 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, get, list, rv, r
       group: "Farming",
       name: soil.name,
       kind: "skill",
-      does: `Lets you plant up to ${params.farmMaxCrops} crops on a field, one Farm action every ${params.farmCycle} turns.`,
+      does: `Lets you plant up to ${params.farmMaxCrops} plants on a field, one Farm action every ${params.farmCycle} turns.`,
       coin: 0,
       coinHow: "no coin; seed bags are 4 ¢ an action and are in the gain",
       points: soil.pointCost ?? 0,
       gain: farm.netPerTurn,
-      gainHow: `${round1(farm.perAction)} ¢ a Farm action (crops at the counter's 1 ¢, less seed), a third of the turns`,
+      gainHow: `${round1(farm.perAction)} ¢ a Farm action (${params.cropsSell ? "crops at the counter's price" : "crops valued as food, at the Ration Box's price per hunger"}, less seed), a third of the turns`,
       note: "Farming is for eating, not selling, so at the counter it is worth far less than the same crops are to a hungry buyer.",
     });
     const fert = get("fertilizer");
     if (fert) {
-      const per = params.farmMaxCrops;
+      const per = params.farmMaxCrops * (params.cropsPerPlant ?? 1);
       const plain = (soilery.WITHER_IN - 1) / soilery.WITHER_IN;
       const fed = 1 + 1 / soilery.BOUNTY_IN;
-      const cropValue = get("potato")?.sellablePrice ?? 1;
+      const cropValue = params.cropValue ?? get("potato")?.sellablePrice ?? 1;
       const extraCrops = per * (fed - plain);
       const perAction = extraCrops * cropValue - (shelfPrice(fert) ?? 0);
       add({

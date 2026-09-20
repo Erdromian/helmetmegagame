@@ -59,7 +59,9 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
       const units = [...per.values()].reduce((a, b) => a + b, 0);
       const raw = [...per].reduce((s, [slug, c]) => s + c * rawHunger(slug), 0);
       const rawMood = [...per].reduce((s, [slug, c]) => s + c * rawMoodPerBite(slug), 0);
-      const cost = [...per].reduce((s, [slug, c]) => s + c * (get(slug)?.sellablePrice ?? get(slug)?.depotPrice ?? 0), 0);
+      // A crop that does not sell is priced as food, at the Ration Box's price per hunger.
+      const unitCost = (slug) => get(slug)?.sellablePrice ?? get(slug)?.depotPrice ?? (CROPS.has(slug) && boxPerHunger ? rawHunger(slug) * boxPerHunger : 0);
+      const cost = [...per].reduce((s, [slug, c]) => s + c * unitCost(slug), 0);
       const movesPer = moves / y;
       const value = boxPerHunger == null ? null : t.mealHunger * boxPerHunger;
       const hardest = Math.max(...[...per.keys()].map(rankOf));
@@ -70,6 +72,7 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
         skill: (r.skills ?? []).join(", "),
         tier: (r.skills ?? []).some((s) => /skilled/.test(s)) ? "Skilled" : "Basic",
         hunger: t.mealHunger,
+        sell: t.sellablePrice ?? null,
         mood: t.mealMood ?? 0,
         yield: y,
         inputs: [...per].map(([s, c]) => `${round1(c) === 1 ? "" : `${round1(c)}× `}${get(s)?.name ?? s}`),
@@ -96,8 +99,9 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
 
   // ---- feeding a town -----------------------------------------------------------------------------------
   const need = players * params.hungerDecay;
-  const harvest = params.farmMaxCrops * ((soilery.WITHER_IN - 1) / soilery.WITHER_IN);
-  const fertHarvest = params.farmMaxCrops * (1 + 1 / soilery.BOUNTY_IN);
+  const cpp = params.cropsPerPlant ?? 1;
+  const harvest = params.farmMaxCrops * ((soilery.WITHER_IN - 1) / soilery.WITHER_IN) * cpp;
+  const fertHarvest = params.farmMaxCrops * (1 + 1 / soilery.BOUNTY_IN) * cpp;
   const cycle = params.farmCycle;
   const cropDish = dishes.filter((d) => d.farmOnly && d.tier === "Basic").sort((a, b) => b.hungerPerUnit - a.hungerPerUnit)[0];
   const potato = get("potato");
@@ -125,8 +129,8 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
   };
   const per = params.hungerDecay;
   const strategies = [
-    strategy("raw-wheat", "Everyone eats raw wheat", wheat.cooked.hunger, 1, rawMoodPerBite("wheat"), { note: "Raw wheat is 6 hunger, costs 5 mood a bite on top of the 10 and makes you nauseous." }),
-    strategy("raw-potato", "Everyone eats raw potatoes", potato.cooked.hunger, 1, rawMoodPerBite("potato"), { note: "The best raw crop: 12 hunger, and a flat −10 mood a bite." }),
+    strategy("raw-wheat", "Everyone eats raw wheat", wheat.cooked.hunger, 1, rawMoodPerBite("wheat"), { note: `Raw wheat is ${wheat.cooked.hunger} hunger a crop, costs 5 mood a bite on top of the 10 and makes you nauseous.` }),
+    strategy("raw-potato", "Everyone eats raw potatoes", potato.cooked.hunger, 1, rawMoodPerBite("potato"), { note: `The best raw crop: ${potato.cooked.hunger} hunger, and a flat −10 mood a bite.` }),
     strategy("cooked", `Farmers cook ${cropDish?.name ?? "a crop dish"} (two crops a dish)`, cropDish?.hungerPerUnit ?? 0, 1 / (cropDish?.units ?? 1), (cropDish?.mood ?? 0), { cookMovesPerCrop: (cropDish?.moves ?? 0) / (cropDish?.units ?? 1), note: "Two crops make a 35-hunger dish for 0.05 of a Move." }),
     strategy("cooked-fert", "The same, with Fertilizer on every field", cropDish?.hungerPerUnit ?? 0, 1 / (cropDish?.units ?? 1), (cropDish?.mood ?? 0), { fertilized: true, cookMovesPerCrop: (cropDish?.moves ?? 0) / (cropDish?.units ?? 1), note: "Fertilizer is 4 ¢ a Farm action." }),
   ];

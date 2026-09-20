@@ -289,19 +289,21 @@ skill, 25 with Smithing I, and 28 with Smithing II. Farming does not fit beside
 it, because Farm and Refine both lock out the same ladder.
 
 **Farming and mining pay less, and neither pays in ⬢ the way this section used
-to say.** Farming pays no ⬢ at all (`SOILERY.md` §1). A Farm action sows up to
-50 plants, about 5 in 6 come up, and a crop sells for 1 ¢, so one action nets
-about 38 ¢ after the 4 ¢ seed bag. It then locks the farmer out for 3 turns, which
-is about **13 ¢ a turn**. Crops sell for 1 ¢ on purpose (2026-09-20): farming is
-for eating, and at 2 ¢ it netted about 79 ¢ an action, the best wage in the game
-after the Factory. A Prospector at the Caves brings up about 13.5 ⬢ a press (8.5
+to say.** Farming pays no ⬢ at all (`SOILERY.md` §1), and since 2026-09-20 its food
+crops do not sell either: a plant brings in three of its crop, a Farm action sows up to 50 plants
+and about 5 in 6 come up, so it harvests about 125 crops that are food, not cash. Valued
+as food at the Ration Box's price per hunger they are about 55 ¢ an action, or about
+**18 ¢ a turn** across the 3-turn lockout. **Tobacco is the one crop that pays cash:**
+2 ¢ a leaf and about 67 leaves an action, about 129 ¢ an action and about **43 ¢ a turn**,
+which is slightly more than the Factory shift (40 ¢) and three times a Prospector at the
+Caves. A Prospector at the Caves brings up about 13.5 ⬢ a press (8.5
 with a pickaxe alone), worth 13.5 ¢ at the 1 ¢ sell-back, and digs every other
 turn: about **8 ¢ a turn** with the loot roll (`MINING.md` §3b and §5), or about
 **21 ¢** with the ⬢ valued at the Depot's 3 ¢ import price, which is the most a
 buyer who must hold real ⬢ will pay. A smith will pay no more than 1 ¢, because a
 smith can pay a recipe's ⬢ in obols one for one (`resolveObolSpend`), so the 3 ¢
-import price never reaches a smith. Set against those, the Factory is about 1.6
-times a farmer and 2.5 times a Prospector at the sell-back. A skilled smith's best easy recipe
+import price never reaches a smith. Set against those, the Factory is about 2.2
+times a food farmer and 5 times a Prospector at the sell-back, and a tobacco farmer out-earns it. A skilled smith's best easy recipe
 (Glass Eye) pays about 17 ¢ a turn buying ⬢ at the Depot, or 28 mining it.
 `npm run economy:report` recomputes every one of these from the catalog and
 prints where the docs and the code disagree, so check there before quoting a

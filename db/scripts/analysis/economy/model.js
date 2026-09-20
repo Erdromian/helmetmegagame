@@ -510,15 +510,32 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   params.gameTurns = gameTurns;
   const soileryTag = get("soilery");
   const foodCrops = soilery.CROPS.filter((c) => c.crop !== "pigtails");
+  // A plant now brings in several of its crop (db/lib/soilery.js CROPS_PER_PLANT, and a crop's own `cropsPerPlant` /
+  // `witherIn` where it differs), so a harvest is plants × survival × crops a plant. Read as 1 and WITHER_IN before
+  // that rule existed, so the analysis follows the game either side of it.
+  const cropRule = (slug) => {
+    const e = soilery.CROPS.find((c) => c.crop === slug);
+    return { cropsPerPlant: e?.cropsPerPlant ?? soilery.CROPS_PER_PLANT ?? 1, witherIn: e?.witherIn ?? soilery.WITHER_IN };
+  };
+  // A crop that does not sell (food stopped being money) is worth what the same hunger costs from the Ration Box.
+  const rationDraws = (get("ration-box")?.consumesInto ?? []).flatMap((x) => (typeof x === "object" && x.oneOf ? x.oneOf : [x])).map((o) => (typeof o === "string" ? o : o?.slug));
+  const rationHunger = rationDraws.length ? rationDraws.reduce((n, d) => n + (d === "nothing" ? 0 : hunger.foodHungerFor(get(d))), 0) / rationDraws.length : null;
+  const rationPerHunger = get("ration-box")?.depotPrice != null && rationHunger ? get("ration-box").depotPrice / rationHunger : 0;
+  const cropValue = (t) => t?.sellablePrice ?? (hunger.foodHungerFor(t) * rationPerHunger);
+  params.cropsPerPlant = cropRule("potato").cropsPerPlant;
+  params.cropValue = cropValue(get("potato"));
+  params.cropsSell = get("potato")?.sellablePrice != null;
   const farmRows = [];
   for (const c of foodCrops) {
     const crop = get(c.crop);
     const bag = get(`${c.crop}-seed-bag`);
     const flags = [`lockout: one farm every ${farmCycle} turns`];
-    const harvest = farmMaxCrops * (1 - 1 / soilery.WITHER_IN);
+    const rule = cropRule(c.crop);
+    const harvest = farmMaxCrops * (1 - 1 / rule.witherIn) * rule.cropsPerPlant;
     const seedCost = bag?.depotPrice ?? 0;
     if (!bag) flags.push("no seed bag in catalog");
-    const revenue = harvest * (crop.sellablePrice ?? 0);
+    if (crop.sellablePrice == null && hunger.foodHungerFor(crop) > 0) flags.push("crops do not sell: valued as food, at the Ration Box's price per hunger");
+    const revenue = harvest * cropValue(crop);
     farmRows.push({ crop: c.crop, harvest, revenue, seedCost, hunger: crop.cooked?.hunger ?? 0, weight: crop.weight ?? 0 });
     push({
       id: `farm:${c.crop}`,
@@ -875,10 +892,13 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   // The bands are held as fractions of a turn, so a change to the decay that leaves the foods where they
   // were pushes them out of their band, which is exactly the drift this exists to catch. A change that
   // moves both together passes, and the figures in the report follow it.
-  const FOOD_TIER_BANDS = { raw: [6 / 35, 18 / 35], basic: [30 / 35, 42 / 35], skilled: [46 / 35, 56 / 35] };
+  const FOOD_TIER_BANDS = { raw: [6 / 35, 18 / 35], basic: [30 / 35, 42 / 35], skilled: [64 / 35, 76 / 35] };
   const tierOf = (turnsOfFood) => Object.keys(FOOD_TIER_BANDS).find((k) => turnsOfFood >= FOOD_TIER_BANDS[k][0] - 1e-9 && turnsOfFood <= FOOD_TIER_BANDS[k][1] + 1e-9) ?? null;
   for (const f of foods) {
-    f.turnsOfFood = f.hunger / params.hungerDecay;
+    // A farmed crop is a third of an ingredient by design (TURN-ENGINE.md §5): a plant brings in several, so it is
+    // the plant, not the crop, that sits in the raw band.
+    const rule = soilery.CROPS.some((c) => c.crop === f.slug) ? cropRule(f.slug).cropsPerPlant : 1;
+    f.turnsOfFood = (f.hunger * rule) / params.hungerDecay;
     f.tier = f.kind === "box" || boxDraws.includes(f.slug) ? "box" : tierOf(f.turnsOfFood);
   }
   const foodTiers = {
@@ -1109,10 +1129,13 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "SOILERY.md §1",
-      claim: "Every crop sells for 1 ¢: farming is for eating, not cash",
-      docValue: 1,
-      model: Math.max(...soilery.CROPS.filter((c) => c.crop !== "pigtails").map((c) => get(c.crop)?.sellablePrice ?? 0)),
-      ok: soilery.CROPS.filter((c) => c.crop !== "pigtails").every((c) => (get(c.crop)?.sellablePrice ?? 0) <= 1),
+      claim: "No food crop sells for more than 1 ¢: farming is for eating, not cash",
+      docValue: "1 ¢ at most, or not sold",
+      model: (() => {
+        const sells = soilery.CROPS.filter((c) => !["pigtails", "tobacco"].includes(c.crop)).map((c) => get(c.crop)?.sellablePrice).filter((v) => v != null);
+        return sells.length ? `${Math.max(...sells)} ¢` : "not sold at all";
+      })(),
+      ok: soilery.CROPS.filter((c) => !["pigtails", "tobacco"].includes(c.crop)).every((c) => (get(c.crop)?.sellablePrice ?? 0) <= 1),
     },
     {
       doc: "BREWING.md §3",
@@ -1129,18 +1152,35 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: locationsWithAttribute("godflesh").length === 1,
     },
     {
-      doc: "FACTORY.md §6",
-      claim: "A Farm action nets about 38 ¢ (potato, after the seed bag)",
-      docValue: 38,
-      model: potato ? round1(potato.revenue - potato.inputs) : null,
-      ok: potato && Math.abs(potato.revenue - potato.inputs - 38) < 1,
+      doc: "SOILERY.md §1",
+      claim: "Three farmers feed about 94 of a hundred people",
+      docValue: "~94",
+      model: (() => {
+        const perAction = params.farmMaxCrops * (1 - 1 / cropRule("wheat").witherIn) * params.cropsPerPlant;
+        const dish = 35; // a basic dish, two crops
+        const hungerPerTurn = (3 / farmCycle) * (perAction / 2) * dish;
+        return `${Math.round(hungerPerTurn / params.hungerDecay)} (three farmers, one Farm action each every ${farmCycle} turns)`;
+      })(),
+      ok: (() => {
+        const perAction = params.farmMaxCrops * (1 - 1 / cropRule("wheat").witherIn) * params.cropsPerPlant;
+        return Math.abs(((3 / farmCycle) * (perAction / 2) * 35) / params.hungerDecay - 94) < 5;
+      })(),
+      note: "The doc works it as a farmer every other turn. A Farm action grants Exhausted outright, and the lockout is 3 turns, so a farmer is on a 3-turn cycle.",
     },
     {
-      doc: "FACTORY.md §6",
-      claim: "A farmer makes about 13 ¢ a turn, a Prospector at the Caves about 8 (⬢ sold back at 1 ¢)",
-      docValue: "13 / 8",
-      model: `${round1(potato?.netPerTurnSell)} / ${round1(byId("mine:Caves:skilled")?.netPerTurnSell)}`,
-      ok: potato && Math.abs(potato.netPerTurnSell - 13) < 1 && Math.abs(byId("mine:Caves:skilled").netPerTurnSell - 8) < 0.6,
+      doc: "SOILERY.md §1",
+      claim: "A tobacco harvest pays about 133 ¢",
+      docValue: 133,
+      model: round1(byId("farm:tobacco")?.revenue),
+      ok: byId("farm:tobacco") != null && Math.abs(byId("farm:tobacco").revenue - 133) < 3,
+    },
+    {
+      doc: "SOILERY.md §1",
+      claim: "A tobacco farmer earns no more a turn than a Factory shift (40 ¢), so the cash crop does not out-earn the town's best wage",
+      docValue: `${shift} ¢ a turn`,
+      model: `${round1(byId("farm:tobacco")?.netPerTurn)} ¢ a turn (${round1(byId("farm:tobacco")?.perAction)} ¢ a Farm action, then a 3-turn lockout)`,
+      ok: byId("farm:tobacco") != null && byId("farm:tobacco").netPerTurn <= shift,
+      note: "Tobacco is 2 ¢ a leaf, about 67 leaves an action after its 1-in-3 wither. That is three times a Prospector at the Caves.",
     },
     {
       doc: "SOILERY.md §6",
@@ -1165,7 +1205,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "TURN-ENGINE.md §5",
-      claim: "Every food sits in one of three tiers against a turn's decay: raw about a third (6-18 of 35), basic cooked one turn (30-42), skilled about a turn and a half (46-56)",
+      claim: "Every food sits in one of three tiers against a turn's decay: raw about a third (6-18 of 35), basic cooked one turn (30-42), skilled about two turns (64-76); a farmed crop counted a plant at a time",
       docValue: "none outside",
       model: foodTiers.offTier.length ? `${foodTiers.offTier.length} outside: ${foodTiers.offTier.slice(0, 6).map((f) => `${f.name} ${f.hunger}`).join(", ")}${foodTiers.offTier.length > 6 ? ", …" : ""}` : "none outside",
       ok: foodTiers.offTier.length === 0,
