@@ -6359,3 +6359,15 @@ model CharonLaunch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// What the deploy-time sync last applied (db/scripts/sync/deploy.js). One row
+// per run name, holding a hash of every YAML master and sync module that run
+// reads. When the hash matches, the deploy skips the sync entirely — most
+// pushes touch no YAML, and a full tag sync is thousands of round trips.
+// Not game state: Restart Game leaves it alone, and deleting the row just
+// forces the next deploy to sync.
+model SyncStamp {
+  key      String   @id
+  hash     String
+  syncedAt DateTime @default(now())
+}

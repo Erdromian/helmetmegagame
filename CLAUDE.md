@@ -1390,15 +1390,15 @@ and pushes it, not by the contributor. Unless the user says otherwise, run it
 from the repo root after finishing a set of changes.
 
 ```
-npm run deploy      # git push origin master, ./migrate.sh, redeploy web + bot
-npm run redeploy    # just the redeploy, no push, no migration
+npm run deploy      # a backup dump, then git push origin master
+npm run redeploy    # rebuild both services from source, no push
 ```
 
-`./migrate.sh` takes a Railway backup first (`npm run db:backup`), then
-migrates. It sits **between** the push and the redeploy on purpose. If you
-migrate first, new columns just sit unused for a few seconds — harmless. If
-you redeploy first, you ship code that queries columns the database doesn't
-have yet, for the whole length of a build.
+`npm run deploy` (`scripts/deploy.sh`) is a dump, then a push, and nothing
+more. The push is what deploys, and the Pre-Deploy Command below is what
+migrates. It used to push, migrate by hand, then `redeploy --from-source` both
+services — a second full build of each on top of the one the push had already
+started. `./migrate.sh` still exists, for migrating by hand.
 
 **A bare `git push` is a complete deploy now.** Railway builds from this
 GitHub repo, so pushing to `master` triggers a deploy. Two settings on the
@@ -1410,7 +1410,11 @@ Railway services make that deploy correct, and both are set:
   half-migrated app. `db:sync-deploy` runs tags, desires and documents — the three
   syncs that touch no Discord and hold no player state (tags and desires
   upsert; documents rebuilds a pure config table), so
-  a YAML edit to any of them lands with the push, no hand sync. A YAML error
+  a YAML edit to any of them lands with the push, no hand sync. It runs in
+  one process (`db/scripts/sync/deploy.js`) and **skips itself** when nothing
+  it reads has changed since its last good run — the YAML masters, the db/lib
+  modules the syncs load, and the migration list, hashed into `SyncStamp`.
+  `npm run db:sync-deploy -- --force` runs it anyway. A YAML error
   there fails the deploy loudly, which is the point. Zones and #info still move
   Discord objects, and stay hand-run steps. Scoped to `web`
   on purpose — `bot` shares the database and would only race it. Don't use a

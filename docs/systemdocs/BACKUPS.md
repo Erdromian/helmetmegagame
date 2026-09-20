@@ -137,8 +137,9 @@ Loading it locally does need a real `pg_restore` (`brew install libpq`).
 ## Where migrations fit
 
 `./migrate.sh` calls `npm run db:backup` before `prisma migrate deploy`, so a
-production migration is always preceded by a fresh dump. `npm run deploy` goes
-through `migrate.sh`, so that path is covered too.
+production migration is always preceded by a fresh dump. `npm run deploy`
+(`scripts/deploy.sh`) takes the same dump before it pushes, and the push's
+Pre-Deploy Command does the migrating.
 
 Note that PITR covers this case better than the dump does: if a migration eats a
 column, the fix is to restore to the minute before the migration ran, not to
