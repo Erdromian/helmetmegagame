@@ -80,7 +80,7 @@
 #
 #   * Consumables — every drink, smoke, drug and meal (drink-alcohol,
 #     drink-ravenheart-red, drink-sake, drink-tea-or-coffee, cup-of-tea,
-#     eat-sweets, smoke-a-cigarette, take-a-drug, try-a-new-drug, fine-meal,
+#     eat-sweets, smoke-a-cigarette, take-a-drug, try-a-new-drug,
 #     lavish-meal). Each is a real spend, so the ladder left them all on the
 #     bare tier — which is to say on nothing, since tier 1 and 2 are both
 #     dominated by the slot lock. A flat 3 means the same cigarette pays
@@ -535,15 +535,6 @@ desires:
     name: Convert someone to your religion
     tier: 3
     families: [faith]
-
-  fine-meal:
-    name: Have a fine meal
-    verify: "Fine Meal"
-    tier: 1
-    families: [food]
-    requires:
-      notTags: [nobility]
-    cooldownTurns: 3
 
   lavish-meal:
     name: Have a lavish meal

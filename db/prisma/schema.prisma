@@ -4826,9 +4826,9 @@ model GambitDie {
   die   Int
   rolls Int[]
 
-  // "lucky" | "inspired" | null. Load-bearing rather than decoration: it is the
-  // record that Inspired was already burned for this turn, so a re-file reading
-  // this row back can never burn it a second time.
+  // "lucky" | "misfortune" | null — which trait pulled the throw, and so which
+  // of `rolls` was kept. Null means one die and nothing pulling it, which is
+  // also what Lucky and Misfortune held together come to (db/lib/gambitDie.js).
   advantageSource String?
 
   createdAt DateTime @default(now())

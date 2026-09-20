@@ -44,7 +44,10 @@ async function seatDesireTemplates(tx, seatTagIds) {
   if (!seatTagIds.length) return [];
   return tx.desireTemplate.findMany({
     where: { retired: false, requiresAnyTags: { some: { id: { in: seatTagIds } } } },
-    select: { families: true, tier: true },
+    // `slug` is here for the `named` lock clause (db/lib/desireShapes.js),
+    // which matches on it — without it every named lock reads as no lock and a
+    // seat conflict goes unnoticed.
+    select: { slug: true, families: true, tier: true },
   });
 }
 
