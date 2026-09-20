@@ -460,6 +460,7 @@ export async function createLink(input) {
         modular: Boolean(input.modular),
         keyed: Boolean(input.keyed),
         onFoot: Boolean(input.onFoot),
+        railroad: Boolean(input.railroad),
         requiredTagSlug: trimmed(input.requiredTagSlug) || null,
         authoredOpen: input.modular ? Boolean(input.authoredOpen) : true,
         isOpen: input.modular ? Boolean(input.authoredOpen) : true,
@@ -481,6 +482,7 @@ export async function updateLink(linkId, updatedAt, input) {
       modular: Boolean(input.modular),
       keyed: Boolean(input.keyed),
       onFoot: Boolean(input.onFoot),
+      railroad: Boolean(input.railroad),
       requiredTagSlug: trimmed(input.requiredTagSlug) || null,
       authoredOpen: input.modular ? Boolean(input.authoredOpen) : true,
     });

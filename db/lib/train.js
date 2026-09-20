@@ -8,17 +8,26 @@
 //
 // Pure constants and helpers — no Prisma, no network — so both faces and the
 // passes can read it. See docs/systemdocs/DEPOT.md §0d.
+//
+// `trainHere` HAS A SECOND CONSUMER now, and it is not about deliveries:
+// db/lib/railroad.js asks it whether the rail tunnels out of the Depot are
+// survivable this turn (docs/systemdocs/MAP.md §2). So the parity below is
+// load-bearing in two places — changing what "the train is at the platform"
+// means also changes who walks out of a tunnel alive.
 
 // Where it stops. A ROOM slug (docs/zones.yaml), under the Depot location, and
 // it must follow whichever Location the platforms sit in — get this wrong and
-// every delivery reports that a GM needs to run the zone sync.
-const RAILYARD_ROOM_SLUG = "undertown-5-2";
+// every delivery reports that a GM needs to run the zone sync. The Depot is
+// one room now, so this is it.
+const RAILYARD_ROOM_SLUG = "undertown-5-1";
 
-// The Merchant's own room, where the station's counter is and where the ATM
-// hangs. Named here rather than imported from depot.js so the affordance
-// catalog can reach it without pulling the price tables in.
-const STOREFRONT_ROOM_SLUG = "undertown-5-1";
-const MERCHANTS_OFFICE_ROOM_SLUG = "undertown-5-3";
+// The Merchant's own rooms. They sit in his BERTH (undertown-6), not on the
+// platform — the shop and the freight end were one Location until they were
+// split, and these two moved with him while the counter stayed at the Depot.
+// Named here rather than imported from depot.js so the affordance catalog can
+// reach them without pulling the price tables in.
+const STOREFRONT_ROOM_SLUG = "undertown-6-1";
+const MERCHANTS_OFFICE_ROOM_SLUG = "undertown-6-2";
 
 // Turn parity, and it is about what happens at the turn's CLOSE, not about
 // where the train is standing while the turn is open. Closing an EVEN turn

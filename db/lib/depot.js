@@ -28,18 +28,32 @@ const TOWER_LOCATION_SLUG = "fortress-5";
 // `connections:`. Buying and selling both require standing here, same as the Lifeweb requiring the Fortress.
 const DEPOT_LOCATION_SLUG = "undertown-5";
 
-// Where a cash machine is bolted to a wall. There are three: the counter's own,
-// on the Depot's Storefront (db/lib/train.js#STOREFRONT_ROOM_SLUG), and two
-// with no counter behind them — the Inn's bar and the Den's — which are an ATM
-// and nothing else, no ordering, no drop box, no sell window. Named here rather
-// than imported from train.js, which would be a cycle for two strings.
-const ATM_ROOM_SLUGS = new Set(["undertown-5-1", "town-7-2", "undertown-8-1"]);
+// Where a cash machine is bolted to a wall. There are FOUR, and two of them
+// are at the station: the counter's own on the Depot's Railway, and the
+// Merchant's on his Storefront next door (db/lib/train.js#STOREFRONT_ROOM_SLUG)
+// — the shop and the platform were one Location until they were split, and
+// each kept a machine. The other two have no counter behind them — the Inn's
+// bar and the Den's — and are an ATM and nothing else, no ordering, no drop
+// box, no sell window. Named here rather than imported from train.js, which
+// would be a cycle for two strings.
+const ATM_ROOM_SLUGS = new Set([
+  "undertown-5-1",
+  "undertown-6-1",
+  "town-7-2",
+  "undertown-8-1",
+]);
 
-// The same three machines as LOCATIONS, because presence is by Location and not
+// The same four machines as LOCATIONS, because presence is by Location and not
 // by Room — this is the set a counter function actually gates on.
+const MERCHANT_LOCATION_SLUG = "undertown-6";
 const INN_LOCATION_SLUG = "town-7";
 const DEN_LOCATION_SLUG = "undertown-8";
-const ATM_LOCATION_SLUGS = new Set([DEPOT_LOCATION_SLUG, INN_LOCATION_SLUG, DEN_LOCATION_SLUG]);
+const ATM_LOCATION_SLUGS = new Set([
+  DEPOT_LOCATION_SLUG,
+  MERCHANT_LOCATION_SLUG,
+  INN_LOCATION_SLUG,
+  DEN_LOCATION_SLUG,
+]);
 
 // The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays RESOURCE_EXPORT_PRICE for them back, so the
 // round trip always loses money — the spread can never be run in a loop to print obols (db/lib/syncTags.js
@@ -69,6 +83,7 @@ module.exports = {
   MERCHANT_ROLE_SLUG,
   isMerchantRole,
   DEPOT_LOCATION_SLUG,
+  MERCHANT_LOCATION_SLUG,
   INN_LOCATION_SLUG,
   DEN_LOCATION_SLUG,
   ATM_ROOM_SLUGS,

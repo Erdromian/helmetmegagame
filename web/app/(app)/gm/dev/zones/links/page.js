@@ -38,6 +38,7 @@ export default async function DevLinksPage() {
     keyed: l.keyed,
     openUntil: l.openUntil ? l.openUntil.toISOString() : null,
     onFoot: l.onFoot,
+    railroad: l.railroad,
     requiredTagSlug: l.requiredTagSlug ?? "",
     updatedAt: l.updatedAt.toISOString(),
   }));

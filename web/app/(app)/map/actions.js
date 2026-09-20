@@ -165,6 +165,8 @@ async function buildMap({ character, unfogged }) {
       // A narrow way somewhere along the road would take their horse off them.
       walkDismounts: Boolean(walk?.dismounts),
       crossesZone: Boolean(near?.crossesZone),
+      // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
+      railroad: Boolean(near?.railroad),
       freeLeft,
       // Whether Push on belongs on the card for this crossing (MAP.md §3).
       canExert: Boolean(near?.crossesZone && exertWhy === null),

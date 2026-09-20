@@ -8792,6 +8792,15 @@ tags:
         - tag: sewer-key
           keep: true
 
+  # The Baron's lift, and the only way down it. He starts with his; nobody
+  # else does any more — it was two courtiers' free run of the Refuse Pit,
+  # which is too much for a starting tag. It is a rare Caving Die find now
+  # (db/lib/cavingLoot.js) or 150 ¢ off the black market, and there is one in
+  # the Vault for whoever can already open the Vault.
+  #
+  # `catalog: gm` despite being on a shelf: the Depot's price list is built
+  # from depotPrice alone (db/lib/pricedTags.js), so a key can be for sale
+  # without also being a line in everybody's tag browser.
   elevator-key:
     catalog: gm
     name: Elevator Key
@@ -8799,6 +8808,8 @@ tags:
     group: items-keys
     sprite: key
     description: "A small metal key."
+    manifest: black-market
+    depotPrice: 150
     pointCost: 0
     stackable: true
     weight: 0
@@ -9355,6 +9366,33 @@ tags:
       gambit: false
       items:
         - tag: den-key
+          keep: true
+
+  # Old Town (docs/zones.yaml, undertown-2). Three of these sit in the Burnt
+  # Home, which is itself behind `tunnel-rat` — so the cellar below is two
+  # gates deep, and the three copies are what stops the whole chain belonging
+  # to whoever got there first.
+  burnt-home-key:
+    catalog: gm
+    name: Burnt Home Key
+    category: items
+    group: items-keys
+    sprite: key1
+    description: "A blackened metal key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 0.25
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: burnt-home-key
           keep: true
 
   exactors-key:
@@ -13285,8 +13323,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # What gets a Docker into the Railyard and into a sealed crate. Access to the
-  # room is handled entirely by Room.accessTagSlugs — see the undertown-5-2
+  # What gets a Docker into the Cargo Bay and into a sealed crate. Access to
+  # the room is handled entirely by Room.accessTagSlugs — see the undertown-6-3
   # entry in docs/zones.yaml — so this tag has no code of its own behind it,
   # beyond letting its holder sell into the Merchant's books.
   # It is emphatically NOT what the turret reads.

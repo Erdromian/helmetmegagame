@@ -1471,6 +1471,15 @@ model LocationLink {
 
   onFoot Boolean @default(false)
 
+  // A rail tunnel. Crossing one while the cargo train is OUT ON THE LINE
+  // (db/lib/train.js#trainHere, read against the OPEN turn's number) gibs the
+  // crosser on arrival; while the train stands at the platform it is an
+  // ordinary crossing. It gates nobody and refuses nothing — it composes with
+  // every other modifier here rather than being a kind of its own. There is no
+  // die in it, which is why the confirm is asked every single time on both
+  // faces. See db/lib/railroad.js.
+  railroad Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -296,7 +296,6 @@ groups:
         - Literate
         - Hand's Pin
         - Hand's Key
-        - Elevator Key
         - Obol x10
       doc_elements:
         - godking
@@ -875,7 +874,7 @@ groups:
       starting_account: 55
       multiple: false
       starting_zone: undertown
-      starting_location: undertown-5
+      starting_location: undertown-6
       whitelist: true
       starting_tags:
         - Cart
@@ -908,7 +907,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: undertown
-      starting_location: undertown-5
+      starting_location: undertown-6
       starting_tags:
         - Depot Keycard
         - Appraisal

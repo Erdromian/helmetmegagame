@@ -249,6 +249,7 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
           openerTagSlugs: [],
           keyed: entry.keyed,
           onFoot: entry.onFoot,
+          railroad: entry.railroad,
         },
       });
     }

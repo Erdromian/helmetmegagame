@@ -85,10 +85,11 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     };
   }
   // Dismounts the traveller rather than refusing — db/lib/indoors.js's dismountForNarrowWay, called from applyLocationMoveSideEffects the same way arriving indoors parks a mount at the door. `dismounts` is surfaced so the picker can say so before anyone commits.
+  // `railroad` rides out on the PASSABLE branches only, beside `openedBy` and for the same reason: a refusal that said more than the last one would leak the edge. A tunnel nobody may enter is not a tunnel they get told about.
   if (link.onFoot && onFootBlocked) {
-    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy };
+    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, railroad: Boolean(link.railroad) };
   }
-  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy };
+  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy, railroad: Boolean(link.railroad) };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The gate button renders off this, on the WATCHTOWER at the gate (db/lib/roomStarterRow.js) — getting into that room is the whole permission model (anyone who can see the winch may pull it), so there's no second predicate here; toggleGate only re-checks the clicker is standing at the gate.

@@ -194,6 +194,14 @@
 #     on_foot: true                # too tight, steep or enclosed for a horse
 #                                  #   or a cart. A MOUNTED character is
 #                                  #   dismounted at the threshold.
+#     railroad: true               # a rail tunnel. Crossing it while the cargo
+#                                  #   train is OUT ON THE LINE gibs the
+#                                  #   crosser on arrival; at the platform it
+#                                  #   is an ordinary crossing. The clock is
+#                                  #   the train's own (db/lib/train.js), so
+#                                  #   there is no die in it — which is why the
+#                                  #   confirm is asked EVERY time, on both
+#                                  #   faces. See db/lib/railroad.js.
 #     keyed: true                  # on crossing, the KEY-HOLDER is DM'd "Leave
 #                                  #   it open for the next 24 hours?". Yes and
 #                                  #   the way ignores its tag and shows in
@@ -985,7 +993,7 @@ zones:
     kind: surface
     sort: 3
     description: >-
-      Under the town's floorboards, the older town: a warren of cut stone and rusted pipe that Ravenheart was built on top of and then forgot about. The lights down here are the ones nobody has replaced.
+      The Undertown is built below Ravenheart. It's where the population's poorer live. It's mostly built out of concrete and steel, with elements of ceramite below the keep. There are many forgotten rooms.
     locations:
       undertown-1:
         name: Undercroft
@@ -1034,13 +1042,55 @@ zones:
                 obol: 480
                 painting: 1
                 nuclear-device: 1
+                # The Hand's old one. Anybody who can already open the Vault
+                # can have the run of the lift too — that is a short list, and
+                # it is the Baron's own door either way.
+                elevator-key: 1
+      # The quarter that burnt. Nobody lives here, and the town says it is
+      # cursed, which is most of why nobody has picked it over — the Burnt
+      # Home is behind `tunnel-rat` and the cellar under it behind a key found
+      # in that home, so the loot at the bottom is two gates deep.
       undertown-2:
-        name: Residences
-        description: ""
+        name: Old Town
+        indoors: true
+        description: >-
+          Homes that were destroyed during a fire, this area is mostly uninhabited now and believed to be cursed.
+        rooms:
+          undertown-2-1:
+            name: Streets
+            description: >-
+              Pillars uphold the roof from caving in. Old, burnt paneling barely separates homes that are glued together.
+          undertown-2-2:
+            name: Boiler Room
+            description: >-
+              Water is pumped from the lake and boiled here, supplying the Fortress with warm water.
+          # Three keys rather than one: the cellar below is worth opening more
+          # than once, and a single key would make the whole chain hostage to
+          # whoever got here first.
+          undertown-2-3:
+            name: Burnt Home
+            access: [tunnel-rat]
+            description: >-
+              A destroyed home, previously belonging to a merchant.
+            stash:
+              items:
+                depot-keycard: 1
+                burnt-home-key: 3
+          undertown-2-4:
+            name: Destroyed Cellar
+            access: [burnt-home-key]
+            description: >-
+              The cellar caved in during the fires, trapping a mass of corpses. It seems nekkers came to scavenge here but were killed during a bloody fight.
+            stash:
+              items:
+                nekker-corpse: 2
+                longbow: 1
+                gladius: 1
+                mail-coif: 1
       undertown-3:
         name: Lifeweb
         description: >-
-          A tower of pure ceramite looms before you. Its peak crowned with vibrant flame. The Mortii's key unlocks the door.
+          The central machine awaits someone to plug into the seat. There are cords, ancient generators, and opaque tanks, all working in a mysterious way. Maintenance tunnels lead further inwards.
         attributes:
           noBuild: true
         # Seeded despite noBuild — nobody builds Dungeons; the sync warns and
@@ -1072,9 +1122,16 @@ zones:
       undertown-4:
         name: Sewer
         description: ""
-      # The merchant's berth, moved out of the Caves with the rest of the
-      # town. `safe:` no longer has a Caving Die to hold off — Undertown is a
-      # surface zone — but `wheels:` and `depot:` still do real work.
+      # The freight end of the station, and only that. The shop that used to
+      # share this Location is its own place next door now (undertown-6), so
+      # what is left here is the platform: the counter, the drop box, the
+      # noticeboard and the train. `safe:` no longer has a Caving Die to hold
+      # off — Undertown is a surface zone — but `wheels:` and `depot:` still
+      # do real work.
+      #
+      # ONE room on purpose. The platform is the whole place, so Storage, the
+      # drop box and a cash machine all hang off it — db/lib/train.js names
+      # the room and db/lib/depot.js#ATM_ROOM_SLUGS the machine.
       undertown-5:
         name: Depot
         indoors: true
@@ -1084,23 +1141,33 @@ zones:
           safe: true
           wheels: true
         description: >-
-          Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
+          Sometimes, wealthier migrants arrive here, but mostly it's for cargo goods.
         rooms:
-          undertown-5-1:
-            name: Storefront
-            description: >-
-              An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
-            stash: [tea, sugar-candy]
           # PUBLIC on purpose, and eyes open: crates land here, so anybody
           # can walk in and carry one off. That is a known hole nobody has
           # closed yet — the alternative was a cargo room only Dockers could
           # reach, which defeats opening the counter up in the first place.
-          undertown-5-2:
-            name: Railyard
+          undertown-5-1:
+            name: Railway
             live: train
             description: >-
               Rusted overhangs, overgrown with wilted, sunthirsted vines, occlude the cargo hub. A deep railway bisects the platforms. Every other turn, a cargo train rolls in.
-          undertown-5-3:
+      # The merchant's berth, moved out of the Caves with the rest of the town
+      # and then out of the Depot itself. He keeps his three rooms; the
+      # platform next door keeps the counter, so he stands one free hop from
+      # his own till.
+      undertown-6:
+        name: Merchant
+        indoors: true
+        description: >-
+          Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
+        rooms:
+          undertown-6-1:
+            name: Storefront
+            description: >-
+              An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
+            stash: [tea, sugar-candy]
+          undertown-6-2:
             name: Merchant's Office
             access: [merchants-license]
             soundproof: true
@@ -1109,7 +1176,7 @@ zones:
             stash:
               items:
                 paper: 32
-          undertown-5-4:
+          undertown-6-3:
             name: Cargo Bay
             access: [depot-keycard]
             description: >-
@@ -1129,9 +1196,6 @@ zones:
                 # Untradeable, so it is a fixture here and weighs nothing —
                 # see the note on the tag in docs/tags.yaml.
                 packaging-equipment: 1
-      undertown-6:
-        name: Merchant
-        description: ""
       undertown-7:
         name: Poorhouse
         description: ""
@@ -2128,3 +2192,41 @@ connections:
   - pair: [undertown/undertown-5, caves/caves-brooding-grounds]
     hidden: caving
     on_foot: true
+
+  # The merchant's berth, off the freight platform and out into the Undertown
+  # proper. Without the first of these he is an island with the counter on the
+  # wrong side of it.
+  - [undertown/undertown-5, undertown/undertown-6]
+  - [undertown/undertown-6, undertown/undertown-7]
+  - [undertown/undertown-6, undertown/undertown-a]
+
+  # The Undercroft's own way out into the Alleys, for somebody who knows the
+  # pipes. Hidden, so a player without the knack never learns it is there.
+  - pair: [undertown/undertown-1, undertown/undertown-d]
+    hidden: tunnel-rat
+    on_foot: true
+
+  # Out of the cellars into the burnt quarter. LOCKED rather than hidden:
+  # everybody can see the door under the keep, and everybody knows whose key
+  # opens it.
+  - pair: [undertown/undertown-1, undertown/undertown-2]
+    locked: barons-key
+    on_foot: true
+
+  # The maintenance tunnels the Lifeweb's description promises, out into the
+  # sewers. Locked for the same reason the graveyard stair is: the way is no
+  # secret, the key is.
+  - pair: [undertown/undertown-3, undertown/undertown-4]
+    locked: sewer-key
+    on_foot: true
+
+  # --- The railroad ------------------------------------------------------
+  # Two tunnels out of the Depot, and the cargo train is in one of them every
+  # other turn (db/lib/train.js). Go in while it is out on the line and there
+  # is nothing left to bury — db/lib/railroad.js, and the unconditional
+  # confirm in web/lib/travelCost.js#crossingConfirm is the only warning
+  # anybody gets. Ordinary border crossings otherwise: they cost the Move.
+  - pair: [undertown/undertown-5, hills/grand-ravine]
+    railroad: true
+  - pair: [undertown/undertown-5, depths/depths-chasm]
+    railroad: true

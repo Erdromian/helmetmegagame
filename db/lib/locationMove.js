@@ -39,6 +39,12 @@ const { sendDm } = require("./dm");
 const { rollTurretOnArrival, TURRET_DM } = require("./depotPass");
 const { applyDeathTeardown } = require("./deathTeardown");
 const {
+  railroadGibOnArrival,
+  RAILROAD_DEATH_REASON,
+  RAILROAD_LOCATION_LINE,
+} = require("./railroad");
+const { locationLine } = require("./placeLine");
+const {
   rollGatehouseTurretOnArrival,
   GATEHOUSE_TURRET_DM,
 } = require("./gatehouseTurret");
@@ -321,6 +327,48 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     await announceTurretBurst(prisma, shot.locationId).catch((err) =>
       console.error(`Move: turret burst failed for ${characterId}:`, err.message ?? err),
     );
+  }
+
+  // Walking into a rail tunnel with the train in it (db/lib/railroad.js). Here
+  // for the reason the turrets are here: a kill on arrival is a database fact
+  // and must not wait on there being a token to announce it with. `fromLocationId`
+  // gates it, so a teleport, a spawn, a rite and a first placement cross no edge
+  // and can never die to this. Wrapped, because the train must never wedge a
+  // move that has already committed.
+  //
+  // AFTER the commit and not inside performLocationMove's transaction, on
+  // purpose: the crossing really happened and stays paid, and applyDeathToRow
+  // fires a pile of un-tx'd writes — including a reincarnate that recurses back
+  // through this very function — which has no business nested in a move.
+  const hit = await railroadGibOnArrival(prisma, {
+    characterId,
+    fromLocationId,
+    toLocationId,
+    turn: openTurn,
+  }).catch((err) => {
+    console.error(`Move: the railroad failed for ${characterId}:`, err.message ?? err);
+    return null;
+  });
+  if (hit?.death) {
+    await applyDeathTeardown(prisma, hit.death).catch((err) =>
+      console.error(`Move: railroad death teardown failed for ${characterId}:`, err.message ?? err),
+    );
+    if (hit.death.discordUserId) {
+      await sendDm(prisma, hit.death.discordUserId, `You have died. ${RAILROAD_DEATH_REASON}`).catch((err) =>
+        console.error(`Move: railroad DM failed for ${characterId}:`, err.message ?? err),
+      );
+    }
+    const where = await prisma.location
+      .findUnique({ where: { id: toLocationId }, select: { id: true, name: true, discordChannelId: true } })
+      .catch(() => null);
+    await locationLine(prisma, where, RAILROAD_LOCATION_LINE(hit.death.name)).catch((err) =>
+      console.error(`Move: railroad line failed for ${characterId}:`, err.message ?? err),
+    );
+    // Everything below here is owed to a LIVING arrival — the zone role, the
+    // narrowcast seat, room access, pending invites, party membership. The
+    // teardown above has just revoked all of it, so running on would hand a
+    // dead sheet its threads back.
+    return;
   }
 
   const [fromLocation, toLocation, character] = await Promise.all([
