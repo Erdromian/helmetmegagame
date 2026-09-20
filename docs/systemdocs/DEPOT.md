@@ -335,6 +335,24 @@ above zero.
   **refused** rather than clamped. Nothing in code punishes a standing balance —
   the Company is not code.
 
+**Send pays another account, or hands the claim back.** A third ATM button,
+same standing gate as the other two. The picker names **holders, not
+fingerprints** — a fingerprint half-tells you whose an account is, and a
+dropdown of them would undo every anonymous order anybody has ever placed. It
+lists the living only.
+
+Paying a person is two locked account rows in one transaction, taken **in id
+order** so two people paying each other at once queue rather than deadlock.
+Nothing physical moves, so the room-lock rule below does not apply and the
+Vault is not touched on either side.
+
+**Sending to the treasury SURRENDERS the claim.** The treasury is a room, not
+an account (`ECONOMY.md` §2), so there is nowhere to pay into: the balance
+falls and the coin behind it stays exactly where it was. The Keep ends up
+better backed rather than richer. That is the honest answer, and it is worth
+knowing before reading the backing audit — a run of donations makes the claims
+fall while the pile holds still.
+
 **The Vault can be robbed, and that is the point.** It is a room with a stash in
 it. Emptying it does not zero anybody's balance; it makes every balance
 unwithdrawable, which is a far more interesting thing to do to a town.
@@ -390,7 +408,8 @@ audit row. Click an account, or follow `?account=<id>`, to see only that
 account's history.
 
 **The Transactions list** (`db/lib/treasuryLedger.js`) is built at read time from
-three places: deposits, withdrawals and opening balances off `EconomyEntry`,
+three places: deposits, withdrawals, transfers and opening balances off
+`EconomyEntry`,
 orders off `DepotOrder`, and settled sales off `DepotSale`. It shows only the
 **General manifest's** side of the bank. An order with even one Black Market or
 Merchant line is left out whole, as are sales into the Merchant's books and the
@@ -399,6 +418,12 @@ Company's credit line. That is judged line by line, never by
 stamped `ANONYMOUS` or with a Custom label shows under that stamp with no
 fingerprint, and never in its account's own view. The account table names every
 fingerprint, so showing it there would unmask the buyer.
+
+**A transfer is two rows, not one** — the sender's and the recipient's, each
+under its own account, because an account-to-account payment has a bank on both
+ends and a single row would lose one of them. Filtered to one account, it is
+whichever end that account is standing on. A claim surrendered to the treasury
+has only the one end, so it draws as one row against the sender.
 
 The ATMs tab no longer shows a player the Vault's total, and its Withdraw
 dialog caps at the balance rather than the Vault for the same reason. A

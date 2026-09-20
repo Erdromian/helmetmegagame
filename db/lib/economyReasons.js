@@ -59,6 +59,7 @@ const REASONS = {
   STASH: { flow: FLOW.TRANSFER, label: "Stash" },
   DEPOT_ORDER: { flow: FLOW.TRANSFER, label: "Depot order" },
   DEPOT_SALE: { flow: FLOW.TRANSFER, label: "Depot sale" },
+  BANK_TRANSFER: { flow: FLOW.TRANSFER, label: "Transfer" },
   TRAIN_DELIVERY: { flow: FLOW.TRANSFER, label: "Train delivery" },
   // The Meister's cut of a settled sale, coin into the Keep's Vault. Beside TAX
   // rather than a sink: the money does not stop existing, it changes hands.

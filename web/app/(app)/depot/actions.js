@@ -36,6 +36,7 @@ import {
   counterState,
   openCounterAccount,
   bankMove,
+  bankSend,
   dropIntoBox,
   depotTurretPanel,
   toggleDepotTurret,
@@ -329,6 +330,15 @@ async function depotBankImpl(input) {
   return { direction: result.direction, amount: result.amount, sfx: SFX.COIN };
 }
 
+// No tags move, so no afterInventoryChange: this is two numbers and a ledger row.
+async function depotSendImpl(input) {
+  const session = await whoAmI();
+  const openTurn = await getOpenTurn();
+  const result = lift(await bankSend(prisma, session.discordUserId, { ...input, turn: openTurn }));
+  revalidateAll();
+  return { amount: result.amount, line: result.line, sfx: SFX.COIN };
+}
+
 async function depotCounterStateImpl() {
   const session = await whoAmI();
   return lift(await counterState(prisma, session.discordUserId));
@@ -473,6 +483,10 @@ export async function depotSaleDestination(input) {
 
 export async function depotBank(input) {
   return guarded(() => depotBankImpl(input));
+}
+
+export async function depotSend(input) {
+  return guarded(() => depotSendImpl(input));
 }
 
 export async function depotCredit(input) {

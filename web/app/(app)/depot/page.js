@@ -26,6 +26,7 @@ import {
   presentedIdentity,
   forcedNameFrom,
 } from "@lifeweb/db";
+import { sendableAccounts } from "@lifeweb/db/lib/depotCounter";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
@@ -53,6 +54,7 @@ const DEPOT_LEDGER_KINDS = {
   request_depot_drop: { key: "DEPOT_DROP", label: "Sold" },
   request_depot_atm: { key: "DEPOT_ATM", label: "Cash" },
   request_depot_credit: { key: "DEPOT_CREDIT", label: "Credit line" },
+  request_depot_send: { key: "DEPOT_SEND", label: "Sent" },
   request_depot_account_open: { key: "DEPOT_ACCOUNT", label: "Account" },
   request_depot_crate_open: { key: "DEPOT_CRATE_OPEN", label: "Crate" },
 };
@@ -79,6 +81,11 @@ function ledgerRow(entry) {
       return {
         detail: e.direction === "DRAW" ? "Drawn on the line" : "Repaid the line",
         delta: e.direction === "DRAW" ? (e.amount ?? 0) : -(e.amount ?? 0),
+      };
+    case "DEPOT_SEND":
+      return {
+        detail: e.toTreasury ? "To the treasury" : `To ${e.toName ?? "an account"}`,
+        delta: -(e.amount ?? 0),
       };
     case "DEPOT_ACCOUNT":
       return { detail: `Account ${e.fingerprint ?? ""} opened`, delta: 0 };
@@ -142,7 +149,7 @@ async function FreshDepot() {
   const openTurn = await getOpenTurn();
   const account = character?.bankAccount ?? null;
 
-  const [wareTags, pricedTags, obolTag, ledgerRows, mySales, allStagedSales] = await Promise.all([
+  const [wareTags, pricedTags, obolTag, ledgerRows, mySales, allStagedSales, sendTargets] = await Promise.all([
     // `resources` itself carries a depotPrice (docs/tags.yaml), so it is
     // excluded here — the hand-built `resourceWare` row below is its one
     // listing, not a second one drawn off the catalog.
@@ -176,6 +183,9 @@ async function FreshDepot() {
     // The Licence sees every account's staged selling — that is what running
     // the station buys. Settled rows stay each seller's own business.
     licensed ? prisma.depotSale.findMany({ where: { settledAt: null }, orderBy: { createdAt: "desc" }, take: 200 }) : [],
+    // Names only, and only when there is an account to send FROM. Nobody
+    // standing in the yard without one needs the roster of who banks.
+    account ? sendableAccounts(prisma, character.id) : [],
   ]);
 
   // AuditLog carries a turnId but no relation to Turn, so the numbers come
@@ -324,6 +334,7 @@ async function FreshDepot() {
         allStagedSales: allStagedSales.map(saleShape),
         heldObols: obolTag ? (heldByTagId.get(obolTag.id) ?? 0) : 0,
         creditAvailable: creditAvailableObols(depot),
+        sendTargets,
         ledger: ledgerRows.map((r) => {
           const { detail, delta } = ledgerRow(r);
           return {
