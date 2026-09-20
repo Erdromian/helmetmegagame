@@ -29,7 +29,7 @@ const MINING_EMOJI = "⛏️";
 
 // The zones with open water in them. Its own small copy — this reads
 // docs/zones.yaml, not the game's runtime state. Forest and Marshes went
-// with the surface; the Black Hills keep the waterway.
+// with the surface; the Black Hills keep the West and East Rivers.
 const WATER_ZONES = new Set(["hills"]);
 
 // `kind: group` zones (Underground) never appear in connections themselves —
