@@ -781,6 +781,7 @@ tags:
     catalog: gm
     name: Bishop
     category: general
+    description: "You can excommunicate people."
     pointCost: 0
     visible: false
     purchasable: false
