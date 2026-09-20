@@ -2,7 +2,8 @@
 
 import { memo, useMemo, useState } from "react";
 import IconButton from "@/app/components/IconButton";
-import SoundToggle from "@/app/components/SoundToggle";
+import SoundControls from "@/app/components/SoundControls";
+import VolumeSlider from "@/app/components/VolumeSlider";
 import HoverCard from "@/app/components/HoverCard";
 import { BellRingIcon, CheckIcon, ChevronDownIcon, MailIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "./seenStore";
@@ -364,7 +365,7 @@ export default function PlacesColumn({
           </div>
         )}
       <div className="chat-places-foot">
-        <SoundToggle />
+        <SoundControls layout="stack" />
         {push && (
           <IconButton
             icon={push.on ? BellRingIcon : SendIcon}
@@ -380,6 +381,9 @@ export default function PlacesColumn({
             <CheckIcon width="15" height="15" />
           </button>
         )}
+        {/* Last, so it takes its own line under the whole row of buttons rather
+            than splitting them (.chat-places-foot, globals.css). */}
+        <VolumeSlider id="volume-chat" />
       </div>
       {foot}
       </div>

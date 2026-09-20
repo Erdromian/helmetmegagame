@@ -1,6 +1,7 @@
 import { prisma, MORTUS_SLUG } from "@lifeweb/db";
 import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
-import { getGmSession } from "@/lib/discordGuild";
+import { readGameState } from "@lifeweb/db/lib/gameState";
+import { getGmSession, getGuildMember, isPlaytester } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { railKindSql } from "@/lib/dmThread";
 
@@ -58,15 +59,30 @@ async function loadUnreadConversationCount(discordUserId) {
   return rows[0]?.count ?? 0;
 }
 
+// A shut game is a door, not a world: there is no Map to read, no Depot to
+// stand in, and no Lifeweb to look at, so the rail offers none of them. What
+// is left is the five things that still mean something before the game opens
+// — your sheet, the documents, a line to the GMs, your notes and the rules.
+// The build crew keep the full rail, because a closed game is exactly when
+// they are working on it. See docs/systemdocs/LOBBY.md §1.
+const CLOSED_NAV_HREFS = new Set(["/character", "/chat", "/notes", "/documents", "/handbook"]);
+
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, hasMortusTag, treasuryGate, gameConfig] = await Promise.all([
+  const [{ isGm: gm }, member, hasMortusTag, treasuryGate, gameConfig, state] = await Promise.all([
     getGmSession(),
+    // Cached with in-flight dedup (web/lib/discordGuild.js), and getGmSession above
+    // already asked for it, so this is the same answer rather than a second call.
+    getGuildMember(discordUserId),
     prisma.characterTag.findFirst({
       where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
     }),
     canReadTreasury(prisma, discordUserId),
     // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playPanelEnabled: true, oraclePlaytest: true } }),
+    prisma.gameConfig.findUnique({
+      where: { id: 1 },
+      select: { playPanelEnabled: true, oraclePlaytest: true },
+    }),
+    readGameState(prisma, { phase: true }),
   ]);
   const superadmin = isSuperadmin(discordUserId);
   // The Lifeweb item follows the Mortus tag, not the GM role — a superadmin keeps it, host access
@@ -76,9 +92,16 @@ export async function loadNavItems(discordUserId) {
   const unreadCount = gm ? await loadUnreadConversationCount(discordUserId) : 0;
   const playEnabled = gameConfig?.playPanelEnabled ?? true;
   const oracleHidden = (gameConfig?.oraclePlaytest ?? false) && !superadmin;
+  // Who keeps the full rail while the game is shut. NOT onRoster(): that counts an
+  // ordinary approved player, who is exactly the person the narrow rail is for. The
+  // build crew is the GMs, the superadmins and the playtesters (db/lib/roleIds.js),
+  // because a closed game is when they are working on it.
+  const crew = gm || superadmin || isPlaytester(member);
+  const narrowed = state?.phase === "CLOSED" && !crew;
   const baseNav = (gm ? GM_NAV : PLAYER_NAV)
     .filter((item) => playEnabled || item.href !== "/chat")
     .filter((item) => !oracleHidden || item.href !== "/gm/oracle")
+    .filter((item) => !narrowed || CLOSED_NAV_HREFS.has(item.href))
     .map((item) =>
       item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
     );
@@ -88,8 +111,11 @@ export async function loadNavItems(discordUserId) {
   // what is held rather than to act — instead of trailing the ordinary pages.
   const withArchive = gm ? [...baseNav, ARCHIVE_NAV_ITEM] : baseNav;
   const withLifeweb = hasMortus ? [...withArchive, LIFEWEB_NAV_ITEM] : withArchive;
-  const withDepot = [...withLifeweb, DEPOT_NAV_ITEM];
-  const withTreasury = treasuryGate.ok || superadmin ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
+  // These three are appended rather than filtered out of a list, so the closed-game
+  // narrowing has to be asked again here or they walk straight past it.
+  const withDepot = narrowed ? withLifeweb : [...withLifeweb, DEPOT_NAV_ITEM];
+  const withTreasury =
+    !narrowed && (treasuryGate.ok || superadmin) ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
   if (!superadmin) return withTreasury;
   const lastGm = withTreasury.findLastIndex((item) => item.section === "gm");
   return [...withTreasury.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withTreasury.slice(lastGm + 1)];

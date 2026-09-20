@@ -1,0 +1,209 @@
+"use client";
+
+import { LAYERS, fadeOutAtEnd, onEnded, playOn, stopLayer, warm } from "./music";
+
+// What plays, and when. See docs/systemdocs/SOUND.md §4 for the full step table.
+//
+// A program is a layer plus a TAPE of steps, walked by runProgram(). The timings are data
+// on purpose: a gap, a fade or a loop point is retuned by editing a number here, never by
+// editing control flow. There is exactly one live setTimeout per run; everything else
+// advances off the element's own `ended` event, so a stalled buffer on a phone delays the
+// tape rather than desyncing it.
+
+const WINDS = [
+  "wind_4_2.ogg",
+  "wind_5_1.ogg",
+  "wind_4_1.ogg",
+  "wind_2_2.ogg",
+  "wind_3_1.ogg",
+  "wind_2_1.ogg",
+];
+
+export const PROGRAMS = {
+  // The door is shut. Wind for about a minute, then — once, and only once per page load —
+  // something wakes up underneath it, and then the wind again, forever.
+  closed: {
+    layer: "ambient",
+    steps: [
+      {
+        id: "wind",
+        pick: WINDS,
+        loop: true,
+        gain: 0.45,
+        fadeInMs: 2000,
+        holdMs: 60_000,
+        fadeOutMs: 2500,
+        // Fetched 10s before the hold expires, so the fade-in is not a buffering pause.
+        warmAtMs: 50_000,
+      },
+      {
+        id: "waking",
+        src: "white_waking.ogg",
+        gain: 0.75,
+        fadeInMs: 3000,
+        fadeOutMs: 4000,
+        once: true,
+      },
+      { goto: 0 },
+    ],
+  },
+
+  // The lobby. One song, a five-second tail, fifteen seconds of nothing, again.
+  lobby: {
+    layer: "music",
+    steps: [
+      { id: "song", src: "song_game.ogg", gain: 0.6, fadeOutMs: 5000 },
+      { silenceMs: 15_000 },
+      { goto: 0 },
+    ],
+  },
+
+  // Rolling a character. The same song, but the intro is odd, so only the FIRST pass hears
+  // it; every pass after that starts at 0:18 and fades in over a second.
+  creation: {
+    layer: "music",
+    steps: [
+      { id: "first", src: "song_game.ogg", startAt: 0, gain: 0.6 },
+      { silenceMs: 10_000 },
+      { id: "again", src: "song_game.ogg", startAt: 18, fadeInMs: 1000, gain: 0.6 },
+      { silenceMs: 10_000 },
+      { goto: 2 },
+    ],
+  },
+};
+
+// `once` steps that have already been spent. MODULE SCOPE IS THE POINT: a page load
+// re-evaluates this file and the set is empty again, which is exactly the rule asked for —
+// refresh and you can be woken a second time. A soft navigation keeps the module, so
+// walking from /character to /notes correctly does NOT replay it.
+const consumed = new Set();
+
+/** Which tape, if any, this state should be playing. */
+export function resolveProgram(phase, pathname = "") {
+  if (!phase) return null;
+  // A GM adjudicating has no character of their own, which would otherwise start the
+  // character-creation loop under the audit desk. The desks stay quiet.
+  if (pathname.startsWith("/gm/")) return null;
+  if (phase.phase === "CLOSED") return PROGRAMS.closed;
+  if (phase.phase === "LOBBY") return PROGRAMS.lobby;
+  if (!phase.hasCharacter) return PROGRAMS.creation;
+  return null;
+}
+
+function pickSrc(step) {
+  if (step.pick) return step.pick[Math.floor(Math.random() * step.pick.length)];
+  return step.src ?? null;
+}
+
+/**
+ * Walk a program. Returns cancel().
+ *
+ * Re-entrancy is handled by `runId`: every callback compares the id it closed over against
+ * the live one, so a cancelled run can never advance the tape it no longer owns.
+ */
+export function runProgram(program, { onStep } = {}) {
+  if (!program || !LAYERS.includes(program.layer)) return () => {};
+
+  const { layer, steps } = program;
+  let index = 0;
+  let timer = null;
+  let warmTimer = null;
+  let dropEnded = null;
+  let dropFade = null;
+  let live = true;
+
+  const clear = () => {
+    if (timer) window.clearTimeout(timer);
+    timer = null;
+    if (warmTimer) window.clearTimeout(warmTimer);
+    warmTimer = null;
+    if (dropEnded) dropEnded();
+    dropEnded = null;
+    if (dropFade) dropFade();
+    dropFade = null;
+  };
+
+  const advance = () => {
+    if (!live) return;
+    index = (index + 1) % steps.length;
+    enter();
+  };
+
+  const enter = () => {
+    if (!live) return;
+    clear();
+
+    let step = steps[index];
+    // `goto` and a spent `once` are both "not a step" — skip on, with a guard against a
+    // tape that is nothing but jumps.
+    for (let guard = 0; guard < steps.length + 1; guard += 1) {
+      if (step && typeof step.goto === "number") {
+        index = step.goto;
+        step = steps[index];
+        continue;
+      }
+      if (step?.once && consumed.has(step.id)) {
+        index = (index + 1) % steps.length;
+        step = steps[index];
+        continue;
+      }
+      break;
+    }
+    if (!step || typeof step.goto === "number") return;
+
+    onStep?.(step);
+
+    if (step.silenceMs) {
+      stopLayer(layer, { fadeMs: 400 });
+      timer = window.setTimeout(advance, step.silenceMs);
+      return;
+    }
+
+    if (step.once) consumed.add(step.id);
+
+    const src = pickSrc(step);
+    if (!src) {
+      advance();
+      return;
+    }
+
+    playOn(layer, {
+      src,
+      startAt: step.startAt ?? 0,
+      loop: Boolean(step.loop),
+      gain: step.gain ?? 1,
+      fadeInMs: step.fadeInMs ?? 0,
+    });
+
+    // The prefetch is the one timer that is not the tape's, so it gets its own handle
+    // rather than racing the tape for `timer`.
+    if (step.warmAtMs) {
+      const next = steps[(index + 1) % steps.length];
+      const ahead = next && !next.once ? pickSrc(next) : next?.src;
+      if (ahead && !(next?.once && consumed.has(next.id))) {
+        warmTimer = window.setTimeout(() => warm(ahead), step.warmAtMs);
+      }
+    }
+
+    if (step.holdMs) {
+      // A looping bed never ends on its own, so the hold is what moves the tape.
+      timer = window.setTimeout(() => {
+        if (!live) return;
+        if (step.fadeOutMs) stopLayer(layer, { fadeMs: step.fadeOutMs });
+        timer = window.setTimeout(advance, step.fadeOutMs ?? 0);
+      }, step.holdMs);
+      return;
+    }
+
+    if (step.fadeOutMs) dropFade = fadeOutAtEnd(layer, step.fadeOutMs);
+    dropEnded = onEnded(layer, advance);
+  };
+
+  enter();
+
+  return () => {
+    live = false;
+    clear();
+    stopLayer(layer, { fadeMs: 600 });
+  };
+}

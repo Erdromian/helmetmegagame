@@ -3313,6 +3313,10 @@ input[type="radio"]:disabled {
   }
 }
 
+/* A verb, so it wears the same raised bevel .btn-secondary does (DESIGN-SYSTEM.md
+   §3b). It used to be a flat 1px outline, which read as a modern web control
+   dropped into a game that is otherwise all pressed metal — and these are the
+   most-pressed things on the sheet, so they were the loudest exception. */
 .action-tile {
   all: unset;
   cursor: pointer;
@@ -3322,25 +3326,41 @@ input[type="radio"]:disabled {
   align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
-  border: 1px solid var(--border);
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  background: var(--surface-raised);
   border-radius: var(--r-sm);
   color: var(--muted);
   font-size: var(--fs-sm);
   line-height: 1.2;
 }
 
-.action-tile:hover:not(:disabled) {
+.action-tile:hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--text);
-  border-color: var(--accent-text);
+}
+
+/* Pressed in, the same swap .btn does. */
+.action-tile:active:not(:disabled):not([aria-disabled="true"]) {
+  border-top-color: var(--border-lo);
+  border-left-color: var(--border-lo);
+  border-right-color: var(--border-hi);
+  border-bottom-color: var(--border-hi);
 }
 
 /* aria-disabled rides alongside :disabled because a touch screen cannot use the
    real attribute here: a disabled button dispatches no click, and the tap is how
    the panel that explains WHY it is greyed gets opened at all (ActionButton.js). */
+/* A gated verb sinks into a dashed well rather than dimming a raised button —
+   the treatment .btn-secondary's gated state already uses, so "you cannot do
+   this yet" reads the same wherever you meet it. */
 .action-tile:disabled,
 .action-tile[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.45;
+  border: 2px dashed var(--border);
+  background: var(--field-bg);
 }
 
 /* An instant verb in flight (ActionButton.js `busy`): quieter, not greyed —
@@ -3356,6 +3376,9 @@ input[type="radio"]:disabled {
   outline-offset: 2px;
 }
 
+/* Bevelled for the same reason .action-tile is: it is a control you press, and a
+   flat 1px square beside a row of raised buttons reads as a different app. 28px
+   rather than 26 so the inner box is unchanged now the frame is 2px a side. */
 .icon-btn {
   all: unset;
   box-sizing: border-box;
@@ -3363,12 +3386,23 @@ input[type="radio"]:disabled {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--border);
+  width: 28px;
+  height: 28px;
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  background: var(--surface-raised);
   border-radius: var(--r-sm);
   color: var(--muted);
   line-height: 1;
+}
+
+.icon-btn:active:not(:disabled):not([aria-disabled="true"]) {
+  border-top-color: var(--border-lo);
+  border-left-color: var(--border-lo);
+  border-right-color: var(--border-hi);
+  border-bottom-color: var(--border-hi);
 }
 
 /* IconButton.js sets data-size on the button; sm (26px, above) stays the
@@ -3380,8 +3414,6 @@ input[type="radio"]:disabled {
 
 .icon-btn:hover {
   color: var(--text);
-  background: var(--row-hover);
-  border-color: var(--accent-text);
 }
 
 .icon-btn:disabled,
@@ -3392,9 +3424,11 @@ input[type="radio"]:disabled {
 
 /* A toggle icon-btn (Journal's pin) in its "on" state — same accent
    .desk-queue-pin already uses for a pinned GM-desk row. */
+/* A toggle icon-btn (Journal's pin, the sound switch) in its "on" state. Accent on
+   the glyph only: tinting one pair of a bevel's borders puts the light in two
+   places at once. */
 .icon-btn[aria-pressed="true"] {
   color: var(--accent-text);
-  border-color: var(--accent-text);
 }
 
 /* A small group of mutually exclusive options, drawn as one joined pill. Used
@@ -3425,9 +3459,23 @@ input[type="radio"]:disabled {
   cursor: pointer;
 }
 .segmented button:first-child { border-left: none; }
+/* The chosen member is pressed IN — the inverse of .btn's raised pair, the same
+   inset .field/.control use. The group's own 1px frame stays, so the geometry
+   never changes as you click along the row. */
 .segmented button[aria-pressed="true"] {
   background: var(--field-bg);
   color: var(--text);
+  border-top: 2px solid var(--border-lo);
+  border-left: 2px solid var(--border-lo);
+  border-right: 2px solid var(--border-hi);
+  border-bottom: 2px solid var(--border-hi);
+  padding: calc(var(--sp-2) - 2px) calc(var(--sp-3) - 2px);
+}
+
+/* first-child drops its left rule above; the pressed state needs it back, or the
+   leftmost option loses the lit edge that says it is sunk. */
+.segmented button:first-child[aria-pressed="true"] {
+  border-left: 2px solid var(--border-lo);
 }
 
 /* App shell: the universal top bar, then the page. A column now that the
@@ -7084,3 +7132,153 @@ label.chip {
   padding: var(--sp-2) 0 var(--sp-1);
 }
 
+
+/* ---------- the volume slider (VolumeSlider.js) ----------
+
+   The app's only range input. A sunk track with a raised bevelled thumb — the
+   same two registers every other control here is built from, so a slider reads
+   as a piece of the same machine rather than the browser's own widget.
+
+   The pseudo-elements cannot be combined into one rule: a selector list
+   containing a vendor pseudo-element a browser does not know is dropped WHOLE,
+   so -webkit- and -moz- have to be written out twice. */
+.volume-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.volume-row .volume-value {
+  min-width: 3ch;
+  text-align: right;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+}
+
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  min-width: 90px;
+  height: 20px;
+  background: none;
+  cursor: pointer;
+}
+
+.volume-slider:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+  height: 10px;
+  background: var(--field-bg);
+  border-top: 2px solid var(--border-lo);
+  border-left: 2px solid var(--border-lo);
+  border-right: 2px solid var(--border-hi);
+  border-bottom: 2px solid var(--border-hi);
+  border-radius: var(--r-sm);
+}
+
+.volume-slider::-moz-range-track {
+  height: 10px;
+  background: var(--field-bg);
+  border-top: 2px solid var(--border-lo);
+  border-left: 2px solid var(--border-lo);
+  border-right: 2px solid var(--border-hi);
+  border-bottom: 2px solid var(--border-hi);
+  border-radius: var(--r-sm);
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 20px;
+  /* The track is 10px plus 2px of border a side; this centres a taller thumb on
+     it, so the handle stands proud of the slot instead of sitting flush in it. */
+  margin-top: -5px;
+  background: var(--surface-raised);
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  border-radius: var(--r-sm);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 20px;
+  box-sizing: border-box;
+  background: var(--surface-raised);
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  border-radius: var(--r-sm);
+}
+
+@media (pointer: coarse) {
+  .volume-slider {
+    height: var(--tap-sm, 36px);
+  }
+}
+
+/* The sound cluster in the top bar (SoundControls.js), pushed to the right edge
+   by .top-bar-spacer so Sign out is the last thing on the row. The spacer is
+   the first thing to collapse when the bar overflows, which leaves the existing
+   sideways scroll behaving exactly as it did. */
+.top-bar-spacer {
+  flex: 1 1 0;
+  min-width: 8px;
+}
+
+/* Sign out is a server action, so it is a <form> rather than a bare button
+   (SignOutButton.js). It must not stretch or shrink like a link would. */
+.top-bar > form {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.sound-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* The chat foot's copy is `contents`, so its two buttons are flex items of
+   .chat-places-foot itself and sit in one row with the bell and Mark all read
+   rather than in a box of their own that wraps them off. The slider is mounted
+   after those (PlacesColumn.js) and takes the next line. */
+.sound-controls[data-layout="stack"] {
+  display: contents;
+}
+
+/* The slider in that foot sits in a 185px column, so everything is
+   width-constrained: a flex child's min-width is auto, and the input's own
+   min-width would otherwise push the row past the column's edge. */
+.chat-places-foot .volume-row {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+.chat-places-foot .volume-slider {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* No room for the word beside a column this narrow. The input keeps its
+   aria-label, which is the accessible name either way. */
+.chat-places-foot .volume-label {
+  display: none;
+}
+
+.sound-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  min-width: 190px;
+}

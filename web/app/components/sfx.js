@@ -1,6 +1,6 @@
 "use client";
 
-import { soundSetting } from "@/app/(app)/chat/soundStore";
+import { soundSetting } from "./soundStore";
 
 // The whole of sound in Bascinet. Three callers, and only three:
 //
@@ -351,7 +351,7 @@ export function playSfx(name) {
   const file = fileFor(name);
   if (!file) return;
 
-  const { on, volume } = soundSetting();
+  const { sfx: on, volume } = soundSetting();
   if (!on || volume <= 0) return;
   if (document.visibilityState !== "visible" && !THROUGH_A_HIDDEN_TAB.has(name)) return;
 
@@ -427,6 +427,11 @@ export function stopSfxLoops() {
   for (const name of [...running.keys()]) stopSfxLoop(name);
 }
 
+// MUSIC DOES THE OPPOSITE, ON PURPOSE (./music.js). A drone belongs to a room somebody is
+// reading, so a hidden tab should not be droning at an empty chair. A soundtrack belongs to
+// the session, and one that cuts out the moment you check Discord is worse than one that
+// does not — the player has a mute button in the top bar for that. Do not unify these two
+// handlers; they are answering different questions.
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") stopSfxLoops();
