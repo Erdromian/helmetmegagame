@@ -122,6 +122,8 @@ commits at the press, and the cubes come off the line at the turn push
   Laboring ladder priced ⬢ and a shift here pays none, so the gate bought
   nothing and stood the Factory's own people off its floor. Anybody who can get
   in can work it, and Prospecting has nothing to say about a refinery.
+- **No fatigue, today.** Refine neither reads nor writes Tired or Exhausted. It
+  did before 2026-09-18; see §6 for what that dropped and what it is worth.
 - **No `miningBonus` applies.** A refinery is not a coefficient, and a pick is
   not a tool for it.
 - **No loot roll.** Refining pays in Squeeze, not in stone (`MINING.md` §3b).
@@ -265,6 +267,16 @@ six is a 1, which is a wound with gloves on and a lost hand or arm without
 (§3), and the Factory roles all start with gloves. Neither verb climbs the
 Tired and Exhausted ladder, unlike Mine and Farm (`db/lib/fatigue.js` has no
 caller in either), so nothing rations the 40 ¢ but the Move.
+
+**That is an open question, not a design.** Refine did tire you while it was a
+Labor: a refining shift carried the roll expression `0-0`, which counted as a
+paid Labor, so it stepped the ladder the way Mine does, and this file said a
+refiner who lost the race got "nothing to refine" instead of a Tired or
+Exhausted tag. The 2026-09-18 Labor strip (`157cd3d0`) made the ladder
+Mine-only, and Refine was rebuilt as its own button (`89e9e4a5`) without it. No
+commit says that was deliberate. Put back on Mine's ladder a solo refiner makes
+20 ¢ a turn, not 40, and the Farm-and-Refine mix stops working, because both
+would lock out the same ladder. Decide it before quoting either figure.
 
 **Farming and mining pay less, and neither pays in ⬢ the way this section used
 to say.** Farming pays no ⬢ at all (`SOILERY.md` §1). A Farm action sows up to

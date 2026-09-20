@@ -58,7 +58,14 @@ const VERBS = [
 // Verbs with no ladder in the code. Their duty is 1 unless the scan below
 // finds a fatigue reference in their files, in which case the report flags it.
 const UNTIRED = [
-  { id: "refine", label: "Refine (Factory)", files: ["web/app/(app)/character/actions/refine.js", "db/lib/refinery.js"] },
+  {
+    id: "refine",
+    label: "Refine (Factory)",
+    files: ["web/app/(app)/character/actions/refine.js", "db/lib/refinery.js"],
+    // Git history, checked by hand (157cd3d0, 89e9e4a5, 2026-09-18). Not derived: the report cannot see a past.
+    history:
+      "It DID tire you while it was a Labor: a refining shift carried the roll expression \"0-0\", which counted as a paid Labor, so it stepped the ladder like Mine, and Exhausted refused it. The 2026-09-18 Labor strip made the ladder Mine-only and Refine was rebuilt without it. No commit says that was on purpose.",
+  },
   { id: "cut", label: "Harvest Godflesh", files: ["db/lib/godflesh.js"], region: ["web/app/(app)/character/actions/misc.js", "extractGodfleshRequestImpl"] },
   { id: "craft", label: "Craft (any recipe)", files: ["web/app/(app)/character/actions/crafting.js", "web/lib/craftBudget.js"] },
   { id: "butcher", label: "Butcher", files: ["web/app/(app)/character/actions/corpse.js"] },
@@ -188,6 +195,7 @@ function fatigueModel({ bySlug, gameTurns = 30 }) {
       overGame: 1,
       pattern: "█".repeat(14),
       checked: scans.map((s) => s.rel),
+      history: u.history ?? null,
     });
   }
 

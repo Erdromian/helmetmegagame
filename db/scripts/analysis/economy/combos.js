@@ -166,7 +166,9 @@ function summarise(planFor, gameTurns, patternTurns = 15) {
 // ---------------------------------------------------------------------------
 // The build
 // ---------------------------------------------------------------------------
-function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free = 1 }) {
+// `refineFatigue` asks "what if Refine used the exhaustion system?": 'mine' puts it on
+// Mine's ladder (as it was while Refine was a Labor), 'farm' on Farm's lockout.
+function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free = 1, refineFatigue = null }) {
   const map = loadMap();
   const dist = distances(map.adj);
   const dur = fatigue.durations;
@@ -202,7 +204,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   const refineZone = map.sites.refine[0];
   // A cut and a refine must share a zone: the lump is cut the same turn it is refined.
   if (!map.sites.cut.includes(refineZone)) throw new Error("combos.js: Godflesh is cut somewhere other than the Factory's zone");
-  const refineVerb = { id: refineAct.id, letter: "R", label: "Refine (cut a lump first)", zone: refineZone, value: refineAct.perAction, fatigue: null, needs: [], factory: true };
+  const refineVerb = { id: refineAct.id, letter: "R", label: "Refine (cut a lump first)", zone: refineZone, value: refineAct.perAction, fatigue: refineFatigue, needs: [], factory: true };
 
   // ---- crafts: the best easy recipe the loadout can make ----
   const oreLimited = (a) => (a.oreNeeds ?? []).some((o) => o.prospectors > 2);
@@ -285,6 +287,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   return {
     free,
     gameTurns,
+    refineFatigue,
     zones: map.zones,
     adjacency: Object.fromEntries([...map.adj].map(([k, v]) => [k, [...v].sort()])),
     sites: { farm: farmZone, refine: refineZone, cut: map.sites.cut[0], caves: "caves", depths: "depths" },

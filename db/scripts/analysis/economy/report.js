@@ -277,6 +277,35 @@ ${table({ cols: craftCols(), rows: L.noWorkshop.slice(0, 8) })}
 </section>`;
 }
 
+function sectionRefineScenario() {
+  const now = model.combos;
+  const alt = model.combosIfRefineTires;
+  const fmtBest = (c, pts) => {
+    const l = c.loadouts.filter((x) => x.points <= pts).sort((x, y) => y.withFactory.rate - x.withFactory.rate || x.points - y.points)[0];
+    return l;
+  };
+  const budgets = [0, params.startingTagPoints, 14, 17];
+  const rows = [
+    {
+      label: "Refine alone",
+      a: now.alone.find((x) => /^Refine/.test(x.label)),
+      b: alt.alone.find((x) => /^Refine/.test(x.label)),
+    },
+    ...budgets.map((pts) => ({ label: `Best with up to ${pts} points`, a: fmtBest(now, pts)?.withFactory, b: fmtBest(alt, pts)?.withFactory, la: fmtBest(now, pts), lb: fmtBest(alt, pts) })),
+  ];
+  const cols = [
+    { h: "", get: (r) => r.label },
+    { h: "As coded now", num: true, get: (r) => fmt(r.a?.rate), sort: (r) => r.a?.rate ?? 0 },
+    { h: "Mix", get: (r) => (r.la ? `${r.la.skills.join(" + ")}: ` : "") + (r.a?.pattern ?? "") , style: () => "font-family:var(--mono);letter-spacing:1px" },
+    { h: "Refine on the ladder", num: true, get: (r) => fmt(r.b?.rate), sort: (r) => r.b?.rate ?? 0 },
+    { h: "Mix", get: (r) => (r.lb ? `${r.lb.skills.join(" + ")}: ` : "") + (r.b?.pattern ?? ""), style: () => "font-family:var(--mono);letter-spacing:1px" },
+  ];
+  return `<h3>If Refine used the exhaustion system</h3>
+<p class="lede">The code has no fatigue on Refine, but it did until 2026-09-18, when Refine was still a Labor: its roll expression was <code>0-0</code>, which counted as a paid Labor and stepped the Tired and Exhausted ladder the way Mine does. The Labor strip made the ladder Mine-only, and Refine was rebuilt as its own button without it. No commit says that was deliberate. This table asks what changes if Refine is put back on Mine's ladder.</p>
+${table({ cols, rows })}
+<p class="lede">Refine alone halves. More than that, the Farm and Refine mix disappears: Refine would climb the same ladder that locks Farm out, so the two stop filling each other's gaps, and the best mixes become Farm plus crafts with no Factory in them. Whether Refine should tire you is a design decision, and the whole Factory economy turns on it.</p>`;
+}
+
 function sectionCombos() {
   const c = model.combos;
   const label = (l) => l.skills.join(" + ");
@@ -347,6 +376,7 @@ ${table({ cols: stepCols("noFactory"), rows: steps("noFactory") })}
 ${barChart({ rows: bars, unit: " ¢", labelW: 330, fmtVal: (v) => fmt(v, 1) })}
 <h3>What a starting character (${params.startingTagPoints} points) can reach</h3>
 ${table({ cols: startCols, rows: startRows })}
+${sectionRefineScenario()}
 <h3>What this leaves out</h3>
 <p class="lede">The plan sells nothing and carries nothing. A refining day is ${cubes} cubes at ${fmt(model.params.squeezeLbs ?? 17, 0)} lb, so ${fmt(lbs, 0)} lb (${fmt(lbs / 2, 0)} lb crated), against a ${params.carryWeightLbs} lb carry cap, and an Overburdened character cannot cross zones at all. Turning cubes into ¢ means a trip to the Depot in Undertown, which is one crossing from both the town and the hills, so a plain walker cannot refine and sell in the same turn without a mount or cart. The 53 ¢ figure is a ceiling on Moves and fatigue, not a wage. Also left out: the 1-in-6 injury on every Godflesh cut, a forge for smithing, seed bags and ⬢ bought at the Depot, and how many other players want the same seat.</p>
 </section>`;
@@ -408,7 +438,7 @@ function sectionFatigue() {
     { h: "Pressed", num: true, get: (r) => (r.steady >= 0.999 ? "every turn" : `1 in ${fmt(1 / r.steady, 1)}`), sort: (r) => r.steady },
     { h: `Over ${f.gameTurns} turns`, num: true, get: (r) => `${fmt(r.overGame * f.gameTurns, 0)} of ${f.gameTurns}`, sort: (r) => r.overGame },
     { h: "First 14 turns", get: (r) => r.pattern, style: () => "font-family:var(--mono);letter-spacing:1px" },
-    { h: "What the code does", get: (r) => r.mechanism },
+    { h: "What the code does", get: (r) => r.mechanism + (r.history ? " History: " + r.history : "") },
     { h: "Read from", get: (r) => r.source },
   ];
   return `<section><h2>Which work tires you</h2>

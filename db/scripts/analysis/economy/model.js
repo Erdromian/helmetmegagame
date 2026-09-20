@@ -642,6 +642,18 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     free: freeMoves ?? schemaDefault("freeZoneMovesPerTurn"),
   });
 
+  // What if Refine were on the exhaustion ladder like Mine? It was, until the
+  // 2026-09-18 Labor strip (see the note on the Refine row in fatigue.js).
+  const combosIfRefineTires = buildCombos({
+    activities,
+    fatigue,
+    bySlug,
+    params,
+    gameTurns,
+    free: freeMoves ?? schemaDefault("freeZoneMovesPerTurn"),
+    refineFatigue: "mine",
+  });
+
   // --- the price ladder ------------------------------------------------------
   const priceLadder = list
     .filter((t) => t.depotPrice != null && t.slug !== "resources")
@@ -909,6 +921,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     priceRule,
     resourceBalance,
     combos,
+    combosIfRefineTires,
     shortlists: { ...shortlists, cookingAll: cookRows },
     baselines,
     cheapestMeal,
