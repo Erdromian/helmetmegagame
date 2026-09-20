@@ -55,11 +55,6 @@ const ASSUMPTIONS = [
     value: "sellablePrice, else depotPrice, else 0 (flagged)",
     why: "What a spent ingredient is worth: what you could have sold it for; failing that, what it costs to buy.",
   },
-  {
-    key: "GAMBIT_RECIPES",
-    value: "counted at face value",
-    why: "A recipe with gambit: true has a die and a failure chance the catalog does not state. Its ¢/turn is an upper bound and is flagged.",
-  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -224,7 +219,6 @@ function buildModel({ players = 100 } = {}) {
         root = c.root;
       }
     }
-    if (r.gambit) flags.push("gambit: upper bound");
 
     const per = (rvPrice) => revenue - itemCost - resCost * rvPrice;
     let perTurnSell = null;
@@ -256,7 +250,6 @@ function buildModel({ players = 100 } = {}) {
       duty: 1,
       netPerTurnSell: perTurnSell,
       netPerTurnBuy: perTurnBuy,
-      gambit: !!r.gambit,
       flags,
     });
   }
@@ -311,7 +304,6 @@ function buildModel({ players = 100 } = {}) {
           lootEv: loot.ev,
           netPerTurnSell: (resources * rv.sell + loot.ev) * assumptions.MINING_DUTY,
           netPerTurnBuy: (resources * rv.buy + loot.ev) * assumptions.MINING_DUTY,
-          gambit: false,
           flags,
         });
       }
@@ -350,7 +342,6 @@ function buildModel({ players = 100 } = {}) {
       harvest,
       netPerTurnSell: ((revenue - seedCost) * 1) / farmCycle,
       netPerTurnBuy: ((revenue - seedCost) * 1) / farmCycle,
-      gambit: false,
       flags,
     });
   }
@@ -386,7 +377,6 @@ function buildModel({ players = 100 } = {}) {
     duty: 1,
     netPerTurnSell: shift,
     netPerTurnBuy: shift,
-    gambit: false,
     flags: ["someone else pays the cutting risk"],
   });
   const soloRate = shift * Math.min(1, bare.godflesh);
@@ -406,7 +396,6 @@ function buildModel({ players = 100 } = {}) {
     injuryChance: bare.injuryChance,
     netPerTurnSell: soloRate,
     netPerTurnBuy: soloRate,
-    gambit: false,
     flags: [
       `the cut costs no Move (misc.js extractGodfleshRequestImpl)`,
       `${(bare.injuryChance * 100).toFixed(0)}% a cut goes wrong; bare hands`,
@@ -418,7 +407,7 @@ function buildModel({ players = 100 } = {}) {
   // --- wages: the benchmarks the price ladder is measured against ----------
   const byId = (id) => activities.find((a) => a.id === id);
   const smithing = activities.filter(
-    (a) => a.family === "smithing" && !a.gambit && a.moves > 0 && a.netPerTurnSell != null,
+    (a) => a.family === "smithing" && a.moves > 0 && a.netPerTurnSell != null,
   );
   const median = (xs) => {
     const s = [...xs].sort((x, y) => x - y);
@@ -503,7 +492,7 @@ function buildModel({ players = 100 } = {}) {
   const resourceBalance = [...new Set(activities.filter((a) => a.kind === "craft").map((a) => a.family))]
     .map((family) => {
       const burn = activities
-        .filter((a) => a.family === family && a.resourcesPerTurn != null && !a.gambit)
+        .filter((a) => a.family === family && a.resourcesPerTurn != null)
         .map((a) => a.resourcesPerTurn);
       return {
         family,
@@ -638,11 +627,11 @@ function buildModel({ players = 100 } = {}) {
       docValue: 22.5,
       model: (() => {
         const top = activities
-          .filter((a) => a.family === "smithing" && !a.gambit && a.netPerTurnSell != null)
+          .filter((a) => a.family === "smithing" && a.netPerTurnSell != null)
           .sort((a, b) => b.netPerTurnSell - a.netPerTurnSell)[0];
         return `${round1(top.netPerTurnSell)} (${top.name})`;
       })(),
-      ok: activities.filter((a) => a.family === "smithing" && !a.gambit && a.netPerTurnSell != null).every((a) => a.netPerTurnSell <= 23),
+      ok: activities.filter((a) => a.family === "smithing" && a.netPerTurnSell != null).every((a) => a.netPerTurnSell <= 23),
       note: "Iron, Glass Eye, Prosthetic Hand and the iron-cored 1-turn pieces sit above the rungs the doc says they cannot overtake.",
     },
     {

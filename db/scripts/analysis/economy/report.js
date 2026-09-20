@@ -236,7 +236,7 @@ function sectionBalance() {
     { h: "Miners per crafter", num: true, get: (r) => fmt(r.minersPerCrafter, 1), sort: (r) => r.minersPerCrafter },
   ];
   return `<section><h2>The ⬢ balance</h2>
-<p class="lede">Mining is the faucet and recipes are the sink. A Prospector at the Caves brings in ${fmt(params.minerResourcesPerTurn)} ⬢ a turn (average of the ${fmt(params.productionCoefficient, 1)} production dial, the base range and the every-other-turn fatigue). “Miners per crafter” is how many of them one crafter of that family needs, working flat out. Gambit recipes are excluded. The Depot sells ⬢ at ${params.rv.buy} ¢, so a shortfall can be bought rather than mined.</p>
+<p class="lede">Mining is the faucet and recipes are the sink. A Prospector at the Caves brings in ${fmt(params.minerResourcesPerTurn)} ⬢ a turn (average of the ${fmt(params.productionCoefficient, 1)} production dial, the base range and the every-other-turn fatigue). “Miners per crafter” is how many of them one crafter of that family needs, working flat out. The Depot sells ⬢ at ${params.rv.buy} ¢, so a shortfall can be bought rather than mined.</p>
 ${table({ cols, rows: model.resourceBalance })}</section>`;
 }
 
@@ -415,9 +415,9 @@ const md = [
 
 const csvCell = (v) => (v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
 const csv = [
-  ["id", "name", "family", "skill", "skillPoints", "moves", "revenue", "inputs", "netPerTurnSell", "netPerTurnBuy", "gambit", "flags"].join(","),
+  ["id", "name", "family", "skill", "skillPoints", "moves", "revenue", "inputs", "netPerTurnSell", "netPerTurnBuy", "flags"].join(","),
   ...ranked.map((a) =>
-    [a.id, a.name, a.family, a.skill, a.skillPoints, a.moves, a.revenue, a.inputs, money(a), a.netPerTurnBuy, a.gambit, a.flags.join("; ")]
+    [a.id, a.name, a.family, a.skill, a.skillPoints, a.moves, a.revenue, a.inputs, money(a), a.netPerTurnBuy, a.flags.join("; ")]
       .map(csvCell)
       .join(","),
   ),
