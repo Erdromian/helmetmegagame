@@ -36,6 +36,7 @@ import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { applyMood, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
 import { HUNGER_MAX, hungerDm } from "@lifeweb/db/lib/hunger";
 import { clearHungerBands } from "@lifeweb/db/lib/hungerBands";
+import { syncVampireBandsNow } from "@lifeweb/db/lib/vampireBands";
 import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
@@ -159,6 +160,17 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
 
     if (Object.keys(data).length) {
       await tx.character.update({ where: { id: characterId }, data });
+    }
+
+    // A GM restoring blood/humanity by hand should see Pale/Bloodcrazed and
+    // friends clear immediately, not wait for the next turn close. See
+    // docs/systemdocs/VAMPIRE.md and db/lib/vampireBands.js.
+    if ("vampireBloodLevel" in data || "vampireHumanity" in data) {
+      const freshVampireStats = await tx.character.findUnique({
+        where: { id: characterId },
+        select: { vampireBloodLevel: true, vampireHumanity: true },
+      });
+      await syncVampireBandsNow(tx, characterId, freshVampireStats.vampireBloodLevel, freshVampireStats.vampireHumanity);
     }
 
     await applyResourcesInTx(tx, characterId, resources);

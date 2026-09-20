@@ -172,6 +172,26 @@ const MUSICIAN_SLUG = "musician";
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA system.
 const FORTRESS_SLUG = "fortress";
 
+// The Vampire (docs/systemdocs/VAMPIRE.md). VAMPIRE_SLUG is the seat marker
+// (db/lib/threats.js); the rest are the two checkpoint-tag tracks db/lib/
+// vampirePass.js grants/drops off vampireBloodLevel/vampireHumanity.
+// PALE_SLUG is the game's existing `pale` tag (docs/tags.yaml), reused here
+// per the design doc's own instruction rather than a second tag.
+const VAMPIRE_SLUG = "vampire";
+const FLUSH_SLUG = "flush";
+const SATIATED_SLUG = "satiated";
+const THIRSTY_SLUG = "thirsty";
+const FAMISHED_SLUG = "famished";
+const BLOODCRAZED_SLUG = "bloodcrazed";
+const BLACK_SCLERA_SLUG = "black-sclera";
+const PALE_SLUG = "pale";
+const HUMANE_SLUG = "humane";
+const ESTRANGED_SLUG = "estranged";
+const DISTURBED_SLUG = "disturbed";
+const WARPED_SLUG = "warped";
+const BESTIAL_SLUG = "bestial";
+const WIGHT_SLUG = "wight";
+
 // #leave — GM-only departure alerts and catatonic deaths, hardcoded (db/lib/roleIds.js reason). Lives in db/ since db/index.js's turn-engine thunk posts death alerts here too.
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
 
@@ -198,6 +218,20 @@ const TAG_CATEGORY = Object.freeze({
 module.exports = {
   FORTRESS_SLUG,
   LEAVE_ANNOUNCE_CHANNEL_ID,
+  VAMPIRE_SLUG,
+  FLUSH_SLUG,
+  SATIATED_SLUG,
+  THIRSTY_SLUG,
+  FAMISHED_SLUG,
+  BLOODCRAZED_SLUG,
+  BLACK_SCLERA_SLUG,
+  PALE_SLUG,
+  HUMANE_SLUG,
+  ESTRANGED_SLUG,
+  DISTURBED_SLUG,
+  WARPED_SLUG,
+  BESTIAL_SLUG,
+  WIGHT_SLUG,
   HUNGER_SLUG,
   STARVING_SLUG,
   HUNGERLESS_SLUG,

@@ -12,7 +12,7 @@ test("solo seats are their own party; the Thanati and the Tribunal share one", (
   assert.deepEqual(partyOf(threatBySlug("judge")), { key: "judge", name: "Judge", solo: true });
   assert.deepEqual(partyOf(threatBySlug("thanati-leader")), { key: "thanati", name: "Thanati", solo: false });
   assert.equal(partyOf(threatBySlug("tribune")).key, partyOf(threatBySlug("tribunal-ordinator")).key);
-  assert.deepEqual(PARTIES.map((p) => p.key), ["demoness", "judge", "thanati", "tribunal"]);
+  assert.deepEqual(PARTIES.map((p) => p.key), ["demoness", "judge", "thanati", "tribunal", "vampire"]);
 });
 
 test("every kind is well-formed and the defaults exist", () => {

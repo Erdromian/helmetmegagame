@@ -28,6 +28,8 @@ const { runStablePass } = require("./lib/stablePass");
 const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runHungerPass } = require("./lib/hungerPass");
+const { runVampirePass } = require("./lib/vampirePass");
+const { runVampireCompulsion } = require("./lib/vampireCompulsion");
 const { runCarryPass } = require("./lib/carryPass");
 const { runMoodPass } = require("./lib/moodPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
@@ -258,6 +260,11 @@ const TURN_PASSES = [
   // it, not replaced. A stabled arelitz feeds itself off the stable floor;
   // see "arelitzLay" further down.
   "hunger",
+  // The Vampire's blood/humanity meters (docs/systemdocs/VAMPIRE.md). Same
+  // slot reasoning as Hunger, right after it: after the sweep so a re-grant
+  // this close doesn't collide with @@unique([characterId, tagId]) against
+  // last close's still-live row. See db/lib/vampirePass.js.
+  "vampire",
   // Guilt Ridden and Insomniac's nightly chance of waking Exhausted. After
   // hunger so it sees the final sheet. See db/lib/dawnAfflictionPass.js.
   "dawnAfflictions",
@@ -952,6 +959,30 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Hunger audit log failed:", err));
+  }
+
+  // The Vampire's blood/humanity meters. Right after Hunger, same ordering
+  // reason. See db/lib/vampirePass.js.
+  let vampire = null;
+  if (!done.has("vampire")) {
+    vampire = await runVampirePass(prisma, turn, config).catch(async (err) => {
+      await passFailed("Vampire", err);
+      return null;
+    });
+    if (vampire) await markDone("vampire");
+  }
+  const { bandDms: vampireBandDms = [], ...vampireSummary } = vampire ?? {};
+  if (vampire) {
+    tagExpiryDms.push(...vampireBandDms);
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "vampire_resolved",
+          details: vampireSummary,
+        },
+      })
+      .catch((err) => console.error("Vampire audit log failed:", err));
   }
 
   // Dawn afflictions (named for the turn phase it used to ride; it runs every
@@ -1685,6 +1716,14 @@ async function advanceTurn() {
     where: { id: 1 },
     data: { nextTurnNote: null },
   });
+
+  // The Vampire's forced compulsion (docs/systemdocs/VAMPIRE.md) — must file
+  // against the turn that just OPENED, not the one that just closed, so it
+  // is deliberately not part of resolveNeeds()/TURN_PASSES above. See
+  // db/lib/vampireCompulsion.js for why.
+  await runVampireCompulsion(prisma, newTurn).catch((err) =>
+    console.error("Vampire compulsion failed:", err),
+  );
 
   // One row per zone rather than one for the game, so every zone's feed on
   // /chat carries the day line (HALL.md §5). /archive folds them back into the
