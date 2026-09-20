@@ -32,6 +32,10 @@ function buildRolesIntroBody() {
   // `groups`/`roles` are slug-keyed MAPPINGS in roles.yaml, read the same way by syncRoles.js.
   for (const [groupSlug, roles] of Object.entries(rolesDoc.groups ?? {})) {
     const bucket = held.has(groupSlug) ? groupSlug : ELSEWHERE;
+    // Elsewhere is never listed. It holds the antagonist seats — the Tribunal,
+    // the Bastard and his men — and #info is read by everyone before the game
+    // opens. Naming them here told the whole server who was coming.
+    if (bucket === ELSEWHERE) continue;
     for (const role of Object.values(roles ?? {})) {
       const whitelistMark = role.whitelist === true ? " (★)" : "";
       held.get(bucket).push(`*${role.name}*${whitelistMark} — ${role.intro}`);
@@ -71,8 +75,9 @@ async function findInfoChannel() {
   return channel;
 }
 
-const LINKS_LINE =
-  "[Website](http://ravenheart.quest/) | [Handbook](http://ravenheart.quest/handbook)";
+// The Handbook link is TEMPORARILY OFF with HANDBOOK_HIDDEN (web/lib/handbook.js),
+// which makes /handbook a 404. Put it back when that flag goes.
+const LINKS_LINE = "[Website](http://ravenheart.quest/)";
 
 function buildDirectoryMessage(mainMessage, linksByCategory) {
   const sections = linksByCategory.map((category) => {

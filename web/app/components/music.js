@@ -26,6 +26,17 @@ import { soundSetting } from "./soundStore";
 // are reachable by playOn("room", …) and wired into the priority rule; that is the whole
 // of the scaffolding and it costs three strings.
 //
+// MUTING IS A DUCK, NOT A STOP. The music switch pulls the master gain to silence and
+// leaves every layer exactly as it was — same track, same place, same tape — so unmuting
+// picks up where the listener would be now, not from the top. See setMusicMuted().
+//
+// ANCHORS say what "where you would be now" means for a track. A `local` track (the
+// default) is a private tape: pause it and it waits for you. An anchored track —
+// `anchor: { startedAt }` — is somebody else's performance, a lute or a jukebox, and it
+// does not wait: whenever it comes back into earshot (unmute, the layer above it ending,
+// walking in halfway through) it is sought to `now - startedAt` first. positionFor() is
+// the one place that answers the question.
+//
 // WEB AUDIO, with <audio> elements as the sources. Everything here is a fade — 3s in, 4s
 // out, 5s out, 1s in, plus the crossfade on takeover — and a GainNode ramp is scheduled
 // on the audio clock, where a busy main thread cannot make it stutter. The element stays
@@ -41,6 +52,10 @@ export const LAYERS = ["ambient", "music", "room", "player"];
 const LAYER_MODE = { ambient: "continue", music: "pause", room: "pause", player: "pause" };
 
 const CROSSFADE_MS = 1200;
+const MUTE_FADE_MS = 400;
+// How far an element may sit from where it ought to be before resuming it seeks. Wider
+// than a seek's own landing error, or resume() would seek, land 50ms off, and seek again.
+const DRIFT_S = 1;
 const BASE = "/assets/music/";
 
 // ---------------------------------------------------------------- the arming gate
@@ -93,7 +108,22 @@ export function onArmed(cb) {
 
 let ctx = null;
 let masterGain = null;
+let muted = false;
 const layers = new Map();
+
+// What the master gain should be: the slider, or nothing while the music switch is off.
+function masterLevel() {
+  return muted ? 0 : soundSetting().volume;
+}
+
+function rampMaster(to, ms) {
+  if (!ctx || !masterGain) return false;
+  const now = ctx.currentTime;
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+  masterGain.gain.linearRampToValueAtTime(to, now + ms / 1000);
+  return true;
+}
 
 function ensureContext() {
   if (ctx !== null) return ctx;
@@ -107,7 +137,7 @@ function ensureContext() {
   }
   ctx = new Ctor();
   masterGain = ctx.createGain();
-  masterGain.gain.value = soundSetting().volume;
+  masterGain.gain.value = masterLevel();
   masterGain.connect(ctx.destination);
   return ctx;
 }
@@ -127,10 +157,13 @@ function state(layer) {
     gainNode: null,
     src: null,
     wanted: null,
+    // "local", or { startedAt } in epoch ms. See the header and positionFor().
+    anchor: "local",
+    startAt: 0,
     endedListeners: new Set(),
     fallbackRamp: null,
-    // True between "we have asked to start at 0:18" and the element actually being
-    // there. applyPriority() will not press play while it is set — see playOn().
+    // True between "we have asked to be at 0:18" and the element actually being there.
+    // applyPriority() will not press play while it is set — see seekTo().
     seeking: false,
   };
 
@@ -171,7 +204,7 @@ function ramp(entry, to, ms) {
   if (entry.fallbackRamp) cancelAnimationFrame(entry.fallbackRamp);
   const from = entry.el.volume;
   const started = performance.now();
-  const master = soundSetting().volume;
+  const master = masterLevel();
   const step = () => {
     const t = ms <= 0 ? 1 : Math.min(1, (performance.now() - started) / ms);
     entry.el.volume = Math.min(1, Math.max(0, (from + (to - from) * t) * master));
@@ -198,7 +231,13 @@ function applyPriority() {
     if (i === top) {
       if (entry.seeking) return;
       ramp(entry, entry.wanted.gain, entry.wanted.fadeInMs ?? CROSSFADE_MS);
-      if (entry.el.paused) entry.el.play().catch(() => {});
+      // Muted, a song waits paused where it is (a 4 MB file should not stream to nobody);
+      // the bed keeps rolling silently, which is what keeps it in time.
+      if (muted && LAYER_MODE[layer] === "pause") {
+        if (!entry.el.paused) entry.el.pause();
+        return;
+      }
+      if (entry.el.paused) resume(entry);
       return;
     }
     // Ducked. Equal-power would matter if two beds crossed; between a bed and a song
@@ -213,15 +252,79 @@ function applyPriority() {
   });
 }
 
+// Where this track ought to be, in seconds, right now. `undefined` for a local track —
+// it is wherever it is. For an anchored one, the performance's own clock; `null` once a
+// non-looping performance has finished, so there is nothing left to hear.
+function positionFor(entry) {
+  if (entry.anchor === "local") return undefined;
+  const at = (Date.now() - entry.anchor.startedAt) / 1000 + entry.startAt;
+  const total = entry.el.duration;
+  if (!Number.isFinite(total) || total <= 0) return Math.max(0, at);
+  if (entry.el.loop) return ((at % total) + total) % total;
+  return at >= total ? null : Math.max(0, at);
+}
+
+// Move an element to `target` (seconds, or a function answering it once metadata is in),
+// then let applyPriority() decide whether it plays. The seek has to land BEFORE the first
+// frame is heard: `currentTime` cannot be set until metadata is in, so a naive version
+// starts at 0:00, seeks a moment later, and leaks the very audio the seek exists to skip.
+// applyPriority() holds off while `seeking` is set.
+function seekTo(entry, target) {
+  entry.seeking = true;
+  const go = () => {
+    const done = () => {
+      entry.seeking = false;
+      applyPriority();
+    };
+    const at = typeof target === "function" ? target() : target;
+    if (at == null) {
+      done();
+      return;
+    }
+    entry.el.addEventListener("seeked", done, { once: true });
+    try {
+      entry.el.currentTime = at;
+    } catch {
+      // Past the end, or a stream that will not seek. Better the intro than silence.
+      entry.el.removeEventListener("seeked", done);
+      done();
+    }
+  };
+  if (entry.el.readyState >= 1) go();
+  else entry.el.addEventListener("loadedmetadata", go, { once: true });
+}
+
+// Bring a paused element back into earshot. Every path that un-pauses goes through here —
+// unmute, the layer above ending, the first gesture — so an anchored track is never
+// resumed at the place it was left, only at the place its performance has reached.
+function resume(entry) {
+  const at = positionFor(entry);
+  if (at === null) {
+    // The performance ended while nobody was listening. Tell the tape, as `ended` would.
+    for (const cb of [...entry.endedListeners]) cb();
+    return;
+  }
+  if (at !== undefined && Math.abs(entry.el.currentTime - at) > DRIFT_S) {
+    seekTo(entry, () => positionFor(entry));
+    return;
+  }
+  entry.el.play().catch(() => {});
+}
+
 // ---------------------------------------------------------------- the API
 
 /** Put a track on a layer. Returns at once; the fade and the priority pass are scheduled. */
-export function playOn(layer, { src, startAt = 0, loop = false, gain = 1, fadeInMs = 0 } = {}) {
+export function playOn(
+  layer,
+  { src, startAt = 0, loop = false, gain = 1, fadeInMs = 0, anchor = "local" } = {},
+) {
   if (typeof window === "undefined" || !src) return;
   const entry = state(layer);
   const url = src.startsWith("/") ? src : `${BASE}${src}`;
 
   entry.wanted = { src: url, gain, fadeInMs };
+  entry.anchor = anchor && typeof anchor.startedAt === "number" ? { startedAt: anchor.startedAt } : "local";
+  entry.startAt = startAt;
   if (entry.src !== url) {
     entry.src = url;
     entry.el.src = url;
@@ -230,31 +333,11 @@ export function playOn(layer, { src, startAt = 0, loop = false, gain = 1, fadeIn
   }
   entry.el.loop = loop;
 
-  // The seek has to land BEFORE the first frame is heard. `currentTime` cannot be set
-  // until metadata is in, so a naive version starts at 0:00, seeks a moment later, and
-  // leaks exactly the few milliseconds of intro the 0:18 offset exists to skip.
-  // applyPriority() holds off while `seeking` is set, and the seek itself calls it.
-  if (startAt > 0) {
-    entry.seeking = true;
-    const seek = () => {
-      const done = () => {
-        entry.seeking = false;
-        applyPriority();
-      };
-      entry.el.addEventListener("seeked", done, { once: true });
-      try {
-        entry.el.currentTime = startAt;
-      } catch {
-        // Past the end, or a stream that will not seek. Better the intro than silence.
-        entry.el.removeEventListener("seeked", done);
-        done();
-      }
-    };
-    if (entry.el.readyState >= 1) seek();
-    else entry.el.addEventListener("loadedmetadata", seek, { once: true });
-  } else {
-    entry.seeking = false;
-  }
+  // An anchored track starts wherever the performance has got to; a local one at startAt.
+  // A finished performance answers null, and seekTo hands that to resume(), which ends it.
+  if (entry.anchor !== "local") seekTo(entry, () => positionFor(entry));
+  else if (startAt > 0) seekTo(entry, startAt);
+  else entry.seeking = false;
 
   ramp(entry, 0, 0);
   // Queued behind the gesture rather than dropped, so the first click drops the listener
@@ -342,21 +425,38 @@ export function onEnded(layer, cb) {
 }
 
 /** The master trim, 0..1. Ramped briefly so dragging the slider is not zippery. */
-export function setMasterVolume(value) {
-  const audio = ensureContext();
-  const level = Math.min(1, Math.max(0, Number(value) || 0));
-  if (audio && masterGain) {
-    const now = audio.currentTime;
-    masterGain.gain.cancelScheduledValues(now);
-    masterGain.gain.setValueAtTime(masterGain.gain.value, now);
-    masterGain.gain.linearRampToValueAtTime(level, now + 0.08);
-    return;
-  }
+export function setMasterVolume() {
+  ensureContext();
+  if (rampMaster(masterLevel(), 80)) return;
   // No Web Audio: the master is folded into each element by ramp(); nudge the audible one.
   const top = topLayerIndex();
   if (top < 0) return;
   const entry = layers.get(LAYERS[top]);
-  if (entry) entry.el.volume = Math.min(1, Math.max(0, (entry.wanted?.gain ?? 1) * level));
+  if (entry) entry.el.volume = Math.min(1, Math.max(0, (entry.wanted?.gain ?? 1) * masterLevel()));
+}
+
+/**
+ * The music switch. Muting pulls the master to silence and touches nothing else — no
+ * track is stopped, no tape is rewound — then pauses the songs once they are inaudible so
+ * they stop streaming. Unmuting brings the master back and lets resume() put each layer
+ * where it belongs: a local track where it was left, an anchored one where it has got to.
+ */
+export function setMusicMuted(next) {
+  const want = Boolean(next);
+  if (want === muted) return;
+  muted = want;
+  ensureContext();
+  if (!rampMaster(masterLevel(), MUTE_FADE_MS)) setMasterVolume();
+  if (muted) {
+    window.setTimeout(() => {
+      if (!muted) return;
+      for (const [layer, entry] of layers) {
+        if (entry.wanted && LAYER_MODE[layer] === "pause" && !entry.el.paused) entry.el.pause();
+      }
+    }, MUTE_FADE_MS);
+    return;
+  }
+  onArmed(applyPriority);
 }
 
 /** Fetch a file without playing it, so a fade-in is not a buffering pause. */
@@ -369,7 +469,10 @@ export function warm(src) {
   el.load();
 }
 
-/** Everything off, now. The director calls this when music is muted. */
+/**
+ * Everything off, now. For when there is nothing that SHOULD be playing — no phase, a GM
+ * desk. Never for the mute switch: that is setMusicMuted(), which keeps the place.
+ */
 export function stopAllMusic({ fadeMs = 400 } = {}) {
   for (const layer of LAYERS) stopLayer(layer, { fadeMs });
 }

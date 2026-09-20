@@ -16664,7 +16664,7 @@ tags:
     sellablePrice: 34
 
   tribunal-helmet:
-    catalog: gm
+    catalog: secret
     name: Tribunal Helmet
     category: items
     group: items-headgear
@@ -16684,7 +16684,7 @@ tags:
     purchasableAfterStart: false
 
   tribunal-ordinator-helmet:
-    catalog: gm
+    catalog: secret
     name: Tribunal Ordinator Helmet
     category: items
     group: items-headgear
@@ -17299,7 +17299,7 @@ tags:
   # actually see: 0.38 melee reads Sufficient where the Knight's 0.44 reads
   # Good, since a band is 0.2 wide (TAGS.md, `melee` / `ballistic`).
   bastards-helmet:
-    catalog: gm
+    catalog: secret
     name: Bastard's Helmet
     category: items
     group: items-headgear

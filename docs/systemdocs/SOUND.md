@@ -102,6 +102,32 @@ reachable by `playOn("room", …)` and wired into the priority rule, waiting for
 the jukeboxes and the instruments. That is the whole of the scaffolding and it
 costs three strings.
 
+### Muting, and where a track comes back
+
+**The music switch is a duck, not a stop.** `setMusicMuted()` pulls the master
+gain to silence and leaves every layer as it was: the same track and the same tape.
+`MusicDirector` keeps the program running while muted, since `audible` is not
+among the program effect's dependencies. So unmuting returns to where the
+listener would be now, not to the top. After the fade, songs pause so they stop
+streaming. The ambient bed keeps playing silently, which keeps it in time.
+`stopAllMusic()` is only for when nothing should be playing (no phase, a GM
+desk). Never wire the mute switch to it. That was the original bug: muting
+restarted the wind from scratch.
+
+**Anchors decide what "where the listener would be now" means.** `playOn(layer, { anchor })`:
+
+- `"local"` (the default) is a private tape. Paused, it waits, and it resumes
+  where it was left. The lobby song and the wind use this.
+- `{ startedAt }` (epoch ms) is somebody else's performance, like a lute or a
+  jukebox. It does not wait. Whenever it comes back into earshot (unmute, the
+  layer above it ending, walking in halfway through), it first seeks to
+  `now − startedAt` (wrapped if it loops). If it has already finished, the tape
+  hears `ended` and moves on.
+
+Every un-pause goes through `resume()`, and `positionFor()` is the only place
+that works out the answer. Anything new that plays a shared performance passes
+its `startedAt` and gets all of this for free.
+
 ### How it is built
 
 `AudioContext` plus a `GainNode` per layer, with the tracks staying as `<audio>`

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { setMasterVolume, stopAllMusic } from "./music";
+import { setMasterVolume, setMusicMuted, stopAllMusic } from "./music";
 import { resolveProgram, runProgram } from "./musicProgram";
 import { usePhase } from "./PhaseProvider";
 import { musicIsAudible, useSound } from "./soundStore";
@@ -13,6 +13,11 @@ import { musicIsAudible, useSound } from "./soundStore";
 // It does NOT re-run on a route change — `pathname` is read only to keep the GM desks
 // quiet (musicProgram.js#resolveProgram), and the effect's dependency is the ANSWER to
 // that question, not the path, so walking between ordinary pages never restarts a track.
+//
+// Nor on the mute switch, and that is the other half of the same rule. The program keeps
+// running while muted; muting only silences the bus (music.js#setMusicMuted), so unmuting
+// lands wherever the tape has got to instead of starting it again from the top. The mute
+// effect is declared FIRST so a page that loads muted is muted before anything plays.
 export default function MusicDirector() {
   const phase = usePhase();
   const setting = useSound();
@@ -21,21 +26,21 @@ export default function MusicDirector() {
   const onDesk = pathname.startsWith("/gm/");
 
   useEffect(() => {
-    setMasterVolume(setting.volume);
+    setMusicMuted(!audible);
+  }, [audible]);
+
+  useEffect(() => {
+    setMasterVolume();
   }, [setting.volume]);
 
   useEffect(() => {
-    if (!phase || !audible) {
-      stopAllMusic();
-      return undefined;
-    }
-    const program = resolveProgram(phase, onDesk ? "/gm/" : "/");
+    const program = phase ? resolveProgram(phase, onDesk ? "/gm/" : "/") : null;
     if (!program) {
       stopAllMusic();
       return undefined;
     }
     return runProgram(program);
-  }, [phase, audible, onDesk]);
+  }, [phase, onDesk]);
 
   return null;
 }

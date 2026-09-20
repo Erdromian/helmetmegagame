@@ -11,7 +11,9 @@ export const PLAYER_NAV = [
   { href: "/map", label: "Map", icon: "map" },
   { href: "/notes", label: "Notes", icon: "notes" },
   { href: "/documents", label: "Documents", icon: "documents" },
-  { href: "/handbook", label: "Handbook", icon: "help" },
+  // TEMPORARILY OFF with HANDBOOK_HIDDEN in web/lib/handbook.js — a rail item
+  // pointing at a page that answers 404 is worse than no rail item.
+  // { href: "/handbook", label: "Handbook", icon: "help" },
 ];
 
 // `section` splits the rail into a GM's two hats; NavRail dividers follow the order below.
@@ -25,7 +27,8 @@ export const GM_NAV = [
   { href: "/map", label: "Map", icon: "map", section: "player" },
   { href: "/notes", label: "Notes", icon: "notes", section: "player" },
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
-  { href: "/handbook", label: "Handbook", icon: "help", section: "player" },
+  // TEMPORARILY OFF — see PLAYER_NAV above.
+  // { href: "/handbook", label: "Handbook", icon: "help", section: "player" },
 ];
 
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
@@ -65,7 +68,10 @@ async function loadUnreadConversationCount(discordUserId) {
 // — your sheet, the documents, a line to the GMs, your notes and the rules.
 // The build crew keep the full rail, because a closed game is exactly when
 // they are working on it. See docs/systemdocs/LOBBY.md §1.
-const CLOSED_NAV_HREFS = new Set(["/character", "/chat", "/notes", "/documents", "/handbook"]);
+// "/handbook" is TEMPORARILY OUT of this set too — see handbook.js. It is a
+// filter over the rails above, so with the entries commented out it would
+// match nothing anyway; it is listed here only so the restore is one grep.
+const CLOSED_NAV_HREFS = new Set(["/character", "/chat", "/notes", "/documents"]);
 
 export async function loadNavItems(discordUserId) {
   const [{ isGm: gm }, member, hasMortusTag, treasuryGate, gameConfig, state] = await Promise.all([
