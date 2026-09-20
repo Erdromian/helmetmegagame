@@ -620,8 +620,13 @@ not finish.
 ## 0k. The counter
 
 `/depot`. A status strip that never scrolls away — greeting, your balance, and
-where the train is — over six tabs: **ATMs**, **Selling**, **Buying**,
-**Manifests**, **Price list**, **Ledger**.
+where the train is — over five tabs: **ATMs**, **Selling**, **Buying**,
+**Price list**, **Ledger**.
+
+There is no Manifests tab, and there should not be one. A tab listing every
+shelf and what opens it tells a man with no chip and no licence exactly what he
+is missing and what is on the other side of it — which is the whole secret the
+manifests exist to keep.
 
 The strip is down to two things because those are the two facts that decide
 whether anything you are about to do works, whichever tab you are on.
@@ -631,8 +636,7 @@ whether anything you are about to do works, whichever tab you are on.
 | **ATMs** | Your account, its class, the Vault's coin if it backs you, Withdraw / Deposit, the credit line if you hold the licence, and your own transactions. **Create an account** if you have none. |
 | **Selling** | Your staged and settled sales, a destination dropdown per staged row, a **Default destination** that seeds the next drop, the drop box itself, and — with a licence — everybody's staged selling. |
 | **Buying** | One section per manifest your tags open, a cart, an **Order anonymously** tick, and when the crates land. |
-| **Manifests** | What each shelf holds and what opens it, the shut ones included. |
-| **Price list** | The reference book: anything priced in either direction. |
+| **Price list** | The reference book, cut to what you are entitled to read: the shelves your tags open, plus a buy-back row for anything in your own hands. |
 | **Ledger** | Your own `DEPOT_*` audit rows. |
 
 No paragraph of explanation, no tooltips: a control whose name does not say what

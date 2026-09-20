@@ -244,8 +244,16 @@ async function FreshDepot() {
   const priceList = [
     { ...resourceWare, side: "Both", manifestName: manifestName.get(resourceWare.manifest) },
     ...pricedTags
-      // Something the station only buys back is on no manifest, so it stays.
-      .filter((tag) => tag.depotPrice == null || openManifests.includes(manifestOf(tag)))
+      // A shelf you cannot open is not yours to read. What the station only
+      // buys back sits on no manifest at all, so it used to be public — and
+      // that published the whole sell-price book, every ore and gem and
+      // creature part, to everybody standing at the counter. You get a
+      // buy-back row for something actually in your hands, and nothing else.
+      .filter((tag) =>
+        tag.depotPrice != null
+          ? openManifests.includes(manifestOf(tag))
+          : (heldByTagId.get(tag.id) ?? 0) > 0,
+      )
       .map((tag) => ({
       ...shape(tag),
       manifestName: tag.depotPrice != null ? manifestName.get(manifestOf(tag)) : "",
