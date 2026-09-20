@@ -1173,12 +1173,12 @@ zones:
               A felt table for playing with dice. There's also a slot machine.
           undertown-8-4:
             name: Room A
-            access: [den-room-a-key]
+            access: [room-a-key-den]
             description: >-
               A comfortable but cramped room.
           undertown-8-5:
             name: Room B
-            access: [den-room-b-key]
+            access: [room-b-key-den]
             description: >-
               A comfortable but cramped room.
       # Behind the Den Key, and shuttable from inside: the edge up to the Den
@@ -1225,8 +1225,8 @@ zones:
                 mace: 1
                 light-infantry-armour: 1
                 balaclava: 2
-                den-room-a-key: 1
-                den-room-b-key: 1
+                room-a-key-den: 1
+                room-b-key-den: 1
       undertown-a:
         name: Slums
         description: ""

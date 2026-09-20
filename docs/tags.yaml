@@ -9148,7 +9148,7 @@ tags:
         - tag: courtesans-key
           keep: true
 
-  den-room-a-key:
+  room-a-key-den:
     catalog: gm
     name: Room A Key (Den)
     category: items
@@ -9168,10 +9168,10 @@ tags:
       resourceCost: 2
       gambit: false
       items:
-        - tag: den-room-a-key
+        - tag: room-a-key-den
           keep: true
 
-  den-room-b-key:
+  room-b-key-den:
     catalog: gm
     name: Room B Key (Den)
     category: items
@@ -9191,7 +9191,7 @@ tags:
       resourceCost: 2
       gambit: false
       items:
-        - tag: den-room-b-key
+        - tag: room-b-key-den
           keep: true
 
   mortus-key:
