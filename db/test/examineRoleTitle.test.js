@@ -1,6 +1,6 @@
 // Which seats a look reads off somebody (db/lib/examine.js, Role.examineVisible).
-// Most of them are public offices, so the title shows; the two Brigands and the
-// two Tribunal seats carry `examine_visible: false` in docs/roles.yaml and show
+// Most of them are public offices, so the title shows; the two Tribunal seats
+// carry `examine_visible: false` in docs/roles.yaml and show
 // nothing at all, the same as a character with no seat. Run with
 // `npm test --workspace=db`. Nothing here touches Prisma — examineReadout,
 // presentedStateFrom and rehydrateSubject are all pure.
@@ -70,7 +70,7 @@ test("a seat in an uncoloured group is read, but wears no colour", () => {
 });
 
 test("a seat that lives on not being known reads as nothing", () => {
-  const readout = look({ roleTitle: "Brigand", examineVisible: false });
+  const readout = look({ roleTitle: "Tribune", examineVisible: false });
   assert.equal(readout.roleTitle, null);
 });
 
@@ -98,7 +98,7 @@ test("a false name is not a hood, and the office is still read", () => {
 test("a raw character row leaks nothing — only the frozen field is read", () => {
   // The shape examine.js must never trust: a title with no visibility attached.
   const readout = examineReadout({
-    subject: { id: "c2", name: "Ivo Brandt", appearance: "Heavyset.", concealed: false, roleTitle: "Brigand", tags: [] },
+    subject: { id: "c2", name: "Ivo Brandt", appearance: "Heavyset.", concealed: false, roleTitle: "Tribune", tags: [] },
     openTurnNumber: 9,
   });
   assert.equal(readout.roleTitle, null);

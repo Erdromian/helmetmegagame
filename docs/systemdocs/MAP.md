@@ -708,7 +708,7 @@ explicit that `listed` is weaker than `passable` — a locked door or a shut
 portcullis is listed on purpose, so you know it's there and cannot open it.
 The stone does not care. The Undercroft is reached
 by a `hidden: elevator-key` connection and the Charon is down there; the
-Brigand camp, the Keep and the Underquarter are all surface Locations behind
+ravine camp, the Keep and the Underquarter are all surface Locations behind
 gates a stone-holder no longer needs to open. The caves are the one thing still
 walled off, which is what keeps the caving gate and the Caving Die meaning
 something.
@@ -974,8 +974,8 @@ sighting the post-commit hook dropped heals itself the next time they look.
 
 **The fog does not start fully closed.** A character is made knowing the places
 their life would have taught them — the home cluster, plus the road their trade
-actually walks. A Headman opens the board already seeing the Farms he has taxed
-for years; a Banneret sees every step of the run up to town. The table is
+actually walks. A Sheriff opens the board already seeing the bridge he has
+walked for years; a Banneret sees every step of the run up to town. The table is
 `db/lib/startingMemories.js`, keyed by role slug. It has a second half keyed by
 a starting tag, `KIT_MEMORIES`, which is **empty**: the three Commoner kit
 crates were its only entries and went with the role, and the mechanism is kept

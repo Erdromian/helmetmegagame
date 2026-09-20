@@ -634,23 +634,6 @@ tags:
   # docs/zones.yaml and nothing else, so it weighs nothing, cannot be bought
   # and cannot be handed over — you either were shown the place or you were
   # not. Somebody bringing a newcomer in has to grant it deliberately.
-  ravine-camp:
-    catalog: all
-    name: Ravine Camp
-    category: general
-    group: general-location
-    description: "You know about the Brigand camp in the Black Hills ravine."
-    pointCost: 0
-    tradeable: false
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    # Not an item, so there is no Destroy button on it — which is right: you
-    # cannot un-know where a place is, and binning it would have locked a
-    # Brigand out of their own camp for good, untradeable meaning nobody could
-    # hand them another.
-
   sewer:
     catalog: all
     name: Sewer
@@ -2601,18 +2584,6 @@ tags:
     visible: false
     purchasable: true
     purchasableAfterStart: true
-
-  # --- Brigands -------------------------------------------------------------
-  brigand:
-    catalog: gm
-    name: Brigand
-    category: general
-    group: general-traits
-    description: "You live outside the law and the walls."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
 
   # The last tag out of the Brigand group, which was deleted on 2026-09-20
   # along with the Brigand seat it gated. Stays `general` rather than `skills`:
@@ -8544,7 +8515,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     visible: false
-    requiredTag: brigand
 
   sewer-key:
     catalog: gm
@@ -8997,29 +8967,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-
-  headmans-key:
-    catalog: gm
-    name: Headman's Key
-    category: items
-    group: items-keys
-    sprite: key
-    description: "A small key."
-    pointCost: 0
-    stackable: true
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: headmans-key
-          keep: true
 
   room-a-key:
     catalog: gm
@@ -14048,7 +13995,7 @@ tags:
     group: items-paper
     sprite: book
     bookText: |-
-      Play together, eat cheese, make cheese, go to the inn, get drunk, do a surgical operation, eat another rat, run for headman, work in the fields, stand guard, learn literature, plant a tree, cosplay as a dog to intimidate cats, wear a fancy hat,...
+      Play together, eat cheese, make cheese, go to the inn, get drunk, do a surgical operation, eat another rat, run for sheriff, work in the fields, stand guard, learn literature, plant a tree, cosplay as a dog to intimidate cats, wear a fancy hat,...
     pointCost: 0
     weight: 1.5
     visible: false
@@ -15855,7 +15802,6 @@ tags:
     depotPrice: 17
     sellable: true
     sellablePrice: 10
-    requiredTag: brigand
 
   invisibility-potion:
     catalog: all
@@ -17198,20 +17144,6 @@ tags:
     equipSlot: HEAD
     visible: worn
     weight: 1
-    purchasable: false
-    purchasableAfterStart: false
-
-  headmans-cap:
-    catalog: gm
-    name: Headman's Cap
-    category: items
-    group: items-headgear
-    description: "A feathered cap for the head of the Headman."
-    pointCost: 0
-    equippable: true
-    equipSlot: HEAD
-    visible: worn
-    weight: 0.5
     purchasable: false
     purchasableAfterStart: false
 

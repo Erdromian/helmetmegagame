@@ -30,9 +30,8 @@ test("every coloured group is a real group", () => {
 
 // The one that matters. A seat a look may not read must not be paintable, or
 // its colour says in every scene what examine refuses to say once. It holds
-// today because the Brigands sit under `outsiders` and the Tribunal under
-// `other` — nothing but this test stops a re-bucketing in the YAML from
-// quietly undoing it.
+// today because the Tribunal sits under `other` — nothing but this test stops
+// a re-bucketing in the YAML from quietly undoing it.
 test("a seat nobody reads off a look is never painted either", () => {
   const doc = yaml.load(fs.readFileSync(path.join(__dirname, "..", "..", "docs", "roles.yaml"), "utf8"));
   const opaque = [];

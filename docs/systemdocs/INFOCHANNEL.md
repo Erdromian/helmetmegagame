@@ -52,7 +52,7 @@ buckets `/character`'s picker uses — `db/lib/roleGroups.js`, imported rather
 than restated, so the two can never disagree, and a role that moves bucket
 moves in both places at once. It prints **no
 zone name at all**: it used to head each section with the zone, which told
-every reader where the Brigands camp before the game had started.
+every reader where the outlaws camp before the game had started.
 
 Threads themselves are created as standalone public threads directly on the
 channel (Discord's "no starter message" thread type), not threads-off-a-

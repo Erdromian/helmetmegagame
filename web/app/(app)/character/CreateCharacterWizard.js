@@ -229,7 +229,7 @@ export default function CreateCharacterWizard({
   // agree or the wizard lets through a build the server rejects.
   const remaining = budget - effectiveTotalCost(selectedTags, byId, grantedIds);
   // Only what's bought here counts against the cap — a role's free drawback
-  // (the Meister's Frail, the Headman's Old) lands as GM_GRANT and sits in
+  // (the Meister's Frail, the Geschef's Old) lands as GM_GRANT and sits in
   // grantedTags, which this deliberately doesn't look at.
   // Two ceilings, and the build has to clear both — TAGS.md §4a.
   const drawbackCount = negativeTagCount(selectedTags);

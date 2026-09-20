@@ -53,8 +53,8 @@ reads is the Role's own charter — `intro` and `description` from
 per seat as well; Bascinet pulled it on 2026-09-06 because it was a second,
 drafted copy of what the role already said. The Thanati are the exception
 because they have no role to copy: a GM picks a cover role when spawning one,
-so their own words have to ride on the entry. The hand-run briefs (Brigands,
-Monsters, the Sympathizer) are not entries at all; they are in `SECRETS.md`.
+so their own words have to ride on the entry. The hand-run briefs (Monsters,
+the Sympathizer) are not entries at all; they are in `SECRETS.md`.
 
 ### Why a code module and not a table
 

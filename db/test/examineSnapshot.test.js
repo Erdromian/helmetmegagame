@@ -152,10 +152,10 @@ test("a seat in an uncoloured group freezes a title and no estate", () => {
 });
 
 test("a seat nobody reads off a look freezes no title at all", () => {
-  const state = roundTrip(speaker([], { roleTitle: "Brigand", examineVisible: false }));
+  const state = roundTrip(speaker([], { roleTitle: "Tribune", examineVisible: false }));
   assert.equal(state.roleTitle, null);
   // And it is absent from the stored payload, not merely dropped on the way out.
-  const frozen = presentedStateFrom(speaker([], { roleTitle: "Brigand", examineVisible: false, groupSlug: "outsiders" }));
+  const frozen = presentedStateFrom(speaker([], { roleTitle: "Tribune", examineVisible: false, groupSlug: "other" }));
   assert.equal(frozen.rt, null);
   assert.equal(frozen.rg, null);
   const subject = rehydrateSubject({ live, state, tags: [] });

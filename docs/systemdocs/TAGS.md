@@ -656,7 +656,7 @@ may have a handful of problems, worth only so much trouble in total.
 
 Only what was bought through the point-buy menu counts against either
 (`CharacterTag.source === "POINT_BUY"`): a role's free drawback (the Meister's
-Frail, the Headman's Old) arrives as `GM_GRANT`, and so does anything a GM or
+Frail, the Geschef's Old) arrives as `GM_GRANT`, and so does anything a GM or
 a turn effect inflicts, so neither eats into a player's allowance. A GM grant
 can still push someone past both, deliberately — the same bypass every other
 gate has (§3).

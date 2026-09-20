@@ -246,7 +246,7 @@ zones:
           # db/lib/placeAffordances.js puts the gate button on this starter.
           town-1-2:
             name: Watchhouse
-            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key, headmans-key]
+            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
             description: >-
               The winch to the gate is here, and you can also shoot people through holes in the walls. This is a hard place to assault.
             stash: [shortbow, spear]
@@ -274,7 +274,7 @@ zones:
             name: Warehouse
             description: >-
               A long building storing food and other public goods.
-            access: [headmans-key, smithy-key, sanctuary-key, barons-key, hands-key, bannerets-key, depot-keycard, soilers-key]
+            access: [smithy-key, sanctuary-key, barons-key, hands-key, bannerets-key, depot-keycard, soilers-key]
             stash:
               resources: 4
               items:
@@ -299,7 +299,7 @@ zones:
                 work-knife: 1
           town-3-2:
             name: Silo
-            access: [barons-key, soilers-key, hands-key, headmans-key]
+            access: [barons-key, soilers-key, hands-key]
             description: >-
               Foodstuff and seeds are stored here.
             stash:
@@ -314,7 +314,7 @@ zones:
           # it needed no code change to move here off the old farms-stable.
           town-3-3:
             name: Stable
-            access: [barons-key, soilers-key, hands-key, headmans-key]
+            access: [barons-key, soilers-key, hands-key]
             stable: true
             description: >-
               Where the arelitz are kept. Some of them are unruly, while others are tame. It smells like placenta.
@@ -441,7 +441,7 @@ zones:
               The dull clanging ringing against your ears rises in intensity as you approach. Arms, armor and accoutrements are lined up behind the counter, waiting to be purchased.
           town-6-2:
             name: Storeroom
-            access: [smithy-key, headmans-key, barons-key]
+            access: [smithy-key, barons-key]
             description: >-
               A place to store the smiths' goods.
             stash:
@@ -1574,8 +1574,9 @@ zones:
             name: Trickling Water
             description: >-
               A small stream of water seeps through the rock wall of the ravine. A bloated humanoid corpse decays nearby. All manner of small skittering things make pilgrimages to both. Severed heads in various states of decomposition rest atop wooden spikes nearby.
-          # The Brigand camp. `ravine-camp` was the knowledge tag that used to
-          # open it; the way in is the climb now, so the gate is `caving`.
+          # An outlaw camp, abandoned now that nobody is seated here. It used
+          # to be gated on a `ravine-camp` knowledge tag; the way in is the
+          # climb, so the gate is `caving`.
           grand-ravine-camp:
             name: Ravine Camp
             description: >-

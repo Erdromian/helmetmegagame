@@ -7,7 +7,7 @@
 // here and DMing the Role charter), and spawn (the same seat as a whole new
 // character, offered over DM). HALF THE OPT-INS ARE DECOYS — `optIn` alone,
 // so ticking one tells a GM about consent without naming the real seats; the
-// hand-run briefs (Brigands, Monsters, the Sympathizer) live in SECRETS.md,
+// hand-run briefs (Monsters, the Sympathizer) live in SECRETS.md,
 // not here. INCOMPATIBLE TAGS are `conflictsWith` edges on the seat tag in
 // docs/tags.yaml, not listed here. Kept in code, not a table, for the reason
 // db/lib/roleIds.js gives: fixed values that can never differ per environment.

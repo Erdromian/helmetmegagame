@@ -42,7 +42,7 @@ const TITLES = Object.freeze([
   { words: "Doctor", tags: ["medical-skilled"], roles: ["esculap", "serpent"] },
 
   // Master is the craft-master's word, ungendered.
-  { words: "Master", roles: ["metalsmith", "innkeeper", "headman"] },
+  { words: "Master", roles: ["metalsmith", "innkeeper"] },
 ]);
 
 // An unknown gender falls back to the neutral form rather than throwing.

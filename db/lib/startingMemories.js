@@ -121,9 +121,7 @@ const ROLE_MEMORIES = {
   innkeeper: TOWN_ALL,
   "inn-staff": TOWN_ALL,
   sheriff: [...TOWN_ALL, ...FORTRESS_TO_TOWN, "bridge"],
-  // headman: collects from the Soilery, which is inside the walls now. mortus:
-  // the vow, always knows the way down to the Tower.
-  headman: [...TOWN_ALL, ...FORTRESS_TO_TOWN],
+  // mortus: the vow, always knows the way down to the Tower.
   mortus: [...TOWN_ALL, ...FORTRESS_TO_TOWN, "undertown-3"],
 
   // Caves. merchant: trades the Factory's goods.
@@ -141,8 +139,6 @@ const ROLE_MEMORIES = {
   // Black Hills
   "tribunal-ordinator": HILLS_ALL,
   tribune: HILLS_ALL,
-  brigand: HILLS_ALL,
-  "brigand-leader": [...HILLS_ALL, "factory"],
 };
 
 // A tag a character starts with can add roads they have walked, on top of

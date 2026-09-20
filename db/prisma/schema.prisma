@@ -523,7 +523,7 @@ model GameConfig {
   // only, one Appendicitis finishes you while ten −1s are never stopped.
   //
   // Both count POINT_BUY drawbacks only — a role's free drawback (the
-  // Meister's Frail, the Headman's Old) arrives as GM_GRANT, and so does
+  // Meister's Frail, the Geschef's Old) arrives as GM_GRANT, and so does
   // anything a GM or a turn effect inflicts, so neither eats into a player's
   // allowance. Enforced in createCharacter, shown live as the two bars in
   // PointBuy's build pane; /store passes neither, because the caps belong to
@@ -3701,7 +3701,7 @@ model Role {
   // Whether examining somebody in this seat reads the title off them. On for
   // nearly every role -- the Bishop, the Sheriff and the Innkeeper are known to
   // be what they are -- and off only for the seats that live on not being
-  // known: the two Brigands and the two Tribunal seats. Declared as
+  // known: the two Tribunal seats. Declared as
   // `examine_visible:` in docs/roles.yaml, where leaving it out means visible.
   // The title itself is frozen onto each line the character says
   // (db/lib/examineSnapshot.js), so a look answers for the moment it was said.

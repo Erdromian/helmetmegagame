@@ -427,8 +427,7 @@ Outsider stopped requiring Rough Camper on 2026-09-20 and is a base tag now;
 Spelunker still asks for it. Rough Camper dropped to 1 point in the same pass.
 
 **Who starts with what** (`docs/roles.yaml`, `db/lib/threats.js`): Rough Camper
-and Outsider on both Brigands and the Tribune; those two plus Brave on the
-Tribunal Ordinator; Rough Camper and Spelunker on the Mercenary; the Demoness
+and Outsider on the Tribune; those two plus Brave on the Tribunal Ordinator; Rough Camper and Spelunker on the Mercenary; the Demoness
 seat assigns Rough Camper, the Judge assigns Rough Camper, Outsider and Brave.
 
 ## 8. Nobles

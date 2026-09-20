@@ -30,9 +30,9 @@ const ALL_GROUPS = [...ROLE_GROUPS, OTHER_GROUP];
 // (--role-* in web/app/globals.css). Outsiders and Elsewhere are missing on
 // purpose, not by oversight: an estate is a place in the town's order, and
 // those two buckets are exactly the seats that hold none — a Migrant, a
-// Mercenary, the Brigands and the Tribunal. It is also what keeps a colour
-// from naming the four seats a look may not read (CHARACTERS.md §2), since all
-// four live in those two buckets.
+// Mercenary and the Tribunal. It is also what keeps a colour from naming the
+// two seats a look may not read (CHARACTERS.md §2), since both live in
+// Elsewhere.
 const COLOURED_GROUPS = new Set(["court", "clergy", "cerberon", "saviors", "business", "soil"]);
 
 // A group slug to paint by, or null for one that wears no colour — no role at

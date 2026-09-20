@@ -277,7 +277,7 @@ is the one thing that used to be in it and is not: it rode on sharing a faction,
 and with factions gone only a GM reads it.)
 
 **The Role is in it again, for most seats.** `Role.examineVisible` decides —
-true for nearly everybody, false for the two Brigands and the two Tribunal
+true for nearly everybody, false for the two Tribunal
 seats, who read as having no seat at all (`CHARACTERS.md` §2). A hood carries no
 Role for the same reason it carries no name. A photograph carries it: the same
 readout builds `db/lib/photo.js#photoCaption`, so the prose frozen onto the

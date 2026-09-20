@@ -1069,13 +1069,6 @@ desires:
     requires:
       anyRoles: [preacher]
 
-  stop-the-taxes:
-    name: Stop sending taxes to the Baron
-    tier: 3
-    families: [status]
-    requires:
-      anyRoles: [headman]
-
   three-days-no-disappearance:
     name: Have no one disappear from town for three consecutive days.
     tier: 2
@@ -1180,7 +1173,7 @@ desires:
     tier: 3
     families: [wealth]
     requires:
-      anyRoles: [meister, headman, brigand-leader, innkeeper]
+      anyRoles: [meister, innkeeper]
 
   song-in-battle:
     name: Perform a song in the middle of a battle
@@ -1963,29 +1956,6 @@ desires:
     families: [alcohol, theft]
     requires:
       anyRoles: [inn-staff]
-
-  # --- Role-flavoured: the Brigands -----------------------------------------
-  # Open to the Brigand Leader too — nothing here is beneath them.
-  loot-a-captive:
-    name: Loot something valuable from a captive.
-    tier: 1
-    families: [theft]
-    requires:
-      anyRoles: [brigand, brigand-leader]
-
-  get-on-a-wanted-flier:
-    name: Get your name on a Wanted flier
-    tier: 1
-    families: [status, theft]
-    requires:
-      anyRoles: [brigand, brigand-leader]
-
-  escape-the-cerberon:
-    name: Be chased by the Cerberon or the Sheriff, and escape
-    tier: 2
-    families: [adventure, theft]
-    requires:
-      anyRoles: [brigand, brigand-leader]
 
   # --- Role-flavoured: the Migrant ------------------------------------------
   through-the-town-gates:

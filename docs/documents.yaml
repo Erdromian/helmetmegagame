@@ -261,6 +261,15 @@ documents:
       The Baron highly values the Banneret's work on the Squeeze, as it singlehandedly funds Ravenheart's warchest. Squeeze has no use for anyone in Ravenheart, but without its production, Ravenheart wouldn't be able to grow at all. Its production is very dangerous.
 
       Squeeze sells for 7 ¢ at the Merchant's Depot. The Merchant has, in the past, traditionally taken 1 or 2 ¢ per, leaving the Banneret with 5 or 6 per cube.
+  economy:
+    name: Economy
+    public: true
+    tags: []
+    roles: [meister, baron, hand]
+    description: |-
+      Ravenheart's economy functions in a simple way. Crafters and producers sell their goods at the depot's Dropbox, which is automatically collected into the seller's account. A sell tax, set by the Meister, is automatically withheld. Interesting goods can be bought from the Merchant.
+
+      Everyone's ATMs are backed by the treasury in the Keep, so if everyone draws at the same time, the Keep will be unable to pay its dues.
   godardfactory:
     name: Godard Factory
     public: false
