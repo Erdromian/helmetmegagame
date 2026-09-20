@@ -66,7 +66,7 @@ export default function FeedbackButton({ className = "nav-link", label = "Feedba
             maxLength={MAX_FEEDBACK_LENGTH}
             value={body}
             onChange={(e) => setBody(e.target.value)}
-            placeholder="What happened, and what you expected…"
+            placeholder="What happened…"
           />
         </label>
         <p className="text-xs mono" style={{ color: "var(--text-muted)" }}>

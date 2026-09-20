@@ -19,7 +19,7 @@ import { avatarUrlFor } from "@/lib/gmProfiles";
 export async function submitFeedback(body) {
   const { session, inGuild } = await getGmSession();
   if (!session?.discordUserId || !inGuild) {
-    return { error: "You are not signed in." };
+    return { error: "You aren't signed in" };
   }
   const discordUserId = session.discordUserId;
 
@@ -28,7 +28,7 @@ export async function submitFeedback(body) {
   const text = String(body ?? "").trim();
   if (!text) return { error: "Write something first." };
   if (text.length > MAX_FEEDBACK_LENGTH) {
-    return { error: `Keep it under ${MAX_FEEDBACK_LENGTH} characters.` };
+    return { error: `It must be under ${MAX_FEEDBACK_LENGTH} characters.` };
   }
 
   const newest = await prisma.feedback.findFirst({
