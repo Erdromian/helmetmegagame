@@ -239,7 +239,7 @@ being misread as each other.
 ## 5. Minting the result
 
 At turn end (`db/lib/trinketPass.js`, in the same `TURN_PASSES` slot as
-Lessons/Research/Confessions — order among the four does not matter, they
+Lessons/Confessions — order among the three does not matter, they
 share no state): the stored die is clamped by the floor, mapped to a tier,
 the ingredient values are summed on top, and the result is minted through
 `mintCustomCraft` — moved to `db/lib/customCraftMint.js` for exactly this

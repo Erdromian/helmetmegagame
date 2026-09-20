@@ -110,7 +110,6 @@ const ROLE_MEMORIES = {
   // Town
   bishop: TOWN_ALL,
   chaplain: TOWN_ALL,
-  scholastic: TOWN_ALL,
   esculap: TOWN_ALL,
   serpent: TOWN_ALL,
   inquisitor: TOWN_ALL,

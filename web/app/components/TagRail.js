@@ -10,7 +10,6 @@ import { consumeTagRequest } from "@/app/(app)/character/requestActions";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 // A leaf CommonJS module — constants and pure functions, no prisma require —
 // so naming it here does not drag the @lifeweb/db barrel into the bundle.
-import { RESEARCH_TAG_SLUG } from "@lifeweb/db/lib/research";
 import ChipText from "./ChipText";
 import FormError from "./FormError";
 import IdentityDialog from "./IdentityDialog";
@@ -63,14 +62,6 @@ export default function TagRail({
   const actions = useRequestActions();
   const open = actions?.open ?? null;
   const pools = actions?.pools ?? {};
-  // Research (CRAFTING.md §2b): the provider composes both off the three
-  // facts the page hands it. `canResearch` is "every gate is open", so the
-  // verb only renders when it can actually fire; `researchHint` is the
-  // reason it can't, and rides the row's own note line instead — this
-  // surface has no tooltips (SHEET.md).
-  const canResearch = pools.canResearch ?? false;
-  const researchHint = pools.researchHint ?? null;
-
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState(null);
   const [storeOpen, setStoreOpen] = useState(false);
@@ -130,7 +121,6 @@ export default function TagRail({
       ...thingVerbs(ct, verbSets),
       equipped: Boolean(ct.equipped),
       healable: Boolean(ct.tag.healable),
-      researchable: ct.tag.slug === RESEARCH_TAG_SLUG && canResearch,
     };
     // Off the tag's own id, not v.consumable: consumableTags() (the set
     // v.consumable is built from) excludes the potion on purpose, so it's
@@ -160,7 +150,6 @@ export default function TagRail({
             ? () => open("heal", ct.tag.id, { patientId: `character:${selfId}` })
             : null
         }
-        onResearch={open ? () => open("research") : null}
       />
     );
   }
@@ -184,13 +173,10 @@ export default function TagRail({
   }
 
   // A row's second line. Health says what it turns into and what a cure
-  // costs; the Research row says why the verb is missing when a gate is shut,
-  // since this surface has no tooltips. A skill's next rung used to live
-  // here too, but the mockup puts it in the row's VALUE slot instead — see
+  // costs. A skill's next rung used to live here too, but the mockup puts it in the row's VALUE slot instead — see
   // skillRungValue below.
   function noteFor(ct, card) {
     if (card.key === "Health") return healthNote(ct);
-    if (isSelf && ct.tag.slug === RESEARCH_TAG_SLUG && !canResearch) return researchHint;
     return null;
   }
 
@@ -284,7 +270,7 @@ export default function TagRail({
               // Items to keep it from being stolen is still a kit, and losing
               // the button left the player no direct way to unpack it.
               verbs:
-                card.key === "Health" || ct.tag.consumable || ct.tag.slug === RESEARCH_TAG_SLUG
+                card.key === "Health" || ct.tag.consumable
                   ? verbsFor(ct)
                   : null,
               open: openId === id,

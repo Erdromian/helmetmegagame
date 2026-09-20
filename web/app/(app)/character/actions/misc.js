@@ -1,5 +1,5 @@
 // Everything not broken out into its own module: destroy/consume a tag,
-// research, claiming a Desire, changing your name, looting, bind/free/
+// claiming a Desire, changing your name, looting, bind/free/
 // crucify/torture, disguise, harm, the Godard Factory, the Bird, the
 // Stepstone, and the pointer device readout.
 
@@ -185,13 +185,6 @@ import {
 } from "@/lib/cooking";
 import { formatStack, pickRandomPublicRoom } from "@lifeweb/db/lib/roomStash";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
-import {
-  RESEARCH_TAG_SLUG,
-  CATHEDRAL_LOCATION_SLUG,
-  researchMarker,
-  loadResearchCatalog,
-  researchableHeld,
-} from "@lifeweb/db/lib/research";
 import {
   BASE_BIRD_SENDS_PER_DAY,
   birdAllowanceFrom,
@@ -1247,101 +1240,6 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
 // anything that is neither reads as eating, which is what consuming mostly is.
 function consumeSfx(tag) {
   return tag?.group?.slug === "items-drink" ? SFX.DRINK : SFX.EAT;
-}
-
-// --- Research (Scholastic skill, docs/tags.yaml `research`) -------------
-//
-// Studying a held ingredient in the Cathedral's library. Filed exactly like
-// the heal Gambit above — CONFIRMED, `moveKind: GAMBIT`, the die already
-// rolled and stored, `moveReviewStatus: OPEN` — but for a different reason.
-// A gambit heal sits OPEN because a GM reads it and writes the cure by hand
-// (docs/systemdocs/TAGS.md §5c). Nobody adjudicates a research roll: it sits
-// OPEN because it hasn't been RESOLVED yet, the same posture a Lesson Gambit
-// takes (db/lib/lessons.js) — db/lib/researchPass.js reads `gmNotes` back at
-// turn close, in its own pass between Lessons and Confessions, and writes
-// the paper (or the "nothing" line) and the SOLVED status itself. Which
-// ingredient was chosen has nowhere else to live: the Action has one
-// `description` and no ingredient column, so `researchMarker()` stamps the
-// slug into `gmNotes`, the same channel Craft's `auto:craft` marker and the
-// Death Mask's corpse choice both ride.
-//
-// No file-time DM: the confirm prompt already told the player this spends
-// the Move as a Gambit whose result lands at turn close (the sheet's own
-// dialogs never echo that back the way Play's Move panel does — heal's
-// Gambit branch above sends nothing to the medic either, only to a target
-// who is someone else).
-export async function researchRequestImpl({ ingredientSlug }) {
-  const { session, character } = await requireCharacter({ needs: ACT });
-
-  if (!character.tags.some((ct) => ct.tag?.slug === RESEARCH_TAG_SLUG))
-    throw new UserError("You don't know how to research.");
-
-  // No `character.location` on the shared include (requireCharacter is every
-  // request's loader) — a targeted read off the scalar FK, the same shape
-  // db/lib/mood.js#applyArrivalMood uses for its own Cathedral check.
-  const location = character.locationId
-    ? await prisma.location.findUnique({
-        where: { id: character.locationId },
-        select: { slug: true },
-      })
-    : null;
-  if (location?.slug !== CATHEDRAL_LOCATION_SLUG)
-    throw new UserError("You must be located in the Cathedral to Research.");
-
-  const catalog = await loadResearchCatalog(prisma);
-  const held = researchableHeld(character.tags, catalog);
-  const ingredient = held.find((ct) => ct.tag?.slug === ingredientSlug);
-  if (!ingredient) throw new UserError("You aren't carrying that.");
-
-  const openTurn = await getOpenTurn();
-  // requireFreeMove is also the Move-window check (web/lib/moveSpend.js) —
-  // no separate `moveWindow` read is needed the way craft's fractional Move
-  // needs one, because a Gambit always takes the whole thing.
-  await requireFreeMove(character, openTurn);
-
-  let action;
-  await prisma.$transaction(async (tx) => {
-    // The P2002 catch below is the real gate — @@unique([characterId,
-    // turnId]) — but requireFreeMove's read a moment ago is what keeps a
-    // normal submit from ever reaching it.
-    try {
-      // Lucky or Inspired keeps the better of two dice (db/lib/advantage.js);
-      // Inspired is spent the instant it wins one.
-      const researchAdvantage = rollWithAdvantage(character.tags, 6);
-      action = await tx.action.create({
-        data: {
-          characterId: character.id,
-          turnId: openTurn.id,
-          type: "MOVE",
-          status: "CONFIRMED",
-          confirmedAt: new Date(),
-          moveKind: "GAMBIT",
-          moveReviewStatus: "OPEN",
-          description: `Researching ${ingredient.tag.name} in the Cathedral.`,
-          diceRoll: researchAdvantage.die,
-          diceModifier: gambitModifierTotal(character.tags, { mood: character.mood }),
-          zoneId: character.zoneId ?? null,
-          locationId: character.locationId ?? null,
-          gmNotes: researchMarker(ingredientSlug),
-        },
-      });
-    } catch (err) {
-      if (err?.code === "P2002")
-        throw new UserError("You've already used your Move this turn.");
-      throw err;
-    }
-
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "research_filed",
-      targetCharacterId: character.id,
-      turnId: openTurn.id,
-      details: { ingredientSlug },
-    });
-  });
-
-  revalidateAll();
-  return { ingredientName: ingredient.tag.name };
 }
 
 // --- Looting a living, incapacitated target ----------------------------

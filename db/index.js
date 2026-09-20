@@ -52,7 +52,6 @@ const { runMiningYieldPass } = require("./lib/miningYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
-const { runResearchPass } = require("./lib/researchPass");
 const { runConfessionPass } = require("./lib/confessionPass");
 const { expireQuestsPass: runQuestExpiryPass } = require("./lib/quests");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
@@ -224,10 +223,6 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
 // (posts/DMs) for the caller's runSideEffects() rather than sending it here.
 const TURN_PASSES = [
   "lessons",
-  // Research (db/lib/researchPass.js): same slot as Lessons, and right after
-  // it — after only because it shares the slot, not because either depends on
-  // the other's result.
-  "research",
   "confessions",
   "stagedPush",
   "tagExpiry",
@@ -411,31 +406,6 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Lessons audit log failed:", err));
-  }
-
-  // Research (db/lib/researchPass.js): a filed research Gambit is SOLVED
-  // here, same slot as Lessons and right after it. The D5 ledger row
-  // (research_revealed) is written inside the pass itself, per character,
-  // not here — this summary row is only the turn-wide tally.
-  let research = null;
-  if (!done.has("research")) {
-    research = await runResearchPass(prisma, turn).catch(async (err) => {
-      await passFailed("Research", err);
-      return null;
-    });
-    if (research) await markDone("research");
-  }
-  const { dms: researchDms = [], ...researchSummary } = research ?? {};
-  if (research && (research.resolved || research.failed)) {
-    await prisma.auditLog
-      .create({
-        data: {
-          actorDiscordUserId: "system",
-          actionType: "research_resolved",
-          details: researchSummary,
-        },
-      })
-      .catch((err) => console.error("Research audit log failed:", err));
   }
 
   // Confessions (db/lib/confessionPass.js): same slot and the same reason as
@@ -1326,7 +1296,6 @@ async function resolveNeeds(turn, config) {
     lifewebBlood,
     hungerNotices,
     lessonDms,
-    researchDms,
     confessionDms,
     tagExpiryDms,
     catatonicDms,
@@ -1496,7 +1465,6 @@ async function advanceTurn() {
   let lifewebBlood = state.lifewebBlood;
   let hungerNotices = [];
   let lessonDms = [];
-  let researchDms = [];
   let confessionDms = [];
   let tagExpiryDms = [];
   let depotLines = [];
@@ -1555,7 +1523,6 @@ async function advanceTurn() {
       lifewebBlood,
       hungerNotices,
         lessonDms,
-      researchDms,
       confessionDms,
       tagExpiryDms,
       catatonicDms,
@@ -1763,7 +1730,6 @@ async function advanceTurn() {
     previousDayNumber: lastTurn?.dayNumber ?? null,
     note,
     lessonDms,
-    researchDms,
     confessionDms,
     tagExpiryDms,
     turretBursts,

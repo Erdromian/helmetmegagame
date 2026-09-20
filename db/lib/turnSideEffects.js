@@ -39,7 +39,6 @@ function buildSideEffectPayload(fields) {
     previousDayNumber: fields.previousDayNumber ?? null,
     note: fields.note ?? null,
     lessonDms: fields.lessonDms ?? [],
-    researchDms: fields.researchDms ?? [],
     confessionDms: fields.confessionDms ?? [],
     trinketDms: fields.trinketDms ?? [],
     tagExpiryDms: fields.tagExpiryDms ?? [],

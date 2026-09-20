@@ -337,19 +337,17 @@ sealed letter, because the bird did not open it either.
 Not every written sheet comes off the Write button. `paperMint.js#mintLetterFor`
 mints a `PAPER` row already carrying its text and puts it directly into a
 character's hands, with no blank sheet spent and no player at the keyboard.
-Two callers do this:
+One caller does this:
 
 - **The GM letter** (`BIRD.md` §9) — a God-King has no sheet to take a page
   off, so the letter is minted rather than moved, authored in whatever name
   the GM typed.
-- **The Research pass** (`db/lib/researchPass.js`, `TURN-ENGINE.md` §2) —
-  a Scholastic's Gambit that rolls a 6 or better against a secret recipe
-  (`CRAFTING.md` §2b) mints them a page of notes on it at turn close,
-  authored in the researcher's own presented name. Same primitive as the GM
-  letter, opposite direction: there the author is invented, here it's the
-  reader who earned the page.
 
-Either way the row is the same `PAPER_SHAPE` as a written sheet — it has
+There were two until the Research pass went with the Scholastic; the primitive
+is kept general because minting a page into somebody's hands is the sort of
+thing a GM surface reaches for again.
+
+The row is the same `PAPER_SHAPE` as a written sheet — it has
 weight, can be handed on, pinned up, stolen, and is swept by a Restart Game —
 so nothing downstream needs to know how it arrived.
 

@@ -53,7 +53,6 @@ const LINES = {
   write: () => `Written.`,
   seal: () => `Sealed.`,
   bird: () => `The bird is away.`,
-  research: (res, ctx) => `You settle in with ${ctx?.name ?? res.ingredientName ?? "it"}.`,
   craft: (res, ctx) => (res.made ? `${res.made} made.` : ctx?.line ?? `The work is filed.`),
   recall: () => `Your comrades.`,
   // Both server actions return their own `line`, which noticeLine prefers.

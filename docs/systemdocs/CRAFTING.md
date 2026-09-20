@@ -287,14 +287,12 @@ ingredient": it is a craftable whose own *product* — the tag it makes — is
 `catalog: gm`, never `catalog: secret`.** Holding an ingredient never
 reveals one of these on the Craft menu or the Recipes tab; the gate above
 only ever hides or shows a recipe by its *ingredients*, and a secret
-recipe's product visibility is a separate field nothing here reads. The
-Cathedral's Research skill (`TAGS.md`; the pass is `TURN-ENGINE.md` §2) is
-the one way a character can ever learn one of these exists, and even then
-only as a blurb on a minted paper — a name and a requirement line
-(`PAPERWORK.md`), never a standing Craft-menu entry. `catalog: secret`
-products sit a level further out again: hidden even from GMs on every
-surface but the unfiltered `/gm/dev/tags` view, and Research never turns one
-up.
+recipe's product visibility is a separate field nothing here reads. **Nothing
+a player can do reveals one.** The Cathedral's Research skill used to, as a
+blurb on a minted paper, and it went with the Scholastic — so a secret recipe
+now reaches a character only when a GM hands them the product or the page from
+`/gm/dev`. `catalog: secret` products sit a level further out again: hidden
+even from GMs on every surface but the unfiltered `/gm/dev/tags` view.
 
 **`recipePublic` (`Tag.recipePublic`, authored as `requirement.recipePublic:
 true`) is the escape hatch from the ingredient gate above** —

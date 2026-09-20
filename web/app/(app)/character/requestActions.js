@@ -34,7 +34,6 @@ import {
 import {
   destroyTagRequestImpl,
   consumeTagRequestImpl,
-  researchRequestImpl,
   claimDesireImpl,
   changeNameRequestImpl,
   lootCharacterRequestImpl,
@@ -156,10 +155,6 @@ export async function healCharacterRequest(input) {
 export async function performMiracleRequest(input) {
   return acting(() => performMiracleRequestImpl(input));
 }
-export async function researchRequest(input) {
-  return acting(() => researchRequestImpl(input));
-}
-
 export async function claimDesire(input) {
   return acting(() => claimDesireImpl(input));
 }

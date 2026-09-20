@@ -1,5 +1,5 @@
 // The Trinket turn-end pass (docs/systemdocs/TRINKETS.md), run from
-// db/index.js#resolveNeeds() alongside Lessons/Research/Confessions — order
+// db/index.js#resolveNeeds() alongside Lessons/Confessions — order
 // doesn't matter, they share no state.
 //
 // Every OPEN Trinket Gambit is rolled here: the stored die face, clamped up

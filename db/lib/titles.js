@@ -40,7 +40,6 @@ const TITLES = Object.freeze([
   // Doctor is the middle rung of the medical chain, a practising physician's
   // title, not a mastery award — the Serpent carries it by role regardless.
   { words: "Doctor", tags: ["medical-skilled"], roles: ["esculap", "serpent"] },
-  { words: "Professor", roles: ["scholastic"] },
 
   // Master is the craft-master's word, ungendered.
   { words: "Master", roles: ["metalsmith", "innkeeper", "headman"] },

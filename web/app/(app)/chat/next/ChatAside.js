@@ -38,7 +38,7 @@ import useMyMove from "../useMyMove";
 // Things and Desires — keep it rather than being given a second one.
 //
 // The children are MOUNTED, not rewritten. PlaceCard carries fixtures and the
-// Depot/Factory/Research doors, TravelNodes the crossing confirm, PartyRack
+// Depot/Factory doors, TravelNodes the crossing confirm, PartyRack
 // the escort offers; they are deep game surfaces, and the plan's named risk is
 // a rewrite losing things quietly. They are restyled from chat-next.css.
 // A duplicate of ../ChatAside.js's, on purpose and briefly: importing it from
@@ -139,8 +139,6 @@ export default function ChatAside({
     usePlaceActions(affordances, onPlaceChanged);
   const requestActions = useRequestActions();
   const openAction = requestActions?.open ?? null;
-  const canResearch = requestActions?.pools?.canResearch ?? false;
-  const researchHint = requestActions?.pools?.researchHint ?? null;
 
   // Travel / Who's here? / Secret rooms? / Examine are answered by this column
   // being on the page; they stay in db/lib/placeAffordances.js for Discord.
@@ -266,8 +264,6 @@ export default function ChatAside({
           onConverse={openConverse}
           depotHref={depotHref}
           onFactory={canSeeExtract && openAction ? () => openAction("extract") : null}
-          onResearch={canResearch && openAction ? () => openAction("research") : null}
-          researchHint={researchHint}
           onOpenMap={onOpenMap}
           pending={pending}
           showTitle={false}

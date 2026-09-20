@@ -59,9 +59,8 @@ deliberately withheld from two kinds of skill:
 - **masteries**, the 12–15 point capstones — a capstone must not be had for
   the price of one Lesson Move. Smithing (Gunpowder) is the one exception,
   because a powder formula passes hand to hand.
-- **role-exclusive crafts** — Blessing, Research and the Teaching tree. They
-  are the role's own work rather than a lesson, and you cannot be taught to
-  teach.
+- **role-exclusive crafts** — Blessing and the Teaching tree. They are the
+  role's own work rather than a lesson, and you cannot be taught to teach.
 
 `db/lib/lessons.js#teachableSkills(teacher, learner, catalog)` is the one
 rule, used by the page to build the menus and by the offer and accept paths

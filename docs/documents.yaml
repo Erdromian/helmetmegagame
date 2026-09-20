@@ -340,7 +340,7 @@ documents:
     public: false
     tags:
       - Thanati
-    roles: [bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+    roles: [bishop, chaplain, inquisitor, practicus, preacher]
     description: |-
       The Thanati are a violent death cult, seeking to bring an end to this reality. In their eyes it is flawed and broken, and must be torn down so that their lord, Tzchernobog can rebuild it anew. Only when the last human observer ceases to exist can this reality end.
 

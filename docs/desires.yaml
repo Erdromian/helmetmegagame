@@ -22,10 +22,12 @@
 # The one opt-out is `requires.combine: or`, which joins anyTags with
 # anyRoles using OR so either alone opens the Desire — used where the gating
 # tag is PURCHASABLE and the AND would make buying it dead weight to anyone
-# outside the role (Esoteric unlocked nothing for a non-Scholastic), or where
-# a listed role can never hold the required tag anyway (chaplain on
-# bury-a-body, sheriff on imprison-someone). Both lists must be non-empty;
-# notTags/notRoles are never part of the OR. AND remains the default and the
+# outside the role, or where a listed role can never hold the required tag
+# anyway (chaplain on bury-a-body, sheriff on imprison-someone). The worked
+# example used to be Esoteric, which unlocked nothing for a non-Scholastic —
+# the Scholastic is gone, and its four esoterica Desires are gated on the tag
+# alone now, which is the same outcome by a plainer route. Both lists must be
+# non-empty; notTags/notRoles are never part of the OR. AND remains the default and the
 # common case — the five Lifeweb feed-* entries and all five corrupt ones keep
 # it deliberately. Corrupt was briefly switched to `or` on 2026-09-05 when it
 # gained an "Unlocks Desires about corruption." line, and that was a mistake
@@ -683,7 +685,7 @@ desires:
     families: [faith]
     requires:
       anyTags: [prudish]
-      anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+      anyRoles: [incarn, bishop, chaplain, inquisitor, practicus, preacher]
       combine: or
     cooldownTurns: 3
 
@@ -693,7 +695,7 @@ desires:
     families: [faith, charity]
     requires:
       anyTags: [prudish]
-      anyRoles: [incarn, bishop, chaplain, scholastic, inquisitor, practicus, preacher]
+      anyRoles: [incarn, bishop, chaplain, inquisitor, practicus, preacher]
       combine: or
     cooldownTurns: 4
 
@@ -1020,13 +1022,6 @@ desires:
     name: Successfully teach a skill.
     tier: 1
     families: [craft]
-
-  teach-literacy:
-    name: Teach someone literacy
-    tier: 1
-    families: [craft, charity]
-    requires:
-      anyRoles: [scholastic]
 
   spare-organs:
     name: Have a spare of every human organ
@@ -1439,8 +1434,6 @@ desires:
     families: [esoterica]
     requires:
       anyTags: [esoteric]
-      anyRoles: [scholastic]
-      combine: or
 
   find-an-artifact:
     name: Find a powerful ancient artifact
@@ -1448,8 +1441,6 @@ desires:
     families: [esoterica, adventure]
     requires:
       anyTags: [esoteric, adventurer]
-      anyRoles: [scholastic]
-      combine: or
 
   discover-a-ruin:
     name: Discover an ancient ruin
@@ -1457,8 +1448,6 @@ desires:
     families: [esoterica, adventure]
     requires:
       anyTags: [esoteric, adventurer]
-      anyRoles: [scholastic]
-      combine: or
 
   forbidden-knowledge:
     name: Uncover forbidden knowledge
@@ -1466,18 +1455,6 @@ desires:
     families: [esoterica]
     requires:
       anyTags: [esoteric]
-      anyRoles: [scholastic]
-      combine: or
-
-  # Tier 1 pays 1 point and would normally cool down for 1 turn. Four, because
-  # binding a book is ten sheets and a sitting, not something to do daily.
-  write-a-book:
-    name: Write a book
-    tier: 1
-    families: [esoterica]
-    requires:
-      anyRoles: [scholastic]
-    cooldownTurns: 4
 
   slay-a-great-beast:
     name: Slay a legendary beast

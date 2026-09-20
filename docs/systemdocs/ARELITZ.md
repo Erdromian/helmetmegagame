@@ -191,7 +191,7 @@ that door, it just stops the animal waiting on it.
 generic pre-emptive "🎲 Your Gambit: **N**" notice every other open Gambit
 gets — `breakInDm` already says the roll AND the outcome in one line, so the
 bare roll notice would just be a confusing, contextless second message ahead
-of it (same reasoning `auto:lesson`/`auto:research` are already excluded
+of it (the same reasoning `auto:lesson` is already excluded
 for).
 
 ## 7. Complete horse removal

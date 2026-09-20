@@ -34,12 +34,6 @@ import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
 import { cookedTasteOnly, DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { chipContextFor, composeChipTag } from "@/lib/tagChipRows";
-import {
-  RESEARCH_TAG_SLUG,
-  CATHEDRAL_LOCATION_SLUG,
-  loadResearchCatalog,
-  researchableHeld,
-} from "@lifeweb/db/lib/research";
 
 // /chat — Chat. Three columns on a desktop, one on a phone: everywhere
 // this character can hear on the left, the open scene in the middle, and (in
@@ -221,9 +215,6 @@ async function FreshChat({ userId }) {
               // — a slot holds one physical unit, not a stack, and thingRows.js
               // reads the count to know how many of a holding are still free to
               // equip and how many are already out to put back.
-              // `tag.group` rides along for researchableHeld's `group`-kind
-              // ingredient entries (a held corpse, matched by GROUP rather
-              // than slug) — nothing else here read it before Research did.
               // `poisonedCount`/`poisonPayload` (M4) are read here ONLY to
               // derive `poisonMarker` below — they are stripped from
               // `clientSheet` before it crosses into a client component, the
@@ -255,8 +246,7 @@ async function FreshChat({ userId }) {
                   // app's real tag chips now (web/lib/tagChipRows.js) and an
                   // `include` pulls no unnamed relation. `group` is the chip's
                   // full group — its COLOUR is the chip's left border, and a
-                  // slug-only group silently drew every chip grey — and it is
-                  // still what researchableHeld matches a held corpse on.
+                  // slug-only group silently drew every chip grey.
                   tag: {
                     include: {
                       group: {
@@ -357,7 +347,7 @@ async function FreshChat({ userId }) {
           }),
         };
 
-        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation, researchCatalog] = await Promise.all([
+        const [people, affordances, examine, waiting, pools, stashRooms, mine, desires, letters, boardLocation] = await Promise.all([
           whosHere(prisma, character, { withSightings: true, withAcross: true }),
           affordancesFor(prisma, character),
           // What Examine used to answer in a modal. It is the place card's
@@ -399,11 +389,6 @@ async function FreshChat({ userId }) {
                 select: { slug: true, attributes: true },
               })
             : null,
-          // The Research picker's held-ingredients shortlist
-          // (researchableHeld) needs the craftable catalog it's checked
-          // against — the same call requestActions.js#researchRequestImpl
-          // makes, so the menu and the server's own re-check can't drift.
-          loadResearchCatalog(prisma),
         ]);
         return {
           people,
@@ -461,17 +446,6 @@ async function FreshChat({ userId }) {
               : !extractToolFor(sheet?.tags ?? [])
                 ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
                 : null,
-          // Research (CRAFTING.md §2b): the Cathedral's own
-          // place-card button, alongside the sheet's Research tag chip.
-          // `atCathedral` is a fact about the ground, same posture as
-          // `depotHref`/`canSeeExtract` above; `holdsResearch` and the
-          // shortlist are facts about this character's own sheet.
-          holdsResearch: heldSlugs.has(RESEARCH_TAG_SLUG),
-          atCathedral: boardLocation?.slug === CATHEDRAL_LOCATION_SLUG,
-          researchOptions: researchableHeld(character.tags, researchCatalog).map((ct) => ({
-            slug: ct.tag.slug,
-            name: ct.tag.name,
-          })),
         };
       })()
     : null;
@@ -641,12 +615,6 @@ async function FreshChat({ userId }) {
         canSeeExtract: aside.canSeeExtract,
         canExtract: aside.canExtract,
         extractBlocked: aside.extractBlocked,
-        // Research: the sheet's Research row AND the place card's Cathedral
-        // button both read the provider's composed canResearch/researchHint,
-        // which is built off these three and the Move below.
-        holdsResearch: aside.holdsResearch,
-        atCathedral: aside.atCathedral,
-        researchOptions: aside.researchOptions,
         // Whether this turn's Move is already filed — the same
         // `Boolean(action)` the sheet passes (character/page.js). Advisory
         // either way: requireFreeMove re-reads it.

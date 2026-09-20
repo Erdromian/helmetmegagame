@@ -224,7 +224,6 @@ the 10-char cap holds with the catalog as it stands.
 | Monastic | tag `mortus`, role `incarn` | Brother / Sister / Sibling |
 | Bishop | role `bishop` | one word |
 | Doctor | tag `medical-skilled`, roles `esculap` `serpent` | one word |
-| Professor | role `scholastic` | one word |
 | Master | roles `metalsmith` `innkeeper` `headman` | one word |
 
 **A player never picks between Lord, Lady and Noble.** Their gender decides

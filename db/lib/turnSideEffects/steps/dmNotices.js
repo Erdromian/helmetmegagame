@@ -3,7 +3,6 @@ const { plainDm } = require("../shared");
 
 async function sendEarlyDmNotices({ prisma, p, eachDm }) {
   await eachDm("lesson", p.lessonDms, (dm) => plainDm(prisma, dm, "Lesson"));
-  await eachDm("research", p.researchDms, (dm) => plainDm(prisma, dm, "Research"));
   await eachDm("confession", p.confessionDms, (dm) => plainDm(prisma, dm, "Confession"));
   await eachDm("trinket", p.trinketDms, (dm) => plainDm(prisma, dm, "Trinket"));
   await eachDm("tagExpiry", p.tagExpiryDms, (dm) => plainDm(prisma, dm, "Tag progression"));
