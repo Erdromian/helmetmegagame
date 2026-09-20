@@ -27,7 +27,7 @@ of that repository's `sound/` tree kept in this repo for exactly this. Nothing
 is trimmed, converted or normalised.
 
 This folder holds **only the sounds the game actually plays** — a deploy has no
-business carrying 662 files and 67 MB. `web/app/components/sfx.js` maps a game
+business carrying 691 files and 67 MB. `web/app/components/sfx.js` maps a game
 meaning (`refuse`, `mine`, `gate-open`) to a filename here, and that map is the
 list of what belongs in this folder. To add one, copy it out of
 `assets/osw-sounds/` and add a line to that map; to hear the rest first, open
@@ -36,6 +36,10 @@ list of what belongs in this folder. To add one, copy it out of
 Files keep their source names rather than their game meaning, the same
 convention `assets/items/` uses, so a file here can be traced back to the
 library it came from.
+
+A few names here are **.wav** — the dirt and grass footsteps are the only ones
+the library never encoded to Ogg. `sfx.js` reads the extension off the name
+when one is written, so those work exactly like the rest.
 
 ## One file that is not from OpenSourceWeb
 

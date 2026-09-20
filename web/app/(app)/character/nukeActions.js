@@ -72,7 +72,7 @@ async function readPointerImpl() {
   await sendDm(me.discordUserId, line, { source: "player_event" }).catch((err) =>
     console.error(`Datacard pointer DM to ${me.name} failed:`, err),
   );
-  return { line, here: Boolean(reading.here) };
+  return { line, here: Boolean(reading.here), sfx: SFX.NUKE_PING };
 }
 
 async function armNukeImpl() {

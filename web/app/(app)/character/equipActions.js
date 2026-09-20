@@ -51,7 +51,7 @@ export async function equipOne(characterTagId) {
       id: true,
       quantity: true,
       equippedQuantity: true,
-      tag: { select: { equippable: true, name: true, slug: true, equipSlot: true } },
+      tag: { select: { equippable: true, name: true, slug: true, equipSlot: true, fighting: true } },
     },
   });
   if (!held) return { error: "You aren't holding that." };

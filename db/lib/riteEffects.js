@@ -348,7 +348,7 @@ const EFFECTS = {
     return { result: { target: target.name, told: participants.length, tags: names.length } };
   },
 
-  async summoning({ db, location }) {
+  async summoning({ db, room, location }) {
     // Ropes or shackles (db/lib/bind.js#RESTRAINT_SLUGS): a summoned cultist comes out of either.
     const restraints = await db.tag.findMany({ where: { slug: { in: [BOUND_SLUG, "shackled"] } }, select: { id: true } });
     const cultists = await db.character.findMany({
@@ -367,6 +367,9 @@ const EFFECTS = {
       );
       moved.push(c.name);
     }
+    // The room the rite was worked in says the same line every other rite says, and carries
+    // the noise of people arriving in it. It was the one effect here that said nothing at all.
+    await roomLine(db, room, INGREDIENTS_CONSUMED, { sfx: SFX.TELEPORT });
     return { result: { summoned: moved } };
   },
 

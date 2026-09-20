@@ -478,7 +478,7 @@ export async function buryCharacterRequestImpl({
   await speakHere(character, `${target.name} was buried.`);
 
   revalidateAll();
-  return { name: target.name };
+  return { name: target.name, sfx: SFX.DIG };
 }
 
 // Engraving. The answer to a body nobody can find — the ONE action here with no corpse/reach check, searching the

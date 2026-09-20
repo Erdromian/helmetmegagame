@@ -24,6 +24,15 @@ const SFX = {
   EQUIP_CLOTH: "equip-cloth",
   EQUIP_SHIELD: "equip-shield",
   EQUIP_BLADE: "equip-blade",
+  EQUIP_MAIL: "equip-mail",
+  EQUIP_GUN: "equip-gun",
+  EQUIP_REVOLVER: "equip-revolver",
+
+  // Your own boots, and nobody else's. Which one you hear is the ground you landed on
+  // rather than a choice any call site makes — see groundSfx below.
+  STEP_CARPET: "step-carpet",
+  STEP_WOOD: "step-wood",
+  STEP_EARTH: "step-earth",
 
   // Hands on other people's things.
   LOOT: "loot",
@@ -43,7 +52,10 @@ const SFX = {
   UNBIND: "unbind",
   SEAL_BREAK: "seal-break",
   CRATE: "crate",
+  DIG: "dig",
+  PHOTO: "photo",
   NUKE_ARM: "nuke-arm",
+  NUKE_PING: "nuke-ping",
 
   EAT: "eat",
   DRINK: "drink",
@@ -72,6 +84,7 @@ const SFX = {
   CONVERT: "convert",
   INITIATE: "initiate",
   SPAWN: "spawn",
+  TELEPORT: "teleport",
   GIB: "gib",
   BOOM: "boom",
   RISE: "rise",
@@ -88,9 +101,19 @@ const SFX = {
 
 const NAMES = new Set(Object.values(SFX));
 
+// The ground under a zone. Five zones in docs/zones.yaml and three surfaces between them:
+// the Fortress is carpeted, the Town is boards over the Undertown, and everywhere else is
+// dirt. A zone nobody has taught this function gets dirt, which is the safe guess — nothing
+// in the game is built on carpet by accident.
+function groundSfx(zoneSlug) {
+  if (zoneSlug === "fortress") return SFX.STEP_CARPET;
+  if (zoneSlug === "town") return SFX.STEP_WOOD;
+  return SFX.STEP_EARTH;
+}
+
 /** True for a token this file names. The gate on anything that reaches the wire. */
 function isSfx(name) {
   return typeof name === "string" && NAMES.has(name);
 }
 
-module.exports = { SFX, isSfx };
+module.exports = { SFX, isSfx, groundSfx };

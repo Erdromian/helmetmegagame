@@ -178,9 +178,17 @@ function shedForHands(worn, hands) {
 // body piece is something you pull on, an accessory is something that fastens, and anything
 // in a hand is picked up rather than worn. The energy shield is named outright because it
 // is the one piece whose sound is about what it IS rather than where it goes.
+const REVOLVER_SLUGS = new Set(["neoclassic-rw10", "neoclassic-duelista"]);
+// Named one by one because nothing on a Tag row says "this is maille" — the catalog knows
+// what a thing weighs and where it goes, not what it is made of.
+const MAIL_SLUGS = new Set(["mail-coif", "mail-shirt", "brigandine"]);
+
 function equipSfx(tag) {
   if (!tag) return null;
   if (tag.slug === "energy-shield") return "equip-shield";
+  if (REVOLVER_SLUGS.has(tag.slug)) return "equip-revolver";
+  if (tag.fighting?.weaponClass === "firearm") return "equip-gun";
+  if (MAIL_SLUGS.has(tag.slug)) return "equip-mail";
   if (tag.equipSlot === "HEAD" || tag.equipSlot === "BODY") return "equip-cloth";
   // Anything taken in hand is drawn, not fastened (Bascinet's call). WEAPON is every held
   // thing, so a torch and a fishing rod get the blade's noise too — which is closer to

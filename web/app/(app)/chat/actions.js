@@ -89,7 +89,7 @@ import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout, deliverShout } from "@lifeweb/db/lib/shout";
 import { ooc, deliverOoc } from "@lifeweb/db/lib/ooc";
 import { XOM_SHRINE_ROOM_SLUG, grantXom } from "@lifeweb/db/lib/xom";
-import { SFX } from "@lifeweb/db/lib/sfx";
+import { SFX, groundSfx } from "@lifeweb/db/lib/sfx";
 import { openConversationThread } from "@lifeweb/db/lib/conversationOpen";
 import { castDie } from "@lifeweb/db/lib/roll";
 import { addRoomGuest, removeRoomGuest, roomGuests } from "@lifeweb/db/lib/roomGuests";
@@ -291,6 +291,7 @@ export async function photographRow(seq) {
     readout,
     photoName: photo.name,
     line: `You take a photograph of ${readout.name}.`,
+    sfx: SFX.PHOTO,
   };
 }
 
@@ -806,10 +807,15 @@ export async function travelTo({ locationId, exert = false } = {}) {
   if (brought.length > 0) parts.push(`Bringing ${brought.join(", ")}.`);
   if (stranded.length > 0) parts.push(`You can't move ${stranded.join(", ")} through here.`);
   if (heldBack.length > 0) parts.push(`Somebody has hold of ${heldBack.join(", ")}.`);
+  // Your own boots on whatever they landed on. The mover's tab alone — a zone full of
+  // people crossing all day must not be a zone full of footsteps. `arrivedAt` comes back
+  // from a walk without its zone, so the slug's own prefix is the fallback: a Location is
+  // `<zone>-<code>` by docs/zones.yaml's convention.
+  const ground = groundSfx(landed.zone?.slug ?? String(landed.slug ?? "").split("-")[0]);
   if (result.dismounted.length > 0) {
-    return { ok: true, line: `${parts.join(" ")} ${dismountedMessage(result.dismounted)}` };
+    return { ok: true, line: `${parts.join(" ")} ${dismountedMessage(result.dismounted)}`, sfx: ground };
   }
-  return { ok: true, line: `${parts.join(" ")}` };
+  return { ok: true, line: `${parts.join(" ")}`, sfx: ground };
 }
 
 // ------------------------------------------------------------------- gates

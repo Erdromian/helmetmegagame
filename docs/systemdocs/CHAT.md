@@ -2205,6 +2205,14 @@ mounted twice: `ChatHead`'s right edge and `.chat-places-foot` beside the bell a
 the checkmark. On a phone the places column is a drawer, so the head copy is the
 one that is always reachable.
 
+A cue may name **several files instead of one**, and a play picks at random. So
+far that is the footsteps: `step-carpet`, `step-wood` and `step-earth` carry
+seven or eight files apiece, because walking the map twice should not sound like
+the same step twice. Which one a walker hears is `groundSfx(zoneSlug)` in
+`db/lib/sfx.js` — carpet in the Fortress, boards in Town, dirt everywhere else —
+and only the walker hears it, on the Travel button's own result. A zone full of
+people crossing all day is not a zone full of footsteps.
+
 One thing browsers impose: audio is refused until the page has seen a click or a
 keypress, so the first sound of a session may be dropped. That is handled by
 arming on the first real gesture and staying quiet before it — never by a dialog

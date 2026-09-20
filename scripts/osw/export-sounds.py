@@ -56,7 +56,8 @@ GROUPS = {
         + rng("effects", "lightswitch_", 1, 4)
         + rng("effects", "ui_lockpicking_pickmovement_0", 1, 4)
         + files("items", "Screwdriver Ratchet Wirecutter zip use_card")
-        + files("lfwbsounds", "special_toggle sign_this"),
+        + files("lfwbsounds", "special_toggle sign_this")
+        + files("webbers", "confirm1"),
 
     # Something wants your attention.
     "notify":
@@ -69,7 +70,8 @@ GROUPS = {
         + files("machines", "Alarm door_locked")
         + files("lfwbsounds", "death_alarm airlock_deny2 radio_chatter")
         + files("items", "phone_ring phone_pickup phone_busy phone_calling "
-                         "dialtone countdown"),
+                         "dialtone countdown")
+        + files("nuke", "nuke_activator nuke_activator2"),
 
     # Rooms with a sound of their own. Most of these loop.
     "ambience":
@@ -104,11 +106,14 @@ GROUPS = {
             thudswoosh throwtap tablehit1 net_captured net_equip handcuffs
             cablecuff klevec klevec2 klevec3 wpn_swing_axe_01
             wpn_swing_axe_02""")
+        + files("lfwbsounds", """revolver_close revolver_open revolver_spin
+            revolver_load1 revolver_load2""")
         + files("lfwbcombatuse", """parry rapier swing_01 swing_02 swing_03
             npc_kill_chop_01 npc_kill_chop_02 npc_kill_chop_03
             npc_kill_slash_01 npc_kill_slash_02 npc_kill_slash_03
             npc_kill_smash_01 npc_kill_smash_02 npc_kill_smash_03""")
-        + files("effects", """Explosion1 shield2 shieldbash bars_hit wallhit wallhit2
+        + files("effects", """Explosion1 explosionfar explosionfar2 explosionfar3
+            unholster shield2 shieldbash bars_hit wallhit wallhit2
             wallhit3 woodhit metalwall bone_crack getstuck_dagger
             get_stuck3""")
         + whole("combat2020")
@@ -144,6 +149,10 @@ GROUPS = {
         + files("misc", "chairfall rollermove cloth_rip slip")
         + files("lfwbsounds", """iron_crate_open iron_crate_close double_open1
             double_close lava_open lava_close""")
+        + files("effects", "teleport witch_teleport")
+        + whole("effects/footsteps/carpet")
+        + files("effects/footsteps", """body-hauberk-1 body-hauberk-2
+            body-hauberk-3 body-hauberk-4 body-hauberk-5""")
         + whole("effects/footsteps/dirt")
         + whole("effects/footsteps/wood")
         + whole("effects/footsteps/grass")

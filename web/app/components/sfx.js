@@ -29,6 +29,18 @@ const CUES = {
   "equip-cloth": "rustle1",
   "equip-shield": "shield2",
   "equip-blade": "knife_equip",
+  "equip-mail": "body-hauberk-1",
+  "equip-gun": "unholster",
+  "equip-revolver": "revolver_close",
+
+  // Your own boots. Eight files a piece, picked at random, so walking the map twice does
+  // not sound like the same step twice.
+  "step-carpet": ["carpet_step1", "carpet_step2", "carpet_step3", "carpet_step4",
+    "carpet_step5", "carpet_step6", "carpet_step7", "carpet_step8"],
+  "step-wood": ["wood_step2", "wood_step3", "wood_step4", "wood_step5", "wood_step6",
+    "wood_step7", "wood_step8"],
+  "step-earth": ["dirt1.wav", "dirt2.wav", "dirt3.wav", "dirt4.wav", "grass1.wav",
+    "grass2.wav", "grass3.wav", "grass4.wav"],
 
   // Hands on other people's things.
   loot: "torch_pickup",
@@ -52,7 +64,10 @@ const CUES = {
   // Getting into things.
   "seal-break": "poster_ripped",
   crate: "wood_open",
-  "nuke-arm": "countdown",
+  dig: "dig_shovel",
+  photo: "polaroid1",
+  "nuke-arm": "nuke_activator",
+  "nuke-ping": "confirm1",
 
   // At the table.
   eat: "eatfood",
@@ -76,8 +91,9 @@ const CUES = {
   convert: "oldways_convert",
   initiate: "wonder_secret_known",
   spawn: "wonder",
+  teleport: "teleport",
   gib: "squishy",
-  boom: "Explosion1",
+  boom: "explosionfar3",
   rise: "rebirth",
   quake: "cavein",
   landing: "train_arrive",
@@ -114,6 +130,11 @@ const GAIN = {
   "refuse-money": 0.6,
   "equip-lock": 0.6,
   "equip-cloth": 0.6,
+  // Bascinet's ear again: the torch pickup was 30 % too loud for something you do all day.
+  loot: 0.49,
+  "step-carpet": 0.5,
+  "step-wood": 0.5,
+  "step-earth": 0.5,
 };
 
 // A held key or a double-click must not machine-gun. Per NAME, not global: mining while a
@@ -152,12 +173,25 @@ if (typeof window !== "undefined") {
   window.addEventListener("keydown", arm, { once: true });
 }
 
+// A cue may name one file or several. Several means pick one per play, which is what keeps
+// a footstep from being a metronome. The extension is .ogg unless the name carries its own
+// — the dirt and grass steps are the library's only wavs.
+function fileFor(name) {
+  const entry = CUES[name];
+  if (!entry) return null;
+  return Array.isArray(entry) ? entry[Math.floor(Math.random() * entry.length)] : entry;
+}
+
+function src(file) {
+  return `/assets/sfx/${file.includes(".") ? file : `${file}.ogg`}`;
+}
+
 function pool(file) {
   let list = pools.get(file);
   if (!list) {
     list = { next: 0, tracks: [] };
     for (let i = 0; i < POOL; i += 1) {
-      const track = new window.Audio(`/assets/sfx/${file}.ogg`);
+      const track = new window.Audio(src(file));
       track.preload = "auto";
       list.tracks.push(track);
     }
@@ -173,7 +207,7 @@ function pool(file) {
  */
 export function playSfx(name) {
   if (!name || typeof window === "undefined" || !armed) return;
-  const file = CUES[name];
+  const file = fileFor(name);
   if (!file) return;
 
   const { on, volume } = soundSetting();
@@ -217,7 +251,7 @@ const running = new Map();
 function startLoop(name, file, volume) {
   if (running.has(name)) return;
   try {
-    const track = new window.Audio(`/assets/sfx/${file}.ogg`);
+    const track = new window.Audio(src(file));
     track.loop = true;
     track.volume = Math.min(1, Math.max(0, volume * (GAIN[name] ?? 0.45)));
     const stop = window.setTimeout(() => stopSfxLoop(name), LOOPS[name].maxMs);
