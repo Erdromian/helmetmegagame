@@ -108,6 +108,15 @@ const CUES = {
   banish: "bishop_banish",
   "rite-loop": "loop_altar",
 
+  // The telephone. Five of the six are the library's own phone sounds; the
+  // hang-up is the UI click, because OpenSourceWeb never recorded a cradle.
+  "phone-ring": "phone_ring",
+  "phone-calling": "phone_calling",
+  "phone-pickup": "phone_pickup",
+  "phone-busy": "phone_busy",
+  "phone-drop": "click",
+  "coin-insert": "coininsert",
+
   // The Den's slot machine. Coins in, then one of three answers.
   "slot-spin": "coin_m",
   "slot-win": "gemdrop",
@@ -177,6 +186,15 @@ const GAIN = {
   "radio-send": 0.17,
   "radio-hear": 0.23,
 
+  // The telephone, all but the bell. These are heard by one person with a
+  // receiver against their ear, so they sit with the furniture however loud
+  // the file is — and two of these files are the hottest in the folder.
+  "phone-calling": 0.06,
+  "phone-busy": 0.06,
+  "phone-pickup": 0.16,
+  "phone-drop": 0.16,
+  "coin-insert": 0.1,
+
   // A thing you did.
   success: 0.16,
   mine: 0.22,
@@ -228,6 +246,11 @@ const GAIN = {
   // Made to be heard. The intercom belongs here and not with the world: a PA is a
   // loudspeaker, which is the same argument db/lib/intercom.js makes for its full-size text.
   intercom: 0.43,
+  // The bell of a telephone, and the one phone cue up here rather than down
+  // with the furniture: it is the only one nobody is holding a receiver for.
+  // It has to carry across a room somebody is not looking at, which is the
+  // same job the alarm below has.
+  "phone-ring": 0.4,
   alarm: 0.48,
   bell: 0.77,
   horn: 0.37,
@@ -248,7 +271,12 @@ let recent = [];
 // A backgrounded tab narrating a town somebody is not reading is how a person mutes the
 // site for good. Only being named reaches you when the tab is behind something else —
 // that one is a notification, which is the whole point of it.
-const THROUGH_A_HIDDEN_TAB = new Set(["named"]);
+//
+// A ringing phone is the second, on the same argument: it rings four times over a minute
+// and then stops for good, so a tab that stayed quiet through it has cost somebody the
+// call. It is also the one cue a player is MEANT to be interrupted by — the whole point
+// of a phone is that it reaches you when you were doing something else.
+const THROUGH_A_HIDDEN_TAB = new Set(["named", "phone-ring"]);
 
 // Three elements per cue, cycled. One would cut itself off mid-sound on a quick repeat,
 // which is audibly worse than two overlapping.

@@ -28,6 +28,8 @@ export default function RoomForm({ room }) {
       description: form.get("description"),
       soundproof: form.get("soundproof") === "on",
       destroysContents: form.get("destroysContents") === "on",
+      phone: form.get("phone"),
+      payphone: form.get("payphone") === "on",
       accessTagSlugs: form.get("accessTagSlugs"),
     });
   }
@@ -70,6 +72,14 @@ export default function RoomForm({ room }) {
         <label className="check-row">
           <input type="checkbox" name="destroysContents" defaultChecked={room.destroysContents} />
           <span>Destroys contents (spillway)</span>
+        </label>
+        <label className="field">
+          <span className="field-label">Phone name (blank for no phone)</span>
+          <input name="phone" defaultValue={room.phone ?? ""} className="control" />
+        </label>
+        <label className="check-row">
+          <input type="checkbox" name="payphone" defaultChecked={room.payphone} />
+          <span>Payphone (takes an obol, never appears on a dial list)</span>
         </label>
         <button type="submit" className="btn" disabled={pending}>
           Save

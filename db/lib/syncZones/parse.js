@@ -363,6 +363,9 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
       if (room.access != null && !Array.isArray(room.access)) {
         problems.push(`room "${room.id}" has a non-list access:`);
       }
+      if (room.payphone === true && !room.phone) {
+        problems.push(`room "${room.id}" is a payphone with no phone: name`);
+      }
       roomEntries.push({
         slug: room.id,
         name: room.name ?? room.id,
@@ -377,6 +380,13 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         // never a hardcoded Room id — so moving the Stable later is a YAML
         // edit here, not a code change.
         stable: room.stable === true,
+        // The phone on the wall (PHONES.md). A NAME, not a flag: it is what
+        // every dial list in the game calls this phone, and the room's own
+        // name is not what anybody asks the operator for. `payphone: true`
+        // makes it take an obol and keeps it OFF every dial list — a payphone
+        // calls out and never rings.
+        phone: typeof room.phone === "string" && room.phone.trim() ? room.phone.trim() : null,
+        payphone: room.payphone === true,
         live: collectLive(room.live, `room "${room.id}"`, problems),
         stash: parseStash(room.stash, room.id, problems),
         locationSlug: location.id,

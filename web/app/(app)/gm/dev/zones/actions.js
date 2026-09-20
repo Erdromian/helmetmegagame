@@ -353,6 +353,13 @@ export async function updateRoom(roomId, updatedAt, input) {
       description: trimmed(input.description),
       soundproof: Boolean(input.soundproof),
       destroysContents: Boolean(input.destroysContents),
+      // The phone on the wall (docs/systemdocs/PHONES.md). A blank name means
+      // no phone, which is also how a GM takes one OUT of a room — and taking
+      // the name away is the whole removal, since every dial list is built off
+      // this column. A payphone with no name is simply no phone, so the flag
+      // is cleared with it rather than left as a switch on nothing.
+      phone: trimmed(input.phone) || null,
+      payphone: Boolean(trimmed(input.phone)) && Boolean(input.payphone),
       accessTagSlugs: kind === "PRIVATE" ? String(input.accessTagSlugs ?? "").split(",").map((s) => s.trim()).filter(Boolean) : [],
     });
     await audit(session, "gm_room_updated", { roomId, name, renamed, from: before.name });

@@ -1,7 +1,7 @@
 // Room-anchor interaction handlers: the Intercom, Quest interact, the
-// Watchtower turret, the Bell Tower, Prayer at the Shrine of an Old Man and
-// the Den's slot machine — each one's open (button/select) and submit
-// (modal, or confirm button) pair.
+// Watchtower turret, the Bell Tower, Prayer at the Shrine of an Old Man, the
+// Den's slot machine and the telephones — each one's open (button/select) and
+// submit (modal, or confirm button) pair.
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const {
@@ -38,6 +38,8 @@ const { BELL_ROOM_SLUG, bellCooldown, broadcastBell } = require("@lifeweb/db/lib
 const { XOM_SHRINE_ROOM_SLUG, grantXom } = require("@lifeweb/db/lib/xom");
 const { CASINO_ROOM_SLUG, playSlots } = require("@lifeweb/db/lib/slotMachine");
 const { SLOT_PROMPT } = require("@lifeweb/db/lib/slotText");
+const { phoneView, placeCall, answerCall, hangUp } = require("@lifeweb/db/lib/phone");
+const { PHONE_TEXT } = require("@lifeweb/db/lib/phoneText");
 const { SFX } = require("@lifeweb/db/lib/sfx");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 const {
@@ -434,12 +436,131 @@ async function handleIntercomSubmit(interaction, roomId) {
   await respond(interaction, `» *Your voice goes out across Ravenheart.*${note}`, { fleeting: true });
 }
 
+
+// --- The telephone (docs/systemdocs/PHONES.md) ---------------------------
+//
+// Three custom ids for one button, because Discord needs a distinct id per
+// control but the PLAYER only ever sees one Phone button. Which of the three
+// they get is db/lib/phone.js#phoneView's answer, re-read on every press:
+// dialling, answering, or putting the receiver down.
+const PHONE_DIAL_PREFIX = "room:phone:dial:";
+const PHONE_ANSWER_PREFIX = "room:phone:answer:";
+const PHONE_HANGUP_PREFIX = "room:phone:hangup:";
+
+// The open. ack() first, always — CLAUDE.md's "Acknowledge before you work":
+// phoneView hits the database four or five times, and doing that ahead of the
+// acknowledgement is how a player is shown "The application did not respond"
+// for a call that has already started ringing.
+async function handlePhoneOpen(interaction, roomId) {
+  await ack(interaction);
+  const view = await phoneView(prisma, interaction.user.id, roomId);
+  if (!view.ok) {
+    await respond(interaction, view.error);
+    return;
+  }
+
+  if (view.mode === "held") {
+    await respond(interaction, PHONE_TEXT.held);
+    return;
+  }
+
+  if (view.mode === "hangup") {
+    await respond(interaction, {
+      content: PHONE_TEXT.dialling,
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`${PHONE_HANGUP_PREFIX}${roomId}`)
+            .setLabel("Hang up")
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
+    });
+    return;
+  }
+
+  if (view.mode === "answer") {
+    await respond(interaction, {
+      content: PHONE_TEXT.ringing,
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`${PHONE_ANSWER_PREFIX}${roomId}`)
+            .setLabel("Answer")
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
+    });
+    return;
+  }
+
+  if (view.phones.length === 0) {
+    await respond(interaction, PHONE_TEXT.noneToCall);
+    return;
+  }
+
+  // No tooltip and no description on any option: the list of phones IS the
+  // explanation, and a line of help under each one would be thirteen lines of
+  // it. Discord caps a select at 25 options and the exchange is nowhere near.
+  //
+  // The payphone's price is the ONE line of guidance here, and it goes in the
+  // message above the control rather than on an option — `-#` subtext, the
+  // Move declaration's shape (CLAUDE.md, "Bot message style").
+  const prompt = view.room.payphone && !view.paid ? `${PHONE_TEXT.pick}\n-# ${PHONE_TEXT.insert}` : PHONE_TEXT.pick;
+  await respond(interaction, {
+    content: prompt,
+    components: [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`${PHONE_DIAL_PREFIX}${roomId}`)
+          .setPlaceholder(PHONE_TEXT.pick)
+          .addOptions(view.phones.slice(0, 25).map((p) => ({ label: p.phone, value: p.id }))),
+      ),
+    ],
+  });
+}
+
+async function handlePhoneDial(interaction, roomId) {
+  await ack(interaction);
+  const toRoomId = interaction.values?.[0];
+  if (!toRoomId) {
+    await respond(interaction, "Pick a phone.");
+    return;
+  }
+  // The open turn, for the ledger stamp and the audit row. Null is fine — a
+  // phone works between turns the same as during one.
+  const turn = await prisma.turn
+    .findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } })
+    .catch(() => null);
+  const result = await placeCall(prisma, interaction.user.id, { fromRoomId: roomId, toRoomId, turn });
+  await respond(interaction, result.ok ? PHONE_TEXT.dialling : result.error);
+}
+
+async function handlePhoneAnswer(interaction, roomId) {
+  await ack(interaction);
+  const result = await answerCall(prisma, interaction.user.id, roomId);
+  await respond(interaction, result.ok ? PHONE_TEXT.pickedUp : result.error);
+}
+
+async function handlePhoneHangup(interaction, roomId) {
+  await ack(interaction);
+  const result = await hangUp(prisma, interaction.user.id, roomId);
+  await respond(interaction, result.ok ? "You put the receiver down." : result.error);
+}
+
 // Custom IDs below: "loc:" is the travel flow, "conv:" the Conversation flow, "move:"/"say:" the Move/Speak modals.
 
 
 module.exports = {
   PRAY_CONFIRM_PREFIX,
   SLOTS_CONFIRM_PREFIX,
+  PHONE_DIAL_PREFIX,
+  PHONE_ANSWER_PREFIX,
+  PHONE_HANGUP_PREFIX,
+  handlePhoneOpen,
+  handlePhoneDial,
+  handlePhoneAnswer,
+  handlePhoneHangup,
   handleSlotsOpen,
   handleSlotsConfirm,
   handleIntercomOpen,

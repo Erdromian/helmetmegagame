@@ -1533,6 +1533,24 @@ model Room {
   // its own rework) is a YAML edit, not a code change. See ARELITZ.md.
   stable Boolean @default(false)
 
+  // The phone on the wall, named for every dial list in the game. Set from
+  // `phone:` in docs/zones.yaml, the way `stable` and `live` above are. The
+  // NAME is the value, not a boolean, because a phone is a thing you ask the
+  // operator for by name — "the Baron's Phone" — and the room it sits in is
+  // not what anybody calls it. Null for the room with no phone, which is
+  // nearly all of them. See docs/systemdocs/PHONES.md.
+  //
+  // db/lib/phone.js resolves the network generically off this column, never a
+  // hardcoded Room id, for the reason `stable` gives: moving a phone is then a
+  // YAML edit rather than a code change.
+  phone String?
+
+  // A phone that takes coins. Set from `payphone: true` in docs/zones.yaml.
+  // Two things follow: a call off it costs PHONE_COST into the treasury, and
+  // it is absent from every dial list — a payphone calls out and never rings,
+  // because there is nobody standing next to it whose job is to answer.
+  payphone Boolean @default(false)
+
   // A key from the registry in db/lib/roomLive.js, set from `live:` in
   // docs/zones.yaml. The room's starter message carries one extra line read
   // off live state, re-rendered whenever that state moves — the Landing Pad
@@ -1590,6 +1608,10 @@ model Room {
   playerThreads PlayerThread[]
   guests        RoomGuest[]
   auditLogs     AuditLog[]
+
+  // The phone on this wall, at both ends of a call. See PhoneCall.
+  phoneCallsOut PhoneCall[] @relation("PhoneCallFrom")
+  phoneCallsIn  PhoneCall[] @relation("PhoneCallTo")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2376,6 +2398,10 @@ model Character {
   // table, so both ends are named.
   interceptHits    InterceptHit[]  @relation("InterceptCaught")
   interceptCatches InterceptHit[]  @relation("InterceptCatcher")
+
+  // Both ends of a telephone call. See PhoneCall.
+  phoneCallsPlaced PhoneCall[] @relation("PhoneCallCaller")
+  phoneCallsTaken  PhoneCall[] @relation("PhoneCallCallee")
 
   // Searches asked of them, and searches they asked for
   // (docs/systemdocs/SEARCH.md §4). Same two-ended shape as the catches above.
@@ -3901,6 +3927,7 @@ model Turn {
   cavingRolls    CavingRoll[]
   offers         Offer[]
   oraclePages    OracleSynopsis[]
+  phoneCalls     PhoneCall[]
 }
 
 model Action {
@@ -6165,4 +6192,76 @@ model Feedback {
 
   @@index([discordUserId, createdAt])
   @@index([createdAt])
+}
+
+// One telephone call, from the moment somebody lifts a receiver to the moment
+// the line goes dead. See docs/systemdocs/PHONES.md.
+//
+// The state is a ROW rather than a timer in the bot's memory, and that is the
+// whole design. A call rings four times over 60 seconds, and a bot restart
+// inside that window used to be the obvious way to leave a phone ringing in an
+// empty office forever. `ringsSent` and `startedAt` are what the 15-second
+// sweep in bot/src/events/ready.js reads, so a restart picks the call back up
+// mid-ring instead of losing it. Both faces read the same row, which is also
+// what lets the web dialog and a Discord button disagree about nothing.
+//
+// Snapshot columns are deliberately NOT used here, unlike the log tables: a
+// call is live state, not a record, and it is ENDED within a minute or two of
+// being written. What a GM reads afterwards is the AuditLog row.
+model PhoneCall {
+  id String @id @default(cuid())
+
+  // The two phones. Rooms, not Locations: a phone hangs on a particular wall,
+  // and which wall is the whole of what makes an office phone private.
+  fromRoomId String
+  fromRoom   Room   @relation("PhoneCallFrom", fields: [fromRoomId], references: [id], onDelete: Cascade)
+  toRoomId   String
+  toRoom     Room   @relation("PhoneCallTo", fields: [toRoomId], references: [id], onDelete: Cascade)
+
+  // Who is holding each receiver. The caller is known from the first moment;
+  // the callee is null for as long as the phone is still ringing. Exactly one
+  // person may hold a phone, which is what these two columns mean and what the
+  // partial unique indexes below enforce.
+  callerId String
+  caller   Character @relation("PhoneCallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  calleeId String?
+  callee   Character? @relation("PhoneCallCallee", fields: [calleeId], references: [id], onDelete: SetNull)
+
+  status PhoneCallStatus @default(RINGING)
+
+  // How many of the four rings have gone out. The sweep's whole memory.
+  ringsSent Int @default(0)
+
+  // Whether the coin is already in the slot. A payphone charges for LIFTING
+  // THE RECEIVER, not per number dialled, so a call nobody answered lets the
+  // caller try somebody else on the same obol -- db/lib/phone.js#PAID_GRACE_MS.
+  paid Boolean @default(false)
+
+  startedAt   DateTime  @default(now())
+  answeredAt  DateTime?
+  endedAt     DateTime?
+  // "hungup" | "left" | "noanswer" | "busy" | "gm". Read by nothing in the
+  // game rules; it is there so a GM reading a stuck row can tell what happened.
+  endedReason String?
+
+  // REQUESTS.md 1a: an action a ration could ever count must stamp the turn,
+  // or the ration silently reads zero. Nothing rations a phone call today.
+  turnId String?
+  turn   Turn?   @relation(fields: [turnId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // The hot path: "is this phone busy, and is it ringing at me?" -- asked
+  // every time a dialog opens and on every pass of the 15-second sweep.
+  @@index([status, fromRoomId])
+  @@index([status, toRoomId])
+  @@index([status, callerId])
+  @@index([status, calleeId])
+}
+
+enum PhoneCallStatus {
+  RINGING
+  CONNECTED
+  ENDED
 }

@@ -75,6 +75,22 @@ const SFX = {
 
   // The world, heard by everyone reading the place it happened in. These ride
   // ArchiveEntry.sfx on a line that is being written anyway.
+  // The telephone (docs/systemdocs/PHONES.md). Six moments, because the whole
+  // feature is a sequence of noises with words in the middle: a coin, a dial
+  // tone, a bell in another room, somebody lifting a receiver, and the click
+  // that ends it. PHONE_RING is the only one that is heard by a ROOM rather
+  // than by one person, which is why it rides an ArchiveEntry and the rest
+  // ride an action result or a DM.
+  PHONE_RING: "phone-ring",
+  PHONE_CALLING: "phone-calling",
+  PHONE_PICKUP: "phone-pickup",
+  PHONE_BUSY: "phone-busy",
+  // A receiver going back on the cradle. The OpenSourceWeb library has no
+  // hang-up sound of its own, so this is the UI click — the shortest, driest
+  // thing in the folder, which is what a cradle sounds like.
+  PHONE_DROP: "phone-drop",
+  COIN_INSERT: "coin-insert",
+
   // The Den's slot machine (db/lib/slotMachine.js). Four moments, because a
   // machine that made one noise for winning and losing would not be a machine
   // anybody played twice.

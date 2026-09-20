@@ -3,6 +3,8 @@
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
+import { phoneView, placeCall, answerCall, hangUp } from "@lifeweb/db/lib/phone";
+import { PHONE_TEXT } from "@lifeweb/db/lib/phoneText";
 import { questInteract } from "@lifeweb/db/lib/quests";
 import { playSlots as playSlotsInDb, CASINO_ROOM_SLUG } from "@lifeweb/db/lib/slotMachine";
 import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
@@ -1226,6 +1228,10 @@ export async function gmPlaceView(placeKey) {
         slug: true,
         kind: true,
         accessTagSlugs: true,
+        // roomAffordances reads this to decide the Phone button is there at
+        // all (docs/systemdocs/PHONES.md) — without it the GM aside draws
+        // every fixture in the room except the phone.
+        phone: true,
         tags: {
           where: { quantity: { gt: 0 } },
           orderBy: { tag: { name: "asc" } },
@@ -1591,6 +1597,67 @@ export async function playSlots({ roomId } = {}) {
   const result = await playSlotsInDb(prisma, me.discordUserId, { turn });
   if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
   return { ok: true, line: result.line, sfx: result.sfx };
+}
+
+
+// ------------------------------------------------------------- the telephone
+//
+// Four actions for one button, because the dialog is dynamic: what the Phone
+// button does depends on what this phone is doing right now, and that is
+// decided server-side on every open (docs/systemdocs/PHONES.md). A server
+// action is a public endpoint, so each one re-resolves the acting character
+// from the session and re-checks the room — the dialog's own state is a hint.
+
+export async function openPhone({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+
+  const view = await phoneView(prisma, me.discordUserId, roomId);
+  if (!view.ok) return { ok: false, error: view.error, sfx: SFX.REFUSE };
+
+  // Only what the dialog draws. The call row itself never crosses: it carries
+  // both characters' ids, and the far end of a call is exactly the thing a
+  // phone is not supposed to tell you.
+  return {
+    ok: true,
+    mode: view.mode,
+    phone: view.room.phone,
+    payphone: Boolean(view.room.payphone),
+    paid: Boolean(view.paid),
+    phones: view.phones.map((p) => ({ id: p.id, name: p.phone })),
+  };
+}
+
+export async function dialPhone({ roomId, toRoomId } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  if (!toRoomId) return { ok: false, error: "Pick a phone." };
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const result = await placeCall(prisma, me.discordUserId, { fromRoomId: roomId, toRoomId, turn });
+  // A busy line carries its own sound up from db/lib/phone.js; everything else
+  // refuses in the ordinary voice, and a payphone that could not be paid for
+  // gets the money refusal rather than the flat one.
+  if (!result.ok) {
+    return { ok: false, error: result.error, sfx: result.sfx ?? SFX.REFUSE_MONEY };
+  }
+  return { ok: true, line: PHONE_TEXT.dialling, sfx: result.sfx };
+}
+
+export async function answerPhone({ roomId } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const result = await answerCall(prisma, me.discordUserId, roomId);
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE };
+  return { ok: true, line: PHONE_TEXT.pickedUp, sfx: result.sfx };
+}
+
+export async function hangUpPhone({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const result = await hangUp(prisma, me.discordUserId, roomId);
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE };
+  return { ok: true, line: "You put the receiver down.", sfx: result.sfx };
 }
 
 export async function speakOnIntercom({ roomId, body } = {}) {

@@ -37,6 +37,7 @@ const {
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
   ROOM_SLOTS_PREFIX,
+  ROOM_PHONE_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -121,6 +122,9 @@ const {
 const {
   PRAY_CONFIRM_PREFIX,
   SLOTS_CONFIRM_PREFIX,
+  PHONE_DIAL_PREFIX,
+  PHONE_ANSWER_PREFIX,
+  PHONE_HANGUP_PREFIX,
   handleIntercomOpen,
   handleQuestOpen,
   handleQuestSubmit,
@@ -129,6 +133,10 @@ const {
   handlePrayOpen,
   handlePrayConfirm,
   handleSlotsOpen,
+  handlePhoneOpen,
+  handlePhoneDial,
+  handlePhoneAnswer,
+  handlePhoneHangup,
   handleSlotsConfirm,
   handleBellSubmit,
   handleTurretSubmit,
@@ -341,6 +349,18 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_PRAY_PREFIX)) {
           return void (await handlePrayOpen(interaction, interaction.customId.slice(ROOM_PRAY_PREFIX.length)));
         }
+        // The answer and the hang-up before the open, for the reason Pray's
+        // pair gives just below: "room:phone:answer:<id>" also starts with the
+        // open prefix "room:phone:".
+        if (interaction.customId.startsWith(PHONE_ANSWER_PREFIX)) {
+          return void (await handlePhoneAnswer(interaction, interaction.customId.slice(PHONE_ANSWER_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(PHONE_HANGUP_PREFIX)) {
+          return void (await handlePhoneHangup(interaction, interaction.customId.slice(PHONE_HANGUP_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(ROOM_PHONE_PREFIX)) {
+          return void (await handlePhoneOpen(interaction, interaction.customId.slice(ROOM_PHONE_PREFIX.length)));
+        }
         // The confirm before the open, for the reason Pray's pair gives just
         // above: "room:slots:go:<id>" also starts with the open prefix.
         if (interaction.customId.startsWith(SLOTS_CONFIRM_PREFIX)) {
@@ -451,6 +471,10 @@ module.exports = {
         // Opens a modal, so it must NOT be acked first.
         if (interaction.customId === DROP_PICK_PREFIX) {
           return void (await handleDropBoxPick(interaction));
+        }
+        // Which phone to ring. No modal behind it, so it acks normally.
+        if (interaction.customId.startsWith(PHONE_DIAL_PREFIX)) {
+          return void (await handlePhoneDial(interaction, interaction.customId.slice(PHONE_DIAL_PREFIX.length)));
         }
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));

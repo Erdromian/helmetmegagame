@@ -72,6 +72,7 @@ const ROOM_ATM_PREFIX = "room:atm:";
 const ROOM_DROPBOX_PREFIX = "room:dropbox:";
 const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 const ROOM_SLOTS_PREFIX = "room:slots:";
+const ROOM_PHONE_PREFIX = "room:phone:";
 
 // The Dropbox's help and empty lines live in ./dropboxText.js (zero requires,
 // so the two client components that show them can import it); re-exported
@@ -186,6 +187,22 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_SLOTS_PREFIX,
     when: (room) => room?.slug === CASINO_ROOM_SLUG,
   },
+  // The phone on the wall (docs/systemdocs/PHONES.md). The only affordance
+  // resolved off a COLUMN rather than a slug: there are thirteen of them and a
+  // fourteenth is a YAML edit, which is the whole reason Room.phone holds the
+  // name instead of this file holding a list.
+  //
+  // One button, four meanings — Dial, Answer, Hang up, or a refusal — decided
+  // by db/lib/phone.js#phoneView when it is pressed, never here. An anchor is
+  // one message for everybody in the room (see the header), so it can only
+  // carry what is true of the PLACE: that there is a phone on this wall.
+  {
+    id: "phone",
+    label: "Phone",
+    tone: PLAIN,
+    prefix: ROOM_PHONE_PREFIX,
+    when: (room) => Boolean(room?.phone),
+  },
   // The Shrine of an Old Man: the only button that hands you a permanent tag that can kill you, with no way back off it.
   {
     id: "pray",
@@ -250,7 +267,7 @@ async function affordancesFor(prisma, character) {
     prisma.room.findMany({
       where: { locationId: character.locationId },
       orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true, slug: true, kind: true, accessTagSlugs: true, questId: true },
+      select: { id: true, name: true, slug: true, kind: true, accessTagSlugs: true, questId: true, phone: true },
     }),
     roomAccessKeys(prisma, character.id),
     linksFor(prisma, character.locationId),
@@ -327,6 +344,7 @@ module.exports = {
   ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
+  ROOM_PHONE_PREFIX,
   DROPBOX_HELP,
   DROPBOX_EMPTY,
   QUEST_INTERACT_PREFIX,

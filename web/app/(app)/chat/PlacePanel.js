@@ -11,6 +11,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
 import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
+import { PHONE_TEXT } from "@lifeweb/db/lib/phoneText";
 import {
   loadAffordances,
   flipGate,
@@ -27,6 +28,10 @@ import {
   turretState,
   toggleTurret,
   speakOnIntercom,
+  openPhone,
+  dialPhone,
+  answerPhone,
+  hangUpPhone,
   interactWithQuest,
 } from "./actions";
 import {
@@ -167,6 +172,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
       {dialog?.kind === "dropbox" && <DropBoxDialog onClose={close} onDone={say} />}
       {dialog?.kind === "depotTurret" && <DepotTurretDialog onClose={close} onDone={say} />}
+      {dialog?.kind === "phone" && <PhoneDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "intercom" && <IntercomDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "questInteract" && (
         <QuestInteractDialog entry={dialog.entry} onClose={close} onDone={say} />
@@ -907,6 +913,148 @@ function QuestInteractDialog({ entry, onClose, onDone }) {
           }
         >
           Interact
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+
+// ------------------------------------------------------------- the telephone
+//
+// ONE BUTTON, FOUR MEANINGS, and which one you get is read from the server on
+// open rather than guessed from anything the panel already knows
+// (docs/systemdocs/PHONES.md). A phone changes underneath you constantly —
+// somebody in another room dials yours between you opening the panel and
+// pressing anything — so the TurretDialog shape above is the right one here:
+// load on open, draw nothing until it answers, and let the action re-check.
+//
+// No help text on any of it. The list of phones is the explanation, and a line
+// under each of thirteen names would be thirteen lines of it. The one
+// exception is the payphone's price, which is a thing you are about to be
+// charged and so has to be said before you are.
+function PhoneDialog({ entry, onClose, onDone }) {
+  const [state, setState] = useState(null);
+  const [pick, setPick] = useState("");
+  const { run, pending, error } = useActionRunner();
+
+  useEffect(() => {
+    let cancelled = false;
+    openPhone({ roomId: entry.roomId })
+      .then((res) => {
+        if (!cancelled) setState(res);
+      })
+      .catch(() => {
+        if (!cancelled) setState({ ok: false, error: "The line is dead." });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.roomId]);
+
+  const title = state?.phone ? `The phone — ${state.phone}` : "The phone";
+  const done = (res) => {
+    onDone(res);
+    onClose();
+  };
+
+  if (!state) {
+    return (
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">Lifting the receiver…</p>
+      </Modal>
+    );
+  }
+  if (!state.ok) {
+    return (
+      <Modal open title={title} onClose={onClose}>
+        <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+
+  // Somebody else has the receiver. Nothing to press — which is the whole of
+  // what this mode means.
+  if (state.mode === "held") {
+    return (
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{PHONE_TEXT.held}</p>
+      </Modal>
+    );
+  }
+
+  if (state.mode === "answer") {
+    return (
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{PHONE_TEXT.ringing}</p>
+        <FormError>{error}</FormError>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={pending}
+            onClick={() => run(answerPhone, { roomId: entry.roomId }, { onOk: done })}
+          >
+            Answer
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  // You are holding it, so the same button that dialled hangs up. Pressing the
+  // Phone button again while on a call is the ask, and this is it.
+  if (state.mode === "hangup") {
+    return (
+      <Modal open title={title} onClose={onClose}>
+        <FormError>{error}</FormError>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={pending}
+            onClick={() => run(hangUpPhone, { roomId: entry.roomId }, { onOk: done })}
+          >
+            Hang up
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  if (state.phones.length === 0) {
+    return (
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{PHONE_TEXT.noneToCall}</p>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal open title={title} onClose={onClose}>
+      {state.payphone && !state.paid ? <p className="text-sm text-muted">{PHONE_TEXT.insert}</p> : null}
+      <div className="field">
+        <label className="field-label" htmlFor="chat-phone">
+          {PHONE_TEXT.pick}
+        </label>
+        <select id="chat-phone" value={pick} onChange={(e) => setPick(e.target.value)}>
+          <option value="">…</option>
+          {state.phones.map((phone) => (
+            <option key={phone.id} value={phone.id}>
+              {phone.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <FormError>{error}</FormError>
+      <div className="modal-actions">
+        <button
+          type="button"
+          className="btn"
+          disabled={!pick || pending}
+          onClick={() => run(dialPhone, { roomId: entry.roomId, toRoomId: pick }, { onOk: done })}
+        >
+          Call
         </button>
       </div>
     </Modal>
