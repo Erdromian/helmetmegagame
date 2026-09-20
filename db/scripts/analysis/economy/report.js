@@ -184,8 +184,12 @@ const headlines = [
   `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns nothing from the counter, since no dish can be sold there, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
   `Mining is the only source of ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves) yet a median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
   `Food demand is small and steady: ${players} players burn ${players * params.hungerDecay} hunger a turn. One Farm action makes ~${fmt(potatoFood.personTurnsPerFarm, 0)} person-turns of food, so about <b>${fmt(potatoFood.farmersNeeded, 0)} farmers</b> feed the whole town.`,
-  `Mixing verbs pays: a character with Soilery who farms once every third turn and refines on the other two makes ${fmt(model.combos.loadouts.filter((l) => l.points <= 8).sort((x, y) => y.withFactory.rate - x.withFactory.rate)[0].withFactory.rate)} ¢ a turn, against ${fmt(model.combos.alone.find((a) => /^Refine/.test(a.label)).rate)} refining alone and ${fmt(model.combos.alone.find((a) => /^Farm/.test(a.label)).rate)} farming alone. Mining never earns a slot while Refine is open. This ignores hauling cubes to the Depot to sell them.`,
-  `Fatigue: mining can be pressed ${fmt(model.fatigue.byId.mine.steady * 100, 0)}% of turns and farming ${fmt(model.fatigue.byId.farm.steady * 100, 0)}%. Refining, cutting Godflesh, crafting and butchering can be pressed every turn.`,
+  (() => {
+    const at8 = model.combos.loadouts.filter((l) => l.points <= params.startingTagPoints).sort((x, y) => y.withFactory.rate - x.withFactory.rate || x.points - y.points)[0];
+    const refAlone = model.combos.alone.find((a) => /^Refine/.test(a.label));
+    return `The best mix at the starting budget (${params.startingTagPoints} points) is <b>${esc(at8.skills.join(" + "))}</b>, worked as <span class="mono">${esc(at8.withFactory.pattern.split(" ").slice(0, 8).join(" "))}</span> (R refine, C craft, F farm, M mine), for <b>${fmt(at8.withFactory.rate)} ¢ a turn</b>, against ${fmt(refAlone.rate)} refining alone. Refining tires you the way mining does, so a crafter fills the off turns. Only ${params.refinerySeats} people can refine in a turn; with a crowd the mix falls back on crafts and farming.`;
+  })(),
+  `Fatigue: ${model.fatigue.rows.filter((r) => r.tires).map((r) => `${r.label.toLowerCase().replace(/ \(.*\)/, "")} can be pressed ${r.steady >= 0.999 ? "every turn" : `1 turn in ${fmt(1 / r.steady, 0)}`}`).join(", ")}. ${model.fatigue.rows.filter((r) => !r.tires).map((r) => r.label.toLowerCase().replace(/ \(.*\)/, "")).join(", ")} never tire you.`,
   `A Prospector's press in the Caves is worth ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").resourcesPerPress * params.rv.sell)} ¢ of ⬢ plus ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").dropsPerAction, 2)} ¢ of drops; in the Depths the drops are ${fmt(model.activities.find((a) => a.id === "mine:Depths:skilled").dropsPerAction, 2)} ¢.`,
   `${model.sources.summary.special} of ${model.sources.summary.recipes} recipes need a special item (${model.sources.summary.copies} of those only copy a key). Of the rest, ${model.sources.summary.byHardest[4]} are held back by a Scarce item and ${model.sources.summary.byHardest[5]} by an item with no known source.`,
   `${failing.length} of ${model.claims.length} figures the docs quote do not match what the catalog and code produce (see “Docs against the model”).`,
@@ -277,33 +281,24 @@ ${table({ cols: craftCols(), rows: L.noWorkshop.slice(0, 8) })}
 </section>`;
 }
 
-function sectionRefineScenario() {
-  const now = model.combos;
-  const alt = model.combosIfRefineTires;
-  const fmtBest = (c, pts) => {
-    const l = c.loadouts.filter((x) => x.points <= pts).sort((x, y) => y.withFactory.rate - x.withFactory.rate || x.points - y.points)[0];
-    return l;
-  };
-  const budgets = [0, params.startingTagPoints, 14, 17];
-  const rows = [
-    {
-      label: "Refine alone",
-      a: now.alone.find((x) => /^Refine/.test(x.label)),
-      b: alt.alone.find((x) => /^Refine/.test(x.label)),
-    },
-    ...budgets.map((pts) => ({ label: `Best with up to ${pts} points`, a: fmtBest(now, pts)?.withFactory, b: fmtBest(alt, pts)?.withFactory, la: fmtBest(now, pts), lb: fmtBest(alt, pts) })),
-  ];
+function sectionSeats() {
+  const c = model.combos;
   const cols = [
-    { h: "", get: (r) => r.label },
-    { h: "As coded now", num: true, get: (r) => fmt(r.a?.rate), sort: (r) => r.a?.rate ?? 0 },
-    { h: "Mix", get: (r) => (r.la ? `${r.la.skills.join(" + ")}: ` : "") + (r.a?.pattern ?? "") , style: () => "font-family:var(--mono);letter-spacing:1px" },
-    { h: "Refine on the ladder", num: true, get: (r) => fmt(r.b?.rate), sort: (r) => r.b?.rate ?? 0 },
-    { h: "Mix", get: (r) => (r.lb ? `${r.lb.skills.join(" + ")}: ` : "") + (r.b?.pattern ?? ""), style: () => "font-family:var(--mono);letter-spacing:1px" },
+    { h: "Skills", get: (r) => r.skills.join(" + ") },
+    { h: "Points", num: true, get: (r) => r.points },
+    ...c.seatSensitivity[0].byCrowd.map((x, i) => ({
+      h: `${x.people} want a seat`,
+      num: true,
+      get: (r) => fmt(r.byCrowd[i].rate),
+      sort: (r) => r.byCrowd[i].rate,
+    })),
+    { h: "No Factory", num: true, get: (r) => fmt(r.noFactory), sort: (r) => r.noFactory },
   ];
-  return `<h3>If Refine used the exhaustion system</h3>
-<p class="lede">The code has no fatigue on Refine, but it did until 2026-09-18, when Refine was still a Labor: its roll expression was <code>0-0</code>, which counted as a paid Labor and stepped the Tired and Exhausted ladder the way Mine does. The Labor strip made the ladder Mine-only, and Refine was rebuilt as its own button without it. No commit says that was deliberate. This table asks what changes if Refine is put back on Mine's ladder.</p>
-${table({ cols, rows })}
-<p class="lede">Refine alone halves. More than that, the Farm and Refine mix disappears: Refine would climb the same ladder that locks Farm out, so the two stop filling each other's gaps, and the best mixes become Farm plus crafts with no Factory in them. Whether Refine should tire you is a design decision, and the whole Factory economy turns on it.</p>`;
+  const cubes = params.refineryYield;
+  const perTurn = params.refinerySeats * cubes;
+  return `<h3>When the Factory is crowded</h3>
+<p class="lede">Only ${params.refinerySeats} people may refine in a turn, so the Factory can turn out at most ${perTurn} cubes (${fmt(perTurn * (model.activities.find((a) => a.id === "factory:refine-supplied")?.perAction ?? 0) / cubes, 0)} ¢ of Squeeze) a turn, however many people want the work. The seats go to whoever presses first, and a refused press costs no Move, so a person who misses out does something else that turn. This table gives each person a chance of seats ÷ people of finding a seat free, which is an average, not a promise. A seat is only worth having on a turn you are not Exhausted.</p>
+${table({ cols, rows: c.seatSensitivity })}`;
 }
 
 function sectionCombos() {
@@ -357,7 +352,8 @@ function sectionCombos() {
 <p class="lede">Each day-verb is rationed by something different, so they can fill each other's gaps. This is a planner, not a guess: it searches every schedule for the best one, turn by turn, using the game's own fatigue gates. It is exact within the rules below.</p>
 <ul class="ranks">
 <li><b>The Move.</b> One a turn. Mine, Farm and Refine each take all of it, and crafts share it in fractions, so a turn is one day-verb or a craft mix, never both.</li>
-<li><b>Fatigue.</b> Mine and Farm climb the Tired and Exhausted ladder and Refine does not, so Refine can fill the turns Farm or Mine lock you out of.</li>
+<li><b>Fatigue.</b> Mine, Refine and Farm all climb the Tired and Exhausted ladder (Mine and Refine one step at a time, Farm outright), so each can be pressed only some turns. Crafts, cutting Godflesh and Butcher never touch it, so a craft fills the turns a day-verb is locked out.</li>
+<li><b>Seats.</b> Only ${params.refinerySeats} people may refine at the Factory in a turn. The main tables assume you can always get a seat; the crowd table below shows what competition does.</li>
 <li><b>Skill points.</b> Farm needs Soilery (7) and Mine needs Prospecting (7), so a starting budget of ${params.startingTagPoints} cannot hold both. Refine and cutting Godflesh need no skill.</li>
 <li><b>Place.</b> Hops inside a zone are free, and a turn allows ${c.free} free zone crossing${c.free === 1 ? "" : "s"} (a mount adds one; <code>--free-moves</code> changes it). A crossing beyond that costs the Move, so nearby workplaces do not cost formal Moves.</li>
 </ul>
@@ -367,18 +363,18 @@ function sectionCombos() {
 <h3>Each activity on its own</h3>
 ${table({ cols: aloneCols, rows: c.alone })}
 <h3>The best mix at each skill budget</h3>
-<p class="lede">The schedule reads one letter a turn: <b>R</b> Refine, <b>F</b> Farm, <b>M</b> Mine, <b>C</b> a craft, <b>·</b> rest. The second row is the zone: T town, H hills, D depths, C caves. ${start && farmAlone && refAlone ? `With the Factory, a character with Soilery farms once in three turns and refines on the other two, for <b>${fmt(start.withFactory.rate)} ¢ a turn</b>, against ${fmt(refAlone.rate)} refining alone and ${fmt(farmAlone.rate)} farming alone. That works because Farm's lockout does not stop Refine, and a farm turn pays ${fmt(model.activities.find((a) => a.kind === "farm")?.perAction)} ¢ against a refine turn's ${fmt(model.activities.find((a) => a.id === "factory:refine-supplied")?.perAction)}.` : ""}</p>
+<p class="lede">The schedule reads one letter a turn: <b>R</b> Refine, <b>F</b> Farm, <b>M</b> Mine, <b>C</b> a craft, <b>·</b> rest. The second row is the zone: T town, H hills, D depths, C caves. ${start && refAlone ? `With the Factory, a character with no skills refines every other turn for <b>${fmt(refAlone.rate)} ¢ a turn</b>. Adding a craft for the off turns lifts that, because a craft costs no fatigue: ${esc(label(bestUnder(params.startingTagPoints, "withFactory")))} reaches ${fmt(start.withFactory.rate)} ¢ at the starting budget. Farming (${fmt(farmAlone?.rate)} ¢ a turn alone) no longer earns a slot next to the Factory, because a farm turn now pays ${fmt(model.activities.find((a) => a.kind === "farm")?.perAction)} ¢ and shares the ladder with Refine.` : ""}</p>
 <h4>With the Factory open</h4>
 ${table({ cols: stepCols("withFactory"), rows: steps("withFactory") })}
 <h4>Without it (full, out of reach, or no Godflesh)</h4>
-<p class="lede">With Refine off the table, the mixes are worth more to compare. ${startNo ? `At the starting budget the best is ${esc(label(startNo))} at ${fmt(startNo.noFactory.rate)} ¢ a turn.` : ""} Mining never earns a slot on a turn Refine is available, and even without it a craft beats Mining on the off turns.</p>
+<p class="lede">With Refine off the table, whether because the Factory is full, out of reach, or out of Godflesh, the mixes are worth comparing. ${startNo ? `At the starting budget the best is ${esc(label(startNo))} at ${fmt(startNo.noFactory.rate)} ¢ a turn.` : ""}</p>
 ${table({ cols: stepCols("noFactory"), rows: steps("noFactory") })}
 ${barChart({ rows: bars, unit: " ¢", labelW: 330, fmtVal: (v) => fmt(v, 1) })}
 <h3>What a starting character (${params.startingTagPoints} points) can reach</h3>
 ${table({ cols: startCols, rows: startRows })}
-${sectionRefineScenario()}
+${sectionSeats()}
 <h3>What this leaves out</h3>
-<p class="lede">The plan sells nothing and carries nothing. A refining day is ${cubes} cubes at ${fmt(model.params.squeezeLbs ?? 17, 0)} lb, so ${fmt(lbs, 0)} lb (${fmt(lbs / 2, 0)} lb crated), against a ${params.carryWeightLbs} lb carry cap, and an Overburdened character cannot cross zones at all. Turning cubes into ¢ means a trip to the Depot in Undertown, which is one crossing from both the town and the hills, so a plain walker cannot refine and sell in the same turn without a mount or cart. The 53 ¢ figure is a ceiling on Moves and fatigue, not a wage. Also left out: the 1-in-6 injury on every Godflesh cut, a forge for smithing, seed bags and ⬢ bought at the Depot, and how many other players want the same seat.</p>
+<p class="lede">The plan sells nothing and carries nothing. A refining day is ${cubes} cubes at ${fmt(model.params.squeezeLbs ?? 17, 0)} lb, so ${fmt(lbs, 0)} lb (${fmt(lbs / 2, 0)} lb crated), against a ${params.carryWeightLbs} lb carry cap, and an Overburdened character cannot cross zones at all. Turning cubes into ¢ means a trip to the Depot in Undertown, which is one crossing from both the town and the hills, so a plain walker cannot refine and sell in the same turn without a mount or cart. These figures are a ceiling on Moves, fatigue and skill points, not a wage. Also left out: the 1-in-6 injury on every Godflesh cut, a forge for smithing, seed bags and ⬢ bought at the Depot, and how many other players want the same seat.</p>
 </section>`;
 }
 
@@ -444,7 +440,7 @@ function sectionFatigue() {
   return `<section><h2>Which work tires you</h2>
 <p class="lede">The Tired and Exhausted tags each last ${f.durations.tired} turn, and Exhausted turns into Tired when it lapses. This table is a simulation, not a stated number: each turn it asks the game's own gate whether the verb is refused, applies the game's own grant, then runs the turn close in the game's order (staged push, then the tag expiry sweep). █ is a turn you can work, · is a turn you cannot.</p>
 ${table({ cols, rows: f.rows })}
-<p class="lede">Only <b>Mine</b> and <b>Farm</b> climb the ladder from a work action. Refine, Harvest Godflesh, crafting, Butcher and the Caving Die never read it: the scan below found no reference in their files, so they are limited by the Move alone. The Exhausted tag's own text says “you can't Labor again”, which is a leftover from Laboring and no longer true for those verbs.</p>
+<p class="lede">Mine, Refine and Farm climb the ladder from a work action. ${f.rows.filter((r) => !r.tires).map((r) => r.label).join(", ")} never read it: the scan below found no reference in their files, so they are limited by the Move alone. The Exhausted tag's own text says “you can't Labor again”, a leftover from Laboring that now means Mine, Refine and Farm.</p>
 <p class="lede">Also climbing the ladder, and not modelled because they are chance: a bad night (<code>dawnAfflictionPass.js</code>) and pushing on through a travel gate (<code>locationTravel.js</code>). Every file in the code that reads or writes the ladder:</p>
 <p><code>${f.readers.map(esc).join("</code> · <code>")}</code></p></section>`;
 }
@@ -694,6 +690,7 @@ th.sort-asc::after{content:" ▲"}th.sort-desc::after{content:" ▼"}
 .sortable th{cursor:pointer}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 code{font-size:12px}
+.mono{font-family:var(--mono)}
 .rk{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:600;color:var(--bg);background:var(--r0);white-space:nowrap}
 .rk.r1{background:var(--r1)}.rk.r2{background:var(--r2)}.rk.r3{background:var(--r3)}.rk.r4{background:var(--r4)}.rk.r5{background:var(--r5)}
 .via{color:var(--mute);font-size:11px}

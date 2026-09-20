@@ -81,7 +81,7 @@ function distances(adj) {
 // The planner
 // ---------------------------------------------------------------------------
 // verbs: [{ id, letter, zone (or null = anywhere), value, fatigue: 'mine' | 'farm' | null }]
-function makePlanner({ verbs, map, dist, free, dur, into }) {
+function makePlanner({ verbs, map, dist, free, dur, into, refineChance = 1 }) {
   const fatigueRefuses = new Map(); // "T|E" -> { mine, farm }
   const refusal = (held, n, id) => {
     const key = `${held.has("tired") ? held.get("tired") - n : "x"}|${held.has("exhausted") ? held.get("exhausted") - n : "x"}|${id}`;
@@ -96,6 +96,9 @@ function makePlanner({ verbs, map, dist, free, dur, into }) {
       const key = `${n}|${zone}|${held.has("tired") ? held.get("tired") - n : "x"}|${held.has("exhausted") ? held.get("exhausted") - n : "x"}`;
       const hit = memo.get(key);
       if (hit) return hit;
+      // The Factory floor holds a few people a turn. `refineChance` is how often a seat is free
+      // when you press; a refused press costs no Move, so you fall back to the best other move.
+      const evaluate = (seatFree) => {
       let top = { value: -Infinity };
       const consider = (dest, verb, note) => {
         const nextHeld = new Map(held);
@@ -110,6 +113,7 @@ function makePlanner({ verbs, map, dist, free, dur, into }) {
         if (d <= free) {
           consider(dest, null, d ? "cross" : "rest");
           for (const v of verbs) {
+            if (v.factory && !seatFree) continue;
             if (v.zone && v.zone !== dest) continue;
             if (v.fatigue && refusal(held, n, v.fatigue)) continue;
             consider(dest, v, d ? "cross" : "stay");
@@ -118,8 +122,16 @@ function makePlanner({ verbs, map, dist, free, dur, into }) {
           consider(dest, null, "paid crossing"); // the Move goes on the journey
         }
       }
-      memo.set(key, top);
       return top;
+      };
+      const open = evaluate(true);
+      let result = open;
+      if (refineChance < 1 && verbs.some((v) => v.factory)) {
+        const shut = evaluate(false);
+        result = { ...open, value: refineChance * open.value + (1 - refineChance) * shut.value };
+      }
+      memo.set(key, result);
+      return result;
     }
     return best(1, startZone, new Map());
   }
@@ -166,9 +178,9 @@ function summarise(planFor, gameTurns, patternTurns = 15) {
 // ---------------------------------------------------------------------------
 // The build
 // ---------------------------------------------------------------------------
-// `refineFatigue` asks "what if Refine used the exhaustion system?": 'mine' puts it on
-// Mine's ladder (as it was while Refine was a Labor), 'farm' on Farm's lockout.
-function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free = 1, refineFatigue = null }) {
+// `seats` is how many people may refine in a turn (db/lib/refinery.js). The main tables assume
+// you can always get one; `seatSensitivity` shows what a crowd does to that.
+function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free = 1, seats = 5 }) {
   const map = loadMap();
   const dist = distances(map.adj);
   const dur = fatigue.durations;
@@ -204,7 +216,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   const refineZone = map.sites.refine[0];
   // A cut and a refine must share a zone: the lump is cut the same turn it is refined.
   if (!map.sites.cut.includes(refineZone)) throw new Error("combos.js: Godflesh is cut somewhere other than the Factory's zone");
-  const refineVerb = { id: refineAct.id, letter: "R", label: "Refine (cut a lump first)", zone: refineZone, value: refineAct.perAction, fatigue: refineFatigue, needs: [], factory: true };
+  const refineVerb = { id: refineAct.id, letter: "R", label: "Refine (cut a lump first)", zone: refineZone, value: refineAct.perAction, fatigue: "refine", needs: [], factory: true };
 
   // ---- crafts: the best easy recipe the loadout can make ----
   const oreLimited = (a) => (a.oreNeeds ?? []).some((o) => o.prospectors > 2);
@@ -215,11 +227,11 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       .sort((x, y) => y.netPerTurnBuy - x.netPerTurnBuy)[0] ?? null;
 
   const planCache = new Map();
-  function run(verbList, factory, key) {
-    const full = `${key}|${factory}`;
+  function run(verbList, factory, key, refineChance = 1) {
+    const full = `${key}|${factory}|${refineChance}`;
     if (planCache.has(full)) return planCache.get(full);
     const list = verbList.filter((v) => factory || !v.factory);
-    const planner = makePlanner({ verbs: list, map, dist, free, dur, into });
+    const planner = makePlanner({ verbs: list, map, dist, free, dur, into, refineChance });
     const out = summarise(planner, gameTurns);
     planCache.set(full, out);
     return out;
@@ -242,6 +254,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
     brewing: [[], ["brewing-basic"], ["brewing-skilled"]],
   };
   const loadouts = [];
+  const verbsOf = new Map();
   for (const prospecting of [0, 1])
     for (const soilery of [0, 1])
       for (const crafting of [0, 1])
@@ -265,6 +278,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
               ...(craft ? [{ id: "craft", letter: "C", zone: null, value: craft.netPerTurnBuy, fatigue: null }] : []),
             ];
             const key = `${prospecting}${soilery}|${craft?.slug ?? "-"}`;
+            verbsOf.set(picked.join("+"), { verbList, key });
             loadouts.push({
               skills: picked.length ? picked.map((s) => bySlug.get(s)?.name ?? s) : ["no skills"],
               picked,
@@ -283,11 +297,34 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
     return { points: b, withFactory: pick("withFactory"), noFactory: pick("noFactory") };
   });
 
+  // ---- what a crowd at the Factory does ----
+  // K people each try for a seat every turn: a given person gets one about seats/K of the time.
+  const sensitivityOf = (picked) => {
+    const entry = verbsOf.get(picked.join("+"));
+    const found = loadouts.find((l) => l.picked.join("+") === picked.join("+"));
+    if (!entry || !found) return null;
+    return { skills: found.skills, points: found.points };
+  };
+  const crowd = [seats, seats * 2, seats * 4, seats * 10, seats * 20];
+  const seatSensitivity = [[], ["soilery"], ["soilery", "smithing-skilled"]]
+    .map((picked) => ({ info: sensitivityOf(picked), entry: verbsOf.get(picked.join("+")) }))
+    .filter((x) => x.info)
+    .map(({ info, entry }) => ({
+      skills: info.skills,
+      points: info.points,
+      byCrowd: crowd.map((k) => {
+        const p = Math.min(1, seats / k);
+        const out = run(entry.verbList, true, entry.key, p);
+        return { people: k, chance: p, rate: out.rate };
+      }),
+      noFactory: run(entry.verbList, false, entry.key).rate,
+    }));
+
   const between = (a, b) => dist.get(a)?.get(b);
   return {
     free,
     gameTurns,
-    refineFatigue,
+    seats,
     zones: map.zones,
     adjacency: Object.fromEntries([...map.adj].map(([k, v]) => [k, [...v].sort()])),
     sites: { farm: farmZone, refine: refineZone, cut: map.sites.cut[0], caves: "caves", depths: "depths" },
@@ -304,6 +341,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
     alone,
     loadouts,
     staircase,
+    seatSensitivity,
     dedupedSolves: planCache.size,
   };
 }

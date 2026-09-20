@@ -440,6 +440,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
   };
   const bare = expectedCut([]);
   const saw = expectedCut([{ equipped: true, tag: { slug: godflesh.CHAINSAW_SLUG ?? "chainsaw" } }]);
+  const refineDuty = fatigue.byId.refine.steady;
+  params.refinerySeats = refinery.REFINERY_MAX_WORKERS;
+  params.refineDuty = refineDuty;
   push({
     id: "factory:refine-supplied",
     name: "Refine — Godflesh supplied",
@@ -451,12 +454,18 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     revenue: shift,
     inputs: 0,
     inputsBuy: 0,
-    duty: 1,
-    netPerTurnSell: shift,
-    netPerTurnBuy: shift,
-    flags: ["someone else pays the cutting risk"],
+    duty: refineDuty,
+    netPerTurnSell: shift * refineDuty,
+    netPerTurnBuy: shift * refineDuty,
+    flags: [
+      "someone else pays the cutting risk",
+      `a shift tires you, so it is worked ${refineDuty >= 0.999 ? "every turn" : `1 turn in ${(1 / refineDuty).toFixed(0)}`}`,
+      `only ${refinery.REFINERY_MAX_WORKERS} people may refine in a turn`,
+    ],
   });
-  const soloRate = shift * Math.min(1, bare.godflesh);
+  // The cut is free and once a turn, and a shift needs one lump, so Godflesh never binds a worker
+  // who refines on the ladder's schedule; the ladder does.
+  const soloRate = shift * Math.min(refineDuty, bare.godflesh);
   push({
     id: "factory:solo",
     name: "Factory solo — cut, then refine",
@@ -468,7 +477,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     revenue: shift,
     inputs: 0,
     inputsBuy: 0,
-    duty: Math.min(1, bare.godflesh),
+    duty: Math.min(refineDuty, bare.godflesh),
     cutGodflesh: bare.godflesh,
     injuryChance: bare.injuryChance,
     netPerTurnSell: soloRate,
@@ -476,6 +485,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     flags: [
       `the cut costs no Move (misc.js extractGodfleshRequestImpl)`,
       `${(bare.injuryChance * 100).toFixed(0)}% a cut goes wrong; bare hands`,
+      `only ${refinery.REFINERY_MAX_WORKERS} people may refine in a turn`,
       `carry cap not modelled`,
     ],
   });
@@ -640,18 +650,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     params,
     gameTurns,
     free: freeMoves ?? schemaDefault("freeZoneMovesPerTurn"),
-  });
-
-  // What if Refine were on the exhaustion ladder like Mine? It was, until the
-  // 2026-09-18 Labor strip (see the note on the Refine row in fatigue.js).
-  const combosIfRefineTires = buildCombos({
-    activities,
-    fatigue,
-    bySlug,
-    params,
-    gameTurns,
-    free: freeMoves ?? schemaDefault("freeZoneMovesPerTurn"),
-    refineFatigue: "mine",
+    seats: refinery.REFINERY_MAX_WORKERS,
   });
 
   // --- the price ladder ------------------------------------------------------
@@ -780,10 +779,31 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     },
     {
       doc: "FACTORY.md §6",
-      claim: "Cut, walk and refine every turn: a solo Factory worker makes 40 ¢ a turn",
-      docValue: 40,
+      claim: "A solo Factory worker refines every other turn, for 20 ¢ a turn",
+      docValue: 20,
       model: round1(soloRate),
-      ok: Math.abs(soloRate - 40) < 0.5,
+      ok: Math.abs(soloRate - 20) < 0.5,
+    },
+    {
+      doc: "FACTORY.md §4",
+      claim: "Five people may refine at the Factory in a turn",
+      docValue: 5,
+      model: refinery.REFINERY_MAX_WORKERS,
+      ok: refinery.REFINERY_MAX_WORKERS === 5,
+    },
+    {
+      doc: "SOILERY.md §1",
+      claim: "Every crop sells for 1 ¢: farming is for eating, not cash",
+      docValue: 1,
+      model: Math.max(...soilery.CROPS.filter((c) => c.crop !== "pigtails").map((c) => get(c.crop)?.sellablePrice ?? 0)),
+      ok: soilery.CROPS.filter((c) => c.crop !== "pigtails").every((c) => (get(c.crop)?.sellablePrice ?? 0) <= 1),
+    },
+    {
+      doc: "BREWING.md §3",
+      claim: "Moonshine costs no Move, and one Godflesh is its whole limit",
+      docValue: 0,
+      model: get("moonshine")?.requirement?.turnsCost,
+      ok: get("moonshine")?.requirement?.turnsCost === 0,
     },
     {
       doc: "FACTORY.md §3",
@@ -794,17 +814,17 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     },
     {
       doc: "FACTORY.md §6",
-      claim: "A Farm action nets about 79 ¢ (potato, after the seed bag)",
-      docValue: 79,
+      claim: "A Farm action nets about 38 ¢ (potato, after the seed bag)",
+      docValue: 38,
       model: potato ? round1(potato.revenue - potato.inputs) : null,
-      ok: potato && Math.abs(potato.revenue - potato.inputs - 79) < 1,
+      ok: potato && Math.abs(potato.revenue - potato.inputs - 38) < 1,
     },
     {
       doc: "FACTORY.md §6",
-      claim: "A farmer makes about 26 ¢ a turn, a Prospector at the Caves about 5",
-      docValue: "26 / 5",
+      claim: "A farmer makes about 13 ¢ a turn, a Prospector at the Caves about 5",
+      docValue: "13 / 5",
       model: `${round1(potato?.netPerTurnSell)} / ${round1(byId("mine:Caves:skilled")?.netPerTurnSell)}`,
-      ok: potato && Math.abs(potato.netPerTurnSell - 26) < 1 && Math.abs(byId("mine:Caves:skilled").netPerTurnSell - 5) < 0.6,
+      ok: potato && Math.abs(potato.netPerTurnSell - 13) < 1 && Math.abs(byId("mine:Caves:skilled").netPerTurnSell - 5) < 0.6,
     },
     {
       doc: "SOILERY.md §6",
@@ -859,10 +879,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     },
     {
       doc: "FACTORY.md §6",
-      claim: "Refining and cutting Godflesh have no fatigue limit, only the Move",
-      docValue: "no ladder",
-      model: fatigue.byId.refine.tires || fatigue.byId.cut.tires ? "the code mentions fatigue" : "no ladder",
-      ok: !fatigue.byId.refine.tires && !fatigue.byId.cut.tires,
+      claim: "Refining climbs the Tired and Exhausted ladder like Mine; cutting Godflesh does not",
+      docValue: "refine yes, cut no",
+      model: `refine ${fatigue.byId.refine.tires ? "yes" : "no"}, cut ${fatigue.byId.cut.tires ? "yes" : "no"}`,
+      ok: fatigue.byId.refine.tires && !fatigue.byId.cut.tires,
     },
     {
       doc: "DEPOT.md §0i",
@@ -921,7 +941,6 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     priceRule,
     resourceBalance,
     combos,
-    combosIfRefineTires,
     shortlists: { ...shortlists, cookingAll: cookRows },
     baselines,
     cheapestMeal,
