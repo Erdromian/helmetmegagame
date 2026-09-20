@@ -217,10 +217,13 @@ const THREATS = [
   // that carries `assign` also carries `spawn`, and this is the first
   // exception. A Vampire is an existing, opted-in player a GM hands the seat
   // to (docs/systemdocs/VAMPIRE.md); it is never a brand-new arrival, so
-  // there is nothing for a Spawn offer to hand over. No Role of its own
-  // (no unique kit/items in scope yet — the Blood Abilities menu is a
-  // separate future task), so `brief` carries what a Role's own charter
-  // would otherwise say, per this file's own rule for a seat with no Role.
+  // there is nothing for a Spawn offer to hand over. No Role of its own (no
+  // unique starting kit), so `brief` carries what a Role's own charter would
+  // otherwise say, per this file's own rule for a seat with no Role. The
+  // Blood Abilities menu, its purchasable tags and the Vampire's own Desires
+  // are built (VAMPIRE.md §6-9) — `hungerless` rides along with the seat
+  // tag itself, the same reuse Demoness above makes, rather than a second
+  // hunger-exemption mechanism.
   {
     slug: "vampire",
     name: "Vampire",
@@ -232,7 +235,7 @@ const THREATS = [
       "You are a Vampire. You must feed on hapless mortals to sustain yourself. You have a blood and humanity stat, manage them carefully. View your vampire document for more information.",
       "Let none know of your true nature, they would not understand your gift and seek to end your immortal life.",
     ],
-    assign: { tagPoints: 0, tagSlugs: ["vampire"] },
+    assign: { tagPoints: 0, tagSlugs: ["vampire", "hungerless"] },
   },
   // Retired (docs/archive/windlander.yaml); the box stays as a decoy.
   {

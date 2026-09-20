@@ -192,6 +192,15 @@ const WARPED_SLUG = "warped";
 const BESTIAL_SLUG = "bestial";
 const WIGHT_SLUG = "wight";
 
+// The Blood Abilities menu and its fallout (VAMPIRE.md §6-9 — design doc
+// pages 4-11): db/lib/vampireBloodAbilities.js's `grantsTagSlugs`, Corrupt's
+// item cost, Enthral's victim tags, and the ash death (db/lib/vampireDeath.js).
+const PILE_OF_ASH_SLUG = "pile-of-ash";
+const BLACK_HEART_SLUG = "black-heart";
+const THRALL_SLUG = "thrall";
+const VAMPIRE_BLOOD_ADDICT_SLUG = "vampire-blood-addict";
+const HEART_SLUG = "heart"; // the existing harvested-organ item Corrupt consumes — not a new tag.
+
 // #leave — GM-only departure alerts and catatonic deaths, hardcoded (db/lib/roleIds.js reason). Lives in db/ since db/index.js's turn-engine thunk posts death alerts here too.
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
 
@@ -232,6 +241,11 @@ module.exports = {
   WARPED_SLUG,
   BESTIAL_SLUG,
   WIGHT_SLUG,
+  PILE_OF_ASH_SLUG,
+  BLACK_HEART_SLUG,
+  THRALL_SLUG,
+  VAMPIRE_BLOOD_ADDICT_SLUG,
+  HEART_SLUG,
   HUNGER_SLUG,
   STARVING_SLUG,
   HUNGERLESS_SLUG,

@@ -5,11 +5,11 @@ primary objective is to survive and avoid giving in to their monstrous
 nature. They carry two 0-100 stats nobody else on the roster has: **blood
 level** and **humanity**.
 
-**This doc covers pages 1-3 of the design doc only.** Pages 4-5 — a
-purchasable "Blood" menu of boons (Blood Strength, Regeneration, Corrupt,
-Celerity, Resilience, Bat Form, Solidarity, Obfuscate, Enthral, Nourish) —
-are a separate, not-yet-built task. Nothing in this file implements them, and
-nothing here should be read as blocking them.
+**This doc now covers the whole design doc, pages 1-11.** §§1-5 below are
+pages 1-3 (blood, humanity, the forced compulsion) — unchanged since they
+first shipped. §6 onward is pages 4-11: the purchasable "Blood" menu of
+boons, the vampire's own death, feeding's tag fallout, and the Vampire's
+Desires and purchasable tags.
 
 ## 1. Becoming a Vampire
 
@@ -209,17 +209,226 @@ Both rates are per-**day**, on `/gm/dev` under Vampire:
 | `vampireBloodDecayPerDay` | 34 | Empties a full meter in 3 days at the default 24h turn length |
 | `vampireHumanityRegenPerDay` | 10 | Matches the design doc's own figure |
 
-## 6. Where the code lives
+## 6. The Blood Abilities menu
+
+A "Blood" button on the character screen (self-only, TagRail.js's header,
+beside "Spend Tag Points") opens ten boons. Each one immediately deducts a
+blood cost from `vampireBloodLevel` (refused if the vampire can't afford it),
+applies its effect, and goes on a cooldown — `db/lib/vampireBloodAbilities.js`
+is the pure catalog, `web/app/(app)/character/actions/bloodAbility.js` is the
+one server action every "Use" button calls, dispatched by ability key.
+
+| Ability | Requires | Cost | Cooldown | Effect |
+|---|---|---|---|---|
+| Blood Strength | — | 30 | 4v | +2 melee fighting, 1 turn (`blood-strength` tag) |
+| Regeneration | — | 20 | 2v | Removes every held health-wounds/health-illness/health-infection tag except Burned/Severe Burns |
+| Corrupt | Corruptor tag, 1 Heart | 70 | 6v | Consumes the Heart, grants Black Heart |
+| Celerity | Celerity tag | 25 | 2v | +1 fighting both trees, 1 turn (`agility` tag) |
+| Resilience | — | 30 | 2v | +0.3 melee/ballistic armor, 1 turn (`resilient` tag) |
+| Bat Form | Bat Form tag | 50 | 4v | Instant free travel to any Location |
+| Solidarity | Solidarity tag | 30 | 2v | A DM to every other ALIVE vampire |
+| Obfuscate | Obfuscate tag | 40 | 4v | Grants Hidden, 1 turn — hides every other tag on inspection |
+| Enthral | — | 50 | 4v | Target must be incapacitated and at your Location; grants them Thrall + Vampire Blood Addict |
+| Nourish | — | 30 | 2v | Target must hold Thrall and be at your Location; clears their health-wounds tags and resets Vampire Blood Addict to 9 turns |
+
+**The cooldown formula is the design doc's own**: `round(constant × v)`, `v` =
+`GameConfig.vampireBloodAbilityCooldownVariable` (dev panel, default 5). Each
+ability's own constant (4, 2, 6...) lives in the catalog, not the config —
+matches `db/lib/vampire.js#perTurnRate`'s own `Math.round(rate * factor)`
+shape, just multiplying instead of scaling by turn length.
+
+**Cooldowns are tracked per character, not per ability column.**
+`Character.vampireBloodAbilityCooldowns` is one JSON map, `{ [abilityKey]:
+readyTurnNumber }` — ten `Int?` columns for one seat's ten abilities felt like
+a lot of schema for how small this Threat is; `Tag.consumesInto`/`expiresInto`
+are this schema's own precedent for a small flexible map living in one Json
+column.
+
+**Deliberately NOT gated on ACT/incapacitation**, except Bat Form (the one
+ability the design doc itself conditions on capacity: "You must not be
+incapacitated"). Everything else — most pointedly Regeneration — has to work
+while Dying, because §7 below leans on exactly that to let a vampire save
+themselves. A GM who judges a particular cast absurd (Bat Form mid-fight,
+say) still adjudicates it by hand, the same posture Feeding's own lethality
+gets.
+
+**Spending blood re-syncs the checkpoint chips immediately**
+(`db/lib/vampireBands.js#syncVampireBandsNow`) rather than waiting for the
+next turn close — the same reasoning a GM's manual blood edit already gets.
+
+**Corrupt consumes the game's existing `heart` organ**, not a new
+"human-heart" item — there was already exactly one harvested-heart tag in the
+catalog (`docs/tags.yaml`, from Mutilate/Butcher), and it fits the design
+doc's own flavor line. **Implanting a Black Heart into someone is left as GM
+narrative judgment**, the same posture §2b's feeding restoration already
+gets — a GM who rules an implant Gambit successful assigns the Vampire Threat
+to that character by hand, on `/gm/dev`, same as any other seat.
+
+**Enthral and Nourish target whoever is at the vampire's own Location** — the
+design doc names no ownership tracking for a thrall ("your thrall" is
+flavor), and the game already has no per-thrall "belongs to" column, so
+Nourish reaches any thrall standing with you rather than one this specific
+vampire personally enthralled. A GM who wants a thrall's loyalty to matter
+narratively enforces that by hand, same as everything else on this doc that
+leans on judgment rather than a lock.
+
+## 7. Death — the vampire never truly dies to ordinary harm
+
+"Vampires do not die from regular injuries expiring into the dying tag, or
+from the turret, or any other form of physical injury short of a blow to the
+heart, decapitation and burning... they will remain on death's door from
+injuries, not dying until they are either finished off or use regeneration."
+
+**Coded**: `db/lib/dyingDeathPass.js` excludes anyone holding the `vampire`
+tag from its automatic kill outright. A vampire's Dying clock still runs, and
+they still get the same eve-of warning DM everyone else does, but the pass
+never actually kills them off the back of it — they simply stay Dying
+indefinitely until a GM finishes them off by hand, or they cast Regeneration
+(§6), which removes Dying along with every other non-burn wound/illness/
+infection tag.
+
+**GM narrative judgment**: "a blow to the heart, decapitation and burning" is
+never coded as a distinct injury type — the catalog has no vocabulary that
+tags a wound BY MECHANISM (fire vs. blade vs. blunt), only by severity. A GM
+who judges a vampire's death-blow to actually qualify finishes them off the
+normal way (HARM_CHARACTER's lethal half, or a GM-staged death on the turn
+push) — same as any other character.
+
+**However they're finished off, a vampire's death is never ordinary.**
+`db/lib/vampireDeath.js#applyDeathWithVampireOverride` intercepts every death
+path (`web/lib/discordGuild.js#killCharacter`, and the GM-staged/turn-push
+path in `db/lib/stagedPush.js`) and overrides whatever Gib choice the GM
+made: "they are immediately gibbed, turning into ash. A message will be sent
+publicly to the location they are in... their items will be dropped on the
+ground as well as a pile of ash tag." This is a third death shape, neither of
+`db/lib/characterDeath.js`'s existing two — an ordinary death mints a
+buryable corpse; `gib: true` wipes every tag, items included, and mints
+nothing. A vampire's ash keeps neither: no buryable body (there is nothing
+left to bury or butcher), but the items survive, unequipped and lootable off
+the ground, same as an ordinary death leaves them. `applyDeathToRow`'s new
+`noCorpse` option is what gets this — skip minting a corpse, keep the plain
+unequip — and `vampireDeath.js` then mints a static `pile-of-ash` item into a
+random public Room at the vampire's Location (`docs/tags.yaml`, `items-remains`
+group, deliberately NOT `items-corpse` — that group slug is what
+`db/lib/corpses.js#isCorpseTag` matches on, and ash is not a buryable body)
+and posts `"{name} disintegrates into a pile of ash!"` to the Location's own
+channel.
+
+**Not exempted**: `catatonicDeathPass.js` (AFK inactivity is an OOC admin
+concern, not an in-fiction injury, so it's left untouched) and the ash
+override itself never refuses a death — it only changes what happens to the
+body once one lands.
+
+## 8. Feeding's fallout: tag exclusivity and hunger
+
+**"Mutually exclusive with tags that would inhibit them from feeding such as
+saint or pacifist. Such tags are removed from a character if they become a
+vampire."** Coded as a data-only edge, not new logic: `docs/tags.yaml`'s
+`vampire` tag carries `conflictsWith: [saint, pacifist]`, the exact mechanism
+Demoness's own seat tag already uses (`THREATS.md` §3) —
+`threatActions.js#assignThreat` already strips a newly-granted seat's
+`conflictsWith` edges off the character it's handed to, so this needed no new
+code, only the edge itself.
+
+**"Do not become hungry, nor... gain mood points from eating food or meals.
+Desires relating to food and drink are unavailable to them."** The hunger
+half reuses the game's existing `hungerless` tag — the same exemption
+Demoness already carries — granted alongside the seat tag itself
+(`db/lib/threats.js`'s `vampire.assign.tagSlugs`). The Desire half is
+`docs/tags.yaml`'s `vampire` tag locking the `food` and `alcohol` Desire
+families (`desires.locks`, TAGS.md §3a) — nothing else is touched, so a
+vampire's other Desires (wealth, status, romance...) stay open alongside
+their new `vampirism` ones (§9).
+
+## 9. Vampire (and Thrall) Desires, and the purchasable tags
+
+**Vampire-specific Desires** (`docs/desires.yaml`, `vampirism` family, gated
+`requires.anyTags: [vampire]` except the last which also needs Corruptor):
+
+| Desire | Tier | Cooldown |
+|---|---|---|
+| Drink the blood of a commoner | 1 | 3 |
+| Drink the blood of someone beautiful | 2 | 3 |
+| Drink the blood of a noble | 3 | 3 |
+| Restore your humanity to Humane | 2 | 6 |
+| Enthral a mortal | 3 | 6 |
+| Turn someone into a vampire | 4 | 8 |
+
+The three feeding Desires share a flat `cooldownTurns: 3` — this file's own
+"Consumables" cooldown policy (a real per-attempt spend doesn't need the
+ladder). **The design doc additionally asks that claiming any one of the
+three lock out the other two for those same 3 turns.** There is no
+cross-Desire lock in `db/lib/desireGates.js` today — it locks by HELD TAG,
+never by a sibling Desire — so building one for three rows would be new
+engine capability, not a catalog entry. Left as GM guidance instead, the
+exact posture the humanity-loss table (§5's original scope) already gets: a
+GM reviewing the queue declines a second blood-drinking claim inside the
+window the first one's own cooldown already opened.
+
+**Thrall-specific Desires**, same family, gated on holding `thrall`:
+
+| Desire | Tier | Cooldown |
+|---|---|---|
+| Drink vampire blood | 2 | 3 |
+| Save the life of your master | 3 | 6 |
+| Gain true immortality by becoming a vampire | 5 | Once per lifetime |
+
+"Thralls are barred from any non-thrall related Desire which is tier 2 or
+lower" is the `thrall` tag's own `desires.locks: [{ tiers: [1, 2],
+exceptFamilies: [vampirism] }]` — TAGS.md §3a's tiers-lock clause, exempting
+the thrall's own family so their three stay open.
+
+**Vampire Purchasable Tags** — `docs/tags.yaml`, all in the
+`status-vampire-boons` group, which carries `requiredTag: vampire`
+(`docs/taggroups.yaml`) so the whole shelf is invisible and unbuyable to
+anyone who isn't a vampire, TAGS.md §3a's group-gate, the same mechanism
+Demoness's own hidden categories use:
+
+| Tag | Cost | What it unlocks |
+|---|---|---|
+| Night Eyes | 4 | Flavor — sees in the dark |
+| Hardened Fangs | 5 | Flavor — bites through armour |
+| Corruptor | 14 | The Corrupt ability |
+| Celerity | 5 | The Celerity ability |
+| Bat Form | 8 | The Bat Form ability |
+| Solidarity | 4 | The Solidarity ability |
+| Obfuscate | 9 | The Obfuscate ability |
+| Underzealous | 6 | GM guidance: feeding is far less likely to kill |
+| Remorseful | 12 | GM guidance: no humanity loss from killing in self-defence |
+
+Bought mid-game through the ordinary `/store` point-buy — nobody is a vampire
+at character creation (the seat is GM-assigned, `THREATS.md` §1), so there is
+nothing for a creation-time purchase to gate against anyway.
+
+**Non-purchasable tags this section adds** (role/ability-granted only —
+`docs/tags.yaml`, `status-vampire` group): `fangs` (granted alongside the
+seat, permanent, flavor only), `blood-strength`/`agility`/`resilient`/`hidden`
+(the four 1-turn ability buffs above), `thrall` and `vampire-blood-addict`
+(Enthral's two marks — the addict tag's `expiresInto: [dead]` is the reserved
+token, `db/lib/tagShapes.js#DEAD_TOKEN`, that grants Dying stamped for the
+SAME closing turn rather than a slower two-turn chain, which is what makes
+"causes immediate death... when this expires" true rather than approximate),
+and the two items `black-heart` (Corrupt's output) and `pile-of-ash` (§7's
+ash death).
+
+## 10. Where the code lives
 
 | File | Role |
 |---|---|
 | `db/lib/vampire.js` | The pure meters — bands, the appearance track, turn-length scaling, the one coded humanity loss. No Prisma import |
 | `db/lib/vampirePass.js` | The turn pass — decay/regen, grant/drop every checkpoint tag, the Bloodcrazed-crossing loss, the zero-humanity crossing into Bestial/Wight |
 | `db/lib/vampireCompulsion.js` | §4 — the forced Gambit + Attack, run outside `TURN_PASSES` |
-| `db/lib/vampireBands.js` | Immediate re-sync for the GM edit screen — a restored blood level clears the chips at once, not at next close |
-| `db/lib/threats.js` | The `vampire` Threat entry — assign-only, no `spawn`, no Role |
-| `db/lib/gameConfigFields.js` | The two dev-panel rates, `vampire` group |
-| `docs/tags.yaml` | The 13 tags — the seat marker, the two checkpoint tracks, `status-vampire` group in `docs/taggroups.yaml` |
+| `db/lib/vampireBands.js` | Immediate re-sync for the GM edit screen (and for a Blood Ability spend, §6) — a changed blood level clears the chips at once, not at next close |
+| `db/lib/vampireBloodAbilities.js` | §6 — the pure ability catalog: cost, cooldown constant, required tag, effect. No Prisma import |
+| `db/lib/vampireDeath.js` | §7 — the ash death override, intercepting every death path |
+| `web/app/(app)/character/actions/bloodAbility.js` | §6 — the one server action every "Use" button calls |
+| `web/app/components/BloodPanel.js` / `TagRail.js` | The Blood menu's UI — a Modal off the sheet header, StorePanel.js's own shape |
+| `web/lib/vampireBloodView.js` | Server-resolves what BloodPanel.js needs to draw — availability, cooldowns, who's here to target |
+| `db/lib/threats.js` | The `vampire` Threat entry — assign-only, no `spawn`, no Role; grants `hungerless` alongside the seat (§8) |
+| `db/lib/gameConfigFields.js` | The two meter rates plus the Blood Ability cooldown variable `v`, `vampire` group |
+| `docs/tags.yaml` | The seat marker, the two checkpoint tracks, the ten Blood Ability tags, the nine purchasable boons, and the ash/Black Heart items — `status-vampire`/`status-vampire-boons` groups in `docs/taggroups.yaml` |
+| `docs/desires.yaml` | The six vampire and three thrall Desires, `vampirism` family (§9) |
 | `web/lib/characterWrite.js` | `vampireBloodLevel`/`vampireHumanity` as GM-staged-editable fields |
 | `web/app/(app)/gm/dev/characters/[characterId]/IdentityTab.js` | The Vampire panel on the character edit screen |
 | `db/test/vampire.test.js` | The band math, boundary by boundary |
+| `db/test/vampireBloodAbilities.test.js` | The ability catalog and cooldown math |

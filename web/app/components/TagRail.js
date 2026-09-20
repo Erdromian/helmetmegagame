@@ -15,6 +15,7 @@ import ChipText from "./ChipText";
 import FormError from "./FormError";
 import IdentityDialog from "./IdentityDialog";
 import ItemsTable from "./ItemsTable";
+import BloodPanel from "./BloodPanel";
 import Modal from "./Modal";
 import RowVerbs from "./RowVerbs";
 import StorePanel from "./StorePanel";
@@ -54,6 +55,10 @@ export default function TagRail({
   storeRoleSlug = null,
   nukeArmedTurn = null,
   identity = null,
+  // The Blood menu (docs/systemdocs/VAMPIRE.md §6) — same posture as
+  // storeTags above: server-resolved, null on someone else's sheet or a
+  // non-vampire's own.
+  vampireBlood = null,
 }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
@@ -69,6 +74,7 @@ export default function TagRail({
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState(null);
   const [storeOpen, setStoreOpen] = useState(false);
+  const [bloodOpen, setBloodOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -211,6 +217,14 @@ export default function TagRail({
         <button type="button" className="tag-points-spend" onClick={() => setStoreOpen(true)}>
           Spend Tag Points
         </button>
+        {vampireBlood && (
+          <>
+            {" · "}
+            <button type="button" className="tag-points-spend" onClick={() => setBloodOpen(true)}>
+              Blood
+            </button>
+          </>
+        )}
       </span>
     ) : (
       <span className="text-sm">
@@ -334,6 +348,11 @@ export default function TagRail({
             roleSlug={storeRoleSlug}
             onDone={() => setStoreOpen(false)}
           />
+        </Modal>
+      )}
+      {isSelf && vampireBlood && (
+        <Modal open={bloodOpen} onClose={() => setBloodOpen(false)} title="Blood" width="widest">
+          <BloodPanel vampireBlood={vampireBlood} onDone={() => setBloodOpen(false)} />
         </Modal>
       )}
       {isSelf && identity && identityOpen && (

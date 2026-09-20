@@ -633,6 +633,14 @@ model GameConfig {
   // days (100/3, rounded); 10/day matches the design doc's own figure.
   vampireBloodDecayPerDay    Int @default(34)
   vampireHumanityRegenPerDay Int @default(10)
+
+  // The Blood Abilities menu's shared cooldown variable, the design doc's
+  // own `v` ("The cooldown in turns of all abilities is the product of an
+  // integer 'v'... multiplied by a constant"). db/lib/vampireBloodAbilities.js
+  // #abilityCooldownTurns does the multiply-and-round; each ability's own
+  // constant (4 for Blood Strength, 2 for Regeneration, etc) lives in that
+  // file's catalog, not here — this is the one number a GM actually tunes.
+  vampireBloodAbilityCooldownVariable Int @default(5)
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button
@@ -2165,6 +2173,16 @@ model Character {
   // stats drive.
   vampireBloodLevel Int @default(100)
   vampireHumanity   Int @default(100)
+
+  // The Blood Abilities menu's per-ability cooldowns (docs/systemdocs/
+  // VAMPIRE.md §6): { [abilityKey]: readyTurnNumber }, read by
+  // db/lib/vampireBloodAbilities.js#isOnCooldown. Json rather than one
+  // Int?-per-ability column (this codebase's usual `*LastTurn` idiom) — ten
+  // columns for one Threat's ten abilities is a lot of schema surface for a
+  // seat this small; Tag's own consumesInto/expiresInto/removesInto fields
+  // are this schema's existing precedent for a flexible small map living in
+  // one Json column. Null reads as "nothing on cooldown yet."
+  vampireBloodAbilityCooldowns Json?
 
   // The mood dial, +64 down to −100 (docs/systemdocs/MOOD.md). Nothing shows
   // the number to a player; db/lib/mood.js projects the band it falls in onto

@@ -259,6 +259,16 @@ families:
     group: blood
     color: "#b96b60"
     # Turning on your own — informing, defecting, sabotage from inside.
+  vampirism:
+    name: Vampirism
+    group: blood
+    color: "#c15f52"
+    # The Vampire's own Desires (docs/systemdocs/VAMPIRE.md §9) and their
+    # thrall's — one family for both, since a thrall never holds the vampire
+    # tag, so the two sets can never both surface to the same character
+    # anyway. Also what the Thrall tag's own `desires.locks` exempts
+    # (docs/tags.yaml), letting a thrall's unique Desires through its
+    # tier-2-and-under lock.
   scheming:
     name: Scheming
     group: ambition
@@ -2523,3 +2533,91 @@ desires:
     oncePerLife: true
     requires:
       anyTags: [thanati]
+
+  # --- The Vampire's own Desires (VAMPIRE.md §9 — design doc pages 6-8).
+  # "Desires relating to food and drink are unavailable to them, instead
+  # they have vampire specific desires" — docs/tags.yaml's `vampire` tag
+  # locks the `food`/`alcohol` families; these are what replace them.
+  #
+  # The three feeding Desires share a flat `cooldownTurns: 3`, same as this
+  # file's own "Consumables" policy above (drink-alcohol and friends) — a
+  # real per-attempt spend (a feeding Gambit, GM-adjudicated), so the ladder
+  # is the wrong tool and a flat throttle is the right one. The design doc
+  # additionally asks that claiming ANY ONE of the three lock out the other
+  # two for those same 3 turns — there is no cross-Desire lock in this
+  # engine today (db/lib/desireGates.js locks by HELD TAG, not by a sibling
+  # Desire), and building one for three rows would be new engine capability,
+  # not a catalog entry. Left as GM guidance instead, the same posture the
+  # humanity-loss table already gets: a GM reviewing the queue declines a
+  # second blood-drinking claim inside the window the first one's own
+  # cooldown already opened.
+  drink-blood-of-a-commoner:
+    name: Drink the blood of a commoner
+    verify: "Blood"
+    tier: 1
+    families: [vampirism]
+    cooldownTurns: 3
+    requires:
+      anyTags: [vampire]
+  drink-blood-of-someone-beautiful:
+    name: Drink the blood of someone beautiful
+    verify: "Blood"
+    tier: 2
+    families: [vampirism]
+    cooldownTurns: 3
+    requires:
+      anyTags: [vampire]
+  drink-blood-of-a-noble:
+    name: Drink the blood of a noble
+    verify: "Blood"
+    tier: 3
+    families: [vampirism]
+    cooldownTurns: 3
+    requires:
+      anyTags: [vampire]
+  restore-your-humanity-to-humane:
+    name: Restore your humanity to Humane
+    tier: 2
+    families: [vampirism]
+    cooldownTurns: 6
+    requires:
+      anyTags: [vampire]
+  enthral-a-mortal:
+    name: Enthral a mortal
+    tier: 3
+    families: [vampirism]
+    cooldownTurns: 6
+    requires:
+      anyTags: [vampire]
+  turn-someone-into-a-vampire:
+    name: Turn someone into a vampire
+    tier: 4
+    families: [vampirism]
+    cooldownTurns: 8
+    requires:
+      allTags: [vampire, corruptor]
+
+  # --- Thrall Specific Desires (VAMPIRE.md §9's own table). A thrall's tag
+  # (docs/tags.yaml) locks every non-thrall Desire at tier 2 or lower, so
+  # these three are what fill the gap that leaves.
+  drink-vampire-blood:
+    name: Drink vampire blood
+    tier: 2
+    families: [vampirism]
+    cooldownTurns: 3
+    requires:
+      anyTags: [thrall]
+  save-the-life-of-your-master:
+    name: Save the life of your master
+    tier: 3
+    families: [vampirism]
+    cooldownTurns: 6
+    requires:
+      anyTags: [thrall]
+  gain-true-immortality-by-becoming-a-vampire:
+    name: Gain true immortality by becoming a vampire
+    tier: 5
+    families: [vampirism]
+    oncePerLife: true
+    requires:
+      anyTags: [thrall]

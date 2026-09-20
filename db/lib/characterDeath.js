@@ -78,7 +78,11 @@ async function vaporizeTags(prisma, characterId) {
 // row below: { kind: "player" | "gm" | "system", actorDiscordUserId?, system? }.
 // Optional and defaults to a generic system cause — every caller SHOULD pass
 // one for accuracy, but a caller that doesn't must not lose the wipe entirely.
-async function applyDeathToRow(prisma, character, { turn = null, content = null, expectStatus = "ALIVE", gib = false, cause = null } = {}) {
+async function applyDeathToRow(
+  prisma,
+  character,
+  { turn = null, content = null, expectStatus = "ALIVE", gib = false, noCorpse = false, cause = null } = {},
+) {
   // Read BEFORE the claim, off the database not `character` (callers pass varying shapes, and a
   // gib deletes the rows outright below).
   const reborn = await prisma.characterTag
@@ -188,12 +192,16 @@ async function applyDeathToRow(prisma, character, { turn = null, content = null,
 
   // One Tag row in a random public Room (CORPSES.md) — a HANDLE to this sheet, so the sheet
   // follows the tag. Wrapped: a missing corpse is recoverable by hand, a half-applied death isn't.
-  const corpse = gib
-    ? { tag: null, room: null }
-    : await mintCorpse(prisma, character, turn).catch((err) => {
-        console.error(`Failed to mint a corpse for ${character.id}:`, err);
-        return { tag: null, room: null };
-      });
+  // `noCorpse` skips ONLY this mint, unlike `gib` — db/lib/vampireDeath.js is the one caller: a
+  // vampire's ash death keeps the plain unequip above (items survive, lootable) but leaves
+  // nothing bury-able, so there is no body for a corpse tag to represent.
+  const corpse =
+    gib || noCorpse
+      ? { tag: null, room: null }
+      : await mintCorpse(prisma, character, turn).catch((err) => {
+          console.error(`Failed to mint a corpse for ${character.id}:`, err);
+          return { tag: null, room: null };
+        });
 
   // Everyone standing where they fell saw it (MOOD.md). Re-read, not trusted off `character`;
   // wrapped so a death is never aborted by a witness's nerves.
