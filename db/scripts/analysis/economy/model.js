@@ -23,6 +23,7 @@ const godflesh = require("../../../lib/godflesh");
 const mutilate = require("../../../lib/mutilate");
 const corpses = require("../../../lib/corpses");
 const { buildSources, RULES: SOURCE_RULES } = require("./sources");
+const depotRules = require("../../../lib/depot");
 const { fatigueModel } = require("./fatigue");
 const { buildCombos } = require("./combos");
 const { turretTable } = require("../../../lib/depotTurret");
@@ -143,7 +144,16 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const farmDuty = fatigue.byId.farm.steady;
 
   const resources = get("resources");
-  const rv = { sell: resources.sellablePrice ?? 1, buy: resources.depotPrice ?? 2 };
+  // The Depot's ⬢ prices are the CONSTANTS in db/lib/depot.js: the depot page and its order action build
+  // the ⬢ row from them and never read the `resources` tag, whose own prices are "decorative for this
+  // surface" (that file says so). So the valuations read the constants, and a claim below checks the tag's
+  // copy still agrees.
+  const rv = { sell: depotRules.RESOURCE_EXPORT_PRICE, buy: depotRules.RESOURCE_IMPORT_PRICE };
+  const resourceTagCopy = { sell: resources.sellablePrice ?? null, buy: resources.depotPrice ?? null };
+  // A sell-back is taxed by Depot.sellTaxRate (a whole percent the Meister sets; default 0), taken off every
+  // settled sale before the seller is paid (db/lib/trainDeparturePass.js). Shown, not applied: at the default
+  // it changes nothing, and a set rate takes that share off every sell-side figure in this report.
+  const sellTaxRate = schemaDefault("sellTaxRate");
   // Which price a ⬢ is valued at in the headline figures. The default is the Depot's BUY price:
   // that is what a ⬢ costs somebody who needs one and holds none. `--resource-value sell` gives the
   // 1 ¢ sell-back instead. Both are always in the tables, named.
@@ -159,6 +169,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const params = {
     players,
     rv,
+    resourceTagCopy,
+    sellTaxRate,
     rvMain,
     obolFamilies,
     obolPath,
@@ -883,10 +895,18 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const claims = [
     {
       doc: "DEPOT.md §3",
-      claim: "⬢ import at 2 ¢, sell back at 1 ¢",
+      claim: "The Depot imports ⬢ at 3 ¢ and buys them back at 1 ¢ (RESOURCE_IMPORT_PRICE, RESOURCE_EXPORT_PRICE)",
       docValue: "3 in / 1 out",
       model: `${rv.buy} in / ${rv.sell} out`,
       ok: rv.buy === 3 && rv.sell === 1,
+    },
+    {
+      doc: "db/lib/depot.js",
+      claim: "The `resources` tag's own depotPrice and sellablePrice match the two constants (\"change both together or they drift\")",
+      docValue: `${rv.buy} in / ${rv.sell} out`,
+      model: `${resourceTagCopy.buy} in / ${resourceTagCopy.sell} out`,
+      ok: resourceTagCopy.buy === rv.buy && resourceTagCopy.sell === rv.sell,
+      note: "The counter prices ⬢ off the constants, so a drifted tag copy misprices anything valued AGAINST ⬢ (the sync's buy/sell check, for one).",
     },
     {
       doc: "FACTORY.md §6",
@@ -926,13 +946,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "DEPOT.md §4",
-      claim: "\"Paying a recipe's cost with held obols still works\" (read as any recipe)",
-      docValue: "any recipe",
-      model: obolFamilies.length ? `${obolFamilies.join(", ")} only` : "no recipe",
-      ok: false,
-      note: obolFamilies.length
-        ? "resolveObolSpend in crafting.js returns at once unless the recipe is in the smithing family. Brewing, crafting and the rest must hold real ⬢."
-        : "The obol payment is gone from crafting.js, so the sentence is stale.",
+      claim: "A recipe is paid in ⬢ and nothing else: no craft family can be paid in obols (CRAFTING.md, 2026-09-20)",
+      docValue: "none",
+      model: obolFamilies.length ? `${obolFamilies.join(", ")} can` : "none",
+      ok: obolFamilies.length === 0,
+      note: "Read from crafting.js. If a family is listed, the obol payment is back and the smithing figures need the par column again.",
     },
     {
       doc: "SOILERY.md §1",
@@ -943,10 +961,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "BREWING.md §3",
-      claim: "Moonshine costs no Move, and one Godflesh is its whole limit",
-      docValue: 0,
+      claim: "Moonshine brews in a quarter turn, the same as Alcohol",
+      docValue: 0.25,
       model: get("moonshine")?.requirement?.turnsCost,
-      ok: get("moonshine")?.requirement?.turnsCost === 0,
+      ok: get("moonshine")?.requirement?.turnsCost === 0.25,
     },
     {
       doc: "FACTORY.md §3",
@@ -985,10 +1003,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "TURN-ENGINE.md §5",
-      claim: "Hunger decays 10 a turn and Hungry starts at 30",
-      docValue: "10 / 30",
+      claim: "Hunger decays 35 a turn and Hungry starts at 35, exactly one turn's decay",
+      docValue: "35 / 35",
       model: `${hunger.HUNGER_DECAY_PER_TURN} / ${hunger.HUNGRY_THRESHOLD}`,
-      ok: hunger.HUNGER_DECAY_PER_TURN === 10 && hunger.HUNGRY_THRESHOLD === 30,
+      ok: hunger.HUNGER_DECAY_PER_TURN === 35 && hunger.HUNGRY_THRESHOLD === 35,
     },
     {
       doc: "DEPOT.md §3",

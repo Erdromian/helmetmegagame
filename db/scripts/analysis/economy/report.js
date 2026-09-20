@@ -654,7 +654,7 @@ function sectionFood() {
     .join("");
   const crop = model.foods.find((f) => f.slug === "potato");
   return `<section><h2>Food</h2>
-<p class="lede">A person burns ${params.hungerDecay} hunger a turn, so a food that restores 12 feeds them for a little over a turn. One Farm action sows up to ${params.farmMaxCrops} plants and about 1 in ${params.witherIn} wither. It locks you out for ${params.farmCycle} turns in all.</p>
+<p class="lede">A person burns ${params.hungerDecay} hunger a turn, so a food that restores 12 feeds them for about a third of a turn (${fmt(12 / params.hungerDecay, 2)} of one). One Farm action sows up to ${params.farmMaxCrops} plants and about 1 in ${params.witherIn} wither. It locks you out for ${params.farmCycle} turns in all.</p>
 <h3>Farmers needed to feed ${players} players</h3>
 ${barChart({ rows: supply, unit: " farmers", fmtVal: (v) => fmt(v, 0) })}
 <div class="tablewrap"><table><thead><tr><th>Crop</th><th class="num">Harvest / farm</th><th class="num">Person-turns / farm</th><th class="num">lb / farm</th><th class="num">Farmers needed</th></tr></thead><tbody>${sup}</tbody></table></div>
