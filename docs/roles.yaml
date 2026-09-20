@@ -1528,7 +1528,7 @@ groups:
       weight: 1
       examine_visible: false
       starting_zone: hills
-      starting_location: east-river
+      starting_location: grand-ravine
       starting_tags:
         - Melee III
         - Ranged III
@@ -1577,7 +1577,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
-      starting_location: east-river
+      starting_location: grand-ravine
       starting_tags:
         - Melee III
         - Ranged III
@@ -1631,7 +1631,7 @@ groups:
       multiple: false
       examine_visible: false
       starting_zone: hills
-      starting_location: east-river
+      starting_location: grand-ravine
       extra_starting_points: 2
       starting_tags:
         - Bastard
@@ -1663,7 +1663,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
-      starting_location: east-river
+      starting_location: grand-ravine
       starting_tags:
         - Melee I
         - Spear
@@ -1685,7 +1685,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
-      starting_location: east-river
+      starting_location: grand-ravine
       starting_tags:
         - Melee II
         - Battle Axe
@@ -1710,7 +1710,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
-      starting_location: east-river
+      starting_location: grand-ravine
       starting_tags:
         - Ranged III
         - Melee I
@@ -1734,7 +1734,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
-      starting_location: east-river
+      starting_location: grand-ravine
       starting_tags:
         - Medical III
         - Melee I
@@ -1758,7 +1758,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
-      starting_location: east-river
+      starting_location: grand-ravine
       starting_tags:
         - Siege Engineer
         - Smithing II
