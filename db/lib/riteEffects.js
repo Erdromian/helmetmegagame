@@ -9,7 +9,6 @@
 const { createGuildRole } = require("./discordRest");
 const { roomLine, locationLine } = require("./placeLine");
 const { sendDm } = require("./dm");
-const { aliasSubject } = require("./concealedIdentity");
 const { applyDeathToRow } = require("./characterDeath");
 const { applyDeathTeardown } = require("./deathTeardown");
 const { deleteCorpseFor } = require("./corpseMint");
@@ -22,12 +21,12 @@ const { HUNGERLESS_SLUG } = require("./constants");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { grantTagSlugs, addToRoomStack, dropRoomTag, dropCharacterTag, clampEquippedQuantity, recordSpentTagMoney } = require("./tagWrites");
 const { createWithRetry } = require("./paperMint");
-const { resolveSeatConflicts, describeSeatConflicts } = require("./seatConflicts");
 const { listObjectives, fulfillObjectives } = require("./objectives");
 const { setMood, MOOD_MIN } = require("./mood");
 const { normalizeChant, containsPhrase } = require("./rites");
 const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
+const { dismisses, dismissConversion, createConversionOffer } = require("./conversionRite");
 const { broadcastToZones } = require("./worldBroadcast");
 const { SFX } = require("./sfx");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
@@ -212,34 +211,24 @@ const EFFECTS = {
     return { result: { told: participants.length, objectives: objectives.length } };
   },
 
-  async conversion({ db, room, resolved, openTurn }) {
+  // The rite no longer converts anybody: it ASKS. All this handler does is put
+  // the vision in front of the target and stop. Everything that used to live
+  // here — the tag grant, the seat clear-out, the objectives, the eyes-widen
+  // line — now sits behind their Accept in db/lib/conversionRite.js, and the
+  // refusal that used to be impossible has a price beside it. The attempt row
+  // is FIRED either way: the chant is spent, whatever they answer hours later.
+  async conversion({ db, room, resolved, openTurn, participants }) {
     const target = resolved.boundPerson;
-    const thanati = await db.tag.findUnique({ where: { slug: THANATI_SLUG }, select: { id: true } });
-    // An Assign by another road, so it gets the same clear-out (THREATS.md §3) — and must TELL them.
-    let conflicts = null;
-    await db.$transaction(async (tx) => {
-      const granted = await grantTagSlugs(tx, target.id, [THANATI_SLUG], openTurn?.number ?? null);
-      if (thanati) conflicts = await resolveSeatConflicts(tx, target.id, [thanati.id]);
-      await fulfillObjectives(tx, { partyKey: "thanati", kinds: ["convert-character", "convert-leader"], targetCharacterId: target.id });
-      await logSystemTagChange(tx, {
-        system: "rite",
-        targetCharacterId: target.id,
-        applied: mapGrantedTags(granted),
-        extra: { rite: "conversion" },
-      });
-    });
-    await sendDm(
-      db,
-      target.discordUserId,
-      [
-        "This reality is cursed! You are now loyal to the Thanati and must follow the cult's orders. Read your Documents for more information.",
-        conflicts && describeSeatConflicts(conflicts),
-      ].filter(Boolean).join("\n"),
-      { source: "rite" },
-    ).catch(log(`conversion DM to ${target.name}`));
-    // Bascinet's call: the sound of somebody finding out what they have joined.
-    await roomLine(db, room, `${aliasSubject(target)}'s eyes widen as they begin to understand…`, { sfx: SFX.INITIATE });
-    return { result: { converted: target.name, characterId: target.id } };
+
+    // The vision simply bounces off the faithful. No offer row and nothing to
+    // answer — the cult learns it wasted the chant by reading the room.
+    if (dismisses(target)) {
+      return { result: await dismissConversion(db, { target, room }) };
+    }
+
+    const asked = await createConversionOffer(db, { target, room, participants, turn: openTurn });
+    if (!asked.ok) return { result: { asked: false, reason: asked.reason, characterId: target.id } };
+    return { result: { asked: target.name, characterId: target.id, offerId: asked.offer.id } };
   },
 
   async sacrifice({ db, room, resolved, openTurn }) {

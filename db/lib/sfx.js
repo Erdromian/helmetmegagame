@@ -97,6 +97,10 @@ const SFX = {
   HORN: "horn",
   LIFEWEB: "lifeweb",
   CONVERT: "convert",
+  // The Thanati's Rite of Conversion reaching somebody: the vision landing in
+  // their DMs, and the room watching them shake it off. CONVERT above is a
+  // different moment on a different surface (web/app/(app)/chat/actions.js).
+  CONVERT_ASK: "convert-ask",
   INITIATE: "initiate",
   SPAWN: "spawn",
   TELEPORT: "teleport",

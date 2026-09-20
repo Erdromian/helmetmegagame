@@ -16,6 +16,7 @@ const { WINDOW_MS, riteByKey, floorIngredients } = require("./rites");
 const { distinctChanters, ROOM_SELECT } = require("./riteChant");
 const { resolveIngredients } = require("./riteIngredients");
 const { EFFECTS } = require("./riteEffects");
+const { expireConversionOffers } = require("./conversionRite");
 const { dropRoomTag } = require("./tagWrites");
 const { takeRoomResources } = require("./resourceStack");
 
@@ -148,7 +149,18 @@ async function runRiteSweep(db) {
     const outcome = await fireAttempt(db, attempt);
     if (outcome.fired) fired += 1;
   }
-  return { expired: expired.count, fired };
+
+  // The Rite of Conversion's own clock, which belongs to an Offer rather than
+  // an attempt — the attempt FIRED hours ago and is long closed. Three hours
+  // of silence is a refusal (db/lib/conversionRite.js), so this rides the
+  // minute sweep that is already running rather than earning a timer of its
+  // own. Best-effort: a failure here must not cost the rites their sweep.
+  const refused = await expireConversionOffers(db, now).catch((err) => {
+    console.error("Conversion offer expiry failed:", err?.message ?? err);
+    return 0;
+  });
+
+  return { expired: expired.count, fired, conversionsRefused: refused };
 }
 
 module.exports = { runRiteSweep, fireAttempt };

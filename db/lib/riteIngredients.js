@@ -50,7 +50,12 @@ async function floorHas(db, rite, roomId) {
 
 // Living Bound characters at the Location who can get into this room. `room`
 // needs { id, kind, locationId, accessTagSlugs }.
-async function boundCandidates(db, room, { excludeSlugs = [] } = {}) {
+//
+// `excludeSlugs` drops a candidate outright; `deprioritizeSlugs` keeps them but
+// sorts them LAST, behind every ordinary candidate including the leaders. Only
+// Conversion uses the second, for the Pious: the rite can be wasted on one, but
+// never while somebody convertible is lying in the same room.
+async function boundCandidates(db, room, { excludeSlugs = [], deprioritizeSlugs = [] } = {}) {
   const rows = await db.character.findMany({
     where: {
       status: "ALIVE",
@@ -77,9 +82,21 @@ async function boundCandidates(db, room, { excludeSlugs = [] } = {}) {
     if (excludeSlugs.some((slug) => slugs.has(slug))) continue;
     const keys = await roomAccessKeys(db, c.id);
     if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) continue;
-    out.push({ ...c, slugs, leader: Boolean(c.role?.requiresWhitelist) });
+    out.push({
+      ...c,
+      slugs,
+      leader: Boolean(c.role?.requiresWhitelist),
+      lastResort: deprioritizeSlugs.some((slug) => slugs.has(slug)),
+    });
   }
-  return out.sort((a, b) => Number(b.leader) - Number(a.leader) || a.name.localeCompare(b.name));
+  // Last resort outranks leader on purpose: a Pious leader is still the worst
+  // target in the room, not the best one.
+  return out.sort(
+    (a, b) =>
+      Number(a.lastResort) - Number(b.lastResort) ||
+      Number(b.leader) - Number(a.leader) ||
+      a.name.localeCompare(b.name),
+  );
 }
 
 // A corpse on this floor with a dead character behind it.
@@ -172,8 +189,15 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
   for (const need of rite.ingredients ?? []) {
     if (!need.kind) continue;
     if (need.kind === "bound-person") {
-      const exclude = rite.key === "conversion" ? [PIOUS_SLUG, THANATI_SLUG] : [];
-      const candidates = await boundCandidates(db, room, { excludeSlugs: exclude });
+      // Conversion never touches a cultist it already has. The Pious it DOES
+      // reach now -- the rite simply bounces off them (riteEffects.js), which is
+      // a thing the cult can waste a chant discovering, so they sort last.
+      const exclude = rite.key === "conversion" ? [THANATI_SLUG] : [];
+      const deprioritize = rite.key === "conversion" ? [PIOUS_SLUG] : [];
+      const candidates = await boundCandidates(db, room, {
+        excludeSlugs: exclude,
+        deprioritizeSlugs: deprioritize,
+      });
       if (candidates.length === 0) missing.push("bound-person");
       else resolved.boundPerson = candidates[0];
     } else if (need.kind === "corpse") {
@@ -245,6 +269,9 @@ module.exports = {
   HALLOWED_LOCATION_SLUGS,
   onHallowedGround,
   floorHas,
+  // Exported for db/test/conversionRite.test.js, which pins the ordering the
+  // Pious deprioritisation depends on. Nothing else calls it from outside.
+  boundCandidates,
   resolveIngredients,
   nameOnPhoto,
 };

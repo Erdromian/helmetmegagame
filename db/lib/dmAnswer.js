@@ -13,6 +13,7 @@ const { acceptConfession } = require("./confession");
 const { acceptKiss } = require("./kiss");
 const { acceptCollar } = require("./collar");
 const { acceptSearch } = require("./search");
+const { acceptConversion, refuseConversion } = require("./conversionRite");
 const { acceptEscort } = require("./escort");
 const { syncPartyMembership } = require("./partyChat");
 const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
@@ -75,9 +76,22 @@ function acceptOffer(prisma, offer, responder) {
       return acceptCollar(prisma, offer, responder);
     case "SEARCH":
       return acceptSearch(prisma, offer, responder);
+    case "CONVERSION":
+      return acceptConversion(prisma, offer, responder);
     default:
       return acceptLesson(prisma, offer, responder);
   }
+}
+
+// The decline half of the same table, and the reason it needs one at all:
+// declineOffer() in db/lib/lessons.js closes the row and picks wording, but
+// applies NO effects, because until Conversion arrived no refusal cost the
+// person refusing anything (docs/systemdocs/THANATI.md). Saying no to the dark
+// god does. A `WORDING` entry over there would have written the sentence and
+// quietly skipped the mood hit and the Depressed tag.
+function declineOfferOfKind(prisma, offer, responder) {
+  if (offer.kind === "CONVERSION") return refuseConversion(prisma, offer, { responder });
+  return declineOffer(prisma, offer, responder);
 }
 
 async function answerOffer(prisma, { id, discordUserId, choice }) {
@@ -87,7 +101,7 @@ async function answerOffer(prisma, { id, discordUserId, choice }) {
   const accepting = choice === DM_CHOICE.ACCEPT;
   const result = accepting
     ? await acceptOffer(prisma, offer, responder)
-    : await declineOffer(prisma, offer, responder);
+    : await declineOfferOfKind(prisma, offer, responder);
 
   const base = empty();
   base.dms = result.dms ?? [];

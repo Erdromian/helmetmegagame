@@ -3,6 +3,12 @@
 // db/lib/confessionPass.js deliberately does no expiring of its own; two passes racing
 // the same rows would double-DM.
 //
+// CONVERSION is the one kind that does not merely lapse: refusing the dark god costs the
+// responder a mood hit and the Depressed tag (docs/systemdocs/THANATI.md §4a), so a pending
+// one is REFUSED here rather than marked EXPIRED. It carries a three-hour clock of its own
+// and is normally settled by db/lib/riteSweep.js long before a turn closes; this is the
+// backstop that stops one outliving the turn its row is pinned to.
+//
 // It used to RESOLVE accepted lessons too, and was named for that. It doesn't any more:
 // a lesson resolves in the transaction that accepts it (db/lib/lessons.js), so by the
 // time this runs there is nothing accepted left to settle. What stayed is the half that
@@ -18,6 +24,7 @@
 // For the SEARCH expiry line only — see presentedNameOf below.
 const { seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
+const { refuseConversion } = require("./conversionRite");
 
 async function runOfferExpiryPass(prisma, turn) {
   const idle = {
@@ -70,6 +77,20 @@ async function runOfferExpiryPass(prisma, turn) {
   let expired = 0;
   for (const offer of pending) {
     try {
+      // Conversion is the one kind that cannot simply lapse. Its refusal COSTS
+      // the responder something (docs/systemdocs/THANATI.md), and going quiet
+      // is an answer rather than a way out of the question — so a pending one
+      // at turn close resolves through the same refusal the Refuse button and
+      // the three-hour sweep use, instead of being marked EXPIRED here.
+      //
+      // Its own clock is three hours and a turn is a real day, so the sweep
+      // almost always gets there first; this is the backstop that stops one
+      // outliving the turn its row is pinned to.
+      if (offer.kind === "CONVERSION") {
+        const out = await refuseConversion(prisma, offer);
+        if (out.ok) expired += 1;
+        continue;
+      }
       const claim = await prisma.offer.updateMany({
         where: { id: offer.id, status: "PENDING" },
         data: { status: "EXPIRED", resolvedAt: new Date() },

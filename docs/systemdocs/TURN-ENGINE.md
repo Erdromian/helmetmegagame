@@ -77,6 +77,14 @@ each arrived at by getting them wrong first.
    them on purpose, which is why `db/lib/confessionPass.js` does no expiring of
    its own; two passes racing the same rows would double-DM.
 
+   **Conversion is the exception, and not a lapse but a refusal.** Saying no to
+   the dark god costs the responder a mood hit and the `depressed` tag
+   (`THANATI.md` §4a), so a pending one here is closed through
+   `db/lib/conversionRite.js#refuseConversion` rather than marked `EXPIRED`.
+   That rite carries its own three-hour clock on `Offer.expiresAt` and is
+   normally long settled by the minute sweep before a turn ever closes; this is
+   only the backstop that stops one outliving the turn its row is pinned to.
+
    It used to resolve accepted lessons too, and was named for that. **A lesson
    is settled the moment it is accepted now** (`db/lib/lessons.js`), so there is
    nothing accepted left for this to find. The pass key stays `"lessons"`
