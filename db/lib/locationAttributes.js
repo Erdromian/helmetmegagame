@@ -3,7 +3,6 @@
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SOILERY_ATTRIBUTE = "soilery";
-const SAFE_ATTRIBUTE = "safe";
 // WILDERNESS/HAVEN read by the mood dial (db/lib/mood.js#placeClassOf); WHEELS by db/lib/indoors.js, alongside the `indoors` column.
 const WILDERNESS_ATTRIBUTE = "wilderness";
 const HAVEN_ATTRIBUTE = "haven";
@@ -43,12 +42,6 @@ const ATTRIBUTES = {
   soilery: {
     type: "boolean",
     describe: () => "**Soilery**: you can sow and reap crops here.",
-  },
-
-  // Ground the Caving Die skips (db/lib/cavingPass.js) — said out loud so a player can read the answer.
-  safe: {
-    type: "boolean",
-    describe: () => "**Safe**: Caving dice don't roll here.",
   },
 
   // Open country (docs/systemdocs/MOOD.md); costs mood to walk in, more to end turn here — Rough Camper / Outsider soften it.
@@ -269,7 +262,6 @@ module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
   SOILERY_ATTRIBUTE,
-  SAFE_ATTRIBUTE,
   WILDERNESS_ATTRIBUTE,
   HAVEN_ATTRIBUTE,
   WHEELS_ATTRIBUTE,

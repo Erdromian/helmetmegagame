@@ -1165,9 +1165,7 @@ zones:
       # The freight end of the station, and only that. The shop that used to
       # share this Location is its own place next door now (undertown-6), so
       # what is left here is the platform: the counter, the drop box, the
-      # noticeboard and the train. `safe:` no longer has a Caving Die to hold
-      # off — Undertown is a surface zone — but `wheels:` and `depot:` still
-      # do real work.
+      # noticeboard and the train.
       #
       # ONE room on purpose. The platform is the whole place, so Storage, the
       # drop box and a cash machine all hang off it — db/lib/train.js names
@@ -1178,7 +1176,6 @@ zones:
         attributes:
           depot: true
           noticeboard: true
-          safe: true
           wheels: true
         description: >-
           Sometimes, wealthier migrants arrive here, but mostly it's for cargo goods.
@@ -1708,7 +1705,6 @@ zones:
             # most of what the post is for. See the Factory above on `wheels`.
             attributes:
               noticeboard: true
-              safe: true
               wheels: true
             description: >-
               Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. It's all illuminated by a pair of floodlights, connected by a suspended cable.

@@ -7,7 +7,7 @@ import { phoneView, placeCall, answerCall, hangUp } from "@lifeweb/db/lib/phone"
 import { PHONE_TEXT } from "@lifeweb/db/lib/phoneText";
 import { questInteract } from "@lifeweb/db/lib/quests";
 import { playSlots as playSlotsInDb, CASINO_ROOM_SLUG } from "@lifeweb/db/lib/slotMachine";
-import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
+import { parksMounts, hasAttribute } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
@@ -535,13 +535,11 @@ export async function loadTravel() {
         description: row.location.description || null,
         zoneName: row.location.zone?.name ?? null,
         zoneSlug: row.location.zone?.slug ?? null,
-        // A CAVE_LEVEL destination the Caving Die actually rolls at —
-        // travelCost.js#crossingConfirm reads this to warn before a zone
-        // crossing lands somebody underground (CAVING.md §2). Excludes Customs
-        // and the Depot, the two `safe` Locations the Die skips (CAVING.md
-        // §2a) — warning about a die that will not roll would be simply wrong.
-        caveLevel:
-          row.location.zone?.kind === "CAVE_LEVEL" && !hasAttribute(row.location, SAFE_ATTRIBUTE),
+        // A CAVE_LEVEL destination, which is now exactly where the Caving Die
+        // rolls — travelCost.js#crossingConfirm reads this to warn before a
+        // zone crossing lands somebody underground (CAVING.md §2). There is no
+        // exempt place left to subtract; the `safe` attribute is gone.
+        caveLevel: row.location.zone?.kind === "CAVE_LEVEL",
         crossesZone: row.crossesZone,
         // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
         railroad: Boolean(row.railroad),

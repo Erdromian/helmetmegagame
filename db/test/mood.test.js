@@ -192,13 +192,15 @@ test("harm scales by k, relief divides by it, and k=0 is the off switch", () => 
   assert.equal(resolveDelta({ kind: "DRINK", base: 30, heldSlugs: [], intensity: 0 }), 0);
 });
 
-test("place classes: a haven beats its own roof, a safe cave is a room", () => {
+test("place classes: a haven beats its own roof, and underground is always the dark", () => {
   assert.equal(placeClassOf(null), "OPEN");
   assert.equal(placeClassOf({ attributes: { haven: true }, indoors: true }), "HAVEN");
   assert.equal(placeClassOf({ indoors: true }), "INDOORS");
   assert.equal(placeClassOf({ attributes: { wilderness: true } }), "WILDERNESS");
   assert.equal(placeClassOf({ zone: { kind: "CAVE_LEVEL" } }), "CAVE");
-  assert.equal(placeClassOf({ zone: { kind: "CAVE_LEVEL" }, attributes: { safe: true } }), "INDOORS");
+  // The `safe` attribute used to make the cave mouth read as a room. It is
+  // gone, so an indoors cave is still a cave.
+  assert.equal(placeClassOf({ zone: { kind: "CAVE_LEVEL" }, indoors: true }), "CAVE");
   assert.equal(placeClassOf({}), "OPEN");
 });
 

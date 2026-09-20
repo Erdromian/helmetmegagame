@@ -12,7 +12,7 @@
 // Not on the @lifeweb/db barrel — require by subpath so web/lib can use the
 // pure half without the Prisma client. No require of ./tagWrites here: it
 // requires this module for applyWoundMood, and a cycle would break one.
-const { hasAttribute, SAFE_ATTRIBUTE, WILDERNESS_ATTRIBUTE, HAVEN_ATTRIBUTE } = require("./locationAttributes");
+const { hasAttribute, WILDERNESS_ATTRIBUTE, HAVEN_ATTRIBUTE } = require("./locationAttributes");
 const {
   DYING_SLUG,
   IMPERTURBABLE_SLUG,
@@ -297,13 +297,13 @@ function bandOf(value) {
   return MOOD_BANDS.find((b) => (v < 0 ? v > b.min && v <= b.max : v >= b.min && v < b.max)) ?? null;
 }
 
-// Where somebody is, as the dial sees it. Haven wins over its own roof; a
-// `safe` cave Location (Customs) is a lit room with a sentry, so it reads as
-// a roof rather than as the dark.
+// Where somebody is, as the dial sees it. Haven wins over its own roof, and
+// underground is always the dark — the `safe` attribute used to let the cave
+// mouth read as a room, and went with the watchtower that justified it.
 function placeClassOf(location) {
   if (!location) return "OPEN";
   if (hasAttribute(location, HAVEN_ATTRIBUTE)) return "HAVEN";
-  if (location.zone?.kind === "CAVE_LEVEL") return hasAttribute(location, SAFE_ATTRIBUTE) ? "INDOORS" : "CAVE";
+  if (location.zone?.kind === "CAVE_LEVEL") return "CAVE";
   if (location.indoors) return "INDOORS";
   if (hasAttribute(location, WILDERNESS_ATTRIBUTE)) return "WILDERNESS";
   return "OPEN";
