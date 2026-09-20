@@ -28,6 +28,10 @@ import {
   toggleTurret,
   speakOnIntercom,
   interactWithQuest,
+  enterTheCharon,
+  leaveTheCharon,
+  launchTheCharon,
+  sleepInTheCharon,
 } from "./actions";
 import {
   depotCounterState,
@@ -120,6 +124,35 @@ export function usePlaceActions(initialAffordances, onChanged) {
           return;
         }
         run(holdKeyed, entry.linkId, { onOk: say });
+        return;
+      }
+      // The Charon (docs/systemdocs/CHARON.md). Four buttons and no dialogs:
+      // two are plain verbs, and the two that cannot be taken back ask through
+      // the shared confirm rather than a one-off modal of their own.
+      if (entry.id === "charonEnter") {
+        run(enterTheCharon, { roomId: entry.roomId }, { onOk: say });
+        return;
+      }
+      if (entry.id === "charonLeave") {
+        run(leaveTheCharon, { onOk: say });
+        return;
+      }
+      if (entry.id === "charonLaunch") {
+        // Confirm first, transition second — never inside startTransition
+        // (DESIGN-SYSTEM.md §8), same as the gate above.
+        if (!(await confirm({ message: "Launch the Charon? This is irreversible.", confirmLabel: "Launch" }))) {
+          return;
+        }
+        run(launchTheCharon, { roomId: entry.roomId }, { onOk: say });
+        return;
+      }
+      if (entry.id === "charonSleep") {
+        const ask = {
+          message: "Go to sleep and await the shuttle's docking, allowing you to respawn. This is irreversible.",
+          confirmLabel: "Sleep",
+        };
+        if (!(await confirm(ask))) return;
+        run(sleepInTheCharon, { roomId: entry.roomId }, { onOk: say });
         return;
       }
       // Everything left is a dialog named by its own id: gates and keyed

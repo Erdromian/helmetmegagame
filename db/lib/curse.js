@@ -10,6 +10,8 @@
 // revive) and having an ALIVE character. `Character.cursedOverride` is a GM's thumb on the scale from
 // the character dev panel: null means "work it out", true/false forces it.
 
+const { isBody } = require("./bodies");
+
 // The fields the rule reads. **Export and use it** — a caller that omits `buriedAt` from its own
 // `select` gets `undefined`, not `null`, and the rule silently answers wrong (db/lib/channelDoctor.js
 // is exactly that trap).
@@ -52,7 +54,12 @@ function isCursedIn(characters) {
 
   if (rows.some((r) => r.status === "ALIVE")) return false;
 
-  const latestBody = rows.find((r) => r.status !== "ALIVE");
+  // `isBody`, not `!== "ALIVE"`: an ASLEEP character is out of play but left
+  // nothing lying anywhere, so they are skipped over here entirely. The player
+  // is past the ALIVE check above, so the respawn is already open to them —
+  // this is only about whether something of theirs still needs burying, and
+  // nothing does. db/lib/bodies.js, and ghost.js reads the same predicate.
+  const latestBody = rows.find(isBody);
   if (!latestBody) return false;
   // `!buriedAt` rather than `=== null`: a caller that forgot the column defaults to "still lying
   // there", which costs a live player a ghost role rather than silently handing out full-points re-rolls.

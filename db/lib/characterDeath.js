@@ -78,6 +78,62 @@ async function vaporizeTags(prisma, characterId) {
 // row below: { kind: "player" | "gm" | "system", actorDiscordUserId?, system? }.
 // Optional and defaults to a generic system cause — every caller SHOULD pass
 // one for accuracy, but a caller that doesn't must not lose the wipe entirely.
+// Everything this character was TANGLED IN with other people, let go of. Split out
+// of the death path because going to sleep aboard the Charon needs exactly this and
+// none of the rest of dying (docs/systemdocs/CHARON.md): no corpse, no death mask,
+// no witnesses to frighten, but a party that must stop following somebody who is no
+// longer in the game, and a held prisoner who must not stay pinned by a hand that
+// has left the planet.
+//
+// Every step is wrapped and logged rather than thrown, the way the rest of this
+// file is: a half-released character is worse than a slow one.
+async function releaseEntanglements(prisma, characterId) {
+  // Somebody out of the game leads nobody; everyone following them lets go. NOT cleared:
+  // `escortedById` on this row — a corpse can still be carried (db/lib/escort.js gives a body
+  // FORCED), and a sleeper aboard the Charon is not going anywhere either way.
+  await prisma.character
+    .updateMany({
+      where: { escortedById: characterId },
+      data: { escortedById: null },
+    })
+    .catch((err) => console.error(`Failed to release the party leaving play for ${characterId}:`, err));
+
+  // The party chat (db/lib/partyChat.js) is keyed on this character as its
+  // creator. Leaving play dissolves the party, so the thread and the row go with it.
+  await teardownPartyThread(prisma, characterId).catch((err) =>
+    console.error(`Failed to tear down party thread leaving play for ${characterId}:`, err),
+  );
+
+  // A man who is gone holds nobody (INTERCEPT.md). Their OWN heldUntil is left alone — costs a
+  // corpse nothing and lapses on its own. A FIGHT comes off first, through the row not heldById
+  // (ATTACK.md §2): both attacker and target release, or settleHold would keep pinning the survivor.
+  await closeFightsFor(prisma, characterId).catch((err) =>
+    console.error(`Failed to close fights leaving play for ${characterId}:`, err),
+  );
+  // Guarded away from a fight (like releaseHeldBy): heldById names one opponent but a brawl has several.
+  await prisma.character
+    .updateMany({
+      where: { heldById: characterId, ...NOT_A_FIGHT },
+      data: { heldUntil: null, heldById: null, heldReason: null },
+    })
+    .catch((err) => console.error(`Failed to release held characters leaving play for ${characterId}:`, err));
+  await prisma.character
+    .update({
+      where: { id: characterId },
+      data: { escortConsentToId: null, escortConsentUntilTurn: null },
+    })
+    .catch((err) => console.error(`Failed to clear escort consent leaving play for ${characterId}:`, err));
+
+  // A pending handshake is void either way (LESSONS.md, CRAFTING.md); an ACCEPTED lesson still resolves.
+  await cancelOffersForCharacter(prisma, characterId).catch((err) =>
+    console.error(`Failed to void offers leaving play for ${characterId}:`, err),
+  );
+  await prisma.craftProject
+    .updateMany({ where: { characterId: characterId, status: "ACTIVE" }, data: { status: "CANCELLED" } })
+    .catch((err) => console.error(`Failed to cancel craft projects leaving play for ${characterId}:`, err));
+}
+
+
 async function applyDeathToRow(
   prisma,
   character,
@@ -147,48 +203,7 @@ async function applyDeathToRow(
       .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));
   }
 
-  // A dead leader leads nobody; everyone following them lets go. NOT cleared: `escortedById` on
-  // this row — a corpse can still be carried (db/lib/escort.js gives a body FORCED).
-  await prisma.character
-    .updateMany({
-      where: { escortedById: character.id },
-      data: { escortedById: null },
-    })
-    .catch((err) => console.error(`Failed to release the party on death for ${character.id}:`, err));
-
-  // The party chat (db/lib/partyChat.js) is keyed on this character as its
-  // creator. Death dissolves the party, so the thread and the row go with it.
-  await teardownPartyThread(prisma, character.id).catch((err) =>
-    console.error(`Failed to tear down party thread on death for ${character.id}:`, err),
-  );
-
-  // A dead man holds nobody (INTERCEPT.md). Their OWN heldUntil is left alone — costs a corpse
-  // nothing and lapses on its own. A FIGHT comes off first, through the row not heldById
-  // (ATTACK.md §2): both attacker and target release, or settleHold would keep pinning the survivor.
-  await closeFightsFor(prisma, character.id).catch((err) =>
-    console.error(`Failed to close fights on death for ${character.id}:`, err),
-  );
-  // Guarded away from a fight (like releaseHeldBy): heldById names one opponent but a brawl has several.
-  await prisma.character
-    .updateMany({
-      where: { heldById: character.id, ...NOT_A_FIGHT },
-      data: { heldUntil: null, heldById: null, heldReason: null },
-    })
-    .catch((err) => console.error(`Failed to release held characters on death for ${character.id}:`, err));
-  await prisma.character
-    .update({
-      where: { id: character.id },
-      data: { escortConsentToId: null, escortConsentUntilTurn: null },
-    })
-    .catch((err) => console.error(`Failed to clear escort consent on death for ${character.id}:`, err));
-
-  // A pending handshake is void either way (LESSONS.md, CRAFTING.md); an ACCEPTED lesson still resolves.
-  await cancelOffersForCharacter(prisma, character.id).catch((err) =>
-    console.error(`Failed to void offers on death for ${character.id}:`, err),
-  );
-  await prisma.craftProject
-    .updateMany({ where: { characterId: character.id, status: "ACTIVE" }, data: { status: "CANCELLED" } })
-    .catch((err) => console.error(`Failed to cancel craft projects on death for ${character.id}:`, err));
+  await releaseEntanglements(prisma, character.id);
 
   // One Tag row in a random public Room (CORPSES.md) — a HANDLE to this sheet, so the sheet
   // follows the tag. Wrapped: a missing corpse is recoverable by hand, a half-applied death isn't.
@@ -247,4 +262,4 @@ async function frightenWitnesses(prisma, deadCharacterId) {
   }
 }
 
-module.exports = { applyDeathToRow };
+module.exports = { applyDeathToRow, releaseEntanglements };

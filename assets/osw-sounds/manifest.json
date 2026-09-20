@@ -552,6 +552,8 @@
    "lfwbsounds/iron_crate_open.ogg",
    "lfwbsounds/lava_close.ogg",
    "lfwbsounds/lava_open.ogg",
+   "machines/airlock_open.ogg",
+   "machines/airlock_open_force.ogg",
    "machines/closet_close.ogg",
    "machines/closet_open.ogg",
    "machines/lightbreak.ogg",

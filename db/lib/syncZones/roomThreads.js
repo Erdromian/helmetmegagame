@@ -154,7 +154,15 @@ async function gatesFor(prisma, locationId, control = null) {
 // (db/lib/roomStarterRow.js#WATCHTOWER_ROOM_SLUGS). A separate action row
 // keeps Storage/Intercom/Turret/Bell clear of Discord's five-per-row cap.
 async function roomComponents(prisma, room, locationId) {
-  const rows = [roomStarterRow(room)];
+  // The Location, for the two affordances whose answer depends on it rather
+  // than on the room: the Charon's rooms TRAVEL, so the same Cockpit row means
+  // Launch on the ground and nothing in orbit (docs/systemdocs/CHARON.md).
+  // Everything else ignores it, and a room whose Location cannot be read still
+  // gets every button that does not depend on one.
+  const location = locationId
+    ? await prisma.location.findUnique({ where: { id: locationId }, select: { id: true, slug: true, attributes: true } })
+    : null;
+  const rows = [roomStarterRow(room, location)];
   if (WATCHTOWER_ROOM_SLUGS.has(room.slug)) {
     rows.push(locationGateRow(await gatesFor(prisma, locationId, gateControlIn(room.slug))));
   }

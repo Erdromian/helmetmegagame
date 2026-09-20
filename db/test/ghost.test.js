@@ -62,3 +62,13 @@ test("CURSE_SELECT is a superset of GHOST_SELECT, so cursed rows can answer this
     assert.equal(CURSE_SELECT[field], true, `CURSE_SELECT is missing ${field}`);
   }
 });
+
+// An asleep character is alive on a ship, not dead in a hole. No watching seat,
+// and never the body a ghost speaks as (docs/systemdocs/CHARON.md).
+test("sleeping does not seat you among the dead", () => {
+  assert.equal(isGhostIn([{ status: "ASLEEP" }]), false);
+});
+
+test("a sleeper alongside a body is still a ghost, off the body", () => {
+  assert.equal(isGhostIn([{ status: "ASLEEP" }, { status: "DEAD" }]), true);
+});

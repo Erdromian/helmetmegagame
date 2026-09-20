@@ -111,6 +111,14 @@ const SFX = {
   // action result, the excommunicated off their DM.
   BANISH: "banish",
 
+  // The Charon (docs/systemdocs/CHARON.md). The magnetic locks coming off ride
+  // the T-30 line, so everyone aboard hears them; the softer one rides the
+  // cancel. CONSOLE_REFUSE is the terminal saying no, and rides the guarded()
+  // envelope rather than a row — only the person who pressed it hears that.
+  AIRLOCK_FORCE: "airlock-force",
+  AIRLOCK: "airlock",
+  CONSOLE_REFUSE: "console-refuse",
+
   // The one cue that does not stop on its own. A rite that has gone tense holds the
   // altar's drone under the room until it fires or the window closes — see the loop
   // rules in web/app/components/sfx.js.

@@ -14,6 +14,7 @@ const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
+const { runCharonSweep } = require("@lifeweb/db/lib/charonSweep");
 const { runOracleAtCutoff } = require("@lifeweb/db/lib/oracleCutoff");
 const { runGambitCutoff } = require("@lifeweb/db/lib/gambitCutoff");
 const { runStagePlay } = require("../lib/stagePlay");
@@ -263,6 +264,26 @@ module.exports = {
         .catch((err) => console.error("Rite sweep failed:", err))
         .finally(() => {
           riteSweepRunning = false;
+        });
+    });
+
+    // The Charon's thirty seconds (docs/systemdocs/CHARON.md). Every five seconds, not every
+    // minute: a countdown that says "30" then "15" then goes cannot be read off a clock that
+    // moves in sixty-second steps. The countdown itself is a timestamp in the database, so a
+    // restart through the middle of one picks it back up rather than stranding the ship.
+    // One sweep in flight at a time, like the rite sweep: a launch walks everyone aboard
+    // through Discord and then talks to every Location in the game.
+    let charonSweepRunning = false;
+    cron.schedule("*/5 * * * * *", () => {
+      if (charonSweepRunning) return;
+      charonSweepRunning = true;
+      runCharonSweep(prisma)
+        .then(({ launched, moved }) => {
+          if (launched) console.log(`The Charon launched with ${moved?.length ?? 0} aboard.`);
+        })
+        .catch((err) => console.error("Charon sweep failed:", err))
+        .finally(() => {
+          charonSweepRunning = false;
         });
     });
 

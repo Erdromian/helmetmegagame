@@ -106,6 +106,11 @@ const CUES = {
   pin: "sign_this",
   tear: "poster_ripped",
   banish: "bishop_banish",
+  // The Charon's locks, and the terminal refusing. The forced one is the ship
+  // committing to leave; the plain one is that being taken back.
+  "airlock-force": "airlock_open_force",
+  airlock: "airlock_open",
+  "console-refuse": "console_error",
   "rite-loop": "loop_altar",
 
   // The Den's slot machine. Coins in, then one of three answers.
@@ -216,6 +221,13 @@ const GAIN = {
   gavel: 0.22,
   // -6.65 measured, the hottest file in the folder after the gavel.
   banish: 0.22,
+  // The Charon. -6.58 and -9.34 measured, both to the world's -20; the forced
+  // airlock is the hottest file in the folder, which is about right for a ship
+  // deciding to leave. The terminal's refusal goes to the refusal target at
+  // -26 instead, off -10.83 — it answers one person, not the room.
+  "airlock-force": 0.21,
+  airlock: 0.29,
+  "console-refuse": 0.17,
   // Addressed to one person. These arrive on a DM rather than on a line a place said, and
   // they sit with the world rather than the alarms for the same reason `named` does.
   held: 1,

@@ -19,6 +19,17 @@ const {
   ROOM_PRAY_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
+const {
+  CHARON_SLUG,
+  PANIC_ROOM_SLUG,
+  COCKPIT_SLUG,
+  HABITATION_SLUG,
+  enterCharon,
+  leaveCharon,
+  pressLaunch,
+  sleepAboard,
+} = require("@lifeweb/db/lib/charon");
+const { hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../../lib/intercomModal");
 const { buildQuestModal } = require("../../lib/questModal");
@@ -437,6 +448,106 @@ async function handleIntercomSubmit(interaction, roomId) {
 // Custom IDs below: "loc:" is the travel flow, "conv:" the Conversation flow, "move:"/"say:" the Move/Speak modals.
 
 
+
+// ---------------------------------------------------------------- the Charon
+
+// The web twins of these four are in web/app/(app)/chat/actions.js, and both
+// sides call the same db/lib/charon.js — so a refusal reads the same wherever
+// you pressed it (docs/systemdocs/CHARON.md).
+//
+// Every one acks first, like every other handler that touches the database:
+// doing the work first shows "The application did not respond" for something
+// that already committed.
+
+// The shared gate: a living character, standing in the Location this room hangs
+// off, holding whatever key the room's own `access:` list wants. The same three
+// checks prayGate makes, and for the same reason — a button is a hint, not a
+// lock, and a custom_id can be replayed from anywhere.
+async function charonRoomGate(interaction, roomId, slug, missing) {
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) return { error: "You don't have a living character." };
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { id: true, name: true, slug: true, locationId: true, accessTagSlugs: true },
+  });
+  if (!room || room.slug !== slug) return { error: missing };
+  if (character.locationId !== room.locationId) {
+    return { error: `You're not standing in the ${room.name} any more.` };
+  }
+  const keys = await roomAccessKeys(prisma, character.id);
+  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
+    return { error: "You can't get in there." };
+  }
+  return { character, room };
+}
+
+async function handleCharonEnter(interaction, roomId) {
+  await ack(interaction);
+  const gate = await charonRoomGate(interaction, roomId, PANIC_ROOM_SLUG, "There's no way through here.");
+  if (gate.error) {
+    await respond(interaction, gate.error);
+    return;
+  }
+  const refusal = await enterCharon(prisma, gate.character);
+  await respond(interaction, refusal ?? "You step aboard.");
+}
+
+async function handleCharonLeave(interaction) {
+  await ack(interaction);
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "You don't have a living character.");
+    return;
+  }
+  const here = await prisma.location.findUnique({
+    where: { id: character.locationId ?? "" },
+    select: { slug: true },
+  });
+  if (here?.slug !== CHARON_SLUG) {
+    await respond(interaction, "You can't do that right now.");
+    return;
+  }
+  const refusal = await leaveCharon(prisma, character);
+  await respond(interaction, refusal ?? "You step back off.");
+}
+
+// One button, three answers — start, cancel, or refuse. The first two say what
+// they did out loud into the ship's feed instead of back at the presser, which
+// is why the ephemeral line here is so thin: the sentence that matters is
+// already in the room, where everybody else aboard can read it too.
+async function handleCharonLaunch(interaction, roomId) {
+  await ack(interaction);
+  const gate = await charonRoomGate(interaction, roomId, COCKPIT_SLUG, "There's no terminal here.");
+  if (gate.error) {
+    await respond(interaction, gate.error);
+    return;
+  }
+  const answer = await pressLaunch(prisma, gate.character);
+  await respond(interaction, answer ? answer.text : "The terminal answers.");
+}
+
+async function handleCharonSleep(interaction, roomId) {
+  await ack(interaction);
+  const gate = await charonRoomGate(interaction, roomId, HABITATION_SLUG, "There's nowhere to lie down here.");
+  if (gate.error) {
+    await respond(interaction, gate.error);
+    return;
+  }
+  // Off the Location's own attribute rather than its slug, so the rule is the
+  // same one the button was drawn from. On the ground the bunk is just a bunk.
+  const here = await prisma.location.findUnique({
+    where: { id: gate.character.locationId ?? "" },
+    select: { attributes: true },
+  });
+  if (!hasAttribute(here, "offMap")) {
+    await respond(interaction, "You can't do that right now.");
+    return;
+  }
+  const slept = await sleepAboard(prisma, gate.character);
+  await respond(interaction, slept ? "You lie down." : "You can't do that right now.");
+}
+
+
 module.exports = {
   PRAY_CONFIRM_PREFIX,
   SLOTS_CONFIRM_PREFIX,
@@ -452,4 +563,8 @@ module.exports = {
   handleBellSubmit,
   handleTurretSubmit,
   handleIntercomSubmit,
+  handleCharonEnter,
+  handleCharonLeave,
+  handleCharonLaunch,
+  handleCharonSleep,
 };

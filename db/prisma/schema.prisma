@@ -7,10 +7,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ALIVE, and two ways of not being. DEAD is a body: it leaves a corpse, it
+// curses the player until somebody buries it, and it seats them in Deadchat.
+// ASLEEP is neither — the Charon's Habitation puts a character out of play
+// without killing them (docs/systemdocs/CHARON.md), so the player may roll
+// again at once, with nothing to bury and no watching seat. What counts as a
+// BODY is db/lib/bodies.js, and both db/lib/curse.js and db/lib/ghost.js read
+// it from there so the two can never drift on the answer.
+//
+// CURSED is vestigial and has been for a long time: the curse is computed
+// from `buriedAt`, not stored here. Kept in the enum rather than dropped,
+// like the other legacy values (CLAUDE.md, Notes for future work).
 enum CharacterStatus {
   ALIVE
   DEAD
   CURSED
+  ASLEEP
 }
 
 // How a character presents. Chosen once at creation and never editable by the
@@ -6183,4 +6195,30 @@ model Feedback {
 
   @@index([discordUserId, createdAt])
   @@index([createdAt])
+}
+
+// The Charon's ignition, and the whole of what the ship remembers
+// (docs/systemdocs/CHARON.md). One row, ever.
+//
+// `launchAt` set is a countdown running: db/lib/charonSweep.js watches it and
+// writes the three beats, and Cancel is nothing more than clearing it.
+// `launchedAt` set means the ship is gone, which is not a thing that can be
+// undone from any surface in the game.
+//
+// Its own model rather than columns on GameConfig: this is state belonging to
+// one game, which Restart Game should take away with the rest of it, not a
+// knob a GM sets.
+model CharonLaunch {
+  id String @id @default(cuid())
+
+  /// When the countdown expires. Null means no countdown is running.
+  launchAt   DateTime?
+  /// When it actually went. Null means it is still on the ground.
+  launchedAt DateTime?
+  /// Who pressed it, as a snapshot name — the same reasoning every other log
+  /// table here uses. Null for a launch the sweep completed with nobody aboard.
+  launchedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
