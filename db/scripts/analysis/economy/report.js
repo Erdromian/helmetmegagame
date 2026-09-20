@@ -383,6 +383,115 @@ ${table({ cols, rows: all, filters: [{ label: "Group", get: (r) => r.group }, { 
 </section>`;
 }
 
+function sectionCaving() {
+  const C = model.caving;
+  const pct = (v, d = 1) => `${fmt(v * 100, d)}%`;
+  const tierLabel = { ultracommon: "Ultracommon", common: "Common", uncommon: "Uncommon", rare: "Rare", "extremely-rare": "Extremely rare", "nearly-impossible": "Nearly impossible" };
+  const zoneRowsBy = (z) => new Map(C.zones[z].rows.map((r) => [r.slug, r]));
+  const cavesBy = zoneRowsBy("caves");
+  const depthsBy = zoneRowsBy("depths");
+  const slugs = [...new Set([...cavesBy.keys(), ...depthsBy.keys()])];
+  const items = slugs
+    .map((slug) => {
+      const c = cavesBy.get(slug);
+      const d = depthsBy.get(slug);
+      const any = c ?? d;
+      return { slug, name: any.name, tier: any.tier, value: any.value, basis: any.basis, estimated: any.estimated, cP: c?.pArrival ?? 0, dP: d?.pArrival ?? 0, cEv: c?.evArrival ?? 0, dEv: d?.evArrival ?? 0, cEvEst: (c?.evFindEstimated ?? 0) / 6, dEvEst: (d?.evFindEstimated ?? 0) / 6 };
+    })
+    .sort((a, b) => b.dEv + b.dEvEst + b.cEv - (a.dEv + a.dEvEst + a.cEv));
+  const summaryCols = [
+    { h: "", get: (r) => r.label },
+    { h: "Caves", num: true, get: (r) => r.caves },
+    { h: "Depths", num: true, get: (r) => r.depths },
+  ];
+  const Z = C.zones;
+  const P = C.perZone;
+  const summary = [
+    { label: "Loot worth, per find (¢)", caves: fmt(Z.caves.evFind, 2), depths: fmt(Z.depths.evFind, 2) },
+    { label: "Plus estimated, per find (¢)", caves: fmt(Z.caves.evFindEstimated, 2), depths: fmt(Z.depths.evFindEstimated, 2) },
+    { label: "Loot worth, per arrival (¢), a find on 1 in 6", caves: fmt(Z.caves.evArrival, 2), depths: fmt(Z.depths.evArrival, 2) },
+    { label: "Finds with no price at all", caves: pct(Z.caves.unpricedShare, 0), depths: pct(Z.depths.unpricedShare, 0) },
+    { label: "Assumed cost of a 1 (¢), the wound mix priced at its cure", caves: fmt(P.caves.troubleCost, 1), depths: fmt(P.depths.troubleCost, 1) },
+    { label: "Danger, per arrival (¢), a 1 on 1 in 6", caves: fmt(P.caves.base.danger, 2), depths: fmt(P.depths.base.danger, 2) },
+    { label: "Net per arrival (¢)", caves: fmt(P.caves.base.net, 2), depths: fmt(P.depths.base.net, 2) },
+    { label: "A trouble that costs this much cancels the loot (¢)", caves: fmt(P.caves.breakEvenWound, 1), depths: fmt(P.depths.breakEvenWound, 1) },
+    { label: "Deaths per 100 arrivals (assumed mix)", caves: fmt(P.caves.base.deathsPerArrival * 100, 2), depths: fmt(P.depths.base.deathsPerArrival * 100, 2) },
+    { label: "With Lucky: net per arrival (¢)", caves: fmt(P.caves.lucky.net, 2), depths: fmt(P.depths.lucky.net, 2) },
+    { label: "With Lucky: deaths per 100 arrivals", caves: fmt(P.caves.lucky.deathsPerArrival * 100, 2), depths: fmt(P.depths.lucky.deathsPerArrival * 100, 2) },
+  ];
+  const tierBars = (z, color) =>
+    Z[z].byTier.filter((t) => t.pFind > 0).map((t) => ({ label: `${tierLabel[t.tier]} (${pct(t.pFind, t.pFind < 0.01 ? 2 : 0)})`, value: t.evFind, color }));
+  const lootCols = [
+    { h: "Item", get: (r) => r.name },
+    { h: "Tier", get: (r) => tierLabel[r.tier] ?? r.tier },
+    { h: "Worth ¢", num: true, get: (r) => (r.value ? fmt(r.value, 1) : "—"), sort: (r) => r.value },
+    { h: "How it is worth that", get: (r) => r.basis },
+    { h: "Caves, per arrival", num: true, get: (r) => (r.cP ? pct(r.cP, 2) : "—"), sort: (r) => r.cP },
+    { h: "Depths, per arrival", num: true, get: (r) => (r.dP ? pct(r.dP, 2) : "—"), sort: (r) => r.dP },
+    { h: "Caves ¢ / arrival", num: true, get: (r) => fmt(r.cEv, 3), sort: (r) => r.cEv },
+    { h: "Depths ¢ / arrival", num: true, get: (r) => fmt(r.dEv, 3), sort: (r) => r.dEv },
+  ];
+  const woundCols = [
+    { h: "Trouble becomes", get: (w) => w.label },
+    { h: "Priced as", get: (w) => w.what },
+    { h: "Materials ¢", num: true, get: (w) => fmt(w.materials, 1) },
+    { h: "Medic's Moves", num: true, get: (w) => (w.moves ? fmt(w.moves, 2) : "—") },
+    { h: "All-in ¢", num: true, get: (w) => (w.kind === "death" ? "not priced" : fmt(w.total, 1)), sort: (w) => w.total },
+    { h: "Caves share", num: true, get: (w) => pct(P.caves.mix[w.kind], 0) },
+    { h: "Depths share", num: true, get: (w) => pct(P.depths.mix[w.kind], 0) },
+  ];
+  const scen = [];
+  for (const zone of ["caves", "depths"])
+    for (const n of C.arrivalsScenarios)
+      for (const who of ["base", "lucky"]) {
+        const r = P[zone][who];
+        scen.push({ zone: zone === "caves" ? "Caves" : "Depths", arrivals: n, who: who === "base" ? "no Lucky" : "Lucky", loot: r.loot * n, danger: r.danger * n, net: r.net * n, deaths: r.deathsPerArrival * n * 100 });
+      }
+  const scenCols = [
+    { h: "Where", get: (r) => r.zone },
+    { h: "Arrivals a turn", num: true, get: (r) => r.arrivals },
+    { h: "", get: (r) => r.who },
+    { h: "Loot ¢", num: true, get: (r) => fmt(r.loot, 2), sort: (r) => r.loot },
+    { h: "Wound cost ¢", num: true, get: (r) => fmt(r.danger, 2), sort: (r) => r.danger },
+    { h: "Net ¢ a turn", num: true, get: (r) => fmt(r.net, 2), sort: (r) => r.net },
+    { h: "Deaths per 100 turns", num: true, get: (r) => fmt(r.deaths, 1), sort: (r) => r.deaths },
+  ];
+  const diceCols = [
+    { h: "Die", get: (d) => d.die },
+    { h: "What it is", get: (d) => d.what },
+    { h: "Where it lives", get: (d) => d.file },
+  ];
+  const tagCols = [
+    { h: "Tag", get: (t) => t.name },
+    { h: "Points", num: true, get: (t) => t.points },
+    { h: "What it does", get: (t) => t.effect },
+    { h: "On which dice", get: (t) => t.dice },
+  ];
+  return `<section><h2>The Caving Die</h2>
+<p class="lede">The die rolls once on every arrival in the Caves or the Depths and there is no cap. In the code a <b>6 is a find</b> (a draw off the loot table) and a <b>1 is trouble</b> (a GM decides what happens, and nothing applies by itself); 2 to 5 is nothing. Your brief had the danger on a 6, so I have priced the danger on the trouble face, the 1, at the same 1 in 6. If you meant the 6 to carry both, every net figure below is the loot without its find chance.</p>
+<h3>What a find is worth</h3>
+<p class="lede">Each item is valued at the better of what the Depot pays or what it gives when opened or consumed (a Supply Kit is 8 ⬢, a Purse is 3 obols). An item the Depot only sells is <b>estimated</b> at 60% of its shelf price and kept out of the headline, so one key cannot carry a table. The ${fmt(Z.caves.unpricedShare * 100, 0)}% (Caves) and ${fmt(Z.depths.unpricedShare * 100, 0)}% (Depths) of finds with no price at all (rocks, curiosities, tools, keys, a mastery tag) count as nothing, so the loot figures are a floor.</p>
+${table({ cols: summaryCols, rows: summary, id: "cavsum" })}
+<h3>Where the value sits</h3>
+<p class="lede">Expected ¢ per find, by tier, with the tier's share of finds beside it. The Caves live off the two ultracommon finds (Cave Fungus and Saltpeter) and cheap gear; the Depths' value comes from the rare tiers.</p>
+${barChart({ rows: tierBars("caves", "var(--c1)"), unit: " ¢", fmtVal: (v) => fmt(v, 2), labelW: 230 })}
+${barChart({ rows: tierBars("depths", "var(--c3)"), unit: " ¢", fmtVal: (v) => fmt(v, 2), labelW: 230 })}
+<h3>Every item that can drop</h3>
+${table({ cols: lootCols, rows: items, filters: [{ label: "Tier", get: (r) => tierLabel[r.tier] ?? r.tier }, { label: "Valued", get: (r) => r.basis.replace(/\s*\(.*\)/, "") }] })}
+<h3>A note on danger</h3>
+<p class="lede"><b>This part is the GM's call</b> (the <code>cavingmonsters</code> document and the Caving lens), so what follows is an assumption written down. A 1 costs what it takes to heal what the GM lets happen, read off the cure ladder (<code>TAGS.md</code> §5c), and the medic's Moves are priced at ${fmt(C.moveValue, 1)} ¢. In the Caves at least a minor wound, mostly; in the Depths a major wound, a lost limb or death is the likely outcome. Death has no cure and is counted, not priced. A 1 also costs −10 mood (tripled by Teratophobia) and pins you in the zone until the turn ends.</p>
+${table({ cols: woundCols, rows: Object.values(C.wounds), id: "cavwounds" })}
+<p class="lede">The result is that the loot does not pay for the danger. At the Caves a find is worth about ${fmt(Z.caves.evArrival, 2)} ¢ an arrival against ${fmt(P.caves.base.danger, 2)} ¢ of wound, so even an all-minor mix (${fmt(C.wounds.minor.total, 1)} ¢ a trouble) loses; the loot would need every trouble to cost under ${fmt(P.caves.breakEvenWound, 1)} ¢. The Depths are ${fmt(Z.depths.evArrival / Z.caves.evArrival, 1)} times richer but their trouble is dearer, and only a mostly-minor mix breaks even. Anybody who heals for free (a friend who is a medic) sees the loot alone, which is a small positive.</p>
+<h3>Per turn, walking</h3>
+<p class="lede">Arrivals are rationed only by the 3-second cool-down between walks, so a player can take several a turn. Loot and danger both scale with the number, and so does the chance of a death.</p>
+${table({ cols: scenCols, rows: scen, filters: [{ label: "Where", get: (r) => r.zone }] })}
+<h2>Extra rolls, and everything that bends a die</h2>
+<p class="lede">The source is scanned for every place a character's die goes through the advantage helper (${C.rolls.dice.length} files), and this report fails a claim if one appears that it has not labelled. <b>No tag gives an extra draw on either loot table.</b> The Caving Die's loot draw and the prospecting draw are each made once. The only ways to change them are Lucky (a better die on the Caving Die, so more finds and fewer 1s) and Prospecting (a richer column on the prospecting table, not an extra roll). Lucky's description also says it covers "the laboring die", but mining rolls no die now, so that phrase is stale (the claims table lists it).</p>
+${table({ cols: diceCols, rows: C.rolls.dice, id: "cavdice" })}
+${table({ cols: tagCols, rows: C.rolls.tags, id: "cavtags" })}
+</section>`;
+}
+
 function sectionSeats() {
   const c = model.combos;
   const cols = [
@@ -870,7 +979,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -961,6 +1070,19 @@ const investmentsCsv = [
   ),
 ].join("\n");
 fs.writeFileSync(path.join(outDir, "investments.csv"), investmentsCsv);
+const cavingCsv = [
+  ["item", "tier", "worth", "basis", "cavesPerArrival", "depthsPerArrival", "cavesEvPerArrival", "depthsEvPerArrival"].join(","),
+  ...(() => {
+    const by = (z) => new Map(model.caving.zones[z].rows.map((r) => [r.slug, r]));
+    const c = by("caves");
+    const d = by("depths");
+    return [...new Set([...c.keys(), ...d.keys()])].map((slug) => {
+      const a = c.get(slug) ?? d.get(slug);
+      return [a.name, a.tier, a.value, a.basis, c.get(slug)?.pArrival ?? 0, d.get(slug)?.pArrival ?? 0, c.get(slug)?.evArrival ?? 0, d.get(slug)?.evArrival ?? 0].map(csvCell).join(",");
+    });
+  })(),
+].join("\n");
+fs.writeFileSync(path.join(outDir, "caving.csv"), cavingCsv);
 fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
 fs.writeFileSync(path.join(outDir, "item-sources.csv"), itemsCsv);

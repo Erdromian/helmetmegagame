@@ -15,7 +15,7 @@ const soilery = require("../../../lib/soilery");
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
-function buildInvestments({ get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
+function buildInvestments({ caving, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
   const rows = [];
   const byId = (id) => activities.find((a) => a.id === id);
   const shelfPrice = (t) => t?.depotPrice ?? null;
@@ -186,22 +186,21 @@ function buildInvestments({ get, list, rv, rvMined, params, activities, producer
 
   // ---- loot rolls ----------------------------------------------------------------------------------
   const lucky = get("lucky");
-  const cavingEv = (producerDrops?.caving?.caves ?? []).reduce((s, x) => s + x.ev, 0);
-  if (lucky) {
-    const base = 1 / 6;
-    const adv = 1 - (5 / 6) ** 2;
+  if (lucky && caving) {
+    const z = caving.perZone.caves;
+    const d = caving.perZone.depths;
     add({
       id: "lucky",
       group: "Loot rolls",
       name: lucky.name,
       kind: "perk",
-      does: "Rolls the Caving Die twice and keeps the better: a find on 6 goes from 1 in 6 to 11 in 36, and trouble on 1 from 1 in 6 to 1 in 36.",
+      does: "Rolls the Caving Die twice and keeps the better: a find on 6 goes from 1 in 6 to 11 in 36, and trouble on 1 from 1 in 6 to 1 in 36. Also every Gambit and eleven other dice.",
       coin: 0,
       coinHow: "no coin",
       points: lucky.pointCost ?? 0,
-      gain: cavingEv * (adv / base - 1) * cavingArrivalsPerTurn,
-      gainHow: `${round1(cavingEv * (adv / base - 1))} ¢ more loot an arrival at the Caves, at ${cavingArrivalsPerTurn} arrival a turn`,
-      note: "Also cuts the mood hit from trouble, and improves every other die you roll, which is not counted.",
+      gain: z.luckyGain * cavingArrivalsPerTurn,
+      gainHow: `at the Caves ${round1(z.lucky.loot - z.base.loot)} ¢ more loot and ${round1(z.base.danger - z.lucky.danger)} ¢ less wound cost an arrival (Depths ${round1(d.luckyGain)} ¢), at ${cavingArrivalsPerTurn} arrival a turn`,
+      note: "Most of the gain is the trouble it avoids, and that depends on how a GM prices a 1. It also improves every Gambit, which is not counted.",
     });
   }
 

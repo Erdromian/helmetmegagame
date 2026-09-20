@@ -27,6 +27,7 @@ const depotRules = require("../../../lib/depot");
 const { fatigueModel } = require("./fatigue");
 const { buildCombos } = require("./combos");
 const { buildInvestments } = require("./investments");
+const { buildCaving } = require("./caving");
 const { turretTable } = require("../../../lib/depotTurret");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -934,6 +935,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   ).length;
 
   // --- what the docs say, against what this says --------------------------------
+  const moveValueUsed = moveValue ?? activities.find((a) => a.id === "mine:Caves:unskilled")?.netPerTurn ?? 5;
+  const caving = buildCaving({ get, list, rv, rvMined, sources, moveValue: moveValueUsed, activities, gameTurns });
   // What the Merchant's floor pays a maker per Move, by the cumulative skill points the recipe is gated
   // behind, with every ⬢ bought at the Depot's import price (DEPOT.md §4). Prices are set from this table:
   // sell = inputs at the Depot's price + import price × ⬢ + round(rate × turns^1.3). Read here as the
@@ -1142,6 +1145,21 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: foodTiers.boxTurns != null && foodTiers.boxTurns < 1 && foodTiers.boxTurns > 0.5,
     },
     {
+      doc: "tags.yaml, Lucky",
+      claim: "Lucky's description names only dice that exist: it says the Caving Die and the laboring die",
+      docValue: "2 dice named",
+      model: /laboring/i.test(get("lucky")?.description ?? "") ? "there is no laboring die: mining rolls no die (db/lib/mining.js), so it names 1 that exists" : "names only real dice",
+      ok: !/laboring/i.test(get("lucky")?.description ?? ""),
+      note: "Mining pays a flat range and a table draw now, and nothing in db/lib/advantage.js is called from it.",
+    },
+    {
+      doc: "CAVING.md §2",
+      claim: "Every place that rolls with advantage is known to this report, so a new die cannot go unnoticed",
+      docValue: "0 unlabelled",
+      model: caving.rolls.unlabelled.length ? `${caving.rolls.unlabelled.length}: ${caving.rolls.unlabelled.join(", ")}` : "0 unlabelled",
+      ok: caving.rolls.unlabelled.length === 0,
+    },
+    {
       doc: "DEPOT.md §4",
       claim: "Buying a metal at the shelf and cracking it for ⬢ never pays: the shelf price is at least the ⬢ it gives back at the 1 ¢ sell-back",
       docValue: "0 that pay",
@@ -1235,8 +1253,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
   ];
 
-  const moveValueUsed = moveValue ?? activities.find((a) => a.id === "mine:Caves:unskilled")?.netPerTurn ?? 5;
   const investments = buildInvestments({
+    caving,
     get,
     list,
     rv,
@@ -1264,6 +1282,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     profitRows,
     workedRows,
     investments,
+    caving,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },
