@@ -25,6 +25,7 @@ const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { applyDeathToRow } = require("./characterDeath");
 const { applyDeathTeardown } = require("./deathTeardown");
 const { locationLine } = require("./placeLine");
+const { SFX } = require("./sfx");
 const { sendDm } = require("./dm");
 
 const COLLAR_ITEM_SLUG = "bomb-collar";
@@ -274,7 +275,7 @@ async function detonateCollar(prisma, { actor, target, turn }) {
       source: "collar",
     }).catch((err) => console.error(`detonation DM for ${target.name}:`, err?.message ?? err));
   }
-  await locationLine(prisma, target.location, `${target.name} explodes into mist!`);
+  await locationLine(prisma, target.location, `${target.name} explodes into mist!`, { sfx: SFX.BOOM });
   return { ok: true, name: target.name, alreadyDead: false };
 }
 

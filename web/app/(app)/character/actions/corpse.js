@@ -44,6 +44,7 @@ import {
   FULL_NAME_LIMIT,
   matchesTypedName,
 } from "@/lib/characterName";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import {
   requireCharacter,
   revalidateAll,
@@ -262,7 +263,10 @@ export async function butcherCorpseRequestImpl({
   }
 
   revalidateAll();
-  return { made: corpse.yields.map((y) => yieldTagBySlug.get(y.slug).name).join(" and ") };
+  return {
+    made: corpse.yields.map((y) => yieldTagBySlug.get(y.slug).name).join(" and "),
+    sfx: SFX.BUTCHER,
+  };
 }
 
 // Mutilating. One piece off a bound person or a corpse, FREE — no ⬢, no Move, no turn. Press again for the next

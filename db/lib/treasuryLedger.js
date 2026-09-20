@@ -19,6 +19,7 @@ const LEDGER_KINDS = {
   BANK_DEPOSIT: "Deposit",
   BANK_WITHDRAWAL: "Withdrawal",
   CHARACTER_START: "Opening balance",
+  BANK_TRANSFER: "Transfer",
 };
 
 function linesOf(order) {
@@ -80,22 +81,43 @@ async function loadTreasuryTransactions(prisma, { accountId = null } = {}) {
 
   const rows = [];
 
-  for (const e of entries) {
-    const credit = e.toKind === "bank";
-    const id = credit ? e.toId : e.fromId;
+  // One entry can have a bank on BOTH ends — an account paying another
+  // account — and that is two rows, one per book, not one. Filtered to a
+  // single account, it is whichever end that account is standing on.
+  function bankRow(e, id, signed, otherName) {
     const account = accountsById.get(id);
-    rows.push({
-      id: `e:${e.id}`,
+    return {
+      id: `e:${e.id}:${id}`,
       kind: LEDGER_KINDS[e.reason],
       turn: e.turnNumber,
       at: e.at,
       accountId: id,
       accountClass: account?.class ?? "",
       fingerprint: account?.fingerprint ?? "",
-      holderName: account?.holderName ?? (credit ? e.toName : e.fromName) ?? "",
-      amount: credit ? e.amount : -e.amount,
-      detail: "",
-    });
+      holderName: account?.holderName ?? (signed > 0 ? e.toName : e.fromName) ?? "",
+      amount: signed,
+      detail: otherName ? `${signed > 0 ? "from" : "to"} ${otherName}` : "",
+    };
+  }
+
+  for (const e of entries) {
+    const fromBank = e.fromKind === "bank" ? e.fromId : null;
+    const toBank = e.toKind === "bank" ? e.toId : null;
+    // The treasury is a room, so a surrendered claim has one bank end and
+    // names the Vault on the other.
+    const outsideName =
+      e.reason === "BANK_TRANSFER" && !(fromBank && toBank) ? "the treasury" : "";
+
+    if (fromBank && toBank) {
+      const fromName = accountsById.get(fromBank)?.holderName ?? e.fromName ?? "";
+      const toName = accountsById.get(toBank)?.holderName ?? e.toName ?? "";
+      if (!accountId || accountId === fromBank) rows.push(bankRow(e, fromBank, -e.amount, toName));
+      if (!accountId || accountId === toBank) rows.push(bankRow(e, toBank, e.amount, fromName));
+      continue;
+    }
+
+    const credit = Boolean(toBank);
+    rows.push(bankRow(e, credit ? toBank : fromBank, credit ? e.amount : -e.amount, outsideName));
   }
 
   for (const o of orders) {

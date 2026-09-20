@@ -3,7 +3,11 @@ import { hasGmRole } from "@lifeweb/db/lib/roleIds";
 import { listGuildMembers } from "./discordGuild";
 
 // GM roster with avatars. DERIVED from discordGuild.js#listGuildMembers rather than fetched.
-function avatarUrlFor(guildId, member) {
+//
+// Exported because the Feedback composer needs the same URL for an ordinary
+// member, not just a GM — the guild avatar wins over the account one, which is
+// the bit worth having in one place rather than two.
+export function avatarUrlFor(guildId, member) {
   if (member.guildAvatar) {
     return `https://cdn.discordapp.com/guilds/${guildId}/users/${member.id}/avatars/${member.guildAvatar}.png?size=64`;
   }

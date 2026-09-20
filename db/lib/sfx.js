@@ -23,6 +23,12 @@ const SFX = {
   EQUIP_LOCK: "equip-lock",
   EQUIP_CLOTH: "equip-cloth",
   EQUIP_SHIELD: "equip-shield",
+  EQUIP_BLADE: "equip-blade",
+
+  // Hands on other people's things.
+  LOOT: "loot",
+  POCKET: "pocket",
+  STASH: "stash",
 
   MINE: "mine",
   FARM: "farm",
@@ -33,6 +39,11 @@ const SFX = {
   HEAL: "heal",
   BIND: "bind",
   HARM: "harm",
+  BUTCHER: "butcher",
+  UNBIND: "unbind",
+  SEAL_BREAK: "seal-break",
+  CRATE: "crate",
+  NUKE_ARM: "nuke-arm",
 
   EAT: "eat",
   DRINK: "drink",
@@ -50,11 +61,29 @@ const SFX = {
   GATE_OPEN: "gate-open",
   GATE_SHUT: "gate-shut",
   TURRET: "turret",
+  GUNFIRE: "gunfire",
   ALARM: "alarm",
+  // The bell and the horn are no longer the same noise. The bell is a cathedral bell
+  // (a CC0 recording, not OpenSourceWeb — web/public/assets/sfx/ATTRIBUTION.md); the
+  // horn is the Bastard's Deep Beast Horn and nothing else rings it.
+  BELL: "bell",
   HORN: "horn",
   LIFEWEB: "lifeweb",
   CONVERT: "convert",
+  INITIATE: "initiate",
   SPAWN: "spawn",
+  GIB: "gib",
+  BOOM: "boom",
+  RISE: "rise",
+  QUAKE: "quake",
+  LANDING: "landing",
+  PIN: "pin",
+  TEAR: "tear",
+
+  // The one cue that does not stop on its own. A rite that has gone tense holds the
+  // altar's drone under the room until it fires or the window closes — see the loop
+  // rules in web/app/components/sfx.js.
+  RITE_LOOP: "rite-loop",
 };
 
 const NAMES = new Set(Object.values(SFX));

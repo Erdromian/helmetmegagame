@@ -9,7 +9,7 @@ import { noteTyping } from "./typingStore";
 import { noteNotified } from "./notifiedStore";
 import { noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
 import { setPlaces, applyRow, removeRow, isOwnRow, resetHistory, placeKind } from "./feedStore";
-import { playSfx } from "@/app/components/sfx";
+import { playSfx, stopSfxLoops } from "@/app/components/sfx";
 
 // THE LIVE STREAM, lifted out of ./Chat.js whole (CHAT-REBUILD.md).
 //
@@ -197,6 +197,9 @@ export default function useFeedStream({
           ) {
             playSfx("radio-hear");
           }
+          // A drone belongs to the place it started in. Anything landing somewhere else
+          // while it plays means the reader has moved on, and it stops.
+          if (row.sfx && row.placeKey !== selectedRef.current) stopSfxLoops();
           if (
             row.sfx &&
             row.placeKey === selectedRef.current &&

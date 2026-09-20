@@ -48,9 +48,10 @@ async function broadcastBell(prisma) {
     text: BELL_LINE,
     maxHops: BELL_HOPS,
     loudHops: BELL_LOUD_HOPS,
-    // The trumpet's own cousin, and it shares the trumpet's noise: both are a horn calling
-    // the barony to attention, and nobody should have to tell them apart by ear alone.
-    sfx: SFX.HORN,
+    // A cathedral bell, and deliberately NOT the horn's noise: the horn is the Bastard's
+    // Deep Beast Horn, which is a war call, and a bell that sounded the same would make the
+    // two indistinguishable at the one moment it matters which one you heard.
+    sfx: SFX.BELL,
   });
 }
 

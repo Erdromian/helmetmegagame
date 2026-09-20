@@ -1032,8 +1032,8 @@ groups:
       bank_account: treasury
       starting_account: 6
       multiple: false
-      starting_zone: town
-      starting_location: underquarter
+      starting_zone: undertown
+      starting_location: undertown-8
       whitelist: true
       starting_tags:
         - Bore Pistol
@@ -1179,7 +1179,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: town
-      starting_location: underquarter
+      starting_location: town-a
       starting_tags:
         - Ravenhearter
         - Mortus
@@ -1201,8 +1201,8 @@ groups:
       starting_account: 3
       multiple: true
       weight: 4
-      starting_zone: town
-      starting_location: underquarter
+      starting_zone: undertown
+      starting_location: undertown-a
       extra_starting_points: -3
       starting_tags:
         - Ravenhearter
@@ -1223,8 +1223,8 @@ groups:
       bank_account: treasury
       starting_account: 14
       multiple: false
-      starting_zone: town
-      starting_location: underquarter
+      starting_zone: undertown
+      starting_location: undertown-8
       starting_tags:
         - Ravenhearter
         - Brewing II
@@ -1320,8 +1320,8 @@ groups:
       starting_account: 3
       multiple: true
       weight: 2
-      starting_zone: town
-      starting_location: underquarter
+      starting_zone: undertown
+      starting_location: undertown-8
       starting_tags:
         # The SLUG, not the name: "Seductive" is also the display name of the
         # catalog: secret Demoness power, and the sync refuses an ambiguous
@@ -1343,12 +1343,37 @@ groups:
       difficulty: easy
       multiple: true
       weight: 3
-      starting_zone: town
-      starting_location: underquarter
+      starting_zone: undertown
+      starting_location: undertown-8
       starting_tags:
         - Bomb Collar (Locked)
         - Prospector's Pick
         - Ration Box
+    goon:
+      name: Goon
+      intro: >-
+        Serve the Exactor and protect his criminal empire.
+      description:
+        - >-
+          You work solely for the Exactor. You shouldn't betray him, because you believe in his empire. He also has dirt on you.
+        - >-
+          Intimidate people, follow orders, and sell drugs.
+        - >-
+          You're paid better than the Dockers, but commit crimes as your job. What's not to love?
+      difficulty: easy
+      bank_account: treasury
+      starting_account: 4
+      multiple: true
+      weight: 2
+      starting_zone: undertown
+      starting_location: undertown-8
+      starting_tags:
+        - Strong
+        - Melee I
+        - Knuckle Duster
+        - Dagger
+        - Padded Armor
+        - Padded Cap
 
   # Outsiders
   outsiders:

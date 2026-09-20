@@ -20,6 +20,7 @@ import SoundHornButton from "./SoundHornButton";
 import CallReinforcementsButton from "./CallReinforcementsButton";
 import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
+import FeedbackButton from "./FeedbackButton";
 
 // A signed figure with a real U+2212 minus, matching
 // db/lib/gambitModifier.js#formatGambitModifiers and the bot's roll line.
@@ -104,6 +105,10 @@ export default function LedgerBand({
 
   return (
     <section className="sheet-band panel">
+      {/* Small, quiet, top right — the sheet is the page somebody is looking at
+          when they notice something wrong, so the report starts here as well as
+          in the top bar. Only on your own sheet. */}
+      {isSelf && <FeedbackButton className="sheet-band-feedback" />}
       <div className="ledger-band">
         <div className="ledger-identity">
           <div className="ledger-face face">

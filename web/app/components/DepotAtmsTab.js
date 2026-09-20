@@ -6,6 +6,7 @@ import {
   depotBank,
   depotCredit,
   depotOpenAccount,
+  depotSend,
 } from "@/app/(app)/depot/actions";
 import RequestDialog from "./RequestDialog";
 import { playSfx } from "@/app/components/sfx";
@@ -26,27 +27,34 @@ export default function DepotAtmsTab({
   licensed,
   disabled,
   ledger = [],
+  sendTargets = [],
 }) {
   const [refresh] = useRefresh();
   const [pending, startTransition] = useTransition();
   const [dialog, setDialog] = useState(null); // { kind, direction, max }
   const [amount, setAmount] = useState(1);
+  // "" is the treasury, which is a room rather than an account and so has no
+  // id to name (docs/systemdocs/ECONOMY.md §2).
+  const [target, setTarget] = useState("");
   const [error, setError] = useState(null);
 
   function ask(kind, direction, max) {
     setDialog({ kind, direction, max });
     setAmount(Math.min(1, max) || 1);
+    setTarget("");
     setError(null);
   }
 
   function submit(reason) {
     const n = Math.max(1, Math.min(Number(amount) || 0, dialog.max));
     startTransition(async () => {
-      const result = await (dialog.kind === "bank" ? depotBank : depotCredit)({
-        direction: dialog.direction,
-        amount: n,
-        reason,
-      });
+      const result = await (dialog.kind === "send"
+        ? depotSend({ toAccountId: target || null, toTreasury: !target, amount: n, reason })
+        : (dialog.kind === "bank" ? depotBank : depotCredit)({
+            direction: dialog.direction,
+            amount: n,
+            reason,
+          }));
       if (!result.ok) {
         // The money surfaces buzz rather than click: a refused payment is the one refusal
         // worth being louder than the rest (web/app/components/sfx.js).
@@ -139,6 +147,14 @@ export default function DepotAtmsTab({
           >
             Deposit
           </button>
+          <button
+            type="button"
+            className="btn-quiet"
+            disabled={disabled || pending || !balance}
+            onClick={() => ask("send", "SEND", balance)}
+          >
+            Send
+          </button>
         </div>
 
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
@@ -216,13 +232,15 @@ export default function DepotAtmsTab({
         <RequestDialog
           open
           title={
-            dialog.kind === "bank"
-              ? dialog.direction === "WITHDRAW"
-                ? "Withdraw"
-                : "Deposit"
-              : dialog.direction === "DRAW"
-                ? "Draw on the line"
-                : "Repay the line"
+            dialog.kind === "send"
+              ? "Send"
+              : dialog.kind === "bank"
+                ? dialog.direction === "WITHDRAW"
+                  ? "Withdraw"
+                  : "Deposit"
+                : dialog.direction === "DRAW"
+                  ? "Draw on the line"
+                  : "Repay the line"
           }
           submitLabel="Do it"
           busy={pending}
@@ -230,6 +248,25 @@ export default function DepotAtmsTab({
           onCancel={() => setDialog(null)}
           onConfirm={submit}
         >
+          {dialog.kind === "send" && (
+            <>
+              <p className="text-sm text-muted">
+                Send ¢ to a person or the treasury.
+              </p>
+              <label className="field">
+                <span>To</span>
+                <select value={target} onChange={(e) => setTarget(e.target.value)}>
+                  <option value="">The treasury</option>
+                  {sendTargets.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.holderName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          )}
+
           <label className="field">
             <span>Amount</span>
             <input

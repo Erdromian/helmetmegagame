@@ -15,6 +15,7 @@ export const SECTION_TIER = {
 
   bulk: "gm",
   reports: "gm",
+  feedback: "gm",
   gamemasters: "gm",
 
   assignments: "gm",

@@ -16,6 +16,7 @@ import { createSearchOffer, SEARCH_SELECT } from "@lifeweb/db/lib/search";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { sendDm } from "@/lib/discordGuild";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import {
   requireCharacter,
   revalidateAll,
@@ -207,5 +208,5 @@ export async function searchRequestImpl({ targetKey }) {
   // No audit row here: createSearchOffer writes it in the same transaction as
   // the Offer and the SearchAttempt that IS the ration (SEARCH.md §3).
   revalidateAll();
-  return { pending: true };
+  return { pending: true, sfx: SFX.LOOT };
 }

@@ -1,0 +1,458 @@
+<!-- THE TEMPLATE, not a finished page. The DATA placeholder near the bottom is where a build
+     substitutes its cue list; scripts/osw/sound-player.html is one such build and has its
+     data already baked in. Build FROM THIS FILE, never from that one — a substitution
+     against a built page silently matches nothing and ships the previous board's cues
+     against the new board's files, which is exactly how six boards were published broken
+     on 2026-09-20. -->
+<title>Ravenheart Sound Board</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@600&display=swap">
+<style>
+  :root {
+    --ground: #f2efe9;
+    --panel: #fbfaf7;
+    --panel-2: #eae5db;
+    --ink: #221f1b;
+    --ink-soft: #5d574d;
+    --ink-faint: #8c8477;
+    --rule: #ddd6c8;
+    --brass: #8a6416;
+    --brass-lit: #b9862a;
+    --brass-wash: #f0e4c8;
+    --live: #2f6f4f;
+    --shadow: 0 1px 0 rgba(34,31,27,.06);
+    --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+    --font-display: "IBM Plex Serif", Georgia, serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #17161a;
+      --panel: #201f24;
+      --panel-2: #2a282e;
+      --ink: #ece7dd;
+      --ink-soft: #a9a294;
+      --ink-faint: #7c7568;
+      --rule: #34323a;
+      --brass: #d6a445;
+      --brass-lit: #f0c063;
+      --brass-wash: #3a3021;
+      --live: #6fc39a;
+      --shadow: 0 1px 0 rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #17161a;
+    --panel: #201f24;
+    --panel-2: #2a282e;
+    --ink: #ece7dd;
+    --ink-soft: #a9a294;
+    --ink-faint: #7c7568;
+    --rule: #34323a;
+    --brass: #d6a445;
+    --brass-lit: #f0c063;
+    --brass-wash: #3a3021;
+    --live: #6fc39a;
+    --shadow: 0 1px 0 rgba(0,0,0,.35);
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    padding-bottom: 96px;
+  }
+  * { box-sizing: border-box; }
+  h1, h2 { text-wrap: balance; margin: 0; }
+
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+  header.top {
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel);
+  }
+  .masthead { padding-block: 22px 16px; display: grid; gap: 10px; }
+  h1 {
+    font-family: var(--font-display);
+    font-size: clamp(26px, 5vw, 38px);
+    letter-spacing: -.01em;
+  }
+  .sub { color: var(--ink-soft); max-width: 62ch; }
+  .sub code { font-family: var(--font-mono); font-size: .88em; color: var(--brass); }
+
+  .counts {
+    display: flex; flex-wrap: wrap; gap: 6px 18px;
+    font-family: var(--font-mono); font-size: 12px; color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding-block: 0 16px;
+  }
+  input[type="search"] {
+    flex: 1 1 220px; min-width: 0;
+    font: inherit; color: var(--ink);
+    background: var(--ground);
+    border: 1px solid var(--rule);
+    border-radius: 2px;
+    padding: 8px 10px;
+  }
+  input[type="search"]:focus-visible,
+  button:focus-visible, a:focus-visible {
+    outline: 2px solid var(--brass-lit); outline-offset: 1px;
+  }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; padding-bottom: 14px; }
+  .chip {
+    font: 500 12px/1 var(--font-mono);
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: 7px 10px; border-radius: 2px; cursor: pointer;
+    background: transparent; color: var(--ink-soft);
+    border: 1px solid var(--rule);
+  }
+  .chip[aria-pressed="true"] {
+    background: var(--brass-wash); color: var(--brass);
+    border-color: var(--brass);
+  }
+
+  section.group { padding-block: 26px 4px; }
+  .group-head {
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--rule); padding-bottom: 8px; margin-bottom: 14px;
+  }
+  h2 {
+    font: 600 13px/1 var(--font-mono);
+    letter-spacing: .14em; text-transform: uppercase; color: var(--brass);
+  }
+  .group-head .n {
+    font: 400 12px/1 var(--font-mono); color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .group-head p { margin: 0; color: var(--ink-soft); font-size: 13px; }
+
+  .grid {
+    display: grid; gap: 6px;
+    grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  }
+  .cue {
+    display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: center;
+    width: 100%; text-align: left; cursor: pointer;
+    font: inherit; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--rule);
+    border-left: 3px solid var(--rule);
+    border-radius: 2px; padding: 8px 10px;
+    box-shadow: var(--shadow);
+  }
+  .cue:hover { border-color: var(--brass); }
+  .cue .glyph {
+    display: grid; place-items: center; height: 22px; width: 22px;
+    color: var(--brass); font-size: 11px;
+  }
+  .cue .name {
+    font-family: var(--font-mono); font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+  .cue .path {
+    display: block; font-size: 11px; color: var(--ink-faint);
+    font-family: var(--font-mono); overflow-wrap: anywhere;
+  }
+  .cue[data-state="playing"] {
+    border-left-color: var(--live); background: var(--panel-2);
+  }
+  .cue[data-state="playing"] .glyph { color: var(--live); }
+  .cue[data-state="loading"] .glyph { color: var(--ink-faint); }
+  .cue[data-state="error"] { border-left-color: #a3402f; }
+
+  .bars { display: flex; gap: 2px; align-items: flex-end; height: 13px; }
+  .bars i { width: 3px; background: currentColor; height: 4px; display: block; }
+  .cue[data-state="playing"] .bars i { animation: jig .9s infinite ease-in-out; }
+  .bars i:nth-child(2) { animation-delay: .15s; }
+  .bars i:nth-child(3) { animation-delay: .3s; }
+  @keyframes jig { 0%,100% { height: 4px; } 50% { height: 13px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .cue[data-state="playing"] .bars i { animation: none; height: 9px; }
+  }
+
+  .empty { color: var(--ink-soft); padding: 40px 0; }
+
+  footer.notes {
+    border-top: 1px solid var(--rule); margin-top: 34px;
+    padding-block: 20px 8px; color: var(--ink-soft); font-size: 13px;
+  }
+  footer.notes a { color: var(--brass); }
+  footer.notes p { max-width: 68ch; }
+
+  .dock {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    background: var(--panel); border-top: 1px solid var(--rule);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .dock-in {
+    max-width: 1120px; margin: 0 auto; padding: 10px 16px;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .now { flex: 1 1 200px; min-width: 0; }
+  .now .label {
+    font: 500 10px/1.4 var(--font-mono); letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  .now .title {
+    font-family: var(--font-mono); font-size: 13px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .btn {
+    font: 500 12px/1 var(--font-mono); letter-spacing: .06em;
+    text-transform: uppercase; cursor: pointer;
+    padding: 9px 11px; border-radius: 2px;
+    background: var(--ground); color: var(--ink);
+    border: 1px solid var(--rule);
+  }
+  .btn[aria-pressed="true"] {
+    background: var(--brass-wash); color: var(--brass); border-color: var(--brass);
+  }
+  .vol { display: flex; align-items: center; gap: 8px; }
+  .vol label {
+    font: 500 10px/1 var(--font-mono); letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  input[type="range"] { width: 92px; accent-color: var(--brass); }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="masthead">
+      <h1>Ravenheart Sound Board</h1>
+      <p class="sub">A board of 237 sounds, one from each family, out of the 662
+        exported from OpenSourceWeb into <code>assets/osw-sounds/</code> and
+        grouped by what a sound is for. Click one to hear it. The whole export
+        is in the repo; this plays the pick of it.</p>
+      <div class="counts" id="counts"></div>
+    </div>
+    <div class="controls">
+      <input type="search" id="q" placeholder="Search by name, e.g. bardiche, mail, torch" aria-label="Search sounds">
+      <button class="btn" id="loop" aria-pressed="false" title="Repeat the playing sound until you stop it">Loop</button>
+      <button class="btn" id="random">Surprise me</button>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+</header>
+
+<main class="wrap" id="board"></main>
+
+<footer class="notes wrap">
+  <p><strong>Where these come from.</strong> OpenSourceWeb, the open-licensed
+    archive of the BYOND game Lifeweb / Farweb. Its icons and sounds are
+    <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>;
+    the code is not, and none of it is here. Source:
+    <a href="https://github.com/SS13-Special-Codebases-Archive/OpenSourceWeb">SS13-Special-Codebases-Archive/OpenSourceWeb</a>.</p>
+  <p>This board carries 237 of the 662 exported sounds &mdash; one from each
+    family, so <code>slash1</code> is here and <code>slash2</code> through
+    <code>slash5</code> are not, and the music is five tracks rather than
+    eight. All 662 are in <code>assets/osw-sounds/</code>. The full source tree
+    holds 3,559 files and 484 MB, most of it unusable here: 616 vox words, 170
+    MIDI files, the piano and violin note banks, 229 MB of jukebox music. To
+    pull back something the export left behind, edit the lists in
+    <code>scripts/osw/export-sounds.py</code> and run it again.</p>
+</footer>
+
+<div class="dock">
+  <div class="dock-in">
+    <div class="now">
+      <div class="label" id="state-label">Nothing playing</div>
+      <div class="title" id="now-title">Pick a sound above</div>
+    </div>
+    <div class="vol">
+      <label for="vol">Vol</label>
+      <input type="range" id="vol" min="0" max="100" value="70" aria-label="Volume">
+    </div>
+    <button class="btn" id="stop">Stop</button>
+  </div>
+</div>
+
+<script>
+  const DATA = /*DATA*/null;
+
+  const board = document.getElementById("board");
+  const chips = document.getElementById("chips");
+  const counts = document.getElementById("counts");
+  const q = document.getElementById("q");
+  const nowTitle = document.getElementById("now-title");
+  const stateLabel = document.getElementById("state-label");
+  const loopBtn = document.getElementById("loop");
+  const stopBtn = document.getElementById("stop");
+  const randomBtn = document.getElementById("random");
+  const vol = document.getElementById("vol");
+
+  const audio = new Audio();
+  audio.preload = "none";
+  audio.volume = 0.7;
+  let current = null;           // the playing .cue button
+  let filter = "all";
+
+  const base = (p) => p.split("/").pop().replace(/\.(ogg|wav|mp3)$/i, "");
+  const fmt = (n) => n < 1e6 ? (n / 1e3).toFixed(0) + " KB" : (n / 1e6).toFixed(1) + " MB";
+
+  // Build the board once; filtering only toggles hidden.
+  for (const g of DATA.groups) {
+    const sec = document.createElement("section");
+    sec.className = "group";
+    sec.dataset.key = g.key;
+
+    const head = document.createElement("div");
+    head.className = "group-head";
+    head.innerHTML = '<h2>' + g.key + '</h2><span class="n">'
+      + g.files.length + ' sounds</span><p>' + g.blurb + '</p>';
+    sec.appendChild(head);
+
+    const grid = document.createElement("div");
+    grid.className = "grid";
+    for (const f of g.files) {
+      const b = document.createElement("button");
+      b.className = "cue";
+      b.type = "button";
+      b.dataset.src = f.src;
+      b.dataset.name = base(f.name).toLowerCase();
+      b.innerHTML = '<span class="glyph"><span class="bars"><i></i><i></i><i></i></span></span>'
+        + '<span class="name">' + base(f.name)
+        + '<span class="path">' + g.key + "/" + f.name + ' &middot; ' + fmt(f.bytes)
+        + '</span></span>';
+      grid.appendChild(b);
+    }
+    sec.appendChild(grid);
+    board.appendChild(sec);
+
+    const chip = document.createElement("button");
+    chip.className = "chip";
+    chip.type = "button";
+    chip.dataset.key = g.key;
+    chip.setAttribute("aria-pressed", "false");
+    chip.textContent = g.key + " " + g.files.length;
+    chips.appendChild(chip);
+
+    const c = document.createElement("span");
+    c.textContent = g.key + " " + g.files.length;
+    counts.appendChild(c);
+  }
+
+  const all = document.createElement("button");
+  all.className = "chip";
+  all.type = "button";
+  all.dataset.key = "all";
+  all.setAttribute("aria-pressed", "true");
+  all.textContent = "all " + DATA.total;
+  chips.prepend(all);
+
+  const empty = document.createElement("p");
+  empty.className = "empty";
+  empty.textContent = "Nothing matches that. Try a shorter word.";
+  empty.hidden = true;
+  board.appendChild(empty);
+
+  function apply() {
+    const term = q.value.trim().toLowerCase();
+    let shown = 0;
+    for (const sec of board.querySelectorAll("section.group")) {
+      const inGroup = filter === "all" || filter === sec.dataset.key;
+      let n = 0;
+      for (const cue of sec.querySelectorAll(".cue")) {
+        const hit = inGroup && (!term || cue.dataset.name.includes(term));
+        cue.hidden = !hit;
+        if (hit) n++;
+      }
+      sec.hidden = n === 0;
+      sec.querySelector(".n").textContent = n + " sounds";
+      shown += n;
+    }
+    empty.hidden = shown > 0;
+  }
+
+  function setState(cue, state) {
+    if (cue) cue.dataset.state = state;
+  }
+
+  function play(cue) {
+    if (current === cue && !audio.paused) { stop(); return; }
+    if (current && current !== cue) setState(current, "");
+    current = cue;
+    setState(cue, "loading");
+    stateLabel.textContent = "Loading";
+    nowTitle.textContent = cue.querySelector(".path").textContent;
+    audio.src = cue.dataset.src;
+    audio.loop = loopBtn.getAttribute("aria-pressed") === "true";
+    audio.play().catch(() => {
+      setState(cue, "error");
+      stateLabel.textContent = "Would not play";
+      nowTitle.textContent = "Could not load " + cue.querySelector(".path").textContent;
+    });
+  }
+
+  function stop() {
+    audio.pause();
+    audio.removeAttribute("src");
+    setState(current, "");
+    current = null;
+    stateLabel.textContent = "Nothing playing";
+    nowTitle.textContent = "Pick a sound above";
+  }
+
+  audio.addEventListener("playing", () => {
+    setState(current, "playing");
+    stateLabel.textContent = audio.loop ? "Playing, on loop" : "Playing";
+  });
+  audio.addEventListener("ended", () => {
+    setState(current, "");
+    stateLabel.textContent = "Finished";
+  });
+  audio.addEventListener("error", () => {
+    if (!current) return;
+    setState(current, "error");
+    stateLabel.textContent = "Would not play";
+  });
+
+  board.addEventListener("click", (e) => {
+    const cue = e.target.closest(".cue");
+    if (cue) play(cue);
+  });
+
+  chips.addEventListener("click", (e) => {
+    const chip = e.target.closest(".chip");
+    if (!chip) return;
+    filter = chip.dataset.key;
+    for (const c of chips.children) {
+      c.setAttribute("aria-pressed", String(c === chip));
+    }
+    apply();
+  });
+
+  q.addEventListener("input", apply);
+
+  loopBtn.addEventListener("click", () => {
+    const on = loopBtn.getAttribute("aria-pressed") !== "true";
+    loopBtn.setAttribute("aria-pressed", String(on));
+    audio.loop = on;
+    if (current && !audio.paused) {
+      stateLabel.textContent = on ? "Playing, on loop" : "Playing";
+    }
+  });
+
+  stopBtn.addEventListener("click", stop);
+
+  randomBtn.addEventListener("click", () => {
+    const pool = [...board.querySelectorAll(".cue")].filter((c) => !c.hidden);
+    if (!pool.length) return;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    pick.scrollIntoView({ block: "center", behavior: "smooth" });
+    play(pick);
+  });
+
+  vol.addEventListener("input", () => { audio.volume = vol.value / 100; });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { stop(); q.blur(); }
+    if (e.key === "/" && document.activeElement !== q) { e.preventDefault(); q.focus(); }
+  });
+
+  apply();
+</script>

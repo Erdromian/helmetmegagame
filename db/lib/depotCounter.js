@@ -32,7 +32,7 @@ const {
 } = require("./gatehouseTurret");
 const { openAccount, bumpBankAccount, vaultAndCoin, takeFromVault, TREASURY } = require("./bankAccounts");
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
-const { COMPANY, characterParty, roomParty, turnStamp } = require("./economyLedger");
+const { COMPANY, characterParty, roomParty, bankParty, turnStamp } = require("./economyLedger");
 const { blockerFor, ACT } = require("./incapacitation");
 
 const DESTINATIONS = new Set(["SELF", "TREASURY", "MERCHANT"]);
@@ -260,6 +260,120 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, t
   };
 }
 
+// Paying somebody by account, or handing the claim back to the Keep.
+//
+// Nothing physical moves either way, which is what makes this simple: no coin
+// leaves anybody's hands, the Vault's stash is untouched, and so the room-lock
+// rule in db/lib/bankAccounts.js does not apply. Two account rows are locked
+// instead, and they are taken in id order so two people paying each other at
+// once cannot deadlock on one another.
+//
+// The treasury is a ROOM, not an account (docs/systemdocs/ECONOMY.md §2), so
+// sending to it SURRENDERS the claim: the balance falls and the coin behind it
+// stays where it was. The Keep ends up better backed rather than richer, which
+// is the only honest thing a claim can do when it has nowhere to be paid into.
+async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false, amount: rawAmount, turn = null } = {}) {
+  const actor = await counterActor(prisma, discordUserId);
+  if (!actor.ok) return actor;
+  const { character } = actor;
+  const account = character.bankAccount;
+  if (!account) return fail("You don't have an account yet.");
+
+  const amount = Math.trunc(Number(rawAmount));
+  if (!Number.isInteger(amount) || amount < 1) return fail("That isn't an amount.");
+  if ((account.balanceObols ?? 0) < amount) return fail(`Your account holds ${account.balanceObols ?? 0} ¢.`);
+
+  let target = null;
+  let otherParty = null;
+  if (toTreasury) {
+    const { room: vault } = await vaultAndCoin(prisma);
+    if (!vault) return fail("The treasury isn't in the database yet. A GM needs to run the zone sync.");
+    otherParty = roomParty({ ...vault, zoneId: vault.location?.zoneId ?? null });
+  } else {
+    target = await prisma.bankAccount.findUnique({ where: { id: String(toAccountId ?? "") } });
+    if (!target) return fail("There's no account with that name.");
+    if (target.id === account.id) return fail("That's your own account.");
+    otherParty = bankParty(target);
+  }
+
+  const econ = { other: otherParty, reason: "BANK_TRANSFER", ...turnStamp(turn) };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Id order, both sides, so two sends crossing each other queue rather
+      // than deadlock. The debit's own check comes after both have moved.
+      // ONE ledger entry for the whole movement, booked off the payer's side:
+      // from this account to the other, which is what both accounts' sums read
+      // (ECONOMY.md §3). The credit takes no ctx at all — booking it again from
+      // the far side would count the same 30 ¢ twice and leave the invariant
+      // reading double on both books.
+      const legs = target
+        ? [
+            { id: account.id, holderName: account.holderName, delta: -amount, ctx: { holderName: account.holderName, econ } },
+            { id: target.id, holderName: target.holderName, delta: amount, ctx: null },
+          ].sort((a, b) => (a.id < b.id ? -1 : 1))
+        : [{ id: account.id, holderName: account.holderName, delta: -amount, ctx: { holderName: account.holderName, econ } }];
+
+      const moved = {};
+      for (const leg of legs) {
+        moved[leg.id] = await bumpBankAccount(tx, leg.id, leg.delta, leg.ctx);
+      }
+
+      // The clamp inside bumpBankAccount is a FLOOR, never a check: a balance
+      // edited between the read above and here would pay out less than it
+      // said, so refuse the whole thing rather than move a short amount.
+      if (Math.abs(moved[account.id].delta) < amount) {
+        const err = new Error("Your account was edited. Try again.");
+        err.userMessage = err.message;
+        throw err;
+      }
+
+      await tx.auditLog.create({
+        data: {
+          actorDiscordUserId: discordUserId,
+          actionType: "request_depot_send",
+          targetCharacterId: character.id,
+          turnId: turn?.id ?? null,
+          details: {
+            amount,
+            balanceBefore: moved[account.id].before,
+            balanceAfter: moved[account.id].after,
+            toTreasury: Boolean(toTreasury),
+            // Snapshots, the log-table convention: the row has to keep reading
+            // correctly after a holder is renamed or an account is closed.
+            toName: target?.holderName ?? null,
+            toFingerprint: target?.fingerprint ?? null,
+          },
+        },
+      });
+    });
+  } catch (err) {
+    if (err?.userMessage) return fail(err.userMessage);
+    throw err;
+  }
+
+  return {
+    ok: true,
+    amount,
+    characterId: character.id,
+    line: toTreasury ? `You send ${amount} ¢ to the treasury.` : `You send ${amount} ¢ to ${target.holderName}.`,
+  };
+}
+
+// Who you may send to. Name and id only — a fingerprint half-tells you whose
+// an account is (db/lib/bankAccounts.js), and the picker has no business
+// handing that out, nor a balance, nor whether somebody banks offshore.
+async function sendableAccounts(prisma, characterId) {
+  const rows = await prisma.bankAccount.findMany({
+    // The living only: a dead holder's account is still a row, and offering it
+    // in a picker both names the dead and pays into nothing.
+    where: { characterId: { not: characterId }, character: { status: "ALIVE" } },
+    select: { id: true, holderName: true },
+    orderBy: { holderName: "asc" },
+  });
+  return rows.filter((r) => r.holderName);
+}
+
 // The drop box. A one-way door: what goes in is DELETED at once — nothing sits
 // in a stash waiting to be stolen back out — and the row it leaves behind
 // settles when the train next departs, at the price frozen here.
@@ -441,6 +555,8 @@ module.exports = {
   counterState,
   openCounterAccount,
   bankMove,
+  bankSend,
+  sendableAccounts,
   dropIntoBox,
   depotTurretPanel,
   toggleDepotTurret,

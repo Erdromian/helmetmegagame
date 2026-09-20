@@ -911,7 +911,7 @@ export async function tearNotice(postId) {
   }
   // The same row the bot's board writes (db/lib/scene.js) — a tear on the web
   // and a tear on Discord are one event, and Chat shows both.
-  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name), sfx: SFX.TEAR });
   return { ok: true, line: `You take ${post.tag.name} down.` };
 }
 
@@ -958,7 +958,7 @@ export async function pinNotice(tagId) {
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(held.tag.name))).catch(() => {});
   }
-  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(held.tag.name) });
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(held.tag.name), sfx: SFX.PIN });
   return { ok: true, line: `You nail ${held.tag.name} up. Anyone here can read it, or take it down.` };
 }
 
@@ -1025,7 +1025,7 @@ export async function gmTearNotice(placeKey, postId) {
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => {});
   }
-  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) });
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name), sfx: SFX.TEAR });
   return { ok: true, line: `You take ${post.tag.name} down.` };
 }
 
@@ -1097,7 +1097,7 @@ export async function gmPostNotice(placeKey, { title: rawTitle = "", body: rawBo
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(paper.name))).catch(() => {});
   }
-  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(paper.name) });
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(paper.name), sfx: SFX.PIN });
   return { ok: true, line: `You nail ${paper.name} up. Anyone here can read it, or take it down.` };
 }
 

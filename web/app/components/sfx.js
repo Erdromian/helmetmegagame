@@ -28,6 +28,12 @@ const CUES = {
   "equip-lock": "click",
   "equip-cloth": "rustle1",
   "equip-shield": "shield2",
+  "equip-blade": "knife_equip",
+
+  // Hands on other people's things.
+  loot: "torch_pickup",
+  pocket: "zip",
+  stash: "drawer_sound",
 
   // A day's work.
   mine: "gemdrop",
@@ -39,7 +45,14 @@ const CUES = {
   // Hands on somebody.
   heal: "cloth_rip",
   bind: "cablecuff",
+  unbind: "axe_sheath",
   harm: "smallstab",
+  butcher: "slash",
+
+  // Getting into things.
+  "seal-break": "poster_ripped",
+  crate: "wood_open",
+  "nuke-arm": "countdown",
 
   // At the table.
   eat: "eatfood",
@@ -55,11 +68,31 @@ const CUES = {
   "gate-open": "wood_open",
   "gate-shut": "wlocked1",
   turret: "warning-buzzer",
+  gunfire: "smg_fire_new",
   alarm: "Alarm",
+  bell: "cathedral-bell",
   horn: "crisis",
   lifeweb: "lw_free",
   convert: "oldways_convert",
+  initiate: "wonder_secret_known",
   spawn: "wonder",
+  gib: "squishy",
+  boom: "Explosion1",
+  rise: "rebirth",
+  quake: "cavein",
+  landing: "train_arrive",
+  pin: "sign_this",
+  tear: "poster_ripped",
+  "rite-loop": "loop_altar",
+};
+
+// The cues that do not stop on their own. A rite holds the altar's drone under the room
+// from the moment it goes tense until it fires or the window shuts — the only sound in the
+// game that is a STATE rather than an event. `maxMs` is the hard stop: a tab that never
+// hears the closing line must not be left droning, so the cap is the rite's own grace
+// window with slack, and nothing here can outlive it.
+const LOOPS = {
+  "rite-loop": { maxMs: 8 * 60 * 1000 },
 };
 
 // Two of these are LOUD on purpose and the rest are furniture. A quiet cue at the same
@@ -67,7 +100,14 @@ const CUES = {
 // own level, multiplied by the listener's volume.
 const GAIN = {
   alarm: 1,
+  bell: 1,
   horn: 1,
+  // Bascinet's two calls, by ear: the wet one louder than everything, the machinegun
+  // quieter than it wants to be.
+  gib: 0.875,
+  gunfire: 0.56,
+  boom: 0.9,
+  "rite-loop": 0.45,
   turret: 0.9,
   named: 0.8,
   refuse: 0.5,
@@ -140,6 +180,16 @@ export function playSfx(name) {
   if (!on || volume <= 0) return;
   if (document.visibilityState !== "visible" && !THROUGH_A_HIDDEN_TAB.has(name)) return;
 
+  // A drone, not an event. Starting one already running is a no-op rather than a second
+  // copy — two lines about the same rite must not stack two altars.
+  if (LOOPS[name]) {
+    startLoop(name, file, volume);
+    return;
+  }
+  // Any ordinary cue in the same breath as a drone means the moment the drone was waiting
+  // for has arrived: the rite fired, somebody died, the room moved on. Stop it.
+  stopSfxLoops();
+
   const now = Date.now();
   if (now - (lastPlayed.get(name) ?? 0) < FLOOR_MS) return;
   recent = recent.filter((at) => now - at < BURST.window);
@@ -159,6 +209,53 @@ export function playSfx(name) {
   } catch {
     // An element that will not build (no codec, storage refused) is not worth an error.
   }
+}
+
+// --- the drones ------------------------------------------------------------------------
+const running = new Map();
+
+function startLoop(name, file, volume) {
+  if (running.has(name)) return;
+  try {
+    const track = new window.Audio(`/assets/sfx/${file}.ogg`);
+    track.loop = true;
+    track.volume = Math.min(1, Math.max(0, volume * (GAIN[name] ?? 0.45)));
+    const stop = window.setTimeout(() => stopSfxLoop(name), LOOPS[name].maxMs);
+    running.set(name, { track, stop });
+    const started = track.play();
+    if (started && typeof started.catch === "function") started.catch(() => stopSfxLoop(name));
+  } catch {
+    // Same as above: an element that will not build is not worth an error.
+  }
+}
+
+/** Stop one drone. Safe to call for a name that is not running. */
+export function stopSfxLoop(name) {
+  const held = running.get(name);
+  if (!held) return;
+  running.delete(name);
+  window.clearTimeout(held.stop);
+  try {
+    held.track.pause();
+    held.track.removeAttribute("src");
+  } catch {
+    // Nothing to do about a track that will not stop; it is already off the map.
+  }
+}
+
+/**
+ * Stop every drone. Called when an ordinary cue plays, when the reader moves to another
+ * place, and when the tab goes behind something else — a drone belongs to the room being
+ * read, and the moment that stops being true it should be silent.
+ */
+export function stopSfxLoops() {
+  for (const name of [...running.keys()]) stopSfxLoop(name);
+}
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") stopSfxLoops();
+  });
 }
 
 /** Every cue name, for the settings surface and for tests. */

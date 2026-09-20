@@ -39,6 +39,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
 import { requireCharacter, revalidateAll, parseCount, lockCharacter } from "./shared.js";
+import { SFX } from "@lifeweb/db/lib/sfx";
 
 // Bascinet's words, verbatim. Both name the thief by the face the room saw, so
 // a hooded one reads "A young man pickpocketed you!".
@@ -388,5 +389,5 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
 
   // Nothing is posted to the room, on any outcome.
   revalidateAll();
-  return {};
+  return { sfx: SFX.POCKET };
 }

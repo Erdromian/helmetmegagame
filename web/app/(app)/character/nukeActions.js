@@ -15,6 +15,7 @@ import {
   pointerLine,
 } from "@lifeweb/db/lib/nuke";
 import { sendDm } from "@/lib/discordGuild";
+import { SFX } from "@lifeweb/db/lib/sfx";
 
 // The Nuclear Datacard's three buttons.
 //
@@ -119,6 +120,7 @@ async function armNukeImpl() {
   return {
     firesOn,
     line: `The card is in and the count has begun. It goes off at the close of turn ${firesOn}.`,
+    sfx: SFX.NUKE_ARM,
   };
 }
 
@@ -155,7 +157,7 @@ async function disarmNukeImpl() {
   });
 
   revalidatePath("/character");
-  return { disarmed: true, line: "The card is out. The count is stopped." };
+  return { disarmed: true, line: "The card is out. The count is stopped.", sfx: SFX.OK_QUIET };
 }
 
 // NOT named usePointer: ESLint's rules-of-hooks reads any exported

@@ -54,6 +54,7 @@ import {
   resolveParty,
 } from "./shared.js";
 import { lootCharacterRequestImpl } from "./misc.js";
+import { SFX } from "@lifeweb/db/lib/sfx";
 
 // --- Transfer (the merged dialog) -------------------------------------
 
@@ -432,6 +433,8 @@ export async function transferRequestImpl(
     after(() => announceInRoom(from, character, `takes ${goods}.`));
 
   revalidateAll();
-  return {};
+  // Hands in a bag, for whoever moved the goods. The room gets its own line above and no
+  // noise: a stash being emptied quietly is half of what a stash is for.
+  return { sfx: SFX.LOOT };
 }
 

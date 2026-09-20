@@ -24,6 +24,7 @@ const {
   SHUTTLE_ARRIVAL_SLUGS,
 } = require("./threats");
 const { ambientEverywhere } = require("./worldBroadcast");
+const { SFX } = require("./sfx");
 const { addCharacterResources } = require("./resourceStack");
 
 // The two buttons on an offer DM. Raw component JSON rather than discord.js builders, since the web sends this one and only the bot has the library.
@@ -280,6 +281,7 @@ async function applySpawnSideEffects(prisma, sideEffects) {
   if (SHUTTLE_ARRIVAL_SLUGS.has(threatSlug)) {
     await ambientEverywhere(prisma, "You see a shuttle in the sky. It landed nearby.", {
       signed: false,
+      sfx: SFX.LANDING,
     }).catch((err) =>
       console.error("Shuttle arrival broadcast failed:", err),
     );
