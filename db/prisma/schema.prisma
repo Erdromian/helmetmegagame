@@ -6093,3 +6093,29 @@ model LateJoinRole {
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
 }
+
+// One note somebody wrote in the Feedback composer (the top bar's button, and
+// the small one on the character sheet). Snapshot columns rather than foreign
+// keys, the same as every other log table here: who wrote it and what they were
+// playing at the time is what a GM reading the list months later needs, and a
+// renamed or deleted character must not rewrite the record.
+//
+// It is also the cooldown's clock — the newest row for a discordUserId is what
+// db/lib/feedback.js#FEEDBACK_COOLDOWN_MS is measured against, which is why the
+// composite index leads with the user.
+model Feedback {
+  id String @id @default(cuid())
+
+  discordUserId   String
+  /// The handle at the time of writing, so the list reads right after a rename.
+  discordUsername String
+  /// Their living character's name, if they had one. Null for a GM or spectator.
+  characterName   String?
+
+  body String
+
+  createdAt DateTime @default(now())
+
+  @@index([discordUserId, createdAt])
+  @@index([createdAt])
+}

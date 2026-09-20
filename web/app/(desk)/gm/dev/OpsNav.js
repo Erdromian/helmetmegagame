@@ -24,6 +24,7 @@ const SECTIONS = [
     items: [
       { key: "bulk", label: "Bulk actions" },
       { key: "reports", label: "System reports" },
+      { key: "feedback", label: "Feedback" },
       { key: "gamemasters", label: "Gamemasters" },
     ],
   },

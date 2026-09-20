@@ -46,6 +46,7 @@ import WipeGameButton from "@/app/(app)/gm/dev/WipeGameButton";
 import ArchiveGameButton from "@/app/(app)/gm/dev/ArchiveGameButton";
 import QuestsSection from "@/app/(app)/gm/dev/quests/QuestsSection";
 import CharactersTable from "@/app/(app)/gm/dev/characters/CharactersTable";
+import FeedbackTable from "./FeedbackTable";
 import ZonesTable from "@/app/(app)/gm/dev/zones/ZonesTable";
 import DevTagsSection from "./DevTagsSection";
 import { turnsRemaining } from "@lifeweb/db/lib/quests";
@@ -283,6 +284,7 @@ export default async function DevPanelPage({ searchParams }) {
   // was already a client table fed a flat DTO, so moving it here is the fetch
   // and the table — no shell, no sub-nav, no second header.
   let devCharacters = [];
+  let feedbackRows = [];
   let devZones = [];
   let inactiveList = [];
   let inactiveTurn = null;
@@ -579,6 +581,25 @@ export default async function DevPanelPage({ searchParams }) {
       }));
       break;
     }
+    case "feedback":
+      feedbackRows = (
+        await prisma.feedback.findMany({
+          orderBy: { createdAt: "desc" },
+          // Same safety net every other list here wears: far above what this
+          // will hold, and not a real limit.
+          take: 1000,
+        })
+      ).map((f) => ({
+        id: f.id,
+        discordUserId: f.discordUserId,
+        discordUsername: f.discordUsername,
+        characterName: f.characterName,
+        body: f.body,
+        // An epoch number, not a Date — nothing but plain JSON crosses into
+        // the client table.
+        createdAt: f.createdAt.getTime(),
+      }));
+      break;
     case "characters":
       devCharacters = (
         await prisma.character.findMany({
@@ -1196,6 +1217,15 @@ export default async function DevPanelPage({ searchParams }) {
                 boards={questBoards}
                 canDelete={isMaster}
               />
+            </section>
+          ) : null}
+
+          {section === "feedback" ? (
+            <section className="ops-section ops-section--wide">
+              <div className="ops-section-head">
+                <h2 className="section-title">Feedback ({feedbackRows.length})</h2>
+              </div>
+              <FeedbackTable rows={feedbackRows} />
             </section>
           ) : null}
 
