@@ -3853,7 +3853,7 @@ tags:
     name: Black Heart
     category: items
     group: items-remains
-    description: "A withered, blackened heart, cold as stone in your palm. Implanting it into someone may turn them into a vampire."
+    description: "This organ has been corrupted with dark power, reveling in it."
     visible: false
     pointCost: 0
     purchasable: false
@@ -3875,7 +3875,7 @@ tags:
     name: Pile of Ash
     category: items
     group: items-remains
-    description: "The ashen remains of what once was a vampire."
+    description: "A pile of fine ash."
     visible: true
     pointCost: 0
     purchasable: false

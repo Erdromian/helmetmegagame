@@ -285,7 +285,7 @@ async function castBloodAbilityImpl({
       select: { discordUserId: true },
     });
     for (const vampire of vampires) {
-      await sendDm(vampire.discordUserId, `${character.name} reaches out through the blood: "${message.trim()}"`, {
+      await sendDm(vampire.discordUserId, `You feel dark whispers manifesting in your mind: "${message.trim()}"`, {
         kind: DM_KIND.CONVERSATION,
       }).catch((err) => console.error(`Solidarity: DM failed for ${vampire.discordUserId}:`, err));
     }
