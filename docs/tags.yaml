@@ -771,6 +771,21 @@ tags:
     pointCost: 0
     purchasable: false
 
+  # The office itself, as a tag. The bishop role already grants Chaplain, and
+  # every confession gate reads that tag rather than the role
+  # (db/lib/confession.js, docs/systemdocs/CHARACTERS.md) — this is the same
+  # move for the things only the Bishop may do. Groupless like Chaplain above,
+  # invisible, and never bought: docs/roles.yaml hands it out and nothing else
+  # ever will. It gates the Excommunicate button and the Depriver tag below.
+  bishop:
+    catalog: gm
+    name: Bishop
+    category: general
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   pious:
     catalog: gm
     name: Pious
@@ -779,6 +794,24 @@ tags:
     description: "You cannot be forcibly converted."
     pointCost: 0
     purchasable: false
+
+  # Bishop-only, bought rather than granted. Gated by the tag rather than by
+  # the role because a required role is not a thing docs/tags.yaml can say —
+  # requiredTag is, and the bishop tag above exists so it can be said. An
+  # ungated group with a gate on the tag itself, the single-tag half of the
+  # mechanism the header describes, so nobody else ever sees it in the
+  # point-buy or at /store.
+  depriver:
+    catalog: all
+    name: Depriver
+    category: general
+    group: general-traits
+    description: "You can excommunicate one extra person."
+    pointCost: 3
+    requiredTag: bishop
+    visible: false
+    purchasable: true
+    purchasableAfterStart: true
 
   # THE RITE OF REANIMATION'S RISEN (docs/systemdocs/THANATI.md §4). A Ghoul
   # growls instead of speaking (db/lib/babble.js); the Servant mark is the
@@ -4151,6 +4184,25 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
+
+  # Laid by the Bishop's Excommunicate button and lifted only by the Bishop who
+  # laid it (web/app/(app)/character/bishopActions.js). No durationTurns: it
+  # sits there until somebody takes it off. `visible: true` rather than the
+  # `named` the Wanted tag wears — Wanted is a face the Cerberon know, so a
+  # hood beats it, and this is a thing said about a soul, which a hood does
+  # not. The -1 needs no code: db/lib/gambitModifier.js sums gambitBonus over
+  # every held tag and names the contributor in the confirm DM.
+  excommunicated:
+    catalog: gm
+    name: Excommunicated
+    category: status
+    group: status-debuffs
+    description: "The Bishop excommunicated you. Others will see you and despise you, and you have -1 to your Gambits."
+    gambitBonus: -1
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
 
   # The one appearance-ish bonus that is NOT crossed. Pretty, Beautiful and
   # Seductive all pay the person you kiss and never yourself (db/lib/kiss.js);

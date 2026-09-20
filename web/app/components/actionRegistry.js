@@ -65,6 +65,7 @@ import {
   BrandIcon,
   BreakRestraintsIcon,
   FarmIcon,
+  AnkhIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
@@ -116,6 +117,9 @@ export const ACTION_HELP = {
   detonatecollar: "Detonate a slave collar.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
+  // Bascinet's words, verbatim.
+  excommunicate:
+    "Excommunicate someone, reducing their luck for good. They must be Post-Christian.",
   stepstone:
     "Break the stone and stand somewhere else. Anywhere you have been, or seen from a doorway. It costs you nothing and takes no time.",
   disguise:
@@ -404,6 +408,22 @@ export const ACTION_SECTIONS = [
       { mode: "warrant", icon: ShackleIcon, label: "Arrest warrant", show: "canWarrant" },
       { mode: "unwarrant", icon: ShackleIcon, label: "Remove warrant", show: "canWarrant" },
       { mode: "wantedlist", icon: DocumentsIcon, label: "Check wanted", show: "isCerberon", instant: true },
+    ],
+  },
+  // THE BISHOP. One row, and it HIDES rather than greys, for the reason the
+  // Cerberon's two above give: whether you are the Bishop is your own sheet's
+  // fact, and a dead Excommunicate icon on everybody else's sheet would say
+  // only that the Bishop can do something they cannot.
+  //
+  // Not greyed at the cap either, though that is also your own fact — the
+  // count and the list you lift from are IN the dialog, so greying the way in
+  // would strand a Bishop with a full book and nowhere to empty it. The
+  // refusal sits on the dialog's own Confirm instead, the way Intercept's does.
+  {
+    key: "bishop",
+    label: "BISHOP",
+    actions: [
+      { mode: "excommunicate", icon: AnkhIcon, label: "Excommunicate", show: "isBishop" },
     ],
   },
   {

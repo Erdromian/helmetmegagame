@@ -83,6 +83,10 @@ export default function CharacterSheet({
   isThanatiLeader = false,
   isCerberon = false,
   canWarrant = false,
+  // The Bishop's Excommunicate, and the marks they have already laid.
+  isBishop = false,
+  excommunications = [],
+  excommunicationSeats = 0,
   atHideout = false,
   hideoutRooms = [],
   hideoutStock = null,
@@ -339,6 +343,9 @@ export default function CharacterSheet({
         isThanatiLeader={isThanatiLeader}
         isCerberon={isCerberon}
         canWarrant={canWarrant}
+        isBishop={isBishop}
+        excommunications={excommunications}
+        excommunicationSeats={excommunicationSeats}
         atHideout={atHideout}
         hideoutRooms={hideoutRooms}
         hideoutStock={hideoutStock}

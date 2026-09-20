@@ -465,6 +465,10 @@ groups:
         - Cathedral Key
         - Ravenhearter
         - Chaplain
+        # The office as a tag, the same move Chaplain above is. Every gate
+        # that means "is this the Bishop" reads this and not the role — the
+        # Excommunicate button and the Depriver tag both do.
+        - Bishop
         - Blessing
         - Teaching
         - Pious

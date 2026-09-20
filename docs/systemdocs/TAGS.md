@@ -562,7 +562,11 @@ how much of the Desire catalog it closes against how much it opens, and
 Depressed closes everything and opens nothing, so it is that band's floor.
 **Camouflage is a seventh, at 3.** It buys no code: nothing reads the slug,
 and "nearly invisible when ambushing in a forested area" is adjudicated the
-way Mindreading's Gambit is. **Teaching is 4**, a between-bands spot it
+way Mindreading's Gambit is. **Depriver is an eighth, at 3** — between the 2
+and 5 bands, Bascinet's call. It is Bishop-only (`requiredTag: bishop`) and
+buys exactly one thing: a second seat on the Excommunicate cap
+(`CHARACTERS.md`). One is the whole of what it does, which is why it sits
+under the Moderate band rather than in it. **Teaching is 4**, a between-bands spot it
 kept through the 2026-09-14 rework that deleted the 5-point Lecturing rung and
 folded its three-student cap into Teaching itself (`LESSONS.md` §1). The tag
 got stronger and the price did not move — deliberately, because the rework was
@@ -1076,14 +1080,22 @@ them).
   Cooking are two separate ingredient pools, and `resolveIngredientSlots`'s
   caller tells them apart by which of the two columns is non-null. The whole
   `items-mining` group carries one.
-- `gambitBonus` — what a Trinket forged with this ingredient adds to its
-  HOLDER's Gambit die. Same shape as `inlayValue` (positive whole number, or
-  absent) and read on the same path: `db/lib/trinketPass.js` sums it across the
-  ingredients and writes the total onto the minted clone, which is the row
-  `db/lib/gambitModifier.js` reads back. **The raw tag grants nothing while
-  held** — it has to go through the forge. Exactly one tag carries it, the
-  Arkenstone, and the ceiling is +1 per Trinket because a Trinket takes two
-  slots and the craft refuses the same slug twice. A Prisma select feeding
+- `gambitBonus` — what a held tag adds to its HOLDER's Gambit die, summed and
+  named per contributor by `db/lib/gambitModifier.js`. **A whole number either
+  way, never zero.** It was positive-only while the Arkenstone was its only
+  user; the Bishop's `excommunicated` is the -1 that made it signed
+  (`CHARACTERS.md` §5c). The rest of this entry is the Trinket half, which is
+  the one that does not pay while merely held.
+
+  On an INGREDIENT it is what a Trinket forged with that ingredient adds to
+  its holder's Gambit die, read on `inlayValue`'s path rather than
+  `gambitModifier.js`'s: `db/lib/trinketPass.js` sums it across the
+  ingredients and writes the total onto the minted clone, and that clone is
+  the row `db/lib/gambitModifier.js` reads back. **An ingredient tag grants
+  nothing while held** — it has to go through the forge. One tag is an
+  ingredient this way, the Arkenstone, and the ceiling is +1 per Trinket
+  because a Trinket takes two slots and the craft refuses the same slug
+  twice. A Prisma select feeding
   `gambitModifiers()` must pull this column or the bonus silently vanishes on
   that surface; see that file's header. Full rules in `TRINKETS.md` §3.
 - `requirementItems` (YAML: `requirement.items`) — the recipe's

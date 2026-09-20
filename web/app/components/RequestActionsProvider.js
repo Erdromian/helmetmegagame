@@ -254,6 +254,12 @@ export default function RequestActionsProvider({
   isThanatiLeader = false,
   isCerberon = false,
   canWarrant = false,
+  // THE BISHOP. `isBishop` hides the button; the list and the seat count are
+  // what the dialog draws its "{n}/{cap} people excommunicated" line and its
+  // remove rows from (actions/ExcommunicateDialog.js).
+  isBishop = false,
+  excommunications = [],
+  excommunicationSeats = 0,
   atHideout = false,
   hideoutRooms = [],
   hideoutStock = null,
@@ -382,6 +388,8 @@ export default function RequestActionsProvider({
     hideoutStock,
     thanatiWares,
     atHideout,
+    excommunications,
+    excommunicationSeats,
     researchOptions,
     // Poison's own two narrowed views over `consumable` (actions/PoisonDialog.js).
     poisonable,
@@ -584,6 +592,7 @@ export default function RequestActionsProvider({
       isThanatiLeader,
       isCerberon,
       canWarrant,
+      isBishop,
       atHideout,
       canRecover: recoverMissing.length > 0,
       recoverMissing,
@@ -652,6 +661,7 @@ export default function RequestActionsProvider({
       isThanatiLeader,
       isCerberon,
       canWarrant,
+      isBishop,
       atHideout,
     ],
   );

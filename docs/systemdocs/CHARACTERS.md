@@ -886,6 +886,58 @@ dependents are detached rather than deleted: `AuditLog.targetCharacterId` and
 `Note.characterId` are nulled, because the audit trail must outlive its subject
 and `Note.characterName` is already a snapshot.
 
+## 5c. Excommunication
+
+The Bishop's one verb. **Excommunicate** puts the `Excommunicated` tag on a
+living character: everybody can see it, and it is worth **-1 on their Gambit**
+for as long as it is there. The Bishop who laid it is the only person who can
+take it off.
+
+It works like **Engrave** (`CORPSES.md` §7): you type the whole name rather
+than picking from a list, because a picker here would be a roster of everybody
+alive handed to whoever opened the dialog. Unlike Engrave it costs **nothing**
+— no Move, no ⬢. The cap is the whole of the limit.
+
+**The cap is one person.** The `Depriver` tag (Bishop-only, 3 points,
+`TAGS.md` §4a) makes it two, and nothing else raises it. The dialog says which
+it is — `0/1 people excommunicated` — and the same line is the refusal a stale
+page gets if it tries anyway.
+
+**Who may be excommunicated: a living character holding `Post-Christian`, who
+nobody has already excommunicated, and not the Bishop themself.** Everything
+else is one refusal, `"That isn't a valid person."` A name two people answer
+to is refused too, which is where this parts company with the Cerberon's
+warrant (`db/lib/wanted.js` marks every man who answers to an ambiguous name).
+A seat of the cap is precious and there is no undo that does not cost the
+Bishop a second trip to the dialog, so an ambiguous name is not a thing to
+resolve by guessing.
+
+**Two rows make one excommunication, and they are written together.** The
+`Excommunicated` tag is the mark — what everybody reads, and what
+`db/lib/gambitModifier.js` charges the -1 for. The `Excommunication` row is
+who laid it, which `CharacterTag` has no column for and which the cap, the
+Bishop's list and the only-your-own rule all need. Taking one off deletes
+both. A GM undoing this by hand should remember the row as well as the tag —
+the tag alone is a mark nobody can lift, and the row alone is a spent seat
+nobody can see.
+
+**The office is a tag**, not the role. `docs/roles.yaml` grants the `bishop`
+role a `Bishop` tag beside the `Chaplain` one it already granted (§1c), and
+every gate here reads that tag: the button's `show`, the server action's
+re-check, and `Depriver`'s `requiredTag`. That last one is why it has to be a
+tag at all — `docs/tags.yaml` can require a tag and cannot require a role.
+
+Both halves make the `banish` sound, the Bishop off the action result and the
+excommunicated off their DM.
+
+| | |
+|---|---|
+| Button | `web/app/components/actionRegistry.js` (`show: "isBishop"`), dialog `actions/ExcommunicateDialog.js` |
+| Server | `web/app/(app)/character/bishopActions.js` |
+| Shared | `db/lib/excommunication.js`, tested in `db/test/excommunication.test.js` |
+| Tags | `bishop`, `excommunicated` (`gambitBonus: -1`), `depriver` in `docs/tags.yaml` |
+| Schema | `Excommunication` in `db/prisma/schema.prisma` |
+
 ## 6. Special channels (`#cerberon`)
 
 These are the **only** per-member overwrites left in the game: zone access

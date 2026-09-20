@@ -2394,6 +2394,12 @@ model Character {
   attacksMade  Attack[] @relation("AttackMade")
   attacksTaken Attack[] @relation("AttackTaken")
 
+  // Excommunications this character laid (the Bishop's side, and what the cap
+  // counts) and the one they bear. Both ends named, the Attack shape above.
+  // Singular on the borne side: Excommunication.targetCharacterId is unique.
+  excommunicationsLaid Excommunication[] @relation("ExcommunicationsLaid")
+  excommunicationBorne Excommunication?  @relation("ExcommunicationsBorne")
+
   // Taxes this character filed, and taxes filed against them (the Taxman
   // tag). Two relations to the same table, so both ends are
   // named.
@@ -4795,6 +4801,33 @@ model Attack {
   @@unique([attackerId, targetCharacterId, turnId])
   @@index([targetCharacterId])
   @@index([turnId])
+}
+
+// Who the Bishop has excommunicated, and who did it. The MARK itself is the
+// `excommunicated` tag on the target — that is what everybody reads and what
+// db/lib/gambitModifier.js charges the -1 for. This row is the other half:
+// who laid it. CharacterTag has no "granted by" column, and three things need
+// one — the cap (one person, two holding Depriver), the list the Bishop lifts
+// from, and the rule that only the Bishop who laid a mark may lift it.
+//
+// The two are written and deleted together, in one transaction
+// (web/app/(app)/character/bishopActions.js). A row without its tag is a
+// person nobody can see is excommunicated; a tag without its row is a mark
+// nobody can lift.
+model Excommunication {
+  id String @id @default(cuid())
+
+  bishopId String
+  bishop   Character @relation("ExcommunicationsLaid", fields: [bishopId], references: [id], onDelete: Cascade)
+
+  // Unique: one live excommunication per person, so two Bishops cannot both
+  // spend a seat of their cap on the same soul and then both try to lift it.
+  targetCharacterId String    @unique
+  targetCharacter   Character @relation("ExcommunicationsBorne", fields: [targetCharacterId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([bishopId])
 }
 
 // A multi-turn craft in progress (docs/systemdocs/CRAFTING.md). A table, not

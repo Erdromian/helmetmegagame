@@ -105,6 +105,7 @@ const CUES = {
   landing: "train_arrive",
   pin: "sign_this",
   tear: "poster_ripped",
+  banish: "bishop_banish",
   "rite-loop": "loop_altar",
 
   // The Den's slot machine. Coins in, then one of three answers.
@@ -213,6 +214,8 @@ const GAIN = {
   turret: 0.36,
   named: 0.27,
   gavel: 0.22,
+  // -6.65 measured, the hottest file in the folder after the gavel.
+  banish: 0.22,
   // Addressed to one person. These arrive on a DM rather than on a line a place said, and
   // they sit with the world rather than the alarms for the same reason `named` does.
   held: 1,

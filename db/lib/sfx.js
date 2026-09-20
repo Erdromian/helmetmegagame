@@ -107,6 +107,9 @@ const SFX = {
   LANDING: "landing",
   PIN: "pin",
   TEAR: "tear",
+  // The Bishop's Excommunicate, heard by BOTH sides of it — the Bishop off the
+  // action result, the excommunicated off their DM.
+  BANISH: "banish",
 
   // The one cue that does not stop on its own. A rite that has gone tense holds the
   // altar's drone under the room until it fires or the window closes — see the loop

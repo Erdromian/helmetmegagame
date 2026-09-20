@@ -25,6 +25,11 @@ export function notifyCharacter(character, text, opts = {}) {
       authorDiscordUserId: opts.authorDiscordUserId ?? null,
       source: opts.source ?? "player_event",
       kind: opts.kind,
+      // The noise this line makes when it lands in the reader's browser — a
+      // token from db/lib/sfx.js, carried on the DM row (db/lib/dmPolicy.js)
+      // and played by web/app/components/sfx.js. Most notices are silent, so
+      // this stays opt-in.
+      sfx: opts.sfx ?? null,
       components: opts.components,
       embeds: opts.embeds,
       meta: opts.meta,

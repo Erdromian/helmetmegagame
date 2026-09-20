@@ -61,6 +61,10 @@ const LINES = {
   warrant: (res, ctx) => `A warrant is out on ${res.name ?? named(ctx, "them")}.`,
   unwarrant: (res, ctx) => `The warrant on ${res.name ?? named(ctx, "them")} is lifted.`,
   wantedlist: (res) => (res.roster?.length ? `The warrant book.` : `Nobody is wanted.`),
+  // Excommunicate has NO entry, and that is deliberate. Both its actions
+  // return their own `line` — Bascinet's "{n}/{cap} people excommunicated" —
+  // and every other sentence a Bishop could be told here is one nobody wrote.
+  // A fallback would have to invent one, so it falls to noticeLine's default.
   // The server action returns its own `line`, which noticeLine prefers. This
   // is the fallback.
   intercept: () => `You lie in wait.`,

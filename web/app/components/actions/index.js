@@ -15,6 +15,7 @@ import BrandDialog from "./BrandDialog";
 import BodyDialog from "./BodyDialog";
 import EngraveDialog from "./EngraveDialog";
 import WarrantDialog from "./WarrantDialog";
+import ExcommunicateDialog from "./ExcommunicateDialog";
 import InterceptDialog from "./InterceptDialog";
 import AttackDialog from "./AttackDialog";
 import DisguiseDialog from "./DisguiseDialog";
@@ -129,6 +130,7 @@ export const DIALOGS = {
   engrave: EngraveDialog,
   warrant: WarrantDialog,
   unwarrant: WarrantDialog,
+  excommunicate: ExcommunicateDialog,
   intercept: InterceptDialog,
   attack: AttackDialog,
   disguise: DisguiseDialog,

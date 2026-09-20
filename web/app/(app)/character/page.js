@@ -34,6 +34,11 @@ import {
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
 import { CERBERON_SLUG, WARRANT_BADGE_SLUGS } from "@lifeweb/db/lib/wanted";
+import {
+  BISHOP_SLUG,
+  excommunicationCap,
+  listExcommunications,
+} from "@lifeweb/db/lib/excommunication";
 import { isPointerDeviceSlug } from "@lifeweb/db/lib/pointerMint";
 import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import {
@@ -866,6 +871,13 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
   const isCerberon = heldSlugs.has(CERBERON_SLUG); // cerberonActions.js re-checks both
   const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugs.has(slug));
+  // THE BISHOP (docs/systemdocs/CHARACTERS.md). The office is a tag, the
+  // same move Chaplain is — bishopActions.js re-checks it. The list and the
+  // cap are only read for the Bishop: nobody else has a dialog to show them
+  // in, and it is a query for every other sheet in the game otherwise.
+  const isBishop = heldSlugs.has(BISHOP_SLUG);
+  const excommunications = isBishop ? await listExcommunications(prisma, character.id) : [];
+  const excommunicationSeats = isBishop ? excommunicationCap(heldSlugs) : 0;
   const hideout = isThanati ? await hideoutRoom(prisma) : null;
   const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
   // Set Hideout's picker: rooms at this Location the leader can get into.
@@ -1259,6 +1271,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       isThanatiLeader: isThanatiLeader,
       isCerberon: isCerberon,
       canWarrant: canWarrant,
+      isBishop: isBishop,
+      excommunications: excommunications,
+      excommunicationSeats: excommunicationSeats,
       atHideout: atHideout,
       hideoutRooms: hideoutRooms,
       hideoutStock: hideoutStock,
