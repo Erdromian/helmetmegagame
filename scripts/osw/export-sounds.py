@@ -108,7 +108,7 @@ GROUPS = {
             npc_kill_chop_01 npc_kill_chop_02 npc_kill_chop_03
             npc_kill_slash_01 npc_kill_slash_02 npc_kill_slash_03
             npc_kill_smash_01 npc_kill_smash_02 npc_kill_smash_03""")
-        + files("effects", """shield2 shieldbash bars_hit wallhit wallhit2
+        + files("effects", """Explosion1 shield2 shieldbash bars_hit wallhit wallhit2
             wallhit3 woodhit metalwall bone_crack getstuck_dagger
             get_stuck3""")
         + whole("combat2020")
@@ -131,7 +131,7 @@ GROUPS = {
 
     # Doors, chests, ladders, water, torches — the world being handled.
     "world":
-        files("effects", """door_open2 door_close2 doorcreaky gateopen
+        files("effects", """train_arrive door_open2 door_close2 doorcreaky gateopen
             gateclose stonedoor_openclose wood_open wood_close ladder climb
             drsc_treasure_open_01 drsc_treasure_close_01 drsc_wardrobe_open_02
             drsc_wardrobe_close_01 torch_light torch_snuff torch_pickup

@@ -11,6 +11,7 @@ const { addToStack, dropCharacterTag } = require("@lifeweb/db/lib/tagWrites");
 const { expiryFrom } = require("@lifeweb/db/lib/turnFormat");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
+const { SFX } = require("@lifeweb/db/lib/sfx");
 const { mintUnownedPaper } = require("@lifeweb/db/lib/paperMint");
 const { cleanCustomText } = require("@lifeweb/db/lib/customText");
 const { TITLE_MAX, WRITE_MAX } = require("@lifeweb/db/lib/paper");
@@ -172,7 +173,9 @@ async function handleNoticeTear(interaction, locationId) {
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(tornLine(post.tag.name))).catch(() => { }); // unreachable channel must never undo a committed tear (ARCHITECTURE.md §5)
   }
-  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name) }); // beside the post, so Chat sees it too
+  // Beside the post, so Chat sees it too — and with the same noise the web's own tear
+  // makes (web/app/(app)/chat/actions.js): one event, two faces.
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: tornLine(post.tag.name), sfx: SFX.TEAR });
   return respond(interaction, { content: `You take ${post.tag.name} down.` });
 }
 
@@ -222,7 +225,7 @@ async function handleNoticePin(interaction, locationId) {
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(held.tag.name))).catch(() => { });
   }
-  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(held.tag.name) });
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(held.tag.name), sfx: SFX.PIN });
   return respond(interaction, {
     content: `You put ${held.tag.name} up. Anyone here can read it, or take it down.`,
   });
@@ -325,7 +328,7 @@ async function handleNoticePostSubmit(interaction, locationId) {
   if (ctx.location.discordChannelId) {
     await postMessage(ctx.location.discordChannelId, ambientLine(pinnedLine(paper.name))).catch(() => {});
   }
-  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(paper.name) });
+  await sceneLineAt(prisma, { locationId: ctx.location.id, text: pinnedLine(paper.name), sfx: SFX.PIN });
   return respond(interaction, {
     content: `You put ${paper.name} up. Anyone here can read it, or take it down.`,
   });

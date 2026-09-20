@@ -36,3 +36,21 @@ list of what belongs in this folder. To add one, copy it out of
 Files keep their source names rather than their game meaning, the same
 convention `assets/items/` uses, so a file here can be traced back to the
 library it came from.
+
+## One file that is not from OpenSourceWeb
+
+`cathedral-bell.ogg` is **not** from the library above. It is
+[BigSoundBank #0135, "Church bell"](https://bigsoundbank.com/detail-0135-church-bell.html),
+recorded by Joseph Sardin and released under **CC0** — public domain, no attribution
+required, commercial use allowed. It is a different grant from the CC BY-SA 3.0 above, and
+a more permissive one, which is why it gets its own paragraph rather than being quietly
+filed with the rest.
+
+The original is 17.5 seconds: one toll, a long decay, and faint birdsong under it. What is
+in this folder is the first **6.4 seconds**, cut at an Ogg page boundary with the final page
+marked end-of-stream — the audio is the source's own bytes, not re-encoded, so nothing is
+degraded and no codec was involved. CC0 permits the trim without condition.
+
+The bell used to share the Deep Beast Horn's noise, which meant the one moment it matters
+which one you heard — a call to the town, or the Bastard calling something else — sounded
+identical. It does not any more.

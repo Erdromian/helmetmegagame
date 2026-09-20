@@ -182,6 +182,10 @@ function equipSfx(tag) {
   if (!tag) return null;
   if (tag.slug === "energy-shield") return "equip-shield";
   if (tag.equipSlot === "HEAD" || tag.equipSlot === "BODY") return "equip-cloth";
+  // Anything taken in hand is drawn, not fastened (Bascinet's call). WEAPON is every held
+  // thing, so a torch and a fishing rod get the blade's noise too — which is closer to
+  // right than a buckle would be.
+  if (tag.equipSlot === "WEAPON") return "equip-blade";
   return "equip-lock";
 }
 

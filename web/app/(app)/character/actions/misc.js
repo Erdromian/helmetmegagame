@@ -350,7 +350,7 @@ async function breakSealRequestImpl({ session, character, held }) {
 
   await afterInventoryChange([character.id]);
   revalidateAll();
-  return { ok: true, name: opened.paper.name };
+  return { ok: true, name: opened.paper.name, sfx: SFX.SEAL_BREAK };
 }
 
 // Pointing the camera at nothing. The other thing you can do with an Instant
@@ -551,7 +551,7 @@ async function openCrateRequestImpl({ session, character, held }) {
   const spareLine = dropped.length
     ? `You already carry ${dropped.map((d) => d.name).join(", ")}, so the spare is set down in ${spareRoom.name}.`
     : undefined;
-  return { granted, dropped, resourcesGranted, line: spareLine };
+  return { granted, dropped, resourcesGranted, line: spareLine, sfx: SFX.CRATE };
 }
 
 const RAVENHEART_MAP_SLUG = "ravenheart-map";
@@ -1539,7 +1539,9 @@ export async function lootCharacterRequestImpl({
     );
 
   revalidateAll();
-  return {};
+  // Heard by the looter alone. Being gone through is bad enough without the room
+  // getting a noise about it.
+  return { sfx: SFX.LOOT };
 }
 
 // --- Moving another character: GONE ------------------------------------
@@ -1776,6 +1778,7 @@ export async function breakRestraintsRequestImpl() {
   await afterInventoryChange(character.id);
   revalidateAll();
   return {
+    sfx: SFX.UNBIND,
     success: result.success,
     line: result.success
       ? result.automatic
@@ -3717,5 +3720,12 @@ export async function detonateCollarRequestImpl({ targetCharacterId }) {
 
   await afterInventoryChange([target.id]);
   revalidateAll();
-  return { name: result.name, alreadyDead: result.alreadyDead, line: `${result.name} explodes into mist.` };
+  // A click for the hand on the detonator; the bang belongs to the Location the collar
+  // went off in, and db/lib/collar.js puts it there (Bascinet's call).
+  return {
+    name: result.name,
+    alreadyDead: result.alreadyDead,
+    line: `${result.name} explodes into mist.`,
+    sfx: SFX.OK_QUIET,
+  };
 }

@@ -14,6 +14,7 @@
 // convention); require it by path.
 const { ambientEverywhere } = require("./worldBroadcast");
 const { BELL_COOLDOWN_MS } = require("./bell");
+const { SFX } = require("./sfx");
 
 const HORN_COOLDOWN_MS = BELL_COOLDOWN_MS;
 
@@ -24,7 +25,7 @@ const HORN_LINE = "You hear a deep, booming horn.";
 async function broadcastDeepBeastHorn(prisma) {
   // `signed: false` is how the nuke's own world lines are filed too: nothing
   // about a horn nobody can place should be attributed to anyone.
-  return ambientEverywhere(prisma, HORN_LINE, { signed: false, zoneKinds: ["SURFACE"] });
+  return ambientEverywhere(prisma, HORN_LINE, { signed: false, zoneKinds: ["SURFACE"], sfx: SFX.HORN });
 }
 
 module.exports = { HORN_COOLDOWN_MS, HORN_LINE, broadcastDeepBeastHorn };

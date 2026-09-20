@@ -20,6 +20,7 @@ const { ensureRiteWords } = require("./riteWords");
 const { chanterReady } = require("./thanati");
 const { resolveIngredients } = require("./riteIngredients");
 const { roomLine, answerPanic } = require("./riteEffects");
+const { SFX } = require("./sfx");
 
 // Posted once per attempt, the moment the last requirement lands.
 const TENSE_LINE = "You feel tense… Anyone else who wants to participate should join in now.";
@@ -76,7 +77,9 @@ async function evaluateAttempt(db, attempt, room = null) {
     data: { status: "READY", readyAt: now, firesAt: new Date(now.getTime() + GRACE_MS) },
   });
   if (count === 0) return false;
-  await roomLine(db, where, TENSE_LINE);
+  // The altar's drone, under the room, until the rite fires or the window shuts. The only
+  // looping sound in the game — web/app/components/sfx.js holds the rules for it.
+  await roomLine(db, where, TENSE_LINE, { sfx: SFX.RITE_LOOP });
   return true;
 }
 

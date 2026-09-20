@@ -16,7 +16,7 @@ const EVERYONE = { parse: ["everyone"] };
 
 // Every zone's #summary; skips NO zone (cave levels drop out on their own,
 // having no #summary).
-async function broadcastToZones(prisma, content, { mentionEveryone = false } = {}) {
+async function broadcastToZones(prisma, content, { mentionEveryone = false, sfx = null } = {}) {
   const zones = await prisma.zone.findMany({
     where: { discordSummaryChannelId: { not: null } },
     select: { id: true, name: true, discordSummaryChannelId: true },
@@ -40,7 +40,7 @@ async function broadcastToZones(prisma, content, { mentionEveryone = false } = {
     }
     // Beside the post, never instead (db/lib/scene.js). Written even when
     // the post failed: the thing happened.
-    await sceneLineAt(prisma, { zoneId: zone.id, text: content, signed: false });
+    await sceneLineAt(prisma, { zoneId: zone.id, text: content, signed: false, sfx });
   }
   return { sent, failed };
 }
@@ -52,7 +52,9 @@ async function broadcastToZones(prisma, content, { mentionEveryone = false } = {
 // Horn passes ["SURFACE"], because a horn blown up top is not heard down a cave
 // (db/lib/deepBeastHorn.js). Omitted means every zone, which is what the nuke
 // and the shuttle want.
-async function ambientEverywhere(prisma, text, { signed = true, zoneKinds = null } = {}) {
+// `sfx` is the noise the web face makes as each line lands (./sfx.js) — a horn that is
+// heard should be heard. Discord gets the words alone.
+async function ambientEverywhere(prisma, text, { signed = true, zoneKinds = null, sfx = null } = {}) {
   const content = ambientLine(text, [], { signed });
   const locations = await prisma.location.findMany({
     where: {
@@ -74,7 +76,7 @@ async function ambientEverywhere(prisma, text, { signed = true, zoneKinds = null
       console.error(`Ambient broadcast to ${location.name} failed:`, err.message ?? err);
     }
     // Chat's half: plain sentence, no `-#`; the web renders subtext itself.
-    await sceneLineAt(prisma, { locationId: location.id, text, signed });
+    await sceneLineAt(prisma, { locationId: location.id, text, signed, sfx });
   }
   return { sent, failed };
 }

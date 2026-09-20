@@ -29,6 +29,7 @@ const { normalizeChant, containsPhrase } = require("./rites");
 const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
 const { broadcastToZones } = require("./worldBroadcast");
+const { SFX } = require("./sfx");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
 // roomStash's addRoomResources, NOT resourceStack's. The bare stack writer moves
 // the ⬢ and books nothing; this one records the ledger row and the CLAMP
@@ -236,7 +237,8 @@ const EFFECTS = {
       ].filter(Boolean).join("\n"),
       { source: "rite" },
     ).catch(log(`conversion DM to ${target.name}`));
-    await roomLine(db, room, `${aliasSubject(target)}'s eyes widen as they begin to understand…`);
+    // Bascinet's call: the sound of somebody finding out what they have joined.
+    await roomLine(db, room, `${aliasSubject(target)}'s eyes widen as they begin to understand…`, { sfx: SFX.INITIATE });
     return { result: { converted: target.name, characterId: target.id } };
   },
 
@@ -260,7 +262,7 @@ const EFFECTS = {
     });
     // The gib minted no corpse, so the organs on the floor are all that's left of them.
     const spawned = await spawnRemains(db, room);
-    await roomLine(db, room, "The sacrifice explodes into a puddle of organs and gore!");
+    await roomLine(db, room, "The sacrifice explodes into a puddle of organs and gore!", { sfx: SFX.GIB });
     return { result: { sacrificed: victim.name, characterId: victim.id, spawned } };
   },
 
@@ -310,7 +312,7 @@ const EFFECTS = {
   async reanimation({ db, room, location, resolved, openTurn }) {
     const { dead } = resolved.corpse;
     await reviveByRite(db, dead, { location, turnNumber: openTurn?.number ?? null });
-    await roomLine(db, room, "The corpse rises, ready to fight!");
+    await roomLine(db, room, "The corpse rises, ready to fight!", { sfx: SFX.RISE });
     return { result: { risen: dead.name, characterId: dead.id } };
   },
 
@@ -408,7 +410,7 @@ const EFFECTS = {
     // Same as sacrifice: the gib left no body, so the mist drops somewhere chosen.
     const where = await pickRandomPublicRoom(db, full.locationId);
     const spawned = where ? await spawnRemains(db, where, { flesh: false, resources: false }) : {};
-    await locationLine(db, full.location, `${full.name} explodes into mist!`);
+    await locationLine(db, full.location, `${full.name} explodes into mist!`, { sfx: SFX.GIB });
     return { result: { judged: full.name, characterId: full.id, spawned } };
   },
 
@@ -490,6 +492,7 @@ const EFFECTS = {
     await broadcastToZones(
       db,
       `The ground begins to shake. The cultists are planning something terrible in ${room.name}! Stop them!`,
+      { sfx: SFX.QUAKE },
     );
     return { result: { firesOn: base + ASCENSION_DELAY_TURNS, leader: chosen?.name ?? null } };
   },

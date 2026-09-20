@@ -1,4 +1,5 @@
 const { broadcastToZones } = require("../../worldBroadcast");
+const { SFX } = require("../../sfx");
 const { postGameEnded } = require("../../gameEnd");
 const { syncSpectatorAccess } = require("../../spectatorAccess");
 
@@ -11,6 +12,9 @@ async function runBroadcasts({ prisma, p, step }) {
     await step("nukeBroadcast", async () => {
       const { sent, failed } = await broadcastToZones(prisma, p.nukeBroadcast.content, {
         mentionEveryone: p.nukeBroadcast.mentionEveryone,
+        // The detonation, and nothing before it: the countdown lines that run every turn
+        // while a nuke is armed stay silent, or a month of dread becomes a daily jump.
+        sfx: SFX.ALARM,
       }).catch((err) => {
         console.error("Nuke broadcast failed:", err);
         return { sent: 0, failed: [] };
@@ -26,6 +30,7 @@ async function runBroadcasts({ prisma, p, step }) {
       const { sent, failed } = await broadcastToZones(
         prisma,
         p.ascensionBroadcast.content,
+        { sfx: SFX.ALARM },
       ).catch((err) => {
         console.error("Ascension broadcast failed:", err);
         return { sent: 0, failed: [] };

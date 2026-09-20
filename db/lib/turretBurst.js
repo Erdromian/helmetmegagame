@@ -4,6 +4,7 @@
 const { ambientLine } = require("./ambientLine");
 const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
+const { SFX } = require("./sfx");
 
 const BURST_SOUND = "You hear a machinegun open up. RRATATAT!";
 const BURST_TEXT = BURST_SOUND;
@@ -27,7 +28,7 @@ async function announceTurretBurst(prisma, locationId) {
       console.error(`Turret burst in ${here.name} failed:`, err.message ?? err);
     }
   }
-  await sceneLineAt(prisma, { locationId: here.id, text: BURST_SOUND });
+  await sceneLineAt(prisma, { locationId: here.id, text: BURST_SOUND, sfx: SFX.GUNFIRE });
 
   if (!here.zoneId) return { sent };
 
@@ -44,7 +45,9 @@ async function announceTurretBurst(prisma, locationId) {
     } catch (err) {
       console.error(`Turret burst carrying to ${location.name} failed:`, err.message ?? err);
     }
-    await sceneLineAt(prisma, { locationId: location.id, text: BURST_SOUND });
+    // The same burst, a street away. Same cue — the web has no distance model, and a
+    // quieter copy would need one.
+    await sceneLineAt(prisma, { locationId: location.id, text: BURST_SOUND, sfx: SFX.GUNFIRE });
   }
 
   return { sent };

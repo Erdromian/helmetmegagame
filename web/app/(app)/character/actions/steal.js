@@ -21,6 +21,7 @@ import { UserError } from "@/lib/actionResult";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import { requireCharacter } from "./shared.js";
 import { transferRequestImpl } from "./transfer.js";
+import { SFX } from "@lifeweb/db/lib/sfx";
 
 // Bascinet's words, verbatim.
 const CAUGHT_LINE = "tried to steal an item.";
@@ -84,5 +85,5 @@ export async function stealRequestImpl({ fromKey, tags }) {
   // thief by the face the room saw, so a hooded one reads as "A young man".
   if (!unseen && room) after(() => announceInRoom(room, character, CAUGHT_LINE));
 
-  return {};
+  return { sfx: SFX.STASH };
 }
