@@ -7,4 +7,5 @@ export {
   CROSS_REGION_CHANCE,
   WITCHER_SHARE_OF_FLAVOUR,
   randomCharacterName,
+  cultureForRole,
 } from "@lifeweb/db/lib/nameCorpus";
