@@ -39,17 +39,18 @@ const MOVE_EFFECTS = {
     revert: (tx, action, value) => addResources(tx, action.characterId, -value),
   },
 
-  // Two days in the seam before a rest, tracked by db/lib/fatigue.js's Tired -> Exhausted ladder. Mining is the one thing that climbs it from a
-  // Move — db/lib/mining.js#computeMiningAccess refuses the next day only on Exhausted. Gated on the Mine button's own marker. The snapshot key stays
-  // "exhausted" even for a Tired grant, or older rows stop reverting.
+  // Two days in the seam before a rest, tracked by db/lib/fatigue.js's Tired -> Exhausted ladder. Mine and Refine both climb it from a Move —
+  // db/lib/mining.js#computeMiningAccess and db/lib/refinery.js#refineFatigueRefusal refuse the next day only on Exhausted. Gated on each button's
+  // own marker. A refining shift lands at the turn push rather than the press, which changes nothing here: the grant is stamped from the closing
+  // turn, and the expiry sweep runs after the push. The snapshot key stays "exhausted" even for a Tired grant, or older rows stop reverting.
   exhausted: {
-    read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
+    read: (action) => (action.gmNotes === AUTO_MINE_NOTE || action.gmNotes === AUTO_REFINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
       const heldTired = await tx.characterTag.findFirst({
         where: { characterId: action.characterId, tag: { slug: TIRED_SLUG } },
         select: { id: true, expiresTurn: true },
       });
-      // The Mine gate already refused an Exhausted character, so this is always Tired or nothing.
+      // The Mine and Refine gates already refused an Exhausted character, so this is always Tired or nothing.
       const targetSlug = nextFatigueSlug(new Set(heldTired ? [TIRED_SLUG] : []));
       if (!targetSlug) return 0; // defensive: nothing left to escalate to
       const [tag, turn] = await Promise.all([
@@ -399,4 +400,4 @@ function describeMoveEffects(applied) {
 
 // The Move d6 lives in db/lib/rollDie.js so advantage.js can reach it without requiring this file back; still re-exported below.
 // addResources is exported for db/lib/stagedPush.js, which pushes GM-staged resource adjustments through the same clamp-and-report statement.
-module.exports = { addResources, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie };
+module.exports = { addResources, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie, MOVE_EFFECTS };

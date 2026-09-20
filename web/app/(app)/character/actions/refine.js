@@ -8,7 +8,14 @@ import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
-import { isRefinery, refineryInput } from "@lifeweb/db/lib/refinery";
+import {
+  isRefinery,
+  refineryInput,
+  refineFatigueRefusal,
+  refinersThisTurn,
+  REFINERY_MAX_WORKERS,
+  REFINERY_FULL_MESSAGE,
+} from "@lifeweb/db/lib/refinery";
 import { AUTO_REFINE_NOTE } from "@lifeweb/db/lib/constants";
 import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { logAudit } from "@/lib/requests";
@@ -46,8 +53,27 @@ export async function refineRequestImpl() {
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
 
+  // A day at the vats tires you the way a day in the seam does (db/lib/fatigue.js): only
+  // Exhausted refuses. The sheet's tooltip asks the same function.
+  const fatigue = refineFatigueRefusal((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  if (fatigue) throw new UserError(fatigue);
+
+  // Only so many people fit on the floor in a turn. Checked here for a fast refusal, and
+  // again under a lock below, which is the check that actually holds.
+  if ((await refinersThisTurn(prisma, openTurn.id)) >= REFINERY_MAX_WORKERS) {
+    throw new UserError(REFINERY_FULL_MESSAGE);
+  }
+
   await prisma.$transaction(async (tx) => {
     await lockCharacter(tx, character.id);
+
+    // One lock per turn, taken AFTER the character's, so two people pressing at once queue up
+    // and the count below is the true one. An advisory lock rather than a row lock on Turn:
+    // nothing else takes it, so it can never deadlock against the turn advance.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`refinery:${openTurn.id}`}))`;
+    if ((await refinersThisTurn(tx, openTurn.id)) >= REFINERY_MAX_WORKERS) {
+      throw new UserError(REFINERY_FULL_MESSAGE);
+    }
 
     // Commits the Move now — the day is spent — but defers the cubes to the turn push
     // (db/lib/moveEffects.js's `refined` entry), exactly like Farm. The marker is what that

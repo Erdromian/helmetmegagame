@@ -31,11 +31,12 @@ Refuse Pit  --Harvest Godflesh-->  Godflesh  --Refine-->  8 Squeeze
 
 Every step after the first is somebody's whole turn. **Harvest Godflesh is
 not** — it costs no Move and runs on its own once-a-turn cooldown (§3), so
-cutting and working your day are two separate things. Nothing forces a refugee
-to alternate. A bare-handed cut averages 7/6 of a lump and a shift needs one, and
-the Pit and the Factory floor are both in the Black Hills, so the walk between
-them is a free same-zone hop (`MAP.md` §3). Cut, walk, refine, every turn. §6
-has the numbers.
+cutting and working your day are two separate things. A bare-handed cut averages
+7/6 of a lump and a shift needs one, and the Pit and the Factory floor are both
+in the Black Hills, so the walk between them is a free same-zone hop
+(`MAP.md` §3). What paces a refugee is not the lump but the ladder: a shift
+tires you the way a day's mining does (§4), so a refugee refines every other
+turn. §6 has the numbers.
 
 A cutting day is otherwise an empty day now. Nothing files itself at the close
 any more (`TURN-ENGINE.md` §6), so a refugee who cuts and presses nothing else
@@ -122,8 +123,22 @@ commits at the press, and the cubes come off the line at the turn push
   Laboring ladder priced ⬢ and a shift here pays none, so the gate bought
   nothing and stood the Factory's own people off its floor. Anybody who can get
   in can work it, and Prospecting has nothing to say about a refinery.
-- **No fatigue, today.** Refine neither reads nor writes Tired or Exhausted. It
-  did before 2026-09-18; see §6 for what that dropped and what it is worth.
+- **It tires you.** A shift steps the Tired and Exhausted ladder the way a day's
+  mining does (`db/lib/fatigue.js`): Tired blocks nothing, a second shift in a
+  row makes you Exhausted, and Exhausted refuses the next shift until it lapses.
+  Somebody refining flat out works every other turn. The step lands at the turn
+  push with the cubes: the `exhausted` entry in `db/lib/moveEffects.js` reads
+  the Refine button's marker as well as the Mine button's. Refine did this while
+  it was a Labor, lost it in the 2026-09-18 Labor strip without anyone deciding
+  it should, and has it again since 2026-09-20. The button greys, and the action
+  refuses, with the same sentence Mine gives (`refineFatigueRefusal`).
+- **Five at a time.** At most 5 people may refine in one turn
+  (`REFINERY_MAX_WORKERS` in `db/lib/refinery.js`). The sixth is told "Too many
+  people are producing Squeeze at the factory this turn." and keeps their Move,
+  and the button greys with the same sentence. The count is the shifts already
+  filed this turn, checked once for a fast refusal and again under an advisory
+  lock taken per turn, so two people pressing at once cannot both take the
+  fifth seat. It is a constant, not a `/gm/dev` knob.
 - **No `miningBonus` applies.** A refinery is not a coefficient, and a pick is
   not a tool for it.
 - **No loot roll.** Refining pays in Squeeze, not in stone (`MINING.md` §3b).
@@ -219,14 +234,13 @@ world with no recipe to make a third.
 2026-09-06, Bascinet's call. A catalog-wide 30% cut the same day took it to
 12 by accident and was reverted — `CARRY.md` §1a. What did stick from that
 day is the **base carry cap: 71 lb, down from 120 via 84**.) Working back from
-the target: cutting is free, so a refugee can refine every turn, and a
-five-turn run of 3 refugees is 3 × 8 cubes × 5 = 120 cubes. That is 2040 lb raw,
-1020 crated. A Banneret with Horse + Cart carries 71 × (1 + 4) = 355 lb, so a
-wagon **does not clear a five-turn run in one trip**. It takes about 41 cubes,
-a bit under two turns' worth; the rest waits in the Logistics Room for the next
-wagon, and the run needs about three of them. (This paragraph used to assume
-2.5 producing turns in 5, which only holds if the cut spends a Move. It does
-not.)
+the target: 5 turns of production is ~2.5 producing turns, because a shift tires
+you (§4), 3 refugees × 8 cubes × 2.5 = 60 cubes, and a Banneret with Horse +
+Cart carries 71 × (1 + 4) = 355 lb. 60 cubes is 1020 lb raw, 510 crated — so a
+wagon **no longer clears a five-turn run in one trip**. It takes about 41 cubes,
+a bit over three turns' worth; the rest waits in the Logistics Room for the
+next wagon. Five refiners is the ceiling on the floor: 5 × 8 = 40 cubes a turn,
+200 ¢ of Squeeze.
 
 **The wagon comes inside.** The Factory is `indoors: true`, which would
 otherwise park it at the door and leave a 71 lb carrier shuttling one 68 lb
@@ -253,42 +267,39 @@ so the number is **¢** and always was — this paragraph said ⬢ until the
 
 A refining day is **40 ¢** for 8 cubes, and a full 60-cube wagon is **300 ¢**.
 
-**That 40 ¢ is a refiner's whole day, and cutting does not eat into it.**
-Refine spends a whole Move (`web/app/(app)/character/actions/refine.js` calls
-`requireFreeMove`). Extract does not: it claims `extractTurnKey` and nothing
-else (`extractGodfleshRequestImpl` in `web/app/(app)/character/actions/misc.js`,
-§3 above). A cut averages 7/6 of a lump bare-handed (1, plus a 1-in-6 bonus lump
-on a 6) and 13/6 with a chainsaw, and a shift needs exactly one. So a refugee
-who cuts at the Refuse Pit, walks to the Factory floor and presses Refine every
-turn makes **40 ¢ a turn** solo, with or without a chainsaw. The chainsaw
-changes who can be fed, not the wage: it leaves about one spare lump a turn, so
-one chainsawer supplies two refiners. What the wage costs is the die. One cut in
-six is a 1, which is a wound with gloves on and a lost hand or arm without
-(§3), and the Factory roles all start with gloves. Neither verb climbs the
-Tired and Exhausted ladder, unlike Mine and Farm (`db/lib/fatigue.js` has no
-caller in either), so nothing rations the 40 ¢ but the Move.
+**A shift pays 40 ¢, and you can work one every other turn.** Refine spends a
+whole Move (`web/app/(app)/character/actions/refine.js` calls `requireFreeMove`)
+and tires you (§4). Extract does not spend a Move: it claims `extractTurnKey` and
+nothing else (`extractGodfleshRequestImpl` in
+`web/app/(app)/character/actions/misc.js`, §3 above). A cut averages 7/6 of a
+lump bare-handed (1, plus a 1-in-6 bonus lump on a 6) and 13/6 with a chainsaw,
+and a shift needs exactly one, so the lump never binds a refiner who works every
+other turn. Solo, a refugee makes **20 ¢ a turn**, with or without a chainsaw.
+The chainsaw changes who can be fed, not the wage: it leaves about one spare lump
+a turn, so one chainsawer supplies several refiners. What the wage costs is the
+die. One cut in six is a 1, which is a wound with gloves on and a lost hand or arm
+without (§3), and the Factory roles all start with gloves.
 
-**That is an open question, not a design.** Refine did tire you while it was a
-Labor: a refining shift carried the roll expression `0-0`, which counted as a
-paid Labor, so it stepped the ladder the way Mine does, and this file said a
-refiner who lost the race got "nothing to refine" instead of a Tired or
-Exhausted tag. The 2026-09-18 Labor strip (`157cd3d0`) made the ladder
-Mine-only, and Refine was rebuilt as its own button (`89e9e4a5`) without it. No
-commit says that was deliberate. Put back on Mine's ladder a solo refiner makes
-20 ¢ a turn, not 40, and the Farm-and-Refine mix stops working, because both
-would lock out the same ladder. Decide it before quoting either figure.
+**A crafter fills the off turns.** Crafts, cutting Godflesh and Butcher never
+climb the ladder, so somebody who refines every other turn and crafts on the
+rest earns more than either alone: about 24 ¢ a turn with the 2-point Crafting
+skill, 25 with Smithing I, and 28 with Smithing II. Farming does not fit beside
+it, because Farm and Refine both lock out the same ladder.
 
 **Farming and mining pay less, and neither pays in ⬢ the way this section used
 to say.** Farming pays no ⬢ at all (`SOILERY.md` §1). A Farm action sows up to
-50 plants, about 5 in 6 come up, and a potato sells for 2 ¢, so one action nets
-about 79 ¢ after the 4 ¢ seed bag. It then locks the farmer out for 3 turns, which
-is about **26 ¢ a turn**. A Prospector at the Caves brings up about 8 ⬢ a press,
-worth 8 ¢ at the 1 ¢ sell-back, and mines every other turn: about **5 ¢ a turn**
-with the loot roll (`MINING.md` §3b and §5). Set against those, the Factory is about 1.5
-times a farmer and 8 times a Prospector. A skilled smith's best easy recipe
-(Glass Eye) pays about 17 ¢ a turn buying ⬢ at the Depot, or 28 mining it. `npm run economy:report` recomputes every one of
-these from the catalog and prints where the docs and the code disagree, so
-check there before quoting a wage in this file.
+50 plants, about 5 in 6 come up, and a crop sells for 1 ¢, so one action nets
+about 38 ¢ after the 4 ¢ seed bag. It then locks the farmer out for 3 turns, which
+is about **13 ¢ a turn**. Crops sell for 1 ¢ on purpose (2026-09-20): farming is
+for eating, and at 2 ¢ it netted about 79 ¢ an action, the best wage in the game
+after the Factory. A Prospector at the Caves brings up about 8 ⬢ a press, worth
+8 ¢ at the 1 ¢ sell-back, and mines every other turn: about **5 ¢ a turn** with
+the loot roll (`MINING.md` §3b and §5). Set against those, the Factory is about
+1.6 times a farmer and 4 times a Prospector. A skilled smith's best easy recipe
+(Glass Eye) pays about 17 ¢ a turn buying ⬢ at the Depot, or 28 mining it.
+`npm run economy:report` recomputes every one of these from the catalog and
+prints where the docs and the code disagree, so check there before quoting a
+wage in this file.
 
 The 7 ¢ price made a supplied refining day 56 ¢ — three times the best
 smithing rung and the highest wage in the game by a wide margin, off an
@@ -330,13 +341,14 @@ check at all before this, only the global `tupperAutocorrectEnabled` flag.
 
 ## 8. Moonshine, and going blind
 
-`brewing-basic`, **0 ⬢**, and `requirement.items: [godflesh]` — the Refuse Pit gives
-you the ingredient. **One Godflesh per bottle, and it is used up**, like every
-other spent ingredient (`BREWING.md` §4). It used to be a hold-check, which
-made the still a strictly better use of a haul than the Factory; spending it
-puts the two in honest competition. The rest of the throttle stands: Moonshine
-sells for 3 ¢, against the 40 ¢ the same Godflesh makes as cubes, so it is not
-an income tap, and the Routine it costs is a Routine either way.
+`brewing-basic`, **0 ⬢**, **no Move** (since 2026-09-20), and
+`requirement.items: [godflesh]` — the Refuse Pit gives you the ingredient.
+**One Godflesh per bottle, and it is used up**, like every other spent
+ingredient (`BREWING.md` §4). It used to be a hold-check, which made the still a
+strictly better use of a haul than the Factory; spending it puts the two in
+honest competition. With no Move and no ration on a 0-turn recipe, the lump is
+the whole throttle. Moonshine sells for 3 ¢, against the 40 ¢ the same Godflesh
+makes as cubes, so it is not an income tap.
 
 Drinking it grants Tipsy, **Blind Drunk** (2 turns, blocks Examine with no
 corrective) and one **Damaged Vision**, which is permanent and stacks.

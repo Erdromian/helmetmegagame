@@ -10790,12 +10790,16 @@ tags:
       mood: 2
       hunger: 12
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
 
   # Soilery farm crops (docs/systemdocs/SOILERY.md). Sown from a seed bag,
   # grown in a licensed Farms field, and reaped at turn close via
   # db/lib/soilery.js — see CROPS there for the exact sowing/crop slug
   # pairing, which these MUST match exactly.
+  # Crops sell for 1 ¢ across the board (2026-09-20). Farming is for eating, not
+  # for cash: at 2 ¢ a Farm action netted about 79 ¢, the best wage in the game
+  # after the Factory. Wheat was already at the 1 ¢ floor, and prices are whole
+  # numbers, so 1 is as low as a crop goes short of not selling at all.
   wheat:
     catalog: all
     name: Wheat
@@ -10843,7 +10847,7 @@ tags:
       mood: 2
       hunger: 12
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
 
   tomato:
     catalog: all
@@ -10866,7 +10870,7 @@ tags:
       mood: 3
       hunger: 12
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
 
   carrot:
     catalog: all
@@ -10889,7 +10893,7 @@ tags:
       mood: 3
       hunger: 12
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
 
   plump-helmet:
     catalog: all
@@ -10912,7 +10916,7 @@ tags:
       mood: 1
       hunger: 9
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
 
   # Grown in the fields like the other Soilery crops above, but not a
   # foodstuff — no cooked: block, not consumable. Crushing it into fibre for
@@ -18074,12 +18078,13 @@ tags:
     craftable: true
     consumable: true
     consumesInto: [tipsy, blind-drunk, damaged-vision]
-    # Costs no ⬢ at all — the marsh gives you the ingredient. One
+    # Costs no ⬢ and no Move — the marsh gives you the ingredient. One
     # {tag:godflesh} goes INTO the bottle now and does not come back, which is
-    # also what stops this from undercutting the Factory's refining
-    # (docs/systemdocs/BREWING.md, FACTORY.md §8).
+    # what limits it: there is no ration on a 0-turn recipe, so the lump is the
+    # whole throttle, and a lump made into 3 ¢ of drink is 40 ¢ of Squeeze not
+    # made (docs/systemdocs/BREWING.md, FACTORY.md §8).
     requirement:
-      turnsCost: 1
+      turnsCost: 0
       resourceCost: 0
       skills: [brewing-basic]
       gambit: false
