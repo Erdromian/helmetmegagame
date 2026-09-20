@@ -29,6 +29,8 @@ const { buildCombos } = require("./combos");
 const { buildInvestments } = require("./investments");
 const { buildCaving } = require("./caving");
 const { buildTrinkets } = require("./trinkets");
+const { buildCooking } = require("./cooking");
+const { buildDesires } = require("./desires");
 const { turretTable } = require("../../../lib/depotTurret");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -990,6 +992,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
+  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players });
   const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue: moveValueUsed });
   const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);
   const red = byId("craft:ravenheart-red");
@@ -1147,6 +1150,21 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: foodTiers.boxTurns != null && foodTiers.boxTurns < 1 && foodTiers.boxTurns > 0.5,
     },
     {
+      doc: "COOKING.md §2a",
+      claim: "Every cooking recipe can be made: each fixed base input has a way into the game",
+      docValue: "0 dishes stuck",
+      model: cooking.unreachableDishes.length ? `${cooking.unreachableDishes.length} stuck: ${cooking.unreachableDishes.map((d) => `${d.name} (${d.unreachable.join(", ")})`).join("; ")}` : "0 dishes stuck",
+      ok: cooking.unreachableDishes.length === 0,
+      note: "An input with no data route and no reference in the code cannot be got, so every recipe that needs it is unmakeable today.",
+    },
+    {
+      doc: "COOKING.md §3",
+      claim: "The rat the caves drop is the rat the recipes take",
+      docValue: "same tag",
+      model: cooking.ratGap.caveRatSlug !== cooking.ratGap.recipeRatSlug ? `caves drop ${cooking.ratGap.caveRatSlug}; ${cooking.ratGap.dishes.join(", ")} take ${cooking.ratGap.recipeRatSlug}, which nothing produces` : "same tag",
+      ok: cooking.ratGap.caveRatSlug === cooking.ratGap.recipeRatSlug,
+    },
+    {
       doc: "TRINKETS.md §1",
       claim: "The tier table (Awful 1 ×0.5 up to Masterwork 27 ×2) is the one in trinketPass.js",
       docValue: "6 tiers",
@@ -1300,6 +1318,33 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     moveValue: moveValueUsed,
     gameTurns,
   });
+  const desires = buildDesires({
+    get,
+    list,
+    rv,
+    rvMined,
+    moveValue: moveValueUsed,
+    gameTurns,
+    slots: schemaDefault("desireSlots"),
+    lockTurns: schemaDefault("desireSlotLockTurns"),
+    cookingDishes: cooking.dishes,
+    investments,
+    startingPoints: startingTagPoints,
+  });
+  claims.push(
+    {
+      doc: "desires.yaml, cooldown policy",
+      claim: "A Desire that costs nothing per attempt is on the inverted ladder (5 / 4 / 3 turns at tiers 1 / 2 / 3), except consumables",
+      docValue: "0 off the ladder",
+      model: (() => {
+        const ladder = { 1: 5, 2: 4, 3: 3 };
+        const off = desires.satisfiers.filter((r) => r.open && !r.once && !r.consumable && !r.variance && r.netCoin <= 0 && ladder[r.tier] != null && r.cooldown < ladder[r.tier]);
+        return off.length ? off.map((r) => `${r.name}: tier ${r.tier}, cooldown ${r.cooldown} against ${ladder[r.tier]}`).join("; ") : "0 off the ladder";
+      })(),
+      ok: !desires.satisfiers.some((r) => r.open && !r.once && !r.consumable && !r.variance && r.netCoin <= 0 && ({ 1: 5, 2: 4, 3: 3 })[r.tier] != null && r.cooldown < ({ 1: 5, 2: 4, 3: 3 })[r.tier]),
+      note: "Holding 100 ¢ is the case: the coin is only tied up, never spent, so the wording of the policy (a goal that costs nothing but cooperation takes the ladder) says it belongs there.",
+    }
+  );
 
   return {
     params,
@@ -1317,6 +1362,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     investments,
     caving,
     trinkets,
+    cooking,
+    desires,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },

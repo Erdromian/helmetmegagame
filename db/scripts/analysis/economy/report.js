@@ -575,6 +575,131 @@ ${table({ cols: proCols, rows: proRows, filters: [{ label: "Mining", get: (r) =>
 </section>`;
 }
 
+function sectionCooking() {
+  const C = model.cooking;
+  const cropOnly = C.cropOnly.filter((d) => d.tier === "Basic");
+  const raw = C.strategies.find((x) => x.id === "raw-potato");
+  const rawWheat = C.strategies.find((x) => x.id === "raw-wheat");
+  const cooked = C.strategies.find((x) => x.id === "cooked");
+  const fert = C.strategies.find((x) => x.id === "cooked-fert");
+  const A = C.cookAdds;
+  const stratCols = [
+    { h: "How the town eats", get: (r) => r.label },
+    { h: "Hunger a crop", num: true, get: (r) => fmt(r.hungerPerCrop, 1), sort: (r) => r.hungerPerCrop },
+    { h: "Crops a turn", num: true, get: (r) => fmt(r.cropsPerTurn, 0), sort: (r) => r.cropsPerTurn },
+    { h: "Farm actions a turn", num: true, get: (r) => fmt(r.farmActionsPerTurn, 1), sort: (r) => r.farmActionsPerTurn },
+    { h: "Farmers needed", num: true, get: (r) => fmt(r.farmers, 1), sort: (r) => r.farmers },
+    { h: "Cook Moves a turn", num: true, get: (r) => (r.cookMoves ? fmt(r.cookMoves, 1) : "—"), sort: (r) => r.cookMoves },
+    { h: "Free Moves the farmers already have", num: true, get: (r) => fmt(r.freeFarmerMoves, 1), sort: (r) => r.freeFarmerMoves },
+    { h: "Bites a person-turn", num: true, get: (r) => fmt(r.bitesPerPersonTurn, 1), sort: (r) => r.bitesPerPersonTurn },
+    { h: "Mood a person-turn", num: true, get: (r) => fmt(r.moodPerPersonTurn, 1), sort: (r) => r.moodPerPersonTurn },
+    { h: "Note", get: (r) => r.note },
+  ];
+  const dishCols = [
+    { h: "Dish", get: (d) => d.name },
+    { h: "Tier", get: (d) => d.tier },
+    { h: "Made from", get: (d) => d.inputs.join(" + ") },
+    { h: "Hunger", num: true, get: (d) => d.hunger, sort: (d) => d.hunger },
+    { h: "Mood", num: true, get: (d) => d.mood, sort: (d) => d.mood },
+    { h: "Hunger an input", num: true, get: (d) => fmt(d.hungerPerUnit, 1), sort: (d) => d.hungerPerUnit },
+    { h: "Same inputs raw", num: true, get: (d) => d.rawHunger, sort: (d) => d.rawHunger },
+    { h: "Cooking gives", num: true, get: (d) => (d.multiplier == null ? "—" : `×${fmt(d.multiplier, 2)}`), sort: (d) => d.multiplier ?? 0 },
+    { h: "Moves a dish", num: true, get: (d) => fmt(d.moves, 2), sort: (d) => d.moves },
+    { h: "Inputs cost ¢", num: true, get: (d) => fmt(d.cost, 1), sort: (d) => d.cost },
+    { h: "Worth at the box's price ¢", num: true, get: (d) => fmt(d.value, 1), sort: (d) => d.value ?? 0 },
+    { h: "Margin a Move ¢", num: true, get: (d) => (d.marginPerMove == null ? "—" : fmt(d.marginPerMove, 0)), sort: (d) => d.marginPerMove ?? -1e9 },
+    { h: "Hardest input to get", get: (d) => (d.hardestRank >= 5 ? `no way in: ${d.unreachable.join(", ")}` : `rank ${d.hardestRank}`) },
+  ];
+  const bars = C.dishes.slice(0, 22).map((d) => ({ label: `${d.name}${d.tier === "Skilled" ? " *" : ""}`, value: d.hungerPerUnit, color: d.unreachable.length ? "var(--bad)" : d.farmOnly ? "var(--c3)" : "var(--c1)" }));
+  const inCols = [
+    { h: "Ingredient", get: (r) => r.name },
+    { h: "Raw", get: (r) => (r.rawHunger > 0 ? `${r.rawHunger} hunger, ${r.rawMood} mood, ${r.rawEffect}` : r.rawEffect) },
+    { h: "Comes from", get: (r) => r.source },
+    { h: "Becomes", get: (r) => (r.bestDish ? `${r.bestDish}: ${r.dishHunger} hunger, ${r.dishMood} mood${r.via ? ` (via ${r.via})` : ""}` : "no recipe takes it") },
+    { h: "Every dish it goes in", get: (r) => r.dishes.join(", ") || "—" },
+  ];
+  const slotCols = [
+    { h: "Slot it in", get: (a) => a.name },
+    { h: "Adds hunger", num: true, get: (a) => a.hunger, sort: (a) => a.hunger },
+    { h: "Adds mood", num: true, get: (a) => a.mood, sort: (a) => a.mood },
+    { h: "Costs ¢", num: true, get: (a) => a.cost ?? "—", sort: (a) => a.cost ?? -1 },
+    { h: "Where it comes from", get: (a) => a.source },
+  ];
+  return `<section><h2>Cooks against farmers</h2>
+<p class="lede">A person burns ${params.hungerDecay} hunger a turn, so ${players} players need <b>${fmt(C.need, 0)} hunger</b> a turn. One Farm action harvests about ${fmt(C.harvest, 1)} crops, every third turn. <b>Yes, a cook is worth more than another farmer at the margin</b>: cooking a pair of crops into ${esc(C.cropDish?.name ?? "a dish")} gives ${fmt(C.cropDish?.hungerPerUnit, 1)} hunger a crop against ${fmt(raw.hungerPerCrop, 0)} for a raw potato (×${fmt(C.cropDish?.hungerPerUnit / raw.hungerPerCrop, 2)}) and ${fmt(rawWheat.hungerPerCrop, 0)} for raw wheat (×${fmt(C.cropDish?.hungerPerUnit / rawWheat.hungerPerCrop, 1)}), for 0.05 of a Move a dish. That takes the farmers needed from ${fmt(raw.farmers, 0)} to <b>${fmt(cooked.farmers, 1)}</b> (${fmt(fert.farmers, 1)} with Fertilizer), and the cooking fits in the Moves a farmer has spare between Farm actions (${fmt(cooked.cookMoves, 1)} needed, ${fmt(cooked.freeFarmerMoves, 1)} spare), so a farmer-cook adds no headcount. What cooking cannot do is replace the fields: it multiplies a harvest and never makes one.</p>
+${table({ cols: stratCols, rows: C.strategies, id: "cookstrat" })}
+${C.boxStrategy ? `<p class="lede">${esc(C.boxStrategy.note)} A Ration Box eater needs no farmer, so the Depot is the third way to be fed.</p>` : ""}
+<p class="lede">Per Move, farming still wins: one Farm action is ${fmt(A.farmPersonTurnsPerMove, 1)} person-turns of food for a Move, and the cooking on that harvest adds ${fmt(A.gainPersonTurns, 1)} person-turns for ${fmt(A.movesPerAction, 2)} Moves, ${fmt(A.cookPersonTurnsPerMove, 1)} a Move. But Moves are not what limits a farmer (the lockout is), and the raw diet costs −10 mood a bite: ${fmt(raw.bitesPerPersonTurn, 1)} bites a person-turn is <b>${fmt(raw.moodPerPersonTurn, 0)} mood</b>, against ${fmt(cooked.moodPerPersonTurn, 0)} for one cooked bite.</p>
+<h3>How much food an input makes</h3>
+<p class="lede">Hunger per input unit, best first (a * marks a Skilled dish). Green is made from crops alone, red needs something the game gives no way to get, blue needs something farmed or dug up. The ${cropOnly.length} crop-only Basic dishes all make 35 from two crops and differ only in mood (${Math.min(...cropOnly.map((d) => d.mood))} to ${Math.max(...cropOnly.map((d) => d.mood))}); the Skilled dishes buy mood, not food.</p>
+${barChart({ rows: bars, unit: " hunger", fmtVal: (v) => fmt(v, 1), labelW: 170 })}
+<h3>Every dish</h3>
+<p class="lede">"Worth at the box's price" is what the same hunger costs from a Ration Box, the price a buyer with coin will not pay more than, so the margin is what a cook could ask above the inputs. Dishes cannot be sold to the Depot, so a cook's pay is whatever another player agrees to.</p>
+${table({ cols: dishCols, rows: C.dishes, filters: [{ label: "Tier", get: (d) => d.tier }, { label: "Made from", get: (d) => (d.farmOnly ? "crops only" : d.unreachable.length ? "needs something with no source" : "other inputs") }] })}
+<h3>Turning what nobody eats into food</h3>
+<p class="lede">Yes, for a few. Wheat makes you sick raw and is Bread. Purring Maggot, an ultracommon cave find that poisons you, brews into Maggot Milk and that is Pancakes and Fondue. Deep Morel is a Merchant's shelf item that makes you sick and is the Soaked Truffles (48 hunger, +38 mood). Rock Salt, another ultracommon find, cannot be eaten and seasons Salo and Caviar. Cave Fungus, Saltpeter and Rock go in no recipe, though a Cave Fungus can be slotted into any dish for nothing.</p>
+${table({ cols: inCols, rows: C.inedible, id: "cookinedible" })}
+<p class="lede"><b>The rat is a broken link.</b> The cave loot table drops <code>${esc(C.ratGap.caveRatSlug)}</code>, which is edible raw (19 hunger, −10 mood, a coin toss of vomiting) and has no <code>cooked</code> block since the Ration Box stopped feeding recipes. ${C.ratGap.dishes.map(esc).join(", ")} take <code>${esc(C.ratGap.recipeRatSlug)}</code> instead, which nothing in the game produces (${esc(C.ratGap.recipeRatSource)}). ${C.unreachableDishes.length} of ${C.dishes.length} dishes need an input with no way into the game (${[...new Set(C.unreachableDishes.flatMap((d) => d.unreachable))].map(esc).join(", ")}).</p>
+<h3>What a cook can slot in</h3>
+<p class="lede">Any dish takes up to four extra ingredients, each adding its own hunger and, if positive, its mood. A slot never beats the base for food (12 hunger a crop is what eating it raw gives) but it is where a cook buys mood, and the raw −10 does not apply. The meter tops out at ${params.hungerMax}, so a Bread with four slots is at most 83.</p>
+${table({ cols: slotCols, rows: C.addIns.slice(0, 14) })}
+</section>`;
+}
+
+function sectionDesires() {
+  const D = model.desires;
+  const open = D.satisfiers.filter((r) => r.open && !r.once).sort((a, b) => a.netCoin / a.tier - b.netCoin / b.tier);
+  const gated = D.satisfiers.filter((r) => !r.open && !r.once).sort((a, b) => a.netCoin / a.tier - b.netCoin / b.tier);
+  const bigTicket = D.satisfiers.filter((r) => r.once).sort((a, b) => b.netCoin - a.netCoin);
+  const cols = (who) => [
+    { h: "Desire", get: (r) => r.name },
+    { h: "Tier", num: true, get: (r) => r.tier, sort: (r) => r.tier },
+    { h: "Cooldown", num: true, get: (r) => `${r.cooldown} ${r.cooldownFromLadder ? "" : "(the tier)"}`.trim(), sort: (r) => r.cooldown },
+    { h: "To satisfy it", get: (r) => r.doThis },
+    { h: "Costs ¢", num: true, get: (r) => (r.capital && !r.coin ? `${r.capital} held` : fmt(r.coin, 1)), sort: (r) => r.coin },
+    { h: "After resale ¢", num: true, get: (r) => (r.resale ? fmt(r.netCoin, 1) : "—"), sort: (r) => r.netCoin },
+    { h: "¢ a point", num: true, get: (r) => fmt(r.netCoin / r.tier, 1), sort: (r) => r.netCoin / r.tier },
+    { h: "Points a turn if repeated", num: true, get: (r) => fmt(r.pointsPerTurn, 2), sort: (r) => r.pointsPerTurn },
+    ...(who ? [{ h: "Who can claim", get: (r) => r.who }] : []),
+    { h: "Notes", get: (r) => [r.how, r.note].filter(Boolean).join(". ") },
+  ];
+  const planCols = [
+    { h: "Play", get: (p) => p.label },
+    { h: `Points over ${params.gameTurns} turns`, num: true, get: (p) => p.points, sort: (p) => p.points },
+    { h: "Coin spent ¢", num: true, get: (p) => fmt(p.coin, 0), sort: (p) => p.coin },
+    { h: "¢ a point", num: true, get: (p) => fmt(p.perPoint, 1), sort: (p) => p.perPoint },
+    { h: "Coin held ¢", num: true, get: (p) => p.capital, sort: (p) => p.capital },
+    { h: "What it claimed", get: (p) => p.used.slice(0, 5).map((u) => `${(D.satisfiers.find((s) => s.slug === u.slug)?.name ?? u.slug).replace(/^(Drink|Eat|Smoke|Take|Have|Make) /, "$1 ")} ×${u.n}`).join(", ") },
+  ];
+  const buyCols = [
+    { h: "A point buys", get: (b) => b.name },
+    { h: "Points", num: true, get: (b) => b.points, sort: (b) => b.points },
+    { h: "Pays ¢ / turn", num: true, get: (b) => fmt(b.gain, 1), sort: (b) => b.gain },
+    { h: "¢ / turn per point", num: true, get: (b) => fmt(b.perPoint, 2), sort: (b) => b.perPoint },
+    { h: `Over ${params.gameTurns} turns, per point ¢`, num: true, get: (b) => fmt(b.overGame, 0), sort: (b) => b.overGame },
+  ];
+  const best = D.plans[0];
+  const cheap = D.plans[1];
+  return `<section><h2>Desires as an income</h2>
+<p class="lede">A Desire pays its <b>tier in Tag Points</b> and is claimed afterwards. Of ${D.count.total} in the catalog, <b>${D.count.satisfiable}</b> can be satisfied by buying, making, consuming or owning something, and ${D.count.open} of those are open to anybody. What limits a person is not the catalog but the slots: ${D.slots} slots that each lock for ${D.lockTurns} turn after a claim allow at most <b>${fmt(D.claimsPerTurn, 0)} claim a turn</b>, so the ceiling is one Desire a turn at the highest tier that is off cooldown. A character starts with ${D.startingPoints} points to spend.</p>
+<p class="lede">The catalog does not price its Desires, so the satisfier beside each one is my reading of its wording and the price comes from the tag catalog. <b>The gate is a claim a GM reviews</b> (the player must say how they did it and a GM can reject it), so what follows is what the rules allow, not what a GM would let stand.</p>
+<h3>What it turns into</h3>
+<p class="lede">Played out over ${params.gameTurns} turns with one claim a turn and the gambling left out, the open Desires pay <b>${best.points} points for ${fmt(best.coin, 0)} ¢</b> if a person will carry ${best.capital} ¢ and can get Godflesh, and <b>${cheap.points} points for ${fmt(cheap.coin, 0)} ¢</b> (${fmt(cheap.perPoint, 1)} ¢ a point) if all they do is buy consumables off a shelf. Set that against what a point buys: <b>${D.buys[0]?.name}</b> pays ${fmt(D.buys[0]?.perPoint, 1)} ¢ a turn for every point spent, and ${D.buys.find((b) => b.name === "Soilery")?.name ?? "Soilery"} ${fmt(D.buys.find((b) => b.name === "Soilery")?.gain, 1)} ¢ a turn for ${D.buys.find((b) => b.name === "Soilery")?.points} points, so the coin behind a point is repaid many times over. Desires are a converter from a few coin into skills, and the throttle on it is the slot lock, not the price.</p>
+${table({ cols: planCols, rows: D.plans, id: "desireplans" })}
+<h3>What a point buys</h3>
+<p class="lede">From the investment table, per point spent. The last column is what a point is worth over the game if the thing it buys is bought at once.</p>
+${table({ cols: buyCols, rows: D.buys })}
+<h3>Open to anybody, repeatable</h3>
+<p class="lede">Every drink, smoke, drug and sweet sits on a flat 3-turn cooldown by design, so three of them in rotation fill the one claim a turn. <b>Hold 100 ¢</b> is the free one: it costs nothing per attempt, so the policy in <code>desires.yaml</code> would put it on the 4-turn ladder, and it is on its tier's 2 instead, for a point a turn from anybody with 100 ¢ in the pocket.</p>
+${table({ cols: cols(false), rows: open, id: "desireopen" })}
+<h3>Gated by a role or a tag</h3>
+${table({ cols: cols(true), rows: gated, id: "desiregated" })}
+<h3>Once per game, and the big tickets</h3>
+<p class="lede">A Motorcycle is 191 ¢ at the shelf and sells back for 115, so the Desire costs about ${fmt(bigTicket.find((b) => b.slug === "metal-ride")?.netCoin, 0)} ¢ for 3 points (pusher only). The tier 4 and 5 goals (a manor, buying your freedom, the Arkenstone) are not on any shelf and are not priced here.</p>
+${table({ cols: cols(true), rows: bigTicket, id: "desirebig" })}
+</section>`;
+}
+
 function sectionSeats() {
   const c = model.combos;
   const cols = [
@@ -1062,7 +1187,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionTrinkets()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionTrinkets()}${sectionCooking()}${sectionDesires()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
