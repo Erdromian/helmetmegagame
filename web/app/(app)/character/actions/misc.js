@@ -149,7 +149,9 @@ import {
   PACKAGE_LABEL_MAX,
   IMPERTURBABLE_SLUG,
   TAG_CATEGORY,
+  CORPSE_SENSE_SLUG,
 } from "@lifeweb/db/lib/constants";
+import { pingCorpseSense } from "@lifeweb/db/lib/corpseSense";
 import {
   resolveTorture,
   formatTortureRoll,
@@ -1217,6 +1219,17 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   await afterInventoryChange([character.id, administered ? target.id : null]);
   if (administered) {
     notifyCharacter(target, `${character.name} used ${held.tag.name} on you.`);
+  }
+  // Corpse Salts answers straight away rather than waiting up to a minute for
+  // the sweep to notice (db/lib/corpseSense.js). Keyed on the CONSUMED tag's
+  // consumesInto, which names catalog slugs — `granted` above carries display
+  // names. Fire-and-forget: a failed DM must not undo a consume that committed.
+  if (held.tag.consumesInto?.includes(CORPSE_SENSE_SLUG)) {
+    after(() =>
+      pingCorpseSense(prisma, target).catch((err) =>
+        console.error("Corpse sense first ping failed:", err),
+      ),
+    );
   }
   revalidateAll();
   // The taste sentence, which is the whole point of cooking — the one-click

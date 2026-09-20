@@ -728,10 +728,10 @@ also carries, is what the tag buys.
 **Players lift it themselves, by burying the body — or, failing that, by
 carving a stone.** Two requests do it (`REQUESTS.md` §5d,
 [`CORPSES.md`](CORPSES.md)). `BURY_CHARACTER` needs the dead character's actual
-**corpse tag**, held or lying in a room the filer can reach, and spends **half**
-their Move; `ENGRAVE_HEADSTONE` is the answer to a body nobody can find,
-costing 3 ⬢ and the same half a Move, and matching a **typed** first name
-game-wide. Either one stamps
+**corpse tag**, held or lying in a room the filer can reach, and spends their
+**whole** Move — half of it with a Shovel equipped; `ENGRAVE_HEADSTONE` is the
+answer to a body nobody can find, costing 2 ⬢ and a whole Move no shovel
+shortens, and matching a **typed** first name game-wide. Either one stamps
 `buriedAt`, which is the whole of it — no Discord round trip is involved in
 lifting a curse any more. That is the fiction the setting has always carried —
 `docs/documents.yaml`'s Respawning entry says to wait until your body is

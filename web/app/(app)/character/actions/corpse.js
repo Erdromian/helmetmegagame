@@ -35,6 +35,7 @@ import {
   BUTCHER_SLUG,
   ENGRAVE_RESOURCE_COST,
   MUTILATE_GATE_SLUGS,
+  SHOVEL_SLUG,
 } from "@lifeweb/db/lib/constants";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { notifyCharacter } from "@/lib/notifyCharacter";
@@ -53,17 +54,22 @@ import {
   spendCraftMove,
 } from "./shared.js";
 
-// Half a turn's Routine each, on the same ledger crafting uses
-// (CRAFTING.md §2a): laying somebody to rest is an afternoon's work, not a
-// whole day's, and it shares the Move with whatever else is done at the bench.
-// `family` only has to be non-medical — craftLedgerDescription groups these
-// with the turn's crafting.
-const BURIAL_MOVE = { num: 1, den: 2, family: "burial" };
+// A whole turn's Routine each, on the same ledger crafting uses (CRAFTING.md
+// §2a): digging a grave or cutting a stone is a day's work with your hands.
+// A SHOVEL halves the digging — two bodies in the ground in a turn — and does
+// nothing at all for the stone. `family` only has to be non-medical —
+// craftLedgerDescription groups these with the turn's crafting — and it stays
+// on both so a half-Move burial can still share its turn with work at the
+// bench.
+const BURIAL_MOVE = { num: 1, den: 1, family: "burial" };
+const SHOVEL_BURY = { num: 1, den: 2, family: "burial" };
 
 // One ledger entry, built by hand: these verbs have no recipe tag behind them,
-// so craftLedgerEntry has nothing to read.
-function burialLedgerEntry(name) {
-  return { tagId: null, name, family: "burial", qty: 1, num: 1, den: 2 };
+// so craftLedgerEntry has nothing to read. Takes the `need` it is billing for
+// rather than assuming one, or the ledger would read back a different price
+// than the gate actually charged.
+function burialLedgerEntry(name, need) {
+  return { tagId: null, name, family: "burial", qty: 1, num: need.num, den: need.den };
 }
 
 // --- Bodies: Butcher, Bury, Engrave --------------------------------------
@@ -419,7 +425,8 @@ async function speakHere(character, text) {
   speakAtSite(location?.discordChannelId, ambientLine(text));
 }
 
-// Burying. Takes the body — you have to actually have it, or be able to reach it — and spends half your Move.
+// Burying. Takes the body — you have to actually have it, or be able to reach it — and spends your whole
+// Move, or half of it with a Shovel equipped.
 export async function buryCharacterRequestImpl({
   tagId,
   sourceKey,
@@ -436,9 +443,20 @@ export async function buryCharacterRequestImpl({
   if (!target) throw new UserError("There's nobody left to bury.");
   if (target.buriedAt) throw new UserError("They're already in the ground.");
 
+  // Resolved ONCE, and the same object goes into the transaction below. Reading
+  // the shovel twice would let an unequip between the two checks bill half a
+  // Move for work the gate passed at a whole one. `equipped` is the canonical
+  // "at least one unit is worn" column (schema.prisma, CharacterTag.equipped),
+  // and requireCharacter already loaded the tags, so this costs no query.
+  const need = character.tags.some(
+    (ct) => ct.equipped && ct.tag?.slug === SHOVEL_SLUG,
+  )
+    ? SHOVEL_BURY
+    : BURIAL_MOVE;
+
   const openTurn = await getOpenTurn();
   // The fast fail; spendCraftMove below re-asks under the row lock.
-  await resolveCraftMove(character, openTurn, BURIAL_MOVE);
+  await resolveCraftMove(character, openTurn, need);
   const buriedAt = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -447,8 +465,8 @@ export async function buryCharacterRequestImpl({
     await spendCraftMove(tx, {
       character,
       openTurn,
-      need: BURIAL_MOVE,
-      entry: burialLedgerEntry(`Buried ${target.name}`),
+      need,
+      entry: burialLedgerEntry(`Buried ${target.name}`, need),
       notes: "auto:craft auto:bury",
     });
     await logAudit(tx, {
@@ -514,6 +532,8 @@ export async function engraveHeadstoneRequestImpl({
   }
 
   const openTurn = await getOpenTurn();
+  // BURIAL_MOVE flat, and deliberately no shovel check: a shovel digs a grave,
+  // it does not carve a stone.
   // The fast fail; spendCraftMove below re-asks under the row lock.
   await resolveCraftMove(character, openTurn, BURIAL_MOVE);
   const buriedAt = new Date();
@@ -537,7 +557,10 @@ export async function engraveHeadstoneRequestImpl({
       character,
       openTurn,
       need: BURIAL_MOVE,
-      entry: burialLedgerEntry(`Engraved a headstone for ${target.name}`),
+      entry: burialLedgerEntry(
+        `Engraved a headstone for ${target.name}`,
+        BURIAL_MOVE,
+      ),
       notes: "auto:craft auto:engrave",
     });
     await logAudit(tx, {

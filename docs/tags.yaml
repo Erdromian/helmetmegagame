@@ -4107,6 +4107,23 @@ tags:
     purchasableAfterStart: false
     durationTurns: 2
 
+  # What Corpse Salts leaves behind. While it is held, the minute sweep DMs the
+  # holder the direction of the nearest HUMAN corpse within seven hops, every
+  # twenty real minutes (db/lib/corpseSense.js). The direction obeys the shout
+  # privacy rule exactly: which way, never how far, and nothing at all across a
+  # hidden way.
+  corpse-sense:
+    catalog: gm
+    name: Corpse Sense
+    category: status
+    group: status-buffs
+    description: "You can smell where corpses are, helping you find them."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
   # Eating Flesh of Tzchernobog. Two turns of being able to chant a rite that
   # counts (db/lib/riteChant.js#chanterReady) — the other half of that gate is
   # wearing black-robes. Bascinet's wording.
@@ -8155,6 +8172,35 @@ tags:
       taste: "a maggot"
       mood: -8
 
+  # The Mortii's own recipe, and secret in the ordinary way: no recipePublic,
+  # so you have to have held one to know how it is made, and skills: [mortus]
+  # means only a Mortus ever can. Snuffed rather than drunk, but it lives with
+  # the apothecary because what it leaves behind is a status-buffs tag like
+  # every other thing you consume here.
+  corpse-salts:
+    catalog: all
+    name: Corpse Salts
+    category: items
+    group: items-drink
+    description: "A secret recipe of the Mortii. It helps you pick up on the smell of death, pointing you towards corpses."
+    pointCost: 1
+    weight: 0.5
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0.25
+      resourceCost: 1
+      skills: [mortus]
+      gambit: false
+    consumable: true
+    consumesInto:
+      - corpse-sense
+    sellable: true
+    sellablePrice: 4
+
   # Not on the caving table — the maggot is the loot, this is what you make of
   # it. Calms like {tag:tea} (db/lib/mood.js CONSUME_RELIEF) and feeds you.
   # recipePublic: any Brewer should know you can squeeze a maggot, without
@@ -9535,6 +9581,34 @@ tags:
     sellable: true
     sellablePrice: 8
     depotPrice: 13
+
+  # Burying is a whole Move with your hands (docs/systemdocs/CORPSES.md); with
+  # one of these it is half, so a Mortus can put two people in the ground in a
+  # turn. Made on the same terms as a Hatchet, since it is the same piece of
+  # forge work. No fighting: block on purpose — it is a tool, and giving it a
+  # weapon class would make every gravedigger armed.
+  shovel:
+    catalog: all
+    name: Shovel
+    category: items
+    group: items-gear
+    description: "A long-handled digging spade. While equipped, you can bury two corpses per turn."
+    pointCost: 2
+    equippable: true
+    equipSlot: ACCESSORY
+    weight: 4
+    stackable: true
+    visible: worn
+    purchasable: true
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 0.25
+      resourceCost: 3
+      skills: [smithing]
+      gambit: false
+    sellable: true
+    sellablePrice: 6
 
   sling:
     catalog: all

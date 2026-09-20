@@ -113,9 +113,17 @@ const HATCH_IN = 30;
 // chosen difficulty for db/lib/arelitz.js's break-in Gambit.
 const BREAK_IN_TARGET = 5;
 const HUMAN_FLESH_SLUG = "human-flesh";
-const ENGRAVE_RESOURCE_COST = 3;
+const ENGRAVE_RESOURCE_COST = 2;
 // Turns a person's corpse stays fresh. Monster corpses never rot.
 const CORPSE_ROT_TURNS = 3;
+
+// Digging and smelling (docs/systemdocs/CORPSES.md). A Shovel halves burial
+// while it is equipped — two bodies in the ground in a turn instead of one.
+// Corpse Salts is the Mortii's recipe, consumed into Corpse Sense, which is
+// what db/lib/corpseSense.js sweeps for.
+const SHOVEL_SLUG = "shovel";
+const CORPSE_SALTS_SLUG = "corpse-salts";
+const CORPSE_SENSE_SLUG = "corpse-sense";
 
 // The Teaching tree (LESSONS.md). Anyone may teach: it costs them their
 // Routine and their student needs UNTAUGHT_LESSON_THRESHOLD. TEACHING_SLUG
@@ -306,6 +314,9 @@ module.exports = {
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,
+  SHOVEL_SLUG,
+  CORPSE_SALTS_SLUG,
+  CORPSE_SENSE_SLUG,
   TEACHING_SLUG,
   DRILL_INSTRUCTOR_SLUG,
   FIGHTING_GROUP_SLUG,
