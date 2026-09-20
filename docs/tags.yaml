@@ -1073,7 +1073,7 @@ tags:
   # `teachable` is what Learn Skill and Teach Skill read (db/lib/lessons.js),
   # and it is set here regardless. Groupless on purpose, the way musician,
   # butcher, climbing and stealth are: there is no literacy family to join.
-  literate:
+  literacy:
     catalog: all
     name: Literacy
     category: skills
@@ -1097,7 +1097,7 @@ tags:
     group: general-traits
     description: "This person is too slow to learn. You can't learn skills, and you can't read."
     pointCost: -6
-    conflictsWith: [literate]
+    conflictsWith: [literacy]
     purchasable: true
     purchasableAfterStart: false
 
@@ -2602,7 +2602,7 @@ tags:
   # Out of the Brigand group on 2026-09-20 and made an ordinary skill: forging
   # a hand is a craft you learn, not a thing you are born into a camp holding.
   # The gate was never on the tag, it was on the group.
-  forger:
+  forgery:
     catalog: all
     name: Forgery
     category: skills
@@ -6158,7 +6158,7 @@ tags:
     name: Bird
     category: assets
     group: assets-companions
-    description: "An intelligent bird. It can send letters if you're {tag:literate}."
+    description: "An intelligent bird. It can send letters if you have {tag:literacy}."
     pointCost: 5
     visible: true
     tradeable: true
@@ -12921,7 +12921,7 @@ tags:
     category: items
     group: items-special
     sprite: book
-    description: "A strange kind of book: you can only read it once. Your breath slows when you near it. [You must be {tag:literate} to understand its contents.]"
+    description: "A strange kind of book: you can only read it once. Your breath slows when you near it. [You must have {tag:literacy} to understand its contents.]"
     pointCost: 0
     weight: 5
     visible: false
@@ -14124,7 +14124,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-duo-of-saints:
@@ -14145,7 +14145,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-regal-cross:
@@ -14166,7 +14166,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-fleur-de-lis:
@@ -14187,7 +14187,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-mounted-knight:
@@ -14208,7 +14208,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   wax-seal-ox:
@@ -14229,7 +14229,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   # The offices' own stamps. These are never bought — each one starts in the
@@ -14270,7 +14270,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   barons-wax-stamp:
@@ -14290,7 +14290,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   esculaps-wax-stamp:
@@ -14310,7 +14310,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   meisters-wax-stamp:
@@ -14330,7 +14330,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   censors-wax-stamp:
@@ -14350,7 +14350,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   hands-wax-stamp:
@@ -14370,7 +14370,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   bishops-wax-stamp:
@@ -14390,7 +14390,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   inquisitors-wax-stamp:
@@ -14410,7 +14410,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   # The one stamp with no mark in this file. The Merchant's bears his actual
@@ -14439,7 +14439,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 2
-      skills: [forger]
+      skills: [forgery]
       gambit: false
 
   coffee:

@@ -1081,7 +1081,7 @@ desires:
     tier: 1
     families: [duty]
     requires:
-      anyTags: [literate]
+      anyTags: [literacy]
 
   protection-racket:
     name: Have someone pay you to not turn them in to the guards.

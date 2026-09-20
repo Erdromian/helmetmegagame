@@ -74,7 +74,7 @@ so the row count grows with actual writing rather than with stock.
 `db/lib/reading.js#readBlock(tags, { phase, indoors })` is the one gate.
 It composes `examineVision.js#examineBlock` — blind, blind drunk, nearsighted
 with the spectacles in a sack, sun-sensitive outdoors at Dawn — and adds the
-`literate` tag on top. `stupid` overrides `literate`: a Stupid character
+`literacy` tag on top. `stupid` overrides `literacy`: a Stupid character
 cannot read, whatever else is on the sheet.
 
 **One message for every cause: `You can't read this.`** A blind man and an
@@ -452,7 +452,7 @@ per-viewer composition), `db/lib/paperMint.js` (the four writes),
 
 ## 9. What this does not do
 
-- **Forgery is HALF implemented.** The `forger` tag — **Forgery**, an
+- **Forgery is HALF implemented.** The `forgery` tag — **Forgery**, an
   ordinary `catalog: all` skill anyone may buy since 2026-09-20, when the
   Brigand group was deleted — is a real recipe skill, and it reaches **every
   stamp in the game** — the six courtier wax seals *and* all eight office
@@ -475,7 +475,7 @@ per-viewer composition), `db/lib/paperMint.js` (the four writes),
 
   **The recipe is no longer hidden, and that is a live question.** It used to
   be: `web/app/(app)/character/page.js` strips a recipe gated on a hidden
-  trade, and `forger` being `catalog: gm` was what made the trade hidden. Now
+  trade, and `forgery` being `catalog: gm` was what made the trade hidden. Now
   that anyone may buy Forgery the skill reads `catalogVisibility: ALL`, so the
   stripping no longer fires and a "Recipe: Forgery · 1 turn · 2 ⬢" line prints
   on the Baron's stamp for everybody — telling the whole game that stamps get

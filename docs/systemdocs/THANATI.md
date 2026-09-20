@@ -16,7 +16,7 @@ the fate guidance and the round scripts are `SECRETS.md` §5 (gitignored).
 
 Whoever holds the `thanati` Belief (`docs/tags.yaml`, `catalog: secret`). The
 leader holds `thanati-leader` on top. Both arrive by Assign or Spawn
-(`db/lib/threats.js`), each kit also granting `literate`. Points: 4 for a
+(`db/lib/threats.js`), each kit also granting `literacy`. Points: 4 for a
 cultist, 7 for the leader.
 
 **The cult has no starting location.** Each kit used to grant an

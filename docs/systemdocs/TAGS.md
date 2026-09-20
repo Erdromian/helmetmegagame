@@ -313,9 +313,9 @@ require a *belief*.
 
 ## 3a. Hidden categories, and gated groups
 
-**Two tags gate an action rather than an item: `bird` and `literate`.** Holding
-both puts the Bird on the Actions grid; holding `literate` puts Write and Seal
-there (`BIRD.md`, `PAPERWORK.md`). `literate` is also half of
+**Two tags gate an action rather than an item: `bird` and `literacy`.** Holding
+both puts the Bird on the Actions grid; holding `literacy` puts Write and Seal
+there (`BIRD.md`, `PAPERWORK.md`). `literacy` is also half of
 `db/lib/reading.js#readBlock`, which is what any future literacy feature should
 call rather than reinvent — the other half is the character's eyes, and a
 written thing they cannot read must look the same everywhere in the game. There

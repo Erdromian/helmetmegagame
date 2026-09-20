@@ -1,7 +1,7 @@
 // The Bird — one letter a day to a named person in a GUESSED zone (docs/systemdocs/BIRD.md). Pure and requires nothing, so all three callers (web send action, turn-pass failure report, bot reply handler) share identical copy — "The message wasn't delivered." must read the same whether the guess was wrong or the recipient was dead. Carries an object now: you write a letter (Paper, docs/systemdocs/PAPERWORK.md), not raw text, so an illiterate recipient can hand it to someone who can read. Client-safe: import by path as `@lifeweb/db/lib/bird`, never through the @lifeweb/db barrel.
 
 const BIRD_SLUG = "bird";
-const LITERATE_SLUG = "literate";
+const LITERACY_SLUG = "literacy";
 // Blind reads nothing regardless of the sheet. A blind character can still be SENT a letter and still carry one — the paper arrives either way — but cannot work the bird themselves.
 const BLIND_SLUG = "blind";
 
@@ -43,7 +43,7 @@ const SLOW_SLUG = "slow";
 // Whether written words reach this character: literate and not blind, asked as one question so no caller checks only half. The fuller gate is db/lib/reading.js#readBlock (blind drunk, no spectacles, sun-blind in daylight); this stays because it's what the Bird's own surfaces ask and is pure of turn/Location context — a tag chip uses readBlock, a bird asks this.
 function canReadLetters(tags) {
   return (
-    hasSlug(tags, LITERATE_SLUG) &&
+    hasSlug(tags, LITERACY_SLUG) &&
     !hasSlug(tags, BLIND_SLUG) &&
     !hasSlug(tags, STUPID_SLUG) &&
     !hasSlug(tags, SLOW_SLUG)
@@ -99,7 +99,7 @@ module.exports = {
   BLIND_SLUG,
   STUPID_SLUG,
   canReadLetters,
-  LITERATE_SLUG,
+  LITERACY_SLUG,
   BIRD_REPLY_PREFIX,
   BIRD_REPLY_PICK_PREFIX,
   NOT_DELIVERED_DM,
