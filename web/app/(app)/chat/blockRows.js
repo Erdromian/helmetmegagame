@@ -74,10 +74,14 @@ function turnBlock(row) {
     body: (
       <>
         {turn.note ? <ChatMarkdown content={turn.note} /> : null}
+        {/* A DIV, not a `p`: ChatMarkdown renders its own paragraph, and a `p`
+            inside a `p` is invalid HTML — the browser closes the outer one
+            early, so the rule and the mono face land on an empty element and
+            the clock draws as ordinary body text. */}
         {turn.clock ? (
-          <p className="turn-clock">
+          <div className="turn-clock">
             <ChatMarkdown content={turn.clock} />
-          </p>
+          </div>
         ) : null}
       </>
     ),
