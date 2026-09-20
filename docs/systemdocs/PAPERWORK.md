@@ -454,11 +454,13 @@ per-viewer composition), `db/lib/paperMint.js` (the four writes),
 
 ## 9. What this does not do
 
-- **Forgery is HALF implemented.** The `forger` tag (Brigands only,
-  `general-brigand`) is a real recipe skill, and it now reaches **every stamp
-  in the game** — the six courtier wax seals *and* all eight office stamps,
-  the Baron's included — each `craftable` at 1 turn and 2 ⬢. So a brigand can
-  make a Fleur-de-Lis, or the Bishop's own mark, and seal a letter with it.
+- **Forgery is HALF implemented.** The `forger` tag — **Forgery**, an
+  ordinary `catalog: all` skill anyone may buy since 2026-09-20, when the
+  Brigand group was deleted — is a real recipe skill, and it reaches **every
+  stamp in the game** — the six courtier wax seals *and* all eight office
+  stamps, the Baron's included — each `craftable` at 1 turn and 2 ⬢. So a
+  forger can make a Fleur-de-Lis, or the Bishop's own mark, and seal a letter
+  with it.
 
   The two sets throttle differently, on purpose. The six courtier seals are
   `exclusive: true`, so a forger holds one at a time and has to hand each off
@@ -471,11 +473,19 @@ per-viewer composition), `db/lib/paperMint.js` (the four writes),
 
   Nothing was opened up besides crafting: the office stamps stay
   `purchasable: false`, so the only two routes to the Baron's stamp are taking
-  it off the Baron and forging one. The recipe stays hidden from everyone but
-  a forger, because `forger` is a `catalog: gm` skill and
-  `web/app/(app)/character/page.js` strips a recipe gated on a hidden trade —
-  a "Recipe: Forger · 1 turn · 2 ⬢" line on the Baron's stamp would tell the
-  whole game that stamps get forged, which is the one thing a forger pays for.
+  it off the Baron and forging one.
+
+  **The recipe is no longer hidden, and that is a live question.** It used to
+  be: `web/app/(app)/character/page.js` strips a recipe gated on a hidden
+  trade, and `forger` being `catalog: gm` was what made the trade hidden. Now
+  that anyone may buy Forgery the skill reads `catalogVisibility: ALL`, so the
+  stripping no longer fires and a "Recipe: Forgery · 1 turn · 2 ⬢" line prints
+  on the Baron's stamp for everybody — telling the whole game that stamps get
+  forged, which used to be the one thing a forger was paying for. Opening the
+  skill and hiding its recipe are two different wants, and the current
+  mechanism only has one switch for both. If the secret matters more than the
+  open door, the fix is a per-recipe hide that does not key off the skill's
+  catalog.
 
   What is still NOT implemented is forging the **handwriting**: a letter's
   `paperAuthor` is always the writer's presented name, and nothing lets a

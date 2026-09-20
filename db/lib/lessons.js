@@ -151,8 +151,23 @@ function knownTeachableSkills(teacher, catalog) {
   return catalog.filter((tag) => tag.teachable && holdsTier(teacherHeld, tag.id, parentOf));
 }
 
+// Two tags shut the door on learning entirely, rather than on one skill:
+// Slow never picked up how to be taught, and Stupid is Squeeze damage that
+// took it away. Checked as a whole-character refusal rather than a
+// per-skill conflict edge, because it is not about any particular skill —
+// and because conflictsWith would have needed an edge on all ~40 teachable
+// tags. Stupid strips Slow on grant (db/lib/tagWrites.js), so the two never
+// stack; both are listed anyway so neither depends on that holding.
+const NO_LEARNING_SLUGS = ["slow", "stupid"];
+
+function cannotLearn(learner) {
+  const slugs = heldSlugs(learner);
+  return NO_LEARNING_SLUGS.some((slug) => slugs.has(slug));
+}
+
 // Teachable skills this character could take from somebody who knows them.
 function learnableSkills(learner, catalog) {
+  if (cannotLearn(learner)) return [];
   const parentOf = parentMap(catalog);
   const learnerHeld = heldTagIds(learner);
   return catalog.filter((tag) => {

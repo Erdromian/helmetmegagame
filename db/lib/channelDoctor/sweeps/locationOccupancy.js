@@ -11,7 +11,8 @@ const WATCHING = { allow: String(LOCATION_VANTAGE_ALLOW), deny: String(LOCATION_
 
 async function runLocationOccupancySweep({ report, prisma, locations, liveLocationChannels, alive }) {
   // One query for the whole game, already filtered to rows that are still
-  // valid — the right turn, and a zone the character is actually in.
+  // valid — the right turn, and a place still next door to where the
+  // character actually stands.
   const watching = new Map(); // locationId -> Set(discordUserId)
   const aliveById = new Map((alive ?? []).map((c) => [c.id, c]));
   const vantages = prisma ? await allVantages(prisma, alive).catch(() => []) : [];

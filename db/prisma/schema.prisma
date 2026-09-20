@@ -1373,10 +1373,15 @@ model LocationVisit {
   @@index([characterId])
 }
 
-/// A Location this character walked into THIS TURN and is no longer standing
-/// in — the per-turn fog of war on the channels, not the permanent fog on the
-/// map. Walking in lights a place; it stays lit until the character leaves the
-/// zone or the turn shifts, and either of those puts every light out at once.
+/// A Location this character walked out of THIS TURN and is still next door to
+/// — the per-turn fog of war on the channels, not the permanent fog on the
+/// map. Walking out lights the place behind you; it stays lit while it is
+/// DIRECTLY ADJACENT to where you stand, and goes dark the moment you walk on
+/// past it or the turn shifts. One step, never two.
+///
+/// The zone has nothing to do with it. Walking out through a gate leaves the
+/// street behind you lit exactly as any other single step would — whether that
+/// gate happens to be a zone boundary is not the player's business.
 ///
 /// Deliberately NOT called fog in code: LocationVisit above already owns that
 /// word, it is never unlearned, and two tables called fog with opposite
@@ -1386,12 +1391,15 @@ model LocationVisit {
 /// was, so the turn wipe is a bare deleteMany with nothing to put back and
 /// there is only ever one writer of "here".
 ///
-/// zoneId and turnId are SNAPSHOT columns with no foreign key, the same
-/// reasoning the log tables use (ARCHITECTURE.md): zoneId makes the
-/// leave-the-zone wipe one statement, and turnId makes a wipe that failed to
-/// run read as dark rather than as a leak — every reader filters on both, so
-/// a stale row is already invisible before the channel doctor takes its
-/// overwrite off. db/lib/vantages.js is the only module that touches this.
+/// anchorLocationId and turnId are SNAPSHOT columns with no foreign key, the
+/// same reasoning the log tables use (ARCHITECTURE.md). anchorLocationId is
+/// where the character stood when this row was last confirmed adjacent, so a
+/// read is the single equality `anchorLocationId = their locationId` rather
+/// than a graph walk — and a row left behind by a wipe that failed to run
+/// reads as dark the instant they move. turnId does the same for the turn.
+/// Every reader filters on both, so a stale row is already invisible before
+/// the channel doctor takes its overwrite off. db/lib/vantages.js is the only
+/// module that touches this.
 model Vantage {
   id String @id @default(cuid())
 
@@ -1401,8 +1409,8 @@ model Vantage {
   locationId String
   location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
-  zoneId String
-  turnId String
+  anchorLocationId String
+  turnId           String
 
   litAt DateTime @default(now())
 

@@ -962,9 +962,10 @@ strings, and the web UI.
 One exception. A `{resource:…}` bubble already renders its own glyph via
 `ResourceChip.js`, so never write a glyph after one. Also, literal syntax a
 player is meant to *type* (`/move`, `/conceal`) is quoted as-is. The glossary
-line in
-`docs/systemdocs/infochannel.yaml` is, on purpose, the one place the glyph is
-introduced to players.
+line in `docs/handbook.md` is, on purpose, the one place the glyph is
+introduced to players. It used to be a line in
+`docs/systemdocs/infochannel.yaml`, until the Resources thread came out of
+`#info` — so `/handbook` is the only surface that explains it now.
 
 ## Typography in game text
 

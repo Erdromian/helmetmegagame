@@ -32,8 +32,8 @@ const { cancelSearchOffersOnMove } = require("./search");
 const { closeFightsFor } = require("./attack");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY } = require("./zoneChannelSpec");
-const { lightVantage, clearVantage, vantagesFor, dropVantages } = require("./vantages");
-const { linkBetween, endpoints, shouldPromptKeyed } = require("./locationGraph");
+const { lightVantage, pruneVantages, vantagesFor } = require("./vantages");
+const { linkBetween, endpoints, shouldPromptKeyed, travelOptions } = require("./locationGraph");
 const { keyedPromptRow } = require("./locationAnchorRow");
 const { aliasSubject } = require("./concealedIdentity");
 const { sendDm } = require("./dm");
@@ -137,7 +137,7 @@ async function materializeDiscordPresence(prisma, character) {
   await swapRole(discordUserId, null, location.zone?.discordRoleId ?? null, "zone");
 
   // The fog of war comes back on too. Vantage rows are a database fact and survived the switch being on (db/lib/vantages.js); this is the Discord half catching up, so the places they walked through earlier this turn are where they left them rather than dark until the next move.
-  const vantages = await vantagesFor(prisma, { id: character.id, zoneId: location.zoneId }).catch((err) => {
+  const vantages = await vantagesFor(prisma, { id: character.id, locationId: character.locationId }).catch((err) => {
     console.error(`Discord mirror on: vantage lookup failed for ${character.id}:`, err.message ?? err);
     return [];
   });
@@ -410,27 +410,34 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   ]);
   if (!toLocation) return;
 
-  // THE FOG OF WAR (db/lib/vantages.js). Above the Discord guard below, same reasoning as recordArrival: what a character can still see is a database fact, and the web reads it whether or not there is a token to talk to Discord with.
-  // Leaving the zone puts every light out — all of them, not just the one behind you — and that holds however the character left, walked or carried. Staying inside it leaves the street they walked out of lit, read-only, until the turn shifts.
   const leftZone = Boolean(fromLocation) && fromLocation.zoneId !== toLocation.zoneId;
-  const droppedVantages = leftZone
-    ? await dropVantages(prisma, characterId).catch((err) => {
-        console.error(`Move: dropping vantages failed for ${characterId}:`, err.message ?? err);
-        return [];
-      })
-    : [];
-  if (!leftZone) {
-    // Arriving anywhere puts that street's own light out, walked or not: it is Here now, and Here is never a row.
-    await clearVantage(prisma, characterId, toLocationId).catch((err) =>
-      console.error(`Move: clearing the vantage failed for ${characterId}:`, err.message ?? err),
-    );
+
+  // THE FOG OF WAR (db/lib/vantages.js). Above the Discord guard below, same reasoning as recordArrival: what a character can still see is a database fact, and the web reads it whether or not there is a token to talk to Discord with.
+  // ONE STEP. A light stays on only while the place is still directly next door to where they now stand, so walking on past somewhere puts it out — what they watched two streets back is no longer theirs to read. The zone has nothing to do with it either way: walking out through a gate leaves the street behind them lit exactly as any other single step would.
+  // Nothing lit, nothing to work out. A count first because the prune's question — which of the destination's neighbours am I watching — costs a walk of the link graph to answer, and most arrivals are somebody's first step of the turn with no lights on at all. Cheaper than the graph, and it heals a stale row the same way, since a leftover from yesterday still counts.
+  const watching = await prisma.vantage.count({ where: { characterId } }).catch(() => 0);
+
+  // travelOptions, not linksFor, for locationVisits.js's reason: a hidden crawl they lack the tag for is not a way, so it can't hold a light. `listed` survives a hold and a caving hold on purpose — a hand on your shoulder stops you walking, it doesn't close your eyes.
+  // Everything no longer next door goes dark, and the survivors are re-anchored to where they now stand. Run for EVERY arrival, however they got here: a teleport across the map finds nothing adjacent and lands in the dark, which is what leaving the zone used to do by a longer road. It also puts out any light on the destination itself — it is Here now, and Here is never a row.
+  let droppedVantages = [];
+  if (watching) {
+    try {
+      const neighbours = await travelOptions(prisma, character ?? { id: characterId }, toLocationId);
+      droppedVantages = await pruneVantages(prisma, characterId, {
+        anchorLocationId: toLocationId,
+        keepLocationIds: neighbours.map((row) => row.location.id),
+      });
+    } catch (err) {
+      console.error(`Move: pruning vantages failed for ${characterId}:`, err.message ?? err);
+    }
   }
-  if (walked && !leftZone && fromLocationId) {
+  if (walked && fromLocationId) {
+    // They just walked the link, so the street behind them is next door by construction and the prune above would have kept it.
     await lightVantage(prisma, {
       characterId,
       fromLocationId,
       toLocationId,
-      zoneId: toLocation.zoneId,
+      anchorLocationId: toLocationId,
       turnId: openTurn?.id ?? null,
     }).catch((err) => console.error(`Move: lighting the vantage failed for ${characterId}:`, err.message ?? err));
   }
@@ -469,18 +476,16 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     await openLocationTo(discordUserId, toLocation.discordChannelId ?? null, LOCATION_MEMBER_ALLOW);
 
     if (fromLocation && fromLocation.discordChannelId !== toLocation.discordChannelId) {
-      if (leftZone) {
-        // Out of the zone: the street behind them closes like it always did.
-        await closeLocationTo(discordUserId, fromLocation.discordChannelId ?? null);
-      } else if (walked) {
-        // Still in the zone, and they walked: the street behind them stays open, mute. A DOWNGRADE, not a delete — the same one REST call the old revoke cost.
+      if (walked) {
+        // They walked: the street behind them stays open, mute — one step back is always still next door, whichever side of a zone boundary it sits on. A DOWNGRADE, not a delete: the same one REST call the old revoke cost.
         await openLocationTo(discordUserId, fromLocation.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY);
       } else {
+        // Carried, teleported or relocated: they never walked out of it, so it closes.
         await closeLocationTo(discordUserId, fromLocation.discordChannelId ?? null);
       }
     }
 
-    // Everything the zone crossing put out, told to Discord. One call per light; a character carries a handful at most, since a turn buys a handful of Moves.
+    // Everything this step put out of range, told to Discord. One call per light; a character carries a handful at most, since a turn buys a handful of Moves.
     for (const vantage of droppedVantages) {
       await closeLocationTo(discordUserId, vantage.location?.discordChannelId ?? null);
     }

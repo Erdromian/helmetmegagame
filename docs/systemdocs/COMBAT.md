@@ -255,7 +255,7 @@ One nullable column, `Tag.fighting`, normalised and validated by
   melee-duelist:                      # Situational — never summed
     fighting: { tree: melee, tiers: 2, situational: true }
 
-  camouflage:                         # Situational with no number at all
+  guerrilla:                          # Situational with no number at all
     fighting: { situational: true }
 ```
 

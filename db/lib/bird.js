@@ -35,9 +35,19 @@ function hasSlug(tags, slug) {
 // Stupid can't compose a sentence, so can't compose a letter — the Bird is the one place written text leaves a character without passing through the proxy, so without this a Squeeze-eater could still write. Checked in canSendBird below rather than garbling the body: a letter nobody could have written shouldn't arrive.
 const STUPID_SLUG = "stupid";
 
+// Slow is the milder form of the same thing and gets the same answer: never
+// learned letters, so never writes one. Stupid strips Slow on grant
+// (db/lib/tagWrites.js), so nobody holds both.
+const SLOW_SLUG = "slow";
+
 // Whether written words reach this character: literate and not blind, asked as one question so no caller checks only half. The fuller gate is db/lib/reading.js#readBlock (blind drunk, no spectacles, sun-blind in daylight); this stays because it's what the Bird's own surfaces ask and is pure of turn/Location context — a tag chip uses readBlock, a bird asks this.
 function canReadLetters(tags) {
-  return hasSlug(tags, LITERATE_SLUG) && !hasSlug(tags, BLIND_SLUG) && !hasSlug(tags, STUPID_SLUG);
+  return (
+    hasSlug(tags, LITERATE_SLUG) &&
+    !hasSlug(tags, BLIND_SLUG) &&
+    !hasSlug(tags, STUPID_SLUG) &&
+    !hasSlug(tags, SLOW_SLUG)
+  );
 }
 
 // Holding the bird isn't enough — working it is a literate act: you address it, and must know which paper in hand is the one to send.

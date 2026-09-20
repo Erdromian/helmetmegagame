@@ -104,10 +104,6 @@ groups:
     name: Cerberon
     category: general
     requiredTag: cerberon
-  general-brigand:
-    name: Brigands
-    category: general
-    requiredTag: brigand
   # Third body-membership group: the Baron's court, gated behind the free
   # `courtier` tag every court role starts with.
   general-court:
@@ -152,8 +148,8 @@ groups:
   # The Blood Abilities menu's purchasable prerequisites (VAMPIRE.md §6 —
   # design doc pages 4-5): Night Eyes, Hardened Fangs, Corruptor, Celerity,
   # Bat Form, Solidarity, Obfuscate, Underzealous, Remorseful. Gated on the
-  # GROUP, TAGS.md §3a's pattern (general-cerberon/general-brigand/
-  # general-court all do the same) — "Non-vampires cannot see or purchase
+  # GROUP, TAGS.md §3a's pattern (general-cerberon and general-court
+  # both do the same) — "Non-vampires cannot see or purchase
   # these tags," so the gate lives once here rather than repeated on each
   # of the nine tags.
   status-vampire-boons:
