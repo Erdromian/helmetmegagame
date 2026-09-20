@@ -1,36 +1,25 @@
 explanation:
   tag: Anyone with this tag gets this Document.
   public: If assigned, this will appear in a player's document folder. However, using the search function, anyone can browse and find this document.
-# Documents are a map keyed by their document key (`courtier:`, not
-# `- key: courtier`) — see docs/tags.yaml's header, and db/lib/yamlEntries.js.
+# Documents are a map keyed by their document key (`lore:`, not
+# `- key: lore`) — see docs/tags.yaml's header, and db/lib/yamlEntries.js.
 documents:
-  courtier:
-    name: Courtier
-    public: false
-    tags: []
-    description: As a member of the Baron's retinue, you may take food from a fellow member whenever you please — within reason. If you'd like to steal, arrange it with a GM.
-  church:
-    name: Church
-    public: false
-    tags: []
-    description: As a member of the Church, you may take food from a fellow member whenever you please — within reason. If you'd like to steal, arrange it with a GM.
-  independent:
-    name: Independent
-    public: false
-    tags: []
-    description: As an independent townsman, you aren't on anyone's payroll. The Headman isn't expected to pay you. You should therefore ply a trade so you don't starve to death.
-  ravenhearteconomy:
-    name: Ravenheart's Economy
+  lore:
+    name: Lore
     public: true
     tags: []
     description: |-
-      The Baron protects Ravenheart. In exchange, its commoners farm, fish, and hunt. They keep enough to feed themselves, but the rest is taxed. The town's laborers aren't independent contractors; they're peasants in a feudal system.
+      Humanity retreated into the caves after the Long Night. Evergreen was once beautiful and lush, but for unknown reasons, the surface froze and became barren, destroying its ecosystems.
+
+      Far from the sun, electric lights illuminate Ravenheart, an ethereal castle ruled by its Baron. The only source of power is the Lifeweb — a revolutionary invention which turns human blood into electricity. While the nobility enjoy electrical appliances in the Keep and the merchant sells weird wares and lost technology, the life of a common Ravenhearter is medieval. Most of them use fire for light and simple tools for their work. They are superstitious and mostly illiterate. The Post-Christian Church is the official faith of Ravenheart, though some keep to the Old Ways in secret. Most of their days are spent working hard, but there is time for merry every once in a while. The current year is 1098.
   godking:
-    name: The God-King
+    name: god-king
     public: false
     tags: []
     description: |-
-      Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court, and arranges the royal tithe if such a thing becomes necessary.
+      Ravenheart's liege is god-king Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court and arranges the royal tithe if such a thing becomes necessary.
+
+      He is accepted by the Post-Christian Church as an aspect or son of God. He took the place of Jesus who never came back, according to Post-Christian interpretations. His title is holy, as is his family, all members of which are considered godlike. Speaking out against him or disobeying his orders means certain death at the hands of his Tribunal.
   sanctuary:
     name: Sanctuary
     public: true
@@ -40,12 +29,6 @@ documents:
       The Sanctuary operates independently from the Baron. Although he could try to gain control over it, it would be unprecedented and pretty pointless. So the Esculap does whatever he wants within his walls.
 
       Due to the cost of medical procedures, the Esculap only treats people who can pay, or people of noble blood. You should only expect medical treatment if you can pay for it.
-  teachingskills:
-    name: Teaching Skills
-    public: true
-    tags: []
-    # [PLAYER TEXT — Bascinet to rewrite]
-    description: "Skills can be taught. Find someone standing with you who holds the skill and press Learn Skill on your sheet — or they press Teach Skill. Learning is a Gambit for the student. Anyone can teach what they know: it takes the teacher's whole turn, and the student learns on a 6. Someone with the {tag:teaching} tag spends no Move at all, can take up to three students a turn, and their students learn on a 5 or 6. A {tag:teaching-drill-instructor}'s students succeed on a 4 when the skill is a fighting skill."
   production:
     name: Producing Resources
     public: true
@@ -81,33 +64,14 @@ documents:
       - Reduce, but don't stop, melee damage.
       - Do nothing against needles or syringes.
       - Worn on the belt or the wrist.
-  townstarting:
-    name: Town Starting Packet
-    public: false
-    tags: []
-    description: |-
-      The Headman received a raven saying the fortress didn't receive the last tax wagon. It was probably ambushed by bandits. The Meister won't be happy about this… prepare to be squeezed for it.
-
-      Last week, Thomas Ciobanu — a respectable tradesman — was found milky-eyed, giggly, with a profoundly satisfied look. He wandered around aimlessly, going hungry — when people tried to help him, he just called them fools. The Esculap's medicine couldn't do anything for him, so the Inquisitor had him hanged. He fought all the way to the gallows, like a rabid dog.
   lifewebbasic:
     name: Lifeweb
     public: true
     tags: []
     description: |-
-      The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls — a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
+      The Lifeweb is an ancient piece of machinery below the Fortress. It produces electricity, powering Ravenheart and keeping the darkness away in exchange for human blood.
 
       The Lifeweb is tended by the Mortii. The Mortii are rejects, outcasts, exiles, hunchbacks, and convicts.
-
-      The tower has a door leading downwards.
-  lifeweb:
-    name: Lifeweb (Mortus)
-    public: false
-    secret: true
-    tags: []
-    description: |-
-      The Lifeweb is a profoundly unintelligible piece of machinery within the Fortress's walls — a tower that, at its peak, spews the Life Fire. Although it also produces electricity, it is mainly prized for the Fire, which is said to be what keeps Ravenheart arable, breathable, and livable. One only needs to follow the river a few miles southeast before seeing, far in the distance, the wind-scorched lands of the rest of the world, humid, scarred, and inhospitable.
-
-      The tower has a door leading downwards. Inside, levers control what parts of Ravenheart receive power. It also has a door which can be opened to reveal pistons, firing madly, witchfire green. There's a chair on a platform with complex implements. You can hook someone in, strap them down, align the machinery, cue the machine to speculate the vitrii, select the injection point, and decide whether you want some blood drawn — granting {tag:drained} and feeding the Lifeweb 20 points — or all the person's blood, feeding the Lifeweb 100 points but killing the donor.
   respawning:
     name: Respawning
     public: true
@@ -116,11 +80,17 @@ documents:
       - Mortus
       - Dead
     description: |-
-      When you die, you can rejoin at any time — but you'll be Cursed, meaning you can only start as a Bum or Migrant and you'll suffer a -6 penalty to your starting points.
-
-      To rejoin as any other role, wait until your body is buried or your name is engraved. It's the Church and the Mortii's job to help souls pass on.
-
-      A ghost has no voice. Your body speaks for you — while it lies unburied it stinks, and the place it is lying in keeps saying so.
+      You can't respawn, except as a Special role, until someone buries your body or engraves your name. Special roles include late-join events.
+  # Both Tribunal seats' own brief, reached by `roles:` the way elevatorkey
+  # reaches the Baron. The key is `tribune` and one of the roles is too; they
+  # are separate namespaces.
+  tribune:
+    name: Tribune
+    public: false
+    tags: []
+    roles: [tribune, tribunal-ordinator]
+    description: |-
+      You are a member of the Tribunal. You are a fearless veteran soldier, the best on Evergreen. You are stoic, competent, capable, and mature. When interacting with the citizens of the shit-dirt barony of Ravenheart, you are expected to represent the god-king — do not lower yourself to them. They are animals in the mud, after all.
   courtstructure:
     name: Court Structure
     public: false
@@ -145,8 +115,6 @@ documents:
       All Cerberi are expected to be, at minimum, functioning men. They are all loyal to the Baron. The Censor can freely fire, hire, and equip more Cerberi. Consider buying firearms from the Merchant.
 
       Cerberi also carry a {tag:radio-bracelet-cerberon}, which connects to the Censor's {tag:radio-system-cerberon}.
-
-      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu).**
   postchristianity:
     name: Post-Christianity
     public: true
@@ -196,12 +164,12 @@ documents:
       Prices hold to bands: a brew sells for close to what it cost to make plus a margin, smithed gear pays better the more skill and turns went into it, cave loot and bulk goods hold their price, and body parts stay cheap on purpose. The full table lives on the price list at the counter.
 
   charon:
-    name: The Charon
+    name: Charon
     public: false
     secret: true
     tags: []
     description: |-
-      The Charon is a one-way spaceship. It'll take its passengers out into space, where a passenger liner called the Leviathan is allegedly waiting for refugees. The Charon's hatch can be accessed through the Undercroft.
+      The Charon is a one-way spaceship. It'll take its passengers out into space, where a passenger liner called the Leviathan is allegedly waiting for refugees.
   # GM-only. The `gamemaster` flag is not a property of any Character — the
   # documents page resolves it against the Discord GM role at request time,
   # the same check that gates /gm. Filtered server-side, so a player's browser
@@ -273,19 +241,6 @@ documents:
     public: false
     tags: []
     description: ""
-  thepusher:
-    name: Pusher
-    public: false
-    tags: []
-    roles:
-      - pusher
-      - cerberus
-      - baron
-      - hand
-    description: |-
-      The Pusher sells drugs and runs the town's gambling den in the Abandoned Theater. It's his job to keep the peasants satisfied and not rebelling.
-
-      He's exempted from the usual capital punishment for drug possession, but he owes the Baron a cut.
   squeeze:
     name: Squeeze
     public: false
@@ -320,7 +275,7 @@ documents:
       - Elevator Key
     roles: [tribune, baron]
     description: |-
-      The Undercroft has an elevator which connects it to the nearby Cliffside Road.
+      The elevator connects the Keep to the Refuse Pit.
 
   # THE THANATI (docs/systemdocs/THANATI.md). Bascinet's text, verbatim; the
   # only edits are the {tag:…} tokens, which the source wrote as {Name}.
@@ -411,18 +366,3 @@ documents:
     tags:
       - Grimoire
     description: "{grimoire}"
-  # The Bastard's party. This is docs/archive/windlander.yaml's `campstarting`
-  # with everything that named the Windlands, the wind, the masks, the clans
-  # and the long march cut out of it. PLACEHOLDER — nothing has been written
-  # back in its place: the party is no longer from the Windlands and where it
-  # IS from is Bascinet's to write.
-  bastardstarting:
-    name: Party Starting Packet
-    public: false
-    tags: []
-    description: |-
-      The air is still here near Ravenheart. This could be a home. What will life be without having to move to find food?
-
-      You are ready to fight. However, food stores are running low.
-
-      **Your camp has an armory. While in camp, you may freely equip yourself with any weapon or armor from the Simple or Dead Simple tier (use the add tag menu; see {document:smithing} for options).**

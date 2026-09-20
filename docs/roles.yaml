@@ -178,7 +178,6 @@ groups:
         - lifewebbasic
         - cerberon
         - armory
-        - ravenhearteconomy
         - charon
     baroness:
       name: Baroness
@@ -304,10 +303,8 @@ groups:
         - squeeze
         - courtstructure
         - lifewebbasic
-        - courtier
         - cerberon
         - armory
-        - ravenhearteconomy
         - charon
     meister:
       name: Meister
@@ -345,9 +342,7 @@ groups:
         - squeeze
         - courtstructure
         - lifewebbasic
-        - courtier
         - medical
-        - ravenhearteconomy
     arbiter:
       name: Arbiter
       intro: >-
@@ -376,7 +371,6 @@ groups:
       doc_elements:
         - godking
         - courtstructure
-        - ravenhearteconomy
     courtier:
       name: Courtier
       intro: >-
@@ -399,7 +393,6 @@ groups:
         - Literate
       doc_elements:
         - godking
-        - courtier
         - courtstructure
     minstrel:
       name: Minstrel
@@ -421,7 +414,6 @@ groups:
         - Instrument
       doc_elements:
         - godking
-        - courtier
         - courtstructure
     servant:
       name: Servant
@@ -445,7 +437,6 @@ groups:
         - Cooking I
       doc_elements:
         - godking
-        - courtier
         - courtstructure
 
   # Clergy
@@ -483,10 +474,7 @@ groups:
         - Vestments
         - Cross
       doc_elements:
-        - townstarting
         - postchristianity
-        - church
-        - ravenhearteconomy
     chaplain:
       name: Chaplain
       intro: >-
@@ -516,9 +504,7 @@ groups:
         - Vestments
         - Cross
       doc_elements:
-        - townstarting
         - postchristianity
-        - church
     scholastic:
       name: Scholastic
       intro: >-
@@ -542,9 +528,7 @@ groups:
         - Literate
         - Post-Christian
       doc_elements:
-        - townstarting
         - postchristianity
-        - church
     inquisitor:
       name: Inquisitor
       intro: >-
@@ -581,9 +565,7 @@ groups:
         - Torturer
         - Literate
       doc_elements:
-        - townstarting
         - postchristianity
-        - church
     practicus:
       name: Practicus
       intro: >-
@@ -617,9 +599,7 @@ groups:
         - Fundamentalist
         - Torturer
       doc_elements:
-        - townstarting
         - postchristianity
-        - church
     preacher:
       name: Preacher
       intro: >-
@@ -647,9 +627,7 @@ groups:
         - Post-Christian
         - Fundamentalist
       doc_elements:
-        - townstarting
         - postchristianity
-        - church
 
   # Cerberon
   cerberon:
@@ -834,7 +812,6 @@ groups:
         - Obol x10
         - Resources x26
       doc_elements:
-        - townstarting
         - medical
     serpent:
       name: Serpent
@@ -866,7 +843,6 @@ groups:
         - Literate
         - Resources x8
       doc_elements:
-        - townstarting
         - medical
 
   # Business
@@ -910,7 +886,6 @@ groups:
       doc_elements:
         - godking
         - squeeze
-        - townstarting
         - merchant
     docker:
       name: Docker
@@ -934,7 +909,6 @@ groups:
         - Depot Keycard
         - Appraisal
       doc_elements:
-        - townstarting
         - merchant
     banneret:
       name: Banneret
@@ -978,7 +952,6 @@ groups:
         - godking
         - godardfactory
         - squeeze
-        - ravenhearteconomy
     geschef:
       name: Geschef
       intro: >-
@@ -1072,9 +1045,6 @@ groups:
         - Collar Key
         - Silver Chip
         - Literate
-      doc_elements:
-        - townstarting
-        - independent
 
   # Soil
   soil:
@@ -1104,9 +1074,7 @@ groups:
         - Sewer Key
         - Headman's Key
       doc_elements:
-        - townstarting
         - farming
-        - ravenhearteconomy
     sheriff:
       name: Sheriff
       intro: >-
@@ -1131,7 +1099,6 @@ groups:
         - Cudgel
         - Sheriff's Badge
       doc_elements:
-        - townstarting
         - combat
     metalsmith:
       name: Metalsmith
@@ -1161,10 +1128,8 @@ groups:
         - Smithy Key
         - Resources x20
       doc_elements:
-        - townstarting
         - smithing
         - combat
-        - independent
     # Added 2026-09-18 with the Prospecting rework (MINING.md). Starts at the
     # Inn rather than the cave mouth on purpose: the walk down is part of the
     # job, and a prospector who never comes up never meets the smith he needs.
@@ -1193,10 +1158,6 @@ groups:
         - Prospecting
         - Ration Box x2
         - Prospector's Pick
-      doc_elements:
-        - townstarting
-        - ravenhearteconomy
-        - independent
     mortus:
       name: Mortus
       intro: >-
@@ -1227,8 +1188,6 @@ groups:
         - Melee I
         - Cudgel
       doc_elements:
-        - townstarting
-        - lifeweb
         - respawning
     bum:
       name: Bum
@@ -1249,8 +1208,6 @@ groups:
         - Ravenhearter
         - Unhygienic
         - Ugly
-      doc_elements:
-        - townstarting
     pusher:
       name: Pusher
       intro: >-
@@ -1278,9 +1235,7 @@ groups:
         - Cave Fungus
         - Obol x10
       doc_elements:
-        - townstarting
         - alcoholdrugs
-        - independent
     innkeeper:
       name: Innkeeper
       intro: >-
@@ -1309,7 +1264,6 @@ groups:
         - Brewing I
         - Appraisal
       doc_elements:
-        - townstarting
         - alcoholdrugs
         - inn
     inn-staff:
@@ -1331,10 +1285,8 @@ groups:
         - Ravenhearter
         - Cooking I
       doc_elements:
-        - townstarting
         - alcoholdrugs
         - inn
-        - independent
     fisherman:
       name: Fisherman
       intro: >-
@@ -1377,9 +1329,6 @@ groups:
         - seductive
         - Ration Box x2
         - Cigarette
-      doc_elements:
-        - townstarting
-        - independent
     slave:
       name: Slave
       intro: >-
@@ -1400,8 +1349,6 @@ groups:
         - Bomb Collar (Locked)
         - Prospector's Pick
         - Ration Box
-      doc_elements:
-        - townstarting
 
   # Outsiders
   outsiders:
@@ -1573,7 +1520,6 @@ groups:
         - Radio (243.000)
       doc_elements:
         - godking
-        - ravenhearteconomy
         - courtstructure
     tribune:
       name: Tribune
@@ -1615,7 +1561,6 @@ groups:
         - Radio (243.000)
       doc_elements:
         - godking
-        - ravenhearteconomy
         - courtstructure
 
     # ─── The Bastard's party ────────────────────────────────────────────
@@ -1667,8 +1612,6 @@ groups:
         - Brave
         - Rough Camper
         - Outsider
-      doc_elements:
-        - bastardstarting
 
     bastard-infantry:
       name: Infantry
@@ -1691,8 +1634,6 @@ groups:
         - Infantry Helmet
         - Rough Camper
         - Outsider
-      doc_elements:
-        - bastardstarting
 
     bastard-heavy-infantry:
       name: Heavy Infantry
@@ -1718,8 +1659,6 @@ groups:
         - Strong
         - Rough Camper
         - Outsider
-      doc_elements:
-        - bastardstarting
 
     bastard-rifleman:
       name: Rifleman
@@ -1744,8 +1683,6 @@ groups:
         - Spotter
         - Rough Camper
         - Outsider
-      doc_elements:
-        - bastardstarting
 
     bastard-healer:
       name: Healer
@@ -1770,8 +1707,6 @@ groups:
         - Ambrosia
         - Rough Camper
         - Outsider
-      doc_elements:
-        - bastardstarting
 
     bastard-engineer:
       name: Engineer
@@ -1800,5 +1735,3 @@ groups:
         - Resources x55
         - Rough Camper
         - Outsider
-      doc_elements:
-        - bastardstarting

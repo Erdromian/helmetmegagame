@@ -290,7 +290,7 @@ never automatic, and a success still lands at the close of the turn.
 | Menus and status line | `character/page.js`, `RequestActionsProvider.js`, `SheetTurn.js` |
 | Catalog | `docs/tags.yaml` (`teaching`, `teaching-drill-instructor`; `teachable:` on skills) |
 | One-off Lecturing conversion | `db/scripts/ops/convert-lecturers.js` (`npm run db:convert-lecturers`) |
-| Player text | `docs/documents.yaml` `teachingskills`, `docs/handbook.md` "Teaching" |
+| Player text | `docs/handbook.md` "Teaching" |
 
 An offer's Accept / Decline is answerable on **either face** — the buttons are
 drawn in the Bascinet pane on `/chat` as well as in the Discord DM

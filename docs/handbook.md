@@ -314,7 +314,7 @@ When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell yo
 
 You'll find out how your die fell when the turn ends — the bot DMs you the number alongside whatever the GMs decided it did. Playing the turn without knowing is the point: your character doesn't know how it went either.
 
-Farming is how Ravenheart is fed, and as such it's taxed by the Headman. More information can be found in {document:ravenhearteconomy}, on the [Documents](https://ravenheart.quest/documents) page.
+Farming is how Ravenheart is fed, and as such it's taxed by the Headman.
 
 ### Move Submission Is Final
 
