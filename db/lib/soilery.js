@@ -6,7 +6,7 @@
 
 const { SOILERY_SLUG, EXHAUSTED_SLUG, TIRED_SLUG } = require("./constants");
 
-const FARM_MAX_CROPS = 50;
+const FARM_MAX_CROPS = 120;
 // 1-in-6 fails, independently PER UNIT sown — not a rounded average. See reap() below for why.
 const WITHER_IN = 6;
 // Fertilizer's addendum: nothing withers, and 1-in-6 comes up double instead

@@ -11489,7 +11489,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [{ tag: wheat, count: 2 }]
+      items: [wheat]
       ingredientSlots: { min: 0, max: 4 }
   potato-bread:
     catalog: all
@@ -11573,7 +11573,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [{ tag: potato, count: 2 }]
+      items: [potato]
       ingredientSlots: { min: 0, max: 4 }
   red-mash:
     catalog: all
@@ -11692,7 +11692,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [{ tag: tomato, count: 2 }]
+      items: [tomato]
       ingredientSlots: { min: 0, max: 4 }
   fried-onion:
     catalog: all
@@ -11720,7 +11720,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [{ tag: onion, count: 2 }]
+      items: [onion]
       ingredientSlots: { min: 0, max: 4 }
   broth:
     catalog: all
@@ -11778,7 +11778,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [{ tag: meat, count: 2 }]
+      items: [meat]
       ingredientSlots: { min: 0, max: 4 }
   fried-rat:
     catalog: all
@@ -12120,7 +12120,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 15
-    mealHunger: 46
+    mealHunger: 64
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12216,7 +12216,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 30
-    mealHunger: 51
+    mealHunger: 70
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
@@ -12247,7 +12247,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 48
+    mealHunger: 68
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12275,7 +12275,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 28
-    mealHunger: 54
+    mealHunger: 72
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12302,7 +12302,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 40
-    mealHunger: 46
+    mealHunger: 64
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12330,7 +12330,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 56
+    mealHunger: 76
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12357,7 +12357,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 30
-    mealHunger: 56
+    mealHunger: 75
     mealTaste: "rich"
     mealTasteForm: "adjective"
     consumable: true
@@ -12384,7 +12384,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 38
-    mealHunger: 48
+    mealHunger: 68
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12414,7 +12414,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 32
-    mealHunger: 48
+    mealHunger: 68
     mealTaste: "cheesy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12444,7 +12444,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 51
+    mealHunger: 70
     mealTaste: "rich"
     mealTasteForm: "adjective"
     consumable: true
@@ -12471,7 +12471,7 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 50
-    mealHunger: 54
+    mealHunger: 72
     mealTaste: "toxic"
     mealTasteForm: "adjective"
     consumable: true

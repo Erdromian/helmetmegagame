@@ -69,7 +69,7 @@ const FIELDS = [
     label: "Notice lifespan (turns)",
   },
   {
-    key: "farmMaxCrops", type: "int", group: "economy", default: 50, min: 1, max: 500,
+    key: "farmMaxCrops", type: "int", group: "economy", default: 120, min: 1, max: 500,
     label: "Farm sow cap",
     info: "Most crops one Farm action may sow in a single plan",
   },
