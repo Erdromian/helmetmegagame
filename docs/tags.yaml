@@ -6860,7 +6860,7 @@ tags:
     consumesIntoResources: 5
     depotPrice: 13
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 8
     inlayValue: 12
 
   copper:
@@ -6886,7 +6886,7 @@ tags:
     consumable: true
     consumesIntoResources: 4
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 6
     inlayValue: 16
 
   nickel:
@@ -6912,7 +6912,7 @@ tags:
     consumable: true
     consumesIntoResources: 3
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 5
     inlayValue: 14
 
   # Found as metal rather than smelted, so there is no ore behind it.
@@ -7338,12 +7338,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 1
+      resourceCost: 3
       skills: [smithing-gunpowder]
       gambit: false
       items: [saltpeter]
     sellable: true
-    sellablePrice: 15
+    sellablePrice: 21
 
   # HIDDEN recipe (old-coin is non-public; Chris 2026-09-07): the smith's
   # secret, struck from coinage older than Ravenheart. Its mechanic lives in
@@ -7620,11 +7620,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 2
+      resourceCost: 1
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 4
 
   bear-trap:
     catalog: all
@@ -10185,7 +10185,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 15
+      resourceCost: 13
       skills: [smithing-skilled]
       gambit: false
       # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
@@ -10240,7 +10240,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 15
+      resourceCost: 13
       skills: [smithing-skilled]
       gambit: false
       # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
@@ -10464,14 +10464,14 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 15
+      resourceCost: 28
       skills: [smithing-gunpowder]
       gambit: false
       # The proper explosive is built around the refined charge, not raw
       # saltpeter (Chris 2026-09-05) — {tag:black-powder} is its own recipe.
       items: [black-powder]
     sellable: true
-    sellablePrice: 75
+    sellablePrice: 120
 
   # ─── Special / concealed ───────────────────────────────────────────────────
   # A gentleman's sidearm, sold complete — no smithing recipe attached.
@@ -15640,7 +15640,7 @@ tags:
     consumable: false
     requirement:
       turnsCost: 1
-      resourceCost: 5
+      resourceCost: 6
       skills: [smithing-skilled]
       gambit: false
       items: [saltpeter]
@@ -15648,7 +15648,7 @@ tags:
     # Re-derived at the Skilled rung when the grenade dropped off Gunpowder
     # (DEPOT.md §4's formula: 6 + round(5 × 1^1.3) = 11; 14 was the
     # Gunpowder-rate answer).
-    sellablePrice: 25
+    sellablePrice: 28
 
   phrygian-tears:
     catalog: all
@@ -17428,7 +17428,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 15
+      resourceCost: 13
       skills: [smithing-skilled]
       # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
       # the old 2-turn, 26 ⬢ recipe moved into the ingot's own recipe, and 8 ⬢
@@ -17507,7 +17507,7 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 21
+      resourceCost: 19
       skills: [smithing-skilled]
       # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
       # the old 3-turn, 34 ⬢ recipe moved into the ingot's own recipe, and 8 ⬢

@@ -26,6 +26,7 @@ const { buildSources, RULES: SOURCE_RULES } = require("./sources");
 const depotRules = require("../../../lib/depot");
 const { fatigueModel } = require("./fatigue");
 const { buildCombos } = require("./combos");
+const { buildInvestments } = require("./investments");
 const { turretTable } = require("../../../lib/depotTurret");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -134,7 +135,7 @@ function craftFamilyOf(skills) {
 // One obol is one ⬢ (ECONOMY.md §1), so paying a cost in obols values a ⬢ at exactly 1 obol.
 const OBOL_PAR = 1;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto" } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
@@ -168,6 +169,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const rvMined = rv[minedValue];
   const productionCoefficient = schemaDefault("productionCoefficient");
   const farmMaxCrops = schemaDefault("farmMaxCrops");
+  const stableCapacity = schemaDefault("stableCapacity");
   const startingTagPoints = schemaDefault("startingTagPoints");
   const miningLocations = loadMiningSites();
 
@@ -186,6 +188,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     resourceValue,
     productionCoefficient,
     farmMaxCrops,
+    stableCapacity,
     startingTagPoints,
     carryWeightLbs: schemaDefault("carryWeightLbs"),
     squeezeLbs: get("squeeze")?.weight ?? null,
@@ -942,6 +945,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   // ⬢ cost instead. Two cannot be fitted that way: the Pickaxe (a quarter-Move craft moves in steps of 4 ¢ a
   // turn) and the Autoinjector (its inputs cost more than its shelf price).
   const HELD_BACK = new Set(["pickaxe", "autoinjector"]);
+  // Bars are the one input-worked recipe priced by scarcity rather than by the formula: the ore cannot be
+  // bought, so the ore is the bottleneck and the bar's price is free to be large next to it (Bascinet, 2026-09-20).
+  const BARS = new Set(["iron", "copper", "nickel"]);
   const tierFamilies = ["smithing", "crafting", "brewing"];
   const hasItemInput = (a) => (get(a.slug)?.requirement?.items ?? []).length > 0;
   const inScope = (a) => a.kind === "craft" && a.revenue > 0 && tierFamilies.includes(a.craftFamily ?? a.family);
@@ -978,7 +984,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     const expected = (Math.round(wage) + IMPORT_PRICE * (r.resourceCost ?? 0) + inputs) / y;
     return { name: a.name, slug: a.slug, got: t.sellablePrice, expected: Math.round(expected) };
   };
-  const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug)).map(workedInput);
+  const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
   const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);
   const red = byId("craft:ravenheart-red");
@@ -1027,7 +1033,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: `${workedRows.length} recipes on the formula`,
       model: offWorked.length ? `${offWorked.length} off it: ${offWorked.slice(0, 5).map((r) => `${r.name} ${r.got} against ${r.expected}`).join(", ")}${offWorked.length > 5 ? ", …" : ""}` : `${workedRows.length} on it`,
       ok: offWorked.length === 0,
-      note: "Bars, brews and gear made from ore, cave finds, organs or another craft. They deviate from the wage table on purpose, by up to 0.9 times the raw input, and the Autoinjector keeps its shelf price.",
+      note: "Brews and gear made from cave finds, organs, silver or another craft. They deviate from the wage table on purpose, by up to 0.9 times the raw input. The Autoinjector keeps its shelf price, and the Iron, Copper and Nickel bars are priced by the scarcity of their ore, so the claim leaves them out.",
     },
     {
       doc: "FACTORY.md §6",
@@ -1136,6 +1142,28 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: foodTiers.boxTurns != null && foodTiers.boxTurns < 1 && foodTiers.boxTurns > 0.5,
     },
     {
+      doc: "DEPOT.md §4",
+      claim: "Buying a metal at the shelf and cracking it for ⬢ never pays: the shelf price is at least the ⬢ it gives back at the 1 ¢ sell-back",
+      docValue: "0 that pay",
+      model: (() => {
+        const bad = list.filter((t) => t.consumesIntoResources && t.depotPrice != null && t.depotPrice < t.consumesIntoResources * rv.sell);
+        return bad.length ? bad.map((t) => `${t.name} ${t.depotPrice} ¢ for ${t.consumesIntoResources} ⬢`).join(", ") : "0 that pay";
+      })(),
+      ok: list.every((t) => !(t.consumesIntoResources && t.depotPrice != null) || t.depotPrice >= t.consumesIntoResources * rv.sell),
+      note: "An unlimited coin loop if it ever fails. Iron's shelf price was cut to 3 for a few hours on 2026-09-20 and this is what caught it.",
+    },
+    {
+      doc: "DEPOT.md §4",
+      claim: "The Depot pays a metal at least what cracking it for ⬢ is worth at the sell-back, so a bar is never worth more cracked than sold",
+      docValue: "0 below",
+      model: (() => {
+        const bad = list.filter((t) => t.consumesIntoResources && t.sellablePrice != null && t.sellablePrice < t.consumesIntoResources * rv.sell);
+        return bad.length ? bad.map((t) => `${t.name} sells ${t.sellablePrice}, cracks for ${t.consumesIntoResources}`).join("; ") : "0 below";
+      })(),
+      ok: list.every((t) => !(t.consumesIntoResources && t.sellablePrice != null) || t.sellablePrice >= t.consumesIntoResources * rv.sell),
+      note: "Iron, Copper and Nickel fail by design: their sell price follows the input-premium formula, and cracking them pays more. Nobody sells a bar to the counter.",
+    },
+    {
       doc: "DEPOT.md §3",
       claim: "Sell-back is 60% of the buy price, rounded",
       docValue: "60%",
@@ -1207,6 +1235,21 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
   ];
 
+  const moveValueUsed = moveValue ?? activities.find((a) => a.id === "mine:Caves:unskilled")?.netPerTurn ?? 5;
+  const investments = buildInvestments({
+    get,
+    list,
+    rv,
+    rvMined,
+    params,
+    activities,
+    producerDrops,
+    profitTiers,
+    pointsOf: (slug) => skillChain(slug).points,
+    moveValue: moveValueUsed,
+    gameTurns,
+  });
+
   return {
     params,
     assumptions: ASSUMPTIONS,
@@ -1220,6 +1263,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     profitTiers,
     profitRows,
     workedRows,
+    investments,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },

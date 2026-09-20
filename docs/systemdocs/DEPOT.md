@@ -1048,23 +1048,34 @@ in steps of 4 ¢ a turn, so the Pickaxe (3 ⬢, 8 ¢) loses 4 ¢ a turn and the 
 inputs cost more than its shelf price) sits 4 ¢ under its rung. The claims table leaves those
 two out by name.
 
-**A recipe that works an input is priced off the input instead.** Iron, Copper and Nickel are an
-ore smelted for a quarter Move; Pure Luck is a brew of an Aberrant Heart; Black Powder is
-Saltpeter refined. These are worth their wage, plus their ⬢, plus **nearly twice the sell price of
-a raw input** (ore, a cave find, an organ, a crop) — 1.9 times, in the catalog — so working a
-material roughly doubles it. An input that is itself crafted counts once, because its own price
-already carries the work; that is what stops the premium compounding up a chain of recipes:
+**A recipe that works an input is priced off the input instead.** Pure Luck is a brew of an
+Aberrant Heart; Black Powder is Saltpeter refined; a Silver Knife is a silver ingot worked. These are
+worth their wage, plus their ⬢, plus **nearly twice the sell price of a raw input** (a cave find, an
+organ, a crop) — 1.9 times, in the catalog — so working a material roughly doubles it. An input that
+is itself crafted counts once, because its own price already carries the work; that is what stops the
+premium compounding up a chain of recipes:
 
 `sell = round(rate × turnsCost^1.3) + 3 × resourceCost + Σ inputs` (raw input × 1.9, crafted × 1)
 
-These deviate from the wage table on purpose, by up to 0.9 times the raw input, and the ⬢ cost
-of each was still fitted so the price stays near where it was wherever the input leaves room.
-The ones that moved most: Iron 8 → 2 (the shelf stays at 13), Copper 6 → 2, Nickel 5 → 2, Black
-Powder 6 → 15, Pure Luck 65 → 109 (its heart is 55), Deadeye Drops and Mindbreaker Toxin 5 → 13,
-Bliss 3 → 7, Silver Knife 13 → 23 (half a Move, two to a Routine). A bar at 2 ¢ is cheap, and cheap is meant. One catch: an ingot can also be consumed
-for Resources (Iron 5, Copper 4, Nickel 3), which at the 1 ¢ sell-back is worth more than the
-Merchant now pays for it, so nobody will sell a bar to the counter. The shelf price stays at 13
-so that buying Iron and cracking it never pays; drop it below 5 and it would print coin.
+These deviate from the wage table on purpose, by up to 0.9 times the raw input, and the ⬢ cost of
+each was still fitted so the price stays near where it was wherever the input leaves room. The ones
+that moved most: Black Powder 6 → 21, Crude Grenade 24 → 28, Bomb 74 → 120, Pure Luck 65 → 109 (its heart is 55), Deadeye Drops and
+Mindbreaker Toxin 5 → 13, Bliss 3 → 7, Silver Knife 13 → 23 (half a Move, two to a Routine).
+
+**Saltpeter is the scarce input, so what comes out of it is dear.** It has no source but the cave
+finds (about one arrival in fifty), so Black Powder, the Crude Grenade and the Bomb keep their
+original ⬢ costs (3, 6 and 28) instead of having them cut to hold their old price, and sell for more
+because of it: 21, 28 and 120. The wage on top is the same as any other recipe on the rung.
+
+**The three bars are the exception, and stay at their old prices** (Iron 8, Copper 6, Nickel 5, with
+Iron's shelf at 13). A bar is a 1 ¢ ore and a quarter Move, so by the formula it would sell for 2,
+but the ore cannot be bought: it comes out of the ground at about one press in five, so the ore is
+the bottleneck and the bar's price can be large beside it. A smith who does have ore earns far above
+the wage table (about 28 ¢ a turn on Iron), and that is meant. It also keeps an ingot worth more sold
+than cracked: an ingot consumes into Resources (Iron 5, Copper 4, Nickel 3), which at the 1 ¢ sell-back
+is less than the Merchant pays for it. The shelf price of 13 keeps buying Iron and cracking it from
+paying, and would print coin if it were ever under 5. The four recipes that spend an ingot (Rapier,
+Katana, Brigandine, Plate Armor) take 13, 13, 13 and 19 ⬢ now, fitted to their unchanged prices.
 
 **Alcohol is made of crops, not Resources.** Two crops of wheat or potato (the picker takes
 either) and a quarter Move, no ⬢, so it costs a brewer about 2 ¢ against the 4 ¢ shelf price

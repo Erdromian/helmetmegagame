@@ -49,12 +49,12 @@ not — its steel prod and lock are `smithing-skilled` work.
 
 **The ⬢ column was refitted when the wage table went in** (`DEPOT.md` §4). Prices stayed where they
 were and the material moved to fit them, so the tiers ask for less than they used to: Dead Simple 3 → 2,
-Simple 6 → 5, Moderate 13 → 9, High Quality 25 → 18, Gunpowder 28 → 21 (Bore Pistol and the Bomb 15).
+Simple 6 → 5, Moderate 13 → 9, High Quality 25 → 18, Gunpowder 28 → 21 (Bore Pistol 15; the Bomb keeps its 28, since saltpeter is scarce — `DEPOT.md` §4).
 The Spear, Dagger and Phrygian Spear take 3 ⬢ and sell for 9. Exceptional was not refitted, since
 nothing on the Merchant's list sits there. Recipes the Merchant also stocks sit off the column on
 purpose, each fitted to its shelf price: Cudgel 2, Trench Knife 6, Knuckle Duster 9, Gladiator
 Helmet 10, Wooden Leg and Iron Hook 7, Workshop Equipment 17. Recipes that work an input (Rapier,
-Katana, Brigandine, Plate Armor, Silver Spear, the Bomb) were fitted the same way.
+Katana, Brigandine, Plate Armor, Silver Spear) were fitted the same way.
 
 **Four small pieces of metalwork run under the Simple rung's Turns column.**
 The Spear, Dagger and Phrygian Spear are `turnsCost: 0.25` —
@@ -251,15 +251,15 @@ Renamed **Crude Grenade** and dropped to Smithing II on 2026-09-06
 (Chris): it packs raw saltpeter, not powder, so the Gunpowder rung keeps only
 the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 `gunpowder-grenade`. `black-powder` is the refining step between mined
-saltpeter and the Bomb; its numbers (1 ⬢, sells 15) are drafted, not signed
+saltpeter and the Bomb; its numbers (3 ⬢, sells 21) are drafted, not signed
 off.
 
 **The three smelts** replaced `{tag:steel}` on 2026-09-18, when `coal` and
 `steel` both left the game with the Prospecting rework (`MINING.md`). `iron`
 took steel's slot at steel's prices (8 back, 13 off the shelf), so a smith with
-no prospector to hand can still buy one off the Merchant. It sells
-back for 2 now, since an ingot is a 1 ¢ ore and a quarter Move (`DEPOT.md` §4); the
-shelf still charges 13, which keeps buying one to crack it for ⬢ from paying. `copper` and `nickel` are the same recipe over a different ore and
+no prospector to hand can still buy one off the Merchant. Those prices stay: the
+ore is the bottleneck, and the shelf price keeps buying an ingot to crack it for ⬢
+from paying (`DEPOT.md` §4). `copper` and `nickel` are the same recipe over a different ore and
 feed Trinkets rather than gear.
 
 They cost **0 ⬢**, not steel's 4: the ore IS the cost now, and an ore is

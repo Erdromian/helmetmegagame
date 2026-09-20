@@ -32,8 +32,9 @@ const freeMoves = flag("free-moves", null) == null ? null : Number(flag("free-mo
 const resourceValue = flag("resource-value", "buy");
 const minedValue = flag("mined-value", "mid");
 const obolPath = flag("obols", "auto");
+const moveValueFlag = flag("move-value", null) == null ? null : Number(flag("move-value", null));
 
-const model = buildModel({ players, gameTurns, freeMoves, resourceValue, minedValue, obolPath });
+const model = buildModel({ players, gameTurns, freeMoves, resourceValue, minedValue, obolPath, moveValue: moveValueFlag });
 const { params } = model;
 
 let commit = "unknown";
@@ -339,6 +340,46 @@ ${table({ cols: cookCols, rows: collapse(L.cooking, sigOfSlug).slice(0, 40), fil
 <p class="lede">Brewing, cooking and Crafting never need a forge. Only smithing does, so the question is what the smithing family can do without one. The answer is the crafting-skill recipes plus Workshop Equipment itself, which is exempt from its own requirement.</p>
 ${table({ cols: craftCols(), rows: collapse(L.noWorkshop, sigOfSlug).slice(0, 20), filters: [{ label: "Skill", get: (a) => a.skill }, { label: "Family", get: (a) => a.family }] })}
 <p class="lede">Best without a forge: <b>${esc(L.noWorkshop[0]?.name)}</b> at ${fmt(L.noWorkshop[0]?.netPerTurnBuy)} ¢ a turn (${fmt(L.noWorkshop[0]?.netPerTurnSell)} ¢ with mined ⬢), against ${fmt(baselineOf("Skilled smith")?.value)} ¢ for a skilled smith with one. Where the forge comes from: ${ws ? ws.routes.map(esc).join("; ") : "n/a"}. A Smithing II smith can make their own: ${weAct ? `${fmt(weAct.resourceCost, 0)} ⬢ and ${fmt(weAct.totalMoves, 0)} Moves, worth ${weAct.revenue} ¢ if sold` : ""}. The Metalsmith starts with the Smithy Key to the Storeroom's, and the Engineer starts with Smithing II, so the forge is a small blocker for the main smiths and a real one for everybody else.</p>
+</section>`;
+}
+
+function sectionInvestments() {
+  const I = model.investments;
+  const all = I.rows;
+  const payable = all.filter((r) => r.paybackTurns != null && r.coin > 0).sort((a, b) => a.paybackTurns - b.paybackTurns);
+  const efficient = all.filter((r) => r.perPoint != null && r.points > 0).sort((a, b) => b.perPoint - a.perPoint);
+  const cols = [
+    { h: "Investment", get: (r) => r.name },
+    { h: "Group", get: (r) => r.group },
+    { h: "Kind", get: (r) => r.kind },
+    { h: "What it does", get: (r) => r.does },
+    { h: "Cost", get: (r) => r.coinHow },
+    { h: "All-in ¢", num: true, get: (r) => (r.allIn > 0 ? fmt(r.allIn, 0) : "0"), sort: (r) => r.allIn },
+    { h: "Points", num: true, get: (r) => (r.points ? r.points : "—"), sort: (r) => r.points },
+    { h: "Pays ¢ / turn", num: true, get: (r) => (r.gain == null ? "once" : fmt(r.gain, 1)), sort: (r) => r.gain ?? -1e9 },
+    { h: "Pays back in", num: true, get: (r) => (r.paybackTurns == null ? "—" : r.paybackTurns === 0 ? "at once" : `${fmt(r.paybackTurns, 1)} turns`), sort: (r) => r.paybackTurns ?? 1e9 },
+    { h: `Net over ${params.gameTurns} turns`, num: true, get: (r) => (r.netOverGame == null ? "—" : fmt(r.netOverGame, 0)), sort: (r) => r.netOverGame ?? -1e9 },
+    { h: "¢ / turn per point", num: true, get: (r) => (r.perPoint == null ? "—" : fmt(r.perPoint, 2)), sort: (r) => r.perPoint ?? -1e9 },
+    { h: "How it is worked out", get: (r) => r.gainHow ?? "" },
+    { h: "Caveat", get: (r) => r.note ?? "" },
+  ];
+  const paybackBars = payable.map((r) => ({ label: r.name, value: r.paybackTurns, color: r.paybackTurns <= 3 ? "var(--good)" : r.paybackTurns <= 20 ? "var(--c1)" : "var(--c0)" }));
+  const pointBars = efficient.map((r) => ({ label: r.name, value: r.perPoint, color: r.perPoint < 0 ? "var(--bad)" : "var(--c3)" }));
+  const scanned = I.scanned
+    .map((s) => `<tr><td>${esc(s.name)}</td><td class="num">${s.resources} ⬢${s.moves ? `, ${fmt(s.moves, 0)} Moves` : ""}</td><td>${esc(s.effect)}</td></tr>`)
+    .join("");
+  return `<section><h2>What each investment pays back</h2>
+<p class="lede">Every tool, skill, consumable, building and animal that raises somebody's output, costed and paid back from the same catalog the rest of the report reads. A ⬢ you make is valued at ${fmt(params.rvMined, 1)} ¢ (the midpoint of the Depot's prices), a ⬢ you spend at the Depot's ${params.rv.buy} ¢, and a Move given up at <b>${fmt(I.moveValue, 1)} ¢</b>, an average mining turn (<code>--move-value</code> changes it). Skill points are a different budget, so they are shown beside the payoff and as ¢ a turn per point, never converted to coin. The gain is one person's, working alone and every turn they can; nothing here is saturated, so read the last column as a ceiling.</p>
+<h3>Pays back fastest, for what costs coin</h3>
+${barChart({ rows: paybackBars, unit: " turns", fmtVal: (v) => (v < 0.05 ? "at once" : fmt(v, 1)), labelW: 210 })}
+<h3>Best use of a skill point</h3>
+${barChart({ rows: pointBars, unit: " ¢/turn", fmtVal: (v) => fmt(v, 2), labelW: 210 })}
+<h3>All of it</h3>
+${table({ cols, rows: all, filters: [{ label: "Group", get: (r) => r.group }, { label: "Kind", get: (r) => r.kind }] })}
+<h3>Buildings that raise nothing</h3>
+<p class="lede">Every other structure type in the catalog, scanned for anything that changes what somebody makes. None does. Their cost is the price of what they are for.</p>
+<div class="tablewrap"><table><thead><tr><th>Building</th><th class="num">Cost</th><th>What it does</th></tr></thead><tbody>${scanned}</tbody></table></div>
+<p class="lede">Also scanned and left out: ${model.counts?.carryTags ?? 30} tags carry a <code>carryBonus</code> (a Cart, a Pack Mule) and raise how much you can move, which matters to hauling but is not counted here, and <code>gambitBonus</code> perks change a roll's odds and no output.</p>
 </section>`;
 }
 
@@ -829,7 +870,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -913,6 +954,13 @@ const combosCsv = [
   ),
 ].join("\n");
 fs.mkdirSync(outDir, { recursive: true });
+const investmentsCsv = [
+  ["group", "name", "kind", "coin", "moves", "allIn", "points", "gainPerTurn", "paybackTurns", "netOverGame", "perPoint", "does", "cost", "how", "note"].join(","),
+  ...model.investments.rows.map((r) =>
+    [r.group, r.name, r.kind, r.coin, r.moves, r.allIn, r.points, r.gain ?? "", r.paybackTurns ?? "", r.netOverGame ?? "", r.perPoint ?? "", r.does, r.coinHow, r.gainHow ?? "", r.note ?? ""].map(csvCell).join(","),
+  ),
+].join("\n");
+fs.writeFileSync(path.join(outDir, "investments.csv"), investmentsCsv);
 fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
 fs.writeFileSync(path.join(outDir, "item-sources.csv"), itemsCsv);
