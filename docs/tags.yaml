@@ -12792,6 +12792,7 @@ tags:
     equippable: true
     equipSlot: WEAPON
     visible: worn
+    # It doesn't actually weigh five pounds. It's a joke.
     weight: 3
     purchasable: false
     purchasableAfterStart: false
