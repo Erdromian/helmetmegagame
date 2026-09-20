@@ -34,10 +34,10 @@ const RITES = [
   {
     key: "conversion",
     name: "Rite of Conversion",
-    minChanters: 1,
+    minChanters: 2,
     ingredients: [{ kind: "bound-person" }],
     ingredientsText: "1 {tag:bound} person in the same location. They must have room access to wherever you are chanting at",
-    description: "Reveal the wicked truth of this reality, so they might join in its destruction! They must be added to whatever room or conversation you chant at.",
+    description: "Reveal the wicked truth of this reality, so they might join in its destruction! They must be added to whatever room or conversation you chant at. They may refuse; but if they do so, they will be severely weakened and distraught, allowing you to finish them off.",
   },
   {
     key: "sacrifice",

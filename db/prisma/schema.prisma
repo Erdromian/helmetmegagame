@@ -4529,6 +4529,10 @@ enum OfferKind {
   // Putting a bomb collar on somebody who could say no (docs/systemdocs/COLLAR.md).
   // A helpless or dead target skips the offer entirely, exactly as BIND does.
   COLLAR
+  // The Thanati's Rite of Conversion (docs/systemdocs/THANATI.md). The one kind
+  // whose REFUSAL costs the responder something, and the only one carrying a
+  // clock of its own -- see Offer.expiresAt.
+  CONVERSION
 }
 
 enum OfferStatus {
@@ -4581,6 +4585,13 @@ model Offer {
   // { diceRoll, diceModifier, total, succeeded, gmDecided }
   outcome Json?
 
+  // CONVERSION only, and the first clock any offer has carried. Every other
+  // kind lives exactly as long as its turn and is expired by
+  // db/lib/offerExpiryPass.js at turn close; a conversion refuses itself three
+  // hours in, swept by db/lib/riteSweep.js. Nullable so no other kind needs a
+  // backfill or has to start setting it.
+  expiresAt DateTime?
+
   createdAt   DateTime  @default(now())
   respondedAt DateTime?
   resolvedAt  DateTime?
@@ -4589,6 +4600,8 @@ model Offer {
   @@index([responderId, status])
   @@index([initiatorId, status])
   @@index([teacherActionId])
+  // The three-hour sweep's WHERE, so it is not a scan of every offer ever made.
+  @@index([status, expiresAt])
 }
 
 // LAYING IN WAIT (docs/systemdocs/INTERCEPT.md). A standing order: stop these

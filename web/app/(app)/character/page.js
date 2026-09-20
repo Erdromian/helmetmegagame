@@ -1132,10 +1132,17 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
           // zoneRoster would print the real one. Showing it here would put the
           // hood's own secret in the other player's to-do list — the unmasking
           // INTERCEPT.md §2 exists to stop. Resolved presented below instead.
+          // CONVERSION resolves to null, and that is a rule about the PAYLOAD,
+          // not about the string. Nobody is ever named on either side of a
+          // conversion (docs/systemdocs/THANATI.md), and letting the roster
+          // lookup answer here would ship the cultist's name to the browser
+          // even though SheetTurn.js never prints it.
           otherName:
-            o.kind === "SEARCH"
-              ? (searchFaces.get(otherId) ?? "somebody")
-              : (other?.name ?? "someone"),
+            o.kind === "CONVERSION"
+              ? null
+              : o.kind === "SEARCH"
+                ? (searchFaces.get(otherId) ?? "somebody")
+                : (other?.name ?? "someone"),
           // A chaplain waiting on a confession is never told what it's about; the penitent sees their own.
           tagName:
             o.kind === "CONFESSION" && o.responderId === character.id
