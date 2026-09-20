@@ -12792,7 +12792,7 @@ tags:
     equippable: true
     equipSlot: WEAPON
     visible: worn
-    weight: 3
+    weight: 5
     purchasable: false
     purchasableAfterStart: false
 
