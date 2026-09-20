@@ -12792,7 +12792,7 @@ tags:
     equippable: true
     equipSlot: WEAPON
     visible: worn
-    # Intentionally 3 lb mechanically; the description's five pounds is flavor text.
+    # It doesn't actually weigh five pounds. It's a joke.
     weight: 3
     purchasable: false
     purchasableAfterStart: false
