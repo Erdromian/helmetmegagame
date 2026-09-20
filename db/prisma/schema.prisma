@@ -4799,6 +4799,13 @@ model PickpocketAttempt {
   budgetLbs Float
   spentLbs  Float @default(0)
 
+  // What the hand actually felt, frozen at the roll. The reopen path reads this
+  // back instead of re-scanning the target, so one spent attempt buys ONE look
+  // rather than a live feed of somebody's pockets for the rest of the turn.
+  // Display only — the take re-reads the real rows under a lock, so a frozen
+  // line they have since handed away is refused there.
+  revealed Json?
+
   createdAt DateTime @default(now())
 
   @@unique([thiefId, targetCharacterId, turnId])

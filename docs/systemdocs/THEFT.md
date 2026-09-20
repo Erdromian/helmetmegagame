@@ -213,10 +213,19 @@ Two consequences fall out of it for free:
 `turnId` is not a foreign key — the `InterceptHit` reasoning: it is a claim
 token, and deleting a turn must never cascade into somebody's spent ration.
 
-**A reopened dialog does not cost the attempt and does not reroll.** A P2002 on
-the claim reads the existing row back and hands the *same* die over, as long as
-nothing has been taken against it yet. Only a roll that actually happened sends
-the target's DM.
+**A reopened dialog does not cost the attempt, does not reroll, and does not
+re-scan.** A P2002 on the claim reads the existing row back and hands the
+*same* die over, as long as nothing has been taken against it yet. Only a roll
+that actually happened sends the target's DM.
+
+The list comes back frozen too, out of `PickpocketAttempt.revealed`, written at
+the roll. That column exists because the reopen used to re-read the target's
+pockets live: one spent attempt bought not a peek but a feed, and a thief who
+reached in and cancelled could sit on the dialog for the rest of the turn and
+watch things arrive in and leave somebody's pockets. **One attempt is one
+look.** The snapshot is display only — the take re-reads the real rows under a
+lock, so a line they have handed away since is refused there with the ordinary
+stale-picker message.
 
 ### 2e. The DM fires at the take, not at the roll
 
