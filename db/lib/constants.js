@@ -23,9 +23,11 @@ const EXHAUSTED_SLUG = "exhausted";
 const AUTO_MINE_NOTE = "auto:mine";
 const AUTO_REFINE_NOTE = "auto:refine";
 
-// One gates the Mine button, one gates Farm. Neither gates the other — see
-// docs/systemdocs/MINING.md.
+// Prospecting no longer gates the Mine button — the PICKAXE does, and the
+// skill is a multiplier on what the day is worth. Soilery still gates Farm.
+// Neither skill gates the other — see docs/systemdocs/MINING.md.
 const PROSPECTING_SLUG = "prospecting";
+const PICKAXE_SLUG = "pickaxe";
 const SOILERY_SLUG = "soilery";
 const CATATONIC_SLUG = "catatonic-afk";
 // Over a carry cap (db/lib/carry.js). Granted/cleared by settleCarry; read by the travel gate in db/lib/locationTravel.js.
@@ -263,6 +265,7 @@ module.exports = {
   TIRED_SLUG,
   EXHAUSTED_SLUG,
   PROSPECTING_SLUG,
+  PICKAXE_SLUG,
   SOILERY_SLUG,
   AUTO_MINE_NOTE,
   AUTO_REFINE_NOTE,

@@ -1074,9 +1074,10 @@ them).
   instead of simply being swept away. Live; see §5c.
 - `miningBonus` — what this tag adds to a day's mining, e.g.
   `miningBonus: { amount: 1 }`. `equipped` defaults **true**; `requiresTag`
-  gates it on holding something else. Bonuses sum, and three tags carry one
-  today: Prospector's Pick, Mining Helmet and the Claim Stake structure
-  (`placement.miningBonus`). Normalised and validated in `db/lib/tagShapes.js`,
+  gates it on holding something else. Bonuses sum, and two tags carry one
+  today: the Pickaxe and the Mining Helmet. `placement.miningBonus` does the
+  same for a structure, and nothing uses it since the Claim Stake was deleted
+  (`MINING.md` §4). Normalised and validated in `db/lib/tagShapes.js`,
   which throws on a bonus that requires equipping a tag that is not
   `equippable`, and on a `requiresTag` naming a tag that does not exist. There
   was a `kind:` key here too, naming which of the four Laboring types the bonus
@@ -2342,7 +2343,7 @@ robe in somebody's bag showed on a look.)
   pistol; the Shortbow and Javelin; the Buckler and
   Energy Shield; the small worn signals (badges, pins, keys, Jewelry, the
   Ordinator's Insignia, the Scrying Eye); armor that goes under clothes (Padded
-  Armor, Brigandine); and small tools (Prospector's Pick, Barbed Net,
+  Armor, Brigandine); and small tools (the Pickaxe, Barbed Net,
   Horseshoes). On you, it shows. In your bag, it doesn't.
 - **`true`** — only what you cannot hide by not holding it: mounts and carts,
   the Shield and Pavise, armor from Light Infantry Armour up, long weapons

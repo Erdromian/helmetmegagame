@@ -37,6 +37,15 @@ documents:
       - Soilery
     # [PLAYER TEXT — Bascinet to rewrite]
     description: ""
+  mining:
+    name: Mining
+    public: false
+    tags:
+      - Prospecting
+      - Pickaxe
+    roles: [prospector, slave]
+    description: |-
+      Mining yields resources and precious metals, which can be inlayed by smiths into the lucrative trinkets. To mine, you must have a Pickaxe. The Prospecting skill boosts both your resource and precious metal yield.
   combat:
     name: Combat
     public: true

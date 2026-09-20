@@ -217,7 +217,7 @@ A new button, gated on the `butcher` tag (now a Mercenary starting tag).
 
 It carried a labor bonus once — +1 ⬢ to a hunting Labor, and before that a
 hardcoded bonus to every kind of Laboring but farming. Laboring is gone, and
-only three tags carry a `miningBonus` now (`MINING.md` §4); Butcher is not one
+only two tags carry a `miningBonus` now (`MINING.md` §4); Butcher is not one
 of them. What it buys is the button, and the button is the whole of it.
 
 | Corpse | Yields |

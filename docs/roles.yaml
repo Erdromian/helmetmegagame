@@ -1168,7 +1168,7 @@ groups:
         - Ravenhearter
         - Prospecting
         - Ration Box x2
-        - Prospector's Pick
+        - Pickaxe
     mortus:
       name: Mortus
       intro: >-
@@ -1341,7 +1341,7 @@ groups:
       starting_location: undertown-8
       starting_tags:
         - Bomb Collar (Locked)
-        - Prospector's Pick
+        - Pickaxe
         - Ration Box
     goon:
       name: Goon

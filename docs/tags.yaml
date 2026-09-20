@@ -6263,30 +6263,10 @@ tags:
       # the examine above in the readout. Blank keeps the stock text.
       inscribable: true
 
-  # Prospecting's own structure, same shape as the Fish Weir above — the one
-  # bonus category the specialization had no presence in at all until now
-  # (Bascinet, 2026-09-10).
-  claim-stake:
-    catalog: all
-    name: Claim Stake
-    category: assets
-    group: assets-structures
-    description: "A stake driven into the ground, marking a claim. Gives an additional 1 ⬢ when Prospecting where erected."
-    pointCost: 0
-    visible: false
-    tradeable: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 6
-      skills: [builder-skilled]
-      gambit: false
-    placement:
-      fieldwork: true
-      examine: "a stake driven deep, claiming this ground."
-      miningBonus: { amount: 1 }
+  # The Claim Stake stood here and was removed on 2026-09-20. It was the only
+  # structure in the game carrying a `placement.miningBonus`, so that block is
+  # now a mechanism with no user — see MINING.md §4. Nothing else has to change
+  # to add one back.
 
   forge:
     catalog: all
@@ -9581,16 +9561,18 @@ tags:
     sellable: true
     sellablePrice: 6
 
-  # Prospecting's own tool, same shape as Fishing Rod above — every other
-  # specialization has one made for the work, this was the one gap
-  # (Bascinet, 2026-09-10).
-  prospectors-pick:
+  # The gate on mining, not a bonus to it (docs/systemdocs/MINING.md §2). Was
+  # "Prospector's Pick" until 2026-09-20, when Prospecting stopped being what
+  # lets you dig and the tool took over — a pick named after the skill reads
+  # like it belongs to the skill, and it belongs to anybody. Made on the same
+  # terms as a Hatchet, since it is the same piece of forge work.
+  pickaxe:
     catalog: all
-    name: "Prospector's Pick"
+    name: Pickaxe
     category: items
     group: items-gear
     sprite: pickaxe
-    description: "A short-handled pick. While equipped, Prospecting produces an additional 1 ⬢."
+    description: "A short-handled pick. You need one in hand to mine at all, and while equipped it turns up an additional 1 ⬢."
     pointCost: 2
     miningBonus: { amount: 1 }
     equippable: true
@@ -9604,7 +9586,7 @@ tags:
     requirement:
       turnsCost: 0.25
       resourceCost: 3
-      skills: [crafting]
+      skills: [smithing]
       gambit: false
     sellable: true
     sellablePrice: 8

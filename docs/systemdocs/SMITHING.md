@@ -289,7 +289,7 @@ Not a weapon, but it is smith work: `plow`, 5 points, `turnsCost: 1`,
 it never weighs on your back — it lives in your shed and the horse does the
 hauling. It carried the largest tool bonus in the game, +4 ⬢ to a Farming
 Labor, gated on also holding a `horse`. Laboring is gone, farming pays in crops
-rather than ⬢ (`SOILERY.md`), and only three tags carry a `miningBonus` now
+rather than ⬢ (`SOILERY.md`), and only two tags carry a `miningBonus` now
 (`MINING.md` §4) — the Plow is not one of them.
 
 ## 4. Armor

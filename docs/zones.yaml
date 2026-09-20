@@ -1332,6 +1332,10 @@ zones:
                 balaclava: 2
                 room-a-key-den: 1
                 room-b-key-den: 1
+                # What the Slaves dig with. A pickaxe is the gate on mining now
+                # (MINING.md §2), so the tools being in here rather than in
+                # their hands is the Exactor's whole grip on them.
+                pickaxe: 3
       undertown-a:
         name: Slums
         description: ""

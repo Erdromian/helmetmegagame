@@ -4,25 +4,19 @@
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const { structuresAt } = require("./structures");
-const { EXHAUSTED_SLUG, PROSPECTING_SLUG, LAZY_SLUG } = require("./constants");
+const { EXHAUSTED_SLUG, PROSPECTING_SLUG, PICKAXE_SLUG, LAZY_SLUG } = require("./constants");
 
 // What a day in the seam pays at a location coefficient of 1.0, before tools
-// and before either dial. Doubled from 2-8 on 2026-09-18: Prospecting stopped
-// being the gate on the button and became the thing that makes the day worth
-// having, so the skill had to actually pay (docs/systemdocs/MINING.md).
-const MINING_RATE = { min: 4, max: 16 };
+// and before either dial. ONE base for everybody who can swing a pick — there
+// is no separate unskilled rate any more, because the gate on the button is
+// the Pickaxe now and the skill is purely a multiplier (below).
+const MINING_RATE = { min: 6, max: 12 };
 
-// ...and what the same day pays somebody who does not have the skill. ANYBODY
-// can press Mine where there is a seam — you do not need to be told which way
-// up a pick goes to shift rock — you just do it badly, and you turn up nothing
-// but rock: the prospecting loot roll (db/lib/moveEffects.js) is skipped
-// outright for an unskilled digger, not merely made unlikely.
-//
-// It is a BASE, not a flat payout: everything below the switch — the location
-// coefficient, tools, Soft Hands, Lazy, the Lifeweb — applies to both rates
-// alike. A flat 0-6 would have made unskilled digging in the Black Hills
-// out-earn skilled digging there, which is the wrong way round.
-const UNSKILLED_MINING_RATE = { min: 0, max: 6 };
+// What Prospecting is worth: it multiplies the base rather than replacing it,
+// so it scales with the place exactly the way the two dials do and a rich seam
+// beats a poor one either way. It is the ⬢ half of the skill; the other half
+// is a better column on the loot table (db/lib/cavingLoot.js).
+const PROSPECTING_YIELD_MULTIPLIER = 1.7;
 
 // Lazy cuts a quarter off whatever Resources actually landed, applied AFTER the roll (not a change to the rolled range). 0.75 is Bascinet's number.
 const LAZY_YIELD_FACTOR = 0.75;
@@ -135,6 +129,13 @@ function computeMiningAccess(ctx) {
   if (blocked) {
     return { ok: false, reason: "You can't work" };
   }
+  // The tool IS the gate now (Prospecting used to be, and is a multiplier
+  // instead — docs/systemdocs/MINING.md §1). HELD, not equipped: the pick's own
+  // `miningBonus` still wants to be worn for its +1, so carrying one in the
+  // pack lets you dig at base, which is the right shape for a borrowed pick.
+  if (!ctx.tagSlugs.has(PICKAXE_SLUG)) {
+    return { ok: false, reason: "You need a pickaxe to break rock." };
+  }
   return { ok: true };
 }
 
@@ -156,10 +157,11 @@ function toolsFor(ctx) {
   return eligible.filter((tool) => !tool.isWeapon || tool === bestWeapon);
 }
 
-// No min>max guard: Math.round is monotonic and no multiplier is ever negative, so min <= max survives by construction; a small coefficient collapsing the base to 0-0 is correct, not a bug. `coefficient` is the global GameConfig dial; `locationCoefficient` is LocationMining.current. They multiply. `base` picks which of the two rates above is being scaled.
-function computeRate(coefficient, locationCoefficient = 1, base = MINING_RATE) {
-  const c = (coefficient ?? 1) * (locationCoefficient ?? 1);
-  return { min: Math.round(base.min * c), max: Math.round(base.max * c) };
+// No min>max guard: Math.round is monotonic and no multiplier is ever negative, so min <= max survives by construction; a small coefficient collapsing the base to 0-0 is correct, not a bug. `coefficient` is the global GameConfig dial; `locationCoefficient` is LocationMining.current, and `prospecting` is the skill's 1.7. All three multiply into one number, which is what keeps the skill worth the same PROPORTION everywhere.
+function computeRate(coefficient, locationCoefficient = 1, prospecting = false) {
+  const c =
+    (coefficient ?? 1) * (locationCoefficient ?? 1) * (prospecting ? PROSPECTING_YIELD_MULTIPLIER : 1);
+  return { min: Math.round(MINING_RATE.min * c), max: Math.round(MINING_RATE.max * c) };
 }
 
 // Display form — "3" when fixed, "0–4" (en dash) when it varies. The one place that dash is written.
@@ -181,15 +183,15 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
     return { ok: false, reason: "There's nothing to mine here." };
   }
 
-  // NOT a refusal any more (2026-09-18). Prospecting is a rate switch and the
-  // loot gate, not the gate on the button — see UNSKILLED_MINING_RATE above.
-  // Callers read `prospecting` back off this object to decide whether to roll
-  // the loot table at all; nothing else should re-derive it from the tag.
+  // NOT a refusal, and not the loot gate either any more. Prospecting is a
+  // pure multiplier on both halves of the yield: 1.7x the ⬢ here, and a richer
+  // column on the loot table. Callers read `prospecting` back off this object
+  // rather than re-deriving it from the tag.
   const prospecting = ctx.tagSlugs.has(PROSPECTING_SLUG);
 
   const tools = toolsFor(ctx);
   const bonus = tools.reduce((sum, tool) => sum + tool.amount, 0);
-  const rate = computeRate(coefficient, ctx.coefficient, prospecting ? MINING_RATE : UNSKILLED_MINING_RATE);
+  const rate = computeRate(coefficient, ctx.coefficient, prospecting);
   let min = rate.min + bonus;
   let max = rate.max + bonus;
 
@@ -252,7 +254,7 @@ async function resolveMiningRate(prisma, characterId) {
 
 module.exports = {
   MINING_RATE,
-  UNSKILLED_MINING_RATE,
+  PROSPECTING_YIELD_MULTIPLIER,
   LIFEWEB_FAILURE_MULTIPLIER,
   SOFT_HANDS_SLUG,
   lazyYield,

@@ -8,8 +8,8 @@
 //   CAVE_LEVEL arrival. Junk, tools and the odd weapon: what the caves leave lying around.
 //
 //   THE PROSPECTING TABLE (docs/systemdocs/MINING.md) — drawn by db/lib/moveEffects.js on every Mine
-//   press by a character holding Prospecting. Ore, metal and gemstones only, all of it feeding
-//   Smithing and Trinkets.
+//   press, by anybody; holding Prospecting only picks a richer column. Ore, metal and gemstones
+//   only, all of it feeding Smithing and Trinkets.
 //
 // The two share this file on purpose. They were one weighted draw and one whole YAML-driven
 // subsystem (MiningDropOption, a sync, a rarity module, an EV module, an audit script) until
@@ -102,6 +102,10 @@ const LOOT_TABLE = {
 // The prospecting table's own columns. Thinner than the Caving Die's at the top and steeper at the
 // bottom: a day's dig should mostly turn up rock, and the Depths should be where anything worth
 // having comes from. There is deliberately no `hills` column (see the header).
+//
+// TWO sets, because Prospecting stopped gating the draw and became a boost to it. Anybody holding a
+// pickaxe draws on the plain column; the skill moves you to the skilled one. That is the "precious
+// metal yield" half of what the skill buys — the ⬢ half is the 1.7x in db/lib/mining.js.
 const PROSPECTING_WEIGHTS_BY_ZONE = {
   caves: {
     ultracommon: 0.62,
@@ -118,6 +122,30 @@ const PROSPECTING_WEIGHTS_BY_ZONE = {
     rare: 0.22,
     "extremely-rare": 0.06,
     "nearly-impossible": 0.02,
+  },
+};
+
+// Roughly 20% better across the board. Caves is exactly that: every tier above ultracommon times
+// 1.2, with the remainder taken off ultracommon. Depths is hand-set instead of computed, because a
+// straight 1.2 there lands ultracommon at 1.6% — the arithmetic is right and the result reads as a
+// bug, since 82% of that column is already above ultracommon. 5% is the smallest number that still
+// looks deliberate.
+const PROSPECTING_SKILLED_WEIGHTS_BY_ZONE = {
+  caves: {
+    ultracommon: 0.544,
+    common: 0.312,
+    uncommon: 0.108,
+    rare: 0.0336,
+    "extremely-rare": 0.0018,
+    "nearly-impossible": 0.0006,
+  },
+  depths: {
+    ultracommon: 0.05,
+    common: 0.25,
+    uncommon: 0.32,
+    rare: 0.27,
+    "extremely-rare": 0.08,
+    "nearly-impossible": 0.03,
   },
 };
 
@@ -147,7 +175,8 @@ async function validateCavingLoot(prisma) {
       throw new Error(`db/lib/cavingLoot.js: ${name} references unknown tag slug(s): ${missing.join(", ")}`);
     }
   }
-  for (const [name, map] of Object.entries({ WEIGHTS_BY_ZONE, PROSPECTING_WEIGHTS_BY_ZONE })) {
+  const maps = { WEIGHTS_BY_ZONE, PROSPECTING_WEIGHTS_BY_ZONE, PROSPECTING_SKILLED_WEIGHTS_BY_ZONE };
+  for (const [name, map] of Object.entries(maps)) {
     for (const [zoneSlug, weights] of Object.entries(map)) {
       const sum = TIERS.reduce((total, tier) => total + (weights[tier] ?? 0), 0);
       if (Math.abs(sum - 1) > 1e-6) {
@@ -185,11 +214,21 @@ function drawLoot(zoneSlug) {
 
 // The prospecting twin, and the one place the two differ: this returns NULL for a zone with no
 // column rather than throwing. Mining happens in the Black Hills too, and "you dug and found no
-// stones" is an ordinary outcome there, not a misconfiguration.
-function drawProspectingLoot(zoneSlug) {
-  const weights = PROSPECTING_WEIGHTS_BY_ZONE[zoneSlug];
+// stones" is an ordinary outcome there, not a misconfiguration — for a prospector as much as for
+// anybody else, so the skill does not buy a column where there is no column to have.
+function drawProspectingLoot(zoneSlug, { prospecting = false } = {}) {
+  const map = prospecting ? PROSPECTING_SKILLED_WEIGHTS_BY_ZONE : PROSPECTING_WEIGHTS_BY_ZONE;
+  const weights = map[zoneSlug];
   if (!weights) return null;
   return drawFrom(weights, PROSPECTING_TABLE);
 }
 
-module.exports = { LOOT_TABLE, PROSPECTING_TABLE, validateCavingLoot, drawLoot, drawProspectingLoot };
+module.exports = {
+  LOOT_TABLE,
+  PROSPECTING_TABLE,
+  PROSPECTING_WEIGHTS_BY_ZONE,
+  PROSPECTING_SKILLED_WEIGHTS_BY_ZONE,
+  validateCavingLoot,
+  drawLoot,
+  drawProspectingLoot,
+};
