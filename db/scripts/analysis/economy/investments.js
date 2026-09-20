@@ -15,7 +15,7 @@ const soilery = require("../../../lib/soilery");
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
-function buildInvestments({ caving, trinkets, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
+function buildInvestments({ caving, trinkets, lucky: luckyUses, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
   const rows = [];
   const byId = (id) => activities.find((a) => a.id === id);
   const shelfPrice = (t) => t?.depotPrice ?? null;
@@ -206,20 +206,23 @@ function buildInvestments({ caving, trinkets, get, list, rv, rvMined, params, ac
   // ---- loot rolls ----------------------------------------------------------------------------------
   const lucky = get("lucky");
   if (lucky && caving) {
-    const z = caving.perZone.caves;
-    const d = caving.perZone.depths;
+    // The headline is a Depths caver making four arrivals a turn, the one use whose gain is money and whose
+    // frequency a player controls. The full ranking is in the Lucky section of the report.
+    const dive = luckyUses?.uses.find((u) => u.id === "caving-depths-4");
+    const forge = luckyUses?.uses.find((u) => u.id === "trinket-skilled-25");
+    const gain = dive?.gain ?? caving.perZone.caves.luckyGain * cavingArrivalsPerTurn;
     add({
       id: "lucky",
       group: "Loot rolls",
       name: lucky.name,
       kind: "perk",
-      does: "Rolls the Caving Die twice and keeps the better: a find on 6 goes from 1 in 6 to 11 in 36, and trouble on 1 from 1 in 6 to 1 in 36. Also every Gambit and eleven other dice.",
+      does: "Rolls twice and keeps the better on twelve dice: the Caving Die (a find 1 in 6 → 11 in 36, trouble 1 in 6 → 1 in 36), every Gambit, forging a Trinket, pushing on, lessons, Search, Steal and more.",
       coin: 0,
       coinHow: "no coin",
       points: lucky.pointCost ?? 0,
-      gain: z.luckyGain * cavingArrivalsPerTurn,
-      gainHow: `at the Caves ${round1(z.lucky.loot - z.base.loot)} ¢ more loot and ${round1(z.base.danger - z.lucky.danger)} ¢ less wound cost an arrival (Depths ${round1(d.luckyGain)} ¢), at ${cavingArrivalsPerTurn} arrival a turn`,
-      note: "Most of the gain is the trouble it avoids, and that depends on how a GM prices a 1. It also improves every Gambit, which is not counted.",
+      gain,
+      gainHow: `${round1(gain)} ¢ a turn for a Depths caver at four arrivals a turn (${round1(luckyUses?.uses.find((u) => u.id === "caving-caves-4")?.gain)} at the Caves). Forging pays ${round1(forge?.gain)}–${round1(luckyUses?.uses.find((u) => u.id === "trinket-apprentice-25")?.gain)} ¢ a Trinket with shelf stones. The one-arrival figure this table used before was ${round1(luckyUses?.uses.find((u) => u.id === "caving-caves-1")?.gain)} ¢`,
+      note: "Most of it is avoiding a 1, so it depends on what a GM makes of trouble. The largest thing Lucky does is add about +1 to every Gambit, which has no ¢.",
     });
   }
 

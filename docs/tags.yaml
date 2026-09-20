@@ -7987,8 +7987,11 @@ tags:
     consumesInto: [obol, obol, obol]
     consumesIntoResources: 0
 
+  # One rat. The caves drop it, the Ration Box draws it, and Ratato, Fried Rat, Poached Rat and the
+  # Sandwich cook it (it used to be two tags, this one and a Dead Rat that nothing produced).
+  # `sellablePrice: 2` is the old Dead Rat's.
   skinned-cave-rat:
-    catalog: gm
+    catalog: all
     name: Skinned Cave Rat
     category: items
     group: items-food
@@ -8005,6 +8008,8 @@ tags:
     consumable: true
     consumesInto:
       - oneOf: [ate-meal, vomiting]
+    sellable: true
+    sellablePrice: 2
 
   # --- The Ration Box's draws. Each is a meal, just a mediocre one, and each
   # carries a `mealHunger`/`mealMood` pair rather than a `cooked:` block. That
@@ -10946,30 +10951,6 @@ tags:
     sellable: true
     sellablePrice: 2
 
-  dead-rat:
-    catalog: all
-    name: Dead Rat
-    category: items
-    group: items-food
-    sprite: rat
-    description: "Squeak squeak!"
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [nauseous]
-    cooked:
-      taste: "meaty"
-      tasteForm: "adjective"
-      mood: -10
-      hunger: 9
-      into: []
-    sellable: true
-    sellablePrice: 2
-
   sugar:
     catalog: all
     name: Sugar
@@ -11741,7 +11722,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [potato, dead-rat]
+      items: [potato, skinned-cave-rat]
       ingredientSlots: { min: 0, max: 4 }
   tomato-soup:
     catalog: all
@@ -11882,7 +11863,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [{ tag: dead-rat, count: 2 }]
+      items: [{ tag: skinned-cave-rat, count: 2 }]
       ingredientSlots: { min: 0, max: 4 }
   fried-mushroom:
     catalog: all
@@ -11937,7 +11918,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [dead-rat, arelitz-egg]
+      items: [skinned-cave-rat, arelitz-egg]
       ingredientSlots: { min: 0, max: 4 }
   fish-stew:
     catalog: all
@@ -12209,7 +12190,7 @@ tags:
       items:
         - { customOf: bread }
         - tomato
-        - { anyOf: [dead-rat, meat] }
+        - { anyOf: [skinned-cave-rat, meat] }
       ingredientSlots: { min: 0, max: 4 }
   # Named "Honeyed Sweets" rather than the design doc's bare "Sweets" —
   # `sweets` (the Depot candy, docs/tags.yaml elsewhere) already holds that

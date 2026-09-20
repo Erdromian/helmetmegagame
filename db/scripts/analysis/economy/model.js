@@ -31,6 +31,7 @@ const { buildCaving } = require("./caving");
 const { buildTrinkets } = require("./trinkets");
 const { buildCooking } = require("./cooking");
 const { buildDesires } = require("./desires");
+const { buildLucky } = require("./lucky");
 const { turretTable } = require("../../../lib/depotTurret");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -994,6 +995,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
   const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players });
   const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue: moveValueUsed });
+  const lucky = buildLucky({ get, rv, caving, trinkets, moveValue: moveValueUsed, gameTurns });
   const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);
   const red = byId("craft:ravenheart-red");
   const potato = byId("farm:potato");
@@ -1161,7 +1163,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       doc: "COOKING.md §3",
       claim: "The rat the caves drop is the rat the recipes take",
       docValue: "same tag",
-      model: cooking.ratGap.caveRatSlug !== cooking.ratGap.recipeRatSlug ? `caves drop ${cooking.ratGap.caveRatSlug}; ${cooking.ratGap.dishes.join(", ")} take ${cooking.ratGap.recipeRatSlug}, which nothing produces` : "same tag",
+      model: cooking.ratGap.caveRatSlug !== cooking.ratGap.recipeRatSlug ? `caves drop ${cooking.ratGap.caveRatSlug}; ${cooking.ratGap.dishes.join(", ")} take ${cooking.ratGap.recipeRatSlug}, which nothing produces` : `one tag, ${cooking.ratGap.caveRatSlug}`,
       ok: cooking.ratGap.caveRatSlug === cooking.ratGap.recipeRatSlug,
     },
     {
@@ -1306,6 +1308,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const investments = buildInvestments({
     caving,
     trinkets,
+    lucky,
     get,
     list,
     rv,
@@ -1363,6 +1366,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     caving,
     trinkets,
     cooking,
+    lucky,
     desires,
     prospectorValue,
     combos,

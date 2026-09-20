@@ -639,7 +639,7 @@ ${table({ cols: dishCols, rows: C.dishes, filters: [{ label: "Tier", get: (d) =>
 <h3>Turning what nobody eats into food</h3>
 <p class="lede">Yes, for a few. Wheat makes you sick raw and is Bread. Purring Maggot, an ultracommon cave find that poisons you, brews into Maggot Milk and that is Pancakes and Fondue. Deep Morel is a Merchant's shelf item that makes you sick and is the Soaked Truffles (48 hunger, +38 mood). Rock Salt, another ultracommon find, cannot be eaten and seasons Salo and Caviar. Cave Fungus, Saltpeter and Rock go in no recipe, though a Cave Fungus can be slotted into any dish for nothing.</p>
 ${table({ cols: inCols, rows: C.inedible, id: "cookinedible" })}
-<p class="lede"><b>The rat is a broken link.</b> The cave loot table drops <code>${esc(C.ratGap.caveRatSlug)}</code>, which is edible raw (19 hunger, −10 mood, a coin toss of vomiting) and has no <code>cooked</code> block since the Ration Box stopped feeding recipes. ${C.ratGap.dishes.map(esc).join(", ")} take <code>${esc(C.ratGap.recipeRatSlug)}</code> instead, which nothing in the game produces (${esc(C.ratGap.recipeRatSource)}). ${C.unreachableDishes.length} of ${C.dishes.length} dishes need an input with no way into the game (${[...new Set(C.unreachableDishes.flatMap((d) => d.unreachable))].map(esc).join(", ")}).</p>
+<p class="lede">${C.ratGap.fixed ? `<b>The cave rat cooks.</b> The rat the caves drop is <code>${esc(C.ratGap.caveRatSlug)}</code>, and ${C.ratGap.dishes.map(esc).join(", ")} take that same tag, so a common cave find (about one find in six in the Caves) is a Ratato, a Fried Rat or a Poached Rat.` : `<b>The rat is a broken link.</b> The cave loot table drops <code>${esc(C.ratGap.caveRatSlug)}</code>, but ${C.ratGap.dishes.map(esc).join(", ")} take <code>${esc(C.ratGap.recipeRatSlug)}</code>, which nothing in the game produces (${esc(C.ratGap.recipeRatSource)}).`} ${C.unreachableDishes.length} of ${C.dishes.length} dishes need an input with no way into the game (${[...new Set(C.unreachableDishes.flatMap((d) => d.unreachable))].map(esc).join(", ")}).</p>
 <h3>What a cook can slot in</h3>
 <p class="lede">Any dish takes up to four extra ingredients, each adding its own hunger and, if positive, its mood. A slot never beats the base for food (12 hunger a crop is what eating it raw gives) but it is where a cook buys mood, and the raw −10 does not apply. The meter tops out at ${params.hungerMax}, so a Bread with four slots is at most 83.</p>
 ${table({ cols: slotCols, rows: C.addIns.slice(0, 14) })}
@@ -697,6 +697,44 @@ ${table({ cols: cols(true), rows: gated, id: "desiregated" })}
 <h3>Once per game, and the big tickets</h3>
 <p class="lede">A Motorcycle is 191 ¢ at the shelf and sells back for 115, so the Desire costs about ${fmt(bigTicket.find((b) => b.slug === "metal-ride")?.netCoin, 0)} ¢ for 3 points (pusher only). The tier 4 and 5 goals (a manor, buying your freedom, the Arkenstone) are not on any shelf and are not priced here.</p>
 ${table({ cols: cols(true), rows: bigTicket, id: "desirebig" })}
+</section>`;
+}
+
+function sectionLucky() {
+  const K = model.lucky;
+  const ranked = K.ranked;
+  const cols = [
+    { h: "Die", get: (u) => u.die },
+    { h: "Who, and how often", get: (u) => u.who },
+    { h: "Gain ¢ a turn", num: true, get: (u) => fmt(u.gain, 1), sort: (u) => u.gain },
+    { h: "How", get: (u) => u.basis },
+    { h: "Note", get: (u) => u.note },
+  ];
+  const lessonCols = [
+    { h: "The teacher", get: (l) => l.label },
+    { h: "Needs", num: true, get: (l) => `${l.threshold}+`, sort: (l) => l.threshold },
+    { h: "A try succeeds", num: true, get: (l) => `${fmt(l.plain * 100, 0)}% → ${fmt(l.lucky * 100, 0)}%`, sort: (l) => l.lucky },
+    { h: "Tries to learn it", num: true, get: (l) => `${fmt(l.triesPlain, 1)} → ${fmt(l.triesLucky, 1)}`, sort: (l) => l.triesLucky },
+    { h: "Moves saved", num: true, get: (l) => fmt(l.movesSaved, 2), sort: (l) => l.movesSaved },
+  ];
+  const bars = ranked.filter((u) => u.scales !== false || u.perTrinket || u.id === "push-on").slice(0, 12).map((u) => ({ label: `${u.die}: ${u.who}`.slice(0, 58), value: u.gain, color: u.die === "Caving Die" ? "var(--c1)" : u.die === "Forging a Trinket" ? "var(--c3)" : "var(--c0)" }));
+  const unpricedCols = [
+    { h: "Die", get: (u) => u.die },
+    { h: "What Lucky does", get: (u) => u.what },
+    { h: "Note", get: (u) => u.note },
+  ];
+  return `<section><h2>Lucky, use by use</h2>
+<p class="lede">The investment table priced Lucky on one die (the Caving Die) at one arrival a turn, which is its worst case. Lucky keeps the better of two on twelve dice, and what it is worth depends on which of them a person rolls and how often. Keeping the better of two d6 turns a 6 from 1 in 6 into ${fmt(K.lucky.find * 36, 0)} in 36 and a 1 from 1 in 6 into 1 in 36; the average die goes from ${fmt(K.plain.mean, 2)} to ${fmt(K.lucky.mean, 2)}. <b>Most of the value is a 1 that never happens</b>, so it pays most where a 1 is expensive and the die is rolled often.</p>
+<p class="lede"><b>The best use is cave diving, and the more you walk the better.</b> At the Depths, ${fmt(K.uses.find((u) => u.id === "caving-depths-1")?.gain, 1)} ¢ a turn at one arrival becomes ${fmt(K.uses.find((u) => u.id === "caving-depths-4")?.gain, 1)} at four and ${fmt(K.uses.find((u) => u.id === "caving-depths-10")?.gain, 1)} at ten, because the die is rolled on every arrival and nothing caps them but a 3-second walk cooldown. Nearly all of it is the wound cost avoided (the trouble cost is my assumption of the GM's, ${fmt(model.caving.perZone.depths.troubleCost, 0)} ¢ a trouble in the Depths). Forging is second and is <b>per Trinket, not per turn</b>: a Trinket is a whole Move, so a smith with good stones gets ${fmt(K.uses.find((u) => u.id === "trinket-apprentice-98")?.gain, 0)} ¢ a Move from Lucky, and one with poor stones ${fmt(K.uses.find((u) => u.id === "trinket-apprentice-20")?.gain, 0)}; but stones are what limit a forger, so a miner forging their own gets about ${fmt(K.uses.find((u) => u.id === "trinket-prospector")?.gain, 1)} ¢ a turn.</p>
+${barChart({ rows: bars, unit: " ¢", fmtVal: (v) => fmt(v, 1), labelW: 330 })}
+<h3>Every use that has a price</h3>
+${table({ cols, rows: ranked, filters: [{ label: "Die", get: (u) => u.die }] })}
+<h3>Lessons</h3>
+<p class="lede">Lucky does not change whether a skill is learnt, only how many tries it takes, and each try is a Move for the learner. The skill itself is worth its points, so a lesson is a one-off and is not in the ranking.</p>
+${table({ cols: lessonCols, rows: K.lessons })}
+<h3>What it does that has no price</h3>
+<p class="lede">The largest thing Lucky does is not money. It adds about <b>+1 to every Gambit</b>, the die every Move's Gambit rolls, which is the same size as the +1 an Arkenstone Trinket gives while held, and takes the chance of a 1 from 1 in 6 to 1 in 36. That is what the 15 points are mostly buying, and a GM decides what a Gambit is worth. If the economy is to price it, Lucky is closer to a fair price than the ¢ per point figure suggests.</p>
+${table({ cols: unpricedCols, rows: K.unpriced })}
 </section>`;
 }
 
@@ -1187,7 +1225,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionTrinkets()}${sectionCooking()}${sectionDesires()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionLucky()}${sectionTrinkets()}${sectionCooking()}${sectionDesires()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------

@@ -208,15 +208,16 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
     .filter(Boolean)
     .sort((a, b) => Number(b.cookable) - Number(a.cookable) || (b.dishMood ?? -99) - (a.dishMood ?? -99));
 
-  // The rat the caves give you is not the rat the recipes take.
+  // The rat the caves drop and the rat the recipes take are one tag now (it used to be two).
   const caveRat = get("skinned-cave-rat");
-  const deadRat = get("dead-rat");
+  const ratUsers = dishes.filter((d) => d.primitives.includes("skinned-cave-rat"));
   const ratGap = {
     caveRatSlug: caveRat?.slug,
-    caveRatCooked: !!caveRat?.cooked,
-    recipeRatSlug: deadRat?.slug,
-    recipeRatSource: sourceOf("dead-rat"),
-    dishes: dishes.filter((d) => d.primitives.includes("dead-rat")).map((d) => d.name),
+    // A recipe's rat is a rat nothing produces if the tag it names is not the one in the loot table.
+    recipeRatSlug: get("dead-rat") ? "dead-rat" : caveRat?.slug,
+    recipeRatSource: sourceOf(get("dead-rat") ? "dead-rat" : "skinned-cave-rat"),
+    dishes: (get("dead-rat") ? dishes.filter((d) => d.primitives.includes("dead-rat")) : ratUsers).map((d) => d.name),
+    fixed: !get("dead-rat") && ratUsers.length > 0,
   };
 
   // ---- what a cook can slot in ------------------------------------------------------------------------

@@ -259,7 +259,7 @@ a later page and out of scope here.
 | slug | taste | mood | hunger | note |
 |---|---|---|---|---|
 | `meat` | meaty | 5 | 12 | |
-| `dead-rat` | meaty | −10 | 9 | raw/cooked split, `consumesInto: [nauseous]` |
+| `skinned-cave-rat` | — | −10 | 19 | the old `dead-rat` is this tag now (2026-09-20): one rat, dropped by the caves and cooked by four recipes. It has no `cooked` block, so it cannot be slotted into a dish, and a raw one is a coin toss between a meal and vomiting |
 | `sugar` | sweet | 20 | 12 | |
 | `cheese` | cheesy | 15 | 12 | was a deliberate near-duplicate of `hard-cheese`; `hard-cheese` was later retired |
 | `rendered-fat` | creamy | 10 | 12 | renamed from the doc's "Fat" — that slug is taken by an unrelated general trait |
