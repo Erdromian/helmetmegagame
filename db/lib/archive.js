@@ -7,6 +7,7 @@ const { notifyFeed } = require("./feedNotify");
 const { hoodToken } = require("./whosHere");
 const { loadPresentedState } = require("./examineSnapshot");
 const { roleGroupHue } = require("./roleGroups");
+const { isSfx } = require("./sfx");
 
 // The columns the live feed needs off a row, and nothing else — kept beside feedRowShape below so the two never drift.
 const FEED_ROW_SELECT = {
@@ -31,6 +32,11 @@ const FEED_ROW_SELECT = {
   // new turn. Also safe on every row, hooded or not: a turn number names no
   // speaker.
   turnNumber: true,
+  // The noise the line made, if it made one (./sfx.js). A token, never a filename, and
+  // never anything a person said — safe on a hooded row for the same reason channelKind
+  // above is. Deliberately absent from ARCHIVE_ROW_SELECT below: the transcript is a
+  // written record, and a sound is not something you read back.
+  sfx: true,
 };
 
 // One archived row as the wire shape /chat and /api/feed speak.
@@ -64,6 +70,7 @@ function feedRowShape(row, extra = {}) {
     sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
     source: row.source ?? "DISCORD",
     channelKind: row.channelKind ?? null,
+    sfx: row.sfx ?? null,
     turnNumber: row.turnNumber ?? null,
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
@@ -219,6 +226,11 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         // The player's original message, when one produced this row. The unique index on it is what stops a redelivered Discord event becoming a second post — see the field's note in schema.prisma.
         sourceDiscordMessageId: entry.sourceDiscordMessageId ?? null,
         channelKind: entry.channelKind ?? null,
+        // The one door a sound token gets to the wire through, so no call site can put an
+        // arbitrary string in front of a browser. Anything this file's list does not name
+        // is written as silence rather than refused — a mistyped cue must not be the reason
+        // a line nobody could hear failed to be said at all.
+        sfx: isSfx(entry.sfx) ? entry.sfx : null,
         threadName: entry.threadName ?? null,
         discordChannelId: entry.discordChannelId ?? null,
         placeKey: entry.placeKey ?? null,

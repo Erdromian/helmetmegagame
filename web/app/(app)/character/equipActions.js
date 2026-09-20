@@ -10,6 +10,7 @@ import { HANDS_TAG_FIELDS, findEquipProblem, handsFor } from "@lifeweb/db/lib/eq
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
+import { equipSfx } from "@lifeweb/db/lib/equipSlots";
 
 // A refusal a human caused (no free slots, a clash), thrown inside the transaction to roll the write back and caught outside it for the player-facing sentence. Never crosses that boundary.
 class EquipRefusalError extends Error {}
@@ -50,7 +51,7 @@ export async function equipOne(characterTagId) {
       id: true,
       quantity: true,
       equippedQuantity: true,
-      tag: { select: { equippable: true, name: true, slug: true } },
+      tag: { select: { equippable: true, name: true, slug: true, equipSlot: true } },
     },
   });
   if (!held) return { error: "You aren't holding that." };
@@ -111,7 +112,9 @@ export async function equipOne(characterTagId) {
   // Equipping a Cart raises the cap, which can clear Overburdened.
   await afterInventoryChange([character.id]);
   revalidatePath("/character");
-  return { equipped: true };
+  // The wearer hears it go on — cloth rustles, a buckle clicks (db/lib/equipSlots.js#equipSfx).
+  // Taking something off says nothing: the room is quiet when you put a helmet down.
+  return { equipped: true, sfx: equipSfx(held.tag) };
 }
 
 // Puts one unit back — the last one out also clears `equipped`.

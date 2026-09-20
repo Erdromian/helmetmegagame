@@ -65,6 +65,7 @@ import {
 } from "@/lib/requests";
 import { craftMoveCost } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import { describeTurn } from "@/lib/turnFormat";
 import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
@@ -1236,9 +1237,16 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
   // to someone else credits the target, not the actor, so there's nothing
   // for the actor to be told here.
   if (!line && resourcesGrantedOut > 0 && target.id === character.id) {
-    return { line: `You got ${resourcesGrantedOut} ⬢.` };
+    return { line: `You got ${resourcesGrantedOut} ⬢.`, sfx: consumeSfx(held.tag) };
   }
-  return line ? { line } : {};
+  return line ? { line, sfx: consumeSfx(held.tag) } : { sfx: consumeSfx(held.tag) };
+}
+
+// A bottle and a bowl sound different. The held tag carries its group already
+// (requireCharacter selects it for the recipe matcher), so this costs no query — and
+// anything that is neither reads as eating, which is what consuming mostly is.
+function consumeSfx(tag) {
+  return tag?.group?.slug === "items-drink" ? SFX.DRINK : SFX.EAT;
 }
 
 // --- Research (Scholastic skill, docs/tags.yaml `research`) -------------
@@ -1620,7 +1628,10 @@ export async function bindCharacterRequestImpl({
   await afterInventoryChange(target.id);
   notifyCharacter(target, "Someone bound you.");
   revalidateAll();
-  return {};
+  // Only the binder hears it. The bound person is told in words (notifyCharacter above);
+  // a sound would have to reach their tab through the feed, and the bind writes no line
+  // into the place — deliberately, since a room does not announce who was tied up.
+  return { sfx: SFX.BIND };
 }
 
 // The rescue half — anyone standing there may cut someone loose.
@@ -2393,7 +2404,7 @@ export async function harmCharacterRequestImpl({
     notifyCharacter(target, "Someone hurt you.");
   }
   revalidateAll();
-  return { killed };
+  return { killed, sfx: SFX.HARM };
 }
 
 // --- Branding someone bound or incapacitated -------------------------------

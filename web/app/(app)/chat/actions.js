@@ -89,6 +89,7 @@ import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout, deliverShout } from "@lifeweb/db/lib/shout";
 import { ooc, deliverOoc } from "@lifeweb/db/lib/ooc";
 import { XOM_SHRINE_ROOM_SLUG, grantXom } from "@lifeweb/db/lib/xom";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import { openConversationThread } from "@lifeweb/db/lib/conversationOpen";
 import { castDie } from "@lifeweb/db/lib/roll";
 import { addRoomGuest, removeRoomGuest, roomGuests } from "@lifeweb/db/lib/roomGuests";
@@ -1434,7 +1435,9 @@ export async function pray({ roomId } = {}) {
   // the tag is `catalog: secret`, and this is the only place it is ever
   // announced at all.
   const witnessed = `${me.character.name} kneels, and the face seems to lean down.`;
-  await sceneLineAt(prisma, { roomId: found.room.id, text: witnessed }).catch(() => {});
+  // The statue's noise rides the line that was already being written — everyone reading the
+  // shrine hears it, and nobody outside it does (db/lib/sfx.js).
+  await sceneLineAt(prisma, { roomId: found.room.id, text: witnessed, sfx: SFX.CONVERT }).catch(() => {});
   const thread = await prisma.room
     .findUnique({ where: { id: found.room.id }, select: { discordThreadId: true } })
     .catch(() => null);

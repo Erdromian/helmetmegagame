@@ -1,8 +1,15 @@
 // Working a gate, on either face — shared so Chat and the bot's button handlers don't carry two
-// copies of the rules about who may touch a portcullis. Neither of these touches Discord: redrawing
-// the watchtower's starter row after a flip stays bot-side, since the caller is handed back
-// `locationIds` and does its own redraw.
+// copies of the rules about who may touch a portcullis. Redrawing the watchtower's starter row
+// after a flip stays bot-side, since the caller is handed back `locationIds` and does its own
+// redraw: that is the CALLER's side effect, and each face does it differently.
+//
+// Saying that a gate moved is not. Both sides of it hear the same sentence, so it is said here
+// rather than twice — which is also why this file now posts, where it used to leave Discord
+// alone entirely.
 const { gateOperable, endpoints, isHeldOpen, KEYED_OPEN_MS } = require("./locationGraph");
+const { publicRoomsIn } = require("./gateEcho");
+const { roomLine, locationLine } = require("./placeLine");
+const { SFX } = require("./sfx");
 
 // `character` needs { id, locationId }. Working a gate reads nothing else — the winch is in the
 // watchtower, so the room they clicked in already answered who they are.
@@ -51,6 +58,25 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
       details: { linkId: link.id, between: [link.a.name, link.b.name], isOpen: wantOpen },
     },
   });
+
+  // A gate is a loud thing in a quiet barony, and until now only the person on the winch knew
+  // it had moved. Everyone in earshot on either side hears it: the public rooms at both ends
+  // and both Location channels. Best-effort and swallowed — the flip has already committed,
+  // and a line nobody heard must never look like a gate that did not move.
+  try {
+    const text = wantOpen ? "A gate opens." : "A gate closes.";
+    const sfx = wantOpen ? SFX.GATE_OPEN : SFX.GATE_SHUT;
+    // Sequential, not Promise.all: each of these posts to Discord, and a burst is how you
+    // meet a rate limit (db/lib/soundBroadcast.js is sequential for the same reason).
+    for (const room of await publicRoomsIn(prisma, [link.aId, link.bId])) {
+      await roomLine(prisma, room, text, { sfx });
+    }
+    for (const location of [link.a, link.b]) {
+      await locationLine(prisma, location, text, { sfx });
+    }
+  } catch (err) {
+    console.error("Gate line failed:", err?.message ?? err);
+  }
 
   const farName = endpoints(link, character.locationId).far.name;
   return {

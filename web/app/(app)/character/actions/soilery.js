@@ -6,6 +6,7 @@
 // that commits now and resolves its dice at push (db/lib/moveEffects.js's `farmed` entry).
 import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import { getOpenTurn } from "@/lib/turn";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { hasAttribute, SOILERY_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
@@ -139,6 +140,7 @@ export async function farmRequestImpl({ lines }) {
   revalidateAll();
 
   return {
+    sfx: SFX.FARM,
     line: "You sowed the fields. The harvest comes in when the turn closes.",
   };
 }

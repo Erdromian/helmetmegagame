@@ -11,6 +11,7 @@ import {
 } from "@/lib/requests";
 import { craftMoveCost } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import {
@@ -439,6 +440,7 @@ export async function healCharacterRequestImpl({
     tagName: held.tag.name,
     cost,
     gambit,
+    sfx: SFX.HEAL,
   };
 }
 
@@ -551,5 +553,5 @@ export async function performMiracleRequestImpl({ targetCharacterId, tagId }) {
   await afterInventoryChange([target.id]);
   notifyCharacter(target, `${character.name} healed your ${held.tag.name} with a miracle.`);
   revalidateAll();
-  return { targetName: target.name, tagName: held.tag.name, name: target.name };
+  return { targetName: target.name, tagName: held.tag.name, name: target.name, sfx: SFX.HEAL };
 }

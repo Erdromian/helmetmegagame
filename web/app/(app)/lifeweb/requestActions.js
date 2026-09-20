@@ -19,6 +19,7 @@ import { logAudit } from "@/lib/requests";
 import { UserError, guarded } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { killCharacter } from "@/lib/discordGuild";
+import { SFX } from "@lifeweb/db/lib/sfx";
 
 // The Lifeweb's two player-facing Requests, same contract as the sheet's
 // (web/app/(app)/character/requestActions.js): authenticate, re-validate,
@@ -122,7 +123,9 @@ async function donateBloodRequestImpl({ targetCharacterId }) {
   if (target.id !== character.id) notifyCharacter(target, "You've been Drained.");
 
   revalidateAll();
-  return { targetName: target.name, amount: blood.delta, tier };
+  // The Tower taking blood, in the donor's own ears. It is not a room sound: who is being
+  // Drained is nobody else's business, and a noise in the place would say it out loud.
+  return { targetName: target.name, amount: blood.delta, tier, sfx: SFX.LIFEWEB };
 }
 
 // Feeding someone to the Lifeweb kills them, here, on the click. The kill is
@@ -176,7 +179,7 @@ async function feedPersonRequestImpl({ targetCharacterId }) {
   }
 
   revalidateAll();
-  return { targetName: target.name, amount: blood.delta, killed };
+  return { targetName: target.name, amount: blood.delta, killed, sfx: SFX.LIFEWEB };
 }
 
 // Validation comes back as { ok: false, error }, never thrown — Next.js redacts anything thrown out of a Server Action. See web/lib/actionResult.js.

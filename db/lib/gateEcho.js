@@ -18,6 +18,19 @@ async function gateNeighbours(prisma, locationId) {
   return links.filter((link) => link.modular).map((link) => endpoints(link, locationId).far).filter(Boolean);
 }
 
+// Every Room in these Locations that is in earshot — public, not soundproof. Shared with
+// db/lib/gates.js, which announces a gate working into the same set of rooms a line spoken
+// through that gate would reach. One query shape, two callers, so the two can never come to
+// disagree about who is within earshot of a gate.
+async function publicRoomsIn(prisma, locationIds) {
+  if (!locationIds?.length) return [];
+  return prisma.room.findMany({
+    where: { locationId: { in: locationIds }, ...EARSHOT },
+    select: { id: true, name: true, locationId: true, discordThreadId: true },
+    orderBy: [{ locationId: "asc" }, { sortOrder: "asc" }],
+  });
+}
+
 // The Rooms a line said at `placeKey` carries into. Empty for anything but a public, non-soundproof
 // Room at one end of a modular gate.
 async function echoRoomsFor(prisma, placeKey) {
@@ -33,11 +46,7 @@ async function echoRoomsFor(prisma, placeKey) {
   const far = await gateNeighbours(prisma, room.locationId);
   if (far.length === 0) return [];
 
-  return prisma.room.findMany({
-    where: { locationId: { in: far.map((loc) => loc.id) }, ...EARSHOT },
-    select: { id: true, name: true, locationId: true },
-    orderBy: [{ locationId: "asc" }, { sortOrder: "asc" }],
-  });
+  return publicRoomsIn(prisma, far.map((loc) => loc.id));
 }
 
 // `{char:<id>|Name}` becomes plain `Name` so the outbox doesn't relay a second mention DM. `-# ` per line.
@@ -79,4 +88,4 @@ async function echoSpeech(prisma, prepared, row) {
   return written;
 }
 
-module.exports = { echoRoomsFor, echoContent, echoSpeech, gateNeighbours };
+module.exports = { echoRoomsFor, echoContent, echoSpeech, gateNeighbours, publicRoomsIn };

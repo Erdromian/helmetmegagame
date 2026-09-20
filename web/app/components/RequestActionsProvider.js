@@ -12,6 +12,7 @@ import { noticeLine } from "./actions/noticeLines";
 // Prisma-free on purpose (it takes `db` as a parameter), so importing it here
 // does not drag the @lifeweb/db barrel into the browser bundle.
 import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
+import { playSfx } from "@/app/components/sfx";
 
 // Every player action on the character sheet: the mode that is open, what
 // the grid greys each button on, and the one place a result is spoken.
@@ -412,9 +413,15 @@ export default function RequestActionsProvider({
         try {
           const res = await run();
           if (!res?.ok) {
+            // The third of the three doors sound comes through (./useActionRunner.js and
+            // ./actions/useSubmit.js are the others): guarded() hangs the refusal tone on
+            // the result, so a verb refusing here answers in the same voice as everything
+            // else without this file listing a single sound.
+            playSfx(res?.sfx ?? "refuse");
             notice({ text: res?.error ?? "Something went wrong.", tone: "bad" });
             return;
           }
+          playSfx(res.sfx);
           notice({
             text: noticeLine(next, res, ctx),
             rows: Array.isArray(res.roster)
@@ -422,6 +429,7 @@ export default function RequestActionsProvider({
               : null,
           });
         } catch {
+          playSfx("refuse");
           notice({ text: "Could not reach the server. Nothing was changed.", tone: "bad" });
         } finally {
           setBusy(null);

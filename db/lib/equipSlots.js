@@ -173,7 +173,20 @@ function shedForHands(worn, hands) {
   return shed;
 }
 
+// What putting this on SOUNDS like, for the wearer's own tab (web/app/components/sfx.js).
+// A slot is the closest thing the catalog has to "what kind of object is this": a head or a
+// body piece is something you pull on, an accessory is something that fastens, and anything
+// in a hand is picked up rather than worn. The energy shield is named outright because it
+// is the one piece whose sound is about what it IS rather than where it goes.
+function equipSfx(tag) {
+  if (!tag) return null;
+  if (tag.slug === "energy-shield") return "equip-shield";
+  if (tag.equipSlot === "HEAD" || tag.equipSlot === "BODY") return "equip-cloth";
+  return "equip-lock";
+}
+
 module.exports = {
+  equipSfx,
   WEAPON_HANDS,
   HANDS_FLOOR,
   HANDS_TAG_FIELDS,

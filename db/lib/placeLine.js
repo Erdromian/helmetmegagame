@@ -20,9 +20,13 @@ const landed = (result) => result !== FAILED && result != null;
 
 // BOTH halves are caught: this is scenery, and a line nobody heard must never
 // take down the thing that caused it.
+//
+// `{ sfx }` is the noise the WEB face makes as the line lands — a token from ./sfx.js,
+// carried on the archive row and played by whoever is reading that place. Discord gets
+// the words alone; it has no way to make a sound and never will.
 
 // The room hears one line. `room` needs { id, name, discordThreadId }.
-async function roomLine(db, room, text) {
+async function roomLine(db, room, text, { sfx = null } = {}) {
   let posted = false;
   let archived = false;
   if (room?.discordThreadId) {
@@ -30,14 +34,14 @@ async function roomLine(db, room, text) {
   }
   if (room?.id) {
     archived = landed(
-      await sceneLineAt(db, { roomId: room.id, text, signed: false }).catch(log(`room scene (${room.name})`)),
+      await sceneLineAt(db, { roomId: room.id, text, signed: false, sfx }).catch(log(`room scene (${room.name})`)),
     );
   }
   return { posted, archived };
 }
 
 // A Location's channel hears one line. `location` needs { id, name, discordChannelId }.
-async function locationLine(db, location, text) {
+async function locationLine(db, location, text, { sfx = null } = {}) {
   let posted = false;
   let archived = false;
   if (location?.discordChannelId) {
@@ -47,7 +51,7 @@ async function locationLine(db, location, text) {
   }
   if (location?.id) {
     archived = landed(
-      await sceneLineAt(db, { locationId: location.id, text, signed: false }).catch(
+      await sceneLineAt(db, { locationId: location.id, text, signed: false, sfx }).catch(
         log(`location scene (${location.name})`),
       ),
     );
@@ -57,7 +61,7 @@ async function locationLine(db, location, text) {
 
 // A zone's #summary hears one line. `zone` needs { id, name,
 // discordSummaryChannelId }.
-async function zoneLine(db, zone, text) {
+async function zoneLine(db, zone, text, { sfx = null } = {}) {
   let posted = false;
   let archived = false;
   if (zone?.discordSummaryChannelId) {
@@ -67,7 +71,7 @@ async function zoneLine(db, zone, text) {
   }
   if (zone?.id) {
     archived = landed(
-      await sceneLineAt(db, { zoneId: zone.id, text, signed: false }).catch(log(`zone scene (${zone.name})`)),
+      await sceneLineAt(db, { zoneId: zone.id, text, signed: false, sfx }).catch(log(`zone scene (${zone.name})`)),
     );
   }
   return { posted, archived };

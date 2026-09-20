@@ -22,6 +22,7 @@ import TagPointsValue from "./TagPointsValue";
 import TagRow from "./TagRow";
 import { useRequestActions } from "./RequestActionsProvider";
 import { useNotice } from "./NoticeProvider";
+import { playSfx } from "@/app/components/sfx";
 
 // The left column of /character: every held tag, and a filter box over all of
 // it. Which card, which order and which value each row shows is
@@ -113,6 +114,7 @@ export default function TagRail({
     startTransition(async () => {
       const res = await (ct.equipped ? unequipOne(ct.id) : equipOne(ct.id));
       if (res?.error) setError(res.error);
+      playSfx(res?.error ? "refuse" : res?.sfx);
     });
   }
 

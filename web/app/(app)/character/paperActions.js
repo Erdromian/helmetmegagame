@@ -29,6 +29,7 @@ import { guarded, UserError } from "@/lib/actionResult";
 import { auth } from "@/lib/auth";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
+import { SFX } from "@lifeweb/db/lib/sfx";
 
 // Writing and sealing. See docs/systemdocs/PAPERWORK.md. NEITHER FILES A REQUEST (same call equipActions.js makes): writing costs nothing, spends no Move, and a Request per sentence would drown /gm/turns and /gm/audit at 100+ players — a GM just reads the tag's text, which every GM surface already renders.
 // Breaking a seal IS a Request (destroys something, must be undoable) and lives in requestActions.js with the rest of Consume.
@@ -152,7 +153,8 @@ async function writePaperImpl({ tagId: rawTagId, text: rawText, title: rawTitle 
 
   await afterInventoryChange([character.id]);
   revalidateAll();
-  return { name: result.name, tagId: result.id };
+  // The scratch of a pen finishing a page (sfx.js).
+  return { name: result.name, tagId: result.id, sfx: SFX.WRITE };
 }
 
 async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId, title: rawTitle }) {
@@ -180,7 +182,7 @@ async function sealLetterImpl({ tagId: rawTagId, stampTagId: rawStampId, title: 
 
   await afterInventoryChange([character.id]);
   revalidateAll();
-  return { name: sealed.name };
+  return { name: sealed.name, sfx: SFX.WRITE };
 }
 
 // --- public surface ---------------------------------------------------

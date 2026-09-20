@@ -32,7 +32,10 @@ const {
 // apart from a gate crossing or a smell, so Feed.js drew both the same way —
 // small and muted. Feed.js checks this value to draw an intercom row bold and
 // at regular size instead.
-async function sceneLine(prisma, { placeKey, text, lines = [], signed = true, channelKind = "scene" } = {}) {
+// `sfx` is the noise the line makes on the web face — a token from ./sfx.js, validated at
+// the archive write so nothing arbitrary can reach a browser. Most scenery is silent and
+// leaves it null.
+async function sceneLine(prisma, { placeKey, text, lines = [], signed = true, channelKind = "scene", sfx = null } = {}) {
   if (!placeKey) return null;
 
   const body = [
@@ -55,6 +58,7 @@ async function sceneLine(prisma, { placeKey, text, lines = [], signed = true, ch
       threadName: context.threadName,
       // Not "location"/"summary": nobody typed this into a channel.
       channelKind,
+      sfx,
     });
   } catch (err) {
     console.error("Scene line failed:", err.message ?? err);

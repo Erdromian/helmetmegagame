@@ -21,6 +21,7 @@ import {
   ledgerUsed,
 } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
@@ -754,7 +755,12 @@ export async function craftRequestImpl({
     ]);
     payerNotice(character, payer, cost, tag);
     revalidateAll();
-    return { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, quantity)) };
+    return {
+      made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, quantity)),
+      // A forge sounds nothing like a workbench, and the family is already worked out
+      // above for the Move's sake (craftFamily, line ~387).
+      sfx: craftFamily(tag) === "smithing" ? SFX.SMITH : SFX.CRAFT,
+    };
   }
 
   // Real work: this turn's Move, and a project if it takes more than one. Quantity is limited by WORK ARITHMETIC and nothing else: a unit costs its `turnsCost` of the Move (a whole turn, or the decimal share a part-turn recipe authors), so a brewer's Routine holds four 0.25-turn Alcohol and a smith's holds ONE broadsword, and a spare part-turn takes more same-family work or none. A project takes the Move whole every turn it runs, so it can never share one, and makes ONE unit — wanting two means starting it twice.

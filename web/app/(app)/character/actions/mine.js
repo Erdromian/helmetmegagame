@@ -7,6 +7,7 @@
 // the player wait for.
 import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import { getOpenTurn } from "@/lib/turn";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import {
@@ -109,6 +110,8 @@ export async function mineRequestImpl() {
   const note = formatMiningBonusNote(rate);
   const drop = applied?.miningDrop;
   return {
+    // The clink of something coming out of the rock, in this player's own tab (sfx.js).
+    sfx: SFX.MINE,
     line: [
       `You worked the seam, producing ${value} ⬢.`,
       drop?.kind === "TAG" ? `You turned up ${drop.tagName}.` : null,

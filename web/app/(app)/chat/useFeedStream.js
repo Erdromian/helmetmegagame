@@ -8,7 +8,8 @@ import { addDmRow, noteDmReconnect } from "./dmStore";
 import { noteTyping } from "./typingStore";
 import { noteNotified } from "./notifiedStore";
 import { noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
-import { setPlaces, applyRow, removeRow, isOwnRow, resetHistory } from "./feedStore";
+import { setPlaces, applyRow, removeRow, isOwnRow, resetHistory, placeKind } from "./feedStore";
+import { playSfx } from "@/app/components/sfx";
 
 // THE LIVE STREAM, lifted out of ./Chat.js whole (CHAT-REBUILD.md).
 //
@@ -178,6 +179,32 @@ export default function useFeedStream({
           const row = JSON.parse(event.data);
           if (row?.seq) noteSeq(row.seq);
           applyRow(row.placeKey, row);
+          // A line the WORLD made a noise saying (db/lib/sfx.js names the sound, the row
+          // carries it). Only for the place being READ: a gate two zones away is somebody
+          // else's afternoon, and this is also what keeps radio chatter to the net that is
+          // actually open. Freshness matters as much as the place — a reconnect replays
+          // everything said while the stream was down, and a minute-old gate reopening in
+          // somebody's ears would be a lie about what is happening now.
+          // A voice coming over a radio you are actually listening to. The net's own kind
+          // says so (db/lib/feedAccess.js mints `net`), so no list of channel names lives
+          // in the browser — and a radio in your bag, on a net you are not reading, stays
+          // silent, which is what was asked for.
+          if (
+            row.placeKey === selectedRef.current &&
+            placeKind(row.placeKey) === "net" &&
+            row.source !== "SYSTEM" &&
+            !isOwnRow(row, self?.characterId, self?.speakerKey)
+          ) {
+            playSfx("radio-hear");
+          }
+          if (
+            row.sfx &&
+            row.placeKey === selectedRef.current &&
+            row.sentAt &&
+            Date.now() - new Date(row.sentAt).getTime() < 60000
+          ) {
+            playSfx(row.sfx);
+          }
           // Somebody spoke in the conversation or private room that is OPEN.
           // A `places` frame only ever fires for the VIEWER's own presence, so
           // nothing else here tells them that a third party was let in or shown
@@ -211,6 +238,11 @@ export default function useFeedStream({
             // eyes only gives them something to dismiss. The notification itself
             // is refused while the tab is in front (./notifiedStore.js).
             const reading = key === selectedRef.current && document.visibilityState === "visible";
+            // The one sound that reaches a tab behind another window (sfx.js), because
+            // being named is a notification and the rest is scenery. It plays whether or
+            // not the count is raised: somebody looking straight at the place still wants
+            // to know their name was said, and that is exactly the case `reading` suppresses.
+            playSfx("named");
             if (!reading) {
               noteNotified(key, {
                 title: `${self.name ?? "You"} was named`,

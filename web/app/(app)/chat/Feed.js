@@ -40,6 +40,9 @@ import {
   newestSeq,
   oldestSeq,
   isOwnRow,
+  // Aliased: `placeKind` is already a PROP name in this file (the GM composer's), and the
+  // two would shadow each other.
+  placeKind as placeKindOf,
 } from "./feedStore";
 import FeedSearch from "./FeedSearch";
 import { useTyping, typingLine } from "./typingStore";
@@ -59,6 +62,7 @@ import CommandStrip from "./CommandStrip";
 import MembersStrip from "./MembersStrip";
 import useComposerCommands from "./useComposerCommands";
 import { pendingArg, textArgOf } from "./commands";
+import { playSfx } from "@/app/components/sfx";
 
 // One place's scene: what has been said here, and — where the place allows it
 // — the box to say something.
@@ -966,6 +970,10 @@ export default function Feed({
           return;
         }
         setError(null);
+        // Speaking on a radio net sounds like using a radio — for the person keying it,
+        // not the room. Everyone listening gets their own noise when the line lands
+        // (useFeedStream.js).
+        if (placeKindOf(placeKey) === "net") playSfx("radio-send");
         if (data?.row) applyRow(placeKey, data.row);
       } catch {
         setError("That didn't send.");

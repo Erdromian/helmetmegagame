@@ -7,6 +7,7 @@ import { FilterBar, TableScroll, SortHeader, useTableState } from "./DataTable";
 import Pager from "./Pager";
 import RequestDialog from "./RequestDialog";
 import TagChip from "./TagChip";
+import { playSfx } from "@/app/components/sfx";
 
 // What you may order, which is not what the station stocks.
 //
@@ -78,9 +79,13 @@ export default function DepotBuyingTab({ wares, openManifests, account, train, d
         reason,
       });
       if (!result.ok) {
+        // The money surfaces buzz rather than click: a refused payment is the one refusal
+        // worth being louder than the rest (web/app/components/sfx.js).
+        playSfx("refuse-money");
         setError(result.error);
         return;
       }
+      playSfx(result.sfx);
       setCart(new Map());
       setConfirming(false);
       refresh();

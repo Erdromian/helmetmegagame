@@ -61,7 +61,7 @@ const FIELDS = [
     label: "Production coefficient",
   },
   {
-    key: "lifewebDecayPerTurn", type: "int", group: "economy", default: 10, min: 0, max: 100,
+    key: "lifewebDecayPerTurn", type: "int", group: "economy", default: 19, min: 0, max: 100,
     label: "Lifeweb decay / turn",
   },
   {

@@ -2064,6 +2064,56 @@ The prefetch is unchanged and still does the other half of the work: after the
 first paint a player's other places are fetched one at a time, capped, and never
 for a GM or a ghost — their column is every room in the game.
 
+## 5b. Sound
+
+The web face makes noises. Discord cannot and never will, so this is one of the
+few places the two faces deliberately differ.
+
+There are exactly **two carriers**, and no third one is wanted:
+
+- **A line a place said.** `ArchiveEntry.sfx` holds a token — `gate-open`,
+  `alarm`, `convert` — put there by whatever wrote the line. It rides
+  `FEED_ROW_SELECT` and `feedRowShape` beside `channelKind`, for the same reason
+  that field does: short, identity-free, safe on a hooded row, and only there so
+  the browser can do something the words cannot. `db/lib/scene.js`,
+  `db/lib/placeLine.js` and `db/lib/soundBroadcast.js` all take `{ sfx }` and
+  pass it through, so giving an existing world event a sound is one argument.
+- **An action's own answer.** `guarded()` (`web/lib/actionResult.js`) puts
+  `sfx: "refuse"` on every refusal, so every refused action in the game buzzes
+  without a single call site knowing sound exists. A success opts in by returning
+  its own token. Three client runners read it — `useActionRunner.js`,
+  `actions/useSubmit.js` and `RequestActionsProvider.js` — and they are the only
+  places an action result meets a speaker.
+
+`db/lib/sfx.js` is the list of tokens, shared by both faces. It is a TOKEN and
+never a filename: the browser looks it up in its own map
+(`web/app/components/sfx.js`), so a row carrying junk plays nothing rather than
+fetching something, and the file behind a meaning can be swapped without touching
+a call site. `recordArchiveMessage` drops anything the list does not name.
+
+Four rules keep it from being a nuisance, all in `web/app/components/sfx.js`:
+
+- **Only the place on screen.** A world sound plays when its row lands in the
+  place being read. A gate two zones away is somebody else's afternoon — and this
+  is also the whole implementation of "radio chatter only while that net is open".
+- **Only fresh.** A reconnect replays everything said while the stream was down.
+  A row older than a minute is silent; a minute-old gate reopening in somebody's
+  ears is a lie about what is happening now.
+- **Only a visible tab**, except for being named. That one is a notification.
+- **A floor of 120ms per cue and four sounds per half-second**, so a held key or a
+  burst of scene rows cannot machine-gun.
+
+The switch is per browser (`chat/soundStore.js`, localStorage through
+`useSyncExternalStore` like `seenStore.js` beside it), **on by default**, and
+mounted twice: `ChatHead`'s right edge and `.chat-places-foot` beside the bell and
+the checkmark. On a phone the places column is a drawer, so the head copy is the
+one that is always reachable.
+
+One thing browsers impose: audio is refused until the page has seen a click or a
+keypress, so the first sound of a session may be dropped. That is handled by
+arming on the first real gesture and staying quiet before it — never by a dialog
+asking permission to make noise.
+
 ## 5c. Snapshots: the page paints before the server answers
 
 Every page used to be a skeleton until its server load finished, on every

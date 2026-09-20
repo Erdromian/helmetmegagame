@@ -30,6 +30,7 @@ import { COMPANY, DEPOT_DEBT, record, turnStamp } from "@lifeweb/db/lib/economyL
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
+import { SFX } from "@lifeweb/db/lib/sfx";
 import {
   DESTINATIONS,
   counterState,
@@ -272,7 +273,7 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous, label:
   });
 
   revalidateAll();
-  return { lines: lines.length, total };
+  return { lines: lines.length, total, sfx: SFX.COIN };
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -325,7 +326,7 @@ async function depotBankImpl(input) {
   const result = lift(await bankMove(prisma, session.discordUserId, { ...input, turn: openTurn }));
   await afterInventoryChange(result.characterId);
   revalidateAll();
-  return { direction: result.direction, amount: result.amount };
+  return { direction: result.direction, amount: result.amount, sfx: SFX.COIN };
 }
 
 async function depotCounterStateImpl() {
@@ -344,7 +345,10 @@ async function depotTurretImpl(input) {
   const result = lift(await toggleDepotTurret(prisma, session.discordUserId, { ...input, turn: openTurn }));
   await speakAtDepot(result.ambient);
   revalidateAll();
-  return { armed: result.armed, line: result.line };
+  // The actor hears the warning buzzer. The yard does not: speakAtDepot posts to Discord
+  // only, so there is no archive row for a sound to ride. Give the Depot's ambient a scene
+  // line and this becomes a room-wide noise for one argument.
+  return { armed: result.armed, line: result.line, sfx: SFX.TURRET };
 }
 
 // Re-pointing a staged sale before the train takes it. Web-only: a table with a
@@ -442,7 +446,7 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
   });
 
   revalidateAll();
-  return { direction: draw ? "DRAW" : "REPAY", amount };
+  return { direction: draw ? "DRAW" : "REPAY", amount, sfx: SFX.COIN };
 }
 
 // ─── The exported surface. `guarded` turns a UserError into { ok: false }. ───

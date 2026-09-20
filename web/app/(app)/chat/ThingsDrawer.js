@@ -11,6 +11,7 @@ import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
+import { playSfx } from "@/app/components/sfx";
 
 // THINGS: what is in your pockets, in the column, so the four things a player
 // does to an item all day are not a trip to the sheet and back.
@@ -211,6 +212,7 @@ export default function Things({ groups: initialGroups = [] }) {
       startTransition(async () => {
         try {
           const res = await equipOne(row.characterTagId);
+          playSfx(res?.error ? "refuse" : res?.sfx);
           if (res?.error) setError(res.error);
           else refresh();
         } catch {
@@ -228,6 +230,7 @@ export default function Things({ groups: initialGroups = [] }) {
       startTransition(async () => {
         try {
           const res = await unequipOne(row.characterTagId);
+          if (res?.error) playSfx("refuse");
           if (res?.error) setError(res.error);
           else refresh();
         } catch {

@@ -12,7 +12,8 @@ import CommandStrip from "../CommandStrip";
 import MentionMenu, { mentionQueryAt, matchRoster } from "../MentionMenu";
 import useComposerCommands from "../useComposerCommands";
 import useComposerAutosize from "../useComposerAutosize";
-import { addPending, applyRow, markPendingFailed, isOwnRow } from "../feedStore";
+import { addPending, applyRow, markPendingFailed, isOwnRow, placeKind as placeKindOf } from "../feedStore";
+import { playSfx } from "@/app/components/sfx";
 import CommandArgs from "../CommandArgs";
 import { textArgOf } from "../commands";
 import { chunkMessage } from "@lifeweb/db/lib/chunkText";
@@ -242,6 +243,9 @@ export default function Composer({
           return;
         }
         setError(null);
+        // Speaking on a radio net sounds like keying a radio — for the sender. Everyone
+        // listening gets their own noise when the line lands (../useFeedStream.js).
+        if (placeKindOf(placeKey) === "net") playSfx("radio-send");
         if (data?.row) applyRow(placeKey, data.row);
       } catch {
         setError("That didn't send.");

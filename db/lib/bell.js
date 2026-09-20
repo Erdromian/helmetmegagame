@@ -2,6 +2,7 @@
 // like /shout, through db/lib/soundBroadcast.js. The intercom's quiet cousin: does NOT carry @here —
 // a bell is simply audible. Takes `prisma`, off the @lifeweb/db barrel (db/lib/dm.js convention).
 const { broadcastSound } = require("./soundBroadcast");
+const { SFX } = require("./sfx");
 
 // The Cathedral's Bell Tower, hardcoded for the db/lib/roleIds.js reason.
 const BELL_ROOM_SLUG = "town-4-1";
@@ -47,6 +48,9 @@ async function broadcastBell(prisma) {
     text: BELL_LINE,
     maxHops: BELL_HOPS,
     loudHops: BELL_LOUD_HOPS,
+    // The trumpet's own cousin, and it shares the trumpet's noise: both are a horn calling
+    // the barony to attention, and nobody should have to tell them apart by ear alone.
+    sfx: SFX.HORN,
   });
 }
 

@@ -35,6 +35,7 @@ const {
 } = require("../../lib/turretModal");
 const { BELL_ROOM_SLUG, bellCooldown, broadcastBell } = require("@lifeweb/db/lib/bell");
 const { XOM_SHRINE_ROOM_SLUG, grantXom } = require("@lifeweb/db/lib/xom");
+const { SFX } = require("@lifeweb/db/lib/sfx");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 const {
   BELL_MODAL_PREFIX,
@@ -204,7 +205,9 @@ async function handlePrayConfirm(interaction, roomId) {
 
   // Witnessed only within the shrine — the tag is `catalog: secret` and never announced elsewhere.
   const witnessed = `${character.name} kneels, and the face seems to lean down.`;
-  await sceneLineAt(prisma, { roomId: room.id, text: witnessed }).catch(() => {});
+  // Same line, same noise as the web face's Pray button (web/app/(app)/chat/actions.js) —
+  // a player praying from Discord should sound the same to whoever is reading the shrine.
+  await sceneLineAt(prisma, { roomId: room.id, text: witnessed, sfx: SFX.CONVERT }).catch(() => {});
   const thread = await prisma.room
     .findUnique({ where: { id: room.id }, select: { discordThreadId: true } })
     .catch(() => null);

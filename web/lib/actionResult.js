@@ -11,12 +11,17 @@ export class UserError extends Error {
 
 // Anything but UserError rethrows untouched — `redirect()`/`notFound()` keep working. `version` is
 // written FIRST so an action's own still wins; read by noteActionVersion() (useDeskVersion.js).
+//
+// `sfx` is the sound the clicker's own tab plays (web/app/components/sfx.js). A refusal carries
+// the general one from here, so every refused action in the game buzzes without a single call
+// site knowing sound exists; an action that wants its own — the Depot's money tone, mining's
+// clink — returns it and wins, since `out` is spread last, same as with `version`.
 export async function guarded(fn) {
   try {
     const out = await fn();
     return { ok: true, version: deployVersion(), ...(out ?? {}) };
   } catch (e) {
-    if (e instanceof UserError) return { ok: false, version: deployVersion(), error: e.message };
+    if (e instanceof UserError) return { ok: false, version: deployVersion(), error: e.message, sfx: "refuse" };
     throw e;
   }
 }

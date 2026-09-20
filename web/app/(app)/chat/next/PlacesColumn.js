@@ -2,6 +2,7 @@
 
 import { memo, useMemo } from "react";
 import IconButton from "@/app/components/IconButton";
+import SoundToggle from "@/app/components/SoundToggle";
 import HoverCard from "@/app/components/HoverCard";
 import { BellRingIcon, CheckIcon, ChevronDownIcon, MailIcon, SendIcon } from "@/app/components/icons";
 import { isUnread } from "../seenStore";
@@ -246,6 +247,7 @@ export default function PlacesColumn({
           </div>
         )}
         <div className="chat-places-foot">
+          <SoundToggle />
           {push && (
             <IconButton
               icon={push.on ? BellRingIcon : SendIcon}

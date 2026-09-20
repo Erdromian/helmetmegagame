@@ -235,7 +235,7 @@ enum ArchiveSource {
 /// its parser. `npm run db:check-config` fails when the two drift.
 model GameConfig {
   id                  Int @id @default(1)
-  lifewebDecayPerTurn Int @default(10)
+  lifewebDecayPerTurn Int @default(19)
 
   // The one mood knob (docs/systemdocs/MOOD.md): every harm is multiplied by
   // it, every relief and the nightly drift divided by it. 1 is the tuning as
@@ -5509,6 +5509,14 @@ model ArchiveEntry {
   // zone's summary channel apart from its forum scenes. ("plain" in rows
   // written before the zone rework.)
   channelKind String?
+
+  // The noise this line made, for the web face only — a token from db/lib/sfx.js, never a
+  // filename and never a path. Null is silence, which is nearly every row. Same class of
+  // field as channelKind above: short, identity-free, safe on a hooded row, and carried on
+  // the live feed purely so the browser can do something the text alone cannot. Never
+  // backfilled — a sound is a thing that happened at the time, not a property of the
+  // transcript, which is why /archive's select leaves it behind.
+  sfx String?
 
   // Forum post / thread title, so a scene reads as one unit rather than
   // scattered lines under its location.

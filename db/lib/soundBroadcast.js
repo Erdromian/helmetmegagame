@@ -12,7 +12,9 @@ function carriesTo(originKind, kind) {
 }
 
 // Posts `text` into every reachable Location within `maxHops` (loud within `loudHops`, else subtext). Returns { sent, failed } rather than throwing.
-async function broadcastSound(prisma, { originLocationId, text, maxHops, loudHops, signed = true }) {
+// `sfx` is the noise the web face makes as each line lands (./sfx.js) — a bell that is
+// heard should be heard. Discord gets the words alone.
+async function broadcastSound(prisma, { originLocationId, text, maxHops, loudHops, signed = true, sfx = null }) {
   if (!originLocationId || !process.env.DISCORD_TOKEN) return { sent: 0, failed: [] };
 
   const heard = await soundRange(prisma, originLocationId, maxHops);
@@ -53,7 +55,7 @@ async function broadcastSound(prisma, { originLocationId, text, maxHops, loudHop
       console.error(`Sound carrying to ${place.name} failed:`, err.message ?? err);
     }
     // One row per Location that hears it (db/lib/scene.js) — wording is identical at every distance since a bell never muffles.
-    await sceneLineAt(prisma, { locationId: place.locationId, text, signed });
+    await sceneLineAt(prisma, { locationId: place.locationId, text, signed, sfx });
   }
   return { sent, failed };
 }

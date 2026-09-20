@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { playSfx } from "@/app/components/sfx";
 
 // The one shape a button that calls a { ok, error } server action needs: a
 // pending flag, the last refusal, and a runner that turns a transport failure
 // into a sentence instead of an unhandled rejection. Dozens of surfaces used
 // to carry their own copy of these nine lines, and every copy was missing the
 // catch — a dropped connection left the button spinning with nothing said.
-export default function useActionRunner() {
+//
+// It is also one of the three doors sound comes through to the person who clicked (the
+// others are ./actions/useSubmit.js and ./RequestActionsProvider.js). guarded() puts the
+// refusal tone on the result itself, so every one of these surfaces answers a refusal with
+// no call site knowing sound exists; a success plays whatever the action named, and stays
+// silent when it named nothing. `refuseSfx` is the money surfaces' louder buzz.
+export default function useActionRunner({ refuseSfx = "refuse" } = {}) {
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
@@ -22,9 +29,15 @@ export default function useActionRunner() {
       let message = null;
       try {
         const res = await action(...args);
-        if (!res?.ok) message = res?.error ?? "Something went wrong.";
-        else if (onOk) onOk(res);
+        if (!res?.ok) {
+          playSfx(res?.sfx === "refuse" ? refuseSfx : (res?.sfx ?? refuseSfx));
+          message = res?.error ?? "Something went wrong.";
+        } else {
+          playSfx(res.sfx);
+          if (onOk) onOk(res);
+        }
       } catch {
+        playSfx(refuseSfx);
         message = "Could not reach the server. Nothing was changed.";
       }
       if (message !== null) {

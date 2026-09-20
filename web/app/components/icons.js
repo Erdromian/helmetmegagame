@@ -21,6 +21,7 @@ import {
   Eye,
   Pencil,
   Volume2,
+  VolumeOff,
   Ellipsis,
   Mail,
   Skull,
@@ -124,6 +125,9 @@ export const BellRingIcon = lucide(BellRing, "BellRingIcon");
 
 // Teach skill, Recall comrades, Send a message — a speaking-out glyph.
 export const SpeakerIcon = lucide(Volume2, "SpeakerIcon");
+// Its off state, for the sound switch in /chat (web/app/components/SoundToggle.js). The
+// same glyph with the waves struck out, so the two read as one control in two states.
+export const SpeakerOffIcon = lucide(VolumeOff, "SpeakerOffIcon");
 
 // ── Dev Character Panel action bar (docs/systemdocs/DEV-PANEL.md) — one icon per microaction, 15px inside .icon-btn.
 
