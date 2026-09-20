@@ -28,6 +28,7 @@ const { fatigueModel } = require("./fatigue");
 const { buildCombos } = require("./combos");
 const { buildInvestments } = require("./investments");
 const { buildCaving } = require("./caving");
+const { buildTrinkets } = require("./trinkets");
 const { turretTable } = require("../../../lib/depotTurret");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -989,6 +990,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
+  const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue: moveValueUsed });
   const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);
   const red = byId("craft:ravenheart-red");
   const potato = byId("farm:potato");
@@ -1145,6 +1147,36 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: foodTiers.boxTurns != null && foodTiers.boxTurns < 1 && foodTiers.boxTurns > 0.5,
     },
     {
+      doc: "TRINKETS.md §1",
+      claim: "The tier table (Awful 1 ×0.5 up to Masterwork 27 ×2) is the one in trinketPass.js",
+      docValue: "6 tiers",
+      model: trinkets.checks.tiersMatchDoc ? "match" : "the code's TIERS differ from the doc's table",
+      ok: trinkets.checks.tiersMatchDoc,
+    },
+    {
+      doc: "TRINKETS.md §3",
+      claim: "Every stone's inlay is 2 × its sell price + 4, held one under the Merchant's price where he stocks it",
+      docValue: "0 off the rule",
+      model: trinkets.checks.offRule.length ? trinkets.checks.offRule.map((x) => `${x.name} ${x.inlay}, rule says ${x.expected}`).join("; ") : "0 off the rule",
+      ok: trinkets.checks.offRule.length === 0,
+      note: "Silver's shelf price went from 14 to 19 on 2026-09-20 and its inlay was not raised with it. Raising it to 18 makes forging silver pay more, so it was left for a decision.",
+    },
+    {
+      doc: "TRINKETS.md §3",
+      claim: "No stone inlays for as much as the Merchant charges for it",
+      docValue: "0 stones",
+      model: trinkets.checks.overShelf.length ? trinkets.checks.overShelf.map((x) => x.name).join(", ") : "0 stones",
+      ok: trinkets.checks.overShelf.length === 0,
+    },
+    {
+      doc: "TRINKETS.md §3",
+      claim: "Forging stones bought off the shelf earns no more per Move than the top rung of the wage table",
+      docValue: `${trinkets.shelfLoop.topWage} ¢ a Move`,
+      model: `${round1(trinkets.shelfLoop.bestApprentice?.apprentice)} ¢ for a Smithing smith, ${round1(trinkets.shelfLoop.bestSkilled?.skilled)} ¢ for Smithing II (${(trinkets.shelfLoop.bestSkilled?.stones ?? []).join(" + ")})`,
+      ok: (trinkets.shelfLoop.bestSkilled?.skilled ?? 0) <= trinkets.shelfLoop.topWage && (trinkets.shelfLoop.bestApprentice?.apprentice ?? 0) <= trinkets.shelfLoop.topWage,
+      note: "The doc's cap stops one stone converting into a dearer Trinket, but a Trinket also adds its own tier price, and a multiplier above 1, so a round trip through the Merchant pays whatever the cap says.",
+    },
+    {
       doc: "tags.yaml, Lucky",
       claim: "Lucky's description names only dice that exist: it says the Caving Die and the laboring die",
       docValue: "2 dice named",
@@ -1255,6 +1287,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
 
   const investments = buildInvestments({
     caving,
+    trinkets,
     get,
     list,
     rv,
@@ -1283,6 +1316,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     workedRows,
     investments,
     caving,
+    trinkets,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },

@@ -492,6 +492,89 @@ ${table({ cols: tagCols, rows: C.rolls.tags, id: "cavtags" })}
 </section>`;
 }
 
+function sectionTrinkets() {
+  const T = model.trinkets;
+  const pct = (v) => `${fmt(v * 100, 0)}%`;
+  const tierName = T.tiers.map((t) => t.name);
+  const holderCols = [
+    { h: "Smith", get: (h) => h.label },
+    ...T.tiers.map((t, i) => ({ h: t.name, num: true, get: (h) => (h.tierP[i] ? pct(h.tierP[i]) : "—"), sort: (h) => h.tierP[i] })),
+    { h: "Average base ¢", num: true, get: (h) => fmt(h.eBase, 1), sort: (h) => h.eBase },
+    { h: "Average multiplier", num: true, get: (h) => fmt(h.eMult, 2), sort: (h) => h.eMult },
+    { h: `A bare Trinket, less its ${T.dieCost} ¢ of ⬢`, num: true, get: (h) => fmt(h.bareProfit, 1), sort: (h) => h.bareProfit },
+  ];
+  const tierCols = [
+    { h: "Face", num: true, get: (r) => r.face },
+    { h: "Tier", get: (r) => r.name },
+    { h: "Bare price ¢", num: true, get: (r) => r.base },
+    { h: "× the stones", num: true, get: (r) => r.mult },
+  ];
+  const stoneRate = (r) => {
+    const parts = [];
+    if (r.cavesPlain) parts.push(`Caves ${fmt(r.cavesPlain * 100, 1)}%`);
+    if (r.depthsPlain) parts.push(`Depths ${fmt(r.depthsPlain * 100, 1)}%`);
+    if (r.cavingCaves || r.cavingDepths) parts.push(`Die ${fmt(Math.max(r.cavingCaves, r.cavingDepths) * 100, 2)}%`);
+    return parts.join(", ") || "not mined";
+  };
+  const stoneCols = [
+    { h: "Stone", get: (r) => r.name },
+    { h: "Group", get: (r) => r.group },
+    { h: "Sells ¢", num: true, get: (r) => r.sold, sort: (r) => r.sold },
+    { h: "Shelf ¢", num: true, get: (r) => r.shelf ?? "—", sort: (r) => r.shelf ?? -1 },
+    { h: "Inlay", num: true, get: (r) => r.inlay, sort: (r) => r.inlay },
+    { h: "Rule says", num: true, get: (r) => r.expected ?? "—", sort: (r) => r.expected ?? -1 },
+    { h: "Forging adds, Smithing", num: true, get: (r) => fmt(r.uplift.apprentice, 1), sort: (r) => r.uplift.apprentice },
+    { h: "Forging adds, Smithing II", num: true, get: (r) => fmt(r.uplift.skilled, 1), sort: (r) => r.uplift.skilled },
+    { h: "Where it drops (a press, pick only)", get: stoneRate },
+  ];
+  const comboCols = (extra = []) => [
+    { h: "Stones", get: (c) => c.stones.join(" + ") || "none" },
+    { h: "Inlay", num: true, get: (c) => c.inlay, sort: (c) => c.inlay },
+    { h: "Stones cost ¢", num: true, get: (c) => fmt(c.stoneCost, 0), sort: (c) => c.stoneCost },
+    { h: "Smithing ¢/Move", num: true, get: (c) => fmt(c.apprentice, 1), sort: (c) => c.apprentice },
+    { h: "Smithing II ¢/Move", num: true, get: (c) => fmt(c.skilled, 1), sort: (c) => c.skilled },
+    { h: "Smithing II + Lucky", num: true, get: (c) => fmt(c["skilled-lucky"], 1), sort: (c) => c["skilled-lucky"] },
+    ...extra,
+  ];
+  const wageTop = T.shelfLoop.topWage;
+  const shelf = T.combos.bestShelf;
+  const proRows = [];
+  for (const [key, label] of [["caves:plain", "Caves, pick only"], ["caves:skilled", "Caves, Prospecting"], ["depths:plain", "Depths, pick only"], ["depths:skilled", "Depths, Prospecting"]])
+    for (const h of [T.holders[0], T.holders[1]]) {
+      const r = T.prospector[key][h.id];
+      proRows.push({ where: label, smith: h.label, stones: r.stones, trinkets: r.trinkets, revenue: r.revenue, forgone: r.forgone, net: r.net, perTurn: r.net * 0.5 });
+    }
+  const proCols = [
+    { h: "Mining", get: (r) => r.where },
+    { h: "Smith", get: (r) => r.smith },
+    { h: "Stones a press", num: true, get: (r) => fmt(r.stones, 2), sort: (r) => r.stones },
+    { h: "Trinkets a press", num: true, get: (r) => fmt(r.trinkets, 2), sort: (r) => r.trinkets },
+    { h: "They sell for ¢", num: true, get: (r) => fmt(r.revenue, 1), sort: (r) => r.revenue },
+    { h: "Raw sale forgone ¢", num: true, get: (r) => fmt(r.forgone, 1), sort: (r) => r.forgone },
+    { h: "Net a press ¢", num: true, get: (r) => fmt(r.net, 1), sort: (r) => r.net },
+    { h: "Net a turn ¢ (a press every other turn)", num: true, get: (r) => fmt(r.perTurn, 1), sort: (r) => r.perTurn },
+  ];
+  const ark = T.combos.ark;
+  return `<section><h2>Trinket forging</h2>
+<p class="lede">A smith spends <b>a whole Move and ${T.gate.resources} ⬢</b> (${T.dieCost} ¢ at the Depot's import price), slots up to ${T.gate.slotsMax} stones, and rolls a d6. The face is a tier, and the Merchant pays <code>round(base + multiplier × the stones' summed inlay)</code>. A Smithing II smith never rolls below face ${T.gate.floorFace}. Lucky rolls twice and keeps the better. Nothing else touches the die (no hunger or mood modifier), so the four smiths below are the whole story.</p>
+${table({ cols: holderCols, rows: T.holders, id: "trinholders" })}
+${table({ cols: tierCols, rows: T.tiers.map((t, i) => ({ face: i + 1, ...t })), id: "trintiers" })}
+<p class="lede">A Trinket with no stones at all nets a Smithing smith ${fmt(T.holders[0].bareProfit, 1)} ¢ a Move and a Smithing II smith ${fmt(T.holders[1].bareProfit, 1)}, against a wage table that pays ${fmt(model.profitTiers.find((t) => t.points === 5)?.rate, 0)} and ${fmt(model.profitTiers.find((t) => t.points === 10)?.rate, 0)}. The floor is worth ${fmt(T.holders[1].bareProfit - T.holders[0].bareProfit, 1)} ¢ a Move bare, and Lucky ${fmt(T.holders[2].bareProfit - T.holders[0].bareProfit, 1)}.</p>
+<h3>What each stone is worth forged</h3>
+<p class="lede">Every stone inlays for <code>2 × its sell price + 4</code>, held one under the shelf price where the Merchant stocks it, so a smith turns a 1 ¢ ore into about ${fmt(T.holders[0].eMult * 6, 0)} ¢ of price. The right-hand columns are what forging adds over selling the stone raw, at the average multiplier.</p>
+${table({ cols: stoneCols, rows: T.stones, filters: [{ label: "Group", get: (r) => r.group }] })}
+<h3>The best Trinkets from stones you dug up</h3>
+<p class="lede">Profit a Move, the stones counted at what they would have sold for. The Arkenstone is left out of the ranking (it drops on about one Depths press in a hundred); with a Black Diamond it makes a Trinket worth about <b>${fmt(ark?.skilled, 0)} ¢</b> a Move to Smithing II over selling both raw.</p>
+${table({ cols: comboCols(), rows: T.combos.bestOwn })}
+<h3>Forging what you bought at the shelf</h3>
+<p class="lede">The doc says a stone that inlays for at least the shelf price could be bought, forged and sold at a profit forever, and holds each one a coin under. <b>That does not close the loop</b>: a Trinket also pays its tier's bare price and a multiplier above 1, so a round trip through the Merchant pays even with every stone capped. The best is <b>${fmt(T.shelfLoop.bestApprentice?.apprentice, 1)} ¢ a Move</b> for a Smithing smith and <b>${fmt(T.shelfLoop.bestSkilled?.skilled, 1)} ¢</b> for Smithing II (${fmt(T.shelfLoop.bestSkilled?.["skilled-lucky"], 1)} with Lucky), against a wage table whose top rung is ${wageTop} ¢. It needs a Merchant's licence for the shelf and nothing else.</p>
+${table({ cols: comboCols(), rows: shelf })}
+<h3>A prospector who forges what they dig up</h3>
+<p class="lede">Every stone that drops is forged in pairs on the rest turn a miner has anyway. The net is what the Trinkets sell for, less the ⬢ they cost and the raw sale of the stones. It is the best use of a miner's spare Move in this report: about <b>${fmt(T.prospector["caves:plain"].apprentice.net, 1)} ¢ a press</b> at the Caves with only a pick, on top of the ${fmt(model.activities.find((a) => a.id === "mine:Caves:unskilled")?.perAction, 1)} ¢ the press itself pays.</p>
+${table({ cols: proCols, rows: proRows, filters: [{ label: "Mining", get: (r) => r.where }] })}
+</section>`;
+}
+
 function sectionSeats() {
   const c = model.combos;
   const cols = [
@@ -979,7 +1062,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionTrinkets()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -1083,6 +1166,14 @@ const cavingCsv = [
   })(),
 ].join("\n");
 fs.writeFileSync(path.join(outDir, "caving.csv"), cavingCsv);
+const trinketsCsv = [
+  ["kind", "name", "detail", "sells", "shelf", "inlay", "ruleSays", "apprenticeProfit", "skilledProfit", "skilledLuckyProfit"].join(","),
+  ...model.trinkets.stones.map((r) => ["stone", r.name, r.group, r.sold, r.shelf ?? "", r.inlay, r.expected ?? "", "", "", ""].map(csvCell).join(",")),
+  ...[...model.trinkets.combos.bestOwn.map((c) => ({ ...c, kind: "own stones" })), ...model.trinkets.combos.bestShelf.map((c) => ({ ...c, kind: "shelf stones" }))].map((c) =>
+    [c.kind, c.stones.join(" + ") || "none", c.stoneCost, "", "", c.inlay, "", c.apprentice, c.skilled, c["skilled-lucky"]].map(csvCell).join(","),
+  ),
+].join("\n");
+fs.writeFileSync(path.join(outDir, "trinkets.csv"), trinketsCsv);
 fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
 fs.writeFileSync(path.join(outDir, "item-sources.csv"), itemsCsv);

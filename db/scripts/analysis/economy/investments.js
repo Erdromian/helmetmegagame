@@ -15,7 +15,7 @@ const soilery = require("../../../lib/soilery");
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
-function buildInvestments({ caving, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
+function buildInvestments({ caving, trinkets, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
   const rows = [];
   const byId = (id) => activities.find((a) => a.id === id);
   const shelfPrice = (t) => t?.depotPrice ?? null;
@@ -139,6 +139,25 @@ function buildInvestments({ caving, get, list, rv, rvMined, params, activities, 
       gain: extra * duty,
       gainHow: `${round1(extra)} ¢ a press over selling the ore raw, on a rest turn`,
       note: "A Prospector's ore is 18–21% of presses each, and the ore is the bottleneck, so this is capped by the ground and not by the bar's price. The smelt is a quarter Move on the turn a miner cannot mine.",
+    });
+  }
+
+  // ---- forging what you dig up into Trinkets --------------------------------------------------------
+  if (trinkets && wsTag && cavesSkilled) {
+    const plain = trinkets.prospector["caves:plain"].apprentice;
+    const skilledRow = trinkets.prospector["caves:skilled"]["skilled"];
+    add({
+      id: "forge-trinkets",
+      group: "Metals",
+      name: "Forge your own stones into Trinkets",
+      kind: "skill + kit",
+      does: `Every two stones a miner digs up become a Trinket for ${trinkets.dieCost} ¢ of ⬢ and a rest-turn Move, and sell for ${trinkets.holders[0].eBase.toFixed(0)}–${trinkets.holders[1].eBase.toFixed(0)} ¢ bare plus about ${trinkets.holders[0].eMult.toFixed(2)}–${trinkets.holders[1].eMult.toFixed(2)} times the stones' inlay.`,
+      coin: shelfPrice(wsTag) ?? craftCoin(wsTag).coin,
+      coinHow: `Workshop Equipment, ${shelfPrice(wsTag)} ¢ (or a Forge), and ${trinkets.dieCost} ¢ of ⬢ a Trinket`,
+      points: smithing?.pointCost ?? 0,
+      gain: plain.net * duty,
+      gainHow: `${round1(plain.net)} ¢ a press over selling the stones raw, at the Caves with a pick (${round1(skilledRow.net)} ¢ with Prospecting and Smithing II), a press every ${round1(1 / duty)} turns`,
+      note: "This uses the same ore as smelting, so it replaces that row rather than adding to it. It needs a Move on the rest turn for every two stones, about a quarter of a Move a turn.",
     });
   }
 
