@@ -1087,14 +1087,15 @@ groups:
         Keep the peace in the Town, six-shooter at your hip.
       description:
         - >-
-          On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Sheriff!
+          Unlike the Cerberon, whose sworn duty is to protect the Fortress, you protect the Town.
         - >-
-          You have a trusty .45 six-shooter, a reject from the Fortress's armory.
+          Your most valued possession is a .45 six-shooter.
+        - >-
+          You should loyally serve the Baron.
       difficulty: normal
       bank_account: treasury
       starting_account: 3
-      multiple: true
-      weight: 1
+      multiple: false
       starting_zone: town
       starting_location: town-2
       starting_tags:
