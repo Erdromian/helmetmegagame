@@ -1074,12 +1074,15 @@ zones:
                 # out of this room and an empty Vault means nobody gets paid.
                 # See docs/systemdocs/DEPOT.md §0g.
                 #
-                # 350 until roles started opening their accounts with money in
-                # them (`starting_account:` in docs/roles.yaml). Those purses
-                # come to about 310 at 100 players and 395 at 150, so this has
-                # to cover them and still leave the town something to spend.
-                # `npm run db:audit-vault-backing` is the check.
-                obol: 480
+                # DELIBERATELY SHORT OF THE CLAIMS. The starting purses
+                # (`starting_account:` in docs/roles.yaml) come to about 310 at
+                # 100 players and 395 at 150, so this pile covers roughly two
+                # thirds of what the town is owed and a bank run is a live
+                # possibility from day one. That is the design, not drift: the
+                # ATM refuses rather than clamps, so the money goes to whoever
+                # walks up first. Do not "fix" this by raising it back to 480.
+                # `npm run db:audit-vault-backing` measures the ratio.
+                obol: 250
                 painting: 1
                 nuclear-device: 1
                 # The Hand's old one. Anybody who can already open the Vault
