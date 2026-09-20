@@ -908,9 +908,18 @@ async function syncTagsFromYaml(prisma) {
   // freeform hex this used to carry has no reader left. The column stays in
   // the schema unwritten, like GameConfig.mindlinkChannelId — dropping it
   // would be a destructive migration for nothing.
+  // One read for the whole catalog instead of one per group. Every pass below
+  // does the same: the loops and their order are unchanged — they exist
+  // because parentTag/requiredTag/conflictsWith cannot be written until every
+  // Tag has an id — but none of them asks the database a question it could
+  // have answered from a Map it already holds.
+  const groupBySlug = new Map(
+    (await prisma.tagGroup.findMany()).map((g) => [g.slug, g]),
+  );
+
   for (const entry of groupEntries) {
     const categoryName = categoryNameBySlug.get(entry.category);
-    let group = await prisma.tagGroup.findUnique({ where: { slug: entry.slug } });
+    let group = groupBySlug.get(entry.slug) ?? null;
     if (!group) {
       group = await prisma.tagGroup.create({
         data: { slug: entry.slug, name: entry.name, category: categoryName },
@@ -926,10 +935,29 @@ async function syncTagsFromYaml(prisma) {
         groupsUpdated += 1;
       }
     }
+    // Pass 4 reads this map back for requiredTagId, so a group created or
+    // updated here has to land in it — a create that did not is how the first
+    // run of this rewrite threw on a cold database.
+    groupBySlug.set(entry.slug, group);
     groupIdBySlug.set(entry.slug, group.id);
   }
 
   // Pass 2: Tag scalars + groupId.
+  //
+  // The whole catalog, once. This is the read that used to be 883 of them, and
+  // it carries the link columns and both relation id lists too, so passes 3
+  // through 6 never have to go back for them.
+  const tagBySlug = new Map(
+    (
+      await prisma.tag.findMany({
+        include: {
+          requirementSkills: { select: { id: true } },
+          conflictsWith: { select: { id: true } },
+        },
+      })
+    ).map((t) => [t.slug, t]),
+  );
+
   const tagIdBySlug = new Map();
   for (const entry of tagEntries) {
     const groupId = entry.group ? (groupIdBySlug.get(entry.group) ?? null) : null;
@@ -1059,7 +1087,7 @@ async function syncTagsFromYaml(prisma) {
       groupId,
     };
 
-    let tag = await prisma.tag.findUnique({ where: { slug: entry.slug } });
+    let tag = tagBySlug.get(entry.slug) ?? null;
     if (!tag) {
       tag = await prisma.tag.create({
         data: {
@@ -1072,6 +1100,9 @@ async function syncTagsFromYaml(prisma) {
         },
       });
       tagsCreated += 1;
+      // A brand-new row holds neither relation yet, and passes 5 and 6 read
+      // both off this map rather than going back to the database.
+      tagBySlug.set(entry.slug, { ...tag, requirementSkills: [], conflictsWith: [] });
     } else {
       // Arrays/Json fields compare by value. ARRAY order stays significant —
       // a repeated slug means "grant two", so those are sequences not sets —
@@ -1086,7 +1117,11 @@ async function syncTagsFromYaml(prisma) {
         return tag[key] !== value;
       });
       if (needsUpdate) {
-        tag = await prisma.tag.update({ where: { id: tag.id }, data: scalars });
+        const updated = await prisma.tag.update({ where: { id: tag.id }, data: scalars });
+        // The update answers with scalars only, so the two relation lists are
+        // carried over from the row already in hand.
+        tag = { ...tag, ...updated };
+        tagBySlug.set(entry.slug, tag);
         tagsUpdated += 1;
       }
     }
@@ -1105,12 +1140,10 @@ async function syncTagsFromYaml(prisma) {
       throw new Error(`docs/tags.yaml: tag "${entry.slug}" references unknown requiredTag "${entry.requiredTag}"`);
     }
 
-    const current = await prisma.tag.findUnique({
-      where: { id: tagId },
-      select: { parentTagId: true, requiredTagId: true },
-    });
+    const current = tagBySlug.get(entry.slug);
     if (current.parentTagId !== parentTagId || current.requiredTagId !== requiredTagId) {
       await prisma.tag.update({ where: { id: tagId }, data: { parentTagId, requiredTagId } });
+      tagBySlug.set(entry.slug, { ...current, parentTagId, requiredTagId });
       linksUpdated += 1;
     }
   }
@@ -1123,9 +1156,10 @@ async function syncTagsFromYaml(prisma) {
       throw new Error(`docs/taggroups.yaml: group "${entry.slug}" references unknown requiredTag "${entry.requiredTag}"`);
     }
     const groupId = groupIdBySlug.get(entry.slug);
-    const current = await prisma.tagGroup.findUnique({ where: { id: groupId }, select: { requiredTagId: true } });
+    const current = groupBySlug.get(entry.slug);
     if (current.requiredTagId !== requiredTagId) {
       await prisma.tagGroup.update({ where: { id: groupId }, data: { requiredTagId } });
+      groupBySlug.set(entry.slug, { ...current, requiredTagId });
       linksUpdated += 1;
     }
   }
@@ -1143,10 +1177,7 @@ async function syncTagsFromYaml(prisma) {
       return id;
     });
 
-    const current = await prisma.tag.findUnique({
-      where: { id: tagId },
-      select: { requirementSkills: { select: { id: true } } },
-    });
+    const current = tagBySlug.get(entry.slug);
     const currentIds = current.requirementSkills.map((t) => t.id).sort();
     const desiredIds = [...skillIds].sort();
     const changed =
@@ -1156,6 +1187,7 @@ async function syncTagsFromYaml(prisma) {
         where: { id: tagId },
         data: { requirementSkills: { set: skillIds.map((id) => ({ id })) } },
       });
+      tagBySlug.set(entry.slug, { ...current, requirementSkills: skillIds.map((id) => ({ id })) });
       linksUpdated += 1;
     }
   }
@@ -1175,10 +1207,7 @@ async function syncTagsFromYaml(prisma) {
       .map((slug) => tagIdBySlug.get(slug))
       .sort();
 
-    const current = await prisma.tag.findUnique({
-      where: { id: tagId },
-      select: { conflictsWith: { select: { id: true } } },
-    });
+    const current = tagBySlug.get(entry.slug);
     const currentIds = current.conflictsWith.map((t) => t.id).sort();
     const changed =
       currentIds.length !== desiredIds.length || currentIds.some((id, i) => id !== desiredIds[i]);
@@ -1187,6 +1216,7 @@ async function syncTagsFromYaml(prisma) {
         where: { id: tagId },
         data: { conflictsWith: { set: desiredIds.map((id) => ({ id })) } },
       });
+      tagBySlug.set(entry.slug, { ...current, conflictsWith: desiredIds.map((id) => ({ id })) });
       linksUpdated += 1;
     }
   }
@@ -1199,10 +1229,21 @@ async function syncTagsFromYaml(prisma) {
   //
   // Every holder of a tradeable tag, not just the multiplier holders it used
   // to be — under weight, a catalog edit moves everybody's load.
-  const holders = await prisma.character.findMany({
-    where: { status: "ALIVE", tags: { some: { tag: { tradeable: true } } } },
-    select: { id: true },
-  });
+  // …but only when the catalog actually moved. If not one Tag row was created
+  // or updated above, every weight and carryBonus is exactly what it was, so
+  // there is nothing to recompute — and this loop opens a TRANSACTION PER
+  // LIVING CHARACTER against a database the game is still serving. On a
+  // redeploy that carries no tag edit, which is most of them, that was the
+  // slowest thing in the whole pre-deploy and it could not change a single
+  // row. Links, groups and skills are deliberately not in this test: none of
+  // them is weight.
+  const catalogTouched = tagsCreated > 0 || tagsUpdated > 0;
+  const holders = catalogTouched
+    ? await prisma.character.findMany({
+        where: { status: "ALIVE", tags: { some: { tag: { tradeable: true } } } },
+        select: { id: true },
+      })
+    : [];
   let rebased = 0;
   for (const { id } of holders) {
     const result = await settleCarry(prisma, id, { drop: false }).catch((err) => {

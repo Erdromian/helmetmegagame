@@ -46,6 +46,19 @@ async function syncDesiresFromYaml(prisma) {
     familyKeySet.add(f.key);
   }
 
+  // Every slug the catalog could possibly name, in two reads. The validation
+  // below used to ask the database one question per referenced slug, five
+  // lists deep per desire — several hundred round trips to answer something
+  // two `findMany`s answer once. The loops, their order and their error
+  // messages are untouched, so the FIRST failure is still the same failure.
+  // Ids come back with the slugs, because pass 2 below needs exactly this
+  // lookup and used to buy it three `findMany`s at a time, per desire.
+  const tagIdBySlug = new Map(
+    (await prisma.tag.findMany({ select: { id: true, slug: true } })).map((t) => [t.slug, t.id]),
+  );
+  const knownTagSlugs = new Set(tagIdBySlug.keys());
+  const knownRoleSlugs = new Set((await prisma.role.findMany({ select: { slug: true } })).map((r) => r.slug));
+
   const slugSet = new Set();
   for (const d of desireEntries) {
     if (!d?.slug) throw new Error(`docs/desires.yaml: a desire entry is missing "slug"`);
@@ -82,12 +95,12 @@ async function syncDesiresFromYaml(prisma) {
       );
     }
     for (const slug of anyTags) {
-      if (!(await prisma.tag.findUnique({ where: { slug } }))) {
+      if (!knownTagSlugs.has(slug)) {
         throw new Error(`docs/desires.yaml: desire "${d.slug}" requires.anyTags references unknown tag "${slug}" — run npm run db:sync-tags first`);
       }
     }
     for (const slug of allTags) {
-      if (!(await prisma.tag.findUnique({ where: { slug } }))) {
+      if (!knownTagSlugs.has(slug)) {
         throw new Error(`docs/desires.yaml: desire "${d.slug}" requires.allTags references unknown tag "${slug}" — run npm run db:sync-tags first`);
       }
     }
@@ -98,17 +111,17 @@ async function syncDesiresFromYaml(prisma) {
       );
     }
     for (const slug of notTags) {
-      if (!(await prisma.tag.findUnique({ where: { slug } }))) {
+      if (!knownTagSlugs.has(slug)) {
         throw new Error(`docs/desires.yaml: desire "${d.slug}" requires.notTags references unknown tag "${slug}" — run npm run db:sync-tags first`);
       }
     }
     for (const slug of anyRoles) {
-      if (!(await prisma.role.findUnique({ where: { slug } }))) {
+      if (!knownRoleSlugs.has(slug)) {
         throw new Error(`docs/desires.yaml: desire "${d.slug}" requires.anyRoles references unknown role "${slug}" — run npm run db:sync-roles first`);
       }
     }
     for (const slug of notRoles) {
-      if (!(await prisma.role.findUnique({ where: { slug } }))) {
+      if (!knownRoleSlugs.has(slug)) {
         throw new Error(`docs/desires.yaml: desire "${d.slug}" requires.notRoles references unknown role "${slug}" — run npm run db:sync-roles first`);
       }
     }
@@ -152,6 +165,20 @@ async function syncDesiresFromYaml(prisma) {
   let unretired = 0;
 
   // --- Pass 1: upsert scalars. -----------------------------------------
+  // The whole template table once, relations included, so neither pass below
+  // goes back per row.
+  const rowBySlug = new Map(
+    (
+      await prisma.desireTemplate.findMany({
+        include: {
+          requiresAnyTags: { select: { id: true } },
+          requiresAllTags: { select: { id: true } },
+          requiresNotTags: { select: { id: true } },
+        },
+      })
+    ).map((r) => [r.slug, r]),
+  );
+
   const idBySlug = new Map();
   for (const [index, entry] of desireEntries.entries()) {
     // Once-per-game is only ever `oncePerLife: true`. Tier 7 used to imply it, and that is gone with the tier.
@@ -172,9 +199,13 @@ async function syncDesiresFromYaml(prisma) {
       sortOrder: index,
     };
 
-    let row = await prisma.desireTemplate.findUnique({ where: { slug: entry.slug } });
+    let row = rowBySlug.get(entry.slug) ?? null;
     if (!row) {
       row = await prisma.desireTemplate.create({ data: { slug: entry.slug, ...scalars, retired: false } });
+      // Pass 2 reads the three relation lists off this map, and a new row
+      // holds none of them yet.
+      row = { ...row, requiresAnyTags: [], requiresAllTags: [], requiresNotTags: [] };
+      rowBySlug.set(entry.slug, row);
       created += 1;
     } else {
       const needsUpdate = Object.entries(scalars).some(([key, value]) => {
@@ -182,7 +213,10 @@ async function syncDesiresFromYaml(prisma) {
         return row[key] !== value;
       });
       if (needsUpdate) {
-        row = await prisma.desireTemplate.update({ where: { id: row.id }, data: scalars });
+        const fresh = await prisma.desireTemplate.update({ where: { id: row.id }, data: scalars });
+        // The update answers with scalars only; the relation lists carry over.
+        row = { ...row, ...fresh };
+        rowBySlug.set(entry.slug, row);
         updated += 1;
       }
     }
@@ -198,23 +232,12 @@ async function syncDesiresFromYaml(prisma) {
     const anyRoleSlugs = entry.requires?.anyRoles ?? [];
     const notRoleSlugs = entry.requires?.notRoles ?? [];
 
-    const anyTags = await prisma.tag.findMany({ where: { slug: { in: anyTagSlugs } }, select: { id: true } });
-    const notTags = await prisma.tag.findMany({ where: { slug: { in: notTagSlugs } }, select: { id: true } });
-    const anyTagIds = anyTags.map((t) => t.id);
-    const notTagIds = notTags.map((t) => t.id);
-    const allTagsRows = await prisma.tag.findMany({ where: { slug: { in: allTagSlugs } }, select: { id: true } });
-    const allTagIds = allTagsRows.map((t) => t.id);
+    // Every slug here was proved to exist in pass 0, so the Map cannot miss.
+    const anyTagIds = anyTagSlugs.map((slug) => tagIdBySlug.get(slug));
+    const notTagIds = notTagSlugs.map((slug) => tagIdBySlug.get(slug));
+    const allTagIds = allTagSlugs.map((slug) => tagIdBySlug.get(slug));
 
-    const current = await prisma.desireTemplate.findUnique({
-      where: { id },
-      select: {
-        requiresAnyTags: { select: { id: true } },
-        requiresAllTags: { select: { id: true } },
-        requiresNotTags: { select: { id: true } },
-        requiresAnyRoleSlugs: true,
-        requiresNotRoleSlugs: true,
-      },
-    });
+    const current = rowBySlug.get(entry.slug);
     const currentAnyIds = current.requiresAnyTags.map((t) => t.id).sort();
     const desiredAnyIds = [...anyTagIds].sort();
     const currentAllIds = current.requiresAllTags.map((t) => t.id).sort();
@@ -244,6 +267,14 @@ async function syncDesiresFromYaml(prisma) {
           requiresAnyRoleSlugs: anyRoleSlugs,
           requiresNotRoleSlugs: notRoleSlugs,
         },
+      });
+      rowBySlug.set(entry.slug, {
+        ...current,
+        requiresAnyTags: anyTagIds.map((tid) => ({ id: tid })),
+        requiresAllTags: allTagIds.map((tid) => ({ id: tid })),
+        requiresNotTags: notTagIds.map((tid) => ({ id: tid })),
+        requiresAnyRoleSlugs: anyRoleSlugs,
+        requiresNotRoleSlugs: notRoleSlugs,
       });
       linksUpdated += 1;
     }

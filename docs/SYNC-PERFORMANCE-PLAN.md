@@ -3,6 +3,45 @@
 A work plan. Written for whoever picks this up next — the reasoning is here so
 you can disagree with it, not just follow it.
 
+## Done, 2026-09-20 — steps 1 to 4, and the carry rebase
+
+Measured on a local Postgres, `db:sync-deploy` end to end, nothing changed in
+either YAML — the redeploy case the deploy actually pays:
+
+| | round trips | wall clock |
+|---|---|---|
+| before | 8,033 | 14s |
+| after | **95** | 2s |
+
+That is with **no characters in the database**, so it does not include the
+carry rebase at all. In production that loop opened a transaction per living
+character on every deploy; it is now skipped outright unless a Tag row was
+actually created or updated, which on most deploys is none.
+
+**Step 1's gate is wrong and should not be followed literally.** It says to
+measure locally and stop if the result is fast. Locally the old code ran in
+14s, which would have said stop — but the production pre-deploy was
+timed at **22 minutes** the same day. Latency is ~0 on a laptop, so what a
+local clock measures is not the cost. Measure round trips, not seconds:
+`SELECT xact_commit FROM pg_stat_database WHERE datname='…'` before and after
+is enough.
+
+The plan's reading of the code was otherwise accurate — every line number it
+cites is right, and its ~7,000-queries estimate for `syncTags` matched the
+7,000 `tag.findUnique` calls the new regression test counts against the old
+implementation.
+
+Equivalence was checked by building one database with the old code and one
+with the new, then diffing every column: 875 `Tag` rows, 46 `TagGroup`, 285
+`DesireTemplate`, and the conflict/skill/requirement join tables — all
+identical. `db/test/syncTagsIdempotent.test.js` pins the second-run invariant
+and fails against the old implementation, which is the point of it.
+
+Still open: `syncRoles.js` and `syncDocuments.js`, both deliberately left
+alone per step 6, and the `createMany` half of step 4 — the cold build still
+creates row by row, because it needs the ids back and only runs on an empty
+database.
+
 ## Why bother
 
 `db:sync-deploy` runs on every deploy as `web`'s Pre-Deploy Command, and the
