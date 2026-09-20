@@ -196,6 +196,40 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
   };
 
   // --- crafts --------------------------------------------------------------
+  const recBySlug = new Map(sources.recipes.map((r) => [r.slug, r]));
+  const nameOf = (slug) => get(slug)?.name ?? slug;
+  // An input that is itself a plain recipe (no items, no forge) and that the
+  // general shelf does not sell is made at home, at its own cost in ⬢ and Moves.
+  const baseCraft = (slug) => {
+    const t = get(slug);
+    const r = t?.requirement;
+    if (!t?.craftable || !r || (r.items ?? []).length || recBySlug.get(slug)?.workshop) return null;
+    return { moves: r.turnsCost ?? 0, res: r.resourceCost ?? 0 };
+  };
+  const onGeneralShelf = (slug) => get(slug)?.depotPrice != null && (get(slug)?.manifest ?? "merchant") === "general";
+  // Cooked dishes and everything under them, priced at the ingredients' sale
+  // prices: { cost, moves } to make ONE unit.
+  function expandRecipe(slug, seen = []) {
+    const t = get(slug);
+    const r = t?.requirement;
+    if (!r || seen.includes(slug)) return { cost: 0, moves: 0, flags: [] };
+    const flags = [];
+    let cost = 0;
+    let moves = r.turnsCost ?? 0;
+    for (const raw of r.items ?? []) {
+      if (typeof raw === "string") cost += unitValue(raw, flags) ?? 0;
+      else if (raw.anyOf) {
+        const opts = raw.anyOf.map((o) => unitValue(typeof o === "string" ? o : o.tag ?? o.customOf, flags) ?? 0);
+        cost += Math.min(...opts);
+      } else if (raw.customOf) {
+        const sub = expandRecipe(raw.customOf, [...seen, slug]);
+        cost += (raw.count ?? 1) * sub.cost;
+        moves += (raw.count ?? 1) * sub.moves;
+        flags.push(...sub.flags);
+      } else if (raw.tag) cost += (raw.count ?? 1) * (unitValue(raw.tag, flags) ?? 0);
+    }
+    return { cost, moves, flags };
+  }
   for (const t of list) {
     if (!t.craftable || !t.requirement || t.sellablePrice == null) continue;
     const r = t.requirement;
@@ -216,12 +250,30 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
       }
     }
 
-    const per = (rvPrice) => revenue - itemCost - resCost * rvPrice;
+    // Inputs made at home instead of bought.
+    let extraRes = 0;
+    let extraMoves = 0;
+    let itemCostAdj = itemCost;
+    const madeAtHome = [];
+    for (const raw of r.items ?? []) {
+      const slug = typeof raw === "string" ? raw : raw.keep || raw.anyOf || raw.group || raw.customOf ? null : raw.tag;
+      if (!slug || onGeneralShelf(slug)) continue;
+      const bc = baseCraft(slug);
+      if (!bc) continue;
+      const n = typeof raw === "string" ? 1 : raw.count ?? 1;
+      extraRes += n * bc.res;
+      extraMoves += n * bc.moves;
+      itemCostAdj -= n * (unitValue(slug, []) ?? 0);
+      madeAtHome.push(`${nameOf(slug)}${n > 1 ? ` ×${n}` : ""}`);
+    }
+    if (madeAtHome.length) flags.push(`makes its own ${madeAtHome.join(", ")}`);
+    const totalMoves = Math.round((turnsCost + extraMoves) * 10000) / 10000;
+    const per = (rvPrice) => revenue - itemCostAdj - (resCost + extraRes) * rvPrice;
     let perTurnSell = null;
     let perTurnBuy = null;
     if (turnsCost > 0) {
-      perTurnSell = per(rv.sell) / turnsCost;
-      perTurnBuy = per(rv.buy) / turnsCost;
+      perTurnSell = per(rv.sell) / totalMoves;
+      perTurnBuy = per(rv.buy) / totalMoves;
     } else if (r.perTurn != null) {
       perTurnSell = per(rv.sell) * r.perTurn;
       perTurnBuy = per(rv.buy) * r.perTurn;
@@ -238,14 +290,24 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
       skill: skillSlugs.join(", ") || "—",
       skillPoints: points,
       moves: turnsCost,
+      totalMoves,
       revenue,
-      inputs: itemCost + resCost * rv.sell,
-      inputsBuy: itemCost + resCost * rv.buy,
-      resourceCost: resCost,
-      resourcesPerTurn: turnsCost > 0 ? resCost / turnsCost : r.perTurn != null ? resCost * r.perTurn : null,
+      inputs: itemCostAdj + (resCost + extraRes) * rv.sell,
+      inputsBuy: itemCostAdj + (resCost + extraRes) * rv.buy,
+      resourceCost: resCost + extraRes,
+      resourcesPerTurn: totalMoves > 0 ? (resCost + extraRes) / totalMoves : r.perTurn != null ? resCost * r.perTurn : null,
       duty: 1,
       netPerTurnSell: perTurnSell,
       netPerTurnBuy: perTurnBuy,
+      easy: recBySlug.get(t.slug)?.easy ?? false,
+      workshop: recBySlug.get(t.slug)?.workshop ?? false,
+      copy: recBySlug.get(t.slug)?.copy ?? false,
+      madeAtHome,
+      // Ore comes off Prospecting presses, at most one a turn and half the turns.
+      // How many Prospectors does one crafter working flat out need behind them?
+      oreNeeds: (recBySlug.get(t.slug)?.items ?? [])
+        .filter((i) => i.easyKind === "ore" && totalMoves > 0)
+        .map((i) => ({ item: i.label, perTurn: i.count / totalMoves, prospectors: i.count / totalMoves / (i.easyRate * mineDuty) })),
       flags,
     });
   }
@@ -483,21 +545,88 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
     });
   }
 
+  // --- cooking: food, not money ------------------------------------------------
+  // No dish can be sold to the Depot, so a cook has no ¢/turn. What a cook
+  // makes is hunger and mood, so that is what is measured: how many
+  // person-turns of food a Move produces, and what the ingredients cost.
+  const cookRows = [];
+  for (const t of list) {
+    const r = t.requirement;
+    if (!t.craftable || !r?.skills?.some((sk) => /^cooking/.test(sk))) continue;
+    const ex = expandRecipe(t.slug);
+    let points = 0;
+    for (const sk of r.skills) points = Math.max(points, skillChain(sk).points);
+    const hungerRestored = t.mealHunger ?? 0;
+    const personTurns = hungerRestored / params.hungerDecay;
+    const rec = recBySlug.get(t.slug);
+    cookRows.push({
+      slug: t.slug,
+      name: t.name,
+      skill: r.skills.join(", "),
+      skillPoints: points,
+      moves: Math.round(ex.moves * 10000) / 10000,
+      hunger: hungerRestored,
+      mood: t.mealMood ?? 0,
+      ingredients: (rec?.items ?? []).map((i) => i.label),
+      costPerDish: ex.cost,
+      costPerPersonTurn: personTurns > 0 ? ex.cost / personTurns : null,
+      dishesPerMove: ex.moves > 0 ? Math.round((1 / ex.moves) * 100) / 100 : null,
+      personTurnsPerMove: ex.moves > 0 ? Math.round((personTurns / ex.moves) * 100) / 100 : null,
+      easy: rec?.easy ?? false,
+      hardest: rec?.hardest ?? 0,
+      hardestItem: rec?.hardestItem ?? null,
+      flags: ex.flags,
+    });
+  }
+
   // --- wages: the benchmarks the price ladder is measured against ----------
   const byId = (id) => activities.find((a) => a.id === id);
-  const smithing = activities.filter(
-    (a) => a.family === "smithing" && a.moves > 0 && a.netPerTurnSell != null,
-  );
   const median = (xs) => {
     const s = [...xs].sort((x, y) => x - y);
     return s.length ? (s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2) : 0;
   };
+
+  // The easy-craft baselines. A crafter BUYS ⬢ at the Depot (${rv.buy} ¢), so
+  // these are ranked with ⬢ at the buy price. "Easy" means every input is on
+  // the general shelf, farmed, or extremely common (sources.js), and the recipe
+  // can be worked without an ore supply of a dozen Prospectors behind it.
+  const crafts = activities.filter((a) => a.kind === "craft" && !a.copy && a.netPerTurnBuy != null && a.totalMoves > 0);
+  const oreLimited = (a) => (a.oreNeeds ?? []).some((o) => o.prospectors > 2);
+  const easyCrafts = crafts.filter((a) => a.easy);
+  const shortlist = (pred) => easyCrafts.filter(pred).sort((x, y) => y.netPerTurnBuy - x.netPerTurnBuy || x.skillPoints - y.skillPoints);
+  const isCrafting = (a) => a.skill.split(", ").includes("crafting");
+  const smithFam = (a) => a.family === "smithing" || isCrafting(a);
+  const shortlists = {
+    smithing: shortlist((a) => a.family === "smithing" && !isCrafting(a)),
+    crafting: shortlist(isCrafting),
+    brewing: shortlist((a) => a.family === "brewing"),
+    noWorkshop: shortlist((a) => smithFam(a) && !a.workshop),
+    cooking: cookRows.filter((c) => c.easy).sort((x, y) => (x.costPerPersonTurn ?? 1e9) - (y.costPerPersonTurn ?? 1e9) || y.mood - x.mood),
+  };
+  const bestOf = (rows, maxPts) => rows.filter((a) => a.skillPoints <= maxPts && !oreLimited(a))[0];
+  const baselineRows = [
+    { key: "Crafter", note: "Crafting, 2 pt, no forge", act: bestOf(shortlists.crafting, 2) },
+    { key: "Starter smith", note: "Smithing I, 5 pt", act: bestOf(shortlists.smithing, 5) },
+    { key: "Skilled smith", note: "Smithing II, 10 pt", act: bestOf(shortlists.smithing, 10) },
+    { key: "Starter brewer", note: "Brewing I, 5 pt", act: bestOf(shortlists.brewing, 5) },
+    { key: "Skilled brewer", note: "Brewing II, 10 pt", act: bestOf(shortlists.brewing, 10) },
+  ].filter((b) => b.act);
+  const baselines = baselineRows.map((b) => ({
+    key: `${b.key}: ${b.act.name}`,
+    role: b.key,
+    note: b.note,
+    slug: b.act.slug,
+    value: b.act.netPerTurnBuy,
+    valueMined: b.act.netPerTurnSell,
+    skillPoints: b.act.skillPoints,
+  }));
+  const cheapestMeal = shortlists.cooking.find((c) => c.costPerPersonTurn != null);
   const wages = [
     { key: "Unskilled miner (Caves)", value: byId("mine:Caves:unskilled")?.netPerTurnSell },
     { key: "Prospector (Caves)", value: byId("mine:Caves:skilled")?.netPerTurnSell },
+    ...baselines.map((b) => ({ key: b.key, value: b.value, baseline: true })),
     { key: "Farmer (potato, sold)", value: byId("farm:potato")?.netPerTurnSell },
     { key: "Factory solo", value: byId("factory:solo")?.netPerTurnSell },
-    { key: "Smith (median rung)", value: median(smithing.map((a) => a.netPerTurnSell)) },
   ].filter((w) => w.value != null && w.value > 0);
 
   // --- the price ladder ------------------------------------------------------
@@ -622,6 +751,7 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
       docValue: 12,
       model: red ? round1(red.netPerTurnSell) : null,
       ok: red && Math.abs(red.netPerTurnSell - 12) < 0.5,
+      note: "The doc prices the alcohol at its 4 ¢ shelf price, but it is on the Merchant's shelf. Made at home it is 0.25 Move and 2 ⬢ more, which is what the model does.",
     },
     {
       doc: "FACTORY.md §6",
@@ -765,6 +895,9 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
     priceLadder,
     priceRule,
     resourceBalance,
+    shortlists: { ...shortlists, cookingAll: cookRows },
+    baselines,
+    cheapestMeal,
     fatigue,
     sources,
     producerDrops,

@@ -172,12 +172,13 @@ const floorW = wage("Unskilled miner (Caves)");
 const proW = wage("Prospector (Caves)");
 const farmW = wage("Farmer (potato, sold)");
 const factW = wage("Factory solo");
-const smithW = wage("Smith (median rung)");
+const baselineOf = (role) => model.baselines.find((b) => b.role === role);
 const potatoFood = model.foodSupply.find((f) => f.crop === "potato");
 const failing = model.claims.filter((c) => !c.ok);
 
 const headlines = [
-  `Money a turn is worth: an unskilled miner earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer selling potatoes <b>${fmt(farmW)} ¢</b>, a median smith <b>${fmt(smithW)} ¢</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. The Factory pays about ${fmt(factW / proW, 0)} times what the skilled miner does.`,
+  `Money a turn is worth: an unskilled miner earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer selling potatoes <b>${fmt(farmW)} ¢</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. The Factory pays about ${fmt(factW / proW, 0)} times what the skilled miner does.`,
+  `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns nothing from the counter, since no dish can be sold there, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
   `Mining is the only source of ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves) yet a median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
   `Food demand is small and steady: ${players} players burn ${players * params.hungerDecay} hunger a turn. One Farm action makes ~${fmt(potatoFood.personTurnsPerFarm, 0)} person-turns of food, so about <b>${fmt(potatoFood.farmersNeeded, 0)} farmers</b> feed the whole town.`,
   `Fatigue: mining can be pressed ${fmt(model.fatigue.byId.mine.steady * 100, 0)}% of turns and farming ${fmt(model.fatigue.byId.farm.steady * 100, 0)}%. Refining, cutting Godflesh, crafting and butchering can be pressed every turn.`,
@@ -187,10 +188,89 @@ const headlines = [
 ];
 
 function sectionWages() {
-  const rows = model.wages.map((w) => ({ label: w.key, value: w.value, color: "var(--c0)" }));
+  const rows = model.wages.map((w) => ({ label: w.key, value: w.value, color: w.baseline ? "var(--c1)" : "var(--c0)" }));
   return `<section><h2>What a turn is worth</h2>
-<p class="lede">Net ¢ per turn for a typical holder of each occupation. Mining is halved for the fatigue duty cycle and farming is spread over its lockout. ⬢ is valued at what the Depot pays for it (${params.rv.sell} ¢).</p>
+<p class="lede">Net ¢ per turn for a typical holder of each occupation. Producers (miners, farmers, the Factory) are valued with ⬢ at what the Depot pays for it (${params.rv.sell} ¢). The gold bars are the <b>easy-craft baselines</b> (next section): a crafter buys ⬢ at the Depot's ${params.rv.buy} ¢, so these are the wage of somebody starting from nothing but coin. Mining is halved for the fatigue duty cycle and farming is spread over its lockout.</p>
 ${barChart({ rows })}</section>`;
+}
+
+const recBy = new Map(model.sources.recipes.map((r) => [r.slug, r]));
+const needsCell = (slug) => {
+  const r = recBy.get(slug);
+  if (!r || !r.items.length) return "nothing";
+  return r.items.map((i) => `${esc(i.label)} <span class="via">${esc(i.easy ?? i.route)}</span>`).join("<br>");
+};
+const craftCols = () => [
+  { h: "Recipe", get: (a) => a.name },
+  { h: "Skill", get: (a) => `${a.skill.replace(/, fundamentalist/, "")} (${a.skillPoints} pt)`, sort: (a) => a.skillPoints },
+  { h: "Moves", num: true, get: (a) => fmt(a.totalMoves, 2), sort: (a) => a.totalMoves },
+  { h: "⬢", num: true, get: (a) => fmt(a.resourceCost, 0) },
+  { h: "Sells ¢", num: true, get: (a) => a.revenue },
+  { h: "Also needs", raw: true, get: (a) => needsCell(a.slug), sort: (a) => (recBy.get(a.slug)?.items.length ?? 0) },
+  { h: "Forge?", get: (a) => (a.workshop ? "yes" : "no") },
+  { h: "¢/turn, ⬢ bought", num: true, get: (a) => fmt(a.netPerTurnBuy), sort: (a) => a.netPerTurnBuy },
+  { h: "¢/turn, ⬢ mined", num: true, get: (a) => fmt(a.netPerTurnSell), sort: (a) => a.netPerTurnSell },
+  {
+    h: "Note",
+    get: (a) =>
+      [
+        ...(a.madeAtHome.length ? [`makes its own ${a.madeAtHome.join(", ")}`] : []),
+        ...a.oreNeeds.filter((o) => o.prospectors > 2).map((o) => `ore-limited: ${fmt(o.prospectors, 0)} Prospectors per crafter`),
+      ].join("; "),
+  },
+];
+
+function sectionBaselines() {
+  const L = model.shortlists;
+  const ws = model.sources.items.find((i) => i.slug === "workshop-equipment");
+  const weAct = model.activities.find((a) => a.slug === "workshop-equipment");
+  const cookCols = [
+    { h: "Dish", get: (c) => c.name },
+    { h: "Skill", get: (c) => `${c.skill} (${c.skillPoints} pt)`, sort: (c) => c.skillPoints },
+    { h: "Moves / dish", num: true, get: (c) => fmt(c.moves, 2), sort: (c) => c.moves },
+    { h: "Hunger", num: true, get: (c) => c.hunger },
+    { h: "Mood", num: true, get: (c) => c.mood },
+    { h: "Made from", raw: true, get: (c) => c.ingredients.map(esc).join(", ") || "nothing" },
+    { h: "Cost ¢ / dish", num: true, get: (c) => fmt(c.costPerDish, 1), sort: (c) => c.costPerDish },
+    { h: "¢ per person-turn", num: true, get: (c) => fmt(c.costPerPersonTurn, 2), sort: (c) => c.costPerPersonTurn ?? 1e9 },
+    { h: "Person-turns / Move", num: true, get: (c) => fmt(c.personTurnsPerMove, 0), sort: (c) => c.personTurnsPerMove ?? 0 },
+  ];
+  const top = L.cooking.find((c) => c.costPerPersonTurn != null);
+  const topRec = recBy.get(top?.slug);
+  const unitsPerDish = (topRec?.items ?? []).reduce((sum, i) => sum + (i.count ?? 1), 0);
+  const cropsPerFarm = params.farmMaxCrops * (1 - 1 / params.witherIn);
+  const baseCols = [
+    { h: "Role", get: (b) => b.role },
+    { h: "Best easy recipe", get: (b) => b.key.split(": ")[1] },
+    { h: "Skill points", num: true, get: (b) => b.skillPoints },
+    { h: "¢/turn, ⬢ bought", num: true, get: (b) => fmt(b.value), sort: (b) => b.value },
+    { h: "¢/turn, ⬢ mined", num: true, get: (b) => fmt(b.valueMined), sort: (b) => b.valueMined },
+  ];
+  return `<section><h2>Baselines: the easy crafts</h2>
+<p class="lede">What somebody can earn from a standing start, using only what is easy to get. A recipe is <b>easy</b> when every input is on the Depot's general shelf, is farmed, is an ore on at least ${fmt(100 * 0.1, 0)}% of Prospecting presses, is a cave find on at least 1 in 50 arrivals, or is a craft from those. ⬢ comes from the Depot at ${params.rv.buy} ¢, and the second column shows the pay if the crafter mined it instead. Recipes that need an ore supply of more than two Prospectors per crafter are flagged and left out of the baselines. These baselines are what the rest of the report compares against.</p>
+${table({ cols: baseCols, rows: model.baselines })}
+
+<h3>Smithing</h3>
+<p class="lede">Every smithing recipe needs Workshop Equipment within reach. Iron, Copper and Nickel head the list but need one ore per quarter Move, which is far more than Prospectors can supply, so read them as ceilings.</p>
+${table({ cols: craftCols(), rows: L.smithing.slice(0, 12) })}
+
+<h3>Crafting (the basic skill)</h3>
+<p class="lede">Crafting costs 2 points and needs no forge. At the Depot's ⬢ price the Dead Simple pieces (Sling, Quarterstaff, Padded Armor and the rest) earn nothing: they sell for 6 ¢ and cost 3 ⬢, which is 6 ¢ to buy. They only pay if you mine your own ⬢. The Prospector's Pick is the one crafting recipe that pays on bought ⬢.</p>
+${table({ cols: craftCols(), rows: L.crafting.slice(0, 12) })}
+
+<h3>Brewing</h3>
+<p class="lede">Brewing needs no forge. Most brews need 10 points (Brewing II). Cave Fungus, the one cave find these use, turns up on ${fmt((model.sources.items.find((i) => i.slug === "cave-fungus")?.routes[0] ?? "").match(/([\d.]+)%/)?.[1] ?? 0, 1)}% of arrivals. Alcohol is a 0.25-Move recipe, so the brews that use it include that work.</p>
+${table({ cols: craftCols(), rows: L.brewing.slice(0, 10) })}
+
+<h3>Cooking</h3>
+<p class="lede">No dish can be sold to the Depot, so a cook has no wage. What a cook makes is food and mood, so the table ranks dishes by what a person-turn of food costs in ingredients (crops priced at what the counter pays). One person burns ${params.hungerDecay} hunger a turn. ${top ? `The cheapest is ${esc(top.name)}: ${top.hunger} hunger from ingredients worth ${fmt(top.costPerDish, 1)} ¢, against ${fmt(model.foods.find((f) => f.slug === "wheat")?.costPerPersonTurn, 2)} ¢ a person-turn for raw wheat, which also costs mood and nauseates. A Move of ${esc(top.name)} is ${fmt(top.dishesPerMove, 0)} dishes and needs about ${fmt(top.dishesPerMove * unitsPerDish, 0)} ingredient units, roughly one Farm action's harvest (${fmt(cropsPerFarm, 0)}), so the crop supply binds long before the Move does.` : ""}</p>
+${table({ cols: cookCols, rows: L.cooking.slice(0, 12) })}
+
+<h3>Without Workshop Equipment</h3>
+<p class="lede">Brewing, cooking and Crafting never need a forge. Only smithing does, so the question is what the smithing family can do without one. The answer is the crafting-skill recipes plus Workshop Equipment itself, which is exempt from its own requirement.</p>
+${table({ cols: craftCols(), rows: L.noWorkshop.slice(0, 8) })}
+<p class="lede">Best without a forge: <b>${esc(L.noWorkshop[0]?.name)}</b> at ${fmt(L.noWorkshop[0]?.netPerTurnBuy)} ¢ a turn (${fmt(L.noWorkshop[0]?.netPerTurnSell)} ¢ with mined ⬢), against ${fmt(baselineOf("Skilled smith")?.value)} ¢ for a skilled smith with one. Where the forge comes from: ${ws ? ws.routes.map(esc).join("; ") : "n/a"}. A Smithing II smith can make their own: ${weAct ? `${fmt(weAct.resourceCost, 0)} ⬢ and ${fmt(weAct.totalMoves, 0)} Moves, worth ${weAct.revenue} ¢ if sold` : ""}. The Metalsmith starts with the Smithy Key to the Storeroom's, and the Engineer starts with Smithing II, so the forge is a small blocker for the main smiths and a real one for everybody else.</p>
+</section>`;
 }
 
 function sectionSpread() {
@@ -507,6 +587,7 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 code{font-size:12px}
 .rk{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:600;color:var(--bg);background:var(--r0);white-space:nowrap}
 .rk.r1{background:var(--r1)}.rk.r2{background:var(--r2)}.rk.r3{background:var(--r3)}.rk.r4{background:var(--r4)}.rk.r5{background:var(--r5)}
+.via{color:var(--mute);font-size:11px}
 .ranks{list-style:none;padding:0;margin:0 0 8px;font-size:13px}.ranks li{margin:3px 0}
 `;
 const js = `
@@ -527,7 +608,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -543,6 +624,12 @@ const md = [
   "| Occupation | ¢/turn |",
   "|---|---:|",
   ...model.wages.map((w) => `| ${w.key} | ${fmt(w.value)} |`),
+  "",
+  "## Baselines: the easy crafts (⬢ bought at the Depot)",
+  "",
+  "| Role | Recipe | Points | ¢/turn bought | ¢/turn mined |",
+  "|---|---|---:|---:|---:|",
+  ...model.baselines.map((b) => `| ${b.role} | ${b.key.split(": ")[1]} | ${b.skillPoints} | ${fmt(b.value)} | ${fmt(b.valueMined)} |`),
   "",
   "## Which work tires you",
   "",

@@ -43,6 +43,12 @@ const RULES = {
   cavingFindChance: 1 / 6,
   // A drop below this chance per attempt is called Scarce.
   scarceBelow: 0.02,
+  // What counts as "extremely common" for the easy-recipe shortlists: an ore
+  // that turns up on at least a tenth of Prospecting presses, or a cave find
+  // on at least one arrival in fifty. Everything else needs the Depot, a farm
+  // or an easy craft chain.
+  commonOre: 0.1,
+  commonFind: 0.02,
   // Butcher's three monster corpses, read out of corpses.js (see monsterYields).
   // Mirrors web/lib/tagRequests.js#needsWorkshop.
   workshopPrefixes: ["smithing", "builder"],
@@ -351,6 +357,33 @@ function buildSources({ list, bySlug, players }) {
     return r.length ? Math.min(...r.map((x) => x.rank)) : 5;
   };
 
+  // ---- "easy": buyable off the general shelf, farmed, or extremely common ---------
+  const easyMemo = new Map();
+  function easyOf(slug, stack = []) {
+    if (easyMemo.has(slug)) return easyMemo.get(slug);
+    if (stack.includes(slug)) return null;
+    const t = get(slug);
+    if (!t) return null;
+    const here = [...stack, slug];
+    const options = [];
+    for (const r of routesFor(slug)) {
+      if (r.kind === "depot" && r.rank === 1) options.push({ pri: 1, kind: "depot", via: "Depot, general shelf" });
+      else if (r.kind === "farm") options.push({ pri: 2, kind: "farm", via: "Farm" });
+      else if (r.kind === "prospecting" && r.rate >= RULES.commonOre) options.push({ pri: 4, kind: "ore", via: `Ore, ${pct(r.rate)} of Caves presses`, rate: r.rate });
+      else if (r.kind === "caving" && r.rate >= RULES.commonFind) options.push({ pri: 5, kind: "find", via: `Cave find, ${pct(r.rate)} of arrivals`, rate: r.rate });
+    }
+    if (t.craftable && t.requirement && !options.length) {
+      const its = normaliseItems(t.requirement.items);
+      if (its.every((it) => it.slugs.some((x) => easyOf(x, here)))) options.push({ pri: 3, kind: "craft", via: "Craft from easy inputs" });
+    }
+    for (const c of containerOf.get(slug) ?? []) {
+      if (c !== slug && easyOf(c, here) && !options.length) options.push({ pri: 3, kind: "container", via: `Open a ${get(c)?.name ?? c}` });
+    }
+    const best = options.sort((a, b) => a.pri - b.pri)[0] ?? null;
+    if (!stack.length) easyMemo.set(slug, best);
+    return best;
+  }
+
   // ---- items as a recipe states them ----------------------------------------
   function normaliseItems(items) {
     const out = [];
@@ -397,7 +430,8 @@ function buildSources({ list, bySlug, players }) {
         .map((x) => ({ ...x, rank: x.routes.length ? Math.min(...x.routes.map((y) => y.rank)) : 5 }))
         .sort((a, b) => a.rank - b.rank)[0];
       const route = best.routes.slice().sort((a, b) => a.rank - b.rank || (a.cost ?? 0) - (b.cost ?? 0))[0];
-      return { ...it, rank: best.rank, via: best.slug, route: route?.label ?? "none" };
+      const easy = it.slugs.map((sl) => easyOf(sl)).filter(Boolean).sort((a, b) => a.pri - b.pri)[0] ?? null;
+      return { ...it, rank: best.rank, via: best.slug, route: route?.label ?? "none", easy: easy?.via ?? null, easyKind: easy?.kind ?? null, easyRate: easy?.rate ?? null };
     });
     const workshop = needsWorkshop(t);
     const wsRank = workshop ? bestRank(RULES.workshopSlug, []) : null;
@@ -416,6 +450,7 @@ function buildSources({ list, bySlug, players }) {
       sellablePrice: t.sellablePrice ?? null,
       items,
       workshop,
+      easy: items.every((i) => i.easy),
       special: items.length > 0 || workshop,
       hardest,
       hardestItem,
@@ -448,6 +483,8 @@ function buildSources({ list, bySlug, players }) {
       routeKinds: [...new Set(routes.map((r) => r.kind))],
       buy: t?.depotPrice ?? null,
       sell: t?.sellablePrice ?? null,
+      easy: easyOf(slug)?.via ?? null,
+      easyKind: easyOf(slug)?.kind ?? null,
     };
   });
   itemRows.sort((a, b) => b.recipeCount - a.recipeCount || b.rank - a.rank);
