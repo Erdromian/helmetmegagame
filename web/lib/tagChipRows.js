@@ -158,8 +158,9 @@ export const TAG_CHIP_FIELDS = {
 };
 
 // NOT folded into TAG_CHIP_FIELDS: GM surfaces spread that select without
-// calling appraise(), which would leak the raw ⬢/obol number regardless of skill.
-export const APPRAISAL_SELECT = { sellablePrice: true };
+// calling appraise(), which would leak the raw ⬢/obol numbers regardless of skill. Both prices:
+// what the Depot pays (sellablePrice) and what it charges (depotPrice).
+export const APPRAISAL_SELECT = { sellablePrice: true, depotPrice: true };
 
 // THE ONE PRIVATE COLUMN. A paper's text never travels in `description` — it is
 // resolved against this viewer by composeChipTag and dropped before anything

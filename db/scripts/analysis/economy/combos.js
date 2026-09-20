@@ -208,6 +208,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       value: a.perAction,
       fatigue: "mine",
       needs: a.skillPoints > 0 ? ["prospecting"] : [],
+      pick: true, // the gate is a held pickaxe: 2 points at creation, or a smith makes their own
     }));
   const farmActs = activities.filter((a) => a.kind === "farm").sort((x, y) => y.perAction - x.perAction);
   const farmZone = map.sites.farm[0];
@@ -220,11 +221,14 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
 
   // ---- crafts: the best easy recipe the loadout can make ----
   const oreLimited = (a) => (a.oreNeeds ?? []).some((o) => o.prospectors > 2);
-  const craftPool = activities.filter((a) => a.kind === "craft" && a.easy && !a.copy && !oreLimited(a) && a.totalMoves > 0 && a.netPerTurnBuy > 0);
+  // A crafter pays for ⬢ whichever way is cheaper: importing at the Depot's buy price, or, where the game
+  // lets a family pay in obols (smithing, today), one obol a ⬢. Ask the model, which reads the source.
+  const craftValue = (a) => Math.max(a.netPerTurnBuy ?? -Infinity, a.parPayable ? a.netPerTurnObols ?? -Infinity : -Infinity);
+  const craftPool = activities.filter((a) => a.kind === "craft" && a.easy && !a.copy && !oreLimited(a) && a.totalMoves > 0 && craftValue(a) > 0);
   const craftFor = (skillSet) =>
     craftPool
       .filter((a) => a.skill.split(", ").every((s) => skillSet.has(s)))
-      .sort((x, y) => y.netPerTurnBuy - x.netPerTurnBuy)[0] ?? null;
+      .sort((x, y) => craftValue(y) - craftValue(x))[0] ?? null;
 
   const planCache = new Map();
   function run(verbList, factory, key, refineChance = 1) {
@@ -245,7 +249,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
     { label: `Mine only (${bestMine.label.replace("Mine — ", "")})`, verbs: [bestMine] },
   ];
   const bestCraftOverall = craftFor(new Set(["smithing", "smithing-skilled", "crafting"]));
-  if (bestCraftOverall) aloneRows.push({ label: `Craft only (${bestCraftOverall.name})`, verbs: [{ id: "craft", letter: "C", zone: null, value: bestCraftOverall.netPerTurnBuy, fatigue: null }] });
+  if (bestCraftOverall) aloneRows.push({ label: `Craft only (${bestCraftOverall.name})`, verbs: [{ id: "craft", letter: "C", zone: null, value: craftValue(bestCraftOverall), fatigue: null }] });
   const alone = aloneRows.map((r) => ({ label: r.label, ...run(r.verbs, true, `alone:${r.label}`) }));
 
   // ---- loadouts ----
@@ -255,12 +259,14 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   };
   const loadouts = [];
   const verbsOf = new Map();
-  for (const prospecting of [0, 1])
+  for (const pickaxe of [0, 1])
+   for (const prospecting of [0, 1])
     for (const soilery of [0, 1])
       for (const crafting of [0, 1])
         for (const smith of [0, 1, 2])
           for (const brew of [0, 1, 2]) {
             const picked = [
+              ...(pickaxe ? ["pickaxe"] : []),
               ...(prospecting ? ["prospecting"] : []),
               ...(soilery ? ["soilery"] : []),
               ...(crafting ? ["crafting"] : []),
@@ -271,19 +277,20 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
             for (const s of picked) chainSet(s, skillSet);
             const points = pointsOf(skillSet);
             const craft = craftFor(skillSet);
+            const hasPick = skillSet.has("pickaxe") || skillSet.has("smithing");
             const verbList = [
-              ...mineVerbs.filter((v) => v.needs.every((n) => skillSet.has(n))),
+              ...mineVerbs.filter((v) => (!v.pick || hasPick) && v.needs.every((n) => skillSet.has(n))),
               ...(soilery ? [farmVerb] : []),
               refineVerb,
-              ...(craft ? [{ id: "craft", letter: "C", zone: null, value: craft.netPerTurnBuy, fatigue: null }] : []),
+              ...(craft ? [{ id: "craft", letter: "C", zone: null, value: craftValue(craft), fatigue: null }] : []),
             ];
-            const key = `${prospecting}${soilery}|${craft?.slug ?? "-"}`;
+            const key = `${prospecting}${soilery}${hasPick ? 1 : 0}|${craft?.slug ?? "-"}`;
             verbsOf.set(picked.join("+"), { verbList, key });
             loadouts.push({
               skills: picked.length ? picked.map((s) => bySlug.get(s)?.name ?? s) : ["no skills"],
               picked,
               points,
-              craft: craft ? { name: craft.name, value: craft.netPerTurnBuy, skill: craft.skill } : null,
+              craft: craft ? { name: craft.name, value: craftValue(craft), skill: craft.skill } : null,
               withFactory: run(verbList, true, key),
               noFactory: run(verbList, false, key),
             });

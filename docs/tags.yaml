@@ -1383,7 +1383,7 @@ tags:
     name: Appraisal
     category: general
     group: general-traits
-    description: "You can see an item's worth in obols."
+    description: "You can see what an item costs to buy and what it sells for, in obols."
     pointCost: 1
     purchasable: true
     purchasableAfterStart: true

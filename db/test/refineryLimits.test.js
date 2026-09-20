@@ -12,7 +12,7 @@ const {
   refinersThisTurn,
 } = require("../lib/refinery");
 const { MOVE_EFFECTS } = require("../lib/moveEffects");
-const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE, TIRED_SLUG, EXHAUSTED_SLUG } = require("../lib/constants");
+const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE, TIRED_SLUG, EXHAUSTED_SLUG, PICKAXE_SLUG } = require("../lib/constants");
 const { computeMiningAccess } = require("../lib/mining");
 
 test("five people fit on the floor in a turn, and the sixth is told why", () => {
@@ -30,7 +30,8 @@ test("Exhausted refuses a shift, Tired and nothing at all do not", () => {
 
 test("Refine and Mine refuse on exactly the same tag: the ladder is one ladder", () => {
   for (const held of [[], [TIRED_SLUG], [EXHAUSTED_SLUG], [TIRED_SLUG, EXHAUSTED_SLUG]]) {
-    const mineRefuses = !computeMiningAccess({ tagSlugs: new Set(held) }).ok;
+    // Mine also wants a pickaxe, so hold one: this compares the two on fatigue alone.
+    const mineRefuses = !computeMiningAccess({ tagSlugs: new Set([...held, PICKAXE_SLUG]) }).ok;
     assert.equal(refineFatigueRefusal(held) != null, mineRefuses, `held ${JSON.stringify(held)}`);
   }
 });

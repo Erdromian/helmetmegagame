@@ -75,16 +75,21 @@ function schemaDefault(field) {
   return Number(m[1]);
 }
 
-// Every Location's authored mining coefficient, keyed by slug.
-function loadMiningCoefficients() {
-  const zones = readYaml("docs/zones.yaml");
-  const found = {};
-  (function walk(node, trail) {
-    if (!node || typeof node !== "object") return;
-    if (typeof node.mining === "number") found[trail[trail.length - 1]] = node.mining;
-    for (const [k, v] of Object.entries(node)) if (v && typeof v === "object") walk(v, [...trail, k]);
-  })(zones, []);
-  return found;
+// Every minable Location with the zone it stands in and its authored coefficient. A cave level is
+// its own zone (docs/zones.yaml: zones.underground.levels.caves), matching the loot tables' keys.
+function loadMiningSites() {
+  const doc = readYaml("docs/zones.yaml");
+  const out = [];
+  const scan = (zone, locations) => {
+    for (const [slug, loc] of Object.entries(locations ?? {})) {
+      if (typeof loc.mining === "number") out.push({ slug, zone, coeff: loc.mining });
+    }
+  };
+  for (const [zk, zv] of Object.entries(doc.zones)) {
+    scan(zk, zv.locations);
+    for (const [lk, lv] of Object.entries(zv.levels ?? {})) scan(lk, lv.locations);
+  }
+  return out;
 }
 
 // Slugs of every Location carrying a boolean attribute (godflesh, refinery...).
@@ -113,7 +118,8 @@ function corpseOrgans() {
 function obolPayableFamilies() {
   const src = fs.readFileSync(path.join(REPO, "web/app/(app)/character/actions/crafting.js"), "utf8");
   const fn = src.match(/function resolveObolSpend[\s\S]*?\n}\n/);
-  if (!fn) throw new Error("model.js: could not find resolveObolSpend in crafting.js");
+  // No function means no obol path: nothing can be paid that way and the model says so.
+  if (!fn) return [];
   const families = [...fn[0].matchAll(/craftFamily\(tag\) !== "([a-z]+)"/g)].map((m) => m[1]);
   if (families.length !== 1) throw new Error("model.js: resolveObolSpend no longer has one family gate; read it and update the model");
   return families;
@@ -127,7 +133,7 @@ function craftFamilyOf(skills) {
 // One obol is one ⬢ (ECONOMY.md §1), so paying a cost in obols values a ⬢ at exactly 1 obol.
 const OBOL_PAR = 1;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy" } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", obolPath = "auto" } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
@@ -146,14 +152,16 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const productionCoefficient = schemaDefault("productionCoefficient");
   const farmMaxCrops = schemaDefault("farmMaxCrops");
   const startingTagPoints = schemaDefault("startingTagPoints");
-  const miningCoeffs = loadMiningCoefficients();
+  const miningLocations = loadMiningSites();
 
-  const obolFamilies = obolPayableFamilies();
+  // `obolPath: "off"` previews the game with the obol payment removed. "auto" reads the source.
+  const obolFamilies = obolPath === "off" ? [] : obolPayableFamilies();
   const params = {
     players,
     rv,
     rvMain,
     obolFamilies,
+    obolPath,
     resourceValue,
     productionCoefficient,
     farmMaxCrops,
@@ -374,8 +382,14 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const evOf = (tbl) => tbl.reduce((sum, row) => sum + row.ev, 0);
   const producerDrops = {
     prospecting: {
-      caves: dropTable(sources.drops.prospecting.caves.dist),
-      depths: dropTable(sources.drops.prospecting.depths.dist),
+      caves: {
+        plain: dropTable(sources.drops.prospecting.caves.plain.dist),
+        skilled: dropTable(sources.drops.prospecting.caves.skilled.dist),
+      },
+      depths: {
+        plain: dropTable(sources.drops.prospecting.depths.plain.dist),
+        skilled: dropTable(sources.drops.prospecting.depths.skilled.dist),
+      },
     },
     caving: {
       caves: dropTable(sources.drops.caving.caves.dist, SOURCE_RULES.cavingFindChance),
@@ -383,48 +397,58 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     butcher: [],
   };
-  const lootEv = (zoneKey) => ({ ev: evOf(producerDrops.prospecting[zoneKey]) });
+  const lootEv = (zoneKey, skilled) => ({ ev: evOf(producerDrops.prospecting[zoneKey][skilled ? "skilled" : "plain"]) });
 
-  const pick = get("prospectors-pick");
-  const pickBonus = pick?.miningBonus?.amount ?? 0;
-  const miningSites = [
-    { site: "Caves", zone: "caves", coeff: miningCoeffs["caves-approach"] },
-    { site: "Depths", zone: "depths", coeff: miningCoeffs["depths-obelisk"] },
-    { site: "Depths chasm", zone: "depths", coeff: miningCoeffs["depths-chasm"] },
-  ];
-  const prospecting = get("prospecting");
+  // The gate is a held Pickaxe; Prospecting multiplies both the ⬢ (x1.7) and the loot column
+  // (docs/systemdocs/MINING.md §1). The pickaxe's own +1 counts, on the reading that anybody who
+  // holds one wears it. `mining.computeRate` is the game's own arithmetic, rounding and all.
+  const pickaxe = get("pickaxe");
+  const pickBonus = pickaxe?.miningBonus?.amount ?? 0;
+  params.pickaxe = { price: pickaxe?.depotPrice ?? null, points: pickaxe?.pointCost ?? 0, bonus: pickBonus };
+  params.miningBase = mining.MINING_RATE;
+  params.prospectingMultiplier = mining.PROSPECTING_YIELD_MULTIPLIER;
+  // Sites, from the map: each cave level's distinct coefficients, the poorest named for the level
+  // and any richer one named for what it is (the deepest seam).
+  const miningSites = [];
+  for (const zone of ["caves", "depths"]) {
+    const coeffs = [...new Set(miningLocations.filter((l) => l.zone === zone).map((l) => l.coeff))].sort((x, y) => x - y);
+    const zoneName = zone[0].toUpperCase() + zone.slice(1);
+    coeffs.forEach((coeff, i) => miningSites.push({ site: i === 0 ? zoneName : `${zoneName}, richest seam`, zone, coeff }));
+  }
+  const prospectingTag = get("prospecting");
   for (const s of miningSites) {
-    if (s.coeff == null) continue;
     for (const skilled of [false, true]) {
-      for (const withPick of skilled && s.site === "Caves" ? [false, true] : [false]) {
-        const range = skilled ? mining.MINING_RATE : mining.UNSKILLED_MINING_RATE;
-        const meanBase = (range.min + range.max) / 2;
-        const resources = meanBase * productionCoefficient * s.coeff + (withPick ? pickBonus : 0);
-        const loot = skilled ? lootEv(s.zone) : { ev: 0 };
-        const flags = ["payout lands at the press", "Lifeweb failure not modelled", ...(skilled ? ["loot valued at sell price: a floor"] : [])];
-        push({
-          id: `mine:${s.site}:${skilled ? "skilled" : "unskilled"}${withPick ? ":pick" : ""}`,
-          name: `Mine — ${s.site}, ${skilled ? "Prospecting" : "no skill"}${withPick ? " + Pick" : ""}`,
-          kind: "mine",
-          family: "mining",
-          skill: skilled ? "prospecting" : "—",
-          skillPoints: skilled ? prospecting.pointCost : 0,
-          moves: 1,
-          revenue: null,
-          inputs: 0,
-          inputsBuy: 0,
-          duty: mineDuty,
-          resourcesPerPress: resources,
-          lootEv: loot.ev,
-          dropsPerAction: loot.ev,
-          perAction: resources * rvMain + loot.ev,
-          baseNetPerTurn: resources * rvMain * mineDuty,
-          netPerTurn: (resources * rvMain + loot.ev) * mineDuty,
-          netPerTurnSell: (resources * rv.sell + loot.ev) * mineDuty,
-          netPerTurnBuy: (resources * rv.buy + loot.ev) * mineDuty,
-          flags,
-        });
-      }
+      const range = mining.computeRate(productionCoefficient, s.coeff, skilled);
+      const resources = (range.min + range.max) / 2 + pickBonus;
+      const loot = lootEv(s.zone, skilled);
+      const flags = [
+        "needs a pickaxe, held",
+        "payout lands at the press",
+        "Lifeweb failure not modelled",
+        "loot valued at sell price: a floor",
+      ];
+      push({
+        id: `mine:${s.site}:${skilled ? "skilled" : "unskilled"}`,
+        name: `Mine — ${s.site}, ${skilled ? "Prospecting" : "pickaxe only"}`,
+        kind: "mine",
+        family: "mining",
+        skill: skilled ? "prospecting" : "—",
+        skillPoints: skilled ? prospectingTag.pointCost : 0,
+        moves: 1,
+        revenue: null,
+        inputs: 0,
+        inputsBuy: 0,
+        duty: mineDuty,
+        resourcesPerPress: resources,
+        lootEv: loot.ev,
+        dropsPerAction: loot.ev,
+        perAction: resources * rvMain + loot.ev,
+        baseNetPerTurn: resources * rvMain * mineDuty,
+        netPerTurn: (resources * rvMain + loot.ev) * mineDuty,
+        netPerTurnSell: (resources * rv.sell + loot.ev) * mineDuty,
+        netPerTurnBuy: (resources * rv.buy + loot.ev) * mineDuty,
+        flags,
+      });
     }
   }
 
@@ -675,7 +699,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   }));
   const cheapestMeal = shortlists.cooking.find((c) => c.costPerPersonTurn != null);
   const wages = [
-    { key: "Unskilled miner (Caves)", value: byId("mine:Caves:unskilled")?.netPerTurn },
+    { key: "Miner, pickaxe only (Caves)", value: byId("mine:Caves:unskilled")?.netPerTurn },
     { key: "Prospector (Caves)", value: byId("mine:Caves:skilled")?.netPerTurn },
     ...baselines.map((b) => ({ key: b.key, value: b.value, baseline: true })),
     { key: "Farmer (potato, sold)", value: byId("farm:potato")?.netPerTurn },
@@ -721,26 +745,69 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     .map((r) => ({ ...r, off: r.sell - r.expected, arbitrage: r.sell >= r.buy }));
 
   // --- food -------------------------------------------------------------------
+  // What eating one of a thing restores, the way the game reckons it (db/lib/hunger.js#foodHungerFor):
+  // a dish's own hunger, an ingredient's, or the flat default for anything that just grants
+  // `ate-meal`. Anything that OPENS into food is averaged over its outcomes: the Ration Box is one of
+  // six equally likely draws (four foods, a rat that half the time makes you sick, and nothing).
+  const eaten = (slug, seen = []) => {
+    const t = get(slug);
+    if (!t || slug === "nothing" || seen.includes(slug)) return { hunger: 0, mood: 0 };
+    const own = hunger.foodHungerFor(t);
+    if (own > 0) return { hunger: own, mood: t.cooked?.mood ?? t.mealMood ?? 0 };
+    let hungerSum = 0;
+    let moodSum = 0;
+    for (const entry of t.consumesInto ?? []) {
+      const options = typeof entry === "string" ? [entry] : entry.oneOf ? entry.oneOf.map((o) => (typeof o === "string" ? o : o.slug)) : [entry.slug];
+      const share = 1 / options.length;
+      for (const o of options.filter(Boolean)) {
+        if (o === "ate-meal") hungerSum += share * hunger.DEFAULT_FOOD_HUNGER;
+        else {
+          const inner = eaten(o, [...seen, slug]);
+          hungerSum += share * inner.hunger;
+          moodSum += share * inner.mood;
+        }
+      }
+    }
+    return { hunger: hungerSum, mood: hungerSum > 0 ? moodSum || (t.cooked?.mood ?? 0) : 0 };
+  };
+  const shelfOf = (t) => (t.depotPrice == null ? null : t.manifest ?? "merchant");
   const foods = [];
   for (const t of list) {
-    const h = t.cooked?.hunger ?? t.mealHunger ?? null;
-    if (!h) continue;
+    const e = eaten(t.slug);
+    if (!(e.hunger > 0)) continue;
+    const shelf = shelfOf(t);
+    // A person with coin can BUY it only where the Depot sells it. Everything else is priced at what
+    // the counter pays a grower, which is a floor on what a buyer would be asked.
     const cost = t.depotPrice ?? t.sellablePrice ?? null;
-    const perPersonTurn = params.hungerDecay / h; // units that feed one person for one turn
+    const perPersonTurn = params.hungerDecay / e.hunger; // units that feed one person for one turn
+    const opens = (t.consumesInto ?? []).some((x) => typeof x !== "string" && x.oneOf);
     foods.push({
       slug: t.slug,
       name: t.name,
-      kind: t.craftable && t.requirement?.turnsCost != null && t.mealHunger != null ? "dish" : "foodstuff",
-      hunger: h,
+      kind: opens && hunger.foodHungerFor(t) === 0 ? "box" : t.craftable && t.requirement?.turnsCost != null && t.mealHunger != null ? "dish" : "foodstuff",
+      hunger: Math.round(e.hunger * 100) / 100,
+      mood: Math.round(e.mood * 10) / 10,
       weight: t.weight ?? 0,
       buy: t.depotPrice ?? null,
       sell: t.sellablePrice ?? null,
+      shelf,
+      source: shelf === "general" ? "Depot, general shelf" : shelf ? `Depot, ${shelf} shelf` : "not sold at the Depot",
+      basis: t.depotPrice != null ? "buy" : "sell",
       moves: t.requirement?.turnsCost ?? null,
       costPerPersonTurn: cost == null ? null : cost * perPersonTurn,
       lbPerPersonTurn: (t.weight ?? 0) * perPersonTurn,
     });
   }
   foods.sort((a, b) => (a.costPerPersonTurn ?? 1e9) - (b.costPerPersonTurn ?? 1e9));
+  // What food costs somebody who just has coin: the cheapest thing anyone can order, and the cheapest
+  // on any shelf. The Ration Box sets a ceiling on what a buyer will pay a grower per hunger.
+  const buyable = foods.filter((f) => f.shelf && f.costPerPersonTurn != null);
+  const generalShelf = buyable.filter((f) => f.shelf === "general");
+  const foodFloor = {
+    anyone: generalShelf[0] ?? null,
+    anyShelf: buyable[0] ?? null,
+    ceilingPerHunger: generalShelf[0] ? (generalShelf[0].buy ?? 0) / generalShelf[0].hunger : null,
+  };
 
   // Supply against demand: how many farmers does a town need?
   const demandPerTurn = players * params.hungerDecay;
@@ -817,9 +884,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     {
       doc: "DEPOT.md §3",
       claim: "⬢ import at 2 ¢, sell back at 1 ¢",
-      docValue: "2 in / 1 out",
+      docValue: "3 in / 1 out",
       model: `${rv.buy} in / ${rv.sell} out`,
-      ok: rv.buy === 2 && rv.sell === 1,
+      ok: rv.buy === 3 && rv.sell === 1,
     },
     {
       doc: "FACTORY.md §6",
@@ -852,18 +919,20 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "FACTORY.md §6",
-      claim: "A Prospector at the Caves makes about 9 ¢ a turn with the ⬢ valued at the Depot's 2 ¢ buy price",
-      docValue: 9,
+      claim: "A Prospector at the Caves makes about 21 ¢ a turn with the ⬢ valued at the Depot's 3 ¢ buy price",
+      docValue: 21,
       model: round1(byId("mine:Caves:skilled")?.netPerTurnBuy),
-      ok: Math.abs(byId("mine:Caves:skilled").netPerTurnBuy - 9) < 0.5,
+      ok: Math.abs(byId("mine:Caves:skilled").netPerTurnBuy - 21) < 1,
     },
     {
       doc: "DEPOT.md §4",
       claim: "\"Paying a recipe's cost with held obols still works\" (read as any recipe)",
       docValue: "any recipe",
-      model: `${obolFamilies.join(", ")} only`,
+      model: obolFamilies.length ? `${obolFamilies.join(", ")} only` : "no recipe",
       ok: false,
-      note: "resolveObolSpend in crafting.js returns at once unless the recipe is in the smithing family. Brewing, crafting and the rest must hold real ⬢.",
+      note: obolFamilies.length
+        ? "resolveObolSpend in crafting.js returns at once unless the recipe is in the smithing family. Brewing, crafting and the rest must hold real ⬢."
+        : "The obol payment is gone from crafting.js, so the sentence is stale.",
     },
     {
       doc: "SOILERY.md §1",
@@ -895,10 +964,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "FACTORY.md §6",
-      claim: "A farmer makes about 13 ¢ a turn, a Prospector at the Caves about 5 (⬢ sold back at 1 ¢)",
-      docValue: "13 / 5",
+      claim: "A farmer makes about 13 ¢ a turn, a Prospector at the Caves about 8 (⬢ sold back at 1 ¢)",
+      docValue: "13 / 8",
       model: `${round1(potato?.netPerTurnSell)} / ${round1(byId("mine:Caves:skilled")?.netPerTurnSell)}`,
-      ok: potato && Math.abs(potato.netPerTurnSell - 13) < 1 && Math.abs(byId("mine:Caves:skilled").netPerTurnSell - 5) < 0.6,
+      ok: potato && Math.abs(potato.netPerTurnSell - 13) < 1 && Math.abs(byId("mine:Caves:skilled").netPerTurnSell - 8) < 0.6,
     },
     {
       doc: "SOILERY.md §6",
@@ -1014,6 +1083,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     priceLadder,
     priceRule,
     resourceBalance,
+    foodFloor,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },

@@ -152,10 +152,13 @@ export default function TagDetails({
         {armor && <Meta label="Armour">{armor}</Meta>}
         {weight && <Meta label="Weight">{weight}</Meta>}
         {/* Appraisal's readout (TAGS.md §4a): only present when the viewer holds the skill
-            (web/lib/appraisal.js). Drawn even with no price, so the appraiser knows the skill fired. */}
+            (web/lib/appraisal.js). Both Depot prices: what it charges you to buy one, and what it
+            pays you to sell one. Drawn even with no price, so the appraiser knows the skill fired. */}
         {"valueObols" in tag && (
           <Meta label="Worth">
-            <span className="mono">{tag.valueObols != null ? `${tag.valueObols} ¢` : "—"}</span>
+            <span className="mono">
+              Buy {tag.buyObols != null ? `${tag.buyObols} ¢` : "—"} · Sell {tag.valueObols != null ? `${tag.valueObols} ¢` : "—"}
+            </span>
           </Meta>
         )}
         {/* Where it goes and what it costs to put there. */}

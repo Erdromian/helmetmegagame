@@ -168,9 +168,12 @@ function buildSources({ list, bySlug, players }) {
   }
 
   // Loot: real functions, sampled.
+  // Mining draws from a plain column for anyone with a pickaxe and a richer one with Prospecting.
+  const plainDraw = (z) => cavingLoot.drawProspectingLoot(z, { prospecting: false });
+  const skilledDraw = (z) => cavingLoot.drawProspectingLoot(z, { prospecting: true });
   const prospecting = {
-    caves: lootDistribution(cavingLoot.drawProspectingLoot, "caves"),
-    depths: lootDistribution(cavingLoot.drawProspectingLoot, "depths"),
+    caves: { plain: lootDistribution(plainDraw, "caves"), skilled: lootDistribution(skilledDraw, "caves") },
+    depths: { plain: lootDistribution(plainDraw, "depths"), skilled: lootDistribution(skilledDraw, "depths") },
   };
   const caving = {
     caves: lootDistribution(cavingLoot.drawLoot, "caves"),
@@ -257,13 +260,15 @@ function buildSources({ list, bySlug, players }) {
 
     // Loot
     for (const [zone, label] of [["caves", "Caves"], ["depths", "Depths"]]) {
-      const p = prospecting[zone].dist.get(slug);
-      if (p) {
+      const plain = prospecting[zone].plain.dist.get(slug) ?? 0;
+      const skilled = prospecting[zone].skilled.dist.get(slug) ?? 0;
+      if (plain || skilled) {
         routes.push({
           kind: "prospecting",
-          label: `Mine with Prospecting, ${label}: ${pct(p)} of presses`,
-          rank: p >= RULES.scarceBelow ? 2 : 4,
-          rate: p,
+          label: `Mine at the ${label} (needs a pickaxe): ${pct(plain)} of presses, ${pct(skilled)} with Prospecting`,
+          rank: Math.max(plain, skilled) >= RULES.scarceBelow ? 2 : 4,
+          // What anyone with a pickaxe gets; the skilled column only when the plain one has none.
+          rate: plain || skilled,
         });
       }
       const q = caving[zone].dist.get(slug);

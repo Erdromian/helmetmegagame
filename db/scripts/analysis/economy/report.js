@@ -5,7 +5,8 @@
 //   npm run economy:report -- --players 150   # a bigger town
 //   npm run economy:report -- --turns 40      # a longer game (fatigue over N turns)
 //   npm run economy:report -- --free-moves 2  # free zone crossings a turn (2 with a mount)
-//   npm run economy:report -- --resource-value sell   # value ⬢ at the 1 ¢ sell-back (default: the 2 ¢ buy price)
+//   npm run economy:report -- --resource-value sell   # value ⬢ at the 1 ¢ sell-back (default: the Depot's buy price)
+//   npm run economy:report -- --obols off     # preview the game with obol payment for smithing removed (default: read the source)
 //   npm run economy:report -- --out /tmp/x    # somewhere else
 //
 // Read-only: touches no database and posts nothing. The output directory is
@@ -28,8 +29,9 @@ const players = Number(flag("players", 100));
 const gameTurns = Number(flag("turns", 30));
 const freeMoves = flag("free-moves", null) == null ? null : Number(flag("free-moves", null));
 const resourceValue = flag("resource-value", "buy");
+const obolPath = flag("obols", "auto");
 
-const model = buildModel({ players, gameTurns, freeMoves, resourceValue });
+const model = buildModel({ players, gameTurns, freeMoves, resourceValue, obolPath });
 const { params } = model;
 
 let commit = "unknown";
@@ -49,25 +51,35 @@ const FAMILIES = [...new Set(model.activities.map((a) => a.family))];
 const famIndex = (f) => FAMILIES.indexOf(f) % 10;
 const famColor = (f) => `var(--c${famIndex(f)})`;
 
-function table({ cols, rows, id, sortable = true }) {
+let tableSeq = 0;
+// `filters` is [{ label, get }]: a dropdown per entry built from the values the rows actually have, plus
+// a text search. Rows carry their values as data attributes so the page can hide them without a rebuild.
+function table({ cols, rows, id, sortable = true, filters = null }) {
+  const tid = id ?? (filters ? `t${++tableSeq}` : null);
   const head = cols.map((c, i) => `<th data-i="${i}" class="${c.num ? "num" : ""}">${esc(c.h)}</th>`).join("");
   const body = rows
-    .map(
-      (r) =>
-        `<tr>${cols
-          .map((c) => {
-            const v = c.get(r);
-            // A sort key only when it differs from what is shown; the sorter reads the text otherwise.
-            const sortAttr = c.sort ? ` data-v="${esc(c.sort(r) ?? "")}"` : "";
-            const style = c.style ? c.style(r) : "";
-            return `<td${c.num ? ' class="num"' : ""}${sortAttr}${style ? ` style="${style}"` : ""}>${
-              c.raw ? v : esc(v ?? "—")
-            }</td>`;
-          })
-          .join("")}</tr>`,
-    )
+    .map((r) => {
+      const fattrs = filters ? filters.map((f, i) => ` data-f${i}="${esc(f.get(r) ?? "")}"`).join("") : "";
+      return `<tr${fattrs}>${cols
+        .map((c) => {
+          const v = c.get(r);
+          // A sort key only when it differs from what is shown; the sorter reads the text otherwise.
+          const sortAttr = c.sort ? ` data-v="${esc(c.sort(r) ?? "")}"` : "";
+          const style = c.style ? c.style(r) : "";
+          return `<td${c.num ? ' class="num"' : ""}${sortAttr}${style ? ` style="${style}"` : ""}>${c.raw ? v : esc(v ?? "—")}</td>`;
+        })
+        .join("")}</tr>`;
+    })
     .join("");
-  return `<div class="tablewrap"><table${sortable ? ' class="sortable"' : ""}${id ? ` id="${id}"` : ""}><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  const bar = filters
+    ? `<div class="filterbar" data-for="${tid}">${filters
+        .map((f, i) => {
+          const values = [...new Set(rows.map((r) => String(f.get(r) ?? "")))].sort();
+          return `<label>${esc(f.label)} <select data-i="${i}"><option value="">All</option>${values.map((v) => `<option>${esc(v)}</option>`).join("")}</select></label>`;
+        })
+        .join("")}<input type="search" placeholder="Search rows"><span class="count"></span></div>`
+    : "";
+  return `${bar}<div class="tablewrap"><table${sortable ? ' class="sortable"' : ""}${tid ? ` id="${tid}"` : ""}><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -173,7 +185,7 @@ const RANK = model.sources.ranks;
 const rankChip = (r) =>
   r === 0 ? `<span class="rk r0">none</span>` : `<span class="rk r${r}">${RANK.find((x) => x.id === r)?.label}</span>`;
 const wage = (key) => model.wages.find((w) => w.key === key)?.value;
-const floorW = wage("Unskilled miner (Caves)");
+const floorW = wage("Miner, pickaxe only (Caves)");
 const proW = wage("Prospector (Caves)");
 const farmW = wage("Farmer (potato, sold)");
 const factW = wage("Factory solo");
@@ -182,7 +194,7 @@ const potatoFood = model.foodSupply.find((f) => f.crop === "potato");
 const failing = model.claims.filter((c) => !c.ok);
 
 const headlines = [
-  `Money a turn is worth: an unskilled miner earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer selling potatoes <b>${fmt(farmW)} ¢</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. The Factory pays about ${fmt(factW / proW, 0)} times what the skilled miner does.`,
+  `Money a turn is worth: a miner with just a pickaxe earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer selling potatoes <b>${fmt(farmW)} ¢</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. The Factory pays about ${fmt(factW / proW, 0)} times what the skilled miner does.`,
   `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns nothing from the counter, since no dish can be sold there, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
   `Mining is the only source of ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves) yet a median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
   `Food demand is small and steady: ${players} players burn ${players * params.hungerDecay} hunger a turn. One Farm action makes ~${fmt(potatoFood.personTurnsPerFarm, 0)} person-turns of food, so about <b>${fmt(potatoFood.farmersNeeded, 0)} farmers</b> feed the whole town.`,
@@ -192,7 +204,7 @@ const headlines = [
     return `The best mix at the starting budget (${params.startingTagPoints} points) is <b>${esc(at8.skills.join(" + "))}</b>, worked as <span class="mono">${esc(at8.withFactory.pattern.split(" ").slice(0, 8).join(" "))}</span> (R refine, C craft, F farm, M mine), for <b>${fmt(at8.withFactory.rate)} ¢ a turn</b>, against ${fmt(refAlone.rate)} refining alone. Refining tires you the way mining does, so a crafter fills the off turns. Only ${params.refinerySeats} people can refine in a turn; with a crowd the mix falls back on crafts and farming.`;
   })(),
   `Fatigue: ${model.fatigue.rows.filter((r) => r.tires).map((r) => `${r.label.toLowerCase().replace(/ \(.*\)/, "")} can be pressed ${r.steady >= 0.999 ? "every turn" : `1 turn in ${fmt(1 / r.steady, 0)}`}`).join(", ")}. ${model.fatigue.rows.filter((r) => !r.tires).map((r) => r.label.toLowerCase().replace(/ \(.*\)/, "")).join(", ")} never tire you.`,
-  `A Prospector at the Caves brings up ${fmt(params.minerResourcesPerTurn)} ⬢ a turn plus ${fmt(model.prospectorValue[0].dropsPerTurn, 2)} ¢ of drops: worth <b>${fmt(model.prospectorValue[0].atBuy)} ¢ a turn</b> with ⬢ at the Depot's ${params.rv.buy} ¢ buy price, ${fmt(model.prospectorValue[0].atSell)} ¢ at the ${params.rv.sell} ¢ sell-back. A smith can pay a recipe's ⬢ in obols, one for one, so a smith will pay a Prospector no more than ${params.rv.sell} ¢ a ⬢; only brewers, crafters and the like, who must hold real ⬢, will pay up to ${params.rv.buy} ¢.`,
+  `A Prospector at the Caves brings up ${fmt(params.minerResourcesPerTurn)} ⬢ a turn plus ${fmt(model.prospectorValue[0].dropsPerTurn, 2)} ¢ of drops: worth <b>${fmt(model.prospectorValue[0].atBuy)} ¢ a turn</b> with ⬢ at the Depot's ${params.rv.buy} ¢ buy price, ${fmt(model.prospectorValue[0].atSell)} ¢ at the ${params.rv.sell} ¢ sell-back. ${params.obolFamilies.length ? `A smith can pay a recipe's ⬢ in obols, one for one, so a smith will pay a Prospector no more than ${params.rv.sell} ¢ a ⬢; only brewers, crafters and the like, who must hold real ⬢, will pay up to ${params.rv.buy} ¢.` : `No craft can be paid in obols, so every crafter must hold real ⬢ and will pay a Prospector up to ${params.rv.buy} ¢ a ⬢, the Depot's import price.`}`,
   `${model.sources.summary.special} of ${model.sources.summary.recipes} recipes need a special item (${model.sources.summary.copies} of those only copy a key). Of the rest, ${model.sources.summary.byHardest[4]} are held back by a Scarce item and ${model.sources.summary.byHardest[5]} by an item with no known source.`,
   `${failing.length} of ${model.claims.length} figures the docs quote do not match what the catalog and code produce (see “Docs against the model”).`,
 ];
@@ -220,7 +232,7 @@ const craftCols = () => [
   { h: "Forge?", get: (a) => (a.workshop ? "yes" : "no") },
   { h: "¢/turn, ⬢ bought", num: true, get: (a) => fmt(a.netPerTurnBuy), sort: (a) => a.netPerTurnBuy },
   { h: "¢/turn, ⬢ mined", num: true, get: (a) => fmt(a.netPerTurnSell), sort: (a) => a.netPerTurnSell },
-  { h: "¢/turn, ⬢ paid in obols", num: true, get: (a) => (a.parPayable ? fmt(a.netPerTurnObols) : "no"), sort: (a) => a.netPerTurnObols ?? -1e9 },
+  ...(params.obolFamilies.length ? [{ h: "¢/turn, ⬢ paid in obols", num: true, get: (a) => (a.parPayable ? fmt(a.netPerTurnObols) : "no"), sort: (a) => a.netPerTurnObols ?? -1e9 }] : []),
   {
     h: "Note",
     get: (a) =>
@@ -258,28 +270,28 @@ function sectionBaselines() {
     { h: "¢/turn, ⬢ mined", num: true, get: (b) => fmt(b.valueMined), sort: (b) => b.valueMined },
   ];
   return `<section><h2>Baselines: the easy crafts</h2>
-<p class="lede">What somebody can earn from a standing start, using only what is easy to get. A recipe is <b>easy</b> when every input is on the Depot's general shelf, is farmed, is an ore on at least ${fmt(100 * 0.1, 0)}% of Prospecting presses, is a cave find on at least 1 in 50 arrivals, or is a craft from those. ⬢ comes from the Depot at ${params.rv.buy} ¢, and the second column shows the pay if the crafter mined it instead. Recipes that need an ore supply of more than two Prospectors per crafter are flagged and left out of the baselines. <b>Smithing recipes can pay their ⬢ in obols, one for one</b> (the game refuses this for every other craft), so a smith does not have to import ⬢ at all: the “paid in obols” column is a smith's real wage, and the “bought” column is what a smith would earn by importing anyway. These baselines are what the rest of the report compares against.</p>
+<p class="lede">What somebody can earn from a standing start, using only what is easy to get. A recipe is <b>easy</b> when every input is on the Depot's general shelf, is farmed, is an ore on at least ${fmt(100 * 0.1, 0)}% of Prospecting presses, is a cave find on at least 1 in 50 arrivals, or is a craft from those. ⬢ comes from the Depot at ${params.rv.buy} ¢, and the second column shows the pay if the crafter mined it instead. Recipes that need an ore supply of more than two Prospectors per crafter are flagged and left out of the baselines. ${params.obolFamilies.length ? `<b>Smithing recipes can pay their ⬢ in obols, one for one</b> (the game refuses this for every other craft), so a smith does not have to import ⬢ at all: the “paid in obols” column is a smith's real wage, and the “bought” column is what a smith would earn by importing anyway.` : `No craft can be paid in obols, so the “bought” column is every crafter's real wage.`} These baselines are what the rest of the report compares against.</p>
 ${table({ cols: baseCols, rows: model.baselines })}
 
 <h3>Smithing</h3>
 <p class="lede">Every smithing recipe needs Workshop Equipment within reach. Iron, Copper and Nickel head the list but need one ore per quarter Move, which is far more than Prospectors can supply, so read them as ceilings.</p>
-${table({ cols: craftCols(), rows: L.smithing.slice(0, 12) })}
+${table({ cols: craftCols(), rows: L.smithing.slice(0, 30), filters: [{ label: "Skill", get: (a) => a.skill }] })}
 
 <h3>Crafting (the basic skill)</h3>
 <p class="lede">Crafting costs 2 points and needs no forge. At the Depot's ⬢ price the Dead Simple pieces (Sling, Quarterstaff, Padded Armor and the rest) earn nothing: they sell for 6 ¢ and cost 3 ⬢, which is 6 ¢ to buy. They only pay if you mine your own ⬢. The Prospector's Pick is the one crafting recipe that pays on bought ⬢.</p>
-${table({ cols: craftCols(), rows: L.crafting.slice(0, 12) })}
+${table({ cols: craftCols(), rows: L.crafting.slice(0, 30), filters: [{ label: "Skill", get: (a) => a.skill }] })}
 
 <h3>Brewing</h3>
 <p class="lede">Brewing needs no forge. Most brews need 10 points (Brewing II). Cave Fungus, the one cave find these use, turns up on ${fmt((model.sources.items.find((i) => i.slug === "cave-fungus")?.routes[0] ?? "").match(/([\d.]+)%/)?.[1] ?? 0, 1)}% of arrivals. Alcohol is a 0.25-Move recipe, so the brews that use it include that work.</p>
-${table({ cols: craftCols(), rows: L.brewing.slice(0, 10) })}
+${table({ cols: craftCols(), rows: L.brewing.slice(0, 30), filters: [{ label: "Skill", get: (a) => a.skill }] })}
 
 <h3>Cooking</h3>
-<p class="lede">No dish can be sold to the Depot, so a cook has no wage. What a cook makes is food and mood, so the table ranks dishes by what a person-turn of food costs in ingredients (crops priced at what the counter pays). One person burns ${params.hungerDecay} hunger a turn. ${top ? `The cheapest is ${esc(top.name)}: ${top.hunger} hunger from ingredients worth ${fmt(top.costPerDish, 1)} ¢, against ${fmt(model.foods.find((f) => f.slug === "wheat")?.costPerPersonTurn, 2)} ¢ a person-turn for raw wheat, which also costs mood and nauseates. A Move of ${esc(top.name)} is ${fmt(top.dishesPerMove, 0)} dishes and needs about ${fmt(top.dishesPerMove * unitsPerDish, 0)} ingredient units, roughly one Farm action's harvest (${fmt(cropsPerFarm, 0)}), so the crop supply binds long before the Move does.` : ""}</p>
-${table({ cols: cookCols, rows: L.cooking.slice(0, 12) })}
+<p class="lede">No dish can be sold to the Depot, so a cook has no wage. What a cook makes is food and mood, so the table ranks dishes by what a person-turn of food costs in ingredients (crops priced at what the counter pays). One person burns ${params.hungerDecay} hunger a turn. ${top ? `The cheapest is ${esc(top.name)}: ${top.hunger} hunger from ingredients worth ${fmt(top.costPerDish, 1)} ¢, against ${fmt(model.foods.find((f) => f.slug === "wheat")?.costPerPersonTurn, 2)} ¢ a person-turn for raw wheat, which also costs mood and nauseates, and ${fmt(model.foodFloor.anyone?.costPerPersonTurn, 2)} ¢ for a Depot Ration Box, the cheapest thing anyone can simply order, at a mood of ${fmt(model.foodFloor.anyone?.mood, 1)}. A Move of ${esc(top.name)} is ${fmt(top.dishesPerMove, 0)} dishes and needs about ${fmt(top.dishesPerMove * unitsPerDish, 0)} ingredient units, roughly one Farm action's harvest (${fmt(cropsPerFarm, 0)}), so the crop supply binds long before the Move does.` : ""}</p>
+${table({ cols: cookCols, rows: L.cooking.slice(0, 40), filters: [{ label: "Skill", get: (c) => c.skill }] })}
 
 <h3>Without Workshop Equipment</h3>
 <p class="lede">Brewing, cooking and Crafting never need a forge. Only smithing does, so the question is what the smithing family can do without one. The answer is the crafting-skill recipes plus Workshop Equipment itself, which is exempt from its own requirement.</p>
-${table({ cols: craftCols(), rows: L.noWorkshop.slice(0, 8) })}
+${table({ cols: craftCols(), rows: L.noWorkshop.slice(0, 20), filters: [{ label: "Skill", get: (a) => a.skill }, { label: "Family", get: (a) => a.family }] })}
 <p class="lede">Best without a forge: <b>${esc(L.noWorkshop[0]?.name)}</b> at ${fmt(L.noWorkshop[0]?.netPerTurnBuy)} ¢ a turn (${fmt(L.noWorkshop[0]?.netPerTurnSell)} ¢ with mined ⬢), against ${fmt(baselineOf("Skilled smith")?.value)} ¢ for a skilled smith with one. Where the forge comes from: ${ws ? ws.routes.map(esc).join("; ") : "n/a"}. A Smithing II smith can make their own: ${weAct ? `${fmt(weAct.resourceCost, 0)} ⬢ and ${fmt(weAct.totalMoves, 0)} Moves, worth ${weAct.revenue} ¢ if sold` : ""}. The Metalsmith starts with the Smithy Key to the Storeroom's, and the Engineer starts with Smithing II, so the forge is a small blocker for the main smiths and a real one for everybody else.</p>
 </section>`;
 }
@@ -357,7 +369,7 @@ function sectionCombos() {
 <li><b>The Move.</b> One a turn. Mine, Farm and Refine each take all of it, and crafts share it in fractions, so a turn is one day-verb or a craft mix, never both.</li>
 <li><b>Fatigue.</b> Mine, Refine and Farm all climb the Tired and Exhausted ladder (Mine and Refine one step at a time, Farm outright), so each can be pressed only some turns. Crafts, cutting Godflesh and Butcher never touch it, so a craft fills the turns a day-verb is locked out.</li>
 <li><b>Seats.</b> Only ${params.refinerySeats} people may refine at the Factory in a turn. The main tables assume you can always get a seat; the crowd table below shows what competition does.</li>
-<li><b>Skill points.</b> Farm needs Soilery (7) and Mine needs Prospecting (7), so a starting budget of ${params.startingTagPoints} cannot hold both. Refine and cutting Godflesh need no skill.</li>
+<li><b>Skill points and tools.</b> Farm needs Soilery (7). Mine needs a pickaxe (2 points at creation, or a smith makes one) and Prospecting (7) pays ×1.7 on top, so a starting budget of ${params.startingTagPoints} cannot hold both. Refine and cutting Godflesh need no skill.</li>
 <li><b>Place.</b> Hops inside a zone are free, and a turn allows ${c.free} free zone crossing${c.free === 1 ? "" : "s"} (a mount adds one; <code>--free-moves</code> changes it). A crossing beyond that costs the Move, so nearby workplaces do not cost formal Moves.</li>
 </ul>
 <h3>Where the work is</h3>
@@ -425,7 +437,7 @@ function sectionActivities() {
   ];
   return `<section><h2>The full table</h2>
 <p class="lede">${model.activities.length} activities. Click a heading to sort. “Per action” is one press; “Presses / turn” is how often the fatigue rules let you press it, and “free” marks actions that cost no Move (Butcher, the Caving Die), which are limited by what you have to work on. “Drops” is the extra loot per press, valued at what the station pays. “Inputs” prices ⬢ at the sell figure and ingredients at their sale price (or purchase price if unsellable).</p>
-${table({ cols, rows: allRanked })}</section>`;
+${table({ cols, rows: allRanked, filters: [{ label: "Family", get: (a) => a.family }, { label: "Skill", get: (a) => a.skill }] })}</section>`;
 }
 
 
@@ -466,7 +478,7 @@ function sectionDrops() {
     { h: `${labelB} ¢`, num: true, get: (u) => fmt(u.b?.ev ?? 0, 2), sort: (u) => u.b?.ev ?? 0 },
   ];
   const total = (tbl) => tbl.reduce((sum, r) => sum + r.ev, 0);
-  const mineRows = model.activities.filter((a) => a.kind === "mine" && a.skillPoints > 0);
+  const mineRows = model.activities.filter((a) => a.kind === "mine");
   const bars = [];
   for (const a of mineRows) {
     bars.push({ label: `${a.name.replace("Mine — ", "")}: ⬢`, value: a.resourcesPerPress * params.rvMain, color: "var(--c0)" });
@@ -481,11 +493,15 @@ function sectionDrops() {
   ];
   return `<section><h2>What a producer's action also drops</h2>
 <p class="lede">The pay in the tables above already includes these drops. They are sampled from the game's own loot functions (300,000 draws under a fixed seed), and valued at what the station pays. An item the station will not buy counts as 0, so every total here is a floor: ores sell for 1 ¢ raw but are worth far more to a smith.</p>
-<h3>Mining with Prospecting: per press</h3>
-<p class="lede">A Prospecting press pays ⬢ and rolls this table once. Without the skill you get less ⬢ and no roll. The Caves and Depths are the only places with a column.</p>
-${barChart({ rows: bars, unit: " ¢", labelW: 250, fmtVal: (v) => fmt(v, 1) })}
-${table({ cols: dropCols("Caves", "Depths"), rows: union(P.prospecting.caves, P.prospecting.depths).slice(0, 18) })}
-<p class="lede">Total drops per press: Caves ${fmt(total(P.prospecting.caves), 2)} ¢, Depths ${fmt(total(P.prospecting.depths), 2)} ¢.</p>
+<h3>Mining: per press</h3>
+<p class="lede">Anybody holding a pickaxe gets ⬢ and one draw on this table for a press. Prospecting multiplies the ⬢ by ${params.prospectingMultiplier} and moves the draw to a richer column. The Caves and Depths are the only places with a column, and the base yield is ${params.miningBase.min}–${params.miningBase.max} at a coefficient of 1 before the ${fmt(params.productionCoefficient, 1)} dial and the pickaxe's +${params.pickaxe.bonus}.</p>
+${barChart({ rows: bars, unit: " ¢", labelW: 300, fmtVal: (v) => fmt(v, 1) })}
+<h4>A pickaxe and nothing else</h4>
+${table({ cols: dropCols("Caves", "Depths"), rows: union(P.prospecting.caves.plain, P.prospecting.depths.plain).slice(0, 12) })}
+<p class="lede">Total drops per press: Caves ${fmt(total(P.prospecting.caves.plain), 2)} ¢, Depths ${fmt(total(P.prospecting.depths.plain), 2)} ¢.</p>
+<h4>With Prospecting</h4>
+${table({ cols: dropCols("Caves", "Depths"), rows: union(P.prospecting.caves.skilled, P.prospecting.depths.skilled).slice(0, 12) })}
+<p class="lede">Total drops per press: Caves ${fmt(total(P.prospecting.caves.skilled), 2)} ¢, Depths ${fmt(total(P.prospecting.depths.skilled), 2)} ¢.</p>
 <h3>The Caving Die: per arrival</h3>
 <p class="lede">Walking into a cave Location rolls a die: a 6 finds something (1 in 6), a 1 is trouble. It costs no Move and needs no skill.</p>
 ${table({ cols: dropCols("Caves", "Depths"), rows: union(P.caving.caves, P.caving.depths).slice(0, 12) })}
@@ -546,9 +562,9 @@ ${barChart({ rows: rankBars, unit: " recipes", fmtVal: (v) => fmt(v, 0), labelW:
 ${barChart({ rows: topItems, unit: " recipes", fmtVal: (v) => fmt(v, 0), labelW: 190 })}
 <h3>Where each item comes from</h3>
 <p class="lede">${S.items.length} distinct special items. Routes are read from the Depot catalog, the loot functions, role starting kits, room stashes, butchering rules, the farm and Factory, and any tag that opens into another. “Named in code” means the data has no route but the source mentions the item.</p>
-${table({ cols: itemCols, rows: S.items })}
+${table({ cols: itemCols, rows: S.items, filters: [{ label: "Easiest route", get: (i) => RANK.find((x) => x.id === i.rank)?.label }, { label: "Way in", get: (i) => i.routeKinds[0] ?? "none" }] })}
 <h3>Every recipe</h3>
-${table({ cols: recCols, rows: [...S.recipes].sort((a, b) => b.hardest - a.hardest || a.name.localeCompare(b.name)) })}</section>`;
+${table({ cols: recCols, rows: [...S.recipes].sort((a, b) => b.hardest - a.hardest || a.name.localeCompare(b.name)), filters: [{ label: "Skill", get: (r) => r.skill }, { label: "Hardest gate", get: (r) => (r.hardest === 0 ? "none" : RANK.find((x) => x.id === r.hardest)?.label) }, { label: "Forge", get: (r) => (r.workshop ? "needs one" : "no") }, { label: "Key copy", get: (r) => (r.copy ? "yes" : "no") }] })}</section>`;
 }
 
 function sectionBalance() {
@@ -558,7 +574,7 @@ function sectionBalance() {
     { h: "Median ⬢ burned / turn", num: true, get: (r) => fmt(r.medianBurn) },
     { h: "Heaviest recipe", num: true, get: (r) => fmt(r.maxBurn) },
     { h: "Prospectors per crafter", num: true, get: (r) => fmt(r.minersPerCrafter, 1), sort: (r) => r.minersPerCrafter },
-    { h: "Can pay in obols?", get: (r) => (r.payInObols ? "yes, 1 for 1" : "no: must hold ⬢") },
+    ...(params.obolFamilies.length ? [{ h: "Can pay in obols?", get: (r) => (r.payInObols ? "yes, 1 for 1" : "no: must hold ⬢") }] : []),
     { h: "Most it will pay for a ⬢", num: true, get: (r) => `${fmt(r.ceiling, 0)} ¢`, sort: (r) => r.ceiling },
   ];
   const pcols = [
@@ -566,15 +582,15 @@ function sectionBalance() {
     { h: "⬢ / turn", num: true, get: (p) => fmt(p.resourcesPerTurn, 2) },
     { h: "Drops ¢ / turn", num: true, get: (p) => fmt(p.dropsPerTurn, 2) },
     { h: `Sold back at ${params.rv.sell} ¢`, num: true, get: (p) => fmt(p.atSell), sort: (p) => p.atSell },
-    { h: `Paid to a smith (${params.rv.sell} ¢ a ⬢)`, num: true, get: (p) => fmt(p.atSmith), sort: (p) => p.atSmith },
+    ...(params.obolFamilies.length ? [{ h: `Paid to a smith (${params.rv.sell} ¢ a ⬢)`, num: true, get: (p) => fmt(p.atSmith), sort: (p) => p.atSmith }] : []),
     { h: `⬢ at the Depot's ${params.rv.buy} ¢`, num: true, get: (p) => fmt(p.atBuy), sort: (p) => p.atBuy },
   ];
   return `<section><h2>The ⬢ market</h2>
-<p class="lede">Mining is the only faucet, and recipes are the sink. A Prospector at the Caves brings in ${fmt(params.minerResourcesPerTurn)} ⬢ a turn (the ${fmt(params.productionCoefficient, 1)} production dial, the base range and the every-other-turn fatigue). Who will actually pay for it depends on who can use obols instead. The Depot imports ⬢ at ${params.rv.buy} ¢ and buys them back at ${params.rv.sell} ¢, so a buyer who must hold real ⬢ will pay up to ${params.rv.buy} ¢, but <b>a smith can put one obol toward one ⬢</b> (<code>resolveObolSpend</code>, smithing only), so a smith will pay no more than ${params.rv.sell} ¢ and never has to import at all.</p>
+<p class="lede">Mining is the only faucet, and recipes are the sink. A Prospector at the Caves brings in ${fmt(params.minerResourcesPerTurn)} ⬢ a turn (the ${fmt(params.productionCoefficient, 1)} production dial, the base range and the every-other-turn fatigue). ${params.obolFamilies.length ? `Who will actually pay for it depends on who can use obols instead. The Depot imports ⬢ at ${params.rv.buy} ¢ and buys them back at ${params.rv.sell} ¢, so a buyer who must hold real ⬢ will pay up to ${params.rv.buy} ¢, but <b>a smith can put one obol toward one ⬢</b> (<code>resolveObolSpend</code>, smithing only), so a smith will pay no more than ${params.rv.sell} ¢ and never has to import at all.` : `Every crafter must hold real ⬢ (no craft can be paid in obols), so the Depot's ${params.rv.buy} ¢ import price is the most any of them will pay a Prospector, and its ${params.rv.sell} ¢ sell-back is the least a Prospector will take.`}</p>
 <h3>What a Prospector is worth</h3>
 ${table({ cols: pcols, rows: model.prospectorValue })}
 <h3>Who needs ⬢</h3>
-<p class="lede">“Prospectors per crafter” is how many Prospectors one crafter of that family needs behind them, working flat out. Gambit-free, median recipe. Brewing, crafting and cooking cannot pay in obols, so they are the buyers who would pay the full ${params.rv.buy} ¢.</p>
+<p class="lede">“Prospectors per crafter” is how many Prospectors one crafter of that family needs behind them, working flat out. Gambit-free, median recipe. ${params.obolFamilies.length ? `Brewing, crafting and cooking cannot pay in obols, so they are the buyers who would pay the full ${params.rv.buy} ¢.` : `Nobody can pay in obols, so every family would pay up to the full ${params.rv.buy} ¢.`}</p>
 ${table({ cols, rows: model.resourceBalance })}</section>`;
 }
 
@@ -598,7 +614,7 @@ function sectionLadder() {
   ];
   return `<section><h2>How long to afford it</h2>
 <p class="lede">Every Depot ware’s price in turns of work at each benchmark wage. Darker means longer; full colour is a thousand turns. Nothing to do with how long the game lasts — read the bottom of a column against the game’s length.</p>
-${table({ cols, rows: model.priceLadder })}</section>`;
+${table({ cols, rows: model.priceLadder, filters: [{ label: "Shelf", get: (r) => r.manifest }] })}</section>`;
 }
 
 function sectionFood() {
@@ -607,18 +623,26 @@ function sectionFood() {
     value: f.farmersNeeded,
     color: "var(--c3)",
   }));
-  const cheap = model.foods
-    .filter((f) => f.costPerPersonTurn != null)
-    .slice(0, 16)
-    .map((f) => ({ label: f.name, value: f.costPerPersonTurn, color: "var(--c1)" }));
+  const floor = model.foodFloor;
+  const box = floor.anyone;
+  // Two markets: what anybody with coin can order from the Depot, and what a grower would be paid.
+  const fromDepot = model.foods
+    .filter((f) => f.shelf && f.costPerPersonTurn != null)
+    .map((f) => ({ label: `${f.name}${f.shelf === "general" ? " (anyone)" : " (Merchant's shelf)"}`, value: f.costPerPersonTurn, color: f.shelf === "general" ? "var(--c3)" : "var(--c1)" }));
+  const fromGrowers = model.foods
+    .filter((f) => !f.shelf && f.costPerPersonTurn != null)
+    .slice(0, 14)
+    .map((f) => ({ label: f.name, value: f.costPerPersonTurn, color: "var(--c0)" }));
   const cols = [
     { h: "Food", get: (f) => f.name },
     { h: "Kind", get: (f) => f.kind },
-    { h: "Hunger", num: true, get: (f) => f.hunger },
+    { h: "Where to get it", get: (f) => f.source },
+    { h: "Hunger", num: true, get: (f) => f.hunger, sort: (f) => f.hunger },
+    { h: "Mood", num: true, get: (f) => f.mood, sort: (f) => f.mood },
     { h: "Weight lb", num: true, get: (f) => fmt(f.weight, 1), sort: (f) => f.weight },
     { h: "Buy ¢", num: true, get: (f) => f.buy ?? "—", sort: (f) => f.buy ?? -1 },
     { h: "Sell ¢", num: true, get: (f) => f.sell ?? "—", sort: (f) => f.sell ?? -1 },
-    { h: "Moves", num: true, get: (f) => (f.moves == null ? "—" : fmt(f.moves, 2)), sort: (f) => f.moves ?? -1 },
+    { h: "Priced at", get: (f) => (f.costPerPersonTurn == null ? "—" : f.basis === "buy" ? "the Depot's price" : "what the counter pays a grower") },
     { h: "¢ per person-turn", num: true, get: (f) => fmt(f.costPerPersonTurn, 2), sort: (f) => f.costPerPersonTurn ?? 1e9 },
     { h: "lb per person-turn", num: true, get: (f) => fmt(f.lbPerPersonTurn, 2), sort: (f) => f.lbPerPersonTurn },
   ];
@@ -628,15 +652,22 @@ function sectionFood() {
         `<tr><td>${esc(f.crop)}</td><td class="num">${fmt(f.harvest, 1)}</td><td class="num">${fmt(f.personTurnsPerFarm, 0)}</td><td class="num">${fmt(f.lbPerFarm, 1)}</td><td class="num">${fmt(f.farmersNeeded, 1)}</td></tr>`,
     )
     .join("");
+  const crop = model.foods.find((f) => f.slug === "potato");
   return `<section><h2>Food</h2>
 <p class="lede">A person burns ${params.hungerDecay} hunger a turn, so a food that restores 12 feeds them for a little over a turn. One Farm action sows up to ${params.farmMaxCrops} plants and about 1 in ${params.witherIn} wither. It locks you out for ${params.farmCycle} turns in all.</p>
 <h3>Farmers needed to feed ${players} players</h3>
 ${barChart({ rows: supply, unit: " farmers", fmtVal: (v) => fmt(v, 0) })}
 <div class="tablewrap"><table><thead><tr><th>Crop</th><th class="num">Harvest / farm</th><th class="num">Person-turns / farm</th><th class="num">lb / farm</th><th class="num">Farmers needed</th></tr></thead><tbody>${sup}</tbody></table></div>
-<h3>Cheapest ways to be fed (¢ per person-turn)</h3>
-<p class="lede">Uses the buy price where the Depot sells it, otherwise the sell price. Dishes show the recipe’s own restore only; extra ingredients add more.</p>
-${barChart({ rows: cheap, unit: " ¢", fmtVal: (v) => fmt(v, 2), labelW: 190 })}
-${table({ cols, rows: model.foods })}</section>`;
+<h3>What food costs somebody with coin</h3>
+<p class="lede">${box ? `The only food anyone can order without a licence is the <b>${esc(box.name)}</b>, ${box.buy} ¢ on the Depot's general shelf. It opens into one of six equally likely outcomes (four foods, a rat that half the time makes you sick, and nothing), so it restores <b>${fmt(box.hunger, 1)} hunger on average</b> and costs <b>${fmt(box.costPerPersonTurn, 2)} ¢ a person-turn</b>, with an average mood of ${fmt(box.mood, 1)}. That is the cost of staying fed for anybody who can reach the counter, and it is small next to any wage in this report.` : ""}</p>
+<p class="lede">${box && crop ? `It also sets a ceiling on what food is worth. Nobody should pay a grower more than the box charges for the same hunger, and the box charges ${fmt(floor.ceilingPerHunger * 100, 1)} ¢ per 100 hunger, so a ${crop.hunger}-hunger crop is worth at most about ${fmt(floor.ceilingPerHunger * crop.hunger, 2)} ¢ to a buyer. Crops sell to the counter for ${crop.sell} ¢, so a grower selling to another player has almost no room above the counter's price. That is why farming is for eating.` : ""}</p>
+${barChart({ rows: fromDepot, unit: " ¢", fmtVal: (v) => fmt(v, 2), labelW: 250 })}
+<h3>What growers and cooks make it for</h3>
+<p class="lede">Not sold at the Depot, so these are priced at what the counter pays a grower (their opportunity cost), and a buyer would be asked a little more. Dishes show the recipe’s own restore only; extra ingredients add more.</p>
+${barChart({ rows: fromGrowers, unit: " ¢", fmtVal: (v) => fmt(v, 2), labelW: 190 })}
+<h3>Every food</h3>
+<p class="lede">${model.foods.length} foods. A food counts if the game restores hunger for it (its own value, or the flat ${model.params?.defaultFoodHunger ?? 12} for anything that just grants a meal), and a thing that opens into food is averaged over what it can turn out.</p>
+${table({ cols, rows: model.foods, filters: [{ label: "Where", get: (f) => f.source }, { label: "Kind", get: (f) => f.kind }] })}</section>`;
 }
 
 function sectionChecks() {
@@ -661,7 +692,7 @@ function sectionChecks() {
   ];
   return `<section><h2>Docs against the model</h2>
 <p class="lede">Each row is a number a system doc states, checked against what the catalog and code produce now. A “differs” is either a stale doc or a real bug, and only a person can say which.</p>
-${table({ cols, rows: model.claims, sortable: false })}
+${table({ cols, rows: model.claims, sortable: false, filters: [{ label: "Doc", get: (c) => c.doc.split(" §")[0] }, { label: "Status", get: (c) => (c.ok ? "matches" : "differs") }] })}
 <h3>Wares off the 60% sell-back rule</h3>
 <p class="lede">Most are the wage-floor recipes <code>DEPOT.md</code> §3 names. Anything else, and any row marked ARBITRAGE (sells back for at least the buy price), is worth a look.</p>
 ${table({ cols: cols2, rows: off })}</section>`;
@@ -707,6 +738,7 @@ th.sort-asc::after{content:" ▲"}th.sort-desc::after{content:" ▼"}
 .sortable th{cursor:pointer}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 code{font-size:12px}
+.filterbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:8px 0 2px;font-size:13px}.filterbar select,.filterbar input{font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}.filterbar .count{color:var(--mute)}tr[hidden]{display:none}
 .mono{font-family:var(--mono)}
 .rk{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:600;color:var(--bg);background:var(--r0);white-space:nowrap}
 .rk.r1{background:var(--r1)}.rk.r2{background:var(--r2)}.rk.r3{background:var(--r3)}.rk.r4{background:var(--r4)}.rk.r5{background:var(--r5)}
@@ -714,6 +746,14 @@ code{font-size:12px}
 .ranks{list-style:none;padding:0;margin:0 0 8px;font-size:13px}.ranks li{margin:3px 0}
 `;
 const js = `
+document.querySelectorAll('.filterbar').forEach(bar=>{
+  const t=document.getElementById(bar.dataset.for), sels=[...bar.querySelectorAll('select')], q=bar.querySelector('input'), count=bar.querySelector('.count');
+  const apply=()=>{const needle=q.value.trim().toLowerCase();let shown=0;const rows=[...t.tBodies[0].rows];
+    rows.forEach(tr=>{let ok=sels.every((sel,i)=>sel.value===''||tr.dataset['f'+i]===sel.value);
+      if(ok&&needle)ok=tr.textContent.toLowerCase().includes(needle);tr.hidden=!ok;if(ok)shown++;});
+    count.textContent=shown+' of '+rows.length;};
+  sels.forEach(x=>x.addEventListener('change',apply));q.addEventListener('input',apply);apply();
+});
 document.querySelectorAll('table.sortable').forEach(t=>{
   t.querySelectorAll('th').forEach(th=>th.addEventListener('click',()=>{
     const i=+th.dataset.i,asc=!th.classList.contains('sort-asc');

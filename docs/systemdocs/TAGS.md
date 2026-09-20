@@ -584,8 +584,9 @@ where Misfortune pulls the Gambit die alone (`db/lib/gambitDie.js`). Priced
 against Lucky it would have been −15, the floor of the whole scale, for a
 drawback that shows up once a turn at most.
 **Appraisal is 1** — below the 2-point floor: it grants no
-advantage in play, only a readout of a number the catalog already held
-(`Tag.sellablePrice`), so it doesn't earn a full Minor band. Seven roles
+advantage in play, only a readout of two numbers the catalog already held
+(`Tag.depotPrice`, what the Depot charges to buy one, and `Tag.sellablePrice`,
+what it pays to sell one), so it doesn't earn a full Minor band. Seven roles
 (Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper) get it free in
 `starting_tags`. The two Courtier kits that also handed it over are gone with
 the rest of them; a courtier buys it now, like anything else.

@@ -21,7 +21,7 @@ const ladder = require("../../../lib/fatigue");
 const mining = require("../../../lib/mining");
 const soilery = require("../../../lib/soilery");
 const refinery = require("../../../lib/refinery");
-const { TIRED_SLUG, EXHAUSTED_SLUG, SOILERY_SLUG } = require("../../../lib/constants");
+const { TIRED_SLUG, EXHAUSTED_SLUG, SOILERY_SLUG, PICKAXE_SLUG } = require("../../../lib/constants");
 const { expiryFrom } = require("../../../lib/turnFormat");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -31,7 +31,8 @@ const VERBS = [
   {
     id: "mine",
     label: "Mine",
-    refused: (slugs) => !mining.computeMiningAccess({ tagSlugs: new Set(slugs) }).ok,
+    // The gate also wants a pickaxe; give the character one so it answers only about fatigue.
+    refused: (slugs) => !mining.computeMiningAccess({ tagSlugs: new Set([...slugs, PICKAXE_SLUG]) }).ok,
     // db/lib/moveEffects.js `exhausted`: step up the ladder from Tired, else grant Tired.
     grant: (held, turn, dur) => {
       const target = ladder.nextFatigueSlug(new Set(held.has(TIRED_SLUG) ? [TIRED_SLUG] : []));

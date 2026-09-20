@@ -290,7 +290,10 @@ async function FreshDocuments() {
     purchasableAfterStart: t.purchasableAfterStart,
     mastery: t.mastery,
     catalogVisibility: t.catalogVisibility,
+    // appraise() strips the price itself; the boolean is all catalogTags needs to decide who sees a
+    // Depot-priced tag (a Merchant's Licence holder), and it carries no number.
     depotPrice: t.depotPrice,
+    hasDepotPrice: t.depotPrice != null,
     defaultDurationTurns: t.defaultDurationTurns,
     sellable: t.sellable,
     sellablePrice: t.sellablePrice,

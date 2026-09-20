@@ -19,7 +19,8 @@ export function catalogTags(tags, { isGm, heldTagIds = [], startingTagSlugs = []
     // The tag's own requiredTag is deliberately NOT a gate here (TAGS.md §3a).
     (tag.group?.requiredTagId != null &&
       holdsRequirement(tag.group.requiredTagId, tagsById, heldTagIds)) ||
-    (hasDepotAccess && tag.depotPrice != null);
+    // `hasDepotPrice`, not `depotPrice`: the price itself is stripped by appraise() before this runs.
+    (hasDepotAccess && (tag.hasDepotPrice ?? tag.depotPrice != null));
 
   return tags.filter((tag) => {
     if (tag.catalogVisibility === "ALL") return true;
