@@ -10767,7 +10767,7 @@ tags:
     description: "An onion. Goes well in soups."
     pointCost: 0
     depotPrice: 3
-    weight: 0.5
+    weight: 0.17
     stackable: true
     visible: false
     purchasable: false
@@ -10778,9 +10778,7 @@ tags:
       taste: "acrid"
       tasteForm: "adjective"
       mood: 2
-      hunger: 12
-    sellable: true
-    sellablePrice: 1
+      hunger: 4
 
   # Soilery farm crops (docs/systemdocs/SOILERY.md). Sown from a seed bag,
   # grown in a licensed Farms field, and reaped at turn close via
@@ -10798,7 +10796,7 @@ tags:
     sprite: wheat
     description: "Thick grains of wheat, waiting to be cooked."
     pointCost: 0
-    weight: 0.5
+    weight: 0.17
     stackable: true
     visible: false
     purchasable: false
@@ -10811,10 +10809,8 @@ tags:
       taste: "crunchy"
       tasteForm: "adjective"
       mood: -5
-      hunger: 6
+      hunger: 2
       into: []
-    sellable: true
-    sellablePrice: 1
 
   potato:
     catalog: all
@@ -10824,7 +10820,7 @@ tags:
     sprite: potato
     description: "Comes in many shapes and sizes, all of them round."
     pointCost: 0
-    weight: 0.5
+    weight: 0.17
     stackable: true
     visible: false
     purchasable: false
@@ -10835,9 +10831,7 @@ tags:
       taste: "earthy"
       tasteForm: "adjective"
       mood: 2
-      hunger: 12
-    sellable: true
-    sellablePrice: 1
+      hunger: 4
 
   tomato:
     catalog: all
@@ -10847,7 +10841,7 @@ tags:
     sprite: tomato
     description: "The ideal projectile, second only to the humble stone."
     pointCost: 0
-    weight: 0.5
+    weight: 0.17
     stackable: true
     visible: false
     purchasable: false
@@ -10858,9 +10852,7 @@ tags:
       taste: "acidic"
       tasteForm: "adjective"
       mood: 3
-      hunger: 12
-    sellable: true
-    sellablePrice: 1
+      hunger: 4
 
   carrot:
     catalog: all
@@ -10870,7 +10862,7 @@ tags:
     sprite: carrot
     description: "Sharp and astute."
     pointCost: 0
-    weight: 0.5
+    weight: 0.17
     stackable: true
     visible: false
     purchasable: false
@@ -10881,9 +10873,7 @@ tags:
       taste: "earthy"
       tasteForm: "adjective"
       mood: 3
-      hunger: 12
-    sellable: true
-    sellablePrice: 1
+      hunger: 4
 
   plump-helmet:
     catalog: all
@@ -10893,7 +10883,7 @@ tags:
     sprite: plump-harvest
     description: "Soft and purple, it has sustained generations of cave dwellers."
     pointCost: 0
-    weight: 0.5
+    weight: 0.17
     stackable: true
     visible: false
     purchasable: false
@@ -10904,9 +10894,7 @@ tags:
       taste: "earthy"
       tasteForm: "adjective"
       mood: 1
-      hunger: 9
-    sellable: true
-    sellablePrice: 1
+      hunger: 3
 
   # Grown in the fields like the other Soilery crops above, but not a
   # foodstuff — no cooked: block, not consumable. Crushing it into fibre for
@@ -10919,7 +10907,24 @@ tags:
     sprite: pigtail
     description: "A hard pink fibrous sheath, it can be crushed into bundles of fibers for crafting."
     pointCost: 0
-    weight: 0.5
+    weight: 0.17
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # The cash crop. Sown like the rest, but it is not food and has no `cooked:`
+  # block, so it can never be eaten or slotted into a recipe — the only thing
+  # to do with a leaf is sell it. It is also the ONLY sowable crop that is
+  # sellable at all: the food crops pay in food, per SOILERY.md.
+  tobacco:
+    catalog: all
+    name: Tobacco
+    category: items
+    group: items-gear
+    description: "Uncured tobacco leaves, a cash crop."
+    pointCost: 0
+    weight: 0.25
     stackable: true
     visible: false
     purchasable: false
@@ -11344,6 +11349,36 @@ tags:
     purchasableAfterStart: false
     durationTurns: 1
 
+  tobacco-seed-bag:
+    catalog: all
+    name: Tobacco Seed Bag
+    category: items
+    group: items-seeds
+    description: "Fussy, and worth it."
+    pointCost: 0
+    depotPrice: 4
+    weight: 1
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [sowing-tobacco]
+    sellable: true
+    sellablePrice: 2
+
+  sowing-tobacco:
+    catalog: gm
+    name: Sowing Tobacco
+    category: status
+    group: status-buffs
+    description: "You can plant tobacco."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
   boar-loin:
     catalog: all
     name: Boar Loin
@@ -11541,6 +11576,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 3
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: ""
     consumable: true
     consumesInto: [ate-meal, dined]
@@ -11568,6 +11605,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 5
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11596,6 +11635,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 7
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11624,6 +11665,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 3
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11651,6 +11694,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 5
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11679,6 +11724,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 5
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11715,6 +11762,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 7
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11743,6 +11792,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 4
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "acidic"
     mealTasteForm: "adjective"
     consumable: true
@@ -11771,6 +11822,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 3
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "acrid"
     mealTasteForm: "adjective"
     consumable: true
@@ -11799,6 +11852,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 8
     mealHunger: 42
+    sellable: true
+    sellablePrice: 2
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11829,6 +11884,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 6
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11856,6 +11913,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 2
     mealHunger: 30
+    sellable: true
+    sellablePrice: 2
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11884,6 +11943,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 2
     mealHunger: 30
+    sellable: true
+    sellablePrice: 2
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11911,6 +11972,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 5
     mealHunger: 40
+    sellable: true
+    sellablePrice: 2
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -11939,6 +12002,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 8
     mealHunger: 42
+    sellable: true
+    sellablePrice: 2
     mealTaste: "fishy"
     mealTasteForm: "adjective"
     consumable: true
@@ -11969,6 +12034,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 6
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "fishy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12001,6 +12068,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 8
     mealHunger: 38
+    sellable: true
+    sellablePrice: 2
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12029,6 +12098,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 8
     mealHunger: 35
+    sellable: true
+    sellablePrice: 2
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12057,6 +12128,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 10
     mealHunger: 30
+    sellable: true
+    sellablePrice: 2
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12092,6 +12165,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 10
     mealHunger: 15
+    sellable: true
+    sellablePrice: 1
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12122,6 +12197,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 15
     mealHunger: 15
+    sellable: true
+    sellablePrice: 1
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12151,6 +12228,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 18
     mealHunger: 30
+    sellable: true
+    sellablePrice: 2
     mealTaste: "cheesy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12179,7 +12258,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 15
-    mealHunger: 46
+    mealHunger: 64
+    sellable: true
+    sellablePrice: 4
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12215,6 +12296,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 20
     mealHunger: 18
+    sellable: true
+    sellablePrice: 1
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
@@ -12245,6 +12328,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 15
     mealHunger: 15
+    sellable: true
+    sellablePrice: 1
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12275,7 +12360,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 30
-    mealHunger: 51
+    mealHunger: 70
+    sellable: true
+    sellablePrice: 4
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
@@ -12306,7 +12393,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 48
+    mealHunger: 68
+    sellable: true
+    sellablePrice: 4
     mealTaste: "creamy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12334,7 +12423,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 28
-    mealHunger: 54
+    mealHunger: 72
+    sellable: true
+    sellablePrice: 4
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12361,7 +12452,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 40
-    mealHunger: 46
+    mealHunger: 64
+    sellable: true
+    sellablePrice: 4
     mealTaste: "salty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12389,7 +12482,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 56
+    mealHunger: 76
+    sellable: true
+    sellablePrice: 4
     mealTaste: "meaty"
     mealTasteForm: "adjective"
     consumable: true
@@ -12416,7 +12511,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 30
-    mealHunger: 56
+    mealHunger: 75
+    sellable: true
+    sellablePrice: 4
     mealTaste: "rich"
     mealTasteForm: "adjective"
     consumable: true
@@ -12443,7 +12540,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 38
-    mealHunger: 48
+    mealHunger: 68
+    sellable: true
+    sellablePrice: 4
     mealTaste: "earthy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12473,7 +12572,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 32
-    mealHunger: 48
+    mealHunger: 68
+    sellable: true
+    sellablePrice: 4
     mealTaste: "cheesy"
     mealTasteForm: "adjective"
     consumable: true
@@ -12503,7 +12604,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 35
-    mealHunger: 51
+    mealHunger: 70
+    sellable: true
+    sellablePrice: 4
     mealTaste: "rich"
     mealTasteForm: "adjective"
     consumable: true
@@ -12530,7 +12633,9 @@ tags:
     customizable: true
     custom: { cost: 0, describable: false }
     mealMood: 50
-    mealHunger: 54
+    mealHunger: 72
+    sellable: true
+    sellablePrice: 4
     mealTaste: "toxic"
     mealTasteForm: "adjective"
     consumable: true
@@ -12568,6 +12673,8 @@ tags:
     custom: { cost: 0, describable: false }
     mealMood: 18
     mealHunger: 12
+    sellable: true
+    sellablePrice: 1
     mealTaste: "sweet"
     mealTasteForm: "adjective"
     consumable: true
