@@ -33,19 +33,17 @@ test("Stealth is +2, so only a 1 is seen", () => {
   assert.deepEqual([1, 2, 3].map((d) => at(d, "stealth")), [false, true, true]);
 });
 
-test("Tipsy is -1 and the other two rungs are -2", () => {
+test("Tipsy is -1 and Wasted is -2", () => {
   assert.equal(stealModifierTotal(held("tipsy")), -1);
   assert.equal(stealModifierTotal(held("wasted")), -2);
-  assert.equal(stealModifierTotal(held("blind-drunk")), -2);
 });
 
-// The reason this is a test and not a comment: Tipsy escalates into Wasted so
-// those two never co-occur, but Blind Drunk comes off a bad drink and nothing
-// stops it landing on somebody already Wasted. Summed that pair is -4 and a 6
-// that still fails, which is a worse punishment than either tag claims.
+// The reason this is a test and not a comment: the escalation chain is what
+// keeps the rungs apart, and a GM granting both by hand must not sum them to
+// -3 and a 6 that still fails — worse than either tag claims.
 test("the drink rungs never sum — the worst one counts", () => {
-  assert.deepEqual(mods("wasted", "blind-drunk"), [{ label: "Blind Drunk", value: -2 }]);
-  assert.equal(stealModifierTotal(held("tipsy", "wasted", "blind-drunk")), -2);
+  assert.deepEqual(mods("tipsy", "wasted"), [{ label: "Wasted", value: -2 }]);
+  assert.equal(stealModifierTotal(held("tipsy", "wasted")), -2);
 });
 
 test("hands and drink DO stack with each other", () => {
@@ -58,7 +56,7 @@ test("hands and drink DO stack with each other", () => {
 test("the table is closed — nothing else moves the die", () => {
   assert.deepEqual(
     STEAL_MODIFIERS.map(([slug]) => slug).sort(),
-    ["blind-drunk", "clumsy", "stealth", "tipsy", "wasted"],
+    ["clumsy", "stealth", "tipsy", "wasted"],
   );
   // Subtle reads like it belongs and deliberately does not (it is the whisper
   // tag now). Hunger and the mood bands are gambitModifiers()' business and

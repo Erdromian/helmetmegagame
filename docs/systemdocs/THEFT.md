@@ -59,7 +59,6 @@ and it is **closed**:
 | Clumsy | −2 |
 | Tipsy | −1 |
 | Wasted | −2 |
-| Blind Drunk | −2 |
 
 So an average person is seen a third of the time, somebody Clumsy needs a 6,
 and somebody with Stealth is only caught on a 1.
@@ -73,11 +72,10 @@ nothing they could do about it.
 `conflictsWith` each other — so nothing has to arbitrate between those two.
 
 **The drink rungs never sum: the worst one counts.** Tipsy escalates into
-Wasted so that pair never co-occurs, but **Blind Drunk is a separate tag off a
-bad drink and nothing stops it landing on somebody already Wasted**. Summed,
-that pair is a silent −4 and a 6 that still fails, which is a worse punishment
-than either tag claims to be. Same shape as a mood band, and for the same
-reason. `db/test/steal.test.js` pins it.
+Wasted, so the pair never co-occurs on its own — but a GM granting both by hand
+must not produce a silent −3 and a 6 that still fails, which is a worse
+punishment than either tag claims to be. Same shape as a mood band, and for the
+same reason. `db/test/steal.test.js` pins it.
 
 **Subtle is not in the table, and its absence is the interesting one.** It used
 to read *"the room never notices you doing it"*, which is this verb exactly. It

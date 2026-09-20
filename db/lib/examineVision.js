@@ -5,10 +5,8 @@
 // from the other.
 const NEARSIGHTED_SLUG = "nearsighted";
 const SPECTACLES_SLUG = "spectacles";
-// Blind stops looking at anything, with no corrective and no schedule. Blind Drunk is the same block
-// for two turns, bought a mouthful at a time (docs/systemdocs/FACTORY.md).
+// Blind stops looking at anything, with no corrective and no schedule.
 const BLIND_SLUG = "blind";
-const BLIND_DRUNK_SLUG = "blind-drunk";
 
 // Accepts CharacterTag[] ({ tag: { slug } }) or a bare Tag[]. Same as inspectVision.js#slugSet.
 function slugSet(characterTags) {
@@ -37,10 +35,6 @@ function examineBlock(characterTags = []) {
   // First — nothing below can rescue it.
   if (slugs.has(BLIND_SLUG)) {
     return "You can't see.";
-  }
-
-  if (slugs.has(BLIND_DRUNK_SLUG)) {
-    return "The room will not hold still. You can barely see.";
   }
 
   if (slugs.has(NEARSIGHTED_SLUG) && !equippedSet(characterTags).has(SPECTACLES_SLUG)) {

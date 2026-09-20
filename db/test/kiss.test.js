@@ -67,7 +67,7 @@ test("the mouth injuries refuse without touching ACT", () => {
 });
 
 test("the states with nobody home refuse", () => {
-  for (const slug of ["asleep", "blind-drunk", "hallucinating", "madness", "sepsis", "pain-shock", "stupid"]) {
+  for (const slug of ["asleep", "hallucinating", "madness", "sepsis", "pain-shock", "stupid"]) {
     assert.ok(kissAuthority(person(), other({ tags: [tag(slug)] })), `${slug} should refuse`);
   }
 });

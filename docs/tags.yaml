@@ -3195,7 +3195,7 @@ tags:
     # cancelled out to exactly nothing — a tag that read +1 and did +0.
     # A flat bonus on top of whatever the drink costs, so the rungs stay
     # ordered: tipsy lands at +1.4, wasted at +0.7.
-    fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted, blind-drunk] } }
+    fighting: { tree: both, tiers: 1.9, when: { holdsAny: [tipsy, wasted] } }
     pointCost: 5
     requiredTag: alcoholic
     visible: false
@@ -17955,22 +17955,6 @@ tags:
     cooked:
       taste: "booze"
       mood: 10
-
-  # Refuses a push on (MAP.md §3, EXERT_REFUSAL_SLUGS in db/lib/locationTravel.js).
-  # GM-grant only now — no drink in the catalog lands it. Moonshine used to,
-  # and stopped: it walks the ordinary tipsy -> wasted ladder instead.
-  blind-drunk:
-    catalog: gm
-    name: Blind Drunk
-    category: status
-    group: status-debuffs
-    description: "You can barely see. That drink is bad!"
-    fighting: { tree: both, tiers: -3 }
-    pointCost: 0
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 2
 
   # Permanent, stackable, and the only tag in the catalog a turn pass counts.
   # At 5 the whole stack is swept and {tag:blind} lands in its place —

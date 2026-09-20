@@ -220,7 +220,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   ];
 
   // Whether their eyes are good enough to look anybody over — Nearsighted
-  // without spectacles on, Blind or Blind Drunk. Resolved server-side
+  // without spectacles on, or Blind. Resolved server-side
   // so the sentence a button shows and the one examineActions.js refuses with
   // are the same sentence.
   const examineBlocked = examineBlock(character.tags, {

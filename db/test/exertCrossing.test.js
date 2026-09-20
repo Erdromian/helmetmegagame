@@ -7,7 +7,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { exertOutcome, exertedThisTurn, exertRefusal, exertResultLine, exertEdgeFor, exertEdgeSentence } = require("../lib/locationTravel");
 
-const NAMES = { "sprained-ankle": "Sprained Ankle", arelitz: "Arelitz", overburdened: "Overburdened", tired: "Tired", exhausted: "Exhausted", "punctured-lung": "Punctured Lung", "blind-drunk": "Blind Drunk" };
+const NAMES = { "sprained-ankle": "Sprained Ankle", arelitz: "Arelitz", overburdened: "Overburdened", tired: "Tired", exhausted: "Exhausted", "punctured-lung": "Punctured Lung" };
 const withTags = (...slugs) => ({ tags: slugs.map((slug) => ({ equipped: true, tag: { slug, name: NAMES[slug] ?? slug } })) });
 const turn = { id: "t1", number: 4 };
 const config = { freeZoneMovesPerTurn: 1 };
@@ -44,7 +44,6 @@ test("exertRefusal: the reasons, in the order a player can read them off their s
   assert.match(exertRefusal({ ...withTags("sprained-ankle"), ...spent }, config, turn, { left: 0, acted: true }), /Sprained Ankle/);
   // Too hurt to march, though none of these restrict ACT.
   assert.match(exertRefusal({ ...withTags("punctured-lung"), ...spent }, config, turn, { left: 0, acted: true }), /Punctured Lung prevents you/);
-  assert.match(exertRefusal({ ...withTags("blind-drunk"), ...spent }, config, turn, { left: 0, acted: true }), /Blind Drunk/);
   // Top of the ladder: nothing left to lose but the ankle, so no free gamble.
   assert.match(exertRefusal({ ...withTags("exhausted"), ...spent }, config, turn, { left: 0, acted: true }), /Exhausted/);
   assert.match(exertRefusal({ ...withTags("overburdened"), ...spent }, config, turn, { left: 0, acted: true }), /overburdened, drop some weight/);

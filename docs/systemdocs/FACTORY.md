@@ -310,9 +310,10 @@ work, and the Godflesh is what makes it cost anything.
 Drinking it grants Tipsy and one **Damaged Vision**, which is permanent and
 stacks. Tipsy walks the ordinary drink ladder from there — keep drinking and
 you get Wasted, then Unconscious (`BREWING.md` §5a), the same as any other
-booze. **It no longer lands Blind Drunk**: that tag is still in the catalog as
-a GM grant, but no drink in the game hands it out. The eyes are what makes
-Moonshine different, and one special case is enough.
+booze. **Blind Drunk is gone from the catalog entirely** — it was a second
+special case doing the same job the eyes already do, and Moonshine was the only
+thing that ever granted it. The Damaged Vision stack is what makes Moonshine
+different now.
 
 **At five, `db/lib/visionDecayPass.js` takes the whole stack and grants Blind.**
 That tag already existed — −8, tier-7 cure, `removesInto: [night-blind]` — and
@@ -331,8 +332,7 @@ clock and knows nothing about quantities.
 
 The last two are the interesting ones. Literacy and the eyes are asked as **one
 question** so no caller can check half of it — and `readBlock` is the fuller
-form, since it also catches Blind Drunk itself (a GM may still grant it) and
-Nearsighted with the spectacles in a sack.
+form, since it also catches Nearsighted with the spectacles in a sack.
 
 A blind recipient gets exactly what an illiterate one gets: the real letter, on
 their sheet, as an object they can carry to somebody who reads

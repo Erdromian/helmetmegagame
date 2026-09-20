@@ -373,15 +373,14 @@ const drunkenMaster = {
     fighting: normalizeFighting({
       tree: "both",
       tiers: 1.9,
-      when: { holdsAny: ["tipsy", "wasted", "blind-drunk"] },
+      when: { holdsAny: ["tipsy", "wasted"] },
     }),
   },
 };
 const drink = (slug, tiers) => row(slug, normalizeFighting({ tree: "both", tiers }));
 
-// Measured off a TRAINED character rather than an untrained one, because Blind
-// Drunk's -3 would take a peasant through the floor at 0 and the clamp, not the
-// tag, would be what the numbers showed.
+// Measured off a TRAINED character rather than an untrained one, so the clamp
+// at 0 is never what the numbers show instead of the tag.
 const trained = row("melee-expert", { tree: "melee", rung: 4 });
 const drySkilled = () => melee([trained]).score;
 
@@ -389,19 +388,16 @@ test("a drink costs everyone else something", () => {
   const sober = drySkilled();
   assert.equal(melee([trained, drink("tipsy", -0.5)]).score - sober, -5);
   assert.equal(melee([trained, drink("wasted", -1.2)]).score - sober, -12);
-  assert.equal(melee([trained, drink("blind-drunk", -3)]).score - sober, -30);
 });
 
 test("a Drunken Master is up on every rung, and sober is still sober", () => {
   const sober = drySkilled();
   // The bonus is flat; the OUTCOME is not, because the rungs cost different
   // amounts. Tipsy is the good place to be and Wasted is still a step down
-  // from it — just a step down from something above sober. Blind Drunk stays
-  // a real loss: the bonus softens it, drinking skill does not restore sight.
+  // from it — just a step down from something above sober.
   for (const [slug, tiers, net] of [
     ["tipsy", -0.5, 14],
     ["wasted", -1.2, 7],
-    ["blind-drunk", -3, -11],
   ]) {
     const score = melee([trained, drink(slug, tiers), drunkenMaster]).score;
     assert.equal(score - sober, net, `${slug}`);

@@ -135,7 +135,6 @@ const CONSUME_RELIEF = Object.freeze({
   tipsy: DRINK_RELIEF,
   wasted: DRINK_RELIEF,
   unconscious: DRINK_RELIEF,
-  "blind-drunk": DRINK_RELIEF,
   high: DRINK_RELIEF,
   euphoric: DRINK_RELIEF,
   // A hot drink. Keyed on the status rather than the bean, same as the drinks.
