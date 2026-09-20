@@ -262,7 +262,9 @@ turn makes **40 ¢ a turn** solo, with or without a chainsaw. The chainsaw
 changes who can be fed, not the wage: it leaves about one spare lump a turn, so
 one chainsawer supplies two refiners. What the wage costs is the die. One cut in
 six is a 1, which is a wound with gloves on and a lost hand or arm without
-(§3), and the Factory roles all start with gloves.
+(§3), and the Factory roles all start with gloves. Neither verb climbs the
+Tired and Exhausted ladder, unlike Mine and Farm (`db/lib/fatigue.js` has no
+caller in either), so nothing rations the 40 ¢ but the Move.
 
 **Farming and mining pay less, and neither pays in ⬢ the way this section used
 to say.** Farming pays no ⬢ at all (`SOILERY.md` §1). A Farm action sows up to

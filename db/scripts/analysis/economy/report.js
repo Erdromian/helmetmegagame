@@ -3,6 +3,7 @@
 //
 //   npm run economy:report                    # -> economy-report/index.html
 //   npm run economy:report -- --players 150   # a bigger town
+//   npm run economy:report -- --turns 40      # a longer game (fatigue over N turns)
 //   npm run economy:report -- --out /tmp/x    # somewhere else
 //
 // Read-only: touches no database and posts nothing. The output directory is
@@ -22,8 +23,9 @@ const flag = (name, fallback) => {
 const REPO = path.resolve(__dirname, "../../../..");
 const outDir = path.resolve(flag("out", path.join(REPO, "economy-report")));
 const players = Number(flag("players", 100));
+const gameTurns = Number(flag("turns", 30));
 
-const model = buildModel({ players });
+const model = buildModel({ players, gameTurns });
 const { params } = model;
 
 let commit = "unknown";
@@ -160,6 +162,11 @@ const legend = () =>
 // ---------------------------------------------------------------------------
 const money = (a) => a.netPerTurnSell;
 const ranked = model.activities.filter((a) => money(a) != null).sort((a, b) => money(b) - money(a));
+const allRanked = [...model.activities].sort((a, b) => (money(b) ?? -1e9) - (money(a) ?? -1e9) || (b.perAction ?? -1e9) - (a.perAction ?? -1e9));
+
+const RANK = model.sources.ranks;
+const rankChip = (r) =>
+  r === 0 ? `<span class="rk r0">none</span>` : `<span class="rk r${r}" title="${esc(RANK.find((x) => x.id === r)?.meaning)}">${esc(RANK.find((x) => x.id === r)?.label)}</span>`;
 const wage = (key) => model.wages.find((w) => w.key === key)?.value;
 const floorW = wage("Unskilled miner (Caves)");
 const proW = wage("Prospector (Caves)");
@@ -173,6 +180,9 @@ const headlines = [
   `Money a turn is worth: an unskilled miner earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer selling potatoes <b>${fmt(farmW)} ¢</b>, a median smith <b>${fmt(smithW)} ¢</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. The Factory pays about ${fmt(factW / proW, 0)} times what the skilled miner does.`,
   `Mining is the only source of ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves) yet a median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
   `Food demand is small and steady: ${players} players burn ${players * params.hungerDecay} hunger a turn. One Farm action makes ~${fmt(potatoFood.personTurnsPerFarm, 0)} person-turns of food, so about <b>${fmt(potatoFood.farmersNeeded, 0)} farmers</b> feed the whole town.`,
+  `Fatigue: mining can be pressed ${fmt(model.fatigue.byId.mine.steady * 100, 0)}% of turns and farming ${fmt(model.fatigue.byId.farm.steady * 100, 0)}%. Refining, cutting Godflesh, crafting and butchering can be pressed every turn.`,
+  `A Prospector's press in the Caves is worth ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").resourcesPerPress * params.rv.sell)} ¢ of ⬢ plus ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").dropsPerAction, 2)} ¢ of drops; in the Depths the drops are ${fmt(model.activities.find((a) => a.id === "mine:Depths:skilled").dropsPerAction, 2)} ¢.`,
+  `${model.sources.summary.special} of ${model.sources.summary.recipes} recipes need a special item. ${model.sources.summary.byHardest[4] + model.sources.summary.byHardest[5]} of them are held back by an item that is Scarce or has no known source.`,
   `${failing.length} of ${model.claims.length} figures the docs quote do not match what the catalog and code produce (see “Docs against the model”).`,
 ];
 
@@ -218,13 +228,136 @@ function sectionActivities() {
     { h: "Moves", num: true, get: (a) => fmt(a.moves, 2), sort: (a) => a.moves },
     { h: "Revenue", num: true, get: (a) => fmt(a.revenue), sort: (a) => a.revenue ?? -1 },
     { h: "Inputs", num: true, get: (a) => fmt(a.inputs), sort: (a) => a.inputs },
+    { h: "Per action ¢", num: true, get: (a) => fmt(a.perAction), sort: (a) => a.perAction ?? -1e9 },
+    { h: "Drops ¢", num: true, get: (a) => (a.dropsPerAction != null ? fmt(a.dropsPerAction, 2) : "—"), sort: (a) => a.dropsPerAction ?? -1 },
+    { h: "Presses / turn", num: true, get: (a) => (a.moves === 0 && a.netPerTurnSell == null ? "free" : fmt(a.duty, 2)), sort: (a) => a.duty ?? 0 },
     { h: "¢/turn (⬢ at sell)", num: true, get: (a) => fmt(money(a)), sort: (a) => money(a) ?? -1e9 },
     { h: "¢/turn (⬢ at buy)", num: true, get: (a) => fmt(a.netPerTurnBuy), sort: (a) => a.netPerTurnBuy ?? -1e9 },
     { h: "Notes", get: (a) => a.flags.join("; ") },
   ];
   return `<section><h2>The full table</h2>
-<p class="lede">${model.activities.length} activities. Click a heading to sort. “Inputs” prices ⬢ at the sell figure and ingredients at their sale price (or purchase price if unsellable).</p>
-${table({ cols, rows: ranked })}</section>`;
+<p class="lede">${model.activities.length} activities. Click a heading to sort. “Per action” is one press; “Presses / turn” is how often the fatigue rules let you press it, and “free” marks actions that cost no Move (Butcher, the Caving Die), which are limited by what you have to work on. “Drops” is the extra loot per press, valued at what the station pays. “Inputs” prices ⬢ at the sell figure and ingredients at their sale price (or purchase price if unsellable).</p>
+${table({ cols, rows: allRanked })}</section>`;
+}
+
+
+function sectionFatigue() {
+  const f = model.fatigue;
+  const cols = [
+    { h: "Verb", get: (r) => r.label },
+    { h: "Tires you?", get: (r) => (r.tires ? "yes" : "no"), style: (r) => `color:var(--${r.tires ? "bad" : "good"});font-weight:600` },
+    { h: "Pressed", num: true, get: (r) => (r.steady >= 0.999 ? "every turn" : `1 in ${fmt(1 / r.steady, 1)}`), sort: (r) => r.steady },
+    { h: `Over ${f.gameTurns} turns`, num: true, get: (r) => `${fmt(r.overGame * f.gameTurns, 0)} of ${f.gameTurns}`, sort: (r) => r.overGame },
+    { h: "First 14 turns", get: (r) => r.pattern, style: () => "font-family:var(--mono);letter-spacing:1px" },
+    { h: "What the code does", get: (r) => r.mechanism },
+    { h: "Read from", get: (r) => r.source },
+  ];
+  return `<section><h2>Which work tires you</h2>
+<p class="lede">The Tired and Exhausted tags each last ${f.durations.tired} turn, and Exhausted turns into Tired when it lapses. This table is a simulation, not a stated number: each turn it asks the game's own gate whether the verb is refused, applies the game's own grant, then runs the turn close in the game's order (staged push, then the tag expiry sweep). █ is a turn you can work, · is a turn you cannot.</p>
+${table({ cols, rows: f.rows })}
+<p class="lede">Only <b>Mine</b> and <b>Farm</b> climb the ladder from a work action. Refine, Harvest Godflesh, crafting, Butcher and the Caving Die never read it: the scan below found no reference in their files, so they are limited by the Move alone. The Exhausted tag's own text says “you can't Labor again”, which is a leftover from Laboring and no longer true for those verbs.</p>
+<p class="lede">Also climbing the ladder, and not modelled because they are chance: a bad night (<code>dawnAfflictionPass.js</code>) and pushing on through a travel gate (<code>locationTravel.js</code>). Every file in the code that reads or writes the ladder:</p>
+<p><code>${f.readers.map(esc).join("</code> · <code>")}</code></p></section>`;
+}
+
+function sectionDrops() {
+  const P = model.producerDrops;
+  const union = (a, b) => {
+    const map = new Map();
+    for (const r of a) map.set(r.slug, { name: r.name, unit: r.unit, priced: r.priced, a: r });
+    for (const r of b) map.set(r.slug, { ...(map.get(r.slug) ?? { name: r.name, unit: r.unit, priced: r.priced }), b: r });
+    return [...map.values()].sort((x, y) => (y.b?.ev ?? 0) + (y.a?.ev ?? 0) - ((x.b?.ev ?? 0) + (x.a?.ev ?? 0)) || (y.b?.p ?? 0) + (y.a?.p ?? 0) - ((x.b?.p ?? 0) + (x.a?.p ?? 0)));
+  };
+  const cell = (r, key) => (r?.[key] ? `${fmt(r[key].p * 100, r[key].p < 0.01 ? 2 : 1)}%` : "—");
+  const dropCols = (labelA, labelB) => [
+    { h: "Item", get: (u) => u.name },
+    { h: `${labelA} chance`, num: true, get: (u) => cell(u, "a"), sort: (u) => u.a?.p ?? 0 },
+    { h: `${labelB} chance`, num: true, get: (u) => cell(u, "b"), sort: (u) => u.b?.p ?? 0 },
+    { h: "Sells ¢", num: true, get: (u) => (u.priced ? u.unit : "no price"), sort: (u) => u.unit },
+    { h: `${labelA} ¢`, num: true, get: (u) => fmt(u.a?.ev ?? 0, 2), sort: (u) => u.a?.ev ?? 0 },
+    { h: `${labelB} ¢`, num: true, get: (u) => fmt(u.b?.ev ?? 0, 2), sort: (u) => u.b?.ev ?? 0 },
+  ];
+  const total = (tbl) => tbl.reduce((sum, r) => sum + r.ev, 0);
+  const mineRows = model.activities.filter((a) => a.kind === "mine" && a.skillPoints > 0);
+  const bars = [];
+  for (const a of mineRows) {
+    bars.push({ label: `${a.name.replace("Mine — ", "")}: ⬢`, value: a.resourcesPerPress * params.rv.sell, color: "var(--c0)" });
+    bars.push({ label: `${a.name.replace("Mine — ", "")}: drops`, value: a.dropsPerAction, color: "var(--c1)" });
+  }
+  const bcols = [
+    { h: "What you butcher", get: (r) => r.name },
+    { h: "You get", get: (r) => r.outputs.map((o) => `${o.quantity}× ${o.name}${o.priced ? ` (${o.unit} ¢)` : " (unsellable)"}`).join(", ") },
+    { h: "Sells ¢", num: true, get: (r) => fmt(r.revenue), sort: (r) => r.revenue },
+    { h: "You pay ¢", num: true, get: (r) => fmt(r.inputs), sort: (r) => r.inputs },
+    { h: "Net ¢", num: true, get: (r) => fmt(r.revenue - r.inputs), sort: (r) => r.revenue - r.inputs },
+  ];
+  return `<section><h2>What a producer's action also drops</h2>
+<p class="lede">The pay in the tables above already includes these drops. They are sampled from the game's own loot functions (300,000 draws under a fixed seed), and valued at what the station pays. An item the station will not buy counts as 0, so every total here is a floor: ores sell for 1 ¢ raw but are worth far more to a smith.</p>
+<h3>Mining with Prospecting: per press</h3>
+<p class="lede">A Prospecting press pays ⬢ and rolls this table once. Without the skill you get less ⬢ and no roll. The Caves and Depths are the only places with a column.</p>
+${barChart({ rows: bars, unit: " ¢", labelW: 250, fmtVal: (v) => fmt(v, 1) })}
+${table({ cols: dropCols("Caves", "Depths"), rows: union(P.prospecting.caves, P.prospecting.depths).slice(0, 18) })}
+<p class="lede">Total drops per press: Caves ${fmt(total(P.prospecting.caves), 2)} ¢, Depths ${fmt(total(P.prospecting.depths), 2)} ¢.</p>
+<h3>The Caving Die: per arrival</h3>
+<p class="lede">Walking into a cave Location rolls a die: a 6 finds something (1 in 6), a 1 is trouble. It costs no Move and needs no skill.</p>
+${table({ cols: dropCols("Caves", "Depths"), rows: union(P.caving.caves, P.caving.depths).slice(0, 12) })}
+<p class="lede">Expected loot per arrival: Caves ${fmt(total(P.caving.caves), 2)} ¢, Depths ${fmt(total(P.caving.depths), 2)} ¢.</p>
+<h3>Butchering</h3>
+<p class="lede">Butcher costs no Move and consumes the body. The catch is the input: a corpse, or a live animal you had to buy or raise.</p>
+${table({ cols: bcols, rows: P.butcher })}
+</section>`;
+}
+
+function sectionSpecial() {
+  const S = model.sources;
+  const rankBars = [0, 1, 2, 3, 4, 5].map((k) => ({
+    label: k === 0 ? "No special item" : RANK.find((x) => x.id === k).label,
+    value: S.summary.byHardest[k],
+    color: `var(--r${k})`,
+  }));
+  const topItems = S.items.slice(0, 16).map((i) => ({ label: `${i.name}`, value: i.recipeCount, color: `var(--r${i.rank})` }));
+  const legendHtml = RANK.map((r) => `<li>${rankChip(r.id)} ${esc(r.meaning)}</li>`).join("");
+
+  const itemCols = [
+    { h: "Item", get: (i) => i.name },
+    { h: "Easiest route", get: (i) => rankChip(i.rank), raw: true, sort: (i) => i.rank },
+    { h: "Recipes", num: true, get: (i) => i.recipeCount },
+    { h: "How you get it", get: (i) => i.best },
+    { h: "Other ways", get: (i) => i.routes.slice(1, 4).join(" · ") },
+    { h: "Buy ¢", num: true, get: (i) => i.buy ?? "—", sort: (i) => i.buy ?? -1 },
+    { h: "Sell ¢", num: true, get: (i) => i.sell ?? "—", sort: (i) => i.sell ?? -1 },
+    { h: "Needed by", get: (i) => `${i.recipes.slice(0, 4).join(", ")}${i.recipes.length > 4 ? ", …" : ""}` },
+  ];
+  const recCols = [
+    { h: "Recipe", get: (r) => r.name },
+    { h: "Skill", get: (r) => r.skill },
+    { h: "Moves", num: true, get: (r) => fmt(r.moves, 2), sort: (r) => r.moves },
+    { h: "⬢", num: true, get: (r) => r.resourceCost },
+    {
+      h: "Special items",
+      raw: true,
+      get: (r) =>
+        r.items.length || r.workshop
+          ? [...r.items.map((i) => `${esc(i.label)} ${rankChip(i.rank)}`), ...(r.workshop ? [`Workshop Equipment ${rankChip(S.items.find((x) => x.slug === "workshop-equipment")?.rank ?? 5)}`] : [])].join("<br>")
+          : "—",
+      sort: (r) => r.items.length + (r.workshop ? 1 : 0),
+    },
+    { h: "Hardest gate", raw: true, get: (r) => rankChip(r.hardest), sort: (r) => r.hardest },
+    { h: "Hardest item", get: (r) => r.hardestItem ?? "—" },
+    { h: "Notes", get: (r) => [r.secretRecipe ? "secret recipe" : "", r.hiddenUntilHeld ? "hidden until you hold an ingredient" : ""].filter(Boolean).join("; ") },
+  ];
+  return `<section><h2>What each recipe needs, and where it comes from</h2>
+<p class="lede">${S.summary.special} of ${S.summary.recipes} craftable recipes need something beyond ⬢ and a skill: a spent ingredient, a kept one (a tool or a corpse), or Workshop Equipment nearby. Each item is ranked by its easiest route, and a recipe is as hard as its hardest item.</p>
+<ul class="ranks">${legendHtml}</ul>
+<h3>Recipes by hardest gate</h3>
+${barChart({ rows: rankBars, unit: " recipes", fmtVal: (v) => fmt(v, 0), labelW: 150 })}
+<h3>The items most recipes depend on</h3>
+${barChart({ rows: topItems, unit: " recipes", fmtVal: (v) => fmt(v, 0), labelW: 190 })}
+<h3>Where each item comes from</h3>
+<p class="lede">${S.items.length} distinct special items. Routes are read from the Depot catalog, the loot functions, role starting kits, room stashes, butchering rules, the farm and Factory, and any tag that opens into another. “Named in code” means the data has no route but the source mentions the item.</p>
+${table({ cols: itemCols, rows: S.items })}
+<h3>Every recipe</h3>
+${table({ cols: recCols, rows: [...S.recipes].sort((a, b) => b.hardest - a.hardest || a.name.localeCompare(b.name)) })}</section>`;
 }
 
 function sectionBalance() {
@@ -347,9 +480,9 @@ function sectionAssumptions() {
 // ---------------------------------------------------------------------------
 const css = `
 :root{--bg:#f6f4ef;--fg:#1d1b18;--mute:#6b665c;--card:#fffdf8;--line:#d9d3c6;--accent:#b0342c;--good:#2c7a3f;--bad:#b0342c;
---c0:#1f6f8b;--c1:#c98a1b;--c2:#7b4b94;--c3:#4a8a3f;--c4:#b0342c;--c5:#2a2a2a;--c6:#0f8b8d;--c7:#d16ba5;--c8:#8a6d3b;--c9:#5b6cc0}
+--r0:#8a857a;--r1:#2c7a3f;--r2:#1f6f8b;--r3:#c98a1b;--r4:#b0342c;--r5:#5a2a2a;--mono:ui-monospace,Menlo,monospace;--c0:#1f6f8b;--c1:#c98a1b;--c2:#7b4b94;--c3:#4a8a3f;--c4:#b0342c;--c5:#2a2a2a;--c6:#0f8b8d;--c7:#d16ba5;--c8:#8a6d3b;--c9:#5b6cc0}
 @media (prefers-color-scheme:dark){:root{--bg:#161513;--fg:#ece7dc;--mute:#a49e91;--card:#1e1c19;--line:#3a3630;--accent:#e0645a;--good:#6cc27f;--bad:#e0645a;
---c0:#5fb4d0;--c1:#e6b04a;--c2:#b58fce;--c3:#84c477;--c4:#e0645a;--c5:#cfcabe;--c6:#52c0c2;--c7:#e59bc4;--c8:#c9a96b;--c9:#8e9ce0}}
+--r0:#8a857a;--r1:#6cc27f;--r2:#5fb4d0;--r3:#e6b04a;--r4:#e0645a;--r5:#c98a8a;--c0:#5fb4d0;--c1:#e6b04a;--c2:#b58fce;--c3:#84c477;--c4:#e0645a;--c5:#cfcabe;--c6:#52c0c2;--c7:#e59bc4;--c8:#c9a96b;--c9:#8e9ce0}}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
 main{max-width:1000px;margin:0 auto;padding:24px 16px 80px}
 h1{font-size:26px;margin:0 0 4px}h2{font-size:20px;margin:0 0 6px}h3{font-size:16px;margin:22px 0 6px}
@@ -369,6 +502,9 @@ th.sort-asc::after{content:" ▲"}th.sort-desc::after{content:" ▼"}
 .sortable th{cursor:pointer}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 code{font-size:12px}
+.rk{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:600;color:var(--bg);background:var(--r0);white-space:nowrap}
+.rk.r1{background:var(--r1)}.rk.r2{background:var(--r2)}.rk.r3{background:var(--r3)}.rk.r4{background:var(--r4)}.rk.r5{background:var(--r5)}
+.ranks{list-style:none;padding:0;margin:0 0 8px;font-size:13px}.ranks li{margin:3px 0}
 `;
 const js = `
 document.querySelectorAll('table.sortable').forEach(t=>{
@@ -388,7 +524,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionSpread()}${sectionBalance()}${sectionActivities()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -404,6 +540,18 @@ const md = [
   "| Occupation | ¢/turn |",
   "|---|---:|",
   ...model.wages.map((w) => `| ${w.key} | ${fmt(w.value)} |`),
+  "",
+  "## Which work tires you",
+  "",
+  "| Verb | Tires you? | Pressed |",
+  "|---|---|---|",
+  ...model.fatigue.rows.map((r) => `| ${r.label} | ${r.tires ? "yes" : "no"} | ${r.steady >= 0.999 ? "every turn" : `1 in ${fmt(1 / r.steady, 1)}`} |`),
+  "",
+  "## Recipes by hardest gate",
+  "",
+  "| Gate | Recipes |",
+  "|---|---:|",
+  ...[0, 1, 2, 3, 4, 5].map((k) => `| ${k === 0 ? "No special item" : model.sources.ranks.find((x) => x.id === k).label} | ${model.sources.summary.byHardest[k]} |`),
   "",
   "## Docs against the model",
   "",
@@ -423,7 +571,27 @@ const csv = [
   ),
 ].join("\n");
 
+const S = model.sources;
+const recipesCsv = [
+  ["slug", "name", "skill", "moves", "resourceCost", "specialItems", "workshop", "hardestRank", "hardestLabel", "hardestItem", "secretRecipe", "hiddenUntilHeld"].join(","),
+  ...S.recipes.map((r) =>
+    [
+      r.slug, r.name, r.skill, r.moves, r.resourceCost,
+      r.items.map((i) => `${i.label} [${i.rank}]`).join("; "),
+      r.workshop, r.hardest, r.hardest === 0 ? "none" : S.ranks.find((x) => x.id === r.hardest).label, r.hardestItem ?? "", r.secretRecipe, r.hiddenUntilHeld,
+    ].map(csvCell).join(","),
+  ),
+].join("\n");
+const itemsCsv = [
+  ["slug", "name", "rank", "rankLabel", "recipeCount", "bestRoute", "allRoutes", "buy", "sell", "recipes"].join(","),
+  ...S.items.map((i) =>
+    [i.slug, i.name, i.rank, S.ranks.find((x) => x.id === i.rank).label, i.recipeCount, i.best, i.routes.join(" | "), i.buy, i.sell, i.recipes.join("; ")].map(csvCell).join(","),
+  ),
+].join("\n");
+
 fs.mkdirSync(outDir, { recursive: true });
+fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
+fs.writeFileSync(path.join(outDir, "item-sources.csv"), itemsCsv);
 fs.writeFileSync(path.join(outDir, "index.html"), html);
 fs.writeFileSync(path.join(outDir, "report.md"), md);
 fs.writeFileSync(path.join(outDir, "activities.csv"), csv);
@@ -431,3 +599,4 @@ fs.writeFileSync(path.join(outDir, "model.json"), JSON.stringify(model, null, 2)
 console.log(`economy report -> ${path.join(outDir, "index.html")}`);
 console.log(`  ${model.activities.length} activities, ${model.priceLadder.length} priced wares, ${model.foods.length} foods`);
 console.log(`  ${failing.length} of ${model.claims.length} doc figures differ from the model`);
+console.log(`  ${S.summary.special} of ${S.summary.recipes} recipes need a special item; ${S.items.length} distinct items sourced`);

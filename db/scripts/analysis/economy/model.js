@@ -20,7 +20,10 @@ const soilery = require("../../../lib/soilery");
 const hunger = require("../../../lib/hunger");
 const refinery = require("../../../lib/refinery");
 const godflesh = require("../../../lib/godflesh");
-const cavingLoot = require("../../../lib/cavingLoot");
+const mutilate = require("../../../lib/mutilate");
+const corpses = require("../../../lib/corpses");
+const { buildSources, RULES: SOURCE_RULES } = require("./sources");
+const { fatigueModel } = require("./fatigue");
 const { turretTable } = require("../../../lib/depotTurret");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -34,11 +37,6 @@ const ASSUMPTIONS = [
     key: "MOVES_PER_TURN",
     value: 1,
     why: "A turn gives one Move; a recipe's turnsCost is a fraction of it (TAGS.md, Move economy).",
-  },
-  {
-    key: "MINING_DUTY",
-    value: 0.5,
-    why: "A day's mining steps Tired -> Exhausted and Exhausted refuses the next day, so flat-out mining works every other turn (MINING.md §5). Derivable from db/lib/fatigue.js; kept as a stated number.",
   },
   {
     key: "CRAFT_DUTY",
@@ -100,29 +98,22 @@ function locationsWithAttribute(attr) {
   return hits;
 }
 
-function withSeededRandom(seed, fn) {
-  const real = Math.random;
-  let a = seed >>> 0;
-  Math.random = () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-  try {
-    return fn();
-  } finally {
-    Math.random = real;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // The model
 // ---------------------------------------------------------------------------
-function buildModel({ players = 100 } = {}) {
+// The nine pieces an untouched human body gives up to Butcher (mutilate.js).
+function corpseOrgans() {
+  return mutilate.harvestableOrgans([]).map((o) => ({ slug: o.itemSlug, quantity: o.quantity }));
+}
+
+function buildModel({ players = 100, gameTurns = 30 } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
+  const sources = buildSources({ list, bySlug, players });
+  // How often each day-verb can be pressed, played out with the game's own gates.
+  const fatigue = fatigueModel({ bySlug, gameTurns });
+  const mineDuty = fatigue.byId.mine.steady;
+  const farmDuty = fatigue.byId.farm.steady;
 
   const resources = get("resources");
   const rv = { sell: resources.sellablePrice ?? 1, buy: resources.depotPrice ?? 2 };
@@ -196,6 +187,7 @@ function buildModel({ players = 100 } = {}) {
   const activities = [];
   const push = (a) => {
     a.netPerTurnSell = a.netPerTurnSell ?? null;
+    if (a.perAction === undefined) a.perAction = a.revenue != null ? a.revenue - (a.inputs ?? 0) : null;
     activities.push(a);
   };
 
@@ -255,21 +247,35 @@ function buildModel({ players = 100 } = {}) {
   }
 
   // --- mining --------------------------------------------------------------
-  // Loot table: draw the REAL function under a seeded PRNG rather than
-  // re-deriving its weights, so a retuned table moves the number.
-  const lootEv = (zoneKey) =>
-    withSeededRandom(20260920, () => {
-      const N = 200000;
-      let sum = 0;
-      let hits = 0;
-      for (let i = 0; i < N; i++) {
-        const d = cavingLoot.drawProspectingLoot(zoneKey);
-        if (!d) continue;
-        hits++;
-        sum += get(d.slug)?.sellablePrice ?? 0;
-      }
-      return { ev: sum / N, hitRate: hits / N };
-    });
+  // What a primary producer's action also drops, as tables. The chances come
+  // from sampling the game's own loot functions (sources.js), so a retuned
+  // table moves the numbers. Valued at the station's sell price; an item the
+  // station will not buy counts 0 and is marked, so the totals are a floor.
+  const sellOf = (slug) => get(slug)?.sellablePrice ?? 0;
+  const dropTable = (dist, scale = 1) =>
+    [...dist.entries()]
+      .map(([slug, p]) => ({
+        slug,
+        name: get(slug)?.name ?? slug,
+        p: p * scale,
+        unit: sellOf(slug),
+        priced: get(slug)?.sellablePrice != null,
+        ev: p * scale * sellOf(slug),
+      }))
+      .sort((x, y) => y.ev - x.ev || y.p - x.p);
+  const evOf = (tbl) => tbl.reduce((sum, row) => sum + row.ev, 0);
+  const producerDrops = {
+    prospecting: {
+      caves: dropTable(sources.drops.prospecting.caves.dist),
+      depths: dropTable(sources.drops.prospecting.depths.dist),
+    },
+    caving: {
+      caves: dropTable(sources.drops.caving.caves.dist, SOURCE_RULES.cavingFindChance),
+      depths: dropTable(sources.drops.caving.depths.dist, SOURCE_RULES.cavingFindChance),
+    },
+    butcher: [],
+  };
+  const lootEv = (zoneKey) => ({ ev: evOf(producerDrops.prospecting[zoneKey]) });
 
   const pick = get("prospectors-pick");
   const pickBonus = pick?.miningBonus?.amount ?? 0;
@@ -287,7 +293,7 @@ function buildModel({ players = 100 } = {}) {
         const meanBase = (range.min + range.max) / 2;
         const resources = meanBase * productionCoefficient * s.coeff + (withPick ? pickBonus : 0);
         const loot = skilled ? lootEv(s.zone) : { ev: 0 };
-        const flags = ["payout lands at the press", "Lifeweb failure not modelled"];
+        const flags = ["payout lands at the press", "Lifeweb failure not modelled", ...(skilled ? ["loot valued at sell price: a floor"] : [])];
         push({
           id: `mine:${s.site}:${skilled ? "skilled" : "unskilled"}${withPick ? ":pick" : ""}`,
           name: `Mine — ${s.site}, ${skilled ? "Prospecting" : "no skill"}${withPick ? " + Pick" : ""}`,
@@ -299,11 +305,14 @@ function buildModel({ players = 100 } = {}) {
           revenue: null,
           inputs: 0,
           inputsBuy: 0,
-          duty: assumptions.MINING_DUTY,
+          duty: mineDuty,
           resourcesPerPress: resources,
           lootEv: loot.ev,
-          netPerTurnSell: (resources * rv.sell + loot.ev) * assumptions.MINING_DUTY,
-          netPerTurnBuy: (resources * rv.buy + loot.ev) * assumptions.MINING_DUTY,
+          dropsPerAction: loot.ev,
+          perAction: resources * rv.sell + loot.ev,
+          baseNetPerTurn: resources * rv.sell * mineDuty,
+          netPerTurnSell: (resources * rv.sell + loot.ev) * mineDuty,
+          netPerTurnBuy: (resources * rv.buy + loot.ev) * mineDuty,
           flags,
         });
       }
@@ -311,10 +320,9 @@ function buildModel({ players = 100 } = {}) {
   }
 
   // --- farming -------------------------------------------------------------
-  const exhausted = get("exhausted");
-  const tired = get("tired");
-  const farmCycle = 1 + (exhausted?.durationTurns ?? 1) + (tired?.durationTurns ?? 1);
+  const farmCycle = Math.round(1 / farmDuty);
   params.farmCycle = farmCycle;
+  params.gameTurns = gameTurns;
   const soileryTag = get("soilery");
   const foodCrops = soilery.CROPS.filter((c) => c.crop !== "pigtails");
   const farmRows = [];
@@ -338,10 +346,10 @@ function buildModel({ players = 100 } = {}) {
       revenue,
       inputs: seedCost,
       inputsBuy: seedCost,
-      duty: 1 / farmCycle,
+      duty: farmDuty,
       harvest,
-      netPerTurnSell: ((revenue - seedCost) * 1) / farmCycle,
-      netPerTurnBuy: ((revenue - seedCost) * 1) / farmCycle,
+      netPerTurnSell: (revenue - seedCost) * farmDuty,
+      netPerTurnBuy: (revenue - seedCost) * farmDuty,
       flags,
     });
   }
@@ -403,6 +411,73 @@ function buildModel({ players = 100 } = {}) {
     ],
   });
   params.cut = { bare, saw };
+
+  // --- Butchering and the Caving Die: free actions with drops ----------------
+  // Neither spends a Move, so there is no ¢/turn. What limits them is the
+  // input: a body, a monster corpse, an arelitz, or a walk into the dark.
+  const butcherSkill = get("butcher");
+  const butcherRow = (id, name, outs, inputs, flags) => {
+    const revenue = outs.reduce((sum, o) => sum + o.quantity * sellOf(o.slug), 0);
+    producerDrops.butcher.push({
+      name,
+      outputs: outs.map((o) => ({ slug: o.slug, name: get(o.slug)?.name ?? o.slug, quantity: o.quantity, unit: sellOf(o.slug), priced: get(o.slug)?.sellablePrice != null })),
+      revenue,
+      inputs,
+    });
+    push({
+      id: `butcher:${id}`,
+      name: `Butcher — ${name}`,
+      kind: "butcher",
+      family: "butchery",
+      skill: "butcher",
+      skillPoints: butcherSkill?.pointCost ?? 0,
+      moves: 0,
+      revenue,
+      inputs,
+      inputsBuy: inputs,
+      duty: 1,
+      netPerTurnSell: null,
+      netPerTurnBuy: null,
+      flags: ["free action: no Move, no ⬢", ...flags],
+    });
+  };
+  butcherRow(
+    "human",
+    "a human corpse, all organs",
+    corpseOrgans(),
+    0,
+    ["needs a body", "Human Flesh feeds (12 hunger) but cannot be sold", "does not free the soul"],
+  );
+  const monsterYields = sources.monsterYields;
+  for (const [corpse, out] of Object.entries(monsterYields)) {
+    butcherRow(`monster:${corpse}`, `${get(corpse)?.name ?? corpse}`, [{ slug: out, quantity: 1 }], 0, ["needs a monster's corpse"]);
+  }
+  const adult = corpses.LIVESTOCK_YIELDS[sources.livestockAdultSlug];
+  const arelitzBuy = get(sources.livestockAdultSlug)?.depotPrice ?? 0;
+  butcherRow("arelitz-adult", "an adult arelitz", adult, arelitzBuy, [`priced at the ${arelitzBuy} ¢ Depot price; raised from an egg it costs feed only`]);
+  const young = corpses.LIVESTOCK_YIELDS[sources.livestockYoungSlug];
+  butcherRow("arelitz-young", "a young arelitz", young, 0, ["raised in a stable"]);
+
+  for (const [zoneKey, label] of [["caves", "Caves"], ["depths", "Depths"]]) {
+    const ev = evOf(producerDrops.caving[zoneKey]);
+    push({
+      id: `cave:${zoneKey}`,
+      name: `Caving Die — ${label} (per arrival)`,
+      kind: "cave-walk",
+      family: "caving",
+      skill: "—",
+      skillPoints: 0,
+      moves: 0,
+      revenue: ev,
+      inputs: 0,
+      inputsBuy: 0,
+      dropsPerAction: ev,
+      duty: 1,
+      netPerTurnSell: null,
+      netPerTurnBuy: null,
+      flags: ["free: walking wakes the Die", `${(SOURCE_RULES.cavingFindChance * 100).toFixed(0)}% of arrivals find, and 1 in 6 is Trouble`, "loot valued at sell price: a floor"],
+    });
+  }
 
   // --- wages: the benchmarks the price ladder is measured against ----------
   const byId = (id) => activities.find((a) => a.id === id);
@@ -511,7 +586,7 @@ function buildModel({ players = 100 } = {}) {
     .filter((t) => t.miningBonus?.amount)
     .map((t) => {
       const price = t.depotPrice ?? t.sellablePrice ?? null;
-      const perTurn = t.miningBonus.amount * rv.sell * assumptions.MINING_DUTY;
+      const perTurn = t.miningBonus.amount * rv.sell * mineDuty;
       return { slug: t.slug, name: t.name, price, bonus: t.miningBonus.amount, paybackTurns: price != null ? price / perTurn : null };
     });
 
@@ -610,6 +685,27 @@ function buildModel({ players = 100 } = {}) {
       note: "syncTags only warns on an inversion. A ware bought from the Black Market and dropped in the box pays the difference, less the sell tax.",
     },
     {
+      doc: "MINING.md §5",
+      claim: "Somebody mining flat out works every other turn",
+      docValue: 0.5,
+      model: round1(fatigue.byId.mine.steady * 100) / 100,
+      ok: Math.abs(fatigue.byId.mine.steady - 0.5) < 0.01,
+    },
+    {
+      doc: "SOILERY.md §5a",
+      claim: "A farmer works one turn in three",
+      docValue: "1 in 3",
+      model: `1 in ${round1(1 / fatigue.byId.farm.steady)}`,
+      ok: Math.abs(fatigue.byId.farm.steady - 1 / 3) < 0.01,
+    },
+    {
+      doc: "FACTORY.md §6",
+      claim: "Refining and cutting Godflesh have no fatigue limit, only the Move",
+      docValue: "no ladder",
+      model: fatigue.byId.refine.tires || fatigue.byId.cut.tires ? "the code mentions fatigue" : "no ladder",
+      ok: !fatigue.byId.refine.tires && !fatigue.byId.cut.tires,
+    },
+    {
       doc: "DEPOT.md §0i",
       claim: "Unarmoured, the turret grazes 6%, wounds 14/16/24%, leaves 22% dying and 18% dead",
       docValue: "6/14/16/24/22/18 %",
@@ -665,6 +761,9 @@ function buildModel({ players = 100 } = {}) {
     priceLadder,
     priceRule,
     resourceBalance,
+    fatigue,
+    sources,
+    producerDrops,
     foods,
     foodSupply,
     tools,
