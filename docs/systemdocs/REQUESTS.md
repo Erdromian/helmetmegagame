@@ -243,7 +243,7 @@ Three notes on deliberate choices:
   here as well as made. That was 155 tags, every one of them also priced in
   `/store`, and Add Tag costs nothing but a written reason. It was therefore
   strictly cheaper than paying Tag Points, and players used it that way:
-  Butcher, Horse, Stealth, Literate, Ranged I, Workshop, Game Master.
+  Butcher, Horse, Stealth, Literacy, Ranged I, Workshop, Game Master.
   The help text asking them not to was the tell that the option should never
   have been on the menu. The two economies are now split at the door —
   `/store` spends points against catalog prices, Add Tag (Craft) spends turns

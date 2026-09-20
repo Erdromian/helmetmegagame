@@ -1085,22 +1085,26 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
+  # A Skill, not a general trait. Reading is a thing you were taught, and the
+  # category was only ever deciding the chip's colour and where the row sits —
+  # `teachable` is what Learn Skill and Teach Skill read (db/lib/lessons.js),
+  # and it is set here regardless. Groupless on purpose, the way musician,
+  # butcher, climbing and stealth are: there is no literacy family to join.
   literate:
     catalog: all
-    name: Literate
-    category: general
-    group: general-traits
+    name: Literacy
+    category: skills
     description: "You can read and write, something most people in Ravenheart cannot do."
     pointCost: 4
-    # Teachable because the Scholastic's teach-literacy Desire asks for it, and
-    # because learn-a-skill covers it. Without the flag neither was reachable.
+    # Teachable because learn-a-skill covers it — teaching somebody their
+    # letters is a lesson like any other.
     teachable: true
     purchasable: true
     purchasableAfterStart: true
 
-  # Sits beside Literate on purpose: they are the two ends of the same
+  # Sits beside Literacy on purpose: they are the two ends of the same
   # question. Slow blocks learning outright and blocks reading the way
-  # Stupid does, so it conflicts with Literate rather than stacking on it.
+  # Stupid does, so it conflicts with Literacy rather than stacking on it.
   # Stupid is the super-tag — gaining Stupid strips Slow, in
   # db/lib/tagWrites.js.
   slow:

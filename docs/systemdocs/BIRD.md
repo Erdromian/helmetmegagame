@@ -11,7 +11,7 @@ Ravenheart has no way to talk to someone who isn't standing next to you. That
 is deliberate — zone isolation is most of what makes the game a game — and the
 only crossings are travel and a GM. The Bird adds one more, and prices it:
 
-1. A character holding both **Bird** and **Literate** presses the bird on the
+1. A character holding both **Bird** and **Literacy** presses the bird on the
    Actions grid.
 2. They pick a person, **guess which zone that person is standing in**, and
    pick a **letter they are already holding** — written or sealed
@@ -122,7 +122,7 @@ existed gets — *"that isn't yours"* would confirm that it is somebody's.
 
 ## 5. Illiteracy
 
-A recipient without **Literate** still gets the letter. It lands on their sheet
+A recipient without **Literacy** still gets the letter. It lands on their sheet
 like anybody else's — a real object, with real weight, that they can carry,
 hand over, sell or burn. What they cannot do is read it: the tag chip says
 *"You can't read this."*, and so does a noticeboard, and so does every other
@@ -136,7 +136,7 @@ be, which is new.
 They get no Reply on either face: working the bird is writing, and that is the
 same gate the sender had to pass. The missing button is only the hint. The lock
 is in `birdReplyWindow()` (`db/lib/birdReply.js`), which re-reads the replier's
-tags alongside the reply window, so a GM stripping **Literate** between the
+tags alongside the reply window, so a GM stripping **Literacy** between the
 letter landing and the answer going out is caught on both the button and the
 pick.
 

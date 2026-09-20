@@ -166,7 +166,7 @@ groups:
         - Baron's Scepter
         - Brigandine
         - Sabre
-        - Literate
+        - Literacy
         - Courtier
         - Obol x25
         - Post-Christian
@@ -199,7 +199,7 @@ groups:
         - Courtier
         - Nobility
         - Jewelry
-        - Literate
+        - Literacy
         - Baroness's Key
         - Obol x5
         - Post-Christian
@@ -227,7 +227,7 @@ groups:
         - Ravenhearter
         - Courtier
         - Nobility
-        - Literate
+        - Literacy
         - Heir's Key
         - Obol x5
         - Post-Christian
@@ -253,7 +253,7 @@ groups:
         - Courtier
         - Nobility
         - Jewelry
-        - Literate
+        - Literacy
         - Successor's Key
         - Post-Christian
       doc_elements:
@@ -293,7 +293,7 @@ groups:
         - Armory Key
         - Ravenhearter
         - Courtier
-        - Literate
+        - Literacy
         - Hand's Pin
         - Hand's Key
         - Obol x10
@@ -332,7 +332,7 @@ groups:
         - Courtier
         - Frail
         - Medical I
-        - Literate
+        - Literacy
         - Meister's Key
         - Bird
         - Obol x5
@@ -362,7 +362,7 @@ groups:
       starting_location: fortress-4
       starting_tags:
         - Ravenhearter
-        - Literate
+        - Literacy
         - Sabre
         - Major's Insignia
         - Obol x4
@@ -394,7 +394,7 @@ groups:
       starting_tags:
         - Ravenhearter
         - Courtier
-        - Literate
+        - Literacy
       doc_elements:
         - godking
         - courtstructure
@@ -476,7 +476,7 @@ groups:
         - Blessing
         - Teaching
         - Pious
-        - Literate
+        - Literacy
         - Post-Christian
         - Bishop's Mitre
         - Vestments
@@ -507,7 +507,7 @@ groups:
         - Chaplain
         - Teaching
         - Pious
-        - Literate
+        - Literacy
         - Post-Christian
         - Vestments
         - Cross
@@ -547,7 +547,7 @@ groups:
         - Inquisitor's Longcoat
         - Fundamentalist
         - Torturer
-        - Literate
+        - Literacy
       doc_elements:
         - postchristianity
     practicus:
@@ -651,7 +651,7 @@ groups:
         - Shield
         - Radio System (Cerberon)
         - Radio Bracelet (Cerberon)
-        - Literate
+        - Literacy
         - Obol x2
         - Post-Christian
       doc_elements:
@@ -791,7 +791,7 @@ groups:
         - Ravenhearter
         - Medical III
         - Brewing III
-        - Literate
+        - Literacy
         - Esculap's Vest
         - Obol x10
         - Resources x26
@@ -824,7 +824,7 @@ groups:
         - Ravenhearter
         - Medical II
         - Brewing II
-        - Literate
+        - Literacy
         - Resources x8
       doc_elements:
         - medical
@@ -859,7 +859,7 @@ groups:
       whitelist: true
       starting_tags:
         - Cart
-        - Literate
+        - Literacy
         - Merchant's Garb
         - Merchant's License
         - Depot Keycard
@@ -1024,7 +1024,7 @@ groups:
         - Remote Detonator
         - Collar Key
         - Silver Chip
-        - Literate
+        - Literacy
         # Every door in the Den. The two room keys are his second copies —
         # there is another pair on the desk in his office (docs/zones.yaml).
         - Den Key
@@ -1055,7 +1055,7 @@ groups:
         - Insightful
         - Old
         - Soilery
-        - Literate
+        - Literacy
         - Headman's Cap
         - Sewer Key
         - Headman's Key
@@ -1510,7 +1510,7 @@ groups:
         - Rough Camper
         - Outsider
         - Brave
-        - Literate
+        - Literacy
         - Radio (243.000)
       doc_elements:
         - godking
@@ -1551,7 +1551,7 @@ groups:
         - Tough
         - Rough Camper
         - Outsider
-        - Literate
+        - Literacy
         - Radio (243.000)
       doc_elements:
         - godking
@@ -1603,7 +1603,7 @@ groups:
         - Brigandine
         - Mail Coif
         - Nobility
-        - Literate
+        - Literacy
         - Brave
         - Rough Camper
         - Outsider
