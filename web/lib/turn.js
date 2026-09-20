@@ -7,6 +7,11 @@ export const getOpenTurn = cache(async () => {
   return prisma.turn.findFirst({ where: { status: "OPEN" } });
 });
 
+// Whether the clock is running, and what phase the game is in — for the top bar (ClockBlock.js), which would otherwise
+// read a turn row and believe it. Restart Game mints Turn 1 through the lobby (see the note in
+// web/app/(app)/gm/dev/actions.js), so "there is an open turn" and "the game has started" are two different questions.
+export const getClock = cache(async () => clockStatus(prisma));
+
 // What the chip every header wears needs (LockChip.js). Numbers, not Dates, and no `locked` boolean: a desk sits open for
 // hours and has to cross the cutoff honestly, so the browser derives `locked` itself every 30s.
 //
@@ -16,6 +21,6 @@ export const getMoveWindow = cache(async () => {
   const [turn, clock] = await Promise.all([getOpenTurn(), clockStatus(prisma)]);
   if (!turn) return null;
   const { cutoffAt, endsAt, hasLock } = moveWindow(turn, { clockFrozen: clock.frozen });
-  if (!hasLock) return clock.reason ? { cutoffAtMs: null, endsAtMs: null, frozenReason: clock.reason } : null;
-  return { cutoffAtMs: cutoffAt.getTime(), endsAtMs: endsAt.getTime(), frozenReason: null };
+  if (!hasLock) return clock.reason ? { cutoffAtMs: null, endsAtMs: null, frozenReason: clock.reason, phase: clock.phase } : null;
+  return { cutoffAtMs: cutoffAt.getTime(), endsAtMs: endsAt.getTime(), frozenReason: null, phase: clock.phase };
 });

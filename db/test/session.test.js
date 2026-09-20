@@ -7,9 +7,9 @@
 const test = require("node:test");
 const assert = require("node:assert");
 
-const { inSession, isClockRunning, frozenReason } = require("../lib/gameState");
+const { inSession, isClockRunning, frozenReason, clockStatus } = require("../lib/gameState");
 const { sessionDue } = require("../lib/session");
-const { gateMessage, GATE_MESSAGES } = require("../lib/turnGate");
+const { movesOpen, gateMessage, GATE_MESSAGES } = require("../lib/turnGate");
 const { moveWindow } = require("../lib/turnClock");
 
 const NOW = new Date("2026-09-16T20:00:00Z");
@@ -86,4 +86,55 @@ test("every refusal the gate can give has a sentence, and they are different sen
   assert.equal(GATE_MESSAGES.NOT_IN_SESSION, "The game isn't in session.");
   // An unknown reason must still be a refusal rather than undefined, which would render as an empty error.
   assert.equal(typeof gateMessage("SOMETHING_NEW"), "string");
+});
+
+// Enough of a client for clockStatus and the gate's one turn read. Both go through findUnique/findFirst and nothing else.
+function fakeDb({ phase, config = {}, turn }) {
+  return {
+    gameConfig: { findUnique: async () => config },
+    gameState: { findUnique: async () => ({ phase, sessionOpenedAt: null }) },
+    turn: { findFirst: async () => turn },
+  };
+}
+
+const OPEN_TURN = {
+  id: "t1",
+  number: 1,
+  dayNumber: 1,
+  startedAt: new Date("2026-09-16T05:00:00Z"),
+  endsAt: new Date("2026-09-17T05:00:00Z"),
+  turnLengthHours: 24,
+};
+
+test("clockStatus carries the phase, so a caller can tell the lobby from the epilogue", async () => {
+  // NOT_RUNNING is one word for two different truths. The reason stays one word — four modules key off the string — and
+  // the phase rides alongside it.
+  for (const phase of ["LOBBY", "CLOSED", "ENDED"]) {
+    const status = await clockStatus(fakeDb({ phase, turn: OPEN_TURN }));
+    assert.equal(status.reason, "NOT_RUNNING");
+    assert.equal(status.phase, phase);
+    assert.equal(status.frozen, true);
+  }
+  const running = await clockStatus(fakeDb({ phase: "RUNNING", turn: OPEN_TURN }));
+  assert.equal(running.reason, null);
+  assert.equal(running.phase, "RUNNING");
+});
+
+test("THE SECOND TRAP: a turn is open all through the lobby, so the gate must ask the phase too", async () => {
+  // Restart Game mints Turn 1 and Start Game restamps it, so `status: "OPEN"` is true the whole time nobody is playing.
+  // A Persistent game is always "in session", so before this check the gate looked at a wiped, unstarted game and said
+  // yes: NOT_RUNNING had a sentence in the table and was never once returned.
+  for (const phase of ["LOBBY", "CLOSED", "ENDED"]) {
+    const gate = await movesOpen(fakeDb({ phase, turn: OPEN_TURN }), { now: NOW });
+    assert.equal(gate.ok, false, `${phase} must refuse`);
+    assert.equal(gate.reason, "NOT_RUNNING");
+    assert.equal(gate.turn, OPEN_TURN, "a refusal still names the turn");
+  }
+  const running = await movesOpen(fakeDb({ phase: "RUNNING", turn: OPEN_TURN }), { now: NOW });
+  assert.equal(running.ok, true);
+});
+
+test("no turn at all still outranks the phase", async () => {
+  const gate = await movesOpen(fakeDb({ phase: "LOBBY", turn: null }), { now: NOW });
+  assert.equal(gate.reason, "NO_TURN");
 });

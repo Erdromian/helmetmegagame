@@ -86,6 +86,10 @@ async function clockStatus(db) {
     frozen: !isClockRunning(config, state),
     inSession: inSession(config, state),
     reason: frozenReason(config, state),
+    // The phase rides alongside `reason` rather than splitting it. NOT_RUNNING covers two different truths — a game that
+    // has not started and a game that is over — and the surfaces that have to say which one in words need to be able to
+    // tell them apart. Splitting the reason itself would fork a vocabulary four modules key off by string.
+    phase: state?.phase ?? null,
   };
 }
 

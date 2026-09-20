@@ -23,16 +23,35 @@ function armorWord(value) {
 // Nothing is ever bulletproof — capped here so a GM authoring 1.0 gets "very good", not "immune".
 const ARMOR_CAP = 0.95;
 
+// Whether a held row's armour is actually in play. Two ways it can be:
+//
+//   Worn gear — a vest, a helmet. It counts only while equipped, because a vest in your cart stops
+//   nothing. `!== false` (not a boolean check) so a bare Tag[] with no equipped flag still works.
+//
+//   A status — the vampire's Resilience grant and anything like it. A status tag is never
+//   equippable, so CharacterTag.equipped is false on it by default and it would be skipped forever.
+//   Tough skin is not something you take off, so an unequippable tag always counts.
+//
+// The second test is `=== false`, not a falsy check, on purpose: a caller whose select left
+// `equippable` out hands us undefined, and reading that as "not equippable" would make an unequipped
+// VEST start stopping blows. Absent means unknown, and unknown falls back to the worn-only rule —
+// which is why `equippable` is in ARMOR_TAG_FIELDS below.
+//
+// Both readers below share this, and db/lib/syncTags.js's own "armour only counts while worn" check
+// allows the same two shapes — they have to agree, or the catalog rejects a tag the game would honour.
+function armorCounts(entry, tag) {
+  if (entry?.equipped !== false) return true;
+  return tag?.equippable === false;
+}
+
 // How worn pieces stack: multiplicative on what gets THROUGH, not additive on what's stopped — a 40%
 // and a 25% piece leave 0.6 * 0.75 = 45% through (0.55 combined), rewarding a full kit while making
 // each added piece worth less than the last. `field` picks which of the two numbers to read.
 function combineArmor(characterTags = [], field = "ballisticArmor") {
   let through = 1;
   for (const entry of characterTags) {
-    // Armour only counts EQUIPPED — a vest in your cart stops nothing. `!== false` (not a boolean
-    // check) so a bare Tag[] with no equipped flag still works.
-    if (entry?.equipped === false) continue;
     const tag = entry?.tag ?? entry;
+    if (!armorCounts(entry, tag)) continue;
     const value = tag?.[field];
     if (typeof value !== "number" || Number.isNaN(value) || value <= 0) continue;
     through *= 1 - Math.min(1, value);
@@ -50,8 +69,8 @@ function combineArmor(characterTags = [], field = "ballisticArmor") {
 function armorPieces(characterTags = [], field = "ballisticArmor") {
   const out = [];
   for (const entry of characterTags) {
-    if (entry?.equipped === false) continue;
     const tag = entry?.tag ?? entry;
+    if (!armorCounts(entry, tag)) continue;
     const value = tag?.[field];
     if (typeof value !== "number" || Number.isNaN(value) || value <= 0) continue;
     out.push({ label: tag.name ?? tag.slug ?? "Something", word: armorWord(value), value });
@@ -64,6 +83,6 @@ function armorPieces(characterTags = [], field = "ballisticArmor") {
 // The Tag columns anything resolving armour must select. Miss one and armour silently stops working there.
 // armorPieces() additionally wants `name` (or `slug`) to have something to call a piece; every caller
 // today selects it anyway, so it stays out of here rather than widening a select nobody asked to widen.
-const ARMOR_TAG_FIELDS = { meleeArmor: true, ballisticArmor: true };
+const ARMOR_TAG_FIELDS = { equippable: true, meleeArmor: true, ballisticArmor: true };
 
 module.exports = { ARMOR_CAP, ARMOR_TAG_FIELDS, armorPieces, armorWord, combineArmor };

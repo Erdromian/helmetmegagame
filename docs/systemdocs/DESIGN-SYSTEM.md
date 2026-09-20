@@ -326,6 +326,22 @@ any of them.
   and dark from `border-color` and lands differently per browser. `:active`
   swaps the two pairs, so the button looks pressed in. A gated verb
   (`aria-disabled`/`:disabled`) goes dashed instead of pressing.
+- **A verb bevels; a link, a tab and a chip do not.** The bevel is what says
+  "press me", so every control you press wears it, and everything that is a
+  label or a destination stays flat. As of 2026-09-20 that brought three
+  strays into line: `.action-tile` (the sheet's verbs — the most-pressed
+  things in the game, and until then a flat 1px outline), `.icon-btn` (which
+  also grew from 26px to 28px so its inner box survived the thicker frame),
+  and `.segmented`'s pressed member, which now sits **inset** rather than
+  merely tinted, since it is the one that has been pushed in. A gated
+  `.action-tile` goes dashed over `--field-bg`, the same well `.btn-secondary`
+  uses, so "you cannot do this yet" reads the same wherever you meet it.
+
+  **The list of what stays flat is closed**, and it is closed on purpose:
+  `.tab-item` and `.nav-link` (navigation, not verbs), `.btn-quiet` (a text
+  link — bevelling it would turn every inline "undo" into a button), `.chip`
+  and `.zone-chip` (labels), table headers, and `input`/`select`, which are
+  already recessed by the opposite bevel below. Do not extend this pass.
 - **`.field` and `.control` are inset**, the opposite bevel: a hard dark edge
   top and left (`--border-lo`), the ordinary hairline bottom and right, so an
   input reads as cut into the panel rather than sitting on top of it.
@@ -378,7 +394,8 @@ Use these instead of rolling one-off markup.
 | `.data-table` | Tabular data — `--fs-2xs` throughout, `th` bold `--muted` on `--surface-raised` with no `text-transform` (see the label-case rule below), and `td.num` for a numeric column (mono, tabular numerals) — mark it with `class="num"`, the same way `.mono` marks a value inline. |
 | `.menu-item` | Link-like row actions. |
 | `.control` | The `.field` control surface, without the label column — a `<select>` in a table cell, an input inline in a toolbar. |
-| `.icon-btn` | The one framed icon button — via `IconButton`, whose `size` is `sm` (26, default) or `lg` (44), the desktop size; a coarse pointer inside `/chat` floors every one of these at 44 regardless. |
+| `.icon-btn` | The one framed icon button — via `IconButton`, whose `size` is `sm` (28, default) or `lg` (44), the desktop size; a coarse pointer inside `/chat` floors every one of these at 44 regardless. Bevelled like any other verb (§3b); `aria-pressed="true"` tints the **glyph** and not the frame, since recolouring one pair of a bevel's borders puts the light in two places at once. |
+| `.volume-slider` | The app's only range input — via `VolumeSlider`, in the top bar's sound popover and at the foot of `/chat`. A sunk track with a thumb standing proud of it: the same two registers everything else here is built from. The `-webkit-` and `-moz-` pseudo-elements have to be written out separately — a selector list holding a vendor pseudo-element the browser does not know is dropped whole. |
 | `.chat-buttons` | Chat's only action row. A `.btn-quiet` inside one gets the padded, aligned treatment `.modal-actions` gives one, so a Cancel lines up with the button beside it. |
 | `.chat-section-fold` | The one folding section header in Chat — Places' own sections, Things, Desires — a `<button>`. A header that doesn't fold is a `<p className="group-label chat-section-title">` instead. `.group-label` is the shared recipe — quiet, uppercase, --fs-2xs — and `.chat-section-title` is only Chat's own inset and spacing on top of it. |
 | `.group-label` | The quiet uppercase label over a group of things, on its own — Chat's section headers, the audit inspector's field labels, a `DeskRailGroup` title, every sheet rail group. One recipe (`--ls-wide`, `--fs-2xs`, `--muted`) rather than a hand-typed letter-spacing at each call site. |

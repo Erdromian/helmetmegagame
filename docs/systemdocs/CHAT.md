@@ -1059,6 +1059,11 @@ a 48px head and a one-line composer:
   A zone group and a section inside it can both fold shut (above) —
   session-only, a plain `useState` Set in `PlacesColumn.js`, not persisted
   across visits. An empty section still draws nothing at all, fold or not.
+- **The foot of the column** carries the sound cluster — the speaker, the music
+  switch and a 0–100 volume slider on its own line (`SoundControls.js` with
+  `layout="stack"`) — then the notification bell and Mark all read. The same
+  cluster is in the top bar on every page, minus the inline slider; they share
+  one store, so either one moves both. See `SOUND.md` §2.
 - **The column's own bar and its section names.** The places column opens with
   `.bar` reading Places, so all three columns start on the same line — it
   used to open straight onto its first section heading, which left two bars

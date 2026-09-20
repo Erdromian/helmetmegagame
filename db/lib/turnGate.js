@@ -35,6 +35,11 @@ async function movesOpen(db, { now = new Date(), turn = null } = {}) {
 
   if (!openTurn) return refusal("NO_TURN", null, null);
 
+  // Before the session, and before the window. A turn row exists through the lobby — Restart Game mints Turn 1 and Start
+  // Game restamps it — and `inSession` is true for a Persistent game whatever the phase, so without this the gate read a
+  // game nobody had started yet as wide open. NOT_RUNNING had a message in the table above and was never once returned.
+  if (status.reason === "NOT_RUNNING") return refusal("NOT_RUNNING", openTurn, null);
+
   // Before the window, always. See the header.
   if (!status.inSession) return refusal("NOT_IN_SESSION", openTurn, null);
 

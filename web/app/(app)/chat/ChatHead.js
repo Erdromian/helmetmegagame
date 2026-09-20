@@ -2,7 +2,6 @@
 
 import { Fragment } from "react";
 import IconButton from "@/app/components/IconButton";
-import SoundToggle from "@/app/components/SoundToggle";
 import { MenuIcon, PlayersIcon } from "@/app/components/icons";
 
 // The head over a scene: ONE `.bar` (the mockup's, docs/design/mockups/chat/
@@ -57,10 +56,10 @@ export default function ChatHead({
       )}
       <span className="spacer" />
       {hereCount != null && hereCount > 0 && <span className="sub">{hereCount} here</span>}
-      {/* The sound switch, here rather than in a settings page because this bar is the one
-          thing on screen in every state — on a phone it IS the top of the screen, and the
-          places column with its twin copy is a drawer. */}
-      <SoundToggle />
+      {/* The sound switch used to sit here as well as in the places column's foot.
+          It moved to the universal top bar (SoundControls.js, AppBar.js), which is on
+          screen in every state including on a phone — so a copy here would be the third
+          of one switch on one screen. DESIGN-SYSTEM.md: one control, one place. */}
       {trailing}
       {onOpenAside && (
         <span className="chat-head-phone">

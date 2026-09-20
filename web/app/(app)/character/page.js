@@ -312,7 +312,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     const { create } = (await searchParams) ?? {};
     const skipping = create === "1" && (gate.gm || gate.superadmin);
     if (gate.phase === "LOBBY" && !skipping) {
-      if (!gate.approved) return fresh({ kind: "closed", open: !gate.masked });
+      if (!gate.approved) return fresh({ kind: "closed", open: !gate.masked, phase: gate.phase });
       const [preference, entry, readyCount] = await Promise.all([
         prisma.playerPreference.findUnique({ where: { discordUserId: session.discordUserId } }),
         prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
@@ -349,7 +349,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       });
     }
     if (!gate.open || !gate.approved)
-      return fresh({ kind: "closed", open: gate.masked ? false : gate.open });
+      return fresh({ kind: "closed", open: gate.masked ? false : gate.open, phase: gate.phase });
     // An unburied body stops creation dead (db/lib/curse.js). Shown here so a
     // player isn't handed a wizard that refuses on Confirm; createActions.js
     // re-checks it, since a server action is a public endpoint.

@@ -3,7 +3,6 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOutOfDiscord } from "../actions";
 import { useNavUnread } from "./navBadge";
 import FeedbackButton from "./FeedbackButton";
 
@@ -39,12 +38,6 @@ export default function NavLinks({ items }) {
       })}
       <span className="action-strip-sep" aria-hidden="true" />
       <FeedbackButton className="nav-link" />
-      <span className="action-strip-sep" aria-hidden="true" />
-      <form action={signOutOfDiscord}>
-        <button type="submit" className="nav-link">
-          Sign out
-        </button>
-      </form>
     </nav>
   );
 }

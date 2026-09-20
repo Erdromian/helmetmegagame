@@ -22,6 +22,7 @@ import {
   Pencil,
   Volume2,
   VolumeOff,
+  Music,
   Ellipsis,
   Mail,
   Skull,
@@ -125,9 +126,13 @@ export const BellRingIcon = lucide(BellRing, "BellRingIcon");
 
 // Teach skill, Recall comrades, Send a message — a speaking-out glyph.
 export const SpeakerIcon = lucide(Volume2, "SpeakerIcon");
-// Its off state, for the sound switch in /chat (web/app/components/SoundToggle.js). The
+// Its off state, for the sound switch (web/app/components/SoundControls.js). The
 // same glyph with the waves struck out, so the two read as one control in two states.
 export const SpeakerOffIcon = lucide(VolumeOff, "SpeakerOffIcon");
+// The music switch beside it (web/app/components/SoundControls.js). One glyph, not a pair:
+// lucide has no struck-through note, and the .icon-btn[aria-pressed="true"] accent already
+// says which way the switch is set without a second drawing.
+export const MusicIcon = lucide(Music, "MusicIcon");
 
 // ── Dev Character Panel action bar (docs/systemdocs/DEV-PANEL.md) — one icon per microaction, 15px inside .icon-btn.
 
