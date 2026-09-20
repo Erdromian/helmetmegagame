@@ -33,7 +33,7 @@ nothing. The finishing audit row records what was spent
 
 Moonshine is the only recipe in the game that costs **0 ⬢** and still has a
 real ingredient, and that is deliberate rather than an oversight: the marsh
-hands you the Godflesh, the throttle is the Routine, and at 3 ⬢ a bottle it
+hands you the Godflesh, the throttle is the Godflesh, and at 3 ⬢ a bottle it
 undercuts a farming day badly enough to be nobody's living. What it costs is
 the drinker's eyes, a notch at a time (`FACTORY.md` §8) — and, since the pass
 that made ingredients real, one whole Godflesh a bottle, which is what stops
@@ -63,7 +63,7 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 | `bliss` | 0 | 0 (max 2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 (max 2/turn) | — | — |
 | `alcohol` | 2 | 0.25 | — | `tipsy` (and up the ladder — §5a) |
-| `moonshine` | **0** | 1 | `godflesh` | `tipsy` (ladder, §5a), `blind-drunk` (2t), `damaged-vision` |
+| `moonshine` | **0** | 0.25 | `godflesh` | `tipsy` (ladder, §5a), `damaged-vision` |
 | `molotov-cocktail` | 2 | 0 (max 2/turn) | `alcohol` | — |
 | `cleaning-powder` | 2 | 0.5 | — | — |
 | `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |

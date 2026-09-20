@@ -302,11 +302,17 @@ you the ingredient. **One Godflesh per bottle, and it is used up**, like every
 other spent ingredient (`BREWING.md` §4). It used to be a hold-check, which
 made the still a strictly better use of a haul than the Factory; spending it
 puts the two in honest competition. The rest of the throttle stands: Moonshine
-sells for 3 ⬢ against farming's 11–15, so it is not an income tap, and the
-Routine it costs is a Routine either way.
+sells for 3 ⬢ against farming's 11–15, so it is not an income tap.
 
-Drinking it grants Tipsy, **Blind Drunk** (2 turns, blocks Examine with no
-corrective) and one **Damaged Vision**, which is permanent and stacks.
+**It brews at 0.25 turns now, the same as Alcohol** — it is the same kind of
+work, and the Godflesh is what makes it cost anything.
+
+Drinking it grants Tipsy and one **Damaged Vision**, which is permanent and
+stacks. Tipsy walks the ordinary drink ladder from there — keep drinking and
+you get Wasted, then Unconscious (`BREWING.md` §5a), the same as any other
+booze. **It no longer lands Blind Drunk**: that tag is still in the catalog as
+a GM grant, but no drink in the game hands it out. The eyes are what makes
+Moonshine different, and one special case is enough.
 
 **At five, `db/lib/visionDecayPass.js` takes the whole stack and grants Blind.**
 That tag already existed — −8, tier-7 cure, `removesInto: [night-blind]` — and
@@ -325,8 +331,8 @@ clock and knows nothing about quantities.
 
 The last two are the interesting ones. Literacy and the eyes are asked as **one
 question** so no caller can check half of it — and `readBlock` is the fuller
-form, since it also catches Blind Drunk itself and Nearsighted with the
-spectacles in a sack.
+form, since it also catches Blind Drunk itself (a GM may still grant it) and
+Nearsighted with the spectacles in a sack.
 
 A blind recipient gets exactly what an illiterate one gets: the real letter, on
 their sheet, as an object they can carry to somebody who reads

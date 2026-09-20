@@ -223,7 +223,7 @@ different things:
 |---|---|---|
 | Onion | `[]` — nothing | absent → nothing |
 | Deep Morel | `[nauseous]` | `[]` — cooking takes the nausea off |
-| Moonshine | tipsy, blind-drunk, damaged-vision | absent → all three, still |
+| Moonshine | tipsy, damaged-vision | absent → both, still |
 | Human Flesh | `[ate-meal]` | `[{oneOf: [nauseous, vomiting]}]` |
 | Squeeze | `[seizure]` | absent → a seizure, still |
 

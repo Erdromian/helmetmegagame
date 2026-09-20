@@ -17937,13 +17937,15 @@ tags:
     purchasableAfterStart: false
     craftable: true
     consumable: true
-    consumesInto: [tipsy, blind-drunk, damaged-vision]
+    consumesInto: [tipsy, damaged-vision]
+    # Drinking it walks the ordinary drink ladder — tipsy, then wasted if you
+    # keep going — and the eyes are what makes it moonshine rather than beer.
     # Costs no ⬢ at all — the marsh gives you the ingredient. One
     # {tag:godflesh} goes INTO the bottle now and does not come back, which is
     # also what stops this from undercutting the Factory's refining
     # (docs/systemdocs/BREWING.md, FACTORY.md §8).
     requirement:
-      turnsCost: 1
+      turnsCost: 0.25
       resourceCost: 0
       skills: [brewing-basic]
       gambit: false
@@ -17955,6 +17957,8 @@ tags:
       mood: 10
 
   # Refuses a push on (MAP.md §3, EXERT_REFUSAL_SLUGS in db/lib/locationTravel.js).
+  # GM-grant only now — no drink in the catalog lands it. Moonshine used to,
+  # and stopped: it walks the ordinary tipsy -> wasted ladder instead.
   blind-drunk:
     catalog: gm
     name: Blind Drunk
