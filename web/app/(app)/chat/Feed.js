@@ -2393,7 +2393,6 @@ function GmSystemComposer({ placeKey, placeKind, placeName, hasCharacter, people
               e.preventDefault();
               void submit();
             }}
-            disabled={pending}
           />
           {/* `icon`, not a child. IconButton renders `<Icon />` from the prop
               and ignores children, so passing <SendIcon /> between the tags
