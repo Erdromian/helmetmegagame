@@ -3,6 +3,8 @@
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
+import { phoneView, placeCall, answerCall, hangUp } from "@lifeweb/db/lib/phone";
+import { PHONE_TEXT } from "@lifeweb/db/lib/phoneText";
 import { questInteract } from "@lifeweb/db/lib/quests";
 import { playSlots as playSlotsInDb, CASINO_ROOM_SLUG } from "@lifeweb/db/lib/slotMachine";
 import { parksMounts, hasAttribute, SAFE_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
@@ -91,6 +93,16 @@ import { toggleConceal as concealRule } from "@lifeweb/db/lib/conceal";
 import { shout, deliverShout } from "@lifeweb/db/lib/shout";
 import { ooc, deliverOoc } from "@lifeweb/db/lib/ooc";
 import { XOM_SHRINE_ROOM_SLUG, grantXom } from "@lifeweb/db/lib/xom";
+import {
+  CHARON_SLUG,
+  PANIC_ROOM_SLUG,
+  COCKPIT_SLUG,
+  HABITATION_SLUG,
+  enterCharon,
+  leaveCharon,
+  pressLaunch,
+  sleepAboard,
+} from "@lifeweb/db/lib/charon";
 import { SFX, groundSfx } from "@lifeweb/db/lib/sfx";
 import { openConversationThread } from "@lifeweb/db/lib/conversationOpen";
 import { castDie } from "@lifeweb/db/lib/roll";
@@ -1228,6 +1240,10 @@ export async function gmPlaceView(placeKey) {
         slug: true,
         kind: true,
         accessTagSlugs: true,
+        // roomAffordances reads this to decide the Phone button is there at
+        // all (docs/systemdocs/PHONES.md) — without it the GM aside draws
+        // every fixture in the room except the phone.
+        phone: true,
         tags: {
           where: { quantity: { gt: 0 } },
           orderBy: { tag: { name: "asc" } },
@@ -1593,6 +1609,67 @@ export async function playSlots({ roomId } = {}) {
   const result = await playSlotsInDb(prisma, me.discordUserId, { turn });
   if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
   return { ok: true, line: result.line, sfx: result.sfx };
+}
+
+
+// ------------------------------------------------------------- the telephone
+//
+// Four actions for one button, because the dialog is dynamic: what the Phone
+// button does depends on what this phone is doing right now, and that is
+// decided server-side on every open (docs/systemdocs/PHONES.md). A server
+// action is a public endpoint, so each one re-resolves the acting character
+// from the session and re-checks the room — the dialog's own state is a hint.
+
+export async function openPhone({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+
+  const view = await phoneView(prisma, me.discordUserId, roomId);
+  if (!view.ok) return { ok: false, error: view.error, sfx: SFX.REFUSE };
+
+  // Only what the dialog draws. The call row itself never crosses: it carries
+  // both characters' ids, and the far end of a call is exactly the thing a
+  // phone is not supposed to tell you.
+  return {
+    ok: true,
+    mode: view.mode,
+    phone: view.room.phone,
+    payphone: Boolean(view.room.payphone),
+    paid: Boolean(view.paid),
+    phones: view.phones.map((p) => ({ id: p.id, name: p.phone })),
+  };
+}
+
+export async function dialPhone({ roomId, toRoomId } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  if (!toRoomId) return { ok: false, error: "Pick a phone." };
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const result = await placeCall(prisma, me.discordUserId, { fromRoomId: roomId, toRoomId, turn });
+  // A busy line carries its own sound up from db/lib/phone.js; everything else
+  // refuses in the ordinary voice, and a payphone that could not be paid for
+  // gets the money refusal rather than the flat one.
+  if (!result.ok) {
+    return { ok: false, error: result.error, sfx: result.sfx ?? SFX.REFUSE_MONEY };
+  }
+  return { ok: true, line: PHONE_TEXT.dialling, sfx: result.sfx };
+}
+
+export async function answerPhone({ roomId } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const result = await answerCall(prisma, me.discordUserId, roomId);
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE };
+  return { ok: true, line: PHONE_TEXT.pickedUp, sfx: result.sfx };
+}
+
+export async function hangUpPhone({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const result = await hangUp(prisma, me.discordUserId, roomId);
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE };
+  return { ok: true, line: "You put the receiver down.", sfx: result.sfx };
 }
 
 export async function speakOnIntercom({ roomId, body } = {}) {
@@ -2759,4 +2836,86 @@ export async function getDecreeZones() {
   if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
   const zones = await decreeZones(prisma);
   return { ok: true, zones };
+}
+
+// ---------------------------------------------------------------- the Charon
+
+// The ship above the Keep (docs/systemdocs/CHARON.md). Four buttons, one
+// mechanism, and none of them trusts what the panel sent: the Panic Room's door
+// re-checks the key, the ship's own two re-check that you are actually standing
+// in it, and every refusal is worded by db/lib/charon.js so Discord and the web
+// say the same sentence.
+
+/** The Panic Room's way in. Refuses when the ship is full, or has already gone. */
+export async function enterTheCharon({ roomId } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, PANIC_ROOM_SLUG, "There's no way through here.");
+  if (found.error) return { ok: false, error: found.error };
+
+  // The same locked-door rule Discord applies — a server action is a public
+  // endpoint, so the key is re-checked here rather than trusted off the panel.
+  const keys = await roomAccessKeys(prisma, me.character.id);
+  if (accessibleRooms([found.room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
+    return { ok: false, error: "You can't get in there." };
+  }
+
+  const refusal = await enterCharon(prisma, me.character);
+  if (refusal) return { ok: false, error: refusal };
+  return { ok: true };
+}
+
+/** The ship's own way out, on the ground. */
+export async function leaveTheCharon() {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+
+  const here = await prisma.location.findUnique({
+    where: { id: me.character.locationId ?? "" },
+    select: { slug: true },
+  });
+  if (here?.slug !== CHARON_SLUG) return { ok: false, error: "You aren't aboard." };
+
+  const refusal = await leaveCharon(prisma, me.character);
+  if (refusal) return { ok: false, error: refusal };
+  return { ok: true };
+}
+
+/**
+ * The Cockpit's terminal. One button doing three things — start, cancel, or
+ * refuse — because which of them it is depends on state the player can already
+ * see in the feed, and a second button would be a second thing to get wrong.
+ */
+export async function launchTheCharon({ roomId } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, COCKPIT_SLUG, "There's no terminal here.");
+  if (found.error) return { ok: false, error: found.error };
+
+  const answer = await pressLaunch(prisma, me.character);
+  // A refusal the terminal makes to one person, with the console's own noise on
+  // it. Everything else was said out loud into the ship's feed instead, where
+  // the people it concerns are standing.
+  if (answer) return { ok: false, error: answer.text, sfx: answer.sfx };
+  return { ok: true };
+}
+
+/** The Habitation's last button, in orbit only. */
+export async function sleepInTheCharon({ roomId } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, HABITATION_SLUG, "There's nowhere to lie down here.");
+  if (found.error) return { ok: false, error: found.error };
+
+  // On the ground the bunk is just a bunk. Off the Location's own attribute
+  // rather than its slug, so the rule is the same one the button is drawn from.
+  const here = await prisma.location.findUnique({
+    where: { id: me.character.locationId ?? "" },
+    select: { attributes: true },
+  });
+  if (!hasAttribute(here, "offMap")) return { ok: false, error: "You aren't in space." };
+
+  const slept = await sleepAboard(prisma, me.character);
+  if (!slept) return { ok: false, error: "You can't do that right now." };
+  return { ok: true };
 }

@@ -138,6 +138,57 @@ Several rites may run in one room at once; the ingredients are the only real
 contention. A non-cultist who has robes, Flesh and a Grimoire chants like
 anyone else — nothing here reads the Belief.
 
+### 4a. Conversion asks (`db/lib/conversionRite.js`)
+
+**The Rite of Conversion is the one rite that does not do anything to
+anybody.** It puts a question in front of the target, and they answer it. Two
+cultists are needed to ask it, not one.
+
+It is an `Offer` of kind `CONVERSION` — the same consent row Lesson, Bind,
+Confession, Escort, Kiss, Search and Collar use, so the DM buttons, the card on
+`/character` and the routing in `db/lib/dmAnswer.js` all come for free. Two
+things make it the odd one out of that family, and both are the point:
+
+- **Refusing costs something.** Every other offer declines for free. This one
+  is `EVENTS.RITE_REFUSED` (−140, so all but the very highest-spirited land in
+  Panicking) plus the `depressed` tag. That is what the Grimoire promises the
+  cult: *"severely weakened and distraught, allowing you to finish them off."*
+  So it can **not** go through `declineOffer()` in `db/lib/lessons.js`, which
+  closes the row and picks wording but applies no effects at all — an entry in
+  that file's `WORDING` table would have written the sentence and quietly
+  skipped the price. `dmAnswer.js#declineOfferOfKind` routes it here instead.
+- **It has a clock.** `Offer.expiresAt`, three hours, swept by
+  `db/lib/riteSweep.js` on the minute pass that is already running. Going quiet
+  is not a way out of the question, it is a way of answering no. The backstop
+  is `db/lib/offerExpiryPass.js`, which refuses a still-pending one at turn
+  close rather than marking it `EXPIRED`, so none outlives the turn its row is
+  pinned to. **All three roads to no call the same `refuseConversion()`**, and
+  its guarded `updateMany` is what stops two of them charging the price twice.
+
+There is no cooldown. The cult may chant it again as often as it likes, which
+is what keeps an unlucky AFK costing a turn of misery rather than a character.
+Accepting after a refusal lifts `depressed` and sets the dial to **28**, the
+floor of Pleased — a rescue, not a reward.
+
+**The Pious are a valid target now, sorted last.** They used to be dropped from
+the candidate list entirely; today `boundCandidates`' `deprioritizeSlugs` puts
+them behind everyone else in the room, so the rite reaches one only when there
+is nobody else lying there. The vision bounces off: no `Offer` row is ever
+written, they get the hallucination DM and `EVENTS.RITE_DISMISSED` (+50), and
+the room hears them refuse. The cult finds out it wasted the chant by reading
+the room.
+
+**Nobody is ever named**, on any surface. The vision names no cultist, the room
+lines use `aliasSubject()`, and `web/app/(app)/character/page.js` nulls
+`otherName` for this kind so the initiator's name never reaches the browser at
+all — a rule about the payload, not about the string.
+
+| Answer | Target hears | Room hears |
+|---|---|---|
+| Accept | "This reality is cursed! …" plus any Belief conflict | "…'s eyes widen as they begin to understand…" |
+| Refuse, or three hours' silence | "The reality is too much! You are shocked and traumatized." | "The target shakes awake, a fearful look in their eyes. They denied the ritual." |
+| Pious | "You see a strange vision… nothing but a hallucination." | "… refuses the ritual, a look of determination in their eyes!" |
+
 ## 5. The Grimoire document
 
 `docs/documents.yaml` `grimoire`, gated on the **Grimoire** tag name, body
@@ -172,6 +223,7 @@ cascade. `GameState.riteWords` and `thanatiHideoutRoomId` go with the row.
 | `db/lib/riteChant.js` | The chant hook and `evaluateAttempt` |
 | `db/lib/riteSweep.js` | Expire / fire / rearm |
 | `db/lib/ascensionPass.js` | The end of the world, at a turn close |
+| `db/lib/conversionRite.js` | The Conversion handshake: the vision, the three answers, the three-hour clock |
 | `db/test/rites.test.js` | The pure half |
 | `web/lib/moveSpend.js` | `requireFreeMove`, `fileAutoRoutine` |
 | `web/lib/grimoire.js` | The Grimoire body |
@@ -188,7 +240,7 @@ words where a room or a player hears anything:
 | Rite | Needs (resolved by `riteIngredients.js`) | Does |
 |---|---|---|
 | Initial | 1 chanter | DMs every participant the cult's objectives with Success!/Incomplete |
-| Conversion | a Bound character at the Location with access to the room, not Pious, not already Thanati; leaders first | grants `thanati` (Belief conflicts resolved), pins the convert-* objectives naming them, DMs them, room hears "…’s eyes widen…" |
+| Conversion | a Bound character at the Location with access to the room, not already Thanati; leaders first, **Pious last** | **Asks.** An `Offer` of kind `CONVERSION` — see §4a |
 | Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, **gibs** them (`killByRite`, `gib: true`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor. No corpse is minted at all — see `CORPSES.md` §1a |
 | Scrying | 15 ⬢ | a `scrying-eye` on the floor |
 | Possession | a weapon stack on the floor, 15 ⬢ | one unit becomes a custom "<Name> (Animated)" copy, indestructible |

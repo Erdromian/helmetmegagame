@@ -507,6 +507,26 @@ tags:
     purchasable: false
     visible: false
 
+  # What the Charon's Habitation hands you (docs/systemdocs/CHARON.md). The tag
+  # is the only thing a player ever sees of the ASLEEP status — visible on
+  # purpose, since it is the thing telling them they may roll again.
+  #
+  # NOT the `asleep` tag further down this file. That one is ordinary sleep: a
+  # one-turn status debuff that caps your fighting at pitiful and wears off.
+  # This one never wears off, because the character it is on is out of the game.
+  charon-asleep:
+    catalog: gm
+    name: Asleep
+    # The slug cannot be `asleep`; that one is taken by ordinary sleep. The
+    # NAME is the word for it either way, so the flag is here rather than the
+    # name being bent to fit a free slug.
+    keepSlug: true
+    category: general
+    description: "You are asleep. You can respawn."
+    pointCost: 0
+    purchasable: false
+    visible: true
+
   courtier:
     catalog: gm
     name: Courtier

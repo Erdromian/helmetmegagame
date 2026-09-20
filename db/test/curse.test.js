@@ -123,3 +123,24 @@ test("the query wrapper asks the database nothing without a user id", async () =
   assert.equal(await isPlayerCursed(prisma, null), false);
   assert.equal(called, false);
 });
+
+// The Charon's sleepers (docs/systemdocs/CHARON.md). ASLEEP is out of play with
+// nothing left lying anywhere, so it must not curse: the whole point of the
+// button is that you get to roll again.
+test("an asleep character leaves nothing to bury, so nobody is cursed", () => {
+  assert.equal(isCursedIn([row("ASLEEP")]), false);
+});
+
+test("going to sleep does not hide an unburied body under it", () => {
+  const body = row("DEAD");
+  const sleeper = row("ASLEEP"); // newer than the body
+  assert.equal(isCursedIn([body, sleeper]), true);
+});
+
+test("a buried body plus a sleeper is still lifted", () => {
+  assert.equal(isCursedIn([row("DEAD", { buriedAt: BURIED }), row("ASLEEP")]), false);
+});
+
+test("a living character still wins over a sleeper", () => {
+  assert.equal(isCursedIn([row("ASLEEP"), row("ALIVE")]), false);
+});

@@ -26,6 +26,7 @@ const {
 } = require("./indoors");
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
+const { dropCallsForCharacter } = require("./phone");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { cancelSearchOffersOnMove } = require("./search");
 const { closeFightsFor } = require("./attack");
@@ -242,6 +243,23 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     // The same clear for a FIGHT (docs/systemdocs/ATTACK.md). releaseHeldBy deliberately won't touch one — both sides are held, and only the row knows whether either is still in another — so the row is what gets ended here, unpicking both holds on its way out.
     await closeFightsFor(prisma, characterId).catch((err) =>
       console.error(`Move: closing fights failed for ${characterId}:`, err.message ?? err),
+    );
+  }
+
+  // A phone goes back on its cradle when the person holding it walks out
+  // (docs/systemdocs/PHONES.md). Here rather than in performLocationMove for
+  // the reason every clear above gives: this is the writer EVERY relocation
+  // runs, so a teleport, a staged Relocate and a rite hang up as surely as
+  // walking does. Above the Discord guard, because a call ending is a database
+  // fact and must not depend on there being a token. Behind `fromLocationId`,
+  // because a Resync, a revive and a first placement are not moves, and a
+  // Resync silently killing a live call would be exactly the INTERCEPT bug.
+  //
+  // The far end hears "The person hung up"; the side that walked out hears
+  // nothing, because they are not there and the room they left made no noise.
+  if (fromLocationId) {
+    await dropCallsForCharacter(prisma, characterId).catch((err) =>
+      console.error(`Move: hanging up the phone failed for ${characterId}:`, err.message ?? err),
     );
   }
 

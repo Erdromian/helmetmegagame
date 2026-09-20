@@ -18,6 +18,7 @@ const { noteChant } = require("./riteChant");
 const { chunkMessage } = require("./chunkText");
 const { MESSAGE_LIMIT, MAX_SAY_PIECES, tooManyPieces } = require("./sayLimits");
 const { echoSpeech } = require("./gateEcho");
+const { carryOverPhone } = require("./phoneVoice");
 const { deadchatSpeakerName } = require("./deadchat");
 const { containsOoc, OOC_REFUSAL } = require("./oocGuard");
 const { sessionGate } = require("./betweenSessions");
@@ -254,6 +255,14 @@ async function recordSpeech(
   // Location they are not standing in.
   if (row && !sentAt && !prepared.ghost) {
     void echoSpeech(prisma, prepared, row).catch((err) => console.error("Gate echo failed:", err.message ?? err));
+  }
+  // Carried down a telephone line, if this room has one off the hook
+  // (db/lib/phoneVoice.js). Same three guards as the gate echo above and for
+  // the same reasons: never for a ghost, whose stale locationId points at a
+  // room they are not standing in, and never for a message recovered late,
+  // which would put a minutes-old sentence into a call that has since ended.
+  if (row && !sentAt && !prepared.ghost) {
+    void carryOverPhone(prisma, prepared, row).catch((err) => console.error("Phone carry failed:", err.message ?? err));
   }
   return row;
 }

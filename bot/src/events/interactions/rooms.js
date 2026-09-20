@@ -1,7 +1,7 @@
 // Room-anchor interaction handlers: the Intercom, Quest interact, the
-// Watchtower turret, the Bell Tower, Prayer at the Shrine of an Old Man and
-// the Den's slot machine — each one's open (button/select) and submit
-// (modal, or confirm button) pair.
+// Watchtower turret, the Bell Tower, Prayer at the Shrine of an Old Man, the
+// Den's slot machine and the telephones — each one's open (button/select) and
+// submit (modal, or confirm button) pair.
 const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const {
@@ -19,6 +19,17 @@ const {
   ROOM_PRAY_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
+const {
+  CHARON_SLUG,
+  PANIC_ROOM_SLUG,
+  COCKPIT_SLUG,
+  HABITATION_SLUG,
+  enterCharon,
+  leaveCharon,
+  pressLaunch,
+  sleepAboard,
+} = require("@lifeweb/db/lib/charon");
+const { hasAttribute } = require("@lifeweb/db/lib/locationAttributes");
 const { INTERCOM_ROOM_SLUG, broadcastIntercom } = require("@lifeweb/db/lib/intercom");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../../lib/intercomModal");
 const { buildQuestModal } = require("../../lib/questModal");
@@ -38,6 +49,8 @@ const { BELL_ROOM_SLUG, bellCooldown, broadcastBell } = require("@lifeweb/db/lib
 const { XOM_SHRINE_ROOM_SLUG, grantXom } = require("@lifeweb/db/lib/xom");
 const { CASINO_ROOM_SLUG, playSlots } = require("@lifeweb/db/lib/slotMachine");
 const { SLOT_PROMPT } = require("@lifeweb/db/lib/slotText");
+const { phoneView, placeCall, answerCall, hangUp } = require("@lifeweb/db/lib/phone");
+const { PHONE_TEXT } = require("@lifeweb/db/lib/phoneText");
 const { SFX } = require("@lifeweb/db/lib/sfx");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 const {
@@ -434,12 +447,231 @@ async function handleIntercomSubmit(interaction, roomId) {
   await respond(interaction, `» *Your voice goes out across Ravenheart.*${note}`, { fleeting: true });
 }
 
+
+// --- The telephone (docs/systemdocs/PHONES.md) ---------------------------
+//
+// Three custom ids for one button, because Discord needs a distinct id per
+// control but the PLAYER only ever sees one Phone button. Which of the three
+// they get is db/lib/phone.js#phoneView's answer, re-read on every press:
+// dialling, answering, or putting the receiver down.
+const PHONE_DIAL_PREFIX = "room:phone:dial:";
+const PHONE_ANSWER_PREFIX = "room:phone:answer:";
+const PHONE_HANGUP_PREFIX = "room:phone:hangup:";
+
+// The open. ack() first, always — CLAUDE.md's "Acknowledge before you work":
+// phoneView hits the database four or five times, and doing that ahead of the
+// acknowledgement is how a player is shown "The application did not respond"
+// for a call that has already started ringing.
+async function handlePhoneOpen(interaction, roomId) {
+  await ack(interaction);
+  const view = await phoneView(prisma, interaction.user.id, roomId);
+  if (!view.ok) {
+    await respond(interaction, view.error);
+    return;
+  }
+
+  if (view.mode === "held") {
+    await respond(interaction, PHONE_TEXT.held);
+    return;
+  }
+
+  if (view.mode === "hangup") {
+    await respond(interaction, {
+      content: PHONE_TEXT.dialling,
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`${PHONE_HANGUP_PREFIX}${roomId}`)
+            .setLabel("Hang up")
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
+    });
+    return;
+  }
+
+  if (view.mode === "answer") {
+    await respond(interaction, {
+      content: PHONE_TEXT.ringing,
+      components: [
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`${PHONE_ANSWER_PREFIX}${roomId}`)
+            .setLabel("Answer")
+            .setStyle(ButtonStyle.Secondary),
+        ),
+      ],
+    });
+    return;
+  }
+
+  if (view.phones.length === 0) {
+    await respond(interaction, PHONE_TEXT.noneToCall);
+    return;
+  }
+
+  // No tooltip and no description on any option: the list of phones IS the
+  // explanation, and a line of help under each one would be thirteen lines of
+  // it. Discord caps a select at 25 options and the exchange is nowhere near.
+  //
+  // The payphone's price is the ONE line of guidance here, and it goes in the
+  // message above the control rather than on an option — `-#` subtext, the
+  // Move declaration's shape (CLAUDE.md, "Bot message style").
+  const prompt = view.room.payphone && !view.paid ? `${PHONE_TEXT.pick}\n-# ${PHONE_TEXT.insert}` : PHONE_TEXT.pick;
+  await respond(interaction, {
+    content: prompt,
+    components: [
+      new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`${PHONE_DIAL_PREFIX}${roomId}`)
+          .setPlaceholder(PHONE_TEXT.pick)
+          .addOptions(view.phones.slice(0, 25).map((p) => ({ label: p.phone, value: p.id }))),
+      ),
+    ],
+  });
+}
+
+async function handlePhoneDial(interaction, roomId) {
+  await ack(interaction);
+  const toRoomId = interaction.values?.[0];
+  if (!toRoomId) {
+    await respond(interaction, "Pick a phone.");
+    return;
+  }
+  // The open turn, for the ledger stamp and the audit row. Null is fine — a
+  // phone works between turns the same as during one.
+  const turn = await prisma.turn
+    .findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } })
+    .catch(() => null);
+  const result = await placeCall(prisma, interaction.user.id, { fromRoomId: roomId, toRoomId, turn });
+  await respond(interaction, result.ok ? PHONE_TEXT.dialling : result.error);
+}
+
+async function handlePhoneAnswer(interaction, roomId) {
+  await ack(interaction);
+  const result = await answerCall(prisma, interaction.user.id, roomId);
+  await respond(interaction, result.ok ? PHONE_TEXT.pickedUp : result.error);
+}
+
+async function handlePhoneHangup(interaction, roomId) {
+  await ack(interaction);
+  const result = await hangUp(prisma, interaction.user.id, roomId);
+  await respond(interaction, result.ok ? "You put the receiver down." : result.error);
+}
+
 // Custom IDs below: "loc:" is the travel flow, "conv:" the Conversation flow, "move:"/"say:" the Move/Speak modals.
+
+
+
+// ---------------------------------------------------------------- the Charon
+
+// The web twins of these four are in web/app/(app)/chat/actions.js, and both
+// sides call the same db/lib/charon.js — so a refusal reads the same wherever
+// you pressed it (docs/systemdocs/CHARON.md).
+//
+// Every one acks first, like every other handler that touches the database:
+// doing the work first shows "The application did not respond" for something
+// that already committed.
+
+// The shared gate: a living character, standing in the Location this room hangs
+// off, holding whatever key the room's own `access:` list wants. The same three
+// checks prayGate makes, and for the same reason — a button is a hint, not a
+// lock, and a custom_id can be replayed from anywhere.
+async function charonRoomGate(interaction, roomId, slug, missing) {
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) return { error: "You don't have a living character." };
+  const room = await prisma.room.findUnique({
+    where: { id: roomId },
+    select: { id: true, name: true, slug: true, locationId: true, accessTagSlugs: true },
+  });
+  if (!room || room.slug !== slug) return { error: missing };
+  if (character.locationId !== room.locationId) {
+    return { error: `You're not standing in the ${room.name} any more.` };
+  }
+  const keys = await roomAccessKeys(prisma, character.id);
+  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
+    return { error: "You can't get in there." };
+  }
+  return { character, room };
+}
+
+async function handleCharonEnter(interaction, roomId) {
+  await ack(interaction);
+  const gate = await charonRoomGate(interaction, roomId, PANIC_ROOM_SLUG, "There's no way through here.");
+  if (gate.error) {
+    await respond(interaction, gate.error);
+    return;
+  }
+  const refusal = await enterCharon(prisma, gate.character);
+  await respond(interaction, refusal ?? "You step aboard.");
+}
+
+async function handleCharonLeave(interaction) {
+  await ack(interaction);
+  const character = await findAliveCharacter(interaction.user.id);
+  if (!character) {
+    await respond(interaction, "You don't have a living character.");
+    return;
+  }
+  const here = await prisma.location.findUnique({
+    where: { id: character.locationId ?? "" },
+    select: { slug: true },
+  });
+  if (here?.slug !== CHARON_SLUG) {
+    await respond(interaction, "You can't do that right now.");
+    return;
+  }
+  const refusal = await leaveCharon(prisma, character);
+  await respond(interaction, refusal ?? "You step back off.");
+}
+
+// One button, three answers — start, cancel, or refuse. The first two say what
+// they did out loud into the ship's feed instead of back at the presser, which
+// is why the ephemeral line here is so thin: the sentence that matters is
+// already in the room, where everybody else aboard can read it too.
+async function handleCharonLaunch(interaction, roomId) {
+  await ack(interaction);
+  const gate = await charonRoomGate(interaction, roomId, COCKPIT_SLUG, "There's no terminal here.");
+  if (gate.error) {
+    await respond(interaction, gate.error);
+    return;
+  }
+  const answer = await pressLaunch(prisma, gate.character);
+  await respond(interaction, answer ? answer.text : "The terminal answers.");
+}
+
+async function handleCharonSleep(interaction, roomId) {
+  await ack(interaction);
+  const gate = await charonRoomGate(interaction, roomId, HABITATION_SLUG, "There's nowhere to lie down here.");
+  if (gate.error) {
+    await respond(interaction, gate.error);
+    return;
+  }
+  // Off the Location's own attribute rather than its slug, so the rule is the
+  // same one the button was drawn from. On the ground the bunk is just a bunk.
+  const here = await prisma.location.findUnique({
+    where: { id: gate.character.locationId ?? "" },
+    select: { attributes: true },
+  });
+  if (!hasAttribute(here, "offMap")) {
+    await respond(interaction, "You can't do that right now.");
+    return;
+  }
+  const slept = await sleepAboard(prisma, gate.character);
+  await respond(interaction, slept ? "You lie down." : "You can't do that right now.");
+}
 
 
 module.exports = {
   PRAY_CONFIRM_PREFIX,
   SLOTS_CONFIRM_PREFIX,
+  PHONE_DIAL_PREFIX,
+  PHONE_ANSWER_PREFIX,
+  PHONE_HANGUP_PREFIX,
+  handlePhoneOpen,
+  handlePhoneDial,
+  handlePhoneAnswer,
+  handlePhoneHangup,
   handleSlotsOpen,
   handleSlotsConfirm,
   handleIntercomOpen,
@@ -452,4 +684,8 @@ module.exports = {
   handleBellSubmit,
   handleTurretSubmit,
   handleIntercomSubmit,
+  handleCharonEnter,
+  handleCharonLeave,
+  handleCharonLaunch,
+  handleCharonSleep,
 };

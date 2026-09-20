@@ -776,6 +776,32 @@ presentation.
 especially — stays readable. That's the point: the site goes up before the game
 opens so players can read the rules.
 
+## 4a. Asleep — out of play, and not a body
+
+`CharacterStatus.ASLEEP` is the third state, and it exists for exactly one
+button: the Charon's Habitation, in orbit ([`CHARON.md`](CHARON.md) §7). It
+takes a character out of the game without killing them.
+
+It is **not a death** — no corpse, no death mask, no witnesses — and it is **not
+a body**. `db/lib/bodies.js#isBody` is the rule, and both `curse.js` and
+`ghost.js` read it from there:
+
+| | ALIVE | ASLEEP | DEAD |
+|---|---|---|---|
+| Playing | yes | no | no |
+| A body somebody could bury | — | **no** | yes |
+| Curses the player (§4) | no | **no** | until buried |
+| Seat in Deadchat | no | **no** | yes |
+
+So the player lands on the wizard immediately, with nothing to bury and no
+watching seat — they are not dead, and they are about to be somebody else. A
+sleeper standing beside a genuinely unburied corpse is still cursed by the
+corpse; sleeping hides nothing.
+
+Every other query in the codebase filters `status: "ALIVE"`, so an asleep
+character leaves the rosters, the turn passes, Who's here and the catatonic
+death pass by itself, and frees whatever seat they held.
+
 ## 5. Death
 
 Setting a character to `DEAD` used to write a column and nothing else — it

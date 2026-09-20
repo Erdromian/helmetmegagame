@@ -244,6 +244,8 @@ you pick the right doc — they are never enough to change code with.
 | [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
 | [`ATTACK.md`](docs/systemdocs/ATTACK.md) | You're touching the Attack verb — the band gate that refuses a hopeless fight, the hold it puts on **both** sides, Break off, or the **Other** lens on `/gm/turns` |
 | [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
+| [`PHONES.md`](docs/systemdocs/PHONES.md) | You're touching the telephones — `Room.phone` and the payphones, the dial list, the four rings, what a call costs, **anything that asks whether a line is busy** (the partial unique indexes on `PhoneCall`), or **what a phone carries** (`db/lib/phoneVoice.js` — a voice, never a name) |
+| [`CHARON.md`](docs/systemdocs/CHARON.md) | You're touching the Charon — the ship above the Keep, the Panic Room's button, the six seats, the launch countdown, what `offMap` does to `/map`, or the **ASLEEP status** and the `db/lib/bodies.js` rule that keeps it out of both the curse and the Deadchat seat |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, notes |
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
@@ -708,6 +710,14 @@ credential, so it stays in `.env`.
 **Two predicates, and they are not the same predicate.** They were one until
 2026-09-15, which meant burying a body — the act that is supposed to *lift* a
 penalty — also threw that player out of the game they were still watching.
+
+**And there are three states now, not two.** `CharacterStatus.ASLEEP` — what the
+Charon's Habitation does to you (`CHARON.md`) — is neither alive nor a body: the
+player may roll again at once, there is nothing to bury, and they get no seat in
+Deadchat. What counts as a BODY is `db/lib/bodies.js#isBody`, and both predicates
+below read it from there, which is the one thing they were always meant to agree
+on. Never write `status !== "ALIVE"` to mean "a corpse" again — that reads a
+sleeper as a body and hands their player a curse they never earned.
 
 | | `db/lib/curse.js` | `db/lib/ghost.js` |
 |---|---|---|
@@ -1541,7 +1551,14 @@ might need to reach a real environment:
   `DirectMessage_clientNonce_key` is the fourth and the same answer: a PARTIAL
   unique index (`WHERE "clientNonce" IS NOT NULL`), so every DM writer with no
   composer behind it can go on passing null. Decline that drop too — without
-  it a retried send can reach a player twice. The
+  it a retried send can reach a player twice. The four
+  `PhoneCall_*_active_unique` indexes are the same shape again (`WHERE status
+  IN ('RINGING','CONNECTED')`), and they behave like the trigger below rather
+  than like the four above: `migrate diff` does not mention them in either
+  direction, so there is no drop to decline — but a hand-written "fix drift"
+  migration must not remove them. They are what makes "The line is busy." true
+  rather than hopeful, and what stops one person holding two receivers in two
+  rooms (`PHONES.md` §6). The
   `DirectMessage_notify` trigger (`CHAT.md` §2b) is the fifth — Prisma does
   not model triggers, so `migrate diff` never mentions it either way, but a
   hand-written "fix drift" migration must not drop it. The adjudication desk's

@@ -45,6 +45,8 @@ export default async function DevRoomPage({ params }) {
             description: room.description,
             soundproof: room.soundproof,
             destroysContents: room.destroysContents,
+            phone: room.phone,
+            payphone: room.payphone,
             accessTagSlugs: room.accessTagSlugs.join(", "),
             updatedAt: room.updatedAt.toISOString(),
           }}

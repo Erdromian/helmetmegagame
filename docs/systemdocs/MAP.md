@@ -1401,6 +1401,26 @@ the corner they have always had; on a phone it is a column, which is what let
 the two stack rather than fight over 486px of a 390px screen — and is now
 carrying the layer switch alone.
 
+## 6i. Off the map
+
+A Location carrying the `offMap` attribute has no marker on either plate and no
+edge to anywhere, so every question this panel normally answers — which plate,
+what is next door, where you could walk — has no answer for it. Rather than
+draw an empty barony around somebody who is not in the barony, `/map` says so:
+a dithered grey field, the layer switch drawn but **disabled**, and one locked
+reticle in the middle with that place's own card beside it.
+
+`web/app/(app)/map/actions.js` branches on it early — before `travelOptions`,
+`routesWithinZone` and the rest, none of which mean anything for a place with no
+links — and returns one node, no edges, and `offMap: true`.
+`MapBoard.js#OffMapBoard` draws it. A GM reading the whole plate is deliberately
+not sent down that branch: `unfogged` has no location of its own to be off the
+map at.
+
+The Charon in orbit is the only place carrying it today
+([`CHARON.md`](CHARON.md)). It is an attribute rather than a slug check so the
+second one needs no code.
+
 ## 7. Where the code lives
 
 | File | Role |

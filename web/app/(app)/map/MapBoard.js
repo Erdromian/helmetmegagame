@@ -139,6 +139,109 @@ function centreOf(node, cell) {
   return { x: node.x * cell + cell / 2, y: node.y * cell + cell / 2 };
 }
 
+// The board for a place no plate draws (docs/systemdocs/CHARON.md). There is
+// nothing under you, nothing next to you and nowhere to pan to, so this shows
+// exactly that: a dithered grey field, the layer switch visibly turned off, and
+// one locked reticle in the middle of it with your own card beside it.
+//
+// The dither is the same idea plateRender.js uses to thin rock under the
+// vignette — an ordered 4x4 pattern rather than noise, so it reads as the map's
+// own texture rather than as a broken image. Drawn as an SVG pattern here
+// because there is no canvas to draw on when there is no plate to draw.
+//
+// The reticle is hand-drawn rather than the charset's glyph for the same
+// reason: the glyph lives inside a plate's art document, and there isn't one.
+// Four corner ticks, which is what that glyph is.
+function OffMapBoard({ data }) {
+  const node = data.nodes[0] ?? null;
+  // A square viewBox: with one thing in the middle and no plate to match, any
+  // aspect would do, and a square is the one that centres the same way at every
+  // window shape.
+  const SIZE = 100;
+  const mid = SIZE / 2;
+  // The reticle, in viewBox units: a tick this long and this thick, that far
+  // out from centre. FILLED rectangles, not strokes — `.map-cross` colours a
+  // reticle with `fill`, because on the drawn board it is a bitmap glyph, and a
+  // stroked path there would come out invisible.
+  const arm = 3;
+  const off = 6;
+  const thick = 0.7;
+  const rect = (x0, y0, x1, y1) =>
+    `M ${Math.min(x0, x1)} ${Math.min(y0, y1)} H ${Math.max(x0, x1)} V ${Math.max(y0, y1)} H ${Math.min(x0, x1)} Z`;
+  const ticks = [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ]
+    .map(([sx, sy]) => {
+      const x = mid + sx * off;
+      const y = mid + sy * off;
+      // The two arms of one corner, meeting at (x, y) and running inward.
+      return [rect(x, y, x - sx * arm, y - sy * thick), rect(x, y, x - sx * thick, y - sy * arm)].join(" ");
+    })
+    .join(" ");
+
+  return (
+    <div className="map-board" data-offmap="true">
+      <div className="map-stage">
+        <svg
+          className="map-svg"
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          preserveAspectRatio="xMidYMid slice"
+          role="img"
+          aria-label={node ? `${node.name}. Nowhere the map reaches.` : "Nowhere the map reaches."}
+        >
+          <defs>
+            {/* Ordered dither, 4 units to a tile. The four dots are the light
+                half of a 4x4 Bayer matrix; at this density it greys the field
+                without ever resolving into a grid. */}
+            <pattern id="map-offmap-dither" width="4" height="4" patternUnits="userSpaceOnUse">
+              <rect className="map-offmap-dot" x="0" y="0" width="1" height="1" />
+              <rect className="map-offmap-dot" x="2" y="2" width="1" height="1" />
+              <rect className="map-offmap-dot" x="3" y="0" width="1" height="1" />
+              <rect className="map-offmap-dot" x="1" y="3" width="1" height="1" />
+            </pattern>
+          </defs>
+          <rect className="map-offmap-void" x="0" y="0" width={SIZE} height={SIZE} />
+          <rect x="0" y="0" width={SIZE} height={SIZE} fill="url(#map-offmap-dither)" />
+          {node && (
+            <g className="map-node" data-zone={node.zoneKey} data-state="here" data-picked="true">
+              {/* The same halo the drawn board gives a reticle, for the same
+                  reason: a quiet mark on a busy field reads as nothing. */}
+              <path className="map-cross-halo" transform="translate(0.6 0.6)" d={ticks} />
+              <path className="map-cross" d={ticks} />
+              <text className="map-node-label" x={mid} y={mid + off + 6} textAnchor="middle">
+                {node.name}
+              </text>
+            </g>
+          )}
+        </svg>
+
+        <div className="map-hud">
+          {data.plates.length > 1 && (
+            <div className="map-layers segmented">
+              {data.plates.map((p) => (
+                <button key={p.id} type="button" disabled aria-disabled="true" aria-pressed={false}>
+                  {p.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <aside className="map-card panel">
+        {node ? (
+          <MapCard node={node} here={node} travel={null} pending={false} error={null} note={null} />
+        ) : (
+          <EmptyState>You aren&apos;t on the map yet.</EmptyState>
+        )}
+      </aside>
+    </div>
+  );
+}
+
 export default function MapBoard({ onClose = null }) {
   const router = useRouter();
   const [data, setData] = useState(null);
@@ -672,7 +775,9 @@ export default function MapBoard({ onClose = null }) {
 
   // ---------------------------------------------------------------- render
 
-  if (!data || (data.ok && !picture)) {
+  // `!picture` does not apply off the map: there is no plate to make one from,
+  // so waiting for one would sit on "Unrolling the map…" for ever.
+  if (!data || (data.ok && !data.offMap && !picture)) {
     return <div className="map-board map-board-quiet">Unrolling the map…</div>;
   }
   if (!data.ok) {
@@ -681,6 +786,14 @@ export default function MapBoard({ onClose = null }) {
         <FormError>{data.error}</FormError>
       </div>
     );
+  }
+  // Off the map (docs/systemdocs/CHARON.md): no plate, no edges, nowhere to
+  // pan to. Its own board rather than the one below with everything switched
+  // off — every line of the one below is about a plate, and threading a null
+  // through all of it would make the ordinary map harder to read for the sake
+  // of a place that has none.
+  if (data.offMap) {
+    return <OffMapBoard data={data} />;
   }
 
   const { nodes, edges, travel } = data;

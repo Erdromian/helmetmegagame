@@ -14,6 +14,9 @@ const { startFeedOutbox } = require("../lib/feedOutbox");
 const { runWhisperPoll } = require("../lib/whisperPoll");
 const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
+const { tickPhones } = require("@lifeweb/db/lib/phone");
+const { PHONE_RING_INTERVAL_MS } = require("@lifeweb/db/lib/phoneText");
+const { runCharonSweep } = require("@lifeweb/db/lib/charonSweep");
 const { runOracleAtCutoff } = require("@lifeweb/db/lib/oracleCutoff");
 const { runGambitCutoff } = require("@lifeweb/db/lib/gambitCutoff");
 const { runStagePlay } = require("../lib/stagePlay");
@@ -249,6 +252,33 @@ module.exports = {
     // feature, self-rescheduling (bot/src/lib/deathSmell.js).
     startDeathSmell(prisma);
 
+    // The telephones (docs/systemdocs/PHONES.md). A ringing phone rings four
+    // times over sixty seconds, so this is the one sweep that cannot live on
+    // the minute cron above — it runs every PHONE_RING_INTERVAL_MS instead.
+    //
+    // setInterval rather than cron, which has no sub-minute schedule. The
+    // state is entirely in the PhoneCall row, so this timer holds nothing: the
+    // bot restarting mid-ring picks the call back up on the next pass instead
+    // of leaving a phone ringing in an empty office. It also hangs up a
+    // receiver whose holder died or was taken away, which is what stops a
+    // stuck row wedging that phone for the rest of the game.
+    //
+    // One sweep in flight at a time, the rite sweep's posture below: each pass
+    // posts to Discord once per ringing call, and a slow guild must not stack.
+    let phoneSweepRunning = false;
+    setInterval(() => {
+      if (phoneSweepRunning) return;
+      phoneSweepRunning = true;
+      tickPhones(prisma)
+        .then(({ rang, expired, cleared }) => {
+          if (expired || cleared) console.log(`Phone sweep: ${rang} rang, ${expired} unanswered, ${cleared} cleared.`);
+        })
+        .catch((err) => console.error("Phone sweep failed:", err))
+        .finally(() => {
+          phoneSweepRunning = false;
+        });
+    }, PHONE_RING_INTERVAL_MS);
+
     // Thanati rites fire two minutes after their last requirement lands, expire twelve hours after
     // their first chant (db/lib/riteSweep.js). Every minute so "two minutes" stays close to true.
     // One sweep in flight at a time: Summoning walks every cultist through Discord.
@@ -263,6 +293,26 @@ module.exports = {
         .catch((err) => console.error("Rite sweep failed:", err))
         .finally(() => {
           riteSweepRunning = false;
+        });
+    });
+
+    // The Charon's thirty seconds (docs/systemdocs/CHARON.md). Every five seconds, not every
+    // minute: a countdown that says "30" then "15" then goes cannot be read off a clock that
+    // moves in sixty-second steps. The countdown itself is a timestamp in the database, so a
+    // restart through the middle of one picks it back up rather than stranding the ship.
+    // One sweep in flight at a time, like the rite sweep: a launch walks everyone aboard
+    // through Discord and then talks to every Location in the game.
+    let charonSweepRunning = false;
+    cron.schedule("*/5 * * * * *", () => {
+      if (charonSweepRunning) return;
+      charonSweepRunning = true;
+      runCharonSweep(prisma)
+        .then(({ launched, moved }) => {
+          if (launched) console.log(`The Charon launched with ${moved?.length ?? 0} aboard.`);
+        })
+        .catch((err) => console.error("Charon sweep failed:", err))
+        .finally(() => {
+          charonSweepRunning = false;
         });
     });
 

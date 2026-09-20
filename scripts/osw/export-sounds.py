@@ -145,7 +145,7 @@ GROUPS = {
             Glasshit trap trap_arm lockpick_break wlocked1 wlocked2""")
         + whole("water", drop={"desktop.ini"})
         + files("machines", """closet_open closet_close maint_open maint_close
-            lightbreak""")
+            lightbreak airlock_open airlock_open_force""")
         + files("misc", "chairfall rollermove cloth_rip slip")
         + files("lfwbsounds", """iron_crate_open iron_crate_close double_open1
             double_close lava_open lava_close""")

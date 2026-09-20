@@ -15,6 +15,11 @@ const {
   ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
+  ROOM_PHONE_PREFIX,
+  ROOM_CHARON_ENTER_PREFIX,
+  ROOM_CHARON_LAUNCH_PREFIX,
+  ROOM_CHARON_SLEEP_PREFIX,
+  CHARON_LEAVE_PREFIX,
   CASINO_ROOM_SLUG,
   gateControlIn,
   roomAffordances,
@@ -25,11 +30,13 @@ const BUTTON = 2;
 const SECONDARY = 2;
 const DANGER = 4;
 
-// `room` needs { id, slug }.
-function roomStarterRow(room) {
+// `room` needs { id, slug }; `location` needs { slug, attributes } and is
+// optional — only the Charon's two read it (db/lib/placeAffordances.js), and
+// omitting it drops those rather than breaking the row.
+function roomStarterRow(room, location = null) {
   return {
     type: ACTION_ROW,
-    components: roomAffordances(room).map((entry) => ({
+    components: roomAffordances(room, location).map((entry) => ({
       type: BUTTON,
       style: entry.tone === DANGER_TONE ? DANGER : SECONDARY,
       custom_id: entry.customId,
@@ -49,6 +56,13 @@ module.exports = {
   ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
+  ROOM_PHONE_PREFIX,
+  ROOM_CHARON_ENTER_PREFIX,
+  ROOM_CHARON_LAUNCH_PREFIX,
+  ROOM_CHARON_SLEEP_PREFIX,
+  // Leave is a LOCATION affordance, not a room one — re-exported here anyway so
+  // the bot's router has all four Charon prefixes from one import.
+  CHARON_LEAVE_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
   CASINO_ROOM_SLUG,
   gateControlIn,

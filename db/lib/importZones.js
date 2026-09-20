@@ -195,6 +195,8 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
       destroysContents: entry.destroysContents,
       soundproof: entry.soundproof,
       stable: entry.stable,
+      phone: entry.phone,
+      payphone: entry.payphone,
       live: entry.live,
       locationId: location.id,
       // The AUTHORED contents, recorded but not poured: Start Game turns

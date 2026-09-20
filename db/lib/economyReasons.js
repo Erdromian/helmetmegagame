@@ -69,6 +69,10 @@ const REASONS = {
   // and neither mints nor burns a coin — which is the whole reason the machine
   // is backed by a person's account rather than by nothing.
   SLOTS: { flow: FLOW.TRANSFER, label: "Slot machine" },
+  // A payphone. TRANSFER, not SINK, for the same reason SLOTS above is: the
+  // obol goes into the Keep's Vault rather than out of the game, so the coin
+  // is still there and somebody could in principle come and take it.
+  PAYPHONE: { flow: FLOW.TRANSFER, label: "Payphone" },
   // Kept, unwritten: the generator is gone, but a reason is a plain string and
   // deleting one blanks the old rows that name it.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },

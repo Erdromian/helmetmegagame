@@ -74,6 +74,20 @@ const ATTRIBUTES = {
     type: "boolean",
     describe: () => "**Noticeboard**: you can pin paper here.",
   },
+
+  // Nowhere the plate draws. /map answers this with grey nothingness, the
+  // layer switch turned off, and the one crosshair you are standing on
+  // (web/app/(app)/map/MapBoard.js) — which is the honest picture, since a
+  // place with no marker and no edges has nothing to show a direction to.
+  //
+  // Exists to be matched on; Examine says nothing, because the Location's own
+  // description is already telling you where you are. Only the Charon's orbit
+  // carries it today (docs/systemdocs/CHARON.md), but it is an attribute
+  // rather than a slug check so the second off-map place needs no code.
+  offMap: {
+    type: "boolean",
+    describe: () => null,
+  },
 };
 
 function authoredLines(location, ctx = {}) {

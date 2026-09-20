@@ -9,7 +9,7 @@ import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { conversationsFor } from "@lifeweb/db/lib/conversations";
 import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
-import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
+import { parksMounts, hasAttribute } from "@lifeweb/db/lib/locationAttributes";
 import {
   ESCORT_SELECT as MOVER_SELECT,
   partyOf,
@@ -79,6 +79,70 @@ async function buildMap({ character, unfogged }) {
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
   ]);
+  // OFF THE MAP (docs/systemdocs/CHARON.md). A place carrying `offMap` has no
+  // marker on either plate and no edge to anywhere, so every question the rest
+  // of this function answers — which plate, what is adjacent, where you could
+  // walk — has no answer for it, and the honest picture is the one the board
+  // draws from this: grey nothingness, the layer switch off, and the one
+  // crosshair you are standing on.
+  //
+  // Before all the work below rather than filtered out after it, because none
+  // of that work means anything here and a travelOptions call on a Location
+  // with no links is a query asked for nothing.
+  //
+  // A GM reading the whole plate is deliberately NOT sent here — `unfogged`
+  // has no location of its own to be off the map at, and a GM looking at the
+  // barony should see the barony.
+  const standing = character?.locationId
+    ? locations.find((l) => l.id === character.locationId)
+    : null;
+  if (standing && hasAttribute(standing, "offMap")) {
+    return {
+      ok: true,
+      offMap: true,
+      // The plate list is sent, and the board draws the switch DISABLED off it
+      // rather than hiding it: a switch that vanishes reads as a bug, and one
+      // that is visibly off says the thing that is actually true — there is no
+      // plate under you to switch between. Nothing is drawn from them.
+      plates: plates(),
+      you: { locationId: standing.id, plate: null, gm: unfogged },
+      nodes: [
+        {
+          id: standing.id,
+          slug: standing.slug,
+          name: standing.name,
+          zoneName: standing.zone?.name ?? null,
+          zoneKey: zoneKey(standing.zone?.name) ?? "none",
+          plate: null,
+          x: null,
+          y: null,
+          state: "here",
+          description: standing.description || null,
+          inside: (await roomsInside(prisma, character, unfogged, new Set([standing.id]))).get(standing.id) ?? null,
+          indoors: parksMounts(standing),
+          adjacent: false,
+          passable: false,
+          walkable: false,
+          walkHops: null,
+          walkThrough: null,
+          walkDismounts: false,
+          crossesZone: false,
+          freeLeft: null,
+          canExert: false,
+          exertWhy: null,
+          exertNote: null,
+          dismounts: false,
+          reason: null,
+          openedBy: null,
+        },
+      ],
+      edges: [],
+      travel: null,
+      known: 1,
+      total: 1,
+    };
+  }
+
   // Whether the Move is spent — a push on is only offered after it is
   // (MAP.md §3). The same read the Travel panel and the sheet make.
   const acted =

@@ -60,9 +60,11 @@ const FACTORY_CLUSTER = ["factory", "east-river", "cliffs", "gullies", "grand-ra
 
 // As much of the caves as somebody who works customs has reason to know. NOT
 // the abandoned camp — that's a bigger reveal than a trade seat has earned;
-// the Migrant, who lives there, gets it below. The Depot moved into the
-// Undertown but it is still the shop on the other side of the sentry post.
-const CAVE_MOUTH = ["customs", "caves-approach", "undertown-5"];
+// the Migrant, who lives there, gets it below. Both ends of the crossing out
+// of the caves: the Depot is the freight platform the sentry post lets onto,
+// and the Merchant's berth one hop past it is the shop somebody working
+// customs would actually have reason to know.
+const CAVE_MOUTH = ["customs", "caves-approach", "undertown-5", "undertown-6"];
 
 // The way between the fortress and the town: one manned gate, at the top of
 // the Residences' stairs.
@@ -78,13 +80,22 @@ const FACTORY_ROAD = [
   "cliffs",
   "factory",
 ];
+// Three people know there is a ship (docs/systemdocs/CHARON.md), and this table
+// is the ONLY way anybody learns it: the Charon has no LocationLink, so it is
+// never anybody's listed neighbour and the sighting write the header describes
+// can never reach it. Leave a seat off this list and that seat cannot see the
+// Charon on the map at all — which is the whole arrangement, and why the Heir,
+// the Successor and the Arbiter keep plain FORTRESS_INNER below despite sitting
+// in the same rooms.
+const FORTRESS_ESCAPE = [...FORTRESS_INNER, "fortress-6"];
+
 const ROLE_MEMORIES = {
   // Fortress
-  baron: FORTRESS_INNER,
-  baroness: FORTRESS_INNER,
+  baron: FORTRESS_ESCAPE,
+  baroness: FORTRESS_ESCAPE,
   heir: FORTRESS_INNER,
   successor: FORTRESS_INNER,
-  hand: FORTRESS_INNER,
+  hand: FORTRESS_ESCAPE,
   arbiter: FORTRESS_INNER,
   courtier: FORTRESS_CORE,
   servant: FORTRESS_CORE,

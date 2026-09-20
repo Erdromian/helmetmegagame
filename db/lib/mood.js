@@ -102,6 +102,17 @@ const EVENTS = Object.freeze({
   KISS: 17,
   MUSIC: 12,
   CATHEDRAL: 12,
+  // The Thanati's Rite of Conversion (docs/systemdocs/THANATI.md). Refusing the
+  // dark god is the largest single hit in this table by some way, and it is
+  // meant to be: the rite's own description promises the cult somebody too
+  // wrecked to fight back. The dial floors at MOOD_MIN, so -140 puts all but
+  // the very highest-spirited straight into Panicking -- which is the point,
+  // not an overflow. Still an ordinary event, so Imperturbable and the rest of
+  // the multiplier table still get their say.
+  RITE_REFUSED: -140,
+  // The other side of the same rite: the vision bounces off somebody Pious,
+  // and being proven right about your god is worth something.
+  RITE_DISMISSED: 50,
 });
 const DESIRE_RELIEF_PER_POINT = 12;
 const DRINK_RELIEF = 35;
@@ -233,7 +244,13 @@ const MULTIPLIERS = Object.freeze([
 // hit and the nightly one, since the kind is the same for each. DRIFT needs no
 // entry (it carries noMultiplier) and PLACE harm is already capped at Fine.
 const AMOR_FATI_SHOCK = Object.freeze(
-  new Set(["WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BRANDED", "BOUND", "ROBBED", "TURRET", "CAVE_TROUBLE", "DEATH_SEEN"]),
+  new Set([
+    "WOUND", "DYING", "CRUCIFIED", "TORTURED", "MUTILATED", "BRANDED", "BOUND", "ROBBED", "TURRET",
+    "CAVE_TROUBLE", "DEATH_SEEN",
+    // Refusing the dark god is misfortune with an author and a moment, which
+    // is the whole test for this list rather than the ambient one below.
+    "RITE_REFUSED",
+  ]),
 );
 const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "STARVING", "CORPSE", "NOBLE_MEAL"]));
 const AMOR_FATI_SHARE = -0.5;

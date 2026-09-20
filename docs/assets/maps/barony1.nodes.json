@@ -123,6 +123,14 @@
       "y": 7
     },
     {
+      "code": "6",
+      "zone": "fortress",
+      "slug": "fortress-6",
+      "name": "Charon",
+      "x": 13,
+      "y": 6
+    },
+    {
       "code": "1",
       "zone": "town",
       "slug": "town-1",

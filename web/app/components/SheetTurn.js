@@ -25,6 +25,10 @@ function offerLine(o) {
         return `Waiting for ${o.otherName} to agree to be bound.`;
       case "LESSON":
         return `Waiting for ${o.otherName} to accept ${lesson}.`;
+      // The cult is never shown a name here, and neither is anybody else --
+      // a conversion names nobody on any surface (docs/systemdocs/THANATI.md).
+      case "CONVERSION":
+        return "Waiting for an answer.";
       default:
         return `Waiting for ${o.otherName} to answer.`;
     }
@@ -40,6 +44,10 @@ function offerLine(o) {
       return `${o.otherName} would like to kiss you. Answer in your DMs.`;
     case "SEARCH":
       return `${o.otherName} wants to search you. Answer in your DMs.`;
+    // Deliberately says nothing about who, or about what: the vision itself
+    // names nobody, and the sheet must not be the thing that does.
+    case "CONVERSION":
+      return "Something is waiting for an answer in your DMs.";
     default:
       return `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""}. Answer in your DMs.`;
   }

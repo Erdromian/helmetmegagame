@@ -51,6 +51,10 @@ const ROOM_SELECT = {
   kind: true,
   live: true,
   questId: true,
+  // The phone on the wall, which roomAffordances reads the same way it reads
+  // questId above -- see docs/systemdocs/PHONES.md.
+  phone: true,
+  payphone: true,
   locationId: true,
   discordThreadId: true,
   starterMessageId: true,

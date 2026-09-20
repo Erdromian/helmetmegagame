@@ -107,7 +107,7 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
 
   const rooms = await prisma.room.findMany({
     where: { kind: "PRIVATE", discordThreadId: { not: null } },
-    select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, questId: true, discordThreadId: true },
+    select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, questId: true, phone: true, payphone: true, discordThreadId: true },
   });
 
   // Spend stale guest grants before the recompute below and before the

@@ -128,6 +128,14 @@
 #   on the room inherits it. Prints on the room's own starter as
 #   `**Muffled**: shouts do not carry out of here.` A Location is never
 #   soundproof itself; only a Room can carry this.
+# - phone (rooms only): the NAME of the telephone on this room's wall, as every
+#   dial list in the game prints it — `phone: "Baron's Phone"`. A name and not
+#   a flag, because nobody asks the operator for a room number. Absent means
+#   no phone, which is nearly every room. See docs/systemdocs/PHONES.md.
+# - payphone (rooms only): true makes that phone take an obol into the Keep's
+#   Vault, and keeps it OFF every dial list — a payphone calls out and never
+#   rings, because there is nobody standing by it whose job is to answer.
+#   Requires `phone:`; a payphone with no name is a sync PROBLEM.
 #
 # PROSE STYLE — every prose value in this file is a `>-` folded block
 # scalar, one physical line per paragraph, no hard wrapping, UNLESS it has
@@ -357,6 +365,7 @@ zones:
                 cooking-all-you-need-to-know: 1
           town-4-6:
             name: Vestry
+            phone: "Bishop"
             description: >-
               The Chaplains and Bishop privately congregate here.
             access: [cathedral-key, barons-key]
@@ -455,6 +464,8 @@ zones:
               The street outside the inn, where unlucky people end up. There's a porch — a fine place to smoke a cigarette.
           town-7-2:
             name: Bar
+            phone: "Inn"
+            payphone: true
             description: >-
               Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers. There's an ATM here.
           town-7-3:
@@ -510,6 +521,8 @@ zones:
               The fortress is set upon a hill. The stairs started all the way when you first entered the town, but they steeply increase here. A large turret looms above, watching the clearing.
           town-8-2:
             name: Street
+            phone: "Residences"
+            payphone: true
             description: >-
               The cobblestones outside of the homes.
           town-8-3:
@@ -566,10 +579,12 @@ zones:
         rooms:
           town-9-1:
             name: Ward
+            phone: "Sanctuary"
             description: >-
               A long, tiled room. There are small bedframes on either side. Potted plants offer the patients a quiet hope.
           town-9-2:
             name: Esculap's Office
+            phone: "Esculap"
             description: >-
               Furnished with wood, the office stands in stark contrast to the sanitized aesthetics of the rest of the Sanctuary. Shelves on the wall are lined with glassware and bottles containing hundreds of different reagents.
             access: [sanctuary-key, barons-key]
@@ -639,6 +654,7 @@ zones:
           # deliberately did not move with it.
           fortress-1-2:
             name: Censor's Office
+            phone: "Censor"
             access: [censors-key, cerberus-key, barons-key]
             soundproof: true
             description: >-
@@ -869,6 +885,7 @@ zones:
                 love-lies-and-lays-of-larry-luca-life-1-royal-loyal-lynn: 1
           fortress-4-6:
             name: Baron's Study
+            phone: "Baron's Phone"
             access: [barons-key]
             description: >-
               Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
@@ -917,11 +934,9 @@ zones:
               items:
                 cigarette: 1
                 obol: 2
-          fortress-4-c:
-            name: The Charon
-            access: [barons-key]
-            description: >-
-              A sealed gate. The Baron's key opens this.
+          # The sealed gate that used to stand here is gone. The Charon is a
+          # real place now — fortress-6, below — and the Panic Room's own
+          # button is the only door into it (docs/systemdocs/CHARON.md).
           fortress-4-d:
             name: Panic Room
             access: [barons-key, baroness-key]
@@ -962,6 +977,7 @@ zones:
                 eth-lod: 1
           fortress-5-2:
             name: Meister's Study
+            phone: "Meister"
             access: [meisters-key, barons-key]
             soundproof: true
             description: >-
@@ -972,6 +988,7 @@ zones:
                 states-of-matter: 1
           fortress-5-3:
             name: Hand's Study
+            phone: "Hand"
             access: [hands-key, barons-key]
             soundproof: true
             description: >-
@@ -981,6 +998,29 @@ zones:
                 paper: 7
                 cleaning-powder: 1
                 hands-wax-stamp: 1
+      # The ship, drawn one tile above the Keep on the barony1 plate. It has
+      # NO entry in connections: below, on purpose — there is no road to it
+      # and no edge to light it up, so it shows on the map only for the three
+      # people who start knowing it is there (db/lib/startingMemories.js).
+      # The way in is the Panic Room's own button, and the way out is the
+      # Leave button on this Location. See docs/systemdocs/CHARON.md.
+      fortress-6:
+        name: Charon
+        indoors: true
+        description: >-
+          A ship capable of taking its occupants to outer space. Its interiors are sleek and functional. It is the last option.
+        rooms:
+          fortress-6-1:
+            name: Cockpit
+            description: >-
+              There's a terminal.
+          fortress-6-2:
+            name: Habitation
+            description: >-
+              A comfortable room. You hear the life support systems working.
+            stash:
+              items:
+                tinned-butter: 10
   # The town under the town. Codes 1-H come from the barony2 plate in
   # docs/assets/maps/nodes.yaml, and every one of them has a Location here so
   # the map can link to a real place. Most are SKELETONS on purpose — a name
@@ -1149,6 +1189,8 @@ zones:
           # reach, which defeats opening the counter up in the first place.
           undertown-5-1:
             name: Railway
+            phone: "Depot"
+            payphone: true
             live: train
             description: >-
               Rusted overhangs, overgrown with wilted, sunthirsted vines, occlude the cargo hub. A deep railway bisects the platforms. Every other turn, a cargo train rolls in.
@@ -1211,6 +1253,8 @@ zones:
         rooms:
           undertown-8-1:
             name: Bar
+            phone: "Den"
+            payphone: true
             description: >-
               You can buy all sorts of things here. There's a cash machine bolted to the wall at the end of the counter.
             stash:
@@ -1276,6 +1320,7 @@ zones:
                 nekker-pheromones: 1
           undertown-9-3:
             name: Exactor's Office
+            phone: "Exactor"
             access: [exactors-key]
             soundproof: true
             description: >-
@@ -1622,6 +1667,7 @@ zones:
             destroys: true
           factory-overseer-box:
             name: Overseer Box
+            phone: "Banneret"
             description: >-
               Clear sightways into the factory and out to the surrounding marsh, leading to a walkway that wraps around the factory's upper levels.
             access: [bannerets-key]
@@ -2037,6 +2083,32 @@ zones:
                 description: >-
                   A shrine of a twisted-looking, aged face. It brims with crazed power.
                 access: [caving]
+
+  # Orbit. One Location, no plate marker, no connections, and no rooms of its
+  # own — the Charon's Cockpit and Habitation are REPOINTED here when the ship
+  # launches (db/lib/charon.js#completeLaunch), so the butter and everything
+  # else aboard goes up with it rather than being duplicated.
+  #
+  # Its own zone rather than a sixth Fortress location, because a Zone owns
+  # the Discord category and the access role: a Baron who has left the planet
+  # must not still hold the role that opens the Keep's channels.
+  #
+  # `offMap` is what turns /map into the grey nothingness with one crosshair
+  # in it (db/lib/locationAttributes.js, web/app/(app)/map/MapBoard.js).
+  space:
+    name: Space
+    kind: surface
+    sort: 7
+    description: >-
+      Above everything, and colder than anywhere.
+    locations:
+      space-1:
+        name: Charon (Space)
+        indoors: true
+        attributes:
+          offMap: true
+        description: >-
+          The Charon has launched in space. You can see the barren surface of Evergreen below you. You will soon arrive at the Leviathan, you hope.
 
 connections:
   # --- Town -------------------------------------------------------------
