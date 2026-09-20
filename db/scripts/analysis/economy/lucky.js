@@ -46,13 +46,14 @@ function buildLucky({ get, rv, caving, trinkets, moveValue, gameTurns }) {
   ];
   for (const [smith, plainId, luckyId] of [["Smithing", "apprentice", "apprentice-lucky"], ["Smithing II", "skilled", "skilled-lucky"]]) {
     for (const set of stoneSets) {
-      const d = H[luckyId].eBase - H[plainId].eBase + (H[luckyId].eMult - H[plainId].eMult) * set.inlay;
+      // After the Merchant's cut, so a Trinket that already clears a lot loses half of what Lucky adds.
+      const d = trinkets.expectedProfit(luckyId, set.inlay) - trinkets.expectedProfit(plainId, set.inlay);
       add({
         id: `trinket-${plainId}-${set.inlay}`,
         die: "Forging a Trinket",
         who: `${smith}, forging with ${set.label}`,
         gain: d,
-        basis: `+${round1(H[luckyId].eBase - H[plainId].eBase)} ¢ on the bare price, +${round1(H[luckyId].eMult - H[plainId].eMult)} on the multiplier`,
+        basis: `+${round1(H[luckyId].eBase - H[plainId].eBase)} ¢ on the bare price and +${round1(H[luckyId].eMult - H[plainId].eMult)} on the multiplier before the Merchant's cut`,
         note: "Per Trinket, and a Trinket is a whole Move, so this is a Move's worth of gain. Stones are the limit, not the die.",
         scales: false,
         kind: "forge",

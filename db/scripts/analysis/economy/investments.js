@@ -12,6 +12,7 @@
 // "¢ a turn per point" so the two can be compared without pretending they are the same thing.
 
 const soilery = require("../../../lib/soilery");
+const { cutOn } = require("./cut");
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
@@ -309,14 +310,16 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, get, list, rv, r
       coin: wsCoin,
       coinHow: `${wsCoin} ¢ at the Depot, or ${wsTag.requirement?.resourceCost} ⬢ and ${wsTag.requirement?.turnsCost} Moves to smith`,
       points: smithing?.pointCost ?? 0,
-      gain: skilled?.rate ?? null,
-      gainHow: `the Merchant's floor for a 10-point smith, ${skilled?.rate} ¢ a Move (${floor?.rate} at 5 points); the real money is above the floor`,
+      gain: skilled ? skilled.rate - cutOn(skilled.rate) : null,
+      gainHow: `the Merchant's floor for a 10-point smith after his cut, ${round1(skilled ? skilled.rate - cutOn(skilled.rate) : null)} ¢ a Move (${round1(floor ? floor.rate - cutOn(floor.rate) : null)} at 5 points); the real money is above the floor`,
       note: "At the floor this is a slow payback. It is the price of being able to smith at all.",
     });
   }
 
   // ---- skill rungs ----------------------------------------------------------------------------------
   const tiers = profitTiers.filter((t) => t.rate != null);
+  // A rung's rate is what a one-Move craft clears before the Merchant's cut; this is what is left of it.
+  const real = (r) => r - cutOn(r);
   let prev = null;
   for (const t of tiers) {
     const label = { 2: "Crafting", 5: "Smithing / basic brewing", 10: "Skilled smithing / brewing", 15: "Expert brewing", 19: "Gunpowder" }[t.points] ?? `${t.points}-point rung`;
@@ -325,12 +328,12 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, get, list, rv, r
       group: "Skill rungs",
       name: label,
       kind: "skill",
-      does: `Unlocks recipes that pay ${t.rate} ¢ a Move at the Merchant's floor.`,
+      does: `Unlocks recipes that clear ${t.rate} ¢ a Move before the Merchant's cut and ${round1(real(t.rate))} after it.`,
       coin: 0,
       coinHow: "no coin",
       points: t.points - (prev?.points ?? 0),
-      gain: t.rate - (prev?.rate ?? 0),
-      gainHow: prev ? `+${t.rate - prev.rate} ¢ a Move over the ${prev.points}-point rung, for the ${t.points - prev.points} extra points` : `${t.rate} ¢ a Move`,
+      gain: real(t.rate) - (prev ? real(prev.rate) : 0),
+      gainHow: prev ? `+${round1(real(t.rate) - real(prev.rate))} ¢ a Move over the ${prev.points}-point rung after the cut, for the ${t.points - prev.points} extra points` : `${round1(real(t.rate))} ¢ a Move after the cut`,
       note: "The floor only. Selling above it is where a crafter actually earns.",
     });
     prev = t;

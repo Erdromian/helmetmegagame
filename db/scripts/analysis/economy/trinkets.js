@@ -12,6 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 const trinketPass = require("../../../lib/trinketPass");
+const { cutOn } = require("./cut");
 
 const REPO = path.resolve(__dirname, "../../../..");
 
@@ -52,7 +53,9 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     });
     const eBase = TIERS.reduce((s, t, i) => s + tierP[i] * t.base, 0);
     const eMult = TIERS.reduce((s, t, i) => s + tierP[i] * t.mult, 0);
-    return { ...h, tierP, eBase, eMult, bareProfit: eBase - dieCost };
+    // What a bare Trinket clears, before and after the Merchant's cut, over the tiers the die can give.
+    const bare = (net) => TIERS.reduce((sum, t, i) => sum + tierP[i] * (net ? (t.base - dieCost) - cutOn(t.base - dieCost) : t.base - dieCost), 0);
+    return { ...h, tierP, eBase, eMult, bareRaw: bare(false), bareProfit: bare(true) };
   });
   const H = Object.fromEntries(holders.map((h) => [h.id, h]));
 
@@ -96,7 +99,13 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   const cost = (s, basis) => (basis === "shelf" ? s.shelf : s.sold);
   const combos = [];
   const eligible = (basis) => stones.filter((s) => (basis === "shelf" ? s.shelf != null : true));
-  const price = (h, ins) => h.eBase + h.eMult * ins.reduce((n, s) => n + s.inlay, 0);
+  // Expected profit of one Trinket: each tier prices the stones its own way and is rounded like the game rounds
+  // it (`round(base + mult × inlay)`), and the Merchant's cut comes off whatever that tier clears.
+  const expected = (h, inlay, stoneCost, net) =>
+    TIERS.reduce((sum, t, i) => {
+      const profit = Math.round(t.base + t.mult * inlay) - dieCost - stoneCost;
+      return sum + h.tierP[i] * (net ? profit - cutOn(profit) : profit);
+    }, 0);
   for (const basis of ["own", "shelf"]) {
     const pool = eligible(basis);
     const sets = [[]];
@@ -107,7 +116,10 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     for (const ins of sets) {
       const stoneCost = ins.reduce((n, s) => n + cost(s, basis), 0);
       const row = { basis, stones: ins.map((s) => s.name), slugs: ins.map((s) => s.slug), inlay: ins.reduce((n, s) => n + s.inlay, 0), stoneCost };
-      for (const h of holders) row[h.id] = price(h, ins) - dieCost - stoneCost;
+      for (const h of holders) {
+        row[h.id] = expected(h, row.inlay, stoneCost, true);
+        row[`${h.id}Raw`] = expected(h, row.inlay, stoneCost, false);
+      }
       combos.push(row);
     }
   }
@@ -131,8 +143,10 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     const inlay = rows.reduce((n, r) => n + r.p * r.s.inlay, 0);
     const forgone = rows.reduce((n, r) => n + r.p * r.s.sold, 0);
     const revenue = trinkets * h.eBase + h.eMult * inlay;
-    const net = revenue - trinkets * dieCost - forgone;
-    return { stones: stoneCount, trinkets, revenue, forgone, net };
+    const raw = revenue - trinkets * dieCost - forgone;
+    // The cut is per Trinket; the average one clears raw / trinkets.
+    const net = raw - (trinkets > 0 ? trinkets * cutOn(raw / trinkets) : 0);
+    return { stones: stoneCount, trinkets, revenue, forgone, raw, net };
   };
   const prospector = {};
   for (const [zone, col] of [["caves", "plain"], ["caves", "skilled"], ["depths", "plain"], ["depths", "skilled"]]) {
@@ -160,6 +174,8 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     prospector,
     shelfLoop,
     checks: { tiersMatchDoc, overShelf, offRule },
+    // Expected profit of one Trinket for a smith kind, given the inlay and what the stones cost, after the cut by default.
+    expectedProfit: (id, inlay, stoneCost = 0, net = true) => expected(H[id], inlay, stoneCost, net),
     moveValue,
   };
 }

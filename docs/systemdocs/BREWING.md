@@ -82,9 +82,9 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 | `phrygian-tears` | 4 | 2 | `cave-fungus` | — |
 | `white-honey` | **3** | 1 | `honey` + `trout-heart` | — |
 | `purifier` | 1 | 1 | `cave-fungus` | — |
-| `dreamers-draught` | 3 | 1 | `skinless-brain` | — |
-| `forgiveness` | 5 | 1 | — | — |
-| `flawless-skin` | 5 | 1 | — | `otherworldly-beauty` |
+| `dreamers-draught` | 2 | 1 | `skinless-brain` | — |
+| `forgiveness` | 3 | 1 | — | — |
+| `flawless-skin` | 4 | 1 | — | `otherworldly-beauty` |
 
 Three recipes lost a prose ingredient and pay in ⬢ instead, because the
 ingredient was the whole gate: `white-honey` 2 → **6** (it cures a poisoning),
@@ -136,16 +136,16 @@ instead.
 
 | Brew II | ⬢ | Turns | Cures |
 |---|---|---|---|
-| `antidote` | 3 | 0.5 | poisoned, envenomated |
+| `antidote` | 2 | 0.5 | poisoned, envenomated |
 | `fever-draught` | 2 | 0.5 | feverish, heatstroke, cave-fever |
-| `burn-dressing` | 3 | 0.5 | burned, severe-burns |
+| `burn-dressing` | 2 | 0.5 | burned, severe-burns |
 
 | Brew III | ⬢ | Turns | Ingredient | Cures |
 |---|---|---|---|---|
 | `autoinjector` | 0 | 1 | `antidote` + `fever-draught` + `cave-fungus` | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
-| `portable-surgical-pack` | 5 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
-| `cybernetic-arm` | 10 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
-| `cybernetic-leg` | 10 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
+| `portable-surgical-pack` | 3 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
+| `cybernetic-arm` | 1 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
+| `cybernetic-leg` | 1 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
 
 ## 3b. The Silver Chip shelf
 

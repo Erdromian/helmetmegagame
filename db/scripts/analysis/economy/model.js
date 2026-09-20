@@ -32,6 +32,7 @@ const { buildTrinkets } = require("./trinkets");
 const { buildCooking } = require("./cooking");
 const { buildDesires } = require("./desires");
 const { buildLucky } = require("./lucky");
+const { MERCHANT_CUT, cutOn, afterCut } = require("./cut");
 const { turretTable } = require("../../../lib/depotTurret");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -45,6 +46,11 @@ const ASSUMPTIONS = [
     key: "MOVES_PER_TURN",
     value: 1,
     why: "A turn gives one Move; a recipe's turnsCost is a fraction of it (TAGS.md, Move economy).",
+  },
+  {
+    key: "MERCHANT_CUT",
+    value: `${MERCHANT_CUT.share * 100}% of the profit on each item, at least ${MERCHANT_CUT.min} ¢`,
+    why: "A craft sold through the Merchant leaves the maker half of what it earns over its cost (Bascinet, 2026-09-20). It is per item, never more than the profit, and a craft that loses money pays none. Selling to another player skips it, so every craft figure is shown before the cut (raw) and after it. The wage table is set on the raw figure.",
   },
   {
     key: "CRAFT_DUTY",
@@ -346,14 +352,23 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     if (parPayable && resCost + extraRes > 0) flags.push("the ⬢ can be paid in obols, 1 for 1");
     const totalMoves = Math.round((turnsCost + extraMoves) * 10000) / 10000;
     const per = (rvPrice) => revenue - itemCostAdj - (resCost + extraRes) * rvPrice;
+    // The Merchant's cut comes off each item sold, so a recipe that yields two pays it twice.
+    const cutOf = (raw) => yieldN * cutOn(raw / yieldN);
+    const netOf = (rvPrice) => per(rvPrice) - cutOf(per(rvPrice));
     let perTurnSell = null;
     let perTurnBuy = null;
+    let rawTurnSell = null;
+    let rawTurnBuy = null;
     if (turnsCost > 0) {
-      perTurnSell = per(rv.sell) / totalMoves;
-      perTurnBuy = per(rv.buy) / totalMoves;
+      rawTurnSell = per(rv.sell) / totalMoves;
+      rawTurnBuy = per(rv.buy) / totalMoves;
+      perTurnSell = netOf(rv.sell) / totalMoves;
+      perTurnBuy = netOf(rv.buy) / totalMoves;
     } else if (r.perTurn != null) {
-      perTurnSell = per(rv.sell) * r.perTurn;
-      perTurnBuy = per(rv.buy) * r.perTurn;
+      rawTurnSell = per(rv.sell) * r.perTurn;
+      rawTurnBuy = per(rv.buy) * r.perTurn;
+      perTurnSell = netOf(rv.sell) * r.perTurn;
+      perTurnBuy = netOf(rv.buy) * r.perTurn;
       flags.push(`free action, capped at ${r.perTurn}/turn`);
     } else {
       flags.push("free action, uncapped");
@@ -374,8 +389,13 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       resourceCost: resCost + extraRes,
       resourcesPerTurn: totalMoves > 0 ? (resCost + extraRes) / totalMoves : r.perTurn != null ? resCost * r.perTurn : null,
       duty: 1,
+      // After the Merchant's cut; the raw figures are before it.
       netPerTurnSell: perTurnSell,
       netPerTurnBuy: perTurnBuy,
+      rawPerTurnSell: rawTurnSell,
+      rawPerTurnBuy: rawTurnBuy,
+      merchantCut: cutOf(per(resourceValue === "sell" ? rv.sell : rv.buy)),
+      perAction: netOf(resourceValue === "sell" ? rv.sell : rv.buy),
       easy: recBySlug.get(t.slug)?.easy ?? false,
       workshop: recBySlug.get(t.slug)?.workshop ?? false,
       copy: recBySlug.get(t.slug)?.copy ?? false,
@@ -946,12 +966,12 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   // sell = inputs at the Depot's price + import price × ⬢ + round(rate × turns^1.3). Read here as the
   // intent the catalog is checked against, so a new recipe priced off the old ⬢-at-1 arithmetic shows up.
   const IMPORT_PRICE = rv.buy;
-  const PROFIT_RATE_BY_POINTS = { 0: 1, 2: 1, 5: 2, 10: 4, 15: 5, 19: 6 };
+  const PROFIT_RATE_BY_POINTS = { 0: 2, 2: 2, 5: 4, 10: 8, 15: 12, 19: 15 };
   const rateAt = (pts) => PROFIT_RATE_BY_POINTS[Object.keys(PROFIT_RATE_BY_POINTS).map(Number).filter((k) => k <= pts).sort((a, b) => b - a)[0]];
   // Depot shelf prices and previous sell prices are left alone, so a recipe is fitted to its price by moving its
   // ⬢ cost instead. Two cannot be fitted that way: the Pickaxe (a quarter-Move craft moves in steps of 4 ¢ a
   // turn) and the Autoinjector (its inputs cost more than its shelf price).
-  const HELD_BACK = new Set(["pickaxe", "autoinjector"]);
+  const HELD_BACK = new Set(["pickaxe", "autoinjector", "badge", "mulligan-potion"]);
   // Bars are the one input-worked recipe priced by scarcity rather than by the formula: the ore cannot be
   // bought, so the ore is the bottleneck and the bar's price is free to be large next to it (Bascinet, 2026-09-20).
   const BARS = new Set(["iron", "copper", "nickel"]);
@@ -960,14 +980,27 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const inScope = (a) => a.kind === "craft" && a.revenue > 0 && tierFamilies.includes(a.craftFamily ?? a.family);
   const profitRows = activities
     .filter((a) => inScope(a) && !hasItemInput(a) && a.netPerTurnBuy != null && !HELD_BACK.has(a.slug))
-    .map((a) => ({ slug: a.slug, name: a.name, family: a.craftFamily ?? a.family, points: a.skillPoints, rate: rateAt(a.skillPoints), got: a.netPerTurnBuy, moves: a.totalMoves }));
+    .map((a) => ({ slug: a.slug, name: a.name, family: a.craftFamily ?? a.family, points: a.skillPoints, rate: rateAt(a.skillPoints), got: a.rawPerTurnBuy, net: a.netPerTurnBuy, moves: a.totalMoves }));
   // Prices and ⬢ are whole numbers, so a craft's profit moves in whole ¢: allow 2 ¢ a Move, half the rate, or a
   // craft and a half of slack (a wide 6 ¢ a Move on a quarter-Move piece), whichever is widest.
   const offRate = profitRows.filter((r) => Math.abs(r.got - r.rate) > Math.max(2, 0.5 * r.rate, 1.5 / r.moves));
   const profitTiers = [...new Set(profitRows.map((r) => r.points))].sort((a, b) => a - b).map((pts) => {
     const rows = profitRows.filter((r) => r.points === pts);
     const got = rows.map((r) => r.got);
-    return { points: pts, rate: rateAt(pts), n: rows.length, min: Math.min(...got), max: Math.max(...got), median: median(got), families: [...new Set(rows.map((r) => r.family))] };
+    const net = rows.map((r) => r.net);
+    return {
+      points: pts,
+      rate: rateAt(pts),
+      n: rows.length,
+      min: Math.min(...got),
+      max: Math.max(...got),
+      median: median(got),
+      // After the Merchant's cut.
+      netMin: Math.min(...net),
+      netMax: Math.max(...net),
+      netMedian: median(net),
+      families: [...new Set(rows.map((r) => r.family))],
+    };
   });
   // A recipe that works an input is priced off the input instead: its wage, its ⬢ at the import price, and the
   // input at nearly twice its sell price when the input is raw (ore, cave finds, organs, crops), once when it is
@@ -1024,11 +1057,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "DEPOT.md §4",
-      claim: "Every Depot-sold smithing, crafting and brewing recipe that works no input earns its skill tier's profit per Move (1 / 2 / 4 / 5 / 6 at 2 / 5 / 10 / 15 / 19 points) with ⬢ bought at the Depot",
+      claim: "Every Depot-sold smithing, crafting and brewing recipe that works no input earns its skill tier's profit per Move (2 / 4 / 8 / 12 / 15 at 2 / 5 / 10 / 15 / 19 points, before the Merchant's cut) with ⬢ bought at the Depot",
       docValue: `${profitRows.length} recipes on the table`,
       model: offRate.length ? `${offRate.length} off it: ${offRate.slice(0, 5).map((r) => `${r.name} ${round1(r.got)} against ${r.rate}`).join(", ")}${offRate.length > 5 ? ", …" : ""}` : `${profitRows.length} on it`,
       ok: offRate.length === 0,
-      note: "Slack is 2 ¢ a Move, half the rate, or a craft and a half of profit, whichever is widest. The Pickaxe and the Autoinjector are held back: the shelf prices they are fitted to leave no whole-⬢ recipe that lands on the rung.",
+      note: "Slack is 2 ¢ a Move, half the rate, or a craft and a half of profit, whichever is widest. The Pickaxe, the Autoinjector, the Badge and the Mulligan Potion are held back: a shelf price or a 2 ¢ sell price leaves no whole-⬢ recipe that lands on the rung.",
     },
     {
       doc: "DEPOT.md §4",
@@ -1192,8 +1225,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       doc: "TRINKETS.md §3",
       claim: "Forging stones bought off the shelf earns no more per Move than the top rung of the wage table",
       docValue: `${trinkets.shelfLoop.topWage} ¢ a Move`,
-      model: `${round1(trinkets.shelfLoop.bestApprentice?.apprentice)} ¢ for a Smithing smith, ${round1(trinkets.shelfLoop.bestSkilled?.skilled)} ¢ for Smithing II (${(trinkets.shelfLoop.bestSkilled?.stones ?? []).join(" + ")})`,
-      ok: (trinkets.shelfLoop.bestSkilled?.skilled ?? 0) <= trinkets.shelfLoop.topWage && (trinkets.shelfLoop.bestApprentice?.apprentice ?? 0) <= trinkets.shelfLoop.topWage,
+      model: `${round1(trinkets.shelfLoop.bestApprentice?.apprenticeRaw)} ¢ for a Smithing smith, ${round1(trinkets.shelfLoop.bestSkilled?.skilledRaw)} ¢ for Smithing II (${(trinkets.shelfLoop.bestSkilled?.stones ?? []).join(" + ")}), before the Merchant's cut`,
+      ok: (trinkets.shelfLoop.bestSkilled?.skilledRaw ?? 0) <= trinkets.shelfLoop.topWage && (trinkets.shelfLoop.bestApprentice?.apprenticeRaw ?? 0) <= trinkets.shelfLoop.topWage,
       note: "The doc's cap stops one stone converting into a dearer Trinket, but a Trinket also adds its own tier price, and a multiplier above 1, so a round trip through the Merchant pays whatever the cap says.",
     },
     {
@@ -1367,6 +1400,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     trinkets,
     cooking,
     lucky,
+    merchantCut: MERCHANT_CUT,
     desires,
     prospectorValue,
     combos,
