@@ -12855,7 +12855,7 @@ tags:
     purchasableAfterStart: false
 
   # What gets a Docker into the Railyard and into a sealed crate. Access to the
-  # room is handled entirely by Room.accessTagSlugs — see the depot-railyard
+  # room is handled entirely by Room.accessTagSlugs — see the undertown-5-2
   # entry in docs/zones.yaml — so this tag has no code of its own behind it,
   # beyond letting its holder sell into the Merchant's books.
   # It is emphatically NOT what the turret reads.

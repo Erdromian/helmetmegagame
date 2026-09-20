@@ -14,10 +14,10 @@ const { hasAttribute } = require("./locationAttributes");
 const { QUEST_INTERACT_PREFIX } = require("./questText");
 const { INTERCOM_ROOM_SLUG } = require("./intercom");
 const {
-  STOREFRONT_ROOM_SLUG,
   MERCHANTS_OFFICE_ROOM_SLUG,
   RAILYARD_ROOM_SLUG,
 } = require("./train");
+const { ATM_ROOM_SLUGS } = require("./depot");
 const { BELL_ROOM_SLUG } = require("./bell");
 const { XOM_SHRINE_ROOM_SLUG } = require("./xom");
 const { linksFor, gateOperable, endpoints, isHeldOpen } = require("./locationGraph");
@@ -123,16 +123,19 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_BELL_PREFIX,
     when: (room) => room?.slug === BELL_ROOM_SLUG,
   },
-  // The counter's cash machine. A fixture rather than a page because it is a
-  // machine bolted to a wall: you have to be standing at it, and both faces
-  // should be able to say so. Most accounts draw on the Keep's Vault through
-  // it (db/lib/bankAccounts.js); the Merchant's and the Docker's do not.
+  // A cash machine. A fixture rather than a page because it is a machine bolted
+  // to a wall: you have to be standing at it, and both faces should be able to
+  // say so. Most accounts draw on the Keep's Vault through it
+  // (db/lib/bankAccounts.js); the Merchant's and the Docker's do not. There are
+  // two of them now (db/lib/depot.js#ATM_ROOM_SLUGS) — the counter's own on the
+  // Storefront, and the Inn's, which is the machine alone with no counter
+  // behind it.
   {
     id: "atm",
     label: "ATM",
     tone: PLAIN,
     prefix: ROOM_ATM_PREFIX,
-    when: (room) => room?.slug === STOREFRONT_ROOM_SLUG,
+    when: (room) => ATM_ROOM_SLUGS.has(room?.slug),
   },
   // The Depot's drop box, second copy. The first is on the Location itself
   // (LOCATION_AFFORDANCES above) so it is reachable from anywhere at the Depot;

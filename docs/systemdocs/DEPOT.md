@@ -84,7 +84,7 @@ on a Leader's sheet. Four things went, and each for its own reason:
 |---|---|---|
 | Station state and tuning | `Depot` singleton, `id = 1` | `db/lib/depotState.js` — every mover is a locked clamp, per `lifeweb.js#bumpBlood` |
 | Accounts and the Vault | `db/lib/bankAccounts.js` | `BankAccount`, `bumpBankAccount`, the hard backing |
-| The counter's three fixtures | `db/lib/depotCounter.js` | The ATM, the drop box and the gun — shared by both faces |
+| The counter's three fixtures | `db/lib/depotCounter.js` | The ATM, the drop box and the gun — shared by both faces. The ATM is the one of the three that also stands away from the Depot (§0l) |
 | The manifests | `db/lib/depotManifests.js` | Which shelf a ware is on, and what opens it |
 | The train | `db/lib/train.js` + the two passes | `trainArrivalPass.js`, `trainDeparturePass.js` |
 | The turret | `db/lib/depotTurret.js` | Weighted severity table, bent by the target's `Tag.ballisticArmor` |
@@ -633,6 +633,30 @@ carries the tab you compare numbers on. The rules behind all three live once in
 deliberately thinner, because it is for the moment you are standing at the
 machine with your phone out.
 
+## 0l. There are two ATMs
+
+The counter's own machine is on the Storefront. The second is in **the Inn's
+bar** (`town-7-2`), and it is the machine alone: no counter behind it, no
+ordering, no drop box, no sell window, no credit line. A player drinking in town
+can check a balance, take coin out, put coin in and open an account, and that is
+the whole of it.
+
+Both are named once, in `db/lib/depot.js` — `ATM_ROOM_SLUGS` for where the
+button draws (`db/lib/placeAffordances.js`) and `ATM_LOCATION_SLUGS` for where
+the machine answers. `counterActor` in `db/lib/depotCounter.js` takes a place
+rather than assuming the Depot, and exactly three functions pass the wider one:
+`counterState`, `openCounterAccount` and `bankMove`. Everything else —
+`bankSend`, the drop box, the sell path, the gun — keeps the bare Depot gate,
+which is what stops the Inn quietly becoming a second counter.
+
+**A machine away from the Vault is still backed by it.** A TREASURY account
+withdrawing at the Inn takes real coin out of the Keep's Vault and is refused
+when the Vault is short, exactly as at the Storefront. Where a claim window
+stands has never decided what is behind it.
+
+To put a third machine somewhere, add its room and its location to those two
+sets. Nothing else needs to know.
+
 ## 1. What it is
 
 A railway terminus in the Caves, tethered to an orbital station the Merchant's
@@ -648,8 +672,8 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | | |
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) — open to everyone, read-only unless you are standing there |
-| Location | `depot` — the berth at the cave mouth, one plain hop east of `customs`, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
-| Rooms | `undertown-5-1` (the ATM and the drop box), `undertown-5-2` (the train and the crates, behind a keycard), `undertown-5-3` (the gun), `undertown-5-4` |
+| Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
+| Rooms | `undertown-5-1` (the ATM and the drop box), `undertown-5-2` (the train and the crates, behind a keycard), `undertown-5-3` (the gun), `undertown-5-4`. The Inn's bar carries a second ATM (§0l) |
 | Gates | the manifests (§0e), plus `depot-keycard` for a sealed crate. `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
 | Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |

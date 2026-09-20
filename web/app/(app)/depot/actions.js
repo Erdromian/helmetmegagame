@@ -365,7 +365,10 @@ async function depotTurretImpl(input) {
 // dropdown per row is not a thing Discord can draw, and settled rows are
 // read-only anyway.
 async function depotSaleDestinationImpl({ saleId, destination: rawDestination }) {
-  const session = await whoAmI();
+  // Standing AT THE DEPOT, not merely at an ATM: counterState answers at the
+  // Inn's machine too now (db/lib/depotCounter.js), and a staged sale is
+  // counter business.
+  const { session } = await requireDepotStanding();
   const state = lift(await counterState(prisma, session.discordUserId));
   if (!state.account) throw new UserError("You don't have an account yet.");
 

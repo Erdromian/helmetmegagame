@@ -2,7 +2,10 @@
 //
 // The ATM, the drop box and the Merchant's gun are fixtures on walls
 // (db/lib/placeAffordances.js), so each is reachable from Chat's place panel
-// AND from a button on a Discord room post. That is why the money lives here
+// AND from a button on a Discord room post. The ATM is the only one of the
+// three that stands anywhere but the Depot — there is a second machine in the
+// Inn's bar, which is why the gate below takes a place rather than assuming
+// one. That is why the money lives here
 // rather than in the web's server actions: two faces, one set of rules, the
 // db/lib bargain CLAUDE.md sets out.
 //
@@ -16,6 +19,7 @@
 
 const {
   DEPOT_LOCATION_SLUG,
+  ATM_LOCATION_SLUGS,
   MERCHANT_LICENSE_SLUG,
   MEISTERS_OFFICE_ROOM_SLUG,
   TOWER_LOCATION_SLUG,
@@ -45,7 +49,17 @@ function fail(error) {
 // Depot. Loaded fresh every time — a dialog and a Discord modal both outlive
 // somebody walking out of the room, which is the whole reason nothing here
 // trusts what it was opened with.
-async function counterActor(prisma, discordUserId) {
+//
+// `where` widens that last clause for the three ATM functions, and only those
+// three: a cash machine now stands in the Inn's bar as well as on the counter
+// (db/lib/depot.js#ATM_LOCATION_SLUGS), but ordering, selling, the drop box,
+// the transfer window and the gun are all counter business and stay at the
+// Depot. Default is the Depot alone, so a function that says nothing is gated
+// exactly as it was before there were two machines.
+const AT_THE_DEPOT = { places: null, name: "the Depot" };
+const AT_AN_ATM = { places: ATM_LOCATION_SLUGS, name: "an ATM" };
+
+async function counterActor(prisma, discordUserId, where = AT_THE_DEPOT) {
   const character = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
     include: {
@@ -55,8 +69,9 @@ async function counterActor(prisma, discordUserId) {
     },
   });
   if (!character) return fail("You don't have a living character.");
-  if (character.location?.slug !== DEPOT_LOCATION_SLUG) {
-    return fail("You're not standing at the Depot.");
+  const places = where.places ?? new Set([DEPOT_LOCATION_SLUG]);
+  if (!places.has(character.location?.slug)) {
+    return fail(`You're not standing at ${where.name}.`);
   }
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) return fail(`You can't act — you're ${blocker.name}.`);
@@ -82,9 +97,12 @@ async function roomCoin(prisma, roomId, coinId) {
 }
 
 // Everything the three dialogs draw against, in one read, so there is a single
-// answer to "what is a counter" rather than three that can disagree.
+// answer to "what is a counter" rather than three that can disagree. Answers at
+// an ATM as well as at the counter, since the ATM dialog draws against it; the
+// sell and drop-box fields it also carries simply go undrawn at the Inn, and
+// every write behind them keeps its own Depot gate.
 async function counterState(prisma, discordUserId) {
-  const actor = await counterActor(prisma, discordUserId);
+  const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
   if (!actor.ok) return actor;
   const { character, held, licensed, keycard } = actor;
 
@@ -132,7 +150,7 @@ async function counterState(prisma, discordUserId) {
 // (docs/roles.yaml's `bank_account:`); this is for everybody else, and it costs
 // nothing, takes one click, and opens EMPTY.
 async function openCounterAccount(prisma, discordUserId, { turnNumber = null, turnId = null } = {}) {
-  const actor = await counterActor(prisma, discordUserId);
+  const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
   if (!actor.ok) return actor;
   if (actor.character.bankAccount) return fail("You already have an account here.");
 
@@ -160,7 +178,7 @@ async function openCounterAccount(prisma, discordUserId, { turnNumber = null, tu
 // claim is only worth what is behind it. An OFFSHORE account skips the Vault
 // entirely: that money is held off-world.
 async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, turn = null } = {}) {
-  const actor = await counterActor(prisma, discordUserId);
+  const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
   if (!actor.ok) return actor;
   const { character } = actor;
   const account = character.bankAccount;

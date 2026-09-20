@@ -166,6 +166,14 @@ test("the ATM is the Storefront's, and the Storefront no longer carries the box"
   assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })), ["Storage", "ATM"]);
 });
 
+test("the Inn's bar has the second machine, and nothing else of the counter's", () => {
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-2" })), ["Storage", "ATM"]);
+});
+
+test("an ordinary room has no machine on its wall", () => {
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-3" })), ["Storage"]);
+});
+
 test("the Merchant's gun is on his own office wall and nowhere else", () => {
   assert.ok(labels(roomAffordances({ id: "r", slug: "undertown-5-3" })).includes("Toggle Turret"));
   assert.equal(labels(roomAffordances({ id: "r", slug: "undertown-5-2" })).includes("Toggle Turret"), false);

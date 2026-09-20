@@ -1,4 +1,5 @@
-// The Depot's counter, on Discord: the ATM on the Storefront, the drop box
+// The Depot's counter, on Discord: the ATM on the Storefront (and on the
+// Inn's bar, db/lib/depot.js#ATM_ROOM_SLUGS), the drop box
 // beside it, and the Merchant's gun on his office wall. Each is a button on a
 // Room's starter post (db/lib/placeAffordances.js), and the rules behind all
 // three live in db/lib/depotCounter.js so this face and the web's place panel
