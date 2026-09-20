@@ -154,7 +154,7 @@ groups:
       multiple: false
       starting_zone: fortress
       starting_location: fortress-4
-      extra_starting_points: 7
+      extra_starting_points: 5
       whitelist: true
       starting_tags:
         - Armory Key
@@ -287,7 +287,7 @@ groups:
       multiple: false
       starting_zone: fortress
       starting_location: fortress-4
-      extra_starting_points: 7
+      extra_starting_points: 5
       whitelist: true
       starting_tags:
         - Armory Key
@@ -296,7 +296,6 @@ groups:
         - Literate
         - Hand's Pin
         - Hand's Key
-        - Elevator Key
         - Obol x10
       doc_elements:
         - godking
@@ -387,6 +386,11 @@ groups:
       weight: 6
       starting_zone: fortress
       starting_location: fortress-4
+      # In place of the ten Courtier kits, which were removed for being a
+      # second point economy sitting on top of this one: ten crates, each with
+      # its own price and its own conflict list, deciding a courtier's whole
+      # sheet before they reached the catalog. The points buy the same things.
+      extra_starting_points: 7
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -875,7 +879,7 @@ groups:
       starting_account: 55
       multiple: false
       starting_zone: undertown
-      starting_location: undertown-5
+      starting_location: undertown-6
       whitelist: true
       starting_tags:
         - Cart
@@ -908,7 +912,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: undertown
-      starting_location: undertown-5
+      starting_location: undertown-6
       starting_tags:
         - Depot Keycard
         - Appraisal
@@ -1087,14 +1091,15 @@ groups:
         Keep the peace in the Town, six-shooter at your hip.
       description:
         - >-
-          On certain days, you hike up the mountain and behold the Town. Those are the people that are beholden to you. You cannot afford to let them down, Sheriff!
+          Unlike the Cerberon, whose sworn duty is to protect the Fortress, you protect the Town.
         - >-
-          You have a trusty .45 six-shooter, a reject from the Fortress's armory.
+          Your most valued possession is a .45 six-shooter.
+        - >-
+          You should loyally serve the Baron.
       difficulty: normal
       bank_account: treasury
       starting_account: 3
-      multiple: true
-      weight: 1
+      multiple: false
       starting_zone: town
       starting_location: town-2
       starting_tags:
@@ -1377,7 +1382,7 @@ groups:
       weight: unlimited
       starting_zone: caves
       starting_location: caves-abandoned-camp
-      extra_starting_points: 6
+      extra_starting_points: 3
       starting_tags: [Pale]
       doc_elements: [caving]
     mercenary:
@@ -1592,6 +1597,7 @@ groups:
     bastard:
       name: Bastard
       whitelist: true
+      gender: MAN
       intro: >-
         You have thirty days to take Ravenheart. Unite your Lieutenants, feed your men, and march — it's your people's only hope.
       description:
@@ -1629,6 +1635,7 @@ groups:
 
     bastard-infantry:
       name: Infantry
+      gender: MAN
       intro: >-
         A spear in the line. The cheapest thing the Bastard can put in front of a wall, and he will.
       description:
@@ -1651,6 +1658,7 @@ groups:
 
     bastard-heavy-infantry:
       name: Heavy Infantry
+      gender: MAN
       intro: >-
         You go in first, and you go in wearing everything the party could find.
       description:
@@ -1676,6 +1684,7 @@ groups:
 
     bastard-rifleman:
       name: Rifleman
+      gender: MAN
       intro: >-
         You carry the one thing in the party that kills from across a room.
       description:

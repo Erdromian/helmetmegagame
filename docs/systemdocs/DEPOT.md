@@ -131,9 +131,11 @@ every verb beside them is `acting()`, which is the whole of how it is enforced.
 
 ## 0c. The Railyard, and the train
 
-The Railyard is a **real room** — a thread under the Depot channel, authored in
-`docs/zones.yaml` as `undertown-5-2`, and **public**. It replaced the Landing
-Pad, which was behind a Depot Keycard.
+The Railway is a **real room** — a thread under the Depot channel, authored in
+`docs/zones.yaml` as `undertown-5-1`, and **public**. It replaced the Landing
+Pad, which was behind a Depot Keycard. Since the Depot and the Merchant were
+split it is the Depot's *only* room, so the counter, the drop box and a cash
+machine all hang off it.
 
 **Anybody can walk in, and crates land here.** That is a known hole and it is
 open deliberately: the alternative is a cargo room only Dockers can reach, which
@@ -157,6 +159,13 @@ the odd turn after, so it stands at the platform for the length of an odd turn �
 turn 1 excepted, since nothing has arrived yet. Reading presence off
 `isArrivalTurn()` instead tells everybody the train is in on the one turn it
 demonstrably is not; `db/test/train.test.js` pins that.
+
+**`trainHere()` decides more than deliveries now.** The two rail tunnels out of
+the Depot (`MAP.md` §2, `db/lib/railroad.js`) read the same predicate to answer
+whether walking into one is survivable this turn: at the platform the tunnel is
+empty, out on the line it gibs whoever enters. So the parity above is
+load-bearing twice over — change what "at the platform" means and you change who
+walks out of a tunnel alive.
 
 The cycle:
 
@@ -725,7 +734,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 |---|---|
 | Page | `/depot` (`web/app/(app)/depot/page.js`) — open to everyone, read-only unless you are standing there |
 | Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
-| Rooms | `undertown-5-1` (the ATM and the drop box), `undertown-5-2` (the train and the crates, behind a keycard), `undertown-5-3` (the gun), `undertown-5-4`. The Inn's and the Den's bars carry ATMs of their own (§0l) |
+| Rooms | `undertown-5-1`, the Railway — the train, the crates, the drop box and an ATM, and the Depot's only room. The Merchant's own three are next door at `undertown-6`: `undertown-6-1` Storefront (the second ATM), `undertown-6-2` Merchant's Office (the gun), `undertown-6-3` Cargo Bay (behind a keycard). The Inn's and the Den's bars carry ATMs of their own (§0l) |
 | Gates | the manifests (§0e), plus `depot-keycard` for a sealed crate. `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
 | Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |

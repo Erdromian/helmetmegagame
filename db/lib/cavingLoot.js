@@ -78,6 +78,10 @@ const LOOT_TABLE = {
     "convoy-directions",
     "instrument",
     "mining-helmet",
+    // The Baron's lift. It came off the Hand's starting tags, so this and the
+    // black market shelf are how anybody else gets down to the Refuse Pit
+    // without asking him (docs/tags.yaml#elevator-key).
+    "elevator-key",
   ],
   "extremely-rare": [
     "emp-grenade",

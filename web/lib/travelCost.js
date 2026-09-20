@@ -93,6 +93,20 @@ export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false
         ? " One person comes with you."
         : ` ${partySize} people come with you.`
       : "";
+  // The tunnel, and it is asked EVERY time — no cost branch, no free-move
+  // branch, no exert branch, which is why it sits above all of them. The train
+  // is not a price anybody can be quoted (db/lib/railroad.js), so the only
+  // honest sentence is the same one every time. It deliberately costs the
+  // player the cost line and the party count: "regardless of circumstance" is
+  // the whole point of the warning.
+  if (option.railroad) {
+    return {
+      title: "Go into the tunnel?",
+      message: `This is dangerous.${party}`,
+      confirmLabel: "Go",
+      cancelLabel: "Stay",
+    };
+  }
   if (exert) {
     const note = option.exertNote ? ` ${option.exertNote}` : "";
     return {

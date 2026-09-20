@@ -319,6 +319,46 @@ either may have a tower. **A re-sync never reopens a gate somebody shut in
 play** — `modular.open` in the YAML is the value a link is *born* with, not one
 the sync re-asserts.
 
+### The railroad
+
+`railroad: true` on a `connections:` entry marks a rail tunnel. It gates
+nobody and refuses nothing — it composes with every other modifier above, and
+it changes one thing only: **the cargo train uses this edge.** Cross it while
+the train is out on the line and the crosser is **gibbed on arrival** — every
+tag vaporized, no corpse, nothing to bury or loot, the Remote Detonator's death
+exactly (`COLLAR.md` §5). Cross it while the train stands at the platform and
+nothing happens at all.
+
+The clock is the train's own — `db/lib/train.js#trainHere`, read against the
+**open** turn — so there is no second timetable to keep in step. The train rolls
+in at the close of an even turn and pulls out at the close of the odd turn after
+it, so an odd turn is the safe one. Turn 1 is **not** safe: nothing has run yet,
+`trainHere(1)` is false, and the tunnel reads that as "the line is not clear."
+
+There is **no roll** in it. No armour helps, no skill helps, nobody is spared.
+That is why the confirm is asked **every single time**, on both faces and
+whatever the crossing would otherwise cost — `web/lib/travelCost.js#crossingConfirm`
+takes the railroad branch above the cost and exert branches, and the bot's
+picker (`bot/src/events/interactions/travel.js`) replaces its cost line with the
+same two sentences. A tunnel is also never taken by the `/map` board's
+double-click or Enter shortcut: `canGestureTo` refuses one, because a gesture
+that skips the dialog would skip the only warning there is.
+
+Two edges carry it today, both out of the Depot: `undertown-5 ↔ hills/grand-ravine`
+and `undertown-5 ↔ depths/depths-chasm`. Both cross a zone, which is what keeps
+§3c's auto-walk off them — `walkWithinZone` is same-zone only. **Author a
+same-zone railroad edge and that stops being true**, so `db/test/railroad.test.js`
+asserts the property rather than trusting it.
+
+The decision and the death live in `db/lib/railroad.js`; it is called from
+`applyLocationMoveSideEffects` **after** the move commits, beside the turrets and
+for the same reason — a kill on arrival is a database fact and must not wait on
+there being a Discord token to announce it. The crosser therefore **arrives, then
+dies at the far end**: the origin sees an ordinary departure, the destination
+gets the line, and the GM desk gets a `system_railroad_gib` audit row filed
+against the destination's **seat** zone (`db/lib/seatZone.js`), so a death in the
+Chasm reaches the Caves GM rather than a desk nobody staffs.
+
 ## 3. What a move costs
 
 **`db/lib/locationTravel.js#performLocationMove(prisma, character,

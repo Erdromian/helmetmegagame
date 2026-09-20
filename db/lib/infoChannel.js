@@ -17,9 +17,10 @@ const DOCS_DIR = docsPath();
 // buckets of db/lib/roleGroups.js (imported, not duplicated, so the thread and
 // the picker can't disagree). Names NO ZONE on purpose — that would tell
 // readers where a seat starts before the game does. A reserved fate wears a ★
-// (`whitelist:`). The bolded name is the high-cap go-anywhere fate. Reads
-// roles.yaml fresh every run, so this thread can never drift from it.
-const BOLD_ROLE_NAMES = new Set(["Migrant"]);
+// (`whitelist:`), and that is the only mark any fate gets — one name used to
+// come back bold as the high-cap go-anywhere seat, but nothing explains that
+// to a reader any more, so every fate now reads the same. Reads roles.yaml
+// fresh every run, so this thread can never drift from it.
 
 function buildRolesIntroBody() {
   const rolesDoc = yaml.load(fs.readFileSync(ROLES_YAML_PATH, "utf8"));
@@ -32,9 +33,8 @@ function buildRolesIntroBody() {
   for (const [groupSlug, roles] of Object.entries(rolesDoc.groups ?? {})) {
     const bucket = held.has(groupSlug) ? groupSlug : ELSEWHERE;
     for (const role of Object.values(roles ?? {})) {
-      const marker = BOLD_ROLE_NAMES.has(role.name) ? "**" : "*";
       const whitelistMark = role.whitelist === true ? " (★)" : "";
-      held.get(bucket).push(`${marker}${role.name}${marker}${whitelistMark} — ${role.intro}`);
+      held.get(bucket).push(`*${role.name}*${whitelistMark} — ${role.intro}`);
     }
   }
 

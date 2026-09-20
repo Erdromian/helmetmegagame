@@ -57,13 +57,16 @@ Nine named, four payphones:
 | Exactor | `undertown-9-3` Exactor's Office |
 | Bishop | `town-4-6` Vestry |
 | Banneret | `factory-overseer-box` Overseer Box |
-| **Depot** (pay) | `undertown-5-2` Railyard |
+| **Depot** (pay) | `undertown-5-1` Railway |
 | **Residences** (pay) | `town-8-2` Street |
 | **Inn** (pay) | `town-7-2` Bar, the Old Cock Inn |
 | **Den** (pay) | `undertown-8-1` Bar, the Undertown Den |
 
-The Merchant has no phone yet: `undertown-6` has no Rooms authored under it,
-and a phone needs a wall.
+The Merchant has no phone yet, though he has walls to hang one on now —
+`undertown-6` got its Storefront, Office and Cargo Bay when the Depot was split
+in two. The payphone above is on the Depot's platform next door, which is a
+different place from his counter. Giving him a line of his own is a `phone:`
+key and nothing else.
 
 ## 3. One button, four meanings
 

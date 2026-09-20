@@ -575,11 +575,18 @@ Simple rung and miscellaneous production, not a rung of the smithing chain
 (`SMITHING.md` §1).
 **Torturing Equipment is 0** — unpurchasable, like the other kits' `purchasable:
 false` rows; what it costs is its recipe (`TORTURE.md` §5), not a price.
+**Misfortune is an eighth, at −6** — beside Fast Metabolism between the −5 and
+−7 bands, and deliberately not the mirror of Lucky's +15. It is Lucky's
+opposite in kind but not in reach: Lucky bends every d6 a character throws,
+where Misfortune pulls the Gambit die alone (`db/lib/gambitDie.js`). Priced
+against Lucky it would have been −15, the floor of the whole scale, for a
+drawback that shows up once a turn at most.
 **Appraisal is 1** — below the 2-point floor: it grants no
 advantage in play, only a readout of a number the catalog already held
 (`Tag.sellablePrice`), so it doesn't earn a full Minor band. Seven roles
-(Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper) and two
-Courtier kits (Manor Lord, Court Artist) get it free in `starting_tags`.
+(Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper) get it free in
+`starting_tags`. The two Courtier kits that also handed it over are gone with
+the rest of them; a courtier buys it now, like anything else.
 
 **Several Personality and combat/trait tags sit off-band too, each a
 deliberate call rather than a new scale:**

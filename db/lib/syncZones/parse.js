@@ -128,6 +128,7 @@ function parseZonesYaml(doc) {
 //     modular: { roles: [...], tags: [...], open: true }
 //     keyed: true
 //     on_foot: true
+//     railroad: true
 //
 // `locked`/`hidden` are the same requirement with different visibility, one
 // column, `hidden` sets the flag too. Tag/Role slugs are NOT validated here —
@@ -139,7 +140,16 @@ const ANNOUNCE_BY_KEYWORD = new Map([
   ["unmanned", "CONCEALED"],
 ]);
 
-const CONNECTION_KEYS = new Set(["pair", "announce", "locked", "hidden", "modular", "keyed", "on_foot"]);
+const CONNECTION_KEYS = new Set([
+  "pair",
+  "announce",
+  "locked",
+  "hidden",
+  "modular",
+  "keyed",
+  "on_foot",
+  "railroad",
+]);
 
 function parseConnection(raw, locationByRef, problems) {
   const isPair = Array.isArray(raw);
@@ -182,6 +192,7 @@ function parseConnection(raw, locationByRef, problems) {
     isOpen: true,
     keyed: false,
     onFoot: false,
+    railroad: false,
   };
 
   if (spec.announce != null) {
@@ -214,6 +225,15 @@ function parseConnection(raw, locationByRef, problems) {
       problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean on_foot: ${JSON.stringify(spec.on_foot)}`);
     } else {
       entry.onFoot = spec.on_foot;
+    }
+  }
+
+  // A rail tunnel. It changes nothing about who may cross — it changes what crossing costs you while the cargo train is out on the line, which is nothing at all or everything (db/lib/railroad.js).
+  if (spec.railroad != null) {
+    if (typeof spec.railroad !== "boolean") {
+      problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean railroad: ${JSON.stringify(spec.railroad)}`);
+    } else {
+      entry.railroad = spec.railroad;
     }
   }
 

@@ -202,15 +202,30 @@ shut via its own `desires: { locks: [...] }` block in `docs/tags.yaml`
 - all: true                       # locks everything
 - families: [alcohol, drugs]      # locks any template sharing a family
 - tiers: [1, 2, 3, 4]             # locks templates at these tiers
+- named: [eat-sweets, win-a-bet]  # locks exactly these templates
 ```
 
 plus an optional `exceptFamilies: [...]`, meaningful only alongside `all` or
-`tiers` (a `families` clause already *is* the family list, so excepting from
-it would be self-contradictory — `desireShapes.js` throws on that
-combination). Precedence when a template is checked against a tag's clauses:
-`all` beats `families` beats `tiers`, so an `all` clause always wins even if
-a `families` clause from a different held tag would otherwise have matched
-first (`db/lib/desireGates.js#lockedReasonForTemplate`).
+`tiers` (a `families` or `named` clause already *is* the exact list, so
+excepting from it would be self-contradictory — `desireShapes.js` throws on
+either combination). Precedence when a template is checked against a tag's
+clauses: `all` beats `families` beats `named` beats `tiers`, so an `all` clause
+always wins even if a `families` clause from a different held tag would
+otherwise have matched first (`db/lib/desireGates.js#lockedReasonForTemplate`).
+
+**`named` is the odd one, and Nobility is why it exists.** The other three
+describe a *shape* — a family, a tier, the lot. What a noble may not stoop to
+is not a shape: it is a judgment made one Desire at a time. Nobility used to
+carry `tiers: [1]`, which was a fair proxy until a point rescale turned tier 1
+into most of the catalog and shut a noble out of nearly everything, comforts
+and court life included. It now names its seventeen: errands, common pleasures
+and pocket-change wins. Fine wine, jewelry, romance, faith and scheming stay
+open however cheap they are.
+
+Nothing validates a `named` slug at sync time — tags sync before desires do,
+so the catalog may not be in the database yet. `db/test/desireNamedLocks.test.js`
+checks every named slug against `docs/desires.yaml` instead, which is also what
+catches a Desire being renamed or deleted out from under a lock.
 
 ### `slot: bottom`
 
@@ -297,11 +312,12 @@ lock similarly took a one-line data fix on two unrelated desires
 list, since a clause can't combine `families` and `exceptFamilies` in one
 breath (Ruling R7).
 
-**A whole-catalog tier lock is silent in the summary.** `describeDesireLocks`
-writes a sentence for every other clause shape, but not for `tiers` outside the
-bottom slot. A whole-catalog tier lock would already show on each row it
-locks, so a summary line at the top of the panel would say the same fact twice.
-No tag carries one now. The **bottom-slot** tier
+**A whole-catalog tier lock, and a `named` list, are both silent in the
+summary.** `describeDesireLocks` writes a sentence for every other clause
+shape, but not for `tiers` outside the bottom slot and not for `named`. Either
+one already shows on each row it locks, so a summary line at the top of the
+panel would say the same fact twice. No tag carries a whole-catalog tier lock
+now; Nobility is the `named` case. The **bottom-slot** tier
 clause keeps its sentence — an Addiction binds a slot rather than a row, and a
 slot has nowhere else to say so.
 
@@ -340,7 +356,7 @@ own two entries (`break-up-a-fight`, `stop-a-war`) demonstrate.
 | Group | Shape | Price band |
 |---|---|---|
 | `general-addictions` | `exclusive: true`, `consumable: false` drawbacks — never `removable`, since Destroy is for items (`CRAFTING.md` §5). Each shuts the **bottom slot only**, to everything outside its own family — see §3. **One Addiction at a time** — that rule is why this stayed its own group. | −4 flat |
-| `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. `Depressed` is the near-exception, and by named conflict rather than by the flag: because it locks the whole catalog it `conflictsWith` every tag here that also touches Desires, and only those — so Lazy, Insomniac, Guilt Ridden, Torturer and the phobias stay legal beside it (`TAGS.md` §3). Some members close the catalog down (`Depressed` locks everything; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
+| `general-personality` | Everything else about who a character is. Nothing here is `exclusive`, so a character can hold Pacifist + Cruel + Schemer, or Pacifist + Craven. `Depressed` is the near-exception, and by named conflict rather than by the flag: because it locks the whole catalog it `conflictsWith` every tag here that also touches Desires, and only those — so Lazy, Insomniac, Guilt Ridden, Torturer and the phobias stay legal beside it (`TAGS.md` §3). Some members close the catalog down (`Depressed` locks everything; `Nobility` locks seventeen it names; `Eunuch` locks `romance`), some open it up (`Mad Doctor`, `Esoteric`, `Adventurer`, `Cruel`, `Charitable`, `Schemer`, and `Death Wish` — the Interest, not the old Bacchus tag), and the point of the merge is that one tag may do both. | −8…+5 |
 
 `general-restrictions` and `general-interests` survive as **orphaned, empty
 groups** in `docs/taggroups.yaml` — group sync is upsert-only and never

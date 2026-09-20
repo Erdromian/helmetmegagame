@@ -37,6 +37,7 @@ export default function IdentityDialog({ identity, open, onClose }) {
     const rolled = randomCharacterName({
       gender: identity?.gender ?? "NEUTRAL",
       lastNameLocked,
+      culture: identity?.culture ?? null,
     });
     setFirstName(rolled.firstName);
     if (!lastNameLocked) setLastName(rolled.lastName ?? "");
