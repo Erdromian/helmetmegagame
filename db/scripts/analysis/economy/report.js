@@ -182,7 +182,7 @@ const headlines = [
   `Food demand is small and steady: ${players} players burn ${players * params.hungerDecay} hunger a turn. One Farm action makes ~${fmt(potatoFood.personTurnsPerFarm, 0)} person-turns of food, so about <b>${fmt(potatoFood.farmersNeeded, 0)} farmers</b> feed the whole town.`,
   `Fatigue: mining can be pressed ${fmt(model.fatigue.byId.mine.steady * 100, 0)}% of turns and farming ${fmt(model.fatigue.byId.farm.steady * 100, 0)}%. Refining, cutting Godflesh, crafting and butchering can be pressed every turn.`,
   `A Prospector's press in the Caves is worth ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").resourcesPerPress * params.rv.sell)} ¢ of ⬢ plus ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").dropsPerAction, 2)} ¢ of drops; in the Depths the drops are ${fmt(model.activities.find((a) => a.id === "mine:Depths:skilled").dropsPerAction, 2)} ¢.`,
-  `${model.sources.summary.special} of ${model.sources.summary.recipes} recipes need a special item. ${model.sources.summary.byHardest[4] + model.sources.summary.byHardest[5]} of them are held back by an item that is Scarce or has no known source.`,
+  `${model.sources.summary.special} of ${model.sources.summary.recipes} recipes need a special item (${model.sources.summary.copies} of those only copy a key). Of the rest, ${model.sources.summary.byHardest[4]} are held back by a Scarce item and ${model.sources.summary.byHardest[5]} by an item with no known source.`,
   `${failing.length} of ${model.claims.length} figures the docs quote do not match what the catalog and code produce (see “Docs against the model”).`,
 ];
 
@@ -310,11 +310,14 @@ ${table({ cols: bcols, rows: P.butcher })}
 
 function sectionSpecial() {
   const S = model.sources;
-  const rankBars = [0, 1, 2, 3, 4, 5].map((k) => ({
-    label: k === 0 ? "No special item" : RANK.find((x) => x.id === k).label,
-    value: S.summary.byHardest[k],
-    color: `var(--r${k})`,
-  }));
+  const rankBars = [
+    ...[0, 1, 2, 3, 4, 5].map((k) => ({
+      label: k === 0 ? "No special item" : RANK.find((x) => x.id === k).label,
+      value: S.summary.byHardest[k],
+      color: `var(--r${k})`,
+    })),
+    { label: "Copy a key you hold", value: S.summary.copies, color: "var(--mute)" },
+  ];
   const topItems = S.items.slice(0, 16).map((i) => ({ label: `${i.name}`, value: i.recipeCount, color: `var(--r${i.rank})` }));
   const legendHtml = RANK.map((r) => `<li>${rankChip(r.id)} ${esc(r.meaning)}</li>`).join("");
 
@@ -344,10 +347,10 @@ function sectionSpecial() {
     },
     { h: "Hardest gate", raw: true, get: (r) => rankChip(r.hardest), sort: (r) => r.hardest },
     { h: "Hardest item", get: (r) => r.hardestItem ?? "—" },
-    { h: "Notes", get: (r) => [r.secretRecipe ? "secret recipe" : "", r.hiddenUntilHeld ? "hidden until you hold an ingredient" : ""].filter(Boolean).join("; ") },
+    { h: "Notes", get: (r) => [r.copy ? "copies something you already hold" : "", r.secretRecipe ? "secret recipe" : "", r.hiddenUntilHeld ? "hidden until you hold an ingredient" : ""].filter(Boolean).join("; ") },
   ];
   return `<section><h2>What each recipe needs, and where it comes from</h2>
-<p class="lede">${S.summary.special} of ${S.summary.recipes} craftable recipes need something beyond ⬢ and a skill: a spent ingredient, a kept one (a tool or a corpse), or Workshop Equipment nearby. Each item is ranked by its easiest route, and a recipe is as hard as its hardest item.</p>
+<p class="lede">${S.summary.special} of ${S.summary.recipes} craftable recipes need something beyond ⬢ and a skill: a spent ingredient, a kept one (a tool or a corpse), or Workshop Equipment nearby. Each item is ranked by its easiest route, and a recipe is as hard as its hardest item. ${S.summary.copies} recipes are key copies: they need the key itself, kept, so they are counted apart.</p>
 <ul class="ranks">${legendHtml}</ul>
 <h3>Recipes by hardest gate</h3>
 ${barChart({ rows: rankBars, unit: " recipes", fmtVal: (v) => fmt(v, 0), labelW: 150 })}
@@ -573,12 +576,12 @@ const csv = [
 
 const S = model.sources;
 const recipesCsv = [
-  ["slug", "name", "skill", "moves", "resourceCost", "specialItems", "workshop", "hardestRank", "hardestLabel", "hardestItem", "secretRecipe", "hiddenUntilHeld"].join(","),
+  ["slug", "name", "skill", "moves", "resourceCost", "specialItems", "workshop", "hardestRank", "hardestLabel", "hardestItem", "secretRecipe", "hiddenUntilHeld", "keyCopy"].join(","),
   ...S.recipes.map((r) =>
     [
       r.slug, r.name, r.skill, r.moves, r.resourceCost,
       r.items.map((i) => `${i.label} [${i.rank}]`).join("; "),
-      r.workshop, r.hardest, r.hardest === 0 ? "none" : S.ranks.find((x) => x.id === r.hardest).label, r.hardestItem ?? "", r.secretRecipe, r.hiddenUntilHeld,
+      r.workshop, r.hardest, r.hardest === 0 ? "none" : S.ranks.find((x) => x.id === r.hardest).label, r.hardestItem ?? "", r.secretRecipe, r.hiddenUntilHeld, r.copy,
     ].map(csvCell).join(","),
   ),
 ].join("\n");

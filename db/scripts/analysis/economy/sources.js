@@ -419,6 +419,9 @@ function buildSources({ list, bySlug, players }) {
       special: items.length > 0 || workshop,
       hardest,
       hardestItem,
+      // A recipe that needs one of its own product kept is a COPY: it duplicates
+      // something you already hold, so it is not a barrier to getting the first.
+      copy: items.some((i) => i.slugs.includes(t.slug)),
       secretRecipe: (t.catalog ?? "all") !== "all",
       hiddenUntilHeld: hidden,
     });
@@ -460,7 +463,8 @@ function buildSources({ list, bySlug, players }) {
     summary: {
       recipes: recipes.length,
       special: recipes.filter((r) => r.special).length,
-      byHardest: Object.fromEntries([0, 1, 2, 3, 4, 5].map((k) => [k, recipes.filter((r) => r.hardest === k).length])),
+      copies: recipes.filter((r) => r.copy).length,
+      byHardest: Object.fromEntries([0, 1, 2, 3, 4, 5].map((k) => [k, recipes.filter((r) => !r.copy && r.hardest === k).length])),
       extractTools,
     },
   };
