@@ -58,9 +58,6 @@
 # - description: prose. A Location's is the -# subtext on its channel's
 #   pinned anchor and the channel topic; a Room's is its thread's starter
 #   message.
-# - map_node (locations only): the node's number on Bascinet's hand-drawn
-#   map, so the file and the drawing can be lined up. Authoring metadata
-#   only — there is no column for it and no code reads it.
 # - indoors (locations only): true for a place you walk INTO rather than
 #   across. Underground (a Location whose zone kind is CAVE_LEVEL — the Caves,
 #   the Depths) a cart or a mount is unequipped on arrival, with a DM, and
@@ -1271,7 +1268,6 @@ zones:
         name: Underlocks
         attributes:
           wilderness: true
-        map_node: 12
         description: >-
           The path twists and turns around the terrain. You can see Ravenheart's keep perched on a hill overlooking you. Empty bottles gather in ditches by the side of the road, having stumbled down here after a dramatic toss from the fortress walls.
         # Heaping Trash, below, is already scavenged by lizards and rats for
@@ -1302,7 +1298,6 @@ zones:
         name: Shadowed Grove
         attributes:
           wilderness: true
-        map_node: 13
         description: >-
           As the light of the forest wanes, small white flowers fill the undergrowth. Thousands of them flourish where the forest and black hills collide.
         mining: 0.22
@@ -1327,7 +1322,6 @@ zones:
         name: West Hills
         attributes:
           wilderness: true
-        map_node: 25
         description: >-
           The path sits atop a slope looking out over two directions. To the South the land continues downward, dragging the river with it. To the East, the path rises once more before disappearing behind the hills.
         # A unique spot rather than a milder one like Shadowed Grove or Grand
@@ -1358,7 +1352,6 @@ zones:
         name: Refuse Pit
         attributes:
           wilderness: true
-        map_node: 26
         description: >-
           A depression in the cave floor. The path loses coherence as its stones give rise to gravel and stamped earth. Hollow winds kick up blackened dirt, unbound by grass or root, and everything the Keep is finished with ends up down here.
         # An abandoned homestead with a locked hatch, and a basement full of
@@ -1408,7 +1401,6 @@ zones:
         name: Fracturing Waterway
         attributes:
           wilderness: true
-        map_node: 27
         description: >-
           Ravenheart's river rushes downward towards the marshlands below. Beyond here it splits into a delta sustaining the marshes. A bridge offers crossing.
         # The Black Hills' one real river — panning fits as well here as it
@@ -1430,7 +1422,6 @@ zones:
         name: Gullies
         attributes:
           wilderness: true
-        map_node: 28
         description: >-
           The remains of an ancient riverbed guide the passage of hapless travellers, navigating between the domineering heights that surround it. It makes for a significantly easier journey than scaling each of the many hills.
         mining: 0.28
@@ -1452,7 +1443,6 @@ zones:
         name: Grand Ravine
         attributes:
           wilderness: true
-        map_node: 29
         description: >-
           Following the contours of the hills that surround it, the ravine is as constricting as it is expansive. A miasmic fog of decay sinks to the bottom, waiting to be blown away by winds that will never come.
         mining: 0.3
@@ -1509,7 +1499,6 @@ zones:
         name: Cliffs
         attributes:
           wilderness: true
-        map_node: 30
         description: >-
           At the base of the mountains, tall walls of stone crush any hopes of travelling further East. High above some greenery has managed to grow, nestled in crags of the cliff faces. The lucky descendants of plants who managed to escape the fate beholden to the rest of the Black Hills.
         mining: 0.28
@@ -1647,7 +1636,6 @@ zones:
           # chasm-ore-vein further down.
           caves-approach:
             name: Approach
-            map_node: 14
             indoors: true
             description: >-
               A long time ago, a great foe threatened Ravenheart from the caves. The mines laid by the Baron still patiently wait for the invading army. The stench of decaying remains scattered with explosive force is surprisingly meagre. Gnawed bones are the only proper remains to be seen.
@@ -1683,7 +1671,6 @@ zones:
                     dagger: 1
           caves-walkways:
             name: Walkways
-            map_node: 15
             indoors: true
             description: >-
               Numerous stone walkways connect side tunnel entrances over a large pit. At the centre of the chamber above the pit is a pillar of stone that serves as the point at which the walkways meet. It is impossible to say just how deep the pit is.
@@ -1714,7 +1701,6 @@ zones:
                     obol: 8
           caves-brooding-grounds:
             name: Brooding Grounds
-            map_node: 16
             indoors: true
             description: >-
               A winding forest of mushrooms, home to every manner of skulking thing. Any attempt to establish a proper path through has been quashed by the fungi's competition over the limited space. Navigating through, you can hear the sound of things scraping through the forest around you.
@@ -1754,7 +1740,6 @@ zones:
                     cave-fungus: 6
           caves-abandoned-camp:
             name: Abandoned Camp
-            map_node: 17
             indoors: true
             description: >-
               What remains of an old campsite, picked clean by years of travellers passing through. Everything of any value has long been scavenged, alongside many things of no value whatsoever.
@@ -1797,7 +1782,6 @@ zones:
         locations:
           depths-steel-wall:
             name: Steel Wall
-            map_node: 18
             indoors: true
             attributes:
               noticeboard: true
@@ -1828,7 +1812,6 @@ zones:
                     old-coin: 45
           depths-obelisk:
             name: Obelisk
-            map_node: 19
             indoors: true
             description: >-
               A pillar of rusted steel sits in the centre of the chamber, surrounded by scattered pieces of metal and strange instruments. The stone on which the obelisk sits seems to have been stained black. You can taste metal in your mouth.
@@ -1851,7 +1834,6 @@ zones:
                     old-coin: 9
           depths-last-chance:
             name: Last Chance
-            map_node: 20
             indoors: true
             description: >-
               The great hollow chambers that dominate the depths to the East meet their end here. Crackling flashes of light illuminate the cavern wall as it makes a sharp turn north, leading upwards out of the depths. A tunnel has been bored into a smaller cavern system to the West, and a plaque inlaid into the wall beside it.
@@ -1876,7 +1858,6 @@ zones:
                     obol: 46
           depths-fork:
             name: Fork
-            map_node: 21
             indoors: true
             description: >-
               A simple choice awaits those who pass this way, the tunnel branches into two possible directions. Such a simple choice is complicated by the overwhelming smell of stagnant water and charred ash. The air itself seems thick.
@@ -1905,7 +1886,6 @@ zones:
                     saltpeter: 4
           depths-grand-chamber:
             name: Grand Chamber
-            map_node: 22
             indoors: true
             description: >-
               A large singular open chamber held up by great pillars of stone. It must be hundreds of feet in height, and echos return minutes later from the other side.
@@ -1935,7 +1915,6 @@ zones:
                     deep-morel: 1
           depths-crystal-chambers:
             name: Crystal Chambers
-            map_node: 23
             indoors: true
             description: >-
               A maze of interconnected chambers, all hosting great crystalline growths of varying colours and shapes. What light does make its way in here is reflected in every possible direction, creating strange constellations of reflections.
@@ -1965,7 +1944,6 @@ zones:
           # would have deleted the map's only authored "dig HERE".
           depths-chasm:
             name: Chasm
-            map_node: 24
             indoors: true
             description: >-
               The Earth has been split here. This steep crack is what remains. The smell of sulfur flows out of the chasm from the numerous smaller tunnels that connect to it at its base. Some of these tunnels can lead even deeper into the depths, for better or worse.
