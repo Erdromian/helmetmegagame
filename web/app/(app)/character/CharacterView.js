@@ -10,8 +10,8 @@ import Lobby from "./lobby/Lobby";
 // fresh via web/lib/snapshot). Five kinds, one component each. The other
 // four draw their own PageShell; the sheet is the full-width workspace
 // (CharacterSheet.js), so the layout above wears no shell of its own.
-export default function CharacterView({ kind, open, lobby, wizard, sheet }) {
-  if (kind === "closed") return <CreationClosed open={open} />;
+export default function CharacterView({ kind, open, phase, lobby, wizard, sheet }) {
+  if (kind === "closed") return <CreationClosed open={open} phase={phase} />;
   if (kind === "cursed") return <CreationCursed />;
   if (kind === "lobby") return <Lobby {...lobby} />;
   if (kind === "wizard") return <CreateCharacterWizard {...wizard} />;

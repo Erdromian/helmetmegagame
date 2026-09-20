@@ -2,9 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 
-// Whether this BROWSER plays sound, and how loud. Same shape as ./seenStore.js and
-// ./notifiedStore.js beside it: one localStorage key, read through useSyncExternalStore,
-// never an effect writing state (react-hooks/set-state-in-effect is an error in this repo).
+// Whether this BROWSER plays sound, and how loud. Same shape as
+// (app)/chat/seenStore.js and notifiedStore.js: one localStorage key, read through
+// useSyncExternalStore, never an effect writing state (react-hooks/set-state-in-effect
+// is an error in this repo).
+//
+// It lived in (app)/chat/ until the top bar grew a copy of the switch. It was never a
+// chat thing — sfx.js has always read it from everywhere — so it moved out here.
 //
 // Per browser rather than per character on purpose. Volume is a property of the room you
 // are sitting in, not of the person you are playing — the same player wants it off at work
@@ -15,12 +19,21 @@ import { useSyncExternalStore } from "react";
 // rest. The snapshot is a STRING, not an object, because useSyncExternalStore compares by
 // identity and a fresh object every read is an infinite render loop.
 
+// THE TWO SWITCHES ARE NOT SIBLINGS. `sfx` is the master: it silences the cues AND the
+// music, because it is the speaker button and a speaker button that leaves a song playing
+// is a broken speaker button. `music` silences only the music. So the music a player hears
+// is `sfx && music` — see musicIsAudible() below — while the music BUTTON reads `music`
+// alone, so somebody who is currently muted can still set what they want for later.
+//
+// That is deliberate, and it is exactly the shape somebody later tries to simplify into
+// one flag. Don't.
+
 // The slider only ever ATTENUATES. Every cue carries its own measured gain
 // (web/app/components/sfx.js), so the levelling is done before this number is reached and
 // full is the level the game was tuned at — a lower default would just mean the quietest
-// files could never reach their tier.
+// files could never reach their tier. The music bus multiplies it in the same way.
 const KEY = "bascinet:sound";
-const DEFAULT = { on: true, volume: 1 };
+const DEFAULT = { sfx: true, music: true, volume: 1 };
 
 const listeners = new Set();
 let cached = null;
@@ -74,18 +87,27 @@ function readServer() {
 let parsedFor = null;
 let parsedValue = DEFAULT;
 
-// The snapshot is `on|volume`. Anything unparseable reads as the default rather than as
-// silence — a corrupt key should not be the reason nobody can hear the gate.
+function level(raw) {
+  const value = Number(raw);
+  return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : DEFAULT.volume;
+}
+
+// The snapshot is `sfx|music|volume`. Anything unparseable reads as the default rather
+// than as silence — a corrupt key should not be the reason nobody can hear the gate.
+//
+// A TWO-field value is the older `on|volume` shape, from before there was music to switch
+// off separately. It is read in place and music defaults on; there is no migration write,
+// so a browser that never touches the controls keeps its old string forever and that is
+// fine.
 function parse(snapshot) {
   if (snapshot === parsedFor) return parsedValue;
   let value = DEFAULT;
   if (snapshot) {
-    const [on, volume] = snapshot.split("|");
-    const level = Number(volume);
-    value = {
-      on: on !== "0",
-      volume: Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : DEFAULT.volume,
-    };
+    const parts = snapshot.split("|");
+    value =
+      parts.length < 3
+        ? { sfx: parts[0] !== "0", music: true, volume: level(parts[1]) }
+        : { sfx: parts[0] !== "0", music: parts[1] !== "0", volume: level(parts[2]) };
   }
   parsedFor = snapshot;
   parsedValue = value;
@@ -94,26 +116,34 @@ function parse(snapshot) {
 
 function write(next) {
   try {
-    window.localStorage.setItem(KEY, `${next.on ? 1 : 0}|${next.volume}`);
+    window.localStorage.setItem(KEY, `${next.sfx ? 1 : 0}|${next.music ? 1 : 0}|${next.volume}`);
   } catch {
     // Unwritable storage is not a reason to refuse the change for this page load.
   }
   emit();
 }
 
-/** The current setting, outside React — what ./sfx.js asks before it plays anything. */
+/** The current setting, outside React — what ./sfx.js and ./music.js ask before playing. */
 export function soundSetting() {
   if (typeof window === "undefined") return DEFAULT;
   return parse(read());
 }
 
-export function setSoundOn(on) {
-  write({ ...soundSetting(), on: Boolean(on) });
+/** Is music allowed to make a noise right now? The speaker is master; see the header. */
+export function musicIsAudible(setting = soundSetting()) {
+  return setting.sfx && setting.music;
+}
+
+export function setSfxOn(on) {
+  write({ ...soundSetting(), sfx: Boolean(on) });
+}
+
+export function setMusicOn(on) {
+  write({ ...soundSetting(), music: Boolean(on) });
 }
 
 export function setSoundVolume(volume) {
-  const level = Number(volume);
-  write({ ...soundSetting(), volume: Number.isFinite(level) ? Math.min(1, Math.max(0, level)) : DEFAULT.volume });
+  write({ ...soundSetting(), volume: level(volume) });
 }
 
 export function useSound() {

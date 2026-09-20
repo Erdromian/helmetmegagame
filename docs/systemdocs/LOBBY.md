@@ -38,6 +38,15 @@ and ENDED, denied in CLOSED and LOBBY, so pre-launch testing pings nobody who
 only came to watch. Every transition sweeps it; the doctor's cheap scope
 repairs drift (`CHANNELS.md`).
 
+**The phase is audible, and it narrows the rail.** CLOSED, LOBBY and "running
+but you have no character yet" each have their own soundtrack, playing on every
+page (`SOUND.md` §4). And while the phase is CLOSED, anyone outside the build
+crew — not a GM, a superadmin or a playtester — gets a rail of five items
+(Character, Chat, Notes, Documents, Handbook) and a door instead of the
+creation wizard: the wordmark, the word "Closed", and a way to the documents
+(`web/lib/navItems.js`, `web/app/(app)/character/CreationClosed.js`). A shut
+game has no Map to read and no Depot to stand in.
+
 **CLOSED with readied players is a frozen lobby.** Close lobby, Preview, Start
 is the sequence that stops somebody readying up between the preview and the
 commit (`ROLL_PHASES` in `db/lib/lobby.js`).

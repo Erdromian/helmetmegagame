@@ -6,7 +6,9 @@ import "./chat.css";
 import "./chat-next.css";
 import "./sheet.css";
 import "./shell.css";
+import { auth } from "@/lib/auth";
 import { getMoveWindow } from "@/lib/turn";
+import { getMusicPhase } from "@/lib/gamePhase";
 import {
   getVisibleTags,
   getProductionRates,
@@ -18,6 +20,8 @@ import ProductionRatesProvider from "./components/ProductionRatesProvider";
 import CarryProvider from "./components/CarryProvider";
 import DocumentsProvider from "./components/DocumentsProvider";
 import MoveWindowProvider from "./components/MoveWindowProvider";
+import PhaseProvider from "./components/PhaseProvider";
+import MusicDirector from "./components/MusicDirector";
 import ConfirmProvider from "./components/ConfirmProvider";
 import NoticeProvider from "./components/NoticeProvider";
 import { RefreshProvider } from "./components/useRefresh";
@@ -67,6 +71,13 @@ export default async function RootLayout({ children }) {
   // like the four above so no page has to fetch it and no header has to be
   // handed it as a prop.
   const moveWindowPromise = getMoveWindow().catch(() => null);
+  // Whether the game is shut, in its lobby or running, for the soundtrack
+  // (docs/systemdocs/SOUND.md). auth() is React-cache()d and every layout below
+  // already awaits it, so this is a cache hit rather than a second lookup — and
+  // it has to be HERE, not in (app)/layout.js, because the closed door plays to
+  // people on /handbook and on the sign-in screen too.
+  const session = await auth().catch(() => null);
+  const phasePromise = getMusicPhase(session?.discordUserId ?? null).catch(() => null);
 
   return (
     <html lang="en" className={`${display.variable} h-full`}>
@@ -91,7 +102,10 @@ export default async function RootLayout({ children }) {
                 <CarryProvider carryPromise={carryPromise}>
                   <DocumentsProvider docsPromise={docsPromise}>
                     <MoveWindowProvider moveWindowPromise={moveWindowPromise}>
-                      {children}
+                      <PhaseProvider phasePromise={phasePromise}>
+                        <MusicDirector />
+                        {children}
+                      </PhaseProvider>
                     </MoveWindowProvider>
                   </DocumentsProvider>
                 </CarryProvider>
