@@ -16,7 +16,7 @@ import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { logAudit } from "@/lib/requests";
-import { UserError, guarded } from "@/lib/actionResult";
+import { UserError, acting } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { killCharacter } from "@/lib/discordGuild";
 import { SFX } from "@lifeweb/db/lib/sfx";
@@ -185,9 +185,9 @@ async function feedPersonRequestImpl({ targetCharacterId }) {
 // Validation comes back as { ok: false, error }, never thrown — Next.js redacts anything thrown out of a Server Action. See web/lib/actionResult.js.
 
 export async function donateBloodRequest(input) {
-  return guarded(() => donateBloodRequestImpl(input));
+  return acting(() => donateBloodRequestImpl(input));
 }
 
 export async function feedPersonRequest(input) {
-  return guarded(() => feedPersonRequestImpl(input));
+  return acting(() => feedPersonRequestImpl(input));
 }

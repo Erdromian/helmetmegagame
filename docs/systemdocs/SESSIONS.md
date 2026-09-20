@@ -150,6 +150,11 @@ the world.
   and a threat-spawn offer are the same shape.
 - **Everything a GM does.** They run the sitting; they work whenever they like.
 
+A player's private journal (`/notes`) and their theme are open for the same
+reason: neither is in the world. Everything else a player can press — the
+Depot counter and its cash machine, the mid-game tag store, the Leader's sell
+tax, donating blood to the Tower — is shut.
+
 ### 5a. The roleplay knob
 
 **"Allow roleplaying in between sessions"** — `GameConfig.roleplayBetweenSessions`,
@@ -188,7 +193,7 @@ Four hooks carry the policy, and three more sit under them as a floor:
 
 | Where | What it covers |
 |---|---|
-| `web/lib/actionResult.js#acting()` | Every verb on `/character`. It is `guarded()` plus the gate, so a verb is `acting(…)` and a read stays `guarded(…)`. |
+| `web/lib/actionResult.js#acting()` | Every verb on `/character`, `/depot`, `/store`, `/treasury` and `/lifeweb`. It is `guarded()` plus the gate, so a verb is `acting(…)` and a read stays `guarded(…)`. **A new player surface written as `guarded(…)` is not gated** — that is the one thing to remember when adding one. |
 | `web/app/(app)/chat/actions.js#actor(select, { acting })` | The chat surface. Per action rather than in the hub, because the talking lives in that file too. |
 | `db/lib/say.js#prepareSpeech` | Speech, both faces — the web composer, the Discord proxy, and the catch-up pass. The one place the knob is read. |
 | `bot/src/events/interactionCreate.js` | Every Discord command, button, select and modal, as an **allowlist**. A new surface is shut by default, so a new read-only or speech button must be added to `OPEN_PREFIXES` or it will refuse out of session. |

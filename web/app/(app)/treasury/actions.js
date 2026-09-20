@@ -7,7 +7,7 @@ import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
-import { UserError, guarded } from "@/lib/actionResult";
+import { UserError, acting } from "@/lib/actionResult";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 
 // The terminal's one control. A server action is a public endpoint, so the gate
@@ -54,5 +54,5 @@ async function setSellTaxRateImpl({ rate: rawRate }) {
 }
 
 export async function setSellTaxRate(input) {
-  return guarded(() => setSellTaxRateImpl(input));
+  return acting(() => setSellTaxRateImpl(input));
 }

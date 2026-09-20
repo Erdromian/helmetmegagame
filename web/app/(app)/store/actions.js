@@ -8,7 +8,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
-import { UserError, guarded } from "@/lib/actionResult";
+import { UserError, acting } from "@/lib/actionResult";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { METEMPSYCHOSIS_SLUG } from "@lifeweb/db/lib/constants";
 import { sendDm } from "@/lib/discordGuild";
@@ -257,5 +257,5 @@ async function buyTagsImpl({ tagIds }) {
 }
 
 export async function buyTags(input) {
-  return guarded(() => buyTagsImpl(input));
+  return acting(() => buyTagsImpl(input));
 }

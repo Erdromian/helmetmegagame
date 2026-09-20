@@ -25,7 +25,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { TURNS_PATH } from "@/lib/routes";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
-import { UserError, guarded } from "@/lib/actionResult";
+import { UserError, acting, guarded } from "@/lib/actionResult";
 import { COMPANY, DEPOT_DEBT, record, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
@@ -469,35 +469,35 @@ export async function depotCounterState() {
 }
 
 export async function depotOpenAccount() {
-  return guarded(() => depotOpenAccountImpl());
+  return acting(() => depotOpenAccountImpl());
 }
 
 export async function depotOrder(input) {
-  return guarded(() => depotOrderImpl(input));
+  return acting(() => depotOrderImpl(input));
 }
 
 export async function depotDrop(input) {
-  return guarded(() => depotDropImpl(input));
+  return acting(() => depotDropImpl(input));
 }
 
 export async function depotSaleDestination(input) {
-  return guarded(() => depotSaleDestinationImpl(input));
+  return acting(() => depotSaleDestinationImpl(input));
 }
 
 export async function depotBank(input) {
-  return guarded(() => depotBankImpl(input));
+  return acting(() => depotBankImpl(input));
 }
 
 export async function depotSend(input) {
-  return guarded(() => depotSendImpl(input));
+  return acting(() => depotSendImpl(input));
 }
 
 export async function depotCredit(input) {
-  return guarded(() => depotCreditImpl(input));
+  return acting(() => depotCreditImpl(input));
 }
 
 export async function depotTurret(input) {
-  return guarded(() => depotTurretImpl(input));
+  return acting(() => depotTurretImpl(input));
 }
 
 export async function depotTurretRead() {

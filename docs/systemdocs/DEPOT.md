@@ -123,6 +123,12 @@ The gates live in `web/app/(app)/depot/actions.js` and `db/lib/depotCounter.js`:
 its twin for the fixtures, and `requireLicensedMerchant` / `requireAccount` sit
 on top.
 
+**Between sittings the counter is shut**, the whole of it — ordering, the ATM,
+the drop box, banking, sending, the credit line, the turret. A session boundary
+shuts the game and money is the game (`SESSIONS.md` §5). Reading the shop window
+is not: `depotCounterState` and `depotTurretRead` stay on `guarded()` while
+every verb beside them is `acting()`, which is the whole of how it is enforced.
+
 ## 0c. The Railyard, and the train
 
 The Railyard is a **real room** — a thread under the Depot channel, authored in
