@@ -50,14 +50,16 @@ repurposed; nothing else used that mechanism.
 A `Room.stable` boolean, not a Location attribute — `db/lib/stablePass.js`
 resolves "the stable floor" as **every Room with `stable: true`**,
 generically, never a hardcoded Room id. Currently one Room carries it:
-`farms-stable`, a new Room inside the existing `farms:` Location (alongside
-`farms-fields`), authored in `docs/zones.yaml`.
+`town-3-3`, the Stable, inside the Soilery Location `town-3` (alongside
+`town-3-1` Farms and `town-3-2` Silo), authored in `docs/zones.yaml`. This doc
+said `farms-stable` inside a `farms:` Location until 2026-09-20; the Farms
+rework renamed all three and nothing here followed it.
 
 **Deliberately a Room flag, not the Soilery Location itself.** The whole
 Farms Location is a placeholder pending its own rework (SOILERY.md §2), and
 the Stable is placed inside it the same way — when that rework lands, moving
 the Stable is a `docs/zones.yaml` edit (add `stable: true` to whatever Room
-replaces `farms-stable`, drop it from this one). `db/lib/stablePass.js` needs
+replaces `town-3-3`, drop it from this one). `db/lib/stablePass.js` needs
 no code change to follow it, since it queries by the flag, never by slug.
 
 `web/app/(app)/character/page.js`'s `canSeeBreakIn` reads this the same way
@@ -87,7 +89,7 @@ ladder, not a duration/expiry timer — `db/lib/tagExpiryPass.js` only walks
 well before this pass in `TURN_PASSES`'s order, so using `RoomTag.expiresTurn`
 as the maturation clock would **delete** the youngling instead of maturing
 it. Same idiom as the existing Exhausted → Tired fatigue ladder
-(`db/lib/laborFatigue.js`).
+(`db/lib/fatigue.js` — this said `laborFatigue.js` until 2026-09-20; no such file exists).
 
 A consequence worth knowing: a brood animal taken out of the stable (sold,
 carried off, butchered) simply stops aging. It's a defensible reading of "an
@@ -119,6 +121,16 @@ same pattern as `farmMaxCrops`). Over capacity, evict the excess to
 property is the last thing shoved out the door). A missing or unresolvable
 overflow Room slug skips the eviction and logs, rather than deleting
 anything.
+
+> **That default is a live bug, and it means the capacity cap does nothing.**
+> The Farms rework renamed the Rooms to `town-3-1`/`town-3-2`/`town-3-3`, so
+> no zone defines `farms-fields` any more. `db/lib/stablePass.js:172` returns
+> early when it cannot resolve the overflow Room — the safe behaviour, and the
+> reason this fails silently rather than loudly — so on a fresh database step 4
+> never runs and a stable grows past 10 unchecked. Fixing it means changing the
+> `@default` in `db/prisma/schema.prisma:627` and
+> `db/lib/gameConfigFields.js:82` to a Room that exists, which is a migration
+> and therefore its own pass, not a catalog edit.
 
 ## 5. Butchering
 
@@ -200,7 +212,7 @@ per-variant branches to one `arelitz` branch throughout.
 | Break-in refusal text, the success threshold, the close DM | `db/lib/arelitz.js` |
 | The Stable's four-step turn pass | `db/lib/stablePass.js` |
 | Mount mechanics (seats, free move, stow) collapsed to one slug | `db/lib/mounts.js` |
-| `Room.stable`, the Stable Room itself | `db/prisma/schema.prisma`, `docs/zones.yaml` (`farms-stable`), `db/lib/syncZones/parse.js`, `db/lib/importZones.js` |
+| `Room.stable`, the Stable Room itself | `db/prisma/schema.prisma`, `docs/zones.yaml` (`town-3-3`), `db/lib/syncZones/parse.js`, `db/lib/importZones.js` |
 | The break-in Gambit request | `web/app/(app)/character/actions/arelitz.js` |
 | Turn-push resolution: the roll check, the tag swap | `db/lib/moveEffects.js` (`brokeIn`) |
 | The `"auto:break_arelitz"` Move marker and desk label | `web/lib/moves.js` |

@@ -41,10 +41,22 @@ What carries over from the old system, unchanged in mechanism:
 
 ### 1a. A meal is now the only way to be fed
 
-Eating grants `ate-meal`, and since 9/2026 that tag **is** the whole of being
-fed. The Hunger pass asks one question at the close of every turn — is
-`ate-meal` on the sheet? — and consumes it if it is (`TURN-ENGINE.md` §5). A
-character with none goes Hungry.
+> **Superseded on 2026-09-20.** Hunger is a **0–100 meter** now
+> (`Character.hungerValue`, `db/lib/hunger.js`), not a yes/no tag. A character
+> burns **10 a turn** out of 100, goes Hungry below **30**, and dies after
+> **3** turns at zero. What a food restores is its own `cooked.hunger` or a
+> dish's `mealHunger`, defaulting to **12** — so a meal is a number of days'
+> grace rather than a single turn's shield, and several small foods add up
+> where one `ate-meal` could not. Eating raw also costs **−10 mood** flat,
+> which is most of what a cook is actually for. The rest of this section
+> describes the tag system the meter replaced; it is kept because the
+> reasoning about cooking being a losing move still explains why the meter is
+> shaped the way it is.
+
+Eating grants `ate-meal`, and from 9/2026 until the meter landed that tag
+**was** the whole of being fed. The Hunger pass asked one question at the close
+of every turn — is `ate-meal` on the sheet? — and consumed it if it was
+(`TURN-ENGINE.md` §5). A character with none went Hungry.
 
 That is a bigger job than the tag used to have. Until then the pass **billed**
 everyone 1 ⬢ a turn for food and you went hungry only if you could not cover
@@ -52,8 +64,8 @@ it, so `ate-meal` was a *shield*: it saved you the 1 ⬢ and dropped a tick of
 the streak. Cooking was therefore a losing move on the arithmetic alone — a
 Fine Meal costs 2 ⬢ to make and a Lavish 3 ⬢, to spare you a charge of 1 ⬢
 — and anybody who never cooked was quietly taxed for existing anyway. The
-charge is gone. Nobody pays to eat, and the only way to not be Hungry is for
-somebody to have cooked.
+charge is gone. **Nobody pays ⬢ to eat** — food is not a ⬢ sink at all, and
+has not been since the meter landed.
 
 So this file matters more than it did, not less. It does **not** mean every
 dish must come from this recipe family: anything whose `consumesInto` reaches

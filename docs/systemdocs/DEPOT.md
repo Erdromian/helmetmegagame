@@ -938,10 +938,10 @@ Four bands, about 106 tags in total:
 
 | Band | Priced at | Examples |
 |---|---|---|
-| Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `bliss` 3, `dreamers-draught` **60** |
+| Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `pure-luck` 65, `dreamers-draught` **60** |
 | Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 0.25-turn pieces 8), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
-| Factory goods | a day's output at ~3× a good farming day | `squeeze` 7 a cube — 8 cubes is a shift (`FACTORY.md` §6). Buy-only in the other direction: the station sells nobody a cube |
+| Factory goods | a day's output at ~3× a good farming day | `squeeze` **5** a cube — 8 cubes is a shift, so 40 ¢ (`FACTORY.md` §6). Cut from 7 on 2026-09-20. Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
 | Body parts | low, on purpose | `eye` 8, `heart` 8, `hand` 5, `foot` 4, `stomach` 4, `tongue` 3 |
 
@@ -1053,7 +1053,16 @@ The four 0.25-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear �
 `SMITHING.md` §2) get the same treatment for the same reason: `2 × 0.25^1.3` is 0.33 and
 rounds to 0, so they carry a flat markup instead and sell at **8**. Four a turn is
 8 ¢/turn, against the rung's full-turn 10 — quick work is paid about the rung's rate,
-never a better one. They were thirds at 9 until costs became decimals in 9/2026, which
+never a better one.
+
+**The Silver Knife is the exception, and it is one this rule created.** It eats a
+`silver` worth 10 ¢, so a flat 8 meant making one DESTROYED 2 ¢ of value — at four
+a turn, −8 ¢/turn, the worst wage in the catalog and the only one where a smith was
+strictly better off selling his own raw material. The 2026-09-18 reprice that lifted
+silver from 8/5 to 14/10 was never carried into the recipes that spend it. It sells
+at **13** now: the input cost plus the rung's own 2 ¢ of wage for a quarter-turn.
+The flat markup still governs the other three pieces, which eat nothing.
+ They were thirds at 9 until costs became decimals in 9/2026, which
 came to the same 9 ¢/turn; the quarter buys a fourth unit, so the price came down to
 keep the day's pay under the rung above. Round the quick pieces DOWN when they will not
 land clean on an integer, never up, or the rung above them is overtaken.
@@ -1062,11 +1071,24 @@ Two items break from their tier's baseline `resourceCost` and price accordingly:
 Pistol (18 ⬢ to make, cheaper than Musketoon/Bomb's 28) still prices under them, at 56
 against 74 — same relative gap as the tier.
 
-`ravenheart-red` is the top of the ordinary brews on purpose. It costs 4 ⬢ and
-needs no ingredient at all, so a Skilled brewer with nothing else going on can
-make 10 ¢ a turn off it — and it is the one thing on this planet an offworlder
-actually wants. The tag's own description has called it "Ravenheart's only
-export" since long before any of this was wired up.
+`ravenheart-red` is the top of the ordinary brews on purpose, and it is the one
+thing on this planet an offworlder actually wants. The tag's own description has
+called it "Ravenheart's only export" since long before any of this was wired up.
+
+**Its arithmetic here was wrong for two weeks and is worth reading as a warning.**
+This paragraph said it "costs 4 ⬢ and needs no ingredient at all", giving a
+Skilled brewer 10 ¢ a turn. Both halves were stale: wine has been made OF
+something since 2026-09-05 (`docs/tags.yaml`, `items: [alcohol]`), and the
+recipe is **half** a turn, not a whole one. The real figure is 14 ¢ sold, less
+4 ⬢ and a 4 ¢ alcohol, twice a turn — **12 ¢ a turn**, above the number the doc
+claimed rather than below it.
+
+A price table that is edited by hand beside a YAML file that is edited
+separately will drift, and drift in the direction nobody checks. Before quoting
+a wage in this file, derive it from the catalog rather than from the last person
+who wrote it down: sell price, less `resourceCost`, less what each entry in
+`requirement.items` is itself worth, times how many the `turnsCost` allows in a
+turn. Every one of those numbers is in `docs/tags.yaml`.
 
 **One brew is on both tables.** `phrygian-tears` costs 4 ⬢ to brew and 32 ¢ to
 import. That is not an error and it is not a loophole: the import price is what

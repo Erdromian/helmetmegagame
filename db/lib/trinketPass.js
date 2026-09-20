@@ -126,7 +126,7 @@ async function runTrinketPass(prisma, turn) {
 
         await addToStack(tx, character.id, minted.id, 1, { source: "CRAFT", stackable: true });
 
-        const resultMessage = `Made ${minted.name} at the forge (${tier.name}, worth ${price} ⬢).`;
+        const resultMessage = `Made ${minted.name} at the forge (${tier.name}, worth ${price} ¢).`;
         await tx.action.update({
           where: { id: action.id },
           data: { moveReviewStatus: "SOLVED", reviewedAt: new Date(), resultMessage },
@@ -141,7 +141,7 @@ async function runTrinketPass(prisma, turn) {
           discordUserId: outcome.character.discordUserId,
           content: [
             `🎲 Your Gambit for turn ${turn.number}: **${outcome.face}**.`,
-            `The forge gives you a **${outcome.tier.name}** Trinket: **${outcome.itemName}** (worth ${outcome.price} ⬢ to the merchant).`,
+            `The forge gives you a **${outcome.tier.name}** Trinket: **${outcome.itemName}** (worth ${outcome.price} ¢ to the merchant).`,
             outcome.gambitBonus
               ? `-# Something in it answers you. While you carry it, your Gambit die is +${outcome.gambitBonus}.`
               : null,

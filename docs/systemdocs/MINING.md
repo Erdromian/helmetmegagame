@@ -129,7 +129,7 @@ creates a row only for a Location that does not have one, and never updates.
 3. **No row, or a row at 0** — "There's nothing to mine here." This is the only
    place-shaped refusal there is, and it is what greys the button in Town.
 4. **The base range** — 4–16 holding Prospecting, 0–6 without — times
-   `GameConfig.productionCoefficient` (the global dial, 0.93 out of the box)
+   `GameConfig.productionCoefficient` (the global dial, 0.9 out of the box)
    times the Location's `current`. The result carries `prospecting: true|false`
    back to the caller, which is what decides the loot roll; nothing downstream
    should re-derive it from the tag.

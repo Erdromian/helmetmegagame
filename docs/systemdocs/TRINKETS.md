@@ -13,12 +13,17 @@ Making a Trinket rolls a d6, same as any other Gambit
 
 | Face | Tier | Sells for |
 |---|---|---|
-| 1 | Awful | 5 ⬢ |
-| 2 | Poor | 8 ⬢ |
-| 3 | Normal | 14 ⬢ |
-| 4 | Good | 22 ⬢ |
-| 5 | Excellent | 34 ⬢ |
-| 6 | Masterwork | 60 ⬢ |
+| 1 | Awful | 5 ¢ |
+| 2 | Poor | 8 ¢ |
+| 3 | Normal | 14 ¢ |
+| 4 | Good | 22 ¢ |
+| 5 | Excellent | 34 ¢ |
+| 6 | Masterwork | 60 ¢ |
+
+**The glyph is ¢, and this table said ⬢ until 2026-09-20.** A Trinket's price
+is written to `sellablePrice`, which is money — see `DEPOT.md` §0. The same
+error was in the two player-facing strings in `db/lib/trinketPass.js`, which
+told every smith their work was worth a number of the wrong unit.
 
 That is the whole reveal: a Trinket's price to the Merchant IS its tier, read
 straight off the table (`db/lib/trinketPass.js`'s `TIERS` array). There is no
@@ -98,20 +103,54 @@ flat `inlayValue` to the finished price on top of the tier. **The whole
 reason (`MINING.md` §3b, and the Mining catalog comment in `docs/tags.yaml`).
 The ladder runs with the loot table's tiers:
 
-| Where it comes from | Examples | inlay |
-|---|---|---|
-| Ultracommon ore | Hematite, Malachite, Garnierite | 1 |
-| Common stone | Citrine, Onyx, Pyrite… | 4 |
-| Uncommon | Fire Opal, Sphalerite, Tetrahedrite | 8 |
-| Smelted metal | Nickel 5, Copper 6, Iron 8, Silver 9 | 5–9 |
-| Rare stone | Opal, Topaz, Amethyst, Kunzite | 14 |
-| Platinum | | 18 |
-| Star Sapphire / Black Diamond | | 30 / 36 |
-| **Arkenstone** | | **60** |
+| Where it comes from | Examples | sells | inlay |
+|---|---|---|---|
+| Ultracommon ore | Hematite, Malachite, Garnierite | 1 | 6 |
+| Common stone | Citrine, Onyx, Pyrite… | 3 | 10 |
+| Uncommon | Fire Opal, Sphalerite, Tetrahedrite | 6 | 16 |
+| Smelted metal | Nickel, Copper, Iron, Silver | 5–10 | 12–16 |
+| Rare stone | Opal, Topaz, Amethyst, Kunzite | 10 | 24 |
+| Platinum | | 20 | 44 |
+| Star Sapphire / Black Diamond | | 20 / 25 | 44 / 54 |
+| **Arkenstone** | | **200** | **404** |
 
-That is the point of the whole arrangement: a raw ore sells for 1 ¢ and is
-worth 1 as inlay, but smelted into Iron it is worth 8 either way. A prospector
-who never speaks to a smith is leaving most of the value in the ground.
+**Every number in that column comes from one rule, set on 2026-09-20:**
+
+```
+inlayValue = 2 × sellablePrice + 4
+```
+
+never below what the tag already had, and **always strictly under
+`depotPrice`** where the Merchant stocks the thing. The canonical copy of this
+lives as a comment on `arkenstone` in `docs/tags.yaml`; this is the same rule
+said once more.
+
+The doubling is the stone and the **+4 is the smith's craft**, and the +4 is
+what stops the bottom of the ladder being pointless. Ultracommon rock is 62%
+of every Caves draw, so under a flat 2× a Malachite inlays for 2 ¢ and the
+ordinary prospector gets nothing at all out of a forge. The effective
+multiplier falls from 6× at the bottom to 2.02× at the top; that shape is
+deliberate, not an artefact.
+
+**The depot cap is not a nicety.** A stone that inlays for at least what the
+Merchant charges can be bought, forged and sold at a profit, forever, with no
+skill gate and no scarcity behind it. It binds on exactly three tags today —
+`silver`, `iron` and `jewelry` — each capped one under its `depotPrice`
+instead of taking the full curve. **Check it by hand on any reprice**: for every
+tag carrying both fields, `inlayValue` must be strictly less than `depotPrice`.
+Nothing in the sync enforces it, and a hole of that shape is invisible in play
+until a player works it out, so it will not announce itself.
+
+So **re-pricing a stone means re-pricing both halves.** Change `sellablePrice`
+and leave `inlayValue` alone and the rule quietly stops being true.
+
+Before this pass, `inlayValue` sat at almost exactly `sellablePrice` across the
+whole ladder: ten of the 28 stones were worth no more forged than sold, and
+`silver` and `platinum` were worth **less**. Setting a stone converted one
+asset into another of the same value and the smith earned only the tier roll.
+Now a prospector who never speaks to a smith really is leaving most of the
+value in the ground — which is what this section always claimed, and now
+describes.
 
 **No slug twice.** `resolveIngredientSlots` refuses the same ingredient in both
 slots ("You've put the same ingredient in twice"), so the two slots are always
@@ -209,8 +248,8 @@ identity as the ingredients are.
 
 The reveal DM names both things a bare die face cannot: the tier, and what got
 made — "🎲 Your Gambit for turn 14: **6**. The forge gives you a
-**Masterwork** Trinket: **Masterwork Trinket** (worth 60 ⬢ to the merchant)."
-(An inlaid Malachite would read 66 ⬢ instead — the tier's base price plus the
+**Masterwork** Trinket: **Masterwork Trinket** (worth 60 ¢ to the merchant)."
+(An inlaid Malachite would read 66 ¢ instead — the tier's base price plus the
 ingredient's own `inlayValue`, §3.) A player with no memory of this table has
 no way to know a 6 is good news without being told in the same breath.
 

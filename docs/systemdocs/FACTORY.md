@@ -238,12 +238,28 @@ Overburdened. They stash the rest in the Logistics Room and the carry pass
 handles the overflow. The cart and the storeroom are the business; that is
 deliberate, not an oversight.
 
-**A cube sells for 7 ⬢.** (It was 4, then 5, then this, all on 2026-09-10 and
-all Bascinet's call.) Farming at coefficient 1.0 with `productionCoefficient`
-0.93 pays 11–15 ⬢, midpoint 13; a factory day is now 56 ⬢ for 8 cubes, about
-4.3× a good farming day, up from the 2.2× the original 4 ⬢ price was derived
-from. A full 60-cube wagon is 420 ⬢ — and since obols went 1:1 in 9/2026,
-420 ¢.
+**A cube sells for 5 ¢.** (It was 4, then 5, then 7, all on 2026-09-10, and
+back to 5 on 2026-09-20.) Note the glyph: a cube is priced off `sellablePrice`,
+so the number is **¢** and always was — this paragraph said ⬢ until the
+2026-09-20 pass, which is the quiet kind of error `DEPOT.md` §0 exists to stop.
+
+A refining day is **40 ¢** for 8 cubes, and a full 60-cube wagon is **300 ¢**.
+Farming at coefficient 1.0 with `productionCoefficient` 0.9 pays 11–15 ⬢,
+midpoint 13, so the Factory is about **3×** a good farming day.
+
+**That 40 ¢ is the SUPPLIED figure, and it is the one this doc kept quoting as
+though it were the whole job.** Refine spends a whole Move
+(`web/app/(app)/character/actions/refine.js` calls `requireFreeMove`), and so
+does the Extract that produced the Godflesh. Worked solo the real rate is
+**20 ¢ a turn** bare-handed (one Extract, one Refine) or **26.7 ¢** with a
+chainsaw, whose two Godflesh feed two refining days. 40 ¢ is what a refiner
+makes when somebody else is losing fingers upstream, which is a division of
+labour rather than a wage.
+
+The 7 ¢ price made a supplied refining day 56 ¢ — three times the best
+smithing rung and the highest wage in the game by a wide margin, off an
+action with no roll and no skill gate. The cut is the 2026-09-20 rebalance
+(see `TRINKETS.md` §2 for the other half of it).
 
 Squeeze has no `depotPrice`. The station sells nobody a cube.
 

@@ -6441,7 +6441,7 @@ tags:
     sellablePrice: 3
     # A Trinket ingredient (TRINKETS.md §3) — cheap and common, the smallest
     # inlay value in the catalog.
-    inlayValue: 2
+    inlayValue: 10
 
   # ---------------------------------------------------------------------
   # The Mining catalog (MINING.md, TRINKETS.md).
@@ -6493,7 +6493,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 1
-    inlayValue: 1
+    inlayValue: 6
 
   malachite:
     catalog: all
@@ -6510,7 +6510,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 1
-    inlayValue: 1
+    inlayValue: 6
 
   garnierite:
     catalog: all
@@ -6527,7 +6527,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 1
-    inlayValue: 1
+    inlayValue: 6
 
   # Smelted from {tag:hematite} at the forge — an ore is worth almost nothing
   # raw, and this is what makes a day underground pay. Iron took over the old
@@ -6570,7 +6570,7 @@ tags:
     depotPrice: 13
     sellable: true
     sellablePrice: 8
-    inlayValue: 8
+    inlayValue: 12
 
   copper:
     catalog: all
@@ -6596,7 +6596,7 @@ tags:
     consumesIntoResources: 4
     sellable: true
     sellablePrice: 6
-    inlayValue: 6
+    inlayValue: 16
 
   nickel:
     catalog: all
@@ -6622,7 +6622,7 @@ tags:
     consumesIntoResources: 3
     sellable: true
     sellablePrice: 5
-    inlayValue: 5
+    inlayValue: 14
 
   # Found as metal rather than smelted, so there is no ore behind it.
   # {tag:silver-knife} and {tag:silver-spear} both spend one; each recipe's
@@ -6648,7 +6648,7 @@ tags:
     depotPrice: 14
     sellable: true
     sellablePrice: 10
-    inlayValue: 9
+    inlayValue: 13
 
   # The extremely-rare metal, and the only one worth walking into the Depths
   # for on its own.
@@ -6669,7 +6669,7 @@ tags:
     consumesIntoResources: 12
     sellable: true
     sellablePrice: 20
-    inlayValue: 18
+    inlayValue: 44
 
   # The common shelf: 3 ¢, 4 inlay. Six of them, so the commonest result of a
   # good day is variety rather than the same stone over and over.
@@ -6687,7 +6687,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
-    inlayValue: 4
+    inlayValue: 10
 
   milk-quartz:
     catalog: all
@@ -6704,7 +6704,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
-    inlayValue: 4
+    inlayValue: 10
 
   onyx:
     catalog: all
@@ -6721,7 +6721,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
-    inlayValue: 4
+    inlayValue: 10
 
   moonstone:
     catalog: all
@@ -6738,7 +6738,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
-    inlayValue: 4
+    inlayValue: 10
 
   pyrite:
     catalog: all
@@ -6755,7 +6755,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
-    inlayValue: 4
+    inlayValue: 10
 
   white-jade:
     catalog: all
@@ -6772,7 +6772,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 3
-    inlayValue: 4
+    inlayValue: 10
 
   # The uncommon shelf: 6 ¢, 8 inlay. {tag:silver} and {tag:old-coin} share
   # this tier of the table without sharing its pricing — one is a metal, the
@@ -6792,7 +6792,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 6
-    inlayValue: 8
+    inlayValue: 16
 
   sphalerite:
     catalog: all
@@ -6809,7 +6809,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 6
-    inlayValue: 8
+    inlayValue: 16
 
   tetrahedrite:
     catalog: all
@@ -6826,7 +6826,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 6
-    inlayValue: 8
+    inlayValue: 16
 
   # The rare shelf: 10 ¢, 14 inlay. Four stones, and the point at which a
   # single find is worth more than the day's ⬢ that turned it up.
@@ -6845,7 +6845,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 10
-    inlayValue: 14
+    inlayValue: 24
 
   topaz:
     catalog: all
@@ -6861,7 +6861,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 10
-    inlayValue: 14
+    inlayValue: 24
 
   amethyst:
     catalog: all
@@ -6877,7 +6877,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 10
-    inlayValue: 14
+    inlayValue: 24
 
   kunzite:
     catalog: all
@@ -6894,7 +6894,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 10
-    inlayValue: 14
+    inlayValue: 24
 
   # The bottom of the Depths. These three are a fraction of a percent of one
   # roll and are priced to be worth the walk: a Masterwork Trinket with two
@@ -6914,7 +6914,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 20
-    inlayValue: 30
+    inlayValue: 44
 
   black-diamond:
     catalog: all
@@ -6931,7 +6931,7 @@ tags:
     purchasableAfterStart: false
     sellable: true
     sellablePrice: 25
-    inlayValue: 36
+    inlayValue: 54
 
   # The rarest thing in the ground, and the only tag in the game that carries
   # `gambitBonus`. A Trinket forged with one grants its HOLDER +1 on the
@@ -6962,8 +6962,35 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 40
-    inlayValue: 60
+    # The find of the game, and priced like one (2026-09-20): 200 ¢ raw, and
+    # 464 ¢ as a Masterwork Trinket. There is no depotPrice here and there
+    # must not be one — the station selling a stone it cannot source would
+    # undercut the only thing that makes the Depths worth the walk.
+    #
+    # EVERY inlayValue IN THE CATALOG IS SET BY ONE RULE, and this is the
+    # place it is written down (see docs/systemdocs/TRINKETS.md §2):
+    #
+    #     inlayValue = 2 × sellablePrice + 4
+    #
+    # never below what the tag already had, and always strictly under
+    # depotPrice where the Merchant stocks the thing.
+    #
+    # The doubling is the stone; the +4 is the smith's craft, and it is what
+    # stops the bottom of the ladder being worthless. Ultracommon rock is 62%
+    # of every Caves draw, so at a flat 2× a malachite inlays for 2 ¢ and the
+    # ordinary prospector gets nothing out of a forge. The multiplier falls
+    # from 6× at the bottom to 2.02× at the top, which is the point.
+    #
+    # The depot cap is not a nicety. A stone that inlays for more than the
+    # Merchant charges can be bought, forged and sold at a profit, forever,
+    # with no skill gate and no scarcity behind it — the same shape of hole
+    # db/lib/syncTags.js already warns about when depotPrice <= sellablePrice.
+    # It binds on exactly three tags today: silver, iron and jewelry.
+    #
+    # So re-pricing a stone means re-pricing BOTH halves. Change sellablePrice
+    # and leave inlayValue alone and the rule quietly stops being true.
+    sellablePrice: 200
+    inlayValue: 404
     gambitBonus: 1
 
   # The base row a Trinket is minted FROM (TRINKETS.md). NOT craftable in the
@@ -7114,7 +7141,7 @@ tags:
       mood: -15
     # A Trinket ingredient (TRINKETS.md §3) — the priciest inlay in the
     # catalog.
-    inlayValue: 10
+    inlayValue: 12
 
   # Fished up by the labor loot pass. Public on purpose (Chris 2026-09-07):
   # the heart is a curiosity anyone may catch, but the White Honey link stays
@@ -7432,7 +7459,7 @@ tags:
     sellablePrice: 8
     depotPrice: 14
     # A Trinket ingredient (TRINKETS.md §3).
-    inlayValue: 8
+    inlayValue: 13
 
   # What the Painting spends (Chris 2026-09-06). catalog: all on purpose — a
   # gm-catalog ingredient would pull the Painting into the hidden-recipe rule
@@ -9684,7 +9711,7 @@ tags:
       # flat 6 ⬢ materials cost, unchanged in total.
       items: [silver]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 13
 
   gladius:
     catalog: all
@@ -15463,7 +15490,7 @@ tags:
       gambit: false
       items: [alcohol]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 9
 
   # --- Advanced tonics — Brewing II ---------------------------------
   # Smith's work now, not a brew (Chris 2026-09-05): a powder device coming
@@ -15565,7 +15592,7 @@ tags:
       gambit: false
       items: [graga-sac]
     sellable: true
-    sellablePrice: 6
+    sellablePrice: 20
 
   purifier:
     catalog: all
@@ -15766,7 +15793,7 @@ tags:
       gambit: false
       items: [graga-sac]
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 20
 
   # gm, not secret (2026-09-07): a SECRET row never enters the Recipes tab's
   # visible set even when held, so a recipe spending this could never unhide
@@ -15818,7 +15845,7 @@ tags:
       gambit: false
       items: [aberrant-heart]
     sellable: true
-    sellablePrice: 14
+    sellablePrice: 65
 
   # The three tonics. Each one needed something the brewer could not simply
   # buy. Two of those three ingredients were prose and are gone (Forgiveness
@@ -17443,7 +17470,7 @@ tags:
       turnsCost: 1
       resourceCost: 5
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 17
 
   # The Exactor's outfit. Salvage Plate's protection in a shape nobody reads as
   # armour — the padded vest is doing the work, and the numbers are deliberately
@@ -17794,7 +17821,7 @@ tags:
     # which is the whole reason the Factory exists — 8 cubes is a day's work
     # and pays about four times a good farming day.
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 5
 
   # UNTRADEABLE on purpose, which is the only thing that actually pins it down:
   # `removable: false` blocks the Destroy menu and nothing else, so while this
