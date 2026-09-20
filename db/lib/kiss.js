@@ -33,7 +33,7 @@ const KISS_ACCEPTED_ACTION = "kiss_accepted";
 // (db/lib/mood.js), so Seductive alone carries anyone at −22 or better into
 // Ecstatic and its +1 Gambit. That is the point of the seat, not an accident
 // of the numbers.
-const KISS_APPEARANCE = Object.freeze({ seductive: 75, beautiful: 12, pretty: 6 });
+const KISS_APPEARANCE = Object.freeze({ seductive: 75, beautiful: 12, pretty: 6, "alluring-scent": 20 });
 
 // A Love Tablet, and the one bonus here that is NOT crossed. Everything in
 // the table above is a fact about your face, so it is paid to the person who
@@ -54,7 +54,11 @@ function appearanceBonus(tags) {
     held.has("beautiful") ? KISS_APPEARANCE.beautiful : 0,
     held.has("pretty") ? KISS_APPEARANCE.pretty : 0,
   );
-  return (held.has("seductive") ? KISS_APPEARANCE.seductive : 0) + face;
+  return (
+    (held.has("seductive") ? KISS_APPEARANCE.seductive : 0) +
+    face +
+    (held.has("alluring-scent") ? KISS_APPEARANCE["alluring-scent"] : 0)
+  );
 }
 
 // Paid to BOTH sides if EITHER side holds it, and only once however many

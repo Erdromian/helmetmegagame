@@ -45,11 +45,14 @@ independently from the other's tags.
 | `pretty` | +6 |
 | `beautiful` | +12 |
 | `seductive` | **+75** |
+| `alluring-scent` | +20 |
 
 Seductive **stacks on top of** a face; pretty and beautiful are one tier chain
 (`beautiful` carries `parentTag: pretty`), so only one of them is ever held and
 the code takes the **max** of the two rather than trusting that. A GM grant
 walks past the tier rule, and a hand-granted pair would otherwise pay twice.
+`alluring-scent` (Perfume's 2-turn buff, `docs/tags.yaml`) stacks on top of all
+of it — a scent isn't a face, so there's no tier to collide with.
 
 The table is `KISS_APPEARANCE` in `db/lib/kiss.js`; `applyKissMood` only adds
 the number it is handed, so the mood tables stay the record of what an *event*
