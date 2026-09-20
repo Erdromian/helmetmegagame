@@ -160,19 +160,23 @@ function buildModel({ players = 100, gameTurns = 30 } = {}) {
     return total;
   }
 
-  // Cumulative point cost of a skill and everything it hangs off.
+  // Cumulative point cost of a skill and everything it hangs off: the skill's
+  // own cost plus everything reached through `parentTag` (a tier) or
+  // `requiredTag` (a mastery's prerequisite). Each tag counts once.
   function skillChain(slug) {
     const seen = new Set();
-    let pts = 0;
     let root = slug;
-    for (let s = slug; s && !seen.has(s); ) {
-      seen.add(s);
+    (function walk(s) {
+      if (!s || seen.has(s)) return;
       const t = get(s);
-      if (!t) break;
-      pts += t.pointCost ?? 0;
-      root = s;
-      s = t.parentTag ?? null;
-    }
+      if (!t) return;
+      seen.add(s);
+      walk(t.parentTag);
+      walk(t.requiredTag);
+      if (!t.parentTag && !t.requiredTag) root = s;
+    })(slug);
+    let pts = 0;
+    for (const s of seen) pts += get(s)?.pointCost ?? 0;
     return { points: pts, root };
   }
   const familyOf = (root) => {
