@@ -384,7 +384,6 @@ groups:
       starting_account: 5
       multiple: true
       weight: 6
-      extra_starting_points: 7
       starting_zone: fortress
       starting_location: fortress-4
       # In place of the ten Courtier kits, which were removed for being a
