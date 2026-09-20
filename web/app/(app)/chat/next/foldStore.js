@@ -37,8 +37,10 @@ function invalidate() {
   cached = null;
 }
 
-function emit() {
-  invalidate();
+// Fans out to subscribers without discarding the cache: `write` has already
+// set `cached` to the value it intends, and invalidating here would send the
+// very next read() straight back to localStorage (see `write`'s comment).
+function emitOnly() {
   for (const cb of listeners) cb();
 }
 
@@ -86,13 +88,22 @@ function readServer() {
 // the render path.
 function write(next, live) {
   const keep = live ? [...next].filter((k) => live.has(k)) : [...next];
+  // Set the in-memory snapshot straight from `keep`, not from a re-read of
+  // localStorage: a browser that blocks storage writes (Firefox with site
+  // data blocked, some private-browsing configurations) throws on setItem,
+  // and invalidating the cache without this line meant the very next read()
+  // re-fetched the UNCHANGED stored value — the fold undid itself on every
+  // click, silently, with no error to see. This still degrades to "forgets
+  // on reload" when storage is blocked, which is what the old comment meant.
+  cached = new Set(keep);
   try {
     if (keep.length === 0) window.localStorage.removeItem(KEY);
     else window.localStorage.setItem(KEY, JSON.stringify(keep));
   } catch {
-    // Nothing to do: the column still folds, it just forgets again.
+    // Nothing to persist: the column still folds this session, it just
+    // forgets on reload.
   }
-  emit();
+  emitOnly();
 }
 
 // The shut set, and a toggle. `live` is passed at the call site because only
