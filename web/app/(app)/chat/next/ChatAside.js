@@ -144,9 +144,14 @@ export default function ChatAside({
 
   // Travel / Who's here? / Secret rooms? / Examine are answered by this column
   // being on the page; they stay in db/lib/placeAffordances.js for Discord.
+  // Charon's Leave is a place affordance too: it is how you get OFF the ship,
+  // and the ship is a Location with no edge, so Travel cannot offer it
+  // (docs/systemdocs/CHARON.md).
   const fixtures = live.filter(
     (entry) =>
-      (entry.kind === "place" && entry.id === "noticeboard") || entry.kind === "gate" || entry.kind === "keyed",
+      (entry.kind === "place" && (entry.id === "noticeboard" || entry.id === "charonLeave")) ||
+      entry.kind === "gate" ||
+      entry.kind === "keyed",
   );
 
   const moveState = useMyMove({ turn, move, characterId: moveCharacterId });

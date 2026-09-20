@@ -36,6 +36,10 @@ const {
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
+  ROOM_CHARON_ENTER_PREFIX,
+  ROOM_CHARON_LAUNCH_PREFIX,
+  ROOM_CHARON_SLEEP_PREFIX,
+  CHARON_LEAVE_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
@@ -131,6 +135,10 @@ const {
   handleTurretOpen,
   handleBellOpen,
   handlePrayOpen,
+  handleCharonEnter,
+  handleCharonLeave,
+  handleCharonLaunch,
+  handleCharonSleep,
   handlePrayConfirm,
   handleSlotsOpen,
   handlePhoneOpen,
@@ -360,6 +368,30 @@ module.exports = {
         }
         if (interaction.customId.startsWith(ROOM_PHONE_PREFIX)) {
           return void (await handlePhoneOpen(interaction, interaction.customId.slice(ROOM_PHONE_PREFIX.length)));
+        }
+        // The Charon (docs/systemdocs/CHARON.md). Four buttons, each carrying
+        // the id of the thing it acts on — the room for three of them, nothing
+        // for Leave, which reads the presser's own locationId.
+        if (interaction.customId.startsWith(ROOM_CHARON_ENTER_PREFIX)) {
+          return void (await handleCharonEnter(
+            interaction,
+            interaction.customId.slice(ROOM_CHARON_ENTER_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(ROOM_CHARON_LAUNCH_PREFIX)) {
+          return void (await handleCharonLaunch(
+            interaction,
+            interaction.customId.slice(ROOM_CHARON_LAUNCH_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(ROOM_CHARON_SLEEP_PREFIX)) {
+          return void (await handleCharonSleep(
+            interaction,
+            interaction.customId.slice(ROOM_CHARON_SLEEP_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(CHARON_LEAVE_PREFIX)) {
+          return void (await handleCharonLeave(interaction));
         }
         // The confirm before the open, for the reason Pray's pair gives just
         // above: "room:slots:go:<id>" also starts with the open prefix.

@@ -414,6 +414,23 @@ tags:
     description: "A creature of the night, they must continually feed on the blood of mortals to retain their eternal youth. Vampires also have an attachment to the mortal coil, if they give in to their desires too freely, they may end up turning fully to their thirst for blood."
     pointCost: 0
     purchasable: false
+    # A vampire feeds; Saint and Pacifist forbid harming anyone at all — the
+    # design doc's own words (VAMPIRE.md §9): "mutually exclusive with tags
+    # that would inhibit them from feeding... Such tags are removed from a
+    # character if they become a vampire." threatActions.js#assignThreat
+    # already strips conflictsWith edges off any seat tag it grants (same
+    # mechanism Demoness above uses) — no new code needed, just this edge.
+    conflictsWith: [saint, pacifist]
+    # Food/drink Desires are unavailable to a vampire — VAMPIRE.md §9: "Do
+    # not become hungry, nor... gain mood points from eating food or meals.
+    # Desires relating to food and drink are unavailable to them, instead
+    # they have vampire specific desires." Read as covering both the `food`
+    # family (meals, tea, sweets) and `alcohol` (a drink); nothing else is
+    # touched, so a vampire's other Desires (wealth, status, romance...)
+    # stay open alongside their new `vampirism` ones.
+    desires:
+      locks:
+        - families: [food, alcohol]
 
   # The Thanati Leader's mark on top of the thanati Belief below — the roster
   # tells the two seats apart by this tag (db/lib/threats.js).
@@ -489,6 +506,26 @@ tags:
     pointCost: 0
     purchasable: false
     visible: false
+
+  # What the Charon's Habitation hands you (docs/systemdocs/CHARON.md). The tag
+  # is the only thing a player ever sees of the ASLEEP status — visible on
+  # purpose, since it is the thing telling them they may roll again.
+  #
+  # NOT the `asleep` tag further down this file. That one is ordinary sleep: a
+  # one-turn status debuff that caps your fighting at pitiful and wears off.
+  # This one never wears off, because the character it is on is out of the game.
+  charon-asleep:
+    catalog: gm
+    name: Asleep
+    # The slug cannot be `asleep`; that one is taken by ordinary sleep. The
+    # NAME is the word for it either way, so the flag is here rather than the
+    # name being bent to fit a free slug.
+    keepSlug: true
+    category: general
+    description: "You are asleep. You can respawn."
+    pointCost: 0
+    purchasable: false
+    visible: true
 
   courtier:
     catalog: gm
@@ -3639,6 +3676,282 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
+
+  # --- The Blood Abilities menu and its fallout (VAMPIRE.md §6-9 — design
+  # doc pages 4-11). Non-purchasable, role/ability-granted only — the design
+  # doc's own table leaves every one of these out of the purchasable list.
+
+  # Granted alongside the seat tag itself (db/lib/threats.js's vampire
+  # `assign.tagSlugs`), permanent — no durationTurns, matching the design
+  # doc's table leaving its Duration column blank.
+  fangs:
+    catalog: gm
+    name: Fangs
+    category: status
+    group: status-vampire
+    description: "Sharp hidden fangs, ready to be exposed when needed."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Blood Strength ability's own grant. "+2 melee fighting", 1 turn.
+  blood-strength:
+    catalog: gm
+    name: Blood Strength
+    category: status
+    group: status-vampire
+    description: "Undying fury runs through your veins!"
+    fighting: { tree: melee, tiers: 2 }
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  # Celerity ability's own grant (named Agility on the design doc's
+  # Non-Purchasable table, distinct from the purchasable Celerity
+  # prerequisite tag below that unlocks the ability itself). "+1 fighting
+  # both trees", 1 turn.
+  agility:
+    catalog: gm
+    name: Agility
+    category: status
+    group: status-vampire
+    description: "All your movements carry tremendous grace and skill."
+    fighting: { tree: both, tiers: 1 }
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  # Resilience ability's own grant. "+0.3 armor for melee and ballistics",
+  # same two fields mail-shirt uses, 1 turn.
+  resilient:
+    catalog: gm
+    name: Resilient
+    category: status
+    group: status-vampire
+    description: "Your skin is as tough as leather, with bones as strong as iron. Injuries are far less severe."
+    melee: 0.3
+    ballistic: 0.3
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  # Obfuscate ability's own grant. Visible (the holder is visibly cloaked in
+  # shadow) but hides every OTHER tag on inspection — db/lib/inspectVision.js
+  # is the one existing reader of a tag's own visibility/inspection rules;
+  # this is a coded effect on the Obfuscate action itself
+  # (web/app/(app)/character/actions/bloodAbility.js), not a Tag-schema flag,
+  # since nothing else in the catalog hides a whole sheet at once.
+  hidden:
+    catalog: gm
+    name: Hidden
+    category: status
+    group: status-vampire
+    description: "A cloak of shadows wraps itself around their figure, making it impossible to discern any features."
+    visible: true
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 1
+
+  # Enthral's victim mark. No duration in the design doc's table (permanent
+  # until Freed by hand) — the promise of immortality that keeps a thrall
+  # bound is a standing state, not a timed one.
+  thrall:
+    catalog: gm
+    name: Thrall
+    category: status
+    group: status-vampire
+    description: "The minion of a vampire, enslaved to their will by the promise of immortality."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    # Barred from any non-thrall Desire tier 2 or lower (VAMPIRE.md §9's own
+    # words) — TAGS.md §3a's tiers-lock clause, exempting the thrall's own
+    # family so their unique Desires stay open.
+    desires:
+      locks:
+        - tiers: [1, 2]
+          exceptFamilies: [vampirism]
+
+  # Enthral's other mark, reset to a fresh 9 turns by Nourish
+  # (web/app/(app)/character/actions/bloodAbility.js). `expiresInto: [dead]`
+  # is the reserved token (db/lib/tagShapes.js#DEAD_TOKEN) that grants Dying
+  # stamped for the SAME closing turn rather than the next one
+  # (db/lib/tagExpiryPass.js's own header) — "causes immediate death... when
+  # this expires" reads as this, not a slower two-turn chain. The holder is
+  # a mortal thrall, never a vampire, so db/lib/dyingDeathPass.js's vampire
+  # exemption never shields them from it.
+  vampire-blood-addict:
+    catalog: gm
+    name: Vampire Blood Addict
+    category: status
+    group: status-vampire
+    description: "Your mortal body has tasted eternal life and demands more! You will die if you go without it for three days."
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    durationTurns: 9
+    expiresInto: [dead]
+
+  # Corrupt's output — an item, not a status. Same group as the harvested
+  # `heart` it's withered from (items-remains). "Implanting it into someone
+  # may turn them into a vampire" is left as GM narrative judgment
+  # (VAMPIRE.md §6b), the same posture Feeding's own restoration gets — a GM
+  # who judges an implant Gambit successful assigns the Vampire Threat by
+  # hand on /gm/dev, same as any other seat.
+  black-heart:
+    catalog: gm
+    name: Black Heart
+    category: items
+    group: items-remains
+    description: "This organ has been corrupted with dark power, reveling in it."
+    visible: false
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    stackable: true
+    sellablePrice: 0
+
+  # The vampire's own ash death (db/lib/vampireDeath.js) — a room drop, not a
+  # corpse: "immediately gibbed, turning into ash... items dropped on the
+  # ground as well as a pile of ash tag." Deliberately NOT items-corpse —
+  # that group slug is CORPSE_GROUP_SLUG, the thing db/lib/corpses.js
+  # #isCorpseTag matches on (docs/taggroups.yaml's own warning), so filing
+  # ash there would make it answer a Butcher/Bury picker as if it were a
+  # buryable body. Same items-remains group `heart`/`black-heart` use — this
+  # is a plain static catalog tag, every vampire's ash looks the same, so
+  # there is no per-character mint the way a real corpse gets.
+  pile-of-ash:
+    catalog: gm
+    name: Pile of Ash
+    category: items
+    group: items-remains
+    description: "A pile of fine ash."
+    visible: true
+    pointCost: 0
+    purchasable: false
+    purchasableAfterStart: false
+    stackable: true
+    removable: false
+
+  # --- Vampire Purchasable Tags (VAMPIRE.md §8 — design doc's own table).
+  # Every one lives in status-vampire-boons (docs/taggroups.yaml), gated on
+  # the GROUP's own `requiredTag: vampire` — "Non-vampires cannot see or
+  # purchase these tags," TAGS.md §3a's group-gate mechanism, so the gate is
+  # written once rather than nine times. `catalog: all` despite the gate,
+  # matching Drunken Master's own precedent above (gated tags still catalog
+  # as `all`; the gate is what actually hides them, not `catalog`).
+  # `purchasableAfterStart: true` — nobody is a vampire at character
+  # creation (the seat is GM-assigned mid-game, THREATS.md §1), so there is
+  # nothing for a creation-time purchase to gate against anyway.
+
+  night-eyes:
+    catalog: all
+    name: Night Eyes
+    category: status
+    group: status-vampire-boons
+    description: "Your eyes are able to see perfectly in the dark."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  hardened-fangs:
+    catalog: all
+    name: Hardened Fangs
+    category: status
+    group: status-vampire-boons
+    description: "Your fangs are as hard as steel, able to bite through most armour."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Unlocks the Corrupt ability (db/lib/vampireBloodAbilities.js).
+  corruptor:
+    catalog: all
+    name: Corruptor
+    category: status
+    group: status-vampire-boons
+    description: "You have the ability to spread your curse through the blood menu."
+    pointCost: 14
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Unlocks the Celerity ability. Same name as that ability on purpose — the
+  # design doc's own table names both the prerequisite tag and the ability
+  # it unlocks Celerity; the ability's own grant (Agility, above) is named
+  # differently so the two never collide as tag slugs.
+  celerity:
+    catalog: all
+    name: Celerity
+    category: status
+    group: status-vampire-boons
+    description: "You are able to tap into great reserves of dexterity and agility through the blood menu."
+    pointCost: 5
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Unlocks the Bat Form ability. Same name on purpose, same reasoning as Celerity above.
+  bat-form:
+    catalog: all
+    name: Bat Form
+    category: status
+    group: status-vampire-boons
+    description: "You possess the ability to transform into a flock of bats, flying to any zone. Activate through the blood menu."
+    pointCost: 8
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Unlocks the Solidarity ability. Same name on purpose, same reasoning as Celerity above.
+  solidarity:
+    catalog: all
+    name: Solidarity
+    category: status
+    group: status-vampire-boons
+    description: "You are attuned to your fellow brothers and sisters of darkness and can commune with them through the blood menu."
+    pointCost: 4
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Unlocks the Obfuscate ability. Same name on purpose, same reasoning as Celerity above.
+  obfuscate:
+    catalog: all
+    name: Obfuscate
+    category: status
+    group: status-vampire-boons
+    description: "You can meld into the shadows at will, hiding all features, even those normally visible. Activate in the blood menu."
+    pointCost: 9
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Softens Feeding's GM-judged lethality (VAMPIRE.md §2b: "its lethality
+  # will depend on how thirsty for blood a vampire is" is GM narrative
+  # judgment, not a die roll) — GM guidance, not code, the same posture the
+  # humanity-loss table already gets.
+  underzealous:
+    catalog: all
+    name: Underzealous
+    category: status
+    group: status-vampire-boons
+    description: "You are very cautious when feeding, your victims will be far less likely to die."
+    pointCost: 6
+    purchasable: true
+    purchasableAfterStart: true
+
+  # Exempts its holder from the "killing in self defence" humanity loss
+  # (VAMPIRE.md §5's loss table) — GM guidance, not code, same posture as
+  # Underzealous above; every other loss reason still applies.
+  remorseful:
+    catalog: all
+    name: Remorseful
+    category: status
+    group: status-vampire-boons
+    description: "You have a unique ability to feel remorse over those you are forced to kill. You no longer lose humanity from killing in self-defence."
+    pointCost: 12
+    purchasable: true
+    purchasableAfterStart: true
 
   catatonic-afk:
     catalog: gm

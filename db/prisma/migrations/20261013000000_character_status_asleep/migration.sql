@@ -1,0 +1,13 @@
+-- A character who is out of play without being dead: the Charon's Habitation
+-- puts one to sleep rather than killing them (docs/systemdocs/CHARON.md).
+--
+-- Alone in its own migration, the convention every other enum change here
+-- follows: Postgres will not let a value added by ALTER TYPE ... ADD VALUE be
+-- USED by another statement in the same transaction, and Prisma runs one
+-- migration.sql per transaction. Keeping it by itself means the next migration
+-- — and every deploy after it — can reference 'ASLEEP' freely.
+--
+-- Nothing is backfilled and nothing changes meaning. Every existing
+-- `status = 'ALIVE'` query excludes an asleep character for free, and what
+-- counts as a BODY is db/lib/bodies.js, which both curse.js and ghost.js read.
+ALTER TYPE "CharacterStatus" ADD VALUE 'ASLEEP';

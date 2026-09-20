@@ -84,6 +84,8 @@ import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
 import { myMove } from "../chat/actions";
 import { loadDesireView, loadLettersView } from "@/lib/selfPools";
+import { loadVampireBlood } from "@/lib/vampireBloodView";
+import { VAMPIRE_SLUG } from "@lifeweb/db/lib/constants";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
@@ -524,6 +526,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     discordUserId: session.discordUserId,
     openTurn,
   });
+
+  // The Blood menu (docs/systemdocs/VAMPIRE.md §6) — FreshCharacter is
+  // always the viewer's OWN sheet (`mode: "self"` below, unconditional), so
+  // the only gate left is holding the seat tag itself. `here` is already
+  // loaded above (loadPeoplePools), so Enthral/Nourish's target lists cost
+  // no extra query, the same roster bindTargets/kissTargets already read.
+  const vampireBlood = character.tags.some((ct) => ct.tag.slug === VAMPIRE_SLUG)
+    ? await loadVampireBlood(character, { here, openTurn })
+    : null;
 
   // Every Room stash at this Location reachable, with contents — CARRY.md; a room you can't enter isn't listed.
   const heldSlugsForRooms = new Set(character.tags.map((ct) => ct.tag.slug));
@@ -1295,6 +1306,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,
       storeRoleSlug: character.role?.slug ?? null,
+      vampireBlood: vampireBlood,
     },
   });
 }

@@ -6622,6 +6622,28 @@ label.chip {
   font-size: 6px;
 }
 
+/* Off the map (docs/systemdocs/CHARON.md). No plate is drawn, so the board is
+   the void with an ordered dither over it — the same idea plateRender.js uses
+   to thin rock under the vignette, done as an SVG pattern because there is no
+   canvas when there is no plate. --map-stone at this opacity is a grey that
+   reads as texture rather than as a grid. */
+.map-offmap-void {
+  fill: var(--map-void);
+}
+
+.map-offmap-dot {
+  fill: var(--map-stone);
+  fill-opacity: 0.35;
+}
+
+/* The one reticle out there is the only thing on the board, so it does not
+   have to fight any art for attention — and the label under it is the place
+   name rather than a name among fifty. */
+.map-board[data-offmap] .map-node-label {
+  fill: var(--muted);
+  font-size: 5px;
+}
+
 /* The two loud marks, and they are never the same colour. Where you stand
    reads near-white whatever zone it is in; a place you have PICKED keeps its
    zone's colour, so the one you are looking at and the one you are in cannot

@@ -209,6 +209,10 @@ export default function CharacterSheet({
   // The seat, so the store's shelf can drop a tag this role may never buy
   // (Tag.excludedRoleSlugs). Null on someone else's sheet, like the two above.
   storeRoleSlug = null,
+  // The Blood menu (docs/systemdocs/VAMPIRE.md §6) — same posture as the
+  // store props above: server-resolved, null on someone else's sheet or a
+  // non-vampire's own.
+  vampireBlood = null,
   // The turn card's first paint: { turn, move } from play/actions.js#myMove,
   // read by character/page.js beside everything else.
   moveState = null,
@@ -389,6 +393,7 @@ export default function CharacterSheet({
               storeTags={storeTags}
               storeHeldTags={storeHeldTags}
               storeRoleSlug={storeRoleSlug}
+              vampireBlood={vampireBlood}
               nukeArmedTurn={nukeArmedTurn}
             />
 

@@ -72,6 +72,10 @@ maps:
           "3": Court
           "4": Keep
           "5": Tower
+          # One tile above the Keep, and reachable from nowhere on this plate:
+          # the Charon has no edge in docs/zones.yaml, so it is drawn only for
+          # the three people who start knowing it is there. CHARON.md.
+          "6": Charon
 
       # Black Hills, first half — these keep the codes they are drawn with.
       # The zone was re-prosed underground on 2026-09-20 and its Locations

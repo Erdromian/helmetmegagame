@@ -46,6 +46,13 @@ A few names here are **.wav** — the dirt and grass footsteps are the only ones
 the library never encoded to Ogg. `sfx.js` reads the extension off the name
 when one is written, so those work exactly like the rest.
 
+`airlock_open.ogg` and `airlock_open_force.ogg` came in later than the rest,
+for the Charon (`docs/systemdocs/CHARON.md`), and are the library's own
+`sound/machines/` bytes untouched like everything else. They were added to the
+`world` group in `scripts/osw/export-sounds.py` at the same time, so a re-export
+against a clone produces them rather than leaving two files here with nothing
+naming them.
+
 ## One file that is not from OpenSourceWeb
 
 `cathedral-bell.ogg` is **not** from the library above. It is

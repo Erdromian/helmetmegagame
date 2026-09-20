@@ -20,6 +20,12 @@ const {
 const { ATM_ROOM_SLUGS } = require("./depot");
 const { BELL_ROOM_SLUG } = require("./bell");
 const { XOM_SHRINE_ROOM_SLUG } = require("./xom");
+const {
+  CHARON_SLUG,
+  PANIC_ROOM_SLUG,
+  COCKPIT_SLUG,
+  HABITATION_SLUG,
+} = require("./charonPlaces");
 // The slug only; requiring the machine itself would pull the ledger and the
 // Vault in behind it, the posture CENSOR_OFFICE_ROOM_SLUG above already takes.
 const CASINO_ROOM_SLUG = "undertown-8-3";
@@ -73,6 +79,13 @@ const ROOM_DROPBOX_PREFIX = "room:dropbox:";
 const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 const ROOM_SLOTS_PREFIX = "room:slots:";
 const ROOM_PHONE_PREFIX = "room:phone:";
+// The Charon (docs/systemdocs/CHARON.md). Three room buttons and one on the
+// Location: the Panic Room's way in, the Cockpit's terminal, the Habitation's
+// last one, and Leave on the ship itself.
+const ROOM_CHARON_ENTER_PREFIX = "room:charonenter:";
+const ROOM_CHARON_LAUNCH_PREFIX = "room:charonlaunch:";
+const ROOM_CHARON_SLEEP_PREFIX = "room:charonsleep:";
+const CHARON_LEAVE_PREFIX = "loc:charonleave:";
 
 // The Dropbox's help and empty lines live in ./dropboxText.js (zero requires,
 // so the two client components that show them can import it); re-exported
@@ -103,6 +116,17 @@ const LOCATION_AFFORDANCES = [
     tone: PLAIN,
     prefix: ROOM_DROPBOX_PREFIX,
     when: (location) => hasAttribute(location, "depot"),
+  },
+  // The Charon's way out, on the ground only — once the ship has launched there
+  // is nothing under it to step back onto, and the Location it was is retired
+  // anyway (docs/systemdocs/CHARON.md). Matched on the slug rather than an
+  // attribute because there is exactly one ship and it is not a KIND of place.
+  {
+    id: "charonLeave",
+    label: "Leave",
+    tone: GO,
+    prefix: CHARON_LEAVE_PREFIX,
+    when: (location) => location?.slug === CHARON_SLUG,
   },
 ];
 
@@ -203,6 +227,36 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_PHONE_PREFIX,
     when: (room) => Boolean(room?.phone),
   },
+  // The Charon (docs/systemdocs/CHARON.md). Three buttons, and which of them a
+  // room offers depends on where the ship IS — the Cockpit and the Habitation
+  // travel with it when it launches, so the same two Room rows mean different
+  // things on the ground and in orbit. That is what the second argument is for.
+  //
+  // Enter is offered whether or not the ship has gone: after a launch it
+  // refuses in words, which is the one thing a player standing in the Panic
+  // Room is owed an answer about.
+  {
+    id: "charonEnter",
+    label: "Enter the Charon",
+    tone: GO,
+    prefix: ROOM_CHARON_ENTER_PREFIX,
+    when: (room) => room?.slug === PANIC_ROOM_SLUG,
+  },
+  {
+    id: "charonLaunch",
+    label: "Launch",
+    tone: DANGER,
+    prefix: ROOM_CHARON_LAUNCH_PREFIX,
+    when: (room, location) => room?.slug === COCKPIT_SLUG && !hasAttribute(location, "offMap"),
+  },
+  {
+    id: "charonSleep",
+    label: "Sleep",
+    tone: DANGER,
+    prefix: ROOM_CHARON_SLEEP_PREFIX,
+    when: (room, location) => room?.slug === HABITATION_SLUG && hasAttribute(location, "offMap"),
+  },
+
   // The Shrine of an Old Man: the only button that hands you a permanent tag that can kill you, with no way back off it.
   {
     id: "pray",
@@ -232,8 +286,13 @@ function locationAffordances(location) {
 }
 
 // `room` needs { id, slug, questId }.
-function roomAffordances(room) {
-  return ROOM_AFFORDANCES.filter((def) => !def.when || def.when(room)).map((def) => ({
+// `location` is the place the room hangs off. Most `when`s ignore it and match
+// on the room's own slug; the Charon's two need it, because its rooms MOVE
+// (docs/systemdocs/CHARON.md) and the same Room row means a different thing on
+// the ground and in orbit. Optional, so a caller with only a room in hand still
+// gets every affordance that does not depend on one.
+function roomAffordances(room, location = null) {
+  return ROOM_AFFORDANCES.filter((def) => !def.when || def.when(room, location)).map((def) => ({
     id: def.id,
     label: def.label,
     tone: def.tone,
@@ -262,7 +321,7 @@ async function affordancesFor(prisma, character) {
   const [location, rooms, keys, links] = await Promise.all([
     prisma.location.findUnique({
       where: { id: character.locationId },
-      select: { id: true, name: true, attributes: true },
+      select: { id: true, name: true, slug: true, attributes: true },
     }),
     prisma.room.findMany({
       where: { locationId: character.locationId },
@@ -279,7 +338,7 @@ async function affordancesFor(prisma, character) {
   // A room's buttons, for every room this character can actually get into — a locked door offers nothing.
   const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
   for (const room of open) {
-    for (const entry of roomAffordances(room)) {
+    for (const entry of roomAffordances(room, location)) {
       out.push({ ...entry, kind: "room", roomName: room.name });
     }
   }
@@ -345,6 +404,10 @@ module.exports = {
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
+  ROOM_CHARON_ENTER_PREFIX,
+  ROOM_CHARON_LAUNCH_PREFIX,
+  ROOM_CHARON_SLEEP_PREFIX,
+  CHARON_LEAVE_PREFIX,
   DROPBOX_HELP,
   DROPBOX_EMPTY,
   QUEST_INTERACT_PREFIX,

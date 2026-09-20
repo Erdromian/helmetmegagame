@@ -9,6 +9,8 @@
 // Takes `prisma` as a parameter rather than requiring db/index.js: that would resolve to a partial
 // exports object (the db/lib/dm.js convention).
 
+const { isBody } = require("./bodies");
+
 // The fields the rule reads. **Export and use it.** The trap here is the mirror of curse.js's
 // `buriedAt` one, and worse: the rule needs to see the rows this player has that are NOT dead, so a
 // caller who narrows the query — `where: { discordUserId, status: "DEAD" }` — never loads the ALIVE
@@ -35,10 +37,12 @@ function isGhostIn(characters) {
   // player among the dead.
   if (rows.length === 0) return false;
   if (rows.some((row) => row?.status === "ALIVE")) return false;
-  // `!== "ALIVE"`, not `=== "DEAD"`: CharacterStatus also carries the vestigial CURSED value, and
-  // curse.js already counts it as a body (db/test/curse.test.js, "the dead CURSED enum value counts
-  // as not-ALIVE"). What a body IS should be the one thing these two predicates still agree on.
-  return rows.some((row) => row?.status && row.status !== "ALIVE");
+  // What a body IS is the one thing these two predicates still agree on, and it lives in
+  // db/lib/bodies.js now so they cannot drift on it. It counts the vestigial CURSED value
+  // (db/test/curse.test.js, "the dead CURSED enum value counts as not-ALIVE") and does NOT
+  // count ASLEEP, which is out of play with nothing left lying anywhere — so the Charon's
+  // sleepers get no seat among the dead. They aren't dead; they respawn instead.
+  return rows.some(isBody);
 }
 
 // Every player who is a ghost, out of rows for many of them. Mirrors curse.js#cursedUserIds so the
@@ -97,7 +101,10 @@ async function ghostCharacterFor(prisma, discordUserId) {
     },
   });
   if (!isGhostIn(rows)) return null;
-  return rows.find((row) => row.status !== "ALIVE") ?? null;
+  // `isBody` rather than `!== "ALIVE"`: a player can hold a sleeper and a corpse at once, and
+  // the sleeper can easily be the newer of the two. Speaking in Deadchat as somebody who is
+  // alive on a ship would be wrong twice over — it is not a body, and it is not dead.
+  return rows.find(isBody) ?? null;
 }
 
 module.exports = { isPlayerGhost, isGhostIn, ghostUserIds, ghostCharacterFor, GHOST_SELECT };

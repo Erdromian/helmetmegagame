@@ -164,6 +164,11 @@ const FIELDS = [
     label: "Humanity regen / day",
     info: "Scaled the same way. Stops entirely once a vampire holds Bestial.",
   },
+  {
+    key: "vampireBloodAbilityCooldownVariable", type: "int", group: "vampire", default: 5, min: 0, max: 50,
+    label: "Blood ability cooldown variable (v)",
+    info: "Multiplies each Blood Ability's own constant (4 for Blood Strength, 2 for Regeneration, etc) to get its cooldown in turns, rounded.",
+  },
 
   // --- Features --------------------------------------------------------------
   {

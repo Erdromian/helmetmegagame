@@ -926,11 +926,9 @@ zones:
               items:
                 cigarette: 1
                 obol: 2
-          fortress-4-c:
-            name: The Charon
-            access: [barons-key]
-            description: >-
-              A sealed gate. The Baron's key opens this.
+          # The sealed gate that used to stand here is gone. The Charon is a
+          # real place now — fortress-6, below — and the Panic Room's own
+          # button is the only door into it (docs/systemdocs/CHARON.md).
           fortress-4-d:
             name: Panic Room
             access: [barons-key, baroness-key]
@@ -992,6 +990,29 @@ zones:
                 paper: 7
                 cleaning-powder: 1
                 hands-wax-stamp: 1
+      # The ship, drawn one tile above the Keep on the barony1 plate. It has
+      # NO entry in connections: below, on purpose — there is no road to it
+      # and no edge to light it up, so it shows on the map only for the three
+      # people who start knowing it is there (db/lib/startingMemories.js).
+      # The way in is the Panic Room's own button, and the way out is the
+      # Leave button on this Location. See docs/systemdocs/CHARON.md.
+      fortress-6:
+        name: Charon
+        indoors: true
+        description: >-
+          A ship capable of taking its occupants to outer space. Its interiors are sleek and functional. It is the last option.
+        rooms:
+          fortress-6-1:
+            name: Cockpit
+            description: >-
+              There's a terminal.
+          fortress-6-2:
+            name: Habitation
+            description: >-
+              A comfortable room. You hear the life support systems working.
+            stash:
+              items:
+                tinned-butter: 10
   # The town under the town. Codes 1-H come from the barony2 plate in
   # docs/assets/maps/nodes.yaml, and every one of them has a Location here so
   # the map can link to a real place. Most are SKELETONS on purpose — a name
@@ -1998,6 +2019,32 @@ zones:
                 description: >-
                   A shrine of a twisted-looking, aged face. It brims with crazed power.
                 access: [caving]
+
+  # Orbit. One Location, no plate marker, no connections, and no rooms of its
+  # own — the Charon's Cockpit and Habitation are REPOINTED here when the ship
+  # launches (db/lib/charon.js#completeLaunch), so the butter and everything
+  # else aboard goes up with it rather than being duplicated.
+  #
+  # Its own zone rather than a sixth Fortress location, because a Zone owns
+  # the Discord category and the access role: a Baron who has left the planet
+  # must not still hold the role that opens the Keep's channels.
+  #
+  # `offMap` is what turns /map into the grey nothingness with one crosshair
+  # in it (db/lib/locationAttributes.js, web/app/(app)/map/MapBoard.js).
+  space:
+    name: Space
+    kind: surface
+    sort: 7
+    description: >-
+      Above everything, and colder than anywhere.
+    locations:
+      space-1:
+        name: Charon (Space)
+        indoors: true
+        attributes:
+          offMap: true
+        description: >-
+          The Charon has launched in space. You can see the barren surface of Evergreen below you. You will soon arrive at the Leviathan, you hope.
 
 connections:
   # --- Town -------------------------------------------------------------

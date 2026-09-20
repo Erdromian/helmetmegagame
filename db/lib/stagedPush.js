@@ -23,7 +23,7 @@ const { validateRoomTagOps, applyRoomTagOpsInTx } = require("./roomTagOps");
 const { addRoomResources } = require("./roomStash");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 const { ensureDeliveries } = require("./stagedDelivery");
-const { applyDeathToRow } = require("./characterDeath");
+const { applyDeathWithVampireOverride, announceVampireAsh } = require("./vampireDeath");
 const { farmDm } = require("./soilery");
 const { breakInDm } = require("./arelitz");
 
@@ -109,9 +109,14 @@ async function applyOneStagedEffect(prisma, row, turn) {
           ? row.payload.reason.trim()
           : "died.";
       const target = row.targetCharacter;
-      const { claimed, corpse } = await applyDeathToRow(
+      const { claimed, corpse, ash } = await applyDeathWithVampireOverride(
         tx,
-        { id: row.targetCharacterId, name: target?.name ?? "Someone", zoneId: target?.zoneId ?? null },
+        {
+          id: row.targetCharacterId,
+          name: target?.name ?? "Someone",
+          zoneId: target?.zoneId ?? null,
+          locationId: target?.locationId ?? null,
+        },
         {
           turn,
           content: `${target?.name ?? "Someone"} died — ${reason}`,
@@ -120,6 +125,20 @@ async function applyOneStagedEffect(prisma, row, turn) {
         },
       );
       snapshot.death = claimed ? { claimed: true, gib, reason, corpse } : { claimed: false, gib, reason };
+      // The GM's Gib checkbox is overridden for a vampire (applyDeathWithVampireOverride's own
+      // header) — `ash` comes back non-null only then, so posting the public line is
+      // conditioned on the override having actually fired, not on `gib` itself.
+      if (claimed && ash) {
+        const location = target?.locationId
+          ? await tx.location.findUnique({
+              where: { id: target.locationId },
+              select: { id: true, name: true, discordChannelId: true },
+            })
+          : null;
+        await announceVampireAsh(tx, target?.name ?? "Someone", location).catch((err) =>
+          console.error(`Vampire ash announcement failed for ${row.targetCharacterId}:`, err),
+        );
+      }
       await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });
       return snapshot;
     }
@@ -337,7 +356,7 @@ async function runStagedPushPass(prisma, turn) {
     orderBy: { createdAt: "asc" },
     include: {
       targetCharacter: {
-        select: { status: true, discordUserId: true, name: true, discordRoleId: true, zoneId: true },
+        select: { status: true, discordUserId: true, name: true, discordRoleId: true, zoneId: true, locationId: true },
       },
       // Only read for the tag-audit write above: who submitted the Gambit
       // and which GM solved it (if it was ever solved).
