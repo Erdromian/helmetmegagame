@@ -62,10 +62,10 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 |---|---|---|---|---|
 | `bliss` | 0 | 0 (max 2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 (max 2/turn) | — | — |
-| `alcohol` | 2 | 0.25 | — | `tipsy` (and up the ladder — §5a) |
+| `alcohol` | 1 | 0.25 | — | `tipsy` (and up the ladder — §5a) |
 | `moonshine` | **0** | 0.25 | `godflesh` | `tipsy` (ladder, §5a), `damaged-vision` |
 | `molotov-cocktail` | 2 | 0 (max 2/turn) | `alcohol` | — |
-| `cleaning-powder` | 2 | 0.5 | — | — |
+| `cleaning-powder` | 1 | 0.5 | — | — |
 | `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |
 
 ## 3. Brewing II
@@ -136,13 +136,13 @@ instead.
 
 | Brew II | ⬢ | Turns | Cures |
 |---|---|---|---|
-| `antidote` | 4 | 0.5 | poisoned, envenomated |
+| `antidote` | 3 | 0.5 | poisoned, envenomated |
 | `fever-draught` | 3 | 0.5 | feverish, heatstroke, cave-fever |
-| `burn-dressing` | 4 | 0.5 | burned, severe-burns |
+| `burn-dressing` | 3 | 0.5 | burned, severe-burns |
 
 | Brew III | ⬢ | Turns | Ingredient | Cures |
 |---|---|---|---|---|
-| `autoinjector` | 3 | 1 | `antidote` + `fever-draught` + `cave-fungus` | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
+| `autoinjector` | 0 | 1 | `antidote` + `fever-draught` + `cave-fungus` | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
 | `portable-surgical-pack` | 8 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
 | `cybernetic-arm` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
 | `cybernetic-leg` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
@@ -262,7 +262,7 @@ like any other (CRAFTING.md §2a), so a mask past the ration spills into the
 Move instead of walling.
 
 **The ⬢ cost is per unit, and it multiplies.** Three alcohols in one turn cost
-6 ⬢, not 2. Every yield row in the document carries an `{info:…}` tooltip
+3 ⬢, not 1. Every yield row in the document carries an `{info:…}` tooltip
 saying so, since the table itself has no room to.
 
 ## 5a. The drinking ladder

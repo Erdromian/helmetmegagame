@@ -44,7 +44,12 @@ and every gate are untouched.
 | Exceptional | 14 | 32 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
 | Gunpowder | 14 | 28 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
 
-Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
+Bows use `crafting` in place of `smithing` at every tier.
+
+**The ⬢ column is the tier's baseline, and eight recipes sit off it on purpose.** Each is also on
+the Merchant's shelf, and the shelf price stays put, so the recipe's ⬢ was fitted to it (`DEPOT.md` §4):
+Cudgel 2, Trench Knife 6, Knuckle Duster 9, Gladiator Helmet 10, Wooden Leg and Iron Hook 7,
+Workshop Equipment 17, and the Iron smelt 2. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
 
 **Four small pieces of metalwork run under the Simple rung's Turns column.**
@@ -105,7 +110,7 @@ new sword is gated the moment it names a smithing skill and nobody has to
 remember a second field. `needsWorkshop()` in `web/lib/tagRequests.js` is the
 one copy, shared by the Craft dialog and `craftRequestImpl`.
 
-`workshop-equipment` is itself a **High Quality** craftable — 9 pt, 25 ⬢, 2
+`workshop-equipment` is itself a **High Quality** craftable — 9 pt, 17 ⬢, 2
 turns, `smithing-skilled` — and **Immense (100 lb)**, so it is a real decision
 to move one. It is the one recipe **exempt from its own gate**, and has to be:
 gating it would mean nobody could ever build the first forge. You raise that
@@ -241,15 +246,16 @@ Renamed **Crude Grenade** and dropped to Smithing II on 2026-09-06
 (Chris): it packs raw saltpeter, not powder, so the Gunpowder rung keeps only
 the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 `gunpowder-grenade`. `black-powder` is the refining step between mined
-saltpeter and the Bomb; its numbers (3 ⬢, sells 27) are drafted, not signed
+saltpeter and the Bomb; its numbers (3 ⬢, sells 18) are drafted, not signed
 off.
 
 **The three smelts** replaced `{tag:steel}` on 2026-09-18, when `coal` and
 `steel` both left the game with the Prospecting rework (`MINING.md`). `iron`
-took steel's slot, with steel's `depotPrice` (13), so a smith with no
-prospector to hand can still buy one off the Merchant. It sells back for 2 since
-the wage table (`DEPOT.md` §4): an ingot is one quarter-Move over a 1 ¢ ore, so the
-Merchant pays the ore's price plus the 5-point rung's wage and no more. `copper` and `nickel` are the same recipe over a different ore and
+took steel's slot exactly — the same `sellablePrice` (8) and `depotPrice` (13)
+— so the four recipes that spend an ingot keep the discount they were priced
+with, and a smith with no prospector to hand can still buy one off the
+Merchant. Its recipe asks for 2 ⬢ now, so the smelt lands on the wage table
+(`DEPOT.md` §4). `copper` and `nickel` are the same recipe over a different ore and
 feed Trinkets rather than gear.
 
 They cost **0 ⬢**, not steel's 4: the ore IS the cost now, and an ore is

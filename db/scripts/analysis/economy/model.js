@@ -935,12 +935,12 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   // behind, with every ⬢ bought at the Depot's import price (DEPOT.md §4). Prices are set from this table:
   // sell = inputs at the Depot's price + import price × ⬢ + round(rate × turns^1.3). Read here as the
   // intent the catalog is checked against, so a new recipe priced off the old ⬢-at-1 arithmetic shows up.
-  const PROFIT_RATE_BY_POINTS = { 0: 2, 2: 2, 5: 4, 10: 8, 15: 12, 19: 15 };
+  const PROFIT_RATE_BY_POINTS = { 0: 1, 2: 1, 5: 2, 10: 4, 15: 5, 19: 6 };
   const rateAt = (pts) => PROFIT_RATE_BY_POINTS[Object.keys(PROFIT_RATE_BY_POINTS).map(Number).filter((k) => k <= pts).sort((a, b) => b - a)[0]];
-  // Priced by their own shelf rather than by a wage, so the table does not apply: the forge (infrastructure,
-  // its shelf price is what a smith without one pays), two Black Market weapons whose shelf prices sit
-  // below their material, and a cheap potion the shelf sells for less than its ⬢.
-  const HELD_BACK = new Set(["workshop-equipment", "trench-knife", "knuckle-duster", "mulligan-potion"]);
+  // The Depot's shelf prices are left alone (they are what players pay), so a recipe the shelf also sells is
+  // fitted to its price by moving its ⬢ cost instead. Two cannot be fitted that way: a quarter-Move craft
+  // moves in steps of 4 ¢ a turn, and the Autoinjector's shelf price is below what its inputs cost.
+  const HELD_BACK = new Set(["pickaxe", "autoinjector"]);
   const tierFamilies = ["smithing", "crafting", "brewing"];
   const profitRows = activities
     .filter((a) => a.kind === "craft" && a.revenue > 0 && tierFamilies.includes(a.craftFamily ?? a.family) && a.netPerTurnBuy != null && !HELD_BACK.has(a.slug))
@@ -979,11 +979,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "DEPOT.md §4",
-      claim: "Every Depot-sold smithing, crafting and brewing recipe earns its skill tier's profit per Move (2 / 4 / 8 / 12 / 15 at 2 / 5 / 10 / 15 / 19 points) with ⬢ bought at the Depot",
+      claim: "Every Depot-sold smithing, crafting and brewing recipe earns its skill tier's profit per Move (1 / 2 / 4 / 5 / 6 at 2 / 5 / 10 / 15 / 19 points) with ⬢ bought at the Depot",
       docValue: `${profitRows.length} recipes on the table`,
       model: offRate.length ? `${offRate.length} off it: ${offRate.slice(0, 5).map((r) => `${r.name} ${round1(r.got)} against ${r.rate}`).join(", ")}${offRate.length > 5 ? ", …" : ""}` : `${profitRows.length} on it`,
       ok: offRate.length === 0,
-      note: "Within 2 ¢ or half the rate, whichever is wider, since prices are whole ¢ and a quarter-Move craft moves in steps of 4 ¢ a turn. Workshop Equipment, Trench Knife, Knuckle Duster and the Mulligan Potion are held back: their shelf prices are their own decisions.",
+      note: "Within 2 ¢ or half the rate, whichever is wider, since prices are whole ¢ and a quarter-Move craft moves in steps of 4 ¢ a turn. The Pickaxe and the Autoinjector are held back: the shelf prices they are fitted to leave no whole-⬢ recipe that lands on the rung.",
     },
     {
       doc: "DEPOT.md §4",
