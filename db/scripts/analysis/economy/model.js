@@ -107,7 +107,27 @@ function corpseOrgans() {
   return mutilate.harvestableOrgans([]).map((o) => ({ slug: o.itemSlug, quantity: o.quantity }));
 }
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
+// Which craft families may put held OBOLS toward a recipe's ⬢ cost. The rule lives in
+// web/app/(app)/character/actions/crafting.js#resolveObolSpend ("Smithing only"), so it is read
+// from the source rather than remembered, and this fails loudly if that function is reshaped.
+function obolPayableFamilies() {
+  const src = fs.readFileSync(path.join(REPO, "web/app/(app)/character/actions/crafting.js"), "utf8");
+  const fn = src.match(/function resolveObolSpend[\s\S]*?\n}\n/);
+  if (!fn) throw new Error("model.js: could not find resolveObolSpend in crafting.js");
+  const families = [...fn[0].matchAll(/craftFamily\(tag\) !== "([a-z]+)"/g)].map((m) => m[1]);
+  if (families.length !== 1) throw new Error("model.js: resolveObolSpend no longer has one family gate; read it and update the model");
+  return families;
+}
+// Mirrors web/lib/tagRequests.js#craftFamily: the first of these a recipe's skills belong to.
+const CRAFT_FAMILIES = ["brewing", "cooking", "smithing", "builder", "crafting"];
+function craftFamilyOf(skills) {
+  const prefixes = new Set((skills ?? []).map((s) => s.split("-")[0]));
+  return CRAFT_FAMILIES.find((f) => prefixes.has(f)) ?? [...prefixes].filter(Boolean).sort()[0] ?? "craft";
+}
+// One obol is one ⬢ (ECONOMY.md §1), so paying a cost in obols values a ⬢ at exactly 1 obol.
+const OBOL_PAR = 1;
+
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy" } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
@@ -118,14 +138,23 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
 
   const resources = get("resources");
   const rv = { sell: resources.sellablePrice ?? 1, buy: resources.depotPrice ?? 2 };
+  // Which price a ⬢ is valued at in the headline figures. The default is the Depot's BUY price:
+  // that is what a ⬢ costs somebody who needs one and holds none. `--resource-value sell` gives the
+  // 1 ¢ sell-back instead. Both are always in the tables, named.
+  if (resourceValue !== "buy" && resourceValue !== "sell") throw new Error("resourceValue must be 'buy' or 'sell'");
+  const rvMain = resourceValue === "sell" ? rv.sell : rv.buy;
   const productionCoefficient = schemaDefault("productionCoefficient");
   const farmMaxCrops = schemaDefault("farmMaxCrops");
   const startingTagPoints = schemaDefault("startingTagPoints");
   const miningCoeffs = loadMiningCoefficients();
 
+  const obolFamilies = obolPayableFamilies();
   const params = {
     players,
     rv,
+    rvMain,
+    obolFamilies,
+    resourceValue,
     productionCoefficient,
     farmMaxCrops,
     startingTagPoints,
@@ -194,7 +223,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
   const activities = [];
   const push = (a) => {
     a.netPerTurnSell = a.netPerTurnSell ?? null;
-    if (a.perAction === undefined) a.perAction = a.revenue != null ? a.revenue - (a.inputs ?? 0) : null;
+    a.netPerTurnBuy = a.netPerTurnBuy ?? null;
+    // The headline figure: ⬢ valued at rvMain. Rows with no ⬢ in them are the same either way.
+    if (a.netPerTurn === undefined) a.netPerTurn = resourceValue === "sell" ? a.netPerTurnSell : a.netPerTurnBuy;
+    if (a.perAction === undefined) a.perAction = a.revenue != null ? a.revenue - ((resourceValue === "sell" ? a.inputs : a.inputsBuy) ?? a.inputs ?? 0) : null;
     activities.push(a);
   };
 
@@ -270,6 +302,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
       madeAtHome.push(`${nameOf(slug)}${n > 1 ? ` ×${n}` : ""}`);
     }
     if (madeAtHome.length) flags.push(`makes its own ${madeAtHome.join(", ")}`);
+    const cf = craftFamilyOf(skillSlugs);
+    const parPayable = obolFamilies.includes(cf);
+    if (parPayable && resCost + extraRes > 0) flags.push("the ⬢ can be paid in obols, 1 for 1");
     const totalMoves = Math.round((turnsCost + extraMoves) * 10000) / 10000;
     const per = (rvPrice) => revenue - itemCostAdj - (resCost + extraRes) * rvPrice;
     let perTurnSell = null;
@@ -306,6 +341,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
       workshop: recBySlug.get(t.slug)?.workshop ?? false,
       copy: recBySlug.get(t.slug)?.copy ?? false,
       madeAtHome,
+      craftFamily: cf,
+      parPayable,
+      // ⬢ paid as obols, one for one. Only where the game lets you (obolFamilies); null elsewhere.
+      netPerTurnObols: parPayable && turnsCost > 0 ? (revenue - itemCostAdj - (resCost + extraRes) * OBOL_PAR) / totalMoves : null,
       // Ore comes off Prospecting presses, at most one a turn and half the turns.
       // How many Prospectors does one crafter working flat out need behind them?
       oreNeeds: (recBySlug.get(t.slug)?.items ?? [])
@@ -378,8 +417,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
           resourcesPerPress: resources,
           lootEv: loot.ev,
           dropsPerAction: loot.ev,
-          perAction: resources * rv.sell + loot.ev,
-          baseNetPerTurn: resources * rv.sell * mineDuty,
+          perAction: resources * rvMain + loot.ev,
+          baseNetPerTurn: resources * rvMain * mineDuty,
+          netPerTurn: (resources * rvMain + loot.ev) * mineDuty,
           netPerTurnSell: (resources * rv.sell + loot.ev) * mineDuty,
           netPerTurnBuy: (resources * rv.buy + loot.ev) * mineDuty,
           flags,
@@ -635,11 +675,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
   }));
   const cheapestMeal = shortlists.cooking.find((c) => c.costPerPersonTurn != null);
   const wages = [
-    { key: "Unskilled miner (Caves)", value: byId("mine:Caves:unskilled")?.netPerTurnSell },
-    { key: "Prospector (Caves)", value: byId("mine:Caves:skilled")?.netPerTurnSell },
+    { key: "Unskilled miner (Caves)", value: byId("mine:Caves:unskilled")?.netPerTurn },
+    { key: "Prospector (Caves)", value: byId("mine:Caves:skilled")?.netPerTurn },
     ...baselines.map((b) => ({ key: b.key, value: b.value, baseline: true })),
-    { key: "Farmer (potato, sold)", value: byId("farm:potato")?.netPerTurnSell },
-    { key: "Factory solo", value: byId("factory:solo")?.netPerTurnSell },
+    { key: "Farmer (potato, sold)", value: byId("farm:potato")?.netPerTurn },
+    { key: "Factory solo", value: byId("factory:solo")?.netPerTurn },
   ].filter((w) => w.value != null && w.value > 0);
 
   // --- combining day-verbs ----------------------------------------------------
@@ -732,11 +772,30 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
         medianBurn: median(burn),
         maxBurn: burn.length ? Math.max(...burn) : 0,
         minersPerCrafter: median(burn) / minerPerTurn,
+        // Who can pay in obols, and so what the most a buyer will give for a Prospector's ⬢ is: a
+        // smith can put one obol toward one ⬢, so 1 ¢; anybody else must HOLD ⬢, and the alternative
+        // is importing them at the Depot's buy price.
+        payInObols: obolFamilies.includes(family),
+        ceiling: obolFamilies.includes(family) ? OBOL_PAR : rv.buy,
       };
     })
     .filter((r) => r.recipes > 0)
     .sort((a, b) => b.medianBurn - a.medianBurn);
   params.minerResourcesPerTurn = minerPerTurn;
+
+  // A Prospector's worth, three ways: ⬢ sold back at the Depot, ⬢ as the Depot would charge you for
+  // them (what they are worth to somebody who must hold them), and ⬢ paid to a smith, who puts one
+  // obol toward one ⬢ and so will pay no more than that. Drops are the same in all three.
+  const prospectorValue = activities
+    .filter((a) => a.kind === "mine" && a.skillPoints > 0)
+    .map((a) => ({
+      name: a.name.replace("Mine — ", ""),
+      resourcesPerTurn: a.resourcesPerPress * a.duty,
+      dropsPerTurn: a.dropsPerAction * a.duty,
+      atSell: a.netPerTurnSell,
+      atBuy: a.netPerTurnBuy,
+      atSmith: (a.resourcesPerPress * OBOL_PAR + a.dropsPerAction) * a.duty,
+    }));
 
   // --- tools -------------------------------------------------------------------
   const tools = list
@@ -792,6 +851,21 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
       ok: refinery.REFINERY_MAX_WORKERS === 5,
     },
     {
+      doc: "FACTORY.md §6",
+      claim: "A Prospector at the Caves makes about 9 ¢ a turn with the ⬢ valued at the Depot's 2 ¢ buy price",
+      docValue: 9,
+      model: round1(byId("mine:Caves:skilled")?.netPerTurnBuy),
+      ok: Math.abs(byId("mine:Caves:skilled").netPerTurnBuy - 9) < 0.5,
+    },
+    {
+      doc: "DEPOT.md §4",
+      claim: "\"Paying a recipe's cost with held obols still works\" (read as any recipe)",
+      docValue: "any recipe",
+      model: `${obolFamilies.join(", ")} only`,
+      ok: false,
+      note: "resolveObolSpend in crafting.js returns at once unless the recipe is in the smithing family. Brewing, crafting and the rest must hold real ⬢.",
+    },
+    {
       doc: "SOILERY.md §1",
       claim: "Every crop sells for 1 ¢: farming is for eating, not cash",
       docValue: 1,
@@ -821,7 +895,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     },
     {
       doc: "FACTORY.md §6",
-      claim: "A farmer makes about 13 ¢ a turn, a Prospector at the Caves about 5",
+      claim: "A farmer makes about 13 ¢ a turn, a Prospector at the Caves about 5 (⬢ sold back at 1 ¢)",
       docValue: "13 / 5",
       model: `${round1(potato?.netPerTurnSell)} / ${round1(byId("mine:Caves:skilled")?.netPerTurnSell)}`,
       ok: potato && Math.abs(potato.netPerTurnSell - 13) < 1 && Math.abs(byId("mine:Caves:skilled").netPerTurnSell - 5) < 0.6,
@@ -940,6 +1014,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null } = {}) {
     priceLadder,
     priceRule,
     resourceBalance,
+    prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },
     baselines,

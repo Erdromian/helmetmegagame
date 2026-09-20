@@ -294,8 +294,11 @@ is about **13 ¢ a turn**. Crops sell for 1 ¢ on purpose (2026-09-20): farming 
 for eating, and at 2 ¢ it netted about 79 ¢ an action, the best wage in the game
 after the Factory. A Prospector at the Caves brings up about 8 ⬢ a press, worth
 8 ¢ at the 1 ¢ sell-back, and mines every other turn: about **5 ¢ a turn** with
-the loot roll (`MINING.md` §3b and §5). Set against those, the Factory is about
-1.6 times a farmer and 4 times a Prospector. A skilled smith's best easy recipe
+the loot roll (`MINING.md` §3b and §5), or about **9 ¢** with the ⬢ valued at the
+Depot's 2 ¢ import price, which is the most a buyer who must hold real ⬢ will
+pay. A smith will pay no more than 1 ¢, because a smith can pay a recipe's ⬢ in
+obols one for one. Set against those, the Factory is about 1.6 times a farmer and
+4 times a Prospector at the sell-back, 2 times at the import price. A skilled smith's best easy recipe
 (Glass Eye) pays about 17 ¢ a turn buying ⬢ at the Depot, or 28 mining it.
 `npm run economy:report` recomputes every one of these from the catalog and
 prints where the docs and the code disagree, so check there before quoting a

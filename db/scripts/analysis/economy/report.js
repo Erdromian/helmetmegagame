@@ -5,6 +5,7 @@
 //   npm run economy:report -- --players 150   # a bigger town
 //   npm run economy:report -- --turns 40      # a longer game (fatigue over N turns)
 //   npm run economy:report -- --free-moves 2  # free zone crossings a turn (2 with a mount)
+//   npm run economy:report -- --resource-value sell   # value ⬢ at the 1 ¢ sell-back (default: the 2 ¢ buy price)
 //   npm run economy:report -- --out /tmp/x    # somewhere else
 //
 // Read-only: touches no database and posts nothing. The output directory is
@@ -26,8 +27,9 @@ const outDir = path.resolve(flag("out", path.join(REPO, "economy-report")));
 const players = Number(flag("players", 100));
 const gameTurns = Number(flag("turns", 30));
 const freeMoves = flag("free-moves", null) == null ? null : Number(flag("free-moves", null));
+const resourceValue = flag("resource-value", "buy");
 
-const model = buildModel({ players, gameTurns, freeMoves });
+const model = buildModel({ players, gameTurns, freeMoves, resourceValue });
 const { params } = model;
 
 let commit = "unknown";
@@ -163,7 +165,7 @@ const legend = () =>
 // ---------------------------------------------------------------------------
 // sections
 // ---------------------------------------------------------------------------
-const money = (a) => a.netPerTurnSell;
+const money = (a) => a.netPerTurn;
 const ranked = model.activities.filter((a) => money(a) != null).sort((a, b) => money(b) - money(a));
 const allRanked = [...model.activities].sort((a, b) => (money(b) ?? -1e9) - (money(a) ?? -1e9) || (b.perAction ?? -1e9) - (a.perAction ?? -1e9));
 
@@ -190,7 +192,7 @@ const headlines = [
     return `The best mix at the starting budget (${params.startingTagPoints} points) is <b>${esc(at8.skills.join(" + "))}</b>, worked as <span class="mono">${esc(at8.withFactory.pattern.split(" ").slice(0, 8).join(" "))}</span> (R refine, C craft, F farm, M mine), for <b>${fmt(at8.withFactory.rate)} ¢ a turn</b>, against ${fmt(refAlone.rate)} refining alone. Refining tires you the way mining does, so a crafter fills the off turns. Only ${params.refinerySeats} people can refine in a turn; with a crowd the mix falls back on crafts and farming.`;
   })(),
   `Fatigue: ${model.fatigue.rows.filter((r) => r.tires).map((r) => `${r.label.toLowerCase().replace(/ \(.*\)/, "")} can be pressed ${r.steady >= 0.999 ? "every turn" : `1 turn in ${fmt(1 / r.steady, 0)}`}`).join(", ")}. ${model.fatigue.rows.filter((r) => !r.tires).map((r) => r.label.toLowerCase().replace(/ \(.*\)/, "")).join(", ")} never tire you.`,
-  `A Prospector's press in the Caves is worth ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").resourcesPerPress * params.rv.sell)} ¢ of ⬢ plus ${fmt(model.activities.find((a) => a.id === "mine:Caves:skilled").dropsPerAction, 2)} ¢ of drops; in the Depths the drops are ${fmt(model.activities.find((a) => a.id === "mine:Depths:skilled").dropsPerAction, 2)} ¢.`,
+  `A Prospector at the Caves brings up ${fmt(params.minerResourcesPerTurn)} ⬢ a turn plus ${fmt(model.prospectorValue[0].dropsPerTurn, 2)} ¢ of drops: worth <b>${fmt(model.prospectorValue[0].atBuy)} ¢ a turn</b> with ⬢ at the Depot's ${params.rv.buy} ¢ buy price, ${fmt(model.prospectorValue[0].atSell)} ¢ at the ${params.rv.sell} ¢ sell-back. A smith can pay a recipe's ⬢ in obols, one for one, so a smith will pay a Prospector no more than ${params.rv.sell} ¢ a ⬢; only brewers, crafters and the like, who must hold real ⬢, will pay up to ${params.rv.buy} ¢.`,
   `${model.sources.summary.special} of ${model.sources.summary.recipes} recipes need a special item (${model.sources.summary.copies} of those only copy a key). Of the rest, ${model.sources.summary.byHardest[4]} are held back by a Scarce item and ${model.sources.summary.byHardest[5]} by an item with no known source.`,
   `${failing.length} of ${model.claims.length} figures the docs quote do not match what the catalog and code produce (see “Docs against the model”).`,
 ];
@@ -198,7 +200,7 @@ const headlines = [
 function sectionWages() {
   const rows = model.wages.map((w) => ({ label: w.key, value: w.value, color: w.baseline ? "var(--c1)" : "var(--c0)" }));
   return `<section><h2>What a turn is worth</h2>
-<p class="lede">Net ¢ per turn for a typical holder of each occupation. Producers (miners, farmers, the Factory) are valued with ⬢ at what the Depot pays for it (${params.rv.sell} ¢). The gold bars are the <b>easy-craft baselines</b> (next section): a crafter buys ⬢ at the Depot's ${params.rv.buy} ¢, so these are the wage of somebody starting from nothing but coin. Mining is halved for the fatigue duty cycle and farming is spread over its lockout.</p>
+<p class="lede">Net ¢ per turn for a typical holder of each occupation, with every ⬢ valued at the Depot's <b>${resourceValue === "buy" ? `buy price (${params.rv.buy} ¢)` : `sell-back (${params.rv.sell} ¢)`}</b>: what a ⬢ costs somebody who needs one and holds none. <code>--resource-value ${resourceValue === "buy" ? "sell" : "buy"}</code> flips it. The gold bars are the <b>easy-craft baselines</b> (next section). Mining is halved for the fatigue duty cycle and farming is spread over its lockout.</p>
 ${barChart({ rows })}</section>`;
 }
 
@@ -218,6 +220,7 @@ const craftCols = () => [
   { h: "Forge?", get: (a) => (a.workshop ? "yes" : "no") },
   { h: "¢/turn, ⬢ bought", num: true, get: (a) => fmt(a.netPerTurnBuy), sort: (a) => a.netPerTurnBuy },
   { h: "¢/turn, ⬢ mined", num: true, get: (a) => fmt(a.netPerTurnSell), sort: (a) => a.netPerTurnSell },
+  { h: "¢/turn, ⬢ paid in obols", num: true, get: (a) => (a.parPayable ? fmt(a.netPerTurnObols) : "no"), sort: (a) => a.netPerTurnObols ?? -1e9 },
   {
     h: "Note",
     get: (a) =>
@@ -255,7 +258,7 @@ function sectionBaselines() {
     { h: "¢/turn, ⬢ mined", num: true, get: (b) => fmt(b.valueMined), sort: (b) => b.valueMined },
   ];
   return `<section><h2>Baselines: the easy crafts</h2>
-<p class="lede">What somebody can earn from a standing start, using only what is easy to get. A recipe is <b>easy</b> when every input is on the Depot's general shelf, is farmed, is an ore on at least ${fmt(100 * 0.1, 0)}% of Prospecting presses, is a cave find on at least 1 in 50 arrivals, or is a craft from those. ⬢ comes from the Depot at ${params.rv.buy} ¢, and the second column shows the pay if the crafter mined it instead. Recipes that need an ore supply of more than two Prospectors per crafter are flagged and left out of the baselines. These baselines are what the rest of the report compares against.</p>
+<p class="lede">What somebody can earn from a standing start, using only what is easy to get. A recipe is <b>easy</b> when every input is on the Depot's general shelf, is farmed, is an ore on at least ${fmt(100 * 0.1, 0)}% of Prospecting presses, is a cave find on at least 1 in 50 arrivals, or is a craft from those. ⬢ comes from the Depot at ${params.rv.buy} ¢, and the second column shows the pay if the crafter mined it instead. Recipes that need an ore supply of more than two Prospectors per crafter are flagged and left out of the baselines. <b>Smithing recipes can pay their ⬢ in obols, one for one</b> (the game refuses this for every other craft), so a smith does not have to import ⬢ at all: the “paid in obols” column is a smith's real wage, and the “bought” column is what a smith would earn by importing anyway. These baselines are what the rest of the report compares against.</p>
 ${table({ cols: baseCols, rows: model.baselines })}
 
 <h3>Smithing</h3>
@@ -416,8 +419,8 @@ function sectionActivities() {
     { h: "Per action ¢", num: true, get: (a) => fmt(a.perAction), sort: (a) => a.perAction ?? -1e9 },
     { h: "Drops ¢", num: true, get: (a) => (a.dropsPerAction != null ? fmt(a.dropsPerAction, 2) : "—"), sort: (a) => a.dropsPerAction ?? -1 },
     { h: "Presses / turn", num: true, get: (a) => (a.moves === 0 && a.netPerTurnSell == null ? "free" : fmt(a.duty, 2)), sort: (a) => a.duty ?? 0 },
-    { h: "¢/turn (⬢ at sell)", num: true, get: (a) => fmt(money(a)), sort: (a) => money(a) ?? -1e9 },
-    { h: "¢/turn (⬢ at buy)", num: true, get: (a) => fmt(a.netPerTurnBuy), sort: (a) => a.netPerTurnBuy ?? -1e9 },
+    { h: `¢/turn (⬢ at sell, ${params.rv.sell} ¢)`, num: true, get: (a) => fmt(a.netPerTurnSell), sort: (a) => a.netPerTurnSell ?? -1e9 },
+    { h: `¢/turn (⬢ at buy, ${params.rv.buy} ¢)`, num: true, get: (a) => fmt(a.netPerTurnBuy), sort: (a) => a.netPerTurnBuy ?? -1e9 },
     { h: "Notes", get: (a) => a.flags.join("; ") },
   ];
   return `<section><h2>The full table</h2>
@@ -466,7 +469,7 @@ function sectionDrops() {
   const mineRows = model.activities.filter((a) => a.kind === "mine" && a.skillPoints > 0);
   const bars = [];
   for (const a of mineRows) {
-    bars.push({ label: `${a.name.replace("Mine — ", "")}: ⬢`, value: a.resourcesPerPress * params.rv.sell, color: "var(--c0)" });
+    bars.push({ label: `${a.name.replace("Mine — ", "")}: ⬢`, value: a.resourcesPerPress * params.rvMain, color: "var(--c0)" });
     bars.push({ label: `${a.name.replace("Mine — ", "")}: drops`, value: a.dropsPerAction, color: "var(--c1)" });
   }
   const bcols = [
@@ -554,10 +557,24 @@ function sectionBalance() {
     { h: "Recipes", num: true, get: (r) => r.recipes },
     { h: "Median ⬢ burned / turn", num: true, get: (r) => fmt(r.medianBurn) },
     { h: "Heaviest recipe", num: true, get: (r) => fmt(r.maxBurn) },
-    { h: "Miners per crafter", num: true, get: (r) => fmt(r.minersPerCrafter, 1), sort: (r) => r.minersPerCrafter },
+    { h: "Prospectors per crafter", num: true, get: (r) => fmt(r.minersPerCrafter, 1), sort: (r) => r.minersPerCrafter },
+    { h: "Can pay in obols?", get: (r) => (r.payInObols ? "yes, 1 for 1" : "no: must hold ⬢") },
+    { h: "Most it will pay for a ⬢", num: true, get: (r) => `${fmt(r.ceiling, 0)} ¢`, sort: (r) => r.ceiling },
   ];
-  return `<section><h2>The ⬢ balance</h2>
-<p class="lede">Mining is the faucet and recipes are the sink. A Prospector at the Caves brings in ${fmt(params.minerResourcesPerTurn)} ⬢ a turn (average of the ${fmt(params.productionCoefficient, 1)} production dial, the base range and the every-other-turn fatigue). “Miners per crafter” is how many of them one crafter of that family needs, working flat out. The Depot sells ⬢ at ${params.rv.buy} ¢, so a shortfall can be bought rather than mined.</p>
+  const pcols = [
+    { h: "Prospector at", get: (p) => p.name },
+    { h: "⬢ / turn", num: true, get: (p) => fmt(p.resourcesPerTurn, 2) },
+    { h: "Drops ¢ / turn", num: true, get: (p) => fmt(p.dropsPerTurn, 2) },
+    { h: `Sold back at ${params.rv.sell} ¢`, num: true, get: (p) => fmt(p.atSell), sort: (p) => p.atSell },
+    { h: `Paid to a smith (${params.rv.sell} ¢ a ⬢)`, num: true, get: (p) => fmt(p.atSmith), sort: (p) => p.atSmith },
+    { h: `⬢ at the Depot's ${params.rv.buy} ¢`, num: true, get: (p) => fmt(p.atBuy), sort: (p) => p.atBuy },
+  ];
+  return `<section><h2>The ⬢ market</h2>
+<p class="lede">Mining is the only faucet, and recipes are the sink. A Prospector at the Caves brings in ${fmt(params.minerResourcesPerTurn)} ⬢ a turn (the ${fmt(params.productionCoefficient, 1)} production dial, the base range and the every-other-turn fatigue). Who will actually pay for it depends on who can use obols instead. The Depot imports ⬢ at ${params.rv.buy} ¢ and buys them back at ${params.rv.sell} ¢, so a buyer who must hold real ⬢ will pay up to ${params.rv.buy} ¢, but <b>a smith can put one obol toward one ⬢</b> (<code>resolveObolSpend</code>, smithing only), so a smith will pay no more than ${params.rv.sell} ¢ and never has to import at all.</p>
+<h3>What a Prospector is worth</h3>
+${table({ cols: pcols, rows: model.prospectorValue })}
+<h3>Who needs ⬢</h3>
+<p class="lede">“Prospectors per crafter” is how many Prospectors one crafter of that family needs behind them, working flat out. Gambit-free, median recipe. Brewing, crafting and cooking cannot pay in obols, so they are the buyers who would pay the full ${params.rv.buy} ¢.</p>
 ${table({ cols, rows: model.resourceBalance })}</section>`;
 }
 
