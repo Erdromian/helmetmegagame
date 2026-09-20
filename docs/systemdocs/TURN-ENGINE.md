@@ -710,6 +710,13 @@ turn** (the 6-18 band, centring on 12), a basic cooked meal is **one turn**
 (64-76, centring on 70). Price a new recipe by which of those three
 sentences it belongs to, not by scaling off a neighbouring recipe.
 
+**The seven farmed crops are the deliberate exception to that first band**
+(`SOILERY.md` §6). A plant yields three of them, so each one is a third the
+size — `wheat` 2, `plump-helmet` 3, the rest 4 — and three of them together
+come to the ordinary ingredient. Do not "fix" a crop back up into the 6-18
+band; that band is for a foodstuff you buy, forage or butcher, where one unit
+really is one unit.
+
 What raises the meter is eating, not a turn spent fed: a raw foodstuff
 restores `foodHungerFor(tag)` (its own `cooked.hunger`, or `Tag.mealHunger`
 for a minted dish, or a flat fallback for an unpriced item that still grants

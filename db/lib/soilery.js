@@ -6,13 +6,20 @@
 
 const { SOILERY_SLUG, EXHAUSTED_SLUG, TIRED_SLUG } = require("./constants");
 
-const FARM_MAX_CROPS = 120;
+const FARM_MAX_CROPS = 50;
 // 1-in-6 fails, independently PER UNIT sown — not a rounded average. See reap() below for why.
 const WITHER_IN = 6;
 // Fertilizer's addendum: nothing withers, and 1-in-6 comes up double instead
 // — same die, same independence, opposite outcome table. See reap() below.
 const BOUNTY_IN = 6;
+// One plant is a plant, not a single grain: a surviving unit brings in this
+// many of its crop. The sow cap counts PLANTS, so 50 sown is 125 crops after
+// the wither die, which is what lets three farmers feed the town.
+const CROPS_PER_PLANT = 3;
 
+// `cropsPerPlant` and `witherIn` are per-crop overrides on the two constants
+// above — tobacco is the only crop that takes them so far, yielding less and
+// failing more because it is the one worth money.
 const CROPS = [
   { sowing: "sowing-wheat", crop: "wheat" },
   { sowing: "sowing-potato", crop: "potato" },
@@ -21,6 +28,7 @@ const CROPS = [
   { sowing: "sowing-onion", crop: "onion" },
   { sowing: "sowing-plump-helmet", crop: "plump-helmet" },
   { sowing: "sowing-pigtails", crop: "pigtails" },
+  { sowing: "sowing-tobacco", crop: "tobacco", cropsPerPlant: 2, witherIn: 3 },
 ];
 
 // Accepts the CharacterTag[] shape used everywhere else in the app
@@ -63,7 +71,7 @@ function validatePlan(plan, licensed, maxCrops = FARM_MAX_CROPS) {
     return { ok: false, error: "Nothing to sow." };
   }
   if (total > maxCrops) {
-    return { ok: false, error: `A farm holds at most ${maxCrops} crops at once.` };
+    return { ok: false, error: `A farm holds at most ${maxCrops} plants at once.` };
   }
 
   return { ok: true };
@@ -77,21 +85,43 @@ function validatePlan(plan, licensed, maxCrops = FARM_MAX_CROPS) {
 //
 // `fertilized` swaps the whole outcome table (SOILERY.md's Addendum): no
 // wither roll at all, replaced by an independent 1-in-BOUNTY_IN chance of
-// TWO foodstuff instead of one, per planted unit. Same die shape, opposite
-// direction — never both rolled for the same unit.
-function reap(planted, rng = Math.random, { fertilized = false } = {}) {
+// a DOUBLE yield instead of a single one, per planted unit. Same die shape,
+// opposite direction — never both rolled for the same unit. Fertilizer is
+// therefore worth more on a crop with a steeper wither die, since it is a
+// bigger risk being cancelled.
+//
+// `cropsPerPlant` and `witherIn` default to the constants above; pass a
+// crop's own numbers, or use reapFor() below to look them up by slug.
+function reap(planted, rng = Math.random, {
+  fertilized = false,
+  cropsPerPlant = CROPS_PER_PLANT,
+  witherIn = WITHER_IN,
+} = {}) {
   let harvested = 0;
   for (let i = 0; i < planted; i++) {
     if (fertilized) {
-      harvested += Math.floor(rng() * BOUNTY_IN) === 0 ? 2 : 1;
-    } else if (Math.floor(rng() * WITHER_IN) !== 0) {
-      harvested++;
+      harvested += (Math.floor(rng() * BOUNTY_IN) === 0 ? 2 : 1) * cropsPerPlant;
+    } else if (Math.floor(rng() * witherIn) !== 0) {
+      harvested += cropsPerPlant;
     }
   }
   return harvested;
 }
 
-// "sowed 30 Wheat and reaped 25, sowed 20 Potato and reaped 18"
+// reap() for a named crop, so a caller never has to know the CROPS table.
+// An unknown slug reaps on the ordinary numbers rather than throwing — a
+// harvest is being resolved at turn-push, and refusing there would lose the
+// whole action over a renamed tag.
+function reapFor(cropSlug, planted, rng = Math.random, { fertilized = false } = {}) {
+  const entry = CROPS.find((c) => c.crop === cropSlug);
+  return reap(planted, rng, {
+    fertilized,
+    cropsPerPlant: entry?.cropsPerPlant ?? CROPS_PER_PLANT,
+    witherIn: entry?.witherIn ?? WITHER_IN,
+  });
+}
+
+// "sowed 30 Wheat and reaped 75, sowed 20 Potato and reaped 50"
 function harvestLine(rows) {
   return (rows ?? [])
     .map((row) => `sowed ${row.planted} ${row.cropName} and reaped ${row.reaped}`)
@@ -128,10 +158,12 @@ module.exports = {
   FARM_MAX_CROPS,
   WITHER_IN,
   BOUNTY_IN,
+  CROPS_PER_PLANT,
   CROPS,
   sowableCrops,
   validatePlan,
   reap,
+  reapFor,
   harvestLine,
   farmDm,
   farmRefusalFor,

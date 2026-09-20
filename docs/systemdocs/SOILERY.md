@@ -2,10 +2,15 @@
 
 A design-doc-driven farming verb: a character holding **Soilery**, the skill,
 standing on `soilery`-attributed ground, spends a seed bag's licence and sows
-up to a GM-tunable cap of crops (`GameConfig.farmMaxCrops`, 120 out of the
+up to a GM-tunable cap of **plants** (`GameConfig.farmMaxCrops`, 50 out of the
 box, editable on `/gm/dev` mid-round with no deploy) in one Move. The crops
 and a fatigue lockout land when the turn is pushed, not when the button is
 pressed.
+
+**The cap counts plants, not crops.** A surviving plant brings in
+`CROPS_PER_PLANT` of its crop — 3 for the food crops — so 50 sown is about
+125 crops once the wither die has taken its sixth. A wheat plant giving one
+single grain of wheat was never what this meant.
 
 Read this before touching `db/lib/soilery.js`, `db/lib/locationAttributes.js`'s
 `soilery` attribute, the `farmed` entry in `db/lib/moveEffects.js`,
@@ -27,19 +32,29 @@ half of this same body of work; its full mechanics live there, not here, see
 
 `E:\bascinet\v3\Soilery.docx` specs a farming system: characters with the
 farming skill, standing on farmland, consume seed bags and sow up to a
-GM-tunable cap of crops (120 by default) in one action; the crops (with a
+GM-tunable cap of plants (50 by default) in one action; the crops (with a
 1-in-6 per-unit wither chance) and a fatigue lockout land when the turn is
 pushed. Cooking (the doc's page 2) needed no new code at all — see §6.
 
-With the Exhausted→Tired two-turn lockout and the 71 lb carry cap, this
-produces the design's economy: three staggered farmers each yield a 1-turn
-harvest cycle (120 sown, ~100 harvested after wither, ~50 lb) feeding 100
-people (one harvest × 100 meals × 35 hunger per turn = 3500 hunger, exact).
+**The economy it is tuned to.** A basic cooked meal feeds one person for one
+turn (35 hunger against a 35-a-turn burn, `TURN-ENGINE.md` §5), so feeding a
+town of 100 costs exactly 100 basic meals a turn — the burn rate cancels out
+of the arithmetic entirely, and only the crop count matters. At 2 crops a
+meal that is 200 crops a turn. Three farmers working every other turn make
+1.5 harvests a turn, and at 125 crops a harvest that comes to ~3280 hunger a
+turn: **three farmers feed about 94 people.** A harvest weighs ~21 lb, well
+inside the 71 lb carry cap.
 
-Farming pays **no ⬢**. It pays in crops, which is the whole point of it — the
-one button that puts food on the map rather than money in a purse. Mining is
-the button that pays ⬢ (`MINING.md`), and the two skills are siblings in the
-`skills-work` tag group with neither gating the other.
+Farming pays **no ¢ for food**. Food crops are not sellable at all — the only
+thing to do with a potato is eat it, cook it, or give it away. That is the
+whole point of the verb: the one button that puts food on the map rather than
+money in a purse. Mining is the button that pays ⬢ (`MINING.md`), and the two
+skills are siblings in the `skills-work` tag group with neither gating the
+other.
+
+**Tobacco is the one exception, and it is deliberate** (§6a). It is the only
+sowable crop worth money, it is not food, and a field of it feeds nobody —
+which is exactly the decision it exists to force.
 
 This used to need explaining at length, because `laboring-farming` had a
 second life as a paying Laboring tier priced against a Location's
@@ -82,7 +97,8 @@ checkbox appears automatically because `attributesFromInput` walks
 
 A seed bag (`wheat-seed-bag`, `potato-seed-bag`, `tomato-seed-bag`,
 `carrot-seed-bag`, `onion-seed-bag`, `plump-helmet-seed-bag`,
-`pigtails-seed-bag` — real slugs, verified against `docs/tags.yaml`; naming
+`pigtails-seed-bag`, `tobacco-seed-bag` — real slugs, verified against
+`docs/tags.yaml`; naming
 follows the ordinary "slug is the name, slugified" rule rather than the
 plan's original literal `seed-bag-<crop>` draft, since the bag slugs
 themselves are never referenced anywhere in code) is `consumable` with
@@ -95,7 +111,7 @@ The Farm dialog and the server action both read which crops a character may
 sow the same way: `db/lib/soilery.js#sowableCrops(characterTags)` filters its
 `CROPS` table (the canonical sowing-slug/crop-slug pairing) down to whichever
 sowing tags the character currently holds. **One bag licenses any amount of
-that crop up to the cap** (`GameConfig.farmMaxCrops`, 120 by default, editable
+that crop up to the cap** (`GameConfig.farmMaxCrops`, 50 by default, editable
 on `/gm/dev` mid-round) — the doc caps the sowing, not the seed. Seed bags
 are Merchant-stocked (`depotPrice: 4`), and the Silo (`town-3-2`) now stashes
 six of them — two wheat, two potato, one carrot, one plump-helmet, plus 4 wheat
@@ -103,8 +119,10 @@ and 4 potato — behind `[barons-key, soilers-key, hands-key]`. The
 Farms Room (`town-3-1`) still stashes only `work-knife: 1`. This paragraph said
 no seed was stashed anywhere until 2026-09-20.
 
-Seven crops, seven bags, seven sowing tags — `pigtails` included, even though
-it is not a foodstuff (§5b).
+Eight crops, eight bags, eight sowing tags — `pigtails` and `tobacco`
+included, even though neither is a foodstuff (§5b, §6a). `db/test/soilery.test.js`
+asserts the whole triple exists for every entry in `CROPS[]`, so a crop added
+to the table without its bag and licence fails the build rather than the game.
 
 ## 4. The Farm action
 
@@ -136,7 +154,7 @@ that commits now and resolves its dice at push.
    — full server-side re-validation (the client's plan is advisory only):
    rejects an unlicensed crop, a non-integer or non-positive count, a total
    of 0, or a total over `maxCrops` (read from `GameConfig.farmMaxCrops`,
-   falling back to `FARM_MAX_CROPS` (120) if unset — editable on `/gm/dev`
+   falling back to `FARM_MAX_CROPS` (50) if unset — editable on `/gm/dev`
    with no deploy).
 
 **Inside one `$transaction`**: `lockCharacter`, then the sowing licences are
@@ -148,12 +166,23 @@ deferEffects: true, farmPlan })`, and one `logAudit({ actionType:
 renderer shows the **plan** filed, not the outcome — the harvest isn't
 decided yet at filing time.
 
-**The wither roll**, `db/lib/soilery.js#reap(planted, rng = Math.random)`:
-rolls `planted` **independent** 1-in-`WITHER_IN` (6) chances, not a rounded
-average — a small planting can wholly fail or wholly survive, which a rounded
-average can never produce. `harvestLine(rows)` composes the turn-close prose
-("sowed 30 Wheat and reaped 25, ..."), and `farmDm(turn, rows)` wraps it as
-the DM sent when the turn closes.
+**The wither roll**, `db/lib/soilery.js#reap(planted, rng, opts)`: rolls
+`planted` **independent** 1-in-`WITHER_IN` (6) chances, not a rounded average
+— a small planting can wholly fail or wholly survive, which a rounded average
+can never produce. Each survivor then brings in `cropsPerPlant` of its crop
+(3 by default), so the return value counts **crops, not plants**.
+
+`cropsPerPlant` and `witherIn` are per-crop overrides carried on the `CROPS`
+table, and **`reapFor(cropSlug, planted, rng, opts)` is what callers use** —
+it looks the entry up so `moveEffects.js` never has to know a crop's numbers,
+the same "one function both sides call" shape `farmRefusalFor` follows. An
+unknown slug reaps on the ordinary numbers rather than throwing: this runs at
+turn-push, where a throw would lose somebody's whole harvest over a renamed
+tag.
+
+`harvestLine(rows)` composes the turn-close prose ("sowed 30 Wheat and reaped
+75, ..."), and `farmDm(turn, rows)` wraps it as the DM sent when the turn
+closes.
 
 ## 5. Why resolution happens at turn-push, not a new pass
 
@@ -235,22 +264,45 @@ already checks.
 
 All verified directly against the current `docs/tags.yaml`.
 
-**Six growable crops** (`weight: 0.5`, `group: items-food`, `catalog: all`,
-`consumable: true`, `cooked.tasteForm: "adjective"`):
+**Six growable crops** (`weight: 0.17`, `group: items-food`, `catalog: all`,
+`consumable: true`, `cooked.tasteForm: "adjective"`, and **none of them
+sellable**):
 
 | slug | taste | mood | hunger | note |
 |---|---|---|---|---|
-| `wheat` | crunchy | −5 | 6 | raw is Nauseous — `consumesInto: [nauseous]`, `cooked.into: []`, same raw/cooked split as `dustfish` below |
-| `potato` | earthy | 2 | 12 | |
-| `tomato` | acidic | 3 | 12 | |
-| `carrot` | earthy | 3 | 12 | |
-| `onion` | acrid (edited in place — was `mood: 8`, no `hunger`) | 2 | 12 | |
-| `plump-helmet` | earthy | 1 | 9 | |
+| `wheat` | crunchy | −5 | 2 | raw is Nauseous — `consumesInto: [nauseous]`, `cooked.into: []`, same raw/cooked split as `dustfish` below |
+| `potato` | earthy | 2 | 4 | |
+| `tomato` | acidic | 3 | 4 | |
+| `carrot` | earthy | 3 | 4 | |
+| `onion` | acrid (edited in place — was `mood: 8`, no `hunger`) | 2 | 4 | |
+| `plump-helmet` | earthy | 1 | 3 | |
 
-**One non-foodstuff crop**, sown the same way but not a meal: `pigtails`
+**A crop is a third of what it used to be** — a third the weight, a third the
+hunger — because a plant now gives three of them. The harvest is the same
+21 lb and the same food it always was; it just arrives as more, smaller
+things. Eating raw is therefore exactly as good as it ever was (~21 people a
+turn off three farmers), while **cooking is now a 4.4× multiplier** rather
+than 1.46×, which is the Soilery→Cooking separation the tier ladder is for.
+
+Two knock-ons, both intended. Pure-crop recipes got cheaper relative to meat
+and fish ones, since meat and fish are not farmed and did not triple — the
+town tilts vegetarian. And a crop dropped into a spare ingredient slot now
+adds 4 rather than 12, which quietly reduces how much of a big dish overflows
+the 100 ceiling and is thrown away (`TURN-ENGINE.md` §5).
+
+**They are not sellable, and that is the rule, not an oversight.** `sellable`
+and `sellablePrice` were both removed — `db/lib/syncTags.js` throws if one is
+present without the other, in either direction, so never add just one back.
+Tripling the yield while leaving food at 2 ¢ a unit would have made the
+Soilery the best-paying job in town by accident, against §1's whole point.
+
+**Two non-foodstuff crops**, sown the same way but never a meal. `pigtails`
 (`category: items`, `group: items-gear`, no `cooked:` block, not
 `consumable`) — grown in the fields, its Crafting use (crushed into fibre) is
-a later page and out of scope here.
+a later page and out of scope here. It yields 3 a plant like the food crops,
+weighs 0.17, and is **not sellable either**: leaving a tripled crafting input
+priced at 2 ¢ would only have made it a second, accidental tobacco. And
+`tobacco` itself, which is §6a.
 
 **Ten non-growable foodstuffs**, same base shape as the crops:
 
@@ -320,6 +372,43 @@ and synced from `docs/tags.yaml` by `db/lib/syncTags.js`. `fine-meal` and
 **New tag group**: `items-seeds` (`docs/taggroups.yaml`, category `items`),
 with a `Sprout` icon glyph wired in `web/lib/tagIcons.js`.
 
+## 6a. Tobacco, the cash crop
+
+The eighth sowable crop, and **the only one worth money**. Three tags, the
+same triple every other crop has (§3): `tobacco`, `tobacco-seed-bag`
+(`depotPrice: 4`, like the rest) and `sowing-tobacco`.
+
+| | value | why |
+|---|---|---|
+| `cropsPerPlant` | **2** | half a food crop's yield |
+| `witherIn` | **3** | a 2-in-6 failure, double the food crops' |
+| `weight` | 0.25 | leaves, and half a plant's output means half the unit |
+| `sellablePrice` | **2 ¢** | the tuning dial — see below |
+| `cooked:` block | **none** | not food; cannot be eaten, cannot fill an ingredient slot |
+
+**The arithmetic.** 50 sown → ~33 survive → **~67 leaves**, which at 2 ¢ is
+**~133 ¢ a harvest**, about 67 ¢ a turn for a farmer working every other turn.
+Farming used to pay ~42 ¢ a turn from selling crops, so tobacco is a real
+raise — and a tobacco field feeds nobody. With three farmers sitting at
+exactly the town's capacity (§1), one of them switching to tobacco starves a
+third of Ravenheart. **That decision is the whole reason the crop exists.**
+
+`sellablePrice: 2` is the dial. At 1 it is not worth the Move; at 3 it is
+2.4× the old farm income and probably too tempting to refuse.
+
+**Fertilizer is worth more here than anywhere else.** It cancels the wither
+roll outright (§8), and tobacco's is twice as steep as a food crop's — so the
+risky crop is exactly where the Addendum pays best. That falls out of the
+existing rule rather than being special-cased.
+
+It carries **no sprite**: no tobacco art exists in `web/public/assets/items`,
+and `syncTags.js` throws on a `sprite` naming a file that is not there. An
+absent sprite is the ordinary case. Add one and name it when the art lands.
+
+The name is "uncured" on purpose — nothing cures it yet, and a curing step
+(or a pipe, or anything a player does with a leaf other than sell it) is an
+open page, not a promise this section makes.
+
 ## 7. The hunger meter — see TURN-ENGINE.md, not here
 
 The Soilery design doc's other half (pages 1 and the hunger section) is a
@@ -369,7 +458,9 @@ The design doc's Addendum — Fertilizer disables the wither roll and replaces
 it with an independent 1-in-6 (`BOUNTY_IN`) chance of double yield per
 planted unit — lives in `db/lib/soilery.js#reap`'s `fertilized` option, not a
 separate function: same per-unit loop shape, opposite outcome table, and the
-two are mutually exclusive per unit. `farmRequestImpl` reads whether the
+two are mutually exclusive per unit. "Double" means the plant's **whole**
+yield doubles, so 6 crops rather than 3 on a food crop and 4 rather than 2 on
+tobacco — never a single extra unit bolted onto the side. `farmRequestImpl` reads whether the
 character holds `fertilized-fields` (unconsumed — the buff's existing 2-turn
 duration already covers exactly one farm, since the Exhausted-outright
 lockout is 3 turns) and stamps it onto `farmPlan` (`v: 2` now,
@@ -380,7 +471,8 @@ entry the same way every other farmPlan field is.
 
 | Concern | File |
 |---|---|
-| The crops, the wither die, plan validation, refusal text | `db/lib/soilery.js` |
+| The crops, the wither die, per-crop yield (`CROPS_PER_PLANT`, `reapFor`), plan validation, refusal text | `db/lib/soilery.js` |
+| Tobacco: the tag, its seed bag and its sowing licence | `docs/tags.yaml` (§6a) |
 | The `soilery` Location attribute | `db/lib/locationAttributes.js` |
 | The Farm server action | `web/app/(app)/character/actions/soilery.js` (`farmRequestImpl`) |
 | The thin request wrapper | `web/app/(app)/character/requestActions.js` (`farmRequest`) |
@@ -398,4 +490,4 @@ entry the same way every other farmPlan field is.
 | The sheet-side Farm gate (`canSeeFarm`/`farmBlocked`/`canFarm`) | `web/app/(app)/character/page.js` |
 | The Farm verb strip entry | `web/app/components/actionRegistry.js` (`mode: "farm"`) |
 | The Farm dialog itself | `web/app/components/actions/FarmDialog.js`, registered in `web/app/components/actions/index.js` |
-| The GM-tunable sow cap (`GameConfig.farmMaxCrops`, default 120, `FARM_MAX_CROPS` is the code fallback) | `db/prisma/schema.prisma`, `db/lib/gameConfigFields.js` (`/gm/dev?s=config`, "Economy" group) |
+| The GM-tunable sow cap (`GameConfig.farmMaxCrops`, default 50, `FARM_MAX_CROPS` is the code fallback) | `db/prisma/schema.prisma`, `db/lib/gameConfigFields.js` (`/gm/dev?s=config`, "Economy" group) |

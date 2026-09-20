@@ -12,10 +12,12 @@ const yaml = require("js-yaml");
 const {
   FARM_MAX_CROPS,
   WITHER_IN,
+  CROPS_PER_PLANT,
   CROPS,
   sowableCrops,
   validatePlan,
   reap,
+  reapFor,
   harvestLine,
 } = require("../lib/soilery");
 
@@ -58,8 +60,8 @@ test("validatePlan: rejects a non-integer or non-positive planted count", () => 
 test("validatePlan: rejects a total over FARM_MAX_CROPS, even split across crops", () => {
   const result = validatePlan(
     [
-      { crop: "wheat", planted: 70 },
-      { crop: "potato", planted: 60 },
+      { crop: "wheat", planted: 30 },
+      { crop: "potato", planted: 21 },
     ],
     licensedAll,
   );
@@ -90,8 +92,8 @@ test("validatePlan: an explicit maxCrops parameter overrides FARM_MAX_CROPS", ()
   assert.match(result.error, /4/);
 });
 
-test("reap: a rng that never rolls the wither slot never loses a plant", () => {
-  assert.equal(reap(60, () => 0.99), 60);
+test("reap: a surviving plant brings in CROPS_PER_PLANT of its crop, not one", () => {
+  assert.equal(reap(60, () => 0.99), 60 * CROPS_PER_PLANT);
 });
 
 test("reap: a rng that always rolls the wither slot loses everything", () => {
@@ -104,15 +106,38 @@ test("reap: planting 0 reaps 0, with no rng calls needed", () => {
 });
 
 test("reap: real per-unit variance, not a rounded average — a large sample lands within 3 std dev of the true mean", () => {
+  // The yield is CROPS_PER_PLANT x a binomial, so BOTH the mean and the
+  // standard deviation scale by it — a scaled binomial, not a fresh one.
   const planted = 6000;
   const reaped = reap(planted);
-  const mean = planted * (WITHER_IN - 1) / WITHER_IN;
+  const mean = planted * (WITHER_IN - 1) / WITHER_IN * CROPS_PER_PLANT;
   const variance = planted * (1 / WITHER_IN) * (1 - 1 / WITHER_IN);
-  const stdDev = Math.sqrt(variance);
+  const stdDev = Math.sqrt(variance) * CROPS_PER_PLANT;
   assert.ok(
     Math.abs(reaped - mean) <= 3 * stdDev,
     `reaped ${reaped} is more than 3 std dev (${stdDev.toFixed(1)}) from the expected mean ${mean}`,
   );
+});
+
+test("reap: a per-crop cropsPerPlant/witherIn overrides the defaults", () => {
+  // Tobacco's numbers: 2 a plant, and a 2-in-6 (= 1-in-3) failure.
+  assert.equal(reap(40, () => 0.99, { cropsPerPlant: 2, witherIn: 3 }), 80);
+  assert.equal(reap(40, () => 0, { cropsPerPlant: 2, witherIn: 3 }), 0);
+});
+
+test("reap: fertilized doubles the whole yield, never just one unit of it", () => {
+  // The bounty die always hits, so every plant comes up double.
+  assert.equal(reap(50, () => 0, { fertilized: true }), 50 * CROPS_PER_PLANT * 2);
+  // ...and never hits, so every plant is an ordinary one — and nothing withers.
+  assert.equal(reap(50, () => 0.99, { fertilized: true }), 50 * CROPS_PER_PLANT);
+});
+
+test("reapFor: looks a crop's own numbers up by slug, and falls back for an unknown one", () => {
+  assert.equal(reapFor("tobacco", 40, () => 0.99), 80);
+  assert.equal(reapFor("wheat", 40, () => 0.99), 40 * CROPS_PER_PLANT);
+  // A renamed or missing tag reaps on the ordinary numbers rather than throwing
+  // — this runs at turn-push, where a throw would lose the whole harvest.
+  assert.equal(reapFor("no-such-crop", 40, () => 0.99), 40 * CROPS_PER_PLANT);
 });
 
 test("harvestLine: formats one clause per row, joined by commas", () => {
