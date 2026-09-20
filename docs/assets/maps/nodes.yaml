@@ -74,18 +74,17 @@ maps:
           "5": Tower
 
       # Black Hills, first half — these keep the codes they are drawn with.
-      # The Black Hills have NOT been renumbered onto map-code slugs yet, so
-      # every node here carries a `slug:` override pointing at the Location
-      # that place actually is today. The overrides all go away in that
-      # zone's own pass, the way Town's and the Fortress's did.
+      # The zone was re-prosed underground on 2026-09-20 and its Locations
+      # took their own names as slugs, so a `slug:` override is only still
+      # here where the drawn code and the slug disagree.
       - fg: 8
         zone: black-hills
         nodes:
-          "1": { name: Bridge, slug: hills-bridge }
-          "2": { name: West River, slug: hills-west }
-          "3": { name: Shadows, slug: hills-shadowed-grove }
-          "4": { name: Refuse Pit, slug: hills-north }
-          "5": { name: East River, slug: hills-waterway }
+          "1": { name: Bridge, slug: bridge }
+          "2": { name: West River, slug: west-river }
+          "3": { name: Passageway, slug: passageway }
+          "4": { name: Refuse Pit, slug: refuse-pit }
+          "5": { name: East River, slug: east-river }
 
       # The old Wilderness, folded into Black Hills. The markers are still
       # drawn with their original codes, so `recode` renumbers them onto the
@@ -94,10 +93,10 @@ maps:
         zone: black-hills
         recode: { "2": "6", "4": "7", "5": "8", "9": "9", "3": "A" }
         nodes:
-          "6": { name: Gullies, slug: hills-gullies }
-          "7": { name: Underlocks, slug: hills-underlocks }
-          "8": { name: Grand Ravine, slug: hills-grand-ravine }
-          "9": { name: Cliffs, slug: hills-cliffs }
+          "6": { name: Gullies, slug: gullies }
+          "7": { name: Grand Ravine, slug: grand-ravine }
+          "8": { name: Cliffs, slug: cliffs }
+          "9": { name: Sparse Fields, slug: sparse-fields }
           "A": { name: Godard Factory, slug: factory }
 
   barony2:

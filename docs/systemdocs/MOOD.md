@@ -272,7 +272,7 @@ they did before.
 | Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +17 | same |
 | Eat a **cooked dish** | its own small figure plus its ingredients', §6a | `dishMoodTerms` |
 | Consume a treat — `sweets`, `honey`, `fish-roe`, `pumpkin` | +9 | same |
-| Consume a `cigarette`, a `sky-lantern` or a `firecracker` | +9 | same |
+| Consume a `cigarette` or a `firecracker` | +9 | same |
 | Consume anything at all that grants `ate-meal` | +6 | same |
 | Fulfil a Desire (player claim or GM award) | +12 per point | both award sites |
 | A confession the die absolved | +17 | `confessionPass.js` |
@@ -401,8 +401,8 @@ Held tags scale **harm** by its kind; the factors multiply, and a 0 wins:
 | Tag | Kinds | Factor |
 |---|---|---|
 | `brave` (5 pt, was 4) | everything | ×0.5 |
-| `rough-camper` (2 pt) | WILDERNESS, CAVE | ×0.5 |
-| `outsider` (1 pt, requires Rough Camper) | WILDERNESS | ×0 |
+| `rough-camper` (1 pt, was 2) | WILDERNESS, CAVE | ×0.5 |
+| `outsider` (1 pt) | WILDERNESS | ×0 |
 | `spelunker` (1 pt, requires Rough Camper) | CAVE | ×0 |
 | `pale` (the Migrant's) | CAVE | ×0.5 |
 | `hemophobia` (−4) | WOUND | ×2 |
@@ -421,6 +421,9 @@ gone (nothing in the game is high enough), and the phobias' old "may make you
 Afraid… may cause Panic" sentences went with it. The cancel tag is named
 Spelunker because `caving` is already a Skills tag and role kits resolve tags
 by display name.
+
+Outsider stopped requiring Rough Camper on 2026-09-20 and is a base tag now;
+Spelunker still asks for it. Rough Camper dropped to 1 point in the same pass.
 
 **Who starts with what** (`docs/roles.yaml`, `db/lib/threats.js`): Rough Camper
 and Outsider on both Brigands and the Tribune; those two plus Brave on the

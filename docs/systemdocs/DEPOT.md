@@ -828,7 +828,6 @@ buying one mid-game is still a real decision.
 | `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
 | `eth-lod` | 3 | — | Black Market. +20 mood, and it takes every pain tag off |
 | `honey` | 3 | 2 | Consumes into `ate-meal` |
-| `sky-lantern` | 3 | 2 | |
 | `sweets` | 3 | 2 | Consumes into `ate-meal` |
 | `alcohol` | 4 | — | He stocks the local brew too |
 | `kzozel-yantar` | 4 | — | Black Market. Consumes into `tipsy` |

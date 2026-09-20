@@ -5,7 +5,6 @@
 // from the other.
 const NEARSIGHTED_SLUG = "nearsighted";
 const SPECTACLES_SLUG = "spectacles";
-const SUN_SENSITIVITY_SLUG = "sun-sensitivity";
 // Blind stops looking at anything, with no corrective and no schedule. Blind Drunk is the same block
 // for two turns, bought a mouthful at a time (docs/systemdocs/FACTORY.md).
 const BLIND_SLUG = "blind";
@@ -27,15 +26,12 @@ function equippedSet(characterTags) {
   );
 }
 
-// Why this character cannot look anyone over, or null if they can. `where` carries the two facts Sun
-// Sensitivity needs (whether the sun is up, whether indoors); both default permissive, so a caller
-// that can't resolve the time or a Location never blinds somebody by accident.
-//
-// `daylight` used to be `phase === "DAWN"`, back when a turn was half a day and a DAWN turn WAS the
-// daytime. Turns are 6, 8, 12 or 24 hours now and carry no time of day at all, so the question is put
-// to the real clock instead (db/lib/turnClock.js#isDaylight).
-function examineBlock(characterTags = [], where = {}) {
-  const { daylight = false, indoors = true } = where;
+// Why this character cannot look anyone over, or null if they can. `where` used to carry the two
+// facts Sun Sensitivity needed (whether the sun is up, whether indoors). That tag went with the
+// surface on 2026-09-20 — there is no daylight to be blinded by underground — so nothing in here
+// reads `where` any more. It is still accepted, and still threaded in by every caller, because
+// db/lib/reading.js takes the same shape and unpicking the plumbing is its own pass.
+function examineBlock(characterTags = []) {
   const slugs = slugSet(characterTags);
 
   // First — nothing below can rescue it.
@@ -49,11 +45,6 @@ function examineBlock(characterTags = [], where = {}) {
 
   if (slugs.has(NEARSIGHTED_SLUG) && !equippedSet(characterTags).has(SPECTACLES_SLUG)) {
     return "Everything past arm's length is a blur. Put your spectacles on.";
-  }
-
-  // Daylight outdoors only — the Caves and the night stay fine; the tag is a schedule to work around, not an off switch.
-  if (slugs.has(SUN_SENSITIVITY_SLUG) && daylight && !indoors) {
-    return "The daylight is too much to look into. Wait for dark, or get under a roof.";
   }
 
   return null;

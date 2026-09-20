@@ -9,7 +9,7 @@ const { containsOoc, oocRejectionDm, OOC_REFUSAL } = require("../lib/oocGuard");
 
 test("ordinary speech goes through", () => {
   for (const line of [
-    "Is Mountaineering the skill I need for the Road by the Keep?",
+    "Is Caving the skill I need for the Road by the Keep?",
     "I'll meet you at the forge.",
     "Three crates, no more.",
   ]) {

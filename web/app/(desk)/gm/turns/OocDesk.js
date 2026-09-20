@@ -14,7 +14,7 @@ import { fullTimestamp } from "@/lib/dmTime";
 //
 // The lens used to have no desk at all, on the argument that there is nothing
 // a GM DOES to a sentence already said. Reading it turned out to be the thing
-// they do — a line on its own ("is Mountaineering the skill for the Road by
+// they do — a line on its own ("is Caving the skill for the Road by
 // the Keep?") tells a GM nothing about what prompted it — so the desk is the
 // surrounding transcript, with the line itself marked.
 //

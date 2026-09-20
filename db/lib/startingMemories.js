@@ -42,21 +42,21 @@ const TOWN_ALL = [
 ];
 
 const HILLS_ALL = [
-  "hills-bridge",
-  "hills-underlocks",
-  "hills-shadowed-grove",
-  "hills-west",
-  "hills-north",
-  "hills-waterway",
-  "hills-gullies",
-  "hills-grand-ravine",
-  "hills-cliffs",
+  "bridge",
+  "west-river",
+  "passageway",
+  "refuse-pit",
+  "sparse-fields",
+  "cliffs",
+  "gullies",
+  "grand-ravine",
+  "east-river",
 ];
 
 // The Marshes were deleted with the surface. The Factory came over into the
 // Black Hills, so the seats whose whole life was the Factory know it and the
 // water around it rather than a zone that no longer exists.
-const FACTORY_CLUSTER = ["factory", "hills-waterway", "hills-cliffs", "hills-gullies", "hills-grand-ravine"];
+const FACTORY_CLUSTER = ["factory", "east-river", "cliffs", "gullies", "grand-ravine"];
 
 // As much of the caves as somebody who works customs has reason to know. NOT
 // the abandoned camp — that's a bigger reveal than a trade seat has earned;
@@ -72,11 +72,10 @@ const FORTRESS_TO_TOWN = ["fortress-2", "town-8"];
 // locked or a caving crawl, neither belonging in a starting memory.
 const FACTORY_ROAD = [
   "town-1",
-  "hills-bridge",
-  "hills-shadowed-grove",
-  "hills-underlocks",
-  "hills-west",
-  "hills-waterway",
+  "bridge",
+  "east-river",
+  "gullies",
+  "cliffs",
   "factory",
 ];
 const ROLE_MEMORIES = {
@@ -95,7 +94,7 @@ const ROLE_MEMORIES = {
   meister: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-2"],
   minstrel: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-2", "town-7"],
   censor: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN],
-  cerberus: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-1", "town-2", "hills-bridge", "customs"],
+  cerberus: [...FORTRESS_CORE, ...FORTRESS_TO_TOWN, "town-1", "town-2", "bridge", "customs"],
 
   // Town
   bishop: TOWN_ALL,
@@ -111,7 +110,7 @@ const ROLE_MEMORIES = {
   pusher: TOWN_ALL,
   innkeeper: TOWN_ALL,
   "inn-staff": TOWN_ALL,
-  sheriff: [...TOWN_ALL, ...FORTRESS_TO_TOWN, "hills-bridge"],
+  sheriff: [...TOWN_ALL, ...FORTRESS_TO_TOWN, "bridge"],
   // headman: collects from the Soilery, which is inside the walls now. mortus:
   // the vow, always knows the way down to the Tower.
   headman: [...TOWN_ALL, ...FORTRESS_TO_TOWN],
@@ -126,7 +125,7 @@ const ROLE_MEMORIES = {
   // The Factory
   fisherman: FACTORY_CLUSTER,
   geschef: FACTORY_CLUSTER,
-  refugee: ["factory", "hills-waterway", "hills-cliffs"],
+  refugee: ["factory", "east-river", "cliffs"],
   // banneret rides the Squeeze up to town, so he knows every step.
   banneret: [...FACTORY_CLUSTER, ...FACTORY_ROAD, "town-2"],
 

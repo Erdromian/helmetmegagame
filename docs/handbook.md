@@ -170,18 +170,17 @@ Sometimes Discord may take a few seconds to update your message with the bot's v
 
 ### Channels And Locations
 
-There are seven Zones in Bascinet:
+There are six Zones in Bascinet:
 - The Fortress
 - The Town
-- The Forest
+- The Undertown
 - The Black Hills
-- The Marshes
 - The Caves
 - The Depths
 
 Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move.
 
-Out in the wild, a Location carries its Zone in its name — the Gullies in the Black Hills is hills-gullies, the Village in the Marshes is marshes-village. Every zone has a ravine and a river of its own, so the Zone is part of the name. Built places need no such help and go by what they are: the Keep, the Cathedral, the Factory.
+A Location goes by what it is: the Gullies, the Grand Ravine, the Keep, the Cathedral, the Factory. Inside the walls a Location is addressed by its code off the map instead — town-2, fortress-5 — which is the same place said a shorter way.
 
 Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all.
 
@@ -304,7 +303,7 @@ You submit a Move by pressing the Move button in `#turns` or using the `/move` s
 **Your Move**  
 A paragraph describing your character's objective, where it's happening, who else is involved, etc.
 
-Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering in the forest, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
+Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering out in the Black Hills, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
 
 Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions would all be Gambits.
 

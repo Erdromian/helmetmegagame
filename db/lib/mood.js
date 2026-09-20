@@ -148,8 +148,7 @@ const CONSUME_RELIEF = Object.freeze({
   // The treats. Sugar does not grow in Ravenheart.
   "sugar-candy": 9,
   pumpkin: 9,
-  // Celebrations. Neither grants a status, so both key by the item.
-  "sky-lantern": 9,
+  // Celebration. Grants no status, so it keys by the item.
   firecracker: 9,
   cigarette: 9,
   // Any proper meal at all, and the floor under every food above.

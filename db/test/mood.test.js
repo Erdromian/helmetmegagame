@@ -348,7 +348,7 @@ test("a consume is worth its largest single figure, never a sum", () => {
   // A treat is a treat, not a treat plus a meal.
   assert.equal(consumeReliefFor("sugar-candy", ["ate-meal"]), 9);
   assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 17);
-  assert.equal(consumeReliefFor("sky-lantern", []), 9);
+  assert.equal(consumeReliefFor("firecracker", []), 9);
   // Any proper meal at all is the floor under the food.
   assert.equal(consumeReliefFor("trail-ration", ["ate-meal"]), 6);
   // And a plain thing is worth nothing.

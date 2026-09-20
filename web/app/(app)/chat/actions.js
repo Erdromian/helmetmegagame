@@ -544,7 +544,7 @@ export async function loadTravel() {
         // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
         dismounts: Boolean(row.dismounts),
         // Which of this character's own tags opens the way, when one does — the
-        // node draws it as that tag's chip, so a climb you paid Mountaineering
+        // node draws it as that tag's chip, so a climb you paid Caving
         // for says so instead of looking like every other road. Only ever a tag
         // they hold (locationGraph.js#crossingCheck), so there is nothing here to
         // leak.

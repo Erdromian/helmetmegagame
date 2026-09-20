@@ -65,8 +65,8 @@
 #   parked at the door with it (docs/systemdocs/CARRY.md §3). On the surface
 #   this no longer costs anything: a horse and a cart ride into an indoors
 #   Location same as the open ground outside it, and `indoors` only keeps
-#   answering the roof questions there — the mood dial, Sun Sensitivity,
-#   whether a palisade can be raised. Where it does park a mount, the anchor
+#   answering the roof questions there — the mood dial, whether a palisade
+#   can be raised. Where it does park a mount, the anchor
 #   message says so in a -# line of its own, written by the anchor builder, so
 #   nobody has to be told twice. Default false; a Room never carries it, since a Room
 #   is inside its Location by definition.
@@ -1256,190 +1256,198 @@ zones:
     kind: surface
     sort: 4
     description: >-
-      Ancient buildings layer atop craggy, mossy rocks. You can see the rest of the barony between the branches of the leafless trees.
+      Ancient buildings layer atop craggy, mossy rocks. You can see the rest of the barony between the caps of tall mushrooms.
     locations:
       # Every location in the Black Hills can be mined, thinly: 0.2 to 0.3,
       # against 0.9 in the Caves and 1.1 in the Depths (MINING.md §3). This is
-      # surface rock — worth working if you are already up here, never worth
+      # shallow rock — worth working if you are already out here, never worth
       # the walk on its own. The spread inside that band is the ground's own:
-      # the tunnels under the Underlocks and the cut of the Grand Ravine are
-      # the best of it, the Waterway's soft banks the worst.
-      hills-underlocks:
-        name: Underlocks
-        attributes:
-          wilderness: true
+      # the cut of the Grand Ravine and the Cliffs are the best of it, the
+      # East River's soft banks the worst.
+      #
+      # Slugs here carry no zone prefix. The old rule gave wild Locations one
+      # to keep a ravine here from colliding with a ravine there; the Forest
+      # and the Marshes are gone, so there is nothing left to collide with.
+      bridge:
+        name: Bridge
         description: >-
-          The path twists and turns around the terrain. You can see Ravenheart's keep perched on a hill overlooking you. Empty bottles gather in ditches by the side of the road, having stumbled down here after a dramatic toss from the fortress walls.
-        # Heaping Trash, below, is already scavenged by lizards and rats for
-        # "whatever missed morsels have yet to be plundered" — that's the
-        # location's own words for digging.
-        mining: 0.3
+          A weathered wooden bridge spans the canyon. The opposite bank from the town has rocks, shrubs, and stumps. It seems the terrain was cleared to allow easier firing by the archers.
         rooms:
-          underlocks-dry-spring:
-            name: Dry Spring
+          bridge-span:
+            name: Bridge
             description: >-
-              Once a font of clear water, this rocky bed has long left weary travellers with parched throats.
-          underlocks-heaping-trash:
-            name: Heaping Trash
-            description: >-
-              A great mound of garbage of all descriptions, dumped here far enough from town to be out of sight. Small lizards and mammals frantically appear and disappear in and out of the mound, seeking to find whatever missed morsels have yet to be plundered.
-            stash:
-              items:
-                skinned-cave-rat: 1
-          underlocks-rat-warren:
-            name: Rat Warren
-            description: >-
-              Thousands of rats scurry at the sight of you, this part of the mound being their place of shelter. Hundreds of apprehensive eyes watch you from the safety of their burrows.
-            access: [animal-friend, musician]
-            stash:
-              items:
-                rat: 8
-      hills-shadowed-grove:
-        name: Shadowed Grove
+              You can shout at the gates from here.
+      west-river:
+        name: West River
         attributes:
           wilderness: true
         description: >-
-          As the light of the forest wanes, small white flowers fill the undergrowth. Thousands of them flourish where the forest and black hills collide.
-        mining: 0.22
-        rooms:
-          shadowed-grove-cairn:
-            name: Nameless Cairn
-            description: >-
-              A painstakingly stacked pile of stones stands to the side of the road. Many have sought to topple it, yet someone or something always rebuilds it.
-          shadowed-grove-outcrop:
-            name: Rocky Outcrop
-            description: >-
-              Two stones lean upon each other for support, creating some of the only permanent shelter around. The underside of the rocks forms a grand battlefield, where colonies of moss and lichen compete for domination.
-            stash:
-              items:
-                rock: 2
-          shadowed-grove-clearing:
-            name: Tranquil Clearing
-            description: >-
-              Tucked away far from the main path, an opening dominated by white flowers enjoys a little more sun than the rest of the hills nearby.
-            access: [forester]
-      hills-west:
-        name: West Hills
-        attributes:
-          wilderness: true
-        description: >-
-          The path sits atop a slope looking out over two directions. To the South the land continues downward, dragging the river with it. To the East, the path rises once more before disappearing behind the hills.
-        # A unique spot rather than a milder one like Shadowed Grove or Grand
-        # Ravine: the Gallows below is a real grave (bones already sit there
-        # as a room's static stash), and searching it has its own table
-        # (MINING.md §3b).
+          The path ends. You could ford the river with some difficulty. The land continues into a depression to the north.
+        # A unique spot rather than a milder one: the Gallows below is a real
+        # grave (bones already sit there as a room's static stash), and
+        # searching it has its own table (MINING.md §3b).
         mining: 0.25
         rooms:
-          west-hills-crumbled-post:
+          west-river-crumbled-post:
             name: Crumbled Post
             description: >-
-              A stake planted into the Earth which once bore signs directing travellers. Clearly someone decided the signs themselves were of more use in their own personal possession.
-          west-hills-gallows:
+              A stake planted into the Earth. It once had signs, but they were stolen.
+          west-river-gallows:
             name: Forgotten Gallows
             description: >-
-              A frayed noose hangs from a tree awaiting a guilty party. A pile of human bones rests peacefully below, having fallen free once the flesh suspending it decayed away.
-            access: [cruel, mountaineering, adventurer, torturer]
+              A frayed noose hangs from a mushroom trunk. A pile of human bones rests below.
+            access: [cruel, adventurer, torturer]
             stash:
               items:
                 foot: 2
                 eye: 1
                 bone: 8
                 ravens-eye: 1
+      passageway:
+        name: Passageway
+        attributes:
+          wilderness: true
+        description: >-
+          The ledge twists and turns around the cliff. You can look down on the town, you're eye level with the fortress. Far below, empty bottles gather in ditches right outside the wall, having stumbled down here after a dramatic toss from the fortress walls.
+        # Heaping Trash, below, is already scavenged by lizards and rats for
+        # "whatever missed morsels have yet to be plundered" — that's the
+        # location's own words for digging.
+        mining: 0.3
+        rooms:
+          passageway-dry-spring:
+            name: Dry Spring
+            description: >-
+              Once a font of clear water, this rocky bed has long left weary travellers with parched throats.
+          passageway-heaping-trash:
+            name: Heaping Trash
+            description: >-
+              A great mound of garbage of all descriptions, dumped here far enough from town to be out of sight. Small lizards and mammals frantically appear and disappear in and out of the mound, seeking to find whatever missed morsels have yet to be plundered.
+            stash:
+              items:
+                skinned-cave-rat: 1
+          passageway-rat-warren:
+            name: Rat Warren
+            description: >-
+              Thousands of rats scurry at the sight of you, this part of the mound being their place of shelter. Hundreds of apprehensive eyes watch you from the safety of their burrows.
+            access: [caving, musician]
+            stash:
+              items:
+                rat: 3
       # The bottom of the Baron's lift, and what the Keep throws away. The map
       # plate has called this the Refuse Pit since it was drawn
-      # (docs/assets/maps/nodes.yaml); the name here finally agrees with it.
-      hills-north:
+      # (docs/assets/maps/nodes.yaml).
+      refuse-pit:
         name: Refuse Pit
         attributes:
           wilderness: true
         description: >-
-          A depression in the cave floor. The path loses coherence as its stones give rise to gravel and stamped earth. Hollow winds kick up blackened dirt, unbound by grass or root, and everything the Keep is finished with ends up down here.
-        # An abandoned homestead with a locked hatch, and a basement full of
-        # unlabelled tinctures, below — a real scavenging site.
+          A depression in the cave floor. The path loses coherence as its stones drop into gravel and corroded earth. The wind kicks up a bad smell.
         mining: 0.25
         rooms:
-          north-hills-homestead:
-            name: Abandoned Homestead
+          refuse-pit-pits:
+            name: Pits
             description: >-
-              A decayed old home, built when the sun still graced this land. The interior is completely bare. It's a miracle the structure manages to stand with the gaping holes that line the walls. There is a locked hatch in the floor.
-          north-hills-dead-end:
-            name: Dead-end
-            description: >-
-              Leading off from the main path, this side path suddenly comes to a stop. Having come this far down this branch of the road you instinctively feel compelled to keep going, path or no path.
-            stash:
-              items:
-                rock: 2
-          north-hills-basement:
-            name: Basement
-            description: >-
-              Shrivelled up locks of plants hang from hooks above drawers packed with phials of tinctures and rolls of crusted cloth. Lacking labels, your only hope is that whatever toxins they once contained have had enough time to denature.
-            access: [brewing-skilled, caving]
-            stash:
-              items:
-                mulligan-potion: 1
-                invisibility-potion: 1
-                mindbreaker-toxin: 1
-                bliss: 1
-                tea: 2
-                obol: 10
-          north-hills-lodestone:
-            name: Lodestone
-            description: >-
-              Resting in a small clearing, covered with intricate carvings. The nature of the stone's origin and purpose elude you. Dark green grass grows at its base, surviving off its energy since the sun abandoned them.
-            access: [esoteric, old-ways-thoth, superstitious]
+              There's bones, piles of decaying food that have started to turn into soil, and a lot of maggots. Deeper in the pits, wriggling masses of purple and red have begun to surface from the mud, feasting on the refuse.
           # The lower end of the Baron's lift; the cage at the top is in the
           # Keep. The edge itself is `hidden: elevator-key` in `connections:`.
-          # It hung in the Undercroft until 2026-09-20 — docs/documents.yaml
-          # has always told the Baron, the Tribune and the Ordinator that the
-          # lift comes down in the Refuse Pit, and now it does.
-          north-hills-elevator:
+          refuse-pit-elevator:
             name: Elevator Room
             access: [elevator-key]
             description: >-
-              A cage suspended over the darkness. Use the pressure plate to descend.
-      hills-waterway:
-        name: Fracturing Waterway
+              There's a cage with a pressure plate, looming over the dark. A winch will take you upwards.
+      sparse-fields:
+        name: Sparse Fields
         attributes:
           wilderness: true
         description: >-
-          Ravenheart's river rushes downward towards the marshlands below. Beyond here it splits into a delta sustaining the marshes. A bridge offers crossing.
-        # The Black Hills' one real river — panning fits as well here as it
-        # does at the Forest's own water locations.
-        mining: 0.2
+          The forest gives way abruptly to an open waste of mud, stumps, and gray grass. Abandoned carts and rusted equipment lie scattered across the clearing. At its center sprawls an overgrown prison complex, its walls and watchtowers sinking slowly beneath vines, moss, and years of neglect.
+        mining: 0.28
         rooms:
-          waterway-leopolds-bridge:
-            name: "Leopold's Bridge"
+          sparse-fields-mushroom-field:
+            name: Mushroom Field
             description: >-
-              An ancient stone bridge originally dedicated to a revered Archbishop. It has fallen into disrepair, and a patchwork of wooden scaffolds cover the gaping hole that formed where the peak of the arch collapsed.
-          waterway-eyot:
-            name: Eyot
+              Rows of felled mushroom trunks lie half-sunk in the mud, many left where they fell when the work crews abandoned the clearing. Rusted saws and broken hauling chains disappear beneath the grass, while the remaining stumps have begun sprouting pale fungi from their cut faces.
+          sparse-fields-cellblock:
+            name: Cellblock
             description: >-
-              Upstream of Leopold's Bridge, an island splits the river's stream in two before it reforms. A tiny, isolated ecosystem has formed here.
-            access: [strong-swimmer]
+              Rows of narrow cells face a central corridor. Pale mycelium has overtaken the gaps in the rock, creating a superorganism. Several cells contain bodies dried against bunks or walls. The floors are metallic and grated, the same rusted ceramite featured in the Keep.
+          sparse-fields-office:
+            name: Office
+            description: >-
+              Broad windows overlook both the yard and work fields. A blackened ring of prison keys hangs behind the desk beneath a wall where somebody drove a blade directly through an old map of the forest.
             stash:
-              resources: 4
-      hills-gullies:
+              items:
+                paper: 9
+          sparse-fields-property-room:
+            name: Property Room
+            description: >-
+              Numbered shelves contain the property taken from Graywall's prisoners: boots, knives, jewelry, and letters.
+            access: [graywall-key]
+            stash:
+              items:
+                jewelry: 2
+                trench-knife: 1
+                work-knife: 2
+                paper: 13
+                bannerets-wax-stamp: 1
+                obol: 6
+                brigandine: 1
+                supply-kit: 1
+          sparse-fields-outcrop:
+            name: Outcrop
+            description: >-
+              A cluster of granite boulders rises sharply above the stripped field, providing an uninterrupted view across Graywall, the old logging grounds, and the refuse pit. From this height, narrow trails and breaks in the path become visible that cannot be seen from below.
+            access: [caving]
+            stash:
+              items:
+                graywall-key: 1
+      cliffs:
+        name: Cliffs
+        attributes:
+          wilderness: true
+        description: >-
+          At the base of the mountains, tall walls of stone crush any hopes of travelling further east. High above some greenery has managed to grow, nestled in crags of the cliff faces.
+        mining: 0.3
+        rooms:
+          cliffs-road:
+            name: Road
+            description: >-
+              There's a cave mouth to the side of the road. The remnants of a camp setup before venturing inside are scattered about. A featureless wall of darkness awaits when looking inside, ready to consume any who venture too deep.
+          cliffs-overlook:
+            name: Overlook
+            description: >-
+              Making the more manageable climb up one of the shorter cliffs, the top gives a view of the barren hills and valleys to the West, and sodden marshes to the South. You can just about make out the town itself at the other end of the valley.
+            access: [caving]
+            stash:
+              items:
+                silver: 2
+                malachite: 3
+                milk-quartz: 1
+      gullies:
         name: Gullies
         attributes:
           wilderness: true
         description: >-
-          The remains of an ancient riverbed guide the passage of hapless travellers, navigating between the domineering heights that surround it. It makes for a significantly easier journey than scaling each of the many hills.
+          The remains of an ancient riverbed guide the passage of travellers, navigating between the domineering heights that surround it. It makes for an easier journey than scaling each of the many hills.
         mining: 0.28
         rooms:
           gullies-plateau:
             name: Wisened Plateau
             description: >-
-              Where the slope encasing the road levels out, a small enclave forms to the side of the road. An old tree — rather short for its great width — grows here. The black leaves it hosts are the first on any tree for miles.
+              Where the slope encasing the road levels out, a small enclave forms to the side of the road. A large mushroom tree grows here.
           gullies-fissure:
             name: Fissure
             description: >-
-              A crack has broken in the road about two feet wide. Looking down, you can't seem to see quite how deep it goes. The distinct smell of sulfur seeps out of this festering wound in the Earth.
+              A crack has broken in the road about two feet wide. Looking down, you can't seem to see quite how deep it goes.
           gullies-burial-mound:
             name: Burial Mound
             description: >-
               Atop one of the heights beside the road sits a mound of earth many meters across. The dozens of small wooden crosses atop it give some hint as to what might lie beneath.
-            access: [mountaineering]
-      hills-grand-ravine:
+            access: [caving]
+            stash:
+              items:
+                cross: 1
+      grand-ravine:
         name: Grand Ravine
         attributes:
           wilderness: true
@@ -1447,29 +1455,17 @@ zones:
           Following the contours of the hills that surround it, the ravine is as constricting as it is expansive. A miasmic fog of decay sinks to the bottom, waiting to be blown away by winds that will never come.
         mining: 0.3
         rooms:
-          grand-ravine-echoing-halls:
-            name: Echoing Halls
-            description: >-
-              Every sound here deflects off the walls of the ravine, creating a cacophony of sound. The walls of the ravine are host to far more plant life than the surface itself, the rocks seemingly a more hospitable environment.
-            stash:
-              items:
-                rock: 2
           grand-ravine-trickling-water:
             name: Trickling Water
             description: >-
               A small stream of water seeps through the rock wall of the ravine. A bloated humanoid corpse decays nearby. All manner of small skittering things make pilgrimages to both. Severed heads in various states of decomposition rest atop wooden spikes nearby.
-          grand-ravine-growth:
-            name: Growth
-            description: >-
-              A strange coagulation of organic matter grows in cracks formed in the walls. It is a deep crimson red and looks wet to the touch. You wonder how deep into the walls this festering growth might reach.
-            access: [esoteric, literate]
-          # The Brigand camp, moved here from the old node 26 ravine with its
-          # stash intact. `ravine-camp` is the knowledge tag, not this room's id.
+          # The Brigand camp. `ravine-camp` was the knowledge tag that used to
+          # open it; the way in is the climb now, so the gate is `caving`.
           grand-ravine-camp:
             name: Ravine Camp
             description: >-
               Roots hang over the ravine ledge, further obscuring the hidden camp. There's meats drying on a rack, a couple of fires, and some stolen crates.
-            access: [ravine-camp]
+            access: [caving]
             stash:
               resources: 4
               items:
@@ -1485,41 +1481,30 @@ zones:
                 skinned-cave-rat: 1
                 disguise-kit: 1
                 paper: 4
-          grand-ravine-head-tent:
-            name: Head Tent
-            description: >-
-              The largest of all the camp's tents. Inside are the most luxurious of amenities which the brigands have managed to get their hands on. One can only imagine how many secret stashes are hidden inside the tent, away from the grubby fingers of the rest of the camp.
-            access: [brigand-leader]
-            stash:
-              resources: 4
-              items:
-                paper: 8
-                obol: 23
-      hills-cliffs:
-        name: Cliffs
+      east-river:
+        name: East River
         attributes:
           wilderness: true
         description: >-
-          At the base of the mountains, tall walls of stone crush any hopes of travelling further East. High above some greenery has managed to grow, nestled in crags of the cliff faces. The lucky descendants of plants who managed to escape the fate beholden to the rest of the Black Hills.
-        mining: 0.28
+          Ravenheart's river rushes east into the caves.
+        # The Black Hills' one real river — panning fits as well here as it
+        # does at any other water location.
+        mining: 0.2
         rooms:
-          # The Forest's Cliffs already owns the `cliffs-` stem, and room ids
-          # share one namespace, so these take the full location id instead.
-          hills-cliffs-cave-mouth:
-            name: Cave Mouth
+          east-river-leopolds-bridge:
+            name: "Leopold's Bridge"
             description: >-
-              A hollow in the side of one of the cliffs leads ever deeper. The remnants of a camp setup before venturing inside are scattered about. A featureless wall of darkness awaits when looking inside, ready to consume any who venture too deep.
-          hills-cliffs-overlook:
-            name: Overlook
+              An ancient stone bridge originally dedicated to a revered Archbishop. It has fallen into disrepair, and a patchwork of wooden scaffolds cover the gaping hole that formed where the peak of the arch collapsed.
+          east-river-eyot:
+            name: Eyot
             description: >-
-              Making the more manageable climb up one of the shorter cliffs, the top gives a view of the barren hills and valleys to the West, and sodden marshes to the South. You can just about make out the town itself at the other end of the valley.
-            access: [mountaineering, climbing]
-      # Black Hills 1 on the plate, and the town's one way out onto the
-      # hills. Bare prose for now — the Black Hills renumber is its own pass.
-      hills-bridge:
-        name: Bridge
-        description: >-
-          A weathered wooden bridge spans the canyon where the banks briefly draw close, its supports wedged between old stone foundations much older than the timber above them. The town's gate stands at the near end.
+              Upstream of Leopold's Bridge, an island splits the river's stream in two before it reforms. A tiny, isolated ecosystem has formed here.
+            access: [strong-swimmer]
+            stash:
+              resources: 5
+              items:
+                onion: 2
+                cave-fungus: 2
       factory:
         name: Godard Factory
         indoors: true
@@ -1733,7 +1718,7 @@ zones:
                 name: Godshroom
                 description: >-
                   In an open clearing, a Godshroom rises above the shroom cap canopy. Its pores ooze a viscous orange liquid, dripping down onto the earth beneath it. You feel more watched than ever.
-                access: [forester, animal-friend]
+                access: [caving]
                 stash:
                   items:
                     deep-morel: 4
@@ -1908,7 +1893,7 @@ zones:
                 name: Deep Sea
                 description: >-
                   At the bottom of the slope rests a great lake, fed by trickling groundwater. Just at the water level someone has carved an indent in the slope to sit without sliding into the water. You can fish here.
-                access: [mountaineering, caving]
+                access: [caving]
                 stash:
                   resources: 9
                   items:
@@ -2011,20 +1996,33 @@ connections:
   - [fortress/fortress-4, fortress/fortress-5]
 
   # --- Black Hills ------------------------------------------------------
-  - [hills/hills-bridge, hills/hills-shadowed-grove]
-  - [hills/hills-underlocks, hills/hills-shadowed-grove]
-  - [hills/hills-underlocks, hills/hills-west]
-  - [hills/hills-west, hills/hills-north]
-  - [hills/hills-west, hills/hills-waterway]
-  - [hills/hills-north, hills/hills-waterway]
-  - [hills/hills-north, hills/hills-gullies]
-  - [hills/hills-gullies, hills/hills-grand-ravine]
-  - [hills/hills-gullies, hills/hills-cliffs]
-  - [hills/hills-grand-ravine, hills/hills-cliffs]
+  - [hills/bridge, hills/east-river]
+  - [hills/bridge, hills/west-river]
+  - [hills/west-river, hills/passageway]
+  - [hills/passageway, hills/refuse-pit]
+  - [hills/refuse-pit, hills/sparse-fields]
+  - [hills/sparse-fields, hills/cliffs]
+  - [hills/cliffs, hills/gullies]
+  - [hills/gullies, hills/grand-ravine]
+  - [hills/gullies, hills/east-river]
+  - [hills/grand-ravine, hills/east-river]
   # The Factory came over from the Marshes with that zone's deletion — on the
   # plate it is Black Hills A, at the far end past the water.
-  - [hills/hills-waterway, hills/factory]
-  - [hills/hills-cliffs, hills/factory]
+  - [hills/sparse-fields, hills/factory]
+  - [hills/cliffs, hills/factory]
+
+  # The ravine's own way down into the Factory, for anyone who can make the
+  # climb. Hidden, so nobody who cannot never learns the way is there.
+  - pair: [hills/grand-ravine, hills/factory]
+    hidden: caving
+    on_foot: true
+
+  # The river runs on into the Undertown's Lake. Only ONE tag fits on an edge,
+  # and the swim is the whole of it. Hidden, for the same reason as the Den's
+  # back door below.
+  - pair: [hills/east-river, undertown/undertown-c]
+    hidden: strong-swimmer
+    on_foot: true
 
   # --- Caves ------------------------------------------------------------
   # The gate in the cave mouth. Nobody stands on it, so it records what a
@@ -2053,7 +2051,7 @@ connections:
   - [fortress/fortress-3, undertown/undertown-1]
   - [caves/caves-abandoned-camp, depths/depths-last-chance]
   - [caves/caves-abandoned-camp, depths/depths-fork]
-  - [depths/depths-chasm, hills/hills-cliffs]
+  - [depths/depths-chasm, hills/cliffs]
   # Over the cave-river, from the sentry post to the shop. The Depot moved
   # into the Undertown with the rest of the town, so this crossing costs the
   # Move now — but it still has to exist, because without it a migrant who
@@ -2063,7 +2061,7 @@ connections:
   # The two manned gates. A Cerberus on each reads everyone's papers, and the
   # winch can be dropped by anyone who can get into the watch room above it —
   # town-1-2 for the Black Hills gate, fortress-2-3 for the portcullis.
-  - pair: [town/town-1, hills/hills-bridge]
+  - pair: [town/town-1, hills/bridge]
     announce: true_name
     modular:
       open: true
@@ -2077,7 +2075,7 @@ connections:
   #
   # Keyed, so whoever rides it is asked whether to leave it open behind them
   # for 24 hours — which is how anybody without the key gets to follow.
-  - pair: [fortress/fortress-4, hills/hills-north]
+  - pair: [fortress/fortress-4, hills/refuse-pit]
     hidden: elevator-key
     keyed: true
     on_foot: true

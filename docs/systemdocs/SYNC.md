@@ -80,7 +80,7 @@ A Location's slug is its **map code**: the zone, then its system code off the
 Playscii plate — `town-1`, `fortress-5`, `undertown-a`. A Room's is its
 Location's slug plus its own number, `town-2-3`. Codes run 1-9 then a-z and
 restart per zone. The zones not yet renumbered (the Black Hills, the Caves,
-the Depths) still carry descriptive slugs like `hills-gullies`. See `MAP.md`
+the Depths) still carry descriptive slugs like `gullies`. See `MAP.md`
 for why a slug is a coordinate rather than a name.
 
 A changed `id` is not a rename: the old entry is pruned and a new one
@@ -181,8 +181,8 @@ connections:              # the whole travel graph. ONE entry per edge — it is
       open: true
   - pair: [fortress/undercroft, forest/forest-cliffs]
     hidden: elevator-key
-  - pair: [fortress/road, hills/hills-underlocks]
-    locked: mountaineering
+  - pair: [fortress/road, hills/passageway]
+    locked: caving
     on_foot: true
 ```
 

@@ -224,8 +224,8 @@ worth; the rest waits in the Logistics Room for the next wagon.
 otherwise park it at the door and leave a 71 lb carrier shuttling one 68 lb
 crate at a time down to the marsh. It carries the `wheels` attribute instead
 (`CARRY.md` §3), so the cart stays equipped on the factory floor and loads
-where the crates are. The roof is untouched — the mood dial, Sun Sensitivity
-and the no-building rule all still read the column.
+where the crates are. The roof is untouched — the mood dial and the
+no-building rule both still read the column.
 
 Through the crate cap: 150 lb packs **8** cubes into a 68 lb crate, and
 355/68 ≈ 5.2 crates ≈ 41 cubes.
@@ -308,8 +308,8 @@ clock and knows nothing about quantities.
 
 The last two are the interesting ones. Literacy and the eyes are asked as **one
 question** so no caller can check half of it — and `readBlock` is the fuller
-form, since it also catches Blind Drunk itself, Nearsighted with the spectacles
-in a sack, and Sun Sensitivity outdoors at Dawn.
+form, since it also catches Blind Drunk itself and Nearsighted with the
+spectacles in a sack.
 
 A blind recipient gets exactly what an illiterate one gets: the real letter, on
 their sheet, as an object they can carry to somebody who reads

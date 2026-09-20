@@ -269,8 +269,8 @@ families:
     name: Adventure
     group: nerve
     color: "#a9cf8c"
-    # Exploration and danger for its own sake — the caves, the mountains,
-    # the marshes, climbing.
+    # Exploration and danger for its own sake — the caves, the ravines and
+    # the climb.
   mortality:
     name: Mortality
     group: mind
@@ -722,13 +722,6 @@ desires:
     families: [craft]
     cooldownTurns: 5
 
-  befriend-animal:
-    name: Befriend a wild animal
-    tier: 2
-    families: [social, adventure]
-    requires:
-      anyTags: [animal-friend]
-
   meet-theb-etter:
     name: Meet Theb Etter
     tier: 4
@@ -809,13 +802,6 @@ desires:
   top-of-a-building:
     name: Reach the top of a building
     tier: 1
-    families: [adventure]
-    requires:
-      anyTags: [climbing]
-
-  top-of-the-mountains:
-    name: Reach the top of the mountains
-    tier: 2
     families: [adventure]
     requires:
       anyTags: [climbing]
@@ -1659,7 +1645,8 @@ desires:
   #
   # There was a seventh, climb-the-mountain, and it went with the Mountain
   # itself: the Black Hills have no pass any more, so it was a dare at a place
-  # nobody could reach.
+  # nobody could reach. Reach the top of the mountains followed it on
+  # 2026-09-20, for the same reason.
 
   harvest-godflesh-barehanded:
     name: Harvest Godflesh with your bare hands.
@@ -1960,23 +1947,6 @@ desires:
     families: [craft, status, duty]
     requires:
       anyRoles: [metalsmith]
-
-  # --- Role-flavoured: the woods ---------------------------------------------
-  # These were the Outsider's, gated on that seat. The seat is gone; Forester
-  # is what it actually meant, and the Hunter kit hands that to any Commoner.
-  scare-off-a-trespasser:
-    name: Scare somebody away from your territory
-    tier: 1
-    families: [duty]
-    requires:
-      anyTags: [forester]
-
-  warn-the-town:
-    name: Warn the town of a threat you saw heading its way
-    tier: 1
-    families: [duty]
-    requires:
-      anyTags: [forester]
 
   renovate-the-inn:
     name: "Renovate the inn with a skilled builder's help"

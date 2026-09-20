@@ -310,7 +310,7 @@ column now.)
 
 **`wheels: true` is the exception, and it is authored.** `indoors` was
 answering two questions with one column — is there a roof over this place (the
-mood dial, Sun Sensitivity, whether a palisade can be raised in it) and do
+mood dial, whether a palisade can be raised in it) and do
 wheels stay outside — and a warehouse is a yes to the first and a no to the
 second. So a Location may carry the `wheels` attribute (`MAP.md` §1b) and admit
 a cart and a horse while keeping its roof for everything else. Three places

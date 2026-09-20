@@ -15,7 +15,7 @@
 //
 // For the same reason no voice tag applies. A gag, a bound pair of hands and a
 // mute are things done to a CHARACTER; the player behind them can still ask
-// whether Mountaineering is the skill they need.
+// whether Caving is the skill they need.
 
 const { ambientLine } = require("./ambientLine");
 const { sceneLine } = require("./scene");

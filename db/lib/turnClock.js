@@ -174,8 +174,9 @@ function nextDayNumber(lastTurn, startedAt) {
   return (lastTurn.dayNumber ?? 1) + (sameDay ? 0 : 1);
 }
 
-// Whether the sun is up in Ravenheart, on the real Chicago clock. Sun Sensitivity used to ask whether the open turn was a
-// DAWN one; with no phases left, "is it daytime" has to be answered by the actual time of day. 06:00-18:00 was also,
+// Whether the sun is up in Ravenheart, on the real Chicago clock. Sun Sensitivity used to read this, and went with the
+// surface on 2026-09-20; nothing reads it now, and it is kept only because every caller still threads it through.
+// 06:00-18:00 was also,
 // until 2026-09-18, the window the app's own look ran on (web/lib/clockTheme.js, since deleted — the app now wears one
 // look at all hours); this game mechanic is independent of that and keeps its own constants below.
 const DAYLIGHT_START_HOUR = 6;

@@ -1181,15 +1181,16 @@ tags:
     purchasableAfterStart: true
 
   # The outdoors family (docs/systemdocs/MOOD.md). Rough Camper halves what
-  # the wilderness and the caves do to the nerves; Outsider and Spelunker,
-  # gated behind it, each cancel one of the two outright.
+  # the wilderness and the caves do to the nerves. Outsider cancels the
+  # wilderness outright and is a base tag in its own right; Spelunker does the
+  # same for the caves, and is still gated behind Rough Camper.
   rough-camper:
     catalog: all
     name: Rough Camper
     category: general
     group: general-traits
     description: "No shelter, no problem. Being outside doesn't bother you."
-    pointCost: 2
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
@@ -1198,7 +1199,6 @@ tags:
     name: Outsider
     category: general
     group: general-traits
-    requiredTag: rough-camper
     description: "Being in the wilderness doesn't bother you at all."
     pointCost: 1
     purchasable: true
@@ -1407,17 +1407,7 @@ tags:
     category: general
     group: general-traits
     description: "You swim better than anyone else."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  animal-friend:
-    catalog: all
-    name: Animal Friend
-    category: general
-    group: general-traits
-    description: "Animals calm down around your gentle presence."
-    pointCost: 5
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
@@ -1627,24 +1617,6 @@ tags:
     conflictsWith: [eagle-eyes]
     purchasable: true
     purchasableAfterStart: false
-
-  # Bascinet's line, lightly amended. Blocks Look at outdoors in DAYLIGHT only —
-  # the Caves and the night really are fine, as the text promises. It used to
-  # read "Dusk", and be gated on a DAWN turn; turns carry no time of day any
-  # more, so the mechanic reads the real Chicago clock instead
-  # (db/lib/turnClock.js#isDaylight) and the word had to follow it.
-  sun-sensitivity:
-    catalog: all
-    name: Sun Sensitivity
-    category: general
-    group: general-traits
-    description: "You can barely see when it's bright outside. You prefer the dark, or the Caves."
-    fighting: { tree: both, tiers: -0.3, situational: true }
-    pointCost: -2
-    visible: true
-    purchasable: true
-    purchasableAfterStart: false
-    conflictsWith: [nearsighted]
 
   hard-of-hearing:
     catalog: all
@@ -2660,16 +2632,6 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
-  mountaineering:
-    catalog: all
-    name: Mountaineering
-    category: skills
-    teachable: true
-    description: "You can climb mountains, granting you access to certain locations."
-    pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
   # The Cathedral's one craft. requiredTag keeps it off everybody else's
   # point-buy: `chaplain` is catalog: gm and unpurchasable, so the only people
   # who can ever spend the 5 are the Bishop and the Chaplains.
@@ -2741,16 +2703,6 @@ tags:
     teachable: true
     description: "You can grow crops in the fields."
     pointCost: 7
-    purchasable: true
-    purchasableAfterStart: true
-
-  forester:
-    catalog: all
-    name: Forester
-    category: skills
-    teachable: true
-    description: "You are at home in the woods, gaining an advantage in finding food, water, or shelter."
-    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
@@ -2834,24 +2786,6 @@ tags:
     teachable: true
     description: "You can butcher monster and human corpses."
     pointCost: 2
-    purchasable: true
-    purchasableAfterStart: true
-
-  # NOTHING USES THIS RIGHT NOW, and that is worth saying out loud rather than
-  # leaving for somebody to discover. Its eight recipes were the per-location
-  # lockboxes, and all eight went on 2026-09-18 — seven with the old drop table
-  # and {tag:netted-lockbox} with them, since nothing had granted that one for a
-  # long time either. The skill is kept on purpose (Bascinet's call): a lock is
-  # an obvious thing for the game to want later, and the replacement
-  # {tag:lockbox} is one edit away from needing it. Until something does, this
-  # is 4 points for nothing — do not sell it to a player as anything else.
-  lockpicking:
-    catalog: all
-    name: Lockpicking
-    category: skills
-    teachable: true
-    description: "Nothing on one… little click on two… click on three… aha! You can pick locks."
-    pointCost: 4
     purchasable: true
     purchasableAfterStart: true
 
@@ -7946,7 +7880,8 @@ tags:
 
   # The extremely-rare prospecting find that is not an ingredient: a box with
   # something in it. No skill gate and no craft step — the EIGHT per-location
-  # lockboxes that needed Lockpicking and minted a matching "-spoils" tag all
+  # lockboxes that needed the old Lockpicking skill and minted a matching
+  # "-spoils" tag all
   # went on 2026-09-18, and this one just opens. 25 ¢ inside, 12 ¢ if you sell
   # it shut, so opening it is always the better move and selling it shut is the
   # impatient one.
@@ -14599,24 +14534,6 @@ tags:
       taste: "honey"
       mood: 20
       hunger: 12
-
-  sky-lantern:
-    catalog: gm
-    name: Sky Lantern
-    category: items
-    group: items-gear
-    description: "A paper lantern. Can be lit on the bottom to rise into the air. Used to celebrate something special."
-    pointCost: 0
-    depotPrice: 3
-    sellable: true
-    sellablePrice: 2
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
 
   sake:
     catalog: gm

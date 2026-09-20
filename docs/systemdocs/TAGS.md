@@ -593,7 +593,7 @@ deliberate call rather than a new scale:**
 | Pyrophobia, Teratophobia | −2 | on-scale |
 | Adventurer, Dagger, Death Wish, Knuckle Duster, Pickpocketing (Basic), Nine Lives | 3 | between 2 and 5 |
 | Pickpocketing (Skilled) | 2 | on-scale, and a second rung rather than a first: `requiredTag: pickpocket`, so a master pays 5 in total (`THEFT.md` §2) |
-| Escape Artist, Esoteric, Lockpicking, Pavise | 4 | between 2 and 5 |
+| Escape Artist, Esoteric, Pavise | 4 | between 2 and 5 |
 | Brave | 5 | on-scale (repriced for its ×0.5 on every mood harm, `MOOD.md`) |
 | Ranged (Throwing Weapons) | 4 | vs. a nominal sidegrade price of 10 |
 | Ranged (Sniper) | 7 | on the Melee (Flamboyant) precedent — "at long range" is a real condition of its own |

@@ -615,7 +615,7 @@ instance is a change to the hub, not a slider.
   newest first, with the speaker, the words and the place. It shipped read-only
   and with no desk, on the argument that there is nothing a GM *does* to a
   sentence already said. Reading it turned out to be the thing they do: a line
-  on its own ("is Mountaineering the skill for the Road by the Keep?") says
+  on its own ("is Caving the skill for the Road by the Keep?") says
   nothing about what prompted it. **So a row opens a desk now** — the
   surrounding transcript with that line marked (`OocDesk.js`), which is
   `ArchiveContext`, the same component the inspector's Archive tab opens in a

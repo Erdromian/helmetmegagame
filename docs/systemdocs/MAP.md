@@ -39,20 +39,22 @@ stale — and `docs/assets/maps/nodes.yaml` addresses the same places by the
 same codes, so the plate links straight at them.
 
 Zones not yet renumbered still carry descriptive slugs: the Black Hills
-(`hills`, plus `hills-gullies` and the rest), the Caves and the Depths. Each
-of those keeps a `slug:` override in `nodes.yaml` until its own pass lands.
+(`hills`, plus `gullies` and the rest), the Caves and the Depths. Each of
+those keeps a `slug:` override in `nodes.yaml` until its own pass lands.
 
-One of those slugs now reads oddly and is staying as it is: `hills-north` is
-called the **Refuse Pit**, which is what the plate has always labelled it and
-what `docs/documents.yaml` has always told the Baron, the Tribune and the
-Ordinator the lift comes down in. The name moved to match the drawing; the slug
-is a coordinate and does not move for a rename. The Baron's lift moved with it —
-`fortress-4` ↔ `hills-north`, `hidden: elevator-key`, and the Elevator Room at
-the bottom of the shaft is `north-hills-elevator` rather than the Undercroft's
-old `undertown-1-6`.
-The older rule — bare slugs for built places, zone-prefixed ones for open
-country — was solving collisions between a ravine here and a ravine there,
-and a coordinate cannot collide.
+The Black Hills dropped their zone prefix on 2026-09-20, when the zone was
+re-prosed underground: a Location there is now `bridge`, `west-river`,
+`passageway`, `refuse-pit`, `sparse-fields`, `cliffs`, `gullies`,
+`grand-ravine`, `east-river` or `factory`. The older rule — bare slugs for
+built places, zone-prefixed ones for open country — was solving collisions
+between a ravine here and a ravine there, and with the Forest and the Marshes
+deleted there is no second ravine left to collide with.
+
+The Baron's lift comes down in the **Refuse Pit**, which is what the plate has
+always labelled it and what `docs/documents.yaml` has always told the Baron,
+the Tribune and the Ordinator: `fortress-4` ↔ `refuse-pit`, `hidden:
+elevator-key`, with the Elevator Room at the bottom of the shaft as
+`refuse-pit-elevator` rather than the Undercroft's old `undertown-1-6`.
 
 Zones still come in three kinds:
 
@@ -119,8 +121,8 @@ Inn, the Keep and the Sanctuary.
 A third, `wheels`, is the one authored exception to the `indoors` column: an
 indoors Location wearing it admits a cart and a horse anyway (`CARRY.md` §3).
 The Godard Factory, Customs and the Depot carry it. It changes nothing else —
-those three keep their roof for the mood dial, for Sun Sensitivity and for
-whether anything can be built in them. `indoors` itself only parks a mount at
+those three keep their roof for the mood dial and for whether anything can be
+built in them. `indoors` itself only parks a mount at
 all **underground** (`zone.kind === "CAVE_LEVEL"`) — a surface roof no longer
 takes the reins away, so `wheels` matters in practice on Customs and the
 Depot, the two underground places that carry it.

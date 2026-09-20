@@ -135,7 +135,7 @@ test("advanceDue fires at the boundary and not before, and stays true if a tick 
   assert.equal(advanceDue(six, { now: new Date("2026-09-17T02:00:00Z") }), true);
 });
 
-test("daylight is the real Chicago clock, which is what Sun Sensitivity reads now", () => {
+test("daylight is the real Chicago clock", () => {
   assert.equal(isDaylight(new Date("2026-09-16T17:00:00Z")), true); // 12:00 Chicago
   assert.equal(isDaylight(new Date("2026-09-16T08:00:00Z")), false); // 03:00 Chicago
   assert.equal(isDaylight(new Date("2026-09-16T11:00:00Z")), true); // 06:00 Chicago, the first lit hour

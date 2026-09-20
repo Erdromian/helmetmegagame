@@ -368,7 +368,7 @@ way. `db/lib/ooc.js`.
 happening, so nothing in the fiction applies to it: no sound range, no
 muffling, no distance, and **no voice tag**. A gag, a bound pair of hands and a
 Mute are things done to a *character*, and the person behind one can still ask
-whether Mountaineering is the skill they need. It reaches the Room or
+whether Caving is the skill they need. It reaches the Room or
 Conversation it was typed in and nowhere else — the channel, not where the
 character stands, because an OOC line is addressed to the people reading the
 same place you are reading.

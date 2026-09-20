@@ -36,7 +36,7 @@ export async function requireCharacter({ needs = null } = {}) {
       tags: {
         include: { tag: { include: { group: { select: { slug: true } } } } },
       },
-      // Half of db/lib/reading.js's `where` — Sun Sensitivity needs to know whether there's a roof.
+      // Half of db/lib/reading.js's `where` — it still takes a roof, though nothing reads it now.
       location: { select: { indoors: true } },
       role: { select: { slug: true } },
     },
