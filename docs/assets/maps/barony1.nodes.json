@@ -1,0 +1,206 @@
+{
+  "id": "barony1",
+  "name": "The Barony",
+  "nodes": [
+    {
+      "code": "1",
+      "zone": "black-hills",
+      "slug": "hills-bridge",
+      "name": "Bridge",
+      "x": 20,
+      "y": 19
+    },
+    {
+      "code": "2",
+      "zone": "black-hills",
+      "slug": "hills-west",
+      "name": "West River",
+      "x": 7,
+      "y": 19
+    },
+    {
+      "code": "3",
+      "zone": "black-hills",
+      "slug": "hills-shadowed-grove",
+      "name": "Shadows",
+      "x": 2,
+      "y": 10
+    },
+    {
+      "code": "4",
+      "zone": "black-hills",
+      "slug": "hills-north",
+      "name": "Refuse Pit",
+      "x": 8,
+      "y": 4
+    },
+    {
+      "code": "5",
+      "zone": "black-hills",
+      "slug": "hills-waterway",
+      "name": "East River",
+      "x": 29,
+      "y": 16
+    },
+    {
+      "code": "6",
+      "zone": "black-hills",
+      "slug": "hills-gullies",
+      "name": "Gullies",
+      "x": 29,
+      "y": 11
+    },
+    {
+      "code": "7",
+      "zone": "black-hills",
+      "slug": "hills-underlocks",
+      "name": "Underlocks",
+      "x": 35,
+      "y": 11
+    },
+    {
+      "code": "8",
+      "zone": "black-hills",
+      "slug": "hills-grand-ravine",
+      "name": "Grand Ravine",
+      "x": 24,
+      "y": 7
+    },
+    {
+      "code": "9",
+      "zone": "black-hills",
+      "slug": "hills-cliffs",
+      "name": "Cliffs",
+      "x": 17,
+      "y": 3
+    },
+    {
+      "code": "A",
+      "zone": "black-hills",
+      "slug": "factory",
+      "name": "Godard Factory",
+      "x": 23,
+      "y": 3
+    },
+    {
+      "code": "1",
+      "zone": "fortress",
+      "slug": "fortress-1",
+      "name": "Garrison",
+      "x": 6,
+      "y": 11
+    },
+    {
+      "code": "2",
+      "zone": "fortress",
+      "slug": "fortress-2",
+      "name": "Gatehouse",
+      "x": 9,
+      "y": 13
+    },
+    {
+      "code": "3",
+      "zone": "fortress",
+      "slug": "fortress-3",
+      "name": "Court",
+      "x": 9,
+      "y": 8
+    },
+    {
+      "code": "4",
+      "zone": "fortress",
+      "slug": "fortress-4",
+      "name": "Keep",
+      "x": 13,
+      "y": 7
+    },
+    {
+      "code": "5",
+      "zone": "fortress",
+      "slug": "fortress-5",
+      "name": "Tower",
+      "x": 17,
+      "y": 7
+    },
+    {
+      "code": "1",
+      "zone": "town",
+      "slug": "town-1",
+      "name": "Gatehouse",
+      "x": 20,
+      "y": 17
+    },
+    {
+      "code": "2",
+      "zone": "town",
+      "slug": "town-2",
+      "name": "Square",
+      "x": 20,
+      "y": 13
+    },
+    {
+      "code": "3",
+      "zone": "town",
+      "slug": "town-3",
+      "name": "Soilery",
+      "x": 24,
+      "y": 12
+    },
+    {
+      "code": "4",
+      "zone": "town",
+      "slug": "town-4",
+      "name": "Cathedral",
+      "x": 20,
+      "y": 10
+    },
+    {
+      "code": "5",
+      "zone": "town",
+      "slug": "town-5",
+      "name": "Alleys",
+      "x": 14,
+      "y": 16
+    },
+    {
+      "code": "6",
+      "zone": "town",
+      "slug": "town-6",
+      "name": "Smithies",
+      "x": 14,
+      "y": 13
+    },
+    {
+      "code": "7",
+      "zone": "town",
+      "slug": "town-7",
+      "name": "The Old Cock Inn",
+      "x": 18,
+      "y": 13
+    },
+    {
+      "code": "8",
+      "zone": "town",
+      "slug": "town-8",
+      "name": "Residences",
+      "x": 12,
+      "y": 14
+    },
+    {
+      "code": "9",
+      "zone": "town",
+      "slug": "town-9",
+      "name": "Sanctuary",
+      "x": 11,
+      "y": 16
+    },
+    {
+      "code": "A",
+      "zone": "town",
+      "slug": "town-a",
+      "name": "Graveyard",
+      "x": 6,
+      "y": 14
+    }
+  ]
+}

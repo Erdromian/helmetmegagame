@@ -325,11 +325,25 @@
   --zone-caves: #939d9e;
   --zone-depths: #8f7f9c;
 
-  /* The river on the /map plate, painted through map-river.png's alpha
-     mask. A fill, not a text colour — read against the plate's own ground
-     (#0c1013, 4.02) and land (#c1c4c2, 2.70), not against --surface, since
-     the art does not change with the look. */
-  --map-river: #52788c;
+  /* The /map plate's five channels. The art names a CHANNEL per cell and
+     never a colour (MAP.md §6f), so these are the whole look of the map —
+     change one and the drawing follows, the way everything else follows its
+     tokens. Fills on a canvas, never text: read against --map-void, which is
+     the ground they all sit on, and not against --surface.
+
+     --map-heat is the rust: the buried river at the east end of the Barony,
+     the forge light, the lake under Undertown. It inherited --map-river's
+     job when the alpha-mask trick went away with the raster plate. */
+  --map-void: #0c1013;
+  --map-stone: #424645;
+  --map-filler: #727371;
+  --map-lit: #c0c2c1;
+  --map-heat: #814537;
+  /* The one-pixel drop behind a crosshair. Load-bearing, not decoration: a
+     faint reticle's corner ticks land exactly where a building's own white
+     outline already is, so without this a quiet mark over busy art reads as
+     nothing at all. */
+  --map-halo: #0a0d10;
 
   /* Chart categorical series (web/app/components/charts/). The eight hues
      were validated as a set with the dataviz skill, and the order is the
@@ -6430,10 +6444,10 @@ label.chip {
    the /map route and the overlay on /chat, which is why nothing here assumes
    a page or a dialog — .map-board fills whatever box it is handed.
 
-   The plate is a raster and does not change with the theme; only the water
-   does, through --map-river and an alpha mask. Everything drawn ON it is
-   tokens all the way down, so the nodes follow the theme even though the art
-   underneath them never will. */
+   The plate is DRAWN now, not a raster: every cell of it names a channel and
+   takes its colour from a --map-* token at render time, so the art follows
+   the look like everything else. The crosshairs over it are SVG on top of
+   that picture, which is why they can still be coloured from here. */
 
 .map-board {
   display: flex;
@@ -6495,39 +6509,23 @@ label.chip {
   cursor: grabbing;
 }
 
-/* Pixel art. Smoothing a 2144px plate scaled past 1:1 turns crisp coastline
-   into mush, which is the whole character of the drawing. */
+/* Pixel art, and the plate is 656x384 — so it is almost always drawn well
+   past 1:1, and smoothing it would turn a 1-bit charset into mush. The whole
+   character of the drawing is that you can count the pixels. */
 .map-plate {
   image-rendering: pixelated;
 }
 
-.map-river {
-  fill: var(--map-river);
-}
-
-/* Underground, the plate is the WRONG picture: the art draws no tunnels, so
-   the caves and the depths are a schematic layer laid over the same
-   coordinates (docs/assets/map-nodes.json). Dropping the drawing back to a
-   ghost keeps the coastline there for orientation — the cave mouth really is
-   under that hillside — without pretending the trees are down there too. */
-.map-stage[data-layer="under"] {
-  background: var(--bg);
-}
-
-.map-svg[data-layer="under"] .map-plate {
-  opacity: 0.13;
-}
-
-.map-svg[data-layer="under"] .map-river {
-  opacity: 0.2;
-}
-
 /* ------------------------------------------------------------ /map · ways */
 
+/* A way, cell centre to cell centre. Thin and quiet — the drawing is the
+   map, and a line over it is a pencil note on a print, not a subway diagram.
+   The widths are in plate pixels and a cell is 16 of them. */
 .map-edge {
   stroke: var(--border);
-  stroke-width: 5;
+  stroke-width: 1;
   stroke-linecap: round;
+  opacity: 0.3;
   fill: none;
 }
 
@@ -6537,7 +6535,7 @@ label.chip {
    drops it server-side (MAP.md §2a). */
 .map-edge[data-gate] {
   stroke: var(--warning);
-  stroke-dasharray: 14 18;
+  stroke-dasharray: 2 3;
 }
 
 .map-edge[data-gate="closed"] {
@@ -6558,86 +6556,97 @@ label.chip {
 }
 
 /* An element whose only job is to be the hit area, the way .check-hit is one
-   for a checkbox row. A node is about two pixels across on a phone at the zoom
-   floor, and no amount of care makes that tappable.
+   for a checkbox row.
+
+   It is live on EVERY pointer now, which it was not when a node was a filled
+   rhombus: a crosshair is four corner ticks with a hole in the middle, so
+   aiming at the mark itself means aiming at about twenty lit pixels with a
+   gap where the target looks like it is. The square is one cell — exactly the
+   cell the mark sits on — which is also as wide as it may be before it
+   reaches the next place along, since the two closest are one cell apart.
 
    fill: transparent, not fill: none — a rect with no fill is not hit-testable,
    and being hit is the entire point of this one.
 
-   Inert on a mouse. A pointer that lands within a pixel does not want a square
-   swallowing its neighbours' hover, and the desktop board should come out of
-   this change byte for byte. --map-hit is written by applyView on every frame
-   and only ever shrinks the square: HIT is already as wide as a node may be
-   before it reaches the next one along. */
+   --map-hit is written by applyView on every frame and only ever shrinks the
+   square, once you are zoomed in far enough that a cell is worth more than a
+   finger. */
 .map-node-hit {
   fill: transparent;
-  pointer-events: none;
+  pointer-events: fill;
 }
 
 @media (pointer: coarse) {
   .map-node-hit {
-    pointer-events: fill;
     transform-box: fill-box;
     transform-origin: center;
     transform: scale(var(--map-hit, 1));
   }
 }
 
-/* The rim is a thin ring standing off the core, not a band the core sits in.
-   Filled, it read as one fat blob at any zoom and swallowed the zone colour;
-   hollow, the plate shows through the gap and the core keeps its colour.
-   --on-accent rather than a literal white: it is the "light mark on a coloured
-   ground" token, near-white in all three themes and hardcoded nowhere. */
-.map-node-rim {
-  fill: none;
-  stroke: var(--on-accent);
-  stroke-width: 1.5;
+/* The crosshair. Both marks are charset glyphs packed into the plate by the
+   build, drawn here as one SVG path per lit pixel — so a mark is made of the
+   same 1-bit pixels as the art under it, sits exactly on the art's own cell,
+   and can still take its colour from a token.
+
+   --on-accent rather than a literal white: the "light mark on a coloured
+   ground" token, near-white and hardcoded nowhere. */
+.map-cross {
+  fill: var(--on-accent);
+  fill-opacity: 0.55;
+  pointer-events: none;
 }
 
-.map-node-core {
-  fill: var(--border);
+.map-cross-halo {
+  fill: var(--map-halo);
+  fill-opacity: 0.55;
+  pointer-events: none;
 }
 
-.map-node[data-zone="fortress"] .map-node-core { fill: var(--zone-fortress); }
-.map-node[data-zone="town"] .map-node-core { fill: var(--zone-town); }
-.map-node[data-zone="undertown"] .map-node-core { fill: var(--zone-undertown); }
-.map-node[data-zone="hills"] .map-node-core { fill: var(--zone-hills); }
-.map-node[data-zone="caves"] .map-node-core { fill: var(--zone-caves); }
-.map-node[data-zone="depths"] .map-node-core { fill: var(--zone-depths); }
+.map-node[data-zone="fortress"] .map-cross { fill: var(--zone-fortress); }
+.map-node[data-zone="town"] .map-cross { fill: var(--zone-town); }
+.map-node[data-zone="undertown"] .map-cross { fill: var(--zone-undertown); }
+.map-node[data-zone="hills"] .map-cross { fill: var(--zone-hills); }
+.map-node[data-zone="caves"] .map-cross { fill: var(--zone-caves); }
+.map-node[data-zone="depths"] .map-cross { fill: var(--zone-depths); }
 
-/* Somewhere you have only ever seen from next door. The core fades and the
-   ring stays, so it reads as an outline — a place on the map you have not
-   filled in yet. Since every node is now one size, this fill is the only thing
-   that says so. */
-.map-node[data-state="seen"] .map-node-core {
+/* Somewhere you have only ever seen from next door: quieter again, so a board
+   of fifty says at a glance which of them you have actually walked into. */
+.map-node[data-state="seen"] .map-cross,
+.map-node[data-state="seen"] .map-cross-halo {
   fill-opacity: 0.3;
 }
 
 .map-node[data-state="seen"] .map-node-label {
   fill: var(--muted);
-  font-size: 21px;
+  font-size: 6px;
 }
 
-/* Where you are standing. Already the largest node; the ring is what makes it
-   findable at a glance on a board of fifty. */
-.map-node[data-state="here"] .map-node-rim {
-  stroke: var(--accent);
-  stroke-width: 2.5;
+/* The two loud marks, and they are never the same colour. Where you stand
+   reads near-white whatever zone it is in; a place you have PICKED keeps its
+   zone's colour, so the one you are looking at and the one you are in cannot
+   be mistaken for each other. Both wear the locked reticle, drawn by the
+   board rather than by a rule here. */
+.map-node[data-state="here"] .map-cross {
+  fill: var(--on-accent);
 }
 
-.map-node[data-reach]:hover .map-node-rim,
-.map-node[data-picked] .map-node-rim {
-  stroke: var(--accent-text);
-  stroke-width: 2.5;
+.map-node[data-state="here"] .map-cross,
+.map-node[data-state="here"] .map-cross-halo,
+.map-node[data-picked] .map-cross,
+.map-node[data-picked] .map-cross-halo,
+.map-node[data-reach]:hover .map-cross,
+.map-node[data-reach]:hover .map-cross-halo {
+  fill-opacity: 1;
 }
 
 .map-node-label {
   fill: var(--text);
-  font-size: 24px;
+  font-size: 6px;
   font-weight: 600;
   paint-order: stroke;
-  stroke: var(--bg);
-  stroke-width: 7;
+  stroke: var(--map-halo);
+  stroke-width: 1.5;
   stroke-linejoin: round;
   pointer-events: none;
 }

@@ -66,6 +66,12 @@ palette change is one file, not a grep-and-replace. There are currently zero
 hardcoded colours app-wide; keep it
 that way.
 
+**A canvas is not an exception.** The `/map` plate is drawn pixel by pixel in
+JavaScript, and it still names no colour: the art says which *channel* a cell
+belongs to, `MapBoard` reads the five `--map-*` tokens off the live theme with
+`getComputedStyle`, and the renderer is handed them. Anything else that has to
+paint outside CSS does the same — read the token, do not repeat its value.
+
 Three things about the token set are load-bearing and easy to undo by accident:
 
 - **`--text-hi` is a heading's own lift off `--text`**, added 2026-09-18 with
@@ -234,7 +240,7 @@ palette, unmodified. `globals.css` now declares its colour tokens once, on
 `web/app/components/LampTick.js` and the `BASCINET_THEME` env var are gone.
 
 A handful of tokens the mockup never names — `--speech`, the six `--role-*`,
-`--zone-*`, `--map-river`, `--chart-*`, `--row-hover`, `--shadow-color` — kept
+`--zone-*`, `--map-*`, `--chart-*`, `--row-hover`, `--shadow-color` — kept
 the value the retired dusk look carried, since dusk was the look actually being
 matched before this. (`--feed-veil` was one of these and is now gone; see
 §3a.) Everything the mockup does name

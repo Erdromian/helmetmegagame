@@ -1653,16 +1653,13 @@ desires:
     requires:
       anyTags: [death-wish]
 
-  # Seven one-shot dares, all gated on Death Wish. Every one is oncePerLife by
+  # Six one-shot dares, all gated on Death Wish. Every one is oncePerLife by
   # hand — only tier 7 gets that automatically — because none of them is a
   # thing you can meaningfully do twice.
-  climb-the-mountain:
-    name: Figure out how to get on top of the Mountain.
-    tier: 3
-    oncePerLife: true
-    families: [adventure, bravery]
-    requires:
-      anyTags: [death-wish]
+  #
+  # There was a seventh, climb-the-mountain, and it went with the Mountain
+  # itself: the Black Hills have no pass any more, so it was a dare at a place
+  # nobody could reach.
 
   harvest-godflesh-barehanded:
     name: Harvest Godflesh with your bare hands.

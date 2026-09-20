@@ -1,0 +1,142 @@
+{
+  "id": "barony2",
+  "name": "Undertown",
+  "nodes": [
+    {
+      "code": "1",
+      "zone": "undertown",
+      "slug": "undertown-1",
+      "name": "Undercroft",
+      "x": 9,
+      "y": 9
+    },
+    {
+      "code": "2",
+      "zone": "undertown",
+      "slug": "undertown-2",
+      "name": "Residences",
+      "x": 7,
+      "y": 12
+    },
+    {
+      "code": "3",
+      "zone": "undertown",
+      "slug": "undertown-3",
+      "name": "Lifeweb",
+      "x": 7,
+      "y": 16
+    },
+    {
+      "code": "4",
+      "zone": "undertown",
+      "slug": "undertown-4",
+      "name": "Sewer",
+      "x": 11,
+      "y": 16
+    },
+    {
+      "code": "5",
+      "zone": "undertown",
+      "slug": "undertown-5",
+      "name": "Depot",
+      "x": 13,
+      "y": 12
+    },
+    {
+      "code": "6",
+      "zone": "undertown",
+      "slug": "undertown-6",
+      "name": "Merchant",
+      "x": 15,
+      "y": 12
+    },
+    {
+      "code": "7",
+      "zone": "undertown",
+      "slug": "undertown-7",
+      "name": "Poorhouse",
+      "x": 14,
+      "y": 16
+    },
+    {
+      "code": "8",
+      "zone": "undertown",
+      "slug": "undertown-8",
+      "name": "Den",
+      "x": 20,
+      "y": 16
+    },
+    {
+      "code": "9",
+      "zone": "undertown",
+      "slug": "undertown-9",
+      "name": "Den Interior",
+      "x": 19,
+      "y": 16
+    },
+    {
+      "code": "A",
+      "zone": "undertown",
+      "slug": "undertown-a",
+      "name": "Slums",
+      "x": 19,
+      "y": 13
+    },
+    {
+      "code": "B",
+      "zone": "undertown",
+      "slug": "undertown-b",
+      "name": "Order Chambers",
+      "x": 20,
+      "y": 9
+    },
+    {
+      "code": "C",
+      "zone": "undertown",
+      "slug": "undertown-c",
+      "name": "Lake",
+      "x": 24,
+      "y": 14
+    },
+    {
+      "code": "D",
+      "zone": "undertown",
+      "slug": "undertown-d",
+      "name": "Alleys",
+      "x": 18,
+      "y": 9
+    },
+    {
+      "code": "E",
+      "zone": "undertown",
+      "slug": "undertown-e",
+      "name": "Basements",
+      "x": 21,
+      "y": 12
+    },
+    {
+      "code": "F",
+      "zone": "undertown",
+      "slug": "undertown-f",
+      "name": "Hole in the Wall",
+      "x": 15,
+      "y": 17
+    },
+    {
+      "code": "G",
+      "zone": "undertown",
+      "slug": "undertown-g",
+      "name": "Nook",
+      "x": 23,
+      "y": 17
+    },
+    {
+      "code": "H",
+      "zone": "undertown",
+      "slug": "undertown-h",
+      "name": "Island",
+      "x": 26,
+      "y": 14
+    }
+  ]
+}

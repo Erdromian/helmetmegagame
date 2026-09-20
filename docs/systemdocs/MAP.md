@@ -851,9 +851,9 @@ Fortress zone, because that is where the tower is (`REQUESTS.md` §5a).
 
 ## 6. The web `/map` panel
 
-`/map` is the travel graph drawn over the Ravenheart plate: one rhombus per
-Location, one line per edge the character may see, with the plate itself
-underneath. It replaced the retired four-rhombus zone panel, which went out
+`/map` is the travel graph drawn over the Ravenheart plate: one **crosshair**
+per Location, sitting on the very cell of the art that place was drawn as, one
+line per edge the character may see, with the plate itself underneath. It replaced the retired four-rhombus zone panel, which went out
 with per-zone-only travel and left this note in its place for a while.
 
 Two hosts, **one component** (`web/app/(app)/map/MapBoard.js`): the `/map`
@@ -867,7 +867,8 @@ board inside the phone's "Here" sheet would be a dialog inside a dialog, and
 for anyone who does neither. The whole view is `{x, y, k}` in a ref, written
 straight onto one `<g>`; nothing about the board is React state, because a
 pointermove that re-rendered fifty nodes and eighty lines drops frames on a
-phone.
+phone. The plate underneath is one `<image>` holding a picture
+`plateRender.js` made once — see §6f.
 
 ### 6a. The fog
 
@@ -918,9 +919,9 @@ commits — after, because `travelOptions` reads the tags it just granted.
 
 **Leaving a slug out of that table is not a guarantee it stays dark**, and it is
 worth being clear about why. `recordArrival` paints every *listed* neighbour of
-a seeded Location, and a locked way is listed — so `hills-mountain` reaches all
-thirteen Fortress seats through the locked Black Hills climb whether the
-table names it or not, which is correct: you can see a mountain from the road.
+a seeded Location, and a locked way is listed — so a seat seeded in the Caves
+reaches `customs` through the gate it may not open whether the table names it
+or not, which is correct: you can see a door you have no key to.
 What leaving a slug out really protects is a **hidden** way, since
 `travelOptions` drops those before the sighting write ever runs. The table is
 therefore written to the standard of "would this seat's life have taught them
@@ -940,10 +941,18 @@ dashed and says why, a hidden crawl draws nothing at all and reads exactly like
 two places with no way between them. The three `hidden: caving` crawls are the
 only unknown ways into the Depths, and this is what keeps them that way.
 
-**The Underground switch is hidden until the character knows somewhere
-underground.** Offering it earlier would announce that a second layer exists.
-`customs` draws on both layers — it is the threshold, and hiding it from the
-surface would make the way down start nowhere.
+**The plate switch offers only the plates holding somewhere known.** Offering
+Undertown earlier would announce that it exists.
+
+**Only the ART is public.** `npm run map:build` writes two files per plate, and
+the split is this rule rather than tidiness:
+`web/public/assets/maps/<id>.json` is fetched by the browser and holds cells,
+glyphs and a bare list of marker COORDINATES; `docs/assets/maps/<id>.nodes.json`
+holds the names and slugs and is read server-side only, through
+`web/lib/mapPlates.js`. One file would have published the whole gazetteer —
+every place on the plate, named, to anyone with curl — fogged or not. The
+coordinates go with the art because the rendered picture puts the light on them
+in plain sight anyway.
 
 ### 6c. Travel
 
@@ -1044,35 +1053,18 @@ farther in your own zone, reached through places you already know (§3c).
 `canGestureTo` is the narrower second predicate above, and the only one the
 double-click and Enter read.
 
-### 6d. The plate
+### 6d. The raster plate, and what replaced it
 
-**This section describes the plate `/map` draws today, and it is on its way
-out — see §6f for the two Playscii plates replacing it.** Nothing in §6f is
-wired into `MapBoard.js` yet, so everything below is still true of the running
-board.
+**Gone.** `/map` drew a 2144x1792 PNG until 2026-09-20, placed Locations from a
+hand-kept table of image pixels (`docs/assets/map-nodes.json`), and cut the one
+blue the artist had drawn — the water — into an alpha mask so a token could
+repaint it. All of it went with the drawn plates below: the art follows the
+theme by naming channels now, so there is nothing left to mask, and the places
+come out of the art rather than out of a parallel table.
 
-`docs/assets/map-nodes.json` places every Location on the art in image pixels,
-read at runtime through `web/lib/mapNodes.js` (the `web/lib/handbook.js`
-pattern, `docsPath()` rather than `__dirname`). A Location the table does not
-place is simply not drawn, rather than stacked on the origin. Surface nodes sit
-on the drawing; Caves and Depths are a schematic layer, since the plate draws no
-tunnels.
-
-`docs/assets/map-prototype.psci` is the ASCII-editable source for the plate,
-opened in [Playscii](http://vectorpoem.com/playscii/). The PNG beside it is an
-export, so a change to the map is made in the `.psci` and exported over the
-`.png` — editing the raster directly leaves the two out of step and the next
-export throws the edit away. Nothing at runtime reads the `.psci`.
-
-The art is a raster and never follows the theme — but it was drawn with exactly
-one accent in it, `#57a9bc`, the water, and that blue answered to nothing. So
-the river is cut to an alpha mask (`docs/assets/make-map-river.py` →
-`web/public/assets/map-river.png`) and painted through it with `--map-river`,
-which each theme sets for itself. Everything else drawn on the plate — the
-rims, the cores, the ways — is tokens all the way down.
-
-`Zone.mapPolygon` / `mapLabelX` / `mapLabelY` are still there and still always
-null: they described the retired panel's four rhombi, and nothing reads them.
+One sentence survives the section. `Zone.mapPolygon` / `mapLabelX` /
+`mapLabelY` are still there and still always null: they described the retired
+four-rhombus panel, and nothing reads them.
 
 ### 6f. The two Playscii plates
 
@@ -1094,7 +1086,9 @@ was a raster with a parallel table of pixel coordinates, which is what forced
 `make-map-river.py` into existence: the art carried one hardcoded accent
 (`#57a9bc`) and the only way to theme it was to cut it out to an alpha mask.
 `npm run map:build` (`scripts/map/build-maps.js`) compiles both `.psci` files
-into `web/public/assets/maps/<id>.json`, and two things fall out of that:
+into `web/public/assets/maps/<id>.json` plus
+`docs/assets/maps/<id>.nodes.json` (§6b says why that is two files), and two
+things fall out of that:
 
 - **Every cell names a CHANNEL, not a colour.** `void`, `stone`, `lit`,
   `heat`, `filler` — mapped from the Playscii palette index by
@@ -1152,6 +1146,40 @@ clears transparent-slot glyphs and buried cells from the masters, keeps the
 `heat` ones, matches every cell's exact contents before touching it, and is a
 dry run unless given `-- --apply`.
 
+**`web/app/(app)/map/plateRender.js` is the one renderer, and it is not a
+loop.** The picture depends on the plate and the palette and on nothing else —
+not on fog, not on what is picked, not on where the view is — so it is drawn
+once into an offscreen canvas and handed to the board as a data URL. Panning
+it costs a transform on an `<image>`. There is no canvas in the document, no
+requestAnimationFrame and no per-frame work anywhere on the board, which is
+the rule DESIGN-SYSTEM.md sets for every surface.
+
+What it does, in order, with the knobs frozen as constants rather than shipped
+as controls:
+
+- **A distance field**, cell to nearest place, computed once per plate. It is
+  measured from the ART's own markers (`lights`, the bare coordinate list in
+  the JSON) and not from the places this character knows. Light that followed
+  the fog would recompute on every arrival — and would BE a leak, since a
+  bright patch is a place and you would see one glowing somewhere you had
+  never heard of.
+- **The vignette**, `{inner: 3, outer: 11, floor: 0.06}` cells, on the `stone`
+  channel only. It is spent as **coverage** through a 4x4 Bayer dither, never
+  as alpha: fewer dots further out is what a thinning wall looks like, and the
+  same dots at lower opacity is a grey wash. The floor is what keeps a far
+  corner a wall rather than a hole.
+- **The light**, `{reach: 7, ambient: 0.45}`, off those same places. There was
+  a second term lighting everything near the rust, and it is **gone rather
+  than switched off** — Bascinet asked for the burn out, and a flag nobody
+  sets is a flag somebody sets back. The `heat` channel still PAINTS: the
+  river buried at the east end of `barony1` is meant to read through the
+  thinning stone, which is the whole point of not culling it.
+
+The colours are handed in, never named: `MapBoard` reads `--map-void`,
+`--map-stone`, `--map-filler`, `--map-lit` and `--map-heat` off the live theme
+and passes them down. That is how a canvas keeps "zero hardcoded colours"
+true.
+
 ### 6g. The plate and the master are the same places now
 
 Until 2026-09-19 the plate and `docs/zones.yaml` were two descriptions of the
@@ -1199,6 +1227,16 @@ and packed into the JSON's `ui` block because the art never draws them:
   place you have picked and the place you are standing in, and carries the
   name under it.
 
+The board draws them as **SVG paths, one subpath per lit pixel**, rather than
+onto the canvas under them. That is what keeps `data-zone`, `data-state` and
+`data-picked` colouring a mark from a token the way everything else on the
+page is coloured, and what leaves every handler on the node untouched — a mark
+is still an element you click. It is also what makes the hit area worth
+naming: a crosshair is four corner ticks with a HOLE where the target appears
+to be, so `.map-node-hit` is live on a mouse now, one cell wide, which is also
+as wide as it may be before it reaches the next place along (the two closest,
+the Den and its interior, are one cell apart).
+
 Where you stand reads white and what you picked keeps its zone's colour, so
 the two loud marks never read as the same thing. Two details are load-bearing
 rather than decorative, both found by looking at it: a faint mark needs a
@@ -1208,8 +1246,36 @@ near half opacity rather than a third, for the same reason. Numbers were what
 this replaced — fifty digits floating over the art read as a spreadsheet, not
 a map.
 
+**Names are off by default**, and the two loud marks are named anyway. Fifty
+captions over a 1-bit drawing compete with the art they are captioning, and
+the art is the map now. The **Names** chip turns the rest on.
+
 `Zone.mapPolygon` / `mapLabelX` / `mapLabelY` stay as dead as §6d leaves them;
 none of this reads them.
+
+### 6h. Two plates, not two layers
+
+The board used to have a **Surface / Underground** switch, keyed on whether a
+zone was a `CAVE_LEVEL`. It is a **plate** switch now, keyed on which plate
+draws the place, and the old axis was wrong anyway: `docs/zones.yaml` declares
+Undertown `kind: surface`, so a cave-level test would have put nothing at all
+on the second plate.
+
+**The view does not carry across a switch.** Surface and Underground were one
+drawing shown twice, so `{x, y, k}` meant the same thing on both and keeping
+it read as two faces of one place. The Barony and Undertown are two separate
+41x24 worlds that share no coordinate, so carrying it would land you at the
+same numbers in a different country. A switch re-frames.
+
+**What the plate cannot place.** A Location with no cell on either plate is
+drawn nowhere and listed everywhere: it arrives in the payload, appears in
+**Ways out** and **Further in**, and gets a card and a **Go** like anything
+else — it just has no crosshair. That is every `caves-*` and `depths-*` place
+today, waiting on art in the rock. It is deliberately not a dropped row: they
+are real places a character walks to, and a dropped row is a place with no way
+out of the room. `hills-mountain` was the third case and is simply gone — the
+Black Hills have no pass any more, and the `climb-the-mountain` desire went
+with it.
 
 ### 6e. The board on a phone
 
@@ -1304,5 +1370,7 @@ carrying the layer switch alone.
 | `db/lib/locationVisits.js` | The fog: what one character knows of the map. The ONLY module that reads or writes `LocationVisit` |
 | `db/lib/startingMemories.js` | The map a character is made knowing — role slug to Location slugs — §6a |
 | `web/app/(app)/map/` | `loadMap()`, the board, and the route — §6 |
+| `web/app/(app)/map/plateRender.js` | The plate, drawn: channels, the stipple, the light, and the crosshair paths — §6f. Client-side, React-free, and the ONLY thing that turns a plate into pixels |
+| `web/lib/mapPlates.js` | Server-only: which plate places a slug, and where on it. The place table never reaches the browser — §6b |
 | `web/lib/travelCost.js` | `travelFoot` — what a hop costs, in the words both travel surfaces print. `walkFoot` / `walkLine` are the same job for a walk |
 | `docs/zones.yaml` | The master: zones, Locations (with their seeded `structures:`), Rooms, and `connections:` with its edge types |

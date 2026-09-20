@@ -9,14 +9,15 @@
 // into the charset, a foreground palette index, a background one, and one of
 // eight transforms. This turns that into:
 //
-//   web/public/assets/maps/<id>.json
+//   web/public/assets/maps/<id>.json         the art, fetched by the browser
+//   docs/assets/maps/<id>.nodes.json         the places, read server-side only
 //
 // with two things the old raster plate could not give us:
 //
 //   1. Every cell names a semantic CHANNEL ("stone", "lit", "heat", …)
 //      instead of a colour, so the map follows the theme like everything
-//      else. The whole docs/assets/make-map-river.py alpha-mask trick exists
-//      because the old plate could not do this.
+//      else. That is why the old plate's one blue river had to be cut out
+//      as an alpha mask and repainted, and why nothing needs to be now.
 //   2. Node positions come out of the art. Layer 5 of each map is a hidden
 //      layer of markers whose glyph is the location's system code and whose
 //      colour is its zone (docs/assets/maps/nodes.yaml). No parallel table of
@@ -85,10 +86,9 @@ function codeOfGlyph(g) {
 
 // ---------------------------------------------------------------- PNG
 
-// A minimal 8-bit PNG reader, stdlib only. docs/assets/make-map-river.py
-// hand-rolled the same thing in the other direction for the same reason:
-// there is no image library in this repo and adding one for two files of
-// pixel-poking is not worth it.
+// A minimal 8-bit PNG reader, stdlib only. The charset is a PNG and this is
+// the only thing that has to read one: there is no image library in this repo
+// and adding one for a page of pixel-poking is not worth it.
 function readPng(file) {
   const d = fs.readFileSync(file);
   if (d.readUInt32BE(0) !== 0x89504e47) throw new Error(`not a PNG: ${file}`);
@@ -349,8 +349,23 @@ function main() {
   let failed = false;
   for (const [id, spec] of Object.entries(table.maps)) {
     const { doc, problems, unknownFg, buried } = compileMap(id, spec, table, cs);
+    // Two files, and the split is a FOG rule rather than tidiness. The art is
+    // fetched by the browser, so it lives under web/public — but `nodes` names
+    // and slugs every place on the plate, and MAP.md 6b is explicit that a
+    // Location a character does not know must never reach the browser. The
+    // place table therefore stays beside the master, read server-side by
+    // web/lib/mapPlates.js. Shipping one file would have handed the whole
+    // gazetteer to anyone with curl.
+    // The art keeps a bare COORDINATE list, no names and no slugs. The
+    // vignette and the light are measured from the places, so the renderer
+    // needs the positions — and cannot leak anything by having them, since
+    // the rendered picture puts the light there in plain sight either way.
+    const { nodes, ...rest } = doc;
+    const art = { ...rest, lights: nodes.map((n) => [n.x, n.y]) };
     const outPath = path.join(OUT, `${id}.json`);
-    fs.writeFileSync(outPath, JSON.stringify(doc));
+    fs.writeFileSync(outPath, JSON.stringify(art));
+    const nodesPath = path.join(SRC, `${id}.nodes.json`);
+    fs.writeFileSync(nodesPath, JSON.stringify({ id, name: doc.name, nodes }, null, 2) + "\n");
 
     const byZone = {};
     for (const n of doc.nodes) byZone[n.zone] = (byZone[n.zone] ?? 0) + 1;
@@ -358,7 +373,8 @@ function main() {
     console.log(
       `${id.padEnd(8)} ${doc.w}x${doc.h}  ${cells} cells  ${doc.glyphs.count} glyphs  ` +
         `${doc.nodes.length} nodes (${Object.entries(byZone).map(([z, n]) => `${z} ${n}`).join(", ")})  ` +
-        `-> ${path.relative(ROOT, outPath)} ${(fs.statSync(outPath).size / 1024).toFixed(1)}KB`,
+        `-> ${path.relative(ROOT, outPath)} ${(fs.statSync(outPath).size / 1024).toFixed(1)}KB ` +
+        `+ ${path.relative(ROOT, nodesPath)}`,
     );
     if (report) {
       const chans = {};

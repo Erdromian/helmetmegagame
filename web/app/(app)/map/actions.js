@@ -21,7 +21,7 @@ import {
   exertEdgeFor,
   exertEdgeSentence,
 } from "@lifeweb/db/lib/locationTravel";
-import { nodeAt, plateSize, PLATE_SRC } from "@/lib/mapNodes";
+import { plateOf, plates } from "@/lib/mapPlates";
 import { zoneKey } from "@/lib/zones";
 
 // The map's one loader (/map and the /chat overlay both call it). THE FOG IS
@@ -30,14 +30,11 @@ import { zoneKey } from "@/lib/zones";
 // to the player (MAP.md §2a). Travel itself is NOT here — moving stays with
 // travelTo on /chat, so there is one mover and one set of rules.
 
-// A zone is underground if it is a cave LEVEL; the CAVE_GROUP parent
-// ("Underground") is a category and never carries a Location.
-function layerOfZone(zone) {
-  return zone?.kind === "CAVE_LEVEL" ? "under" : "surface";
-}
-
-// Customs draws on both layers — the threshold, so the way underground doesn't start nowhere.
-const BOTH_LAYERS = new Set(["customs"]);
+// There is no surface/under axis any more, and the old one was wrong anyway:
+// Undertown is declared `kind: surface`, so a cave-level test put NOTHING on
+// the second plate. A place belongs to whichever plate draws it, and a place
+// no plate draws yet — the Caves, the Depths — belongs to neither and is
+// listed rather than drawn (MAP.md §6h).
 
 export async function loadMap() {
   const session = await auth();
@@ -64,7 +61,6 @@ export async function loadMap() {
 }
 
 async function buildMap({ character, unfogged }) {
-  const { width, height } = plateSize();
 
   const [locations, links, config, openTurn] = await Promise.all([
     prisma.location.findMany({
@@ -121,9 +117,11 @@ async function buildMap({ character, unfogged }) {
   const nodes = [];
   for (const location of locations) {
     if (!visible(location.id)) continue;
-    // Not drawn if never measured onto the plate.
-    const at = nodeAt(location.slug);
-    if (!at) continue;
+    // Which plate draws this place, and where on it — null for the ones no
+    // plate has yet. That is NOT a reason to drop the row: the Caves and the
+    // Depths are real places a character can walk to, and a dropped row is a
+    // place with no card and no way out of the room.
+    const at = plateOf(location.slug);
 
     const here = Boolean(character?.locationId && location.id === character.locationId);
     const near = adjacent.get(location.id) ?? null;
@@ -144,10 +142,9 @@ async function buildMap({ character, unfogged }) {
       name: location.name,
       zoneName: location.zone?.name ?? null,
       zoneKey: zoneKey(location.zone?.name) ?? "none",
-      x: at.x,
-      y: at.y,
-      layer: layerOfZone(location.zone),
-      both: BOTH_LAYERS.has(location.slug),
+      plate: at?.plate ?? null,
+      x: at?.x ?? null,
+      y: at?.y ?? null,
       state: here ? "here" : stood ? "stood" : "seen",
       // `near.passable`, NOT `near`: a locked/shut way is visible but blocked,
       // and its description stays hidden until it's actually open.
@@ -200,18 +197,19 @@ async function buildMap({ character, unfogged }) {
     });
   }
 
-  const layers = ["surface"];
-  if (nodes.some((n) => n.layer === "under")) layers.push("under");
+  // Only the plates holding something this character knows. Offering the
+  // second one before that would say Undertown exists, which is the kind of
+  // thing the fog is for.
+  const shownPlates = plates().filter((p) => nodes.some((n) => n.plate === p.id));
 
   return {
     ok: true,
-    plate: { src: PLATE_SRC, width, height },
+    plates: shownPlates,
     you: {
       locationId: character?.locationId ?? null,
-      layer: layerOfZone(locations.find((l) => l.id === character?.locationId)?.zone),
+      plate: plateOf(locations.find((l) => l.id === character?.locationId)?.slug ?? "")?.plate ?? null,
       gm: unfogged,
     },
-    layers,
     nodes,
     edges,
     travel: character

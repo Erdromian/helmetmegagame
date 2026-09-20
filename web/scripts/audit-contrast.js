@@ -33,7 +33,7 @@ const AA = 4.5; // WCAG AA, normal-size text
 const LADDER_MIN = 1.05; // per-step surface separation
 const BORDER_MIN = 1.4; // hairline vs the surface it sits on
 const ZONE_MARK_MIN = 3.0; // large-graphic floor, not AA — none of the map-picked hues would clear 4.5
-const ZONE_KEYS = ["fortress", "town", "forest", "hills", "marshes", "caves", "depths"];
+const ZONE_KEYS = ["fortress", "town", "undertown", "hills", "caves", "depths"];
 // The tag code (--tag-*), one per Tag.category. Fills only, same 3.0 floor as
 // the zone code: these are deliberately desaturated, and muting spends chroma
 // rather than luminance precisely so this gate keeps holding.

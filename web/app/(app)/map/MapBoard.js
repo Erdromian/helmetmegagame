@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
@@ -11,6 +11,7 @@ import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT } from "@/lib/travelCost";
 import { loadMap } from "./actions";
+import { renderPlate, glyphPath } from "./plateRender";
 import useMapNarrow from "./useMapNarrow";
 import { travelTo } from "../chat/actions";
 
@@ -27,44 +28,41 @@ import { travelTo } from "../chat/actions";
 // confirm strip the Travel panel uses, reading the same numbers through
 // travelFoot(), and Go calls the same travelTo action. There is one mover.
 
-// Rhombus half-widths, in plate pixels. The plate is 2144 wide, so these are
-// small on screen until you zoom — which is the point: the shape reads as a
-// marker on a map rather than a button on a page.
+// A place is a CROSSHAIR, not a rhombus, and it is made of the same 1-bit
+// pixels as everything under it: the two marks come out of the charset's own
+// reticle row, packed into the plate by `npm run map:build` (MAP.md §6g).
+// `faint` — four hollow corner ticks — sits on every place you can see;
+// `locked` goes only on the one you have picked and the one you stand in.
 //
-// ONE SIZE for every node. They used to grow with what you knew — here bigger
-// than stood, stood bigger than seen — which made a board of fifty read as
-// though the big ones mattered more, when all the size meant was that you had
-// been there. State is carried by the fill instead: a place you have only seen
-// is the same rhombus, drawn hollow. What kept the old scale honest was Town,
-// which packs seven Locations into a couple of hundred plate pixels; the
-// smaller size here is what stops those colliding now.
+// They are drawn as SVG paths rather than onto the canvas, which is what lets
+// data-zone, data-state and data-picked go on colouring them from CSS tokens
+// the way everything else on the page is coloured.
 //
-// The ring sits well outside the core rather than hugging it, so the two read
-// as a marker with a halo instead of one fat blob.
-const RIM = 12.15;
-const CORE = 8.1;
-// The invisible square a finger actually aims at, half-width in plate pixels.
-// 27, because the two closest Locations on the plate sit 54.6 apart (Keep and
-// Lifeweb) and a hit area wider than half that gap turns a tap in the Fortress
-// into a lottery about which of two places you meant. Touch only — see
-// .map-node-hit, which leaves a mouse the rhombus it has always had.
-const HIT = 27;
+// ONE SIZE for every mark, which is one CELL — the mark sits exactly on the
+// art's own cell, so it can never drift off the sprite it is pointing at. They
+// used to grow with what you knew, which made a board of fifty read as though
+// the big ones mattered more, when all the size meant was that you had been
+// there. State is carried by the fill and the glyph instead.
+
+// The invisible square a finger aims at, half-width in plate pixels. 8, which
+// is half a 16px cell: the two closest places on barony2 (the Den and its
+// interior) are ONE cell apart, and a hit box wider than half that gap turns a
+// tap into a lottery about which of the two you meant.
+const HIT = 8;
 // What a comfortable target is, in CSS pixels, half-width. 22 -> a 44px box,
 // the floor DESIGN-SYSTEM.md §9 sets for everything else you tap.
 const HIT_PX = 22;
-// The floor is 1, not something smaller, and that is the whole "no blank
-// space" rule: at k=1 the plate exactly covers the window, so zooming out past
-// it is zooming out past the world. Paired with preserveAspectRatio="slice"
-// below, which CROPS the plate to fill the board rather than letterboxing it
-// inside — "meet" left bars down the sides on any screen whose shape did not
-// happen to match a 2144x1792 drawing.
-const ZOOM = { min: 1, max: 7 };
-const FIT_MAX = 2.1;
+// The floor is 1, and that is the whole "no blank space" rule: at k=1 the
+// plate exactly covers the window, so zooming out past it is zooming out past
+// the world. Paired with preserveAspectRatio="slice" below, which CROPS the
+// plate to fill the board rather than letterboxing it. The ceiling is high
+// because a plate pixel is a real pixel now — the art is 656x384, so reading
+// a cell wants magnifying it, not shrinking it.
+const ZOOM = { min: 1, max: 16 };
+const FIT_MAX = 4;
+// Padding in plate pixels around the known places when framing. Four cells.
+const FIT_PAD = 64;
 
-// How often the board checks whether somebody else moved you. The same
-// interval CharacterPoller.js uses, for the same reason: a move is rare
-// enough that this never competes with anything, and frequent enough that
-// being dragged along does not read as the map having lost you.
 const POLL_MS = 10_000;
 
 // Whether Go is on offer for a node. THE one predicate the card's confirm strip
@@ -103,6 +101,43 @@ function routeOf(node) {
   };
 }
 
+// One parse of each plate per page, however many boards mount.
+const PLATES = new Map();
+function fetchPlate(id, url) {
+  const held = PLATES.get(id);
+  if (held) return held;
+  const job = fetch(url, { cache: "force-cache" })
+    .then((res) => {
+      if (!res.ok) throw new Error(`plate ${id}`);
+      return res.json();
+    })
+    .catch((err) => {
+      // Don't cache a failure — a flaky network should not brick the map for
+      // the rest of the session.
+      PLATES.delete(id);
+      throw err;
+    });
+  PLATES.set(id, job);
+  return job;
+}
+
+// The plate's colours, off the live theme. The art names a CHANNEL per cell
+// and never a colour, so this is where the two meet — and it is the reason a
+// canvas does not break "zero hardcoded colours" (DESIGN-SYSTEM.md §2).
+const CHANNELS = ["void", "stone", "filler", "lit", "heat"];
+function readPalette() {
+  const style = getComputedStyle(document.documentElement);
+  const out = {};
+  for (const channel of CHANNELS) out[channel] = style.getPropertyValue(`--map-${channel}`).trim();
+  return out;
+}
+
+// Where a mark's cell sits in plate pixels — its centre, since everything
+// that frames or hit-tests wants a point rather than a box.
+function centreOf(node, cell) {
+  return { x: node.x * cell + cell / 2, y: node.y * cell + cell / 2 };
+}
+
 export default function MapBoard({ onClose = null }) {
   const router = useRouter();
   const [data, setData] = useState(null);
@@ -112,18 +147,37 @@ export default function MapBoard({ onClose = null }) {
   // is the resting state, so the plate gets the screen it is the point of.
   const narrow = useMapNarrow();
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [labels, setLabels] = useState(true);
-  const [layer, setLayer] = useState(null);
+  // Names OFF by default, which is the one thing the drawn plate changed about
+  // the chrome. Fifty names over a 1-bit drawing is fifty captions competing
+  // with the art they are captioning — and the art is the map now, so a place
+  // is found by its crosshair. The one you pick and the one you stand in are
+  // always named whatever this says.
+  const [labels, setLabels] = useState(false);
+  const [plateId, setPlateId] = useState(null);
+  // The drawn plate: the fetched art document, and the picture made from it.
+  // Both change twice in a session at most — a plate switch and nothing else —
+  // so state is right here. Nothing about the PICTURE depends on fog, on what
+  // is picked or on where the view is, which is exactly why it can be made
+  // once and then panned over for free.
+  const [art, setArt] = useState(null);
+  const [picture, setPicture] = useState(null);
   const { run, pending, error } = useActionRunner();
   const confirm = useConfirm();
   // What the last move said — "that spent your Move", the Push on die. The
   // Travel panel hands its line to the chat; the board has nowhere else to
   // put it, so it goes on the card of the place you now stand.
   const [note, setNote] = useState(null);
-  // useId() returns a string with punctuation React reserves (":r0:"), which
-  // is legal in an id but not in a url(#…) reference. Stripped to word
-  // characters so the mask resolves.
-  const maskId = useId().replace(/[^a-zA-Z0-9]/g, "");
+
+  // The plate the board is drawing, and the world it spans in plate pixels —
+  // w*cell by h*cell. Every piece of pan/zoom maths below is written against
+  // this and nothing else, which is why swapping a raster for a drawn plate
+  // left the clamp, the pinch and the fit alone.
+  const plateBox = useMemo(() => {
+    const list = data?.ok ? (data.plates ?? []) : [];
+    const found = list.find((p) => p.id === plateId) ?? list[0] ?? null;
+    if (!found) return null;
+    return { ...found, width: found.w * found.cell, height: found.h * found.cell };
+  }, [data, plateId]);
 
   const svgRef = useRef(null);
   const rootRef = useRef(null);
@@ -269,22 +323,48 @@ export default function MapBoard({ onClose = null }) {
     return () => clearInterval(id);
   }, []);
 
+  // The art, fetched once per plate and drawn once per plate.
+  //
+  // A module-level cache outside the component, because /map and the /chat
+  // overlay are two mounts of this file in one session and neither should
+  // parse the same 20KB twice. It is a plain static file with an ordinary HTTP
+  // cache behind it, which is exactly why it is NOT part of loadMap's payload:
+  // that is a server action, per-character and no-store by nature.
+  useEffect(() => {
+    const id = plateBox?.id;
+    const url = plateBox?.url;
+    if (!id || !url) return undefined;
+    let cancelled = false;
+    fetchPlate(id, url)
+      .then((doc) => {
+        if (cancelled) return;
+        setArt(doc);
+        setPicture(renderPlate(doc, readPalette()));
+      })
+      .catch(() => {
+        if (!cancelled) setArt(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [plateBox?.id, plateBox?.url]);
+
   // Before the framing effect below, which calls fit() -> applyView() and needs
   // the clamp to already know how big the world is. Effects run in declaration
   // order, so this is load-bearing placement rather than tidiness.
   useEffect(() => {
-    plateRef.current = data?.plate ?? null;
-  }, [data]);
+    plateRef.current = plateBox;
+  }, [plateBox]);
 
-  // Open on whichever layer the character is standing on — walking into the
-  // caves switches you down, which is the only "navigation" this thing has.
+  // Open on whichever plate the character is standing on — walking down into
+  // Undertown turns the page, which is the only "navigation" this thing has.
   // Set during render rather than in an effect: react-hooks/set-state-in-effect
   // is an error in this repo, and this is the pattern React documents for
   // following a prop (TravelNodes.js does the same with its /travel pick).
-  const [tookLayer, setTookLayer] = useState(null);
-  if (data?.ok && data.you.layer && tookLayer !== nonce) {
-    setTookLayer(nonce);
-    setLayer(data.you.layer);
+  const [tookPlate, setTookPlate] = useState(null);
+  if (data?.ok && data.you.plate && tookPlate !== nonce) {
+    setTookPlate(nonce);
+    setPlateId(data.you.plate);
   }
 
   // ------------------------------------------------------------- pan / zoom
@@ -294,7 +374,7 @@ export default function MapBoard({ onClose = null }) {
   const toWorld = useCallback(
     (ev) => {
       const svg = svgRef.current;
-      const plate = data?.plate;
+      const plate = plateBox;
       if (!svg || !plate?.width) return null;
       const b = svg.getBoundingClientRect();
       // max, not min: "slice" covers the box, so the plate overflows it rather
@@ -305,7 +385,7 @@ export default function MapBoard({ onClose = null }) {
       const { x, y, k } = view.current;
       return { x: (vx - x) / k, y: (vy - y) / k, vx, vy };
     },
-    [data?.plate],
+    [plateBox],
   );
 
   // `to` defaults to `at`, so the wheel and the +/- buttons behave exactly as
@@ -316,7 +396,7 @@ export default function MapBoard({ onClose = null }) {
   // too: at the floor of 1 the factor is swallowed and the translation is not.
   const zoomBy = useCallback(
     (factor, at = null, to = null) => {
-      const plate = data?.plate;
+      const plate = plateBox;
       if (!plate?.width) return;
       const anchor = at ?? { vx: plate.width / 2, vy: plate.height / 2 };
       const land = to ?? anchor;
@@ -328,7 +408,7 @@ export default function MapBoard({ onClose = null }) {
       view.current = { k, x: land.vx - world.x * k, y: land.vy - world.y * k };
       applyView();
     },
-    [applyView, data?.plate],
+    [applyView, plateBox],
   );
 
   // The two fingers, measured: how far apart, and the plate pixel between them.
@@ -349,8 +429,8 @@ export default function MapBoard({ onClose = null }) {
   // character knows four Locations in one corner, and fitting the art would
   // leave them squinting at an empty ocean of it.
   const fit = useCallback(() => {
-    const plate = data?.plate;
-    const shown = (data?.nodes ?? []).filter((n) => onLayer(n, layer));
+    const plate = plateBox;
+    const shown = (data?.nodes ?? []).filter((n) => onPlate(n, plateBox?.id));
     if (!plate?.width || shown.length === 0) {
       view.current = { x: 0, y: 0, k: 1 };
       applyView();
@@ -359,19 +439,19 @@ export default function MapBoard({ onClose = null }) {
     // Padding in plate pixels around the known nodes. Generous, because the
     // floor is 1:1 now — anything that would have fitted at less than full
     // size is clamped up to it, and the frame just centres instead.
-    const pad = 220;
-    const xs = shown.map((n) => n.x);
-    const ys = shown.map((n) => n.y);
-    const w = Math.max(1, Math.max(...xs) - Math.min(...xs)) + pad * 2;
-    const h = Math.max(1, Math.max(...ys) - Math.min(...ys)) + pad * 2;
+    const pts = shown.map((n) => centreOf(n, plate.cell));
+    const xs = pts.map((c) => c.x);
+    const ys = pts.map((c) => c.y);
+    const w = Math.max(1, Math.max(...xs) - Math.min(...xs)) + FIT_PAD * 2;
+    const h = Math.max(1, Math.max(...ys) - Math.min(...ys)) + FIT_PAD * 2;
     // Against the WINDOW, not the plate: with "slice" the board shows less of
     // the drawing than the drawing has, and fitting to the full plate would
     // frame a region partly off-screen.
     //
-    // FIT_MAX, not ZOOM.max. Early on a character knows two Locations forty
-    // pixels apart, and framing those alone would blow the plate up to seven
-    // times size and put two enormous rhombi on an empty field. The ceiling
-    // keeps the first look at the map looking like a map.
+    // FIT_MAX, not ZOOM.max. Early on a character knows two Locations a couple
+    // of cells apart, and framing those alone would blow the plate up to
+    // sixteen times size and put two enormous crosshairs on an empty field.
+    // The ceiling keeps the first look at the map looking like a map.
     const win = windowOf(svgRef.current?.getBoundingClientRect());
     const k = Math.min(
       FIT_MAX,
@@ -381,48 +461,22 @@ export default function MapBoard({ onClose = null }) {
     const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
     view.current = { k, x: plate.width / 2 - cx * k, y: plate.height / 2 - cy * k };
     applyView();
-  }, [applyView, data, layer, windowOf]);
-
-  // Is anything drawn on `forLayer` inside the window the view is showing
-  // right now? The window is the same interval applyView's clamp works in:
-  // the plate spans [x, x + W*k] in viewBox units and the visible box sits
-  // centred in it, so a node at plate (n.x, n.y) lands at x + n.x*k.
-  const anythingInView = useCallback(
-    (forLayer) => {
-      const win = windowOf(svgRef.current?.getBoundingClientRect());
-      const shown = (data?.nodes ?? []).filter((n) => onLayer(n, forLayer));
-      if (!win || shown.length === 0) return false;
-      const { x, y, k } = view.current;
-      const left = (win.W - win.w) / 2;
-      const top = (win.H - win.h) / 2;
-      return shown.some((n) => {
-        const px = x + n.x * k;
-        const py = y + n.y * k;
-        return px >= left && px <= left + win.w && py >= top && py <= top + win.h;
-      });
-    },
-    [data, windowOf],
-  );
+  }, [applyView, data, plateBox, windowOf]);
 
   // Frame on arrival, and whenever the character's Location moves — the nonce
   // is that, and it is the only real navigation the board has.
   //
-  // A layer press is deliberately NOT that. Surface and Underground are the
-  // same plate drawn twice — one PLATE_SRC, one width and height, the flip is
-  // a CSS treatment off data-layer — so { x, y, k } means the same thing on
-  // both, and keeping it is what makes them read as two faces of one place
-  // rather than two maps. It used to re-fit on every press, which threw you
-  // somewhere else at a different zoom for no reason you asked for.
-  //
-  // The one exception is landing on nothing: if the spot you were looking at
-  // holds nothing you know on the layer you just switched to, an empty field
-  // is worse than a re-frame, so fit() runs after all. Reset is still there
-  // for the rest.
+  // A PLATE press is that too, and this is the one thing the drawn plates
+  // changed about framing. Surface and Underground used to be one drawing
+  // shown twice, so { x, y, k } meant the same thing on both and keeping it
+  // read as two faces of one place. The Barony and Undertown are two separate
+  // 41x24 worlds that share no coordinate, so carrying the view across would
+  // land you at the same numbers in a different country. A switch re-frames.
   const framed = useRef(null);
   const flipped = useRef(null);
   useEffect(() => {
     if (!data?.ok) return;
-    const key = `${nonce}:${layer}`;
+    const key = `${nonce}:${plateBox?.id ?? ""}`;
     if (framed.current !== nonce) {
       framed.current = nonce;
       flipped.current = key;
@@ -431,8 +485,8 @@ export default function MapBoard({ onClose = null }) {
     }
     if (flipped.current === key) return;
     flipped.current = key;
-    if (!anythingInView(layer)) fit();
-  }, [data, layer, nonce, fit, anythingInView]);
+    fit();
+  }, [data, plateBox, nonce, fit]);
 
   // The guard stays: a touch contact reports button 0, the second finger
   // included, so nothing here shuts pinch out — but a right-click must still
@@ -591,7 +645,7 @@ export default function MapBoard({ onClose = null }) {
   // Go, and role="button" on each would have a screen reader read the whole
   // plate as a toolbar — Tab-to-Go is better than both (MAP.md §6c). So the
   // shortcut only exists while something is picked, and it gets out of the way
-  // of anything that legitimately wants the key: Go and Cancel, the layer
+  // of anything that legitimately wants the key: Go and Cancel, the plate
   // switch, and the confirm dialog this very handler can open.
   useEffect(() => {
     if (!sel || !data?.ok) return undefined;
@@ -617,7 +671,7 @@ export default function MapBoard({ onClose = null }) {
 
   // ---------------------------------------------------------------- render
 
-  if (!data) {
+  if (!data || (data.ok && !picture)) {
     return <div className="map-board map-board-quiet">Unrolling the map…</div>;
   }
   if (!data.ok) {
@@ -628,9 +682,14 @@ export default function MapBoard({ onClose = null }) {
     );
   }
 
-  const { plate, nodes, edges, travel } = data;
+  const { nodes, edges, travel } = data;
+  const plate = plateBox;
+  const cell = plate.cell;
+  // The two marks, as paths in cell units. Made once per plate and cached on
+  // the art document.
+  const marks = { faint: glyphPath(art, art.ui.faint), locked: glyphPath(art, art.ui.locked) };
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const drawn = nodes.filter((n) => onLayer(n, layer));
+  const drawn = nodes.filter((n) => onPlate(n, plate.id));
   const drawnIds = new Set(drawn.map((n) => n.id));
   const here = data.you.locationId ? byId.get(data.you.locationId) : null;
   const chosen = sel ? byId.get(sel) : null;
@@ -656,49 +715,36 @@ export default function MapBoard({ onClose = null }) {
 
   return (
     <div className="map-board">
-      <div className="map-stage" data-layer={layer ?? "surface"}>
+      <div className="map-stage">
         <svg
           ref={svgRef}
           className="map-svg"
-          data-layer={layer ?? "surface"}
           viewBox={`0 0 ${plate.width} ${plate.height}`}
           preserveAspectRatio="xMidYMid slice"
-          role="presentation"
+          role="img"
+          aria-label={`${plate.name}. ${here ? `You are at ${here.name}.` : "You aren't on the map yet."} ${data.known} of ${data.total} places known.`}
           onPointerDown={onPointerDown}
           onClick={onBoardClick}
         >
-          <defs>
-            {/* The water, cut out of the plate as an alpha mask so it can be
-                painted with a token instead of the blue that was drawn into
-                the art. See docs/assets/make-map-river.py. */}
-            <mask id={`river-${maskId}`}>
-              <image href="/assets/map-river.png" x="0" y="0" width={plate.width} height={plate.height} />
-            </mask>
-          </defs>
-
           <g ref={rootRef}>
+            {/* The plate, drawn from its channels by plateRender and handed
+                over as one picture. It changes when the plate or the theme
+                does, and never otherwise — so panning it costs a transform
+                and nothing else. */}
             <image
               className="map-plate"
-              href={plate.src}
+              href={picture}
               x="0"
               y="0"
               width={plate.width}
               height={plate.height}
-            />
-            <rect
-              className="map-river"
-              x="0"
-              y="0"
-              width={plate.width}
-              height={plate.height}
-              mask={`url(#river-${maskId})`}
             />
 
             <g className="map-edges">
               {edges.map((e) => {
                 if (!drawnIds.has(e.a) || !drawnIds.has(e.b)) return null;
-                const a = byId.get(e.a);
-                const b = byId.get(e.b);
+                const a = centreOf(byId.get(e.a), cell);
+                const b = centreOf(byId.get(e.b), cell);
                 return (
                   <line
                     key={`${e.a}-${e.b}`}
@@ -715,7 +761,13 @@ export default function MapBoard({ onClose = null }) {
             </g>
 
             <g className="map-nodes">
-              {drawn.map((n) => (
+              {drawn.map((n) => {
+                // The loud mark goes on the place you have picked and the
+                // place you stand, and on nothing else. Fifty locked reticles
+                // would be fifty things shouting at once, which is the whole
+                // reason the charset carries two.
+                const strong = sel === n.id || n.state === "here";
+                return (
                 <g
                   key={n.id}
                   className="map-node"
@@ -723,7 +775,7 @@ export default function MapBoard({ onClose = null }) {
                   data-state={n.state}
                   data-reach={n.adjacent && n.passable ? "true" : undefined}
                   data-picked={sel === n.id ? "true" : undefined}
-                  transform={`translate(${n.x} ${n.y})`}
+                  transform={`translate(${n.x * cell} ${n.y * cell})`}
                   onClick={() => {
                     if (panned.current) return;
                     if (sel !== n.id) {
@@ -765,30 +817,27 @@ export default function MapBoard({ onClose = null }) {
                   {/* The thing a finger aims at. First, so it paints under the
                       marker; invisible, so the board is unchanged; inert on a
                       mouse, which does not need it (.map-node-hit). */}
-                  <rect className="map-node-hit" x={-HIT} y={-HIT} width={HIT * 2} height={HIT * 2} />
                   <rect
-                    className="map-node-rim"
-                    x={-RIM}
-                    y={-RIM}
-                    width={RIM * 2}
-                    height={RIM * 2}
-                    transform="rotate(45)"
+                    className="map-node-hit"
+                    x={cell / 2 - HIT}
+                    y={cell / 2 - HIT}
+                    width={HIT * 2}
+                    height={HIT * 2}
                   />
-                  <rect
-                    className="map-node-core"
-                    x={-CORE}
-                    y={-CORE}
-                    width={CORE * 2}
-                    height={CORE * 2}
-                    transform="rotate(45)"
-                  />
-                  {labels && (
-                    <text className="map-node-label" y={RIM + 30} textAnchor="middle">
+                  {/* The dark drop, a pixel down and right. Without it a faint
+                      reticle vanishes: its corner ticks land exactly where a
+                      building's own white outline already is, so quiet colour
+                      over busy art reads as nothing at all (MAP.md §6g). */}
+                  <path className="map-cross-halo" transform="translate(1 1)" d={strong ? marks.locked : marks.faint} />
+                  <path className="map-cross" d={strong ? marks.locked : marks.faint} />
+                  {(labels || strong) && (
+                    <text className="map-node-label" x={cell / 2} y={cell + 7} textAnchor="middle">
                       {n.name}
                     </text>
                   )}
                 </g>
-              ))}
+                );
+              })}
             </g>
           </g>
         </svg>
@@ -797,33 +846,27 @@ export default function MapBoard({ onClose = null }) {
             desktop, so each keeps the corner it has always had; on a phone it
             becomes a column, which is the only way neither has to know how
             wide the other is — side by side they need 486px of a 390px
-            screen and the layer switch ended up behind the zoom buttons. */}
+            screen and the plate switch ended up behind the zoom buttons. */}
         <div className="map-hud">
-          {/* Only once the character knows somewhere underground. Offering the
-              switch before that would tell them a second layer exists, which is
-              exactly the kind of thing the fog is for. */}
-          {data.layers.length > 1 && (
+          {/* Only the plates holding somewhere the character knows — the
+              server already dropped the rest. Offering Undertown before that
+              would tell them it exists, which is the kind of thing the fog is
+              for. */}
+          {data.plates.length > 1 && (
             <div className="map-layers segmented">
-              <button
-                type="button"
-                aria-pressed={layer === "surface"}
-                onClick={() => {
-                  setLayer("surface");
-                  setSel(null);
-                }}
-              >
-                Surface
-              </button>
-              <button
-                type="button"
-                aria-pressed={layer === "under"}
-                onClick={() => {
-                  setLayer("under");
-                  setSel(null);
-                }}
-              >
-                Underground
-              </button>
+              {data.plates.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  aria-pressed={plate.id === p.id}
+                  onClick={() => {
+                    setPlateId(p.id);
+                    setSel(null);
+                  }}
+                >
+                  {p.name}
+                </button>
+              ))}
             </div>
           )}
 
@@ -956,12 +999,13 @@ export default function MapBoard({ onClose = null }) {
   );
 }
 
-// Customs is a Caves Location whose building is drawn on the surface plate, so
-// it stands on both layers — it is the threshold, and hiding it from the
-// surface would make the way underground start nowhere.
-function onLayer(node, layer) {
-  if (!layer) return node.layer === "surface" || node.both;
-  return node.both || node.layer === layer;
+// A place is drawn on the one plate that has a cell for it, and a place no
+// plate has a cell for is drawn nowhere at all. The Caves and the Depths are
+// in that state today: they are real, walkable Locations that simply have no
+// art yet, so they arrive in the payload, appear in Ways out and get a card —
+// they just have no crosshair to click (MAP.md §6h).
+function onPlate(node, plateId) {
+  return Boolean(node.plate) && node.plate === plateId;
 }
 
 function Inside({ inside }) {
