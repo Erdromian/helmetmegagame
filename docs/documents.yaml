@@ -13,11 +13,11 @@ documents:
 
       Far from the sun, electric lights illuminate Ravenheart, an ethereal castle ruled by its Baron. The only source of power is the Lifeweb — a revolutionary invention which turns human blood into electricity. While the nobility enjoy electrical appliances in the Keep and the merchant sells weird wares and lost technology, the life of a common Ravenhearter is medieval. Most of them use fire for light and simple tools for their work. They are superstitious and mostly illiterate. The Post-Christian Church is the official faith of Ravenheart, though some keep to the Old Ways in secret. Most of their days are spent working hard, but there is time for merry every once in a while. The current year is 1098.
   godking:
-    name: god-king
+    name: God-King
     public: false
     tags: []
     description: |-
-      Ravenheart's liege is god-king Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court and arranges the royal tithe if such a thing becomes necessary.
+      Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court and arranges the royal tithe if such a thing becomes necessary.
 
       He is accepted by the Post-Christian Church as an aspect or son of God. He took the place of Jesus who never came back, according to Post-Christian interpretations. His title is holy, as is his family, all members of which are considered godlike. Speaking out against him or disobeying his orders means certain death at the hands of his Tribunal.
   sanctuary:
@@ -90,7 +90,7 @@ documents:
     tags: []
     roles: [tribune, tribunal-ordinator]
     description: |-
-      You are a member of the Tribunal. You are a fearless veteran soldier, the best on Evergreen. You are stoic, competent, capable, and mature. When interacting with the citizens of the shit-dirt barony of Ravenheart, you are expected to represent the god-king — do not lower yourself to them. They are animals in the mud, after all.
+      You are a member of the Tribunal. You are a fearless veteran soldier, the best on Evergreen. You are stoic, competent, capable, and mature. When interacting with the citizens of the shit-dirt barony of Ravenheart, you are expected to represent the God-King — do not lower yourself to them. They are animals in the mud, after all.
   courtstructure:
     name: Court Structure
     public: false
