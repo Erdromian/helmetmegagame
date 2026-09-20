@@ -10562,8 +10562,10 @@ tags:
   # free action and every death mints a body, so the arithmetic that matters is
   # the whole ladder at once: db/lib/mutilate.js takes nine pieces off one
   # subject (two eyes, two hands, two feet, tongue, stomach, heart), which at
-  # these numbers is 49 ⬢ against 30-42 ⬢ for a specialised labour day. At the
-  # first pass it was 94 ⬢ and this comment claimed otherwise.
+  # these numbers is 61 ¢ against 30-42 ⬢ for a specialised labour day — one
+  # obol is one ⬢ (DEPOT.md §0), so the comparison still holds. At the first
+  # pass it was 94 ¢ and this comment claimed otherwise; the ladder was then
+  # lifted a fifth, from 49 ¢, because a body was worth too little for the work.
   #
   # The eye and the heart are dearer than the rest because the rites eat those
   # two (db/lib/rites.js).
@@ -10586,7 +10588,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 10
     cooked:
       taste: "organs"
       mood: -40
@@ -10607,7 +10609,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 3
+    sellablePrice: 4
     cooked:
       taste: "organs"
       mood: -40
@@ -10628,7 +10630,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 5
+    sellablePrice: 6
     cooked:
       taste: "meat"
       mood: -40
@@ -10649,7 +10651,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
     cooked:
       taste: "meat"
       mood: -40
@@ -10686,7 +10688,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
     cooked:
       taste: "organs"
       mood: -40
@@ -10707,7 +10709,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 10
     cooked:
       taste: "organs"
       mood: -40
