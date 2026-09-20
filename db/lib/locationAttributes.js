@@ -29,7 +29,7 @@ const ATTRIBUTES = {
 
   godflesh: {
     type: "boolean",
-    describe: () => "**Godflesh**: you can cut it out of the water here.",
+    describe: () => "**Godflesh**: you can cut it out of the refuse here.",
   },
 
   // The Godard Factory floor: the Refine button turns Godflesh into Squeeze instead of paying ⬢, no LocationMining row needed.

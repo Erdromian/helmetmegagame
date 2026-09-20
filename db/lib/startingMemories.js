@@ -123,7 +123,6 @@ const ROLE_MEMORIES = {
   migrant: [...CAVE_MOUTH, "caves-abandoned-camp"],
 
   // The Factory
-  fisherman: FACTORY_CLUSTER,
   geschef: FACTORY_CLUSTER,
   refugee: ["factory", "east-river", "cliffs"],
   // banneret rides the Squeeze up to town, so he knows every step.

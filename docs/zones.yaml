@@ -1340,6 +1340,9 @@ zones:
         name: Refuse Pit
         attributes:
           wilderness: true
+          # The Marshes carried `godflesh` until they were deleted; the purple
+          # masses surfacing in the Pits are where it is cut now.
+          godflesh: true
         description: >-
           A depression in the cave floor. The path loses coherence as its stones drop into gravel and corroded earth. The wind kicks up a bad smell.
         mining: 0.25
@@ -1532,6 +1535,7 @@ zones:
                 packaging-equipment: 1
                 armored-gloves: 2
                 hatchet: 1
+                ration-box: 8
           factory-main-floor:
             name: Main Floor
             description: >-

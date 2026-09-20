@@ -275,6 +275,11 @@ Keeps: `GameConfig` (every knob), `PlayerPreference`.
 Wipes: `LobbyEntry`, and recreates `GameState` (phase CLOSED, new `gameId`).
 Everything else as before (`LAUNCH.md` §2, §4).
 
+**Room stashes come back.** The wipe clears `Room.seededStashSlugs` alongside
+the `RoomTag` rows it deletes, so the next Start Game pours every authored
+stash again (`db/lib/roomStashSeed.js`). It did not always: the guard used to
+outlive its game, so every restart after the first opened with bare rooms.
+
 **The transcript now LEAVES the database**, which is the one thing here that
 changed. Restart Game asks first — keep this game or discard it — and either
 way its `ArchiveEntry` rows go:

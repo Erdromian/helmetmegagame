@@ -922,15 +922,13 @@ groups:
         - >-
           You are one of Ravenheart's cadet houses, carrying only a fraction of the prestige and responsibility.
         - >-
-          You have been charged with Godard Factory. While usually looked down upon as a piece of marsh scum, it is very valuable: Squeeze is how Ravenheart obtains obols, functionally funding its warchest.
+          You have been charged with Godard Factory. While usually looked down upon, it is very valuable: Squeeze is how Ravenheart obtains obols, functionally funding its warchest.
         - >-
           Your whole operation relies on your communication with the merchant and the Keep. It's your job to crate the Squeeze, load it on the cart, and sell it to the merchant — or you can let the Geschef do it. But make sure you're getting a good price. Keep some to pay your employees and give the rest to the Baron, lest the Watch come knocking.
         - >-
           Keep your refugees happy with {tag:moonshine}, but also by paying them fair wages. They should make more than commoners — after all, you can afford to pay them. Or just don't pay them and keep them in line.
         - >-
           Make sure everyone's wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers — do not eat the Squeeze! You can't afford to repeat what happened last time…
-        - >-
-          There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
       difficulty: hard
       bank_account: treasury
       starting_account: 6
@@ -967,8 +965,6 @@ groups:
           You've survived this operation long enough to become the general manager. A good place to be. You can treat some of the wounds that will surely come and brew the workers Moonshine to keep them happy.
         - >-
           Make sure everyone's wearing their armored gloves. So many hands lost. Oh, and emphasize to your workers — do not eat the Squeeze! You can't afford to repeat what happened last time…
-        - >-
-          There's a fisherman a couple miles north and obols in your office to pay him. Keep him around so he keeps feeding the Factory.
       difficulty: normal
       bank_account: treasury
       starting_account: 3
@@ -997,7 +993,7 @@ groups:
     refugee:
       name: Refugee
       intro: >-
-        Do dangerous work — cutting Godflesh from the marshes — in exchange for good hazard pay and potential social mobility.
+        Do dangerous work — cutting Godflesh from the refuse pit — in exchange for good hazard pay and potential social mobility.
       description:
         - >-
           You arrived from the caves. You don't really have a trade or the ability to labor, so your only opportunity to stay alive is through factory work.
@@ -1297,26 +1293,6 @@ groups:
       doc_elements:
         - alcoholdrugs
         - inn
-    fisherman:
-      name: Fisherman
-      intro: >-
-        Feed the factory and live a quiet life in the Black Hills.
-      description:
-        - >-
-          Godard Factory is a strange place. As much money as they make, none of them know how to feed themselves. It's your job to bring them some food; the Banneret should pay you in obols.
-      difficulty: easy
-      bank_account: treasury
-      starting_account: 3
-      multiple: false
-      # The marsh village was removed; start beside the factory this role feeds.
-      starting_zone: hills
-      starting_location: factory
-      starting_tags:
-        - Ravenhearter
-        - Fisherman's Key
-        - Rough Camper
-      doc_elements:
-        - godardfactory
     courtesan:
       name: Courtesan
       intro: >-

@@ -17890,29 +17890,6 @@ tags:
         - tag: bannerets-key
           keep: true
 
-  fishermans-key:
-    catalog: gm
-    name: Fisherman's Key
-    category: items
-    group: items-keys
-    sprite: key
-    description: "A wooden key."
-    pointCost: 0
-    stackable: true
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: fishermans-key
-          keep: true
-
   flooded-crate:
     catalog: all
     name: Flooded Crate

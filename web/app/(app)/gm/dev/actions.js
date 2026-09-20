@@ -400,6 +400,14 @@ export async function wipeGameData(formData) {
       // Resources are one of these stack rows now, so there is no column left
       // to zero afterwards.
       prisma.roomTag.deleteMany({}),
+      // ...and the seed history with them. Room.seededStashSlugs is what stops
+      // a room being re-seeded (db/lib/roomStashSeed.js), and it outlived the
+      // game it was written for: the next Start Game found every slug already
+      // recorded and poured nothing, so every game after the first one opened
+      // with bare rooms. Clearing it HERE, in the same transaction as the rows
+      // it guards, is what keeps that safe — the guard still refuses to refill
+      // a room players looted mid-game, it just no longer refuses the new one.
+      prisma.room.updateMany({ data: { seededStashSlugs: [] } }),
       // Runtime-minted tags: crates, headstones, written paper, sealed
       // letters. GAME state that happened to be stored in the catalog, and it
       // has to go with the game.

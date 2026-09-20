@@ -1,4 +1,4 @@
-// Pouring a room's AUTHORED stash into the room, exactly once.
+// Pouring a room's AUTHORED stash into the room, exactly once per game.
 //
 // Two callers, one behaviour on purpose. `Start Game` seeds every room in the
 // game in one pass (db/lib/lobby.js), and the "Seed these items now" box on
@@ -10,7 +10,15 @@
 // "never seeded" — taking the last unit deletes the row — so every re-sync
 // refilled a looted room. That cost a live game 139 duplicated items on
 // 2026-09-10. A slug written into seededStashSlugs is never seeded again, by
-// anybody, ever, so a player who carries the anvil off keeps it.
+// anybody, for the rest of that game, so a player who carries the anvil off
+// keeps it.
+//
+// The one thing that clears the column is the Restart Game wipe, which does it
+// in the same transaction that deletes every RoomTag
+// (web/app/(app)/gm/dev/actions.js). That is deliberate and it is not a hole:
+// the rows and the history of them go together, so the NEXT game starts
+// furnished. Before it, the guard outlived its game and every restart opened
+// with bare rooms.
 //
 // Takes `prisma` as a parameter for the db/lib/dm.js reason, and is
 // deliberately NOT on the @lifeweb/db barrel; require it by path.

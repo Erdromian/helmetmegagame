@@ -410,11 +410,11 @@ vanishing.** That is the `Role.groupSlug` default, and it is the safe
 direction: a silently dropped bucket would be a seat nobody could take,
 discovered by a player rather than by us.
 
-Bucketing is at **role** grain, and always was. The Fisherman is the standing
-example — on the Factory's books once, but a man alone in the marsh with a rod
-belongs under Soil. That used to need a `ROLE_GROUP_OVERRIDES` entry pointing
-away from his faction's bucket; now he simply sits under `soil:` in the YAML,
-and the override table is gone.
+Bucketing is at **role** grain, and always was. A seat whose work reads as one
+bucket while its employer sits in another belongs where the work is, not where
+the paycheque comes from. That used to need a `ROLE_GROUP_OVERRIDES` entry
+pointing away from the faction's bucket; now the seat simply sits under the
+group it belongs to in the YAML, and the override table is gone.
 
 `#info`'s roles-intro thread reads the same `groups:` map
 (`db/lib/infoChannel.js`), so the thread and the picker cannot disagree about
