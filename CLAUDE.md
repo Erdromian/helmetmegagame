@@ -463,6 +463,12 @@ npm run db:inspect-character -- "Ada"  # read-only: one character's two hiding
                                      #   equipped, any forced name, and the
                                      #   equip set. The first thing to run on
                                      #   "my hood doesn't work".
+npm run economy:report               # read-only: every wage, price and food figure
+                                     #   recomputed from the YAML masters and the
+                                     #   db/lib constants -> economy-report/index.html
+                                     #   (gitignored), plus a table of where the
+                                     #   system docs disagree with the catalog and
+                                     #   code. `-- --players N` sizes the town.
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
 npm run db:report-inactive-characters  # read-only inactivity report

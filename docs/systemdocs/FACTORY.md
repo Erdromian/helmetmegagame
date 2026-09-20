@@ -16,7 +16,7 @@ new types).
 The town's work feeds Ravenheart and produces no surplus. Before this, nothing
 in the game did. The Keep's warchest, the Merchant's business and every obol in
 circulation now trace back to one wooden warehouse standing in a shallow lake
-in the Marshes, staffed by people nobody counts.
+in the Black Hills, staffed by people nobody counts.
 
 That is the design as much as the economics: the money comes from the one place
 on the map with no political weight at all.
@@ -24,17 +24,18 @@ on the map with no political weight at all.
 ## 2. The chain
 
 ```
-marsh tile  --Harvest Godflesh-->  Godflesh  --Refine-->  8 Squeeze
+Refuse Pit  --Harvest Godflesh-->  Godflesh  --Refine-->  8 Squeeze
                                              --Package-->  a crate at half weight
                                              --cart-->  the Depot  -->  obols
 ```
 
 Every step after the first is somebody's whole turn. **Harvest Godflesh is
 not** — it costs no Move and runs on its own once-a-turn cooldown (§3), so
-cutting and working your day are two separate things. A refugee still
-alternates cutting and refining in practice, because a lump has to exist before
-there is anything to refine, which is where the "2.5 producing turns in 5" in
-§6 comes from.
+cutting and working your day are two separate things. Nothing forces a refugee
+to alternate. A bare-handed cut averages 7/6 of a lump and a shift needs one, and
+the Pit and the Factory floor are both in the Black Hills, so the walk between
+them is a free same-zone hop (`MAP.md` §3). Cut, walk, refine, every turn. §6
+has the numbers.
 
 A cutting day is otherwise an empty day now. Nothing files itself at the close
 any more (`TURN-ENGINE.md` §6), so a refugee who cuts and presses nothing else
@@ -46,9 +47,11 @@ has the Godflesh and nothing on top of it.
 The server action is `extractGodfleshRequest` in
 `web/app/(app)/character/requestActions.js`.
 
-- **Where.** Any Location carrying the `godflesh: true` attribute: the five
-  open Marshes and the marsh Village. The attribute is the match, so no tile is named by
-  slug anywhere in code (`db/lib/locationAttributes.js`).
+- **Where.** Any Location carrying the `godflesh: true` attribute. That is one
+  Location now: the Refuse Pit, at the bottom of the Baron's lift. The five open
+  Marshes and the marsh Village carried it until the Marshes zone was deleted
+  (`docs/zones.yaml` says so beside the Pit). The attribute is the match, so no
+  tile is named by slug anywhere in code (`db/lib/locationAttributes.js`).
 - **What it costs.** Nothing. No Move, no Action row, and the move lock is not
   consulted — cut before the deadline or after it. It used to spend the turn's
   Routine through `fileAutoRoutine`, which is where "once per turn" came from
@@ -87,9 +90,9 @@ It also refuses while Bound, Dying, Paralyzed or Catatonic — or mid
 Seizure, which is the one it exists for. That gate matters more now, not less:
 the day claim cares about the calendar and nothing else, and there is no Move
 check left behind it, so without `blockerFor(..., ACT)` a man on the floor could
-wade into the marsh with an axe.
+wade into the Pit with an axe.
 
-The button **hides** off a marsh tile rather than greying — the same posture
+The button **hides** away from the Pit rather than greying — the same posture
 all four day-verbs take. That is not a breach of the metagaming rule in
 `web/app/components/actionRegistry.js`: that rule forbids leaking who is
 standing near you, and where *you* are standing is already yours. A
@@ -142,7 +145,7 @@ stamped `refined: 1`.
 filing time, and only falls back to the live location for rows filed before that
 column existed. `Action.zoneId` was not enough: a free zone move costs no Action
 (`CARRY.md` §2a) and the cubes land at the turn close, so a character could file
-on the Factory floor and walk out — or file in the marsh and walk in — and
+on the Factory floor and walk out — or file at the Pit and walk in — and
 collect the wrong thing either way.
 
 ## 5. Package
@@ -214,11 +217,14 @@ world with no recipe to make a third.
 2026-09-06, Bascinet's call. A catalog-wide 30% cut the same day took it to
 12 by accident and was reverted — `CARRY.md` §1a. What did stick from that
 day is the **base carry cap: 71 lb, down from 120 via 84**.) Working back from
-the target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes
-× 2.5 = 60 cubes, and a Banneret with Horse + Cart carries 71 × (1 + 4) =
-355 lb. 60 cubes is 1020 lb raw, 510 crated — so a wagon **no longer clears a
-five-turn run in one trip**. It takes about 41 cubes, a bit over three turns'
-worth; the rest waits in the Logistics Room for the next wagon.
+the target: cutting is free, so a refugee can refine every turn, and a
+five-turn run of 3 refugees is 3 × 8 cubes × 5 = 120 cubes. That is 2040 lb raw,
+1020 crated. A Banneret with Horse + Cart carries 71 × (1 + 4) = 355 lb, so a
+wagon **does not clear a five-turn run in one trip**. It takes about 41 cubes,
+a bit under two turns' worth; the rest waits in the Logistics Room for the next
+wagon, and the run needs about three of them. (This paragraph used to assume
+2.5 producing turns in 5, which only holds if the cut spends a Move. It does
+not.)
 
 **The wagon comes inside.** The Factory is `indoors: true`, which would
 otherwise park it at the door and leave a 71 lb carrier shuttling one 68 lb
@@ -244,17 +250,31 @@ so the number is **¢** and always was — this paragraph said ⬢ until the
 2026-09-20 pass, which is the quiet kind of error `DEPOT.md` §0 exists to stop.
 
 A refining day is **40 ¢** for 8 cubes, and a full 60-cube wagon is **300 ¢**.
-Farming at coefficient 1.0 with `productionCoefficient` 0.9 pays 11–15 ⬢,
-midpoint 13, so the Factory is about **3×** a good farming day.
 
-**That 40 ¢ is the SUPPLIED figure, and it is the one this doc kept quoting as
-though it were the whole job.** Refine spends a whole Move
-(`web/app/(app)/character/actions/refine.js` calls `requireFreeMove`), and so
-does the Extract that produced the Godflesh. Worked solo the real rate is
-**20 ¢ a turn** bare-handed (one Extract, one Refine) or **26.7 ¢** with a
-chainsaw, whose two Godflesh feed two refining days. 40 ¢ is what a refiner
-makes when somebody else is losing fingers upstream, which is a division of
-labour rather than a wage.
+**That 40 ¢ is a refiner's whole day, and cutting does not eat into it.**
+Refine spends a whole Move (`web/app/(app)/character/actions/refine.js` calls
+`requireFreeMove`). Extract does not: it claims `extractTurnKey` and nothing
+else (`extractGodfleshRequestImpl` in `web/app/(app)/character/actions/misc.js`,
+§3 above). A cut averages 7/6 of a lump bare-handed (1, plus a 1-in-6 bonus lump
+on a 6) and 13/6 with a chainsaw, and a shift needs exactly one. So a refugee
+who cuts at the Refuse Pit, walks to the Factory floor and presses Refine every
+turn makes **40 ¢ a turn** solo, with or without a chainsaw. The chainsaw
+changes who can be fed, not the wage: it leaves about one spare lump a turn, so
+one chainsawer supplies two refiners. What the wage costs is the die. One cut in
+six is a 1, which is a wound with gloves on and a lost hand or arm without
+(§3), and the Factory roles all start with gloves.
+
+**Farming and mining pay less, and neither pays in ⬢ the way this section used
+to say.** Farming pays no ⬢ at all (`SOILERY.md` §1). A Farm action sows up to
+50 plants, about 5 in 6 come up, and a potato sells for 2 ¢, so one action nets
+about 79 ¢ after the 4 ¢ seed bag. It then locks the farmer out for 3 turns, which
+is about **26 ¢ a turn**. A Prospector at the Caves brings up about 8 ⬢ a press,
+worth 8 ¢ at the 1 ¢ sell-back, and mines every other turn: about **5 ¢ a turn**
+with the loot roll (`MINING.md` §3b and §5). Set against those, the Factory is about 1.5
+times a farmer and 8 times a Prospector, and a smith's best recipes (Iron, Glass
+Eye) reach about 28 ¢ a turn. `npm run economy:report` recomputes every one of
+these from the catalog and prints where the docs and the code disagree, so
+check there before quoting a wage in this file.
 
 The 7 ¢ price made a supplied refining day 56 ¢ — three times the best
 smithing rung and the highest wage in the game by a wide margin, off an
@@ -296,13 +316,13 @@ check at all before this, only the global `tupperAutocorrectEnabled` flag.
 
 ## 8. Moonshine, and going blind
 
-`brewing-basic`, **0 ⬢**, and `requirement.items: [godflesh]` — the marsh gives
+`brewing-basic`, **0 ⬢**, and `requirement.items: [godflesh]` — the Refuse Pit gives
 you the ingredient. **One Godflesh per bottle, and it is used up**, like every
 other spent ingredient (`BREWING.md` §4). It used to be a hold-check, which
 made the still a strictly better use of a haul than the Factory; spending it
 puts the two in honest competition. The rest of the throttle stands: Moonshine
-sells for 3 ⬢ against farming's 11–15, so it is not an income tap, and the
-Routine it costs is a Routine either way.
+sells for 3 ¢, against the 40 ¢ the same Godflesh makes as cubes, so it is not
+an income tap, and the Routine it costs is a Routine either way.
 
 Drinking it grants Tipsy, **Blind Drunk** (2 turns, blocks Examine with no
 corrective) and one **Damaged Vision**, which is permanent and stacks.
