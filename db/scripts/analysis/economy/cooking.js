@@ -88,6 +88,9 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
         value,
         margin: value == null ? null : value - cost,
         marginPerMove: value != null && movesPer > 0 ? (value - cost) / movesPer : null,
+        // Cooks working a full turn (one Move) every turn, to feed the whole town on this dish alone.
+        cooksToFeedTown: t.mealHunger > 0 ? ((players * params.hungerDecay) / t.mealHunger) * movesPer : null,
+        dishesToFeedTown: t.mealHunger > 0 ? (players * params.hungerDecay) / t.mealHunger : null,
         farmOnly: [...per.keys()].every((s) => CROPS.has(s)),
         hardestRank: hardest,
         hardest: [...per.keys()].sort((a, b) => rankOf(b) - rankOf(a))[0],
@@ -122,6 +125,10 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
       cookMoves,
       // A farmer's Farm action takes the Move on one turn in `cycle`; the others are free for a cook's work.
       freeFarmerMoves: farmers * ((cycle - 1) / cycle),
+      // A cook works one Move a turn and crafting never tires anyone, so a Move a turn is a cook.
+      cooks: cookMoves,
+      // What the farmers' own spare Moves cannot cover.
+      extraCooks: Math.max(0, cookMoves - farmers * ((cycle - 1) / cycle)),
       moodPerPersonTurn: (need / players / hungerPerCrop) * (bites ?? 1) * moodPerBite,
       bitesPerPersonTurn: (params.hungerDecay / hungerPerCrop) * (bites ?? 1),
       note: opts.note ?? "",
