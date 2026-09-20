@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { getOpenTurn } from "@/lib/turn";
+import { getClock, getOpenTurn } from "@/lib/turn";
 import { PLAYER_NAV, loadNavItems } from "@/lib/navItems";
 import { SkeletonBar } from "./PageShell";
 import NavLinks from "./NavLinks";
@@ -22,6 +22,9 @@ import CommandPalette from "./CommandPalette";
 // screen.
 export default function AppBar({ discordUserId, fallback = PLAYER_NAV }) {
   const turnPromise = getOpenTurn();
+  // The phase, not just the turn: a turn row exists all through the lobby, so the clock has to be told which question it
+  // is answering (web/lib/turn.js). Both awaits sit inside the same Suspense boundary below, so this adds no new block.
+  const clockPromise = getClock();
   return (
     <>
       <div className="top-bar scroll-fade-x">
@@ -30,7 +33,7 @@ export default function AppBar({ discordUserId, fallback = PLAYER_NAV }) {
         </Suspense>
         <span className="action-strip-sep" aria-hidden="true" />
         <Suspense fallback={<SkeletonBar width="10rem" height={14} />}>
-          <ClockBlock turnPromise={turnPromise} />
+          <ClockBlock turnPromise={turnPromise} clockPromise={clockPromise} />
         </Suspense>
       </div>
       {/* Mounted here rather than in the root layout so it only exists for a

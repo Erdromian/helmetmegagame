@@ -27,7 +27,7 @@ import {
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
 import { drainMirrorQueue } from "@lifeweb/db/lib/discordMirror/queue";
-import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
+import { clearTurnsConsole } from "@lifeweb/db/lib/turnAnnouncement";
 import { pickTurnBanner, nextTurnBanner } from "@lifeweb/db/lib/turnBanner";
 import { normalizeTurnLength, nextBoundaryAfter } from "@lifeweb/db/lib/turnClock";
 import { requireDev } from "@/lib/devAccess";
@@ -528,9 +528,14 @@ export async function wipeGameData(formData) {
       }
     }
 
+    // A PLACEHOLDER, not the game's first day. Some 111 places read the open turn, and the GM desk refuses outright
+    // without one, so the row has to exist through the lobby — but nothing about it is real yet. Start Game restamps
+    // `startedAt`, `endsAt` and `turnLengthHours` to the moment somebody actually presses it
+    // (db/lib/lobby.js#commitAssignment), and until then the clock is frozen on the phase (db/lib/gameState.js) and
+    // nothing announces it. `dayNumber` is the one field the restamp leaves alone, and 1 is right either way.
     const wipeStartedAt = new Date();
     const wipeTurnLengthHours = normalizeTurnLength((await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnLengthHours: true } }))?.turnLengthHours);
-    const firstTurn = await prisma.turn.create({
+    await prisma.turn.create({
       data: {
         number: 1,
         dayNumber: 1,
@@ -566,7 +571,7 @@ export async function wipeGameData(formData) {
     revalidatePath("/", "layout");
 
     after(() =>
-      finishGameWipe(session.discordUserId, characters, deadchatMemberIds, firstTurn, reportRow.id).catch(
+      finishGameWipe(session.discordUserId, characters, deadchatMemberIds, reportRow.id).catch(
         (err) => console.error("Game wipe side effects failed:", err),
       ),
     );
@@ -584,7 +589,7 @@ export async function wipeGameData(formData) {
 // than awaited. A step runner: every step is retried once, every failure is
 // collected, and the run lands on the SystemReport row wipeGameData
 // created, so the Dev Panel never claims success it can't know about.
-async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds, firstTurn, reportId) {
+async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds, reportId) {
   const steps = [];
   const failures = [];
   async function step(name, fn, { retries = 1 } = {}) {
@@ -636,7 +641,12 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
   await step("message wipe", () => wipeGameMessages(prisma));
 
   // After the wipe, never before: it bulk-deletes every #turns message.
-  await step("turns console repost", () => postTurnsAnnouncement(prisma, firstTurn, null));
+  //
+  // A CLEAR, not a repost. This used to announce the Turn 1 the wipe had just minted — header, banner, the turn-ping role
+  // and a live "this turn ends at" countdown — into a guild with no characters in it, hours or days before anybody pressed
+  // Start Game. #turns stays empty through the lobby now; Start Game posts the first announcement there is
+  // (web/app/(app)/gm/dev/gameActions.js#startGame), and it is the first thing to ping anybody.
+  await step("turns console clear", () => clearTurnsConsole(prisma));
 
   // Dependency order: roles resolve a starting zone and validate
   // starting_tags.

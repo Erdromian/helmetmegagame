@@ -23,6 +23,7 @@ async function wrapUpTurn({ prisma, p, step }, sideEffectsStartedAt) {
       return postTurnToGame(prisma, newTurn, p.note ?? null, {
         clockFrozen: clock.frozen,
         frozenReason: clock.reason,
+        phase: clock.phase,
       }).catch((err) => console.error("Failed to write the turn to the Game channel:", err));
     });
   }

@@ -36,7 +36,11 @@ async function postTurnsAnnouncement(prisma, newTurn, note, { push = true } = {}
   // from (db/lib/turnClock.js). Out of session it says so outright instead.
   const clock = await clockStatus(prisma);
   const text = [
-    buildTurnAnnouncement(newTurn, note, { clockFrozen: clock.frozen, frozenReason: clock.reason }),
+    buildTurnAnnouncement(newTurn, note, {
+      clockFrozen: clock.frozen,
+      frozenReason: clock.reason,
+      phase: clock.phase,
+    }),
     CONSOLE_TEXT,
   ].join("\n");
 
@@ -51,7 +55,11 @@ async function postTurnsAnnouncement(prisma, newTurn, note, { push = true } = {}
 
   // AFTER the announcement, never before: a turn opens either way. Best-
   // effort throughout — an unconfigured deployment is a no-op.
-  if (!push) return;
+  //
+  // A stopped clock never wakes anybody. "The turn has opened" is a claim about
+  // time passing, and nothing is passing while the game is out of session,
+  // paused, or not running at all.
+  if (!push || clock.frozen) return;
   await pushTurnOpen(prisma, text).catch((err) =>
     console.error("Turn announcement: push failed:", err),
   );
@@ -131,4 +139,30 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
   return sent;
 }
 
-module.exports = { postTurnsAnnouncement, postTurnsConsole };
+// Takes #turns back to empty and forgets the console. Restart Game's step, and the only one there is: #turns is not in
+// SPECIAL_CHANNELS, so the message wipe never walks it, and the sweep inside postTurnsConsole above is otherwise this
+// channel's whole cleanup — which is why the wipe used to have to POST something in order to clear anything, and why what
+// it posted was a Turn 1 announcement for a game nobody had started yet.
+//
+// Nulling the two config columns matters as much as the delete: a tracked message id outliving the message is what makes
+// the next console repost delete a stranger's post, and it is what bot/src/lib/turnsConsole.js checks on a cold start.
+async function clearTurnsConsole(prisma) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) return;
+
+  const channels = await getGuildChannels();
+  const turnsChannel = channels.find(isTurnsChannel);
+  if (!turnsChannel) return;
+
+  // `null` keeps nothing, which is the point — clearMessagesExcept filters on id equality.
+  await clearMessagesExcept(turnsChannel.id, null).catch((err) => {
+    console.error("Turns console clear: #turns sweep failed:", err);
+  });
+  await prisma.gameConfig.update({
+    where: { id: 1 },
+    data: { turnsConsoleChannelId: null, turnsConsoleMessageId: null },
+  });
+}
+
+module.exports = { postTurnsAnnouncement, postTurnsConsole, clearTurnsConsole };

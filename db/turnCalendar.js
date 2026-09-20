@@ -54,7 +54,7 @@ function gameDate(day) {
 // (buildTurnAnnouncement, below), and the web's Game channel lays the same three
 // out as a block (db/lib/gameChannel.js). Computing the times twice is how the
 // two would come to disagree about when Moves close.
-function turnFacts(turn, { clockFrozen = false, frozenReason = null } = {}) {
+function turnFacts(turn, { clockFrozen = false, frozenReason = null, phase = null } = {}) {
   const day = turn.dayNumber ?? Math.ceil(turn.number / 2);
   const { endsAt, cutoffAt, hasLock } = moveWindow(turn, { clockFrozen });
   const endEpoch = epochSeconds(endsAt);
@@ -63,15 +63,28 @@ function turnFacts(turn, { clockFrozen = false, frozenReason = null } = {}) {
   // place every player reliably reads — and both times are <t:> tags, so each
   // reads them in their own timezone.
   //
-  // Out of session there is no deadline at all, and saying so is more use than
-  // a time nobody is counting down to (db/lib/session.js).
-  const clock =
-    frozenReason === "NOT_IN_SESSION"
-      ? "The game isn't in session."
-      : hasLock
-        ? `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R> | Moves must be sent by <t:${cutoffEpoch}:t>, or <t:${cutoffEpoch}:R>.`
-        : `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R>.`;
+  // A FROZEN CLOCK NEVER QUOTES A TIME. A turn row carries an `endsAt` whatever
+  // the game is doing, so the two lines below would happily count down to a
+  // deadline nobody is keeping — which is exactly what a wiped, not-yet-started
+  // game used to show: "Day 1, Turn 1" with a live countdown and nobody playing.
+  // Saying what is actually true is more use than a time that means nothing.
+  //
+  // NOT_RUNNING is two different truths (db/lib/gameState.js#frozenReason) — the
+  // lobby and the epilogue — and End Game reposts the console for the still-open
+  // turn, so telling a finished game it has not started would be worse than the
+  // countdown. `phase` is what tells them apart.
+  const clock = frozenClock(frozenReason, phase)
+    ?? (hasLock
+      ? `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R> | Moves must be sent by <t:${cutoffEpoch}:t>, or <t:${cutoffEpoch}:R>.`
+      : `This turn ends at <t:${endEpoch}:t>, or <t:${endEpoch}:R>.`);
   return { day, date: gameDate(day), clock };
+}
+
+// The one sentence a stopped clock gets, or null when it is running. Out of session comes from db/lib/session.js.
+function frozenClock(frozenReason, phase) {
+  if (frozenReason === "NOT_IN_SESSION") return "The game isn't in session.";
+  if (frozenReason !== "NOT_RUNNING") return null;
+  return phase === "ENDED" ? "The game is over." : "The game hasn't started yet.";
 }
 
 // Shared by the bot's cron-triggered turn advance and the GM dashboard's
@@ -92,4 +105,4 @@ function buildTurnAnnouncement(turn, note, options = {}) {
   return note ? `${body}\n\n${note}` : body;
 }
 
-module.exports = { gameDate, GAME_YEAR, turnFacts, buildTurnAnnouncement };
+module.exports = { gameDate, GAME_YEAR, turnFacts, frozenClock, buildTurnAnnouncement };

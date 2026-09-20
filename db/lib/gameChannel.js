@@ -55,7 +55,7 @@ async function writeGamePost(prisma, { channelKind, content, turn = null }) {
 //
 // Belt and braces on top of that: a turn is announced once, so a second call
 // for a turn already written down is a no-op rather than a second block.
-async function postTurnToGame(prisma, turn, note, { clockFrozen = false, frozenReason = null } = {}) {
+async function postTurnToGame(prisma, turn, note, { clockFrozen = false, frozenReason = null, phase = null } = {}) {
   if (!turn?.number) return null;
   const already = await prisma.archiveEntry.findFirst({
     where: {
@@ -68,7 +68,7 @@ async function postTurnToGame(prisma, turn, note, { clockFrozen = false, frozenR
   });
   if (already) return null;
 
-  const { day, date, clock } = turnFacts(turn, { clockFrozen, frozenReason });
+  const { day, date, clock } = turnFacts(turn, { clockFrozen, frozenReason, phase });
   return writeGamePost(prisma, {
     channelKind: GAME_POST.TURN,
     turn,
