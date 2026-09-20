@@ -1686,35 +1686,29 @@ zones:
         description: >-
           Wet, dimly-lit caves. The main paths have been smoothed down by centuries of traffic, but side paths and natural holes descend into darkness.
         locations:
-          # The sentry post at the cave mouth. The merchant's berth next door is
-          # its own Location again (`depot`, below) — they were merged because
-          # the two used to stand with NO edge between them, so a migrant who
-          # cleared customs could not then walk to the shop. The plain
-          # customs ↔ depot pair in `connections:` is what keeps that from
-          # coming back; do not remove it while these are two places.
+          # The cave mouth, and it is not a post any more. The watchtower, the
+          # floodlights, the manned gate and the winch are all gone: what is
+          # left is a dark opening where people are camped, and the paperwork
+          # happens there because it has to happen somewhere. Nothing guards
+          # this way in now.
+          #
+          # It still needs its plain edge to the Depot in `connections:`. The
+          # two were one Location once, and splitting them without an edge left
+          # a migrant who had cleared customs unable to walk to the shop. Do
+          # not remove that pair while these are two places.
           customs:
-            name: Customs
+            name: Entrance
             indoors: true
             attributes:
               noticeboard: true
             description: >-
-              Inside the cave's mouth, the ceramite watchtower beholds migrants and mercenaries as they talk around a campfire. It's all illuminated by a pair of floodlights, connected by a suspended cable.
+              The caves are dark, but there are a few dying where mercenaries and migrants recently setup camp.
             rooms:
               customs-yard:
                 name: Customs
                 description: >-
-                  Migrants set up tents here, awaiting someone to create their necessary paperwork.
+                  Migrants set up tents here, awaiting someone to create their necessary paperwork. It's not safe here.
                 stash: [skinned-cave-rat]
-              customs-watchtower:
-                name: Watchtower
-                access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
-                description: >-
-                  Set into the gate. The tower's windows allow peering into the caves, where a floodlight is pointed. Metal grates on the floor allow pouring oil onto any invaders.
-                stash:
-                  items:
-                    paper: 8
-                    shortbow: 1
-                    spear: 1
           # Underground is where mining actually pays: 0.9 in the Caves and
           # 1.1 in the Depths, against 0.2–0.3 on the surface of the Black
           # Hills (MINING.md §3). Mines, tunnels and an ore vein were already
@@ -2152,13 +2146,11 @@ connections:
     on_foot: true
 
   # --- Caves ------------------------------------------------------------
-  # The gate in the cave mouth. Nobody stands on it, so it records what a
-  # passer-by would have seen rather than who it was — the watchtower above it
-  # is where somebody would actually be looking.
-  - pair: [caves/customs, caves/caves-approach]
-    announce: concealed
-    modular:
-      open: true
+  # Plain, and deliberately so. There was a manned gate in the cave mouth here,
+  # announcing every crosser into the zone and shuttable from the watchtower
+  # above it. Both are gone with the post itself, so nothing now reads papers
+  # or closes the way between the Entrance and the deep caves.
+  - [caves/customs, caves/caves-approach]
   - [caves/caves-approach, caves/caves-abandoned-camp]
   - [caves/caves-walkways, caves/caves-brooding-grounds]
   - [caves/caves-brooding-grounds, caves/caves-abandoned-camp]

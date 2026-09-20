@@ -477,9 +477,9 @@ this reason. Anything that prunes Rooms must carry the same guard. Players
 still cannot create one; a GM can.
 
 **A room's id is always `<location-stem>-<room>`** — `keep-throne-room`,
-`town-7-6`, `customs-watchtower`. Zones, locations and rooms share one slug
-namespace, so without the stem the obvious id is often already gone: there are
-four rooms called "Watchtower" and two called "Road". Display names are
+`town-7-6`, `fortress-2-3`. Zones, locations and rooms share one slug
+namespace, so without the stem the obvious id is often already gone: two rooms
+each are called "Gate", "Road", "Street", "Bar" and "Kitchen". Display names are
 unaffected. Four room slugs are also hardcoded in JS and must move with the
 YAML — `INTERCOM_ROOM_SLUG` (`db/lib/intercom.js`), `BELL_ROOM_SLUG`
 (`db/lib/bell.js`), `CENSOR_OFFICE_ROOM_SLUG` and `WATCHTOWER_ROOM_SLUGS`
