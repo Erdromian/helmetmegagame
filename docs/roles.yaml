@@ -153,7 +153,7 @@ groups:
       starting_account: 36
       multiple: false
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       extra_starting_points: 7
       whitelist: true
       starting_tags:
@@ -193,7 +193,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -221,7 +221,7 @@ groups:
       starting_account: 5
       multiple: false
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       extra_starting_points: 5
       starting_tags:
         - Ravenhearter
@@ -247,7 +247,7 @@ groups:
       starting_account: 5
       multiple: false
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -286,7 +286,7 @@ groups:
       starting_account: 5
       multiple: false
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       extra_starting_points: 7
       whitelist: true
       starting_tags:
@@ -326,7 +326,7 @@ groups:
       starting_account: 4
       multiple: false
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       whitelist: true
       starting_tags:
         - Ravenhearter
@@ -360,7 +360,7 @@ groups:
       multiple: false
       whitelist: true
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       starting_tags:
         - Ravenhearter
         - Literate
@@ -386,7 +386,7 @@ groups:
       multiple: true
       weight: 6
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -407,7 +407,7 @@ groups:
       multiple: true
       weight: 1
       starting_zone: fortress
-      starting_location: keep
+      starting_location: fortress-4
       starting_tags:
         - Ravenhearter
         - Musician
@@ -430,7 +430,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: fortress
-      starting_location: servant-wing
+      starting_location: fortress-4
       starting_tags:
         - Ravenhearter
         - Servant
@@ -459,7 +459,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      starting_location: cathedral
+      starting_location: town-4
       whitelist: true
       starting_tags:
         - Cathedral Key
@@ -492,7 +492,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: town
-      starting_location: cathedral
+      starting_location: town-4
       starting_tags:
         - Cathedral Key
         - Ravenhearter
@@ -520,7 +520,7 @@ groups:
       multiple: true
       weight: 1
       starting_zone: town
-      starting_location: cathedral
+      starting_location: town-4
       starting_tags:
         - Research
         - Cathedral Key
@@ -547,7 +547,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      starting_location: cathedral
+      starting_location: town-4
       whitelist: true
       starting_tags:
         - Order Key
@@ -585,7 +585,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: town
-      starting_location: cathedral
+      starting_location: town-4
       starting_tags:
         - Order Key
         - Ravenhearter
@@ -619,7 +619,7 @@ groups:
       multiple: true
       weight: 1
       starting_zone: town
-      starting_location: cathedral
+      starting_location: town-4
       starting_tags:
         - Order Key
         - Ravenhearter
@@ -647,7 +647,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: fortress
-      starting_location: garrison
+      starting_location: fortress-1
       whitelist: true
       starting_tags:
         - Censor's Helmet
@@ -692,7 +692,7 @@ groups:
       starting_account: 3
       multiple: false
       starting_zone: fortress
-      starting_location: garrison
+      starting_location: fortress-1
       starting_tags:
         - Armory Key
         - Ravenhearter
@@ -729,7 +729,7 @@ groups:
       multiple: true
       weight: 6
       starting_zone: fortress
-      starting_location: garrison
+      starting_location: fortress-1
       starting_tags:
         - Cerberus Helmet
         - Ravenhearter
@@ -761,7 +761,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: fortress
-      starting_location: garrison
+      starting_location: fortress-1
       starting_tags:
         - Ravenhearter
         - Cerberon
@@ -800,7 +800,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      starting_location: sanctuary
+      starting_location: town-9
       whitelist: true
       starting_tags:
         - Sanctuary Key
@@ -834,7 +834,7 @@ groups:
       multiple: true
       weight: 4
       starting_zone: town
-      starting_location: sanctuary
+      starting_location: town-9
       starting_tags:
         - Sanctuary Key
         - Ravenhearter
@@ -870,8 +870,8 @@ groups:
       bank_account: offshore
       starting_account: 55
       multiple: false
-      starting_zone: caves
-      starting_location: depot
+      starting_zone: undertown
+      starting_location: undertown-5
       whitelist: true
       starting_tags:
         - Cart
@@ -903,8 +903,8 @@ groups:
       starting_account: 3
       multiple: true
       weight: 2
-      starting_zone: caves
-      starting_location: depot
+      starting_zone: undertown
+      starting_location: undertown-5
       starting_tags:
         - Depot Keycard
         - Appraisal
@@ -931,7 +931,7 @@ groups:
       bank_account: treasury
       starting_account: 6
       multiple: false
-      starting_zone: marshes
+      starting_zone: hills
       starting_location: factory
       whitelist: true
       starting_tags:
@@ -969,7 +969,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: false
-      starting_zone: marshes
+      starting_zone: hills
       starting_location: factory
       starting_tags:
         - Ravenhearter
@@ -1006,7 +1006,7 @@ groups:
       starting_account: 3
       multiple: true
       weight: 3
-      starting_zone: marshes
+      starting_zone: hills
       starting_location: factory
       starting_tags:
         - Hatchet
@@ -1062,7 +1062,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      starting_location: square
+      starting_location: town-2
       whitelist: true
       starting_tags:
         - Ravenhearter
@@ -1090,7 +1090,7 @@ groups:
       multiple: true
       weight: 1
       starting_zone: town
-      starting_location: square
+      starting_location: town-2
       starting_tags:
         - Ravenhearter
         - Melee I
@@ -1121,7 +1121,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: town
-      starting_location: square
+      starting_location: town-2
       starting_tags:
         - Ravenhearter
         - Smithing I
@@ -1152,7 +1152,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: town
-      starting_location: old-cock-inn
+      starting_location: town-7
       starting_tags:
         - Ravenhearter
         - Prospecting
@@ -1252,7 +1252,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      starting_location: old-cock-inn
+      starting_location: town-7
       whitelist: true
       starting_tags:
         - Inn Key x3
@@ -1279,7 +1279,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: town
-      starting_location: old-cock-inn
+      starting_location: town-7
       starting_tags:
         - Inn Key
         - Ravenhearter
@@ -1290,7 +1290,7 @@ groups:
     fisherman:
       name: Fisherman
       intro: >-
-        Feed the factory and live a quiet life in the marshes.
+        Feed the factory and live a quiet life in the Black Hills.
       description:
         - >-
           Godard Factory is a strange place. As much money as they make, none of them know how to feed themselves. It's your job to bring them some food; the Banneret should pay you in obols.
@@ -1298,8 +1298,9 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: false
-      starting_zone: marshes
-      starting_location: marshes-village
+      # The marsh village was removed; start beside the factory this role feeds.
+      starting_zone: hills
+      starting_location: factory
       starting_tags:
         - Ravenhearter
         - Fisherman's Key
