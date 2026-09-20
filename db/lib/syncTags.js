@@ -612,9 +612,13 @@ async function syncTagsFromYaml(prisma) {
           `docs/tags.yaml: tag "${t.slug}" has ${field}: ${v} — armour runs 0 to 1, the fraction of a blow it turns aside`,
         );
       }
-      if (!t.equippable) {
+      // Worn gear must be equippable, because combineArmor skips an unequipped row. A STATUS tag is
+      // the deliberate exception (the vampire's Resilience grant): it is never equippable, so its
+      // CharacterTag.equipped stays false, and db/lib/armorValue.js#armorCounts lets an unequippable
+      // tag through for exactly that reason. The two rules have to stay in step.
+      if (!t.equippable && t.category !== "status") {
         throw new Error(
-          `docs/tags.yaml: tag "${t.slug}" sets ${field} but is not equippable — armour only counts while worn, so this would protect nobody`,
+          `docs/tags.yaml: tag "${t.slug}" sets ${field} but is neither equippable nor a status — armour only counts while worn, so this would protect nobody`,
         );
       }
     }

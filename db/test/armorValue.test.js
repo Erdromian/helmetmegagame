@@ -50,6 +50,28 @@ test("combineArmor: a bare Tag[] with no `equipped` field still counts — only 
   assert.equal(value, 0.2);
 });
 
+// A status tag — the vampire's Resilience grant — is never equippable, so its CharacterTag row
+// carries the column default `equipped: false` forever. Tough skin is not something you take off.
+test("combineArmor: an unequippable status tag counts even though it is not equipped", () => {
+  const value = combineArmor([{ equipped: false, tag: { equippable: false, ballisticArmor: 0.3 } }], "ballisticArmor");
+  assert.equal(value, 0.3);
+});
+
+// The narrow reading matters: `equippable` absent means the caller's select left it out, not that
+// the tag is a status. Reading undefined as "not equippable" would arm every stowed vest.
+test("combineArmor: an unequipped piece whose equippable is unknown still contributes nothing", () => {
+  const value = combineArmor([{ equipped: false, tag: { ballisticArmor: 0.5 } }], "ballisticArmor");
+  assert.equal(value, 0);
+});
+
+test("armorPieces: names an unequippable status tag alongside worn gear", () => {
+  const pieces = armorPieces(
+    [{ equipped: false, tag: { equippable: false, name: "Resilient", ballisticArmor: 0.3 } }],
+    "ballisticArmor",
+  );
+  assert.deepEqual(pieces.map((p) => p.label), ["Resilient"]);
+});
+
 test("combineArmor: two pieces stack multiplicatively on what gets through", () => {
   const value = combineArmor([piece(0.4), piece(0.25)], "ballisticArmor"); // TAGS.md's worked example
   assert.equal(value, 0.55);

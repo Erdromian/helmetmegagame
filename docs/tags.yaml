@@ -3794,7 +3794,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     stackable: true
-    sellablePrice: 0
+    weight: 1
 
   # The vampire's own ash death (db/lib/vampireDeath.js) — a room drop, not a
   # corpse: "immediately gibbed, turning into ash... items dropped on the
@@ -3816,6 +3816,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     stackable: true
+    weight: 1
     removable: false
 
   # --- Vampire Purchasable Tags (VAMPIRE.md §8 — design doc's own table).
