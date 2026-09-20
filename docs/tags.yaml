@@ -6849,7 +6849,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 2
+      resourceCost: 0
       skills: [smithing]
       items: [hematite]
       gambit: false
@@ -6858,9 +6858,9 @@ tags:
     # opens it.
     consumable: true
     consumesIntoResources: 5
-    depotPrice: 13
+    depotPrice: 3
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 2
     inlayValue: 12
 
   copper:
@@ -6886,7 +6886,7 @@ tags:
     consumable: true
     consumesIntoResources: 4
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 2
     inlayValue: 16
 
   nickel:
@@ -6912,7 +6912,7 @@ tags:
     consumable: true
     consumesIntoResources: 3
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 2
     inlayValue: 14
 
   # Found as metal rather than smelted, so there is no ore behind it.
@@ -7338,12 +7338,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 3
+      resourceCost: 1
       skills: [smithing-gunpowder]
       gambit: false
       items: [saltpeter]
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 15
 
   # HIDDEN recipe (old-coin is non-public; Chris 2026-09-07): the smith's
   # secret, struck from coinage older than Ravenheart. Its mechanic lives in
@@ -7374,7 +7374,7 @@ tags:
       gambit: false
       items: [old-coin]
     sellable: true
-    sellablePrice: 51
+    sellablePrice: 52
 
   # --- Two brewing ingredients that used to be prose ------------------------
   #
@@ -7620,11 +7620,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 4
+      resourceCost: 2
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 12
+    sellablePrice: 7
 
   bear-trap:
     catalog: all
@@ -7666,11 +7666,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [crafting, fundamentalist]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   jester-outfit:
     catalog: all
@@ -7833,11 +7833,11 @@ tags:
     customizable: true
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      resourceCost: 1
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 2
 
   # --- Caves Update loot -------------------------------------------------
   # New found-only items for the Caving Die's loot table. See
@@ -9520,11 +9520,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   hatchet:
     catalog: all
@@ -9545,11 +9545,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   # The gate on mining, not a bonus to it (docs/systemdocs/MINING.md §2). Was
   # "Prospector's Pick" until 2026-09-20, when Prospecting stopped being what
@@ -9604,11 +9604,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   sling:
     catalog: all
@@ -9628,11 +9628,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   quarterstaff:
     catalog: all
@@ -9654,11 +9654,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   cudgel:
     catalog: all
@@ -9729,11 +9729,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   # ─── Simple ────────────────────────────────────────────────────────────────
   spear:
@@ -9759,11 +9759,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0.25
-      resourceCost: 6
+      resourceCost: 3
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 9
 
   dagger:
     catalog: all
@@ -9787,11 +9787,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0.25
-      resourceCost: 6
+      resourceCost: 3
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 9
 
   silver-knife:
     catalog: all
@@ -9820,7 +9820,7 @@ tags:
       # flat 6 ⬢ materials cost, unchanged in total.
       items: [silver]
     sellable: true
-    sellablePrice: 17
+    sellablePrice: 22
 
   gladius:
     catalog: all
@@ -9844,11 +9844,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 16
 
   phrygian-spear:
     catalog: all
@@ -9871,11 +9871,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 6
+      resourceCost: 3
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 9
 
   javelin:
     catalog: all
@@ -9897,11 +9897,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 16
 
   longbow:
     catalog: all
@@ -9924,11 +9924,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 19
+    sellablePrice: 16
 
   mace:
     catalog: all
@@ -9952,11 +9952,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 16
 
   battle-axe:
     catalog: all
@@ -9981,11 +9981,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 16
 
   # ─── Moderate ──────────────────────────────────────────────────────────────
   knuckle-duster:
@@ -10042,11 +10042,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 13
+      resourceCost: 6
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 43
+    sellablePrice: 21
 
   # Renamed from Bardiche in the Combat Update, slug and all.
   halberd:
@@ -10072,11 +10072,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 13
+      resourceCost: 9
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 43
+    sellablePrice: 30
 
   broadsword:
     catalog: all
@@ -10100,11 +10100,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 13
+      resourceCost: 9
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 43
+    sellablePrice: 30
 
   war-hammer:
     catalog: all
@@ -10129,11 +10129,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 13
+      resourceCost: 9
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 43
+    sellablePrice: 30
 
   # ─── High Quality ──────────────────────────────────────────────────────────
   bastard-sword:
@@ -10159,11 +10159,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   rapier:
     catalog: all
@@ -10185,7 +10185,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 17
+      resourceCost: 15
       skills: [smithing-skilled]
       gambit: false
       # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
@@ -10193,7 +10193,7 @@ tags:
       # comes off for the ingot it spends.
       items: [iron]
     sellable: true
-    sellablePrice: 68
+    sellablePrice: 51
 
   sabre:
     catalog: all
@@ -10215,11 +10215,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   katana:
     catalog: all
@@ -10240,7 +10240,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 17
+      resourceCost: 15
       skills: [smithing-skilled]
       gambit: false
       # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
@@ -10248,7 +10248,7 @@ tags:
       # comes off for the ingot it spends.
       items: [iron]
     sellable: true
-    sellablePrice: 68
+    sellablePrice: 51
 
   silver-spear:
     catalog: all
@@ -10271,14 +10271,14 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 20
+      resourceCost: 11
       skills: [smithing-skilled]
       gambit: false
       # {tag:silver} joined 2026-09-09, priced at 5 ⬢ — the rest of the old
       # flat 26 ⬢ materials cost, unchanged in total.
       items: [silver]
     sellable: true
-    sellablePrice: 84
+    sellablePrice: 62
 
   lucerne:
     catalog: all
@@ -10301,11 +10301,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   zweihander:
     catalog: all
@@ -10328,11 +10328,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   # HIDDEN recipe (aberrant-heart is non-public; Chris 2026-09-07). Fights as
   # Exceptional tier — the ladder's own language — and its second mechanic
@@ -10385,11 +10385,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   # ─── Gunpowder ─────────────────────────────────────────────────────────────
   musketoon:
@@ -10413,11 +10413,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 28
+      resourceCost: 21
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
-    sellablePrice: 99
+    sellablePrice: 74
 
   bore-pistol:
     catalog: all
@@ -10439,11 +10439,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 18
+      resourceCost: 15
       skills: [smithing-gunpowder]
       gambit: false
     sellable: true
-    sellablePrice: 69
+    sellablePrice: 56
 
   bomb:
     catalog: all
@@ -10464,14 +10464,14 @@ tags:
     craftable: true
     requirement:
       turnsCost: 2
-      resourceCost: 28
+      resourceCost: 15
       skills: [smithing-gunpowder]
       gambit: false
       # The proper explosive is built around the refined charge, not raw
       # saltpeter (Chris 2026-09-05) — {tag:black-powder} is its own recipe.
       items: [black-powder]
     sellable: true
-    sellablePrice: 117
+    sellablePrice: 75
 
   # ─── Special / concealed ───────────────────────────────────────────────────
   # A gentleman's sidearm, sold complete — no smithing recipe attached.
@@ -12718,11 +12718,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   # --- Special ------------------------------------------------------------
   # Relics, grafts and machinery. None of it is purchasable at any price and
@@ -15152,9 +15152,12 @@ tags:
       - tipsy
     requirement:
       turnsCost: 0.25
-      resourceCost: 1
+      resourceCost: 0
       skills: [brewing-basic]
       gambit: false
+      items:
+        - { anyOf: [wheat, potato] }
+        - { anyOf: [wheat, potato] }
     # The one local brew the Depot also sells, for a Merchant who would rather
     # not wait on a brewer. Six against a sell-back of four, so importing it
     # and dumping it straight back is a losing trade. See DEPOT.md §3.
@@ -15213,7 +15216,7 @@ tags:
       gambit: false
       items: [cave-fungus]
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 7
 
   # ---------------------------------------------------------------------
   # The Silver Chip shelf (docs/systemdocs/DEPOT.md §0e).
@@ -15506,7 +15509,7 @@ tags:
       - tipsy
     requirement:
       turnsCost: 0.5
-      resourceCost: 4
+      resourceCost: 3
       # The paper has always said "yields up to 2 per turn"; every sibling's
       # yield was written out and enforced in the ingredient pass, and this
       # one row got missed — at 4 ⬢ against a sell of 14, an unrationed
@@ -15518,7 +15521,7 @@ tags:
       # instead of appearing out of ⬢.
       items: [alcohol]
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 15
     cooked:
       taste: "wine"
       mood: 18
@@ -15599,13 +15602,13 @@ tags:
       # turnsCost written out for the same reason Bliss's is: absent read as 1
       # and made this a whole Move, which is not what §2 or the paper says.
       turnsCost: 0
-      resourceCost: 2
+      resourceCost: 1
       perTurn: 2
       skills: [brewing-basic]
       gambit: false
       items: [alcohol]
     sellable: true
-    sellablePrice: 11
+    sellablePrice: 8
 
   # --- Advanced tonics — Brewing II ---------------------------------
   # Smith's work now, not a brew (Chris 2026-09-05): a powder device coming
@@ -15637,7 +15640,7 @@ tags:
     consumable: false
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [smithing-skilled]
       gambit: false
       items: [saltpeter]
@@ -15702,12 +15705,12 @@ tags:
       - brutish-strength
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      resourceCost: 1
       skills: [brewing-skilled]
       gambit: false
       items: [graga-sac]
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 22
 
   purifier:
     catalog: all
@@ -15727,12 +15730,12 @@ tags:
     cures: [infected, festering, feverish]
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 1
       skills: [brewing-skilled]
       gambit: false
       items: [cave-fungus]
     sellable: true
-    sellablePrice: 25
+    sellablePrice: 13
 
   white-honey:
     catalog: all
@@ -15756,13 +15759,13 @@ tags:
       # price of a cure-all already. Honey is gm-catalog on purpose, so the
       # recipe stays one of the hidden ones: off the Recipes tab, and out of
       # the Craft menu until the brewer holds both ingredients.
-      resourceCost: 3
+      resourceCost: 4
       skills: [brewing-skilled]
       gambit: false
       items: [honey, trout-heart]
     cures: [poisoned, envenomated, phrygian-toxin, choking]
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 27
     cooked:
       taste: "medicine"
       mood: 15
@@ -15787,7 +15790,7 @@ tags:
       - increased-accuracy
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      resourceCost: 1
       skills: [brewing-skilled]
       gambit: false
       items: [cave-fungus]
@@ -15814,12 +15817,12 @@ tags:
       - increased-recovery
     requirement:
       turnsCost: 0.5
-      resourceCost: 3
+      resourceCost: 1
       skills: [brewing-skilled]
       gambit: false
       items: [cave-fungus]
     sellable: true
-    sellablePrice: 14
+    sellablePrice: 11
     cooked:
       taste: "something soothing"
       mood: 0
@@ -15844,7 +15847,7 @@ tags:
       - hallucinating
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      resourceCost: 1
       skills: [brewing-skilled]
       gambit: false
       items: [cave-fungus]
@@ -15902,12 +15905,12 @@ tags:
       - invisible
     requirement:
       turnsCost: 1
-      resourceCost: 2
+      resourceCost: 1
       skills: [brewing-skilled]
       gambit: false
       items: [graga-sac]
     sellable: true
-    sellablePrice: 18
+    sellablePrice: 22
 
   # gm, not secret (2026-09-07): a SECRET row never enters the Recipes tab's
   # visible set even when held, so a recipe spending this could never unhide
@@ -15959,7 +15962,7 @@ tags:
       gambit: false
       items: [aberrant-heart]
     sellable: true
-    sellablePrice: 59
+    sellablePrice: 109
 
   # The three tonics. Each one needed something the brewer could not simply
   # buy. Two of those three ingredients were prose and are gone (Forgiveness
@@ -15982,14 +15985,14 @@ tags:
     consumable: true
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 3
       skills: [brewing-skilled]
       # Spent now, not just held: the brain goes into the bottle.
       items: [skinless-brain]
     sellable: true
     # 60, up from 16, and deliberately above the Brain's own 40: the whole
     # point of the recipe is that the ingredient is the cheap part.
-    sellablePrice: 47
+    sellablePrice: 61
 
   forgiveness:
     catalog: all
@@ -16008,11 +16011,11 @@ tags:
     cures: [shell-shocked]
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 5
       skills: [brewing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 28
+    sellablePrice: 18
 
   # --- Medical pass: the item roster (M3) -----------------------------
 
@@ -16059,11 +16062,11 @@ tags:
     cures: [feverish, heatstroke, cave-fever]
     requirement:
       turnsCost: 0.5
-      resourceCost: 3
+      resourceCost: 2
       skills: [brewing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 11
+    sellablePrice: 9
 
   burn-dressing:
     catalog: all
@@ -16112,11 +16115,11 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 5
       skills: [brewing-expert]
       gambit: false
     sellable: true
-    sellablePrice: 29
+    sellablePrice: 20
 
   # The medical mirror of {tag:forge} (SMITHING.md §2a): a standing site
   # rather than a kit you haul. Satisfies the surgery-site rule the same way
@@ -16264,11 +16267,11 @@ tags:
       missing-eye: glass-eye-worn
     requirement:
       turnsCost: 1
-      resourceCost: 11
+      resourceCost: 12
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 37
+    sellablePrice: 39
 
   # Same shape as {tag:aberrant-heart}: an ingredient and nothing else,
   # `catalog: gm` exactly like the heart (medical-pass plan, M5) — players
@@ -16320,12 +16323,12 @@ tags:
     cures: [missing-arm]
     requirement:
       turnsCost: 3
-      resourceCost: 15
+      resourceCost: 10
       skills: [brewing-expert]
       gambit: false
       items: [cybernetic-core]
     sellable: true
-    sellablePrice: 86
+    sellablePrice: 89
 
   cybernetic-leg:
     catalog: secret
@@ -16346,12 +16349,12 @@ tags:
     cures: [missing-leg]
     requirement:
       turnsCost: 3
-      resourceCost: 15
+      resourceCost: 10
       skills: [brewing-expert]
       gambit: false
       items: [cybernetic-core]
     sellable: true
-    sellablePrice: 86
+    sellablePrice: 89
 
   # --- Medical pass: new ailments (M3) --------------------------------
 
@@ -16436,11 +16439,11 @@ tags:
       - otherworldly-beauty
     requirement:
       turnsCost: 1
-      resourceCost: 8
+      resourceCost: 5
       skills: [brewing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 28
+    sellablePrice: 20
 
   # --- Armor -------------------------------------------------------------
 
@@ -16524,10 +16527,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   gladiator-helmet:
     catalog: gm
@@ -16880,11 +16883,11 @@ tags:
     customizable: true
     requirement:
       turnsCost: 1
-      resourceCost: 3
+      resourceCost: 1
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 10
+    sellablePrice: 4
 
   hood:
     catalog: all
@@ -16989,10 +16992,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [crafting]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   mail-coif:
     catalog: all
@@ -17018,10 +17021,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [smithing]
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 16
 
   gas-mask:
     catalog: gm
@@ -17066,10 +17069,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [smithing]
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 16
 
   # Priced level with {tag:simple-helm} — same plates, plus a lamp. Bought
   # rather than forged: the lamp is station work, so it sits on the Depot shelf.
@@ -17119,10 +17122,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   # The Bascinet and the Infantry Helmet are deliberate twins of the two above:
   # same plates, same bench, different look. The Bascinet matches the Knight's
@@ -17154,10 +17157,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   # Open at the face like the Simple Helm, so it conceals without forcing it:
   # the wearer decides with /conceal.
@@ -17185,10 +17188,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [smithing]
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 16
 
   # The Bastard's own, so GM-granted rather than forged: nobody buys one and no
   # bench makes one. It sits under the Knight's Helmet by a step a player can
@@ -17251,10 +17254,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [crafting]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   buckler:
     catalog: all
@@ -17278,10 +17281,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [crafting]
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   # ─── Simple (2 pt / 6 ⬢ / 1 turn) ───
   shield:
@@ -17307,10 +17310,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [crafting]
     sellable: true
-    sellablePrice: 19
+    sellablePrice: 16
 
   pavise:
     catalog: all
@@ -17334,10 +17337,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 5
       skills: [crafting]
     sellable: true
-    sellablePrice: 19
+    sellablePrice: 16
 
   # ─── Moderate (3 pt / 14 ⬢ / 1 turn, skilled smithing) ───
   # HIDDEN recipe (non-public ingredient, Chris 2026-09-07): the tailor's
@@ -17366,12 +17369,12 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 6
+      resourceCost: 3
       skills: [crafting]
       gambit: false
       items: [graga-sac]
     sellable: true
-    sellablePrice: 27
+    sellablePrice: 25
 
   mail-shirt:
     catalog: all
@@ -17396,10 +17399,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 13
+      resourceCost: 9
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 43
+    sellablePrice: 30
 
   # ─── High Quality (4 pt / 26 ⬢ / 2 turns, skilled smithing) ───
   brigandine:
@@ -17425,14 +17428,14 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 17
+      resourceCost: 15
       skills: [smithing-skilled]
       # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
       # the old 2-turn, 26 ⬢ recipe moved into the ingot's own recipe, and 8 ⬢
       # comes off for the ingot it spends.
       items: [iron]
     sellable: true
-    sellablePrice: 68
+    sellablePrice: 51
 
   breastplate:
     catalog: all
@@ -17457,10 +17460,10 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 18
       skills: [smithing-skilled]
     sellable: true
-    sellablePrice: 85
+    sellablePrice: 62
 
   # ─── Exceptional (6 pt / 34 ⬢ / 3 turns, skilled smithing) ───
   spacesuit:
@@ -17504,14 +17507,14 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 2
-      resourceCost: 25
+      resourceCost: 21
       skills: [smithing-skilled]
       # An ingot joined 2026-09-09 and was repriced 2026-09-10: 1 turn of
       # the old 3-turn, 34 ⬢ recipe moved into the ingot's own recipe, and 8 ⬢
       # comes off for the ingot it spends.
       items: [iron]
     sellable: true
-    sellablePrice: 98
+    sellablePrice: 75
 
   # --- Setting-specific --------------------------------------------------
 
@@ -17932,11 +17935,11 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 0.25
-      resourceCost: 3
+      resourceCost: 2
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 9
+    sellablePrice: 6
 
   factory-key:
     catalog: gm

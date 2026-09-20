@@ -37,32 +37,36 @@ and every gate are untouched.
 
 | Tier | pt | ⬢ | Turns | Skill gate | Combat gate | Purchasable at start |
 |---|---|---|---|---|---|---|
-| Dead Simple | 2 | 3 | 0.25 | `crafting` OR `smithing` | none | yes |
-| Simple | 5 | 6 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
-| Moderate | 7 | 13 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| High Quality | 9 | 25 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Dead Simple | 2 | 2 | 0.25 | `crafting` OR `smithing` | none | yes |
+| Simple | 5 | 5 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
+| Moderate | 7 | 9 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| High Quality | 9 | 18 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
 | Exceptional | 14 | 32 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Gunpowder | 14 | 28 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
+| Gunpowder | 14 | 21 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
 
-Bows use `crafting` in place of `smithing` at every tier.
-
-**The ⬢ column is the tier's baseline, and eight recipes sit off it on purpose.** Each is also on
-the Merchant's shelf, and the shelf price stays put, so the recipe's ⬢ was fitted to it (`DEPOT.md` §4):
-Cudgel 2, Trench Knife 6, Knuckle Duster 9, Gladiator Helmet 10, Wooden Leg and Iron Hook 7,
-Workshop Equipment 17, and the Iron smelt 2. The Crossbow does
+Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
+
+**The ⬢ column was refitted when the wage table went in** (`DEPOT.md` §4). Prices stayed where they
+were and the material moved to fit them, so the tiers ask for less than they used to: Dead Simple 3 → 2,
+Simple 6 → 5, Moderate 13 → 9, High Quality 25 → 18, Gunpowder 28 → 21 (Bore Pistol and the Bomb 15).
+The Spear, Dagger and Phrygian Spear take 3 ⬢ and sell for 9. Exceptional was not refitted, since
+nothing on the Merchant's list sits there. Recipes the Merchant also stocks sit off the column on
+purpose, each fitted to its shelf price: Cudgel 2, Trench Knife 6, Knuckle Duster 9, Gladiator
+Helmet 10, Wooden Leg and Iron Hook 7, Workshop Equipment 17. Recipes that work an input (Rapier,
+Katana, Brigandine, Plate Armor, Silver Spear, the Bomb) were fitted the same way.
 
 **Four small pieces of metalwork run under the Simple rung's Turns column.**
 The Spear, Dagger, Silver Knife and Phrygian Spear are `turnsCost: 0.25` —
 a spearhead or a knife is not a day at the anvil — so four of them fit in
 one Routine ([`CRAFTING.md`](CRAFTING.md) §2a). Everything else about the
-rung (6 ⬢, the pt, the skill gate, the forge) is unchanged, and they sell
-at 8 rather than the tier's 16 ([`DEPOT.md`](DEPOT.md) §4): four a Routine
-pays 8 ⬢ a turn, which stays under the Simple rung's own 10, and §4's rule
-is that quick work is never paid better than the rung above it. They were
+rung (the pt, the skill gate, the forge) is unchanged, and they take 3 ⬢ and sell
+at 9 rather than the tier's 16 ([`DEPOT.md`](DEPOT.md) §4): four a Routine
+breaks even at the counter, against the Simple rung's own 2 ¢ a Move, and §4's
+rule is that quick work is never paid better than the rung above it. They were
 thirds selling at 9 until costs became decimals in 9/2026 — the price came
 down with the extra unit. The Silver Knife is the odd one out and always was:
-1 ⬢ in and a silver ingot, 9 out. The Gladius, Mace and Battle Axe stay a
+1 ⬢ and a silver ingot in, 22 out. The Gladius, Mace and Battle Axe stay a
 full turn — a sword blade or a flanged head is real forging.
 
 **The two gate columns mean different things and are enforced on different
@@ -246,16 +250,15 @@ Renamed **Crude Grenade** and dropped to Smithing II on 2026-09-06
 (Chris): it packs raw saltpeter, not powder, so the Gunpowder rung keeps only
 the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 `gunpowder-grenade`. `black-powder` is the refining step between mined
-saltpeter and the Bomb; its numbers (3 ⬢, sells 18) are drafted, not signed
+saltpeter and the Bomb; its numbers (1 ⬢, sells 15) are drafted, not signed
 off.
 
 **The three smelts** replaced `{tag:steel}` on 2026-09-18, when `coal` and
 `steel` both left the game with the Prospecting rework (`MINING.md`). `iron`
-took steel's slot exactly — the same `sellablePrice` (8) and `depotPrice` (13)
-— so the four recipes that spend an ingot keep the discount they were priced
-with, and a smith with no prospector to hand can still buy one off the
-Merchant. Its recipe asks for 2 ⬢ now, so the smelt lands on the wage table
-(`DEPOT.md` §4). `copper` and `nickel` are the same recipe over a different ore and
+took steel's slot at steel's prices (8 back, 13 off the shelf), so a smith with
+no prospector to hand can still buy one off the Merchant. Both came down with
+the wage table, since an ingot is a 1 ¢ ore and a quarter Move: it sells back
+for 2 and the shelf charges 3 (`DEPOT.md` §4). `copper` and `nickel` are the same recipe over a different ore and
 feed Trinkets rather than gear.
 
 They cost **0 ⬢**, not steel's 4: the ore IS the cost now, and an ore is

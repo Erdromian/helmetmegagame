@@ -935,22 +935,51 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   // behind, with every ⬢ bought at the Depot's import price (DEPOT.md §4). Prices are set from this table:
   // sell = inputs at the Depot's price + import price × ⬢ + round(rate × turns^1.3). Read here as the
   // intent the catalog is checked against, so a new recipe priced off the old ⬢-at-1 arithmetic shows up.
+  const IMPORT_PRICE = rv.buy;
   const PROFIT_RATE_BY_POINTS = { 0: 1, 2: 1, 5: 2, 10: 4, 15: 5, 19: 6 };
   const rateAt = (pts) => PROFIT_RATE_BY_POINTS[Object.keys(PROFIT_RATE_BY_POINTS).map(Number).filter((k) => k <= pts).sort((a, b) => b - a)[0]];
-  // The Depot's shelf prices are left alone (they are what players pay), so a recipe the shelf also sells is
-  // fitted to its price by moving its ⬢ cost instead. Two cannot be fitted that way: a quarter-Move craft
-  // moves in steps of 4 ¢ a turn, and the Autoinjector's shelf price is below what its inputs cost.
+  // Depot shelf prices and previous sell prices are left alone, so a recipe is fitted to its price by moving its
+  // ⬢ cost instead. Two cannot be fitted that way: the Pickaxe (a quarter-Move craft moves in steps of 4 ¢ a
+  // turn) and the Autoinjector (its inputs cost more than its shelf price).
   const HELD_BACK = new Set(["pickaxe", "autoinjector"]);
   const tierFamilies = ["smithing", "crafting", "brewing"];
+  const hasItemInput = (a) => (get(a.slug)?.requirement?.items ?? []).length > 0;
+  const inScope = (a) => a.kind === "craft" && a.revenue > 0 && tierFamilies.includes(a.craftFamily ?? a.family);
   const profitRows = activities
-    .filter((a) => a.kind === "craft" && a.revenue > 0 && tierFamilies.includes(a.craftFamily ?? a.family) && a.netPerTurnBuy != null && !HELD_BACK.has(a.slug))
-    .map((a) => ({ slug: a.slug, name: a.name, family: a.craftFamily ?? a.family, points: a.skillPoints, rate: rateAt(a.skillPoints), got: a.netPerTurnBuy }));
-  const offRate = profitRows.filter((r) => Math.abs(r.got - r.rate) > Math.max(2, 0.5 * r.rate));
+    .filter((a) => inScope(a) && !hasItemInput(a) && a.netPerTurnBuy != null && !HELD_BACK.has(a.slug))
+    .map((a) => ({ slug: a.slug, name: a.name, family: a.craftFamily ?? a.family, points: a.skillPoints, rate: rateAt(a.skillPoints), got: a.netPerTurnBuy, moves: a.totalMoves }));
+  // Prices and ⬢ are whole numbers, so a craft's profit moves in whole ¢: allow 2 ¢ a Move, half the rate, or a
+  // craft and a half of slack (a wide 6 ¢ a Move on a quarter-Move piece), whichever is widest.
+  const offRate = profitRows.filter((r) => Math.abs(r.got - r.rate) > Math.max(2, 0.5 * r.rate, 1.5 / r.moves));
   const profitTiers = [...new Set(profitRows.map((r) => r.points))].sort((a, b) => a - b).map((pts) => {
     const rows = profitRows.filter((r) => r.points === pts);
     const got = rows.map((r) => r.got);
     return { points: pts, rate: rateAt(pts), n: rows.length, min: Math.min(...got), max: Math.max(...got), median: median(got), families: [...new Set(rows.map((r) => r.family))] };
   });
+  // A recipe that works an input is priced off the input instead: its wage, its ⬢ at the import price, and the
+  // input at nearly twice its sell price when the input is raw (ore, cave finds, organs, crops), once when it is
+  // itself crafted. The multiplier is the doc's "nearly 2x"; a whole-¢ round on each side allows 1 ¢ of slack.
+  const INPUT_PREMIUM = 1.9;
+  const inputPrice = (slug) => get(slug)?.sellablePrice ?? get(slug)?.depotPrice ?? 0;
+  const workedInput = (a) => {
+    const t = get(a.slug);
+    const r = t.requirement;
+    const y = r.yield ?? 1;
+    const turns = r.turnsCost ?? 0;
+    const rate = rateAt(a.skillPoints);
+    const wage = turns > 0 ? rate * turns ** 1.3 : r.perTurn ? rate / r.perTurn : 0;
+    let inputs = 0;
+    for (const raw of r.items ?? []) {
+      const one = (slug) => (get(slug)?.craftable ? 1 : INPUT_PREMIUM) * inputPrice(slug);
+      if (typeof raw === "string") inputs += one(raw);
+      else if (raw.anyOf) inputs += Math.min(...raw.anyOf.map((o) => one(typeof o === "string" ? o : o.tag)));
+      else if (raw.tag) inputs += (raw.count ?? 1) * one(raw.tag);
+    }
+    const expected = (Math.round(wage) + IMPORT_PRICE * (r.resourceCost ?? 0) + inputs) / y;
+    return { name: a.name, slug: a.slug, got: t.sellablePrice, expected: Math.round(expected) };
+  };
+  const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug)).map(workedInput);
+  const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
   const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);
   const red = byId("craft:ravenheart-red");
   const potato = byId("farm:potato");
@@ -979,11 +1008,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "DEPOT.md §4",
-      claim: "Every Depot-sold smithing, crafting and brewing recipe earns its skill tier's profit per Move (1 / 2 / 4 / 5 / 6 at 2 / 5 / 10 / 15 / 19 points) with ⬢ bought at the Depot",
+      claim: "Every Depot-sold smithing, crafting and brewing recipe that works no input earns its skill tier's profit per Move (1 / 2 / 4 / 5 / 6 at 2 / 5 / 10 / 15 / 19 points) with ⬢ bought at the Depot",
       docValue: `${profitRows.length} recipes on the table`,
       model: offRate.length ? `${offRate.length} off it: ${offRate.slice(0, 5).map((r) => `${r.name} ${round1(r.got)} against ${r.rate}`).join(", ")}${offRate.length > 5 ? ", …" : ""}` : `${profitRows.length} on it`,
       ok: offRate.length === 0,
-      note: "Within 2 ¢ or half the rate, whichever is wider, since prices are whole ¢ and a quarter-Move craft moves in steps of 4 ¢ a turn. The Pickaxe and the Autoinjector are held back: the shelf prices they are fitted to leave no whole-⬢ recipe that lands on the rung.",
+      note: "Slack is 2 ¢ a Move, half the rate, or a craft and a half of profit, whichever is widest. The Pickaxe and the Autoinjector are held back: the shelf prices they are fitted to leave no whole-⬢ recipe that lands on the rung.",
     },
     {
       doc: "DEPOT.md §4",
@@ -991,6 +1020,14 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: "rising",
       model: profitTiers.map((t) => `${t.points} pts: ${round1(t.median)}`).join(", "),
       ok: tiersRise,
+    },
+    {
+      doc: "DEPOT.md §4",
+      claim: "A recipe that works an input sells for its wage, its ⬢ at 3 ¢, and nearly twice a raw input's sell price (once a crafted input's)",
+      docValue: `${workedRows.length} recipes on the formula`,
+      model: offWorked.length ? `${offWorked.length} off it: ${offWorked.slice(0, 5).map((r) => `${r.name} ${r.got} against ${r.expected}`).join(", ")}${offWorked.length > 5 ? ", …" : ""}` : `${workedRows.length} on it`,
+      ok: offWorked.length === 0,
+      note: "Bars, brews and gear made from ore, cave finds, organs or another craft. They deviate from the wage table on purpose, by up to 0.9 times the raw input, and the Autoinjector keeps its shelf price.",
     },
     {
       doc: "FACTORY.md §6",
@@ -1182,6 +1219,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     foodTiers,
     profitTiers,
     profitRows,
+    workedRows,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },
