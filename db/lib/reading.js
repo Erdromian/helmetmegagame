@@ -14,6 +14,10 @@ const { examineBlock } = require("./examineVision");
 const LITERATE_SLUG = "literate";
 // Squeeze brain damage. Wins over `literate`: the letters are gone.
 const STUPID_SLUG = "stupid";
+// The milder one, and the same answer: a Slow character never made it as far
+// as letters. Stupid is its super-tag — gaining Stupid strips Slow
+// (db/lib/tagWrites.js), so nobody carries both.
+const SLOW_SLUG = "slow";
 
 // What every blocked reader sees, whatever blocked them.
 const CANNOT_READ = "You can't read this.";
@@ -31,7 +35,8 @@ function slugSet(characterTags) {
 function readBlock(characterTags = [], where = {}) {
   if (examineBlock(characterTags, where)) return CANNOT_READ;
   const slugs = slugSet(characterTags);
-  if (!slugs.has(LITERATE_SLUG) || slugs.has(STUPID_SLUG)) return CANNOT_READ;
+  if (!slugs.has(LITERATE_SLUG)) return CANNOT_READ;
+  if (slugs.has(STUPID_SLUG) || slugs.has(SLOW_SLUG)) return CANNOT_READ;
   return null;
 }
 
@@ -40,4 +45,4 @@ function canRead(characterTags = [], where = {}) {
   return readBlock(characterTags, where) === null;
 }
 
-module.exports = { readBlock, canRead, CANNOT_READ, LITERATE_SLUG };
+module.exports = { readBlock, canRead, CANNOT_READ, LITERATE_SLUG, SLOW_SLUG };

@@ -594,7 +594,7 @@ tags:
     name: Teaching
     category: skills
     description: "You can train someone in a skill you have, and it costs you no Move at all — up to 3 people a turn. They'll succeed in a 5 or a 6. Without this tag, teaching takes your whole turn and they need a 6."
-    pointCost: 4
+    pointCost: 3
     visible: false
     purchasable: true
     purchasableAfterStart: true
@@ -616,7 +616,7 @@ tags:
     category: general
     group: general-court
     description: "You are a fantastic dancer. Unlocks Desires about dancing."
-    pointCost: 2
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
@@ -1098,6 +1098,22 @@ tags:
     teachable: true
     purchasable: true
     purchasableAfterStart: true
+
+  # Sits beside Literate on purpose: they are the two ends of the same
+  # question. Slow blocks learning outright and blocks reading the way
+  # Stupid does, so it conflicts with Literate rather than stacking on it.
+  # Stupid is the super-tag — gaining Stupid strips Slow, in
+  # db/lib/tagWrites.js.
+  slow:
+    catalog: all
+    name: Slow
+    category: general
+    group: general-traits
+    description: "This person is too slow to learn. You can't learn skills, and you can't read."
+    pointCost: -6
+    conflictsWith: [literate]
+    purchasable: true
+    purchasableAfterStart: false
 
   light-sleeper:
     catalog: all
@@ -2753,7 +2769,7 @@ tags:
     category: skills
     teachable: true
     description: "Well, it's lovely, but I'm not paying for it. You draw, paint, sculpt, act, or pursue another creative medium inessential for survival. Perhaps you can find a patron? The Merchant might buy these… You can craft a {tag:painting}, but it takes 4 turns."
-    pointCost: 5
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -2872,22 +2888,21 @@ tags:
     category: skills
     teachable: true
     description: "You used to go up the mountains as a child."
-    pointCost: 5
+    pointCost: 1
     purchasable: true
     purchasableAfterStart: true
 
   # The one Skill that reads on a gate crossing
   # (db/lib/locationMove.js#announceLevelFor). It moves the announcement down
   # one step: an unmanned gate says nothing at all, a manned one describes you
-  # instead of naming you. Price left at 5 — Bascinet's call when it stopped
-  # being flavour, so it stays on the ordinary Moderate band.
+  # instead of naming you.
   stealth:
     catalog: all
     name: Stealth
     category: skills
     teachable: true
     description: "You are adept at sneaking around and concealing yourself. Others will be less likely to spot you doing so."
-    pointCost: 5
+    pointCost: 3
     purchasable: true
     purchasableAfterStart: true
 
@@ -3320,7 +3335,7 @@ tags:
   # Construction
   builder-skilled:
     catalog: all
-    name: Builder I
+    name: Building I
     # Roman-numeral rung name (game 3 tier rename); slug kept as-is
     # so no character loses the tag and every parentTag/requiredTag
     # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
@@ -3336,7 +3351,7 @@ tags:
 
   builder-expert:
     catalog: all
-    name: Builder II
+    name: Building II
     # Roman-numeral rung name (game 3 tier rename); slug kept as-is
     # so no character loses the tag and every parentTag/requiredTag
     # reference stays valid. See docs/systemdocs/REDESIGN.md §7.
@@ -8028,7 +8043,7 @@ tags:
     category: items
     group: items-gear
     sprite: minisatchel
-    description: "A purse of useful things."
+    description: "A purse of coins. Can be opened for 3 ¢."
     pointCost: 0
     weight: 0
     stackable: true
@@ -8036,8 +8051,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto: []
-    consumesIntoResources: 3
+    consumesInto: [obol, obol, obol]
+    consumesIntoResources: 0
 
   skinned-cave-rat:
     catalog: gm
@@ -16131,39 +16146,6 @@ tags:
     sellable: true
     sellablePrice: 20
 
-  # HIDDEN recipe (aberrant-heart is non-public; medical pass, 2026-09-08),
-  # and the tag itself is secret on top of that: unlike {tag:white-honey},
-  # this one isn't public knowledge with a hidden ingredient, it's a genuine
-  # secret. Nothing drops aberrant-heart yet (loot-table pass) — buildable
-  # the day that lands, inert until then. The one item door onto a tier-7
-  # cure that isn't a Gambit: Dying is always a roll through Heal, but an
-  # item cure never rolls, the same way White Honey bypasses envenomated's
-  # own tier. Chris 2026-09-08: this is a FULL cure, not a mere improvement.
-  last-breath:
-    catalog: secret
-    name: Last Breath
-    category: items
-    group: items-drink
-    sprite: pwinebottle
-    description: "Rendered from an aberrant heart, black and thick. A lifesaving coagulation."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    cures: [dying]
-    requirement:
-      turnsCost: 3
-      resourceCost: 11
-      skills: [brewing-expert]
-      gambit: false
-      items: [aberrant-heart]
-    sellable: true
-    sellablePrice: 100
-
   # The medical mirror of {tag:forge} (SMITHING.md §2a): a standing site
   # rather than a kit you haul. Satisfies the surgery-site rule the same way
   # a forge satisfies Workshop Equipment — `provides: [surgical-equipment]`
@@ -16339,7 +16321,7 @@ tags:
     sellable: true
     sellablePrice: 20
 
-  # HIDDEN recipes, same door as {tag:last-breath}: the tag's own
+  # HIDDEN recipes: the tag's own
   # catalogVisibility (not just the ingredient's) withholds it from the
   # Craft menu until the crafter is BOTH medical-expert AND already holding
   # a {tag:cybernetic-core} (web/lib/tagRequests.js#computeKnownRecipeIds).

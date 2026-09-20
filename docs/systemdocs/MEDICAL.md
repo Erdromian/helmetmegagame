@@ -278,16 +278,16 @@ Leg cures `missing-leg` into the cosmetic `peg-leg`, Iron Hook cures
 (`cybernetic-arm`/`cybernetic-leg`) cure the same two maimings outright with
 **no** aftermath at all — the graft leaves no mark, unlike the visible
 prosthetics. Both are gated on an ingredient (`cybernetic-core`) nothing
-drops yet, same as `last-breath`'s `aberrant-heart` — buildable the day the
-loot-table pass wires one in, inert until then.
+drops yet — buildable the day the loot-table pass wires one in, inert until
+then.
 
-**`last-breath` is the one door onto curing Dying that isn't a
-Gambit.** Dying is always a roll through Heal — even an Esculap rolls for it,
-since the tag carries `requirementGambit` outright rather than sitting on a
-tier anybody can out-rank (`TAGS.md` §5c, "Dying is off the ladder")
-— but an item's `cures` list is a flat yes/no with no tier to reach above, so
-a held bottle cures Dying outright, no die involved, the same way White Honey
-bypasses Envenomated's own tier. Its recipe (and the two cybernetics') is
+**Nothing cures Dying by item.** There used to be one: `last-breath`, a brew
+rendered from an aberrant heart, culled on 2026-09-20. Dying is always a roll
+through Heal — even an Esculap rolls for it, since the tag carries
+`requirementGambit` outright rather than sitting on a tier anybody can
+out-rank (`TAGS.md` §5c, "Dying is off the ladder"). An item's `cures` list is
+a flat yes/no with no tier to reach above, which is exactly why a bottle for
+it was the odd one out. The two cybernetics' recipe is
 hidden by conjunction rather than by the ordinary "hidden until you hold the
 ingredient" rule most secret recipes use (`CRAFTING.md`'s Recipes-tab
 filter): the Craft menu shows it only to a character who is BOTH

@@ -404,7 +404,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         mastery: true, // ChipLabel's mastery star
         sprite: true, // TagIcon's item art; null falls back to the group glyph
         craftable: true,
-        catalogVisibility: true, // a SECRET recipe's own discovery gate (M3 review, last-breath)
+        catalogVisibility: true, // a SECRET recipe's own discovery gate (M3 review, cybernetic-arm)
         recipePublic: true, // Maggot Milk's escape hatch — see schema.prisma#Tag.recipePublic
         // The custom-item opt-in (CRAFTING.md): shows its name/description
         // fields only when this crosses, resolved against the rung below.

@@ -204,8 +204,8 @@ medical caller says `family: "medical"` up front instead of asking
 `craftFamily` to guess. `family` is still tagged onto every ledger entry —
 it just no longer gates which entries a Routine may hold.
 
-**The eight medicines (`antidote`, `fever-draught`, `burn-dressing`,
-`autoinjector`, `portable-surgical-pack`, `last-breath`, `cybernetic-arm`,
+**The seven medicines (`antidote`, `fever-draught`, `burn-dressing`,
+`autoinjector`, `portable-surgical-pack`, `cybernetic-arm`,
 `cybernetic-leg`) are ordinary recipes now, not afflictions or fitted
 items** — they carry `requirementSkills: [brewing-skilled]` or
 `[brewing-expert]`, so `craftFamily()` derives them as `brewing` by the
