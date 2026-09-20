@@ -543,6 +543,8 @@ export async function loadTravel() {
         caveLevel:
           row.location.zone?.kind === "CAVE_LEVEL" && !hasAttribute(row.location, SAFE_ATTRIBUTE),
         crossesZone: row.crossesZone,
+        // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
+        railroad: Boolean(row.railroad),
         passable: row.passable,
         freeLeft,
         // Whether the Push on button belongs on the strip for this crossing.

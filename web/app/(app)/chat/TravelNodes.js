@@ -109,7 +109,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
   // Push on is the same door with a die in it (MAP.md §3): its own confirm,
   // then the same action with `exert` set.
   const go = async (option, { exert = false } = {}) => {
-    if (option.crossesZone) {
+    if (option.crossesZone || option.railroad) {
       const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert });
       if (!(await confirm(asked))) return;
     }

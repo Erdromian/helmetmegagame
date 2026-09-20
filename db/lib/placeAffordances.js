@@ -171,9 +171,10 @@ const ROOM_AFFORDANCES = [
   // to a wall: you have to be standing at it, and both faces should be able to
   // say so. Most accounts draw on the Keep's Vault through it
   // (db/lib/bankAccounts.js); the Merchant's and the Docker's do not. There are
-  // three of them now (db/lib/depot.js#ATM_ROOM_SLUGS) — the counter's own on
-  // the Storefront, the Inn's, and the Den's, and the last two are the machine
-  // alone with no counter behind it.
+  // four of them now (db/lib/depot.js#ATM_ROOM_SLUGS) — the counter's own on
+  // the Depot's Railway, the Merchant's on his Storefront next door, the
+  // Inn's, and the Den's. The last two are the machine alone with no counter
+  // behind it.
   {
     id: "atm",
     label: "ATM",
@@ -183,7 +184,7 @@ const ROOM_AFFORDANCES = [
   },
   // The Depot's drop box, second copy. The first is on the Location itself
   // (LOCATION_AFFORDANCES above) so it is reachable from anywhere at the Depot;
-  // this one is on the Railyard because that is where somebody meeting the
+  // this one is on the Railway because that is where somebody meeting the
   // train is already standing.
   {
     id: "dropbox",

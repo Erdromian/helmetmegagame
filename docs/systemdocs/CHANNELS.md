@@ -1116,9 +1116,9 @@ zero bugs. To observe the gating, test from a non-owner account, or read the
 raw overwrites over REST. `npm run db:doctor -- --full` is the faster answer:
 it diffs the live overwrites against the spec for you.
 
-## The Railyard
+## The Railway
 
-`undertown-5-2`, a PUBLIC thread under the Depot Location's channel, authored
+`undertown-5-1`, a PUBLIC thread under the Depot Location's channel, authored
 in `docs/zones.yaml` with no `access:` list at all. It replaced the Landing Pad,
 which was PRIVATE behind `depot-keycard` — so the membership work the channel
 doctor used to do for that room is simply gone, and the Depot feature adds

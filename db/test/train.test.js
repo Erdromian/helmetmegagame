@@ -158,12 +158,18 @@ test("the Dropbox hangs off the Depot LOCATION, so it is reachable from any room
   assert.equal(labels(locationAffordances(ELSEWHERE)).includes("Dropbox"), false);
 });
 
-test("and again on the Railyard, where somebody meeting the train already is", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-2" })), ["Storage", "Dropbox"]);
+// The Depot is ONE room since the Merchant moved out, so the Railway carries
+// the drop box and a cash machine both. The Merchant kept the other machine.
+test("and again on the Railway, where somebody meeting the train already is", () => {
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })), [
+    "Storage",
+    "ATM",
+    "Dropbox",
+  ]);
 });
 
-test("the ATM is the Storefront's, and the Storefront no longer carries the box", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })), ["Storage", "ATM"]);
+test("the Merchant's Storefront has a machine of its own, and no drop box", () => {
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-6-1" })), ["Storage", "ATM"]);
 });
 
 test("the Inn's bar has the second machine, and nothing else of the counter's", () => {
@@ -175,8 +181,8 @@ test("an ordinary room has no machine on its wall", () => {
 });
 
 test("the Merchant's gun is on his own office wall and nowhere else", () => {
-  assert.ok(labels(roomAffordances({ id: "r", slug: "undertown-5-3" })).includes("Toggle Turret"));
-  assert.equal(labels(roomAffordances({ id: "r", slug: "undertown-5-2" })).includes("Toggle Turret"), false);
+  assert.ok(labels(roomAffordances({ id: "r", slug: "undertown-6-2" })).includes("Toggle Turret"));
+  assert.equal(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })).includes("Toggle Turret"), false);
 });
 
 test("the anchor's buttons still chunk under Discord's five-per-row cap", () => {

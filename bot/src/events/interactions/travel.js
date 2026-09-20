@@ -33,6 +33,7 @@ const {
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
+const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
@@ -224,6 +225,14 @@ async function handleTravelPick(interaction) {
 
   // Cost model, and a warning before Confirm rather than a regret after (CARRY.md §2).
   const crossing = Boolean(character.locationId) && character.zoneId !== target.zoneId;
+  // A rail tunnel (db/lib/railroad.js). The Confirm button below IS the
+  // two-step the web gets from its dialog, so nothing new is needed here —
+  // only the sentence, and it has to be the same sentence, or Discord and the
+  // web would warn about the tunnel in two different voices.
+  const adjacentLink = character.locationId
+    ? await linkBetween(prisma, character.locationId, target.id).catch(() => null)
+    : null;
+  const railroad = Boolean(adjacentLink?.railroad);
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { freeZoneMovesPerTurn: true },
@@ -294,8 +303,8 @@ async function handleTravelPick(interaction) {
     interaction,
     {
       content: [
-        `Move to **${target.name}**?`,
-        cost,
+        railroad ? "Go into the tunnel?" : `Move to **${target.name}**?`,
+        railroad ? "-# This is dangerous." : cost,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
         overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25.` : null,

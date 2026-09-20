@@ -23,17 +23,33 @@
 // at the cutoff by db/lib/gambitCutoff.js, so the die answers what you rolled
 // and the modifier answers how you were when the day closed. There is no
 // randomness in a modifier, so there is nothing to fish for on that side either.
-const { rollWithAdvantage } = require("./advantage");
+const { rollWithEdge } = require("./advantage");
+const { LUCKY_SLUG, MISFORTUNE_SLUG } = require("./constants");
+
+// The two traits that pull this die, one each way. Lucky reaches every d6 a
+// character throws; Misfortune reaches only this one, which is why it is named
+// here rather than inside rollWithAdvantage. Holding both is a wash — edgeFor
+// counts the votes and a tie throws once.
+const GAMBIT_BETTER = Object.freeze(new Set([LUCKY_SLUG]));
+const GAMBIT_WORSE = Object.freeze(new Set([MISFORTUNE_SLUG]));
 
 // Throws this character's die for this turn, or hands back the one already
 // thrown. Takes a transaction client: the caller's own write and this claim must
 // commit together, or a crash between them leaves a die nobody's Move carries.
 //
-// `character` needs { id, tags } — tags is all rollWithAdvantage reads.
-// -> { die, rolls, source, fresh }. `fresh` is true only for the caller that
-// actually threw it, and is what says whether Inspired was just spent.
+// `character` needs { id, tags } — tags is all rollWithEdge reads.
+// -> { die, rolls, source, fresh }. `source` is the trait that decided the
+// throw ("lucky", "misfortune", or null for a plain single die), kept on the
+// row so the desk and the audit can say why two dice were thrown and which way
+// they leaned. `fresh` is true only for the caller that actually threw it.
 async function ensureGambitDie(tx, { turnId, character }) {
-  const advantage = rollWithAdvantage(character.tags, 6);
+  const roll = rollWithEdge(character.tags, { better: GAMBIT_BETTER, worse: GAMBIT_WORSE }, 6);
+  // Two dice mean something pulled them; `edge` says which way. A tie between
+  // Lucky and Misfortune leaves edge null and one die, and names nobody.
+  const advantage = {
+    ...roll,
+    source: roll.edge === "better" ? LUCKY_SLUG : roll.edge === "worse" ? MISFORTUNE_SLUG : null,
+  };
 
   // createMany({ skipDuplicates }) rather than create + catch P2002, and the
   // difference matters: this compiles to ON CONFLICT DO NOTHING, whereas a

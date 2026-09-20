@@ -112,7 +112,7 @@ maps:
         zone: undertown
         nodes:
           "1": Undercroft
-          "2": Residences
+          "2": Old Town
           "3": Lifeweb
           "4": Sewer
           "5": Depot

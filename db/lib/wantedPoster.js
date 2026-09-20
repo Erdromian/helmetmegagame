@@ -29,7 +29,10 @@ const NOTICE_SPECS = {
   },
   DEBTOR: {
     author: "The Merchant",
-    roomSlugs: ["undertown-5-3", "undertown-5-1"],
+    // The loose sheets go in the Merchant's own rooms (undertown-6); the
+    // pinned one goes on the Depot's board next door, which is where the
+    // `noticeboard:` attribute stayed when the two were split.
+    roomSlugs: ["undertown-6-2", "undertown-6-1"],
     boardLocationSlug: "undertown-5",
     text: (name) => `DEBTOR: ${name}. Owes: ${DEBTOR_DEBT_OBOLS} obols. Send the dockers.`,
     needsZone: false,
