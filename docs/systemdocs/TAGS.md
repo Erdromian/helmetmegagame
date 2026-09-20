@@ -422,9 +422,11 @@ in `purchasableTags()` mirroring the `afterStartOnly` line beside it, and
 `createActions.js` re-checks it server-side with `mastery: false` in its own
 `where` — a hidden option is a hint, not a lock.
 
-The nine mastery tags today are Lucky (15), Arelitz Breeding (15), Brewing
-(Distilling) (14), Musician (Pythagorean) (14), Metempsychosis (12), Amor Fati
+The eight mastery tags today are Lucky (15), Arelitz Breeding (15),
+Musician (Pythagorean) (14), Metempsychosis (12), Amor Fati
 (12), Imperturbable (12), Manic (10) and Smithing (Gunpowder) (9).
+Brewing (Distilling) left the mastery list on 2026-09-20 — it is an ordinary
+3-point skills tag now, the Innkeeper's starting pick.
 Second Wind reads like one and deliberately is not: it is an ordinary 6-point
 tag, buyable at creation like anything else.
 
@@ -548,21 +550,24 @@ full band would have made an object nobody but a Minstrel would ever own. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
 the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, the same kind of deliberate outlier as
-Pack Mule. **Fast Metabolism is a fourth, at −6** — between the −5 and −7
+Pack Mule. **Brewing (Distilling) is a fourth, also at 3** — dropped out of
+the mastery band on 2026-09-20 to be the Innkeeper's starting pick, the same
+below-band outlier as Teaching (Drill Instructor). **Fast Metabolism is a
+fifth, at −6** — between the −5 and −7
 bands. It was priced there as the only tag that changed the *size* of the
 per-turn food upkeep rather than exempting somebody from it. **There is no food
 upkeep any more** (9/2026, `TURN-ENGINE.md` §5), so the tag currently does
 nothing at all and the price is holding a seat rather than buying a drawback.
 It is kept rather than retired because the foodstuff-item work will give it a
 mechanic again; until it does, expect the number to be revisited with it. **Leper
-is a fifth, at −1** — below the −2 band, and the reason is arithmetic rather
+is a sixth, at −1** — below the −2 band, and the reason is arithmetic rather
 than taste: it is the `requiredTag` on the Leper's Hood, which costs 0, so at
 −2 the pair would have *paid* a player to take a free hood. **Depressed is a
-sixth, at −8** — between the −7 and −9 bands, and the one price on this page
+seventh, at −8** — between the −7 and −9 bands, and the one price on this page
 set by a rule rather than a feel: `DESIRES.md` §5 prices a Personality tag by
 how much of the Desire catalog it closes against how much it opens, and
 Depressed closes everything and opens nothing, so it is that band's floor.
-**Camouflage is a seventh, at 3.** It buys no code: nothing reads the slug,
+**Camouflage is an eighth, at 3.** It buys no code: nothing reads the slug,
 and "nearly invisible when ambushing in a forested area" is adjudicated the
 way Mindreading's Gambit is. **Depriver is an eighth, at 3** — between the 2
 and 5 bands, Bascinet's call. It is Bishop-only (`requiredTag: bishop`) and
@@ -585,10 +590,11 @@ against Lucky it would have been −15, the floor of the whole scale, for a
 drawback that shows up once a turn at most.
 **Appraisal is 1** — below the 2-point floor: it grants no
 advantage in play, only a readout of a number the catalog already held
-(`Tag.sellablePrice`), so it doesn't earn a full Minor band. Seven roles
-(Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper) get it free in
-`starting_tags`. The two Courtier kits that also handed it over are gone with
-the rest of them; a courtier buys it now, like anything else.
+(`Tag.sellablePrice`), so it doesn't earn a full Minor band. Eleven roles
+(Merchant, Arbiter, Baron, Docker, Geschef, Banneret, Innkeeper, Pusher,
+Exactor, Metalsmith, Prospector) get it free in `starting_tags`. The two
+Courtier kits that also handed it over are gone with the rest of them; a
+courtier buys it now, like anything else.
 
 **Several Personality and combat/trait tags sit off-band too, each a
 deliberate call rather than a new scale:**

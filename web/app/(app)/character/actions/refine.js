@@ -9,7 +9,7 @@ import { UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { isRefinery, refineryInput } from "@lifeweb/db/lib/refinery";
-import { AUTO_REFINE_NOTE } from "@lifeweb/db/lib/constants";
+import { AUTO_REFINE_NOTE, EXHAUSTED_SLUG } from "@lifeweb/db/lib/constants";
 import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { logAudit } from "@/lib/requests";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -32,6 +32,13 @@ export async function refineRequestImpl() {
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) {
     throw new UserError(`You're in no state to work — you're ${blocker.name}.`);
+  }
+
+  // A day on the floor climbs the same Tired -> Exhausted ladder Mining does
+  // (db/lib/moveEffects.js's `refined` entry, db/lib/fatigue.js). Only Exhausted refuses,
+  // matching db/lib/mining.js#computeMiningAccess — Tired doesn't block the next shift.
+  if (character.tags?.some((ct) => ct?.tag?.slug === EXHAUSTED_SLUG)) {
+    throw new UserError("You're **Exhausted**. Rest before you can work again.");
   }
 
   // Godflesh in the worker's own hands OR in any Room stash here they can enter. Checked before

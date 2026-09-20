@@ -977,6 +977,7 @@ groups:
         - Exactor's Key
         - Room A Key (Den)
         - Room B Key (Den)
+        - Appraisal
 
   # Soil
   soil:
@@ -1027,6 +1028,7 @@ groups:
         - Smithing I
         - Smithy Key
         - Resources x20
+        - Appraisal
       doc_elements:
         - smithing
         - combat
@@ -1058,6 +1060,7 @@ groups:
         - Prospecting
         - Ration Box x2
         - Pickaxe
+        - Appraisal
     mortus:
       name: Mortus
       intro: >-
@@ -1130,6 +1133,7 @@ groups:
         - Changa
         - Cave Fungus
         - Obol x10
+        - Appraisal
       doc_elements:
         - alcoholdrugs
     innkeeper:
@@ -1158,6 +1162,7 @@ groups:
         - Ravenhearter
         - Cooking I
         - Brewing I
+        - Brewing (Distilling)
         - Appraisal
       doc_elements:
         - alcoholdrugs

@@ -114,6 +114,13 @@ commits at the press, and the cubes come off the line at the turn push
   Logistics Room serves the whole floor and nobody hauls a 28 lb lump around
   all day to prove they own it.
 - **The output** is 8 Squeeze, and the Godflesh is consumed.
+- **Fatigue.** A day on the floor steps the same **Tired → Exhausted** ladder
+  a day's mining does (`MINING.md` §5, `db/lib/fatigue.js`). Escalates rather
+  than granting Exhausted outright — a shift here is the same order of effort
+  as a day in the seam, not Farming's uniquely brutal single day. Exhausted
+  refuses the next shift; the refusal check lives in the Refine button itself
+  (`web/app/(app)/character/actions/refine.js`), the payout in
+  `db/lib/moveEffects.js`'s `refined` entry, same as Mining's.
 - **No skill needed.** The floor wanted one until 2026-09-10, on the grounds
   that it is work rather than a vending machine. The trouble was that the
   Laboring ladder priced ⬢ and a shift here pays none, so the gate bought

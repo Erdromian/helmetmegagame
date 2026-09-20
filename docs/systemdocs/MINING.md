@@ -327,9 +327,10 @@ decays. Left alone, Exhausted degrades to Tired and Tired clears, so the
 practical shape is that somebody mining flat out works every other turn.
 
 That module is **not** a mining file, despite living beside one for a long
-time. Two of its three callers have nothing to do with a day's work: the dawn
-affliction pass escalates it for a bad night's sleep, and travel push-on
-escalates it for the Exert die (`MAP.md` §3). Keep it neutral.
+time. A day on the Factory floor climbs the same ladder the same way
+(`FACTORY.md` §4). Two of its other callers have nothing to do with a day's
+work: the dawn affliction pass escalates it for a bad night's sleep, and
+travel push-on escalates it for the Exert die (`MAP.md` §3). Keep it neutral.
 
 ## 6. Drift — what the land does on its own
 
