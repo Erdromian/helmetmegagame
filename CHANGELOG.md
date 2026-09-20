@@ -6,6 +6,14 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-20 · Mining reworked: a pickaxe to dig, Prospecting to dig well
+
+✚ A Pickaxe is now what lets you mine at all — the Prospector's Pick renamed, and smiths make them on a Hatchet's terms  
+✎ Anyone with a pickaxe turns up stones now; Prospecting makes the finds better rather than possible, and is worth 1.7x the ⬢  
+✎ A day's digging pays 6-12 before the place and the skill, so an unskilled day is worth having  
+✎ A smith's tier now multiplies the stones set into a trinket instead of sitting beside them, and a bare trinket is worth much less  
+− The Claim Stake
+
 ## 2026-09-20 · An arelitz that changed hands this turn won't buy its bonus crossing
 
 ✎ Fixed the same bug behind the Bird's once-a-day fix, this time for the arelitz's fast-travel bonus: a mount handed off mid-turn could buy two different riders a free zone crossing

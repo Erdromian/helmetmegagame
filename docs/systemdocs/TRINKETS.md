@@ -260,8 +260,8 @@ The reveal DM names both things a bare die face cannot: the tier, and what got
 made — "🎲 Your Gambit for turn 14: **6**. The forge gives you a
 **Masterwork** Trinket: **Masterwork Trinket** (worth 27 ¢ to the merchant)."
 (An inlaid Malachite would read 39 ¢ instead — the tier's bare price plus twice
-the ingredient's own `inlayValue`, §1 and §3.) A player with no memory of this table has
-no way to know a 6 is good news without being told in the same breath.
+the ingredient's own `inlayValue`, §1 and §3.) A player with no memory of this
+table has no way to know a 6 is good news without being told in the same breath.
 
 ## 6. Why `mintCustomCraft` had to move
 
