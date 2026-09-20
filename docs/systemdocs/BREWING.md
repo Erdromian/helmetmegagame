@@ -340,10 +340,20 @@ document; it is already two places.
 
 ## Brewing (Distilling)
 
-A `mastery` tag (`TAGS.md` §4a) gated on Brewing II: every brewing
-recipe yields **two** of its item for the price of one.
+An ordinary 3-point skills tag gated on Brewing II, and the Innkeeper's starting
+pick: **Alcohol and Moonshine** yield **two** for the price of one.
 
-The doubling lives in `grantCrafted` (`web/app/(app)/character/requestActions.js`),
+**Two slugs, not the brewing family** (narrowed 2026-09-20,
+`DISTILLING_DOUBLES_SLUGS` in `db/lib/constants.js`). It used to test
+`craftFamily(recipeTag) === "brewing"`, which doubled all **31** brewing
+recipes: every medicine, both cybernetic limbs, Dreamer's Draught, Pure Luck at
+65 ¢. That is a vastly bigger thing than "you draw twice as much out of the same
+mash" ever described, and it is why the tag sat at 14 points in the mastery band
+and still looked cheap. It is the two drinks now, which is what the name always
+said and what the 3-point price is set against. **Adding a slug to that set is a
+real balance decision** — price it here first.
+
+The doubling lives in `grantCrafted` (`web/app/(app)/character/actions/crafting.js`),
 the single grant every craft path funnels through, rather than beside its three
 callers — and deliberately **downstream of the ingredient plan and the ⬢
 spend**, both of which are computed from `quantity` and must stay that way.
@@ -351,9 +361,9 @@ Doubling the cost as well would make the tag do nothing.
 
 Two details that are easy to get wrong:
 
-- **The family is read off `baseTag ?? tag`, not `tag`.** When a recipe mints a
-  custom row the minted tag carries no `requirementSkills`, so `craftFamily()`
-  would read it as the generic `craft` and quietly stop doubling.
+- **The recipe is read off `baseTag ?? tag`, not `tag`.** When a recipe mints a
+  custom row the minted tag carries none of the recipe's own fields — including
+  its slug — so `tag` alone would quietly stop doubling.
 - **The audit row's `quantity` stays the RECIPE RUNS**, not the units granted.
   The per-turn rations in `web/lib/requests.js` count that field, so billing
   the doubled output would halve a Distilling brewer's own `perTurn`

@@ -60,6 +60,7 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import {
   WORKSHOP_EQUIPMENT_SLUG,
   BREWING_DISTILLING_SLUG,
+  DISTILLING_DOUBLES_SLUGS,
 } from "@lifeweb/db/lib/constants";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import {
@@ -443,10 +444,15 @@ async function grantCrafted(
 ) {
   for (const snapshot of replaced)
     await dropCharacterTag(tx, character.id, snapshot.tagId);
-  // Brewing (Distilling): two items for the same cost. The doubling lives HERE, at the single grant every craft path funnels through, deliberately downstream of the ingredient plan and ⬢ spend (both computed from `quantity`, doubling the cost too would make the tag do nothing). Family is read off `baseTag ?? tag`, not `tag`: a minted custom row carries no requirementSkills, so craftFamily() on `tag` would read it as generic "craft" and quietly stop doubling.
+  // Brewing (Distilling): two items for the same cost. The doubling lives HERE, at the single grant every craft path funnels through, deliberately downstream of the ingredient plan and ⬢ spend (both computed from `quantity`, doubling the cost too would make the tag do nothing). Read off `baseTag ?? tag`, not `tag`: a minted custom row carries none of the recipe's own fields, so `tag` alone would quietly stop doubling.
+  //
+  // TWO SLUGS, not the brewing family (narrowed 2026-09-20). The family test doubled all 31
+  // brewing recipes — every medicine, both cybernetic limbs, Pure Luck at 65 ¢ — which is a
+  // vastly bigger thing than "you draw twice as much out of the same mash" ever described.
+  // It is the drinks only now, which is what the 3-point price is set against.
   const recipeTag = baseTag ?? tag;
   const distilled =
-    craftFamily(recipeTag) === "brewing" &&
+    DISTILLING_DOUBLES_SLUGS.has(recipeTag?.slug) &&
     (character.tags ?? []).some((ct) => ct.tag?.slug === BREWING_DISTILLING_SLUG);
   // "Quantity Produced" (COOKING.md §A5, Tag.requirementYield) multiplies onto
   // the stack the same way Distilling's doubling does — both are downstream of

@@ -552,7 +552,10 @@ the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, the same kind of deliberate outlier as
 Pack Mule. **Brewing (Distilling) is a fourth, also at 3** — dropped out of
 the mastery band on 2026-09-20 to be the Innkeeper's starting pick, the same
-below-band outlier as Teaching (Drill Instructor). **Fast Metabolism is a
+below-band outlier as Teaching (Drill Instructor). It earns that price by
+doubling **two** recipes rather than the whole brewing family: while it doubled
+all 31 it was a 14-point mastery tag and still underpriced (`BREWING.md`).
+**Fast Metabolism is a
 fifth, at −6** — between the −5 and −7
 bands. It was priced there as the only tag that changed the *size* of the
 per-turn food upkeep rather than exempting somebody from it. **There is no food

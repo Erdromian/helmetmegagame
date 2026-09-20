@@ -3389,7 +3389,7 @@ tags:
     category: skills
     group: skills-brewing
     teachable: false
-    description: "You draw twice as much out of the same mash. Every brewing recipe you follow yields two of its item for the price of one."
+    description: "When brewing alcohol or moonshine, you produce double for the same price."
     pointCost: 3
     requiredTag: brewing-skilled
     visible: false
