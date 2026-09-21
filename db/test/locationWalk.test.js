@@ -7,7 +7,7 @@
 // the rest of db/test/ fakes the one query a rule reads.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { routesWithinZone, pathWithinZone, NO_WALK } = require("../lib/locationGraph");
+const { routesWithinZone, pathWithinZone, NO_WALK, ALREADY_THERE } = require("../lib/locationGraph");
 
 const TOWN = { id: "z-town", name: "Town", slug: "town", kind: "SURFACE", sortOrder: 1 };
 const FOREST = { id: "z-forest", name: "Forest", slug: "forest", kind: "SURFACE", sortOrder: 2 };
@@ -198,6 +198,24 @@ test("a held character has no walk at all, even to a place an unheld one could r
     ok: false,
     reason: NO_WALK,
   });
+});
+
+test("the ground you are standing on is not a place you don't know a way to", async () => {
+  // A picker that has gone stale sends the id of the place they are ALREADY in —
+  // they moved on Discord, an escort carried them, another tab took the hop.
+  // Answering that with the fog line reads as the game having forgotten the
+  // street under their boots, and it is what told somebody standing in Merchant
+  // that they did not know a way to Merchant.
+  const prisma = fakePrisma(ROAD.locations, ROAD.links);
+  const here = await pathWithinZone(prisma, walker(), "gate", { known: ALL_KNOWN });
+  assert.equal(here.ok, false);
+  assert.equal(here.alreadyThere, true);
+  assert.equal(here.reason, ALREADY_THERE);
+  assert.notEqual(here.reason, NO_WALK);
+
+  // Somewhere that genuinely has no road is still the fog line.
+  const nowhere = await pathWithinZone(prisma, walker(), null, { known: ALL_KNOWN });
+  assert.deepEqual(nowhere, { ok: false, reason: NO_WALK });
 });
 
 test("the neighbours are in the list too, nearest first", async () => {

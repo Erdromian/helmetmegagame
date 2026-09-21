@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · The travel panel unsticks itself instead of saying you don't know the way
+
+✎ A place you are already standing in now says so, rather than answering with the line meant for a road you have never seen  
+✎ Travel and the map both re-read the road when a move is refused, so a panel that went stale behind your back stops refusing everything
+
 ## 2026-09-21 · The audit log shows the game you are in
 
 − /gm/audit floors its feed at the current game's start, the way Chat already floors its own by seq. AuditLog carries no gameId, and the only thing that cleared it was the Restart Game wipe, so a database that was End-Gamed or playtested without one showed every game it had ever run.  

@@ -736,6 +736,18 @@ export async function travelTo({ locationId, exert = false } = {}) {
   const target = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
   if (!target) return { ok: false, error: "That place no longer exists." };
 
+  // The panel went stale and sent the ground they are already standing on —
+  // they moved on the bot, an escort carried them, or a second tab took the hop
+  // first. Answered here in its own words, because the two routes below would
+  // both read it as a place with no road to it: linkBetween(x, x) finds no edge
+  // (a Location is never linked to itself), so it falls to the walk finder,
+  // whose refusal is the FOG line — "You don't know a way there" about the
+  // street under your boots. `stale` tells the client to re-read the road
+  // instead of leaving the player clicking a list that can only refuse.
+  if (me.character.locationId === target.id) {
+    return { ok: false, error: "You're already there.", stale: true };
+  }
+
   // Adjacent, or a walk of several hops across this zone (MAP.md §3c)? The
   // ROUTE IS RESOLVED SERVER-SIDE from the posted id and is never accepted from
   // the browser — same reasoning that keeps the escort party out of the mover's

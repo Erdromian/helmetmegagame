@@ -738,6 +738,12 @@ export default function MapBoard({ onClose = null }) {
         setNonce((n) => n + 1);
         router.refresh();
       },
+      // A refusal re-reads the board, for the reason TravelNodes.js does: this
+      // plate is a snapshot of where the character stood, and the bot, an
+      // escort, an ambush and a second tab all move them behind it. A stale
+      // board that never re-reads refuses every further press for a reason
+      // nobody can see.
+      onFail: () => setNonce((n) => n + 1),
     });
   };
 
