@@ -234,7 +234,7 @@ all — a rule about the payload, not about the string.
 | Answer | Target hears | Room hears |
 |---|---|---|
 | Accept | "This reality is cursed! …" plus any Belief conflict | "…'s eyes widen as they begin to understand…" |
-| Refuse, or three hours' silence | "You turn away from the vision, and it fades…" | "The vision passes. They have denied the ritual." |
+| Refuse, or three hours' silence | "You cannot bring yourself to assent to such a reality!" | "The target rises, resolute in their convictions. The rite has failed." |
 | Pious | "You see a strange vision… nothing but a hallucination." | "… refuses the ritual, a look of determination in their eyes!" |
 
 The cultist who called them hears `ASK_REFUSED_DM` on either of the last two,

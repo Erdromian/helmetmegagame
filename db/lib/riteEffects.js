@@ -230,7 +230,7 @@ const EFFECTS = {
   async conversion({ db, room, resolved, attempt, participants }) {
     const candidates = resolved.convertCandidates ?? [];
     const options = await askCircleToPick(db, { attempt, participants, candidates });
-    await roomLine(db, room, "The circle draws breath, and waits.", { sfx: SFX.CONVERT_ASK });
+    await roomLine(db, room, "The sigil ebbs a dark light in anticipation.", { sfx: SFX.CONVERT_ASK });
     return {
       awaiting: "convert-target",
       // Names, not ids: this lands on the GM panel, and the ids are re-resolved
