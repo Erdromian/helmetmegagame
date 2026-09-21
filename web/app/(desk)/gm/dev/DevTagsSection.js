@@ -61,6 +61,7 @@ async function FreshDevTags({ userId, canDelete }) {
           name: t.name,
           slug: t.slug,
           category: t.category,
+          sprite: t.sprite,
           // A GM reads a letter ungated (PAPERWORK.md). Both helpers pass a
           // non-paper row straight through, so this is a no-op for the
           // catalog and the one thing that makes a player's note legible here.

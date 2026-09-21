@@ -414,6 +414,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       name: t.name,
       slug: t.slug,
       category: t.category,
+      sprite: t.sprite, // selected above for TagIcon; this DTO used to drop it
       // A GM reads a letter ungated (PAPERWORK.md); both helpers hand back the
       // plain description / null for anything that isn't paper, so this is a
       // passthrough for the other ~1000 rows.
@@ -444,6 +445,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       tagId: ct.tagId,
       name: ct.tag.name,
       slug: ct.tag.slug,
+      sprite: ct.tag.sprite ?? null,
       quantity: ct.quantity,
       equipped: ct.equipped,
       equippedQuantity: ct.equippedQuantity,

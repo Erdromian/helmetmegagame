@@ -142,8 +142,10 @@ const ZONE_SELECT = {
           // is carrying is already named here — adding its description,
           // its recipe and its cost to that would hand a looter the
           // catalog entry as well (REQUESTS.md §5b). What it weighs is
-          // not a secret from the person about to pick it up.
+          // not a secret from the person about to pick it up. Nor is what it
+          // looks like: the sprite is the picture of a thing already named here.
           weightLbs: true,
+          sprite: true,
           // rosterName()'s half — see the note in the roster above.
           forcedName: true,
         },

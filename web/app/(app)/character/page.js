@@ -547,6 +547,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
                   stackable: true,
                   weightLbs: true,
                   category: true,
+                  sprite: true,
                 },
               },
             },

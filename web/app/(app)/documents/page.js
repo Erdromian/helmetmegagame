@@ -239,6 +239,9 @@ async function FreshDocuments() {
     name: t.name,
     slug: t.slug,
     category: t.category,
+    // The item's own art (TagIcon.js). Dropped from this hand-built copy for a
+    // while, which is why the catalog drew group glyphs where the sheet drew sprites.
+    sprite: t.sprite,
     description: t.description,
     pointCost: t.pointCost,
     groupId: t.groupId,
