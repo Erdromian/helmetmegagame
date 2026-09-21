@@ -348,8 +348,8 @@
      job when the alpha-mask trick went away with the raster plate. */
   --map-void: #0c1013;
   --map-stone: #424645;
-  --map-filler: #727371;
-  --map-lit: #c0c2c1;
+  --map-filler: #616260;
+  --map-lit: #9a9c9b;
   --map-heat: #814537;
   /* The one-pixel drop behind a crosshair. Load-bearing, not decoration: a
      faint reticle's corner ticks land exactly where a building's own white
@@ -6689,12 +6689,21 @@ label.chip {
 .map-cross {
   fill: var(--on-accent);
   fill-opacity: 0.55;
+  /* A dark rim all the way round, the way .map-node-label is haloed: the drop
+     below only covers two sides, and a near-white mark on a lit tile lost the
+     other two. One path of pixel rects, so the fill covers the inner seams and
+     only the outside edge shows. */
+  stroke: var(--map-halo);
+  stroke-width: 0.75;
+  stroke-linejoin: miter;
+  stroke-opacity: 0.55;
+  paint-order: stroke;
   pointer-events: none;
 }
 
 .map-cross-halo {
   fill: var(--map-halo);
-  fill-opacity: 0.55;
+  fill-opacity: 0.8;
   pointer-events: none;
 }
 
@@ -6710,6 +6719,19 @@ label.chip {
 .map-node[data-state="seen"] .map-cross,
 .map-node[data-state="seen"] .map-cross-halo {
   fill-opacity: 0.3;
+  stroke-opacity: 0.3;
+}
+
+/* Where you can walk next. Louder than the rest of the board, quieter than
+   where you stand or what you picked. After the seen rule on purpose: a place
+   next door is worth seeing even if you have never been in. */
+.map-node[data-reach] .map-cross {
+  fill-opacity: 0.9;
+  stroke-opacity: 0.9;
+}
+
+.map-node[data-reach] .map-cross-halo {
+  fill-opacity: 0.9;
 }
 
 .map-node[data-state="seen"] .map-node-label {
@@ -6755,6 +6777,7 @@ label.chip {
 .map-node[data-reach]:hover .map-cross,
 .map-node[data-reach]:hover .map-cross-halo {
   fill-opacity: 1;
+  stroke-opacity: 1;
 }
 
 .map-node-label {
