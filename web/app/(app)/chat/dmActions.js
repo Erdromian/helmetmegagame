@@ -15,6 +15,7 @@ import { auth } from "@/lib/auth";
 import { answerDmAction as routeDmAction } from "@lifeweb/db/lib/dmAnswer";
 import { DM_ACTION, DM_CHOICE } from "@lifeweb/db/lib/dmActions";
 import { hideableFor, setHiddenItems } from "@lifeweb/db/lib/search";
+import { answerConversionPick } from "@lifeweb/db/lib/conversionRite";
 import { applySpawnSideEffects } from "@lifeweb/db/lib/threatSpawn";
 import { deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
@@ -112,5 +113,22 @@ export async function setSearchHidden(offerId, tagIds) {
     // Capped generously rather than trusted: the real filter is the
     // intersection against what they actually hold, done server-side.
     tagIds: Array.isArray(tagIds) ? tagIds.slice(0, 200).map(String) : [],
+  });
+}
+
+// --- The Rite of Conversion's picker (docs/systemdocs/THANATI.md §4a) ------
+//
+// Not a DM_CHOICE either, and for the Bird's reason rather than Search's: this
+// is a list, not an Accept. The Discord twin is bot/src/lib/conversionPick.js
+// and both land on the same db/lib/conversionRite.js#answerConversionPick,
+// which re-resolves who is eligible rather than trusting the labels the DM was
+// drawn from — they may be minutes stale.
+export async function pickConversionTarget(attemptId, targetId) {
+  const session = await auth();
+  if (!session?.discordUserId) return { ok: false, reason: "You are not signed in." };
+  return answerConversionPick(prisma, {
+    attemptId: String(attemptId),
+    discordUserId: session.discordUserId,
+    targetId: String(targetId ?? ""),
   });
 }

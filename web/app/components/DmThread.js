@@ -17,6 +17,7 @@ import {
 import { dayKey, dayLabel, clockLabel, formatDmTime, fullTimestamp } from "@/lib/dmTime";
 import { DM_ACTION, dmActionOf } from "@lifeweb/db/lib/dmActions";
 import DmActionRow from "./DmActionRow";
+import { pickConversionTarget } from "@/app/(app)/chat/dmActions";
 import { useRequestActions } from "./RequestActionsProvider";
 import { deskSpeakerName } from "@/lib/deskSpeaker";
 
@@ -140,6 +141,53 @@ function LetterBody({ message }) {
       {/* Through the renderer, like every other body in this thread — avoids the raw `<t:1757700120:F>` lobby-DM bug. */}
       {text && <MarkdownContent content={text} className="dm-letter-text" />}
       <LetterReply message={message} />
+    </div>
+  );
+}
+
+// The web's half of the Rite of Conversion's picker — a list, not an Accept,
+// which is why RITE_TARGET draws no generic button row (db/lib/dmActions.js).
+// The names come off the row's own meta, cached when the DM was sent; the
+// server action rebuilds the eligible set and refuses a stale one, so an
+// option going grey here is a courtesy and never the check.
+function ConversionPick({ message }) {
+  const action = message.actionable ? dmActionOf(message) : null;
+  const targets = Array.isArray(message.meta?.riteTargets) ? message.meta.riteTargets : [];
+  const [choice, setChoice] = useState("");
+  const [line, setLine] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  if (action?.kind !== DM_ACTION.RITE_TARGET || targets.length === 0) return null;
+  if (line !== null) return <p className="dm-action-outcome">{line}</p>;
+
+  async function submit() {
+    if (!choice || busy) return;
+    setBusy(true);
+    try {
+      const res = await pickConversionTarget(action.id, choice);
+      setLine(res?.ok ? res.line : (res?.reason ?? "That didn't go through. Try again."));
+    } catch {
+      setLine("That didn't go through. Try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="dm-action-row">
+      <label className="field">
+        <span className="field-label">Who do you call?</span>
+        <select value={choice} onChange={(e) => setChoice(e.target.value)} disabled={busy}>
+          <option value="">Pick somebody</option>
+          {targets.map((t) => (
+            <option key={t.characterId} value={t.characterId}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <button type="button" className="btn" onClick={submit} disabled={!choice || busy}>
+        Call them
+      </button>
     </div>
   );
 }
@@ -392,6 +440,7 @@ function Row({ item, gmProfileById, character, compact, now, perspective, onRetr
         )}
       {images.length > 0 && <AttachedImages images={images} />}
       {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
+      {perspective === "player" && <ConversionPick message={message} />}
     </TranscriptLine>
   );
 }

@@ -6,16 +6,22 @@
 //
 // TWO THINGS MAKE THIS KIND ODD, and both are the point of the feature.
 //
-// 1. REFUSING COSTS SOMETHING. Every other offer declines for free. This one
-//    floors the mood and hands over Depressed, which is what the Grimoire
-//    promises the cult ("severely weakened and distraught, allowing you to
-//    finish them off"). So a decline cannot go through the generic
-//    declineOffer() in db/lib/lessons.js, which applies no effects at all —
-//    dmAnswer.js routes CONVERSION to refuseConversion() below instead.
+// 1. THE CULTIST CHOOSES, and the rite waits while they do. Every other rite
+//    resolves its target itself. This one fires into RiteAttempt.AWAITING with
+//    the eligible non-cultists snapshotted on the row, DMs the circle a picker,
+//    and only writes the Offer once one of them answers
+//    (db/lib/riteEffects.js#conversion, #answerConversionPick).
 // 2. IT HAS A CLOCK. Three hours, on Offer.expiresAt, swept by
-//    db/lib/riteSweep.js. Going to bed is not a way to dodge the question; it
-//    is a way to answer no. The cult may simply chant it again, so an
-//    unlucky AFK costs a turn of misery rather than the character.
+//    db/lib/riteSweep.js. Silence still resolves as a decline rather than
+//    hanging, so there is one road out of a pending question and not two — it
+//    simply costs nothing now, the way every other decline in the game does.
+//
+// REFUSING USED TO COST SOMETHING: -140 mood and the Depressed tag, which is
+// what the old Grimoire meant by "severely weakened and distraught, allowing
+// you to finish them off". That is gone. Conversion cannot be put to somebody
+// who is bound or otherwise unable to act, so it is an invitation now, and an
+// invitation that punishes "no" is not one. Do not reintroduce a price here
+// without changing the rite's description in db/lib/rites.js to match.
 //
 // NOBODY IS EVER NAMED. Not in the vision, not in the room lines, not on the
 // web card. A player who wakes up Thanati should not be handed the roster of
@@ -30,12 +36,14 @@ const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { roomLine } = require("./placeLine");
 const { aliasSubject } = require("./concealedIdentity");
-const { grantTagSlugs, dropCharacterTag } = require("./tagWrites");
+const { grantTagSlugs } = require("./tagWrites");
 const { resolveSeatConflicts, describeSeatConflicts } = require("./seatConflicts");
 const { fulfillObjectives } = require("./objectives");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
-const { applyMood, setMood } = require("./mood");
+const { applyMood } = require("./mood");
 const { THANATI_SLUG } = require("./thanati");
+const { convertCandidates } = require("./riteIngredients");
+const { IDENTITY_SELECT, identityOf, seenAs } = require("./intercept");
 const { SFX } = require("./sfx");
 
 // Three hours. Long enough that somebody at work still gets to answer, short
@@ -43,12 +51,6 @@ const { SFX } = require("./sfx");
 const CONVERSION_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 const PIOUS_SLUG = "pious";
-const DEPRESSED_SLUG = "depressed";
-
-// Where a refuser lands on the way back up, if the cult ever talks them round:
-// the FLOOR of Pleased (db/lib/mood.js#MOOD_BANDS), not its middle. Accepting
-// after a refusal is a rescue, not a reward.
-const CONVERTED_MOOD = 28;
 
 // Bascinet's words, verbatim.
 const VISION_DM = [
@@ -57,10 +59,13 @@ const VISION_DM = [
 ].join(" ");
 const ACCEPTED_DM =
   "This reality is cursed! You are now loyal to the Thanati and must follow the cult's orders. Read your Documents for more information.";
-const REFUSED_DM = "The reality is too much! You are shocked and traumatized.";
+const REFUSED_DM = "You turn away from the vision, and it fades. The world is as it always was.";
 const DISMISSED_DM =
   "You see a strange vision: reality is doomed. You quickly dismiss it, knowing it as nothing but a hallucination.";
-const REFUSED_LINE = "The target shakes awake, a fearful look in their eyes. They denied the ritual.";
+const REFUSED_LINE = "The vision passes. They have denied the ritual.";
+// What the cultist who called them hears, which is the whole of what a refusal
+// now does. Silence reaches this too, so it must not claim they said anything.
+const ASK_REFUSED_DM = "The one you called has not joined you. Nothing is lost — the circle may call again.";
 
 function log(what) {
   return (err) => console.error(`Conversion rite: ${what} failed:`, err?.message ?? err);
@@ -83,6 +88,149 @@ function dismisses(target) {
 function roomFromOffer(offer) {
   const room = offer?.outcome?.room;
   return room?.id ? room : null;
+}
+
+// ---- Asking the circle who to call -----------------------------------------
+
+// Where a pick comes back on, and Discord's cap on a string select's options.
+const CONVERSION_PICK_PREFIX = "rite:convert:";
+const PICK_OPTION_LIMIT = 25;
+
+const PICK_DM = "The circle is open and the truth is yours to give. Who do you call?";
+
+// Plain component JSON rather than discord.js: the web sends these too and only
+// the bot has the library, so the shape lives where both can reach it.
+function conversionPickRow(attemptId, options) {
+  return [
+    {
+      type: 1,
+      components: [
+        {
+          type: 3,
+          custom_id: `${CONVERSION_PICK_PREFIX}${attemptId}`,
+          placeholder: "Who do you call?",
+          options: options.slice(0, PICK_OPTION_LIMIT).map((o) => ({
+            label: o.label.slice(0, 100),
+            value: o.characterId,
+          })),
+        },
+      ],
+    },
+  ];
+}
+
+/**
+ * Every candidate labelled the way the ROOM sees them, so the picker does not
+ * quietly undo a hood: somebody standing there under a mask is offered as "a
+ * young woman", exactly as they read anywhere else.
+ */
+async function pickOptions(prisma, candidates) {
+  const rows = await prisma.character.findMany({
+    where: { id: { in: candidates.map((c) => c.id) } },
+    select: IDENTITY_SELECT,
+  });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return candidates.map((c) => {
+    const row = byId.get(c.id);
+    return { characterId: c.id, label: row ? seenAs(identityOf(row)) : c.name };
+  });
+}
+
+/**
+ * Put the list in front of the circle. EVERY chanter is asked and the first to
+ * answer wins, which is how the Rite of Panic already treats an answer from a
+ * participant — one nominated cultist who happened to be asleep would strand
+ * the rite for its whole twelve hours.
+ */
+async function askCircleToPick(prisma, { attempt, participants = [], candidates = [] }) {
+  const options = await pickOptions(prisma, candidates);
+  const components = conversionPickRow(attempt.id, options);
+  for (const p of participants) {
+    if (!p.discordUserId) continue;
+    await sendDm(prisma, p.discordUserId, PICK_DM, {
+      source: "rite",
+      sfx: SFX.CONVERT_ASK,
+      components,
+      // The list rides along on meta so the web can draw the same select off
+      // the row, the way a letter carries its own body — `action` is a key
+      // INSIDE meta, so this merges rather than replaces. It is a label cache
+      // and never an authority: answerConversionPick rebuilds the eligible set
+      // and will refuse a name that has gone stale since.
+      meta: { ...dmAction(DM_ACTION.RITE_TARGET, attempt.id), riteTargets: options },
+    }).catch(log(`pick DM to ${p.name}`));
+  }
+  return options;
+}
+
+/**
+ * A cultist picked somebody. Shared by both faces — the bot's select handler
+ * and the web's.
+ *
+ * Nothing from the DM is trusted. The attempt must still be AWAITING, the
+ * answerer must be one of its chanters, and the candidate list is REBUILT
+ * rather than read off the snapshot: minutes pass between the chant and the
+ * answer, and somebody bound, converted or killed in that gap must not still
+ * be offerable.
+ *
+ * Takes the Discord user rather than a character id, the way
+ * db/lib/dmAnswer.js does — the id on the wire is the ATTEMPT, and who is
+ * answering is whoever holds the account, resolved here and never posted.
+ */
+async function answerConversionPick(prisma, { attemptId, discordUserId, targetId }) {
+  const attempt = await prisma.riteAttempt.findUnique({ where: { id: attemptId } });
+  if (!attempt || attempt.riteKey !== "conversion" || attempt.status !== "AWAITING") {
+    return { ok: false, reason: "That rite is over." };
+  }
+
+  const me = discordUserId
+    ? await prisma.character.findFirst({
+        where: { discordUserId, status: "ALIVE" },
+        select: { id: true },
+      })
+    : null;
+  const participants = Array.isArray(attempt.participants) ? attempt.participants : [];
+  const asker = me ? participants.find((p) => p.characterId === me.id) : null;
+  if (!asker) return { ok: false, reason: "You were not in that circle." };
+
+  // Not ROOM_SELECT from riteChant.js: that module reaches riteEffects.js,
+  // which reaches this one. These are the fields convertCandidates and the
+  // room lines actually need.
+  const room = await prisma.room.findUnique({
+    where: { id: attempt.roomId },
+    select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true, discordThreadId: true },
+  });
+  if (!room) return { ok: false, reason: "That room is gone." };
+
+  const eligible = await convertCandidates(prisma, room);
+  const target = eligible.find((c) => c.id === targetId);
+  if (!target) return { ok: false, reason: "They are beyond your reach now." };
+
+  // CLAIM THE ANSWER FIRST, the way answerPanic does: two cultists can pick in
+  // the same second, and without this both would put a vision in somebody's
+  // DMs off one chant.
+  const { count } = await prisma.riteAttempt.updateMany({
+    where: { id: attempt.id, status: "AWAITING" },
+    data: { status: "FIRED", firedAt: new Date() },
+  });
+  if (count === 0) return { ok: false, reason: "Another of the circle has already called somebody." };
+
+  // The vision simply bounces off the faithful — no offer row, nothing to
+  // answer, and the cult learns it wasted the chant by reading the room.
+  const result = dismisses(target)
+    ? await dismissConversion(prisma, { target, room })
+    : await (async () => {
+        const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+        const asked = await createConversionOffer(prisma, { target, room, askedBy: asker, turn });
+        return asked.ok
+          ? { asked: target.name, characterId: target.id, offerId: asked.offer.id }
+          : { asked: false, reason: asked.reason, characterId: target.id };
+      })();
+
+  await prisma.riteAttempt
+    .update({ where: { id: attempt.id }, data: { result: { ...(attempt.result ?? {}), ...result } } })
+    .catch(log("recording the pick"));
+
+  return { ok: true, line: "The circle calls them.", result };
 }
 
 // ---- The three roads out ---------------------------------------------------
@@ -111,18 +259,18 @@ async function dismissConversion(prisma, { target, room }) {
 
 /**
  * Put the question. Returns `{ ok, offer }` or `{ ok: false, reason }`.
- * `participants` is the sweep's chanter list; the first of them is recorded as
- * the initiator because Offer.initiatorId is required, NOT because the rite is
- * theirs — every chanter paid for it equally, and no surface ever reads the
- * name back out.
+ * `askedBy` is the cultist who picked this target out of the circle's list —
+ * a real fact now rather than the placeholder "first chanter" it used to be,
+ * and who refuseConversion() reports back to. It is still never shown to the
+ * person being asked.
  */
-async function createConversionOffer(prisma, { target, room, participants = [], turn }) {
+async function createConversionOffer(prisma, { target, room, askedBy, turn }) {
   // Offer.turnId is required and a rite fires off a minute cron, so it can land
   // between turns. Nothing to do then but let the cult chant again.
   if (!turn?.id) return { ok: false, reason: "no open turn" };
   if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached.` };
 
-  const initiatorId = participants[0]?.characterId ?? null;
+  const initiatorId = askedBy?.characterId ?? askedBy?.id ?? null;
   if (!initiatorId) return { ok: false, reason: "no chanters" };
 
   // One question at a time. A second rite while the first is unanswered would
@@ -156,10 +304,13 @@ async function createConversionOffer(prisma, { target, room, participants = [], 
 }
 
 /**
- * Yes. The old rite's whole body, now on the far side of a question — plus the
- * two lines that undo a previous refusal, so a cult that comes back for a
- * second try is rescuing somebody rather than leaving them wrecked AND
- * converted.
+ * Yes. The old rite's whole body, now on the far side of a question.
+ *
+ * It used to also lift Depressed and set the dial to the floor of Pleased, to
+ * rescue somebody a previous refusal had wrecked. Refusing wrecks nobody any
+ * more, so there is nothing to undo — and doing it anyway would clear a
+ * depression the character earned somewhere else and hand them a mood reset
+ * they never asked for.
  *
  * Shaped like db/lib/kiss.js#acceptKiss: returns `{ ok, line, dms }`, which is
  * what db/lib/dmAnswer.js#answerOffer hands back to both faces.
@@ -178,7 +329,6 @@ async function acceptConversion(prisma, offer, responder) {
       age: true,
       gender: true,
       discordUserId: true,
-      tags: { where: { quantity: { gt: 0 } }, select: { tag: { select: { id: true, slug: true, name: true } } } },
     },
   });
   // Three hours is long enough to die in, so the gate is re-run here and not
@@ -199,7 +349,6 @@ async function acceptConversion(prisma, offer, responder) {
 
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
   const thanati = await prisma.tag.findUnique({ where: { slug: THANATI_SLUG }, select: { id: true } });
-  const depressed = target.tags.find((ct) => ct.tag.slug === DEPRESSED_SLUG)?.tag ?? null;
 
   let conflicts = null;
   await prisma.$transaction(async (tx) => {
@@ -212,15 +361,11 @@ async function acceptConversion(prisma, offer, responder) {
       kinds: ["convert-character", "convert-leader"],
       targetCharacterId: target.id,
     });
-    // Undoing a previous refusal, in this order: the tag first, then the dial,
-    // so the mood DM a player reads is about the sheet they now have.
-    if (depressed) await dropCharacterTag(tx, target.id, depressed.id, 1);
-    await setMood(tx, target.id, CONVERTED_MOOD);
     await logSystemTagChange(tx, {
       system: "rite",
       targetCharacterId: target.id,
       applied: mapGrantedTags(granted),
-      extra: { rite: "conversion", accepted: true, liftedDepression: Boolean(depressed) },
+      extra: { rite: "conversion", accepted: true },
     });
   });
 
@@ -248,13 +393,15 @@ async function acceptConversion(prisma, offer, responder) {
 }
 
 /**
- * No — and the only decline in the game that costs the person declining.
+ * No, and it costs nobody anything — see the header. What is left is closing
+ * the row, letting the room see it happen, and telling the cultist who called
+ * them, which is the one thing the rite still owes anybody.
  *
  * ONE function for all three roads to no: the Refuse button
  * (db/lib/dmAnswer.js), the three-hour sweep (db/lib/riteSweep.js) and the
- * turn-close pass (db/lib/offerExpiryPass.js). They must not disagree about
- * what refusing costs, and the guarded `updateMany` below is what stops two of
- * them charging it twice if they ever race.
+ * turn-close pass (db/lib/offerExpiryPass.js). Silence answers here too, so
+ * the guarded `updateMany` below still matters — it is what stops two of them
+ * telling the cultist twice if they ever race.
  */
 async function refuseConversion(prisma, offer, { responder = null } = {}) {
   const claim = await prisma.offer.updateMany({
@@ -271,16 +418,9 @@ async function refuseConversion(prisma, offer, { responder = null } = {}) {
           select: { id: true, name: true, status: true, discordUserId: true },
         });
 
-  // A dead refuser is still a refusal — the row closes — but there is nobody
-  // left to make miserable and nothing for the room to watch wake up.
+  // A dead refuser is still a refusal — the row closes — but there is nothing
+  // left to say to them and nothing for the room to watch.
   if (target && target.status === "ALIVE") {
-    await prisma
-      .$transaction(async (tx) => {
-        await applyMood(tx, target.id, { kind: "RITE_REFUSED" });
-        await grantTagSlugs(tx, target.id, [DEPRESSED_SLUG], null);
-      })
-      .catch(log(`refusal effects for ${target.name}`));
-
     if (target.discordUserId) {
       await sendDm(prisma, target.discordUserId, REFUSED_DM, { source: "rite" }).catch(
         log(`refusal DM to ${target.name}`),
@@ -293,7 +433,29 @@ async function refuseConversion(prisma, offer, { responder = null } = {}) {
     }
   }
 
+  await tellAsker(prisma, offer);
+
   return { ok: true, line: "You refuse.", dms: [] };
+}
+
+/**
+ * The cultist who called them finds out, whether the answer was a button or
+ * three hours of nothing. Best-effort and last, like every other send here:
+ * the row is already closed by the time this runs, so a DM that will not go
+ * cannot leave the offer half-answered.
+ */
+async function tellAsker(prisma, offer) {
+  if (!offer?.initiatorId) return;
+  const asker = await prisma.character
+    .findUnique({
+      where: { id: offer.initiatorId },
+      select: { id: true, name: true, status: true, discordUserId: true },
+    })
+    .catch(log("asker lookup"));
+  if (!asker || asker.status !== "ALIVE" || !asker.discordUserId) return;
+  await sendDm(prisma, asker.discordUserId, ASK_REFUSED_DM, { source: "rite" }).catch(
+    log(`refusal notice to ${asker.name}`),
+  );
 }
 
 /**
@@ -303,7 +465,7 @@ async function refuseConversion(prisma, offer, { responder = null } = {}) {
 async function expireConversionOffers(prisma, now = new Date()) {
   const due = await prisma.offer.findMany({
     where: { kind: "CONVERSION", status: "PENDING", expiresAt: { lte: now } },
-    select: { id: true, responderId: true, outcome: true },
+    select: { id: true, responderId: true, initiatorId: true, outcome: true },
   });
   let refused = 0;
   for (const offer of due) {
@@ -318,14 +480,20 @@ async function expireConversionOffers(prisma, now = new Date()) {
 
 module.exports = {
   CONVERSION_WINDOW_MS,
-  CONVERTED_MOOD,
+  CONVERSION_PICK_PREFIX,
+  PICK_OPTION_LIMIT,
   VISION_DM,
   ACCEPTED_DM,
   REFUSED_DM,
   DISMISSED_DM,
   REFUSED_LINE,
+  ASK_REFUSED_DM,
+  PICK_DM,
   dismisses,
   dismissConversion,
+  conversionPickRow,
+  askCircleToPick,
+  answerConversionPick,
   createConversionOffer,
   acceptConversion,
   refuseConversion,

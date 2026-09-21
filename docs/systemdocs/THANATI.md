@@ -1,10 +1,12 @@
 # Thanati
 
 <!--
-PLACEHOLDER. Written by Claude for its own orientation while building the
-cult, so the next session has a map. Replace this file as soon as a human
-design doc exists — Bascinet has said one is coming. Nothing here is game
-text.
+PARTLY PLACEHOLDER. Written by Claude for its own orientation while building
+the cult, so the next session has a map. Bascinet's own design doc has since
+arrived for two parts of it — the Words of the Circle (§4, §4b, §4c) and the
+Rite of Conversion (§4a) — and those sections now follow it. The rest is
+still Claude's map and should be replaced as more of that doc lands. Nothing
+here is game text.
 -->
 
 The death cult as gameplay: who is one, what they carry, the four buttons in
@@ -100,15 +102,31 @@ whole mechanism:
 
 1. **Words.** `db/lib/rites.js#RITES` is the catalog (name, minimum chanters,
    ingredients, Bascinet's description, `run`). `rollRiteWords` gives every
-   rite one to three words from `THANATI_DICTIONARY`, rerolling any phrase
-   that nests in another. `db/lib/riteWords.js#ensureRiteWords` rolls lazily
+   rite **one to three words** from `THANATI_DICTIONARY` (§4b).
+   `db/lib/riteWords.js#ensureRiteWords` rolls lazily
    into `GameState.riteWords` the first time anything asks (a chant, the
    Grimoire document, the GM panel) with a guarded `updateMany` so two first
    readers cannot both roll. Restart Game recreates GameState, so a new game
-   rolls new words. A rite ADDED to the catalog mid-game would otherwise never
-   get one, so `ensureRiteWords` also tops up: `rollRiteWords(rng, RITES,
-   existing)` keeps every phrase already rolled, counts it among the taken, and
-   rolls only the missing keys.
+   rolls new words — which is the whole point: nobody can carry a Word of the
+   Circle over from a game they have already played. A rite ADDED to the
+   catalog mid-game would otherwise never get one, so `ensureRiteWords` also
+   tops up: `rollRiteWords(rng, RITES, existing)` keeps every phrase already
+   rolled, counts it among the taken, and rolls only the missing keys.
+
+   **Three rules reject a candidate phrase**, and they are not the same rule:
+
+   - **The word cap.** At most three words, counted on the phrase AS WRITTEN
+     (`phraseWordCount`). Not as normalized: `rud'minuox` reads as one word to
+     whoever has to say it even though `normalizeChant` splits it in two, and
+     three dictionary entries are not three words now that `pestis cruento`
+     and two others are two-word entries.
+   - **Nesting**, against the phrases already rolled, in both directions.
+     Matching is "contains", so a phrase sitting inside another would fire two
+     rites off one line.
+   - **The blocklist** — `PROHIBITED_CIRCLE_PHRASES`, §4c. **Whole phrase
+     only**, by equality after normalization. The words in it stay in the
+     dictionary and may be rolled in any other company; it is the exact phrase
+     that is barred.
 2. **The chant hook.** `db/lib/say.js#recordSpeech` calls
    `db/lib/riteChant.js#noteChant` after every archived line, on both faces,
    fire-and-forget. It counts a chant when the place is a Room thread
@@ -141,42 +159,72 @@ anyone else — nothing here reads the Belief.
 ### 4a. Conversion asks (`db/lib/conversionRite.js`)
 
 **The Rite of Conversion is the one rite that does not do anything to
-anybody.** It puts a question in front of the target, and they answer it. Two
-cultists are needed to ask it, not one.
+anybody.** It puts a question in front of somebody, and they answer it. **One
+cultist is enough to ask it.**
 
-It is an `Offer` of kind `CONVERSION` — the same consent row Lesson, Bind,
-Confession, Escort, Kiss, Search and Collar use, so the DM buttons, the card on
-`/character` and the routing in `db/lib/dmAnswer.js` all come for free. Two
-things make it the odd one out of that family, and both are the point:
+**The target must be able to walk away from the question.** Not bound, not
+shackled, not dying, catatonic, crucified, paralyzed, unconscious or in
+seizure — one predicate, `slugsBlocking(ACT)` from
+`db/lib/incapacitation.js`, rather than a hand-rolled pair of restraint slugs.
+This is the exact reversal of what the rite used to want: it took a **Bound**
+person, and the Grimoire promised the cult that refusing would leave them
+*"severely weakened and distraught, allowing you to finish them off."* Both
+halves of that are gone. An invitation cannot be put to somebody in no
+position to refuse it, and an invitation that punishes "no" is not one.
 
-- **Refusing costs something.** Every other offer declines for free. This one
-  is `EVENTS.RITE_REFUSED` (−140, so all but the very highest-spirited land in
-  Panicking) plus the `depressed` tag. That is what the Grimoire promises the
-  cult: *"severely weakened and distraught, allowing you to finish them off."*
-  So it can **not** go through `declineOffer()` in `db/lib/lessons.js`, which
-  closes the row and picks wording but applies no effects at all — an entry in
-  that file's `WORDING` table would have written the sentence and quietly
-  skipped the price. `dmAnswer.js#declineOfferOfKind` routes it here instead.
-- **It has a clock.** `Offer.expiresAt`, three hours, swept by
-  `db/lib/riteSweep.js` on the minute pass that is already running. Going quiet
-  is not a way out of the question, it is a way of answering no. The backstop
-  is `db/lib/offerExpiryPass.js`, which refuses a still-pending one at turn
-  close rather than marking it `EXPIRED`, so none outlives the turn its row is
-  pinned to. **All three roads to no call the same `refuseConversion()`**, and
-  its guarded `updateMany` is what stops two of them charging the price twice.
+### The two stages
 
-There is no cooldown. The cult may chant it again as often as it likes, which
-is what keeps an unlucky AFK costing a turn of misery rather than a character.
-Accepting after a refusal lifts `depressed` and sets the dial to **28**, the
-floor of Pleased — a rescue, not a reward.
+**The cultist chooses.** `riteIngredients.js#convertCandidates` hands the
+effect **every** eligible non-cultist in the room rather than picking one, and
+`EFFECTS.conversion` returns `{ awaiting: "convert-target" }` — so the attempt
+parks on `RiteAttempt.AWAITING`, the way the Rite of Panic parks waiting for a
+zone. Every chanter is DM'd a select menu, and **the first to answer claims
+it** (`conversionRite.js#answerConversionPick`, a guarded `updateMany` on
+AWAITING, the same shape `answerPanic` uses). Asking only one nominated
+cultist would strand the rite for its whole twelve hours if that one happened
+to be asleep.
 
-**The Pious are a valid target now, sorted last.** They used to be dropped from
-the candidate list entirely; today `boundCandidates`' `deprioritizeSlugs` puts
-them behind everyone else in the room, so the rite reaches one only when there
-is nobody else lying there. The vision bounces off: no `Offer` row is ever
-written, they get the hallucination DM and `EVENTS.RITE_DISMISSED` (+50), and
-the room hears them refuse. The cult finds out it wasted the chant by reading
-the room.
+Nothing off the DM is trusted. The answerer must be one of the chanters
+snapshotted on the attempt, and **the candidate list is rebuilt at pick time**
+rather than read off the snapshot — minutes pass between the chant and the
+answer, and somebody bound, converted or killed in the gap must not still be
+offerable. The labels in the menu go through `seenAs(identityOf(…))`, so a
+hood is not quietly undone by the picker.
+
+**Then the target answers.** An `Offer` of kind `CONVERSION` — the same consent
+row Lesson, Bind, Confession, Escort, Kiss, Search and Collar use, so the DM
+buttons, the card on `/character` and the routing in `db/lib/dmAnswer.js` all
+come for free. The offer does not exist until somebody has been picked.
+
+### Saying no costs nothing
+
+Every other offer declines for free, and this one does now too. What a refusal
+still does is close the row, let the room see it happen, and **tell the cultist
+who called them** — which is the one thing the rite owes anybody, and which
+nothing used to do.
+
+**It keeps its clock.** `Offer.expiresAt`, three hours, swept by
+`db/lib/riteSweep.js` on the minute pass that is already running, with
+`db/lib/offerExpiryPass.js` as the turn-close backstop. Silence still resolves
+as a decline rather than hanging, so there is **one road out of a pending
+question and not two**; it simply costs nothing now. `ASK_REFUSED_DM` is
+therefore worded to fit both — it says they did not join, never that they said
+so. **All three roads call the same `refuseConversion()`**, and its guarded
+`updateMany` is what stops two of them telling the cultist twice.
+
+Accepting no longer lifts `depressed` or sets the dial to the floor of
+Pleased. That was a rescue from a wound this rite no longer inflicts, and
+doing it anyway would clear a depression the character earned somewhere else.
+
+There is no cooldown. The cult may chant it again as often as it likes.
+
+**The Pious are a valid target, sorted last.** They used to be dropped from the
+candidate list entirely; `deprioritizeSlugs` puts them behind everyone else
+instead. That sort is presentation now rather than a rule — a cultist reading
+the menu may pick one deliberately — but it still means the obvious pick is
+never the wasted one. The vision bounces off: no `Offer` row is ever written,
+they get the hallucination DM and `EVENTS.RITE_DISMISSED` (+50), and the room
+hears them refuse. The cult finds out it wasted the chant by reading the room.
 
 **Nobody is ever named**, on any surface. The vision names no cultist, the room
 lines use `aliasSubject()`, and `web/app/(app)/character/page.js` nulls
@@ -186,8 +234,93 @@ all — a rule about the payload, not about the string.
 | Answer | Target hears | Room hears |
 |---|---|---|
 | Accept | "This reality is cursed! …" plus any Belief conflict | "…'s eyes widen as they begin to understand…" |
-| Refuse, or three hours' silence | "The reality is too much! You are shocked and traumatized." | "The target shakes awake, a fearful look in their eyes. They denied the ritual." |
+| Refuse, or three hours' silence | "You turn away from the vision, and it fades…" | "The vision passes. They have denied the ritual." |
 | Pious | "You see a strange vision… nothing but a hallucination." | "… refuses the ritual, a look of determination in their eyes!" |
+
+The cultist who called them hears `ASK_REFUSED_DM` on either of the last two,
+and nothing at all on an Accept — the room's line is the telling there.
+
+### 4b. The dictionary
+
+`THANATI_DICTIONARY` in `db/lib/rites.js`, 51 entries. Bascinet's table, with
+the English the code does not carry — nothing reads a gloss, so keeping one in
+`rites.js` would be a second place to hold in step for no behaviour. Price a
+new word by this table, not by the shape of a neighbouring one.
+
+Three entries are **two words** (`pestis cruento`, `cruento pestis`, `cruento
+paashaeximus`), which is why the cap counts words rather than entries. The
+hyphens and the apostrophes are for the reader: `normalizeChant` strips
+everything that is not a letter, so `domus-bhaava` and `domus bhaava` are the
+same chant, as are `exim'ha` and `exim’ha`.
+
+| English | Cultist | | English | Cultist |
+|---|---|---|---|---|
+| believer (colloquial) | `rud'minuox` | | love (formal) | `odiosuu` |
+| believer (formal) | `rudsceleratus` | | massacre (colloquial) | `cruo-stragaraNa` |
+| blessed (formal) | `pestis cruento` | | massacre (formal) | `prayaNavita` |
+| blood (formal) | `cruo` | | order (formal) | `vilomaxus` |
+| blood brother (formal) | `crunatus` | | pray (colloquial) | `profanx` |
+| blood heaven (formal) | `pretiacruento` | | pray (formal) | `profanuxes` |
+| bloodhungry (formal) | `cruentu` | | shit (colloquial) | `exim'ha` |
+| bloodshed (colloquial) | `cruensseasrjit` | | spirit (colloquial) | `tuulenux` |
+| bloodthirsty (colloquial) | `cruonit` | | spirit (formal) | `praaNsilenux` |
+| chaos (formal) | `shaantitus` | | to be (colloquial) | `esco` |
+| curse (formal) | `cruento pestis` | | to be (formal) | `bhuuesco` |
+| dark (formal) | `domus` | | to become (colloquial) | `desco` |
+| death (colloquial) | `marana` | | to become (formal) | `bhuudesco` |
+| drink (colloquial) | `bibox` | | to do, to inflict upon | `hatanoceo` |
+| eat (colloquial) | `vorox` | | to have, possess (colloquial) | `gero` |
+| ecstasy/enlightenment (formal) | `cruento paashaeximus` | | to have, possess (formal) | `geropayati` |
+| enemies (formal) | `Shatruex` | | to make bloody (colloquial) | `cruonita` |
+| foreigner (formal) | `infirmux` | | to make dark (formal) | `infuscomus` |
+| fresh (colloquial) | `crudux` | | unbeliever/Humanity (colloquial) | `malax` |
+| gun (colloquial) | `vigra` | | unbeliever/Humanity (formal) | `caecux` |
+| hate (colloquial) | `invisux` | | unquenchable (formal) | `quodpipax` |
+| hate (formal) | `invisuu` | | weakling (colloquial) | `pallex` |
+| heaven (formal) | `maravita` | | wisdom (formal) | `durbentia` |
+| home (formal) | `domus-bhaava` | | world (formal) | `lokemundux` |
+| light (formal) | `acerbus-shatruex` | | | |
+| living dead (formal) | `pretaanluxis` | | | |
+| love (colloquial) | `odiosux` | | | |
+
+`hatanoceo` is **one** entry, not two: Bascinet's table gives it for both the
+colloquial and the formal "to do, to inflict upon". A duplicate would fail
+`db/test/rites.test.js`'s uniqueness-after-normalization assertion, which is
+exactly what that assertion is for.
+
+### 4c. The prohibited phrases
+
+`PROHIBITED_CIRCLE_PHRASES`, 26 of them. These are the cult's battle cries —
+what a player shouts in character — so none may also be the thing that fires a
+rite. **Whole phrase only.** Their words stay in the dictionary and roll
+freely in any other combination: `pretiacruento` on its own is refused,
+`pretiacruento marana` is not.
+
+```
+"apigami"                                bhuudesco invisuu
+bhuuesco marana                          crudux cruo
+cruento paashaeximus                     cruento pestis shatruex
+cruo crunatus durbe                      cruo lokemundux
+cruo stragarana malaxos                  geroxe cruo
+En marana domus nava crunatus            caecux infirmux
+malax "say ti"                           maranax pallex
+maranax malax                            maranax infirmux
+pallex "ti"                              Geroxe bibox malax
+pestis Cruento                           pestis cruento vilomaxus pretiacruento
+pretaanluxis cruonit                     pretiacruento
+stragarana                               vorox esco marana
+vilomaxus                                "Pro" stragarana malaxos
+```
+
+Several use word forms the dictionary does not carry — `geroxe`, `durbe`,
+`maranax`, `malaxos`, `en`, `nava`, `pro`, `say ti` — and so could never be
+rolled anyway. They are listed in full regardless, so the blocklist stays true
+to Bascinet's text rather than to whatever the dictionary happens to hold. The
+quote marks need no stripping: `normalizeChant` drops them like any other
+non-letter.
+
+**`apigami` and `stragarana` left the dictionary** when this list arrived.
+They were rollable words before, and they are battle cries and nothing else.
 
 ## 5. The Grimoire document
 
@@ -223,8 +356,10 @@ cascade. `GameState.riteWords` and `thanatiHideoutRoomId` go with the row.
 | `db/lib/riteChant.js` | The chant hook and `evaluateAttempt` |
 | `db/lib/riteSweep.js` | Expire / fire / rearm |
 | `db/lib/ascensionPass.js` | The end of the world, at a turn close |
-| `db/lib/conversionRite.js` | The Conversion handshake: the vision, the three answers, the three-hour clock |
+| `db/lib/conversionRite.js` | The Conversion handshake: the circle's picker, the vision, the three answers, the three-hour clock |
+| `bot/src/lib/conversionPick.js` | Discord's half of that picker; the web's is `DmThread.js#ConversionPick` |
 | `db/test/rites.test.js` | The pure half |
+| `db/test/conversionRite.test.js` | The handshake, the picker and the blocklist's reach |
 | `web/lib/moveSpend.js` | `requireFreeMove`, `fileAutoRoutine` |
 | `web/lib/grimoire.js` | The Grimoire body |
 | `web/app/(app)/character/thanatiActions.js` | The four actions |
@@ -240,7 +375,7 @@ words where a room or a player hears anything:
 | Rite | Needs (resolved by `riteIngredients.js`) | Does |
 |---|---|---|
 | Initial | 1 chanter | DMs every participant the cult's objectives with Success!/Incomplete |
-| Conversion | a Bound character at the Location with access to the room, not already Thanati; leaders first, **Pious last** | **Asks.** An `Offer` of kind `CONVERSION` — see §4a |
+| Conversion | every character at the Location with access to the room who is **able to act** and not already Thanati; leaders first, **Pious last** | **Waits.** Parks on AWAITING and DMs the circle a picker; the pick writes the `Offer` — see §4a |
 | Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, **gibs** them (`killByRite`, `gib: true`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor. No corpse is minted at all — see `CORPSES.md` §1a |
 | Scrying | 15 ⬢ | a `scrying-eye` on the floor |
 | Possession | a weapon stack on the floor, 15 ⬢ | one unit becomes a custom "<Name> (Animated)" copy, indestructible |

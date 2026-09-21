@@ -76,6 +76,8 @@ const { sessionGate } = require("@lifeweb/db/lib/betweenSessions");
 const { isGmMember } = require("../lib/interactionGuild");
 const { BIRD_REPLY_PREFIX, BIRD_REPLY_PICK_PREFIX } = require("@lifeweb/db/lib/bird");
 const { handleBirdReplyOpen, handleBirdReplyPick } = require("../lib/birdReply");
+const { CONVERSION_PICK_PREFIX } = require("@lifeweb/db/lib/conversionRite");
+const { handleConversionPick } = require("../lib/conversionPick");
 const { NOTICEBOARD_PREFIX } = require("@lifeweb/db/lib/locationAnchorRow");
 const {
   READ_PREFIX: NOTICE_READ_PREFIX,
@@ -522,6 +524,15 @@ module.exports = {
         // Answering a bird: which letter in your hands goes back.
         if (interaction.customId.startsWith(BIRD_REPLY_PICK_PREFIX)) {
           return void (await handleBirdReplyPick(interaction, interaction.customId.slice(BIRD_REPLY_PICK_PREFIX.length)));
+        }
+        // The Rite of Conversion's picker (docs/systemdocs/THANATI.md §4a).
+        // Arrives in a DM to every chanter, so guild/member are null; the
+        // first of them to answer claims the rite.
+        if (interaction.customId.startsWith(CONVERSION_PICK_PREFIX)) {
+          return void (await handleConversionPick(
+            interaction,
+            interaction.customId.slice(CONVERSION_PICK_PREFIX.length),
+          ));
         }
         // The three verbs on a noticeboard. Read is free to anyone standing
         // here; whether they can make anything of it is a separate question

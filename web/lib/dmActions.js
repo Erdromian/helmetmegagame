@@ -81,12 +81,28 @@ async function liveBirdReplies(ids, viewer) {
   return rows.map((r) => r.id);
 }
 
+// Still pickable while the rite is AWAITING and this viewer is one of the
+// chanters it snapshotted (docs/systemdocs/THANATI.md §4a); authority is
+// db/lib/conversionRite.js#answerConversionPick. The twelve-hour sweep in
+// riteSweep.js is what finally takes an unanswered one off the thread.
+async function liveConversionPicks(ids, viewer) {
+  if (!viewer.characterId) return [];
+  const rows = await prisma.riteAttempt.findMany({
+    where: { id: { in: ids }, riteKey: "conversion", status: "AWAITING" },
+    select: { id: true, participants: true },
+  });
+  return rows
+    .filter((r) => (Array.isArray(r.participants) ? r.participants : []).some((p) => p.characterId === viewer.characterId))
+    .map((r) => r.id);
+}
+
 const RESOLVERS = {
   [DM_ACTION.OFFER]: liveOffers,
   [DM_ACTION.THREAT_SPAWN]: liveThreatSpawns,
   [DM_ACTION.LOBBY_SEAT]: liveLobbySeats,
   [DM_ACTION.KEYED_WAY]: liveKeyedWays,
   [DM_ACTION.BIRD_REPLY]: liveBirdReplies,
+  [DM_ACTION.RITE_TARGET]: liveConversionPicks,
 };
 
 // Stamps `actionable: true` on rows whose descriptor still names something this viewer can

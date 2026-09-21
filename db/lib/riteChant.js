@@ -109,9 +109,14 @@ async function attemptFor(db, rite, room) {
 
 // A rite waiting on a word from one of its own: the first participant's line
 // that names a place answers it.
+//
+// PANIC ONLY, and the riteKey test is load-bearing rather than tidy. Conversion
+// waits too now, but it is answered by a picker and not by speech — without the
+// filter, a cultist who happened to say a zone name would have answerPanic's
+// guarded claim flip the CONVERSION row to FIRED and silently eat the rite.
 async function answerAwaiting(db, { roomId, character, content }) {
   const waiting = await db.riteAttempt.findMany({
-    where: { roomId, status: "AWAITING" },
+    where: { roomId, status: "AWAITING", riteKey: "panic" },
     orderBy: { firedAt: "asc" },
   });
   for (const attempt of waiting) {

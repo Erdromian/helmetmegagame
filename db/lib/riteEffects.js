@@ -26,7 +26,7 @@ const { setMood, MOOD_MIN } = require("./mood");
 const { normalizeChant, containsPhrase } = require("./rites");
 const { closeDeadchatTo } = require("./deadchat");
 const { BOUND_SLUG, onHallowedGround } = require("./riteIngredients");
-const { dismisses, dismissConversion, createConversionOffer } = require("./conversionRite");
+const { askCircleToPick } = require("./conversionRite");
 const { broadcastToZones } = require("./worldBroadcast");
 const { SFX } = require("./sfx");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
@@ -218,24 +218,25 @@ const EFFECTS = {
     return { result: { told: participants.length, objectives: objectives.length } };
   },
 
-  // The rite no longer converts anybody: it ASKS. All this handler does is put
-  // the vision in front of the target and stop. Everything that used to live
-  // here — the tag grant, the seat clear-out, the objectives, the eyes-widen
-  // line — now sits behind their Accept in db/lib/conversionRite.js, and the
-  // refusal that used to be impossible has a price beside it. The attempt row
-  // is FIRED either way: the chant is spent, whatever they answer hours later.
-  async conversion({ db, room, resolved, openTurn, participants }) {
-    const target = resolved.boundPerson;
-
-    // The vision simply bounces off the faithful. No offer row and nothing to
-    // answer — the cult learns it wasted the chant by reading the room.
-    if (dismisses(target)) {
-      return { result: await dismissConversion(db, { target, room }) };
-    }
-
-    const asked = await createConversionOffer(db, { target, room, participants, turn: openTurn });
-    if (!asked.ok) return { result: { asked: false, reason: asked.reason, characterId: target.id } };
-    return { result: { asked: target.name, characterId: target.id, offerId: asked.offer.id } };
+  // The rite converts nobody and does not even choose who to ask: it hands the
+  // circle a list and WAITS, the way Panic waits for a zone. The pick writes
+  // the Offer (db/lib/conversionRite.js#answerConversionPick); the Accept
+  // behind that does the tag grant, the seat clear-out and the objectives.
+  //
+  // It used to resolve a single Bound target itself and put the vision to them
+  // whether or not they could have walked away. The candidates are the exact
+  // opposite set now — awake, unbound, able to answer for themselves — and the
+  // cultist picks one by hand.
+  async conversion({ db, room, resolved, attempt, participants }) {
+    const candidates = resolved.convertCandidates ?? [];
+    const options = await askCircleToPick(db, { attempt, participants, candidates });
+    await roomLine(db, room, "The circle draws breath, and waits.", { sfx: SFX.CONVERT_ASK });
+    return {
+      awaiting: "convert-target",
+      // Names, not ids: this lands on the GM panel, and the ids are re-resolved
+      // from the room at pick time anyway.
+      result: { awaiting: "convert-target", offered: options.map((o) => o.label) },
+    };
   },
 
   async sacrifice({ db, room, resolved, openTurn }) {
