@@ -74,7 +74,6 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
   const recipeSlugs = new Set(sources.items.map((i) => i.slug));
   // Farmed crops go into a dish two at a time: the best crops-only Basic dish gives 35 hunger for 0.05 of a Move
   // (COOKING.md §2a), which is what a starting stock of crops turns into when a cook spends a turn on it.
-  const cropSlugs = new Set(soilery.CROPS.map((c) => c.crop));
   const cropDish = cooking.dishes.filter((d) => d.farmOnly && d.tier === "Basic").sort((a, b) => b.hungerPerUnit - a.hungerPerUnit)[0];
   const cookedPerCrop = cropDish?.hungerPerUnit ?? 0;
   const movesPerCrop = cropDish ? cropDish.moves / cropDish.units : 0;
@@ -86,6 +85,12 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
   }
   const resolve = (id) => get(id) ?? byName.get(String(id).toLowerCase()) ?? null;
   const foodHungerOf = (t) => (foodBy.has(t.slug) ? foodBy.get(t.slug) : hunger.foodHungerFor(t));
+  // Only the crops somebody can actually eat. Tobacco is sown like the rest but is a cash crop with no
+  // cooked block, so counting it as dish input turned a tobacco plant into 17.5 hunger of dinner.
+  const cropSlugs = new Set(soilery.CROPS.map((c) => c.crop).filter((slug) => {
+    const t = get(slug);
+    return Boolean(t) && foodHungerOf(t) > 0;
+  }));
   const isKey = (slug) => /-key$|keycard$|^keycard/.test(slug) || slug === "depot-keycard" || slug === "ancient-keycard";
 
   const { rooms, doors, locNames } = readRooms();
@@ -216,7 +221,6 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
     role.hungryTurn = hungryTurn(carried, role.decay);
     role.starveTurn = startingTurn(carried, role.decay);
     role.dyingTurn = role.starveTurn + deathTurns - 1;
-    role.starveTurnCooked = startingTurn(role.foodCooked, role.decay);
     // What the coin buys off the shelf, at the price of a person-turn of ration, scaled to how fast this role burns.
     const costPerTurn = costPerPersonTurn == null ? null : costPerPersonTurn * (role.decay / decayBase);
     role.turnsFromFunds = costPerTurn ? (role.decay === 0 ? Infinity : role.funds / costPerTurn) : null;
@@ -324,12 +328,8 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
       resources: sum("resources"),
       cracked: sum("cracked"),
       food: sum("food"),
-      crops: sum("crops"),
       dishes: seated.filter((r) => r.crops >= 20).reduce((n, r) => n + r.dishes * r.seats, 0),
-      cookMoves: sum("cookMoves"),
-      foodCooked: sum("foodCooked"),
       foodTurns: sum("food") / decayBase,
-      cookedTurns: sum("foodCooked") / decayBase,
       cropTurns: seated.filter((r) => r.crops >= 20).reduce((n, r) => n + r.crops * r.seats * cookedPerCrop, 0) / decayBase,
       cookSeats: seated.filter((r) => r.crops >= 20).reduce((n, r) => n + r.seats, 0),
       needPerTurn: seatTotal * decayBase,
