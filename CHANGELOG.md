@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · The waking song plays once per player, ever
+
+✎ white_waking now plays a single time for each browser instead of once an hour
+
 ## 2026-09-21 · Rare tags leave the public catalog, vampires go secret
 
 ✎ About 110 tags players would not come across by ordinary means — mastery tags, rare illnesses, gems and precious metals, black-market drugs, the fancier guns, the Arelitz, the hidden places — now show on the Tag Catalog only to GMs and to whoever holds them  

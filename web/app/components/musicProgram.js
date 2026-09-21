@@ -43,8 +43,9 @@ export const PROGRAMS = {
         fadeInMs: 3000,
         fadeOutMs: 4000,
         once: true,
-        // Once an hour per browser, not once per page load — a refresh used to replay it.
-        cooldownMs: 3_600_000,
+        // Once per browser, ever — not once per page load, which meant every refresh
+        // replayed it. Infinity is the cooldown that never expires.
+        cooldownMs: Infinity,
       },
       { goto: 0 },
     ],

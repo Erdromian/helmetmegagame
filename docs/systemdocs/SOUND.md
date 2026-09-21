@@ -140,7 +140,7 @@ program from the phase and runs it.
 
 | state | program |
 |---|---|
-| `CLOSED` | wind beds for about a minute, then, **at most once an hour per browser**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
+| `CLOSED` | wind beds for about a minute, then, **once per browser, ever**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
 | `LOBBY` | `song_game`, a 5-second tail, 15 seconds of nothing, again |
 | `RUNNING`/`ENDED` with no living character | `song_game` from 0:00, then 10 s, then repeatedly from **0:18** fading in over a second — the intro is odd, so only the first pass hears it |
 | anything else, or any `/gm/` path | silence |
@@ -160,7 +160,7 @@ audit desk.
 | `fadeInMs` / `fadeOutMs` | gain ramps. The out ramp is read off `duration` when metadata lands, never guessed |
 | `gain` | per-step trim, multiplied by layer and master |
 | `once` | consumed on first entry, skipped thereafter |
-| `cooldownMs` | with `once`: also remembered in `localStorage`, so a refresh or another tab skips it until this much time has passed |
+| `cooldownMs` | with `once`: also remembered in `localStorage`, so a refresh or another tab skips it until this much time has passed. `Infinity` means never again |
 | `silenceMs` | stop the layer, wait, continue |
 | `warmAtMs` | fetch the next step's file this far into this one |
 | `goto` | jump to an index. The only loop construct |
@@ -168,9 +168,9 @@ audit desk.
 **`once` is module scope** — a `Set` at the top of the file — so a *soft*
 navigation from `/character` to `/notes` does not replay it. On its own that
 reset on every refresh, and players heard `white_waking` constantly, so the step
-also carries `cooldownMs: 3_600_000`: the time it last played is kept in
-`localStorage` (`bascinet:music:waking`), and a refresh or second tab inside the
-hour skips it. If storage is blocked, it falls back to once per page load.
+also carries `cooldownMs: Infinity`: the time it played is kept in `localStorage`
+(`bascinet:music:waking`), and every load after that skips it — one waking per
+browser, ever. If storage is blocked, it falls back to once per page load.
 
 **One live timer per run.** `silenceMs`, `holdMs` and `warmAtMs` are timers;
 everything else advances off the element's own `ended` event, so a stalled buffer
