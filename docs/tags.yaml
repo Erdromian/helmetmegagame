@@ -9934,7 +9934,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 16
+    sellablePrice: 17
 
   mace:
     catalog: all
@@ -15671,7 +15671,7 @@ tags:
       skills: [brewing-basic]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   molotov-cocktail:
     catalog: all
@@ -16976,7 +16976,7 @@ tags:
       skills: [crafting]
       gambit: false
     sellable: true
-    sellablePrice: 4
+    sellablePrice: 5
 
   hood:
     catalog: all
@@ -17402,7 +17402,7 @@ tags:
       resourceCost: 5
       skills: [crafting]
     sellable: true
-    sellablePrice: 16
+    sellablePrice: 17
 
   pavise:
     catalog: all
@@ -17429,7 +17429,7 @@ tags:
       resourceCost: 5
       skills: [crafting]
     sellable: true
-    sellablePrice: 16
+    sellablePrice: 17
 
   # ─── Moderate (3 pt / 14 ⬢ / 1 turn, skilled smithing) ───
   # HIDDEN recipe (non-public ingredient, Chris 2026-09-07): the tailor's
