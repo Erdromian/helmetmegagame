@@ -51,12 +51,21 @@ category and `#summary`) and `#locationChannelSpec` (one Location's text
 channel) — both as create payloads — and both the mirror's create ops and its
 every-run reconcile build from them, so the two can never disagree.
 
-**A zone** (Town, Fortress, Forest, Black Hills, Marshes, Underground) is a category and, for a
-`SURFACE` zone only, a `#summary` channel:
+**A zone** (Town, Fortress, Forest, Black Hills, Marshes, Underground, Space) is
+a category and, for most `SURFACE` zones, a `#summary` channel:
 
 | Channel | Type | Purpose | Notes |
 |---|---|---|---|
 | `#summary` | text | Abstracted, big-picture play. Adjudication results and staged public declarations land here. | 300s (5 min) slowmode — the slowmode is what stops it becoming a second moment-to-moment channel. Wiped once an in-game day, and it is the one thing the wipe does not take every turn (§8). |
+
+**Space has no `#summary` either**, and it is a `SURFACE` zone, so the question
+is asked in one place: `db/lib/zoneSummary.js#zoneHasSummary`. Space holds one
+Location — the Charon, once it has launched — and a `#summary` above it would be
+a second channel for the one room aboard, plus a way for a zone-wide voice to
+reach orbit. So it behaves like a cave level: anything that would have gone to
+`#summary` goes to the Location channel instead
+(`db/lib/publicPostTargets.js`). The slug is hardcoded there for the
+`db/lib/roleIds.js` reason — there is one map, and Space is one zone in it.
 
 The `CAVE_GROUP` row (Underground) owns the shared category and nothing else —
 no `#summary`, no role. Each `CAVE_LEVEL` (Caves, Depths) has no channels of
@@ -80,8 +89,8 @@ role (§3).
 > zone's `#summary`** — all of them a scene somebody chose to be in. Three
 > things carry the rule: the `@everyone` **`SendMessages` deny** in
 > `locationChannelSpec` (§3) — which the bot posts straight past, as it does for
-> arrivals, smells and the turn line, and now for a cave level's public
-> declarations, which have no `#summary` to land in (`ADJUDICATION.md` §1) —
+> arrivals, smells and the turn line, and now for the public declarations of a
+> zone with no `#summary` to land in — a cave level, or Space (`ADJUDICATION.md` §1) —
 > `bot/src/lib/channels.js#isDesignatedTupperChannel` stops treating a
 > top-level Location channel as a tupper channel (so a GM typing there is left
 > alone rather than reposted under a mask), and `/chat` draws no composer on a
@@ -1070,8 +1079,8 @@ newer than the cutoff is skipped whole.
 
 Two things depend on it. The first is that the turn's own adjudication
 survives: the staged public declarations are
-posted to `#summary` — or, for the two cave levels, into every Location channel
-in the level (`ADJUDICATION.md` §1) — at the top of the same thunk that runs the
+posted to `#summary` — or, for a zone that has none (the two cave levels, and
+Space), into every Location channel it holds (`ADJUDICATION.md` §1) — at the top of the same thunk that runs the
 wipe at the
 bottom, and before the cutoff existed they were deleted seconds after landing —
 `StagedMessage` stamped `sentAt`, so nothing showed it had happened. The second

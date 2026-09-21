@@ -676,7 +676,7 @@ test("no targets marks the placeholder, and never a delivered row", { skip: SKIP
 
   assert.equal(result.sent, 0);
   assert.equal(result.failed.length, 1);
-  assert.equal(result.failed[0].error, "no location channels in this cave");
+  assert.equal(result.failed[0].error, "no location channels in this zone");
 
   // The delivered row is untouched; the placeholder carries the failure.
   const rows = await prisma.delivery.findMany({ where: { stagedMessageId: message.id } });
@@ -702,7 +702,7 @@ test("a stale nowhere-to-post row is pruned once there is somewhere", { skip: SK
       stagedMessageId: message.id,
       dedupeKey: deliveryKeyFor(message.id, null),
       state: "FAILED",
-      lastError: { error: "no location channels in this cave", status: null },
+      lastError: { error: "no location channels in this zone", status: null },
       attempts: 1,
     },
   });

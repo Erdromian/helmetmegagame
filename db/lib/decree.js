@@ -31,6 +31,7 @@ const { sceneLineAt } = require("./scene");
 const { DECREE_LABEL, composeDecree, normalizeDecreeBody, normalizeDecreeTitle } = require("./decreeText");
 // The same "where does a public GM line go" the push and Resend use (ADJUDICATION.md §1a).
 const { publicTargetsFor } = require("./publicPostTargets");
+const { zoneFansOutToLocations } = require("./zoneSummary");
 
 // Discord's embed JSON, by hand: db/ has no discord.js (ARCHITECTURE.md, the
 // REST/gateway twin convention). No `color` — a coloured stripe is the loudest
@@ -74,14 +75,14 @@ async function broadcastDecree(prisma, { title, body, zoneIds = [] } = {}) {
   const ids = [...new Set(zoneIds.filter(Boolean))];
   const zones = await prisma.zone.findMany({
     where: { id: { in: ids }, kind: { not: "CAVE_GROUP" } },
-    select: { id: true, name: true, kind: true, discordSummaryChannelId: true },
+    select: { id: true, name: true, slug: true, kind: true, discordSummaryChannelId: true },
     orderBy: { sortOrder: "asc" },
   });
 
   const results = [];
   for (const zone of zones) {
     const locations =
-      zone.kind === "CAVE_LEVEL"
+      zoneFansOutToLocations(zone)
         ? await prisma.location.findMany({
             where: { zoneId: zone.id, discordChannelId: { not: null } },
             // Same ordering as worldBroadcast.js#ambientEverywhere.

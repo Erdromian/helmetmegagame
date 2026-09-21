@@ -10,6 +10,7 @@ const { DM_KIND } = require("./dmKinds");
 const { dedupeKey, describeFailure } = require("./dmPolicy");
 const discordRest = require("./discordRest"); // the MODULE, same reason as `dm` above.
 const { sceneLineAt } = require("./scene");
+const { zoneHasSummary } = require("./zoneSummary");
 
 // FIVE MINUTES, not the thirty Turn.sideEffectClaimedAt uses — that covers a whole side-effect thunk, this covers ONE DM.
 const STALE_CLAIM_MS = 5 * 60 * 1000;
@@ -141,8 +142,8 @@ async function deliverPrivate(prisma, { stagedMessage, recipients, onlyFailed = 
 }
 
 // The PUBLIC half: a post into every channel the declaration reaches, plus the
-// Hall's own row (SURFACE: the #summary alone; underground: every Location
-// channel — db/lib/publicPostTargets.js). ONE DELIVERY ROW PER CHANNEL, so a
+// Hall's own row (with a #summary: that alone; without one — underground, or
+// Space — every Location channel — db/lib/publicPostTargets.js). ONE DELIVERY ROW PER CHANNEL, so a
 // fan-out never has to choose between SENT-with-some-channels or FAILED-and-repost.
 // `writeSceneLine`: a resend after a SUCCEEDED post must not write a second /play row; after a FAILED one it must.
 async function deliverPublic(
@@ -152,12 +153,12 @@ async function deliverPublic(
   const rows = await ensureDeliveries(prisma, { stagedMessage, recipients: targets });
   const placeholderKey = deliveryKeyFor(stagedMessage.id, null);
 
-  // Nowhere to post: an unprovisioned #summary for a surface zone, or Locations with no channels yet for a cave level.
+  // Nowhere to post: an unprovisioned #summary for a zone that has one, or Locations with no channels yet for a zone that has not (db/lib/zoneSummary.js).
   if (!targets.length) {
     const failure = {
       error:
-        zone?.kind === "CAVE_LEVEL"
-          ? "no location channels in this cave"
+        zone && !zoneHasSummary(zone)
+          ? "no location channels in this zone"
           : "no summary channel configured",
       status: null,
     };

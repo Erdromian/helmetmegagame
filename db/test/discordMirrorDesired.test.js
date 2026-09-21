@@ -94,6 +94,19 @@ test("a CAVE_GROUP owns the category and nothing else — no #summary, no access
   assert.equal(byKind(targets, "zone-gm-role").length, 1);
 });
 
+test("Space is a SURFACE zone with a category, a role and a GM seat — but no #summary", () => {
+  const targets = build({
+    zones: [zone({ id: "zs", slug: "space", name: "Space", kind: "SURFACE", discordSummaryChannelId: null })],
+    locations: [location({ id: "ls", slug: "space-1", name: "Charon (Space)", zoneId: "zs", discordChannelId: "chan-space" })],
+    rooms: [],
+  });
+  assert.equal(byKind(targets, "zone-category").length, 1);
+  assert.equal(byKind(targets, "zone-summary").length, 0, "the one room aboard is the Location channel");
+  assert.equal(byKind(targets, "zone-role").length, 1);
+  assert.equal(byKind(targets, "zone-gm-role").length, 1);
+  assert.equal(byKind(targets, "location-channel").length, 1);
+});
+
 test("a CAVE_LEVEL has no channels of its own and no GM seat — it wears the group's", () => {
   const group = zone({ id: "zg", slug: "underground", name: "Underground", kind: "CAVE_GROUP", discordCategoryId: "cat-u", gmRoleId: "gm-u", discordRoleId: null, discordSummaryChannelId: null });
   const level = zone({ id: "zl", slug: "caves", name: "Caves", kind: "CAVE_LEVEL", parentZoneId: "zg", sortOrder: 1, discordCategoryId: null, discordSummaryChannelId: null });

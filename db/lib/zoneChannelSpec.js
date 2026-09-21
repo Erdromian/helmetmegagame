@@ -1,6 +1,7 @@
 // The complete intended Discord layout for one Zone and Location, so provisioning and reconcile
 // can never disagree. A Location channel opens by a PER-MEMBER overwrite, not a role (LOCATION_MEMBER_ALLOW).
 const { spectatorOverwrite } = require("./spectatorAccess");
+const { zoneHasSummary } = require("./zoneSummary");
 
 const CHANNEL_TYPE_TEXT = 0;
 const CHANNEL_TYPE_CATEGORY = 4;
@@ -61,7 +62,8 @@ function baseOverwrites(guildId, zoneGmRoleId, { spectators = true } = {}) {
   ];
 }
 
-// Intended layout for one zone. Keys by zone.kind: SURFACE {category,summary}, CAVE_GROUP {category}, CAVE_LEVEL {}.
+// Intended layout for one zone: SURFACE {category,summary}, CAVE_GROUP {category}, CAVE_LEVEL {}.
+// Whether there is a #summary at all is db/lib/zoneSummary.js — Space is a SURFACE zone without one.
 function zoneChannelSpec(zone, { spectators = true } = {}) {
   const guildId = process.env.DISCORD_GUILD_ID;
   const zoneGmRoleId = zone.gmRoleId ?? null;
@@ -71,7 +73,7 @@ function zoneChannelSpec(zone, { spectators = true } = {}) {
   if (zone.kind === "CAVE_LEVEL") return {};
 
   const category = { name: zone.name, type: CHANNEL_TYPE_CATEGORY, permission_overwrites: base };
-  if (zone.kind === "CAVE_GROUP") return { category };
+  if (!zoneHasSummary(zone)) return { category };
 
   return {
     category,

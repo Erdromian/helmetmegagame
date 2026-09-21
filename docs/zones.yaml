@@ -2081,6 +2081,11 @@ zones:
   #
   # `offMap` is what turns /map into the grey nothingness with one crosshair
   # in it (db/lib/locationAttributes.js, web/app/(app)/map/MapBoard.js).
+  #
+  # It gets no #summary channel, the one surface zone that does not: there is
+  # one Location up here, so a zone channel above it would be a second room for
+  # the same room. Like a cave level, whatever would have been posted to
+  # #summary goes into the Location channel (db/lib/zoneSummary.js).
   space:
     name: Space
     kind: surface
