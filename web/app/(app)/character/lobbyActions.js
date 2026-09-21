@@ -21,8 +21,12 @@ async function lobbyGate() {
   const [state, config, member, alive] = await Promise.all([
     readGameState(prisma, { phase: true }),
     prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playtestModeEnabled: true } }),
-    // Always fresh: a gate must not refuse on a five-minute-old roles list.
-    getGuildMember(discordUserId, 0),
+    // Same window the page that drew the button gated on (character/page.js),
+    // so the action is never stricter than the render — and it shares that
+    // render's memoized cache() entry. Asking for 0 instead skipped the roster
+    // cache entirely and put a live per-member Discord GET behind every click,
+    // which is the one route discordGuild.js keeps as a fallback on purpose.
+    getGuildMember(discordUserId, 60_000),
     prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, select: { id: true } }),
   ]);
   const superadmin = isSuperadmin(discordUserId);
@@ -90,14 +94,18 @@ export async function setReady() {
   const entry =
     existing ??
     (await prisma.lobbyEntry.create({ data: { discordUserId, status: "READY" } }));
-  // Every preference row exists once somebody is readied, so Start never has
-  // to special-case a player who touched nothing.
-  await prisma.playerPreference.upsert({
-    where: { discordUserId },
-    create: { discordUserId },
-    update: {},
-  });
-  revalidatePath("/character");
+  if (!existing) {
+    // Every preference row exists once somebody is readied, so Start never has
+    // to special-case a player who touched nothing.
+    await prisma.playerPreference.upsert({
+      where: { discordUserId },
+      create: { discordUserId },
+      update: {},
+    });
+  }
+  // NOT revalidatePath("/character"): that re-renders the whole page inside
+  // this action's reply, and the button waits on it. The client owns its own
+  // ready state from the value below, and the lobby refreshes itself anyway.
   revalidatePath("/gm/dev");
   return { ok: true, readyAt: entry.readyAt.toISOString() };
 }
@@ -106,7 +114,6 @@ export async function setUnready() {
   const gate = await lobbyGate();
   if (gate.error) return { ok: false, error: gate.error };
   await prisma.lobbyEntry.deleteMany({ where: { discordUserId: gate.discordUserId, status: "READY" } });
-  revalidatePath("/character");
   revalidatePath("/gm/dev");
   return { ok: true };
 }
