@@ -1,6 +1,7 @@
 // Tag writes shared by both faces — the bot's GM `/heal` command and every web/lib/tagEffects.js caller go through these, so a write is never implemented twice.
 // Every function takes a transaction client (`tx`) first rather than the singleton, so a caller can compose it into a larger transaction (the db/lib/dm.js convention).
 const { expiryFrom } = require("./turnFormat");
+const { expiryForGrant } = require("./grantExpiry");
 const { drawPoisonedUnits } = require("./poison");
 const { pricedTag } = require("./pricedTags");
 const { record, characterParty, roomParty, MINT, BURN } = require("./economyLedger");
@@ -215,14 +216,14 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
       // A granted tag's own duration starts its clock now (what makes a chain work: meal -> Ate Meal). expiryFrom counts `turnNumber` as the first live turn, so a 1-turn grant runs out when this turn closes.
       // A per-grant override (Tag.consumesIntoDurations, web/lib/consumeGrants.js) wins over the tag's own duration — Bliss leaves you High a turn longer than raw fungus does.
       const durationTurns = durations?.[slug] ?? tag.defaultDurationTurns;
-      // Backstop, not a front gate: every caller must have resolved a turn (db/lib/grantExpiry.js#expiryForGrant). Skipping that would land a null expiresTurn that never matches the sweep's `lte` — a permanent, silent tag. Loud is better.
-      if (durationTurns && turnNumber == null) {
-        throw new Error(
-          `grantTagSlugs: no turn number for timed tag "${slug}" (${durationTurns} turns) — ` +
-            "the caller must resolve one via expiryForGrant, or it lands permanent.",
-        );
-      }
-      const expiresTurn = expiryFrom(turnNumber, durationTurns);
+      // No turn open (between turns, or mid-advance): stamp against the turn about to open, the same answer expiryForGrant gives every other grant path. A null here would never match the sweep's `lte` and land a permanent, silent tag.
+      const expiresTurn =
+        turnNumber == null && durationTurns
+          ? await expiryForGrant(tx, { slug, defaultDurationTurns: durationTurns }, null, {
+              characterId,
+              where: "grantTagSlugs",
+            })
+          : expiryFrom(turnNumber, durationTurns);
       await tx.characterTag.create({
         data: {
           characterId,
