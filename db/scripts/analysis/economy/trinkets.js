@@ -163,6 +163,11 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   const topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
   // The doc's own hazard is "buy a stone, forge it, sell it at a profit"; the shelf round trip is that.
   const shelfLoop = { bestApprentice: bestShelfApprentice, bestSkilled: bestShelf[0], topWage };
+  // After the Merchant's cut the best shelf round trip for a Smithing smith can be to slot no stone at all, so the
+  // activity rows take the best set that does use one.
+  const withStones = (holder) => combos.filter((c) => c.basis === "shelf" && c.stones.length > 0).sort((a, b) => b[holder] - a[holder])[0];
+  shelfLoop.bestApprenticeWithStones = withStones("apprentice");
+  shelfLoop.bestSkilledWithStones = withStones("skilled");
 
   return {
     gate,

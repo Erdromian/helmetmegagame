@@ -459,8 +459,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     const smithingPts = skillChain("smithing").points;
     const skilledPts = skillChain("smithing-skilled").points;
     const holders = [
-      { id: "apprentice", skill: "smithing", points: smithingPts, label: "Smithing", best: trinkets.shelfLoop.bestApprentice },
-      { id: "skilled", skill: "smithing-skilled", points: skilledPts, label: "Smithing II", best: trinkets.shelfLoop.bestSkilled },
+      { id: "apprentice", skill: "smithing", points: smithingPts, label: "Smithing", best: trinkets.shelfLoop.bestApprenticeWithStones },
+      { id: "skilled", skill: "smithing-skilled", points: skilledPts, label: "Smithing II", best: trinkets.shelfLoop.bestSkilledWithStones },
     ];
     for (const h of holders) {
       for (const kind of ["none", "shelf"]) {
