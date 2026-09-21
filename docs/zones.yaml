@@ -1161,7 +1161,29 @@ zones:
                 corpse-salts: 1
       undertown-4:
         name: Sewer
-        description: ""
+        indoors: true
+        description: >-
+          Automated machines used to provide plumbing, but now it's still and dirty. The sewer grate is locked.
+        rooms:
+          undertown-4-1:
+            name: Sewage Flows
+            description: >-
+              Long pipes of sewage. Because it's no longer used, it doesn't smell as bad as you'd think. There are all sorts of side rooms.
+            stash:
+              items:
+                feces: 8
+          # Behind `tunnel-rat` rather than the Sewer Key: the grate is the
+          # Lifeweb's door, and this is the room you reach by knowing the
+          # pipes instead. Whoever used to meet here got in the same way.
+          undertown-4-2:
+            name: Grated Room
+            access: [tunnel-rat]
+            description: >-
+              A room filled with crates. It overlooks the sewage pipes. It seems people used to gather here, because there are discarded clothes and robes, and a banner that says "LIBERACIÓN!"
+            stash:
+              items:
+                flooded-crate: 1
+                obol: 12
       # The freight end of the station, and only that. The shop that used to
       # share this Location is its own place next door now (undertown-6), so
       # what is left here is the platform: the counter, the drop box, the
@@ -1234,9 +1256,39 @@ zones:
                 # Untradeable, so it is a fixture here and weighs nothing —
                 # see the note on the tag in docs/tags.yaml.
                 packaging-equipment: 1
+      # The shelter, and the one place in the Undertown that asks nothing of
+      # anybody. The key is lying in the bunks where anyone can pick it up —
+      # it only opens the kitchen, and the food in there is the whole point of
+      # it being findable.
       undertown-7:
         name: Poorhouse
-        description: ""
+        indoors: true
+        description: >-
+          A large shelter, cobbled together with some coherence with donations from the town long ago in times when such reckless expenditures could be afforded.
+        rooms:
+          undertown-7-1:
+            name: Bunks
+            description: >-
+              Blankets sewn together from scraps of cloth adorn the handful of remaining rusting bedframes. Most here simply sleep on the floor.
+            stash:
+              items:
+                poorhouse-key: 1
+          undertown-7-2:
+            name: Soup Kitchen
+            access: [poorhouse-key]
+            description: >-
+              A simple cookhouse with everything needed to cook the most basic of meals.
+            stash:
+              items:
+                potato: 3
+                carrot: 2
+                wheat: 5
+          # The near end of the dug-through wall. The far end is the Hole in
+          # the Wall, and the edge between them is `hidden: tunnel-rat`.
+          undertown-7-3:
+            name: Passage
+            description: >-
+              Tight and cramped, whoever went to the effort of digging through the wall was clearly not claustrophobic.
       # The Exactor's house, and the one place in the Undertown that is open
       # to anybody with coin. Three seats start standing in it (the Exactor,
       # the Pusher and the Courtesan, docs/roles.yaml), which is why it is the
@@ -1338,28 +1390,180 @@ zones:
                 pickaxe: 3
       undertown-a:
         name: Slums
-        description: ""
+        description: >-
+          Dozens of makeshift dwellings shelter nameless vagrants and destitutes. Each structure looks just about ready to collapse in on itself.
+        rooms:
+          undertown-a-1:
+            name: Firepit
+            description: >-
+              A smouldering hole in the ground, the meagre warmth it provides attracts all manner of the desperate.
+          undertown-a-2:
+            name: Shack
+            description: >-
+              One of the better constructed buildings, it is often fiercely contested by the local homeless.
+          # The only private room in the Slums, and it is not behind a key —
+          # it is behind the climb, which is the one thing nobody down at the
+          # firepit can do.
+          undertown-a-3:
+            name: Perch
+            access: [climbing]
+            description: >-
+              Held aloft by rope connected to the ceiling of the underfort, this little wooden platform stands as an ivory tower over the rest of the slums.
+            stash:
+              items:
+                plump-helmet: 4
+                moonshine: 1
+      # The Order's own house. Both ways in are `locked: order-key` — the
+      # stair down from the Cathedral and the door out into the Hollows — so
+      # the Chambers are as shut as the Order's own roster is.
       undertown-b:
         name: Order Chambers
-        description: ""
+        indoors: true
+        description: >-
+          The heart of the Order. Rooms branch off in all directions, with whatever the order might need neatly tucked away in each.
+        rooms:
+          undertown-b-1:
+            name: Interrogation Room
+            description: >-
+              Tool racks line the walls with cruel and unusual instruments. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
+            stash:
+              items:
+                torturing-equipment: 1
+          undertown-b-2:
+            name: Holding Cells
+            description: >-
+              A room lined with cramped cages, a few still trapping the long decayed remains of their inhabitants. They patiently await their next occupant.
+            stash:
+              items:
+                feces: 2
+                moldy-bread: 1
+          undertown-b-3:
+            name: Order Barracks
+            access: [order-key]
+            description: >-
+              Small and spartan with bunks to provide well-earned sleep for the diligent members of the Order. Lockers are arrayed for any evidence or equipment to be stored and a desk sits at the end of the room, strewn with papers.
+            stash:
+              items:
+                paper: 12
+                inquisitors-wax-stamp: 1
+                bag: 1
+                mace: 1
+                padded-cap: 1
+                crossbow: 1
+                tear-gas-grenade: 3
       undertown-c:
         name: Lake
-        description: ""
+        description: >-
+          A great black abyss of murky water, joined to the underfort by a small wooden peer.
+        rooms:
+          undertown-c-1:
+            name: Pier
+            description: >-
+              A sturdy wooden frame for those who wish to fish. Frayed ropes are tied around bollards, waiting for boats long sunk to return to port.
+          # Out on the water, which is the swim and nothing else — the fishing
+          # boat this used to want is not in the game.
+          undertown-c-2:
+            name: Adrift
+            access: [strong-swimmer]
+            description: >-
+              Out on the surface of the lake, shadows in the water below seem to watch you.
+      # The Alleys, renamed. The slug does not move, so the Undercroft's
+      # hidden `tunnel-rat` way into it is the same edge it always was.
       undertown-d:
-        name: Alleys
-        description: ""
+        name: Hollows
+        description: >-
+          The crumbled ruins of an old undertown neighbourhood, the memories of what exactly happened here have been long suppressed.
+        rooms:
+          undertown-d-1:
+            name: Rubble
+            description: >-
+              A path clear of rubble has been made through the centre of the neighbourhood. Great mounds of broken masonry and splintered wood encase the walkway.
+          undertown-d-2:
+            name: Defiant Ruin
+            description: >-
+              The decrepit structure of one of the larger buildings still manages to stand precariously on fractured foundations. It stands alone surrounded by fields of structures long collapsed.
+          # The trapdoor is flavour. There is no forced-entry mechanic and the
+          # room is not gated on one — whoever walks in, walks in.
+          undertown-d-3:
+            name: Buried Cellar
+            description: >-
+              Covered by a mound of rubble is a trapdoor leading into a cellar. The inside of the trapdoor is covered in scratch marks, and the cellar empty save for some skeletal remains.
+          # `spotter` alone: there is no keen-eyes tag, and spotting the case
+          # under the rubble is the whole of what the room asks.
+          undertown-d-4:
+            name: Deposit
+            access: [spotter]
+            description: >-
+              Stuck under some of the rubble is a green metal case. The lock has rusted shut.
       undertown-e:
         name: Basements
-        description: ""
+        indoors: true
+        description: >-
+          Numerous cellars and underground sections of buildings above. Of the few which actually have doors into the underfort, all have either been broken into or firmly boarded up.
+        rooms:
+          undertown-e-1:
+            name: Damp Cellar
+            description: >-
+              The masonry walls seep with moisture, creating a thick haze of mold spores. The stairway up has been bricked off, rendering this room accessible only through the broken down door to the underfort.
+          undertown-e-2:
+            name: Boarded Doors
+            description: >-
+              A cluster of doors, all seeming to have been recently boarded up. You could try to push them in.
+          # The three rooms behind the boarded doors. Forcing them is flavour,
+          # not a mechanic — none of these is gated.
+          undertown-e-3:
+            name: Hideout
+            description: >-
+              The burnt remains of candles have welded themselves to the floor in the same place they were carefully placed long ago.
+            stash:
+              items:
+                dagger: 1
+          undertown-e-4:
+            name: Winery
+            description: >-
+              Broken glassware and equipment are scattered across the room. Unlabeled bottles stand on shelves, most empty.
+            stash:
+              items:
+                moonshine: 4
+          # The drop into the underground river, which comes out in the Lake.
+          # A Room is not an edge endpoint, so the fall IS the plain
+          # Basements-Lake crossing in `connections:` — this room is where the
+          # fiction of it lives.
+          undertown-e-5:
+            name: Sinkhole
+            description: >-
+              The floor of this cellar has given way and collapsed into a deeper cave system. Peering down, you can't quite see the bottom.
       undertown-f:
         name: Hole in the Wall
-        description: ""
-      undertown-g:
-        name: Nook
-        description: ""
+        indoors: true
+        description: >-
+          A hole in the brick. You can see into the caves…
+        rooms:
+          undertown-f-1:
+            name: Dark Entrance
+            description: >-
+              A respite before the darkness.
+      # Out in the middle of the water. Both ways on are the swim — the
+      # fishing boat that used to be the alternative is not in the game — so
+      # the hut is the safest floor in the Undertown to leave anything on.
       undertown-h:
         name: Island
-        description: ""
+        description: >-
+          A small fragment of solid land amidst the abyss. The rocky outcrops host colonies of lichen and small crustaceans.
+        rooms:
+          undertown-h-1:
+            name: Fishing Hut
+            description: >-
+              A wooden shack at the island's edge with a wide open window overlooking the lake, perfect for casting a line. Hidden under a rock, a hollowed out space contains anything and everything not worth risking carrying around the rest of town.
+            stash:
+              resources: 8
+              items:
+                flooded-crate: 1
+                obol: 14
+                moldy-bread: 2
+                crayfish: 2
+                dustfish: 2
+                fish-roe: 3
   hills:
     name: Black Hills
     kind: surface
@@ -2278,6 +2482,69 @@ connections:
   # secret, the key is.
   - pair: [undertown/undertown-3, undertown/undertown-4]
     locked: sewer-key
+    on_foot: true
+
+  # --- The rest of the Undertown ----------------------------------------
+  # The shelter sits between the pipes and the shanties, which is most of why
+  # anybody ends up in it.
+  - [undertown/undertown-4, undertown/undertown-7]
+  - [undertown/undertown-7, undertown/undertown-a]
+
+  # The shanties out onto the cellars and the water. The Slums are the
+  # Undertown's crossroads — nearly everything down here is one hop off them.
+  - [undertown/undertown-a, undertown/undertown-e]
+  - [undertown/undertown-a, undertown/undertown-c]
+  - [undertown/undertown-a, undertown/undertown-d]
+
+  # The cellars out into the burnt-out neighbourhood.
+  - [undertown/undertown-e, undertown/undertown-d]
+
+  # The sinkhole in the cellars drops into the underground river, and the
+  # river comes out in the Lake (the Sinkhole room's own prose). Plain rather
+  # than hidden: a hole in the floor is not a secret.
+  - [undertown/undertown-e, undertown/undertown-c]
+
+  # The wall somebody dug through, out of the Poorhouse. Hidden, so a player
+  # without the knack never learns the passage is there — the same trade the
+  # Undercroft's pipes make.
+  - pair: [undertown/undertown-7, undertown/undertown-f]
+    hidden: tunnel-rat
+    on_foot: true
+
+  # …and out the far side of that hole, into the deep. LOCKED rather than
+  # hidden: standing in the Dark Entrance you can see perfectly well where it
+  # goes, and the question is whether you can make the descent.
+  - pair: [undertown/undertown-f, depths/depths-3]
+    locked: caving
+    on_foot: true
+
+  # The Den's other back door, up into the shelter. Behind the same Den Key
+  # the stairs are, so the Exactor's basement has two shut doors and no third.
+  - pair: [undertown/undertown-7, undertown/undertown-9]
+    locked: den-key
+    on_foot: true
+
+  # The Order's house, and both ways into it. LOCKED rather than hidden:
+  # everybody knows where the Order sleeps, and everybody knows they cannot
+  # follow them in.
+  - pair: [town/town-4, undertown/undertown-b]
+    locked: order-key
+    on_foot: true
+  - pair: [undertown/undertown-b, undertown/undertown-d]
+    locked: order-key
+    on_foot: true
+
+  # Out to the island. LOCKED rather than hidden — everybody standing on the
+  # pier can see the rock out there; the swim is the whole question.
+  - pair: [undertown/undertown-c, undertown/undertown-h]
+    locked: strong-swimmer
+    on_foot: true
+
+  # …and off the island the other way, under the Walkways, which hang over the
+  # same water the Lake is. Hidden, because nobody looking at the lichen would
+  # guess it comes out in the Caves.
+  - pair: [undertown/undertown-h, caves/caves-3]
+    hidden: strong-swimmer
     on_foot: true
 
   # --- The railroad ------------------------------------------------------
