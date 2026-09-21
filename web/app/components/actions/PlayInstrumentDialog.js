@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { songsFor } from "@lifeweb/db/lib/instrumentSongs";
 import Modal from "../Modal";
 import FormError from "../FormError";
+import VolumeSlider from "../VolumeSlider";
 import { SortHeader, TableScroll, useTableState } from "../DataTable";
 import { noteOwnPerformance } from "../performanceStore";
 import { useActionPools } from "./poolsContext";
@@ -144,17 +145,7 @@ export default function PlayInstrumentDialog({ onClose }) {
           </TableScroll>
         </div>
 
-        <label className="field">
-          <span className="field-label">[PLACEHOLDER: volume slider label]</span>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={stored}
-            onChange={(e) => changeVolume(Number(e.target.value))}
-          />
-        </label>
+        <VolumeSlider id="instrument-volume" value={stored} onChange={changeVolume} />
 
         <FormError>{error}</FormError>
 
