@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · The waking song plays at most once an hour
+
+✎ Refreshing the closed-door page no longer replays white_waking; each browser hears it at most once an hour
+
 ## 2026-09-20 · Distilling doubles the drinks, not the dispensary
 
 ✎ Brewing (Distilling) now doubles only Alcohol and Moonshine — it was doubling all 31 brewing recipes, medicines and cybernetic limbs included  

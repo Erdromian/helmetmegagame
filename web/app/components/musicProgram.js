@@ -43,6 +43,8 @@ export const PROGRAMS = {
         fadeInMs: 3000,
         fadeOutMs: 4000,
         once: true,
+        // Once an hour per browser, not once per page load — a refresh used to replay it.
+        cooldownMs: 3_600_000,
       },
       { goto: 0 },
     ],
@@ -72,11 +74,34 @@ export const PROGRAMS = {
   },
 };
 
-// `once` steps that have already been spent. MODULE SCOPE IS THE POINT: a page load
-// re-evaluates this file and the set is empty again, which is exactly the rule asked for —
-// refresh and you can be woken a second time. A soft navigation keeps the module, so
-// walking from /character to /notes correctly does NOT replay it.
+// `once` steps that have already been spent this page load. A soft navigation keeps the
+// module, so walking from /character to /notes does not replay one. A step with a
+// `cooldownMs` also remembers when it last played in localStorage, so a refresh or a second
+// tab inside the cooldown skips it too. Blocked storage falls back to once per page load.
 const consumed = new Set();
+
+const playedKey = (id) => `bascinet:music:${id}`;
+
+function spent(step) {
+  if (consumed.has(step.id)) return true;
+  if (!step.cooldownMs) return false;
+  try {
+    const at = Number(window.localStorage.getItem(playedKey(step.id)));
+    return Number.isFinite(at) && Date.now() - at < step.cooldownMs;
+  } catch {
+    return false;
+  }
+}
+
+function spend(step) {
+  consumed.add(step.id);
+  if (!step.cooldownMs) return;
+  try {
+    window.localStorage.setItem(playedKey(step.id), String(Date.now()));
+  } catch {
+    // Storage blocked — the page-load rule above still holds.
+  }
+}
 
 /** Which tape, if any, this state should be playing. */
 export function resolveProgram(phase, pathname = "") {
@@ -142,7 +167,7 @@ export function runProgram(program, { onStep } = {}) {
         step = steps[index];
         continue;
       }
-      if (step?.once && consumed.has(step.id)) {
+      if (step?.once && spent(step)) {
         index = (index + 1) % steps.length;
         step = steps[index];
         continue;
@@ -159,7 +184,7 @@ export function runProgram(program, { onStep } = {}) {
       return;
     }
 
-    if (step.once) consumed.add(step.id);
+    if (step.once) spend(step);
 
     const src = pickSrc(step);
     if (!src) {
@@ -180,7 +205,7 @@ export function runProgram(program, { onStep } = {}) {
     if (step.warmAtMs) {
       const next = steps[(index + 1) % steps.length];
       const ahead = next && !next.once ? pickSrc(next) : next?.src;
-      if (ahead && !(next?.once && consumed.has(next.id))) {
+      if (ahead && !(next?.once && spent(next))) {
         warmTimer = window.setTimeout(() => warm(ahead), step.warmAtMs);
       }
     }
