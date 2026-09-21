@@ -49,6 +49,7 @@ const { runAscensionPass } = require("./lib/ascensionPass");
 const { endGameInDb } = require("./lib/gameEnd");
 const { runBirdPass } = require("./lib/birdPass");
 const { runMiningYieldPass } = require("./lib/miningYield");
+const { runFieldPass } = require("./lib/fieldProductivity");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
@@ -291,6 +292,10 @@ const TURN_PASSES = [
   // turn's mining is worth, so a day already paid keeps the coefficient it was
   // priced at.
   "miningYield",
+  // The field's productivity (db/lib/fieldProductivity.js, SOILERY.md §9): refill the pool and set what the next
+  // turn's harvests come up at. After the staged push, which is where harvests draw on it, so a turn's harvests are out
+  // of the pool before it refills, and what it writes is what the NEXT turn is worth, like the map's weather above.
+  "fieldRegen",
   "lifewebDecay",
   // What the buildings MAKE (db/lib/structureYieldPass.js). Late, and after
   // "carry" in particular: the pour lands on a Room's floor, so it must not
@@ -1143,6 +1148,29 @@ async function resolveNeeds(turn, config) {
             },
           })
           .catch((err) => console.error("Mining yield audit log failed:", err));
+      }
+    }
+  }
+
+  // Refill the field and set next turn's yield (db/lib/fieldProductivity.js). Adds a turn of refill, so like the drift
+  // above it is NOT idempotent and needs its own markDone.
+  if (!done.has("fieldRegen")) {
+    const field = await runFieldPass(prisma, turn).catch(async (err) => {
+      await passFailed("Field productivity", err);
+      return null;
+    });
+    if (field) {
+      await markDone("fieldRegen");
+      if (field.enabled) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "field_regen",
+              details: field,
+            },
+          })
+          .catch((err) => console.error("Field productivity audit log failed:", err));
       }
     }
   }

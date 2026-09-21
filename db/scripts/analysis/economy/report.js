@@ -211,10 +211,12 @@ const baselineOf = (role) => model.baselines.find((b) => b.role === role);
 const potatoFood = model.foodSupply.find((f) => f.crop === "potato");
 const failing = model.claims.filter((c) => !c.ok);
 
+const FLD = model.field;
 const ST = model.starting;
 const startingHeadline = `the ${ST.town.seats} named seats (${ST.unlimited.length} more roles have no cap) begin with about <b>${fmt(ST.town.funds, 0)} ¢</b> (${fmt(ST.town.bank, 0)} in banks, ${fmt(ST.town.coinHand, 0)} in hand) and <b>${fmt(ST.town.resources, 0)} ⬢</b>, and only ${ST.roles.filter((r) => r.food > 0 && r.seats > 0).reduce((n, r) => n + r.seats, 0)} carry any food. A character is Hungry after turn ${ST.noFoodHungry}, <b>Starving after turn ${ST.noFoodStarve}</b> and Dying after turn ${ST.noFoodDying} on nothing, so ${fmt(ST.starveRows.find((r) => r.turn === ST.noFoodStarve)?.seats ?? 0, 0)} of ${ST.town.seats} seats are Starving at the close of turn ${ST.noFoodStarve} unless they eat. All the coin in the town buys ${fmt(ST.town.funds / ST.costPerPersonTurn, 0)} person-turns of ration, which is ${fmt(ST.town.funds / ST.costPerPersonTurn / ST.town.seats, 1)} turns for each named seat.`;
 const headlines = [
   `Money a turn is worth: a miner with just a pickaxe earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer growing food <b>${fmt(farmW)} ¢</b> (valued at the Ration Box's price, since food crops do not sell), a farmer growing <b>tobacco ${fmt(tobW)} ¢, or ${fmt(tobFertW)} ¢ with Fertilizer</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. Best to worst: ${wageOrder}. A fertilized tobacco farmer earns ${fmt(tobFertW / factW, 1)} times a Factory worker and ${fmt(tobFertW / proW, 1)} times a Prospector.`,
+  `The field: at ${FLD.seats} seats the town eats ${fmt(FLD.eaten, 0)} crops a turn and a farming place refills ${fmt(FLD.rate, 0)}, so <b>${fmt(FLD.farmersToEat, 1)} farmers feed the town</b> and about ${fmt(FLD.farmersToFill, 1)} is the most a place can take. Past that the yield falls until output matches the refill: food farming alone never starves the town that way, but cash crops do, because they wear the field and cannot be eaten (3 food farmers and 3 on tobacco feed ${fmt(FLD.scenarios.find((x) => x.label === '3 food farmers and 3 on tobacco')?.fed, 0)} of ${FLD.seats}).`,
   `The starting economy: ${startingHeadline}`,
   `Smithing's Trinkets, after the Merchant's cut: a Smithing II smith forging with shelf stones clears <b>${fmt(trinketW)} ¢ a turn</b>, and a miner who forges the stones they dig up earns <b>${fmt(minerForgeW)} ¢</b> instead of ${fmt(floorW)}. A Trinket is a whole Move and 4 ⬢, and the cash is set by a d6 and by the stones (see “Trinket forging”). Crafts are shown after the Merchant's half.`,
   `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns nothing from the counter, since no dish can be sold there, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
@@ -694,6 +696,42 @@ ${table({ cols: inCols, rows: C.inedible, id: "cookinedible" })}
 <h3>What a cook can slot in</h3>
 <p class="lede">Any dish takes up to four extra ingredients, each adding its own hunger and, if positive, its mood. A slot never beats the base for food (12 hunger a crop is what eating it raw gives) but it is where a cook buys mood, and the raw −10 does not apply. The meter tops out at ${params.hungerMax}, so a Bread with four slots is at most 83.</p>
 ${table({ cols: slotCols, rows: C.addIns.slice(0, 14) })}
+</section>`;
+}
+
+function sectionField() {
+  const F = FLD;
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  const cols = [
+    { h: "Farming", get: (r) => r.label },
+    { h: "Draws a turn", num: true, get: (r) => fmt(r.demand, 0), sort: (r) => r.demand },
+    { h: "× the refill", num: true, get: (r) => fmt(r.ratio, 2), sort: (r) => r.ratio },
+    { h: "Yield first drops on turn", num: true, get: (r) => r.firstDrop ?? "never", sort: (r) => r.firstDrop ?? 999 },
+    { h: "Players first told, turn", num: true, get: (r) => r.firstWarning ?? "never", sort: (r) => r.firstWarning ?? 999 },
+    { h: "Settles at", num: true, get: (r) => pct(r.settled), sort: (r) => r.settled },
+    { h: "Food made a turn", num: true, get: (r) => fmt(r.foodCrops, 0), sort: (r) => r.foodCrops },
+    { h: `People fed (of ${F.seats})`, num: true, get: (r) => fmt(r.fed, 0), sort: (r) => r.fed },
+    { h: "Tobacco ¢ a turn", num: true, get: (r) => (r.tobacco ? fmt(r.tobaccoCoin, 0) : "—"), sort: (r) => r.tobaccoCoin ?? 0 },
+  ];
+  const secondCols = [
+    { h: "A second field at", get: (r) => `${pct(r.share)} of the refill` },
+    { h: "Refills a turn", num: true, get: (r) => fmt(r.rate, 0), sort: (r) => r.rate },
+    { h: "Holds", num: true, get: (r) => fmt(r.cap, 0), sort: (r) => r.cap },
+    { h: "Farmers it can take", num: true, get: (r) => fmt(r.farmersToFill, 1), sort: (r) => r.farmersToFill },
+    { h: "Two food farmers settle at", num: true, get: (r) => pct(r.twoFarmers), sort: (r) => r.twoFarmers },
+    { h: "Yield first drops on turn", num: true, get: (r) => r.twoFarmersFirstDrop ?? "never", sort: (r) => r.twoFarmersFirstDrop ?? 999 },
+  ];
+  const s = F.settings;
+  return `<section><h2>The field's productivity</h2>
+<p class="lede">Every farming place is a field with a pool of what the soil has left. Each turn close it refills by <b>what the town eats plus ${pct(s.margin)}</b>, times the place's own share, and it holds ${fmt(s.poolTurns, 0)} turns of that. Every harvest draws its crops out of the pool, counted in food-crop equivalents (a plant draws the same whatever it gives, so a tobacco leaf counts as three), and the pool sets next turn's yield: untouched at ${pct(s.comfort)} of a full pool or more, falling in a line to ${pct(s.minYield)} at an empty one. The pool may go into debt down to minus one full pool, which is why over-farming keeps costing until the farmers ease off. The knobs are on <code>/gm/dev?s=config</code>; this section reads their schema defaults, so a retune shows here. Worked out for <b>${F.seats} seats</b> (<code>--players N</code>).</p>
+<p class="lede">At ${F.seats} seats the town eats <b>${fmt(F.eaten, 0)} crops a turn</b> (two crops a cooked dish, one dish a person). A field refills <b>${fmt(F.rate, 0)}</b> and holds ${fmt(F.cap, 0)}. A full Farm action sows ${F.plants} plants for about ${fmt(F.perAction.food, 0)} food crops, ${fmt(F.perAction.fert, 0)} with Fertilizer, or ${fmt(F.perAction.tobaccoLeaves, 0)} tobacco leaves, which draw ${fmt(F.perAction.tobaccoDraw, 0)} from the pool. A farmer works every ${F.cycle} turns, so one farmer draws about ${fmt(F.perTurn.food, 0)} a turn on food. <b>${fmt(F.farmersToEat, 1)} farmers feed the town, and ${fmt(F.farmersToFill, 1)} is the most one field can take.</b></p>
+<h3>What each mix of farmers settles at</h3>
+<p class="lede">Each row starts from a full field and plays turn by turn. Food-only farming settles at the refill, which is more than the town eats, so it never starves anyone through the field; it only wastes the effort. <b>A cash crop is the danger:</b> it draws from the same pool but feeds nobody, so the food farmers' yield falls while the tobacco coin rises, and the town can go hungry. Players are told nothing until the yield is down to 80%, and then only in words.</p>
+${table({ cols, rows: F.scenarios, id: "fieldmix", filters: [{ label: "Kind", get: (r) => r.group }] })}
+<h3>A second, poorer field</h3>
+<p class="lede">A Location with the <code>soilery</code> attribute and a lower <code>soileryRegen</code> is its own field, refilling at that share of the town's rate. It can take fewer farmers and wears sooner under the same work; two fields add up, so the town can grow more than it eats by using both.</p>
+${table({ cols: secondCols, rows: F.second, id: "fieldsecond" })}
+<p class="lede">After ${F.recover.overTurns} turns of farming at twice the refill the yield bottoms at ${pct(F.recover.lowest)}. Once the farmers ease off to 90% of the refill it takes about <b>${F.recover.turnsToRecover} turns</b> to come back whole.</p>
 </section>`;
 }
 
@@ -1359,7 +1397,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionLucky()}${sectionTrinkets()}${sectionCooking()}${sectionDesires()}${sectionStarting()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionLucky()}${sectionTrinkets()}${sectionCooking()}${sectionField()}${sectionDesires()}${sectionStarting()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------

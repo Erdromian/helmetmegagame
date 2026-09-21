@@ -625,6 +625,21 @@ model GameConfig {
   // default). Edited on /gm/dev. See SOILERY.md.
   farmMaxCrops Int @default(50)
 
+  // The field's productivity (db/lib/fieldProductivity.js, SOILERY.md §9): the curve
+  // that turns over-farming into worse harvests. All edited on /gm/dev, no deploy.
+  // Off means every harvest comes up whole and draws on nothing.
+  farmFieldEnabled Boolean @default(true)
+  // Crops a turn the field refills, over what the town eats (2 crops a seat).
+  farmSustainMargin Float @default(0.15)
+  // How many turns of refill the pool holds, and how deep in debt it may go.
+  farmPoolTurns Float @default(4)
+  // The share of a full pool at or above which the yield is untouched.
+  farmComfortFrac Float @default(0.75)
+  // The yield multiplier at an empty pool, and below it.
+  farmMinYield Float @default(0.25)
+  // The shape between: 1 is a straight line, more is gentle at first and steep at the end.
+  farmCurveExp Float @default(1)
+
   // The most arelitz (adults + unruly + brood, all three growth rungs) one
   // `stable: true` Room may hold before db/lib/stablePass.js evicts the
   // excess to stableOverflowRoomSlug below. STABLE_CAPACITY is the fallback
@@ -1300,6 +1315,9 @@ model Location {
 
   structures Structure[]
 
+  // The field's state, for a place with the `soilery` attribute (db/lib/fieldProductivity.js). At most one.
+  field LocationField?
+
   // The Location's text channel, null until provisioned.
   discordChannelId String?
 
@@ -1460,6 +1478,7 @@ model Vantage {
 ///                    hidden — which is the point: it is how somebody without
 ///                    the key can follow you through. Nothing closes it; the
 ///                    check just compares openUntil against now.
+
 model LocationLink {
   id String @id @default(cuid())
 
@@ -1506,6 +1525,23 @@ model LocationLink {
 
   @@unique([aId, bId])
   @@index([bId])
+}
+
+// One farming place's productivity (db/lib/fieldProductivity.js, docs/systemdocs/SOILERY.md §9). A Location carrying the
+// `soilery` attribute has at most one of these, made the first time somebody harvests there or the turn pass reaches it, so
+// a second field is just another Location with the attribute and needs no schema. Per-GAME state that hangs off a place the
+// wipe never deletes, so the wipe clears these explicitly (web/app/(app)/gm/dev/actions.js), like Structure.
+model LocationField {
+  locationId String   @id
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // What the soil has left, in food-crop equivalents. Null until the first harvest draws on it, and null means full.
+  // Refilled by the turn-close field pass, drawn down by every harvest here, and below zero when the field has been overworked.
+  pool Float?
+
+  // What a surviving plant gives here this turn, times the base. Set by the field pass off the pool, read by every harvest
+  // here. 1 is a sound field.
+  yieldMult Float @default(1)
 }
 
 /// What crossing a gate announces in the destination zone's #summary.

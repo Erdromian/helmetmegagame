@@ -194,6 +194,7 @@ export default function RequestActionsProvider({
   canFarm = false,
   farmBlocked = null,
   farmMaxCrops,
+  fieldWarning = null,
   // Breaking in an unruly arelitz (db/lib/arelitz.js). Same posture as Farm
   // just above: whether there's a stable here is a fact about where you're
   // standing, resolved server-side in character/page.js. `breakInBlocked` is
@@ -341,6 +342,7 @@ export default function RequestActionsProvider({
     resources,
     carry,
     farmMaxCrops,
+    fieldWarning,
     transferParties,
     lootTargets,
     consumeTargets,

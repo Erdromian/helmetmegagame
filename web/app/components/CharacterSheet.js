@@ -170,6 +170,7 @@ export default function CharacterSheet({
   canFarm = false,
   farmBlocked = null,
   farmMaxCrops,
+  fieldWarning = null,
   canSeeBreakIn = false,
   canBreakIn = false,
   breakInBlocked = null,
@@ -304,6 +305,7 @@ export default function CharacterSheet({
         canFarm={canFarm}
         farmBlocked={farmBlocked}
         farmMaxCrops={farmMaxCrops}
+        fieldWarning={fieldWarning}
         canSeeBreakIn={canSeeBreakIn}
         canBreakIn={canBreakIn}
         breakInBlocked={breakInBlocked}

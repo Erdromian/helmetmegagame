@@ -32,6 +32,7 @@ const { buildTrinkets } = require("./trinkets");
 const { buildCooking } = require("./cooking");
 const { buildDesires } = require("./desires");
 const { buildStarting } = require("./starting");
+const { buildField } = require("./field");
 const { buildLucky } = require("./lucky");
 const { MERCHANT_CUT, cutOn, afterCut } = require("./cut");
 const { turretTable } = require("../../../lib/depotTurret");
@@ -1514,10 +1515,34 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     investments,
     startingPoints: startingTagPoints,
   });
+  const fieldModel = buildField({ params, cooking, schemaDefault, players });
   const starting = buildStarting({ list, get, foods, params, foodFloor, sources, players });
   const auditSrc = fs.readFileSync(path.join(REPO, "db/scripts/ops/audit-vault-backing.js"), "utf8");
   const reserveFloor = Number((/const RESERVE_FLOOR = ([0-9.]+);/.exec(auditSrc) ?? [])[1]);
   if (!Number.isFinite(reserveFloor)) throw new Error("economy model: could not read RESERVE_FLOOR out of db/scripts/ops/audit-vault-backing.js; the file has changed shape.");
+  claims.push(
+    {
+      doc: "SOILERY.md §9",
+      claim: "The code's fallback knobs for the field match the schema defaults, so a GameConfig row that has never been edited behaves like a missing one",
+      docValue: "the same six numbers",
+      model: fieldModel.checks.defaultsMatchCode ? "the same" : "they differ: db/lib/fieldProductivity.js DEFAULTS against schema.prisma",
+      ok: fieldModel.checks.defaultsMatchCode,
+    },
+    {
+      doc: "SOILERY.md §9",
+      claim: "A town's field refills at least what the town eats, and farming at that refill leaves the yield untouched",
+      docValue: `${fieldModel.eaten} crops a turn eaten at ${players} seats`,
+      model: `refill ${Math.round(fieldModel.rate)} a turn (${Math.round(fieldModel.settings.margin * 100)}% over); sound at the refill: ${fieldModel.checks.soundAtTheRefill}`,
+      ok: fieldModel.checks.refillCoversTown && fieldModel.checks.soundAtTheRefill,
+    },
+    {
+      doc: "SOILERY.md §9",
+      claim: "Farming at twice the refill wears the yield well down, so over-farming is not free",
+      docValue: "below 60%",
+      model: `${Math.round(fieldModel.scenarios.find((x) => x.label === "4 food farmers")?.settled * 100)}% for four food farmers, ${Math.round((fieldModel.scenarios.find((x) => x.label === "5 food farmers")?.settled ?? 0) * 100)}% for five`,
+      ok: fieldModel.checks.overdrawWears,
+    },
+  );
   claims.push(
     {
       doc: "roles.yaml, starting_tags",
@@ -1571,6 +1596,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     merchantCut: MERCHANT_CUT,
     desires,
     starting,
+    field: fieldModel,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },

@@ -879,6 +879,15 @@ named pass rather than inline work: `markDone` is what stops a resumed turn
 advance from drifting the whole map twice. The full parameter table is in
 `MINING.md` §6.
 
+## 6c. The field pass
+
+`"fieldRegen"` in `TURN_PASSES` (`db/lib/fieldProductivity.js#runFieldPass`) refills
+the pool of every farming place (each Location with the `soilery` attribute) and sets next turn's yield multiplier there (`SOILERY.md` §9). It runs
+right after `"miningYield"` and, like it, late on purpose: harvests draw on the pool
+in the staged push, so this turn's are already out of it, and what the pass writes
+is what the **next** turn's harvests come up at. It adds a turn of refill, so it is
+not idempotent and has its own `markDone`. Its `AuditLog` row is `field_regen`.
+
 ## 6a. The Move cutoff
 
 Moves close an **adjudication window** before the turn ends, so a GM has time
