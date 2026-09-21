@@ -2,7 +2,18 @@
 // and the catalog's shape. Run with `npm test --workspace=db`.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { RITES, THANATI_DICTIONARY, rollRiteWords, matchRites, normalizeChant, containsPhrase, riteByKey } = require("../lib/rites");
+const {
+  RITES,
+  THANATI_DICTIONARY,
+  PROHIBITED_CIRCLE_PHRASES,
+  MAX_PHRASE_WORDS,
+  rollRiteWords,
+  matchRites,
+  normalizeChant,
+  containsPhrase,
+  phraseWordCount,
+  riteByKey,
+} = require("../lib/rites");
 
 // A tiny seeded generator so a failing roll can be reproduced.
 function seeded(seed) {
@@ -28,17 +39,25 @@ test("the catalog is well-formed", () => {
   assert.equal(new Set(THANATI_DICTIONARY.map(normalizeChant)).size, THANATI_DICTIONARY.length);
 });
 
-test("every rite gets one to three words and no phrase nests in another", () => {
+test("every rite gets one to three words, none prohibited, and no phrase nests in another", () => {
+  const banned = new Set(PROHIBITED_CIRCLE_PHRASES.map(normalizeChant));
   for (let seed = 1; seed <= 300; seed += 1) {
     const words = rollRiteWords(seeded(seed));
     const raw = Object.values(words);
     const phrases = raw.map(normalizeChant);
     assert.equal(phrases.length, RITES.length);
-    // Counted on the raw phrase: `exim’ha` is one dictionary word that
-    // normalizes to two.
+    // Counted on the raw phrase, which is what a player has to say: `exim'ha`
+    // is one word to read even though it normalizes to two, and `pestis
+    // cruento` is one dictionary entry that is genuinely two words.
     for (const p of raw) {
-      const n = p.split(" ").length;
-      assert.ok(n >= 1 && n <= 3, p);
+      const n = phraseWordCount(p);
+      assert.ok(n >= 1 && n <= MAX_PHRASE_WORDS, `${p} is ${n} words (seed ${seed})`);
+    }
+    // The battle cries, which players shout in character. Whole phrase only —
+    // the words themselves are still in the dictionary and may be rolled in
+    // any other combination.
+    for (const p of phrases) {
+      assert.ok(!banned.has(p), `${p} is a reserved battle cry (seed ${seed})`);
     }
     for (let i = 0; i < phrases.length; i += 1) {
       for (let j = 0; j < phrases.length; j += 1) {
@@ -46,6 +65,20 @@ test("every rite gets one to three words and no phrase nests in another", () => 
         assert.ok(!containsPhrase(phrases[i], phrases[j]), `${phrases[j]} nests in ${phrases[i]} (seed ${seed})`);
       }
     }
+  }
+});
+
+test("the blocklist bars only the whole phrase, never its words", () => {
+  const banned = new Set(PROHIBITED_CIRCLE_PHRASES.map(normalizeChant));
+  // Every one of these is a prohibited phrase AND a dictionary entry, so the
+  // rule has to tell "this exact phrase" from "a word that appears in one".
+  for (const word of ["pretiacruento", "vilomaxus", "cruento paashaeximus"]) {
+    assert.ok(THANATI_DICTIONARY.includes(word), `${word} should still be rollable in company`);
+    assert.ok(banned.has(normalizeChant(word)), `${word} should be barred on its own`);
+  }
+  // Retired from the dictionary outright: they are battle cries and nothing else.
+  for (const word of ["apigami", "stragarana"]) {
+    assert.ok(!THANATI_DICTIONARY.includes(word), word);
   }
 });
 

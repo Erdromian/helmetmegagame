@@ -4,17 +4,42 @@
 // (db/lib/riteChant.js). What each rite DOES is db/lib/riteEffects.js, keyed by `key`, run by the sweep. Names/descriptions/minimums/ingredient
 // lines are Bascinet's words, verbatim and unsigned, apart from the {tag:…} links and the ⬢ glyph for quantities (CLAUDE.md).
 
-// Bascinet's dictionary, spelling preserved. Matching is case- and punctuation-insensitive (normalizeChant).
+// Bascinet's dictionary, spelling preserved. Matching is case- and punctuation-insensitive (normalizeChant), so the hyphen in `domus-bhaava` and
+// the apostrophe in `exim'ha` are for the reader's eye only. What each word MEANS is the glossed table in docs/systemdocs/THANATI.md — nothing
+// reads a gloss, so carrying one here would be a second place to keep in step for no behaviour at all.
+// Three entries are two words (`pestis cruento`, `cruento pestis`, `cruento paashaeximus`), which is why the phrase cap below counts WORDS.
 const THANATI_DICTIONARY = Object.freeze([
-  "apigami", "stragarana", "vilomaxus", "rudsceleratus", "cruo", "crunatus",
-  "pretiacruento", "cruentu", "cruensseasrjit", "cruonit", "shaantitus", "domus",
-  "marana", "bibox", "vorox", "Shatruex", "infirmux", "crudux", "vigra",
-  "invisux", "invisuu", "maravita", "pretaanluxis", "odiosux", "odiosuu",
-  "prayaNavita", "profanx", "profanuxes", "exim’ha", "tuulenux", "praaNsilenux",
-  "esco", "bhuuesco", "desco", "bhuudesco", "hatanoceo", "gero", "geropayati",
-  "cruonita", "infuscomus", "malax", "caecux", "quodpipax", "pallex",
-  "durbentia", "lokemundux",
+  "rud'minuox", "rudsceleratus", "pestis cruento", "cruo", "crunatus",
+  "pretiacruento", "cruentu", "cruensseasrjit", "cruonit", "shaantitus",
+  "cruento pestis", "domus", "marana", "bibox", "vorox", "cruento paashaeximus",
+  "Shatruex", "infirmux", "crudux", "vigra", "invisux", "invisuu", "maravita",
+  "domus-bhaava", "acerbus-shatruex", "pretaanluxis", "odiosux", "odiosuu",
+  "cruo-stragaraNa", "prayaNavita", "vilomaxus", "profanx", "profanuxes",
+  "exim'ha", "tuulenux", "praaNsilenux", "esco", "bhuuesco", "desco",
+  "bhuudesco", "hatanoceo", "gero", "geropayati", "cruonita", "infuscomus",
+  "malax", "caecux", "quodpipax", "pallex", "durbentia", "lokemundux",
 ]);
+
+// The cult's battle cries, reserved for roleplay and never rolled as a Word of the Circle — a phrase a player may shout in character must not
+// also be the thing that fires a rite. Matched on the WHOLE phrase and nothing less: the words themselves stay in the dictionary and may be
+// rolled freely in any other combination, so `pretiacruento` alone is refused while `pretiacruento marana` is fine.
+// Several use word forms the dictionary does not carry (`geroxe`, `durbe`, `maranax`, `malaxos`) and so could never be rolled anyway. They are
+// listed in full regardless, so the blocklist stays true to Bascinet's text rather than to whatever the dictionary happens to hold today.
+const PROHIBITED_CIRCLE_PHRASES = Object.freeze([
+  "\"apigami\"", "bhuudesco invisuu", "bhuuesco marana", "crudux cruo",
+  "cruento paashaeximus", "cruento pestis shatruex", "cruo crunatus durbe",
+  "cruo lokemundux", "cruo stragarana malaxos", "geroxe cruo",
+  "En marana domus nava crunatus", "caecux infirmux", "malax \"say ti\"",
+  "maranax pallex", "maranax malax", "maranax infirmux", "pallex \"ti\"",
+  "Geroxe bibox malax", "pestis Cruento",
+  "pestis cruento vilomaxus pretiacruento", "pretaanluxis cruonit",
+  "pretiacruento", "stragarana", "vorox esco marana", "vilomaxus",
+  "\"Pro\" stragarana malaxos",
+]);
+
+// Bascinet's cap: a Word of the Circle is at most three words. Counted on the phrase AS WRITTEN, not as normalized — `rud'minuox` reads as one
+// word to whoever has to say it, even though normalizeChant splits it in two. The cap is about how much there is to chant.
+const MAX_PHRASE_WORDS = 3;
 
 // How long the room has to meet a rite's requirements after the first counted chant, and how long it then has to add chanters before it fires.
 const WINDOW_MS = 12 * 60 * 60_000;
@@ -34,10 +59,10 @@ const RITES = [
   {
     key: "conversion",
     name: "Rite of Conversion",
-    minChanters: 2,
-    ingredients: [{ kind: "bound-person" }],
-    ingredientsText: "1 {tag:bound} person in the same location. They must have room access to wherever you are chanting at",
-    description: "Reveal the wicked truth of this reality, so they might join in its destruction! They must be added to whatever room or conversation you chant at. They may refuse; but if they do so, they will be severely weakened and distraught, allowing you to finish them off.",
+    minChanters: 1,
+    ingredients: [{ kind: "convert-candidate" }],
+    ingredientsText: "1 person in the same location who is able to act, not {tag:bound} and not already Thanati. They must have room access to wherever you are chanting at",
+    description: "Reveal the wicked truth of this reality, so they might join in its destruction! After fulfilling, you will be asked which of them to call. They must be added to whatever room or conversation you chant at — the truth is an invitation, and an invitation cannot be put to somebody in no position to refuse it. They may refuse, and nothing is lost to either of you if they do.",
   },
   {
     key: "sacrifice",
@@ -183,8 +208,19 @@ function containsPhrase(normalizedText, normalizedPhrase) {
   return haystack.includes(` ${normalizedPhrase} `);
 }
 
-// One to three distinct words per rite, shuffled. A phrase that equals, contains or is contained in another rite's phrase is rerolled, since
-// matching is "contains". `existing` is a TOP-UP: any phrase already rolled is kept as-is, letting a running game gain a new catalog rite.
+// The battle cries, in the form the roll compares against. Built once: the list is frozen and normalizeChant is pure.
+const PROHIBITED_NORMALIZED = new Set(PROHIBITED_CIRCLE_PHRASES.map(normalizeChant));
+
+// Words in a phrase as a player reads it. A dictionary entry may be two (`pestis cruento`), so picking three entries is not the same as
+// picking three words.
+function phraseWordCount(text) {
+  return String(text ?? "").trim().split(/\s+/).filter(Boolean).length;
+}
+
+// One to three WORDS per rite, drawn from distinct dictionary entries and shuffled. Two rules reject a candidate:
+//   - NESTING, against the phrases already rolled. Matching is "contains", so a phrase inside another would fire both rites at once.
+//   - THE BLOCKLIST, on the whole phrase only — the battle cries above, which players say in character and must not chant by accident.
+// `existing` is a TOP-UP: any phrase already rolled is kept as-is, letting a running game gain a new catalog rite.
 function rollRiteWords(rng = Math.random, rites = RITES, existing = null) {
   const words = [...THANATI_DICTIONARY];
   const out = {};
@@ -203,14 +239,20 @@ function rollRiteWords(rng = Math.random, rites = RITES, existing = null) {
       const count = 1 + Math.floor(rng() * 3);
       const pool = [...words];
       const picked = [];
+      let used = 0;
       while (picked.length < count && pool.length) {
         const i = Math.floor(rng() * pool.length);
-        picked.push(pool.splice(i, 1)[0]);
+        const word = pool.splice(i, 1)[0];
+        // Spliced whether or not it fits, so a two-word entry that blows the budget costs this attempt one candidate rather than looping.
+        const cost = phraseWordCount(word);
+        if (used + cost > MAX_PHRASE_WORDS) continue;
+        picked.push(word);
+        used += cost;
       }
       const candidate = picked.join(" ");
       const norm = normalizeChant(candidate);
       const clashes = taken.some((t) => containsPhrase(norm, t) || containsPhrase(t, norm));
-      if (!clashes) phrase = candidate;
+      if (picked.length && !clashes && !PROHIBITED_NORMALIZED.has(norm)) phrase = candidate;
     }
     if (phrase == null) throw new Error(`Could not roll a distinct Word of the Circle for ${rite.key}`);
     out[rite.key] = phrase;
@@ -238,12 +280,15 @@ function floorIngredients(rite) {
 
 module.exports = {
   THANATI_DICTIONARY,
+  PROHIBITED_CIRCLE_PHRASES,
+  MAX_PHRASE_WORDS,
   RITES,
   WINDOW_MS,
   GRACE_MS,
   riteByKey,
   normalizeChant,
   containsPhrase,
+  phraseWordCount,
   rollRiteWords,
   matchRites,
   floorIngredients,

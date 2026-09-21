@@ -1,13 +1,15 @@
 // What a rite needs, judged against the room (docs/systemdocs/THANATI.md §4). Two kinds of ingredient. FLOOR kinds — `{ tag, count }` stacks and
 // `{ resources }` — are read off the room's stash and consumed by the sweep. RESOLVED kinds — bound-person, corpse, photograph, weapon — are found
 // here rather than eaten, so the chant hook, sweep and effect all agree which one (bound-person: a living Bound character at the Location who can
-// get into this room, leaders first; corpse: a corpse tag with the dead character it's a handle to; photograph: on the floor first or in a
+// get into this room, leaders first; convert-candidate: the opposite — every living non-cultist there who is ABLE TO ACT, handed over as a list
+// because a cultist picks one by hand; corpse: a corpse tag with the dead character it's a handle to; photograph: on the floor first or in a
 // participant's hands, resolved to who it pictures; weapon: a random weapon stack). Per-rite constraints (Conversion/Judgement/Madness/Fulfillment/
 // Ascension) live here too, since the sweep consumes the floor BEFORE the handler runs — a refusal from inside an effect would already have eaten it.
 const { floorIngredients } = require("./rites");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { resourcesOf } = require("./resourceStack");
+const { ACT, slugsBlocking } = require("./incapacitation");
 
 const BOUND_SLUG = "bound";
 // A shackled person is a bound-person ingredient too (db/lib/bind.js#RESTRAINT_SLUGS).
@@ -48,19 +50,19 @@ async function floorHas(db, rite, roomId) {
   return true;
 }
 
-// Living Bound characters at the Location who can get into this room. `room`
-// needs { id, kind, locationId, accessTagSlugs }.
+// Living characters at the Location who can get into this room, narrowed by
+// whatever tag test the rite needs. `room` needs { id, kind, locationId,
+// accessTagSlugs }; `where` is merged into the Character query.
 //
 // `excludeSlugs` drops a candidate outright; `deprioritizeSlugs` keeps them but
 // sorts them LAST, behind every ordinary candidate including the leaders. Only
-// Conversion uses the second, for the Pious: the rite can be wasted on one, but
-// never while somebody convertible is lying in the same room.
-async function boundCandidates(db, room, { excludeSlugs = [], deprioritizeSlugs = [] } = {}) {
+// Conversion uses the second, for the Pious.
+async function roomCandidates(db, room, { where = {}, excludeSlugs = [], deprioritizeSlugs = [] } = {}) {
   const rows = await db.character.findMany({
     where: {
       status: "ALIVE",
       locationId: room.locationId,
-      tags: { some: { quantity: { gt: 0 }, tag: { slug: { in: [BOUND_SLUG, SHACKLED_SLUG] } } } },
+      ...where,
     },
     orderBy: { name: "asc" },
     select: {
@@ -97,6 +99,29 @@ async function boundCandidates(db, room, { excludeSlugs = [], deprioritizeSlugs 
       Number(b.leader) - Number(a.leader) ||
       a.name.localeCompare(b.name),
   );
+}
+
+// Bound or shackled — the Rite of Sacrifice's victim.
+function boundCandidates(db, room, opts = {}) {
+  return roomCandidates(db, room, {
+    ...opts,
+    where: { tags: { some: { quantity: { gt: 0 }, tag: { slug: { in: [BOUND_SLUG, SHACKLED_SLUG] } } } } },
+  });
+}
+
+// Conversion's pool, and the exact opposite of the one above: somebody who
+// could walk away from the question. Bound is only one of the ways to be in no
+// position to answer, so the test is the shared ACT predicate rather than the
+// two restraint slugs — it carries Dying, Catatonic, Crucified, Seizure,
+// Paralyzed and Unconscious along with them (db/lib/incapacitation.js).
+// The Pious stay in the list and sort last; the rite bounces off them, which is
+// a thing the cult may spend a chant finding out.
+function convertCandidates(db, room) {
+  return roomCandidates(db, room, {
+    where: { tags: { none: { quantity: { gt: 0 }, tag: { slug: { in: slugsBlocking(ACT) } } } } },
+    excludeSlugs: [THANATI_SLUG],
+    deprioritizeSlugs: [PIOUS_SLUG],
+  });
 }
 
 // A corpse on this floor with a dead character behind it.
@@ -189,17 +214,16 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
   for (const need of rite.ingredients ?? []) {
     if (!need.kind) continue;
     if (need.kind === "bound-person") {
-      // Conversion never touches a cultist it already has. The Pious it DOES
-      // reach now -- the rite simply bounces off them (riteEffects.js), which is
-      // a thing the cult can waste a chant discovering, so they sort last.
-      const exclude = rite.key === "conversion" ? [THANATI_SLUG] : [];
-      const deprioritize = rite.key === "conversion" ? [PIOUS_SLUG] : [];
-      const candidates = await boundCandidates(db, room, {
-        excludeSlugs: exclude,
-        deprioritizeSlugs: deprioritize,
-      });
+      const candidates = await boundCandidates(db, room);
       if (candidates.length === 0) missing.push("bound-person");
       else resolved.boundPerson = candidates[0];
+    } else if (need.kind === "convert-candidate") {
+      // The WHOLE list, not the first of it: Conversion is the one rite whose
+      // target a cultist picks by hand, so the effect needs everybody it may
+      // offer (riteEffects.js#conversion).
+      const candidates = await convertCandidates(db, room);
+      if (candidates.length === 0) missing.push("convert-candidate");
+      else resolved.convertCandidates = candidates;
     } else if (need.kind === "corpse") {
       const corpse = await corpseOnFloor(db, room.id);
       if (!corpse) missing.push("corpse");
@@ -270,8 +294,9 @@ module.exports = {
   onHallowedGround,
   floorHas,
   // Exported for db/test/conversionRite.test.js, which pins the ordering the
-  // Pious deprioritisation depends on. Nothing else calls it from outside.
+  // Pious deprioritisation depends on. Nothing else calls either from outside.
   boundCandidates,
+  convertCandidates,
   resolveIngredients,
   nameOnPhoto,
 };

@@ -3,11 +3,12 @@
 //
 // The rite stopped converting people outright and started ASKING, which adds
 // three roads out of one chant — accept, refuse, and three hours of silence —
-// where there used to be one. What is worth testing here is the two things
-// that make this kind unlike every other Offer:
+// where there used to be one. What is worth testing here is the things that
+// make this kind unlike every other Offer:
 //
-//   - refusing COSTS something, so it must not fall through to the generic
-//     declineOffer(), and two roads to no must never charge the price twice;
+//   - the CULTIST picks the target, off a list rebuilt at pick time rather
+//     than the one the DM was drawn from, and only one of the circle may;
+//   - refusing is free now, so nothing may quietly reintroduce a price;
 //   - the Pious path writes no Offer row at all, so there is nothing to answer
 //     and nothing left to expire.
 //
@@ -30,18 +31,21 @@ process.env.DISCORD_TOKEN = "";
 
 const {
   CONVERSION_WINDOW_MS,
-  CONVERTED_MOOD,
   VISION_DM,
   REFUSED_DM,
   DISMISSED_DM,
   REFUSED_LINE,
+  ASK_REFUSED_DM,
+  PICK_DM,
   dismisses,
+  conversionPickRow,
   createConversionOffer,
+  answerConversionPick,
   refuseConversion,
   expireConversionOffers,
 } = require("../lib/conversionRite");
 const { riteByKey } = require("../lib/rites");
-const { EVENTS, MOOD_BANDS, MOOD_MIN, clampMood, bandOf } = require("../lib/mood");
+const { EVENTS, MOOD_MIN, clampMood, bandOf } = require("../lib/mood");
 
 // ---- the fake ---------------------------------------------------------------
 
@@ -108,7 +112,8 @@ const CHANTERS = [
 ];
 const TURN = { id: "t1", number: 4, status: "OPEN" };
 
-// The shape boundCandidates hands the handler: a Set of slugs beside the row.
+// The shape convertCandidates hands the handler: a Set of slugs beside the row.
+// Empty by default now — the rite's target is somebody who could walk away.
 function victim(overrides = {}) {
   return {
     id: "v1",
@@ -117,47 +122,40 @@ function victim(overrides = {}) {
     age: 30,
     gender: "WOMAN",
     discordUserId: "reachable",
-    slugs: new Set(["bound"]),
+    slugs: new Set(),
     ...overrides,
   };
 }
 
 // ---- the catalog ------------------------------------------------------------
 
-test("the rite takes two cultists and warns what refusing costs", () => {
+test("one cultist is enough, and the description no longer threatens a refuser", () => {
   const rite = riteByKey("conversion");
-  assert.equal(rite.minChanters, 2, "one cultist may no longer convert somebody alone");
-  // The Grimoire renders this description verbatim, so the promise the cult
-  // reads and the price refuseConversion charges are the same feature.
+  assert.equal(rite.minChanters, 1, "the rite takes a single cultist now");
+  assert.equal(rite.ingredients[0].kind, "convert-candidate", "no longer a bound-person rite");
+  // The Grimoire renders this description verbatim, so it is the promise the
+  // cult reads. It must not go on advertising a price nothing charges.
   assert.match(rite.description, /They may refuse/);
-  assert.match(rite.description, /finish them off/);
+  assert.ok(!/finish them off/.test(rite.description));
+  assert.ok(!/weakened|distraught/.test(rite.description));
 });
 
-test("the two mood events exist and point the right way", () => {
-  assert.ok(EVENTS.RITE_REFUSED < 0);
+test("refusing the dark god costs nothing, and the event that cost is gone", () => {
+  // Deleted rather than left at 0: an event still in the table is one a future
+  // call site can reach for. The Pious bonus is the only rite event left.
+  assert.equal(EVENTS.RITE_REFUSED, undefined);
   assert.ok(EVENTS.RITE_DISMISSED > 0);
-  // -140 against a floor of -100 is deliberate, not an overflow: refusing is
-  // meant to put anybody at all into the bottom band.
-  assert.ok(EVENTS.RITE_REFUSED < MOOD_MIN);
-  assert.equal(bandOf(clampMood(EVENTS.RITE_REFUSED)).key, "panicking");
-});
-
-test("accepting lands on the FLOOR of Pleased, not its middle", () => {
-  // A rescue, not a reward (docs/systemdocs/THANATI.md §4a). If the band is
-  // ever re-cut, this should move with it rather than silently drift into
-  // whatever band 28 has become.
-  const pleased = MOOD_BANDS.find((b) => b.key === "pleased");
-  assert.equal(CONVERTED_MOOD, pleased.min);
-  assert.equal(bandOf(CONVERTED_MOOD).key, "pleased");
+  assert.ok(MOOD_MIN < 0);
+  assert.equal(bandOf(clampMood(MOOD_MIN)).key, "panicking");
 });
 
 // ---- who the vision bounces off ---------------------------------------------
 
 test("dismisses() reads the Pious off either shape of a character row", () => {
-  // boundCandidates hands over a Set; a row loaded anywhere else carries the
+  // convertCandidates hands over a Set; a row loaded anywhere else carries the
   // nested tags array. Both reach this function, so both must answer.
   assert.equal(dismisses(victim()), false);
-  assert.equal(dismisses(victim({ slugs: new Set(["bound", "pious"]) })), true);
+  assert.equal(dismisses(victim({ slugs: new Set(["pious"]) })), true);
   assert.equal(dismisses({ tags: [{ tag: { slug: "pious" } }] }), true);
   assert.equal(dismisses({ tags: [{ tag: { slug: "bound" } }] }), false);
   assert.equal(dismisses({}), false);
@@ -170,14 +168,17 @@ test("asking writes one PENDING offer with a three-hour clock and the room on it
   const db = makeDb({ turn: [TURN] });
   const before = Date.now();
 
-  const out = await createConversionOffer(db, { target: victim(), room: ROOM, participants: CHANTERS, turn: TURN });
+  const out = await createConversionOffer(db, { target: victim(), room: ROOM, askedBy: CHANTERS[0], turn: TURN });
 
   assert.equal(out.ok, true);
   const offer = db._store.offer[0];
   assert.equal(offer.kind, "CONVERSION");
   assert.equal(offer.status, undefined, "status is left to the column default, PENDING");
   assert.equal(offer.responderId, "v1");
-  assert.equal(offer.initiatorId, "c1", "the first chanter carries the row; no surface reads it back");
+  // The cultist who PICKED, which is a real fact now rather than "whoever
+  // chanted first" — refuseConversion reports back to them. Still never shown
+  // to the person being asked.
+  assert.equal(offer.initiatorId, "c1");
   assert.ok(offer.expiresAt.getTime() - before >= CONVERSION_WINDOW_MS - 50);
   // The answer arrives hours later with no room in hand, so the room the rite
   // fired in rides along on `outcome`.
@@ -195,13 +196,13 @@ test("the vision asks a question and names nobody", () => {
 test("somebody with no Discord account is never asked", async () => {
   // The offer is answered by a DM button, so a character nobody can reach has
   // no way to say yes -- and writing the row anyway would leave one PENDING
-  // until the sweep refused it, charging them -140 for a question they were
-  // never shown.
+  // until the sweep closed it, spending the circle's chant on a question
+  // nobody was ever shown.
   const db = makeDb({ turn: [TURN] });
   const out = await createConversionOffer(db, {
     target: victim({ discordUserId: null }),
     room: ROOM,
-    participants: CHANTERS,
+    askedBy: CHANTERS[0],
     turn: TURN,
   });
   assert.equal(out.ok, false);
@@ -210,10 +211,10 @@ test("somebody with no Discord account is never asked", async () => {
 
 test("a second rite cannot stack a second vision on the same person", async () => {
   const db = makeDb({ turn: [TURN] });
-  await createConversionOffer(db, { target: victim(), room: ROOM, participants: CHANTERS, turn: TURN });
+  await createConversionOffer(db, { target: victim(), room: ROOM, askedBy: CHANTERS[0], turn: TURN });
   db._store.offer[0].status = "PENDING";
 
-  const again = await createConversionOffer(db, { target: victim(), room: ROOM, participants: CHANTERS, turn: TURN });
+  const again = await createConversionOffer(db, { target: victim(), room: ROOM, askedBy: CHANTERS[0], turn: TURN });
 
   assert.equal(again.ok, false);
   assert.equal(db._store.offer.length, 1, "one question at a time");
@@ -224,7 +225,7 @@ test("no open turn is a no-op, not a throw", async () => {
   // it lands between turns routinely — the same window that broke the Rite of
   // Madness on 2026-09-08. By here the floor is already eaten.
   const db = makeDb({});
-  const out = await createConversionOffer(db, { target: victim(), room: ROOM, participants: CHANTERS, turn: null });
+  const out = await createConversionOffer(db, { target: victim(), room: ROOM, askedBy: CHANTERS[0], turn: null });
   assert.equal(out.ok, false);
   assert.equal(db._store.offer.length, 0);
 });
@@ -257,11 +258,11 @@ test("refusing closes the row, tells them, and tells the room", async () => {
   assert.match(REFUSED_LINE, /denied the ritual/);
 });
 
-test("two roads to no cannot charge the price twice", async () => {
+test("two roads to no cannot answer the same question twice", async () => {
   // The Refuse button, the three-hour sweep and the turn-close pass all reach
-  // the same function, and a rolling deploy runs two bot containers. The
-  // guarded updateMany is the whole defence; without it a racing pair would
-  // apply -140 and Depressed twice over.
+  // the same function, and a rolling deploy runs two bot containers. Refusing
+  // is free now, so what the guarded updateMany defends is the telling: a
+  // racing pair would say it twice to the room and twice to the cultist.
   const offer = pendingOffer();
   const db = makeDb({ offer: [offer], character: [victim({ mood: 0 })] });
 
@@ -270,6 +271,20 @@ test("two roads to no cannot charge the price twice", async () => {
 
   assert.equal(first.ok, true);
   assert.equal(second.ok, false, "the second road finds the row already closed");
+});
+
+test("refusing charges the refuser nothing at all", async () => {
+  // The whole point of the rework. If a mood write or a tag grant ever comes
+  // back here, it must come back with a change to the rite's description too.
+  const offer = pendingOffer();
+  const target = victim({ mood: 0 });
+  const db = makeDb({ offer: [offer], character: [target] });
+
+  await refuseConversion(db, offer);
+
+  assert.equal(target.mood, 0, "the dial did not move");
+  assert.equal(db._store.characterTag.length, 0, "no Depressed, and no tag of any kind");
+  assert.equal(db._store.moodEvent.length, 0);
 });
 
 test("a refuser who died in the three hours closes the row and nothing else", async () => {
@@ -314,15 +329,23 @@ test("the sweep leaves other offer kinds alone", async () => {
 test("every line is Bascinet's, and the two refusals read differently", () => {
   // The Pious dismissal and the ordinary refusal are different events and must
   // not converge on one string: one is a hallucination shrugged off, the other
-  // is somebody broken by it.
+  // is somebody turning the truth down.
   assert.notEqual(REFUSED_DM, DISMISSED_DM);
   assert.match(DISMISSED_DM, /hallucination/);
-  assert.match(REFUSED_DM, /shocked and traumatized/);
+  // It used to say "You are shocked and traumatized", which described the -140
+  // and the Depressed tag. Nothing happens to them now, so nothing may claim to.
+  assert.ok(!/traumatized|shocked/.test(REFUSED_DM));
   // Straight apostrophes and no double dagger anywhere (CLAUDE.md).
-  for (const line of [VISION_DM, REFUSED_DM, DISMISSED_DM, REFUSED_LINE]) {
+  for (const line of [VISION_DM, REFUSED_DM, DISMISSED_DM, REFUSED_LINE, ASK_REFUSED_DM, PICK_DM]) {
     assert.ok(!line.includes("‡"), line);
     assert.ok(!line.includes("’"), line);
   }
+});
+
+test("the cultist is told, in words that also fit three hours of silence", () => {
+  // Both roads reach this one line, so it must not claim they said anything.
+  assert.ok(!/refus|declin|denied/i.test(ASK_REFUSED_DM), ASK_REFUSED_DM);
+  assert.match(ASK_REFUSED_DM, /not joined you/);
 });
 
 // ---- who the rite reaches for -----------------------------------------------
@@ -359,4 +382,131 @@ test("the Pious are a valid target, but only when nobody else is lying there", a
     ["Mira", "Zeb", "Aldo"],
     "leader first, then the ordinary bound, and the Pious leader last of all",
   );
+});
+
+test("convertCandidates asks for the opposite set, and drops the cult's own", async () => {
+  // The Sacrifice's victim must be bound; this rite's target must NOT be, nor
+  // dying, catatonic, crucified, paralyzed or any of the rest of the ACT list.
+  // That is one predicate, not a hand-rolled pair — the query carries it as a
+  // `none`, so the fake below records the where rather than filtering on it.
+  const { convertCandidates } = require("../lib/riteIngredients");
+  const { slugsBlocking, ACT } = require("../lib/incapacitation");
+
+  const rows = [
+    { id: "p1", name: "Aldo", role: null, tags: [{ tag: { slug: "pious" } }] },
+    { id: "n1", name: "Zeb", role: null, tags: [] },
+    { id: "t1", name: "Cull", role: null, tags: [{ tag: { slug: "thanati" } }] },
+  ];
+  let seen = null;
+  const db = new Proxy(
+    { character: { findMany: async ({ where }) => { seen = where; return rows; } } },
+    {
+      get: (target, key) =>
+        key in target
+          ? target[key]
+          : { findMany: async () => [], findUnique: async () => null, findFirst: async () => null },
+    },
+  );
+  const room = { id: "r1", kind: "PUBLIC", locationId: "loc1", accessTagSlugs: [] };
+
+  const out = await convertCandidates(db, room);
+
+  assert.deepEqual(seen.tags.none.tag.slug.in, slugsBlocking(ACT), "the shared ACT predicate, not a local copy");
+  assert.ok(seen.tags.none.tag.slug.in.includes("bound"), "bound is one of the ways to be unable to answer");
+  assert.deepEqual(
+    out.map((c) => c.name),
+    ["Zeb", "Aldo"],
+    "the cultist is dropped outright and the Pious sorts last",
+  );
+});
+
+// ---- the picker --------------------------------------------------------------
+
+test("the select carries one option per candidate, labelled as the room sees them", () => {
+  const row = conversionPickRow("a1", [
+    { characterId: "v1", label: "Cass" },
+    { characterId: "v2", label: "a young woman" },
+  ]);
+  const select = row[0].components[0];
+  assert.equal(select.type, 3, "a string select, not a button pair");
+  assert.equal(select.custom_id, "rite:convert:a1", "the id on the wire is the ATTEMPT");
+  assert.deepEqual(
+    select.options.map((o) => o.value),
+    ["v1", "v2"],
+  );
+  // A hood is not undone by the picker: the alias is what the cultist picks.
+  assert.equal(select.options[1].label, "a young woman");
+});
+
+test("only somebody who chanted may pick, and only once", async () => {
+  const attempt = {
+    id: "a1",
+    riteKey: "conversion",
+    status: "AWAITING",
+    roomId: "r1",
+    participants: [{ characterId: "c1", name: "Ash", discordUserId: "ash" }],
+    result: {},
+  };
+  const db = makeDb({
+    riteAttempt: [attempt],
+    turn: [TURN],
+    room: [{ id: "r1", name: "The Basements", kind: "PUBLIC", locationId: "loc1", accessTagSlugs: [], discordThreadId: null }],
+    character: [
+      { id: "c1", name: "Ash", status: "ALIVE", discordUserId: "ash", locationId: "loc1", tags: [] },
+      { ...victim(), locationId: "loc1", tags: [] },
+    ],
+  });
+
+  // Somebody who was never in the circle.
+  const outsider = await answerConversionPick(db, { attemptId: "a1", discordUserId: "nobody", targetId: "v1" });
+  assert.equal(outsider.ok, false);
+  assert.equal(attempt.status, "AWAITING", "a stranger's pick does not spend the rite");
+
+  const picked = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", targetId: "v1" });
+  assert.equal(picked.ok, true);
+  assert.equal(attempt.status, "FIRED", "the claim is what stops two cultists both calling somebody");
+  assert.equal(db._store.offer.length, 1);
+  assert.equal(db._store.offer[0].responderId, "v1");
+  assert.equal(db._store.offer[0].initiatorId, "c1");
+
+  const again = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", targetId: "v1" });
+  assert.equal(again.ok, false, "the rite is spent");
+  assert.equal(db._store.offer.length, 1);
+});
+
+test("a pick nobody can still convert is refused without spending the rite", async () => {
+  const attempt = {
+    id: "a1",
+    riteKey: "conversion",
+    status: "AWAITING",
+    roomId: "r1",
+    participants: [{ characterId: "c1", name: "Ash", discordUserId: "ash" }],
+    result: {},
+  };
+  const db = makeDb({
+    riteAttempt: [attempt],
+    turn: [TURN],
+    room: [{ id: "r1", name: "The Basements", kind: "PUBLIC", locationId: "loc1", accessTagSlugs: [], discordThreadId: null }],
+    character: [{ id: "c1", name: "Ash", status: "ALIVE", discordUserId: "ash", locationId: "loc1", tags: [] }],
+  });
+
+  // The DM's labels are minutes old; the eligible set is rebuilt at pick time,
+  // so somebody bound or converted in the gap is simply not there any more.
+  const out = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", targetId: "gone" });
+
+  assert.equal(out.ok, false);
+  assert.equal(attempt.status, "AWAITING", "still answerable, so the circle can pick somebody else");
+  assert.equal(db._store.offer.length, 0);
+});
+
+test("a rite that is not Conversion cannot be answered by this picker", async () => {
+  // The other AWAITING rite is Panic, which is answered by SPEAKING a zone
+  // name. The two must not be able to claim each other's rows.
+  const attempt = { id: "a1", riteKey: "panic", status: "AWAITING", roomId: "r1", participants: [{ characterId: "c1" }] };
+  const db = makeDb({ riteAttempt: [attempt] });
+
+  const out = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", targetId: "v1" });
+
+  assert.equal(out.ok, false);
+  assert.equal(attempt.status, "AWAITING");
 });

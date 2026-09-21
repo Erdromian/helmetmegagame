@@ -25,6 +25,11 @@ const DM_ACTION = Object.freeze({
   // something, the liveness resolver refuses a stale letter, and DmThread
   // won't collapse it into "3 automated messages".
   BIRD_REPLY: "BIRD_REPLY",
+  // The BIRD_REPLY shape again, and no generic row for the same reason: the
+  // Rite of Conversion asks the circle WHICH person to call, which is a list
+  // and not an Accept (THANATI.md §4a). Its id is a RiteAttempt, not an Offer —
+  // the Offer only exists once somebody has picked.
+  RITE_TARGET: "RITE_TARGET",
 });
 
 // Every family reads as one of these even where Discord labels differ (escort "Cancel", keyed way "No").
@@ -50,7 +55,8 @@ const DM_ACTION_LABELS = Object.freeze({
   // One button, and it is the accept — the LOBBY_SEAT shape, the other way up.
   [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
   [DM_ACTION.ATTACK_HOLD]: { accept: "Cancel attack", decline: null },
-  // No entry for BIRD_REPLY, and that is deliberate — see the kind above.
+  // No entry for BIRD_REPLY or RITE_TARGET, and that is deliberate — see the
+  // kinds above. Both are pickers, and a picker has no pair to draw.
 });
 
 // The descriptor a sendDm call site spreads into `meta`. `variant` says which label set to draw

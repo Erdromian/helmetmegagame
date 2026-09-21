@@ -5837,6 +5837,11 @@ label.chip {
   flex-wrap: wrap;
   gap: 0.4rem;
   margin-top: 0.4rem;
+  /* A row of buttons alone does not care, but two of these rows put a .field
+     beside a button — the tax's number box and the Rite of Conversion's
+     picker — and .field is a label stacked over its control. Stretching made
+     the button as tall as both and sat it against the label. */
+  align-items: flex-end;
 }
 
 /* What replaces them once answered, matching the outcome the bot writes under
