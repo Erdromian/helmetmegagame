@@ -54,7 +54,9 @@ other.
 
 **Tobacco is the one exception, and it is deliberate** (§6a). It is the only
 sowable crop worth money, it is not food, and a field of it feeds nobody —
-which is exactly the decision it exists to force.
+which is exactly the decision it exists to force. It also wears the field like
+any other crop (§9), and counts three to one for it, so a farmer on tobacco is
+drawing on the soil that the town's food comes from.
 
 This used to need explaining at length, because `laboring-farming` had a
 second life as a paying Laboring tier priced against a Location's
@@ -84,6 +86,8 @@ soilery: {
 `hasAttribute(location, SOILERY_ATTRIBUTE)` is the one gate the server action
 and the sheet's Farm-button visibility both read, so a tile either offers the
 whole system or none of it.
+
+**Every farming place is also its own field with its own productivity (§9).**
 
 **Currently one Location carries it**: `town-3`, the Soilery, under the `town`
 zone (`docs/zones.yaml`). It moved there with the Farms rework and this doc said
@@ -484,7 +488,115 @@ character holds `fertilized-fields` (unconsumed) and stamps it onto `farmPlan`
 `{ fertilized: boolean }` added), read at push by `moveEffects.js`'s `farmed`
 entry the same way every other farmPlan field is.
 
-## 9. Where the code lives
+## 9. The field's productivity
+
+A field has a limit. A reasonable amount of farming feeds the town; farming much
+more than that wears the soil out, and every harvest, food and cash alike, comes up
+worse until the farming eases off.
+
+**Every Location with the `soilery` attribute is its own field.** Today that is one
+place, the Soilery (`town-3`), but a second one is nothing more than another Location
+with the attribute (ticked at `/gm/dev/zones`), and it can be a poorer one (see
+`soileryRegen` below). `db/lib/fieldProductivity.js` keeps two numbers for each, on
+its `LocationField` row: the **pool**, and the **yield multiplier** derived from it.
+The row is made the first time somebody harvests there or the turn pass reaches the
+place, and the wipe clears every one (`web/app/(app)/gm/dev/actions.js`), so a Restart
+Game opens on full fields. The Farm plan records `locationId`, the place it was sown, and
+each harvest draws on that field alone. A plan filed before fields existed has no place
+and comes up whole.
+
+**The refill.** At every turn close each field's pool gains what the town eats, plus a
+margin, times the place's own share. A person eats 2 crops a turn (two crops make the one
+basic dish that feeds them, `COOKING.md` §2a), so the refill is
+`seats × 2 × (1 + margin) × share`. `seats` is `effectivePlayerCount` (the count Start
+Game stamped, or the GM's expected players before that) and the margin defaults to 15%. At
+80 seats that is 184 crops a turn for a field with the default share of 1, which is a field
+sized to feed the whole town. **`soileryRegen`** is a number on the Location (a number
+box on `/gm/dev/zones`, unset is 1, and it never prints to players): a field at 0.4 refills
+40% as fast and holds 40% as much, so the same farming wears it sooner. Two fields add
+up, so a town with the Soilery at 1 and a scrubland at 0.4 can grow 1.4 times what it
+eats. The pool holds at most `farmPoolTurns` (4) turns of refill, so a quiet spell banks a
+cushion and no more.
+
+**The draw.** Every harvest takes what it produced out of the pool at the moment
+it resolves. It counts in **food-crop equivalents**: a plant takes the same from
+the soil whatever it gives you, so a tobacco leaf, a third of a plant's usual
+yield, counts as three crops. **Cash crops wear the field like any other.**
+
+**The curve.** After the harvests and the refill, the field pass sets next turn's
+yield multiplier from the pool. At or above `farmComfortFrac` (75%) of a full pool
+it is 1 and nothing changes. Below that it falls in a line to `farmMinYield` (0.25)
+at an empty pool, and stays there however deep the pool goes. A surviving plant
+then gives its crops times the multiplier (a fraction is kept as a chance, so
+three crops at 0.8 are two four times in five and three the fifth).
+`farmCurveExp` bends the line: 1 is straight, above 1 is gentle at first and steep
+at the end.
+
+**Debt.** The pool may go below zero, down to minus one full pool, because
+overdrawing is the thing being punished. That is what makes the loss keep
+growing while farmers keep farming, and what makes recovery take a few turns
+after they stop.
+
+**Everyone sowing at one place in a push gets the same multiplier.** It is set at the close and read by
+every harvest there in the next push, so which farmer resolves first changes nothing.
+Undo puts back exactly what the harvest took from the pool (`snapshot.field.taken`,
+which is less than the draw when the debt floor clamped it).
+
+### What it does, worked at 80 seats
+
+The refill is 184 crops a turn, and a full Farm action is about 125 crops
+every other turn, about 62 a turn. So **three food farmers are 187 a turn**, right
+at the refill, and hold the field whole. A fourth food farmer, or one farmer on
+tobacco (about 50 a turn once its leaves are counted three to one), tips it over: the
+first drop comes after about three turns, and the yield settles at about 75 to 80%.
+Farming at a steady multiple of the refill settles at:
+
+| Farming at | Yield it settles at | Output |
+|---|---|---|
+| The refill or less | 100% | what they sow |
+| 1.5× the refill | about 67% | the refill |
+| 2× the refill | about 50% | the refill |
+| 3× the refill | about 33% | the refill |
+| More than 4× | 25%, the floor, with the pool in debt | more than the refill, and the field stays wrecked |
+
+The pattern is the same in every row: **more farmers do not make more food.** The
+yield falls until the output matches the refill, and beyond four times the refill
+the floor holds it at a quarter with the field in debt, which is a famine. A town
+that farms only food and cooks it is fine: even with too many farmers the output settles
+at the refill, which is more than the town eats, so food farming alone wastes effort
+rather than starving anyone. **Cash crops are what starve a town.** They draw from
+the same pool but cannot be eaten, so the food farmers' yield falls while the tobacco
+coin comes in (at 100 seats, three food farmers and three on tobacco feed about two
+thirds of the town). At twice the refill the first drop comes
+after two turns, and it is at half within eight. Once they ease off to under the refill
+the field takes about seven turns to come back whole. `npm run economy:report` works all of this out from the live knobs and
+shows how many farmers the town needs at its size.
+
+### What the players are told
+
+**Never a number.** The Farm dialog, and the turn-close DM that reports a harvest,
+say nothing until the multiplier is down to 80%, and then say it in words in four
+steps: at 80% and below the soil is starting to tire, at 60% and below the field is
+being worked too hard, at 40% and below it is failing, and below 30% it is nearly
+dead (`fieldWarning`, `fieldTier`). A farmer sees the ground, not a gauge.
+
+### The knobs
+
+All on `/gm/dev?s=config`, "Economy" group, no deploy (`db/lib/gameConfigFields.js`):
+
+| Knob | Default | What it does |
+|---|---|---|
+| `farmFieldEnabled` | on | Off: every harvest comes up whole and draws on nothing (every field) |
+| `farmSustainMargin` | 0.15 | How far over what the town eats the field refills |
+| `farmPoolTurns` | 4 | Turns of refill the pool holds, and how deep it can go in debt |
+| `farmComfortFrac` | 0.75 | Share of a full pool at which the yield starts to fall |
+| `farmMinYield` | 0.25 | The multiplier at an empty pool, and below it |
+| `farmCurveExp` | 1 | The shape of the fall |
+
+Set `farmMinYield` to 1 to keep the pool and the DMs' silence but never lower a
+yield; set `farmFieldEnabled` off to switch the whole thing away.
+
+## 10. Where the code lives
 
 | Concern | File |
 |---|---|
@@ -507,4 +619,8 @@ entry the same way every other farmPlan field is.
 | The sheet-side Farm gate (`canSeeFarm`/`farmBlocked`/`canFarm`) | `web/app/(app)/character/page.js` |
 | The Farm verb strip entry | `web/app/components/actionRegistry.js` (`mode: "farm"`) |
 | The Farm dialog itself | `web/app/components/actions/FarmDialog.js`, registered in `web/app/components/actions/index.js` |
+| The field's pool, refill, curve, draw and undo (§9) | `db/lib/fieldProductivity.js`, the `LocationField` model in `db/prisma/schema.prisma` |
+| A place's regeneration share (`soileryRegen`) | `db/lib/locationAttributes.js` |
+| The turn-close field pass | `db/index.js` (`"fieldRegen"` in `TURN_PASSES`) |
+| The player-facing field warning | `db/lib/fieldProductivity.js` (`fieldWarning`), `web/app/components/actions/FarmDialog.js`, `db/lib/soilery.js` (`farmDm`) |
 | The GM-tunable sow cap (`GameConfig.farmMaxCrops`, default 50, `FARM_MAX_CROPS` is the code fallback) | `db/prisma/schema.prisma`, `db/lib/gameConfigFields.js` (`/gm/dev?s=config`, "Economy" group) |

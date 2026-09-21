@@ -28,7 +28,7 @@ const { applyFatigueStep, revertFatigueStep } = require("./fatigue");
 const { drawProspectingLoot } = require("./cavingLoot");
 const { PROSPECTING_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
-const { reapFor, harvestLine } = require("./soilery");
+const { reapDetailFor, harvestLine } = require("./soilery");
 
 // One entry per pushable thing. `read` decides what this Move would push right now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert`
 // takes back exactly what was snapshotted.
@@ -180,9 +180,22 @@ const MOVE_EFFECTS = {
       });
       const stackableById = new Map(tags.map((tag) => [tag.id, tag.stackable]));
 
+      // The field's productivity (db/lib/fieldProductivity.js, SOILERY.md §9): every plant sown at one place this turn comes up
+      // at the same multiplier, the one the last turn close set, so which farmer resolves first changes nothing. The plan says
+      // WHERE it was sown; a plan filed before fields existed has no place and comes up whole.
+      const { fieldSettings, yieldMultFor, drawFromPool } = require("./fieldProductivity");
+      const fieldId = plan.locationId ?? null;
+      const fieldOn = Boolean(fieldId) && fieldSettings(await require("./gameState").readGameConfig(tx)).enabled;
+      const yieldMult = fieldOn ? await yieldMultFor(tx, fieldId) : 1;
+      let fieldDraw = 0;
+
       const rows = [];
       for (const row of plan.rows) {
-        const reaped = reapFor(row.slug, row.planted, Math.random, { fertilized: plan.fertilized === true });
+        const { crops: reaped, draw } = reapDetailFor(row.slug, row.planted, Math.random, {
+          fertilized: plan.fertilized === true,
+          yieldMult,
+        });
+        fieldDraw += draw;
         if (reaped > 0) {
           const { addToStack } = require("./tagWrites");
           await addToStack(tx, action.characterId, row.tagId, reaped, {
@@ -208,7 +221,11 @@ const MOVE_EFFECTS = {
       const turn = await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } });
       const fatigue = turn ? await applyFatigueStep(tx, action.characterId, turn.number) : null;
 
-      return { rows, fatigue };
+      // What the harvest cost the field. `taken` is what the pool actually gave up, which is less than `fieldDraw` at the debt
+      // floor, and it is what an Undo puts back.
+      const taken = fieldOn ? (await drawFromPool(tx, fieldId, fieldDraw)).delta : 0;
+
+      return { rows, fatigue, yieldMult, field: { locationId: fieldId, draw: fieldDraw, taken } };
     },
     revert: async (tx, action, snapshot) => {
       if (!snapshot) return;
@@ -219,6 +236,8 @@ const MOVE_EFFECTS = {
       // Same snapshot shape as `refined` now that both climb the one ladder, so the one
       // revert serves both.
       if (snapshot.fatigue) await revertFatigueStep(tx, action.characterId, snapshot.fatigue);
+      // A row from before the field pool has no `field`, and nothing to give back.
+      if (snapshot.field?.taken > 0) await require("./fieldProductivity").refundToPool(tx, snapshot.field.locationId, snapshot.field.taken);
     },
   },
 

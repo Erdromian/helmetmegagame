@@ -5,6 +5,7 @@
 // db/lib/godflesh.js. See docs/systemdocs/SOILERY.md.
 
 const { SOILERY_SLUG, EXHAUSTED_SLUG } = require("./constants");
+const { fieldWarning } = require("./fieldProductivity");
 
 const FARM_MAX_CROPS = 50;
 // 1-in-6 fails, independently PER UNIT sown — not a rounded average. See reap() below for why.
@@ -77,6 +78,16 @@ function validatePlan(plan, licensed, maxCrops = FARM_MAX_CROPS) {
   return { ok: true };
 }
 
+// A whole number of crops scaled by a yield multiplier, keeping the fraction as a chance rather than throwing it away: 3 crops at
+// 0.8 is 2 crops four times in five and 3 the fifth, so the average is right and a single plant can still come in whole. A
+// multiplier of 1 or more rolls nothing, so a sound field spends no dice it did not spend before.
+function scaleCrops(n, mult, rng) {
+  if (!(mult < 1)) return n;
+  const x = n * Math.max(0, mult);
+  const base = Math.floor(x);
+  return base + (rng() < x - base ? 1 : 0);
+}
+
 // Rolls `planted` INDEPENDENT 1-in-WITHER_IN chances rather than
 // Math.round(planted * (WITHER_IN - 1) / WITHER_IN) — the plan calls for
 // real per-unit variance (a small planting can wholly fail or wholly
@@ -90,35 +101,55 @@ function validatePlan(plan, licensed, maxCrops = FARM_MAX_CROPS) {
 // therefore worth more on a crop with a steeper wither die, since it is a
 // bigger risk being cancelled.
 //
+// `yieldMult` is the field's productivity (db/lib/fieldProductivity.js, SOILERY.md §9): what a plant that survives gives, times
+// this. 1 for a sound field.
+//
 // `cropsPerPlant` and `witherIn` default to the constants above; pass a
 // crop's own numbers, or use reapFor() below to look them up by slug.
-function reap(planted, rng = Math.random, {
+//
+// Answers `{ crops, draw }`. `draw` is what the harvest costs the FIELD, in food-crop equivalents: a plant takes the same
+// from the soil whatever it gives you, so a crop that yields a third of a plant's usual three (tobacco) counts three times.
+function reapDetail(planted, rng = Math.random, {
   fertilized = false,
   cropsPerPlant = CROPS_PER_PLANT,
   witherIn = WITHER_IN,
+  yieldMult = 1,
 } = {}) {
   let harvested = 0;
   for (let i = 0; i < planted; i++) {
+    let yielded = 0;
     if (fertilized) {
-      harvested += (Math.floor(rng() * BOUNTY_IN) === 0 ? 2 : 1) * cropsPerPlant;
+      yielded = (Math.floor(rng() * BOUNTY_IN) === 0 ? 2 : 1) * cropsPerPlant;
     } else if (Math.floor(rng() * witherIn) !== 0) {
-      harvested += cropsPerPlant;
+      yielded = cropsPerPlant;
     }
+    harvested += scaleCrops(yielded, yieldMult, rng);
   }
-  return harvested;
+  return { crops: harvested, draw: harvested * (CROPS_PER_PLANT / cropsPerPlant) };
+}
+
+// reapDetail()'s count, which is what most callers and every test before the field pool read.
+function reap(planted, rng = Math.random, opts = {}) {
+  return reapDetail(planted, rng, opts).crops;
+}
+
+// The crop's own numbers, looked up by slug.
+function cropRules(cropSlug) {
+  const entry = CROPS.find((c) => c.crop === cropSlug);
+  return { cropsPerPlant: entry?.cropsPerPlant ?? CROPS_PER_PLANT, witherIn: entry?.witherIn ?? WITHER_IN };
 }
 
 // reap() for a named crop, so a caller never has to know the CROPS table.
 // An unknown slug reaps on the ordinary numbers rather than throwing — a
 // harvest is being resolved at turn-push, and refusing there would lose the
 // whole action over a renamed tag.
-function reapFor(cropSlug, planted, rng = Math.random, { fertilized = false } = {}) {
-  const entry = CROPS.find((c) => c.crop === cropSlug);
-  return reap(planted, rng, {
-    fertilized,
-    cropsPerPlant: entry?.cropsPerPlant ?? CROPS_PER_PLANT,
-    witherIn: entry?.witherIn ?? WITHER_IN,
-  });
+function reapFor(cropSlug, planted, rng = Math.random, { fertilized = false, yieldMult = 1 } = {}) {
+  return reap(planted, rng, { fertilized, yieldMult, ...cropRules(cropSlug) });
+}
+
+// reapFor() with the field's draw as well, for the Move effect that has to take it out of the pool.
+function reapDetailFor(cropSlug, planted, rng = Math.random, { fertilized = false, yieldMult = 1 } = {}) {
+  return reapDetail(planted, rng, { fertilized, yieldMult, ...cropRules(cropSlug) });
 }
 
 // "sowed 30 Wheat and reaped 75, sowed 20 Potato and reaped 50"
@@ -130,10 +161,13 @@ function harvestLine(rows) {
 
 // The turn-close DM text for a farm's harvest — harvestLine does the counting, this says it in scene.
 // `fertilized` adds a line so a player who spent on Fertilizer is told it did something.
-function farmDm(turn, rows, fertilized = false) {
+// `yieldMult` is the field's productivity for this harvest; a sound field says nothing, a worn one says so.
+function farmDm(turn, rows, fertilized = false, yieldMult = 1) {
   const line = harvestLine(rows);
   const fertilizedLine = fertilized ? "\nThe fields were richly fed — nothing withered, and some came up double." : "";
-  return `*The Farms brought in their harvest, turn ${turn}.*\n**Harvest:** ${line}${fertilizedLine}`;
+  const warning = fieldWarning(yieldMult);
+  const wornLine = warning ? `\n${warning}` : "";
+  return `*The Farms brought in their harvest, turn ${turn}.*\n**Harvest:** ${line}${fertilizedLine}${wornLine}`;
 }
 
 // Null means "go ahead"; a string is the refusal to show the player.
@@ -167,7 +201,10 @@ module.exports = {
   sowableCrops,
   validatePlan,
   reap,
+  reapDetail,
   reapFor,
+  reapDetailFor,
+  scaleCrops,
   harvestLine,
   farmDm,
   farmRefusalFor,

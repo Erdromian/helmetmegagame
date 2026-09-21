@@ -381,6 +381,9 @@ export async function wipeGameData(formData) {
       // StructureWork first, since it has a required FK to Structure.
       prisma.structureWork.deleteMany({}),
       prisma.structure.deleteMany({}),
+      // Every farming place's pool and yield (db/lib/fieldProductivity.js). LocationField hangs off a Location the wipe never
+      // deletes, so it goes explicitly: a new game opens on a full field, not on the last game's wrecked one.
+      prisma.locationField.deleteMany({}),
       // Link state back to its born values: a gate somebody shut, a keyed
       // door somebody propped — all play state.
       // Raw SQL because column-to-column isn't expressible in updateMany.

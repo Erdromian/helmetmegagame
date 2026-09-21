@@ -85,6 +85,8 @@ export async function farmRequestImpl({ lines }) {
 
   const farmPlan = {
     v: 2,
+    // Where it was sown: the field this harvest draws on (db/lib/fieldProductivity.js). Each farming place is its own field.
+    locationId: location.id,
     fertilized,
     rows: lines.map((row) => {
       const tag = tagBySlug.get(row.crop);

@@ -85,6 +85,7 @@ export default function FarmDialog({ onDone, onClose }) {
       <p className="text-xs text-muted">
         Sowing takes the whole day, and the crop comes in when the day turns.
       </p>
+      {pools.fieldWarning ? <p className="text-xs text-accent">{pools.fieldWarning}</p> : null}
     </ActionDialog>
   );
 }

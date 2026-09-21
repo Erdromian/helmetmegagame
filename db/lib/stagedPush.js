@@ -531,7 +531,7 @@ async function runStagedPushPass(prisma, turn) {
           // loosening that skip for every other auto: Routine.
           notice = {
             discordUserId: action.character.discordUserId,
-            content: farmDm(turn.number, applied.farmed.rows, action.farmPlan.fertilized === true),
+            content: farmDm(turn.number, applied.farmed.rows, action.farmPlan.fertilized === true, applied.farmed.yieldMult ?? 1),
           };
         } else if (action.breakInPlan && applied.brokeIn && action.character?.discordUserId) {
           // A break-in Gambit resolves automatically here rather than waiting

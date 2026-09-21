@@ -369,6 +369,11 @@ const R = {
     t("What the land is worth shifted"),
     ...((d.drifted ?? 0) > 0 ? [t("—"), em(`${d.drifted} places changed`)] : []),
   ],
+  // The field's productivity (db/lib/fieldProductivity.js): the pool refilled and next turn's yield was set.
+  field_regen: (d) => [
+    t("The field was refilled"),
+    ...(Number.isFinite(d.yieldMult) && d.yieldMult < 0.98 ? [t("—"), em(`harvests will come up at ${Math.round(d.yieldMult * 100)}%`)] : []),
+  ],
   catatonic_resolved: () => [t("Catatonic characters were resolved for the turn")],
   catatonic_deaths_resolved: (d) =>
     (d.killed ?? 0) > 0

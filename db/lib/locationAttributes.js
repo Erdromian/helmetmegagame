@@ -5,6 +5,9 @@ const { ATM_LOCATION_SLUGS } = require("./depot");
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SOILERY_ATTRIBUTE = "soilery";
+// How much of the town's refill this field gives (db/lib/fieldProductivity.js, SOILERY.md §9). Unset is 1, a field that feeds the
+// whole town; a poorer one is a fraction of that. Only read on a place that carries `soilery`.
+const SOILERY_REGEN_ATTRIBUTE = "soileryRegen";
 // WILDERNESS/HAVEN read by the mood dial (db/lib/mood.js#placeClassOf).
 const WILDERNESS_ATTRIBUTE = "wilderness";
 const HAVEN_ATTRIBUTE = "haven";
@@ -43,6 +46,12 @@ const ATTRIBUTES = {
   soilery: {
     type: "boolean",
     describe: () => "**Soilery**: you can sow and reap crops here.",
+  },
+
+  // A farming place's regeneration, as a share of what the whole town eats. Players are never told the number, so it prints nothing.
+  soileryRegen: {
+    type: "number",
+    describe: () => null,
   },
 
   // Open country (docs/systemdocs/MOOD.md); costs mood to walk in, more to end turn here — Rough Camper / Outsider soften it.
@@ -258,6 +267,7 @@ module.exports = {
   GODFLESH_ATTRIBUTE,
   REFINERY_ATTRIBUTE,
   SOILERY_ATTRIBUTE,
+  SOILERY_REGEN_ATTRIBUTE,
   WILDERNESS_ATTRIBUTE,
   HAVEN_ATTRIBUTE,
   parksMounts,
