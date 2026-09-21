@@ -20,6 +20,7 @@ async function examineLines(prisma, locationId) {
     where: { id: locationId },
     select: {
       name: true,
+      slug: true,
       indoors: true,
       attributes: true,
       mining: { select: { current: true } },

@@ -679,18 +679,14 @@ function AtmDialog({ onClose, onDone }) {
   }
 
   const withdrawing = direction === "WITHDRAW";
-  const max = withdrawing
-    ? state.account.backed
-      ? Math.min(state.account.balanceObols, state.vaultObols)
-      : state.account.balanceObols
-    : state.heldObols;
+  const max = withdrawing ? state.account.balanceObols : state.heldObols;
 
   return (
     <Modal open title="The ATM" onClose={onClose}>
       <p className="text-sm text-muted">
         {state.account.fingerprint} · {state.account.balanceObols} ¢ in the account, {state.heldObols} ¢ in your
         pocket.
-        {state.account.backed ? ` The treasury holds ${state.vaultObols} ¢.` : " Held off-world."}
+        {state.account.backed ? "" : " Held off-world."}
       </p>
       <div className="field">
         <label className="field-label" htmlFor="chat-atm-dir">
