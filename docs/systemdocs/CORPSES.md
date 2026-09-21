@@ -86,10 +86,12 @@ everyone above ground and *then* ends the game — so a blind delete would leave
 the game's own ending naming nobody. `SEAT_TAG_SLUGS` is excluded from the
 delete for that reason, and it is load-bearing rather than tidy.
 
-**A gibbed player is cursed permanently.** The curse lifts when somebody buries
-your body (§7), and a gib leaves no body to bury. That is the intended reading
-of being gone — but it is the only death in the game with no way out, so it is
-worth knowing before pricing anything against it.
+**A gibbed player waits the curse out.** The curse lifts when somebody buries
+your body (§7), and a gib leaves no body to bury — so a gib used to be the one
+death in the game with no way out at all. Since 2026-09-20 it is not: the curse
+also lapses on its own 5 turns after the death (`CHARACTERS.md` §4), and a gib
+stamps `Character.deathTurn` like any other death. It is still the slowest way
+back, since nobody can shorten it for you.
 
 ## 1b. A body keeps its mask
 
@@ -254,8 +256,9 @@ leaves the body where it is (`TORTURE.md` §6); butchering is the whole corpse
 at once and consumes it.
 
 **Butchering does not free the soul.** Cutting someone up destroys the body
-without burying it, so their player stays Cursed. That is a decision, not an
-oversight, and Engrave is the way out of it.
+without burying it, so their player stays Cursed until either somebody engraves
+them or the 5 turns run out. That is a decision, not an oversight, and Engrave
+is the quick way out of it.
 
 Two Desires reward eating a person: `eat-human-flesh` (tier 2, gated on `cruel`,
 repeatable) and `feast-on-human-flesh` (tier 4, gated on `glutton`, once per
@@ -323,8 +326,8 @@ together, so the desk reads `Crafting this turn: Buried Ada.`
 **Bury needs the actual body.** It used to match a typed first name against the
 dead in your zone; now you pick a corpse you hold or can reach, which is
 strictly tighter (Location-grain, and you have to have it). It consumes the
-corpse tag and stamps `buriedAt`, which is what lifts the curse
-(`db/lib/curse.js`) — and the curse is now the whole right to make a new
+corpse tag and stamps `buriedAt`, which is the quick way to lift the curse —
+the slow one is waiting the 5 turns out (`CHARACTERS.md` §4, `db/lib/curse.js`) — and the curse is now the whole right to make a new
 character, not the old Migrant/Bum discount, so a mourner is handing somebody
 their game back. A monster
 corpse is refused — "There's no soul in that one."
