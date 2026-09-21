@@ -472,6 +472,12 @@ npm run economy:report               # read-only: every wage, price and food fig
                                      #   code. `-- --players N` sizes the town.
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
+npm test --workspace=web             # node --test over web/lib/__tests__/.
+                                     #   The localStorage-backed stores, which
+                                     #   have to keep working when a browser
+                                     #   refuses site data — see the header of
+                                     #   localStores.test.mjs before adding
+                                     #   another store of that shape.
 npm run db:report-inactive-characters  # read-only inactivity report
 npm run db:open-rp-channels          # between games: open every roleplay
                                      #   channel to the guild. DRY RUN unless
@@ -562,8 +568,17 @@ something works.
 The player and spectator role IDs are **not** env vars. They're hardcoded in
 `db/lib/roleIds.js` — see "Discord permission model" below for why.
 
-`db/` has `node --test` under `db/test/`; the web app and the bot have no test
-setup.
+`db/` has `node --test` under `db/test/`, and `web/` has the same under
+`web/lib/__tests__/`. The bot has no test setup.
+
+The web suite is narrow on purpose: it covers the localStorage-backed stores
+(`soundStore`, `asideTabStore`, `foldStore`, `seenStore`, `notifiedStore`),
+whose one rule is that a browser refusing site data may cost the REMEMBERING
+and nothing else — the switch still has to move for this page load. That rule
+was broken four times in four files from one copy-paste lineage, so **a new
+store of that shape belongs in `CASES` in `localStores.test.mjs`**. It needs no
+DOM and no renderer: `react` is stubbed to hand back the
+`(subscribe, getSnapshot)` pair, which is the whole store contract.
 
 ## How the bot populates the database
 

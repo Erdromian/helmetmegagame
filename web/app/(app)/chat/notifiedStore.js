@@ -25,15 +25,43 @@ const PREFIX = "bascinet:notified:";
 
 const listeners = new Set();
 
+// THE COUNTS THEMSELVES. localStorage BACKS this map rather than being it, for the reason
+// ./seenStore.js and ./next/foldStore.js both give: a browser refusing site data throws on
+// setItem, and a store holding its state only in storage then read the UNCHANGED value
+// straight back, so the badge never moved and nothing said why.
+let counts = null;
+// Latched the first time a write is refused: memory is the only copy from then on.
+let memoryOnly = false;
+// The derived snapshot, rebuilt from `counts`.
 let cached = null;
 
-function invalidate() {
-  cached = null;
+function load() {
+  if (counts) return counts;
+  counts = new Map();
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (!key?.startsWith(PREFIX)) continue;
+      const count = Number(window.localStorage.getItem(key));
+      if (Number.isFinite(count) && count > 0) counts.set(key.slice(PREFIX.length), count);
+    }
+  } catch {
+    // Unreadable storage. Memory carries the session on its own.
+  }
+  return counts;
 }
 
-function emit() {
-  invalidate();
+// A write landed in this tab: rebuild the string, keep the map.
+function changed() {
+  cached = null;
   for (const cb of listeners) cb();
+}
+
+// Another tab may have moved a count, so reload from storage — unless storage is refusing
+// us, in which case there is no other tab to hear from.
+function invalidate() {
+  cached = null;
+  if (!memoryOnly) counts = null;
 }
 
 function subscribe(callback) {
@@ -52,22 +80,12 @@ function subscribe(callback) {
   };
 }
 
-function scan() {
-  const parts = [];
-  try {
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const key = window.localStorage.key(i);
-      if (!key?.startsWith(PREFIX)) continue;
-      parts.push(`${key.slice(PREFIX.length)}=${window.localStorage.getItem(key)}`);
-    }
-  } catch {
-    return "";
-  }
-  return parts.sort().join("|");
-}
-
 function read() {
-  if (cached === null) cached = scan();
+  if (cached === null) {
+    const parts = [];
+    for (const [placeKey, count] of load()) parts.push(`${placeKey}=${count}`);
+    cached = parts.sort().join("|");
+  }
   return cached;
 }
 
@@ -98,13 +116,11 @@ function parse(snapshot) {
 // draws the same cap.
 export const NOTIFIED_CAP = 99;
 
-function countOf(placeKey) {
+function forget(placeKey) {
   try {
-    const raw = window.localStorage.getItem(`${PREFIX}${placeKey}`);
-    const count = Number(raw);
-    return Number.isFinite(count) && count > 0 ? count : 0;
+    window.localStorage.removeItem(`${PREFIX}${placeKey}`);
   } catch {
-    return 0;
+    memoryOnly = true;
   }
 }
 
@@ -112,13 +128,15 @@ function countOf(placeKey) {
 // notification would say — pass none and none is shown.
 export function noteNotified(placeKey, notice = null) {
   if (!placeKey) return;
-  const next = Math.min(NOTIFIED_CAP, countOf(placeKey) + 1);
+  const map = load();
+  const next = Math.min(NOTIFIED_CAP, (map.get(placeKey) ?? 0) + 1);
+  map.set(placeKey, next);
   try {
     window.localStorage.setItem(`${PREFIX}${placeKey}`, String(next));
   } catch {
-    // The count is lost; the notification below is not.
+    memoryOnly = true;
   }
-  emit();
+  changed();
   if (notice) showNotification(placeKey, notice);
 }
 
@@ -126,32 +144,21 @@ export function noteNotified(placeKey, notice = null) {
 // channel, and so does this — a count you have to dismiss is a second chore.
 export function clearNotified(placeKey) {
   if (!placeKey) return;
-  try {
-    if (window.localStorage.getItem(`${PREFIX}${placeKey}`) === null) return;
-    window.localStorage.removeItem(`${PREFIX}${placeKey}`);
-  } catch {
-    return;
-  }
-  emit();
+  const map = load();
+  if (!map.has(placeKey)) return;
+  map.delete(placeKey);
+  forget(placeKey);
+  changed();
 }
 
 // The tick in the column's foot marks everywhere read, so it clears these too.
 export function clearAllNotified() {
-  let wrote = false;
-  try {
-    const doomed = [];
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const key = window.localStorage.key(i);
-      if (key?.startsWith(PREFIX)) doomed.push(key);
-    }
-    for (const key of doomed) {
-      window.localStorage.removeItem(key);
-      wrote = true;
-    }
-  } catch {
-    return;
-  }
-  if (wrote) emit();
+  const map = load();
+  if (map.size === 0) return;
+  const doomed = [...map.keys()];
+  map.clear();
+  for (const placeKey of doomed) forget(placeKey);
+  changed();
 }
 
 // A notification only while the tab is HIDDEN. Onscreen, the count and the

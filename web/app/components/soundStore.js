@@ -37,13 +37,17 @@ const DEFAULT = { sfx: true, music: true, volume: 1 };
 
 const listeners = new Set();
 let cached = null;
+// Set the first time a write is refused. A browser that blocks site data leaves `cached` as
+// the only copy of the setting there is, so nothing may drop it and re-read an empty store
+// — the snapshot would come back unchanged, useSyncExternalStore would skip the render, and
+// the switches would sit there doing nothing with no error to show for it.
+let memoryOnly = false;
 
 function invalidate() {
-  cached = null;
+  if (!memoryOnly) cached = null;
 }
 
-function emit() {
-  invalidate();
+function notify() {
   for (const cb of listeners) cb();
 }
 
@@ -115,12 +119,16 @@ function parse(snapshot) {
 }
 
 function write(next) {
+  const snapshot = `${next.sfx ? 1 : 0}|${next.music ? 1 : 0}|${next.volume}`;
+  // The snapshot IS the state, so it is set before the store is tried rather than read back
+  // out of it afterwards. Unwritable storage then costs only the remembering.
+  cached = snapshot;
   try {
-    window.localStorage.setItem(KEY, `${next.sfx ? 1 : 0}|${next.music ? 1 : 0}|${next.volume}`);
+    window.localStorage.setItem(KEY, snapshot);
   } catch {
-    // Unwritable storage is not a reason to refuse the change for this page load.
+    memoryOnly = true;
   }
-  emit();
+  notify();
 }
 
 /** The current setting, outside React — what ./sfx.js and ./music.js ask before playing. */
