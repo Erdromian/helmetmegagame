@@ -21,9 +21,9 @@ import { musicIsAudible } from "./soundStore";
 // tape rather than desyncing it.
 //
 // The tapes below are the ones the GAME PHASE picks — the closed door, the lobby, rolling
-// a character. The tapes a PLACE picks live in placeAmbience.js and are walked by the
-// same runProgram(); they are a separate file because "what is happening" and "where you
-// are standing" are different questions and were never going to share a resolver.
+// a character. Under a running game with a character, musicConductor.js takes over
+// instead: what a PLACE sounds like lives in placeAmbience.js, and the game's music in the
+// conductor's own track list.
 //
 // NO STEP CARRIES A LEVEL any more unless it means something. Each file's loudness is
 // measured into musicGain.js and applied under the step, so a `gain` here now reads as
@@ -92,38 +92,6 @@ export const PROGRAMS = {
       { id: "again", src: "b12_combined_start.ogg", startAt: 18, fadeInMs: 1000 },
       { silenceMs: 10_000 },
       { goto: 2 },
-    ],
-  },
-
-  // The game's music, under a running game: one track, then minutes of nothing, then
-  // another. The gap is the point — nine tracks on a loop is a playlist, and a playlist
-  // is something you notice and then get sick of. Coming back every few minutes, it stays
-  // something that happens rather than something that is on.
-  //
-  // It does NOT play everywhere: placeAmbience.js's `music: false` places answer for the
-  // Caves, the Depths, the Lifeweb and Space, and MusicDirector.js is what obeys it.
-  rotation: {
-    id: "rotation",
-    layer: "music",
-    steps: [
-      {
-        id: "track",
-        pick: [
-          "a-thousand-empty-rooms.ogg",
-          "haruspex.ogg",
-          "surfacing.ogg",
-          "graceperiod.ogg",
-          "song_game.ogg",
-          "holywarlobby.ogg",
-          "the_collective.ogg",
-          "morning.ogg",
-          "newlobby31.ogg",
-        ],
-        fadeInMs: 3000,
-        fadeOutMs: 5000,
-      },
-      { silenceMs: [120_000, 300_000], fadeOutMs: 5000 },
-      { goto: 0 },
     ],
   },
 };

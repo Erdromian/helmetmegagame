@@ -78,9 +78,9 @@ clicking the speaker has to stay a one-click mute.
 Five layers. The **highest one holding a track is the one you hear**.
 
 ```
-ambient   the bed the PLACE has — wind outside, a drone in the Depths, the
-          Cathedral's organ room every few minutes (§4b)
-music     the game's music — a track, then minutes of nothing, then another
+ambient   what the PLACE sounds like — wind outside, a drone in the Depths, the
+          Cathedral's organ room (§4b)
+music     the game's music, now and then once you have settled in (§4a)
 event     a siren, an alarm, a thing arriving. Loud and brief
 room      a jukebox, a gramophone: something switched on in the room
 player    somebody playing a piano or a guitar
@@ -92,7 +92,7 @@ nearer than furniture in the corner, and because it is something somebody is
 
 A layer under the top one does **not stop** — it ducks to silence, so when the
 thing above it ends it is still where you left it. Takeover is a 1.2-second
-crossfade; the ambient bed takes 10 seconds to give way.
+crossfade.
 
 `LAYER_MODE` is the one concession to bandwidth: `ambient` and `event` are
 `"continue"` (a wind loop restarted at 0:00 under a jukebox is audible, and a
@@ -213,7 +213,7 @@ program from the phase and runs it.
 | `CLOSED` | either | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
 | `LOBBY` | no | `song_game`, a 5-second tail, 15 seconds of nothing, again |
 | `RUNNING`/`ENDED` | no | `b12_combined_start` from 0:00, then 10 s, then repeatedly from **0:18** fading in over a second — the intro is odd, so only the first pass hears it |
-| anything but `CLOSED` | **yes** | no phase tape — the PLACE speaks instead (§4b) |
+| anything but `CLOSED` | **yes** | no phase tape — the conductor takes over (§4a) |
 
 Read it top to bottom; that is the order the code asks in.
 
@@ -294,50 +294,63 @@ later, and leaks exactly the few milliseconds of intro the offset exists to skip
 
 ---
 
+## 4a. The conductor: the soundtrack under a running game
+
+`web/app/components/musicConductor.js`, with its rules as pure functions in
+`musicSchedule.js`. It is **one timeline, one piece at a time**:
+
+```
+[piece] → [silence] → [piece] → [silence] → …
+```
+
+A piece is an ambient file for where you are standing (§4b) or one of the game's
+music tracks (`MUSIC_TRACKS`). Ambient is the default; music is what comes once
+you have settled in.
+
+- **Nothing on the timeline cuts anything off.** Ambient and music never overlap,
+  so neither ever ducks or replaces the other. A piece plays to its end. The
+  only interruption is a performance — a jukebox or somebody playing — and §3's
+  rules handle that: music pauses under it and resumes after.
+- **About 75% of in-game time is silence.** After a piece that lasted *d*, the
+  gap is *d* × 3, ±30%, never under 2 minutes (`SILENCE_SHARE`, `MIN_GAP_MS`).
+  Scaling the gap to the piece is what keeps the ratio whatever came up.
+- **Music is the flow.** Never in the first 8 minutes on the page
+  (`FLOW_AFTER_MS`), then a 35% chance per piece (`MUSIC_CHANCE`), never two in a
+  row, and never in a `music: false` place.
+- **Ambient plays at 85%** of its measured level (`AMBIENT_GAIN`), so a song
+  stands out when it arrives.
+- **Walking somewhere new queues rather than cuts.** It changes what "here"
+  means, and the next piece is picked from the new place. The one exception is
+  music playing as you walk into a `music: false` place: it fades out over 10
+  seconds.
+- **It lives at module scope**, so a soft navigation never restarts it.
+  `MusicDirector.js` calls `start()` / `stop()` when in-game play begins and
+  ends, and `setPlace()` when where you are standing changes.
+- A piece that never reports its end — a file that failed to load — is let go
+  after 30 minutes, far past the longest file.
+
+`node scripts/audio/sim-schedule.mjs` runs the rules against a fake clock for six
+hours and fails if the silence share drifts or music breaks the flow rule. Set
+`localStorage["bascinet:musicdebug"] = 1` to watch the timeline in the console.
+
+---
+
 ## 4b. What a PLACE sounds like
 
-`web/app/components/placeAmbience.js`. The phase tapes in `musicProgram.js` are
-about *what is happening*; these are about *where you are standing*. Same step
-vocabulary, same `runProgram`, separate file — the two were never going to share
-a resolver.
+`web/app/components/placeAmbience.js` answers **what** would play here: a pool
+of pieces per place. The conductor (§4a) decides **when**.
 
-**Two shapes, and the difference between them is the whole design.**
+**A piece is one of two things, and the difference is whether the file has an
+end.**
 
-A **bed** is a long file, looped, very quiet, held for minutes and then
-crossfaded into a sibling. You should be able to forget a bed is on. If you
-notice it, it is too loud; the test is whether somebody reading a long message
-in the Depths finds it wearing after ten minutes.
+- A file with an **end** — `once()` — plays start to finish and is never cut
+  off. The Cathedral's organ room, a drip in the Lifeweb, a six-minute drone.
+- A **texture** — `loop()` — has no end of its own: a three-second fire, a wind
+  gust, an idling engine. It loops for a span (60–150 s unless the place says
+  otherwise) and then fades out over 6 seconds. That fade is the end it was
+  always going to have.
 
-A **spot** is a short file and then minutes of *nothing*. The Cathedral's organ
-room; a drip in the Lifeweb. It is the older and better trick — a sound that
-arrives out of silence is heard properly, where the same sound on a loop stops
-being heard at all after the second pass. SS13 has run its generic ambience this
-way for years and it is still the thing people remember about the sound of that
-game.
-
-**Which shape a file wants is decided by how long it is**, and the rule is
-written down so the next person does not have to guess:
-
-| Length | Shape | Gap |
-|---|---|---|
-| under 20 s | a spot | 3–7 minutes |
-| 20–60 s | one pass, looped a few times | 60–150 s |
-| 60 s and up | a bed | 20–45 s between holds |
-
-**Every gap is a range, never a number.** The Cathedral exactly every five
-minutes is a clock, and scenery must not sound like a clock. `roll()` in
-`musicProgram.js` is what makes a range a range, and it is rolled **once per
-entry into a local** — the runner used to read `silenceMs`, `holdMs` and
-`fadeOutMs` twice each, and two different answers for one field is how a
-fade-out gets scheduled to end after the track it was fading.
-
-A `pick` never plays the same file twice running: it chooses uniformly from the
-*other* files, which is the same distribution as rerolling until it differs
-without the unbounded loop. The memory is module-scope rather than per run,
-because a run is re-entered constantly — a phase poll, a walk into the next cave
-— and a run's own memory would forget the last drip every time. The `warmAtMs`
-look-ahead passes `remember: false`, or the prefetch consumes the memory and
-reliably downloads the one file the next step is then guaranteed not to pick.
+A pool never plays the same piece twice running when it has a choice.
 
 ### Resolution, and the one thing it cannot ask
 
@@ -351,18 +364,15 @@ column — which room you *hear* is the room you are *reading*, and that is
 above. A per-room sound needs a client overlay off `chat/openPlace.js`, and it
 belongs with the jukebox pass.
 
-The caller depends on the returned object's **identity**, never on the standing:
-every entry in the table is built once at module load, so two neighbouring caves
-resolve to the very same object and walking between them does not restart the
-bed underfoot.
+Every entry in the table is built once at module load, so two neighbouring
+caves resolve to the very same object.
 
 ### Some places get no music, on purpose
 
-`music: false` says the general rotation does not play here at all — the
+`music: false` says the game's music does not play here at all — the
 **Caves**, the **Depths**, the **Lifeweb** and **Space**. Their whole feel is
 that nothing is keeping you company down there, and a tune arriving every few
-minutes says the opposite. Everywhere else gets the rotation over the top of its
-bed. Each is one boolean to reverse.
+minutes says the opposite. Each is one boolean to reverse.
 
 The **Depot** is the one place whose bed is conditional: `train_loop` plays only
 while the train is actually standing at the platform, which is
@@ -420,7 +430,7 @@ about is a state where it 403s.
 ## 6. Assets
 
 Three served folders, each with its own `ATTRIBUTION.md`:
-`web/public/assets/music/` (the rotation and the phase tapes),
+`web/public/assets/music/` (the game's music and the phase tapes),
 `web/public/assets/ambience/` (the beds and the spots) and
 `web/public/assets/sfx/` (the cue library).
 

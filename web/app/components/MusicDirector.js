@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { setMasterVolume, setMusicMuted } from "./music";
 import { resolveAmbience } from "./placeAmbience";
-import { PROGRAMS, resolveProgram, runProgram } from "./musicProgram";
+import { resolveProgram, runProgram } from "./musicProgram";
+import { setPlace, start as startConductor, stop as stopConductor } from "./musicConductor";
 import { usePhase, useStanding } from "./PhaseProvider";
 import { musicIsAudible, useSound } from "./soundStore";
 
@@ -17,8 +18,9 @@ import { musicIsAudible, useSound } from "./soundStore";
 //   bus while they run, because each is about the game itself rather than about anywhere
 //   a person is standing.
 //
-//   A place tape plus the music rotation — an ordinary living character in a running
-//   game. Two programs on two layers, which is what the mixer is for.
+//   The conductor — an ordinary living character in a running game. One timeline of
+//   ambient for the place, now and then a music track, and mostly silence between
+//   (musicConductor.js).
 //
 //   Nothing, on a GM desk.
 //
@@ -48,35 +50,28 @@ export default function MusicDirector() {
 
   const program = phase ? resolveProgram(phase, onDesk ? "/gm/" : "/") : null;
   // A place is only heard when no phase tape is talking over it. The `closed` tape owns
-  // the ambient layer — that is the wind behind the shut door — and two tapes on one
-  // layer is two programs fighting over one element.
-  const here = !program && !onDesk && phase?.hasCharacter ? resolveAmbience(standing) : null;
+  // the ambient layer — that is the wind behind the shut door.
+  const inGame = !program && !onDesk && Boolean(phase?.hasCharacter);
+  const here = inGame ? resolveAmbience(standing) : null;
 
   // Nothing is stopped by hand here. runProgram's own cancel stops the layer it was
-  // using, so a tape that stops being wanted is taken off by its effect's cleanup —
-  // which is also why this must NOT call stopAllMusic(): that would reach across and cut
-  // the ambience tape the effect below owns, on every phase change.
+  // using, so a tape that stops being wanted is taken off by its effect's cleanup.
   useEffect(() => {
     if (!program) return undefined;
     return runProgram(program);
   }, [program]);
 
-  // `here` is a stable reference: every entry in placeAmbience.js's tables is built once
-  // at module load, so two neighbouring caves resolve to the very same object and walking
-  // between them does not re-run this effect and restart the bed underfoot.
+  // Declared before start(), so the conductor knows where you are before its first pick.
+  // A new place never cuts what is playing; it only changes what plays NEXT.
   useEffect(() => {
-    if (!here) return undefined;
-    return runProgram(here.program);
+    setPlace(here);
   }, [here]);
 
-  // The rotation is one tape everywhere it plays, so it is keyed on nothing but whether
-  // it should be playing at all — which means walking out of the Caves picks the music
-  // back up rather than starting it over.
-  const wantsMusic = Boolean(here?.music);
   useEffect(() => {
-    if (!wantsMusic) return undefined;
-    return runProgram(PROGRAMS.rotation);
-  }, [wantsMusic]);
+    if (!inGame) return undefined;
+    startConductor();
+    return stopConductor;
+  }, [inGame]);
 
   return null;
 }
