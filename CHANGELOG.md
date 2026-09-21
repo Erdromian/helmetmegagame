@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · The Tower is locked behind its own key
+
+✚ A Tower Key opens the way up from the Keep into the Tower  
+✎ The Baron, Hand, Meister and Censor start with one  
+✎ The Hand keeps two spare Tower Keys in their study
+
 ## 2026-09-21 · A character with no real Discord account behind it is not a leaver
 
 ✎ The startup catch-up was reading a test character whose account id is a hand-typed stand-in as somebody who had left the server, and starting a death countdown on them. It only looks at characters with a real Discord account behind them now

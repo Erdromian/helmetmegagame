@@ -97,6 +97,8 @@ const OPEN_HZ = 20_000;
 const MUFFLE_MS = 600;
 
 const CROSSFADE_MS = 1200;
+// The bed gives way slowly, so a song over it arrives rather than cuts in.
+const AMBIENT_HANDOFF_MS = 10_000;
 const MUTE_FADE_MS = 400;
 
 // Nothing starts or stops instantly. Applied in playOn() and stopLayer() and NOWHERE
@@ -359,13 +361,14 @@ function applyPriority() {
 
     // Ducked out entirely. Equal-power would matter if two beds crossed; between a bed
     // and a song over it, what matters is that the lower one does not stop.
-    ramp(entry, 0, CROSSFADE_MS);
+    const out = layer === "ambient" ? AMBIENT_HANDOFF_MS : CROSSFADE_MS;
+    ramp(entry, 0, out);
     muffle(entry, OPEN_HZ, 0);
     if (mode === "pause") {
       window.setTimeout(() => {
         if (!entry.wanted || entry.el.paused) return;
         if (!audibleNow(layer)) entry.el.pause();
-      }, CROSSFADE_MS);
+      }, out);
     }
   }
 }
