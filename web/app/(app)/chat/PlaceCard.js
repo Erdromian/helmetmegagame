@@ -37,9 +37,9 @@ export default function PlaceCard({
   fixtures = [],
   onFixture,
   onConverse = null,
-  // The Depot terminal, when this character is standing at it AND holds the
-  // licence or the keycard. Offered as a link rather than blind: /depot bounces
-  // anybody without one, and a button that only ever redirects is a lie.
+  // The Depot terminal, when this character is standing at it. A fixture in a
+  // room, so it is drawn where the room is; a licence or a chip reads /depot
+  // from elsewhere but puts no counter here.
   depotHref = null,
   // The Godard Factory (docs/systemdocs/FACTORY.md). Drawn where the ground is
   // godflesh; the dialog itself says what is missing when there is no tool in

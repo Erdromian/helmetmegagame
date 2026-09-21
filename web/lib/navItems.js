@@ -1,5 +1,5 @@
 import { prisma, MORTUS_SLUG } from "@lifeweb/db";
-import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
+import { canReadDepot, canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { readGameState } from "@lifeweb/db/lib/gameState";
 import { getGmSession, getGuildMember, isPlaytester } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -34,9 +34,11 @@ export const GM_NAV = [
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "gm" };
-// On every player's rail, always. The Depot is a public market now and the page
-// is a shop window — read-only unless you are standing in it, which is the page's
-// own business, not the rail's. See docs/systemdocs/DEPOT.md §2.
+// PLACE OR KEY, the same predicate the page gates on (db/lib/depotCounter.js),
+// so the rail can never offer an item that redirects. You get it standing in the
+// Depot, or carrying a manifest key — the Merchant's Licence or a Silver Chip —
+// which reads the shelf from anywhere. Every GM keeps it, wherever they stand.
+// See docs/systemdocs/DEPOT.md §0b.
 const DEPOT_NAV_ITEM = { href: "/depot", label: "Depot", icon: "store", section: "player" };
 // The Meister's terminal over the town's accounts. Follows PLACE AND KEY, the
 // same predicate the page itself gates on (db/lib/depotCounter.js), so the rail
@@ -74,22 +76,24 @@ async function loadUnreadConversationCount(discordUserId) {
 const CLOSED_NAV_HREFS = new Set(["/character", "/chat", "/notes", "/documents"]);
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, member, hasMortusTag, treasuryGate, gameConfig, state] = await Promise.all([
-    getGmSession(),
-    // Cached with in-flight dedup (web/lib/discordGuild.js), and getGmSession above
-    // already asked for it, so this is the same answer rather than a second call.
-    getGuildMember(discordUserId),
-    prisma.characterTag.findFirst({
-      where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
-    }),
-    canReadTreasury(prisma, discordUserId),
-    // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
-    prisma.gameConfig.findUnique({
-      where: { id: 1 },
-      select: { playPanelEnabled: true, oraclePlaytest: true },
-    }),
-    readGameState(prisma, { phase: true }),
-  ]);
+  const [{ isGm: gm }, member, hasMortusTag, treasuryGate, gameConfig, state, depotGate] =
+    await Promise.all([
+      getGmSession(),
+      // Cached with in-flight dedup (web/lib/discordGuild.js), and getGmSession above
+      // already asked for it, so this is the same answer rather than a second call.
+      getGuildMember(discordUserId),
+      prisma.characterTag.findFirst({
+        where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
+      }),
+      canReadTreasury(prisma, discordUserId),
+      // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
+      prisma.gameConfig.findUnique({
+        where: { id: 1 },
+        select: { playPanelEnabled: true, oraclePlaytest: true },
+      }),
+      readGameState(prisma, { phase: true }),
+      canReadDepot(prisma, discordUserId),
+    ]);
   const superadmin = isSuperadmin(discordUserId);
   // The Lifeweb item follows the Mortus tag, not the GM role — a superadmin keeps it, host access
   // rather than game permission, the way /gm/dev works.
@@ -119,7 +123,8 @@ export async function loadNavItems(discordUserId) {
   const withLifeweb = hasMortus ? [...withArchive, LIFEWEB_NAV_ITEM] : withArchive;
   // These three are appended rather than filtered out of a list, so the closed-game
   // narrowing has to be asked again here or they walk straight past it.
-  const withDepot = narrowed ? withLifeweb : [...withLifeweb, DEPOT_NAV_ITEM];
+  const withDepot =
+    !narrowed && (depotGate.ok || gm) ? [...withLifeweb, DEPOT_NAV_ITEM] : withLifeweb;
   const withTreasury =
     !narrowed && (treasuryGate.ok || superadmin) ? [...withDepot, TREASURY_NAV_ITEM] : withDepot;
   if (!superadmin) return withTreasury;

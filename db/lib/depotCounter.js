@@ -25,6 +25,7 @@ const {
   TOWER_LOCATION_SLUG,
 } = require("./depot");
 const { DEPOT_KEYCARD_SLUG, loadDepot } = require("./depotState");
+const { MANIFESTS } = require("./depotManifests");
 const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
 const { MERCHANTS_OFFICE_ROOM_SLUG } = require("./train");
 const {
@@ -566,8 +567,53 @@ async function canReadTreasury(prisma, discordUserId) {
   return { ok: true, character };
 }
 
+// The keys that open the Depot from anywhere: the Merchant's Licence and the
+// Silver Chip. Derived from MANIFESTS rather than named here, so adding a shelf
+// in db/lib/depotManifests.js moves this gate with it. The Depot Keycard is
+// deliberately NOT one — it opens a sealed crate, not the window.
+const MANIFEST_KEY_SLUGS = MANIFESTS.map((m) => m.requiredTagSlug).filter(Boolean);
+
+// Who may open /depot: somebody standing in it, or somebody carrying a manifest
+// key. Standing there is what makes the counter usable; a key makes the shelf
+// readable from anywhere, which is what a manifest is for.
+//
+// ONE predicate, the canReadTreasury bargain above — the page and the nav rail
+// both ask it and must not drift, because a rail item that redirects is worse
+// than no rail item. `atDepot` comes back with the answer, since it is also
+// what decides read-only, and resolving the place twice is how the two drift.
+//
+// Pure, so the page can ask it about the character it has already loaded rather
+// than paying for a second read. `canReadDepot` below is the loading twin, for
+// the rail, which has no character in hand.
+// See docs/systemdocs/DEPOT.md §0b.
+function depotAccessFor(locationSlug, heldSlugs) {
+  const atDepot = locationSlug === DEPOT_LOCATION_SLUG;
+  const keyed = MANIFEST_KEY_SLUGS.some((slug) => Boolean(heldSlugs?.has?.(slug)));
+  if (!atDepot && !keyed) return { ok: false, atDepot: false, error: "The counter is at the Depot." };
+  return { ok: true, atDepot };
+}
+
+async function canReadDepot(prisma, discordUserId) {
+  const character = await prisma.character.findFirst({
+    where: { discordUserId, status: "ALIVE" },
+    select: {
+      id: true,
+      location: { select: { slug: true } },
+      tags: { select: { tag: { select: { slug: true } } } },
+    },
+  });
+  if (!character) return { ok: false, atDepot: false, error: "You don't have a living character." };
+
+  const held = new Set(character.tags.map((ct) => ct.tag.slug));
+  const access = depotAccessFor(character.location?.slug, held);
+  return access.ok ? { ...access, character } : access;
+}
+
 module.exports = {
   DESTINATIONS,
+  MANIFEST_KEY_SLUGS,
+  canReadDepot,
+  depotAccessFor,
   canReadTreasury,
   counterActor,
   counterState,
