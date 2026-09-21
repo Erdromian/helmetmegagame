@@ -52,7 +52,7 @@ export function parseAuditParams(params) {
 
 // Everything the WHERE needs that isn't in the URL: GM ids, character->zone/role, turn boundaries, guild handles.
 export async function loadAuditContext({ gmIds, guildMembers }) {
-  const [characters, turns] = await Promise.all([
+  const [characters, turns, state] = await Promise.all([
     prisma.character.findMany({
       select: {
         id: true,
@@ -65,8 +65,19 @@ export async function loadAuditContext({ gmIds, guildMembers }) {
     }),
     // Ascending: bucketing a timestamp into a turn is a walk forward through the boundaries.
     prisma.turn.findMany({ select: { number: true, dayNumber: true, startedAt: true }, orderBy: { startedAt: "asc" } }),
+    // When the game running now began. AuditLog carries no gameId, and the only thing that
+    // clears the table is Restart Game's deleteMany — so a database that was End-Gamed or
+    // playtested without one showed every game it had ever run. This is the time-based twin
+    // of the seq floor Chat already uses (db/lib/feedWipe.js, CHAT.md 7).
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { game: { select: { createdAt: true } } } }),
   ]);
-  return { characters, turns, gmIds: new Set(gmIds ?? []), guildMembers: guildMembers ?? [] };
+  return {
+    characters,
+    turns,
+    gameFloor: state?.game?.createdAt ?? null,
+    gmIds: new Set(gmIds ?? []),
+    guildMembers: guildMembers ?? [],
+  };
 }
 
 // Which turn a timestamp fell in — the last turn started by then. AuditLog carries no turnId, so this derives it for the whole history.
@@ -241,6 +252,10 @@ export async function buildAuditWhere(filters, ctx) {
     if (w.gte) and.push({ createdAt: { gte: w.gte } });
     if (w.lt) and.push({ createdAt: { lt: w.lt } });
   }
+
+  // A GM reads the game they are in. Last, so it ANDs with whatever the filters above narrowed
+  // to — "this turn" intersects the floor rather than escaping it.
+  if (ctx.gameFloor) and.push({ createdAt: { gte: ctx.gameFloor } });
 
   if (filters.q) {
     // Split into bare terms and field:/@ scopes; each word is its own AND entry.
