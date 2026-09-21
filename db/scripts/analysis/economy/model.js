@@ -1357,7 +1357,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: "0 off the rule",
       model: trinkets.checks.offRule.length ? trinkets.checks.offRule.map((x) => `${x.name} ${x.inlay}, rule says ${x.expected}`).join("; ") : "0 off the rule",
       ok: trinkets.checks.offRule.length === 0,
-      note: "Silver's shelf price went from 14 to 19 on 2026-09-20 and its inlay was not raised with it. Raising it to 18 makes forging silver pay more, so it was left for a decision.",
+      note: "Silver's shelf price went from 14 to 19 on 2026-09-20; its inlay is 18, one under the shelf, as the rule says.",
     },
     {
       doc: "TRINKETS.md §3",

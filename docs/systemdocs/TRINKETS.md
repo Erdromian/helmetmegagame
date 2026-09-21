@@ -118,7 +118,7 @@ The ladder runs with the loot table's tiers:
 | Ultracommon ore | Hematite, Malachite, Garnierite | 1 | 6 |
 | Common stone | Citrine, Onyx, Pyrite… | 3 | 10 |
 | Uncommon | Fire Opal, Sphalerite, Tetrahedrite | 6 | 16 |
-| Smelted metal | Nickel, Copper, Iron, Silver | 5–10 | 12–16 |
+| Smelted metal | Nickel, Copper, Iron, Silver | 5–10 | 12–18 |
 | Rare stone | Opal, Topaz, Amethyst, Kunzite | 10 | 24 |
 | Platinum | | 20 | 44 |
 | Star Sapphire / Black Diamond | | 20 / 25 | 44 / 54 |
