@@ -21,29 +21,42 @@ const DOCS_DIR = docsPath();
 // come back bold as the high-cap go-anywhere seat, but nothing explains that
 // to a reader any more, so every fate now reads the same. Reads roles.yaml
 // fresh every run, so this thread can never drift from it.
+//
+// PUBLIC SEATS ONLY. Two things are left out, and neither is a tidiness rule:
+//   - the whole ELSEWHERE bucket, which is where the seats nobody has bucketed
+//     land — and that is exactly where the Tribunal and the Bastards live;
+//   - any seat carrying `examine_visible: false`, the flag that already means
+//     "a look does not read this off somebody" (db/lib/examine.js).
+// A reader of #info learns the public roles and nothing else. Both filters are
+// kept even though they currently name the same seats: the bucket rule is what
+// stops a new hidden seat leaking because somebody forgot the flag, and the
+// flag rule is what stops one leaking because somebody bucketed it under Court.
+// So a fate that should be listed needs a real group AND no opaque flag.
 
 function buildRolesIntroBody() {
   const rolesDoc = yaml.load(fs.readFileSync(ROLES_YAML_PATH, "utf8"));
 
   const ELSEWHERE = "other";
+  const PUBLIC_GROUPS = ALL_GROUPS.filter((group) => group.slug !== ELSEWHERE);
   // bucket slug -> its lines, in authoring order
-  const held = new Map(ALL_GROUPS.map((g) => [g.slug, []]));
+  const held = new Map(PUBLIC_GROUPS.map((g) => [g.slug, []]));
 
   // `groups`/`roles` are slug-keyed MAPPINGS in roles.yaml, read the same way by syncRoles.js.
   for (const [groupSlug, roles] of Object.entries(rolesDoc.groups ?? {})) {
-    const bucket = held.has(groupSlug) ? groupSlug : ELSEWHERE;
     // Elsewhere is never listed. It holds the antagonist seats — the Tribunal,
     // the Bastard and his men — and #info is read by everyone before the game
-    // opens. Naming them here told the whole server who was coming.
-    if (bucket === ELSEWHERE) continue;
+    // opens. Naming them here told the whole server who was coming. An unknown
+    // group lands in Elsewhere too, so it is dropped the same way.
+    if (!held.has(groupSlug)) continue;
     for (const role of Object.values(roles ?? {})) {
+      if (role?.examine_visible === false) continue;
       const whitelistMark = role.whitelist === true ? " (★)" : "";
-      held.get(bucket).push(`*${role.name}*${whitelistMark} — ${role.intro}`);
+      held.get(groupSlug).push(`*${role.name}*${whitelistMark} — ${role.intro}`);
     }
   }
 
   // A heading is followed straight by its content; blank lines only separate groups.
-  return ALL_GROUPS.filter((group) => held.get(group.slug).length > 0)
+  return PUBLIC_GROUPS.filter((group) => held.get(group.slug).length > 0)
     .map((group) => `# ${group.name}\n${held.get(group.slug).join("\n")}`)
     .join("\n\n");
 }

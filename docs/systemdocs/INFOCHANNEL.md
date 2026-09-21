@@ -54,6 +54,15 @@ moves in both places at once. It prints **no
 zone name at all**: it used to head each section with the zone, which told
 every reader where the outlaws camp before the game had started.
 
+**It lists the public fates only.** The **Elsewhere** bucket is not printed,
+and neither is any seat carrying `examine_visible: false`. That bucket is where
+an unbucketed seat lands, and it is also where the Tribunal and the Bastards
+live, so #info used to name them — the antagonists, their errand and their
+kit — to everybody. Both filters stay even though they name the same seats
+today: the bucket rule catches a hidden seat somebody forgot to flag, the flag
+rule catches one somebody filed under Court. A fate is listed only if it has a
+real group **and** no opaque flag. Do not print Elsewhere again.
+
 Threads themselves are created as standalone public threads directly on the
 channel (Discord's "no starter message" thread type), not threads-off-a-
 message — the thread's `body` text is posted as its own first message right
