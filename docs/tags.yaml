@@ -6989,7 +6989,7 @@ tags:
     name: Milk Quartz
     category: items
     group: items-mining
-    sprite: clown-ore
+    sprite: rough-milk-quartz
     description: "A cloudy white stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7006,7 +7006,7 @@ tags:
     name: Onyx
     category: items
     group: items-mining
-    sprite: boulder1
+    sprite: rough-onyx
     description: "A black gem. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7023,7 +7023,7 @@ tags:
     name: Moonstone
     category: items
     group: items-mining
-    sprite: bluespace-crystal
+    sprite: rough-moonstone
     description: "A pale glowing stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7057,7 +7057,7 @@ tags:
     name: White Jade
     category: items
     group: items-mining
-    sprite: moon
+    sprite: rough-white-jade
     description: "A smooth white stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7077,7 +7077,7 @@ tags:
     name: Fire Opal
     category: items
     group: items-mining
-    sprite: ore
+    sprite: rough-fire-opal
     description: "A burning orange gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7130,7 +7130,7 @@ tags:
     name: Opal
     category: items
     group: items-mining
-    sprite: crystal
+    sprite: rough-milk-opal
     description: "A shimmering white gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7181,7 +7181,7 @@ tags:
     name: Kunzite
     category: items
     group: items-mining
-    sprite: plasma-ore
+    sprite: rough-kunzite
     description: "A pink gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7201,7 +7201,7 @@ tags:
     name: Star Sapphire
     category: items
     group: items-mining
-    sprite: ansible-crystal
+    sprite: rough-star-sapphire
     description: "A blue star gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7218,7 +7218,7 @@ tags:
     name: Black Diamond
     category: items
     group: items-mining
-    sprite: adamantine-ore
+    sprite: rough-black-diamond
     description: "A dark gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1

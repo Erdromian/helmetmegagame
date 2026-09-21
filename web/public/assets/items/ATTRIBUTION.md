@@ -75,10 +75,11 @@ The original is greyscale, since the game tints it by metal; it was tinted
 bronze and cropped and padded like the files above, and carries the same
 CC BY-SA 3.0 terms.
 
-## Three files from Dwarf Fortress
+## Files from Dwarf Fortress
 
-`rough-citrine.png`, `rough-topaz.png` and `rough-amethyst.png` are the rough
-gem sprites from the Steam edition of Dwarf Fortress (Bay 12 Games / Kitfox
+Every `rough-*.png` here (citrine, topaz, amethyst, milk quartz, onyx,
+moonstone, white jade, fire opal, milk opal, kunzite, star sapphire, black
+diamond) is a rough gem sprite from the Steam edition of Dwarf Fortress (Bay 12 Games / Kitfox
 Games), taken from https://dwarffortresswiki.org/index.php/Gem and padded to
 a square. They are **not** openly licensed and not covered by the CC BY-SA
 grant above. If they ever need to come out, pull the files and the tags fall
