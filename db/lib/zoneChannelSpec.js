@@ -25,6 +25,29 @@ const SUMMARY_TOPIC =
 // Discord caps a channel topic at 1024 characters.
 const TOPIC_MAX = 1024;
 
+// A Location channel is named after its NAME, not its slug — CHANNELS.md §2 has
+// said so and named this function for a long time, and the spec below had drifted
+// to `location.slug` regardless. docs/zones.yaml authors most slugs positionally
+// (`fortress-1`, `undertown-6`), which is right for a handle nobody reads and
+// wrong for the thing a player stares at in the sidebar all month: the Fortress
+// read as a spreadsheet while Black Hills, whose slugs happen to be words, read
+// as a place.
+//
+// Discord would lowercase and substitute this itself, so doing it here is what
+// keeps the mirror's diff comparing like with like — otherwise it proposes the
+// same rename on every run, forever. Apostrophes are DROPPED rather than
+// hyphenated, so the Old Cock Inn is `old-cock-inn`, not `old-cock-inn-`.
+const CHANNEL_NAME_MAX = 100;
+
+function locationChannelName(name) {
+  return String(name ?? "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, CHANNEL_NAME_MAX);
+}
+
 // GM gets an explicit overwrite on every channel, not just the category — no entry falls through to @everyone.
 const GM_SUMMARY_PERMS =
   PERM_VIEW_CHANNEL + PERM_SEND_MESSAGES + PERM_MANAGE_MESSAGES + PERM_ATTACH_FILES;
@@ -117,7 +140,9 @@ function locationChannelSpec(location, zoneGmRoleId = null, { spectators = true 
   const topic = (location.description || "").replace(/\s*\n+\s*/g, " ").trim().slice(0, TOPIC_MAX);
 
   return {
-    name: location.slug,
+    // The place's name, not its slug — see channelNameFor. Falls back to the
+    // slug only if a name is somehow empty, since a channel must have one.
+    name: locationChannelName(location.name) || location.slug,
     type: CHANNEL_TYPE_TEXT,
     topic,
     permission_overwrites: [
@@ -154,6 +179,7 @@ function gmRoleIdFor(zone, zoneById) {
 }
 
 module.exports = {
+  locationChannelName,
   zoneChannelSpec,
   locationChannelSpec,
   zoneRoleName,

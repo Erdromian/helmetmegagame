@@ -128,9 +128,14 @@ test("a CAVE_LEVEL has no channels of its own and no GM seat — it wears the gr
   assert.equal(chan.position, 1 * 10 + 0);
 });
 
-test("a Location channel is named after its slug and topiced with its description", () => {
+test("a Location channel is named after the PLACE, not its slug, and topiced with its description", () => {
   const chan = byKind(build(), "location-channel")[0];
-  assert.equal(chan.name, "square");
+  // The fixture's slug is "square" and its name is "The Square". The NAME is
+  // what a player reads in the sidebar all month; the slug is a reference, and
+  // docs/zones.yaml authors most of them positionally (fortress-1, undertown-6),
+  // which made the whole map read as a spreadsheet.
+  assert.equal(chan.name, "the-square");
+  assert.equal(chan.properties.name, "the-square");
   assert.equal(chan.properties.topic, "A wide stone square.");
   // A surface zone's #summary takes slot 0, so its Locations start at 1.
   assert.equal(chan.position, 1);

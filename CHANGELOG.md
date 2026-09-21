@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · Location channels are named after the place again, and the map lost the last game's furniture
+
+✎ A Location channel is called #keep or #hole-in-the-wall, not #fortress-1 -- the slug stays the reference, the name is what you read in the sidebar. CHANNELS.md always said so; the code had drifted  
+✎ Cleared 59 channels and 3 categories left over from the last game, and the duplicate pinned card in all 56 Location channels
+
 ## 2026-09-21 · The left rail stops bricking itself, and the chat reads tighter
 
 ✎ A gamemaster who is also playing somebody no longer has the buttons at the foot of the places list squeezed into nothing  
