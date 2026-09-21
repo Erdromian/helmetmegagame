@@ -31,6 +31,7 @@ const { buildCaving } = require("./caving");
 const { buildTrinkets } = require("./trinkets");
 const { buildCooking } = require("./cooking");
 const { buildDesires } = require("./desires");
+const { buildStarting } = require("./starting");
 const { buildLucky } = require("./lucky");
 const { MERCHANT_CUT, cutOn, afterCut } = require("./cut");
 const { turretTable } = require("../../../lib/depotTurret");
@@ -1513,6 +1514,27 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     investments,
     startingPoints: startingTagPoints,
   });
+  const starting = buildStarting({ list, get, foods, params, foodFloor, sources, players });
+  const auditSrc = fs.readFileSync(path.join(REPO, "db/scripts/ops/audit-vault-backing.js"), "utf8");
+  const reserveFloor = Number((/const RESERVE_FLOOR = ([0-9.]+);/.exec(auditSrc) ?? [])[1]);
+  if (!Number.isFinite(reserveFloor)) throw new Error("economy model: could not read RESERVE_FLOOR out of db/scripts/ops/audit-vault-backing.js; the file has changed shape.");
+  claims.push(
+    {
+      doc: "roles.yaml, starting_tags",
+      claim: "Every starting tag names a tag in the catalog",
+      docValue: "0 unresolved",
+      model: starting.unresolved.length ? starting.unresolved.join("; ") : "0 unresolved",
+      ok: starting.unresolved.length === 0,
+    },
+    {
+      doc: "roles.yaml, starting_account",
+      claim: `The Vault holds at least ${Math.round(reserveFloor * 100)}% of what the treasury accounts claim at the start (the audit's floor)`,
+      docValue: `${Math.round(reserveFloor * 100)}% or more`,
+      model: starting.vault ? `${starting.vault.coin} ¢ against ${starting.treasuryClaims} ¢ of claims at ${players} players, ${Math.round((starting.vault.coin / starting.treasuryClaims) * 100)}%` : "no Vault room",
+      ok: Boolean(starting.vault) && starting.vault.coin / starting.treasuryClaims >= reserveFloor,
+      note: "Treasury seats are counted at their cap for this many players, and only the named seats. It is a fractional reserve on purpose, so short of parity is normal.",
+    },
+  );
   claims.push(
     {
       doc: "desires.yaml, cooldown policy",
@@ -1548,6 +1570,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     lucky,
     merchantCut: MERCHANT_CUT,
     desires,
+    starting,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },

@@ -211,8 +211,11 @@ const baselineOf = (role) => model.baselines.find((b) => b.role === role);
 const potatoFood = model.foodSupply.find((f) => f.crop === "potato");
 const failing = model.claims.filter((c) => !c.ok);
 
+const ST = model.starting;
+const startingHeadline = `the ${ST.town.seats} named seats (${ST.unlimited.length} more roles have no cap) begin with about <b>${fmt(ST.town.funds, 0)} ¢</b> (${fmt(ST.town.bank, 0)} in banks, ${fmt(ST.town.coinHand, 0)} in hand) and <b>${fmt(ST.town.resources, 0)} ⬢</b>, and only ${ST.roles.filter((r) => r.food > 0 && r.seats > 0).reduce((n, r) => n + r.seats, 0)} carry any food. A character is Hungry after turn ${ST.noFoodHungry}, <b>Starving after turn ${ST.noFoodStarve}</b> and Dying after turn ${ST.noFoodDying} on nothing, so ${fmt(ST.starveRows.find((r) => r.turn === ST.noFoodStarve)?.seats ?? 0, 0)} of ${ST.town.seats} seats are Starving at the close of turn ${ST.noFoodStarve} unless they eat. All the coin in the town buys ${fmt(ST.town.funds / ST.costPerPersonTurn, 0)} person-turns of ration, which is ${fmt(ST.town.funds / ST.costPerPersonTurn / ST.town.seats, 1)} turns for each named seat.`;
 const headlines = [
   `Money a turn is worth: a miner with just a pickaxe earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer growing food <b>${fmt(farmW)} ¢</b> (valued at the Ration Box's price, since food crops do not sell), a farmer growing <b>tobacco ${fmt(tobW)} ¢, or ${fmt(tobFertW)} ¢ with Fertilizer</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. Best to worst: ${wageOrder}. A fertilized tobacco farmer earns ${fmt(tobFertW / factW, 1)} times a Factory worker and ${fmt(tobFertW / proW, 1)} times a Prospector.`,
+  `The starting economy: ${startingHeadline}`,
   `Smithing's Trinkets, after the Merchant's cut: a Smithing II smith forging with shelf stones clears <b>${fmt(trinketW)} ¢ a turn</b>, and a miner who forges the stones they dig up earns <b>${fmt(minerForgeW)} ¢</b> instead of ${fmt(floorW)}. A Trinket is a whole Move and 4 ⬢, and the cash is set by a d6 and by the stones (see “Trinket forging”). Crafts are shown after the Merchant's half.`,
   `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns nothing from the counter, since no dish can be sold there, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
   `Mining is the only source of ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves) yet a median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
@@ -748,6 +751,89 @@ ${table({ cols: cols(true), rows: bigTicket, id: "desirebig" })}
 </section>`;
 }
 
+function sectionStarting() {
+  const S = ST;
+  const seatsOf = (r) => (r.unlimited ? "no cap" : r.seats);
+  const roomsText = (r) => {
+    if (!r.rooms.length) return "none";
+    const top = [...r.rooms].sort((a, b) => b.resources + b.coin + b.food - (a.resources + a.coin + a.food)).slice(0, 4).map((x) => x.name);
+    return `${r.rooms.length}: ${top.join(", ")}${r.rooms.length > 4 ? `, +${r.rooms.length - 4} more` : ""}`;
+  };
+  const keyedText = (r) => {
+    const bits = [];
+    if (r.keyedResources) bits.push(`${fmt(r.keyedResources, 0)} ⬢`);
+    if (r.keyedCracked) bits.push(`${fmt(r.keyedCracked, 0)} ⬢ in items`);
+    if (r.keyedCoin) bits.push(`${fmt(r.keyedCoin, 0)} ¢`);
+    if (r.keyedFood) bits.push(`${fmt(r.keyedFood, 0)} hunger`);
+    if (r.keyedKit.length) bits.push(`kit: ${r.keyedKit.slice(0, 4).join(", ")}${r.keyedKit.length > 4 ? ", …" : ""}`);
+    return bits.length ? bits.join(", ") : "nothing";
+  };
+  const roleCols = [
+    { h: "Role", get: (r) => r.name },
+    { h: "Group", get: (r) => r.groupName },
+    { h: "Seats", num: true, get: seatsOf, sort: (r) => r.seats ?? 999 },
+    { h: "Bank ¢", num: true, get: (r) => (r.account ? r.bank : "no account"), sort: (r) => r.bank },
+    { h: "In hand ¢", num: true, get: (r) => r.coinHand, sort: (r) => r.coinHand },
+    { h: "⬢ on person", num: true, get: (r) => (r.cracked ? `${r.resources} (+${r.cracked} in items)` : r.resources), sort: (r) => r.resources + r.cracked },
+    { h: "Food on person", get: (r) => (r.food ? `${fmt(r.food, 0)} hunger: ${r.foodItems.join(", ")}` : "none"), sort: (r) => r.food },
+    { h: "Starving at turn", num: true, get: (r) => (Number.isFinite(r.starveTurn) ? r.starveTurn : "never"), sort: (r) => r.starveTurn },
+    { h: "Dying at turn", num: true, get: (r) => (Number.isFinite(r.dyingTurn) ? r.dyingTurn : "never"), sort: (r) => r.dyingTurn },
+    { h: "Turns of food if all coin is spent on rations", num: true, get: (r) => (Number.isFinite(r.turnsWithFunds) ? fmt(r.turnsWithFunds, 1) : "endless"), sort: (r) => r.turnsWithFunds },
+    { h: "Crafting kit on person", get: (r) => (r.kit.length ? r.kit.join(", ") : "—") },
+    { h: "Keys and passes", get: (r) => (r.keys.length ? r.keys.join(", ") : "—") },
+    { h: "Locked doors between places that it can pass", get: (r) => (r.doors.length ? r.doors.join("; ") : "—") },
+    { h: "Locked rooms it can open with those (with something in them)", get: roomsText },
+    { h: "What is in them", get: keyedText },
+  ];
+  const groupCols = [
+    { h: "Group", get: (g) => g.name },
+    { h: "Roles", num: true, get: (g) => g.roles },
+    { h: "Seats", num: true, get: (g) => g.seats },
+    { h: "Bank ¢", num: true, get: (g) => fmt(g.bank, 0), sort: (g) => g.bank },
+    { h: "In hand ¢", num: true, get: (g) => fmt(g.coinHand, 0), sort: (g) => g.coinHand },
+    { h: "¢ a seat", num: true, get: (g) => fmt(g.perSeatFunds, 1), sort: (g) => g.perSeatFunds },
+    { h: "⬢ on persons", num: true, get: (g) => fmt(g.resources + g.cracked, 0), sort: (g) => g.resources + g.cracked },
+    { h: "Food carried (hunger)", num: true, get: (g) => fmt(g.food, 0), sort: (g) => g.food },
+    { h: "Earliest starving turn", num: true, get: (g) => g.starveTurn },
+    { h: "Median starving turn", num: true, get: (g) => fmt(g.medianStarve, 0), sort: (g) => g.medianStarve },
+  ];
+  const openersText = (r) => (r.open ? "anybody" : r.openers.length ? `${r.openers.slice(0, 4).join(", ")}${r.openers.length > 4 ? `, +${r.openers.length - 4}` : ""}` : `no starting role (needs ${r.access.slice(0, 3).join(", ")})`);
+  const roomCols = [
+    { h: "Room", get: (r) => r.name },
+    { h: "Where", get: (r) => `${r.location} · ${r.zone.split("/")[0]}` },
+    { h: "Locked?", get: (r) => (r.open ? "open" : "locked") },
+    { h: "Starting roles that can open it", get: openersText },
+    { h: "⬢", num: true, get: (r) => r.resources, sort: (r) => r.resources },
+    { h: "⬢ in items", num: true, get: (r) => r.cracked, sort: (r) => r.cracked },
+    { h: "¢", num: true, get: (r) => r.coin, sort: (r) => r.coin },
+    { h: "Food (hunger)", num: true, get: (r) => fmt(r.food, 0), sort: (r) => r.food },
+    { h: "Crafting kit", get: (r) => (r.kit.length ? r.kit.slice(0, 5).join(", ") + (r.kit.length > 5 ? "…" : "") : "—") },
+  ];
+  const starveCols = [
+    { h: "Starving at the close of turn", num: true, get: (r) => r.turn },
+    { h: "Dying at turn", num: true, get: (r) => r.dying },
+    { h: "Seats", num: true, get: (r) => r.seats },
+  ];
+  const fundCols = [{ h: "Seats that…", get: (r) => r.label }, { h: "Count", num: true, get: (r) => r.seats }];
+  const rooms = [...S.rooms].sort((a, b) => b.coin + b.resources + b.cracked - (a.coin + a.resources + a.cracked) || b.food - a.food);
+  const vault = S.vault;
+  return `<section><h2>The starting economy</h2>
+<p class="lede">What each role begins with, and how long it lasts. Factions were removed, so seats are grouped the way the character picker groups them (by social position). Everything is read from <code>docs/roles.yaml</code> (a role's seat, coin, bank account and free starting tags), <code>docs/zones.yaml</code> (which rooms hold what, and which tag opens them) and <code>db/lib/hunger.js</code>. Seats are worked out for <b>${S.players} players</b> (<code>--players N</code> changes it); ${S.unlimited.length} roles (${esc(S.unlimited.join(", "))}) have no seat cap and are left out of the totals. Points spent on more skills or keys at character creation are not counted.</p>
+<h3>How long until people starve</h3>
+<p class="lede">A character starts at ${S.start} hunger and loses <b>${S.decay} a turn</b> (${S.fastDecay} for Big Appetite). Hungry is at ${S.hungryAt} or less, Starving is at 0, and <b>Dying comes ${S.deathTurns - 1} turns after Starving begins</b>. With no food that is Starving at the close of turn ${S.noFoodStarve} and Dying at turn ${S.noFoodDying}. Food on the person adds its hunger to the ${S.start}, spent in time so no bite is wasted. The whole town's starting coin buys about <b>${fmt(S.town.funds / S.costPerPersonTurn, 0)} person-turns</b> of ration at ${fmt(S.costPerPersonTurn, 1)} ¢ each, and everyone carrying food has ${fmt(S.town.food, 0)} hunger between them, ${fmt(S.town.foodTurns, 1)} person-turns, against ${fmt(S.town.needPerTurn, 0)} hunger the town burns every turn.</p>
+${table({ cols: starveCols, rows: S.starveRows, id: "startstarve" })}
+${table({ cols: fundCols, rows: S.fundedRows, id: "startfunded" })}
+<h3>By group</h3>
+${table({ cols: groupCols, rows: S.groups, id: "startgroups" })}
+<h3>By role</h3>
+<p class="lede">Coin is in ¢ and Resources in ⬢; 1 ¢ is not 1 ⬢ (a ⬢ costs 3 ¢ at the Depot). <b>Bank</b> is what is in the account the moment it opens (only the Depot can pay it out, and a treasury account is backed by the Vault, which holds ${vault ? fmt(vault.coin, 0) : "?"} ¢ against ${fmt(S.treasuryClaims, 0)} ¢ of treasury claims at this size, ${vault ? fmt((vault.coin / S.treasuryClaims) * 100, 0) : "?"}%). <b>In hand</b> coin can be stolen or pickpocketed. <b>Food if all coin is spent</b> counts the bank as well as the coin in hand, and assumes the buyer can reach the Depot. A room in the last two columns is one the role's own free keys and tags open, counting only rooms with something in them, and several roles may share a key (Baron's key opens almost everything, and the Cerberus key opens ${S.roles.filter((r) => r.tagSlugs.includes("cerberus-key")).length} roles' rooms).</p>
+${table({ cols: roleCols, rows: S.roles, filters: [{ label: "Group", get: (r) => r.groupName }] })}
+<h3>Rooms with something in them</h3>
+<p class="lede">Everything the game puts in a room when it starts, biggest first. <b>Open</b> rooms hold ${fmt(S.commons.resources, 0)} ⬢, ${fmt(S.commons.coin, 0)} ¢ and ${fmt(S.commons.food, 0)} hunger of food between them, for anybody. A locked room is opened by a key or tag its starting roles hold; roles may also open it with skills bought with points (the Caving skill opens the caves' stashes).</p>
+${table({ cols: roomCols, rows: rooms, filters: [{ label: "Locked?", get: (r) => (r.open ? "open" : "locked") }] })}
+</section>`;
+}
+
 function sectionLucky() {
   const K = model.lucky;
   const ranked = K.ranked;
@@ -1273,7 +1359,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionLucky()}${sectionTrinkets()}${sectionCooking()}${sectionDesires()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionLucky()}${sectionTrinkets()}${sectionCooking()}${sectionDesires()}${sectionStarting()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -1385,6 +1471,14 @@ const trinketsCsv = [
   ),
 ].join("\n");
 fs.writeFileSync(path.join(outDir, "trinkets.csv"), trinketsCsv);
+const startingCsv = [
+  ["role", "group", "seats", "bankCoin", "handCoin", "resourcesOnPerson", "resourcesInItems", "foodHunger", "startingTurn", "dyingTurn", "turnsWithFunds", "keyedRooms", "keyedResources", "keyedCoin", "keyedFoodHunger", "kit", "keys"].join(","),
+  ...model.starting.roles.map((r) =>
+    [r.name, r.groupName, r.unlimited ? "no cap" : r.seats, r.bank, r.coinHand, r.resources, r.cracked, r.food, r.starveTurn, r.dyingTurn, Number.isFinite(r.turnsWithFunds) ? r.turnsWithFunds.toFixed(1) : "", r.rooms.length, r.keyedResources, r.keyedCoin, r.keyedFood, r.kit.join("; "), r.keys.join("; ")].map(csvCell).join(","),
+  ),
+].join("\n");
+fs.writeFileSync(path.join(outDir, "starting.csv"), startingCsv);
+
 fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
 fs.writeFileSync(path.join(outDir, "item-sources.csv"), itemsCsv);
