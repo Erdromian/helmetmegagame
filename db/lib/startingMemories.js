@@ -53,41 +53,52 @@ const FORTRESS_TO_TOWN = ["fortress-2", "town-8"];
 // it.
 const RAVENHEART = [...TOWN_ALL, ...FORTRESS_TO_TOWN];
 
-// The Undertown a resident walks without knowing a secret: the Slums off the
-// Square, the Den off the Slums, the Poorhouse, the freight platform and the
-// Merchant's berth beside it, and the sewers everybody knows are down there.
-const UNDERTOWN_COMMON = [
+// The Undertown's ordinary streets: everywhere down there with a plain way in,
+// which is most of it now that the place is built out. Somebody whose life is
+// the Undertown walks all of this without knowing a single secret.
+const UNDERTOWN_STREETS = [
   "undertown-a", // Slums
   "undertown-8", // Den
   "undertown-7", // Poorhouse
-  "undertown-5", // Depot
   "undertown-6", // Merchant
+  "undertown-5", // Depot
   "undertown-4", // Sewer
+  "undertown-c", // Lake
+  "undertown-e", // Basements
+  "undertown-d", // Hollows
 ];
 
 // Down the Den's stairs, for the people who work in the basement. The stair is
 // `locked: den-key` rather than hidden, so it is already a sighting for anyone
 // standing in the Den — this only upgrades it to somewhere they have been.
-const DEN_HOUSE = [...UNDERTOWN_COMMON, "undertown-9"];
+const DEN_HOUSE = [...UNDERTOWN_STREETS, "undertown-9"];
 
-// NEVER put one of these in a table. The Alleys sit behind `hidden: tunnel-rat`
-// and are the one real leak this file has available to it; the Hole in the Wall
-// is Bascinet's ruling. `db/test/startingMemories.test.js` asserts it rather
-// than trusting this comment.
+// What a surface trade seat touches of the Undertown and no more: the freight
+// platform, the counter beside it, and the Slums they come up through.
+const UNDERTOWN_TRADE = ["undertown-5", "undertown-6", "undertown-a"];
+
+// NEVER put one of these in a table, each for its own reason.
 //
-// Two places are called "Alleys", and they are not the same place. `town-5` is
-// the town's, it is in TOWN_ALL, and it is safe. `undertown-d` is this one.
-const UNDERTOWN_SECRET = ["undertown-d", "undertown-f"];
-
-// Order Chambers, Basements, Nook and Island. Named on the barony2 plate and
-// real Locations, but Bascinet wrote them into the game live at /gm/dev/zones
-// and docs/zones.yaml still carries them as skeletons with no edges at all — so
-// from here there is no way to tell which of them is an ordinary street and
-// which is behind a hidden crawl. They are held out of every tier until
-// somebody who can read the live graph says otherwise. Moving one into
-// UNDERTOWN_COMMON is a one-line change; guessing wrong the other way hands out
-// a secret, so the fog is the safe default.
-const UNDERTOWN_UNCLASSIFIED = ["undertown-b", "undertown-e", "undertown-g", "undertown-h"];
+//   undertown-f  Hole in the Wall — `hidden: tunnel-rat` off the Poorhouse, and
+//                a caving climb up out of the Depths. The one place down here a
+//                table could really leak, since a hidden way is the only thing
+//                omission actually protects.
+//   undertown-h  Island — across the water behind Strong Swimmer. A hideaway
+//                rather than a street.
+//   undertown-b  Order Chambers — the Order's own, behind their key. Everybody
+//                already sees it hollow off the Cathedral next door; nobody
+//                starts out having been inside.
+//
+// db/test/startingMemories.test.js asserts this rather than trusting the
+// comment, and also asserts each slug still names a real place — the Nook used
+// to be listed here and was deleted from the game, which left a dead slug
+// guarding nothing.
+//
+// Two places here are easy to reconcile wrongly. `town-5` is the town's Alleys,
+// it is in TOWN_ALL, and it is safe. `undertown-d` is the Hollows, which USED
+// to be called the Alleys — it is an ordinary street off the Slums now, and it
+// is not on this list.
+const UNDERTOWN_WITHHELD = ["undertown-f", "undertown-h", "undertown-b"];
 
 const HILLS_ALL = [
   "bridge",
@@ -124,11 +135,6 @@ const FACTORY_ROAD = [
   "cliffs",
   "factory",
 ];
-
-// Where the Factory's goods go. A Factory seat runs the Squeeze to the freight
-// platform and sells through the counter beside it, whether or not they have
-// ever been further into the Undertown than that.
-const TRADE_END = ["undertown-5", "undertown-6"];
 
 // Three people know there is a ship (docs/systemdocs/CHARON.md), and this table
 // is the ONLY way anybody learns it: the Charon has no LocationLink, so it is
@@ -173,33 +179,35 @@ const ROLE_MEMORIES = {
   "inn-staff": RAVENHEART,
   soiler: RAVENHEART,
   sheriff: [...RAVENHEART, "bridge"],
-  // mortus: the vow, always knows the way down to the Tower.
-  mortus: [...RAVENHEART, "undertown-3"],
+  // mortus: the vow, always knows the way down to the Tower — and the
+  // maintenance tunnels out of it that the Lifeweb's own description promises,
+  // which is a locked door rather than a secret one.
+  mortus: [...RAVENHEART, "undertown-3", "undertown-4"],
   // prospector: the seams are out past the bridge and down the cave mouth, and
   // digging them is the whole of the seat.
   prospector: [...RAVENHEART, "bridge", "caves-1", "caves-2"],
 
-  // The Undertown. The Bum sleeps in the Slums; the Den's four seats work the
-  // basement under it. The Exactor also gets the Lake, because his own back
-  // door out of the Den Interior is `hidden: strong-swimmer` and the sighting
-  // write will therefore never paint it for him — the man who owns the cellar
-  // knows where his escape comes out.
-  bum: [...RAVENHEART, ...UNDERTOWN_COMMON],
-  exactor: [...RAVENHEART, ...DEN_HOUSE, "undertown-c"],
+  // The Undertown. The Bum sleeps rough across the whole of it and holds no
+  // key to anybody's cellar; the Den's five seats work the basement under the
+  // Slums and know the stair down as somewhere they have been rather than a
+  // door they have seen.
+  bum: [...RAVENHEART, ...UNDERTOWN_STREETS],
+  exactor: [...RAVENHEART, ...DEN_HOUSE],
   pusher: [...RAVENHEART, ...DEN_HOUSE],
   courtesan: [...RAVENHEART, ...DEN_HOUSE],
   goon: [...RAVENHEART, ...DEN_HOUSE],
   slave: [...RAVENHEART, ...DEN_HOUSE],
 
-  // The trade. Both of these run the freight platform, and both walk the road
-  // out to the Factory whose goods they move.
-  merchant: [...RAVENHEART, ...UNDERTOWN_COMMON, ...CAVE_MOUTH, ...FACTORY_ROAD],
-  docker: [...RAVENHEART, ...UNDERTOWN_COMMON, ...CAVE_MOUTH, ...FACTORY_ROAD],
+  // The trade. Both of these live down here and run the freight platform, and
+  // both walk the road out to the Factory whose goods they move.
+  merchant: [...RAVENHEART, ...UNDERTOWN_STREETS, ...CAVE_MOUTH, ...FACTORY_ROAD],
+  docker: [...RAVENHEART, ...UNDERTOWN_STREETS, ...CAVE_MOUTH, ...FACTORY_ROAD],
 
-  // The Factory. The road up to town, and the two places the Squeeze is sold.
-  banneret: [...FACTORY_CLUSTER, ...FACTORY_ROAD, ...TRADE_END, ...RAVENHEART],
-  geschef: [...FACTORY_CLUSTER, ...FACTORY_ROAD, ...TRADE_END, ...RAVENHEART],
-  refugee: [...FACTORY_CLUSTER, ...FACTORY_ROAD, ...TRADE_END, ...RAVENHEART],
+  // The Factory. The road up to town, and the end of the Undertown the Squeeze
+  // is sold at — they come up to trade, not to live.
+  banneret: [...FACTORY_CLUSTER, ...FACTORY_ROAD, ...UNDERTOWN_TRADE, ...RAVENHEART],
+  geschef: [...FACTORY_CLUSTER, ...FACTORY_ROAD, ...UNDERTOWN_TRADE, ...RAVENHEART],
+  refugee: [...FACTORY_CLUSTER, ...FACTORY_ROAD, ...UNDERTOWN_TRADE, ...RAVENHEART],
 
   // The outsiders, and the only seats the town is still fogged for. A Migrant
   // walking in has not seen Ravenheart yet — that is the whole of the seat.
@@ -246,6 +254,5 @@ module.exports = {
   startingMemorySlugs,
   ROLE_MEMORIES,
   KIT_MEMORIES,
-  UNDERTOWN_SECRET,
-  UNDERTOWN_UNCLASSIFIED,
+  UNDERTOWN_WITHHELD,
 };
