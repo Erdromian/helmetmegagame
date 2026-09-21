@@ -80,7 +80,7 @@ CC BY-SA 3.0 terms.
 Every `rough-*.png` (citrine, topaz, amethyst, milk quartz, onyx, moonstone,
 white jade, fire opal, milk opal, kunzite, star sapphire, black diamond) and
 every `ore-*.png` (red, cyan, bluish, copper, silvery, magenta, dullgrey,
-gold, darkbrown), plus `pouch.png`, is a Dwarf Fortress sprite from the Steam edition of Dwarf
+gold, darkbrown), plus `pouch.png`, is a sprite from the Steam edition of Dwarf Fortress
 (Bay 12 Games / Kitfox Games), taken from
 https://dwarffortresswiki.org and padded to a square. They are **not** openly
 licensed and not covered by the CC BY-SA grant above. If they ever need to
