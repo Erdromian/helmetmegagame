@@ -6,6 +6,16 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · Three crops a plant, and food stops being money
+
+✎ A plant now brings in 3 of its crop instead of 1, so a field of 50 comes home as about 125. Each crop is a third the weight and a third the food, so a harvest weighs and feeds the same as before — it just arrives as more, smaller things
+✎ Three farmers can feed the town again. Hunger tripled a while back and the farms were never moved to match
+✎ The Farm sow cap counts PLANTS now, not crops
+− Food crops can no longer be sold. Farming pays in food, not coin
+✚ Tobacco is what a farmer grows for money: 2 a plant instead of 3, and it withers on a 1-in-3 rather than 1-in-6
+✎ A skilled meal feeds for 2 turns
+
+
 ## 2026-09-21 · The waking song plays once per player, ever
 
 ✎ white_waking now plays a single time for each browser instead of once an hour
