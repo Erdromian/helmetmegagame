@@ -6,6 +6,17 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · The left rail stops bricking itself, and the chat reads tighter
+
+✎ A gamemaster who is also playing somebody no longer has the buttons at the foot of the places list squeezed into nothing  
+✚ The places list keeps its header as you scroll, so the red seam under it no longer drifts off on its own  
+✎ Reconnecting notices sit over the conversation now instead of shoving the whole scene down  
+− The empty Waiting card. It only appears when something is actually waiting, and it is titled Waiting rather than Waiting on you  
+✎ A fate card in the right-hand column no longer comes out shorter than the one beside it  
+✎ Place cards read tighter, and Further in a zone now stands off the ways out above it  
+✎ A Suspicious Game Set costs 2 pts and a Jester Outfit 3  
+− The Treasury line telling you to be at the terminal
+
 ## 2026-09-21 · Travelling answers you now instead of leaving you staring at nothing
 
 ✎ A move tells you where you landed as soon as it has happened, and Discord catches up behind it -- a walk across a zone used to hold the click open for every channel, role and thread call of every hop, which on a bad day was minutes  

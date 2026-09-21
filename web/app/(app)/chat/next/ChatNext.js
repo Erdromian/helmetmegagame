@@ -718,13 +718,17 @@ export default function ChatNext(props) {
               foot: this row is on screen whichever pane is open, and the
               phone is where a connection drops most — every screen lock. The
               first drop says nothing (../streamStore.js). */}
+          {/* Drawn OVER the feed rather than in the column's flow. In flow it
+              inserted a padded row flush under the 26px girder, which read as
+              the head growing — and it moved every line of the scene down the
+              moment a phone locked. */}
           {stream === "retrying" && (
-            <p className="chat-quiet-line" role="status">
+            <p className="chat-stream-note" role="status">
               Reconnecting…
             </p>
           )}
           {stream === "fatal" && (
-            <p className="chat-quiet-line" role="status">
+            <p className="chat-stream-note" role="status">
               The connection dropped. Reload to catch up.
             </p>
           )}

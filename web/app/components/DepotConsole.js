@@ -57,7 +57,7 @@ export default function DepotConsole(props) {
     <div className="flex flex-col gap-4">
       <section className="panel depot-cockpit">
         <div className="depot-cockpit-head">
-          <span className="depot-greeting">{greetingName ?? "The Depot."}</span>
+          <span className="depot-greeting">{greetingName ?? "Depot"}</span>
           <span className="depot-cockpit-money">
             <span className="depot-balance mono">{account ? `${account.balanceObols} ¢` : "no account"}</span>
           </span>

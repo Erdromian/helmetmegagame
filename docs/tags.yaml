@@ -7680,7 +7680,7 @@ tags:
     group: items-gear
     sprite: jester
     description: "A bright, bold jester outfit. Pure aura."
-    pointCost: 7
+    pointCost: 3
     equippable: true
     equipSlot: BODY
     equipLayer: 1
@@ -8565,7 +8565,7 @@ tags:
     group: items-gear
     sprite: d6
     description: "A game set with weighted and shaved dice, marked and bonus cards, and an assortment of other tricks to guarantee the owner's victory."
-    pointCost: 7
+    pointCost: 2
     weight: 2
     purchasable: true
     purchasableAfterStart: false

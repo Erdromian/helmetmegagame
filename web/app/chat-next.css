@@ -129,6 +129,21 @@
   background-size: 100% 100%, auto;
 }
 
+/* The column's own head STAYS, the way the scene's and the aside's do. The
+   shadow above is painted on the scrolling box at a fixed 26px, so when this
+   bar was free to scroll away the red line stayed behind on its own, hanging
+   over the middle of the list with no steel around it. Pinning the girder is
+   what keeps the two together — and a column head scrolling off was wrong on
+   its own account. */
+[data-chat-next] .chat-places > .bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  /* Pinned means rows now slide UNDER it, so the strip has to be opaque —
+     the bg2.png tile is not, and the list ghosted straight through it. */
+  background-color: var(--bg);
+}
+
 [data-chat-next] .chat-centre {
   display: flex;
   flex-direction: column;
@@ -604,6 +619,18 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-2);
+  /* WRAP is load-bearing. This row holds up to three things — the GM / Player
+     switch (only for a gamemaster who is also playing somebody), the sound and
+     notification buttons, and on a phone the whole drawer nav. Without wrap
+     they all shrink against each other inside a column this narrow, and a GM
+     with a character found the buttons along the bottom squeezed to nothing. */
+  flex-wrap: wrap;
+}
+
+/* The drawer's nav is a list of links, not a control in this row — it takes
+   its own full line under the two. */
+[data-chat-next] .chat-places-tail > .chat-drawer-nav {
+  flex: 1 0 100%;
 }
 
 [data-chat-next] .chat-view-as,

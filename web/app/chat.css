@@ -188,6 +188,9 @@
 .chat-centre {
   display: flex;
   flex-direction: column;
+  /* The anchor for .chat-stream-note, which hangs over the top of the scene
+     rather than sitting in this column's flow. */
+  position: relative;
 }
 
 .chat-main {
@@ -352,6 +355,16 @@
 .chat-section-title {
   padding: 0 var(--sp-3);
   margin-bottom: var(--sp-1);
+}
+
+/* A second section's heading, following the first section's cards. Without
+   this the two grids sat --sp-1 apart and the heading read as belonging to
+   the row above it: "Further in <zone>" looked wedged under the ways out
+   rather than titling the walks below. A sibling combinator rather than a
+   blanket margin-top, so the FIRST heading in a card gains no gap. */
+.chat-nodes + .chat-section-title,
+.map-exits + .map-exits .chat-section-title {
+  margin-top: var(--sp-3);
 }
 
 /* The quiet label over one of the PLACES column's sections — the mockup's
@@ -1951,6 +1964,14 @@
   margin: var(--sp-2) 0;
 }
 
+/* The gap above is the ONLY space between these lines. The place lines arrive
+   as rendered markdown, and a paragraph's own margin was landing on top of the
+   gap — so a card whose whole body is three short lines ("Mining: Sufficient",
+   "Indoors: …") stood nearly twice as tall as it needed to. */
+.chat-card-text > * {
+  margin: 0;
+}
+
 /* ---- Travel: the ways out, as a map of nodes ---- */
 
 /* Two up in the aside, three in the phone sheet, one if a column ever gets
@@ -2100,6 +2121,36 @@
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-bottom: var(--sp-2);
+}
+
+/* "Reconnecting…" and "The connection dropped." — shared by both chat builds.
+   DRAWN OVER the scene, never in the column's flow: in flow it inserted a
+   padded row flush under the 26px head girder, which read as the header
+   growing, and it shoved every line of the conversation down the moment a
+   phone locked the screen. Pinned just below the girder, so it sits in the
+   gap the shadow already occupies rather than on top of anybody's words. */
+.chat-stream-note {
+  position: absolute;
+  top: 26px;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  margin: 0;
+  padding: var(--sp-1) var(--sp-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-lo);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-style: italic;
+  text-align: center;
+  pointer-events: none;
+}
+
+@media (max-width: 720px) {
+  /* The head is a thumb's worth of height on a phone, not a girder. */
+  .chat-stream-note {
+    top: 48px;
+  }
 }
 
 /* ---- Bringing: the escort party, drawn as the seats it takes up ----

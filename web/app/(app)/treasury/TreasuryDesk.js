@@ -134,7 +134,6 @@ export default function TreasuryDesk({
             Set it
           </button>
         </div>
-        {readOnly && <p className="mt-2 text-sm text-muted">Read-only — you must be at the terminal to change it.</p>}
         {saved && !error && <p className="mt-3 text-sm text-muted">Tax set</p>}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </section>

@@ -53,7 +53,6 @@ export function hereKey(people) {
 function WaitingList({ rows, onAnswered }) {
   const { run, pending, error } = useActionRunner();
   const openAction = useRequestActions()?.open ?? null;
-  if (rows.length === 0) return <p className="chat-quiet-line">Nothing is waiting on you.</p>;
   return (
     <>
       {rows.map((row) => (
@@ -250,9 +249,13 @@ export default function ChatAside({
         />
       </Block>
 
-      <Block head={`Waiting on you · ${waiting.length}`}>
-        <WaitingList rows={waiting} onAnswered={onWaitingAnswered} />
-      </Block>
+      {/* No card at all when nothing is waiting — an empty box saying it is
+          empty is one more thing to read past. */}
+      {waiting.length > 0 && (
+        <Block head={`Waiting · ${waiting.length}`}>
+          <WaitingList rows={waiting} onAnswered={onWaitingAnswered} />
+        </Block>
+      )}
 
       <Block head={place?.name ?? "Place"}>
         <PlaceCard

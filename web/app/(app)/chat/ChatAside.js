@@ -54,7 +54,6 @@ function WaitingList({ rows, onAnswered }) {
   // far. It opens the sheet's own dialog in place instead of sending the
   // player somewhere to look for it.
   const openAction = useRequestActions()?.open ?? null;
-  if (rows.length === 0) return <p className="chat-quiet-line">Nothing is waiting on you.</p>;
   return (
     <>
       {rows.map((row) => (
@@ -259,12 +258,14 @@ export default function ChatAside({
         </div>
       </div>
 
-      <div className="block">
-        <h3 className="bar">Waiting on you · {waiting.length}</h3>
-        <div className="body">
-          <WaitingList rows={waiting} onAnswered={onWaitingAnswered} />
+      {waiting.length > 0 && (
+        <div className="block">
+          <h3 className="bar">Waiting · {waiting.length}</h3>
+          <div className="body">
+            <WaitingList rows={waiting} onAnswered={onWaitingAnswered} />
+          </div>
         </div>
-      </div>
+      )}
 
       {dialog === "move" && (
         <MoveDialog

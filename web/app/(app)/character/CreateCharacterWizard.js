@@ -85,7 +85,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
       onClick={() => onSelect(role.id)}
       aria-pressed={selected}
       data-whitelisted={role.requiresWhitelist ? "true" : undefined}
-      className="select-card panel flex w-full flex-col gap-1 p-3 text-left"
+      className="select-card panel flex h-full w-full flex-col gap-1 p-3 text-left"
     >
       <span className="flex flex-wrap items-baseline justify-between gap-2">
         <span className="flex flex-wrap items-baseline gap-2">
@@ -130,7 +130,7 @@ function RoleCard({ role, cap, taken, selected, disabled, onSelect }) {
   // matching the cards next to it.
   if (role.whitelistBlocked) {
     return (
-      <Tooltip text="Whitelist only" className="block hover-bare">
+      <Tooltip text="Whitelist only" className="block hover-bare h-full">
         {card}
       </Tooltip>
     );

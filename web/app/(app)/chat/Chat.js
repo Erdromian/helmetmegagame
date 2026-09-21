@@ -705,12 +705,12 @@ export default function Chat({
             well — and the phone is where a stream drops most, every time the
             screen locks. The first drop says nothing (streamStore.js). */}
         {stream === "retrying" && (
-          <p className="chat-quiet-line" role="status">
+          <p className="chat-stream-note" role="status">
             Reconnecting…
           </p>
         )}
         {stream === "fatal" && (
-          <p className="chat-quiet-line" role="status">
+          <p className="chat-stream-note" role="status">
             The connection dropped. Reload to catch up.
           </p>
         )}
