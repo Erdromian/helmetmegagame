@@ -7890,7 +7890,7 @@ tags:
     name: Resources
     category: items
     group: items-gear
-    sprite: ore
+    sprite: pouch
     description: "Bulk material for crafting, smithing, or healing people."
     manifest: general
     pointCost: 0
