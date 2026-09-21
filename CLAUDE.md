@@ -1219,32 +1219,56 @@ git remote -v
 ```
 
 - `origin` resolves to `BascinetMegagame/helmetmegagame` → this is **Bascinet's
-  own checkout**. Follow "Bascinet: master-only" below.
+  own checkout**. Follow "Bascinet: straight to master, or a branch and a PR"
+  below.
 - `origin` resolves to somewhere else — a fork, e.g. a contributor's own
   GitHub account — typically alongside an `upstream` remote pointing at
   `BascinetMegagame/helmetmegagame` → this is a **contributor's checkout**.
   Follow "Contributors: fork's master, then a PR into upstream" instead.
 
-### Bascinet: master-only
+### Bascinet: straight to master, or a branch and a PR
 
-**Bascinet is master-only. There are no branches and no pull requests.** All
-work is committed straight to `master` and pushed as soon as it's finished,
-so it can be pulled locally the moment it's done. That immediacy is the point
-of the whole setup, and a feature branch defeats it. Railway also builds from
-`master`, so work sitting on a branch is work that hasn't shipped.
+**Master is the default, and a branch with a PR is the reviewed alternative.
+Both are in use in this checkout — pick, don't assume.**
+
+Most work is committed straight to `master` and pushed as soon as it's
+finished, so it can be pulled locally the moment it's done. That immediacy is
+the point of the setup, and a feature branch spends it. Railway builds from
+`master`, so work sitting on an unmerged branch is work that hasn't shipped.
 
 ```
 npm run push -- "Commit message"   # git add -A, commit, git push -u origin master
 npm run push                       # same, with a "wip" message
 ```
 
-Never `git checkout -b`, never open a PR, never ask which branch to use. If a
-remote session gets handed a throwaway `claude/<slug>` branch, it abandons it
-for `master`. `.claude/hooks/session-start.sh` (a `SessionStart` hook) does
+**This section used to say there were no branches and no pull requests, and
+to never run `git checkout -b`.** That was never quite true and is less true
+now: PRs have been merging all month, from topic branches pushed to
+`BascinetMegagame/helmetmegagame` itself rather than from a fork —
+`thanati-overhaul`, `map-old-town-and-nook-removal`,
+`claude-md-live-checkout-warning`. Straight-to-master still won most days by
+volume (on 2026-09-21, 30 direct commits against 6 PR merges), but every
+landing on 2026-09-22 came through a PR. Treat both as normal.
+
+Use a branch and a PR when the work wants eyes on it before it ships — a
+schema change, a rebalance, anything touching the live database, or a change
+large enough that "pull it and see" is a poor review. Push straight to
+`master` for the ordinary finished thing. **When it isn't obvious which, ask.**
+
+Branch names here are plain kebab-case and say what changed, with no
+`feature/` or `fix/` prefix on Bascinet's own branches.
+
+If a remote session gets handed a throwaway `claude/<slug>` branch, it
+abandons it for `master` — that much is unchanged, because a session-slug
+branch is not a topic branch anybody chose.
+`.claude/hooks/session-start.sh` (a `SessionStart` hook) does
 that automatically, and in the same pass deletes any `origin/claude/*` branch
 that holds nothing `master` doesn't already have. It refuses to move off a
 branch with uncommitted changes or unmerged commits, and it never deletes an
 unmerged branch — so it can't lose work. It just prints what it skipped.
+**That makes it safe to leave alone while working on a topic branch:** a
+branch holding commits `origin/master` doesn't have is exactly the case it
+declines to touch, so it won't drag you off a PR branch mid-review.
 
 That hook also **fetches**, which matters more than it sounds. A remote
 container clones once at session start and then goes stale. Without the
@@ -1269,8 +1293,8 @@ one session's coherent work.
 **Each local session gets its own git worktree instead.** A worktree is a
 second folder off the same `.git` — same commit history and objects, its own
 files, its own index — so sessions in separate worktrees can never step on
-each other's uncommitted state. This doesn't weaken the master-only rule
-above: work still lands on `master`, fast, no PR, no review. It just moves
+each other's uncommitted state. This doesn't change how work lands: whichever
+route the section above picked, it still ends on `master`. It just moves
 where a session's WIP briefly lives before that.
 
 ```
@@ -1322,8 +1346,8 @@ git-conflict case, not the shared-working-tree one.
 
 ### Contributors: fork's master, then a PR into upstream
 
-A contributor's checkout mirrors Bascinet's master-only habit, just one repo
-over: commit straight to **your own fork's `master`** (no feature branch),
+A contributor's checkout mirrors Bascinet's straight-to-master habit, just one
+repo over: commit straight to **your own fork's `master`** (no feature branch),
 push it to `origin`, then open a pull request from your fork's `master` into
 `upstream`'s `master`. This is the established pattern — see e.g. "Merge pull
 request #24 from Erdromian/master" in the git log — not a new convention.
@@ -1336,11 +1360,11 @@ gh pr create --repo BascinetMegagame/helmetmegagame --base master \
 ```
 
 - **Never push to `upstream`.** You don't have write access to it, and even
-  if you did, the master-only flow above is Bascinet's, not a contributor's —
+  if you did, the push-to-master flow above is Bascinet's, not a contributor's —
   `origin` (your fork) is the only remote a contributor ever pushes to.
 - **A branch works too, if you'd rather.** Nothing here forbids the ordinary
-  `git checkout -b my-change` + PR-from-a-branch shape; it is just not the
-  pattern this repo has actually used. Either way, the PR's base is always
+  `git checkout -b my-change` + PR-from-a-branch shape, and it is now the
+  common shape upstream as well. Either way, the PR's base is always
   `upstream`'s `master`, never `origin`'s.
 - **`.claude/hooks/session-start.sh` is safe to leave alone.** It only ever
   fast-forwards or moves the checkout onto `master` when doing so loses
