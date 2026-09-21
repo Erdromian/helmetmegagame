@@ -29,6 +29,7 @@ import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { withoutDmNoise } from "@/lib/dmThread";
 import { DM_PLACE_KEY } from "@/lib/dmSources";
 import { thingGroups } from "./thingRows";
+import { itemPools } from "@/lib/itemPools";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { depotAccessFor } from "@lifeweb/db/lib/depotCounter";
@@ -288,6 +289,9 @@ async function FreshChat({ userId }) {
         ]);
         const character = { ...viewer.character, ...sheet };
         const heldSlugs = new Set((sheet?.tags ?? []).map((ct) => ct.tag.slug));
+        // What is in these pockets that lights a verb — the sheet's own helper,
+        // so the Things drawer's item verbs are lit on the same facts.
+        const items = await itemPools(prisma, character, heldSlugs);
         // The sheet crosses into client components from here, so the raw text
         // of every paper on it would otherwise sit in the page source —
         // readable straight out of DevTools by a holder who is blind, drunk or
@@ -427,6 +431,7 @@ async function FreshChat({ userId }) {
           // enough on its own: the page no longer asks for a key as well, so
           // the old licence-or-keycard test would hide the fixture from the
           // very people standing in front of it.
+          items,
           depotHref: depotAccessFor(boardLocation?.slug, heldSlugs).atDepot ? "/depot" : null,
           // The Godard Factory's Extract, opened as the sheet's own dialog
           // (docs/systemdocs/FACTORY.md). Shown where the ground is godflesh;
@@ -607,6 +612,9 @@ async function FreshChat({ userId }) {
         kissTargets: aside.pools.kissTargets,
         searchParties: aside.pools.searchParties,
         kissBlocked: aside.pools.kissBlocked,
+        doseTargets: aside.pools.doseTargets,
+        // The held-item flags (web/lib/itemPools.js), for the Things drawer.
+        ...aside.items,
         // The four paperwork dialogs the ✉ opens, named exactly as
         // web/lib/selfPools.js returns them.
         ...aside.letters,

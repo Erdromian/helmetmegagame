@@ -1709,14 +1709,28 @@ a 48px head and a one-line composer:
      default and remembered in `localStorage`. Every tag
      whose category is **Items** or **Assets**, grouped in that order, as one
      chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
-     menu of at most four: **Equip / Unequip** (`equippable`, the sheet's own
-     instant `equipOne`/`unequipOne`), **Use** (`consumable`), **Give** (`tradeable`)
+     menu: **Equip / Unequip** (`equippable`, the sheet's own
+     instant `equipOne`/`unequipOne`), **Consume** (`consumable`; **Poison** on a
+     poison, which opens the Poison dialog instead), **Give** (`tradeable`)
      and **Destroy** (`removable`) — the last three open the SHEET's dialogs
      through `RequestActionsProvider.open(mode, tagId)`, with the item already
      picked. The flags come off the catalog through `web/lib/tagRequests.js`,
      built once in `play/thingRows.js` so the first paint and the `myThings()`
      re-read after every verb cannot disagree. It polls on its own minute, and
      only while it is open.
+
+     Above those, the item's **own** verbs: Play Instrument on a lute, Detonate
+     on a remote, Seal letter on a wax stamp. The list linking an item to its
+     verb is `db/lib/itemVerbs.js`, one line per link, keyed on a slug, a
+     prefix/suffix or a tag flag. It is resolved server-side in
+     `thingRows.js#thingVerbs` (`row.itemVerbs`), and each mode is drawn off
+     `actionRegistry.js` the way `HereList.js`'s person menu is: `show` hides,
+     `gate` greys with the registry's reason. The held-item flags those read
+     (`canTorture`, the collar three, `hasDatacard`, `hasStepstone`…) come from
+     `web/lib/itemPools.js`, the same helper the sheet calls, so an item's verb
+     is lit on the same facts in both places. The Trumpet and the Deep Beast
+     Horn are not registry modes; they sound through
+     `components/useSoundItem.js`, shared with their sheet buttons.
   4. **`DesiresBlock.js`** — the sheet's slot view, in the column: per slot
      either **Claim** or `Opens on turn N`, the last claim as a muted
      line, and the Addiction note on the bottom slot. The claim is the real
