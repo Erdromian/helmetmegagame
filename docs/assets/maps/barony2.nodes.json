@@ -14,7 +14,7 @@
       "code": "2",
       "zone": "undertown",
       "slug": "undertown-2",
-      "name": "Residences",
+      "name": "Old Town",
       "x": 7,
       "y": 12
     },
@@ -102,7 +102,7 @@
       "code": "D",
       "zone": "undertown",
       "slug": "undertown-d",
-      "name": "Alleys",
+      "name": "Hollows",
       "x": 18,
       "y": 9
     },
@@ -120,14 +120,6 @@
       "slug": "undertown-f",
       "name": "Hole in the Wall",
       "x": 15,
-      "y": 17
-    },
-    {
-      "code": "G",
-      "zone": "undertown",
-      "slug": "undertown-g",
-      "name": "Nook",
-      "x": 23,
       "y": 17
     },
     {
