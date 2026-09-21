@@ -14,6 +14,7 @@ import { loadMap } from "./actions";
 import { renderPlate, glyphPath } from "./plateRender";
 import useMapNarrow from "./useMapNarrow";
 import { travelTo } from "../chat/actions";
+import { nudgePhase } from "../../components/PhaseProvider";
 
 // The map. Every Location this character knows, drawn on the plate it was
 // measured against, with the ways between them.
@@ -748,6 +749,9 @@ export default function MapBoard({ onClose = null, initial = null }) {
     setNote(null);
     run(travelTo, { locationId: node.id, exert }, {
       onOk: (res) => {
+        // The place changed, so the ambience should change with it rather than at the
+        // next poll up to a minute from now (PhaseProvider.js#nudgePhase).
+        nudgePhase();
         setNote(res?.line ?? null);
         setSel(null);
         setNonce((n) => n + 1);

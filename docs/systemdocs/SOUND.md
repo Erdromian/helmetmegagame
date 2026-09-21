@@ -75,11 +75,13 @@ clicking the speaker has to stay a one-click mute.
 
 ## 3. The music bus
 
-Four layers. The **highest one holding a track is the one you hear**.
+Five layers. The **highest one holding a track is the one you hear**.
 
 ```
-ambient   the default bed — wind, room tone
-music     event and situation music — the lobby, a special room, a sting
+ambient   the bed the PLACE has — wind outside, a drone in the Depths, the
+          Cathedral's organ room every few minutes (§4b)
+music     the game's music — a track, then minutes of nothing, then another
+event     a siren, an alarm, a thing arriving. Loud and brief
 room      a jukebox, a gramophone: something switched on in the room
 player    somebody playing a piano or a guitar
 ```
@@ -92,15 +94,56 @@ A layer under the top one does **not stop** — it ducks to silence, so when the
 thing above it ends it is still where you left it. Takeover is a 1.2-second
 crossfade.
 
-`LAYER_MODE` is the one concession to bandwidth: `ambient` is `"continue"` (a
-wind loop restarted at 0:00 under a jukebox is audible), everything else is
-`"pause"` (a 4 MB song should not stream through ten silent minutes of somebody's
-data plan).
+`LAYER_MODE` is the one concession to bandwidth: `ambient` and `event` are
+`"continue"` (a wind loop restarted at 0:00 under a jukebox is audible, and a
+siren that pauses and resumes is a siren twice), everything else is `"pause"` (a
+4 MB song should not stream through ten silent minutes of somebody's data plan).
 
-**Only `ambient` and `music` have callers today.** `room` and `player` are
-reachable by `playOn("room", …)` and wired into the priority rule, waiting for
-the jukeboxes and the instruments. That is the whole of the scaffolding and it
-costs three strings.
+### The two rules on top, and they are both about what a person is doing
+
+**`room` and `player` are mutually exclusive.** Starting one stops the other.
+One jukebox or one lute, never a fight between them — winner-takes-all would
+have *hidden* the quieter of the two rather than resolved it, and "the
+gramophone is still going under the piano, you just cannot hear it" is a bug you
+find by turning the piano off.
+
+**`event` coexists with them rather than losing to them.** A siren does not stop
+being a siren because somebody is at the piano. So instead of ducking to nothing
+it drops to 0.35 of its own gain and its lowpass sweeps down to 700 Hz — a siren
+heard through a wall, which is the sound of both facts being true at once. Every
+other pairing is still winner-takes-all.
+
+Both live in one table rather than in branches, so a sixth bus is a line:
+
+```js
+const PERFORMANCE = new Set(["room", "player"]);
+const COEXIST = { event: { under: PERFORMANCE, duck: 0.35, hz: 700 } };
+```
+
+The filter is a `BiquadFilterNode` built **in `state()` or never** — a
+`MediaElementAudioSourceNode` is made once per element, and re-patching a live
+graph mid-fade is the one thing worth avoiding. Only a layer with a `COEXIST`
+entry gets one, parked at 20 kHz where a lowpass is inaudible. The sweep is
+*exponential*: pitch is logarithmic, so a linear ramp down from 20 kHz spends
+its whole first half in frequencies nobody was listening to and the muffle then
+arrives all at once at the end.
+
+`audibleNow(layer)` is the one place that answers "is this making a noise right
+now", and it exists because two things fire *later* — the deferred pause and
+`fadeOutAtEnd`'s timer — and both used to re-derive it as "am I the top layer".
+That was true while only one layer could ever be audible. It is not true now,
+and left alone it would pause a siren that is legitimately playing.
+
+**Nothing starts or stops instantly.** `playOn` floors its fade-in and
+`stopLayer` its fade-out at 250 ms, and `stopLayer`'s default is 600 ms — it
+used to be 0, which meant every caller that forgot cut the sound dead. The floor
+is applied in those two entry points and **nowhere else**: `ramp()` has
+deliberate zero-length sets in it (a gain reset before a fade-in, a filter put
+back to open) and a floor down there would leak the top of every track.
+
+**Only `ambient` and `music` have callers today.** `room`, `player` and `event`
+are reachable by `playOn("room", …)` and wired into the rules above, waiting for
+the jukeboxes, the instruments and the sirens.
 
 ### Muting, and where a track comes back
 
@@ -164,32 +207,52 @@ fade or a loop point by editing a number, never by editing control flow.
 `MusicDirector.js` — mounted once in the root layout, renders nothing — picks the
 program from the phase and runs it.
 
-| state | program |
-|---|---|
-| `CLOSED` | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
-| `LOBBY` | `song_game`, a 5-second tail, 15 seconds of nothing, again |
-| `RUNNING`/`ENDED` with no living character | `b12_combined_start` from 0:00, then 10 s, then repeatedly from **0:18** fading in over a second — the intro is odd, so only the first pass hears it |
-| anything else, or any `/gm/` path | silence |
+| state | character? | program |
+|---|---|---|
+| any `/gm/` path | either | silence |
+| `CLOSED` | either | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
+| `LOBBY` | no | `song_game`, a 5-second tail, 15 seconds of nothing, again |
+| `RUNNING`/`ENDED` | no | `b12_combined_start` from 0:00, then 10 s, then repeatedly from **0:18** fading in over a second — the intro is odd, so only the first pass hears it |
+| anything but `CLOSED` | **yes** | no phase tape — the PLACE speaks instead (§4b) |
+
+Read it top to bottom; that is the order the code asks in.
 
 The GM clause is worth knowing: a GM has no character of their own during a
 running game, so without it the character-creation loop would start under the
 audit desk.
 
+**A living character outranks the lobby**, and the reason is worth writing down
+because the row above looks like it changes the lobby. It does not. Creation is
+a hard phase gate — `RUNNING` or `ENDED`, or a GM
+(`character/createActions.js#creationOpen`) — Start Game creates no characters
+of its own, and rolling a role in the lobby only stamps a `LobbyEntry`. So
+`LOBBY` *with* a living character is reachable only by a GM who used the Skip
+button, which is somebody testing, and they were the one person being handed
+`song_game` instead of the place they were standing in.
+
+`CLOSED` still wins over a character, deliberately. That phase is the door being
+shut rather than a game in progress, and `white_waking` sits on the `ambient`
+layer there — the layer the place tape would want.
+
 ### The step table
 
 | key | meaning |
 |---|---|
-| `src` / `pick` | one file, or an array chosen from per entry (the wind beds) |
+| `src` / `pick` | one file, or an array chosen from per entry, never the same one twice running |
 | `startAt` | seeds `currentTime`. This is the 0:18 |
 | `loop` | the element loops; only `holdMs` ends it |
 | `holdMs` | advance after N ms whatever the track is doing |
 | `fadeInMs` / `fadeOutMs` | gain ramps. The out ramp is read off `duration` when metadata lands, never guessed |
-| `gain` | per-step trim, multiplied by layer and master |
+| `gain` | per-step trim, multiplied by the file's measured level (§6), the layer and the master |
 | `once` | consumed on first entry, skipped thereafter |
 | `cooldownMs` | with `once`: the clock is stamped in `localStorage` the moment the step STARTS, so a refresh or another tab skips it until it expires. Rolled back if the run is cancelled inside the first 15 seconds, or if the music was never audible |
 | `silenceMs` | stop the layer, wait, continue |
 | `warmAtMs` | fetch the next step's file this far into this one |
 | `goto` | jump to an index. The only loop construct |
+
+**Any of `holdMs`, `silenceMs`, `fadeInMs`, `fadeOutMs`, `gain` and `warmAtMs`
+may be a `[min, max]` range** instead of a number, rolled once per entry. That
+is what keeps a sparse ambience from becoming a metronome — see §4b.
 
 **`once` is module scope** — a `Set` at the top of the file — so a *soft*
 navigation from `/character` to `/notes` does not replay it. On its own that
@@ -231,7 +294,86 @@ later, and leaks exactly the few milliseconds of intro the offset exists to skip
 
 ---
 
-## 5. How a page knows the phase
+## 4b. What a PLACE sounds like
+
+`web/app/components/placeAmbience.js`. The phase tapes in `musicProgram.js` are
+about *what is happening*; these are about *where you are standing*. Same step
+vocabulary, same `runProgram`, separate file — the two were never going to share
+a resolver.
+
+**Two shapes, and the difference between them is the whole design.**
+
+A **bed** is a long file, looped, very quiet, held for minutes and then
+crossfaded into a sibling. You should be able to forget a bed is on. If you
+notice it, it is too loud; the test is whether somebody reading a long message
+in the Depths finds it wearing after ten minutes.
+
+A **spot** is a short file and then minutes of *nothing*. The Cathedral's organ
+room; a drip in the Lifeweb. It is the older and better trick — a sound that
+arrives out of silence is heard properly, where the same sound on a loop stops
+being heard at all after the second pass. SS13 has run its generic ambience this
+way for years and it is still the thing people remember about the sound of that
+game.
+
+**Which shape a file wants is decided by how long it is**, and the rule is
+written down so the next person does not have to guess:
+
+| Length | Shape | Gap |
+|---|---|---|
+| under 20 s | a spot | 3–7 minutes |
+| 20–60 s | one pass, looped a few times | 60–150 s |
+| 60 s and up | a bed | 20–45 s between holds |
+
+**Every gap is a range, never a number.** The Cathedral exactly every five
+minutes is a clock, and scenery must not sound like a clock. `roll()` in
+`musicProgram.js` is what makes a range a range, and it is rolled **once per
+entry into a local** — the runner used to read `silenceMs`, `holdMs` and
+`fadeOutMs` twice each, and two different answers for one field is how a
+fade-out gets scheduled to end after the track it was fading.
+
+A `pick` never plays the same file twice running: it chooses uniformly from the
+*other* files, which is the same distribution as rerolling until it differs
+without the unbounded loop. The memory is module-scope rather than per run,
+because a run is re-entered constantly — a phase poll, a walk into the next cave
+— and a run's own memory would forget the last drip every time. The `warmAtMs`
+look-ahead passes `remember: false`, or the prefetch consumes the memory and
+reliably downloads the one file the next step is then guaranteed not to pick.
+
+### Resolution, and the one thing it cannot ask
+
+Most specific wins: **Location slug → attribute → Zone slug → `indoors`**. The
+attribute list is ordered rather than an object, because a place can carry
+several and the order is the answer.
+
+**There is no room.** `Character` has `locationId` and `zoneId` and no room
+column — which room you *hear* is the room you are *reading*, and that is
+`/chat`'s business, not the database's. So this resolves at Location level and
+above. A per-room sound needs a client overlay off `chat/openPlace.js`, and it
+belongs with the jukebox pass.
+
+The caller depends on the returned object's **identity**, never on the standing:
+every entry in the table is built once at module load, so two neighbouring caves
+resolve to the very same object and walking between them does not restart the
+bed underfoot.
+
+### Some places get no music, on purpose
+
+`music: false` says the general rotation does not play here at all — the
+**Caves**, the **Depths**, the **Lifeweb** and **Space**. Their whole feel is
+that nothing is keeping you company down there, and a tune arriving every few
+minutes says the opposite. Everywhere else gets the rotation over the top of its
+bed. Each is one boolean to reverse.
+
+The **Depot** is the one place whose bed is conditional: `train_loop` plays only
+while the train is actually standing at the platform, which is
+`db/lib/train.js#trainHere` and the first hour of the turn
+(`web/lib/gamePhase.js`). It has to stop, or "the train is in" stops meaning
+anything and becomes the Depot's permanent room tone. Rails empty, it is an
+ordinary cellar.
+
+---
+
+## 5. How a page knows the phase, and where it is standing
 
 `web/app/components/PhaseProvider.js`, mounted in the **root** layout — not
 `(app)`, because the closed door plays to people on `/handbook` and on the
@@ -244,7 +386,29 @@ faster.
 It asks two questions, not one, because **there is no CHARACTER_CREATION phase**
 — creation is what `/character` renders when the phase is not `LOBBY` and you
 have no living character (`LOBBY.md` §1). So `web/lib/gamePhase.js` returns
-`{ phase, hasCharacter }`.
+`{ phase, hasCharacter, standing }`.
+
+**Standing rides this payload rather than having a provider of its own.** The
+ambience bed is picked from it (§4b), and this is already the one query that
+runs on every page for exactly this purpose — a separate provider and a second
+poll would have been a second answer to a question being asked once a minute
+anyway. The character select widens by one join and no extra round trip, and
+what crosses to the client is slugs and booleans: never the `Location` row,
+which carries descriptions and stash contents the soundtrack has no business
+shipping to a browser. `useStanding()` is the hook.
+
+Two things that are easy to get wrong here:
+
+- **The poll preserves identity**, so an unchanged answer does not re-run every
+  effect downstream — which means the comparison has to cover *everything* in
+  the payload. It compared `phase` and `hasCharacter` alone, and adding standing
+  without extending it would have pinned the first location forever and left the
+  ambience playing the bed of a place the character walked out of an hour ago.
+- **A move is nudged, not waited for.** `nudgePhase()` fires one poll out of
+  turn from `travelTo`'s continuation, so walking somewhere is heard at once
+  rather than up to a minute later. One request per move actually made, and none
+  per navigation. Anything else that moves a character — an escort, an ambush,
+  the bot's picker — is caught by the ordinary poll.
 
 **`/api/character-version` cannot carry this**, which is worth writing down
 because it is the obvious idea: that route answers 403 "No living character"
@@ -255,18 +419,63 @@ about is a state where it 403s.
 
 ## 6. Assets
 
-`web/public/assets/music/` — the beds and the tracks, credited in the
-`ATTRIBUTION.md` beside them. `web/public/assets/sfx/` is the cue library and has
-its own.
+Three served folders, each with its own `ATTRIBUTION.md`:
+`web/public/assets/music/` (the rotation and the phase tapes),
+`web/public/assets/ambience/` (the beds and the spots) and
+`web/public/assets/sfx/` (the cue library).
 
-The two long tracks are about 6 MB together, so: `preload="none"` on every
-element, `src` set only when a step is about to start, and **never** a
-`<link rel="preload">` in the head — that would pull megabytes on every page view
-for a phase most viewers are not in. `warmAtMs` is the only prefetch, and a
-program has to ask for it.
+**What is served is not what is kept.** `assets/osw-sounds/` is the master
+library — byte-for-byte copies, outside `web/public` on purpose, pulled by
+`scripts/osw/export-sounds.py`. `scripts/audio/build-assets.sh` is what copies a
+chosen sound into a served folder, re-encoding it to **mono Ogg Vorbis at
+32 kHz** (about 36 kbps) as it goes. These play at −34 to −26 LUFS underneath
+everything else, and a 6 MB stereo master of a seven-minute ambient piece is six
+megabytes spent on detail nobody in that mix can hear; mono at 32 kHz keeps
+everything up to 16 kHz for a third of the size. It took the served set from
+about 60 MB to 25. `ffmpeg` is a dev tool — nothing in the repo builds or runs
+against it, and the committed outputs are what matter.
 
-A running player with a living character downloads **zero bytes** of music. Worth
-re-checking after any change to `resolveProgram`.
+`preload="none"` on every element, `src` set only when a step is about to start,
+and **never** a `<link rel="preload">` in the head — that would pull megabytes on
+every page view for a phase most viewers are not in. `warmAtMs` is the only
+prefetch and a program has to ask for it, which is also the answer to "should
+this preload": widen the `warmAtMs` instead. Post-re-encode a bed is a few
+hundred KB, so the fetch lands well inside the gap and the fade-in is never a
+buffering pause.
+
+**"A running player downloads zero bytes of music" is over**, and deliberately:
+that was true because a living character had no soundtrack at all. A player now
+holds one bed and, outside the quiet places, one track.
+
+### Levels
+
+`web/app/components/musicGain.js` is `sfx.js`'s `GAIN` table for the other
+engine — each file's measured loudness, and the gain that puts it on the tier
+its *job* wants. Measured with `scripts/audio/measure.sh`, which is ffmpeg's
+`ebur128`: true EBU R128 integrated loudness, not an eyeballed peak. The formula
+is `sfx.js`'s, `10^((target − measured)/20)`, clamped to 1 — nothing here is
+ever turned *up*, because amplifying a quiet file amplifies its own noise floor
+with it. A master below the quietest tier gets its lift baked in once at encode
+time instead (`pathologic.ogg`, +8.7 dB).
+
+| Target | What |
+|---|---|
+| −34 LUFS | a bed you should be able to forget is on |
+| −30 LUFS | a spot, which arrives out of nothing and may be heard |
+| −26 LUFS | music, a jukebox, an instrument — background, but the loud end of it |
+| −22 LUFS | an event. A siren is made to be heard |
+
+**This is what "the music volume is bad" was.** The files measured twenty
+decibels apart — `white_waking` at −17.1 LUFS against `wind_2_2` at −37.3 — and
+four hand-set numbers in `musicProgram.js` were doing the levelling job for all
+of them. Those four are gone. A step's `gain` now reads as "and this one a
+little under *that*" rather than as an absolute somebody has to re-derive every
+time a file is re-encoded, and most steps carry none at all.
+
+To add a file: drop it in, run `measure.sh`, paste its line into `musicGain.js`.
+A file missing from the table plays at its step gain alone — the fallback is 1
+rather than something cleverer precisely so an unmeasured file is obviously
+wrong instead of quietly almost-right.
 
 ---
 
@@ -281,5 +490,10 @@ re-checking after any change to `resolveProgram`.
   registered until a gesture lands, so the next click works.
 - **Ogg Vorbis is what the app serves**, which Safari does not play. That is true
   of all 90-odd existing cues too, not something the music introduced.
+- **A hard reload can play the creation tape for up to a minute.** The root
+  layout's streamed answer sometimes comes back with no session where the route
+  handler's `auth()` sees one, so the client briefly believes the viewer has no
+  character. The poll corrects it. This predates the place ambience — it was
+  simply invisible while a living character heard nothing either way.
 - **`prefers-reduced-motion` is not consulted.** It is about motion. The mute
   switch is the accessibility answer and it is one click from every page.
