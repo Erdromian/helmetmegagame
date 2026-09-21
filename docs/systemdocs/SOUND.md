@@ -166,7 +166,7 @@ program from the phase and runs it.
 
 | state | program |
 |---|---|
-| `CLOSED` | wind beds for about a minute, then, **at most once an hour per browser**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
+| `CLOSED` | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
 | `LOBBY` | `song_game`, a 5-second tail, 15 seconds of nothing, again |
 | `RUNNING`/`ENDED` with no living character | `song_game` from 0:00, then 10 s, then repeatedly from **0:18** fading in over a second — the intro is odd, so only the first pass hears it |
 | anything else, or any `/gm/` path | silence |
@@ -186,7 +186,7 @@ audit desk.
 | `fadeInMs` / `fadeOutMs` | gain ramps. The out ramp is read off `duration` when metadata lands, never guessed |
 | `gain` | per-step trim, multiplied by layer and master |
 | `once` | consumed on first entry, skipped thereafter |
-| `cooldownMs` | with `once`: the clock only starts once the step has been played HALFWAY through, and is kept in `localStorage`, so a refresh or another tab skips it until it expires |
+| `cooldownMs` | with `once`: the clock is stamped in `localStorage` the moment the step STARTS, so a refresh or another tab skips it until it expires. Rolled back if the run is cancelled inside the first 15 seconds, or if the music was never audible |
 | `silenceMs` | stop the layer, wait, continue |
 | `warmAtMs` | fetch the next step's file this far into this one |
 | `goto` | jump to an index. The only loop construct |
@@ -197,6 +197,21 @@ reset on every refresh, and players heard `white_waking` constantly, so the step
 also carries `cooldownMs: 3_600_000`: the time it played is kept in
 `localStorage` (`bascinet:music:waking`), and a refresh or a second tab inside
 the hour skips it.
+
+**The stamp is written when the step starts, not when it finishes**, and that is
+the whole of why the hour holds. It used to be paid halfway through the track,
+which reads as the kinder rule and was not: `white_waking` is about five
+minutes, so the hour was only ever paid by somebody who sat on the page for four
+solid minutes, and every refresh before that heard it again. What is left of the
+kindness is a **rollback** — `forget()` — on the run's cancel: a swell cut off
+inside its first 15 seconds, or one that played to a muted bus, gives the hour
+back. A hard tab close runs no React cleanup, so closing the page two seconds in
+keeps the hour. That is the deliberate trade.
+
+**It is per browser profile, not per person.** The key is plain `localStorage`
+with no account in it — the same rule as the switches in §2, and for the same
+reason. Another browser, a private window or cleared site data starts fresh, and
+that is not a bug to fix by hanging a column off `Character`.
 
 **The hour is only paid if it was heard.** `onPlayedFraction(layer, 0.5, …)` in
 `music.js` watches the element's own `currentTime`, so the stamp is written

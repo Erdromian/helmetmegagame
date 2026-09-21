@@ -417,6 +417,28 @@ export function onPlayedFraction(layer, fraction, cb) {
   };
 }
 
+/**
+ * Fires once the layer's track has played at least `seconds` of itself. Returns an
+ * unsubscribe. The same shape as onPlayedFraction, but an absolute bar — for a threshold
+ * that should not scale with how long the file happens to be.
+ */
+export function onPlayedSeconds(layer, seconds, cb) {
+  const entry = state(layer);
+  let done = false;
+  const check = () => {
+    if (done) return;
+    if (!(entry.el.currentTime >= seconds)) return;
+    done = true;
+    entry.el.removeEventListener("timeupdate", check);
+    cb();
+  };
+  entry.el.addEventListener("timeupdate", check);
+  return () => {
+    done = true;
+    entry.el.removeEventListener("timeupdate", check);
+  };
+}
+
 /** Called when the layer's track ends. Returns an unsubscribe. */
 export function onEnded(layer, cb) {
   const entry = state(layer);

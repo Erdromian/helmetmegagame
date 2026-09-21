@@ -4,11 +4,12 @@ import {
   LAYERS,
   fadeOutAtEnd,
   onEnded,
-  onPlayedFraction,
+  onPlayedSeconds,
   playOn,
   stopLayer,
   warm,
 } from "./music";
+import { musicIsAudible } from "./soundStore";
 
 // What plays, and when. See docs/systemdocs/SOUND.md §4 for the full step table.
 //
@@ -51,8 +52,8 @@ export const PROGRAMS = {
         fadeInMs: 3000,
         fadeOutMs: 4000,
         once: true,
-        // Once an hour per browser, not once per page load — a refresh used to replay it.
-        // The hour only starts once it has actually been heard halfway through.
+        // Once an hour per browser profile, not once per page load — a refresh used to
+        // replay it. The hour is stamped the moment this starts; see remember().
         cooldownMs: 3_600_000,
       },
       { goto: 0 },
@@ -106,8 +107,11 @@ function spend(step) {
   consumed.add(step.id);
 }
 
-// The cooldown is only paid once the step has been HEARD, so closing the page partway
-// through does not cost you the next hour's waking.
+// The cooldown is stamped the moment the step STARTS, and rolled back by forget() if it
+// turns out nobody heard it. It used to be paid halfway through instead, which sounds
+// kinder and was not: `white_waking` is about five minutes, so the hour was never paid
+// unless somebody sat on the page for four solid minutes, and every refresh before that
+// replayed it — the `consumed` Set above is all a reload leaves behind.
 function remember(step) {
   if (!step.cooldownMs) return;
   try {
@@ -116,6 +120,20 @@ function remember(step) {
     // Storage blocked — the page-load rule above still holds.
   }
 }
+
+function forget(step) {
+  if (!step.cooldownMs) return;
+  try {
+    window.localStorage.removeItem(playedKey(step.id));
+  } catch {
+    // Nothing was written either, so there is nothing to undo.
+  }
+}
+
+// How much of a cooldown step counts as having heard it. The fade-in alone is 3 s, so this
+// is unambiguously "this started" without being a fraction of a file whose length we would
+// then have to think about.
+const HEARD_MS = 15_000;
 
 /** Which tape, if any, this state should be playing. */
 export function resolveProgram(phase, pathname = "") {
@@ -149,8 +167,12 @@ export function runProgram(program, { onStep } = {}) {
   let warmTimer = null;
   let dropEnded = null;
   let dropFade = null;
-  let dropHalf = null;
+  let dropHeard = null;
   let live = true;
+  // The cooldown step currently playing, and whether it has been heard for long enough to
+  // keep its stamp. Read only by the cancel below.
+  let pending = null;
+  let heard = false;
 
   const clear = () => {
     if (timer) window.clearTimeout(timer);
@@ -161,8 +183,8 @@ export function runProgram(program, { onStep } = {}) {
     dropEnded = null;
     if (dropFade) dropFade();
     dropFade = null;
-    if (dropHalf) dropHalf();
-    dropHalf = null;
+    if (dropHeard) dropHeard();
+    dropHeard = null;
   };
 
   const advance = () => {
@@ -202,6 +224,13 @@ export function runProgram(program, { onStep } = {}) {
     }
 
     if (step.once) spend(step);
+    // Stamped on entry, so a refresh ten seconds in cannot hear this again. The rollback
+    // below is what keeps that from being unfair.
+    if (step.cooldownMs) {
+      pending = step;
+      heard = false;
+      remember(step);
+    }
 
     const src = pickSrc(step);
     if (!src) {
@@ -237,8 +266,14 @@ export function runProgram(program, { onStep } = {}) {
       return;
     }
 
-    // Halfway through is what pays the cooldown — see remember().
-    if (step.cooldownMs) dropHalf = onPlayedFraction(layer, 0.5, () => remember(step));
+    // Not what pays the cooldown any more — entry did that. This only decides whether the
+    // stamp survives a cancel. Audibility is read HERE rather than at entry, so somebody
+    // who unmutes partway through still counts as having heard it.
+    if (step.cooldownMs) {
+      dropHeard = onPlayedSeconds(layer, HEARD_MS / 1000, () => {
+        if (musicIsAudible()) heard = true;
+      });
+    }
     if (step.fadeOutMs) dropFade = fadeOutAtEnd(layer, step.fadeOutMs);
     dropEnded = onEnded(layer, advance);
   };
@@ -247,6 +282,12 @@ export function runProgram(program, { onStep } = {}) {
 
   return () => {
     live = false;
+    // Cut off before anybody really heard it — give the hour back. Only here, never in
+    // clear(), which runs on every ordinary step change. A hard tab close runs no React
+    // cleanup at all, so closing the page two seconds in keeps the hour: being foolproof
+    // matters more here than being generous, and it used to be the other way round.
+    if (pending && !heard) forget(pending);
+    pending = null;
     clear();
     stopLayer(layer, { fadeMs: 600 });
   };
