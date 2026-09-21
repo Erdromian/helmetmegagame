@@ -229,7 +229,7 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players, refs
       switchTable.push({ farmers: F, tobacco: k, fed, hungry: players - fed, coin: k * tobacco.perTurn, coinFert: k * tobacco.perTurnFert });
     }
   }
-  const refsOut = { factoryShift: refs.factoryShift ?? null, prospector: refs.prospector ?? null, miner: refs.miner ?? null };
+  const refsOut = { factoryShift: refs.factoryShift ?? null, factoryPerTurn: refs.factoryPerTurn ?? null, prospector: refs.prospector ?? null, miner: refs.miner ?? null };
 
   // ---- what a cook adds to a farm action's harvest -------------------------------------------------------------
   const cropsPerAction = harvest;

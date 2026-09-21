@@ -287,10 +287,10 @@ Factory roles all start with gloves.
 its food crops do not sell at all (`SOILERY.md` §6) — a Farm action sows up to
 50 plants, 3 crops each, about 5 in 6 surviving, so it harvests about 125 crops
 that are food rather than cash. **Tobacco is the only crop that pays coin**, at
-1 ¢ a leaf and about 67 leaves an action (`SOILERY.md` §6a): about 67 ¢ an
+1 ¢ a leaf and about 33 leaves an action (`SOILERY.md` §6a): about 33 ¢ an
 action, and since farming climbs the same every-other-turn ladder the Factory
-does, about **31 ¢ a turn**. That is below a refiner's 40 ¢ a shift but close to
-their 20 ¢ a turn, and a tobacco field feeds nobody — which is the trade §1 of `SOILERY.md` exists to
+does, about **17 ¢ a turn**. That is a little under a refiner's 20 ¢ a turn (40 ¢ a
+shift), and a tobacco field feeds nobody — which is the trade §1 of `SOILERY.md` exists to
 pose. A wagon still dwarfs both: 300 ¢ is the point of the place.
 
 The 7 ¢ price made a supplied refining day 56 ¢ — three times the best

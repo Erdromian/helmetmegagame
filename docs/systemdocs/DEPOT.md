@@ -260,10 +260,8 @@ says so. With no public room there, the crate refuses to open.
 
 A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
 sync refuses it on a tag with no `depotPrice`, since the station cannot ship
-what it does not stock. Currently sealed, **15 wares**: the seven firearms (Neoclassic R&W10,
-Neoclassic Duelista, Sawn-Off Double Barrel, ML-23, CTT4&3 Rifle, Kpfw-6
-Avtomat, Disabler), the Flamethrower, the Tear Gas Grenade, the Adamantium
-Sword, both Infantry Armours, Soporific, Phrygian Tears and the Homunculus.
+what it does not stock. Currently sealed: the two firearms, the flamethrower,
+Light Infantry Armour, Soporific, Phrygian Tears, the Homunculus.
 
 ## 0e. The manifests
 
@@ -1040,7 +1038,7 @@ behind, and nothing else:
 
 | Skill gate | Cumulative pt | Rate, ¢ per Move | Where |
 |---|---|---|---|
-| `crafting` | 2 | 2 | Longbow, Shield, Pavise; the quarter-Move pieces clear 0 |
+| `crafting` | 2 | 2 | Hat, Longbow, Shield, Pavise; the quarter-Move pieces clear 0 |
 | `smithing`, `brewing-basic` | 5 | 4 | Simple gear, Cleaning Powder, Molotov Cocktail |
 | `smithing-skilled`, `brewing-skilled` | 10 | 8 | Moderate to Exceptional gear, the ordinary brews |
 | `brewing-expert` | 15 | 12 | Cybernetic limbs, Portable Surgical Pack |
@@ -1069,6 +1067,14 @@ whole ¢ of profit or none, so it moves in steps of 4 ¢ a turn; that is why the
 pieces of `crafting` and `smithing` sell for exactly their material. Round those DOWN when
 they will not land clean, never up, or the rung above is overtaken.
 
+**The entry rung nets 1 to 2 ¢ a turn after the cut, where whole ¢ allow it.** A one-Move piece that
+clears 2 ¢ keeps 1 and a half-Move piece that clears 2 ¢ keeps 1 an item, 2 a turn. The Hat (4 → 5 ¢),
+Longbow, Shield and Pavise (16 → 17 ¢) and Cleaning Powder (4 → 5 ¢) had been left at 1 ¢ of profit,
+which the Merchant's minimum cut takes whole, so a maker who sold them to him earned nothing. They
+clear 2 ¢ a Move now: 1 ¢ a turn after the cut for the four crafted pieces and 2 for Cleaning Powder.
+The quarter-Move pieces cannot follow, because a quarter-Move piece that clears 2 ¢ keeps 1 and
+four fit in a turn, so 4 ¢ a turn, as much as a `smithing` maker; they stay at 0.
+
 **Set a price by the WAGE, not by a multiplier on the price.** The margin is a small
 difference of two larger numbers, so a percentage on the price lands as a wildly uneven
 percentage on the wage. To reprice a recipe, read the rate off the table, apply the formula,
@@ -1077,7 +1083,8 @@ and run `npm run economy:report`: its claims table fails if any recipe drifts of
 or if a higher rung pays less than a lower one.
 
 **Prices stay, and the material cost moves.** No recipe that works no input had its sell
-price changed, and no shelf price moved except Iron's. What changed is `resourceCost`: it was
+price changed, and no shelf price moved except Iron's, apart from the five entry pieces
+below. What changed is `resourceCost`: it was
 fitted to the price, as close to the rung as a whole ⬢ allows, so 59 recipes now land on the
 table. Examples: Simple gear 6 → 4 ⬢, Moderate 13 → 7, High Quality 25 → 15, Musketoon 28 → 15,
 Bore Pistol 18 → 9, Workshop Equipment 25 → 15, Longbow and Shield 6 → 5, the Dead Simple pieces

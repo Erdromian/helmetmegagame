@@ -133,7 +133,7 @@ test("reap: fertilized doubles the whole yield, never just one unit of it", () =
 });
 
 test("reapFor: looks a crop's own numbers up by slug, and falls back for an unknown one", () => {
-  assert.equal(reapFor("tobacco", 40, () => 0.99), 80);
+  assert.equal(reapFor("tobacco", 40, () => 0.99), 40);
   assert.equal(reapFor("wheat", 40, () => 0.99), 40 * CROPS_PER_PLANT);
   // A renamed or missing tag reaps on the ordinary numbers rather than throwing
   // — this runs at turn-push, where a throw would lose the whole harvest.

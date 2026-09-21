@@ -28,7 +28,7 @@ const CROPS = [
   { sowing: "sowing-onion", crop: "onion" },
   { sowing: "sowing-plump-helmet", crop: "plump-helmet" },
   { sowing: "sowing-pigtails", crop: "pigtails" },
-  { sowing: "sowing-tobacco", crop: "tobacco", cropsPerPlant: 2, witherIn: 3 },
+  { sowing: "sowing-tobacco", crop: "tobacco", cropsPerPlant: 1, witherIn: 3 },
 ];
 
 // Accepts the CharacterTag[] shape used everywhere else in the app

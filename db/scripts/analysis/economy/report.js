@@ -196,12 +196,26 @@ const tobFertW = wage("Farmer, tobacco + Fertilizer");
 const trinketW = wage("Smith forging Trinkets (Smithing II, shelf stones)");
 const minerForgeW = wage("Miner-smith forging own stones (Caves, pick only)");
 const factW = wage("Factory solo");
+const wageOrder = [
+  ["fertilized tobacco", tobFertW],
+  ["tobacco", tobW],
+  ["food farming", farmW],
+  ["a solo Factory worker", factW],
+  ["a Prospector", proW],
+  ["a miner with a pickaxe", floorW],
+]
+  .sort((a, b) => b[1] - a[1])
+  .map(([label, v]) => `${label} ${fmt(v)} ¢`)
+  .join(", ");
 const baselineOf = (role) => model.baselines.find((b) => b.role === role);
 const potatoFood = model.foodSupply.find((f) => f.crop === "potato");
 const failing = model.claims.filter((c) => !c.ok);
 
+const ST = model.starting;
+const startingHeadline = `the ${ST.town.seats} named seats (${ST.unlimited.length} more roles have no cap) begin with about <b>${fmt(ST.town.funds, 0)} ¢</b> (${fmt(ST.town.bank, 0)} in banks, ${fmt(ST.town.coinHand, 0)} in hand) and <b>${fmt(ST.town.resources, 0)} ⬢</b>, and only ${ST.roles.filter((r) => r.food > 0 && r.seats > 0).reduce((n, r) => n + r.seats, 0)} carry any food. A character is Hungry after turn ${ST.noFoodHungry}, <b>Starving after turn ${ST.noFoodStarve}</b> and Dying after turn ${ST.noFoodDying} on nothing, so ${fmt(ST.starveRows.find((r) => r.turn === ST.noFoodStarve)?.seats ?? 0, 0)} of ${ST.town.seats} seats are Starving at the close of turn ${ST.noFoodStarve} unless they eat. All the coin in the town buys ${fmt(ST.town.funds / ST.costPerPersonTurn, 0)} person-turns of ration, which is ${fmt(ST.town.funds / ST.costPerPersonTurn / ST.town.seats, 1)} turns for each named seat.`;
 const headlines = [
-  `Money a turn is worth: a miner with just a pickaxe earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer growing food <b>${fmt(farmW)} ¢</b> (valued at the Ration Box's price, since food crops do not sell), a farmer growing <b>tobacco ${fmt(tobW)} ¢, or ${fmt(tobFertW)} ¢ with Fertilizer</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. Tobacco is the best wage in the game and the Factory is the second: a fertilized tobacco farmer earns ${fmt(tobFertW / factW, 1)} times a Factory worker and ${fmt(tobFertW / proW, 0)} times the skilled miner.`,
+  `Money a turn is worth: a miner with just a pickaxe earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer growing food <b>${fmt(farmW)} ¢</b> (valued at the Ration Box's price, since food crops do not sell), a farmer growing <b>tobacco ${fmt(tobW)} ¢, or ${fmt(tobFertW)} ¢ with Fertilizer</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. Best to worst: ${wageOrder}. A fertilized tobacco farmer earns ${fmt(tobFertW / factW, 1)} times a Factory worker and ${fmt(tobFertW / proW, 1)} times a Prospector.`,
+  `The starting economy: ${startingHeadline}`,
   `Smithing's Trinkets, after the Merchant's cut: a Smithing II smith forging with shelf stones clears <b>${fmt(trinketW)} ¢ a turn</b>, and a miner who forges the stones they dig up earns <b>${fmt(minerForgeW)} ¢</b> instead of ${fmt(floorW)}. A Trinket is a whole Move and 4 ⬢, and the cash is set by a d6 and by the stones (see “Trinket forging”). Crafts are shown after the Merchant's half.`,
   `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns nothing from the counter, since no dish can be sold there, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
   `Mining is the only source of ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves) yet a median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
@@ -220,7 +234,7 @@ const headlines = [
 function sectionWages() {
   const rows = model.wages.map((w) => ({ label: w.key, value: w.value, color: w.baseline ? "var(--c1)" : "var(--c0)" }));
   return `<section><h2>What a turn is worth</h2>
-<p class="lede">Net ¢ per turn for a typical holder of each occupation, with every ⬢ a crafter spends valued at the Depot's <b>${resourceValue === "buy" ? `buy price (${params.rv.buy} ¢)` : `sell-back (${params.rv.sell} ¢)`}</b>: what a ⬢ costs somebody who needs one and holds none. A ⬢ a Prospector brings up is valued at the <b>${params.minedValue === "mid" ? `midpoint (${fmt(params.rv.mid, 1)} ¢)` : `${params.minedValue === "buy" ? "buy price" : "sell-back"} (${fmt(params.rvMined, 1)} ¢)`}</b>, what it should barter for. <code>--resource-value ${resourceValue === "buy" ? "sell" : "buy"}</code> and <code>--mined-value buy|sell</code> move them. The gold bars are the <b>easy-craft baselines</b> (next section). Mining is halved for the fatigue duty cycle and farming is spread over its lockout.</p>
+<p class="lede">Net ¢ per turn for a typical holder of each occupation, with every ⬢ a crafter spends valued at the Depot's <b>${resourceValue === "buy" ? `buy price (${params.rv.buy} ¢)` : `sell-back (${params.rv.sell} ¢)`}</b>: what a ⬢ costs somebody who needs one and holds none. A ⬢ a Prospector brings up is valued at the <b>${params.minedValue === "mid" ? `midpoint (${fmt(params.rv.mid, 1)} ¢)` : `${params.minedValue === "buy" ? "buy price" : "sell-back"} (${fmt(params.rvMined, 1)} ¢)`}</b>, what it should barter for. <code>--resource-value ${resourceValue === "buy" ? "sell" : "buy"}</code> and <code>--mined-value buy|sell</code> move them. The gold bars are the <b>easy-craft baselines</b> (next section). Mining, refining and farming are each halved for the fatigue duty cycle.</p>
 ${barChart({ rows })}</section>`;
 }
 
@@ -637,12 +651,12 @@ function sectionCooking() {
     { h: "Where it comes from", get: (a) => a.source },
   ];
   return `<section><h2>Cooks against farmers</h2>
-<p class="lede">A person burns ${params.hungerDecay} hunger a turn, so ${players} players need <b>${fmt(C.need, 0)} hunger</b> a turn. One Farm action harvests about ${fmt(C.harvest, 1)} crops (${params.cropsPerPlant ?? 1} a plant), every third turn. <b>Yes, a cook is worth more than another farmer at the margin</b>: cooking a pair of crops into ${esc(C.cropDish?.name ?? "a dish")} gives ${fmt(C.cropDish?.hungerPerUnit, 1)} hunger a crop against ${fmt(raw.hungerPerCrop, 0)} for a raw potato (×${fmt(C.cropDish?.hungerPerUnit / raw.hungerPerCrop, 2)}) and ${fmt(rawWheat.hungerPerCrop, 0)} for raw wheat (×${fmt(C.cropDish?.hungerPerUnit / rawWheat.hungerPerCrop, 1)}), for 0.05 of a Move a dish. That takes the farmers needed from ${fmt(raw.farmers, 0)} to <b>${fmt(cooked.farmers, 1)}</b> (${fmt(fert.farmers, 1)} with Fertilizer), and the cooking is <b>${fmt(cooked.cooks, 1)} full-time cooks</b> (a cook works one Move a turn, and crafting never tires anyone) and ${cooked.cookMoves <= cooked.freeFarmerMoves ? `fits in the Moves a farmer has spare between Farm actions (${fmt(cooked.cookMoves, 1)} needed, ${fmt(cooked.freeFarmerMoves, 1)} spare), so a farmer-cook adds no headcount` : `needs ${fmt(cooked.cookMoves, 1)} Moves a turn against ${fmt(cooked.freeFarmerMoves, 1)} the farmers have spare, so about ${fmt((cooked.cookMoves - cooked.freeFarmerMoves), 1)} Moves of cooking a turn have to come from somebody else: the farmers can no longer cook it all themselves`}. What cooking cannot do is replace the fields: it multiplies a harvest and never makes one.</p>
+<p class="lede">A person burns ${params.hungerDecay} hunger a turn, so ${players} players need <b>${fmt(C.need, 0)} hunger</b> a turn. One Farm action harvests about ${fmt(C.harvest, 1)} crops (${params.cropsPerPlant ?? 1} a plant), every other turn. <b>Yes, a cook is worth more than another farmer at the margin</b>: cooking a pair of crops into ${esc(C.cropDish?.name ?? "a dish")} gives ${fmt(C.cropDish?.hungerPerUnit, 1)} hunger a crop against ${fmt(raw.hungerPerCrop, 0)} for a raw potato (×${fmt(C.cropDish?.hungerPerUnit / raw.hungerPerCrop, 2)}) and ${fmt(rawWheat.hungerPerCrop, 0)} for raw wheat (×${fmt(C.cropDish?.hungerPerUnit / rawWheat.hungerPerCrop, 1)}), for 0.05 of a Move a dish. That takes the farmers needed from ${fmt(raw.farmers, 0)} to <b>${fmt(cooked.farmers, 1)}</b> (${fmt(fert.farmers, 1)} with Fertilizer), and the cooking is <b>${fmt(cooked.cooks, 1)} full-time cooks</b> (a cook works one Move a turn, and crafting never tires anyone) and ${cooked.cookMoves <= cooked.freeFarmerMoves ? `fits in the Moves a farmer has spare between Farm actions (${fmt(cooked.cookMoves, 1)} needed, ${fmt(cooked.freeFarmerMoves, 1)} spare), so a farmer-cook adds no headcount` : `needs ${fmt(cooked.cookMoves, 1)} Moves a turn against ${fmt(cooked.freeFarmerMoves, 1)} the farmers have spare, so about ${fmt((cooked.cookMoves - cooked.freeFarmerMoves), 1)} Moves of cooking a turn have to come from somebody else: the farmers can no longer cook it all themselves`}. What cooking cannot do is replace the fields: it multiplies a harvest and never makes one.</p>
 ${table({ cols: stratCols, rows: C.strategies, id: "cookstrat" })}
 ${C.boxStrategy ? `<p class="lede">${esc(C.boxStrategy.note)} A Ration Box eater needs no farmer, so the Depot is the third way to be fed.</p>` : ""}
-<p class="lede">Per Move, farming still wins: one Farm action is ${fmt(A.farmPersonTurnsPerMove, 1)} person-turns of food for a Move, and the cooking on that harvest adds ${fmt(A.gainPersonTurns, 1)} person-turns for ${fmt(A.movesPerAction, 2)} Moves, ${fmt(A.cookPersonTurnsPerMove, 1)} a Move. But Moves are not what limits a farmer (the lockout is), and the raw diet costs −10 mood a bite: ${fmt(raw.bitesPerPersonTurn, 1)} bites a person-turn is <b>${fmt(raw.moodPerPersonTurn, 0)} mood</b>, against ${fmt(cooked.moodPerPersonTurn, 0)} for one cooked bite.</p>
+<p class="lede">Per Move, farming still wins: one Farm action is ${fmt(A.farmPersonTurnsPerMove, 1)} person-turns of food for a Move, and the cooking on that harvest adds ${fmt(A.gainPersonTurns, 1)} person-turns for ${fmt(A.movesPerAction, 2)} Moves, ${fmt(A.cookPersonTurnsPerMove, 1)} a Move. But Moves are not what limits a farmer (the fatigue ladder is), and the raw diet costs −10 mood a bite: ${fmt(raw.bitesPerPersonTurn, 1)} bites a person-turn is <b>${fmt(raw.moodPerPersonTurn, 0)} mood</b>, against ${fmt(cooked.moodPerPersonTurn, 0)} for one cooked bite.</p>
 ${C.tobacco ? `<h3>Tobacco, the cash crop</h3>
-<p class="lede">Tobacco is the one crop that pays cash: <b>${fmt(C.tobacco.price, 0)} ¢ a leaf</b> to the Depot, ${fmt(C.tobacco.leavesPerPlant, 0)} leaves a plant, and a plant fails 1 time in ${C.tobacco.witherIn}, so a field of ${C.tobacco.plants} gives about ${fmt(C.tobacco.leaves, 0)} leaves, <b>${fmt(C.tobacco.revenue, 0)} ¢ a harvest</b> and ${fmt(C.tobacco.netAction, 0)} after the seed bag. On the 3-turn lockout that is <b>${fmt(C.tobacco.perTurn, 1)} ¢ a turn</b>, against ${fmt(C.refs.factoryShift, 0)} for a Factory shift, ${fmt(C.refs.prospector, 1)} for a Prospector and ${fmt(C.refs.miner, 1)} for a miner with a pick. <b>Fertilizer is the bigger lever on tobacco</b> than on food: it stops the wither die that kills 1 plant in ${C.tobacco.witherIn}, so a field gives about ${fmt(C.tobacco.leavesFert, 0)} leaves and the ${fmt(C.tobacco.fertCost, 0)} ¢ sack adds ${fmt(C.tobacco.fertGainPerAction, 0)} ¢ a harvest, ${fmt(C.tobacco.perTurnFert, 1)} ¢ a turn with it, <b>${fmt(C.tobacco.perTurnFert / C.refs.factoryShift, 1)} times the Factory</b>. The Depot buys any number of leaves, so every tobacco farmer is a coin faucet of that size. The seed bag costs ${fmt(C.tobacco.seed, 0)} ¢ and sells back for ${C.tobacco.seedResale ?? "—"}.</p>
+<p class="lede">Tobacco is the one crop that pays cash: <b>${fmt(C.tobacco.price, 0)} ¢ a leaf</b> to the Depot, ${fmt(C.tobacco.leavesPerPlant, 0)} leaves a plant, and a plant fails 1 time in ${C.tobacco.witherIn}, so a field of ${C.tobacco.plants} gives about ${fmt(C.tobacco.leaves, 0)} leaves, <b>${fmt(C.tobacco.revenue, 0)} ¢ a harvest</b> and ${fmt(C.tobacco.netAction, 0)} after the seed bag. Working every other turn that is <b>${fmt(C.tobacco.perTurn, 1)} ¢ a turn</b>, against ${fmt(C.refs.factoryPerTurn, 0)} for a Factory worker (${fmt(C.refs.factoryShift, 0)} a shift, on the same ladder), ${fmt(C.refs.prospector, 1)} for a Prospector and ${fmt(C.refs.miner, 1)} for a miner with a pick. <b>Fertilizer is the bigger lever on tobacco</b> than on food: it stops the wither die that kills 1 plant in ${C.tobacco.witherIn}, so a field gives about ${fmt(C.tobacco.leavesFert, 0)} leaves and the ${fmt(C.tobacco.fertCost, 0)} ¢ sack adds ${fmt(C.tobacco.fertGainPerAction, 0)} ¢ a harvest, ${fmt(C.tobacco.perTurnFert, 1)} ¢ a turn with it, <b>${fmt(C.tobacco.perTurnFert / C.refs.factoryShift, 1)} times the Factory</b>. The Depot buys any number of leaves, so every tobacco farmer is a coin faucet of that size. The seed bag costs ${fmt(C.tobacco.seed, 0)} ¢ and sells back for ${C.tobacco.seedResale ?? "—"}.</p>
 ${table({
     cols: [
       { h: "A farmer grows", get: (r) => r.label },
@@ -734,6 +748,89 @@ ${table({ cols: cols(true), rows: gated, id: "desiregated" })}
 <h3>Once per game, and the big tickets</h3>
 <p class="lede">A Motorcycle is 191 ¢ at the shelf and sells back for 115, so the Desire costs about ${fmt(bigTicket.find((b) => b.slug === "metal-ride")?.netCoin, 0)} ¢ for 3 points (pusher only). The tier 4 and 5 goals (a manor, buying your freedom, the Arkenstone) are not on any shelf and are not priced here.</p>
 ${table({ cols: cols(true), rows: bigTicket, id: "desirebig" })}
+</section>`;
+}
+
+function sectionStarting() {
+  const S = ST;
+  const seatsOf = (r) => (r.unlimited ? "no cap" : r.seats);
+  const roomsText = (r) => {
+    if (!r.rooms.length) return "none";
+    const top = [...r.rooms].sort((a, b) => b.resources + b.coin + b.food - (a.resources + a.coin + a.food)).slice(0, 4).map((x) => x.name);
+    return `${r.rooms.length}: ${top.join(", ")}${r.rooms.length > 4 ? `, +${r.rooms.length - 4} more` : ""}`;
+  };
+  const keyedText = (r) => {
+    const bits = [];
+    if (r.keyedResources) bits.push(`${fmt(r.keyedResources, 0)} ⬢`);
+    if (r.keyedCracked) bits.push(`${fmt(r.keyedCracked, 0)} ⬢ in items`);
+    if (r.keyedCoin) bits.push(`${fmt(r.keyedCoin, 0)} ¢`);
+    if (r.keyedFood) bits.push(`${fmt(r.keyedFood, 0)} hunger`);
+    if (r.keyedKit.length) bits.push(`kit: ${r.keyedKit.slice(0, 4).join(", ")}${r.keyedKit.length > 4 ? ", …" : ""}`);
+    return bits.length ? bits.join(", ") : "nothing";
+  };
+  const roleCols = [
+    { h: "Role", get: (r) => r.name },
+    { h: "Group", get: (r) => r.groupName },
+    { h: "Seats", num: true, get: seatsOf, sort: (r) => r.seats ?? 999 },
+    { h: "Bank ¢", num: true, get: (r) => (r.account ? r.bank : "no account"), sort: (r) => r.bank },
+    { h: "In hand ¢", num: true, get: (r) => r.coinHand, sort: (r) => r.coinHand },
+    { h: "⬢ on person", num: true, get: (r) => (r.cracked ? `${r.resources} (+${r.cracked} in items)` : r.resources), sort: (r) => r.resources + r.cracked },
+    { h: "Food on person", get: (r) => (r.food ? `${fmt(r.food, 0)} hunger: ${r.foodItems.join(", ")}` : "none"), sort: (r) => r.food },
+    { h: "Starving at turn", num: true, get: (r) => (Number.isFinite(r.starveTurn) ? r.starveTurn : "never"), sort: (r) => r.starveTurn },
+    { h: "Dying at turn", num: true, get: (r) => (Number.isFinite(r.dyingTurn) ? r.dyingTurn : "never"), sort: (r) => r.dyingTurn },
+    { h: "Turns of food if all coin is spent on rations", num: true, get: (r) => (Number.isFinite(r.turnsWithFunds) ? fmt(r.turnsWithFunds, 1) : "endless"), sort: (r) => r.turnsWithFunds },
+    { h: "Crafting kit on person", get: (r) => (r.kit.length ? r.kit.join(", ") : "—") },
+    { h: "Keys and passes", get: (r) => (r.keys.length ? r.keys.join(", ") : "—") },
+    { h: "Locked doors between places that it can pass", get: (r) => (r.doors.length ? r.doors.join("; ") : "—") },
+    { h: "Locked rooms it can open with those (with something in them)", get: roomsText },
+    { h: "What is in them", get: keyedText },
+  ];
+  const groupCols = [
+    { h: "Group", get: (g) => g.name },
+    { h: "Roles", num: true, get: (g) => g.roles },
+    { h: "Seats", num: true, get: (g) => g.seats },
+    { h: "Bank ¢", num: true, get: (g) => fmt(g.bank, 0), sort: (g) => g.bank },
+    { h: "In hand ¢", num: true, get: (g) => fmt(g.coinHand, 0), sort: (g) => g.coinHand },
+    { h: "¢ a seat", num: true, get: (g) => fmt(g.perSeatFunds, 1), sort: (g) => g.perSeatFunds },
+    { h: "⬢ on persons", num: true, get: (g) => fmt(g.resources + g.cracked, 0), sort: (g) => g.resources + g.cracked },
+    { h: "Food carried (hunger)", num: true, get: (g) => fmt(g.food, 0), sort: (g) => g.food },
+    { h: "Earliest starving turn", num: true, get: (g) => g.starveTurn },
+    { h: "Median starving turn", num: true, get: (g) => fmt(g.medianStarve, 0), sort: (g) => g.medianStarve },
+  ];
+  const openersText = (r) => (r.open ? "anybody" : r.openers.length ? `${r.openers.slice(0, 4).join(", ")}${r.openers.length > 4 ? `, +${r.openers.length - 4}` : ""}` : `no starting role (needs ${r.access.slice(0, 3).join(", ")})`);
+  const roomCols = [
+    { h: "Room", get: (r) => r.name },
+    { h: "Where", get: (r) => `${r.location} · ${r.zone.split("/")[0]}` },
+    { h: "Locked?", get: (r) => (r.open ? "open" : "locked") },
+    { h: "Starting roles that can open it", get: openersText },
+    { h: "⬢", num: true, get: (r) => r.resources, sort: (r) => r.resources },
+    { h: "⬢ in items", num: true, get: (r) => r.cracked, sort: (r) => r.cracked },
+    { h: "¢", num: true, get: (r) => r.coin, sort: (r) => r.coin },
+    { h: "Food (hunger)", num: true, get: (r) => fmt(r.food, 0), sort: (r) => r.food },
+    { h: "Crafting kit", get: (r) => (r.kit.length ? r.kit.slice(0, 5).join(", ") + (r.kit.length > 5 ? "…" : "") : "—") },
+  ];
+  const starveCols = [
+    { h: "Starving at the close of turn", num: true, get: (r) => r.turn },
+    { h: "Dying at turn", num: true, get: (r) => r.dying },
+    { h: "Seats", num: true, get: (r) => r.seats },
+  ];
+  const fundCols = [{ h: "Seats that…", get: (r) => r.label }, { h: "Count", num: true, get: (r) => r.seats }];
+  const rooms = [...S.rooms].sort((a, b) => b.coin + b.resources + b.cracked - (a.coin + a.resources + a.cracked) || b.food - a.food);
+  const vault = S.vault;
+  return `<section><h2>The starting economy</h2>
+<p class="lede">What each role begins with, and how long it lasts. Factions were removed, so seats are grouped the way the character picker groups them (by social position). Everything is read from <code>docs/roles.yaml</code> (a role's seat, coin, bank account and free starting tags), <code>docs/zones.yaml</code> (which rooms hold what, and which tag opens them) and <code>db/lib/hunger.js</code>. Seats are worked out for <b>${S.players} players</b> (<code>--players N</code> changes it); ${S.unlimited.length} roles (${esc(S.unlimited.join(", "))}) have no seat cap and are left out of the totals. Points spent on more skills or keys at character creation are not counted.</p>
+<h3>How long until people starve</h3>
+<p class="lede">A character starts at ${S.start} hunger and loses <b>${S.decay} a turn</b> (${S.fastDecay} for Big Appetite). Hungry is at ${S.hungryAt} or less, Starving is at 0, and <b>Dying comes ${S.deathTurns - 1} turns after Starving begins</b>. With no food that is Starving at the close of turn ${S.noFoodStarve} and Dying at turn ${S.noFoodDying}. Food on the person adds its hunger to the ${S.start}, spent in time so no bite is wasted. The whole town's starting coin buys about <b>${fmt(S.town.funds / S.costPerPersonTurn, 0)} person-turns</b> of ration at ${fmt(S.costPerPersonTurn, 1)} ¢ each, and everyone carrying food has ${fmt(S.town.food, 0)} hunger between them, ${fmt(S.town.foodTurns, 1)} person-turns, against ${fmt(S.town.needPerTurn, 0)} hunger the town burns every turn.</p>
+${table({ cols: starveCols, rows: S.starveRows, id: "startstarve" })}
+${table({ cols: fundCols, rows: S.fundedRows, id: "startfunded" })}
+<h3>By group</h3>
+${table({ cols: groupCols, rows: S.groups, id: "startgroups" })}
+<h3>By role</h3>
+<p class="lede">Coin is in ¢ and Resources in ⬢; 1 ¢ is not 1 ⬢ (a ⬢ costs 3 ¢ at the Depot). <b>Bank</b> is what is in the account the moment it opens (only the Depot can pay it out, and a treasury account is backed by the Vault, which holds ${vault ? fmt(vault.coin, 0) : "?"} ¢ against ${fmt(S.treasuryClaims, 0)} ¢ of treasury claims at this size, ${vault ? fmt((vault.coin / S.treasuryClaims) * 100, 0) : "?"}%). <b>In hand</b> coin can be stolen or pickpocketed. <b>Food if all coin is spent</b> counts the bank as well as the coin in hand, and assumes the buyer can reach the Depot. A room in the last two columns is one the role's own free keys and tags open, counting only rooms with something in them, and several roles may share a key (Baron's key opens almost everything, and the Cerberus key opens ${S.roles.filter((r) => r.tagSlugs.includes("cerberus-key")).length} roles' rooms).</p>
+${table({ cols: roleCols, rows: S.roles, filters: [{ label: "Group", get: (r) => r.groupName }] })}
+<h3>Rooms with something in them</h3>
+<p class="lede">Everything the game puts in a room when it starts, biggest first. <b>Open</b> rooms hold ${fmt(S.commons.resources, 0)} ⬢, ${fmt(S.commons.coin, 0)} ¢ and ${fmt(S.commons.food, 0)} hunger of food between them, for anybody. A locked room is opened by a key or tag its starting roles hold; roles may also open it with skills bought with points (the Caving skill opens the caves' stashes).</p>
+${table({ cols: roomCols, rows: rooms, filters: [{ label: "Locked?", get: (r) => (r.open ? "open" : "locked") }] })}
 </section>`;
 }
 
@@ -846,7 +943,7 @@ function sectionCombos() {
 <p class="lede">Each day-verb is rationed by something different, so they can fill each other's gaps. This is a planner, not a guess: it searches every schedule for the best one, turn by turn, using the game's own fatigue gates. It is exact within the rules below.</p>
 <ul class="ranks">
 <li><b>The Move.</b> One a turn. Mine, Farm and Refine each take all of it, and crafts share it in fractions, so a turn is one day-verb or a craft mix, never both.</li>
-<li><b>Fatigue.</b> Mine, Refine and Farm all climb the Tired and Exhausted ladder (Mine and Refine one step at a time, Farm outright), so each can be pressed only some turns. Crafts, cutting Godflesh and Butcher never touch it, so a craft fills the turns a day-verb is locked out.</li>
+<li><b>Fatigue.</b> Mine, Refine and Farm all climb the Tired and Exhausted ladder (one step at a time, Tired then Exhausted), so each can be pressed only some turns. Crafts, cutting Godflesh and Butcher never touch it, so a craft fills the turns a day-verb is locked out.</li>
 <li><b>Seats.</b> Only ${params.refinerySeats} people may refine at the Factory in a turn. The main tables assume you can always get a seat; the crowd table below shows what competition does.</li>
 <li><b>Skill points and tools.</b> Farm needs Soilery (7), and the plan farms <b>tobacco</b>, the one crop that pays cash (food crops do not sell, so they are not a wage here); Fertilizer is a 2-point item that lifts it further. Mine needs a pickaxe (2 points at creation, or a smith makes one) and Prospecting (7) pays ×1.7 on top, so a starting budget of ${params.startingTagPoints} cannot hold both. A <b>Smithing</b> smith also forges the stones a Mine press turns up into Trinkets on the rest turn a miner has anyway (the extra is what the Trinkets clear over selling the stones raw, less the rest-turn Moves they take), and a Trinket bought at the shelf is a craft like any other. Refine and cutting Godflesh need no skill.</li>
 <li><b>Place.</b> Hops inside a zone are free, and a turn allows ${c.free} free zone crossing${c.free === 1 ? "" : "s"} (a mount adds one; <code>--free-moves</code> changes it). A crossing beyond that costs the Move, so nearby workplaces do not cost formal Moves.</li>
@@ -1262,7 +1359,7 @@ const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta n
 <h1>Bascinet economy</h1>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
 <section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionLucky()}${sectionTrinkets()}${sectionCooking()}${sectionDesires()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
+${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionLucky()}${sectionTrinkets()}${sectionCooking()}${sectionDesires()}${sectionStarting()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
 </main><script>${js}</script></body></html>`;
 
 // ---------------------------------------------------------------------------
@@ -1374,6 +1471,14 @@ const trinketsCsv = [
   ),
 ].join("\n");
 fs.writeFileSync(path.join(outDir, "trinkets.csv"), trinketsCsv);
+const startingCsv = [
+  ["role", "group", "seats", "bankCoin", "handCoin", "resourcesOnPerson", "resourcesInItems", "foodHunger", "startingTurn", "dyingTurn", "turnsWithFunds", "keyedRooms", "keyedResources", "keyedCoin", "keyedFoodHunger", "kit", "keys"].join(","),
+  ...model.starting.roles.map((r) =>
+    [r.name, r.groupName, r.unlimited ? "no cap" : r.seats, r.bank, r.coinHand, r.resources, r.cracked, r.food, r.starveTurn, r.dyingTurn, Number.isFinite(r.turnsWithFunds) ? r.turnsWithFunds.toFixed(1) : "", r.rooms.length, r.keyedResources, r.keyedCoin, r.keyedFood, r.kit.join("; "), r.keys.join("; ")].map(csvCell).join(","),
+  ),
+].join("\n");
+fs.writeFileSync(path.join(outDir, "starting.csv"), startingCsv);
+
 fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
 fs.writeFileSync(path.join(outDir, "item-sources.csv"), itemsCsv);

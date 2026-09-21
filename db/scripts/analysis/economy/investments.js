@@ -219,7 +219,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       points: fert.pointCost ?? 0,
       gain: tb.fertGainPerAction / (params.farmCycle ?? 3),
       gainHow: `+${round1(tb.leavesFert - tb.leaves)} leaves at ${tb.price} ¢, less the sack: +${round1(tb.fertGainPerAction)} ¢ a Farm action, on top of ${round1(tb.perTurn)} ¢ a turn without it`,
-      note: "Measured per turn across the 3-turn lockout. It repays itself many times over the first time.",
+      note: "Measured per turn across the every-other-turn cycle. It repays itself many times over the first time.",
       oneOff: true,
     });
   }

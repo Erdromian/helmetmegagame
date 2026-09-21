@@ -62,6 +62,13 @@ second life as a paying Laboring tier priced against a Location's
 being that. Laboring is gone and so is that tier. **Soilery** is one flat
 7-point skill that turns on one button, and there is nothing else it does.
 
+**Food crops do not sell** (2026-09-20). Farming is for eating, not for cash: a plant
+brings in three crops, a field of fifty comes home as about 125, and at any price a crop
+sells for that would have made the Soilery the best wage in the game by accident. Tobacco
+is the one exception, at 1 ¢ a leaf (§6a). `npm run economy:report` prices a Farm action as food
+at the Ration Box's price per hunger and tobacco as cash, and checks both against a solo
+Factory worker's turn.
+
 ## 2. The `soilery` Location attribute
 
 `db/lib/locationAttributes.js`'s `ATTRIBUTES.soilery` entry, right beside
@@ -311,7 +318,7 @@ priced at 2 ¢ would only have made it a second, accidental tobacco. And
 | slug | taste | mood | hunger | note |
 |---|---|---|---|---|
 | `meat` | meaty | 5 | 12 | |
-| `dead-rat` | meaty | −10 | 9 | raw/cooked split, `consumesInto: [nauseous]` |
+| `skinned-cave-rat` | — | −10 | 19 | the old `dead-rat` is this tag now (2026-09-20): one rat, dropped by the caves and cooked by four recipes. It has no `cooked` block, so it cannot be slotted into a dish, and a raw one is a coin toss between a meal and vomiting |
 | `sugar` | sweet | 20 | 12 | |
 | `cheese` | cheesy | 15 | 12 | was a deliberate near-duplicate of `hard-cheese`; `hard-cheese` was later retired |
 | `rendered-fat` | creamy | 10 | 12 | renamed from the doc's "Fat" — that slug is taken by an unrelated general trait |
@@ -382,14 +389,18 @@ same triple every other crop has (§3): `tobacco`, `tobacco-seed-bag`
 
 | | value | why |
 |---|---|---|
-| `cropsPerPlant` | **2** | half a food crop's yield |
+| `cropsPerPlant` | **1** | a third of a food crop's yield |
 | `witherIn` | **3** | a 2-in-6 failure, double the food crops' |
-| `weight` | 0.25 | leaves, and half a plant's output means half the unit |
+| `weight` | 0.25 | leaves, so a light unit |
 | `sellablePrice` | **1 ¢** | the tuning dial — see below |
 | `cooked:` block | **none** | not food; cannot be eaten, cannot fill an ingredient slot |
 
-**The arithmetic.** 50 sown → ~33 survive → **~67 leaves**, which at 1 ¢ is
-**~67 ¢ a harvest**, about 33 ¢ a turn for a farmer working every other turn.
+**The arithmetic.** 50 sown → ~33 survive → **~33 leaves**, which at 1 ¢ is
+**~33 ¢ a harvest**, about 17 ¢ a turn for a farmer working every other turn
+(about 15 ¢ once the seed bag is paid). With Fertilizer, no plant withers and one
+in six comes up double: about 58 leaves, or about 25 ¢ a turn after the seed bag
+and the Fertilizer. That is the most a tobacco farmer can make, and it stays
+under what a food farmer's crops are worth as food (about 27 ¢ a turn).
 A tobacco field feeds nobody, so that is a wage paid for entirely by somebody
 else's dinner. With three farmers sitting at exactly the town's capacity (§1),
 one of them switching to tobacco starves a third of Ravenheart. **That

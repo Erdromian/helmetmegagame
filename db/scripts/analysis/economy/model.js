@@ -31,6 +31,7 @@ const { buildCaving } = require("./caving");
 const { buildTrinkets } = require("./trinkets");
 const { buildCooking } = require("./cooking");
 const { buildDesires } = require("./desires");
+const { buildStarting } = require("./starting");
 const { buildLucky } = require("./lucky");
 const { MERCHANT_CUT, cutOn, afterCut } = require("./cut");
 const { turretTable } = require("../../../lib/depotTurret");
@@ -586,7 +587,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   for (const c of foodCrops) {
     const crop = get(c.crop);
     const bag = get(`${c.crop}-seed-bag`);
-    const flags = [`lockout: one farm every ${farmCycle} turns`];
+    const flags = [`fatigue: one farm every ${farmCycle} turns`];
     const rule = cropRule(c.crop);
     const harvest = farmMaxCrops * (1 - 1 / rule.witherIn) * rule.cropsPerPlant;
     const seedCost = bag?.depotPrice ?? 0;
@@ -638,7 +639,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       fert: true,
       netPerTurnSell: (revenue - inputs) * farmDuty,
       netPerTurnBuy: (revenue - inputs) * farmDuty,
-      flags: [`lockout: one farm every ${farmCycle} turns`, "Fertilizer: no wither die, a double plant 1 time in 6"],
+      flags: [`fatigue: one farm every ${farmCycle} turns`, "Fertilizer: no wither die, a double plant 1 time in 6"],
     });
   }
 
@@ -646,6 +647,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const squeeze = get(refinery.REFINERY_OUTPUT_SLUG);
   const cubeValue = squeeze.sellablePrice ?? 0;
   const shift = refinery.REFINERY_YIELD * cubeValue;
+  // A Factory worker and a farmer climb the same ladder, so what they earn is compared a turn to a turn.
+  const factoryPerTurn = shift * fatigue.byId.refine.steady;
   // Expected Godflesh per cut, by walking the real die: every face once.
   const expectedCut = (tags) => {
     let sum = 0;
@@ -1140,7 +1143,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
-  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, refs: { factoryShift: shift, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
+  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, refs: { factoryShift: shift, factoryPerTurn, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
   trinkets.shelfLoop.topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
   trinkets.moveValue = moveValueUsed;
   const lucky = buildLucky({ get, rv, caving, trinkets, moveValue: moveValueUsed, gameTurns });
@@ -1260,29 +1263,29 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
         const perAction = params.farmMaxCrops * (1 - 1 / cropRule("wheat").witherIn) * params.cropsPerPlant;
         return Math.abs(((3 / farmCycle) * (perAction / 2) * 35) / params.hungerDecay - 94) < 5;
       })(),
-      note: "Farming joined the shared tired/exhausted ladder on 2026-09-21, so a farmer is on the same every-other-turn cycle as a miner and a refiner.",
+      note: "A farmer works every other turn: a Farm action steps the same Tired and Exhausted ladder Mine does, and only Exhausted refuses the next one.",
     },
     {
       doc: "SOILERY.md §1",
-      claim: "A tobacco harvest pays about 67 ¢",
-      docValue: 67,
+      claim: "A tobacco harvest pays about 33 ¢",
+      docValue: 33,
       model: round1(byId("farm:tobacco")?.revenue),
-      ok: byId("farm:tobacco") != null && Math.abs(byId("farm:tobacco").revenue - 67) < 3,
+      ok: byId("farm:tobacco") != null && Math.abs(byId("farm:tobacco").revenue - 33) < 3,
     },
     {
       doc: "SOILERY.md §1",
-      claim: "A tobacco farmer earns no more a turn than a Factory shift (40 ¢), so the cash crop does not out-earn the town's best wage",
-      docValue: `${shift} ¢ a turn`,
-      model: `${round1(byId("farm:tobacco")?.netPerTurn)} ¢ a turn (${round1(byId("farm:tobacco")?.perAction)} ¢ a Farm action, every other turn)`,
-      ok: byId("farm:tobacco") != null && byId("farm:tobacco").netPerTurn <= shift,
-      note: "Tobacco is 1 ¢ a leaf, about 67 leaves an action after its 1-in-3 wither.",
+      claim: "A tobacco farmer earns no more a turn than a solo Factory worker, so the cash crop does not out-earn the Factory",
+      docValue: `${round1(factoryPerTurn)} ¢ a turn (${shift} ¢ a shift, one every other turn)`,
+      model: `${round1(byId("farm:tobacco")?.netPerTurn)} ¢ a turn (${round1(byId("farm:tobacco")?.perAction)} ¢ a Farm action against ${shift} ¢ a shift, both one every other turn)`,
+      ok: byId("farm:tobacco") != null && byId("farm:tobacco").netPerTurn <= factoryPerTurn,
+      note: "Tobacco is 1 ¢ a leaf, about 33 leaves an action after its 1-in-3 wither. Farm and Refine climb the same ladder, so they are compared a turn to a turn.",
     },
     {
       doc: "SOILERY.md §1",
-      claim: "Fertilized tobacco earns no more a turn than a Factory shift",
-      docValue: `${shift} ¢ a turn`,
+      claim: "Fertilized tobacco earns no more a turn than a farmer's food is worth, so growing cash never beats growing dinner",
+      docValue: `${round1(byId("farm:potato")?.netPerTurn)} ¢ a turn (food farming, valued at the Ration Box)`,
       model: cooking.tobacco ? `${round1(cooking.tobacco.perTurnFert)} ¢ a turn with Fertilizer (${round1(cooking.tobacco.perTurn)} without)` : "no tobacco",
-      ok: !cooking.tobacco || cooking.tobacco.perTurnFert <= shift,
+      ok: !cooking.tobacco || cooking.tobacco.perTurnFert <= (byId("farm:potato")?.netPerTurn ?? Infinity),
       note: "Fertilizer removes the 1-in-3 wither die that is tobacco's price for being the cash crop, so it lifts tobacco far more than it lifts food. Its 2-turn duration now spans a full work/rest cycle, so one application may cover more than one harvest.",
     },
     {
@@ -1355,7 +1358,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: "0 off the rule",
       model: trinkets.checks.offRule.length ? trinkets.checks.offRule.map((x) => `${x.name} ${x.inlay}, rule says ${x.expected}`).join("; ") : "0 off the rule",
       ok: trinkets.checks.offRule.length === 0,
-      note: "Silver's shelf price went from 14 to 19 on 2026-09-20 and its inlay was not raised with it. Raising it to 18 makes forging silver pay more, so it was left for a decision.",
+      note: "Silver's shelf price went from 14 to 19 on 2026-09-20; its inlay is 18, one under the shelf, as the rule says.",
     },
     {
       doc: "TRINKETS.md §3",
@@ -1437,7 +1440,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       claim: "A farmer works one turn in two, the same ladder Mine and Refine climb",
       docValue: "1 in 2",
       model: `1 in ${round1(1 / fatigue.byId.farm.steady)}`,
-      ok: Math.abs(fatigue.byId.farm.steady - 0.5) < 0.01,
+      ok: Math.abs(fatigue.byId.farm.steady - 1 / 2) < 0.01,
     },
     {
       doc: "FACTORY.md §6",
@@ -1511,6 +1514,27 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     investments,
     startingPoints: startingTagPoints,
   });
+  const starting = buildStarting({ list, get, foods, params, foodFloor, sources, players });
+  const auditSrc = fs.readFileSync(path.join(REPO, "db/scripts/ops/audit-vault-backing.js"), "utf8");
+  const reserveFloor = Number((/const RESERVE_FLOOR = ([0-9.]+);/.exec(auditSrc) ?? [])[1]);
+  if (!Number.isFinite(reserveFloor)) throw new Error("economy model: could not read RESERVE_FLOOR out of db/scripts/ops/audit-vault-backing.js; the file has changed shape.");
+  claims.push(
+    {
+      doc: "roles.yaml, starting_tags",
+      claim: "Every starting tag names a tag in the catalog",
+      docValue: "0 unresolved",
+      model: starting.unresolved.length ? starting.unresolved.join("; ") : "0 unresolved",
+      ok: starting.unresolved.length === 0,
+    },
+    {
+      doc: "roles.yaml, starting_account",
+      claim: `The Vault holds at least ${Math.round(reserveFloor * 100)}% of what the treasury accounts claim at the start (the audit's floor)`,
+      docValue: `${Math.round(reserveFloor * 100)}% or more`,
+      model: starting.vault ? `${starting.vault.coin} ¢ against ${starting.treasuryClaims} ¢ of claims at ${players} players, ${Math.round((starting.vault.coin / starting.treasuryClaims) * 100)}%` : "no Vault room",
+      ok: Boolean(starting.vault) && starting.vault.coin / starting.treasuryClaims >= reserveFloor,
+      note: "Treasury seats are counted at their cap for this many players, and only the named seats. It is a fractional reserve on purpose, so short of parity is normal.",
+    },
+  );
   claims.push(
     {
       doc: "desires.yaml, cooldown policy",
@@ -1546,6 +1570,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     lucky,
     merchantCut: MERCHANT_CUT,
     desires,
+    starting,
     prospectorValue,
     combos,
     shortlists: { ...shortlists, cookingAll: cookRows },
