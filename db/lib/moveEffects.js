@@ -28,7 +28,7 @@ const { applyFatigueStep, revertFatigueStep, grantExhaustedOutright } = require(
 const { drawProspectingLoot } = require("./cavingLoot");
 const { PROSPECTING_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
-const { reap, harvestLine } = require("./soilery");
+const { reapFor, harvestLine } = require("./soilery");
 
 // One entry per pushable thing. `read` decides what this Move would push right now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert`
 // takes back exactly what was snapshotted.
@@ -182,7 +182,7 @@ const MOVE_EFFECTS = {
 
       const rows = [];
       for (const row of plan.rows) {
-        const reaped = reap(row.planted, Math.random, { fertilized: plan.fertilized === true });
+        const reaped = reapFor(row.slug, row.planted, Math.random, { fertilized: plan.fertilized === true });
         if (reaped > 0) {
           const { addToStack } = require("./tagWrites");
           await addToStack(tx, action.characterId, row.tagId, reaped, {

@@ -80,7 +80,7 @@ export default function FarmDialog({ onDone, onClose }) {
       <StackPicker rows={rows} picks={picks} onChange={setPicks} />
       <p className={overCap ? "text-sm text-accent" : "text-xs text-muted"}>
         {`${total} / ${maxCrops} seeds. `}
-        {overCap ? `A farm holds at most ${maxCrops} crops at once.` : null}
+        {overCap ? `A farm holds at most ${maxCrops} plants at once.` : null}
       </p>
       <p className="text-xs text-muted">
         Sowing takes the whole day, and the crop comes in when the day turns.

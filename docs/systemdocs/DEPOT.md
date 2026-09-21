@@ -963,7 +963,9 @@ since the station charges 3 ¢ for the same ⬢ coming down (§3). Anybody may d
 now, which is the point: a labourer with a cart of material and no buyer has a
 counter to walk it to.
 
-Four bands, about 106 tags in total:
+Eight bands. The last two are new — cooked food and tobacco were both unpriced
+until the Soilery rebalance, and the raw food crops moved the other way, off
+the list entirely:
 
 | Band | Priced at | Examples |
 |---|---|---|
@@ -973,6 +975,28 @@ Four bands, about 106 tags in total:
 | Factory goods | a day's output at ~3× a good farming day | `squeeze` **5** a cube — 8 cubes is a shift, so 40 ¢ (`FACTORY.md` §6). Cut from 7 on 2026-09-20. Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
 | Body parts | low, on purpose | `eye` 10, `heart` 10, `hand` 6, `foot` 5, `stomach` 5, `tongue` 4 |
+| Cooked food | deliberately almost nothing — see below | a snack 1, a basic meal **2**, a skilled meal **4** |
+| Tobacco | the one farm crop worth money | `tobacco` 2 a leaf (`SOILERY.md` §6a) |
+
+**Cooked food sells for almost nothing, and that is the design.** Every meal
+carries a `sellablePrice` now (2 for a basic, 4 for a skilled), and
+`db/lib/customCraftMint.js` copies `sellable`/`sellablePrice` onto the minted
+`custom-craft-…` dish, so what a player actually cooked is what the counter
+will take.
+
+The number is low **so that the counter is a floor and not a market**. A cook
+who dumps a meal at the drop box gets 2 ¢; the Innkeeper can offer 5 and still
+resell at whatever a hungry player will bear. That spread is the Inn's whole
+business, and it only exists while the Depot's own price is bad. Raise it and
+the Inn stops being worth walking to. There is no coded Innkeeper mechanism
+and there should not be one — the role is narrative (`docs/roles.yaml`), and
+§0h's rule that the Inn must not quietly become a second counter still holds.
+
+**Raw food crops sell for nothing at all.** `wheat`, `potato`, `tomato`,
+`carrot`, `onion`, `plump-helmet` and `pigtails` are not `sellable`, so the
+drop box refuses them outright. Farming pays in food; `tobacco` is the one
+crop that pays in coin. See `SOILERY.md` §1. The five Ration Box draws are
+likewise unpriced, so the box cannot be bought at 3 ¢ and flipped.
 
 **The station buys body parts now** (`CORPSES.md`, `TORTURE.md` §6). It is a coin
 faucet hanging off a free action — Mutilate costs nothing and every death mints

@@ -71,7 +71,7 @@ const FIELDS = [
   {
     key: "farmMaxCrops", type: "int", group: "economy", default: 50, min: 1, max: 500,
     label: "Farm sow cap",
-    info: "Most crops one Farm action may sow in a single plan",
+    info: "Most PLANTS one Farm action may sow in a single plan. A plant brings in several of its crop — see db/lib/soilery.js",
   },
   {
     key: "stableCapacity", type: "int", group: "economy", default: 10, min: 1, max: 200,

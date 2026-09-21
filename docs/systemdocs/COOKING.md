@@ -182,7 +182,7 @@ is the newer, doc-specified thing and the candy is an incidental curio.
       taste: acidic
       tasteForm: adjective    # OPTIONAL — see below
       mood: 3
-      hunger: 12              # OPTIONAL — see below
+      hunger: 4               # OPTIONAL — see below
 ```
 
 **The presence of this block is the only thing that makes a tag cookable.**
