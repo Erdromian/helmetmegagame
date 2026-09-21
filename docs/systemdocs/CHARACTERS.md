@@ -587,6 +587,16 @@ Picking a role decides almost everything:
   from `starting_tags` instead, because a seeded balance on day one would be
   a claim with nothing behind it. See `DEPOT.md` §0g.
 
+**Everyone starts with about one meal**, in `starting_tags`, flavoured to the
+seat: moldy bread or a Ration Box for the poor, the Dockers and the soldiers of
+the Tribunal and the Bastard's party, plain cooked dishes (Bread, Sausage, Broth
+and the like, 35 to 42 hunger) for the Court, the Clergy, the Cerberon, the
+medics and the trades, and Cheese for the cooks. Nothing is worth more than a
+basic dish, since one meal is one turn's decay. The four Cooking I roles (Servant,
+Geschef, Innkeeper, Inn Staff) also start with 40 crops, which is one Move of
+cooking (`COOKING.md` §11). The Prospector, Courtesan and Slave already carried a
+Ration Box or two and got no second meal.
+
 The sync **throws** on a `starting_tags` name that isn't in the catalog or a
 `starting_zone` slug that isn't a standable zone, rather than half-applying. A
 typo can't ship characters missing part of their package.
