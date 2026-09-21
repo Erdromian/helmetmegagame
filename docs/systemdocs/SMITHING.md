@@ -37,27 +37,37 @@ and every gate are untouched.
 
 | Tier | pt | ⬢ | Turns | Skill gate | Combat gate | Purchasable at start |
 |---|---|---|---|---|---|---|
-| Dead Simple | 2 | 3 | 0.25 | `crafting` OR `smithing` | none | yes |
-| Simple | 5 | 6 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
-| Moderate | 7 | 13 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| High Quality | 9 | 25 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Dead Simple | 2 | 2 | 0.25 | `crafting` OR `smithing` | none | yes |
+| Simple | 5 | 4 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
+| Moderate | 7 | 7 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| High Quality | 9 | 15 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
 | Exceptional | 14 | 32 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Gunpowder | 14 | 28 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
+| Gunpowder | 14 | 15 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
 
+**The ⬢ column was refitted when the wage table went in** (`DEPOT.md` §4). Prices stayed where they
+were and the material moved to fit them, so the tiers ask for less than they used to: Dead Simple 3 → 2,
+Simple 6 → 4, Moderate 13 → 7, High Quality 25 → 15, Gunpowder 28 → 15 (Bore Pistol 9; the Bomb keeps its 28, since saltpeter is scarce — `DEPOT.md` §4).
+The Spear, Dagger and Phrygian Spear take 3 ⬢ and sell for 9. Exceptional was not refitted, since
+nothing on the Merchant's list sits there. Recipes the Merchant also stocks sit off the column on
+purpose, each fitted to its shelf price: Cudgel 2, Trench Knife 5, Knuckle Duster 7, Gladiator
+Helmet 9, Wooden Leg and Iron Hook 6, Workshop Equipment 15. Recipes that work an input (Rapier,
+Katana, Brigandine, Plate Armor, Silver Spear) were fitted the same way.
+
 **Four small pieces of metalwork run under the Simple rung's Turns column.**
-The Spear, Dagger, Silver Knife and Phrygian Spear are `turnsCost: 0.25` —
+The Spear, Dagger and Phrygian Spear are `turnsCost: 0.25` —
 a spearhead or a knife is not a day at the anvil — so four of them fit in
 one Routine ([`CRAFTING.md`](CRAFTING.md) §2a). Everything else about the
-rung (6 ⬢, the pt, the skill gate, the forge) is unchanged, and they sell
-at 8 rather than the tier's 16 ([`DEPOT.md`](DEPOT.md) §4): four a Routine
-pays 8 ⬢ a turn, which stays under the Simple rung's own 10, and §4's rule
-is that quick work is never paid better than the rung above it. They were
+rung (the pt, the skill gate, the forge) is unchanged, and they take 3 ⬢ and sell
+at 9 rather than the tier's 16 ([`DEPOT.md`](DEPOT.md) §4): four a Routine
+breaks even at the counter, against the Simple rung's own 2 ¢ a Move, and §4's
+rule is that quick work is never paid better than the rung above it. They were
 thirds selling at 9 until costs became decimals in 9/2026 — the price came
 down with the extra unit. The Silver Knife is the odd one out and always was:
-1 ⬢ in and a silver ingot, 9 out. The Gladius, Mace and Battle Axe stay a
+1 ⬢ and a silver ingot in, 23 out, and it takes half a Move, two to a Routine, so a
+round trip through the Merchant clears about 2 ¢ a Move like the rest of the rung. The Gladius, Mace and Battle Axe stay a
 full turn — a sword blade or a flanged head is real forging.
 
 **The two gate columns mean different things and are enforced on different
@@ -105,7 +115,7 @@ new sword is gated the moment it names a smithing skill and nobody has to
 remember a second field. `needsWorkshop()` in `web/lib/tagRequests.js` is the
 one copy, shared by the Craft dialog and `craftRequestImpl`.
 
-`workshop-equipment` is itself a **High Quality** craftable — 9 pt, 25 ⬢, 2
+`workshop-equipment` is itself a **High Quality** craftable — 9 pt, 15 ⬢, 2
 turns, `smithing-skilled` — and **Immense (100 lb)**, so it is a real decision
 to move one. It is the one recipe **exempt from its own gate**, and has to be:
 gating it would mean nobody could ever build the first forge. You raise that
@@ -199,7 +209,7 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Shortbow | Dead Simple | `crafting` |
 | Spear | Simple | 0.25 turns — four to a Routine (§2) |
 | Dagger | Simple | 0.25 turns — four to a Routine (§2) |
-| Silver Knife | Simple | 0.25 turns — four to a Routine (§2). Spends one `silver` — its 6 ⬢ total is unchanged, the resourceCost is just 1 ⬢ of it now (2026-09-09). |
+| Silver Knife | Simple | 0.5 turns — two to a Routine (§2). Spends one `silver` — its 6 ⬢ total is unchanged, the resourceCost is just 1 ⬢ of it now (2026-09-09). |
 | Gladius | Simple | |
 | Phrygian Spear | Simple | 0.25 turns — four to a Routine (§2) |
 | Javelin | Simple | `ranged-basic` — it is thrown, not held. |
@@ -211,10 +221,10 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
 | Bastard Sword | High Quality | |
-| Rapier | High Quality | Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — the other turn moved into the ingot's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Rapier | High Quality | Spends one `iron`. 1 turn / 12 ⬢ now, not the tier's 2 / 25 — the other turn moved into the ingot's own recipe, and 8 ⬢ comes off for the ingot (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Sabre | High Quality | |
-| Katana | High Quality | Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 — same move as Rapier (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
-| Silver Spear | High Quality | Spends one `silver` — its 25 ⬢ total is unchanged, the resourceCost is just 20 ⬢ of it now (2026-09-09; materials cut a further ~5% 2026-09-12). |
+| Katana | High Quality | Spends one `iron`. 1 turn / 12 ⬢ now, not the tier's 2 / 25 — same move as Rapier (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Silver Spear | High Quality | Spends one `silver` — its resourceCost is 8 ⬢ now (`DEPOT.md` §4 fits it to the wage table) (2026-09-09; materials cut a further ~5% 2026-09-12). |
 | Lucerne | High Quality | |
 | Zweihander | High Quality | |
 | Crossbow | High Quality | |
@@ -241,15 +251,15 @@ Renamed **Crude Grenade** and dropped to Smithing II on 2026-09-06
 (Chris): it packs raw saltpeter, not powder, so the Gunpowder rung keeps only
 the true powder-work — `black-powder`, the Bomb, the guns. The slug stays
 `gunpowder-grenade`. `black-powder` is the refining step between mined
-saltpeter and the Bomb; its numbers (3 ⬢, sells 6) are drafted, not signed
+saltpeter and the Bomb; its numbers (3 ⬢, sells 21) are drafted, not signed
 off.
 
 **The three smelts** replaced `{tag:steel}` on 2026-09-18, when `coal` and
 `steel` both left the game with the Prospecting rework (`MINING.md`). `iron`
-took steel's slot exactly — the same `sellablePrice` (8) and `depotPrice` (13)
-— so the four recipes that spend an ingot keep the discount they were priced
-with, and a smith with no prospector to hand can still buy one off the
-Merchant. `copper` and `nickel` are the same recipe over a different ore and
+took steel's slot at steel's prices (8 back, 13 off the shelf), so a smith with
+no prospector to hand can still buy one off the Merchant. Those prices stay: the
+ore is the bottleneck, and the shelf price keeps buying an ingot to crack it for ⬢
+from paying (`DEPOT.md` §4). `copper` and `nickel` are the same recipe over a different ore and
 feed Trinkets rather than gear.
 
 They cost **0 ⬢**, not steel's 4: the ore IS the cost now, and an ore is
@@ -324,7 +334,7 @@ pair still counts at the Spillway (`CRAFTING.md` §4a).
 | Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
 | Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
 | Censor's Helmet | High Quality | Force conceal |
-| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `iron`. 1 turn / 17 ⬢ now, not the tier's 2 / 25 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
+| Brigandine | High Quality | `visible: worn` — plates inside a coat, so it shows only while worn. Spends one `iron`. 1 turn / 12 ⬢ now, not the tier's 2 / 25 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 | Breastplate | High Quality | |
 | Plate Armor | Exceptional | Spends one `iron`. 2 turns / 25 ⬢ now, not the tier's 3 / 32 (2026-09-09, repriced 2026-09-10; materials cut a further ~5% 2026-09-12). |
 

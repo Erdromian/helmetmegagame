@@ -62,10 +62,10 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 |---|---|---|---|---|
 | `bliss` | 0 | 0 (max 2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 (max 2/turn) | — | — |
-| `alcohol` | 2 | 0.25 | — | `tipsy` (and up the ladder — §5a) |
+| `alcohol` | 0 | 0.25 | `wheat` or `potato`, twice | `tipsy` (and up the ladder — §5a) |
 | `moonshine` | **0** | 0.25 | `godflesh` | `tipsy` (ladder, §5a), `damaged-vision` |
-| `molotov-cocktail` | 2 | 0 (max 2/turn) | `alcohol` | — |
-| `cleaning-powder` | 2 | 0.5 | — | — |
+| `molotov-cocktail` | 1 | 0 (max 2/turn) | `alcohol` | — |
+| `cleaning-powder` | 1 | 0.5 | — | — |
 | `cat` | 3 | 1 | `alcohol` | `night-vision` (1t) |
 
 ## 3. Brewing II
@@ -73,18 +73,18 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
 |---|---|---|---|---|
 | `pure-luck` | 0 | 1 | `aberrant-heart` | `aberrant-luck` |
-| `graga-sweat` | 2 | 1 | `graga-sac` | `brutish-strength` |
-| `deadeye-drops` | 2 | 1 | `cave-fungus` | `increased-accuracy` |
-| `mercy` | 2 | 0.5 | `cave-fungus` | `increased-recovery` |
-| `mindbreaker-toxin` | 2 | 1 | `cave-fungus` | `hallucinating` |
-| `invisibility-potion` | 2 | 1 | `graga-sac` | `invisible` |
-| `ravenheart-red` | 4 | 0.5 | `alcohol` | `tipsy` (and up the ladder — §5a) |
+| `graga-sweat` | 1 | 1 | `graga-sac` | `brutish-strength` |
+| `deadeye-drops` | 1 | 1 | `cave-fungus` | `increased-accuracy` |
+| `mercy` | 1 | 0.5 | `cave-fungus` | `increased-recovery` |
+| `mindbreaker-toxin` | 1 | 1 | `cave-fungus` | `hallucinating` |
+| `invisibility-potion` | 1 | 1 | `graga-sac` | `invisible` |
+| `ravenheart-red` | 3 | 0.5 | `alcohol` | `tipsy` (and up the ladder — §5a) |
 | `phrygian-tears` | 4 | 2 | `cave-fungus` | — |
 | `white-honey` | **3** | 1 | `honey` + `trout-heart` | — |
-| `purifier` | 6 | 1 | `cave-fungus` | — |
-| `dreamers-draught` | 6 | 1 | `skinless-brain` | — |
-| `forgiveness` | 8 | 1 | — | — |
-| `flawless-skin` | 8 | 1 | — | `otherworldly-beauty` |
+| `purifier` | 1 | 1 | `cave-fungus` | — |
+| `dreamers-draught` | 2 | 1 | `skinless-brain` | — |
+| `forgiveness` | 3 | 1 | — | — |
+| `flawless-skin` | 4 | 1 | — | `otherworldly-beauty` |
 
 Three recipes lost a prose ingredient and pay in ⬢ instead, because the
 ingredient was the whole gate: `white-honey` 2 → **6** (it cures a poisoning),
@@ -136,16 +136,16 @@ instead.
 
 | Brew II | ⬢ | Turns | Cures |
 |---|---|---|---|
-| `antidote` | 4 | 0.5 | poisoned, envenomated |
-| `fever-draught` | 3 | 0.5 | feverish, heatstroke, cave-fever |
-| `burn-dressing` | 4 | 0.5 | burned, severe-burns |
+| `antidote` | 2 | 0.5 | poisoned, envenomated |
+| `fever-draught` | 2 | 0.5 | feverish, heatstroke, cave-fever |
+| `burn-dressing` | 2 | 0.5 | burned, severe-burns |
 
 | Brew III | ⬢ | Turns | Ingredient | Cures |
 |---|---|---|---|---|
-| `autoinjector` | 3 | 1 | `antidote` + `fever-draught` + `cave-fungus` | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
-| `portable-surgical-pack` | 8 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
-| `cybernetic-arm` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
-| `cybernetic-leg` | 15 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
+| `autoinjector` | 0 | 1 | `antidote` + `fever-draught` + `cave-fungus` | bruised, sprained-ankle, burned, minor-bleeding, minor-wound, dislocated-shoulder, cracked-ribs, blunt-force-trauma, frostbite |
+| `portable-surgical-pack` | 3 | 1 | — | — (a surgical-site enabler, not a cure — `MEDICAL.md` §3) |
+| `cybernetic-arm` | 1 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
+| `cybernetic-leg` | 1 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
 
 ## 3b. The Silver Chip shelf
 
@@ -252,7 +252,7 @@ lives in. Costs are decimals now and that column is a ration and nothing else.
 | `ravenheart-red` | 0.5 | — |
 | `bliss` | 0 | 2 |
 | `feces` | 0 | 2 |
-| `molotov-cocktail` | 0 | 2 |
+| `molotov-cocktail` | 1 | 2 |
 | `bone-mask` | 0 | 1 |
 
 `bone-mask` is not a brew, but it is the other recipe the ration exists for: 0
@@ -261,8 +261,8 @@ would mint masks forever. Its skill derives a `butcher` family now
 like any other (CRAFTING.md §2a), so a mask past the ration spills into the
 Move instead of walling.
 
-**The ⬢ cost is per unit, and it multiplies.** Three alcohols in one turn cost
-6 ⬢, not 2. Every yield row in the document carries an `{info:…}` tooltip
+**The ⬢ cost is per unit, and it multiplies.** Three molotovs in one turn cost
+3 ⬢, not 1. Alcohol itself takes no ⬢ now, only two crops of wheat or potato each. Every yield row in the document carries an `{info:…}` tooltip
 saying so, since the table itself has no room to.
 
 ## 5a. The drinking ladder
