@@ -69,15 +69,15 @@ export default function LocationsList({ zoneId, rows, canSuper }) {
                 {canSuper && (
                   <>
                     {l.retiredAt ? (
-                      <button className="btn-quiet" disabled={pending} onClick={() => call(unretireLocation, l.id)}>
+                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => call(unretireLocation, l.id)}>
                         Unretire
                       </button>
                     ) : (
-                      <button className="btn-quiet" disabled={pending} onClick={() => onRetire(l)}>
+                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRetire(l)}>
                         Retire
                       </button>
                     )}
-                    <button className="btn-quiet" disabled={pending} onClick={() => onDelete(l)}>
+                    <button type="button" className="btn-quiet" disabled={pending} onClick={() => onDelete(l)}>
                       Delete
                     </button>
                   </>

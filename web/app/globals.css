@@ -3427,6 +3427,23 @@ input[type="radio"]:disabled {
   height: var(--tap);
 }
 
+/* Touch, DESIGN-SYSTEM §9. The floor used to live only in chat.css's
+   `.chat-shell` block, so every icon button on the sheet, the desk, the map,
+   /documents and /notes stayed 28px square on a phone — half the 44px floor,
+   and the one button family that missed it. `width`/`height` rather than the
+   `min-height` the text buttons take: .icon-btn pins both axes, so a lone
+   min-height would have grown a 28x44 sliver instead of a thumb.
+
+   This is also what makes IconButton.js's header true everywhere rather than
+   only inside /chat: `size` decides what a FINE pointer sees, and a coarse one
+   gets --tap either way, so sm and lg are the same target on a touch screen. */
+@media (pointer: coarse) {
+  .icon-btn {
+    width: var(--tap);
+    height: var(--tap);
+  }
+}
+
 .icon-btn:hover {
   color: var(--text);
 }
@@ -3491,6 +3508,21 @@ input[type="radio"]:disabled {
    leftmost option loses the lit edge that says it is sunk. */
 .segmented button:first-child[aria-pressed="true"] {
   border-left: 2px solid var(--border-lo);
+}
+
+/* Touch, DESIGN-SYSTEM §9. A segmented group had no floor at any width, so it
+   came out ~31px on a phone — and it is the picker on /archive, /documents and
+   /notes, all of which a player reads there. min-height alone is enough: these
+   are already blocks in a flex row, unlike .icon-btn above.
+
+   The pressed member trades 2px of padding for 2px of border to hold its
+   geometry (see above), so both faces land on the same floor and the row still
+   does not move as you click along it. */
+@media (pointer: coarse) {
+  .segmented button {
+    box-sizing: border-box;
+    min-height: var(--tap);
+  }
 }
 
 /* App shell: the universal top bar, then the page. A column now that the

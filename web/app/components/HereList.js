@@ -236,10 +236,38 @@ export default function HereList({
     [onAddMember],
   );
   const actions = useRequestActions();
-  // Kept on the wrapper rather than the document: a document listener would need an effect to attach.
   const wrapRef = useRef(null);
 
   const close = useCallback(() => setOpenId(null), []);
+
+  // Dismissal is a document listener and an Escape key, the same pair
+  // ClickMenu.js uses — NOT the focusout on the wrapper this used to carry.
+  // Two things were wrong with that. Nothing closed on Escape, which every
+  // other menu in the app does. And it only worked at all if opening the menu
+  // had put focus inside the wrapper: on macOS neither Safari nor Firefox
+  // focuses a <button> on click, so focus never entered, no focusout ever
+  // fired, and the menu sat open over the roster until you clicked the same
+  // row again. A pointerdown does not care whether the trigger took focus.
+  //
+  // Scoped to the wrapper rather than to the open menu on purpose, which keeps
+  // the old behaviour exactly: a click on another row, or on that row's "Look
+  // at", is inside .chat-here and leaves the menu to the row's own toggle.
+  useEffect(() => {
+    if (openId == null) return;
+    const onPointerDown = (e) => {
+      if (wrapRef.current?.contains(e.target)) return;
+      close();
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") close();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [openId, close]);
 
   // Fetch-then-set from a click, not an effect: the dialog is open the whole time the readout is in flight.
   const lookAtSeq = useCallback(
@@ -266,13 +294,7 @@ export default function HereList({
   const total = named.length + concealed.length;
 
   return (
-    <div
-      className="chat-here"
-      ref={wrapRef}
-      onBlur={(event) => {
-        if (!wrapRef.current?.contains(event.relatedTarget)) close();
-      }}
-    >
+    <div className="chat-here" ref={wrapRef}>
       {showTitle && <p className="group-label chat-section-title">Here · {total}</p>}
       {total === 0 && <EmptyState>Nobody is here.</EmptyState>}
 
