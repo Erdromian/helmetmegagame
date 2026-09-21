@@ -1266,10 +1266,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "SOILERY.md §1",
-      claim: "A tobacco harvest pays about 67 ¢",
-      docValue: 67,
+      claim: "A tobacco harvest pays about 33 ¢",
+      docValue: 33,
       model: round1(byId("farm:tobacco")?.revenue),
-      ok: byId("farm:tobacco") != null && Math.abs(byId("farm:tobacco").revenue - 67) < 3,
+      ok: byId("farm:tobacco") != null && Math.abs(byId("farm:tobacco").revenue - 33) < 3,
     },
     {
       doc: "SOILERY.md §1",
@@ -1277,14 +1277,14 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: `${round1(factoryPerTurn)} ¢ a turn (${shift} ¢ a shift, one every other turn)`,
       model: `${round1(byId("farm:tobacco")?.netPerTurn)} ¢ a turn (${round1(byId("farm:tobacco")?.perAction)} ¢ a Farm action against ${shift} ¢ a shift, both one every other turn)`,
       ok: byId("farm:tobacco") != null && byId("farm:tobacco").netPerTurn <= factoryPerTurn,
-      note: "Tobacco is 1 ¢ a leaf, about 67 leaves an action after its 1-in-3 wither. Farm and Refine climb the same ladder, so they are compared a turn to a turn.",
+      note: "Tobacco is 1 ¢ a leaf, about 33 leaves an action after its 1-in-3 wither. Farm and Refine climb the same ladder, so they are compared a turn to a turn.",
     },
     {
       doc: "SOILERY.md §1",
-      claim: "Fertilized tobacco earns no more a turn than a solo Factory worker",
-      docValue: `${round1(factoryPerTurn)} ¢ a turn`,
+      claim: "Fertilized tobacco earns no more a turn than a farmer's food is worth, so growing cash never beats growing dinner",
+      docValue: `${round1(byId("farm:potato")?.netPerTurn)} ¢ a turn (food farming, valued at the Ration Box)`,
       model: cooking.tobacco ? `${round1(cooking.tobacco.perTurnFert)} ¢ a turn with Fertilizer (${round1(cooking.tobacco.perTurn)} without)` : "no tobacco",
-      ok: !cooking.tobacco || cooking.tobacco.perTurnFert <= factoryPerTurn,
+      ok: !cooking.tobacco || cooking.tobacco.perTurnFert <= (byId("farm:potato")?.netPerTurn ?? Infinity),
       note: "Fertilizer removes the 1-in-3 wither die that is tobacco's price for being the cash crop, so it lifts tobacco far more than it lifts food. Its 2-turn duration now spans a full work/rest cycle, so one application may cover more than one harvest.",
     },
     {

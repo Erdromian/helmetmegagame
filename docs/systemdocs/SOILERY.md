@@ -389,14 +389,18 @@ same triple every other crop has (§3): `tobacco`, `tobacco-seed-bag`
 
 | | value | why |
 |---|---|---|
-| `cropsPerPlant` | **2** | half a food crop's yield |
+| `cropsPerPlant` | **1** | a third of a food crop's yield |
 | `witherIn` | **3** | a 2-in-6 failure, double the food crops' |
-| `weight` | 0.25 | leaves, and half a plant's output means half the unit |
+| `weight` | 0.25 | leaves, so a light unit |
 | `sellablePrice` | **1 ¢** | the tuning dial — see below |
 | `cooked:` block | **none** | not food; cannot be eaten, cannot fill an ingredient slot |
 
-**The arithmetic.** 50 sown → ~33 survive → **~67 leaves**, which at 1 ¢ is
-**~67 ¢ a harvest**, about 33 ¢ a turn for a farmer working every other turn.
+**The arithmetic.** 50 sown → ~33 survive → **~33 leaves**, which at 1 ¢ is
+**~33 ¢ a harvest**, about 17 ¢ a turn for a farmer working every other turn
+(about 15 ¢ once the seed bag is paid). With Fertilizer, no plant withers and one
+in six comes up double: about 58 leaves, or about 25 ¢ a turn after the seed bag
+and the Fertilizer. That is the most a tobacco farmer can make, and it stays
+under what a food farmer's crops are worth as food (about 27 ¢ a turn).
 A tobacco field feeds nobody, so that is a wage paid for entirely by somebody
 else's dinner. With three farmers sitting at exactly the town's capacity (§1),
 one of them switching to tobacco starves a third of Ravenheart. **That
