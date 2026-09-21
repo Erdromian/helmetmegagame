@@ -232,6 +232,8 @@ export default function RequestActionsProvider({
   canBreakRestraints = false,
   // The datacard, and the device itself. Both facts about your own sheet.
   hasDatacard = false,
+  // The Pointer Device Kit's pair (db/lib/pointerMint.js) — web/lib/itemPools.js.
+  hasPointerDevice = false,
   hasDevice = false,
   // The Stepstone. Whether you carry one is your own sheet; where you may step
   // is the fog behind /map, resolved server-side in character/page.js and
@@ -574,6 +576,7 @@ export default function RequestActionsProvider({
       canDetonateCollar,
       canBreakRestraints,
       hasDatacard,
+      hasPointerDevice,
       hasDevice,
       isThanati,
       isThanatiLeader,
@@ -644,6 +647,7 @@ export default function RequestActionsProvider({
       canDetonateCollar,
       canBreakRestraints,
       hasDatacard,
+      hasPointerDevice,
       hasDevice,
       isThanati,
       isThanatiLeader,

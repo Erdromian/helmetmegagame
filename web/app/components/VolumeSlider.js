@@ -7,9 +7,11 @@ import { setSoundVolume, useSound } from "./soundStore";
 // — the player counts in percent and the mixer counts in gain.
 //
 // Controlled off the store rather than local state, so the copy in the top bar and the copy
-// at the foot of /chat move together, and so do two tabs.
-export default function VolumeSlider({ id = "volume" }) {
-  const { volume } = useSound();
+// at the foot of /chat move together, and so do two tabs. Pass `value` (0–1) and
+// `onChange` to drive some other volume with the same control — the instrument panel does.
+export default function VolumeSlider({ id = "volume", value, onChange = setSoundVolume }) {
+  const sound = useSound();
+  const volume = value ?? sound.volume;
   const percent = Math.round(volume * 100);
   return (
     <div className="volume-row">
@@ -24,7 +26,7 @@ export default function VolumeSlider({ id = "volume" }) {
         max="100"
         step="1"
         value={percent}
-        onChange={(event) => setSoundVolume(Number(event.target.value) / 100)}
+        onChange={(event) => onChange(Number(event.target.value) / 100)}
       />
       <span className="volume-value mono">{percent}</span>
     </div>

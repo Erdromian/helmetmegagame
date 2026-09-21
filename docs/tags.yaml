@@ -9389,6 +9389,29 @@ tags:
         - tag: censors-key
           keep: true
 
+  tower-key:
+    catalog: gm
+    name: "Tower Key"
+    category: items
+    group: items-keys
+    sprite: key3
+    description: "A finely made key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 0.25
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: tower-key
+          keep: true
+
   heirs-key:
     catalog: gm
     name: "Heir's Key"

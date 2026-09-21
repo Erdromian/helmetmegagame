@@ -104,11 +104,10 @@ async function playInstrument(prisma, character, placeKey) {
   });
   const since = last ? Date.now() - last.createdAt.getTime() : Infinity;
   if (since < PLAY_COOLDOWN_MS) {
-    const minutes = Math.max(1, Math.ceil((PLAY_COOLDOWN_MS - since) / 60_000));
     return {
       ok: false,
       cooldown: true,
-      error: `Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.`,
+      error: "You played an instrument too recently.",
     };
   }
 

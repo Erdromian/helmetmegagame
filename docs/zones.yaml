@@ -997,6 +997,7 @@ zones:
                 paper: 7
                 cleaning-powder: 1
                 hands-wax-stamp: 1
+                tower-key: 2
       # The ship, drawn one tile above the Keep on the barony1 plate. It has
       # NO entry in connections: below, on purpose — there is no road to it
       # and no edge to light it up, so it shows on the map only for the three
@@ -2327,7 +2328,10 @@ connections:
   - [fortress/fortress-1, fortress/fortress-3]
   - [fortress/fortress-2, fortress/fortress-3]
   - [fortress/fortress-3, fortress/fortress-4]
-  - [fortress/fortress-4, fortress/fortress-5]
+  # Up into the Tower. Locked: the Baron, Hand, Meister and Censor carry
+  # the Tower Key, and the Hand keeps two spares in their study.
+  - pair: [fortress/fortress-4, fortress/fortress-5]
+    locked: tower-key
 
   # --- Black Hills ------------------------------------------------------
   - [hills/bridge, hills/east-river]

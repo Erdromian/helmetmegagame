@@ -34,12 +34,13 @@ const INSTRUMENT_SONGS = {
     { key: "bard3", name: "Bard 3", src: "/assets/instruments/lute/bard3.ogg", seconds: 36.5 },
     { key: "bard4", name: "Bard 4", src: "/assets/instruments/lute/bard4.ogg", seconds: 25.6 },
     { key: "bard5", name: "Bard 5", src: "/assets/instruments/lute/bard5.ogg", seconds: 105.2 },
+    { key: "song_game", name: "Song Game", src: "/assets/music/song_game.ogg", seconds: 231.0 },
   ],
 
   // A boombox is the one instrument playing somebody ELSE's recording rather than a
-  // performance of its own, so its catalog is songs rather than instrument samples —
-  // including `song_game`, already served at web/public/assets/music/song_game.ogg for
-  // the lobby tape and reused here rather than copied a second time.
+  // performance of its own, so its catalog is songs rather than instrument samples.
+  // `song_game` sits on the lute instead, reusing web/public/assets/music/song_game.ogg rather
+  // than a second copy.
   boombox: [
     { key: "newbar3", name: "Newbar 3", src: "/assets/instruments/boombox/newbar3.ogg", seconds: 165.1 },
     { key: "newbar46", name: "Newbar 46", src: "/assets/instruments/boombox/newbar46.ogg", seconds: 187.5 },
@@ -64,7 +65,6 @@ const INSTRUMENT_SONGS = {
     { key: "clouds", name: "Clouds", src: "/assets/instruments/boombox/clouds.ogg", seconds: 176.3 },
     { key: "fuckup", name: "Fuckup", src: "/assets/instruments/boombox/fuckup.ogg", seconds: 335.7 },
     { key: "indihome", name: "Indihome", src: "/assets/instruments/boombox/indihome.ogg", seconds: 30.7 },
-    { key: "song_game", name: "Song Game", src: "/assets/music/song_game.ogg", seconds: 231.0 },
   ],
 };
 

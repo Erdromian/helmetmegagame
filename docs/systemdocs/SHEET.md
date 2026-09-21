@@ -325,7 +325,7 @@ buttons do everywhere else in the app.
 
 `RowVerbs.js` are the small buttons beside an Items, Assets or Health row, or
 beside any row of a consumable tag wherever it sits —
-Use, Equip/Unequip, Give, Destroy, Heal. That last clause is what keeps a thing
+Consume (Poison on a poison), Equip/Unequip, Give, Destroy, Heal. That last clause is what keeps a thing
 you can open from losing its Use button by being filed somewhere other than
 Items — a crate moved to General to put it out of a thief's reach is still a
 crate, and Consume from the verb strip would be the only way left to unpack it.
@@ -336,6 +336,13 @@ handlers are the sheet's own dialogs through `RequestActionsProvider.open`
 with the tag preselected, or `equipActions.js#toggleEquip`. Heal opens the
 Heal dialog on yourself and that wound. Hidden until hover or focus on a
 pointer device.
+
+Before those come the item's **own** verbs — Play Instrument on a lute,
+Detonate on a remote — from `db/lib/itemVerbs.js`, the same list `/chat`'s
+Things drawer reads (CHAT.md). This surface has no tooltips, so only a verb
+whose registry `show` and `gate` are both open is drawn here; the strip keeps
+the greyed one and its reason. The flags behind them are
+`web/lib/itemPools.js`, shared with `/chat`.
 
 **On a touch screen they are not beside the row at all — they are at the foot
 of the details it opens.** They used to be drawn permanently there, because the

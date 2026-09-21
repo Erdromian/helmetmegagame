@@ -74,6 +74,7 @@ export default function CharacterSheet({
   canDetonateCollar = false,
   canBreakRestraints = false,
   hasDatacard = false,
+  hasPointerDevice = false,
   hasStepstone = false,
   stepstoneTargets = [],
   hasDevice = false,
@@ -332,6 +333,7 @@ export default function CharacterSheet({
         canDetonateCollar={canDetonateCollar}
         canBreakRestraints={canBreakRestraints}
         hasDatacard={hasDatacard}
+        hasPointerDevice={hasPointerDevice}
         hasStepstone={hasStepstone}
         stepstoneTargets={stepstoneTargets}
         hasDevice={hasDevice}

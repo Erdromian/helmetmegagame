@@ -8,6 +8,9 @@ import ChipLabel from "@/app/components/ChipLabel";
 import TagDetails from "@/app/components/TagDetails";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
+import ActionButton from "@/app/components/ActionButton";
+import { ACTION_HELP, actionFor, labelFor, reasonFor } from "@/app/components/actionRegistry";
+import useSoundItem, { soundLabel } from "@/app/components/useSoundItem";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
@@ -16,15 +19,17 @@ import { playSfx } from "@/app/components/sfx";
 // THINGS: what is in your pockets, in the column, so the four things a player
 // does to an item all day are not a trip to the sheet and back.
 //
-// Every chip opens the SAME dialog the sheet opens — Use is the sheet's
+// Every chip opens the SAME dialog the sheet opens — Consume is the sheet's
 // Consume, Give is its Transfer, Destroy is its Destroy — through
 // RequestActionsProvider with the item already picked. Equip is the sheet's
 // own instant toggle (character/equipActions.js), which writes no request and
 // no audit row on purpose.
 //
-// The menu is drawn off the catalog's four flags and nothing else. It never
-// says WHY a verb is missing, because the absence is a fact about the item and
-// not about the world, and every one of them is re-checked server-side.
+// The menu is drawn off the catalog's four flags, plus the item's own verbs
+// from db/lib/itemVerbs.js (Play Instrument on a lute, Detonate on a remote).
+// The four never say WHY they are missing, because the absence is a fact about
+// the item and not about the world; an item verb greys with the registry's own
+// reason. Every one is re-checked server-side.
 //
 // Closed by default, and it stays however this browser left it, in
 // localStorage.
@@ -66,9 +71,37 @@ function write(open) {
 // out) can offer BOTH verbs at once — Equip pulls one more from reserve,
 // Unequip puts one back — rather than one toggle that can only mean one of
 // them.
-function ThingMenu({ row, onClose, onEquip, onUnequip, pending }) {
+// The item's OWN verbs (db/lib/itemVerbs.js, resolved server-side into
+// row.itemVerbs) come first, drawn the way HereList.js's PersonMenu draws the
+// registry: its `show` hides, its `gate` greys with the registry's reason. The
+// Trumpet and the Horn are not registry modes and sound through onSound.
+function ItemVerbs({ row, pools, onPick, onSound, soundPending }) {
+  return row.itemVerbs.map((mode) => {
+    const local = soundLabel(mode);
+    if (local) {
+      return <ActionButton key={mode} variant="menu" label={local} busy={soundPending} onClick={() => onSound(mode)} />;
+    }
+    const action = actionFor(mode);
+    if (!action) return null;
+    if (action.show && !pools?.[action.show]) return null;
+    return (
+      <ActionButton
+        key={mode}
+        variant="menu"
+        label={labelFor(action, pools)}
+        help={ACTION_HELP[mode] ?? null}
+        disabled={action.gate ? !pools?.[action.gate] : false}
+        reason={reasonFor(action, pools)}
+        onClick={() => onPick(mode)}
+      />
+    );
+  });
+}
+
+function ThingMenu({ row, onClose, onEquip, onUnequip, onSound, soundPending, pending }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
+  const pools = actions?.pools ?? null;
 
   const pick = useCallback(
     (mode) => {
@@ -80,6 +113,18 @@ function ThingMenu({ row, onClose, onEquip, onUnequip, pending }) {
 
   return (
     <>
+      {row.itemVerbs?.length > 0 && (
+        <ItemVerbs
+          row={row}
+          pools={pools}
+          onPick={pick}
+          onSound={(kind) => {
+            onClose();
+            onSound(kind);
+          }}
+          soundPending={soundPending}
+        />
+      )}
       {row.equippable && row.equippableRemaining > 0 && (
         <button
           type="button"
@@ -109,8 +154,13 @@ function ThingMenu({ row, onClose, onEquip, onUnequip, pending }) {
         </button>
       )}
       {row.consumable && (
-        <button type="button" role="menuitem" className="menu-item" onClick={() => pick("consume")}>
-          Use
+        <button
+          type="button"
+          role="menuitem"
+          className="menu-item"
+          onClick={() => pick(row.poison ? "poison" : "consume")}
+        >
+          {row.poison ? "Poison" : "Consume"}
         </button>
       )}
       {row.tradeable && (
@@ -130,7 +180,7 @@ function ThingMenu({ row, onClose, onEquip, onUnequip, pending }) {
 // One chip and its (portaled) menu. A component of its own so each row gets
 // its own triggerRef — hooks can't be called per-iteration inside the .map()
 // above it.
-function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, pending }) {
+function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, onSound, soundPending, pending }) {
   const triggerRef = useRef(null);
   return (
     <span className="chat-thing-wrap">
@@ -170,7 +220,15 @@ function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, pending
       </HoverCard>
       {isOpen && (
         <ClickMenu triggerRef={triggerRef} onClose={onClose} ariaLabel={row.tag.name}>
-          <ThingMenu row={row} onClose={onClose} onEquip={onEquip} onUnequip={onUnequip} pending={pending} />
+          <ThingMenu
+            row={row}
+            onClose={onClose}
+            onEquip={onEquip}
+            onUnequip={onUnequip}
+            onSound={onSound}
+            soundPending={soundPending}
+            pending={pending}
+          />
         </ClickMenu>
       )}
     </span>
@@ -183,6 +241,7 @@ export default function Things({ groups: initialGroups = [] }) {
   const [openId, setOpenId] = useState(null);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  const { sound, pending: soundPending, error: soundError } = useSoundItem();
 
   const toggle = useCallback(() => write(!read()), []);
   const close = useCallback(() => setOpenId(null), []);
@@ -265,6 +324,8 @@ export default function Things({ groups: initialGroups = [] }) {
                       onClose={close}
                       onEquip={equip}
                       onUnequip={unequip}
+                      onSound={sound}
+                      soundPending={soundPending}
                       pending={pending}
                     />
                   ))}
@@ -272,7 +333,7 @@ export default function Things({ groups: initialGroups = [] }) {
               </div>
             ))
           )}
-          <FormError>{error}</FormError>
+          <FormError>{error ?? soundError}</FormError>
         </div>
       )}
     </div>

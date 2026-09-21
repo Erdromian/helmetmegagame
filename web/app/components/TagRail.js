@@ -23,6 +23,8 @@ import TagPointsValue from "./TagPointsValue";
 import TagRow from "./TagRow";
 import { useRequestActions } from "./RequestActionsProvider";
 import { useNotice } from "./NoticeProvider";
+import { actionFor, labelFor } from "./actionRegistry";
+import useSoundItem, { soundLabel } from "./useSoundItem";
 import { playSfx } from "@/app/components/sfx";
 
 // The left column of /character: every held tag, and a filter box over all of
@@ -72,6 +74,7 @@ export default function TagRail({
   const [choiceTag, setChoiceTag] = useState(null);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  const { sound, pending: soundPending, error: soundError } = useSoundItem();
   const notice = useNotice();
 
   // includeStatus, as of phase 4: the mockup's rail draws SKILLS / HEALTH /
@@ -136,10 +139,26 @@ export default function TagRail({
     // an answer the quick Use can't ask for. Routes on Tag.poison, the one
     // catalog fact that's always safe to read straight off the tag.
     const isPoison = v.consumable && Boolean(ct.tag.poison);
+    // The item's own verbs (db/lib/itemVerbs.js) — only the ones already lit:
+    // this surface has no tooltips to carry a greyed reason (RowVerbs.js), so
+    // a registry `show` or `gate` that is shut drops the button. The strip
+    // above still draws the greyed one with its reason.
+    const itemVerbs = open
+      ? (v.itemVerbs ?? []).flatMap((mode) => {
+          const local = soundLabel(mode);
+          if (local) return [{ mode, label: local, onClick: () => sound(mode) }];
+          const action = actionFor(mode);
+          if (!action) return [];
+          if (action.show && !pools[action.show]) return [];
+          if (action.gate && !pools[action.gate]) return [];
+          return [{ mode, label: labelFor(action, pools), onClick: () => open(mode, ct.tag.id) }];
+        })
+      : [];
     return (
       <RowVerbs
         verbs={v}
-        pending={pending}
+        itemVerbs={itemVerbs}
+        pending={pending || soundPending}
         onUse={
           v.consumable && (!isPoison || open)
             ? () =>
@@ -318,7 +337,7 @@ export default function TagRail({
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
-        <FormError>{error}</FormError>
+        <FormError>{error ?? soundError}</FormError>
 
         {railCards.length === 0 && <p className="text-sm text-muted">No tags yet.</p>}
 

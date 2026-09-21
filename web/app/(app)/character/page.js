@@ -40,11 +40,9 @@ import {
   excommunicationCap,
   listExcommunications,
 } from "@lifeweb/db/lib/excommunication";
-import { isPointerDeviceSlug } from "@lifeweb/db/lib/pointerMint";
+import { itemPools } from "@/lib/itemPools";
 import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import {
-  BUTCHER_SLUG,
-  MUTILATE_GATE_SLUGS,
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
@@ -585,8 +583,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     livestockInReach(prisma, character, { rooms: reachableRoomsForBodies }),
   ]);
   const corpses = [...corpsesHere, ...livestockHere];
-  // A fact about your own sheet, resolved here so no slug matching reaches the browser.
-  const canButcher = character.tags.some((ct) => ct.tag.slug === BUTCHER_SLUG);
   // The Mulligan Potion — drinking it is the one player-facing rename, so
   // its tooltip opens the identity dialog instead of consuming it.
   // changeNameRequestImpl re-checks the potion under the same predicate.
@@ -865,24 +861,26 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const canCrucify =
     heldSlugs.has("fundamentalist") &&
     sitesHere.some((s) => s.typeSlug === "crucifix" && s.status === "COMPLETE");
-  const canDisguise = heldSlugs.has("disguise-kit"); // disguiseSelfRequest re-checks; hidden button is a hint, not a lock
-  // pickpocketRequest re-checks the tag; a greyed button is a hint, not a lock.
-  // GATE rather than SHOW (the Heal posture, not the Torture one): the tag is
-  // purchasable by anybody now, so a dead icon points at something a player can
-  // go and buy rather than teaching them a secret.
-  const canPickpocket = heldSlugs.has("pickpocket") || heldSlugs.has("pickpocketing-skilled");
-  const canTorture = heldSlugs.has("torturer"); // tortureCharacterRequest re-checks the tag and that the target is Bound
-  const canMutilate = MUTILATE_GATE_SLUGS.some((slug) => heldSlugs.has(slug)); // Cruel, Torturer or Thanati
-  const canBrand = heldSlugs.has("branding-iron"); // brandCharacterRequest re-checks tag and target's incapacitation
-  // The collar's three (docs/systemdocs/COLLAR.md). Each is purely "what is in
-  // my pocket" — never "is anybody here collared", which is the dialog's
-  // answer and the server's refusal, never the button's.
-  const canApplyCollar = heldSlugs.has("bomb-collar");
-  const canUnlockCollar = heldSlugs.has("collar-key");
-  const canDetonateCollar = heldSlugs.has("remote-detonator");
-  // Shackles only give to an Escape Artist (LESSONS.md §3c); breakRestraintsRequest re-checks the tag, the Move, and rolls itself.
-  const canBreakRestraints =
-    heldSlugs.has("bound") || (heldSlugs.has("shackled") && heldSlugs.has("escape-artist"));
+  // Everything in your pockets that lights a verb (web/lib/itemPools.js) —
+  // /chat reads the same helper, so an item's verb is lit on the same facts in
+  // both places. Each is re-checked by its server action.
+  const {
+    canButcher,
+    canDisguise,
+    canPickpocket,
+    canTorture,
+    canMutilate,
+    canBrand,
+    canApplyCollar,
+    canUnlockCollar,
+    canDetonateCollar,
+    canBreakRestraints,
+    hasDatacard,
+    hasDevice,
+    hasPointerDevice,
+    hasStepstone,
+    stepstoneTargets,
+  } = await itemPools(prisma, character, heldSlugs);
   // Shackle: anyone standing at finished Dungeons — your ground. shackleCharacterRequest re-checks it and that the target is Bound.
   const canShackle = sitesHere.some((s) => s.typeSlug === "dungeons" && s.status === "COMPLETE");
   // THE THANATI (THANATI.md). Whether you are one/lead is your own sheet's
@@ -941,34 +939,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         self: { resources: resourcesOf(character), obols: myObols?.quantity ?? 0 },
       }
     : null;
-  // The bomb's two halves — both read off your own sheet. nukeActions.js re-checks both.
-  const hasDatacard = heldSlugs.has("nuclear-datacard");
-  const hasDevice = heldSlugs.has("nuclear-device");
-  // The Pointer Device Kit's own pair — gated on the dynamic
-  // `custom-pointer-*` slug, since every pair mints its own (db/lib/pointerMint.js).
-  const hasPointerDevice = [...heldSlugs].some(isPointerDeviceSlug);
-  // The Stepstone reaches anywhere on the SURFACE, never underground — filter
-  // is SURFACE rather than "not a cave" so a new zone kind stays out by
-  // default. Built ONLY for somebody carrying a stone — a sheet with no
-  // stone shouldn't print the whole map into its page source.
-  const hasStepstone = heldSlugs.has("stepstone");
-  const stepstoneTargets = hasStepstone
-    ? await (async () => {
-        const rows = await prisma.location.findMany({
-          where: {
-            zone: { kind: "SURFACE" },
-            ...(character.locationId ? { id: { not: character.locationId } } : {}), // a null locationId matches nothing here
-          },
-          select: { id: true, name: true, zone: { select: { name: true } } },
-          orderBy: [{ zone: { sortOrder: "asc" } }, { name: "asc" }],
-        });
-        return rows.map((l) => ({
-          id: l.id,
-          name: l.name,
-          zoneName: l.zone?.name ?? null,
-        }));
-      })()
-    : [];
   // Paperwork, seals, books and the Bird (PAPERWORK.md) — every gate and
   // option list is built in web/lib/selfPools.js, since Chat's composer
   // opens the same four dialogs. Spread into CharacterSheet below: hasBird,

@@ -144,6 +144,7 @@ groups:
         - Nobility
         - Cerberus Key
         - Baron's Key
+        - Tower Key
         - Elevator Key
         - Baron's Scepter
         - Brigandine
@@ -272,6 +273,7 @@ groups:
         - Literacy
         - Hand's Pin
         - Hand's Key
+        - Tower Key
         - Obol x10
         - Broth
       doc_elements:
@@ -303,6 +305,7 @@ groups:
         - Medical I
         - Literacy
         - Meister's Key
+        - Tower Key
         - Bird
         - Obol x5
         - Vegetable Stew
@@ -619,6 +622,7 @@ groups:
         - Armory Key
         - Cerberus Key
         - Censor's Key
+        - Tower Key
         - Ravenhearter
         - Cerberon
         - Tactician

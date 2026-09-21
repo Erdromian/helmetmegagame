@@ -141,6 +141,7 @@ import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import {
   CHIP_ROW_SELECT,
+  chipSelect,
   CHIP_VIEWER_SELECT,
   GM_CHIP_CTX,
   chipContextFor,
@@ -406,7 +407,8 @@ export async function myThings() {
         poisonedCount: true,
         equippedQuantity: true,
         // The whole chip shape — slug, category, weightLbs for thingGroups, plus everything TagDetails draws.
-        tag: { select: CHIP_ROW_SELECT },
+        // instrument and poison are read by thingGroups for the item's own verbs (db/lib/itemVerbs.js).
+        tag: { select: chipSelect({ instrument: true, poison: true }) },
       },
     },
   });
