@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Keep every session on master, and take the stale claude/* branches with it.
+# Keep idle sessions on master, and take the stale claude/* branches with it.
 #
-# Bascinet has no branching workflow at all: work is committed to master and
-# pushed so it can be pulled locally straight away (see CLAUDE.md's "Git
-# workflow"). Claude Code on the web still hands each session its own
-# throwaway claude/<slug> branch, so this hook lands us back on master and
-# prunes whatever the old branch-per-session habit left on origin.
+# Most work here is committed to master and pushed so it can be pulled locally
+# straight away, though a topic branch with a PR is also normal now (see
+# CLAUDE.md's "Git workflow"). Claude Code on the web still hands each session
+# its own throwaway claude/<slug> branch, so this hook lands us back on master
+# and prunes whatever the old branch-per-session habit left on origin.
+#
+# A real topic branch is never disturbed: it carries commits origin/master
+# doesn't, which is exactly the case the "land on master" step declines.
 #
 # Every step is a no-op when it can't be done safely -- the hook never
 # discards a commit or a working-tree change, and never deletes a branch
@@ -26,7 +29,7 @@ if [ "$(git rev-parse --abbrev-ref HEAD)" != "master" ]; then
      [ -z "$(git log --oneline origin/master..HEAD 2>/dev/null)" ]; then
     if git switch --quiet master 2>/dev/null; then
       git merge --quiet --ff-only origin/master 2>/dev/null
-      echo "session-start: moved onto master (Bascinet is master-only)"
+      echo "session-start: moved onto master (nothing here master didn't have)"
     fi
   else
     echo "session-start: staying on $(git rev-parse --abbrev-ref HEAD) -- it has work master doesn't"
