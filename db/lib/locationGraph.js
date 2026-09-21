@@ -31,6 +31,40 @@ async function linksFor(prisma, locationId) {
   });
 }
 
+// ONE read of the whole graph, for a caller that asks more than one question
+// of the same edges in a single request. /map asks three — what is adjacent,
+// what can be walked to, and what to draw — and each used to pay its own round
+// trip for the same few dozen rows. Hand the result back in as `graph` to
+// resolveNeighbors / travelOptions / routesWithinZone and they share this one
+// read instead. NOT a cache: it is request-scoped by being an argument, so
+// nothing here can answer with a stale edge.
+//
+// Locations come back WHOLE rather than as the union of three lean selects —
+// ~56 rows, so one wide read beats keeping a second shape in agreement with
+// this one.
+async function loadGraph(prisma) {
+  const [rows, all] = await Promise.all([
+    // Endpoints are joined from `byId` below rather than included per row. An
+    // `include: LINK_INCLUDE` here is four more round trips — Prisma resolves a
+    // relation with its own query, and a and b each drag a Location and a Zone
+    // — for rows the Location read beside it already has in hand.
+    prisma.locationLink.findMany(),
+    // Retired places included, and split rather than filtered: a link may still
+    // point at one, and an endpoint that resolved to undefined would throw
+    // where the old per-row include quietly handed the retired row back.
+    prisma.location.findMany({ include: { zone: true } }),
+  ]);
+  const byId = new Map(all.map((loc) => [loc.id, loc]));
+  const links = rows.map((link) => ({ ...link, a: byId.get(link.aId) ?? null, b: byId.get(link.bId) ?? null }));
+  return { links, locations: all.filter((loc) => loc.retiredAt === null), byId };
+}
+
+// The edges touching one location, out of an already-loaded graph. The same rows linksFor would have returned, ways to a retired place included — that filter has never been here, and adding one would be a rule change in disguise.
+function linksAt(graph, locationId) {
+  if (!locationId) return [];
+  return graph.links.filter((link) => link.aId === locationId || link.bId === locationId);
+}
+
 // One link between two specific locations, whichever way round it is stored.
 async function linkBetween(prisma, locationId, otherLocationId) {
   if (!locationId || !otherLocationId) return null;
@@ -98,8 +132,8 @@ function gateOperable(link) {
 }
 
 // The destination list for one character standing in one location, already gated, sorted by zone then the location's authoring order. `character` needs id and either a loaded `tags` (as CHARACTER_SELECT shapes it) or nothing, in which case tags are queried. Returns [{ location, link, listed, passable, refusal, crossesZone }] — callers rendering a list must filter on `listed` themselves, since the mover wants the unlisted rows too to refuse correctly. A character already on the road gets every ZONE CROSSING shut, named in the refusal (MAP.md §3); hops inside their own zone are untouched, since a paid crossing costs the day, not the ability to walk across town. Doing this here rather than in each picker is what keeps the map, /chat panel, and bot list from ever disagreeing about a hop — same reason the gates live here.
-async function resolveNeighbors(prisma, character, locationId, { fromZoneId = null } = {}) {
-  const links = await linksFor(prisma, locationId);
+async function resolveNeighbors(prisma, character, locationId, { fromZoneId = null, graph = null } = {}) {
+  const links = graph ? linksAt(graph, locationId) : await linksFor(prisma, locationId);
   if (links.length === 0) return [];
 
   // Loaded in the shape equippedSlugs expects, not the cheaper flat set: heldTagSlugs returns BARE slugs with no equip state, and a stowed arelitz must not read as a mount.
@@ -274,7 +308,7 @@ const ALREADY_THERE = "You're already there.";
 // not (INTERCEPT.md), so a held character has no first hop to take and there
 // is no walk to offer — not a per-edge re-check, just the one predicate
 // resolveNeighbors already calls the same way.
-async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS } = {}) {
+async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS, graph = null } = {}) {
   const from = character?.locationId ?? null;
   const zoneId = character?.zoneId ?? null;
   if (!from || !zoneId) return [];
@@ -282,40 +316,45 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS 
 
   const knownIds = known instanceof Set ? known : new Set(known ?? []);
 
-  const [links, locations] = await Promise.all([
-    prisma.locationLink.findMany({
-      // Exactly what crossingCheck and isHeldOpen read, plus the endpoints.
-      select: {
-        id: true,
-        aId: true,
-        bId: true,
-        hidden: true,
-        requiredTagSlug: true,
-        modular: true,
-        isOpen: true,
-        keyed: true,
-        onFoot: true,
-        openUntil: true,
-      },
-    }),
-    // The same-zone rule falls out of this WHERE rather than being re-checked
-    // per node, so a route can never leave the zone and come back through a
-    // Location nobody looked at.
-    prisma.location.findMany({
-      where: { zoneId, retiredAt: null },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        description: true,
-        sortOrder: true,
-        indoors: true,
-        attributes: true,
-        zoneId: true,
-        zone: { select: { id: true, name: true, slug: true, kind: true, sortOrder: true } },
-      },
-    }),
-  ]);
+  // An already-loaded graph answers both of these with no round trip at all. The
+  // same-zone rule is applied in memory rather than dropped, so this branch and
+  // the WHERE below mean exactly the same thing.
+  const [links, locations] = graph
+    ? [graph.links, graph.locations.filter((loc) => loc.zoneId === zoneId)]
+    : await Promise.all([
+      prisma.locationLink.findMany({
+        // Exactly what crossingCheck and isHeldOpen read, plus the endpoints.
+        select: {
+          id: true,
+          aId: true,
+          bId: true,
+          hidden: true,
+          requiredTagSlug: true,
+          modular: true,
+          isOpen: true,
+          keyed: true,
+          onFoot: true,
+          openUntil: true,
+        },
+      }),
+      // The same-zone rule falls out of this WHERE rather than being re-checked
+      // per node, so a route can never leave the zone and come back through a
+      // Location nobody looked at.
+      prisma.location.findMany({
+        where: { zoneId, retiredAt: null },
+        select: {
+          id: true,
+          slug: true,
+          name: true,
+          description: true,
+          sortOrder: true,
+          indoors: true,
+          attributes: true,
+          zoneId: true,
+          zone: { select: { id: true, name: true, slug: true, kind: true, sortOrder: true } },
+        },
+      }),
+    ]);
 
   const byId = new Map(locations.map((loc) => [loc.id, loc]));
   // Standing here counts whether or not a visit row says so — you are looking
@@ -432,6 +471,8 @@ module.exports = {
   endpoints,
   orderEndpoints,
   linksFor,
+  linksAt,
+  loadGraph,
   linkBetween,
   crossingCheck,
   gateOperable,

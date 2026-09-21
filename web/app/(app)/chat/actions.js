@@ -24,7 +24,7 @@ import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { maybeSendGmAutoReply } from "@lifeweb/db/lib/gmAutoReply";
-import { travelOptions, linksFor, endpoints, isHeldOpen, linkBetween, routesWithinZone } from "@lifeweb/db/lib/locationGraph";
+import { travelOptions, linksFor, endpoints, isHeldOpen, linkBetween, routesWithinZone, loadGraph } from "@lifeweb/db/lib/locationGraph";
 import { knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
@@ -463,23 +463,27 @@ export async function loadTravel() {
   const character = me.character;
   if (!character.locationId) return { ok: false, error: "You are nowhere yet." };
 
-  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  const { seen } = await knownLocations(prisma, character.id);
-  // Everywhere farther in their own zone they could walk to (MAP.md §3c). Kept
-  // OUT of `options` on purpose: that grid means "doors out of this room", and
-  // folding a three-hop walk into it would make the panel lie about what is
-  // next door.
-  const routes = await routesWithinZone(prisma, character, { known: seen });
-  const [options, party, currentZone, action] = await Promise.all([
-    travelOptions(prisma, character, character.locationId),
+  // Two waves, the shape /map's loadMap uses and for the same reason: these
+  // four used to be four awaits in a row, and the two graph questions below
+  // each read Location and LocationLink for themselves.
+  const [graph, config, openTurn, { seen }] = await Promise.all([
+    loadGraph(prisma),
+    prisma.gameConfig.findUnique({ where: { id: 1 } }),
+    prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    knownLocations(prisma, character.id),
+  ]);
+  const [routes, options, party, currentZone, action] = await Promise.all([
+    // Everywhere farther in their own zone they could walk to (MAP.md §3c). Kept
+    // OUT of `options` on purpose: that grid means "doors out of this room", and
+    // folding a three-hop walk into it would make the panel lie about what is
+    // next door.
+    routesWithinZone(prisma, character, { known: seen, graph }),
+    travelOptions(prisma, character, character.locationId, { graph }),
     partyOf(prisma, character.id),
     character.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true, name: true } }) : null,
     // Whether the Move is spent — a push on is only offered after it is
     // (MAP.md §3). The same read the sheet's hasMoved makes.
-    openTurn
-      ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } })
-      : null,
+    prisma.action.findFirst({ where: { characterId: character.id, turn: { status: "OPEN" } }, select: { id: true } }),
   ]);
   const acted = Boolean(action);
 

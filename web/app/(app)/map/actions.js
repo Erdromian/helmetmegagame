@@ -3,7 +3,7 @@
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { getGmSession } from "@/lib/discordGuild";
-import { crossingCheck, travelOptions, routesWithinZone } from "@lifeweb/db/lib/locationGraph";
+import { crossingCheck, travelOptions, routesWithinZone, loadGraph } from "@lifeweb/db/lib/locationGraph";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
@@ -52,33 +52,42 @@ export async function loadMap() {
     return buildMap({ character: null, unfogged: true });
   }
 
-  // Self-healing: applyLocationMoveSideEffects's post-commit write can drop, so re-recording here closes that gap.
-  if (character.locationId) {
-    await recordArrival(prisma, character, character.locationId).catch(() => {});
-  }
-
+  // The self-heal below used to run HERE, awaited, before anything else — two
+  // writes and a graph read in front of every single map load. It moved inside
+  // buildMap, where the neighbour list it needs already exists (MAP.md §4).
   return buildMap({ character, unfogged: false });
 }
 
+// TWO WAVES, not a queue of awaits. Everything here used to be awaited one at
+// a time — the graph, then the spent Move, then the fog, then the neighbours,
+// then the walks, then the party, then the rooms — about ten round trips in a
+// line, each waiting on the last for no reason but the order it was written in.
+// Wave A is everything that depends on nothing; wave B is the three answers
+// that need wave A. Nothing below reads a table twice: `graph` is ONE read of
+// Location and LocationLink, handed to the two callers that used to fetch their
+// own (db/lib/locationGraph.js#loadGraph).
 async function buildMap({ character, unfogged }) {
 
-  const [locations, links, config, openTurn] = await Promise.all([
-    prisma.location.findMany({
-      where: { retiredAt: null },
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        description: true,
-        indoors: true,
-        attributes: true,
-        zone: { select: { slug: true, name: true, kind: true } },
-      },
-    }),
-    prisma.locationLink.findMany(),
+  const [graph, config, openTurn, known, party, keys, conversations, acted] = await Promise.all([
+    loadGraph(prisma),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
+    character ? knownLocations(prisma, character.id) : { stood: new Set(), seen: new Set() },
+    character ? partyOf(prisma, character.id) : [],
+    character ? roomAccessKeys(prisma, character.id) : null,
+    character ? conversationsFor(prisma, character.id) : [],
+    // Whether the Move is spent — a push on is only offered after it is
+    // (MAP.md §3). The same read the Travel panel and the sheet make. Asked
+    // through the turn's STATUS rather than an id fetched first, so it stops
+    // waiting on the openTurn query beside it and joins this wave.
+    character
+      ? prisma.action
+          .findFirst({ where: { characterId: character.id, turn: { status: "OPEN" } }, select: { id: true } })
+          .then(Boolean)
+      : false,
   ]);
+  const locations = graph.locations;
+  const links = graph.links;
   // OFF THE MAP (docs/systemdocs/CHARON.md). A place carrying `offMap` has no
   // marker on either plate and no edge to anywhere, so every question the rest
   // of this function answers — which plate, what is adjacent, where you could
@@ -118,7 +127,7 @@ async function buildMap({ character, unfogged }) {
           y: null,
           state: "here",
           description: standing.description || null,
-          inside: (await roomsInside(prisma, character, unfogged, new Set([standing.id]))).get(standing.id) ?? null,
+          inside: (await roomsInside(prisma, character, unfogged, new Set([standing.id]), { keys, conversations })).get(standing.id) ?? null,
           indoors: parksMounts(standing),
           adjacent: false,
           passable: false,
@@ -143,33 +152,32 @@ async function buildMap({ character, unfogged }) {
     };
   }
 
-  // Whether the Move is spent — a push on is only offered after it is
-  // (MAP.md §3). The same read the Travel panel and the sheet make.
-  const acted =
-    character && openTurn
-      ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
-      : false;
-
-  const known = character
-    ? await knownLocations(prisma, character.id)
-    : { stood: new Set(), seen: new Set() };
-
-  // Same call the Travel panel makes, so the two never disagree about a hop.
-  const neighbours = character?.locationId ? await travelOptions(prisma, character, character.locationId) : [];
+  // WAVE B. All three read wave A and nothing from each other. travelOptions
+  // and routesWithinZone are handed `graph`, so between them they make at most
+  // one query (resolveNeighbors's caving hold, and only at a cave mouth) where
+  // they used to make three reads of Location and LocationLink.
+  const [neighbours, walks, inside] = await Promise.all([
+    // Same call the Travel panel makes, so the two never disagree about a hop.
+    character?.locationId ? travelOptions(prisma, character, character.locationId, { graph }) : [],
+    // Everywhere in their own zone they could WALK to (MAP.md §3c). Fed the very
+    // set `visible()` below reads, so a walkable node is always one the board was
+    // already drawing — no new row ships, and the fog rule of §6b is untouched.
+    character?.locationId ? routesWithinZone(prisma, character, { known: known.seen, graph }) : [],
+    // Only places they have stood — a room is a door you must have stood in front of.
+    roomsInside(prisma, character, unfogged, known.stood, { keys, conversations }),
+  ]);
   const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
-
-  // Everywhere in their own zone they could WALK to (MAP.md §3c). Fed the very
-  // set `visible()` below reads, so a walkable node is always one the board was
-  // already drawing — no new row ships, and the fog rule of §6b is untouched.
-  const walks = character?.locationId
-    ? await routesWithinZone(prisma, character, { known: known.seen })
-    : [];
   const walkTo = new Map(walks.map((row) => [row.location.id, row]));
 
-  const party = character ? await partyOf(prisma, character.id) : [];
-
-  // Only places they have stood — a room is a door you must have stood in front of.
-  const inside = await roomsInside(prisma, character, unfogged, known.stood);
+  // Self-healing: applyLocationMoveSideEffects's post-commit write can drop, so
+  // re-recording here closes that gap. NOT awaited, and handed the neighbour
+  // list above so it costs two writes and no read — it repairs the NEXT load,
+  // never this one, and a player should not wait on somebody else's dropped
+  // write. `known` was read in wave A, so the standing place's own row can be
+  // one load behind: harmless, because `here` already draws that node stood.
+  if (character?.locationId) {
+    void recordArrival(prisma, character, character.locationId, { neighbours }).catch(() => {});
+  }
 
   const tagSlugs = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
   const onFootBlocked = blocksOnFoot(equippedSlugs(character?.tags ?? []));
@@ -298,19 +306,18 @@ async function buildMap({ character, unfogged }) {
 // Public rooms, private rooms they may enter, and their own conversations.
 // Private filter is accessibleRooms(), the SAME predicate the channel doctor,
 // Secret rooms? and Transfer use — no second copy of that rule here.
-async function roomsInside(prisma, character, unfogged, stoodIds) {
+// `keys` and `conversations` are handed in rather than fetched — they depend on
+// the character alone, so buildMap asks for them in its first wave and this is
+// left with one query.
+async function roomsInside(prisma, character, unfogged, stoodIds, { keys, conversations }) {
   const ids = unfogged ? undefined : [...stoodIds];
   if (!unfogged && ids.length === 0) return new Map();
 
-  const [rooms, keys, conversations] = await Promise.all([
-    prisma.room.findMany({
-      where: { retiredAt: null, ...(ids ? { locationId: { in: ids } } : {}) },
-      select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true, sortOrder: true },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    }),
-    character ? roomAccessKeys(prisma, character.id) : null,
-    character ? conversationsFor(prisma, character.id) : [],
-  ]);
+  const rooms = await prisma.room.findMany({
+    where: { retiredAt: null, ...(ids ? { locationId: { in: ids } } : {}) },
+    select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true, sortOrder: true },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
 
   const allowed = unfogged
     ? rooms

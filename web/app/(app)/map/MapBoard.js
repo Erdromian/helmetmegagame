@@ -242,10 +242,19 @@ function OffMapBoard({ data }) {
   );
 }
 
-export default function MapBoard({ onClose = null }) {
+// `initial` is loadMap()'s answer, already fetched on the server by
+// web/app/(app)/map/page.js. Without it the board shipped, hydrated, and only
+// THEN asked — so the whole read sat behind a round trip the page had already
+// paid for once. The /chat overlay mounts this with no `initial` and keeps the
+// old behaviour; every refresh on either goes through the effect below.
+export default function MapBoard({ onClose = null, initial = null }) {
   const router = useRouter();
-  const [data, setData] = useState(null);
+  const [data, setData] = useState(initial);
   const [nonce, setNonce] = useState(0);
+  // Which nonce the server already answered. Not a ref set in an effect: the
+  // first render must ALREADY know, or the mount effect fires before anything
+  // could mark it and the saved round trip is spent anyway.
+  const served = useRef(initial ? 0 : null);
   const [sel, setSel] = useState(null);
   // The phone's sheet, and only the phone's — see the card block below. Closed
   // is the resting state, so the plate gets the screen it is the point of.
@@ -368,6 +377,12 @@ export default function MapBoard({ onClose = null }) {
   }, [windowOf]);
 
   useEffect(() => {
+    // The server already answered this one (see `initial`). Spend the next
+    // nonce — a refresh, a move, a plate change — on a real fetch.
+    if (served.current === nonce) {
+      served.current = null;
+      return undefined;
+    }
     let cancelled = false;
     loadMap()
       .then((res) => {

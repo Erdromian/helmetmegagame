@@ -3,7 +3,9 @@
 const { travelOptions } = require("./locationGraph");
 
 // Called from applyLocationMoveSideEffects, run by every writer of Character.locationId (MAP.md §4).
-async function recordArrival(prisma, character, locationId) {
+//
+// `neighbours` is the same travelOptions list this would otherwise go and fetch. Pass it when you already have one — web/app/(app)/map/actions.js builds it to draw the board — and this costs two writes instead of two writes and a graph read. It must be travelOptions output, NOT linksFor: the hidden-way rule below is the whole reason this does its own read by default.
+async function recordArrival(prisma, character, locationId, { neighbours = null } = {}) {
   if (!character?.id || !locationId) return;
 
   await prisma.locationVisit.upsert({
@@ -13,12 +15,12 @@ async function recordArrival(prisma, character, locationId) {
   });
 
   // travelOptions, not linksFor — a hidden crawl the character lacks the tag for is never recorded.
-  const neighbours = await travelOptions(prisma, character, locationId);
-  if (neighbours.length === 0) return;
+  const seen = neighbours ?? (await travelOptions(prisma, character, locationId));
+  if (seen.length === 0) return;
 
   // skipDuplicates is load-bearing — a STOOD place can never be downgraded.
   await prisma.locationVisit.createMany({
-    data: neighbours.map((row) => ({
+    data: seen.map((row) => ({
       characterId: character.id,
       locationId: row.location.id,
       stood: false,
