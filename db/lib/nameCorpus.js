@@ -9,6 +9,7 @@ const BALTIC = "baltic";
 const IBERIAN = "iberian";
 const BRITISH = "british";
 const ARABIC = "arabic";
+const TURKISH = "turkish";
 
 // `[region, ...names]` rows, expanded below.
 function expand(rows) {
@@ -50,17 +51,22 @@ const MEDIEVAL_SURNAMES = expand([
   [BRITISH, "Adams", "Anderson", "Baker", "Clarke", "Fraser", "Mackenzie", "Taylor", "Wallace"],
 ]);
 
-// THE BASTARD'S PARTY names itself out of three registers and nothing else: this
-// Arabic-flavoured pool, the Hungarian rows of the medieval pool above, and the
-// object/noun nicknames below. They came over the hills from somewhere that is
-// not Ravenheart, and a party of Kowalskis and Andersons read as locals with a
-// grievance rather than as outsiders. Deliberately archaic and a little
-// invented rather than modern-Arabic: the register is a desert people three
-// centuries from anywhere, not a place on a map.
+// THE BASTARD'S PARTY names itself out of five registers and nothing else: this
+// Arabic-flavoured pool, the Turkish one below it, the Ruthenian and the other
+// eastern rows of the medieval pool above, and the object/noun nicknames. They
+// came over the hills from somewhere that is not Ravenheart, so the registers
+// are the ones the hills lead back to -- a party of Garcias and Andersons would
+// read as locals with a grievance rather than as outsiders, which is the whole
+// job this corpus does.
+//
+// Deliberately archaic and a little invented rather than modern-Arabic: the
+// register is a desert people three centuries from anywhere, not a place on a
+// map.
 //
 // Forty given names, 26 men and 14 women. The split is lopsided because four of
 // the six party seats are men (docs/roles.yaml `gender: MAN`) and only the
-// Healer and the Engineer roll a woman at all.
+// Healer and the Engineer roll a woman at all. Every party register is skewed
+// the same way for the same reason.
 const ARABIC_MALE = expand([
   [ARABIC, "Ghanim", "Harith", "Jubayr", "Mudhir", "Nasif", "Qasim", "Rashad", "Sadiq", "Tahir",
     "Uthman", "Zahir", "Amjad", "Bashir", "Dhiyab", "Faris", "Hamdan", "Ilyas", "Jamal", "Khalaf",
@@ -77,6 +83,27 @@ const ARABIC_FEMALE = expand([
 const ARABIC_SURNAMES = expand([
   [ARABIC, "al-Hadid", "al-Qamar", "al-Ghurab", "al-Mirzam", "al-Suhayl", "al-Dahna", "al-Nafud",
     "al-Rimal", "al-Wadi", "al-Sakhra", "al-Bidayn", "ibn Sarraj", "ibn Qurash", "ibn Marid"],
+]);
+
+// The party's second outsider register, in the same archaic key as the Arabic
+// one -- an Ottoman-ish court-and-steppe sound rather than a modern Turkish
+// phonebook. No diacritics, matching every row above except the Baltic four.
+const TURKISH_MALE = expand([
+  [TURKISH, "Alparslan", "Bayezid", "Cihangir", "Demir", "Ertugrul", "Hakan", "Ilhan", "Kaya",
+    "Korkut", "Mehmed", "Murad", "Orhan", "Osman", "Savci", "Selim", "Sinan", "Tugrul", "Yavuz",
+    "Yigit", "Bulent"],
+]);
+
+const TURKISH_FEMALE = expand([
+  [TURKISH, "Asli", "Ayse", "Belkis", "Esma", "Gulbahar", "Hurrem", "Mihrimah", "Nilufer",
+    "Safiye", "Zeynep", "Elif", "Melike"],
+]);
+
+// Trade and tribe rather than patronymics, the same choice the Arabic surnames
+// make, so the two outsider registers read as one road rather than two.
+const TURKISH_SURNAMES = expand([
+  [TURKISH, "Karabey", "Demirci", "Akinci", "Yildirim", "Karaca", "Toprak", "Ozdemir", "Kilic",
+    "Cakir", "Bozkurt", "Sarikaya", "Aydin"],
 ]);
 
 // The non-medieval pool: cosmopolitan given names and object/noun nicknames, including RimWorld colonist nicknames (rimworldwiki.com/wiki/User:Paintsimmon/NameinGame). These carry no region — pairing with a regional surname is the point.
@@ -154,6 +181,11 @@ const NAME_CORPUS = Object.freeze({
     female: ARABIC_FEMALE,
     surnames: ARABIC_SURNAMES,
   }),
+  turkish: Object.freeze({
+    male: TURKISH_MALE,
+    female: TURKISH_FEMALE,
+    surnames: TURKISH_SURNAMES,
+  }),
 });
 
 // --- The Bastard's party --------------------------------------------------
@@ -178,21 +210,57 @@ function cultureForRole(slug) {
   return BASTARD_ROLE_SLUGS.includes(slug) ? BASTARD_CULTURE : null;
 }
 
-const HUNGARIAN_MALE = MEDIEVAL_MALE.filter((n) => n.region === HUNGARIAN);
-const HUNGARIAN_FEMALE = MEDIEVAL_FEMALE.filter((n) => n.region === HUNGARIAN);
-const HUNGARIAN_SURNAMES = MEDIEVAL_SURNAMES.filter((n) => n.region === HUNGARIAN);
+// The party's European registers are FILTERED OUT of the medieval pool above
+// rather than restated, so a name added to Ravenheart's own corpus reaches the
+// warband too and there is only ever one list to edit. Russian stands on its
+// own because it is a whole register of the party's sound, not a garnish;
+// `eastern` is everything else the hills lead back to, pooled because no one of
+// those regions carries enough names to be a register by itself.
+const EASTERN_REGIONS = Object.freeze([HUNGARIAN, SLAVIC_WEST, ROMANIAN, SLAVIC_SOUTH, BALTIC]);
+const inRegions = (rows, regions) => Object.freeze(rows.filter((n) => regions.includes(n.region)));
 
-// A noun carries no surname of its own, so it borrows one from the party's
-// other two registers -- the same cross-pairing the flavour pool already does.
-const BASTARD_SURNAMES = Object.freeze([...ARABIC_SURNAMES, ...HUNGARIAN_SURNAMES]);
+const RUSSIAN_MALE = inRegions(MEDIEVAL_MALE, [RUTHENIAN]);
+const RUSSIAN_FEMALE = inRegions(MEDIEVAL_FEMALE, [RUTHENIAN]);
+const RUSSIAN_SURNAMES = inRegions(MEDIEVAL_SURNAMES, [RUTHENIAN]);
+
+const EASTERN_MALE = inRegions(MEDIEVAL_MALE, EASTERN_REGIONS);
+const EASTERN_FEMALE = inRegions(MEDIEVAL_FEMALE, EASTERN_REGIONS);
+const EASTERN_SURNAMES = inRegions(MEDIEVAL_SURNAMES, EASTERN_REGIONS);
+
+// A noun carries no surname of its own, so it borrows one from every other
+// register -- the same cross-pairing the flavour pool already does.
+const BASTARD_SURNAMES = Object.freeze([
+  ...ARABIC_SURNAMES,
+  ...TURKISH_SURNAMES,
+  ...RUSSIAN_SURNAMES,
+  ...EASTERN_SURNAMES,
+]);
 const NOUN_NAMES = freezeNames(FLAVOUR_NEUTRAL_NAMES);
 
-// Even thirds. The noun register is the one that makes the party read as a
-// warband rather than a nation, so it is not a rare garnish.
+// Given and surname pools per register, so the roll below is a table lookup
+// rather than a chain of ternaries. `given: null` means the register is
+// genderless and draws the one shared noun list whatever the seat is.
+const BASTARD_REGISTERS = Object.freeze({
+  noun: Object.freeze({ weight: 30, given: null, surnames: BASTARD_SURNAMES }),
+  arabic: Object.freeze({ weight: 20, given: [ARABIC_MALE, ARABIC_FEMALE], surnames: ARABIC_SURNAMES }),
+  eastern: Object.freeze({ weight: 20, given: [EASTERN_MALE, EASTERN_FEMALE], surnames: EASTERN_SURNAMES }),
+  russian: Object.freeze({ weight: 18, given: [RUSSIAN_MALE, RUSSIAN_FEMALE], surnames: RUSSIAN_SURNAMES }),
+  turkish: Object.freeze({ weight: 12, given: [TURKISH_MALE, TURKISH_FEMALE], surnames: TURKISH_SURNAMES }),
+});
+
+const BASTARD_REGISTER_WEIGHT = Object.values(BASTARD_REGISTERS).reduce((sum, r) => sum + r.weight, 0);
+
+// Weighted, not even: the noun register is the one that makes the party read as
+// a warband rather than a nation, so it keeps the largest share and is never a
+// rare garnish. Turkish is the smallest on purpose -- a seasoning on the road
+// the party came down, not a second homeland.
 function bastardRegister(random) {
-  const roll = random();
-  if (roll < 1 / 3) return "arabic";
-  if (roll < 2 / 3) return "hungarian";
+  let roll = random() * BASTARD_REGISTER_WEIGHT;
+  for (const [name, register] of Object.entries(BASTARD_REGISTERS)) {
+    roll -= register.weight;
+    if (roll < 0) return name;
+  }
+  // Unreachable while the weights are positive; guards a float landing on the end.
   return "noun";
 }
 
@@ -232,23 +300,14 @@ function randomCharacterName({
   const pick = (arr) => arr[Math.floor(random() * arr.length)];
 
   // The Bastard's party never reaches the ordinary pools at all -- no medieval
-  // roll, no flavour roll, no Witcher. Three registers and out.
+  // roll, no flavour roll, no Witcher. Five registers and out.
   if (culture === BASTARD_CULTURE) {
-    const register = bastardRegister(random);
-    const given =
-      register === "noun"
-        ? pick(NOUN_NAMES)
-        : register === "arabic"
-          ? pick(pick(poolsFor(gender, false, ARABIC_MALE, ARABIC_FEMALE)))
-          : pick(pick(poolsFor(gender, false, HUNGARIAN_MALE, HUNGARIAN_FEMALE)));
+    const register = BASTARD_REGISTERS[bastardRegister(random)];
+    const given = register.given
+      ? pick(pick(poolsFor(gender, false, register.given[0], register.given[1])))
+      : pick(NOUN_NAMES);
     if (lastNameLocked) return { firstName: given.name, lastName: null };
-    const surnames =
-      register === "arabic"
-        ? ARABIC_SURNAMES
-        : register === "hungarian"
-          ? HUNGARIAN_SURNAMES
-          : BASTARD_SURNAMES;
-    return { firstName: given.name, lastName: pick(surnames).name };
+    return { firstName: given.name, lastName: pick(register.surnames).name };
   }
 
   const useFlavour = random() < FLAVOUR_CHANCE;

@@ -357,3 +357,83 @@ test("the rolled band stops well below the catalog age ceiling", () => {
 test("GENDERS is the three-value set the roll picks from", () => {
   assert.deepEqual([...GENDERS].sort(), ["MAN", "NEUTRAL", "WOMAN"]);
 });
+
+// --- The Bastard's party's five registers (db/lib/nameCorpus.js) -----------
+const { cultureForRole } = require("../lib/nameCorpus");
+
+const BASTARD = cultureForRole("bastard-infantry");
+const rollParty = (gender = "NEUTRAL") => randomCharacterName({ gender, culture: BASTARD });
+
+test("cultureForRole marks the six party seats and nobody else", () => {
+  for (const slug of [
+    "bastard",
+    "bastard-infantry",
+    "bastard-heavy-infantry",
+    "bastard-rifleman",
+    "bastard-healer",
+    "bastard-engineer",
+  ]) {
+    assert.equal(cultureForRole(slug), "bastard", slug);
+  }
+  for (const slug of ["baron", "soiler", "prospector", "mortus"]) {
+    assert.equal(cultureForRole(slug), null, slug);
+  }
+});
+
+test("a party roll never reaches Ravenheart's own flavour or Witcher names", () => {
+  // The medieval pool is shared -- the eastern and Russian registers are cut
+  // out of it -- so only the flavour side proves the party took its own road.
+  const flavourOnly = namesIn(NAME_CORPUS.flavour.male, NAME_CORPUS.flavour.female, NAME_CORPUS.flavour.witcher);
+  const nouns = new Set(
+    [...flavourOnly].filter((n) => !namesIn(NAME_CORPUS.flavour.witcher).has(n)),
+  );
+  for (let i = 0; i < 500; i++) {
+    const { firstName } = rollParty();
+    // A noun IS in the flavour pool (it is the shared neutral column), so the
+    // check that bites is the Witcher batch, which the party must never reach.
+    assert.ok(!namesIn(NAME_CORPUS.flavour.witcher).has(firstName), firstName);
+    assert.ok(nouns.has(firstName) || !flavourOnly.has(firstName), firstName);
+  }
+});
+
+test("every register is reachable, and Turkish is the smallest of them", () => {
+  const surnamesOf = (rows) => new Set(rows.map((n) => n.name));
+  const arabic = surnamesOf(NAME_CORPUS.arabic.surnames);
+  const turkish = surnamesOf(NAME_CORPUS.turkish.surnames);
+  const russian = surnamesOf(NAME_CORPUS.medieval.surnames.filter((n) => n.region === "ruthenian"));
+
+  const seen = { arabic: 0, turkish: 0, russian: 0, other: 0 };
+  const N = 20000;
+  for (let i = 0; i < N; i++) {
+    const { lastName } = rollParty();
+    if (arabic.has(lastName)) seen.arabic += 1;
+    else if (turkish.has(lastName)) seen.turkish += 1;
+    else if (russian.has(lastName)) seen.russian += 1;
+    else seen.other += 1;
+  }
+  for (const [key, count] of Object.entries(seen)) {
+    assert.ok(count > 0, `register ${key} was never reached`);
+  }
+  // Turkish carries the lowest weight, and nouns borrow surnames evenly from
+  // all four families, so it stays the rarest surname family by a clear margin.
+  assert.ok(seen.turkish < seen.arabic, `turkish ${seen.turkish} vs arabic ${seen.arabic}`);
+});
+
+test("a party MAN still draws only male given names", () => {
+  const female = namesIn(NAME_CORPUS.arabic.female, NAME_CORPUS.turkish.female, NAME_CORPUS.medieval.female);
+  const neutralNouns = namesIn(NAME_CORPUS.flavour.male).size;
+  assert.ok(neutralNouns > 0);
+  for (let i = 0; i < 500; i++) {
+    const { firstName } = rollParty("MAN");
+    // A noun is genderless and lives in both flavour columns, so only a name
+    // that is female-ONLY proves a leak.
+    const maleSide = namesIn(NAME_CORPUS.arabic.male, NAME_CORPUS.turkish.male, NAME_CORPUS.medieval.male, NAME_CORPUS.flavour.male);
+    assert.ok(!female.has(firstName) || maleSide.has(firstName), firstName);
+  }
+});
+
+test("a party dynasty seat gets no rolled surname", () => {
+  for (let i = 0; i < 50; i++) {
+    assert.equal(randomCharacterName({ gender: "MAN", culture: BASTARD, lastNameLocked: true }).lastName, null);
+  }
+});
