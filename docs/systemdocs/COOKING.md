@@ -456,6 +456,7 @@ adjudicating should see everything.
 | Hunting | Boar Loin, Deer Liver, Goose Fat |
 | Fishing | Crayfish everywhere; River Eel in the Forest, Lamprey in the Marshes, Blind Fish in the Caves |
 | Farming | Onion (the commonest and cheapest of the thirteen, on purpose) |
+| A cook's starting kit | Servant, Geschef, Innkeeper and Inn Staff each start with 8 Wheat, 12 Potato, 6 Carrot, 8 Tomato and 6 Onion (`docs/roles.yaml`): 40 crops, which is 20 basic dishes for one whole Move and feeds 20 person-turns |
 | Caving | Rock Salt, `ultracommon` in `db/lib/cavingLoot.js` |
 | Room stashes | 3 Deep Morels scattered across the Caves and Depths, 4 more in the Godshroom; 5 Hard Cheeses across the cellars |
 | The Depot | Saffron (15 ⬢, three cigarettes), Tinned Butter (10 ⬢) |

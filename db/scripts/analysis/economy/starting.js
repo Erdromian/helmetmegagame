@@ -16,6 +16,7 @@ const path = require("path");
 const yaml = require("js-yaml");
 const { parseStartingTag } = require("../../../lib/startingTags");
 const hunger = require("../../../lib/hunger");
+const soilery = require("../../../lib/soilery");
 const { FAST_METABOLISM_SLUG, HUNGERLESS_SLUG } = require("../../../lib/constants");
 const { ALL_GROUPS } = require("../../../lib/roleGroups");
 
@@ -64,13 +65,19 @@ function readRooms() {
   return { rooms, doors, locNames };
 }
 
-function buildStarting({ list, get, foods, params, foodFloor, sources, players }) {
+function buildStarting({ list, get, foods, params, foodFloor, sources, players, cooking }) {
   const decayBase = params.hungerDecay;
   const start = params.hungerMax;
   const deathTurns = hunger.STARVING_DEATH_TURNS;
   const costPerPersonTurn = foodFloor?.anyone?.costPerPersonTurn ?? null; // ¢ to feed one person one turn, off the shelf
   const foodBy = new Map(foods.map((f) => [f.slug, f.hunger]));
   const recipeSlugs = new Set(sources.items.map((i) => i.slug));
+  // Farmed crops go into a dish two at a time: the best crops-only Basic dish gives 35 hunger for 0.05 of a Move
+  // (COOKING.md §2a), which is what a starting stock of crops turns into when a cook spends a turn on it.
+  const cropSlugs = new Set(soilery.CROPS.map((c) => c.crop));
+  const cropDish = cooking.dishes.filter((d) => d.farmOnly && d.tier === "Basic").sort((a, b) => b.hungerPerUnit - a.hungerPerUnit)[0];
+  const cookedPerCrop = cropDish?.hungerPerUnit ?? 0;
+  const movesPerCrop = cropDish ? cropDish.moves / cropDish.units : 0;
 
   const byName = new Map();
   for (const t of list) {
@@ -133,6 +140,10 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players }
       const cracked = held.reduce((n, h) => n + (h.tag.consumesIntoResources && h.tag.slug !== RESOURCES ? h.quantity * h.tag.consumesIntoResources : 0), 0);
       const foodItems = held.filter((h) => foodHungerOf(h.tag) > 0);
       const food = foodItems.reduce((n, h) => n + h.quantity * foodHungerOf(h.tag), 0);
+      // Crops in the starting kit: eaten raw they are a few hunger a crop, cooked they are 17.5 each.
+      const crops = held.filter((h) => cropSlugs.has(h.tag.slug)).reduce((n, h) => n + h.quantity, 0);
+      const cropRawHunger = held.filter((h) => cropSlugs.has(h.tag.slug)).reduce((n, h) => n + h.quantity * foodHungerOf(h.tag), 0);
+      const foodCooked = food - cropRawHunger + crops * cookedPerCrop;
       const kit = held.filter((h) => recipeSlugs.has(h.tag.slug) && !isKey(h.tag.slug) && h.tag.slug !== OBOL && h.tag.slug !== RESOURCES).map((h) => `${h.tag.name}${h.quantity > 1 ? ` ×${h.quantity}` : ""}`);
       const keys = held.filter((h) => isKey(h.tag.slug) || h.tag.slug === "merchants-license").map((h) => h.tag.name);
 
@@ -167,6 +178,10 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players }
         resources,
         cracked,
         food,
+        crops,
+        dishes: crops / (cropDish?.units || 2),
+        cookMoves: crops * movesPerCrop,
+        foodCooked,
         foodItems: foodItems.map((h) => `${h.tag.name}${h.quantity > 1 ? ` ×${h.quantity}` : ""}`),
         kit,
         keys,
@@ -201,6 +216,7 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players }
     role.hungryTurn = hungryTurn(carried, role.decay);
     role.starveTurn = startingTurn(carried, role.decay);
     role.dyingTurn = role.starveTurn + deathTurns - 1;
+    role.starveTurnCooked = startingTurn(role.foodCooked, role.decay);
     // What the coin buys off the shelf, at the price of a person-turn of ration, scaled to how fast this role burns.
     const costPerTurn = costPerPersonTurn == null ? null : costPerPersonTurn * (role.decay / decayBase);
     role.turnsFromFunds = costPerTurn ? (role.decay === 0 ? Infinity : role.funds / costPerTurn) : null;
@@ -308,7 +324,13 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players }
       resources: sum("resources"),
       cracked: sum("cracked"),
       food: sum("food"),
+      crops: sum("crops"),
+      dishes: sum("dishes"),
+      cookMoves: sum("cookMoves"),
+      foodCooked: sum("foodCooked"),
       foodTurns: sum("food") / decayBase,
+      cookedTurns: sum("foodCooked") / decayBase,
+      cookSeats: seated.filter((r) => r.crops >= 20).reduce((n, r) => n + r.seats, 0),
       needPerTurn: seatTotal * decayBase,
     },
     vault: vault ? { coin: vault.coin, resources: vault.resources } : null,

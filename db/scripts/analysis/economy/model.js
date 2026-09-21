@@ -1514,7 +1514,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     investments,
     startingPoints: startingTagPoints,
   });
-  const starting = buildStarting({ list, get, foods, params, foodFloor, sources, players });
+  const starting = buildStarting({ list, get, foods, params, foodFloor, sources, players, cooking });
   const auditSrc = fs.readFileSync(path.join(REPO, "db/scripts/ops/audit-vault-backing.js"), "utf8");
   const reserveFloor = Number((/const RESERVE_FLOOR = ([0-9.]+);/.exec(auditSrc) ?? [])[1]);
   if (!Number.isFinite(reserveFloor)) throw new Error("economy model: could not read RESERVE_FLOOR out of db/scripts/ops/audit-vault-backing.js; the file has changed shape.");

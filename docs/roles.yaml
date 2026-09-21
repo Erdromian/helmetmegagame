@@ -397,6 +397,14 @@ groups:
         - Ravenhearter
         - Servant
         - Cooking I
+        # A turn's cooking to start with: 40 crops is 20 dishes at 2 crops and
+        # 0.05 of a Move each, which is one whole Move. Every dish here is
+        # 35 hunger (COOKING.md §2a), so a cook can feed 20 person-turns.
+        - Wheat x8
+        - Potato x12
+        - Carrot x6
+        - Tomato x8
+        - Onion x6
       doc_elements:
         - godking
         - courtstructure
@@ -910,6 +918,12 @@ groups:
         - Brewing I
         - Medical I
         - Cooking I
+        # A turn's cooking to start with, as for the Servant.
+        - Wheat x8
+        - Potato x12
+        - Carrot x6
+        - Tomato x8
+        - Onion x6
         - Cleaning Powder
         - Armored Gloves
         - Factory Key
@@ -1203,6 +1217,12 @@ groups:
         - Room C Key x2
         - Ravenhearter
         - Cooking I
+        # A turn's cooking to start with, as for the Servant.
+        - Wheat x8
+        - Potato x12
+        - Carrot x6
+        - Tomato x8
+        - Onion x6
         - Brewing I
         - Brewing (Distilling)
         - Appraisal
@@ -1227,6 +1247,12 @@ groups:
         - Inn Key
         - Ravenhearter
         - Cooking I
+        # A turn's cooking to start with, as for the Servant.
+        - Wheat x8
+        - Potato x12
+        - Carrot x6
+        - Tomato x8
+        - Onion x6
       doc_elements:
         - alcoholdrugs
         - inn
