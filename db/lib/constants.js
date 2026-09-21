@@ -117,6 +117,11 @@ const ENGRAVE_RESOURCE_COST = 2;
 // Turns a person's corpse stays fresh. Monster corpses never rot.
 const CORPSE_ROT_TURNS = 3;
 
+// Turns an unburied body goes on cursing its player (db/lib/curse.js). After
+// this many, the curse lapses on its own and they may roll again with the body
+// still lying where it fell. Nothing is shown about it anywhere.
+const CURSE_TURNS = 5;
+
 // Digging and smelling (docs/systemdocs/CORPSES.md). A Shovel halves burial
 // while it is equipped — two bodies in the ground in a turn instead of one.
 // Corpse Salts is the Mortii's recipe, consumed into Corpse Sense, which is
@@ -314,6 +319,7 @@ module.exports = {
   HUMAN_FLESH_SLUG,
   ENGRAVE_RESOURCE_COST,
   CORPSE_ROT_TURNS,
+  CURSE_TURNS,
   SHOVEL_SLUG,
   CORPSE_SALTS_SLUG,
   CORPSE_SENSE_SLUG,

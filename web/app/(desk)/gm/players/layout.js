@@ -162,7 +162,7 @@ export default async function PlayerDeskLayout({ children }) {
   // Who is cursed is a database question now (db/lib/curse.js), not a Discord
   // role — and the rows it reads are the ones already loaded above, so this
   // costs no extra query.
-  const cursed = cursedUserIds(characters);
+  const cursed = cursedUserIds(characters, openTurn?.number ?? null);
 
   // Name/role/zone resolve together under one ALIVE-wins rule.
   const characterByUser = new Map();

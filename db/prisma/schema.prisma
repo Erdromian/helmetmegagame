@@ -2073,6 +2073,15 @@ model Character {
   // GM-revived character is never a live person marked buried.
   buriedAt DateTime?
 
+  // The Turn.number this body fell on, stamped once by
+  // db/lib/characterDeath.js#applyDeathToRow. It exists for one reader:
+  // db/lib/curse.js, where an unburied body stops cursing its player
+  // CURSE_TURNS turns after the death. Nullable and never backfilled — a row
+  // that carries no number has no clock and never lapses, which is how every
+  // death written before this column behaves. A death with no open turn stamps
+  // null for the same reason.
+  deathTurn Int?
+
   // A GM's override of the curse, from the character dev panel. NULL means
   // "work it out" — the normal case, answered by db/lib/curse.js from this
   // character's buriedAt. True or false forces it either way and nothing

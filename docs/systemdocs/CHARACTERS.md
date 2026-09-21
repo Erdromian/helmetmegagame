@@ -676,7 +676,8 @@ Cost renders `+N` in `var(--accent)` (red, it costs you) and `-N` in
 `Cursed` is a **database fact**, worked out by `db/lib/curse.js`:
 
 > A player is cursed when their **most recent body** is still lying in the
-> world, and they have no living character.
+> world, they have no living character, and fewer than `CURSE_TURNS` turns
+> have passed since that death.
 
 Both halves are already columns, so there is no `cursed` field to keep in step
 with anything. `Character.buriedAt` is stamped by `BURY_CHARACTER` and by
@@ -688,11 +689,29 @@ for the last one only. Counting every body would mean that somebody whose
 corpse was destroyed — butchered, or exploded by a Rite of Sacrifice — could be
 locked to Bum or Migrant at −6 for the rest of the game.
 
+**It also lapses on its own after 5 turns** (`CURSE_TURNS` in
+`db/lib/constants.js`). `Character.deathTurn` holds the `Turn.number` the body
+fell on, stamped once by `applyDeathToRow`; once the open turn is that many
+turns past it, the rule answers false with the body still lying where it fell.
+Nothing tells anybody — there is no countdown, no notice and no DM, on either
+face. A player past the count simply finds `/character` offering the wizard
+again. It exists so that a death nobody happens to bury is not the end of
+somebody's month.
+
+A `deathTurn` of null means **no clock**, and so does a caller holding no turn
+number: both read as still cursed. That is the same fail-closed direction
+`!buriedAt` is written in — the cost of guessing wrong the other way is a free
+re-roll over a fresh corpse. Every row written before 2026-09-20 carries null,
+and nothing backfilled them.
+
 `isPlayerCursed(prisma, discordUserId)` is the single answer and
-`cursedUserIds(rows)` the bulk one; the bulk form is **pure over rows already
+`cursedUserIds(rows, currentTurnNumber)` the bulk one; the bulk form is **pure over rows already
 loaded**, because the two GM roster desks and the channel doctor all hold the
-whole `Character` table already. `CURSE_SELECT` is exported for callers that
-narrow their `select` — omit `buriedAt` and the rule reads `undefined`.
+whole `Character` table already — and so the bulk form takes the open turn's
+number as its second argument, since a pure function cannot go and look. Both
+GM desks already load `openTurn`, so this costs no query. `CURSE_SELECT` is
+exported for callers that narrow their `select` — omit `buriedAt` or
+`deathTurn` and the rule reads `undefined`.
 
 **Curse must never be read off a live Discord role.** Any failed role write —
 a 429 during the grant, a GM clearing it by hand, a player leaving and
@@ -742,6 +761,9 @@ burying it, and that is exactly why Engrave exists: somebody whose corpse was
 cut up and scattered has no body left to bury, and a stone is the only way out.
 This now falls out of the rule rather than needing code — butchering never
 stamps `buriedAt`.
+
+A GM's override still wins over the lapse in both directions, as it does over
+everything else.
 
 **A GM overrides it from the character dev panel.** `Character.cursedOverride`
 is a three-state column: `null` means "work it out", `true` and `false` force
