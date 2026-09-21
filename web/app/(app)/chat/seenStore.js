@@ -8,16 +8,45 @@ import { useSyncExternalStore } from "react";
 const PREFIX = "hall:seen:";
 const listeners = new Set();
 
-function emit() {
-  invalidate();
+// THE MARKS THEMSELVES. localStorage BACKS this map rather than being it. A browser that
+// refuses site data throws on setItem, and a store holding its state only in storage then
+// answered the very next read with the UNCHANGED stored value — so the mark undid itself,
+// silently, with no error to see. Same rule, and the same reason, as ./next/foldStore.js.
+let marks = null;
+// Latched the first time a write is refused: from then on memory is the only copy there
+// is, so nothing may drop it and rescan an empty store.
+let memoryOnly = false;
+// The derived snapshot, rebuilt from `marks` — avoids walking every localStorage key on
+// every render.
+let cached = null;
+
+function load() {
+  if (marks) return marks;
+  marks = new Map();
+  try {
+    for (let i = 0; i < window.localStorage.length; i += 1) {
+      const key = window.localStorage.key(i);
+      if (!key?.startsWith(PREFIX)) continue;
+      marks.set(key.slice(PREFIX.length), window.localStorage.getItem(key));
+    }
+  } catch {
+    // Unreadable storage. Memory carries the session on its own.
+  }
+  return marks;
+}
+
+// A write landed in this tab: the derived string has to be rebuilt, but `marks` is already
+// correct and must NOT be dropped — that is the whole point of the shape.
+function changed() {
+  cached = null;
   for (const cb of listeners) cb();
 }
 
-// Cached, invalidated only on emit or a storage event — avoids walking every localStorage key on every render.
-let cached = null;
-
+// Another tab may have moved a mark, so reload from storage. Skipped once storage is
+// refusing us: there is no other tab writing, and memory is all there is.
 function invalidate() {
   cached = null;
+  if (!memoryOnly) marks = null;
 }
 
 function subscribe(callback) {
@@ -35,24 +64,33 @@ function subscribe(callback) {
   };
 }
 
-function scan() {
-  const parts = [];
-  try {
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const key = window.localStorage.key(i);
-      if (!key?.startsWith(PREFIX)) continue;
-      parts.push(`${key.slice(PREFIX.length)}=${window.localStorage.getItem(key)}`);
-    }
-  } catch {
-    return "";
-  }
-  return parts.sort().join("|");
-}
-
 // One string for the whole map, so useSyncExternalStore's snapshot stays stable between renders.
 function read() {
-  if (cached === null) cached = scan();
+  if (cached === null) {
+    const parts = [];
+    for (const [placeKey, seq] of load()) parts.push(`${placeKey}=${seq}`);
+    cached = parts.sort().join("|");
+  }
   return cached;
+}
+
+function persist(placeKey, value) {
+  try {
+    window.localStorage.setItem(`${PREFIX}${placeKey}`, value);
+  } catch {
+    memoryOnly = true;
+  }
+}
+
+// Forward only: a stale write must not re-mark a room as unread. An unparseable mark from
+// an older build is overwritten rather than trusted.
+function isNewer(seq, current) {
+  if (!current) return true;
+  try {
+    return BigInt(seq) > BigInt(current);
+  } catch {
+    return true;
+  }
 }
 
 function readServer() {
@@ -78,66 +116,46 @@ function parse(snapshot) {
   return map;
 }
 
-// Only moves forward: a stale write must not re-mark a room as unread.
 export function markSeen(placeKey, seq) {
   if (!placeKey || !seq) return;
-  try {
-    const current = window.localStorage.getItem(`${PREFIX}${placeKey}`);
-    if (current && BigInt(current) >= BigInt(seq)) return;
-    window.localStorage.setItem(`${PREFIX}${placeKey}`, String(seq));
-  } catch {
-    return;
-  }
+  const map = load();
+  const value = String(seq);
+  if (!isNewer(value, map.get(placeKey))) return;
+  map.set(placeKey, value);
+  persist(placeKey, value);
   // The storage event does not fire in the tab that wrote it.
-  emit();
+  changed();
 }
 
 // The mark RIGHT NOW, outside the store — the NEW divider needs it a beat before markSeen moves it.
 export function peekSeen(placeKey) {
   if (!placeKey) return null;
-  try {
-    return window.localStorage.getItem(`${PREFIX}${placeKey}`);
-  } catch {
-    return null;
-  }
+  return load().get(placeKey) ?? null;
 }
 
 // A first visit starts caught up (every place marked at what was newest on
 // load) instead of lighting up every place at once — only on an empty slate.
 export function seedSeenIfFresh(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return;
-  try {
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      if (window.localStorage.key(i)?.startsWith(PREFIX)) return;
-    }
-  } catch {
-    return;
-  }
+  if (load().size > 0) return;
   markAllSeen(entries);
 }
 
 // Same write as seedSeenIfFresh without its empty-slate guard. FORWARD ONLY
-// per place, same rule as markSeen; one emit at the end, not one per place.
+// per place, same rule as markSeen; one notify at the end, not one per place.
 export function markAllSeen(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return;
+  const map = load();
   let wrote = false;
-  try {
-    for (const entry of entries) {
-      if (!entry?.placeKey || !entry.seq) continue;
-      const key = `${PREFIX}${entry.placeKey}`;
-      const current = window.localStorage.getItem(key);
-      try {
-        if (current && BigInt(current) >= BigInt(entry.seq)) continue;
-      } catch {
-        // An unparseable mark from an older build: overwrite it.
-      }
-      window.localStorage.setItem(key, String(entry.seq));
-      wrote = true;
-    }
-  } catch {
-    return;
+  for (const entry of entries) {
+    if (!entry?.placeKey || !entry.seq) continue;
+    const value = String(entry.seq);
+    if (!isNewer(value, map.get(entry.placeKey))) continue;
+    map.set(entry.placeKey, value);
+    persist(entry.placeKey, value);
+    wrote = true;
   }
-  if (wrote) emit();
+  if (wrote) changed();
 }
 
 export function useSeen() {
