@@ -8,6 +8,10 @@ const { prisma } = require("@lifeweb/db");
 const { markPlayerDeparted } = require("@lifeweb/db/lib/playerDeparture");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("@lifeweb/db/lib/constants");
 
+// A Discord id is 17-20 digits. Anything else in Character.discordUserId is a
+// stand-in somebody typed, not an account that can leave a guild.
+const isDiscordSnowflake = (id) => typeof id === "string" && /^\d{17,20}$/.test(id);
+
 async function reconcileDepartures(client, guild) {
   // syncDiscordAccountsForGuild ran a full guild.members.fetch() moments ago
   // (ready.js), so the cache is already warm. Fetching a second time costs
@@ -24,22 +28,29 @@ async function reconcileDepartures(client, guild) {
     where: { status: "ALIVE", leftGuildAt: null },
     select: { id: true, name: true, discordUserId: true },
   });
-  const candidates = alive.filter((character) => !members.has(character.discordUserId));
+
+  // Only a real Discord account can be missing from a guild. A character whose
+  // discordUserId is a hand-typed placeholder ("npc-test-slave-1") can never
+  // appear in the member list, so this pass read it as a departure every boot
+  // and started a death countdown on it. That went unseen only because the
+  // fetch above used to die on a rate limit before reaching here.
+  const seated = alive.filter((character) => isDiscordSnowflake(character.discordUserId));
+  const candidates = seated.filter((character) => !members.has(character.discordUserId));
 
   // The hard rail: a truncated fetch must never read as a mass exodus.
-  const limit = Math.max(5, Math.ceil(alive.length * 0.2));
+  const limit = Math.max(5, Math.ceil(seated.length * 0.2));
   if (members.size === 0 || candidates.length > limit) {
     const message =
-      `Leave reconcile ABORTED: ${candidates.length} of ${alive.length} living characters ` +
+      `Leave reconcile ABORTED: ${candidates.length} of ${seated.length} living characters ` +
       `look departed against a member list of ${members.size}. That smells like a bad fetch, ` +
       `not a mass exodus — nobody was flagged.`;
     console.error(message);
     const channel = await client.channels.fetch(LEAVE_ANNOUNCE_CHANNEL_ID).catch(() => null);
     if (channel?.isTextBased()) await channel.send(`⚠ ${message}`).catch(() => {});
-    return { checked: alive.length, flagged: 0, aborted: true };
+    return { checked: seated.length, flagged: 0, aborted: true };
   }
 
-  if (candidates.length === 0) return { checked: alive.length, flagged: 0, aborted: false };
+  if (candidates.length === 0) return { checked: seated.length, flagged: 0, aborted: false };
 
   const channel = await client.channels.fetch(LEAVE_ANNOUNCE_CHANNEL_ID).catch((err) => {
     console.error(`Leave reconcile: cannot fetch #leave (${LEAVE_ANNOUNCE_CHANNEL_ID}):`, err.message);
@@ -72,8 +83,8 @@ async function reconcileDepartures(client, guild) {
     }
   }
 
-  console.log(`Leave reconcile: ${flagged} departed player(s) caught up (${alive.length} living characters checked).`);
-  return { checked: alive.length, flagged, aborted: false };
+  console.log(`Leave reconcile: ${flagged} departed player(s) caught up (${seated.length} living characters checked).`);
+  return { checked: seated.length, flagged, aborted: false };
 }
 
 module.exports = { reconcileDepartures };
