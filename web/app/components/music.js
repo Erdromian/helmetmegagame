@@ -308,6 +308,32 @@ export function fadeOutAtEnd(layer, fadeMs) {
   };
 }
 
+/**
+ * Call `cb` once the layer's track has actually been PLAYED this far through, as a
+ * fraction of its duration. Off `currentTime`, not a timer, so a buffering phone or a
+ * ducked layer counts what was heard rather than what was scheduled. Fires at most once,
+ * and never if the listener is dropped first — which is the point: a player who closes the
+ * page halfway through was not woken. Returns an unsubscribe.
+ */
+export function onPlayedFraction(layer, fraction, cb) {
+  const entry = state(layer);
+  let done = false;
+  const check = () => {
+    if (done) return;
+    const total = entry.el.duration;
+    if (!Number.isFinite(total) || total <= 0) return;
+    if (entry.el.currentTime / total < fraction) return;
+    done = true;
+    entry.el.removeEventListener("timeupdate", check);
+    cb();
+  };
+  entry.el.addEventListener("timeupdate", check);
+  return () => {
+    done = true;
+    entry.el.removeEventListener("timeupdate", check);
+  };
+}
+
 /** Called when the layer's track ends. Returns an unsubscribe. */
 export function onEnded(layer, cb) {
   const entry = state(layer);

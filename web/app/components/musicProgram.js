@@ -1,6 +1,14 @@
 "use client";
 
-import { LAYERS, fadeOutAtEnd, onEnded, playOn, stopLayer, warm } from "./music";
+import {
+  LAYERS,
+  fadeOutAtEnd,
+  onEnded,
+  onPlayedFraction,
+  playOn,
+  stopLayer,
+  warm,
+} from "./music";
 
 // What plays, and when. See docs/systemdocs/SOUND.md §4 for the full step table.
 //
@@ -43,9 +51,9 @@ export const PROGRAMS = {
         fadeInMs: 3000,
         fadeOutMs: 4000,
         once: true,
-        // Once per browser, ever — not once per page load, which meant every refresh
-        // replayed it. Infinity is the cooldown that never expires.
-        cooldownMs: Infinity,
+        // Once an hour per browser, not once per page load — a refresh used to replay it.
+        // The hour only starts once it has actually been heard halfway through.
+        cooldownMs: 3_600_000,
       },
       { goto: 0 },
     ],
@@ -96,6 +104,11 @@ function spent(step) {
 
 function spend(step) {
   consumed.add(step.id);
+}
+
+// The cooldown is only paid once the step has been HEARD, so closing the page partway
+// through does not cost you the next hour's waking.
+function remember(step) {
   if (!step.cooldownMs) return;
   try {
     window.localStorage.setItem(playedKey(step.id), String(Date.now()));
@@ -136,6 +149,7 @@ export function runProgram(program, { onStep } = {}) {
   let warmTimer = null;
   let dropEnded = null;
   let dropFade = null;
+  let dropHalf = null;
   let live = true;
 
   const clear = () => {
@@ -147,6 +161,8 @@ export function runProgram(program, { onStep } = {}) {
     dropEnded = null;
     if (dropFade) dropFade();
     dropFade = null;
+    if (dropHalf) dropHalf();
+    dropHalf = null;
   };
 
   const advance = () => {
@@ -221,6 +237,8 @@ export function runProgram(program, { onStep } = {}) {
       return;
     }
 
+    // Halfway through is what pays the cooldown — see remember().
+    if (step.cooldownMs) dropHalf = onPlayedFraction(layer, 0.5, () => remember(step));
     if (step.fadeOutMs) dropFade = fadeOutAtEnd(layer, step.fadeOutMs);
     dropEnded = onEnded(layer, advance);
   };
