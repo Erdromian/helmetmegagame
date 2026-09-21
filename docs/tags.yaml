@@ -8188,6 +8188,7 @@ tags:
     name: Corpse Salts
     category: items
     group: items-drink
+    sprite: urn
     description: "A secret recipe of the Mortii. It helps you pick up on the smell of death, pointing you towards corpses."
     pointCost: 1
     weight: 0.5
@@ -10943,6 +10944,7 @@ tags:
     name: Tobacco
     category: items
     group: items-gear
+    sprite: ambrosiavulgaris
     description: "Uncured tobacco leaves, a cash crop."
     pointCost: 0
     weight: 0.25
@@ -11375,6 +11377,7 @@ tags:
     name: Tobacco Seed Bag
     category: items
     group: items-seeds
+    sprite: turnip
     description: "Fussy, and worth it."
     pointCost: 0
     depotPrice: 4
