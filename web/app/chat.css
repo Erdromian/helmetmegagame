@@ -975,7 +975,13 @@
   line-height: 0;
 }
 
+/* A fixed box, right-aligned, so "1:00 PM" and "10:37 AM" start the line in
+   the same place — the words never ride on how wide the hour is. */
 .tline[data-density="feed"] .tline-clock {
+  display: inline-block;
+  width: 8ch;
+  text-align: right;
+  white-space: nowrap;
   margin-right: var(--sp-1);
   font-size: var(--fs-3xs);
   color: var(--muted);
@@ -3367,17 +3373,42 @@
 }
 
 
-/* Chat text size, from the sound menu (components/chatTextStore.js). */
-.chat-shell[data-chat-text="small"] .tline-body {
-  font-size: 0.875em;
+/* Chat text size, from the sound menu (components/chatTextStore.js). The
+   feed's lines carry their size on .tline itself, not on a body wrapper. */
+.chat-shell[data-chat-text="small"] .tline {
+  font-size: calc(var(--fs-xs) * 0.88);
 }
 
-.chat-shell[data-chat-text="large"] .tline-body {
-  font-size: 1.15em;
+.chat-shell[data-chat-text="large"] .tline {
+  font-size: calc(var(--fs-xs) * 1.25);
 }
 
 .chat-text-size {
   display: flex;
   flex-direction: column;
   gap: var(--sp-1);
+  min-width: 0;
+}
+
+/* The rail's foot is narrow: the control takes its own line and the three
+   buttons share it, rather than running off the column's edge. */
+.chat-places-foot .chat-text-size {
+  flex-basis: 100%;
+}
+
+.chat-text-size .segmented {
+  display: flex;
+  min-width: 0;
+}
+
+.chat-text-size .segmented button {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-left: var(--sp-1);
+  padding-right: var(--sp-1);
+}
+
+.chat-text-size .segmented button[aria-pressed="true"] {
+  padding-left: calc(var(--sp-1) - 2px);
+  padding-right: calc(var(--sp-1) - 2px);
 }
