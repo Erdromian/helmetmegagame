@@ -2,45 +2,72 @@
 
 Guidance for Claude Code (claude.ai/code) when working in this repository.
 
-## There is no live game. Read this before anything else in this file
+## This is the live game. Read this before anything else in this file
 
-**v3 has not launched.** There are no players, no live Discord guild, no
-Railway services, no deployed anything, and — most importantly — **no
-database you can hurt**. Nothing in this checkout is serving a person.
+**`origin` here is `BascinetMegagame/helmetmegagame` — the live game.** Railway
+builds `web` from it and serves **ravenheart.quest**, with `@lifeweb/bot`
+beside it. There are real players, a real Discord guild, and a database that
+is somebody's afternoon.
 
-That means the ordinary run of destructive things is simply fine here. Wipe
-it, reset it, re-migrate it, rebuild it from the YAML masters, break the
-schema on purpose to see what happens. Nothing is lost, because there is
-nothing there to lose.
+```
+git remote -v        # expect BascinetMegagame/helmetmegagame
+```
 
-**Much of this file was written for the live game and is kept on purpose** —
-it is a good record of how this project is run once it is running, and that
-is much harder to re-learn on launch day than to keep. Those parts are
-written as **"once the game launches"** and are marked that way. They are
-describing a future, not this checkout. When a section says a thing is
-dangerous, it means it will be dangerous the day v3 opens.
+**This section used to say the exact opposite** — that v3 had not launched and
+there was no database you could hurt, so you could wipe it, reset it and break
+the schema on purpose. That was written for the separate `helmetmegagamev3`
+prototype. This checkout is not it and has no remote for it, so none of that
+applies. Wherever the rest of this file says **"once the game launches"**, read
+it in the present tense: it is describing this checkout, now. When a section
+says a thing is dangerous, it is dangerous today.
 
-Three things are true here and now, and only these:
+Three things are true here and now:
 
-- **Nothing deploys.** `npm run deploy`, `npm run redeploy` and `./migrate.sh`
-  drive Railway services this project does not have. Do not run them.
-- **`npm run push` is wrong here.** It writes `CHANGELOG.md` and posts the
-  entry to a channel id hardcoded in `scripts/changelog/log.js` — the *other*
-  game's Discord. Push with plain `git push origin master`.
-- **`echo $DATABASE_URL` before anything that writes.** Not because this
-  project has a database worth protecting — it does not — but because a
-  session working here has been observed carrying a connection string
-  inherited from somewhere else entirely. There is no `.env` in this checkout,
-  so nothing overrides whatever the shell already exports, and
-  `dotenv.config()` does not override an exported variable. "This is only the
-  prototype" is a statement about the repo, never about the connection string.
-  If `$DATABASE_URL` does not name localhost, find out why before you run
-  anything.
+- **Deploys are real.** `npm run deploy`, `npm run redeploy` and `./migrate.sh`
+  drive the live Railway services, and `migrate.sh` applies migrations straight
+  to production. Never run one to see what it does.
+- **`npm run push` goes to master and announces it.** It commits the worktree,
+  rebases onto `origin/master`, pushes `HEAD:master`, then posts the changelog
+  entry to Discord — channel id `1545157496304566354` in
+  `scripts/changelog/log.js`, unless `CHANGELOG_CHANNEL_ID` overrides it. There
+  is no confirmation step and no dry run. It is the intended tool for shipping,
+  but when the work wants review first, use a branch and a PR instead.
+- **`echo $DATABASE_URL` before anything that writes, and check WHICH host it
+  names.** This checkout keeps a `.env` at the repo root, and `db/prisma/.env`
+  is a symlink to that same file, so the Prisma CLI and every script agree with
+  each other — and can all be wrong together. It currently names
+  `postgresql://localhost:5432/bascinet`, a local database. That is the safe
+  default; leave it there unless you have a reason not to.
 
-And one habit worth keeping even with nothing at stake: **author migrations so
-`migrate deploy` can apply them.** That habit is much harder to pick up under
-pressure than to keep now. See the `migrate diff` note under **Notes for
-future work** for the drops Prisma proposes on every run, which every
+  An exported shell variable still wins: `dotenv.config()` does not override
+  one, so a `.env` sitting beside a script proves nothing. Check the variable,
+  not the file.
+
+  **The Railway project `cheerful-courage` holds three Postgres services**, and
+  only one of them is the game:
+
+  | Service | Internal host | Outside proxy | What it is |
+  |---|---|---|---|
+  | `Postgres-bZrb` | `postgres-bzrb.railway.internal` | `iriguchi.proxy.rlwy.net:13359` | **LIVE.** Both `web` and `@lifeweb/bot` point here. |
+  | `Postgres` | `postgres.railway.internal` | `altaria.proxy.rlwy.net:36736` | Retired. Nothing reads it. |
+  | `Postgres-B9t_` | `postgres-b9t.railway.internal` | — | Retired. Nothing reads it. |
+
+  The retired `Postgres` is the dangerous one, because it answers, it has the
+  full schema, and it has **no characters in it** — so a session that reaches
+  it concludes the game is empty and starts creating things to fix that. Do not
+  guess from the password. Ask Railway, which is the only source that cannot be
+  stale:
+
+  ```
+  railway variables --service web --json | grep DATABASE_URL
+  ```
+
+  Swap `postgres-bzrb.railway.internal:5432` for `iriguchi.proxy.rlwy.net:13359`
+  to reach it from outside Railway; the credentials are the same.
+
+And one habit that matters most exactly here: **author migrations so
+`migrate deploy` can apply them.** See the `migrate diff` note under **Notes
+for future work** for the drops Prisma proposes on every run, which every
 migration here has had to decline by hand.
 
 ## The double-dagger convention is retired
@@ -307,10 +334,11 @@ This is an npm-workspaces monorepo with three packages:
 If both faces need something, put it in `db/lib/` — don't write it twice.
 Add the dependency with `npm install @lifeweb/db --workspace=<bot|web>`.
 
-Deployment, **once the game launches**, is on Railway built straight from this
-GitHub repo: `bot` and `web` as two separate services from the same repo, both
-pointing at one Railway Postgres instance. v3 has no Railway project yet, so
-today nothing is deployed anywhere.
+Deployment is on Railway, built straight from this GitHub repo: `bot` and
+`web` as two separate services from the same repo, both pointing at one
+Railway Postgres instance. That is the live project `cheerful-courage`, and
+`web` serves ravenheart.quest — see the top of this file for which of its
+three Postgres services is the game.
 
 See `ARCHITECTURE.md` for the barrel rules, the REST/gateway twin convention,
 the returned-side-effects pattern, rate-limit discipline, and why log tables
@@ -320,13 +348,15 @@ store snapshot columns instead of foreign keys.
 
 Run from the repo root unless noted.
 
-**A good third of this list needs infrastructure v3 does not have.** Anything
-that deploys, backs up, mirrors to Discord or exports an archive wants a
-Railway project, a bot token, a guild or a storage bucket, and none of those
-exist yet — those entries are here for **once the game launches**. What works
-today, with nothing configured, is: `npm install`, `dev:web`, `db:generate`,
-the lint/build/test scripts, `dev:setup` (a local Postgres seeded from the
-YAML masters), and every sync and audit script pointed at that local database.
+**A good third of this list reaches live infrastructure.** Anything that
+deploys, backs up, mirrors to Discord or exports an archive wants the Railway
+project, the bot token, the guild or the storage bucket — all of which exist,
+and all of which are the live game's. Check `$DATABASE_URL` before running one.
+
+The safe subset, which needs nothing configured and touches only a local
+database, is: `npm install`, `dev:web`, `db:generate`, the lint/build/test
+scripts, `dev:setup` (a local Postgres seeded from the YAML masters), and
+every sync and audit script pointed at that local database.
 
 ```
 npm install                          # installs all workspaces (bot, web, db)
@@ -1393,17 +1423,13 @@ The channel id is hardcoded in `scripts/changelog/log.js` for the reason
 `db/lib/roleIds.js` gives: a channel id is not a secret, there is one guild, and
 a missing env var would have failed silently.
 
-## Deploy workflow — once the game launches
+## Deploy workflow
 
-**None of this runs today.** v3 has no Railway project, so `npm run deploy`,
-`npm run redeploy` and `./migrate.sh` all point at services that do not exist.
-Finish a set of changes by pushing to `master` and stop there.
+**All of this runs today.** `npm run deploy`, `npm run redeploy` and
+`./migrate.sh` point at the live Railway services. Every rule below is written
+down because its absence caused an outage.
 
-The rest of this section is kept because it is the hard-won shape of how this
-project deploys, and each rule below is written down because its absence
-caused an outage. It becomes true the day v3 gets a Railway project.
-
-Once that happens: `npm run deploy` pushes straight to `master` and touches
+`npm run deploy` pushes straight to `master` and touches
 the live services and database, so it is Bascinet's alone — a contributor's
 checkout has no business running it and almost certainly lacks the
 `RAILWAY_TOKEN` to anyway. A contribution gets deployed when Bascinet merges
