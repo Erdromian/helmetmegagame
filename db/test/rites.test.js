@@ -12,6 +12,7 @@ const {
   normalizeChant,
   containsPhrase,
   phraseWordCount,
+  staleRiteWords,
   riteByKey,
 } = require("../lib/rites");
 
@@ -66,6 +67,34 @@ test("every rite gets one to three words, none prohibited, and no phrase nests i
       }
     }
   }
+});
+
+test("a roll that outlived its rules is caught, phrase by phrase", () => {
+  // The whole point: GameState.riteWords is written once, and the dictionary,
+  // the blocklist and the cap can all move in a deploy afterwards.
+  const good = rollRiteWords(seeded(7));
+  assert.deepEqual(staleRiteWords(good), [], "a fresh roll is never stale");
+
+  // One of each way a stored phrase can go bad.
+  const rotten = {
+    ...good,
+    initial: "apigami",                        // word retired from the dictionary
+    conversion: "pretiacruento",               // now a reserved battle cry
+    sacrifice: "cruo marana domus lokemundux", // over the three-word cap
+    scrying: "   ",                            // present but blank
+  };
+  const stale = staleRiteWords(rotten);
+  for (const key of ["initial", "conversion", "sacrifice"]) {
+    assert.ok(stale.includes(key), `${key} should be stale`);
+  }
+  assert.ok(!stale.includes("scrying"), "a blank phrase is MISSING, not stale — the top-up owns it");
+  assert.ok(!stale.includes("panic"), "a phrase that is still legal is left alone");
+});
+
+test("two stored phrases that nest re-roll one of them, not both", () => {
+  const words = { ...rollRiteWords(seeded(11)), initial: "cruo", conversion: "cruo marana" };
+  const stale = staleRiteWords(words);
+  assert.deepEqual(stale, ["conversion"], "the first one seen is kept, the collider goes");
 });
 
 test("the blocklist bars only the whole phrase, never its words", () => {
