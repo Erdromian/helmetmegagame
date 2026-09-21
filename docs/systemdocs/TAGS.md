@@ -2227,7 +2227,7 @@ because a slot holds one physical thing however large the stack behind it is.
 | `equipSlot` | limit | holds |
 |---|---|---|
 | `HEAD` | **one thing**, no layers | a mask, a helm, a coif, a hat, a hood, a bag — any one of them, never two |
-| `BODY` | layers 1–2, one thing per layer | 1 mail (clothes, robes, garb, mail shirt, brigandine), 2 over (breastplate, plate, cloak, longcoat) |
+| `BODY` | layers 1–2, one thing per layer | 1 mail (clothes, suits, robes, garb, longcoat, mail shirt, brigandine), 2 over (breastplate, plate, cloak) |
 | `WEAPON` | **four hands**, fewer if maimed (below); a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
 | `ACCESSORY` | **four** | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
