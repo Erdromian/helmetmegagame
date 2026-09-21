@@ -26,6 +26,7 @@ import {
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
+import { seedAuthoredWorld } from "@lifeweb/db/lib/worldSeed";
 import { drainMirrorQueue } from "@lifeweb/db/lib/discordMirror/queue";
 import { clearTurnsConsole } from "@lifeweb/db/lib/turnAnnouncement";
 import { pickTurnBanner, nextTurnBanner } from "@lifeweb/db/lib/turnBanner";
@@ -389,9 +390,16 @@ export async function wipeGameData(formData) {
       // Link state back to its born values: a gate somebody shut, a keyed
       // door somebody propped — all play state.
       // Raw SQL because column-to-column isn't expressible in updateMany.
-      // No anchor reposts needed: finishGameWipe re-syncs zones afterwards
-      // and anchors hash their own gate state, so they self-heal there.
+      // No anchor reposts needed: finishGameWipe runs the Discord mirror
+      // afterwards and anchors hash their own gate state, so they self-heal
+      // there.
       prisma.$executeRaw`UPDATE "LocationLink" SET "isOpen" = "authoredOpen", "openUntil" = NULL`,
+      // Mining yield back to its authored coefficient, same reasoning. A seam
+      // the last game worked out is play state, not geography (MINING.md), and
+      // it used to survive the wipe untouched — so a new game opened on
+      // exhausted rock, with any in-flight swing still swinging. `base` is the
+      // value docs/zones.yaml authored and `current` is what a payout reads.
+      prisma.$executeRaw`UPDATE "LocationMining" SET "current" = "base", "eventTarget" = NULL, "eventUntilTurn" = NULL`,
       // Anything pinned to a noticeboard (PAPERWORK.md). Before the tag sweep
       // below, or the FK from NoticePost.tagId blocks it.
       prisma.noticePost.deleteMany({}),
@@ -657,6 +665,27 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
   // No dependents of its own, so it runs last — validates against the tag,
   // zone and location catalogs the steps above just rebuilt.
   await step("mining drop sync", () => syncMiningDropsFromYaml(prisma));
+
+  // Furnish the board again. The wipe transaction emptied every room and pulled
+  // down every standing structure; this is what puts docs/zones.yaml's authored
+  // contents back, so a GM opening a fresh lobby finds the crucifix in the
+  // Square and the forge in the smithy rather than bare ground.
+  //
+  // AFTER the tag sync, because a structure resolves its type by Tag slug and
+  // the catalog has only just been rebuilt. BEFORE the mirror below, so the
+  // anchors it reposts hash a Location that already has its furniture.
+  //
+  // Idempotent both halves (db/lib/worldSeed.js), so the Start Game that
+  // follows re-runs it as a harmless top-up rather than a second helping.
+  await step("world seed", async () => {
+    const out = await seedAuthoredWorld(prisma);
+    return {
+      structures: out.structures?.structures ?? 0,
+      rooms: out.stashes?.rooms ?? 0,
+      items: out.stashes?.items ?? 0,
+      ...(out.unknown.length > 0 ? { unknown: out.unknown } : {}),
+    };
+  });
 
   // Backstop: repairs every category, channel, role, anchor and Room thread
   // the wipe just cleared or emptied, including reposting the starters and

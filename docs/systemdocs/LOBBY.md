@@ -284,10 +284,32 @@ Keeps: `GameConfig` (every knob), `PlayerPreference`.
 Wipes: `LobbyEntry`, and recreates `GameState` (phase CLOSED, new `gameId`).
 Everything else as before (`LAUNCH.md` §2, §4).
 
-**Room stashes come back.** The wipe clears `Room.seededStashSlugs` alongside
-the `RoomTag` rows it deletes, so the next Start Game pours every authored
-stash again (`db/lib/roomStashSeed.js`). It did not always: the guard used to
-outlive its game, so every restart after the first opened with bare rooms.
+**The authored board comes back, and the wipe does it itself.** Step 10 of the
+wipe (`LAUNCH.md` §2) calls `seedAuthoredWorld`, so a GM who has just wiped
+opens a fresh lobby onto a furnished world rather than bare ground. Start Game
+calls the same pass again as a top-up — both halves are guarded, so the second
+run writes nothing (`db/lib/worldSeed.js`). Three things reset:
+
+- **Room stashes.** The wipe clears `Room.seededStashSlugs` alongside the
+  `RoomTag` rows it deletes, so every authored `stash:` pours again. It did not
+  always: the guard used to outlive its game, so every restart after the first
+  opened with bare rooms.
+- **Standing structures.** The wipe deletes every `Structure` row, and only what
+  `docs/zones.yaml` authored in a Location's `structures:` is raised again. That
+  used to be a one-way door — nothing put them back, so the Square's crucifix
+  and the forge vanished on the first restart and stayed gone. A structure
+  players BUILT is play state and does not return.
+- **Mining drift.** `LocationMining.current` goes back to the authored `base`
+  and any in-flight swing is cleared, so a new game does not open on rock the
+  last one worked out (`MINING.md`).
+
+The pass cannot double anything. A stash slug already in
+`Room.seededStashSlugs` is never poured twice, and a structure type with
+anything PRESENT at that Location is skipped. It is not a mid-game guard
+though, and the difference matters: the structure test is "nothing standing
+here", not "never seeded", so an authored structure players tore down would go
+back up. That is the right answer after a wipe and the wrong one during a game,
+which is why only the wipe and Start Game call it — neither can fire mid-game.
 
 **The transcript now LEAVES the database**, which is the one thing here that
 changed. Restart Game asks first — keep this game or discard it — and either

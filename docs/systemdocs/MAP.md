@@ -103,7 +103,9 @@ Beyond its name and description, a Location carries a sparse map of
 **attributes** — `Location.attributes`, a JSON object authored as an
 `attributes:` block in `docs/zones.yaml` — and, optionally, a `structures:`
 list of the built things that were always standing there (the Square's cross),
-seeded as `COMPLETE` `Structure` rows by the zone sync (`SYNC.md` §2):
+seeded as `COMPLETE` `Structure` rows by `db/lib/worldSeed.js` — which
+`db:import-zones` calls when it stands a Location up, and which the Restart Game
+wipe calls again afterwards, so a restart no longer takes them away for good:
 
 ```yaml
 depot:
@@ -1306,11 +1308,13 @@ yet, is reported as a **note** rather than a problem — that is the Undertown's
 twelve skeletons waiting for their own pass.
 
 **Stashes seed themselves now.** A `stash:` block rides onto the Room as
-`Room.stashSeed` when `db:import-zones` creates it, and Start Game turns the
-whole lot into real `RoomTag` rows in one pass (`db/lib/roomStashSeed.js`),
-guarded by `Room.seededStashSlugs` so nothing is ever poured twice. Standing a
-game up used to mean a superadmin pressing "Seed these items now" once per
-room, by hand, across eighty-odd rooms.
+`Room.stashSeed` when `db:import-zones` creates it, and the Restart Game wipe
+and Start Game each turn the whole lot into real `RoomTag` rows in one pass
+(`db/lib/roomStashSeed.js`, through `db/lib/worldSeed.js`), guarded by
+`Room.seededStashSlugs` so nothing is ever poured twice. A Location's
+`structures:` ride along in the same pass. Standing a game up used to mean a
+superadmin pressing "Seed these items now" once per room, by hand, across
+eighty-odd rooms.
 
 **A place is marked by a crosshair, not a number.** Two glyphs out of the
 charset's own reticle row (474-479), named in `nodes.yaml` under `uiGlyphs`

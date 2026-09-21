@@ -500,7 +500,9 @@ admitted.
 
 The stash survives the message wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag`, ⬢
-included now that they are a stack), and cascades away with its Room if a superadmin hard-deletes
+included now that they are a stack) — and then poured straight back, because
+the wipe re-seeds the authored board before it finishes (`db/lib/worldSeed.js`,
+`LAUNCH.md` §2 step 10) — and cascades away with its Room if a superadmin hard-deletes
 it from `/gm/dev/zones` (retiring one leaves the stash in place). Deleting a
 Tag from the catalog cascades its **room** stacks
 (`RoomTag.tagId` cascades) but not the copies people carry

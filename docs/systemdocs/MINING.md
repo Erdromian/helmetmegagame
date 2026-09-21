@@ -125,6 +125,11 @@ surface that reaches a mining payout anywhere but the Caves.
 `current` reverts toward. `current` is the live coefficient, re-drifted at
 every turn close, and it is the only number a payout reads.
 
+A Restart Game wipe puts `current` back to `base` and clears any in-flight
+swing. Drift is what the last game did to the rock, so it is play state like
+anything else — it used to survive the wipe untouched, which meant a new game
+could open on a seam already worked out.
+
 | Where | `base` |
 |---|---|
 | The Black Hills | 0.2–0.3 |
