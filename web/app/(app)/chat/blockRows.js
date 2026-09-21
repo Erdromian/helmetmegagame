@@ -25,6 +25,9 @@ const INTERCOM_PREFIX = /^you hear a voice from the intercom:\s*/i;
 
 export const BLOCK_KINDS = new Set(["intercom", "decree", "turn", "gameend"]);
 
+// The only two turn pictures there are. A whitelist, since the name comes out of a stored row.
+const TURN_PLATES = new Set(["nuke", "hellfire"]);
+
 // A loudspeaker is a machine, so it gets the machine's face: a small caps
 // micro-label, and both what it is and where it was heard in the one line,
 // since a PA has no title of its own.
@@ -73,6 +76,11 @@ function turnBlock(row) {
     byline: stamp || null,
     body: (
       <>
+        {/* The one picture a turn can carry, the same one Discord's #turns
+            posts: the nuke's or the hellfire's (db/lib/turnBanner.js). */}
+        {TURN_PLATES.has(turn.plate) ? (
+          <img className="turn-plate" src={`/assets/turn/${turn.plate}.jpg`} alt="" loading="lazy" />
+        ) : null}
         {turn.note ? <ChatMarkdown content={turn.note} /> : null}
         {/* A DIV, not a `p`: ChatMarkdown renders its own paragraph, and a `p`
             inside a `p` is invalid HTML — the browser closes the outer one

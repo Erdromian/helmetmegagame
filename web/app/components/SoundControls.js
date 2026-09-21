@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import ClickMenu from "./ClickMenu";
 import IconButton from "./IconButton";
+import ChatTextSize from "./ChatTextSize";
 import VolumeSlider from "./VolumeSlider";
 import { ChevronDownIcon, MusicIcon, SpeakerIcon, SpeakerOffIcon } from "./icons";
 import { playSfx } from "./sfx";
@@ -75,6 +76,7 @@ export default function SoundControls({ layout = "row" }) {
             <ClickMenu triggerRef={caretRef} ariaLabel="Volume" onClose={() => setOpen(false)}>
               <div className="sound-panel">
                 <VolumeSlider id="volume-bar" />
+                <ChatTextSize />
               </div>
             </ClickMenu>
           )}

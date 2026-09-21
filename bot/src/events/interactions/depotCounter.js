@@ -67,7 +67,7 @@ async function handleAtmOpen(interaction) {
     return;
   }
 
-  const backing = state.account.backed ? ` The treasury holds ${state.vaultObols} ¢.` : " Held off-world.";
+  const backing = state.account.backed ? "" : " Held off-world.";
   await respond(interaction, {
     content:
       `» *${state.account.fingerprint} — ${state.account.balanceObols} ¢ in the account, ` +

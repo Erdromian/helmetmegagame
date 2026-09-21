@@ -11,7 +11,7 @@
     "assets:letters": "node scripts/generate-letters.js",
     "assets:helms": "node scripts/generate-helms.js",
     "audit:contrast": "node scripts/audit-contrast.js",
-    "test": "node --test lib/__tests__/*.test.mjs"
+    "test": "node --test \"lib/**/*.test.mjs\""
   },
   "dependencies": {
     "@lifeweb/db": "^0.0.0",

@@ -10,6 +10,7 @@ import { noteNotified } from "./notifiedStore";
 import { noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
 import { setPlaces, applyRow, removeRow, isOwnRow, resetHistory, placeKind } from "./feedStore";
 import { playSfx, stopSfxLoops } from "@/app/components/sfx";
+import { setPerformances } from "@/app/components/performanceStore";
 
 // THE LIVE STREAM, lifted out of ./Chat.js whole (CHAT-REBUILD.md).
 //
@@ -285,6 +286,15 @@ export default function useFeedStream({
       });
       // Somebody is writing something, here or on Discord. Held for six seconds
       // by typingStore.js and never sent for the viewer's own character.
+      // What is being played where this character stands — the whole live list, every
+      // time (SOUND.md, "Performances"). InstrumentListener.js turns it into sound.
+      source.addEventListener("music", (event) => {
+        try {
+          setPerformances(JSON.parse(event.data)?.performances ?? []);
+        } catch {
+          // Same.
+        }
+      });
       source.addEventListener("typing", (event) => {
         try {
           noteTyping(JSON.parse(event.data));

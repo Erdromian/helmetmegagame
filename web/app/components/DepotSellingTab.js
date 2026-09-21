@@ -269,11 +269,6 @@ export default function DepotSellingTab({
               onChange={(e) => setQuantity(e.target.value)}
             />
           </label>
-          <p className="text-sm text-muted">
-            {dropping.unitPrice} ¢ each, to the{" "}
-            {DESTINATIONS.find((d) => d.value === destination)?.label ?? "Self"}{" "}
-            account — it leaves your hands now.
-          </p>
         </RequestDialog>
       )}
     </div>

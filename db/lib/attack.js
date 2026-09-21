@@ -6,6 +6,7 @@ const { turnEndsAt } = require("./turnClock");
 const { SAFE_HOLD_MS, HELD_REASON, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { hoodToken } = require("./hoodToken"); // zero-require leaf; no cycle.
 const { DM_KIND } = require("./dmKinds");
+const { stopPerformances } = require("./performance");
 const { DM_ACTION, dmAction } = require("./dmActions");
 
 // How far above you somebody may be before the button refuses. The one tunable in this file. BANDS, not points, and that's load-bearing: floor:/cap: tags move the band index AFTER points are summed (fightingSkill.js), so a bound Expert still scores 55 and only their band knows they're Pitiful — comparing scores would let a tied-up champion refuse to be attacked. Bands are ten points wide with every rung dead centre, so two bands is two tiers.
@@ -132,6 +133,8 @@ async function fileAttack(db, { attacker, target, openTurn, fromAmbush = false, 
   }
 
   await holdBothSides(db, { attacker, target, until });
+  // A fight ends a song on both sides (SOUND.md, "Performances").
+  await stopPerformances(db, [attacker.id, target.id], "attack");
   return { ok: true, already: false, until, dms: attackDms({ attacker, target, fromAmbush }) };
 }
 

@@ -12,6 +12,7 @@ const { HANDS_TAG_FIELDS, findEquipProblem, handsFor, shedForHands } = require("
 const { addToStack, dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { rollTagChain } = require("./tagShapes");
 const { expiryForGrant } = require("./grantExpiry");
+const { stopIfInstrumentGone } = require("./performance");
 
 // A validation failure a human caused and a human can fix. Web callers map
 // this onto their UserError (web/lib/characterWrite.js) so guarded() renders
@@ -244,6 +245,10 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn }) {
       }
     }
   }
+
+  // An instrument that left the rack (unequipped, dropped, shed with a hand) takes its
+  // song with it. Inside the caller's transaction; the notify lands on commit.
+  await stopIfInstrumentGone(tx, characterId);
 
   return applied;
 }

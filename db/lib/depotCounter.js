@@ -87,16 +87,6 @@ async function counterActor(prisma, discordUserId, where = AT_THE_DEPOT) {
   };
 }
 
-// How much coin is in a room's stash right now.
-async function roomCoin(prisma, roomId, coinId) {
-  if (!roomId || !coinId) return 0;
-  const row = await prisma.roomTag.findUnique({
-    where: { roomId_tagId: { roomId, tagId: coinId } },
-    select: { quantity: true },
-  });
-  return row?.quantity ?? 0;
-}
-
 // Everything the three dialogs draw against, in one read, so there is a single
 // answer to "what is a counter" rather than three that can disagree. Answers at
 // an ATM as well as at the counter, since the ATM dialog draws against it; the
@@ -107,7 +97,7 @@ async function counterState(prisma, discordUserId) {
   if (!actor.ok) return actor;
   const { character, held, licensed, keycard } = actor;
 
-  const { room: vault, coin } = await vaultAndCoin(prisma);
+  const { coin } = await vaultAndCoin(prisma);
   const depot = await loadDepot(prisma);
   const account = character.bankAccount;
 
@@ -131,7 +121,6 @@ async function counterState(prisma, discordUserId) {
         }
       : null,
     heldObols,
-    vaultObols: await roomCoin(prisma, vault?.id, coin?.id),
     sellable: character.tags
       .filter((ct) => ct.tag.sellablePrice != null && ct.quantity > 0)
       .map((ct) => ({ tagId: ct.tagId, name: ct.tag.name, quantity: ct.quantity, unitPrice: ct.tag.sellablePrice })),

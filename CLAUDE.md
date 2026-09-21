@@ -272,7 +272,7 @@ you pick the right doc — they are never enough to change code with.
 | [`CHAT-REBUILD.md`](docs/systemdocs/CHAT-REBUILD.md) | You're rebuilding `/chat`'s interface on the mockup's skeleton — the phases, the feature checklist that stops a rewrite losing things, and which half of the page is presentation and which is transport. **Adding any surface to chat** starts at its Phase 0 doc, [`docs/design/chat-vocabulary.md`](docs/design/chat-vocabulary.md) |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
-| [`SOUND.md`](docs/systemdocs/SOUND.md) | You're touching anything the browser makes a noise with — a cue in `sfx.js`, the music bus and its four layers (`music.js`), what plays in the lobby or behind the closed door (`musicProgram.js`), the two switches and the volume slider, or **anything that asks whether a sound may be heard right now** (`soundStore.js` — the speaker is master over the music) |
+| [`SOUND.md`](docs/systemdocs/SOUND.md) | You're touching anything the browser makes a noise with — a cue in `sfx.js`, the music bus and its five layers (`music.js`), what a PLACE sounds like (`placeAmbience.js`) or what plays in the lobby or behind the closed door (`musicProgram.js`), **how loud any of it is** (`musicGain.js` and `scripts/audio/`), the two switches and the volume slider, or **anything that asks whether a sound may be heard right now** (`soundStore.js` — the speaker is master over the music) |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
 | [`LATE-JOINS.md`](docs/systemdocs/LATE-JOINS.md) | You're touching the seats somebody may walk into mid-game — the `/gm/dev?s=latejoins` panel, the picker's **Special** section, **the one thing the curse does not stop** (`db/lib/lateJoin.js`), the Bastard's Call reinforcements button, or the Deep Beast Horn |
@@ -472,6 +472,12 @@ npm run economy:report               # read-only: every wage, price and food fig
                                      #   code. `-- --players N` sizes the town.
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
+npm test --workspace=web             # node --test over web/lib/__tests__/.
+                                     #   The localStorage-backed stores, which
+                                     #   have to keep working when a browser
+                                     #   refuses site data — see the header of
+                                     #   localStores.test.mjs before adding
+                                     #   another store of that shape.
 npm run db:report-inactive-characters  # read-only inactivity report
 npm run db:open-rp-channels          # between games: open every roleplay
                                      #   channel to the guild. DRY RUN unless
@@ -562,8 +568,17 @@ something works.
 The player and spectator role IDs are **not** env vars. They're hardcoded in
 `db/lib/roleIds.js` — see "Discord permission model" below for why.
 
-`db/` has `node --test` under `db/test/`; the web app and the bot have no test
-setup.
+`db/` has `node --test` under `db/test/`, and `web/` has the same under
+`web/lib/__tests__/`. The bot has no test setup.
+
+The web suite is narrow on purpose: it covers the localStorage-backed stores
+(`soundStore`, `asideTabStore`, `foldStore`, `seenStore`, `notifiedStore`),
+whose one rule is that a browser refusing site data may cost the REMEMBERING
+and nothing else — the switch still has to move for this page load. That rule
+was broken four times in four files from one copy-paste lineage, so **a new
+store of that shape belongs in `CASES` in `localStores.test.mjs`**. It needs no
+DOM and no renderer: `react` is stubbed to hand back the
+`(subscribe, getSnapshot)` pair, which is the whole store contract.
 
 ## How the bot populates the database
 
@@ -1581,6 +1596,10 @@ might need to reach a real environment:
   list would wake every open desk for every write in a turn-end push.
   `Delivery_notify` is the sixth, and the odd one: it announces its PARENT
   `StagedMessage`, because no desk row is a `Delivery` (`ADJUDICATION.md` §1a).
+  `Performance_live_unique` is the PhoneCall shape again (`WHERE "stoppedAt" IS
+  NULL`): `migrate diff` does not mention it, but a hand-written "fix drift"
+  migration must not drop it — it is what keeps one character to one song
+  (`SOUND.md` §6b).
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

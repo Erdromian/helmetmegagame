@@ -29,7 +29,6 @@ import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
 import { seedAuthoredWorld } from "@lifeweb/db/lib/worldSeed";
 import { drainMirrorQueue } from "@lifeweb/db/lib/discordMirror/queue";
 import { clearTurnsConsole } from "@lifeweb/db/lib/turnAnnouncement";
-import { pickTurnBanner, nextTurnBanner } from "@lifeweb/db/lib/turnBanner";
 import { normalizeTurnLength, nextBoundaryAfter } from "@lifeweb/db/lib/turnClock";
 import { requireDev } from "@/lib/devAccess";
 import {
@@ -125,9 +124,7 @@ export async function updateDepot(formData) {
 
 // A raw superadmin correction to the current turn's number and day, not a
 // normal turn advance. It used to set a day and a PHASE and derive the number
-// from the pair; with no phases the two numbers are simply both editable, and
-// re-rolling the banner — which used to be a side effect of flipping the phase
-// and flipping it back — is its own checkbox.
+// from the pair; with no phases the two numbers are simply both editable.
 export async function updateCurrentTurn(formData) {
   await requireDev();
 
@@ -136,14 +133,12 @@ export async function updateCurrentTurn(formData) {
   if (day == null || day < 1) return;
   if (number == null || number < 1) return;
 
-  const rerollBanner = formData.get("rerollBanner") === "on";
   const openTurnRecord = await prisma.turn.findFirst({ where: { status: "OPEN" } });
 
   if (openTurnRecord) {
-    const banner = rerollBanner || !openTurnRecord.banner ? await nextTurnBanner(prisma) : openTurnRecord.banner;
     await prisma.turn.update({
       where: { id: openTurnRecord.id },
-      data: { number, dayNumber: day, banner },
+      data: { number, dayNumber: day },
     });
   } else {
     const startedAt = new Date();
@@ -156,7 +151,6 @@ export async function updateCurrentTurn(formData) {
         dayNumber: day,
         turnLengthHours,
         endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours)),
-        banner: await nextTurnBanner(prisma),
         status: "OPEN",
         startedAt,
       },
@@ -552,7 +546,6 @@ export async function wipeGameData(formData) {
         dayNumber: 1,
         turnLengthHours: wipeTurnLengthHours,
         endsAt: new Date(nextBoundaryAfter(wipeStartedAt.getTime(), wipeTurnLengthHours)),
-        banner: pickTurnBanner(),
         status: "OPEN",
         startedAt: wipeStartedAt,
       },

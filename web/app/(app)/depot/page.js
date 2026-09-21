@@ -156,7 +156,7 @@ async function FreshDepot() {
   const openTurn = await getOpenTurn();
   const account = character?.bankAccount ?? null;
 
-  const [wareTags, pricedTags, obolTag, ledgerRows, mySales, allStagedSales, sendTargets] = await Promise.all([
+  const [wareTags, pricedTags, obolTag, ledgerRows, mySales, allStagedSales, sendTargets, resourcesTag] = await Promise.all([
     // `resources` itself carries a depotPrice (docs/tags.yaml), so it is
     // excluded here — the hand-built `resourceWare` row below is its one
     // listing, not a second one drawn off the catalog.
@@ -193,6 +193,8 @@ async function FreshDepot() {
     // Names only, and only when there is an account to send FROM. Nobody
     // standing in the yard without one needs the roster of who banks.
     account ? sendableAccounts(prisma, character.id) : [],
+    // Only to draw the Resources row as a chip like every other ware.
+    prisma.tag.findUnique({ where: { slug: RESOURCE_WARE_ID }, ...TAG_SELECT }),
   ]);
 
   // AuditLog carries a turnId but no relation to Turn, so the numbers come
@@ -224,9 +226,8 @@ async function FreshDepot() {
 
   // ⬢ are a ware like any other, drawn as a hand-built row rather than off
   // `wareTags` — the id is the `resources` tag's own slug, still not a cuid, so
-  // it never collides with a real ware's id. `synthetic` is what tells the
-  // tables to print a name instead of a TagChip, since this row carries no Tag
-  // to hover.
+  // it never collides with a real ware's id. `tag` is only there to draw the
+  // chip; a table prints the bare name if the tag is missing.
   const resourceWare = {
     id: RESOURCE_WARE_ID,
     name: "Resources",
@@ -238,8 +239,7 @@ async function FreshDepot() {
     stackable: true,
     sealed: false,
     manifest: MANIFEST_GENERAL,
-    synthetic: true,
-    tag: null,
+    tag: resourcesTag ?? null,
   };
 
   // What this character may actually be offered. A manifest you don't hold is

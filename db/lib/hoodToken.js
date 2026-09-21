@@ -13,4 +13,15 @@ function hoodToken(characterId) {
     .slice(0, 32);
 }
 
-module.exports = { hoodToken };
+// The handle a listener mutes a performer by (db/lib/performance.js, HereList.js). Its own
+// namespace, so it never equals a hood token and cannot be matched against one.
+function performerKey(characterId) {
+  if (!characterId || !process.env.AUTH_SECRET) return null;
+  return crypto
+    .createHmac("sha256", process.env.AUTH_SECRET)
+    .update(`performer:${characterId}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+module.exports = { hoodToken, performerKey };

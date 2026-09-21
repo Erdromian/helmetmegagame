@@ -21,6 +21,7 @@
 const { recordArchiveEvent, retractArchiveRow } = require("./archive");
 const { GAME_PLACE_KEY } = require("./placeKey");
 const { turnFacts } = require("../turnCalendar");
+const { turnPlate } = require("./turnBanner");
 const { factsLine, rosterLine } = require("./epilogue");
 const { formatAntagonistLines } = require("./objectives");
 const {
@@ -69,10 +70,16 @@ async function postTurnToGame(prisma, turn, note, { clockFrozen = false, frozenR
   if (already) return null;
 
   const { day, date, clock } = turnFacts(turn, { clockFrozen, frozenReason, phase });
+  // The same picture the Discord post carries, if any: only the nuke and the hellfire.
+  const state = await prisma.gameState.findUnique({
+    where: { id: 1 },
+    select: { game: { select: { nukeDetonatedTurn: true, ascensionFiredTurn: true } } },
+  });
+  const plate = turnPlate(state?.game);
   return writeGamePost(prisma, {
     channelKind: GAME_POST.TURN,
     turn,
-    content: formatTurnPost({ number: turn.number, day, date, clock, note }),
+    content: formatTurnPost({ number: turn.number, day, date, clock, note, plate }),
   });
 }
 

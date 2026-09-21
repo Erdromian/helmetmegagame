@@ -103,6 +103,7 @@
  *   data-seq. Also what /chat's jump-to-a-search-hit finds the row by, and it
  *   writes data-hit onto it imperatively — hence no `hit` prop here.
  * @param {"li"|"div"} [p.as="li"]
+ * @param {object} [p.pressHandlers] pointer handlers for a touch long-press (chat/next/Feed.js)
  * @param {number} [p.tabIndex] Feed.js passes -1 so a tap can reveal the bar
  * @param {string} [p.className=""] extra classes. Not a styling escape hatch.
  */
@@ -135,6 +136,7 @@ export default function TranscriptLine({
   seq = null,
   as = "li",
   tabIndex,
+  pressHandlers = null,
   className = "",
 }) {
   const Tag = as;
@@ -193,6 +195,7 @@ export default function TranscriptLine({
         data-face={avatar ? "true" : undefined}
         id={id ?? undefined}
         tabIndex={tabIndex}
+        {...pressHandlers}
       >
         {/* The portrait heads a run only; later lines in the run indent under
             it. The clock shows on a run's first line, and on hover for the rest. */}
@@ -233,6 +236,7 @@ export default function TranscriptLine({
       data-seq={seq ?? undefined}
       id={id ?? undefined}
       tabIndex={tabIndex}
+      {...pressHandlers}
     >
       {gutter ? (
         <div className="tline-gutter" aria-hidden={avatar ? undefined : "true"}>

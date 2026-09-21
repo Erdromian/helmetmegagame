@@ -8,6 +8,7 @@
 // Status never being an Items category. Shaped for 100+ players: no network call, DMs/role updates returned
 // for advanceTurn() to apply. Takes `prisma` as a parameter — see db/lib/dm.js.
 const { CATATONIC_SLUG } = require("./constants");
+const { stopPerformances } = require("./performance");
 const { formatBareName } = require("./characterName");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { alivePassCharacters } = require("./aliveCharacters");
@@ -112,6 +113,11 @@ async function runCatatonicPass(prisma, turn) {
       data: { catatonicSinceTurn: null },
     }),
   ]);
+
+  // Catatonic hands play nothing (SOUND.md, "Performances").
+  await stopPerformances(prisma, toFlag.map((c) => c.id), "status").catch((err) =>
+    console.error("Catatonic pass: stopping songs failed:", err.message ?? err),
+  );
 
   // One summary row per direction this pass actually moved — see hungerPass.js.
   await Promise.all([

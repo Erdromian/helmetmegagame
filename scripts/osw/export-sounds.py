@@ -80,12 +80,26 @@ GROUPS = {
         + whole("effects/wind")
         + files("effects", "newfireloop fire torch_big torch_small vent")
         + files("misc", "charon_loop TestLoop1 interference altar")
-        + files("machines", "loop_altar hiss"),
+        + files("machines", "loop_altar hiss")
+        # The cargo train standing at the Depot platform (db/lib/train.js).
+        + files("lfwbsounds", "train_loop"),
 
     # Longer pieces. A handful of tracks, not the whole 229 MB jukebox.
+    #
+    # The second files("music", ...) line and the two folders under it are the
+    # general music rotation and the base interior beds the web app plays
+    # behind a running game (docs/systemdocs/SOUND.md). They are longer and
+    # calmer than the first line's set, which is scored for a moment.
     "music":
         files("music", """hiding outpost to_hell haruspex haruspex-combat
             ravenheart_combat1 sacred_dagger morning b12_combined_start""")
+        + files("music", """track3 track13 the_collective newlobby31
+            beyondretrieval pathologic white_waking_1""")
+        # song_game lives under ambience/ in the source, and whole("ambience")
+        # drops it there precisely so it lands here instead.
+        + files("ambience", "song_game")
+        + files("lfwbambimusic", "a-thousand-empty-rooms surfacing")
+        + files("holywar", "holywarlobby graceperiod")
         + whole("fortress_suspense")
         + whole("tension")
         + whole("ThanatiLP"),

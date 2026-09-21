@@ -645,6 +645,27 @@ async function syncTagsFromYaml(prisma) {
         }
       }
     }
+    // consumeChoice: the player picks one of these on Consume (the Instrument
+    // Kit), where consumesInto's oneOf rolls one at random. The two never mix.
+    if (t.consumeChoice !== undefined) {
+      if (!Array.isArray(t.consumeChoice) || t.consumeChoice.length < 2) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" consumeChoice needs a list of at least two slugs`);
+      }
+      if (!t.consumable) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets consumeChoice but is not consumable`);
+      }
+      if (t.consumesInto !== undefined) {
+        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets both consumeChoice and consumesInto — pick one`);
+      }
+      for (const slug of t.consumeChoice) {
+        if (!allTagSlugs.has(slug)) {
+          throw new Error(`docs/tags.yaml: tag "${t.slug}" consumeChoice references unknown tag "${slug}"`);
+        }
+      }
+    }
+    if (t.instrument && (!t.equippable || t.equipSlot !== "WEAPON" || t.twoHanded)) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" is an instrument, so it must be a one-handed WEAPON-slot equippable`);
+    }
     // carryBonus moves both carry caps, signed: +4 for a Cart, -0.1 for Frail
     // (docs/systemdocs/CARRY.md §1). Zero is rejected rather than treated as
     // "no bonus" — writing it means somebody meant something by it, and the
@@ -1034,6 +1055,10 @@ async function syncTagsFromYaml(prisma) {
       curesInto: normalizeCuresInto(entry.curesInto),
       removesOnConsume: normalizeRemovesOnConsume(entry.removesOnConsume),
       administerable: entry.administerable ?? false,
+      consumeChoice: entry.consumeChoice ?? [],
+      // Marks a playable instrument (db/lib/performance.js). Code reads this
+      // flag, never a list of slugs.
+      instrument: entry.instrument ?? false,
       administerSkill: entry.administerSkill ?? null,
       poison: entry.poison ?? false,
       resists: normalizeResists(entry.resists),

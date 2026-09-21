@@ -6,9 +6,11 @@
 // the scene, not scenery under it — so the scene half deliberately does not; don't "fix" the asymmetry.
 // Takes `prisma` as a parameter, off the @lifeweb/db barrel like db/lib/dm.js; require it by path.
 //
-// Holding `instrument` is no longer the gate on the command itself, only on which of the two
-// performances you give: an instrument in hand plays, an empty-handed character sings instead. Either
-// one is a performance and either one can soothe a room, singing just carries less of a lift.
+// An EQUIPPED instrument (Tag.instrument, SOUND.md "Performances") plays, for anybody; with none,
+// a Musician sings instead; with neither, there is nothing to give. Either performance can soothe a
+// room, but only a Musician's does — the Musician tags decide the mood, never whether you may play.
+// The Play Instrument panel calls this too when a song starts, from a Location key rather than a
+// Room one (db/lib/performance.js); there the line is scenery and goes out once, as subtext.
 
 const { sceneLine } = require("./scene");
 const { ambientLine } = require("./ambientLine");
@@ -16,7 +18,9 @@ const { discordTargetForPlaceKey } = require("./placeKey");
 const { postMessage } = require("./discordRest");
 const { applyMood } = require("./mood");
 const { EVENTS } = require("./mood");
-const { INSTRUMENT_SLUG, MUSICIAN_SLUG, MUSICIAN_PYTHAGOREAN_SLUG } = require("./constants");
+const { MUSICIAN_SLUG, MUSICIAN_PYTHAGOREAN_SLUG } = require("./constants");
+const { equippedInstruments } = require("./performance");
+const { parsePlaceKey } = require("./placeKey");
 
 const NOTE_GLYPHS = ["♫", "♩", "♪", "♬"];
 
@@ -83,11 +87,15 @@ async function sootheListeners(prisma, musician, { base = EVENTS.MUSIC, quadrupl
 }
 
 // `character` needs { id, discordUserId, locationId, tags: [{ tag: { slug, quantity? } }] }.
+// `character.tags` rows also need { equipped, equippedQuantity, tag.instrument } — an instrument
+// counts only while it is on the rack.
 async function playInstrument(prisma, character, placeKey) {
   if (!character?.id) return { ok: false, error: "You don't have a living character." };
   if (!placeKey) return { ok: false, error: "There's nobody here to hear it." };
 
-  const hasInstrument = held(character, INSTRUMENT_SLUG);
+  const hasInstrument = equippedInstruments(character.tags).length > 0;
+  const isMusician = held(character, MUSICIAN_SLUG);
+  if (!hasInstrument && !isMusician) return { ok: false, error: "[PLACEHOLDER: /play needs an instrument]" };
 
   const last = await prisma.auditLog.findFirst({
     where: { actionType: PLAY_AUDIT_ACTION, targetCharacterId: character.id },
@@ -97,10 +105,16 @@ async function playInstrument(prisma, character, placeKey) {
   const since = last ? Date.now() - last.createdAt.getTime() : Infinity;
   if (since < PLAY_COOLDOWN_MS) {
     const minutes = Math.max(1, Math.ceil((PLAY_COOLDOWN_MS - since) / 60_000));
-    return { ok: false, error: `Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.` };
+    return {
+      ok: false,
+      cooldown: true,
+      error: `Let the last one finish — about ${minutes} more minute${minutes === 1 ? "" : "s"}.`,
+    };
   }
 
-  const isMusician = held(character, MUSICIAN_SLUG);
+  // From a Location key (the Play Instrument panel) the line is the street's scenery: one
+  // post, as subtext, and no second ambient copy below.
+  const onStreet = parsePlaceKey(placeKey)?.kind === "loc";
   const verb = hasInstrument ? "an instrument playing" : "someone singing";
   const line = isMusician
     ? `You hear ${verb}, beautifully. ${noteFlourish()}`
@@ -113,7 +127,7 @@ async function playInstrument(prisma, character, placeKey) {
   try {
     target = await discordTargetForPlaceKey(prisma, placeKey);
     const channelId = target?.threadId ?? target?.channelId ?? null;
-    if (channelId) await postMessage(channelId, line, undefined, { parse: [] });
+    if (channelId) await postMessage(channelId, onStreet ? ambientLine(line) : line, undefined, { parse: [] });
   } catch (err) {
     console.error("Play post failed:", err.message ?? err);
   }
@@ -142,7 +156,7 @@ async function playInstrument(prisma, character, placeKey) {
 
   // ...and the street outside hears it, small. `target.channelId` is already the parent Location
   // channel — discordTargetForPlaceKey resolves a Room/Conversation's owning channel already.
-  if (target?.channelId) {
+  if (target?.channelId && !onStreet) {
     await postMessage(target.channelId, ambientLine(line)).catch(() => null);
   }
 

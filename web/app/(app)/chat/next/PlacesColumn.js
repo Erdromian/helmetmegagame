@@ -3,6 +3,7 @@
 import { memo, useMemo } from "react";
 import IconButton from "@/app/components/IconButton";
 import SoundControls from "@/app/components/SoundControls";
+import ChatTextSize from "@/app/components/ChatTextSize";
 import VolumeSlider from "@/app/components/VolumeSlider";
 import HoverCard from "@/app/components/HoverCard";
 import { BellRingIcon, CheckIcon, ChevronDownIcon, MailIcon, SendIcon } from "@/app/components/icons";
@@ -284,6 +285,7 @@ export default function PlacesColumn({
           {/* Last, so it takes its own line under the whole row of buttons rather
               than splitting them (.chat-places-foot, globals.css). */}
           <VolumeSlider id="volume-chat-next" />
+          <ChatTextSize />
         </div>
         {foot}
       </div>

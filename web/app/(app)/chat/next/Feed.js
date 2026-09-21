@@ -11,7 +11,7 @@ import IconButton from "@/app/components/IconButton";
 import TranscriptLine from "@/app/components/TranscriptLine";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
-import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
+import { CameraIcon, EditIcon, EyeIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
 import { formatTurnLabel } from "@/lib/turnFormat";
 import BlockRow, { BLOCK_KINDS } from "../blockRows";
 import MembersStrip from "../MembersStrip";
@@ -102,6 +102,45 @@ const SystemRow = memo(function SystemRow({ row, zone = null }) {
   );
 });
 
+// Touch only: hold a row still for HOLD_MS and it opens the row's sheet. A
+// drag past HOLD_SLOP_PX is a scroll, not a hold. Mouse and pen keep the hover bar.
+const HOLD_MS = 450;
+const HOLD_SLOP_PX = 10;
+
+function useLongPress(onHold) {
+  const hold = useRef(null);
+  const cancel = useCallback(() => {
+    if (hold.current) clearTimeout(hold.current.timer);
+    hold.current = null;
+  }, []);
+  useEffect(() => cancel, [cancel]);
+  return useMemo(() => {
+    if (!onHold) return null;
+    return {
+      onPointerDown: (event) => {
+        if (event.pointerType !== "touch") return;
+        if (event.target instanceof Element && event.target.closest("a, button, textarea, input")) return;
+        cancel();
+        const timer = setTimeout(() => {
+          hold.current = null;
+          navigator.vibrate?.(10);
+          onHold();
+        }, HOLD_MS);
+        hold.current = { timer, x: event.clientX, y: event.clientY };
+      },
+      onPointerMove: (event) => {
+        const h = hold.current;
+        if (h && Math.hypot(event.clientX - h.x, event.clientY - h.y) > HOLD_SLOP_PX) cancel();
+      },
+      onPointerUp: cancel,
+      onPointerCancel: cancel,
+      onContextMenu: (event) => {
+        if (event.nativeEvent?.pointerType === "touch" || hold.current) event.preventDefault();
+      },
+    };
+  }, [onHold, cancel]);
+}
+
 // memo'd, and the whole reason the store is keyed by seq: a line arriving
 // re-renders one of these, not the run of a hundred above it.
 const Row = memo(function Row({ line, handlers, editing = false }) {
@@ -115,6 +154,8 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
   const anyAction = Object.values(guards).some(Boolean);
   const showActions = anyAction && !editing && !row.pending;
   const verbs = ROW_VERBS.filter((v) => v.show(guards));
+  // Touch: hold the row to open the verbs as a sheet, the way Discord does.
+  const press = useLongPress(showActions ? () => handlers.onOpenMenu({ seq: row.seq, sentAt: row.sentAt, ...guards }) : null);
 
   return (
     <TranscriptLine
@@ -123,6 +164,7 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
       // out of the Tab order; the bar's own buttons are still reached by
       // keyboard, and focusing one reveals the bar the same way.
       tabIndex={showActions ? -1 : undefined}
+      pressHandlers={press}
       seq={row.seq}
       startsRun={startsRun}
       pending={row.pending}
@@ -170,22 +212,6 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
       }
       trailing={
         <>
-          {/* The same verbs as a ⋯ that opens a sheet — a touch screen has no
-              hover, so this is the one action a tap can reach. CSS decides
-              which of the two shows. The WRAPPER carries the position, not the
-              button: IconButton wraps its button in the tooltip's own span, and
-              an absolutely positioned button inside that span pins to the span
-              rather than the row. */}
-          {showActions && (
-            <span className="tline-more">
-              <IconButton
-                icon={MoreIcon}
-                label="Actions"
-                size="lg"
-                onClick={() => handlers.onOpenMenu({ seq: row.seq, sentAt: row.sentAt, ...guards })}
-              />
-            </span>
-          )}
           {row.failed && (
             <p className="chat-unsent">
               <span>Not sent.</span>

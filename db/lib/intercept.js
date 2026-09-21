@@ -9,6 +9,7 @@ const { matchesTypedName } = require("./characterName");
 const { blockerFor, ACT } = require("./incapacitation");
 const { reFor } = require("./discordMarkup");
 const { DM_KIND } = require("./dmKinds");
+const { stopPerformances } = require("./performance");
 const { SFX } = require("./sfx");
 // For the auto-search refusal note only: it is guidance sitting under somebody's
 // own catch line rather than a notice of its own, which is what `-#` is for
@@ -324,6 +325,12 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
       data: { heldUntil: hit.until, heldById: hit.interceptor.id, heldReason: HELD_REASON.INTERCEPT },
     });
   }
+  // Whoever is held stops playing (SOUND.md, "Performances").
+  await stopPerformances(
+    db,
+    [...longest.values()].filter((hit) => hit.until).map((hit) => hit.target.id),
+    "intercept",
+  );
 
   // The victim hears from each of them. Three guards at the gate is three lines, since walking into three people is what happened.
   for (const hit of hits) {

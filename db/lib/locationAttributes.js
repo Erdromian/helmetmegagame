@@ -1,5 +1,7 @@
 // AUTHORED attributes live in docs/zones.yaml's `attributes:` map, change only on sync. DERIVED lines read live state via `ctx` (Prisma-free). Add an attribute in ATTRIBUTES — the sync rejects an unknown key, failing loudly.
 
+const { ATM_LOCATION_SLUGS } = require("./depot");
+
 const GODFLESH_ATTRIBUTE = "godflesh";
 const REFINERY_ATTRIBUTE = "refinery";
 const SOILERY_ATTRIBUTE = "soilery";
@@ -108,14 +110,15 @@ function parksMounts(location) {
   return location?.zone?.kind === "CAVE_LEVEL";
 }
 
-// Both halves print — silence outdoors would mean the rule is only stated
-// where it bites. Reads `parksMounts`'s answer, not the raw `indoors` column,
-// since a surface Location no longer parks anything at the door.
+// Both halves print, so a place always says which it is.
 function placementLine(location) {
   if (!location?.indoors) return "**Outdoors**: you can use your arelitz or cart here.";
-  return parksMounts(location)
-    ? "**Indoors**: you can't equip a cart or arelitz here."
-    : "**Indoors**: you can still bring an arelitz or cart in here.";
+  return "**Indoors:** This place is indoors.";
+}
+
+// The machine alone, wherever one stands (db/lib/depot.js#ATM_LOCATION_SLUGS).
+function atmLine(location) {
+  return ATM_LOCATION_SLUGS.has(location?.slug) ? "**ATM:** You can use the Depot's ATM here." : null;
 }
 
 // Says the STATE, not the verb — buttons say what a click DOES, Examine says what IS TRUE.
@@ -180,6 +183,7 @@ function structureLines(ctx = {}) {
 function describeLocation(location, ctx = {}) {
   return [
     placementLine(location),
+    atmLine(location),
     ...authoredLines(location, ctx),
     ...depotLines(ctx),
     ...structureLines(ctx),

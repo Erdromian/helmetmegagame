@@ -544,7 +544,11 @@ export default function Composer({
             1lh, not a pixel count, so it follows the type scale. The row is
             RESERVED, not filled: nothing is written here to take up space. */}
         <div className="chat-composer-foot">
-          {waitSeconds > 0 && <span className="chat-countdown mono">{waitSeconds} s</span>}
+          {waitSeconds > 0 && (
+            <span className="chat-countdown">
+              You spoke too recently. Wait <span className="mono">{waitSeconds} s</span>.
+            </span>
+          )}
           {limit != null && draft.trim().length > 0 && (
             <span className="chat-composer-count mono" data-over={over ? "true" : undefined}>
               {draft.trim().length}/{limit}

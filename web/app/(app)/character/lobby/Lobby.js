@@ -57,9 +57,18 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   const [optIns, setOptIns] = useState(initial.antagonistOptIns ?? []);
   const [jobless, setJobless] = useState(initial.joblessRole ?? "MIGRANT");
   const [readyAt, setReadyAt] = useState(entry?.readyAt ?? null);
+  // The chip's count comes from the server every 30 s. Between those, the
+  // clicker's own toggle moves it by hand — the ready action no longer
+  // re-renders this page, which is what used to make the click feel slow.
+  const [countShift, setCountShift] = useState(0);
+  const [lastCount, setLastCount] = useState(readyCount);
+  if (lastCount !== readyCount) {
+    setLastCount(readyCount);
+    setCountShift(0);
+  }
   const [openIntro, setOpenIntro] = useState(null);
   const [, startSaving] = useTransition();
-  const { run, pending, error, setError } = useActionRunner();
+  const { run, error, setError } = useActionRunner();
   const timer = useRef(null);
   const router = useRouter();
 
@@ -147,9 +156,23 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
     edit({ ...draft.current, joblessRole: value });
   }
 
+  // Optimistic: the pill and the count move on the click, and a refusal puts
+  // them back. Both actions are idempotent, so a fast double-tap is harmless.
   function toggleReady() {
-    if (readyAt) run(setUnready, undefined, { onOk: () => setReadyAt(null) });
-    else run(setReady, undefined, { onOk: (res) => setReadyAt(res.readyAt) });
+    const was = readyAt;
+    const undo = () => {
+      setReadyAt(was);
+      setCountShift((n) => n + (was ? 1 : -1));
+    };
+    if (was) {
+      setReadyAt(null);
+      setCountShift((n) => n - 1);
+      run(setUnready, undefined, { onFail: undo });
+    } else {
+      setReadyAt(new Date().toISOString());
+      setCountShift((n) => n + 1);
+      run(setReady, undefined, { onOk: (res) => setReadyAt(res.readyAt), onFail: undo });
+    }
   }
 
   return (
@@ -169,11 +192,11 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
                   </span>
                 ) : null}
               </span>
-              <span className="chip mono">{readyCount} ready</span>
+              <span className="chip mono">{Math.max(0, readyCount + countShift)} ready</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              <button type="button" className={readyAt ? "btn-secondary" : "btn"} onClick={toggleReady} disabled={pending}>
-                {pending ? "…" : readyAt ? "Unready" : "Ready up"}
+              <button type="button" className={readyAt ? "btn-secondary" : "btn"} onClick={toggleReady}>
+                {readyAt ? "Unready" : "Ready up"}
               </button>
               {canSkip ? (
                 <Link href="/character?create=1" className="btn-secondary">

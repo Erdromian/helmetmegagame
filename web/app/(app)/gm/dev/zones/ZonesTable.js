@@ -79,15 +79,15 @@ export default function ZonesTable({ rows, canSuper }) {
                   {canSuper && (
                     <>
                       {z.retiredAt ? (
-                        <button className="btn-quiet" disabled={pending} onClick={() => call(unretireZone, z.id)}>
+                        <button type="button" className="btn-quiet" disabled={pending} onClick={() => call(unretireZone, z.id)}>
                           Unretire
                         </button>
                       ) : (
-                        <button className="btn-quiet" disabled={pending} onClick={() => onRetire(z)}>
+                        <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRetire(z)}>
                           Retire
                         </button>
                       )}
-                      <button className="btn-quiet" disabled={pending} onClick={() => onDelete(z)}>
+                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => onDelete(z)}>
                         Delete
                       </button>
                     </>

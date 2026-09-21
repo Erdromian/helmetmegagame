@@ -82,9 +82,10 @@ function parseGamePost(content) {
 // The turn post. `note` is the GM's own words for this turn, when there are
 // any; everything else is the stamp db/turnCalendar.js#turnFacts computed, so
 // #turns and the Game channel can never disagree about the clock.
-function formatTurnPost({ number, day, date, clock, note } = {}) {
+// `plate` is "nuke" or "hellfire" once the game has earned one (db/lib/turnBanner.js), else absent.
+function formatTurnPost({ number, day, date, clock, note, plate } = {}) {
   return composeGamePost(
-    { Turn: number, Day: day, Date: date, Clock: clock },
+    { Turn: number, Day: day, Date: date, Clock: clock, Plate: plate },
     note,
   );
 }
@@ -96,6 +97,7 @@ function splitTurnPost(content) {
     day: fields.day ?? "",
     date: fields.date ?? "",
     clock: fields.clock ?? "",
+    plate: fields.plate ?? "",
     note: body,
   };
 }
