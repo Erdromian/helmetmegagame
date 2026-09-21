@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · Two passes can no longer pin two copies of the same Location card
+
+✎ The card a Location channel pins is now CLAIMED rather than just written, so when two provisioning passes race, one wins and the other deletes the card it posted instead of leaving it pinned where nothing can find it -- that is what put a double in all 56 channels
+
 ## 2026-09-21 · Location channels are named after the place again, and the map lost the last game's furniture
 
 ✎ A Location channel is called #keep or #hole-in-the-wall, not #fortress-1 -- the slug stays the reference, the name is what you read in the sidebar. CHANNELS.md always said so; the code had drifted  

@@ -6,6 +6,7 @@ const {
   patchThread,
   editMessage,
   postMessage,
+  deleteMessage,
   clearMessagesExcept,
   chunkMessage,
   pinMessage,
@@ -213,13 +214,42 @@ async function syncLocationAnchor(prisma, location, rooms) {
   }
 
   const message = await postMessage(location.discordChannelId, body, components);
+
+  // CLAIM IT, don't just write it. The re-read above shrank the window from
+  // minutes to milliseconds, but it is still a read followed by a write, and two
+  // passes that both read "no anchor" in that window both post. On 2026-09-20 at
+  // 21:45 that is exactly what happened: every one of the 56 Location channels
+  // ended up with two identical pinned cards, twelve seconds apart, and the
+  // second pass's write took `anchorMessageId` with it — so the first card was
+  // orphaned where nothing could ever find it again. The mirror could not see it
+  // (it knows one id), the doctor does not read messages, and it sat there until
+  // somebody noticed the channels looked wrong.
+  //
+  // So the write is CONDITIONAL on the row still holding what we read, the same
+  // compare-and-swap db/lib/discordMirror/queue.js claims a job with. Exactly one
+  // pass can win. The loser deletes the card it just posted rather than leaving
+  // it pinned and unreferenced, and adopts the winner's — which is the truthful
+  // outcome, since the winner's id is the one in the row.
+  const claim = await prisma.location.updateMany({
+    where: { id: location.id, anchorMessageId: location.anchorMessageId ?? null },
+    data: { anchorMessageId: message.id, anchorHash: hash },
+  });
+
+  if (claim.count === 0) {
+    await deleteMessage(location.discordChannelId, message.id).catch((err) =>
+      console.error(`Anchor: could not clean up a lost race in ${location.slug}:`, err.message ?? err),
+    );
+    const winner = await prisma.location
+      .findUnique({ where: { id: location.id }, select: { anchorMessageId: true, anchorHash: true } })
+      .catch(() => null);
+    location.anchorMessageId = winner?.anchorMessageId ?? null;
+    location.anchorHash = winner?.anchorHash ?? null;
+    return "unchanged";
+  }
+
   await pinMessage(location.discordChannelId, message.id).catch((err) =>
     console.error(`Anchor pin failed for ${location.slug}:`, err.message),
   );
-  await prisma.location.update({
-    where: { id: location.id },
-    data: { anchorMessageId: message.id, anchorHash: hash },
-  });
   location.anchorMessageId = message.id;
   location.anchorHash = hash;
   return "created";
