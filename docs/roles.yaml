@@ -153,6 +153,7 @@ groups:
         - Obol x25
         - Post-Christian
         - Appraisal
+        - Omelette
       doc_elements:
         - godking
         - squeeze
@@ -185,6 +186,7 @@ groups:
         - Baroness's Key
         - Obol x5
         - Post-Christian
+        - Pasta
       doc_elements:
         - godking
         - courtstructure
@@ -213,6 +215,7 @@ groups:
         - Heir's Key
         - Obol x5
         - Post-Christian
+        - Sausage
       doc_elements:
         - godking
         - courtstructure
@@ -238,6 +241,7 @@ groups:
         - Literacy
         - Successor's Key
         - Post-Christian
+        - Fried Fish
       doc_elements:
         - godking
         - courtstructure
@@ -269,6 +273,7 @@ groups:
         - Hand's Pin
         - Hand's Key
         - Obol x10
+        - Broth
       doc_elements:
         - godking
         - squeeze
@@ -300,6 +305,7 @@ groups:
         - Meister's Key
         - Bird
         - Obol x5
+        - Vegetable Stew
       doc_elements:
         - godking
         - squeeze
@@ -331,6 +337,7 @@ groups:
         - Major's Insignia
         - Obol x4
         - Appraisal
+        - Bread
       doc_elements:
         - godking
         - courtstructure
@@ -357,6 +364,7 @@ groups:
         - Ravenhearter
         - Courtier
         - Literacy
+        - Sausage
       doc_elements:
         - godking
         - courtstructure
@@ -376,6 +384,7 @@ groups:
         - Ravenhearter
         - Musician
         - Instrument
+        - Bread
       doc_elements:
         - godking
         - courtstructure
@@ -405,6 +414,7 @@ groups:
         - Carrot x6
         - Tomato x8
         - Onion x6
+        - Cheese x3
       doc_elements:
         - godking
         - courtstructure
@@ -447,6 +457,7 @@ groups:
         - Bishop's Mitre
         - Vestments
         - Cross
+        - Broth
       doc_elements:
         - postchristianity
     chaplain:
@@ -477,6 +488,7 @@ groups:
         - Post-Christian
         - Vestments
         - Cross
+        - Bread
       doc_elements:
         - postchristianity
     inquisitor:
@@ -514,6 +526,7 @@ groups:
         - Fundamentalist
         - Torturer
         - Literacy
+        - Fried Meat
       doc_elements:
         - postchristianity
     practicus:
@@ -548,6 +561,7 @@ groups:
         - Gas Mask
         - Fundamentalist
         - Torturer
+        - Bread
       doc_elements:
         - postchristianity
     preacher:
@@ -576,6 +590,7 @@ groups:
         - Pious
         - Post-Christian
         - Fundamentalist
+        - Potato Bread
       doc_elements:
         - postchristianity
 
@@ -620,6 +635,7 @@ groups:
         - Literacy
         - Obol x2
         - Post-Christian
+        - Sausage
       doc_elements:
         - godking
         - courtstructure
@@ -658,6 +674,7 @@ groups:
         - Mail Coif
         - Mail Shirt
         - Post-Christian
+        - Broth
       doc_elements:
         - courtstructure
         - cerberon
@@ -695,6 +712,7 @@ groups:
         - Mail Shirt
         - Post-Christian
         - Obol x1
+        - Fried Meat
       doc_elements:
         - courtstructure
         - cerberon
@@ -726,6 +744,7 @@ groups:
         - Mail Coif
         - Mail Shirt
         - Post-Christian
+        - Baked Potato
       doc_elements:
         - courtstructure
         - cerberon
@@ -763,6 +782,7 @@ groups:
         - Esculap's Vest
         - Obol x10
         - Resources x26
+        - Vegetable Stew
       doc_elements:
         - medical
     serpent:
@@ -790,6 +810,7 @@ groups:
         - Brewing II
         - Literacy
         - Resources x8
+        - Baked Potato
       doc_elements:
         - medical
 
@@ -829,6 +850,7 @@ groups:
         - Obol x20
         - Nobility
         - Appraisal
+        - Fried Fish
       doc_elements:
         - godking
         - squeeze
@@ -850,6 +872,7 @@ groups:
       starting_tags:
         - Depot Keycard
         - Appraisal
+        - Ration Box
       doc_elements:
         - merchant
     banneret:
@@ -886,6 +909,7 @@ groups:
         - Factory Key
         - Banneret's Key
         - Appraisal
+        - Sausage
       doc_elements:
         - godking
         - godardfactory
@@ -929,6 +953,7 @@ groups:
         - Factory Key
         - Banneret's Key
         - Appraisal
+        - Cheese x3
       doc_elements:
         - godardfactory
         - medical
@@ -953,6 +978,7 @@ groups:
         - Cleaning Powder
         - Armored Gloves
         - Factory Key
+        - Moldy Bread
       doc_elements:
         - godardfactory
     exactor:
@@ -992,6 +1018,7 @@ groups:
         - Room A Key (Den)
         - Room B Key (Den)
         - Appraisal
+        - Fried Meat
 
   # Soil
   soil:
@@ -1017,6 +1044,7 @@ groups:
         - Neoclassic R&W10
         - Cudgel
         - Sheriff's Badge
+        - Sausage
       doc_elements:
         - combat
     metalsmith:
@@ -1043,6 +1071,7 @@ groups:
         - Smithy Key
         - Resources x20
         - Appraisal
+        - Bread
       doc_elements:
         - smithing
         - combat
@@ -1112,6 +1141,7 @@ groups:
         - Tobacco
         - Wheat Seed Bag
         - Plebeian Hood
+        - Baked Potato
       doc_elements:
         - farming
     mortus:
@@ -1143,6 +1173,7 @@ groups:
         - Cudgel
         - Shovel
         - Corpse Salts
+        - Moldy Bread
       doc_elements:
         - respawning
     bum:
@@ -1162,6 +1193,7 @@ groups:
         - Ravenhearter
         - Unhygienic
         - Ugly
+        - Moldy Bread
     pusher:
       name: Pusher
       intro: >-
@@ -1190,6 +1222,7 @@ groups:
         - Obol x10
         - Appraisal
         - Hood
+        - Grasshopper Kebab
       doc_elements:
         - alcoholdrugs
     innkeeper:
@@ -1226,6 +1259,7 @@ groups:
         - Brewing I
         - Brewing (Distilling)
         - Appraisal
+        - Cheese x3
       doc_elements:
         - alcoholdrugs
         - inn
@@ -1253,6 +1287,7 @@ groups:
         - Carrot x6
         - Tomato x8
         - Onion x6
+        - Cheese x3
       doc_elements:
         - alcoholdrugs
         - inn
@@ -1327,6 +1362,7 @@ groups:
         - Padded Armor
         - Padded Cap
         - Hood
+        - Ration Box
 
   # Outsiders
   outsiders:
@@ -1342,7 +1378,7 @@ groups:
       starting_zone: caves
       starting_location: caves-5
       extra_starting_points: 3
-      starting_tags: [Pale]
+      starting_tags: [Pale, Moldy Bread]
       doc_elements: [caving]
     mercenary:
       name: Mercenary
@@ -1372,6 +1408,7 @@ groups:
         - Shortbow
         - Rough Camper
         - Spelunker
+        - Ration Box
       doc_elements: [caving]
   # Elsewhere
   other:
@@ -1421,6 +1458,7 @@ groups:
         - Brave
         - Literacy
         - Radio (243.000)
+        - Broth
       doc_elements:
         - godking
         - courtstructure
@@ -1462,6 +1500,7 @@ groups:
         - Outsider
         - Literacy
         - Radio (243.000)
+        - Ration Box
       doc_elements:
         - godking
         - courtstructure
@@ -1516,6 +1555,7 @@ groups:
         - Brave
         - Rough Camper
         - Outsider
+        - Sausage
 
     bastard-infantry:
       name: Infantry
@@ -1537,6 +1577,7 @@ groups:
         - Infantry Helmet
         - Rough Camper
         - Outsider
+        - Ration Box
 
     bastard-heavy-infantry:
       name: Heavy Infantry
@@ -1561,6 +1602,7 @@ groups:
         - Strong
         - Rough Camper
         - Outsider
+        - Ration Box
 
     bastard-rifleman:
       name: Rifleman
@@ -1584,6 +1626,7 @@ groups:
         - Spotter
         - Rough Camper
         - Outsider
+        - Ration Box
 
     bastard-healer:
       name: Healer
@@ -1606,6 +1649,7 @@ groups:
         - Ambrosia
         - Rough Camper
         - Outsider
+        - Ration Box
 
     bastard-engineer:
       name: Engineer
@@ -1632,3 +1676,4 @@ groups:
         - Resources x55
         - Rough Camper
         - Outsider
+        - Ration Box
