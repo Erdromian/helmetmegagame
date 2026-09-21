@@ -275,9 +275,11 @@ nothing else (`extractGodfleshRequestImpl` in
 this doc's old "one Extract, one Refine" pair of days was wrong. A bare-handed
 cut averages 7/6 of a lump and a shift needs one, so the lump never binds a
 refiner. What binds them is §4's ladder: Tired after one shift, Exhausted after
-two, refused on the third. So the ceiling is **two shifts in three turns, about
-27 ¢ a turn**, and a refugee who works every other turn instead never wears out
-and makes **20 ¢ a turn**. What the wage really costs is the die: one cut in six
+two, refused on the third — and Exhausted decays back into **Tired**, not into
+nothing, so you are never fresh again after the first pair. The steady state is
+therefore **one shift every other turn, 20 ¢ a turn**: two in a row at the very
+start, then strictly alternating for the rest of the game. What the wage really
+costs is the die: one cut in six
 is a 1, a wound with gloves on and a lost hand or arm without (§3), and the
 Factory roles all start with gloves.
 
@@ -286,9 +288,9 @@ its food crops do not sell at all (`SOILERY.md` §6) — a Farm action sows up t
 50 plants, 3 crops each, about 5 in 6 surviving, so it harvests about 125 crops
 that are food rather than cash. **Tobacco is the only crop that pays coin**, at
 1 ¢ a leaf and about 67 leaves an action (`SOILERY.md` §6a): about 67 ¢ an
-action, and since farming climbs the same ladder the Factory does, about
-**45 ¢ a turn** pushed flat out. That is more than a refiner makes, and a
-tobacco field feeds nobody — which is the trade §1 of `SOILERY.md` exists to
+action, and since farming climbs the same every-other-turn ladder the Factory
+does, about **31 ¢ a turn**. That is below a refiner's 40 ¢ a shift but close to
+their 20 ¢ a turn, and a tobacco field feeds nobody — which is the trade §1 of `SOILERY.md` exists to
 pose. A wagon still dwarfs both: 300 ¢ is the point of the place.
 
 The 7 ¢ price made a supplied refining day 56 ¢ — three times the best

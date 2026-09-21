@@ -35,6 +35,7 @@ __pycache__/
 # this repo is public, so a packet must never be committed. The folder writes
 # its own .gitignore too, for a destination that is not this one.
 archives/
+economy-report/
 *.jsonl.gz
 
 # Database dumps. `scripts/db/bucket.py get` writes into the working directory,
