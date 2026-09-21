@@ -10,6 +10,7 @@ import {
   isDynastyHead,
   isDynastyMember,
   canOpenCrate,
+  isBlackMarketSeal,
 } from "@lifeweb/db";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import {
@@ -411,12 +412,16 @@ async function openCrateRequestImpl({ session, character, held }) {
   const contents = Array.isArray(crate.crateContents) ? crate.crateContents : null;
   if (!contents) throw new UserError("That isn't a crate.");
 
-  if (!canOpenCrate(crate, heldSlugsOf(character.tags))) {
-    throw new UserError("It's sealed, and the lock wants a Depot Keycard.");
+  const inner = await prisma.tag.findMany({ where: { id: { in: contents.map((c) => c.tagId).filter(Boolean) } } });
+  if (!canOpenCrate(crate, heldSlugsOf(character.tags), inner)) {
+    throw new UserError(
+      isBlackMarketSeal(inner)
+        ? "It's sealed, and the lock wants a Silver Chip or a Depot Keycard."
+        : "It's sealed, and the lock wants a Depot Keycard.",
+    );
   }
 
   const openTurn = await getOpenTurn();
-  const inner = await prisma.tag.findMany({ where: { id: { in: contents.map((c) => c.tagId) } } });
   const byId = new Map(inner.map((t) => [t.id, t]));
 
   // ⬢ ride the crate in the field the ordinary consume path already grants,

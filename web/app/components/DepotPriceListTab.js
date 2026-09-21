@@ -59,7 +59,7 @@ export default function DepotPriceListTab({ priceList }) {
                 <td>
                   {/* The ⬢ row has no Tag behind it, so it renders as a
                       plain name rather than a chip. */}
-                  {row.synthetic ? <span>{row.name}</span> : <TagChip tag={row.tag} />}
+                  {row.tag ? <TagChip tag={row.tag} /> : <span>{row.name}</span>}
                 </td>
                 <td className="mono">{row.price != null ? `${row.price} ¢` : "—"}</td>
                 <td className="mono">{row.sellPrice != null ? `${row.sellPrice} ¢` : "—"}</td>

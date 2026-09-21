@@ -125,7 +125,7 @@ What your tags decide is the **shelf**, and one seat's paperwork:
 |---|---|
 | **Anyone, standing there** | Open the page. Order off the general manifest, use the ATM at the counter, put things in the drop box beside it, open an account. The ATM also stands in the Den's bar (§0g). |
 | **Silver Chip** | …plus the black market: drink, smoke and worse — and the page itself, read-only, from anywhere. |
-| **Depot Keycard** | Open a sealed crate. Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
+| **Depot Keycard** | Open a sealed crate (a Silver Chip also opens one whose sealed goods are all Black Market). Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
 | **Merchant's Licence** | …plus the page from anywhere, read-only, and the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
 | **A key to the Meister's office**, standing in the Keep | `/treasury`: every account, the Vault's backing, and the sell tax rate (§0h). |
 
@@ -265,7 +265,8 @@ Unless something in it ships sealed, in which case the whole crate reads:
 [SHIPMENT ID RV-4471-K] · ADA VOSS · AV-2017: SEALED
 ```
 
-...and only a Depot Keycard opens it. **One sealed line item seals the crate it
+...and only a Depot Keycard opens it — or a Silver Chip, when every sealed thing
+inside came off the Black Market. **One sealed line item seals the crate it
 lands in**, so nobody knows *which* crate the dangerous thing is in. The seal
 hides *what* is in the box; whose box it is stays printed, because those are two
 different secrets.
@@ -757,7 +758,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | Page | `/depot` (`web/app/(app)/depot/page.js`) — place or key (§0b): standing there, or carrying a manifest key, which reads it from anywhere. Read-only unless you are standing there |
 | Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
 | Rooms | `undertown-5-1`, the Railway — the train, the crates, the drop box and an ATM, and the Depot's only room. The Merchant's own three are next door at `undertown-6`: `undertown-6-1` Storefront (the second ATM), `undertown-6-2` Merchant's Office (the gun), `undertown-6-3` Cargo Bay (behind a keycard). The Inn's and the Den's bars carry ATMs of their own (§0l) |
-| Gates | the page itself, `depotAccessFor` (§0b), then the manifests (§0e), plus `depot-keycard` for a sealed crate. `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
+| Gates | the page itself, `depotAccessFor` (§0b), then the manifests (§0e), plus `depot-keycard` for a sealed crate (or `silver-chip` when its sealed goods are all Black Market). `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
 | Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |
 

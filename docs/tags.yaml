@@ -9493,11 +9493,8 @@ tags:
     sprite: knife
     description: "A deadly knife with brass knuckles embedded on the grip. While equipped, torture-related Gambits gain +1."
     fighting: { tiers: 0.3, weaponClass: knife }
-    # Two over a dagger, as asked. A dagger has no counter price of its own, so
-    # the anchor is its sellablePrice of 8 read back through the shelf's ~0.6
-    # spread — about 14 — and this sits at 16.
     manifest: black-market
-    depotPrice: 16
+    depotPrice: 6
     pointCost: 5
     requiredTag: melee-basic
     equippable: true
@@ -9514,7 +9511,7 @@ tags:
       skills: [smithing]
       gambit: false
     sellable: true
-    sellablePrice: 20
+    sellablePrice: 4
   # A `customizableSkill: smithing-skilled` below is the +1 ⬢ door onto a
   # smith's own name and words (CRAFTING.md §4a), and the rung it names is
   # who may open it — the top of the Smithing ladder, whatever tier the piece
@@ -10020,11 +10017,8 @@ tags:
     sprite: knuckleduster
     description: "Connected metal rings meant to be worn on one's fingers to pack a heavier punch."
     fighting: { tiers: 0.2, weaponClass: unarmed }
-    # Priced as the cheap thug's tool it reads as. Its sellablePrice of 30 is
-    # an outlier against the rest of the ladder and is left alone rather than
-    # dragged along — selling one to the Depot was never the point of it.
     manifest: black-market
-    depotPrice: 12
+    depotPrice: 3
     pointCost: 3
     equippable: true
     equipSlot: WEAPON
@@ -10040,7 +10034,7 @@ tags:
       skills: [smithing-skilled]
       gambit: false
     sellable: true
-    sellablePrice: 30
+    sellablePrice: 2
 
   # Not a weapon, so no `fighting`/`requiredTag` — just the Moderate rung's
   # ⬢/turn/skill columns, the way Workshop Equipment borrows High Quality's.
