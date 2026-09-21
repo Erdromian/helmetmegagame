@@ -66,8 +66,8 @@ being that. Laboring is gone and so is that tier. **Soilery** is one flat
 brings in three crops, a field of fifty comes home as about 125, and at any price a crop
 sells for that would have made the Soilery the best wage in the game by accident. Tobacco
 is the one exception, at 1 ¢ a leaf (§6a). `npm run economy:report` prices a Farm action as food
-at the Ration Box's price per hunger and tobacco as cash, and checks both against the Factory
-shift.
+at the Ration Box's price per hunger and tobacco as cash, and checks both against a solo
+Factory worker's turn.
 
 ## 2. The `soilery` Location attribute
 

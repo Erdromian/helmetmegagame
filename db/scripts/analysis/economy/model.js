@@ -646,6 +646,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const squeeze = get(refinery.REFINERY_OUTPUT_SLUG);
   const cubeValue = squeeze.sellablePrice ?? 0;
   const shift = refinery.REFINERY_YIELD * cubeValue;
+  // A Factory worker and a farmer climb the same ladder, so what they earn is compared a turn to a turn.
+  const factoryPerTurn = shift * fatigue.byId.refine.steady;
   // Expected Godflesh per cut, by walking the real die: every face once.
   const expectedCut = (tags) => {
     let sum = 0;
@@ -1140,7 +1142,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
-  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, refs: { factoryShift: shift, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
+  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, refs: { factoryShift: shift, factoryPerTurn, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
   trinkets.shelfLoop.topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
   trinkets.moveValue = moveValueUsed;
   const lucky = buildLucky({ get, rv, caving, trinkets, moveValue: moveValueUsed, gameTurns });
@@ -1271,18 +1273,18 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "SOILERY.md §1",
-      claim: "A tobacco farmer earns no more a turn than a Factory shift (40 ¢), so the cash crop does not out-earn the town's best wage",
-      docValue: `${shift} ¢ a turn`,
-      model: `${round1(byId("farm:tobacco")?.netPerTurn)} ¢ a turn (${round1(byId("farm:tobacco")?.perAction)} ¢ a Farm action, one every other turn)`,
-      ok: byId("farm:tobacco") != null && byId("farm:tobacco").netPerTurn <= shift,
-      note: "Tobacco is 1 ¢ a leaf, about 67 leaves an action after its 1-in-3 wither.",
+      claim: "A tobacco farmer earns no more a turn than a solo Factory worker, so the cash crop does not out-earn the Factory",
+      docValue: `${round1(factoryPerTurn)} ¢ a turn (${shift} ¢ a shift, one every other turn)`,
+      model: `${round1(byId("farm:tobacco")?.netPerTurn)} ¢ a turn (${round1(byId("farm:tobacco")?.perAction)} ¢ a Farm action against ${shift} ¢ a shift, both one every other turn)`,
+      ok: byId("farm:tobacco") != null && byId("farm:tobacco").netPerTurn <= factoryPerTurn,
+      note: "Tobacco is 1 ¢ a leaf, about 67 leaves an action after its 1-in-3 wither. Farm and Refine climb the same ladder, so they are compared a turn to a turn.",
     },
     {
       doc: "SOILERY.md §1",
-      claim: "Fertilized tobacco earns no more a turn than a Factory shift",
-      docValue: `${shift} ¢ a turn`,
+      claim: "Fertilized tobacco earns no more a turn than a solo Factory worker",
+      docValue: `${round1(factoryPerTurn)} ¢ a turn`,
       model: cooking.tobacco ? `${round1(cooking.tobacco.perTurnFert)} ¢ a turn with Fertilizer (${round1(cooking.tobacco.perTurn)} without)` : "no tobacco",
-      ok: !cooking.tobacco || cooking.tobacco.perTurnFert <= shift,
+      ok: !cooking.tobacco || cooking.tobacco.perTurnFert <= factoryPerTurn,
       note: "Fertilizer removes the 1-in-3 wither die that is tobacco's price for being the cash crop, so it lifts tobacco far more than it lifts food. Its 2-turn duration now spans a full work/rest cycle, so one application may cover more than one harvest.",
     },
     {
