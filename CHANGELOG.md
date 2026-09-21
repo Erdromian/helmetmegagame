@@ -6,6 +6,10 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · The Slave works for their freedom from the Exactor
+
+✎ The Slave's intro now names the Exactor
+
 ## 2026-09-21 · The waking song plays at most once an hour
 
 ✎ Refreshing the closed-door page no longer replays white_waking; each browser hears it at most once an hour

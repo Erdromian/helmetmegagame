@@ -1218,7 +1218,7 @@ groups:
     slave:
       name: Slave
       intro: >-
-        You were sold into slavery. Work to earn your freedom.
+        You were sold into slavery. Work to earn your freedom from the Exactor.
       description:
         - >-
           Do what the Exactor says, with the eventual hope of earning your freedom. Your contract details the amount of obols you must obtain to buy your freedom.
