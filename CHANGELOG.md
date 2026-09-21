@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · Rare tags leave the public catalog, vampires go secret
+
+✎ About 110 tags players would not come across by ordinary means — mastery tags, rare illnesses, gems and precious metals, black-market drugs, the fancier guns, the Arelitz, the hidden places — now show on the Tag Catalog only to GMs and to whoever holds them  
+✎ Every vampire tag is secret now, boons included  
+✎ Adventurer costs 2 points, down from 3
+
 ## 2026-09-21 · The Slave works for their freedom from the Exactor
 
 ✎ The Slave's intro now names the Exactor

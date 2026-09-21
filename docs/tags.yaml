@@ -635,7 +635,7 @@ tags:
   # and cannot be handed over — you either were shown the place or you were
   # not. Somebody bringing a newcomer in has to grant it deliberately.
   sewer:
-    catalog: all
+    catalog: gm
     name: Sewer
     category: general
     group: general-location
@@ -648,7 +648,7 @@ tags:
     purchasableAfterStart: false
 
   convoy-directions:
-    catalog: all
+    catalog: gm
     name: Convoy Directions
     category: general
     group: general-location
@@ -664,7 +664,7 @@ tags:
   # a room you can only be in once you have fallen into it, so a GM grants
   # this from /gm/dev and takes it back when the character climbs out.
   cave-pit:
-    catalog: all
+    catalog: gm
     name: Cave Pit
     category: general
     group: general-location
@@ -726,7 +726,7 @@ tags:
   # allowed to do both (DESIRES.md §5). Superstitious/Desperate/Hypochondriac/
   # Combative/Corrupt/Fundamentalist above came in with the same sign flip.
   mad-doctor:
-    catalog: all
+    catalog: gm
     name: Mad Doctor
     category: general
     group: general-personality
@@ -737,7 +737,7 @@ tags:
     purchasableAfterStart: true
 
   esoteric:
-    catalog: all
+    catalog: gm
     name: Esoteric
     category: general
     group: general-personality
@@ -752,7 +752,7 @@ tags:
     category: general
     group: general-personality
     description: "Unlocks Desires about adventuring."
-    pointCost: 3
+    pointCost: 2
     purchasable: true
     purchasableAfterStart: true
 
@@ -848,7 +848,7 @@ tags:
   # mechanism the header describes, so nobody else ever sees it in the
   # point-buy or at /store.
   depriver:
-    catalog: all
+    catalog: gm
     name: Depriver
     category: general
     group: general-traits
@@ -996,7 +996,7 @@ tags:
   # are the one fiction, "your face is hard to look at", and without the edge a
   # build could bank -4 of the -12 drawback budget for it three times over.
   leper:
-    catalog: all
+    catalog: gm
     name: Leper
     category: health
     group: health-illness
@@ -1412,7 +1412,7 @@ tags:
     purchasableAfterStart: true
 
   poison-sense:
-    catalog: all
+    catalog: gm
     name: Poison Sense
     category: general
     group: general-traits
@@ -2247,7 +2247,7 @@ tags:
     exclusive: true
 
   old-ways-eusoch:
-    catalog: all
+    catalog: gm
     name: Old Ways (Eusoch)
     category: general
     group: general-beliefs
@@ -2258,7 +2258,7 @@ tags:
     exclusive: true
 
   old-ways-sylvia:
-    catalog: all
+    catalog: gm
     name: Old Ways (Sylvia)
     category: general
     group: general-beliefs
@@ -2269,7 +2269,7 @@ tags:
     exclusive: true
 
   old-ways-thoth:
-    catalog: all
+    catalog: gm
     name: Old Ways (Thoth)
     category: general
     group: general-beliefs
@@ -2281,7 +2281,7 @@ tags:
 
   #Unrelated to the formal bacchus cult
   old-ways-bacchus:
-    catalog: all
+    catalog: gm
     name: Old Ways (Bacchus)
     category: general
     group: general-beliefs
@@ -2460,7 +2460,7 @@ tags:
   # db/lib/gambitModifier.js — db/lib/advantage.js is the whole mechanic, and
   # every d6 a CHARACTER rolls goes through it.
   lucky:
-    catalog: all
+    catalog: gm
     name: Lucky
     category: general
     group: general-traits
@@ -2475,7 +2475,7 @@ tags:
   # where Lucky reaches all three d6 rolls. Priced at -6 against Lucky's +15
   # because it costs you less than Lucky buys you — see TAGS.md 4a.
   misfortune:
-    catalog: all
+    catalog: gm
     name: Misfortune
     category: general
     group: general-traits
@@ -2489,7 +2489,7 @@ tags:
   # cooldown — a Manic character may refill a slot the turn it empties, but
   # each individual Desire still waits out its own timer (DESIRES.md).
   manic:
-    catalog: all
+    catalog: gm
     name: Manic
     category: general
     group: general-personality
@@ -2510,7 +2510,7 @@ tags:
   # It also picks up one more stack of heightened-psychosis, below, every
   # time — a soul worn thinner with every trip through a new skull.
   metempsychosis:
-    catalog: all
+    catalog: gm
     name: Metempsychosis
     category: general
     group: general-traits
@@ -2543,7 +2543,7 @@ tags:
   # relief. Shocks pay HALF their sting back as mood; the ever-present costs
   # (wilderness, caves, hunger) simply stop landing.
   amor-fati:
-    catalog: all
+    catalog: gm
     name: Amor Fati
     category: general
     group: general-beliefs
@@ -2559,7 +2559,7 @@ tags:
   # costs the Ecstatic Gambit bonus as well as sparing the Afraid penalty.
   # Torture refuses outright rather than rolling and always failing.
   imperturbable:
-    catalog: all
+    catalog: gm
     name: Imperturbable
     category: general
     group: general-traits
@@ -2589,7 +2589,7 @@ tags:
   # along with the Brigand seat it gated. Stays `general` rather than `skills`:
   # biting hard is a thing you are, not a thing you were taught.
   biter:
-    catalog: all
+    catalog: gm
     name: Biter
     category: general
     group: general-traits
@@ -2603,7 +2603,7 @@ tags:
   # a hand is a craft you learn, not a thing you are born into a camp holding.
   # The gate was never on the tag, it was on the group.
   forgery:
-    catalog: all
+    catalog: gm
     name: Forgery
     category: skills
     teachable: true
@@ -2741,7 +2741,7 @@ tags:
   # that check (db/lib/instrumentPlay.js) — without the parent, playing badly
   # soothes nobody and this would be worth nothing.
   musician-pythagorean:
-    catalog: all
+    catalog: gm
     name: Musician (Pythagorean)
     category: skills
     teachable: false
@@ -2834,7 +2834,7 @@ tags:
     purchasableAfterStart: true
 
   smithing-gunpowder:
-    catalog: all
+    catalog: gm
     name: Smithing (Gunpowder)
     category: skills
     group: skills-crafting
@@ -3143,7 +3143,7 @@ tags:
     purchasableAfterStart: true
 
   ranged-firearms:
-    catalog: all
+    catalog: gm
     name: Ranged (Firearms)
     category: skills
     group: skills-fighting
@@ -3247,7 +3247,7 @@ tags:
 
   # Ungated for the same reason as Reckless Attacker above.
   monster-hunter:
-    catalog: all
+    catalog: gm
     name: Monster Hunter
     category: skills
     group: skills-fighting
@@ -3384,7 +3384,7 @@ tags:
   # output only — ingredients and the resource cost are still charged on the
   # number of units actually brewed, which is what "for the same cost" means.
   brewing-distilling:
-    catalog: all
+    catalog: gm
     name: Brewing (Distilling)
     category: skills
     group: skills-brewing
@@ -3517,7 +3517,7 @@ tags:
   # bestial/wight are its permanent terminal state at 0 and carry no
   # durationTurns. All are role-granted only, never bought.
   flush:
-    catalog: gm
+    catalog: secret
     name: Flush
     category: status
     group: status-vampire
@@ -3529,7 +3529,7 @@ tags:
     durationTurns: 1
 
   satiated:
-    catalog: gm
+    catalog: secret
     name: Satiated
     category: status
     group: status-vampire
@@ -3540,7 +3540,7 @@ tags:
     durationTurns: 1
 
   thirsty:
-    catalog: gm
+    catalog: secret
     name: Thirsty
     category: status
     group: status-vampire
@@ -3551,7 +3551,7 @@ tags:
     durationTurns: 1
 
   famished:
-    catalog: gm
+    catalog: secret
     name: Famished
     category: status
     group: status-vampire
@@ -3565,7 +3565,7 @@ tags:
   # Pale + Black Sclera, already held by the time this grants. Forces the
   # feeding Gambit + Attack compulsion: db/lib/vampireCompulsion.js.
   bloodcrazed:
-    catalog: gm
+    catalog: secret
     name: Bloodcrazed
     category: status
     group: status-vampire
@@ -3576,7 +3576,7 @@ tags:
     durationTurns: 1
 
   black-sclera:
-    catalog: gm
+    catalog: secret
     name: Black Sclera
     category: status
     group: status-vampire
@@ -3588,7 +3588,7 @@ tags:
     durationTurns: 1
 
   humane:
-    catalog: gm
+    catalog: secret
     name: Humane
     category: status
     group: status-vampire
@@ -3599,7 +3599,7 @@ tags:
     durationTurns: 1
 
   estranged:
-    catalog: gm
+    catalog: secret
     name: Estranged
     category: status
     group: status-vampire
@@ -3610,7 +3610,7 @@ tags:
     durationTurns: 1
 
   disturbed:
-    catalog: gm
+    catalog: secret
     name: Disturbed
     category: status
     group: status-vampire
@@ -3621,7 +3621,7 @@ tags:
     durationTurns: 1
 
   warped:
-    catalog: gm
+    catalog: secret
     name: Warped
     category: status
     group: status-vampire
@@ -3635,7 +3635,7 @@ tags:
   # as this is held, checked by the tag rather than the number, so a GM
   # manually raising humanity back up does not quietly restart it.
   bestial:
-    catalog: gm
+    catalog: secret
     name: Bestial
     category: status
     group: status-vampire
@@ -3648,7 +3648,7 @@ tags:
   # compulsion as Bloodcrazed (db/lib/vampireCompulsion.js), for as long as
   # this is held.
   wight:
-    catalog: gm
+    catalog: secret
     name: Wight
     category: status
     group: status-vampire
@@ -3666,7 +3666,7 @@ tags:
   # `assign.tagSlugs`), permanent — no durationTurns, matching the design
   # doc's table leaving its Duration column blank.
   fangs:
-    catalog: gm
+    catalog: secret
     name: Fangs
     category: status
     group: status-vampire
@@ -3677,7 +3677,7 @@ tags:
 
   # Blood Strength ability's own grant. "+2 melee fighting", 1 turn.
   blood-strength:
-    catalog: gm
+    catalog: secret
     name: Blood Strength
     category: status
     group: status-vampire
@@ -3693,7 +3693,7 @@ tags:
   # prerequisite tag below that unlocks the ability itself). "+1 fighting
   # both trees", 1 turn.
   agility:
-    catalog: gm
+    catalog: secret
     name: Agility
     category: status
     group: status-vampire
@@ -3707,7 +3707,7 @@ tags:
   # Resilience ability's own grant. "+0.3 armor for melee and ballistics",
   # same two fields mail-shirt uses, 1 turn.
   resilient:
-    catalog: gm
+    catalog: secret
     name: Resilient
     category: status
     group: status-vampire
@@ -3726,7 +3726,7 @@ tags:
   # (web/app/(app)/character/actions/bloodAbility.js), not a Tag-schema flag,
   # since nothing else in the catalog hides a whole sheet at once.
   hidden:
-    catalog: gm
+    catalog: secret
     name: Hidden
     category: status
     group: status-vampire
@@ -3741,7 +3741,7 @@ tags:
   # until Freed by hand) — the promise of immortality that keeps a thrall
   # bound is a standing state, not a timed one.
   thrall:
-    catalog: gm
+    catalog: secret
     name: Thrall
     category: status
     group: status-vampire
@@ -3766,7 +3766,7 @@ tags:
   # a mortal thrall, never a vampire, so db/lib/dyingDeathPass.js's vampire
   # exemption never shields them from it.
   vampire-blood-addict:
-    catalog: gm
+    catalog: secret
     name: Vampire Blood Addict
     category: status
     group: status-vampire
@@ -3831,7 +3831,7 @@ tags:
   # nothing for a creation-time purchase to gate against anyway.
 
   night-eyes:
-    catalog: all
+    catalog: secret
     name: Night Eyes
     category: status
     group: status-vampire-boons
@@ -3841,7 +3841,7 @@ tags:
     purchasableAfterStart: true
 
   hardened-fangs:
-    catalog: all
+    catalog: secret
     name: Hardened Fangs
     category: status
     group: status-vampire-boons
@@ -3852,7 +3852,7 @@ tags:
 
   # Unlocks the Corrupt ability (db/lib/vampireBloodAbilities.js).
   corruptor:
-    catalog: all
+    catalog: secret
     name: Corruptor
     category: status
     group: status-vampire-boons
@@ -3866,7 +3866,7 @@ tags:
   # it unlocks Celerity; the ability's own grant (Agility, above) is named
   # differently so the two never collide as tag slugs.
   celerity:
-    catalog: all
+    catalog: secret
     name: Celerity
     category: status
     group: status-vampire-boons
@@ -3877,7 +3877,7 @@ tags:
 
   # Unlocks the Bat Form ability. Same name on purpose, same reasoning as Celerity above.
   bat-form:
-    catalog: all
+    catalog: secret
     name: Bat Form
     category: status
     group: status-vampire-boons
@@ -3888,7 +3888,7 @@ tags:
 
   # Unlocks the Solidarity ability. Same name on purpose, same reasoning as Celerity above.
   solidarity:
-    catalog: all
+    catalog: secret
     name: Solidarity
     category: status
     group: status-vampire-boons
@@ -3899,7 +3899,7 @@ tags:
 
   # Unlocks the Obfuscate ability. Same name on purpose, same reasoning as Celerity above.
   obfuscate:
-    catalog: all
+    catalog: secret
     name: Obfuscate
     category: status
     group: status-vampire-boons
@@ -3913,7 +3913,7 @@ tags:
   # judgment, not a die roll) — GM guidance, not code, the same posture the
   # humanity-loss table already gets.
   underzealous:
-    catalog: all
+    catalog: secret
     name: Underzealous
     category: status
     group: status-vampire-boons
@@ -3926,7 +3926,7 @@ tags:
   # (VAMPIRE.md §5's loss table) — GM guidance, not code, same posture as
   # Underzealous above; every other loss reason still applies.
   remorseful:
-    catalog: all
+    catalog: secret
     name: Remorseful
     category: status
     group: status-vampire-boons
@@ -4670,7 +4670,7 @@ tags:
       skills: [medical-skilled]
 
   necrosis:
-    catalog: all
+    catalog: gm
     name: Necrosis
     category: health
     group: health-infection
@@ -4766,7 +4766,7 @@ tags:
   # character held is deleted when this one lands, and no corpse is minted, so
   # there is nothing left to loot, carry, butcher or bury.
   gibbed:
-    catalog: all
+    catalog: gm
     name: Gibbed
     category: health
     group: health-infection
@@ -5141,7 +5141,7 @@ tags:
 
   # --- Illness -----------------------------------------------------------
   appendicitis:
-    catalog: all
+    catalog: gm
     name: Appendicitis
     category: health
     group: health-illness
@@ -5160,7 +5160,7 @@ tags:
       skills: [medical-expert]
 
   rot-lung:
-    catalog: all
+    catalog: gm
     name: Rot Lung
     category: health
     group: health-illness
@@ -5178,7 +5178,7 @@ tags:
       skills: [medical-skilled]
 
   parasites:
-    catalog: all
+    catalog: gm
     name: Parasites
     category: health
     group: health-illness
@@ -5215,7 +5215,7 @@ tags:
       skills: [medical-skilled]
 
   envenomated:
-    catalog: all
+    catalog: gm
     name: Envenomated
     category: health
     group: health-illness
@@ -5235,7 +5235,7 @@ tags:
       skills: [medical-expert]
 
   pox:
-    catalog: all
+    catalog: gm
     name: Pox
     category: health
     group: health-illness
@@ -5268,7 +5268,7 @@ tags:
     purchasableAfterStart: false
 
   consumptive:
-    catalog: all
+    catalog: gm
     name: Consumptive
     category: health
     group: health-illness
@@ -5415,7 +5415,7 @@ tags:
     durationTurns: 2
 
   shell-shocked:
-    catalog: all
+    catalog: gm
     name: Shell Shocked
     psychological: true
     category: health
@@ -5427,7 +5427,7 @@ tags:
     purchasableAfterStart: false
 
   amnesiac:
-    catalog: all
+    catalog: gm
     name: Amnesiac
     category: health
     group: health-mind
@@ -5437,7 +5437,7 @@ tags:
     purchasableAfterStart: false
 
   paralyzed:
-    catalog: all
+    catalog: gm
     name: Paralyzed
     category: health
     group: health-mind
@@ -5450,7 +5450,7 @@ tags:
     durationTurns: 1
 
   hallucinating:
-    catalog: all
+    catalog: gm
     name: Hallucinating
     category: health
     group: health-mind
@@ -5689,7 +5689,7 @@ tags:
     purchasableAfterStart: false
 
   missing-stomach:
-    catalog: all
+    catalog: gm
     name: Missing Stomach
     category: health
     group: health-maiming
@@ -5702,7 +5702,7 @@ tags:
     purchasableAfterStart: false
 
   missing-heart:
-    catalog: all
+    catalog: gm
     name: Missing Heart
     category: health
     group: health-maiming
@@ -5895,7 +5895,7 @@ tags:
       gambit: false
 
   phrygian-toxin:
-    catalog: all
+    catalog: gm
     name: Phrygian Toxin
     category: health
     group: health-illness
@@ -6044,7 +6044,7 @@ tags:
   # this tag nor any of the brood rungs below is craftable; db/lib/stablePass.js
   # is the only thing that mints one.
   arelitz:
-    catalog: all
+    catalog: gm
     name: Arelitz
     category: assets
     group: assets-companions
@@ -6068,7 +6068,7 @@ tags:
   # ACTIVE/equipped slug set, so a tag that can't equip can't be a mount).
   # Still counts as an adult for the stable's feed-and-lay pass.
   unruly-arelitz:
-    catalog: all
+    catalog: gm
     name: Unruly Arelitz
     category: assets
     group: assets-companions
@@ -6084,7 +6084,7 @@ tags:
     sellablePrice: 40
 
   arelitz-hatchling:
-    catalog: all
+    catalog: gm
     name: Arelitz Hatchling
     category: assets
     group: assets-companions
@@ -6100,7 +6100,7 @@ tags:
     sellablePrice: 5
 
   arelitz-youngling:
-    catalog: all
+    catalog: gm
     name: Arelitz Youngling
     category: assets
     group: assets-companions
@@ -6116,7 +6116,7 @@ tags:
     sellablePrice: 5
 
   arelitz-yearling:
-    catalog: all
+    catalog: gm
     name: Arelitz Yearling
     category: assets
     group: assets-companions
@@ -6135,7 +6135,7 @@ tags:
   # a repurposed arelitz-breeding: that tag's whole reason for existing was
   # gating the four craft recipes above, and all four are gone.
   arelitz-mastery:
-    catalog: all
+    catalog: gm
     name: Arelitz Mastery
     category: skills
     teachable: false
@@ -6146,7 +6146,7 @@ tags:
     purchasableAfterStart: true
 
   arelitz-egg:
-    catalog: all
+    catalog: gm
     name: Arelitz Egg
     category: items
     group: items-food
@@ -6771,7 +6771,7 @@ tags:
   # is the rock you come back up with on an ordinary day. The smelt is the
   # point — see {tag:iron} below for the shape all three recipes share.
   hematite:
-    catalog: all
+    catalog: gm
     name: Hematite
     category: items
     group: items-mining
@@ -6788,7 +6788,7 @@ tags:
     inlayValue: 6
 
   malachite:
-    catalog: all
+    catalog: gm
     name: Malachite
     category: items
     group: items-mining
@@ -6805,7 +6805,7 @@ tags:
     inlayValue: 6
 
   garnierite:
-    catalog: all
+    catalog: gm
     name: Garnierite
     category: items
     group: items-mining
@@ -6923,7 +6923,7 @@ tags:
   # uncommon find is not worth less than an ingot smelted from ultracommon
   # rock. The Merchant keeps some on the shelf (DEPOT.md §3).
   silver:
-    catalog: all
+    catalog: gm
     name: Silver
     category: items
     group: items-mining
@@ -6945,7 +6945,7 @@ tags:
   # The extremely-rare metal, and the only one worth walking into the Depths
   # for on its own.
   platinum:
-    catalog: all
+    catalog: gm
     name: Platinum
     category: items
     group: items-mining
@@ -6966,7 +6966,7 @@ tags:
   # The common shelf: 3 ¢, 4 inlay. Six of them, so the commonest result of a
   # good day is variety rather than the same stone over and over.
   citrine:
-    catalog: all
+    catalog: gm
     name: Citrine
     category: items
     group: items-mining
@@ -6982,7 +6982,7 @@ tags:
     inlayValue: 10
 
   milk-quartz:
-    catalog: all
+    catalog: gm
     name: Milk Quartz
     category: items
     group: items-mining
@@ -6999,7 +6999,7 @@ tags:
     inlayValue: 10
 
   onyx:
-    catalog: all
+    catalog: gm
     name: Onyx
     category: items
     group: items-mining
@@ -7016,7 +7016,7 @@ tags:
     inlayValue: 10
 
   moonstone:
-    catalog: all
+    catalog: gm
     name: Moonstone
     category: items
     group: items-mining
@@ -7033,7 +7033,7 @@ tags:
     inlayValue: 10
 
   pyrite:
-    catalog: all
+    catalog: gm
     name: Pyrite
     category: items
     group: items-mining
@@ -7050,7 +7050,7 @@ tags:
     inlayValue: 10
 
   white-jade:
-    catalog: all
+    catalog: gm
     name: White Jade
     category: items
     group: items-mining
@@ -7070,7 +7070,7 @@ tags:
   # this tier of the table without sharing its pricing — one is a metal, the
   # other is a coin somebody dropped a long time ago.
   fire-opal:
-    catalog: all
+    catalog: gm
     name: Fire Opal
     category: items
     group: items-mining
@@ -7087,7 +7087,7 @@ tags:
     inlayValue: 16
 
   sphalerite:
-    catalog: all
+    catalog: gm
     name: Sphalerite
     category: items
     group: items-mining
@@ -7104,7 +7104,7 @@ tags:
     inlayValue: 16
 
   tetrahedrite:
-    catalog: all
+    catalog: gm
     name: Tetrahedrite
     category: items
     group: items-mining
@@ -7123,7 +7123,7 @@ tags:
   # The rare shelf: 10 ¢, 14 inlay. Four stones, and the point at which a
   # single find is worth more than the day's ⬢ that turned it up.
   opal:
-    catalog: all
+    catalog: gm
     name: Opal
     category: items
     group: items-mining
@@ -7140,7 +7140,7 @@ tags:
     inlayValue: 24
 
   topaz:
-    catalog: all
+    catalog: gm
     name: Topaz
     category: items
     group: items-mining
@@ -7156,7 +7156,7 @@ tags:
     inlayValue: 24
 
   amethyst:
-    catalog: all
+    catalog: gm
     name: Amethyst
     category: items
     group: items-mining
@@ -7172,7 +7172,7 @@ tags:
     inlayValue: 24
 
   kunzite:
-    catalog: all
+    catalog: gm
     name: Kunzite
     category: items
     group: items-mining
@@ -7192,7 +7192,7 @@ tags:
   # roll and are priced to be worth the walk: a Masterwork Trinket with two
   # Star Sapphires in it clears 120 ¢, which is a month of somebody's wages.
   star-sapphire:
-    catalog: all
+    catalog: gm
     name: Star Sapphire
     category: items
     group: items-mining
@@ -7209,7 +7209,7 @@ tags:
     inlayValue: 44
 
   black-diamond:
-    catalog: all
+    catalog: gm
     name: Black Diamond
     category: items
     group: items-mining
@@ -7241,7 +7241,7 @@ tags:
   # prospector who finds one has a real decision: sell it, forge it, or keep
   # it.
   arkenstone:
-    catalog: all
+    catalog: gm
     name: Arkenstone
     category: items
     group: items-mining
@@ -7324,7 +7324,7 @@ tags:
   # catalog, unlike the Honey → White Honey link. Numbers are drafted, not
   # signed off: 3 ⬢ over a 3-⬢ saltpeter, sells 6.
   black-powder:
-    catalog: all
+    catalog: gm
     name: Black Powder
     category: items
     group: items-gear
@@ -7439,7 +7439,7 @@ tags:
   # the heart is a curiosity anyone may catch, but the White Honey link stays
   # a discovery — never name that recipe here.
   trout-heart:
-    catalog: all
+    catalog: gm
     name: Trout Heart
     category: items
     group: items-gear
@@ -7523,7 +7523,7 @@ tags:
   # Renamed in the Caves Update; the old slug's row is left for db:prune-tags.
   # See docs/systemdocs/CAVING.md.
   radio-system-cerberon:
-    catalog: all
+    catalog: gm
     name: Radio System (Cerberon)
     category: items
     group: items-gear
@@ -7710,7 +7710,7 @@ tags:
     purchasableAfterStart: false
 
   disguise-kit:
-    catalog: all
+    catalog: gm
     name: Disguise Kit
     category: items
     group: items-gear
@@ -8179,7 +8179,7 @@ tags:
   # the apothecary because what it leaves behind is a status-buffs tag like
   # every other thing you consume here.
   corpse-salts:
-    catalog: all
+    catalog: gm
     name: Corpse Salts
     category: items
     group: items-drink
@@ -8554,7 +8554,7 @@ tags:
     depotPrice: 6
 
   suspicious-game-set:
-    catalog: all
+    catalog: gm
     name: Suspicious Game Set
     category: items
     group: items-gear
@@ -9376,7 +9376,7 @@ tags:
 
   #Uncraftable
   neoclassic-rw10:
-    catalog: all
+    catalog: gm
     name: Neoclassic R&W10
     category: items
     group: items-weapons
@@ -9795,7 +9795,7 @@ tags:
     sellablePrice: 8
 
   silver-knife:
-    catalog: all
+    catalog: gm
     name: Silver Knife
     category: items
     group: items-weapons
@@ -10027,7 +10027,7 @@ tags:
   # Renamed from "horseshoes" — an arachnid does not wear shoes, and horses
   # are gone (ARELITZ.md).
   arelitz-tack:
-    catalog: all
+    catalog: gm
     name: Arelitz Tack
     category: items
     group: items-gear
@@ -10252,7 +10252,7 @@ tags:
     sellablePrice: 52
 
   silver-spear:
-    catalog: all
+    catalog: gm
     name: Silver Spear
     category: items
     group: items-weapons
@@ -10394,7 +10394,7 @@ tags:
 
   # ─── Gunpowder ─────────────────────────────────────────────────────────────
   musketoon:
-    catalog: all
+    catalog: gm
     name: Musketoon
     category: items
     group: items-weapons
@@ -10447,7 +10447,7 @@ tags:
     sellablePrice: 56
 
   bomb:
-    catalog: all
+    catalog: gm
     name: Bomb
     category: items
     group: items-weapons
@@ -14757,7 +14757,7 @@ tags:
   # Its ⬢ price stays steep so that buying one off the Merchant mid-game is a
   # real decision rather than the obvious move.
   poison-snooper:
-    catalog: all
+    catalog: gm
     name: Poison Snooper
     category: items
     group: items-gear
@@ -15067,7 +15067,7 @@ tags:
     purchasableAfterStart: false
 
   silver-sword:
-    catalog: all
+    catalog: gm
     name: Silver Sword
     category: items
     group: items-weapons
@@ -15237,7 +15237,7 @@ tags:
   # character in this file. One dose puts the dial at the top and hands over
   # Heroin Addict, permanently.
   heroin:
-    catalog: all
+    catalog: gm
     name: Heroin
     category: items
     group: items-drink
@@ -15261,7 +15261,7 @@ tags:
       mood: 0
 
   changa:
-    catalog: all
+    catalog: gm
     name: Changa
     category: items
     group: items-drink
@@ -15283,7 +15283,7 @@ tags:
       mood: 0
 
   eth-lod:
-    catalog: all
+    catalog: gm
     name: ETH-LOD
     category: items
     group: items-drink
@@ -15306,7 +15306,7 @@ tags:
       mood: 0
 
   kzozel-yantar:
-    catalog: all
+    catalog: gm
     name: Kzozel Yantar
     category: items
     group: items-drink
@@ -15328,7 +15328,7 @@ tags:
       mood: 0
 
   love-tablets:
-    catalog: all
+    catalog: gm
     name: Love Tablets
     category: items
     group: items-drink
@@ -15353,7 +15353,7 @@ tags:
   # than pointed at the general-addictions group because removesOnConsume
   # takes a flat list of slugs — a new addiction has to be added here by hand.
   gelabine:
-    catalog: all
+    catalog: gm
     name: Gelabine
     category: items
     group: items-drink
@@ -15386,7 +15386,7 @@ tags:
   # because whatever is in the clear tube also costs you your eyes a little.
   # The damaged-vision stack is the same one Moonshine hands out.
   black-market-autoinjector:
-    catalog: all
+    catalog: gm
     name: Black Market Autoinjector
     category: items
     group: items-gear
@@ -15423,7 +15423,7 @@ tags:
       ]
 
   buffout:
-    catalog: all
+    catalog: gm
     name: Buffout
     category: items
     group: items-drink
@@ -15457,7 +15457,7 @@ tags:
   # it. 80 ¢ or five Cave Fungus and a day, so a prospector can make what a
   # courtier has to buy.
   ambrosia:
-    catalog: all
+    catalog: gm
     name: Ambrosia
     category: items
     group: items-drink
@@ -15618,7 +15618,7 @@ tags:
   # name, not the slug.
   gunpowder-grenade:
     keepSlug: true
-    catalog: all
+    catalog: gm
     name: Crude Grenade
     category: items
     group: items-weapons
@@ -15681,7 +15681,7 @@ tags:
     sealedShipping: true
 
   graga-sweat:
-    catalog: all
+    catalog: gm
     name: Graga Sweat
     category: items
     group: items-drink
@@ -15732,7 +15732,7 @@ tags:
     sellablePrice: 14
 
   white-honey:
-    catalog: all
+    catalog: gm
     name: White Honey
     category: items
     group: items-drink
@@ -15766,7 +15766,7 @@ tags:
       cures: true
 
   deadeye-drops:
-    catalog: all
+    catalog: gm
     name: Deadeye Drops
     category: items
     group: items-drink
@@ -15792,7 +15792,7 @@ tags:
     sellablePrice: 5
 
   mercy:
-    catalog: all
+    catalog: gm
     name: Mercy
     category: items
     group: items-drink
@@ -15822,7 +15822,7 @@ tags:
       mood: 0
 
   mindbreaker-toxin:
-    catalog: all
+    catalog: gm
     name: Mindbreaker Toxin
     category: items
     group: items-drink
@@ -15882,7 +15882,7 @@ tags:
     sellablePrice: 10
 
   invisibility-potion:
-    catalog: all
+    catalog: gm
     name: Invisibility Potion
     category: items
     group: items-drink
@@ -15932,7 +15932,7 @@ tags:
       mood: -30
 
   pure-luck:
-    catalog: all
+    catalog: gm
     name: Pure Luck
     category: items
     group: items-drink
@@ -15963,7 +15963,7 @@ tags:
   # and Flawless Skin pay in ⬢ instead); the Dreamer's Draught keeps its
   # Skinless Brain, and now SPENDS it.
   dreamers-draught:
-    catalog: all
+    catalog: gm
     name: Dreamer's Draught
     category: items
     group: items-drink
@@ -15989,7 +15989,7 @@ tags:
     sellablePrice: 60
 
   forgiveness:
-    catalog: all
+    catalog: gm
     name: Forgiveness
     category: items
     group: items-drink
@@ -16039,7 +16039,7 @@ tags:
     sellablePrice: 11
 
   fever-draught:
-    catalog: all
+    catalog: gm
     name: Fever Draught
     category: items
     group: items-drink
@@ -16353,7 +16353,7 @@ tags:
   # --- Medical pass: new ailments (M3) --------------------------------
 
   lockjaw:
-    catalog: all
+    catalog: gm
     name: Lockjaw
     category: health
     group: health-infection
@@ -16374,7 +16374,7 @@ tags:
       gambit: false
 
   cave-fever:
-    catalog: all
+    catalog: gm
     name: Cave Fever
     category: health
     group: health-illness
@@ -16416,7 +16416,7 @@ tags:
       gambit: false
 
   flawless-skin:
-    catalog: all
+    catalog: gm
     name: Flawless Skin
     category: items
     group: items-drink
@@ -17559,7 +17559,7 @@ tags:
     purchasableAfterStart: false
 
   energy-shield:
-    catalog: all
+    catalog: gm
     name: Energy Shield
     category: items
     group: items-armor
@@ -17846,7 +17846,7 @@ tags:
   # Public (Chris 2026-09-07): the marsh is common knowledge — the public
   # Alcohol & Drugs paper prints the moonshine row outright.
   godflesh:
-    catalog: all
+    catalog: gm
     name: Godflesh
     category: items
     group: items-gear
@@ -18033,7 +18033,7 @@ tags:
   # At 5 the whole stack is swept and {tag:blind} lands in its place —
   # db/lib/visionDecayPass.js.
   damaged-vision:
-    catalog: all
+    catalog: gm
     name: Damaged Vision
     category: health
     group: health-mind
@@ -18138,7 +18138,7 @@ tags:
   # Bastard's engineer, with its Windlands group dropped: the skill was never
   # about the Windlands, it was about getting past a wall.
   siege-engineer:
-    catalog: all
+    catalog: gm
     name: Siege Engineer
     category: skills
     group: skills-crafting
