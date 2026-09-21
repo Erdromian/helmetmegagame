@@ -260,8 +260,10 @@ says so. With no public room there, the crate refuses to open.
 
 A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
 sync refuses it on a tag with no `depotPrice`, since the station cannot ship
-what it does not stock. Currently sealed: the two firearms, the flamethrower,
-Light Infantry Armour, Soporific, Phrygian Tears, the Homunculus.
+what it does not stock. Currently sealed, **15 wares**: the seven firearms (Neoclassic R&W10,
+Neoclassic Duelista, Sawn-Off Double Barrel, ML-23, CTT4&3 Rifle, Kpfw-6
+Avtomat, Disabler), the Flamethrower, the Tear Gas Grenade, the Adamantium
+Sword, both Infantry Armours, Soporific, Phrygian Tears and the Homunculus.
 
 ## 0e. The manifests
 
@@ -872,7 +874,7 @@ buying one mid-game is still a real decision.
 | `whip` | 10 | 7 | Equippable |
 | `machete` | 11 | — | Black Market. Equippable, 0.3 tiers as a `sword` |
 | `iron` | 13 | 8 | Craftable (`smithing`, spends `hematite` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. It took `steel`'s numbers and its slot when steel and coal left the game on 2026-09-18. |
-| `silver` | 14 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
+| `silver` | 19 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
 | `jewelry` | 14 | 8 | Also a 2-pt creation pick |
 | `mining-helmet` | 15 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
 | `bomb-collar` | 15 | — | Black Market. The loose collar; Apply Collar spends one to write `bomb-collar-locked` (`COLLAR.md`) |
@@ -969,8 +971,8 @@ the list entirely:
 
 | Band | Priced at | Examples |
 |---|---|---|
-| Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 14, `forgiveness` 18, `pure-luck` 65, `dreamers-draught` **60** |
-| Smithed gear | its own `resourceCost` + a turn-scaled markup — see below | Dead Simple 4, Simple 9 (its four 0.25-turn pieces 8), Moderate 21, High Quality 42, Exceptional 61, Gunpowder 59 (Bore Pistol 45) |
+| Brews | build cost + margin; the batch recipes get a thinner one | `ravenheart-red` 16, `forgiveness` 18, `pure-luck` **113**, `dreamers-draught` **62** |
+| Smithed gear | the price it had, with `resourceCost` fitted to a wage by skill points — see below | Dead Simple 6, Simple 16 (Spear, Dagger, Phrygian Spear 9), Moderate 30, High Quality 62, Gunpowder 74 (Bore Pistol 56) |
 | Cave and bulk goods | unchanged from the Caves Update | `graga-sac` 8, `cave-fungus` 3, `saltpeter` 3, `skinless-brain` **25** |
 | Factory goods | a day's output at ~3× a good farming day | `squeeze` **5** a cube — 8 cubes is a shift, so 40 ¢ (`FACTORY.md` §6). Cut from 7 on 2026-09-20. Buy-only in the other direction: the station sells nobody a cube |
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
@@ -1016,133 +1018,118 @@ No `depotPrice` on any of it, and nothing there ever reaches the station.
 **Three prices sit off the bands above on purpose.** `skinless-brain` is 25 —
 clear of a Graga Sac's 8, without standing level with a whole day of industry
 (it is the only ingredient in the catalog that has to be talked out of being a
-person first). `dreamers-draught` is 60, above its own ingredient, because the
+person first). `dreamers-draught` is 62, above its own ingredient, because the
 point of that recipe is that the brain is the cheap part. `painting` is 41 —
-over its 4 turns that is ~10 ¢/turn, still the best rate a craftable pays.
+over its 4 turns that is ~10 ¢/turn, above every smithing, crafting and brewing rung (`artist` is not on the wage table).
 
 **`human-flesh` is deliberately not sellable at all.** Butchering is free and
 every death mints a corpse, so a price on it would be a code-enforced coin faucet
 hanging off a free action. It stays `tradeable`, so the market for it is other
 players.
 
-**Smithed gear's markup is `resourceCost + round(rate(skill) × turnsCost^1.3)`, per item —
-not a flat multiplier of the tier.** It adds a ⬢ cost to a ¢ wage and lands on a ¢
-price, which is legal because an obol is one ⬢ (§0) — the material a smith buys and
-the coin he is paid are the same size, they are just not the same thing. A flat "+1/3 of the tier" markup makes
-Exceptional (3 turns, `smithing-skilled`) pay out *worse* per turn than Moderate or High
-Quality (1–2 turns, the same skill gate), and makes Dead Simple's turn-free 4-a-turn cap
-look like a strictly better business than ever touching the higher rungs. Two things must
-be paid for on purpose: the skill it took to unlock the tier, and
-the turns sunk into one item once you're there.
+**Smithing, crafting and brewing are priced by one wage table, and the wage is what the
+Merchant's floor pays for the work.** A maker who imports every ⬢ at 3 ¢ (§3), crafts, and
+sells to the station clears a profit per Move, and prices stay where they were: the recipe's
+`resourceCost` is what moves to fit. For a recipe that works no input,
 
-`rate(skill)` scales with the cumulative point cost of the skill chain a tier is gated
-behind:
+`sell − 3 × resourceCost ≈ round(rate × turnsCost^1.3)`
 
-| Skill gate | Cumulative pt | Rate | Why |
+with a recipe that has no Move cost spreading the rate over its own `perTurn` cap instead.
+`rate` follows the cumulative skill points the recipe is gated
+behind, and nothing else:
+
+| Skill gate | Cumulative pt | Rate, ¢ per Move | Where |
 |---|---|---|---|
-| `crafting` / `smithing` | 5 | 2 ¢/turn | Dead Simple and Simple both sit here. Crafting and `smithing` gate the same Dead Simple rung, so both read the same 5-pt rate — it should not pay two different wages |
-| `smithing-skilled` | 10 | 5 ¢/turn | Moderate, High Quality, Exceptional |
-| `smithing-gunpowder` | 19 | 9 ¢/turn | Gunpowder — nearly double the skill investment, so nearly double the rate |
+| `crafting` | 2 | 2 | Longbow, Shield, Pavise; the quarter-Move pieces clear 0 |
+| `smithing`, `brewing-basic` | 5 | 4 | Simple gear, Cleaning Powder, Molotov Cocktail |
+| `smithing-skilled`, `brewing-skilled` | 10 | 8 | Moderate to Exceptional gear, the ordinary brews |
+| `brewing-expert` | 15 | 12 | Cybernetic limbs, Portable Surgical Pack |
+| `smithing-gunpowder` | 19 | 15 | Gunpowder |
 
-The `turnsCost^1.3` exponent makes rate-per-turn climb *inside* a skill bracket
-too, not just jump between brackets — a deliberate, mild superlinear curve so tying up
-more turns in one item is rewarded a little more than proportionally. The formula's raw
-rates read 2 → 5 → 6 → 7 → 11 ¢/turn; the shipped prices sit above it, a deliberately
-wider smith's margin (see `SMITHING.md` §2 for `resourceCost`). What
-must hold is the SHAPE: never falling. The shipped per-turn profits are
+These rates are **before the Merchant's cut**. The report assumes a craft sold through the Merchant
+leaves the maker **half of its profit on each item, and never less than 1 ¢ taken** (on a craft that
+earns anything at all; one that loses money pays nothing, and the cut is never more than the profit).
+So a craft that clears 2 ¢ an item keeps 1, one that clears 20 keeps 10, and a quarter-Move piece
+that clears 1 ¢ keeps nothing. Selling to another player skips the cut, which is what a maker who
+finds a buyer gets. The table is set on the raw profit, and the report shows both.
 
-| rung | 0.25-turn | Simple | Moderate | High Quality | Gunpowder |
-|---|---|---|---|---|---|
-| ¢/turn | 8 | 10 | 16 | 18 | 22.5 |
+The top of the table is the Gunpowder rung: about 15 to 18 ¢ a turn raw once the two-Move
+pieces take their `turnsCost^1.3` bonus, which is 7 to 9 after the Merchant's cut. The entry rung
+clears 2 ¢ raw and 1 after. The floor is thin on purpose, and the real money is in selling above it
+to somebody who wants the thing, but a maker who sells only to the Merchant still earns something. What
+the table guarantees is the SHAPE: more skill points always pay more, and no recipe inside a
+rung is an outlier. The old table priced ⬢ at 1 ¢ (an obol was "one ⬢"), so at the 3 ¢ the
+station charges nearly every recipe lost money, and the only ones that made any — the ore
+smelts, Glass Eye, Wooden Leg — were outliers that nothing in the other trades matched.
+Both are gone.
 
-with Dead Simple's 12 sitting outside the curve for the reason below. The curve is
-deliberately flat — nearly two and a half fold bottom to top, not the five-fold spread a
-naive multiplier gives — because a smith could not otherwise make a living against a
-Merchant who sets his own buy price, and the low rungs paid worst of all.
+`turnsCost^1.3` is still the reward for tying up more Moves in one item: a two-Move piece
+earns about 2.5 times what a one-Move piece does, not twice. A quarter-Move piece rounds to a
+whole ¢ of profit or none, so it moves in steps of 4 ¢ a turn; that is why the quarter-Move
+pieces of `crafting` and `smithing` sell for exactly their material. Round those DOWN when
+they will not land clean, never up, or the rung above is overtaken.
 
-**Set these by the WAGE, not by a multiplier on the price.** A quarter off a 9 ¢ sword
-is most of its 3 ¢ profit; a quarter off a 59 ¢ musketoon is half again of its 30. The
-margin is a small difference of two larger numbers, so a percentage on the price lands
-as a wildly uneven percentage on the wage. Pick the ¢/turn you
-want, multiply by the turns, add the `resourceCost`. Then read the table above and check
-nothing overtook the rung above it. 1.3 is a judgment
-call, not a derived constant: high enough to feel like a real reward for committing
-turns, low enough that Exceptional doesn't dwarf Moderate the way a steeper exponent
-would. Re-tune it here first if a tier ever needs adjusting, rather than hand-editing
-one item's `sellablePrice`.
+**Set a price by the WAGE, not by a multiplier on the price.** The margin is a small
+difference of two larger numbers, so a percentage on the price lands as a wildly uneven
+percentage on the wage. To reprice a recipe, read the rate off the table, apply the formula,
+and run `npm run economy:report`: its claims table fails if any recipe drifts off its rung
+(2 ¢, half the rate, or a craft and a half of profit, whichever is widest, on the raw profit)
+or if a higher rung pays less than a lower one.
 
-**Dead Simple is the one exception, kept outside the formula on purpose**, and it
-changed in 9/2026. It used to cost **0** turns with a shared 4-unit/turn ration,
-which meant four saleable things a day riding FREE on top of an untouched labour
-day — fine while only the Merchant could sell, and an income on every sheet the
-moment the counter opened to everybody. It costs **0.25 of a Move** now: the
-same four a day, paid for out of the day.
+**Prices stay, and the material cost moves.** No recipe that works no input had its sell
+price changed, and no shelf price moved except Iron's. What changed is `resourceCost`: it was
+fitted to the price, as close to the rung as a whole ⬢ allows, so 59 recipes now land on the
+table. Examples: Simple gear 6 → 4 ⬢, Moderate 13 → 7, High Quality 25 → 15, Musketoon 28 → 15,
+Bore Pistol 18 → 9, Workshop Equipment 25 → 15, Longbow and Shield 6 → 5, the Dead Simple pieces
+3 → 2. The Spear, Dagger and Phrygian Spear were 6 ⬢ for 8 ¢; they are 3 ⬢ for 9 ¢ now, so a
+quarter-Move piece breaks even, like the other Dead Simple pieces. The rest is rounding: a quarter-Move craft moves
+in steps of 4 ¢ a turn, so the Pickaxe (2 ⬢, 8 ¢) clears 8 ¢ a turn raw, the Autoinjector (its
+inputs cost more than its shelf price) sits under its rung, and the Badge and the Mulligan Potion
+(a 2 ¢ price and a 17 ¢ shelf) cannot be fitted. The claims table leaves those four out by name.
 
-A quarter and not a tenth because the Move budget is exact rational arithmetic
-in quarters (`db/lib/tagShapes.js` refuses anything finer, and a cost the budget
-cannot hold exactly is work somebody did not pay for).
+**A recipe that works an input is priced off the input instead.** Pure Luck is a brew of an
+Aberrant Heart; Black Powder is Saltpeter refined; a Silver Knife is a silver ingot worked. These are
+worth their wage, plus their ⬢, plus **nearly twice the sell price of a raw input** (a cave find, an
+organ, a crop) — 1.9 times, in the catalog — so working a material roughly doubles it. An input that
+is itself crafted counts once, because its own price already carries the work; that is what stops the
+premium compounding up a chain of recipes:
 
-**Its flat markup stays +3 ¢**, and briefly did not. It was cut to +1 in the
-same pass that added the turn cost, which was nerfing the rung twice for one
-problem — the free ration was the problem, and the quarter-Move cost fixes it on
-its own. Four a day at +3 is 12 ¢/turn, which is above the Simple rung; that is
-the same wart §4's own table has always had, and the reason given there still
-holds. A price cut is not the tool for it.
+`sell = round(rate × turnsCost^1.3) + 3 × resourceCost + Σ inputs` (raw input × 1.9, crafted × 1)
 
-The shared pool is **gone** and does not come back — `web/lib/tagRequests.js`
-carries the note. A recipe's own `perTurn` ration still works; there is simply no
-pool behind it.
+These deviate from the wage table on purpose, by up to 0.9 times the raw input, and the ⬢ cost of
+each was still fitted so the price stays near where it was wherever the input leaves room. The ones
+that moved most: Black Powder 6 → 30, Crude Grenade 24 → 32, Bomb 74 → 151, Pure Luck 65 → 113 (its heart is 55), Deadeye Drops and
+Mindbreaker Toxin 5 → 17, Bliss 3 → 8, Silver Knife 13 → 24 (half a Move, two to a Routine).
 
-**It is still the number worth watching, for a smaller reason now.** Four a day
-means one ¢ on the price is four on the wage, so the smallest change available at
-this rung is ±4 ¢/turn. What it no longer does is stack on top of an untouched
-labour day — that was the whole problem, and the quarter-Move cost is the fix.
+**Saltpeter is the scarce input, so what comes out of it is dear.** It has no source but the cave
+finds (about one arrival in fifty), so Black Powder, the Crude Grenade and the Bomb keep their
+original ⬢ costs (3, 6 and 28) instead of having them cut to hold their old price, and sell for more
+because of it: 30, 32 and 151. The wage on top is the same as any other recipe on the rung.
 
-The Dead Simple rung spans two skills — `crafting` gates the cloth and wood half,
-`smithing` the metal — and **both halves take the same markup**, for the same
-reasoning the rate table above gives for pricing `crafting` at the `smithing`
-rate. A padded cap and a work knife are one rung and pay one wage.
+**The three bars are the exception, and stay at their old prices** (Iron 8, Copper 6, Nickel 5, with
+Iron's shelf at 13). A bar is a 1 ¢ ore and a quarter Move, so by the formula it would sell for 2,
+but the ore cannot be bought: it comes out of the ground at about one press in five, so the ore is
+the bottleneck and the bar's price can be large beside it. A smith who does have ore earns far above
+the wage table (about 28 ¢ a turn on Iron), and that is meant. It also keeps an ingot worth more sold
+than cracked: an ingot consumes into Resources (Iron 5, Copper 4, Nickel 3), which at the 1 ¢ sell-back
+is less than the Merchant pays for it. The shelf price of 13 keeps buying Iron and cracking it from
+paying, and would print coin if it were ever under 5. The four recipes that spend an ingot (Rapier,
+Katana, Brigandine, Plate Armor) take 13, 13, 13 and 19 ⬢ now, fitted to their unchanged prices.
 
-The four 0.25-turn Simple pieces (Spear, Dagger, Silver Knife, Phrygian Spear —
-`SMITHING.md` §2) get the same treatment for the same reason: `2 × 0.25^1.3` is 0.33 and
-rounds to 0, so they carry a flat markup instead and sell at **8**. Four a turn is
-8 ¢/turn, against the rung's full-turn 10 — quick work is paid about the rung's rate,
-never a better one.
+**Alcohol is made of crops, not Resources.** Two crops of wheat or potato (the picker takes
+either) and a quarter Move, no ⬢, so it costs a brewer about 2 ¢ against the 4 ¢ shelf price
+and the brews that spend it (`ravenheart-red`, `molotov-cocktail`, `cat`) are not pushed up by it.
 
-**The Silver Knife is the exception, and it is one this rule created.** It eats a
-`silver` worth 10 ¢, so a flat 8 meant making one DESTROYED 2 ¢ of value — at four
-a turn, −8 ¢/turn, the worst wage in the catalog and the only one where a smith was
-strictly better off selling his own raw material. The 2026-09-18 reprice that lifted
-silver from 8/5 to 14/10 was never carried into the recipes that spend it. It sells
-at **13** now: the input cost plus the rung's own 2 ¢ of wage for a quarter-turn.
-The flat markup still governs the other three pieces, which eat nothing.
- They were thirds at 9 until costs became decimals in 9/2026, which
-came to the same 9 ¢/turn; the quarter buys a fourth unit, so the price came down to
-keep the day's pay under the rung above. Round the quick pieces DOWN when they will not
-land clean on an integer, never up, or the rung above them is overtaken.
-
-Two items break from their tier's baseline `resourceCost` and price accordingly: Bore
-Pistol (18 ⬢ to make, cheaper than Musketoon/Bomb's 28) still prices under them, at 56
-against 74 — same relative gap as the tier.
-
-`ravenheart-red` is the top of the ordinary brews on purpose, and it is the one
-thing on this planet an offworlder actually wants. The tag's own description has
-called it "Ravenheart's only export" since long before any of this was wired up.
-
-**Its arithmetic here was wrong for two weeks and is worth reading as a warning.**
-This paragraph said it "costs 4 ⬢ and needs no ingredient at all", giving a
-Skilled brewer 10 ¢ a turn. Both halves were stale: wine has been made OF
-something since 2026-09-05 (`docs/tags.yaml`, `items: [alcohol]`), and the
-recipe is **half** a turn, not a whole one. The real figure is 14 ¢ sold, less
-4 ⬢ and a 4 ¢ alcohol, twice a turn — **12 ¢ a turn**, above the number the doc
-claimed rather than below it.
+`ravenheart-red` is an ordinary skilled brew now, priced by the table like the rest. The tag's
+description still calls it "Ravenheart's only export", which is a story about the offworld
+buyer and no longer a reason to pay it more.
 
 A price table that is edited by hand beside a YAML file that is edited
 separately will drift, and drift in the direction nobody checks. Before quoting
 a wage in this file, derive it from the catalog rather than from the last person
-who wrote it down: sell price, less `resourceCost`, less what each entry in
-`requirement.items` is itself worth, times how many the `turnsCost` allows in a
-turn. Every one of those numbers is in `docs/tags.yaml`.
+who wrote it down: sell price, less `resourceCost` at 3 ¢, less what each entry in
+`requirement.items` costs the shelf, over the `turnsCost`. Every one of those numbers is in
+`docs/tags.yaml`.
 
 **One brew is on both tables.** `phrygian-tears` costs 4 ⬢ to brew and 32 ¢ to
 import. That is not an error and it is not a loophole: the import price is what
