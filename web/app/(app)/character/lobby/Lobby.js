@@ -181,31 +181,37 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
 
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
         <aside className="flex flex-col gap-4 md:sticky md:top-6 md:order-2">
-          <div className="panel flex flex-col gap-3 p-4" data-ready={readyAt ? "true" : undefined}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="flex items-center gap-2">
-                <span className="lobby-dot" aria-hidden="true" />
-                <strong>{readyAt ? "Ready" : "Not ready"}</strong>
-                {readyAt ? (
-                  <span className="text-sm text-muted">
-                    since {new Date(readyAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                  </span>
+          {/* Matches the group heading above the first role card, so the two top cards line up. */}
+          <div className="flex flex-col gap-1">
+            <span aria-hidden="true" className="hidden text-xs md:block">
+              &nbsp;
+            </span>
+            <div className="panel flex flex-col gap-3 p-4" data-ready={readyAt ? "true" : undefined}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <span className="lobby-dot" aria-hidden="true" />
+                  <strong>{readyAt ? "Ready" : "Not ready"}</strong>
+                  {readyAt ? (
+                    <span className="text-sm text-muted">
+                      since {new Date(readyAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="chip mono">{Math.max(0, readyCount + countShift)} ready</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className={readyAt ? "btn-secondary" : "btn"} onClick={toggleReady}>
+                  {readyAt ? "Unready" : "Ready up"}
+                </button>
+                {canSkip ? (
+                  <Link href="/character?create=1" className="btn-secondary">
+                    Skip to character creation
+                  </Link>
                 ) : null}
-              </span>
-              <span className="chip mono">{Math.max(0, readyCount + countShift)} ready</span>
+              </div>
+              {pickedNothing(priorities) ? <p className="text-sm text-accent">{NOTHING_LINE[jobless]}</p> : null}
+              <FormError>{error}</FormError>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <button type="button" className={readyAt ? "btn-secondary" : "btn"} onClick={toggleReady}>
-                {readyAt ? "Unready" : "Ready up"}
-              </button>
-              {canSkip ? (
-                <Link href="/character?create=1" className="btn-secondary">
-                  Skip to character creation
-                </Link>
-              ) : null}
-            </div>
-            {pickedNothing(priorities) ? <p className="text-sm text-accent">{NOTHING_LINE[jobless]}</p> : null}
-            <FormError>{error}</FormError>
           </div>
 
           <label className="field">
