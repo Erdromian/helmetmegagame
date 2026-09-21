@@ -77,19 +77,14 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 | `deadeye-drops` | 1 | 1 | `cave-fungus` | `increased-accuracy` |
 | `mercy` | 1 | 0.5 | `cave-fungus` | `increased-recovery` |
 | `mindbreaker-toxin` | 1 | 1 | `cave-fungus` | `hallucinating` |
-| `invisibility-potion` | 1 | 1 | `graga-sac` | `invisible` |
 | `ravenheart-red` | 3 | 0.5 | `alcohol` | `tipsy` (and up the ladder — §5a) |
 | `phrygian-tears` | 4 | 2 | `cave-fungus` | — |
 | `white-honey` | **3** | 1 | `honey` + `trout-heart` | — |
 | `purifier` | 1 | 1 | `cave-fungus` | — |
 | `dreamers-draught` | 2 | 1 | `skinless-brain` | — |
-| `forgiveness` | 3 | 1 | — | — |
-| `flawless-skin` | 4 | 1 | — | `otherworldly-beauty` |
 
-Three recipes lost a prose ingredient and pay in ⬢ instead, because the
-ingredient was the whole gate: `white-honey` 2 → **6** (it cures a poisoning),
-and `forgiveness` /
-`flawless-skin` keep their 8, which was already doing the work. White Honey
+One recipe lost a prose ingredient and pays in ⬢ instead, because the
+ingredient was the whole gate: `white-honey` 2 → **6** (it cures a poisoning). White Honey
 has since regained a real gate twice over — it spends a `honey` (a gm-catalog
 Depot import, which also makes it one of the HIDDEN recipes: off the Recipes
 tab, out of the Craft menu until the brewer holds the ingredients) and, since

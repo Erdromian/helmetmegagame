@@ -316,7 +316,7 @@ ladder rather than every entry in it:
 - **Uncommon** — Alcohol, Cleaning Powder, Fine Meal, Bear Trap, Rope, Honey,
   Buckler, Spear, Work Knife, Knuckle Duster, plus low-tier weapons and armor.
 - **Rare** — Ravenheart Red, Cat, Salvage Plate, Supply Kit, Jewelry, Bliss,
-  Spyglass, Gas Mask, Instrument, Mining Helmet, plus mid-tier weapons and
+  Gas Mask, Instrument, Mining Helmet, plus mid-tier weapons and
   armor.
 - **Extremely rare** — EMP Grenade, refined gunpowder, Skeleton Wedge,
   Jester Outfit, Starting Wares, Military Autoinjector, Autocannon Shell,
