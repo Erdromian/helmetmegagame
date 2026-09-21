@@ -225,7 +225,7 @@ Leave all of these alone:
 - The npm scope, frozen on purpose: `@lifeweb/db` and `@lifeweb/bot`, plus the
   Railway service name `@lifeweb/bot` in the root `redeploy` script.
 - The local checkout directory, unchanged on purpose: `lifeweb`. (The
-  GitHub repo itself was renamed to `peace-lock/helmetmegagame`. It is
+  GitHub repo itself was renamed to `BascinetMegagame/helmetmegagame`. It is
   public again at the moment; it was private for a while after players
   found it.)
 - The three Prisma migration directories with `lifeweb` in their names. Those
@@ -1218,12 +1218,12 @@ a commit author or a display name, check the remotes:
 git remote -v
 ```
 
-- `origin` resolves to `peace-lock/helmetmegagamev3` → this is **Bascinet's
+- `origin` resolves to `BascinetMegagame/helmetmegagame` → this is **Bascinet's
   own checkout**. Follow "Bascinet: master-only" below.
 - `origin` resolves to somewhere else — a fork, e.g. a contributor's own
   GitHub account — typically alongside an `upstream` remote pointing at
-  `peace-lock/helmetmegagamev3` → this is a **contributor's checkout**. Follow
-  "Contributors: fork's master, then a PR into upstream" instead.
+  `BascinetMegagame/helmetmegagame` → this is a **contributor's checkout**.
+  Follow "Contributors: fork's master, then a PR into upstream" instead.
 
 ### Bascinet: master-only
 
@@ -1331,7 +1331,7 @@ request #24 from Erdromian/master" in the git log — not a new convention.
 ```
 # ...commit straight onto master, same as Bascinet's own flow...
 git push origin master                                       # push to YOUR fork's master
-gh pr create --repo peace-lock/helmetmegagamev3 --base master \
+gh pr create --repo BascinetMegagame/helmetmegagame --base master \
   --head <your-github-username>:master                       # fork:master -> upstream:master
 ```
 
