@@ -92,7 +92,7 @@ nearer than furniture in the corner, and because it is something somebody is
 
 A layer under the top one does **not stop** — it ducks to silence, so when the
 thing above it ends it is still where you left it. Takeover is a 1.2-second
-crossfade.
+crossfade; the ambient bed takes 10 seconds to give way.
 
 `LAYER_MODE` is the one concession to bandwidth: `ambient` and `event` are
 `"continue"` (a wind loop restarted at 0:00 under a jukebox is audible, and a
