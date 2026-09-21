@@ -70,14 +70,15 @@ export const PROGRAMS = {
     ],
   },
 
-  // Rolling a character. The same song, but the intro is odd, so only the FIRST pass hears
-  // it; every pass after that starts at 0:18 and fades in over a second.
+  // Rolling a character. Its own track, not the lobby's, but the same shape: the intro is
+  // odd, so only the FIRST pass hears it; every pass after that starts at 0:18 and fades in
+  // over a second.
   creation: {
     layer: "music",
     steps: [
-      { id: "first", src: "song_game.ogg", startAt: 0, gain: 0.6 },
+      { id: "first", src: "b12_combined_start.ogg", startAt: 0, gain: 0.6 },
       { silenceMs: 10_000 },
-      { id: "again", src: "song_game.ogg", startAt: 18, fadeInMs: 1000, gain: 0.6 },
+      { id: "again", src: "b12_combined_start.ogg", startAt: 18, fadeInMs: 1000, gain: 0.6 },
       { silenceMs: 10_000 },
       { goto: 2 },
     ],

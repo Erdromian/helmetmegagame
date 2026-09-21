@@ -168,7 +168,7 @@ program from the phase and runs it.
 |---|---|
 | `CLOSED` | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
 | `LOBBY` | `song_game`, a 5-second tail, 15 seconds of nothing, again |
-| `RUNNING`/`ENDED` with no living character | `song_game` from 0:00, then 10 s, then repeatedly from **0:18** fading in over a second — the intro is odd, so only the first pass hears it |
+| `RUNNING`/`ENDED` with no living character | `b12_combined_start` from 0:00, then 10 s, then repeatedly from **0:18** fading in over a second — the intro is odd, so only the first pass hears it |
 | anything else, or any `/gm/` path | silence |
 
 The GM clause is worth knowing: a GM has no character of their own during a

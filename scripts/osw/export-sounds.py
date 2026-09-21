@@ -85,7 +85,7 @@ GROUPS = {
     # Longer pieces. A handful of tracks, not the whole 229 MB jukebox.
     "music":
         files("music", """hiding outpost to_hell haruspex haruspex-combat
-            ravenheart_combat1 sacred_dagger morning""")
+            ravenheart_combat1 sacred_dagger morning b12_combined_start""")
         + whole("fortress_suspense")
         + whole("tension")
         + whole("ThanatiLP"),
