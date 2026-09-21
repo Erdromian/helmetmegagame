@@ -31,7 +31,7 @@ import { DM_PLACE_KEY } from "@/lib/dmSources";
 import { thingGroups } from "./thingRows";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
-import { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG, DEPOT_KEYCARD_SLUG } from "@lifeweb/db";
+import { depotAccessFor } from "@lifeweb/db/lib/depotCounter";
 import { cookedTasteOnly, DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { chipContextFor, composeChipTag } from "@/lib/tagChipRows";
 
@@ -420,15 +420,14 @@ async function FreshChat({ userId }) {
           // YOU. The drawer re-reads it for itself after every verb
           // (./actions.js#myThings).
           things: thingGroups(sheet?.tags ?? [], (tag) => composeChipTag(tag, chipCtx)),
-          // The Depot terminal is a thing in a room: standing at it is not
-          // enough, you need the licence or the keycard, and /depot bounces
-          // anybody without one — so the link is offered only where it would
-          // open (web/app/(app)/depot/page.js).
-          depotHref:
-            boardLocation?.slug === DEPOT_LOCATION_SLUG &&
-            (heldSlugs.has(MERCHANT_LICENSE_SLUG) || heldSlugs.has(DEPOT_KEYCARD_SLUG))
-              ? "/depot"
-              : null,
+          // PLACE, and only place. This is the terminal as a FIXTURE — a thing
+          // on a wall in this room — so it is offered where the thing is, and
+          // nowhere else. A licence or a chip opens /depot from anywhere (§0b),
+          // but it does not put a counter in the Inn. Standing here is now
+          // enough on its own: the page no longer asks for a key as well, so
+          // the old licence-or-keycard test would hide the fixture from the
+          // very people standing in front of it.
+          depotHref: depotAccessFor(boardLocation?.slug, heldSlugs).atDepot ? "/depot" : null,
           // The Godard Factory's Extract, opened as the sheet's own dialog
           // (docs/systemdocs/FACTORY.md). Shown where the ground is godflesh;
           // whether there is a tool in hand is the dialog's sentence, not a

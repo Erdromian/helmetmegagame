@@ -1026,9 +1026,23 @@ board on a fogged town read as a bug rather than as a secret. The seats the
 town stays dark for are the **outsiders**, and only those: the Migrant walking
 in through the caves, the Mercenary at the mouth, the Tribunal and the
 Bastard's party marching into the Black Hills. Under that floor each seat adds
-what its own work walks — the Exactor his Den and the Lake his back door comes
-out at, a Factory seat the road up and the two counters the Squeeze sells
-through, the Mortus the way down to the Tower.
+what its own work walks — the Den's people the streets they work and the cellar
+under them, the Bum the same streets and no cellar, a Factory seat the road up
+and the end of the Undertown the Squeeze is sold at, the Mortus the way down to
+the Tower and the tunnels out of it.
+
+**The Undertown is mostly ordinary now that it is built.** Nine of its places
+have a plain way in, so `UNDERTOWN_STREETS` is what somebody who lives down
+there knows, and the seats are tiered off that: `DEN_HOUSE` adds the Den
+Interior for the five seats who work it, `UNDERTOWN_TRADE` is the three places a
+Factory seat comes up to. Three are held back by hand in `UNDERTOWN_WITHHELD` —
+the **Hole in the Wall**, which is the one genuinely hidden place left down
+there; the **Island**, across the water behind Strong Swimmer; and the **Order
+Chambers**, which everybody already sees hollow off the Cathedral and nobody
+starts out having been inside. Note that the **Hollows** is *not* one of them:
+it used to be called the Alleys, which invites the wrong conclusion, but it is a
+plain street off the Slums. The town's own **Alleys** are `town-5`, and they are
+in `TOWN_ALL`.
 
 `KIT_MEMORIES`, the second half keyed by a starting tag, is no longer empty: it
 carries one entry, `ravenhearter` to the ten town places. That is a **floor, not

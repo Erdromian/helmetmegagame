@@ -7,7 +7,6 @@ import Loading from "../Skeleton";
 import {
   prisma,
   MERCHANT_LICENSE_SLUG,
-  DEPOT_LOCATION_SLUG,
   DEPOT_KEYCARD_SLUG,
   OBOL_SLUG,
   loadDepot,
@@ -26,21 +25,24 @@ import {
   presentedIdentity,
   forcedNameFrom,
 } from "@lifeweb/db";
-import { sendableAccounts } from "@lifeweb/db/lib/depotCounter";
+import { depotAccessFor, sendableAccounts } from "@lifeweb/db/lib/depotCounter";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
 
 // The Depot's counter. See docs/systemdocs/DEPOT.md.
 //
-// It opens for EVERYONE now, always, and read-only unless you are standing in
-// it. That is the whole shape of the rework: the station used to be one man's
-// console behind a licence check, and it is a market with a shelf per customer.
+// PLACE OR KEY: it opens for somebody standing in it, and for somebody carrying
+// a manifest key — the Merchant's Licence or a Silver Chip — who reads it from
+// anywhere, read-only. Everybody else is bounced. The station used to be one
+// man's console behind a licence check; it is a market with a shelf per
+// customer, but the shelf is still only for people the station knows.
 //
 // What your tags still decide is the SHELF. The general manifest is open to
 // anybody; a Silver Chip opens the black market; the Merchant's Licence opens
 // everything, sealed goods included (db/lib/depotManifests.js). A Depot Keycard
-// is not a shelf at all — it opens the Railyard and cracks a sealed crate.
+// is not a shelf at all — it opens the Railyard and cracks a sealed crate, and
+// so is not a key to this page either.
 const TAG_SELECT = { include: { group: { select: { name: true } } } };
 
 // How many ledger rows to hand the client. Enough to be a book, few enough
@@ -115,7 +117,7 @@ export default async function DepotPage() {
 }
 
 async function FreshDepot() {
-  const { session } = await getGmSession();
+  const { session, isGm: gm } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
 
   const character = await prisma.character.findFirst({
@@ -143,8 +145,13 @@ async function FreshDepot() {
   const keycard = heldSlugs.has(DEPOT_KEYCARD_SLUG);
   const superadmin = isSuperadmin(session.discordUserId);
 
-  // Nobody is bounced any more. A spectator with no living character reads the
-  // price list like anybody else; the page is a shop window.
+  // The same predicate the rail asked (db/lib/depotCounter.js), on the character
+  // already in hand rather than a second read. A GM keeps the page wherever they
+  // stand — read-only all the same, since `atDepot` below is what unlocks the
+  // controls and the server actions re-check it regardless.
+  const access = depotAccessFor(character?.location?.slug, heldSlugs);
+  if (!access.ok && !gm) redirect("/character");
+
   const depot = await loadDepot(prisma);
   const openTurn = await getOpenTurn();
   const account = character?.bankAccount ?? null;
@@ -280,9 +287,9 @@ async function FreshDepot() {
       }).name
     : null;
 
-  const atDepot = character?.location?.slug === DEPOT_LOCATION_SLUG;
   // Everything below is a hint. The actions re-check all of it
   // (requireDepotStanding in ./actions.js).
+  const atDepot = access.atDepot;
   const disabled = !character || !atDepot;
 
   const saleShape = (row) => ({

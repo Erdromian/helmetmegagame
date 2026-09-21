@@ -3810,6 +3810,7 @@ tags:
     name: Pile of Ash
     category: items
     group: items-remains
+    sprite: powder
     description: "A pile of fine ash."
     visible: true
     pointCost: 0
@@ -6775,7 +6776,7 @@ tags:
     name: Hematite
     category: items
     group: items-mining
-    sprite: ore
+    sprite: ore-red
     description: "A red metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6792,7 +6793,7 @@ tags:
     name: Malachite
     category: items
     group: items-mining
-    sprite: green-lump
+    sprite: ore-cyan
     description: "A green metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6809,7 +6810,7 @@ tags:
     name: Garnierite
     category: items
     group: items-mining
-    sprite: green-lump
+    sprite: ore-bluish
     description: "A pale green metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6840,6 +6841,7 @@ tags:
     name: Iron
     category: items
     group: items-mining
+    sprite: ore-darkbrown
     description: "A workable iron ingot. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6869,7 +6871,7 @@ tags:
     name: Copper
     category: items
     group: items-mining
-    sprite: brace-copper
+    sprite: ore-copper
     description: "A piece of red metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6895,7 +6897,7 @@ tags:
     name: Nickel
     category: items
     group: items-mining
-    sprite: silver-ore
+    sprite: ore-dullgrey
     description: "A piece of pale metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6927,7 +6929,7 @@ tags:
     name: Silver
     category: items
     group: items-mining
-    sprite: silver-ore
+    sprite: ore-silvery
     description: "Raw silver, ready for the forge. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6949,7 +6951,7 @@ tags:
     name: Platinum
     category: items
     group: items-mining
-    sprite: sheet-silver
+    sprite: ore-silvery
     description: "A piece of white metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6970,6 +6972,7 @@ tags:
     name: Citrine
     category: items
     group: items-mining
+    sprite: rough-citrine
     description: "A yellow gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6986,7 +6989,7 @@ tags:
     name: Milk Quartz
     category: items
     group: items-mining
-    sprite: clown-ore
+    sprite: rough-milk-quartz
     description: "A cloudy white stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7003,7 +7006,7 @@ tags:
     name: Onyx
     category: items
     group: items-mining
-    sprite: boulder1
+    sprite: rough-onyx
     description: "A black gem. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7020,7 +7023,7 @@ tags:
     name: Moonstone
     category: items
     group: items-mining
-    sprite: bluespace-crystal
+    sprite: rough-moonstone
     description: "A pale glowing stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7037,7 +7040,7 @@ tags:
     name: Pyrite
     category: items
     group: items-mining
-    sprite: gold-ore
+    sprite: ore-gold
     description: "A brassy gold cube. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7054,7 +7057,7 @@ tags:
     name: White Jade
     category: items
     group: items-mining
-    sprite: moon
+    sprite: rough-white-jade
     description: "A smooth white stone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7074,7 +7077,7 @@ tags:
     name: Fire Opal
     category: items
     group: items-mining
-    sprite: ore
+    sprite: rough-fire-opal
     description: "A burning orange gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7091,7 +7094,7 @@ tags:
     name: Sphalerite
     category: items
     group: items-mining
-    sprite: glass-ore
+    sprite: ore-magenta
     description: "A glittering brown crystal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7108,7 +7111,7 @@ tags:
     name: Tetrahedrite
     category: items
     group: items-mining
-    sprite: sheet-adamantine
+    sprite: ore-silvery
     description: "A grey metallic crystal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7127,7 +7130,7 @@ tags:
     name: Opal
     category: items
     group: items-mining
-    sprite: crystal
+    sprite: rough-milk-opal
     description: "A shimmering white gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7144,6 +7147,7 @@ tags:
     name: Topaz
     category: items
     group: items-mining
+    sprite: rough-topaz
     description: "A golden gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7160,6 +7164,7 @@ tags:
     name: Amethyst
     category: items
     group: items-mining
+    sprite: rough-amethyst
     description: "A purple gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7176,7 +7181,7 @@ tags:
     name: Kunzite
     category: items
     group: items-mining
-    sprite: plasma-ore
+    sprite: rough-kunzite
     description: "A pink gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7196,7 +7201,7 @@ tags:
     name: Star Sapphire
     category: items
     group: items-mining
-    sprite: ansible-crystal
+    sprite: rough-star-sapphire
     description: "A blue star gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7213,7 +7218,7 @@ tags:
     name: Black Diamond
     category: items
     group: items-mining
-    sprite: adamantine-ore
+    sprite: rough-black-diamond
     description: "A dark gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7696,19 +7701,6 @@ tags:
       skills: [crafting]
       gambit: false
 
-  spyglass:
-    catalog: all
-    name: Spyglass
-    category: items
-    group: items-gear
-    description: "An extendable tool used to see far away sights up close."
-    pointCost: 2
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-
   disguise-kit:
     catalog: gm
     name: Disguise Kit
@@ -7853,6 +7845,7 @@ tags:
     name: Old Coin
     category: items
     group: items-mining
+    sprite: old-coin
     description: "A weathered coin. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 0
@@ -7897,7 +7890,7 @@ tags:
     name: Resources
     category: items
     group: items-gear
-    sprite: ore
+    sprite: pouch
     description: "Bulk material for crafting, smithing, or healing people."
     manifest: general
     pointCost: 0
@@ -9497,6 +9490,7 @@ tags:
     name: Trench Knife
     category: items
     group: items-weapons
+    sprite: knife
     description: "A deadly knife with brass knuckles embedded on the grip. While equipped, torture-related Gambits gain +1."
     fighting: { tiers: 0.3, weaponClass: knife }
     # Two over a dagger, as asked. A dagger has no counter price of its own, so
@@ -10256,6 +10250,7 @@ tags:
     name: Katana
     category: items
     group: items-weapons
+    sprite: sabre
     description: "A curved blade folded from steel."
     fighting: { tiers: 0.4, weaponClass: sword }
     pointCost: 9
@@ -10480,6 +10475,7 @@ tags:
     name: Bomb
     category: items
     group: items-weapons
+    sprite: frag1
     description: "A large black sphere with a menacing fuse."
     fighting: { tiers: 0.4, weaponClass: thrown }
     pointCost: 0
@@ -11063,6 +11059,7 @@ tags:
     name: Eel
     category: items
     group: items-food
+    sprite: fish
     description: "Slippery and covered in sharp bony spurs."
     pointCost: 0
     weight: 0.5
@@ -11456,6 +11453,7 @@ tags:
     description: "A crayfish. You could cook with it."
     category: items
     group: items-food
+    sprite: fish
     pointCost: 0
     weight: 1
     stackable: true
@@ -11499,6 +11497,7 @@ tags:
     name: Rock Salt
     category: items
     group: items-food
+    sprite: spice
     description: "Rock salt. You could cook with it."
     pointCost: 0
     depotPrice: 2
@@ -11927,6 +11926,7 @@ tags:
     name: Fried Rat
     category: items
     group: items-food
+    sprite: rat
     description: "Cooked to a crisp, let's hope that makes it somewhat more edible."
     pointCost: 0
     weight: 0.5
@@ -11986,6 +11986,7 @@ tags:
     name: Poached Rat
     category: items
     group: items-food
+    sprite: rat
     description: "A boiled rat served with poached arelitz egg. An unusual tradition in the North."
     pointCost: 0
     weight: 0.5
@@ -13322,6 +13323,7 @@ tags:
     name: Sheriff's Badge
     category: items
     group: items-special
+    sprite: medala
     description: "The icon of the town's Sheriff: a badge shaped like a six-pointed star."
     pointCost: 0
     equippable: true
@@ -13883,6 +13885,7 @@ tags:
     name: The Wise Plague Doctor
     category: items
     group: items-paper
+    sprite: book
     bookText: >-
       Once there was a Plague Doctor whose story became legend that no man now lives to tell. Here I have written it down for any that may yet find this book in my dying hour. The Plague Doctor was a lord of the Sanctuary, so powerful and so wise he could use his skills to create life... He had such a knowledge of his art that he could even keep the hopelessly ill he cared about from dying. The skills taught in the Sanctuary and the machines found there are a pathway to many operations some might consider to be unnatural. He became so powerful... the only thing he was afraid of was losing his power, which eventually, of course, he did. Unfortunately, he taught his apprentice everything he knew, then his apprentice killed him in his sleep. Now he has come for all that know his story, even for me. It is ironic - the Plague Doctor could save others from death, but not himself.
     pointCost: 0
@@ -14024,6 +14027,7 @@ tags:
     name: Nillum
     category: items
     group: items-paper
+    sprite: book
     bookText: |-
       So long have I dreamed of light to share its gift with my skin. I crave the warmth of a loved one and the clarity to know thyself in the mirror. The travelers speak of green. Green leaves above, green grass below, green forests on the horizon. I know of green. Green is some of the moss on these dark metallic walls. These numb walls. The walls that numb me back. The numbness makes a divide in the current of my despair for the arrival of my tears. I wonder if the sun feels as warm as the wet running down my cheek, and if I will only know the coldness of the air that comes after the emotion falls to the floor.
     pointCost: 0
@@ -14703,6 +14707,7 @@ tags:
     name: Firecracker
     category: items
     group: items-gear
+    sprite: tnt-stick1
     description: "A small red tube. It's loud."
     pointCost: 0
     depotPrice: 2
@@ -15208,6 +15213,7 @@ tags:
     name: BB Pistol
     category: items
     group: items-weapons
+    sprite: pistol1
     description: "A small pistol that shoots nonlethal, but still painful, bullets."
     fighting: { tiers: 0.1, weaponClass: exotic }
     pointCost: 0
@@ -15857,6 +15863,7 @@ tags:
     name: White Honey
     category: items
     group: items-drink
+    sprite: bottle1
     description: "It's boiled into a pale syrupy mix, capable of neutralizing even exotic poisons and venoms."
     pointCost: 0
     weight: 0.5
@@ -16002,31 +16009,6 @@ tags:
     sellable: true
     sellablePrice: 10
 
-  invisibility-potion:
-    catalog: gm
-    name: Invisibility Potion
-    category: items
-    group: items-drink
-    description: "A clear potion distilled from a {tag:graga-sac}. Can be consumed to gain {tag:invisible} for 2 turns."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - invisible
-    requirement:
-      turnsCost: 1
-      resourceCost: 1
-      skills: [brewing-skilled]
-      gambit: false
-      items: [graga-sac]
-    sellable: true
-    sellablePrice: 26
-
   # gm, not secret (2026-09-07): a SECRET row never enters the Recipes tab's
   # visible set even when held, so a recipe spending this could never unhide
   # there while the Craft menu and hovercard showed it — three surfaces,
@@ -16057,6 +16039,7 @@ tags:
     name: Pure Luck
     category: items
     group: items-drink
+    sprite: vial-blue
     description: "A strange draught made with an {tag:aberrant-heart}. Can be consumed to gain {tag:aberrant-luck} for 3 turns."
     pointCost: 0
     weight: 0.5
@@ -16108,29 +16091,6 @@ tags:
     # 60, up from 16, and deliberately above the Brain's own 40: the whole
     # point of the recipe is that the ingredient is the cheap part.
     sellablePrice: 62
-
-  forgiveness:
-    catalog: gm
-    name: Forgiveness
-    category: items
-    group: items-drink
-    description: "A clear, cold draught."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    cures: [shell-shocked]
-    requirement:
-      turnsCost: 1
-      resourceCost: 3
-      skills: [brewing-skilled]
-      gambit: false
-    sellable: true
-    sellablePrice: 18
 
   # --- Medical pass: the item roster (M3) -----------------------------
 
@@ -16535,30 +16495,6 @@ tags:
       resourceCost: 7
       skills: [medical-skilled]
       gambit: false
-
-  flawless-skin:
-    catalog: gm
-    name: Flawless Skin
-    category: items
-    group: items-drink
-    description: "A pale cream, granting supreme beauty."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    consumable: true
-    consumesInto:
-      - otherworldly-beauty
-    requirement:
-      turnsCost: 1
-      resourceCost: 4
-      skills: [brewing-skilled]
-      gambit: false
-    sellable: true
-    sellablePrice: 20
 
   # --- Armor -------------------------------------------------------------
 
@@ -18107,6 +18043,7 @@ tags:
     name: Flooded Crate
     category: items
     group: items-gear
+    sprite: crate1
     description: "A swollen crate."
     pointCost: 0
     weight: 6

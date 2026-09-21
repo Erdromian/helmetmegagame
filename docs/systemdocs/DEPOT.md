@@ -74,6 +74,13 @@ on a Leader's sheet. Four things went, and each for its own reason:
 - **The station's float.** It was a second pot to explain, sitting beside the
   Merchant's own purse with the ATM between them. His OFFSHORE account is that
   pot now, and there is one kind of account in the game rather than two.
+- **The open door.** For a while after that, `/depot` opened for *everyone*,
+  always, on the argument that a shop window costs nothing to look through. It
+  cost the price book and the shelf list: a rail item on every player's rail
+  advertised a market most of them had no business reading, from wherever they
+  happened to be standing. The door is place-or-key now — wide enough that
+  anybody who walks to the counter is served, narrow enough that reading it
+  from a cell across town takes a licence or a chip.
 - **The tax button.** It filed a levy per person per turn, DM'd each target, and
   could be refused or part-paid. The sell tax is quieter and far harder to
   dodge: a percentage off every sale at the counter, before anybody is paid.
@@ -96,18 +103,30 @@ on a Leader's sheet. Four things went, and each for its own reason:
 
 ## 0b. Who may do what
 
-**`/depot` opens for everyone, always.** It is a shop window: read-only unless
-you are standing in the Depot, and the page says so. Nothing redirects anybody
-any more.
+**`/depot` is PLACE OR KEY.** It opens for somebody standing in the Depot, and
+for somebody carrying a manifest key — the Merchant's Licence or a Silver Chip —
+who reads it from anywhere. Everybody else gets no rail item and is redirected
+off the page. Standing there is what makes the counter usable: a key alone opens
+it read-only, and the page says so.
+
+The keys are the two `requiredTagSlug` entries in `db/lib/depotManifests.js`, so
+adding a shelf moves the gate with it. A Depot Keycard is not one — it opens a
+crate, not the window. Every GM keeps the page wherever they stand, and it is
+read-only for them too.
+
+One predicate answers it everywhere: `depotAccessFor` in
+`db/lib/depotCounter.js`, the twin of `canReadTreasury` beside it, asked by the
+page, by the nav rail (`web/lib/navItems.js`) and by the Depot link on Chat's
+place card. A rail item that redirects is worse than no rail item.
 
 What your tags decide is the **shelf**, and one seat's paperwork:
 
 | Holder | Can |
 |---|---|
-| **Anyone, standing there** | Order off the general manifest, use the ATM at the counter, put things in the drop box beside it, open an account. The ATM also stands in the Den's bar (§0g). |
-| **Silver Chip** | …plus the black market: drink, smoke and worse. |
+| **Anyone, standing there** | Open the page. Order off the general manifest, use the ATM at the counter, put things in the drop box beside it, open an account. The ATM also stands in the Den's bar (§0g). |
+| **Silver Chip** | …plus the black market: drink, smoke and worse — and the page itself, read-only, from anywhere. |
 | **Depot Keycard** | Open a sealed crate. Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
-| **Merchant's Licence** | …plus the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
+| **Merchant's Licence** | …plus the page from anywhere, read-only, and the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
 | **A key to the Meister's office**, standing in the Keep | `/treasury`: every account, the Vault's backing, and the sell tax rate (§0h). |
 
 The licence is checked, never the Merchant **role** — the licence is tradeable
@@ -735,17 +754,18 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 
 | | |
 |---|---|
-| Page | `/depot` (`web/app/(app)/depot/page.js`) — open to everyone, read-only unless you are standing there |
+| Page | `/depot` (`web/app/(app)/depot/page.js`) — place or key (§0b): standing there, or carrying a manifest key, which reads it from anywhere. Read-only unless you are standing there |
 | Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
 | Rooms | `undertown-5-1`, the Railway — the train, the crates, the drop box and an ATM, and the Depot's only room. The Merchant's own three are next door at `undertown-6`: `undertown-6-1` Storefront (the second ATM), `undertown-6-2` Merchant's Office (the gun), `undertown-6-3` Cargo Bay (behind a keycard). The Inn's and the Den's bars carry ATMs of their own (§0l) |
-| Gates | the manifests (§0e), plus `depot-keycard` for a sealed crate. `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
+| Gates | the page itself, `depotAccessFor` (§0b), then the manifests (§0e), plus `depot-keycard` for a sealed crate. `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
 | Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |
 
 ## 2. The Licence
 
-`merchants-license` is no longer the door to the page — nothing is. What it is
-now is the **widest shelf** plus the business: the whole manifest including
+`merchants-license` is **a** door to the page rather than *the* door: a Silver
+Chip opens it too, and so does simply walking to the counter (§0b). What the
+licence is is the **widest shelf** plus the business: the whole manifest including
 sealed goods, the Company's credit line, the gun on the office wall, and the
 sight of everybody's staged selling. It is re-checked inside every server action
 that depends on it. The Merchant starts with it.
@@ -755,9 +775,10 @@ business — and, per its own text, the turret's goodwill. That is a decision
 worth being able to make, and it is why the gate is the tag and never the role:
 a role check would quietly break the trade.
 
-There is no GM half to this page, and it needs none: `/depot` opens for a GM the
-same way it opens for a player, and `/gm/dev` already does everything a GM would
-want beyond that. A superadmin reads `/treasury` without walking to the Keep —
+There is no GM half to this page, and it needs none: a GM keeps `/depot`
+wherever they stand — reading a market is adjudication, not play — and it is
+read-only for them the same as for anybody away from the counter. `/gm/dev`
+already does everything a GM would want beyond that. A superadmin reads `/treasury` without walking to the Keep —
 host access rather than game permission, the way `/lifeweb` works — but does not
 get the tax dial.
 

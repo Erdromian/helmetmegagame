@@ -71,7 +71,6 @@ const LOOT_TABLE = {
     "supply-kit",
     "jewelry",
     "bliss",
-    "spyglass",
     "gas-mask",
     "broadsword",
     "war-hammer",

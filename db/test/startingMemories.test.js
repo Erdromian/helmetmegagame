@@ -19,8 +19,7 @@ const { entriesOf } = require("../lib/yamlEntries");
 const {
   ROLE_MEMORIES,
   KIT_MEMORIES,
-  UNDERTOWN_SECRET,
-  UNDERTOWN_UNCLASSIFIED,
+  UNDERTOWN_WITHHELD,
 } = require("../lib/startingMemories");
 
 const readMaster = (name) => yaml.load(fs.readFileSync(path.join(__dirname, "../../docs", name), "utf8"));
@@ -105,11 +104,22 @@ test("no table hands out a place that is only reachable by a hidden way", () => 
 });
 
 test("the places held out by hand stay held out", () => {
-  // The belt beside the brace above. The derived test cannot see these: the
-  // Undertown was written live at /gm/dev/zones and docs/zones.yaml still
-  // carries most of it with no edges at all, so the parser reads them as
-  // unreachable orphans rather than as hidden.
-  for (const slug of [...UNDERTOWN_SECRET, ...UNDERTOWN_UNCLASSIFIED]) {
+  // The belt beside the brace above, and it is load-bearing rather than
+  // duplicate. The derived test asks whether EVERY way in is hidden, and the
+  // Hole in the Wall has a locked climb up from the Depths as well as its
+  // hidden crawl off the Poorhouse — so the derived test would wave it
+  // through. The Island and the Order Chambers are behind keys rather than
+  // secrets and are held back on judgment, which nothing can derive.
+  for (const slug of UNDERTOWN_WITHHELD) {
     assert.ok(!everySlug.has(slug), `"${slug}" is held out of the fog on purpose, and a table hands it over`);
+  }
+});
+
+test("a place held out by hand is still a place", () => {
+  // The Nook sat on this list until it was deleted from the game, which left a
+  // dead slug guarding nothing and nobody any the wiser. The slug-resolution
+  // test above only walks what the tables HAND OUT, so it cannot see this.
+  for (const slug of UNDERTOWN_WITHHELD) {
+    assert.ok(locationSlugs.has(slug), `"${slug}" is withheld, but docs/zones.yaml has no such Location — it guards nothing`);
   }
 });

@@ -66,3 +66,22 @@ credits it as "Taken from tgstation and modified by Swept at commit
 https://github.com/tgstation/tgstation/commit/c6e3401f2e7e1e55c57060cdf956a98ef1fefc24".
 It was cropped and padded to a square the same way as the files above, and
 carries the same CC BY-SA 3.0 terms.
+
+## One file from tgstation
+
+`old-coin.png` is the `coin_heads` frame of `icons/obj/economy.dmi` from
+tgstation (https://github.com/tgstation/tgstation), licensed CC BY-SA 3.0.
+The original is greyscale, since the game tints it by metal; it was tinted
+bronze and cropped and padded like the files above, and carries the same
+CC BY-SA 3.0 terms.
+
+## Files from Dwarf Fortress
+
+Every `rough-*.png` (citrine, topaz, amethyst, milk quartz, onyx, moonstone,
+white jade, fire opal, milk opal, kunzite, star sapphire, black diamond) and
+every `ore-*.png` (red, cyan, bluish, copper, silvery, magenta, dullgrey,
+gold, darkbrown), plus `pouch.png`, is a sprite from the Steam edition of Dwarf Fortress
+(Bay 12 Games / Kitfox Games), taken from
+https://dwarffortresswiki.org and padded to a square. They are **not** openly
+licensed and not covered by the CC BY-SA grant above. If they ever need to
+come out, pull the files and the tags fall back to their group glyph.
