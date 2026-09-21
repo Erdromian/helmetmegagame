@@ -110,15 +110,19 @@ function parksMounts(location) {
   return location?.zone?.kind === "CAVE_LEVEL";
 }
 
-// Both halves print, so a place always says which it is.
+// Both halves print — silence outdoors would mean the rule is only stated
+// where it bites. Reads `parksMounts`'s answer, not the raw `indoors` column,
+// since a surface Location no longer parks anything at the door.
 function placementLine(location) {
   if (!location?.indoors) return "**Outdoors**: you can use your arelitz or cart here.";
-  return "**Indoors:** This place is indoors.";
+  return parksMounts(location)
+    ? "**Indoors**: you can't equip a cart or arelitz here."
+    : "**Indoors**: you can still bring an arelitz or cart in here.";
 }
 
 // The machine alone, wherever one stands (db/lib/depot.js#ATM_LOCATION_SLUGS).
 function atmLine(location) {
-  return ATM_LOCATION_SLUGS.has(location?.slug) ? "**ATM:** You can use the Depot's ATM here." : null;
+  return ATM_LOCATION_SLUGS.has(location?.slug) ? "**ATM**: you can use the Depot's ATM here." : null;
 }
 
 // Says the STATE, not the verb — buttons say what a click DOES, Examine says what IS TRUE.
