@@ -3376,8 +3376,11 @@ input[type="radio"]:disabled {
 }
 
 /* An instant verb in flight (ActionButton.js `busy`): quieter, not greyed —
-   nothing is wrong, it is just working. */
+   nothing is wrong, it is just working. `.btn` is here for Travel's Go: a
+   disabled-only button is indistinguishable from a dead one, which is how a
+   slow move came to read as nothing having happened at all. */
 .action-tile[data-busy],
+.btn[data-busy],
 .icon-btn[data-busy] {
   opacity: 0.6;
   cursor: progress;

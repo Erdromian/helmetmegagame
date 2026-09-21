@@ -245,9 +245,14 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
                 type="button"
                 className="btn"
                 disabled={pending}
+                // Says it is working, in ActionButton.js's words and with its
+                // styling. Greying out alone reads as a dead button, and a move
+                // waits on a Discord round trip it cannot predict the length of.
+                data-busy={pending ? "true" : undefined}
+                aria-busy={pending || undefined}
                 onClick={() => go(chosen)}
               >
-                Go
+                {pending ? "Working…" : "Go"}
               </button>
             )}
             {/* The other way across once the travels and the Move are gone:
@@ -258,10 +263,12 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
                 type="button"
                 className="btn"
                 disabled={pending}
+                data-busy={pending ? "true" : undefined}
+                aria-busy={pending || undefined}
                 title="Exert yourself for another free travel."
                 onClick={() => go(chosen, { exert: true })}
               >
-                Push on
+                {pending ? "Working…" : "Push on"}
               </button>
             )}
             <button type="button" className="btn-quiet" disabled={pending} onClick={() => setTarget(null)}>

@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
@@ -60,7 +61,7 @@ import {
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
-import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { applyArrivalFacts, applyArrivalDiscord } from "@lifeweb/db/lib/locationMove";
 import { dismountedMessage } from "@lifeweb/db/lib/indoors";
 import {
   boardFor,
@@ -769,46 +770,74 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // must not name the reason — a hidden crawl's refusal would announce it (MAP.md §2a).
   const stranded = [];
   const heldBack = [];
+  // Everything this move owes DISCORD, as thunks, run in after() at the bottom
+  // of this function. The NAMES are gathered here and now, because the sentence
+  // this action returns is built out of them — it is only the telling that
+  // waits. See the block below for why any of it waits at all.
+  const tell = [];
   for (const entry of result.leftBehind ?? []) {
     // "held" is the one reason the leader IS told — it's plain to see anyway.
     (entry.reason === "held" ? heldBack : stranded).push(entry.character.name);
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
-    await sendDm(entry.character.discordUserId, `*${me.character.name} went on without you.*`).catch(() => {});
+    const left = entry.character.discordUserId;
+    tell.push(() => sendDm(left, `*${me.character.name} went on without you.*`));
   }
 
-  // Sequential on purpose: firing a whole dragged party's worth at once trips the invalid-response breaker (db/lib/discordRest.js).
-  // SKIPPED for a walk: locationWalk.js already ran this per hop, and running it
+  // The arrival's GAME half, AWAITED: the fog, a parked mount, a hand on a
+  // shoulder, a turret's kill. MAP.md §3 promises the character is standing at
+  // the destination by the time this call returns, and the sentence built at
+  // the bottom of this function reads the result of it.
+  // SKIPPED for a walk: locationWalk.js already ran it per hop, and running it
   // again over the merged list would fire every turret twice and re-roll every
-  // Caving Die (MAP.md §3c).
+  // Caving Die (MAP.md §3c). It hands back its hops' Discord halves instead,
+  // already in order, which is what `arrivalFacts` is.
+  const arrivalFacts = [...(result.arrivalFacts ?? [])];
   if (!result.sideEffectsApplied) {
     for (const entry of result.moved) {
-      await applyLocationMoveSideEffects(prisma, {
+      const facts = await applyArrivalFacts(prisma, {
         characterId: entry.character.id,
         fromLocationId: entry.fromLocationId,
         toLocationId: entry.toLocationId,
         // Only ever the mover's own mount.
         dismounted: entry.character.id === me.character.id ? result.dismounted : undefined,
         walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
-      }).catch(() => {});
+      }).catch((err) => {
+        console.error(`Travel: arrival facts failed for ${entry.character.id}:`, err.message ?? err);
+        return null;
+      });
+      if (facts) arrivalFacts.push(facts);
     }
+  }
+  // The arrival's DISCORD half — the Location channel, the zone role, the room
+  // threads, the gate line into #summary. THIS is what made a click take
+  // minutes: ARCHITECTURE.md §4, "awaiting Discord inside a server action
+  // freezes the web app", and a walk multiplied it by up to eight hops. One
+  // rate-limited call in db/lib/discordRest/core.js can sit on a sleeping
+  // connection for the better part of two minutes, and there are dozens of them
+  // in a dressed arrival. So the player is told they moved and Discord catches
+  // up behind them, which is the latency MAP.md §3 already tolerates.
+  for (const facts of arrivalFacts) {
+    tell.push(() => applyArrivalDiscord(prisma, facts));
   }
   // The Caving Die's "on arrival" trigger (CAVING.md). A walk collected one per
   // hop, so it hands them over already gathered.
   const cavingDms = result.cavingDms ?? result.moved.map((entry) => entry.cavingDm).filter(Boolean);
   for (const dm of cavingDms) {
-    await sendDm(dm.discordUserId, dm.content).catch(() => {});
+    tell.push(() => sendDm(dm.discordUserId, dm.content));
   }
   // Anybody laying in wait here (INTERCEPT.md), built inside performLocationMove.
   for (const dm of result.interceptDms ?? []) {
-    await sendDm(dm.discordUserId, dm.content, {
-      kind: dm.kind,
-      authorDiscordUserId: dm.authorDiscordUserId ?? null,
-      components: dm.components,
-      meta: dm.meta,
-      sfx: dm.sfx,
-      // Belt to cleanMessage() already stripping broadcast pings.
-      allowedMentions: { parse: [] },
-    }).catch(() => {});
+    tell.push(() =>
+      sendDm(dm.discordUserId, dm.content, {
+        kind: dm.kind,
+        authorDiscordUserId: dm.authorDiscordUserId ?? null,
+        components: dm.components,
+        meta: dm.meta,
+        sfx: dm.sfx,
+        // Belt to cleanMessage() already stripping broadcast pings.
+        allowedMentions: { parse: [] },
+      }),
+    );
   }
   // Where they ACTUALLY got to, which on a walk is not always where they meant
   // to go — an ambush, a gate shut behind somebody, a gun at the Depot. The
@@ -821,11 +850,27 @@ export async function travelTo({ locationId, exert = false } = {}) {
     if (entry.character.id === me.character.id) continue;
     brought.push(entry.character.name);
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
-    await sendDm(
-      entry.character.discordUserId,
-      `*${me.character.name} brought you along to ${landed.name}.*`,
-    ).catch(() => {});
+    const passenger = entry.character.discordUserId;
+    tell.push(() => sendDm(passenger, `*${me.character.name} brought you along to ${landed.name}.*`));
   }
+
+  // Everything owed to Discord, after the response has gone. SEQUENTIAL, never
+  // Promise.all: Discord bans an IP for an hour after ten thousand invalid
+  // responses (ARCHITECTURE.md §5), so deferring this changed when it runs and
+  // nothing else. Each failure is LOGGED rather than swallowed — §5 again: a
+  // best-effort side effect still has to leave a trace.
+  after(async () => {
+    for (const one of tell) {
+      // try/catch rather than .catch(): a thunk that throws BEFORE returning its
+      // promise would otherwise take the rest of the queue down with it, and
+      // then a party's arrival would go untold because one DM had a bad id.
+      try {
+        await one();
+      } catch (err) {
+        console.error("Travel: telling Discord failed:", err.message ?? err);
+      }
+    }
+  });
 
   const parts = [
     walking && result.complete === false

@@ -844,18 +844,53 @@ loop over the merged `moved` list would fire every turret twice and re-roll
 every Caving Die — the easiest thing here to get wrong.
 
 **What it costs in traffic** is worth knowing rather than discovering. Each hop
-is a transaction plus a full `applyLocationMoveSideEffects`: the channel
-overwrite swap, room access, thread invites, `notifyPresence`, a gate line. A
-long walk with a party is a genuinely multi-second action and the Discord sidebar
-visibly steps through each Location. That is correct — each stop really happened
-— and it is what `WALK_HOPS` is small for. Same-zone hops write no archive rows
-either way, since those are gated on `crossedZone`.
+is a transaction plus a full arrival: the channel overwrite swap, room access,
+thread invites, `notifyPresence`, a gate line. The Discord sidebar still steps
+through each Location, because each stop really happened — and that is what
+`WALK_HOPS` is small for. Same-zone hops write no archive rows either way, since
+those are gated on `crossedZone`.
+
+**The player no longer waits for that traffic, and this is the one thing to
+understand before touching the walk.** An arrival is two halves, split at the
+`DISCORD_TOKEN` guard that was always in `applyLocationMoveSideEffects`:
+
+- **`applyArrivalFacts`** is the game — the fog, a parked mount, a hand on a
+  shoulder, a turret's kill, the railroad. Awaited, **per hop, in order**. The
+  next hop does not start until a turret has had its say, which is what makes
+  the paragraph above this one true.
+- **`applyArrivalDiscord`** is the telling — channels, roles, threads, the
+  lines, the DMs. It is **handed back**, not done, the way `interceptDms` always
+  was: the walk collects one entry per arrival in `arrivalFacts`, and the caller
+  runs them sequentially afterwards. The web's `travelTo` runs them in `after()`;
+  the bot runs them inline, having no response to hold open.
+
+`applyLocationMoveSideEffects` is now a wrapper over both, so a GM teleport, a
+first placement, a rite and the turn's arrival pass are unchanged.
+
+Why it had to move: eight hops of a full arrival is 32 or more sequential Discord
+round trips, and one rate-limited call in `db/lib/discordRest/core.js` can sit on
+a sleeping connection for the better part of two minutes (three attempts against
+a 30s cap, plus a deferred bucket reset). So a walk could leave a player's click
+hanging for many minutes with nothing drawn — see `ARCHITECTURE.md` §4,
+"awaiting Discord inside a server action freezes the web app". The Move is still
+spent and the character is still standing at the destination when the call
+returns, exactly as §3 promises; it is only the telling that lands over the next
+few seconds, which is the lag §3 already tolerates.
+
+Two Discord calls stay in the game half on purpose, and both are deaths: a
+turret's burst and the railroad's line. A death announced late reads as a death
+that did not happen, and both are rare enough to cost a living arrival nothing.
+`db/test/locationArrival.test.js` is a source check that holds the seam — add a
+Discord call to the facts half and it fails by name.
 
 ## 4. The Discord half
 
 **`db/lib/locationMove.js#applyLocationMoveSideEffects(prisma, entry)`** is
 the single function every caller runs after its DB write commits — never
-from inside the transaction, the same reasoning `db/lib/dm.js` documents.
+from inside the transaction, the same reasoning `db/lib/dm.js` documents. It is
+a wrapper over the two halves §3c describes, `applyArrivalFacts` then
+`applyArrivalDiscord`; a caller with nobody waiting on a response wants this one
+and need not know they are separate.
 Grant-before-revoke throughout: it swaps the Location role, and — only if
 the zone changed too — the zone role and the narrowcast reconcile; then
 `syncCharacterRoomAccess` for wherever the character now stands and

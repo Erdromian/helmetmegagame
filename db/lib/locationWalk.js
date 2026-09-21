@@ -1,24 +1,29 @@
 // Walking across a zone — several hops on one press (MAP.md §3c).
 //
-// NOT A MOVER. Every step here is the real single-hop pair every other caller
-// runs: db/lib/locationTravel.js#performLocationMove for the database half,
-// then db/lib/locationMove.js#applyLocationMoveSideEffects for the Discord and
-// game half. That is the whole design rather than an implementation detail —
-// it is what makes the turrets, the ambushes, the gate lines, the arrival mood
-// and the fog fire at EVERY stop along the road instead of only at the end.
-// A jump straight to the destination would be a second mover, and this file
-// writes no Character.locationId of its own.
+// NOT A MOVER. Every step here is the real single-hop work every other caller
+// does: db/lib/locationTravel.js#performLocationMove for the crossing, then
+// db/lib/locationMove.js#applyArrivalFacts for the arrival. That is the whole
+// design rather than an implementation detail — it is what makes the turrets,
+// the ambushes, the arrival mood and the fog fire at EVERY stop along the road
+// instead of only at the end. A jump straight to the destination would be a
+// second mover, and this file writes no Character.locationId of its own.
 //
-// It lives above both halves, because it has to call both, and locationTravel.js
+// It lives above those two, because it has to call both, and locationTravel.js
 // is documented as doing no Discord work. It lives in db/lib/ because the web
 // and the bot both walk people and must not each grow their own version.
 //
-// Sends NOTHING. It returns the DMs the way performLocationMove returns
-// interceptDms — the caller sends them, outside any transaction.
+// Sends NOTHING, and now TELLS nothing either. The DMs come back the way
+// performLocationMove returns interceptDms, and so does every hop's Discord
+// half, as `arrivalFacts` — one entry per arrival, in order, for the caller to
+// hand to applyArrivalDiscord. Eight hops' worth of channel, role and thread
+// calls has no business inside the click that asked for the walk; the web runs
+// them in after(), the bot runs them on its way out. The GAME half is still
+// awaited per hop, because the next hop is not allowed to start until a turret
+// has had its say.
 //
 // Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { performLocationMove } = require("./locationTravel");
-const { applyLocationMoveSideEffects } = require("./locationMove");
+const { applyArrivalFacts } = require("./locationMove");
 const { pathWithinZone } = require("./locationGraph");
 const { knownLocations } = require("./locationVisits");
 const { ESCORT_SELECT } = require("./escort");
@@ -41,6 +46,11 @@ async function walkWithinZone(prisma, character, targetLocation) {
     interceptDms: [],
     cavingDms: [],
     dismounted: [],
+    // Every hop's Discord half, in the order the hops happened. Handed back
+    // unsent, the way interceptDms and cavingDms already are, so a walk of
+    // eight hops does not hold a player's click open for eight arrivals' worth
+    // of rate-limited channel and thread calls (MAP.md 3c).
+    arrivalFacts: [],
   };
 
   let row = character;
@@ -73,18 +83,30 @@ async function walkWithinZone(prisma, character, targetLocation) {
       break;
     }
 
-    // Per moved character, exactly as a single hop's caller does it, and
-    // sequential for the reason that loop is sequential: firing a whole party's
-    // worth at once trips the invalid-response breaker (db/lib/discordRest.js).
+    // Per moved character, exactly as a single hop's caller does it. The GAME
+    // half only, and awaited: a turret's kill, a wound, a parked mount and a
+    // hand on a shoulder all land here, and the next hop is not allowed to
+    // start until they have (MAP.md 3c - a walk is a shortcut through the
+    // clicking, not past the game). It is also what the re-read below reads,
+    // so it cannot move behind it.
+    //
+    // The TELLING is collected instead of done. Sequential all the same when
+    // the caller comes to run it, for the reason this loop is sequential: a
+    // whole party's worth at once trips the invalid-response breaker
+    // (db/lib/discordRest.js).
     for (const entry of hop.moved) {
-      await applyLocationMoveSideEffects(prisma, {
+      const facts = await applyArrivalFacts(prisma, {
         characterId: entry.character.id,
         fromLocationId: entry.fromLocationId,
         toLocationId: entry.toLocationId,
         // Only ever the mover's own mount.
         dismounted: entry.character.id === character.id ? hop.dismounted : undefined,
         walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js)
-      }).catch(() => {});
+      }).catch((err) => {
+        console.error(`Walk: arrival facts failed for ${entry.character.id}:`, err.message ?? err);
+        return null;
+      });
+      if (facts) merged.arrivalFacts.push(facts);
     }
 
     merged.moved.push(...hop.moved);
@@ -120,6 +142,11 @@ async function walkWithinZone(prisma, character, targetLocation) {
     // The caller's cue that it must NOT run its own side-effect loop over
     // `moved` — every one of these already had theirs, per hop. Reusing that
     // loop here would fire every turret twice and re-roll every Caving Die.
+    //
+    // Still true now that only the GAME half ran per hop: what that loop would
+    // redo is the whole of applyLocationMoveSideEffects, turrets included. The
+    // Discord half still owed is `arrivalFacts` — a different list, run once
+    // per entry in it, never per `moved` row.
     sideEffectsApplied: true,
     ...merged,
   };

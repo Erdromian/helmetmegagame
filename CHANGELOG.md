@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · Travelling answers you now instead of leaving you staring at nothing
+
+✎ A move tells you where you landed as soon as it has happened, and Discord catches up behind it -- a walk across a zone used to hold the click open for every channel, role and thread call of every hop, which on a bad day was minutes  
+✎ Go says Working while it works, instead of just going grey and looking broken
+
 ## 2026-09-21 · The travel panel unsticks itself instead of saying you don't know the way
 
 ✎ A place you are already standing in now says so, rather than answering with the line meant for a road you have never seen  

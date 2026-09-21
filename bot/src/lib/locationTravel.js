@@ -26,7 +26,7 @@ const { syncPartyMembership } = require("@lifeweb/db/lib/partyChat");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
 const { walkWithinZone } = require("@lifeweb/db/lib/locationWalk");
 const { stowedMounts } = require("@lifeweb/db/lib/mounts");
-const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove");
+const { applyLocationMoveSideEffects, applyArrivalDiscord } = require("@lifeweb/db/lib/locationMove");
 const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
 const { LOCATION_MEMBER_ALLOW } = require("@lifeweb/db/lib/zoneChannelSpec");
 const { sendDm } = require("@lifeweb/db/lib/dm");
@@ -265,6 +265,18 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
         console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err),
       );
     }
+  }
+
+  // A WALK ran only the game half per hop and handed the telling back, one entry
+  // per arrival in road order (db/lib/locationWalk.js). The web runs these in
+  // after(), because a player is waiting on the response; the bot has no
+  // response to hold open, so it simply does them here — sequentially, like
+  // everything else in this file that talks to Discord in a loop. Empty for a
+  // single hop, which did its own telling above.
+  for (const facts of result.arrivalFacts ?? []) {
+    await applyArrivalDiscord(prisma, facts).catch((err) =>
+      console.error("Move: telling Discord about a walked arrival failed:", err.message ?? err),
+    );
   }
 
   // Caving Die "on arrival" trigger (db/lib/locationTravel.js, CAVING.md). Null off a cave level.

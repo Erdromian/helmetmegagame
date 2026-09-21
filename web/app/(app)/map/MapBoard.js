@@ -1241,8 +1241,18 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
                     that is spent a crossing with no travel left has none to
                     offer, so the button leaves (MAP.md §3). */}
                 {!(nextTurn && travel?.moved) && (
-                  <button type="button" className="btn" disabled={pending} onClick={onGo}>
-                    Go
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={pending}
+                    // Says it is working, the way the Travel panel's Go does and
+                    // in ActionButton.js's words: greying out alone reads as a
+                    // dead button.
+                    data-busy={pending ? "true" : undefined}
+                    aria-busy={pending || undefined}
+                    onClick={onGo}
+                  >
+                    {pending ? "Working…" : "Go"}
                   </button>
                 )}
                 {/* Same button the Travel panel draws, for the same reason. */}
@@ -1251,10 +1261,12 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
                     type="button"
                     className="btn"
                     disabled={pending}
+                    data-busy={pending ? "true" : undefined}
+                    aria-busy={pending || undefined}
                     title="Exert yourself for another free travel."
                     onClick={onExert}
                   >
-                    Push on
+                    {pending ? "Working…" : "Push on"}
                   </button>
                 )}
                 <button type="button" className="btn-quiet" disabled={pending} onClick={onCancel}>

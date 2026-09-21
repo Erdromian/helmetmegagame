@@ -225,9 +225,9 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
 // Everything a location change must do in Discord once the DB write has landed: swap the location overwrite, announce a gate crossing, offer to hold a keyed way open, swap the zone role and reconcile narrowcast if the zone changed, then private-room membership and standing conversation invites wherever they now stand. `entry` is { characterId, fromLocationId, toLocationId, dismounted } — zones are read from the locations, and the character row is re-read so a stale caller can't swap the wrong account.
 // `dismounted` is optional: names db/lib/locationTravel.js#performLocationMove already unequipped for a way too narrow to ride or push through, if this move came from there — see the comment below on why that has to happen inside performLocationMove's own transaction rather than here.
 // `walked` says the character got here ON FOOT, and only a walk leaves the place behind them lit (db/lib/vantages.js). It defaults to FALSE and the two travel callers opt in, so a GM teleport, a rite, a threat spawn, a staged "Relocate to", Xom and a first placement all leave nothing behind — you cannot keep watching a street you never walked out of.
-async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationId, toLocationId, dismounted, walked = false }) {
-  if (!characterId || !toLocationId) return;
-  if (fromLocationId === toLocationId) return;
+async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocationId, dismounted, walked = false }) {
+  if (!characterId || !toLocationId) return null;
+  if (fromLocationId === toLocationId) return null;
 
   // The map remembers. Here rather than in performLocationMove because this function is the one every writer of Character.locationId runs (§4 below) — a GM teleport, first placement, a rite and the turn's arrival pass all land here; hooking the mover instead would leave each a hole in somebody's map. Before the Discord guard for the same reason parking a mount is: knowing where you've been is a database fact and must not depend on there being a token to talk to Discord with.
   // Wrapped, because losing a node off a map must never wedge a move — /map's own loader re-records the character's current location on every open, so a drop here heals itself next time they look.
@@ -386,7 +386,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     // narrowcast seat, room access, pending invites, party membership. The
     // teardown above has just revoked all of it, so running on would hand a
     // dead sheet its threads back.
-    return;
+    return null;
   }
 
   const [fromLocation, toLocation, character] = await Promise.all([
@@ -408,9 +408,7 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
       },
     }),
   ]);
-  if (!toLocation) return;
-
-  const leftZone = Boolean(fromLocation) && fromLocation.zoneId !== toLocation.zoneId;
+  if (!toLocation) return null;
 
   // THE FOG OF WAR (db/lib/vantages.js). Above the Discord guard below, same reasoning as recordArrival: what a character can still see is a database fact, and the web reads it whether or not there is a token to talk to Discord with.
   // ONE STEP. A light stays on only while the place is still directly next door to where they now stand, so walking on past somewhere puts it out — what they watched two streets back is no longer theirs to read. The zone has nothing to do with it either way: walking out through a gate leaves the street behind them lit exactly as any other single step would.
@@ -442,15 +440,71 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
     }).catch((err) => console.error(`Move: lighting the vantage failed for ${characterId}:`, err.message ?? err));
   }
 
-  // No token is still a move: the database says where they stand and what they can still watch, so the web's place list has to be told either way (CHAT.md §3).
-  if (!process.env.DISCORD_TOKEN) {
-    await notifyPresence(prisma, characterId);
-    return;
-  }
-  if (!character?.discordUserId) {
-    await notifyPresence(prisma, characterId);
-    return;
-  }
+  // No token is still a move, and neither is an account with nobody behind it:
+  // the database says where they stand and what they can still watch, so the
+  // web's place list has to be told either way (CHAT.md §3). Said here, at the
+  // end of the facts, rather than once per guard below — it is a Postgres
+  // NOTIFY and not a Discord call, so it costs the same whoever is arriving,
+  // and putting it here is what makes every open /chat tab hear about the move
+  // NOW instead of whenever Discord has finished being told.
+  await notifyPresence(prisma, characterId);
+
+  // Everything above this line is the game: where they stand, what they can
+  // see, what let go of them, what shot at them. It is committed and durable.
+  //
+  // What is left is the TELLING — channel access, roles, threads, the gate
+  // lines, the DMs — and it is HANDED BACK rather than done, exactly the way
+  // performLocationMove hands back its own (ARCHITECTURE.md §4). The web's
+  // mover runs it in after(), so a player is never made to wait on a
+  // rate-limited Discord call to find out they moved. A caller with no response
+  // to hold open just runs applyLocationMoveSideEffects below and notices
+  // nothing.
+  return {
+    characterId,
+    fromLocationId,
+    toLocationId,
+    walked,
+    character,
+    fromLocation,
+    toLocation,
+    droppedWatch,
+    searchesOff,
+    parked,
+    dismountedNames,
+    droppedVantages,
+  };
+}
+
+// The Discord half of an arrival — everything the token guard used to stand in
+// front of, in the order it has always run. `facts` is what applyArrivalFacts
+// returned; NULL means either there was nothing to do or a railroad death has
+// already taken this sheet's threads away, and in both cases there is nothing
+// to tell.
+//
+// Every call in here is sequential and never Promise.all'd: Discord bans an IP
+// for an hour after ten thousand invalid responses (ARCHITECTURE.md §5).
+// Deferring this work moved WHEN it runs, never how fast.
+async function applyArrivalDiscord(prisma, facts) {
+  if (!facts) return;
+  const {
+    characterId,
+    fromLocationId,
+    toLocationId,
+    walked,
+    character,
+    fromLocation,
+    toLocation,
+    droppedWatch,
+    searchesOff,
+    parked,
+    dismountedNames,
+    droppedVantages,
+  } = facts;
+
+  // The presence notify already went out with the facts, so a box with no token
+  // and an account with nobody behind it both have simply nothing to say here.
+  if (!process.env.DISCORD_TOKEN) return;
+  if (!character?.discordUserId) return;
   const discordUserId = character.discordUserId;
 
   // The watch this move just ended, told plainly — the delete happened above the guard, only the letter waits for a token. FIRST of the DMs, ahead of the channel work below, because swapLocationOverwrite/swapRole are unguarded and every caller swallows this function's throw — a Discord 5xx down there and the owner would never hear their watch was gone.
@@ -556,8 +610,17 @@ async function applyLocationMoveSideEffects(prisma, { characterId, fromLocationI
   await notifyPresence(prisma, characterId);
 }
 
+// The two halves together, for every caller with no response to hold open: a GM
+// teleport, a first placement, a rite, the turn's arrival pass, and the whole of
+// bot/. Their behaviour is unchanged — this is the function they always called.
+async function applyLocationMoveSideEffects(prisma, args) {
+  await applyArrivalDiscord(prisma, await applyArrivalFacts(prisma, args));
+}
+
 module.exports = {
   applyLocationMoveSideEffects,
+  applyArrivalFacts,
+  applyArrivalDiscord,
   materializeDiscordPresence,
   reconcileNarrowcastAccess,
   announceLevelFor,
