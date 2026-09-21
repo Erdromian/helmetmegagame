@@ -180,7 +180,7 @@ function summarise(planFor, gameTurns, patternTurns = 15) {
 // ---------------------------------------------------------------------------
 // `seats` is how many people may refine in a turn (db/lib/refinery.js). The main tables assume
 // you can always get one; `seatSensitivity` shows what a crowd does to that.
-function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free = 1, seats = 5 }) {
+function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free = 1, seats = 5, trinkets = null }) {
   const map = loadMap();
   const dist = distances(map.adj);
   const dur = fatigue.durations;
@@ -210,9 +210,12 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       needs: a.skillPoints > 0 ? ["prospecting"] : [],
       pick: true, // the gate is a held pickaxe: 2 points at creation, or a smith makes their own
     }));
-  const farmActs = activities.filter((a) => a.kind === "farm").sort((x, y) => y.perAction - x.perAction);
+  // The best farm on plain ground, and the same with Fertilizer (a 2-point item, so it has to be picked).
+  const farmActs = activities.filter((a) => a.kind === "farm" && !a.fert).sort((x, y) => y.perAction - x.perAction);
   const farmZone = map.sites.farm[0];
   const farmVerb = { id: farmActs[0].id, letter: "F", label: farmActs[0].name, zone: farmZone, value: farmActs[0].perAction, fatigue: "farm", needs: ["soilery"] };
+  const fertAct = activities.find((a) => a.fert && a.id === `${farmActs[0].id}-fert`);
+  const farmVerbFert = fertAct ? { id: fertAct.id, letter: "F", label: fertAct.name, zone: farmZone, value: fertAct.perAction, fatigue: "farm", needs: ["soilery", "fertilizer"] } : null;
   const refineAct = activities.find((a) => a.id === "factory:refine-supplied");
   const refineZone = map.sites.refine[0];
   // A cut and a refine must share a zone: the lump is cut the same turn it is refined.
@@ -224,7 +227,8 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   // A crafter pays for ⬢ whichever way is cheaper: importing at the Depot's buy price, or, where the game
   // lets a family pay in obols (smithing, today), one obol a ⬢. Ask the model, which reads the source.
   const craftValue = (a) => Math.max(a.netPerTurnBuy ?? -Infinity, a.parPayable ? a.netPerTurnObols ?? -Infinity : -Infinity);
-  const craftPool = activities.filter((a) => a.kind === "craft" && a.easy && !a.copy && !oreLimited(a) && a.totalMoves > 0 && craftValue(a) > 0);
+  // A Trinket bought at the shelf needs a Merchant's licence, which is not "easy", but it is a craft anybody with the coin can make.
+  const craftPool = activities.filter((a) => a.kind === "craft" && (a.easy || a.trinket) && !a.copy && !oreLimited(a) && a.totalMoves > 0 && craftValue(a) > 0);
   const craftFor = (skillSet) =>
     craftPool
       .filter((a) => a.skill.split(", ").every((s) => skillSet.has(s)))
@@ -245,9 +249,13 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   const bestMine = mineVerbs.filter((v) => v.needs.length).sort((a, b) => b.value - a.value)[0];
   const aloneRows = [
     { label: "Farm only", verbs: [farmVerb] },
+    ...(farmVerbFert ? [{ label: "Farm only, with Fertilizer", verbs: [farmVerbFert] }] : []),
     { label: "Refine only", verbs: [refineVerb] },
     { label: `Mine only (${bestMine.label.replace("Mine — ", "")})`, verbs: [bestMine] },
   ];
+  // The same seam worked by a Smithing smith who forges what drops, on the rest turn.
+  const forgeRow = trinkets?.prospector?.[`${bestMine.zone}:skilled`]?.skilled;
+  if (forgeRow && forgeRow.net > 0) aloneRows.push({ label: `Mine only (${bestMine.label.replace("Mine — ", "")}), forging the stones (Smithing II)`, verbs: [{ ...bestMine, value: bestMine.value + forgeRow.net }] });
   const bestCraftOverall = craftFor(new Set(["smithing", "smithing-skilled", "crafting"]));
   if (bestCraftOverall) aloneRows.push({ label: `Craft only (${bestCraftOverall.name})`, verbs: [{ id: "craft", letter: "C", zone: null, value: craftValue(bestCraftOverall), fatigue: null }] });
   const alone = aloneRows.map((r) => ({ label: r.label, ...run(r.verbs, true, `alone:${r.label}`) }));
@@ -262,6 +270,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   for (const pickaxe of [0, 1])
    for (const prospecting of [0, 1])
     for (const soilery of [0, 1])
+     for (const fert of soilery && farmVerbFert ? [0, 1] : [0])
       for (const crafting of [0, 1])
         for (const smith of [0, 1, 2])
           for (const brew of [0, 1, 2]) {
@@ -269,6 +278,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
               ...(pickaxe ? ["pickaxe"] : []),
               ...(prospecting ? ["prospecting"] : []),
               ...(soilery ? ["soilery"] : []),
+              ...(fert ? ["fertilizer"] : []),
               ...(crafting ? ["crafting"] : []),
               ...tiers.smithing[smith],
               ...tiers.brewing[brew],
@@ -278,19 +288,36 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
             const points = pointsOf(skillSet);
             const craft = craftFor(skillSet);
             const hasPick = skillSet.has("pickaxe") || skillSet.has("smithing");
+            // A smith who mines can forge what they dig up on the rest turn a miner has anyway. The extra per press is
+            // the Trinkets' profit over selling the stones raw, less the rest-turn Moves they take, which the smith
+            // would otherwise spend on their best craft.
+            let forged = false;
+            const forgeHolder = smith === 2 ? "skilled" : "apprentice";
+            const mined = mineVerbs
+              .filter((v) => (!v.pick || hasPick) && v.needs.every((n) => skillSet.has(n)))
+              .map((v) => {
+                if (!smith || !trinkets) return v;
+                const row = trinkets.prospector[`${v.zone}:${v.needs.length ? "skilled" : "plain"}`]?.[forgeHolder];
+                if (!row) return v;
+                const extra = row.net - row.trinkets * (craft ? craftValue(craft) : 0);
+                if (!(extra > 0)) return v;
+                forged = true;
+                return { ...v, value: v.value + extra, label: `${v.label} + forged stones` };
+              });
             const verbList = [
-              ...mineVerbs.filter((v) => (!v.pick || hasPick) && v.needs.every((n) => skillSet.has(n))),
-              ...(soilery ? [farmVerb] : []),
+              ...mined,
+              ...(soilery ? [fert ? farmVerbFert : farmVerb] : []),
               refineVerb,
               ...(craft ? [{ id: "craft", letter: "C", zone: null, value: craftValue(craft), fatigue: null }] : []),
             ];
-            const key = `${prospecting}${soilery}${hasPick ? 1 : 0}|${craft?.slug ?? "-"}`;
+            const key = `${prospecting}${soilery}${fert}${hasPick ? 1 : 0}|${craft?.slug ?? "-"}|f${forged ? smith : 0}`;
             verbsOf.set(picked.join("+"), { verbList, key });
             loadouts.push({
               skills: picked.length ? picked.map((s) => bySlug.get(s)?.name ?? s) : ["no skills"],
               picked,
               points,
               craft: craft ? { name: craft.name, value: craftValue(craft), skill: craft.skill } : null,
+              forgesStones: forged,
               withFactory: run(verbList, true, key),
               noFactory: run(verbList, false, key),
             });
@@ -344,7 +371,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       "Farm to the Depot": between(farmZone, "undertown"),
       "Factory to the Depot": between(refineZone, "undertown"),
     },
-    verbs: [farmVerb, refineVerb, ...mineVerbs].map((v) => ({ label: v.label, zone: v.zone, value: v.value, fatigue: v.fatigue, needs: v.needs })),
+    verbs: [farmVerb, ...(farmVerbFert ? [farmVerbFert] : []), refineVerb, ...mineVerbs].map((v) => ({ label: v.label, zone: v.zone, value: v.value, fatigue: v.fatigue, needs: v.needs })),
     alone,
     loadouts,
     staircase,

@@ -448,6 +448,63 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     butcher: [],
   };
+  // Built here so the wage list, the planner and the ladders can all see it; the top wage rung and the Move value
+  // it does not need yet are filled in below.
+  const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers: [], moveValue: null });
+
+  // --- Trinkets: a whole Move, 4 ⬢, up to two stones and a d6 (TRINKETS.md) ------------------------
+  // Priced after the Merchant's cut like every craft. Own stones are not here: they come out of a Mine press and
+  // are folded into the mining rows and the planner, since a stone is an ore's worth of a press.
+  {
+    const smithingPts = skillChain("smithing").points;
+    const skilledPts = skillChain("smithing-skilled").points;
+    const holders = [
+      { id: "apprentice", skill: "smithing", points: smithingPts, label: "Smithing", best: trinkets.shelfLoop.bestApprentice },
+      { id: "skilled", skill: "smithing-skilled", points: skilledPts, label: "Smithing II", best: trinkets.shelfLoop.bestSkilled },
+    ];
+    for (const h of holders) {
+      for (const kind of ["none", "shelf"]) {
+        const set = kind === "shelf" ? h.best : { stones: [], inlay: 0, stoneCost: 0 };
+        if (!set) continue;
+        const net = trinkets.expectedProfit(h.id, set.inlay, set.stoneCost, true);
+        const raw = trinkets.expectedProfit(h.id, set.inlay, set.stoneCost, false);
+        push({
+          id: `trinket:${kind}:${h.id}`,
+          name: kind === "shelf" ? `Forge a Trinket — ${set.stones.join(" + ")} off the shelf` : "Forge a Trinket — no stones",
+          slug: `trinket-${kind}-${h.id}`,
+          kind: "craft",
+          family: "smithing",
+          craftFamily: "smithing",
+          skill: h.skill,
+          skillPoints: h.points,
+          moves: 1,
+          totalMoves: 1,
+          revenue: null,
+          inputs: trinkets.dieCost + set.stoneCost,
+          inputsBuy: trinkets.dieCost + set.stoneCost,
+          resourceCost: trinkets.gate.resources,
+          duty: 1,
+          netPerTurnSell: net,
+          netPerTurnBuy: net,
+          rawPerTurnBuy: raw,
+          rawPerTurnSell: raw,
+          merchantCut: raw - net,
+          perAction: net,
+          easy: kind === "none",
+          workshop: true,
+          copy: false,
+          madeAtHome: [],
+          parPayable: false,
+          netPerTurnObols: null,
+          oreNeeds: [],
+          trinket: true,
+          needsText: kind === "shelf" ? `${set.stones.join(" + ")} (a Merchant's licence)` : "nothing",
+          flags: ["a d6 sets the tier; expected over the tiers the die can give", ...(kind === "shelf" ? ["stones bought at the shelf"] : [])],
+        });
+      }
+    }
+  }
+
   const lootEv = (zoneKey, skilled) => ({ ev: evOf(producerDrops.prospecting[zoneKey][skilled ? "skilled" : "plain"]) });
 
   // The gate is a held Pickaxe; Prospecting multiplies both the ⬢ (x1.7) and the loot column
@@ -553,6 +610,35 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       netPerTurnSell: (revenue - seedCost) * farmDuty,
       netPerTurnBuy: (revenue - seedCost) * farmDuty,
       flags,
+    });
+  }
+
+  // Fertilizer on tobacco: no wither die and a double plant now and then. A 2-point item, so it counts in the skill points.
+  const fertTag = get("fertilizer");
+  const tobTag = get("tobacco");
+  if (fertTag && tobTag && foodCrops.some((c) => c.crop === "tobacco")) {
+    const rule = cropRule("tobacco");
+    const seed = get("tobacco-seed-bag")?.depotPrice ?? 0;
+    const leaves = farmMaxCrops * (1 + 1 / soilery.BOUNTY_IN) * rule.cropsPerPlant;
+    const revenue = leaves * (tobTag.sellablePrice ?? 0);
+    const inputs = seed + (fertTag.depotPrice ?? 0);
+    push({
+      id: "farm:tobacco-fert",
+      name: "Farm — Tobacco, with Fertilizer",
+      kind: "farm",
+      family: "farming",
+      skill: "soilery",
+      skillPoints: soileryTag.pointCost + (fertTag.pointCost ?? 0),
+      moves: 1,
+      revenue,
+      inputs,
+      inputsBuy: inputs,
+      duty: farmDuty,
+      harvest: leaves,
+      fert: true,
+      netPerTurnSell: (revenue - inputs) * farmDuty,
+      netPerTurnBuy: (revenue - inputs) * farmDuty,
+      flags: [`lockout: one farm every ${farmCycle} turns`, "Fertilizer: no wither die, a double plant 1 time in 6"],
     });
   }
 
@@ -771,7 +857,14 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     { key: "Miner, pickaxe only (Caves)", value: byId("mine:Caves:unskilled")?.netPerTurn },
     { key: "Prospector (Caves)", value: byId("mine:Caves:skilled")?.netPerTurn },
     ...baselines.map((b) => ({ key: b.key, value: b.value, baseline: true })),
-    { key: "Farmer (potato, sold)", value: byId("farm:potato")?.netPerTurn },
+    { key: "Farmer, food (valued at the Ration Box)", value: byId("farm:potato")?.netPerTurn },
+    { key: "Farmer, tobacco", value: byId("farm:tobacco")?.netPerTurn },
+    { key: "Farmer, tobacco + Fertilizer", value: byId("farm:tobacco-fert")?.netPerTurn },
+    { key: "Smith forging Trinkets (Smithing II, shelf stones)", value: byId("trinket:shelf:skilled")?.netPerTurn },
+    {
+      key: "Miner-smith forging own stones (Caves, pick only)",
+      value: (byId("mine:Caves:unskilled")?.netPerTurn ?? 0) + (trinkets.prospector["caves:plain"]?.apprentice?.net ?? 0) * mineDuty,
+    },
     { key: "Factory solo", value: byId("factory:solo")?.netPerTurn },
   ].filter((w) => w.value != null && w.value > 0);
 
@@ -784,6 +877,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     gameTurns,
     free: freeMoves ?? schemaDefault("freeZoneMovesPerTurn"),
     seats: refinery.REFINERY_MAX_WORKERS,
+    trinkets,
   });
 
   // --- the price ladder ------------------------------------------------------
@@ -1047,7 +1141,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
   const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, refs: { factoryShift: shift, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
-  const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue: moveValueUsed });
+  trinkets.shelfLoop.topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
+  trinkets.moveValue = moveValueUsed;
   const lucky = buildLucky({ get, rv, caving, trinkets, moveValue: moveValueUsed, gameTurns });
   const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);
   const red = byId("craft:ravenheart-red");
