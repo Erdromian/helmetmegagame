@@ -196,7 +196,7 @@ export default function HealDialog({ mode, presets, onDone, onClose }) {
           <p className={`text-xs ${affliction.gambit ? "text-accent" : "text-muted"}`}>
             Costs <span className="mono">{affliction.cost} ⬢</span>.
             {affliction.gambit
-              ? " This is a Gambit: you spend your Move, a GM reads the roll at the turn's close, and nothing comes off them until then."
+              ? ` This is a Gambit: you spend your Move, and the die is read when the turn closes. You need a ${affliction.threshold} or better on a d6 plus your modifiers. Miss it and they're left worse off — the further under, the worse.`
               : affliction.moveCost?.kind === "free"
                 ? ` First aid doesn't cost a Move — ${pools.healsLeft === 1 ? "1 free treatment" : `${pools.healsLeft ?? "a few"} free treatments`} left this turn.`
                 : ` This costs ${affliction.moveCost?.num === affliction.moveCost?.den ? "your whole Move" : `${formatMoveAmount(affliction.moveCost?.num, affliction.moveCost?.den)} of your Move`}${affliction.moveCost?.kind === "spill" ? ", over the free first aid" : ""}.`}

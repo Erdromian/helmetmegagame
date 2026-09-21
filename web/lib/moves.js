@@ -69,6 +69,15 @@ function isAutoLesson(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_LESSON);
 }
 
+// A medical Gambit (db/lib/healGambitPass.js): resolved the same way a
+// lesson is, at the turn's close rather than by a GM — it arrives SOLVED
+// with its own result line already written.
+const AUTO_HEAL_GAMBIT = "auto:heal_gambit";
+
+function isAutoHealGambit(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_HEAL_GAMBIT);
+}
+
 // gmNotes can carry more than one marker, so check for the substring, not equality.
 export function isTravelMove(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_ZONE_CHANGE);
@@ -89,6 +98,7 @@ export function moveKindLabel(moveKind, gmNotes) {
   if (isAutoLesson(gmNotes)) return "Lesson (auto)";
   if (isAutoFarm(gmNotes)) return "Farming";
   if (isAutoBreakArelitz(gmNotes)) return "Breaking in an arelitz";
+  if (isAutoHealGambit(gmNotes)) return "Heal (auto)";
   return MOVE_KIND_LABELS[moveKind] ?? "Move";
 }
 

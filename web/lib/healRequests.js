@@ -1,5 +1,6 @@
 // Pure — no Prisma, no server imports — so the client picker and healCharacterRequest can never disagree.
 export { buildSkillAncestry, satisfiedSkillIds, canTreatAsRoutine }from "@lifeweb/db/lib/medicalVision";
+import { DYING_SLUG } from "@lifeweb/db/lib/constants";
 
 export const HEAL_SKILL_SLUG = "medical-basic";
 
@@ -36,8 +37,11 @@ export function isGambitHeal(tag, satisfied) {
   return Boolean(tag.requirementGambit) || missingSkillsFor(tag, satisfied).length > 0;
 }
 
-// Non-minor surgery needs a site (M3, TAGS.md §5c).
+// Non-minor surgery needs a site (M3, TAGS.md §5c). Dying is the one
+// exception: it requires medical-expert but is a field rescue, not a
+// procedure, so it's exempt outright (docs/tags.yaml `dying:` comment).
 export function needsSurgicalSite(tag) {
+  if (tag?.slug === DYING_SLUG) return false;
   return (tag?.requirementSkills ?? []).some((skill) => skill.slug === "medical-expert");
 }
 

@@ -37,6 +37,7 @@ import {
   SAINT_SLUG,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
+import { medicTierOf, healThreshold } from "@lifeweb/db/lib/healGambit";
 import {
   canReachParty,
   outOfReachMessage,
@@ -126,6 +127,10 @@ export async function healCharacterRequestImpl({
     character.tags.map((ct) => ct.tagId),
     ancestry,
   );
+  // healThreshold() reads Medical tier off slugs, not ids — cheap to build
+  // once off the same flat catalog rather than teaching db/lib/healGambit.js
+  // about ancestry ids.
+  const satisfiedSlugs = new Set(catalog.filter((t) => satisfied.has(t.id)).map((t) => t.slug));
   const healSkillId = catalog.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   if (!healSkillId || !satisfied.has(healSkillId)) {
     throw new UserError("You need Medical I to treat anyone.");
@@ -261,6 +266,13 @@ export async function healCharacterRequestImpl({
     note: null,
   };
 
+  // The number the roll has to clear, frozen at file time the same reason
+  // `requirement` below is: db/lib/healGambitPass.js reads it back rather
+  // than recomputing, so a mid-turn db:sync-tags can't move the goalposts on
+  // an attempt already in flight. Undefined off the gambit branch — a
+  // routine cure never needs one.
+  const threshold = gambit ? healThreshold(held.tag, medicTierOf(satisfiedSlugs)) : null;
+
   const effect = {
     targetCharacterId: target.id,
     targetName: target.name,
@@ -275,13 +287,15 @@ export async function healCharacterRequestImpl({
     },
     resourcesSpent: cost,
     payer: { kind: payer.kind, id: payer.id, name: payer.name },
-    // A gambit heal is an ATTEMPT — die rolled at turn close, GM applies the
-    // outcome from /gm/turns, nothing has left the patient yet. `pending`
-    // tells Undo no tag came off, and it stays TRUE forever — the request
-    // only charged a fee and filed a Move; whatever the GM writes later is their own edit.
+    // A gambit heal is an ATTEMPT — die rolled at file time, the outcome
+    // resolved by db/lib/healGambitPass.js at the turn's close, nothing has
+    // left the patient yet. `pending` tells Undo no tag came off, and it
+    // stays TRUE forever — the request only charged a fee and filed a Move;
+    // whatever the pass writes is its own edit, on its own audit row.
     gambit,
     pending: gambit,
     surgicalPenalty,
+    threshold,
     // What the catalog charged at the time, so a later review sees the
     // price actually quoted rather than today's tags.yaml.
     requirement: {

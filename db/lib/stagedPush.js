@@ -454,6 +454,8 @@ async function runStagedPushPass(prisma, turn) {
   // what it did, in one line. A settled lesson carries appliedEffects and never
   // reaches `unapplied` anyway — the marker check still earns its place for a
   // lesson accepted BEFORE that change shipped, which is OPEN with no effects.
+  // A heal Gambit is excluded too: db/lib/healGambitPass.js already told both the
+  // medic and the patient the die and the outcome, in one line each.
   const gambitRollNotices = [];
   for (const action of unapplied) {
     if ((action.gmNotes ?? "").includes("auto:lesson")) continue;
@@ -461,6 +463,7 @@ async function runStagedPushPass(prisma, turn) {
     // outcome (breakInDm below) — the bare "you rolled X" notice would just
     // be a confusing, contextless second message ahead of it.
     if ((action.gmNotes ?? "").includes("auto:break_arelitz")) continue;
+    if ((action.gmNotes ?? "").includes("auto:heal_gambit")) continue;
     if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
       gambitRollNotices.push({
         discordUserId: action.character.discordUserId,

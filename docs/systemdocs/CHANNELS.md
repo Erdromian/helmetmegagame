@@ -76,8 +76,14 @@ sit together the way `docs/zones.yaml` lists them rather than clumped by
 level.
 
 **A Location** — where a character actually stands — is one text channel,
-named after its slug, parented to its zone's category (or the Caves category
-for a cave-level Location). Its topic is the Location's `description`
+named after its **name**, not its slug (`Fracturing Waterway` is
+`#fracturing-waterway`, not `#hills-waterway`), parented to its zone's category
+(or the Caves category for a cave-level Location). The slug stays a database
+handle nobody reads; `locationChannelName` in `db/lib/zoneChannelSpec.js`
+lowercases the name and dashes out anything else, the way Discord would anyway,
+and falls back to the slug for a name that reduces to nothing. Two Locations
+sharing a name in one zone would make the channel ambiguous to adopt, so don't
+do that. Its topic is the Location's `description`
 (truncated to Discord's 1024-character cap). Its Rooms (§4) are threads under
 it that only the bot may create. It is opened by a per-member overwrite, not a
 role (§3).

@@ -3,14 +3,31 @@
 Game one's database died on day 10 to one bad command, with no backup anywhere.
 This is what stands between that and a second time.
 
-There are two layers, and they fail in different ways on purpose. The first
-rewinds the clock; the second survives losing Railway.
+There are two layers on paper, and they fail in different ways on purpose. The
+first rewinds the clock; the second survives losing Railway. **The first is
+currently disabled** — see below — so right now the nightly dumps in §2 are
+the only backup that exists.
 
-## 1. Point-in-time recovery — the one that matters
+## 1. Point-in-time recovery — disabled as of 2026-09-18
 
-Railway's Postgres runs continuous WAL archiving into a bucket it manages
-(`Postgres-PITR`). Every committed transaction is shipped, so recovery is not
-"restore last night", it is **restore to any second**.
+Railway's Postgres can run continuous WAL archiving into a bucket it manages
+(`Postgres-PITR`). Every committed transaction gets shipped, so recovery isn't
+"restore last night", it's **restore to any second** — while it's on.
+
+**It's off right now.** The `Postgres-PITR` bucket had grown to 335 MB with no
+way to cap it — this repo has no script, env var, or CLI knob for its
+retention window, and on the Hobby plan there is no schedule/snapshot control
+either (see "What is NOT available" below). Rather than let it keep growing
+unbounded, Bascinet had it turned off outright:
+
+```
+railway postgres pitr disable --service Postgres --yes
+```
+
+Re-enabling it is one command (`railway postgres pitr enable --service
+Postgres`) and costs nothing extra on Hobby — it's the ongoing storage that was
+the problem, not the feature. The commands below only work again once it's
+back on.
 
 ```
 railway postgres pitr status  --service Postgres
@@ -24,8 +41,8 @@ alongside the real one, you look inside it, and only then do you decide to move
 `DATABASE_URL` over. That is the right shape for a panic — nothing is destroyed
 by attempting a recovery, so it is safe to try one while unsure.
 
-So the recovery from a bad command is: note roughly when it ran, restore to a
-minute before it, inspect, cut over.
+If it's on, the recovery from a bad command is: note roughly when it ran,
+restore to a minute before it, inspect, cut over.
 
 ### What is NOT available
 
@@ -49,7 +66,10 @@ its archive goes with it. So a second copy is written in a portable format.
 
 `ops/backup/` is a small image deployed as a Railway **cron service** in the same
 project. Once a night it runs `pg_dump`, checks the dump is readable, uploads it
-to the `bascinet-backups` bucket, and drops all but the newest 30.
+to the `bascinet-backups` bucket, and drops all but the newest 5 (`KEEP_DUMPS`
+on the `backup` service; `ops/backup/backup.sh`'s own fallback matches it).
+That's roughly a 5-day window — with PITR off, **this is now the only backup
+that exists**, so don't shrink it further without something else in place.
 
 The dump is `pg_dump --format=custom`, which any Postgres can load — it does not
 need Railway, this repo, or the same schema version.
@@ -91,7 +111,7 @@ it** or every backup starts failing.
 
 Both layers above are all-or-nothing: they restore a whole database at a moment
 in time. Neither can answer "give me just game 4's transcript", and the dumps
-only reach back thirty nights anyway.
+only reach back five nights anyway.
 
 So a finished game is also written out on its own, as one gzipped JSONL file
 under `archives/` in the same bucket — see
@@ -141,9 +161,9 @@ production migration is always preceded by a fresh dump. `npm run deploy`
 (`scripts/deploy.sh`) takes the same dump before it pushes, and the push's
 Pre-Deploy Command does the migrating.
 
-Note that PITR covers this case better than the dump does: if a migration eats a
-column, the fix is to restore to the minute before the migration ran, not to
-find last night's dump.
+PITR used to cover this case better than the dump does — restore to the minute
+before the migration ran instead of finding last night's dump — but it's off
+(see §1), so a migration mistake is a dump restore like anything else right now.
 
 ## Credentials
 
@@ -159,7 +179,16 @@ account token cannot redeploy.
 
 ## If you are reading this during an incident
 
+PITR is off (§1), so there is no "restore to the exact minute" option right
+now — the nightly dump is the recovery path:
+
 1. Don't run anything else against the database yet.
-2. `railway postgres pitr restore --service Postgres --at <a minute before it broke>`
-3. That makes a new service. Look in it. The live database is untouched.
-4. Cut `DATABASE_URL` over only once you have seen the data is right.
+2. `python3 scripts/db/bucket.py get <latest .dump from npm run db:backups>`,
+   or run `restore.sh <name>` on the `backup` service — see "Restoring a dump"
+   above. Either way this builds/loads into a separate place; it does not
+   touch the live database on its own.
+3. Inspect it. Cut `DATABASE_URL` over only once you've seen the data is
+   right, and only then.
+4. If PITR is back on when this happens instead, prefer
+   `railway postgres pitr restore --service Postgres --at <a minute before it
+   broke>` — it's the better tool when it's available.

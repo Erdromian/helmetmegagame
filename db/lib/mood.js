@@ -383,6 +383,10 @@ function woundRungOf(tag) {
   const gambit = Boolean(tag.requirementGambit);
   if (resources == null && tag.requirementTurns == null && !gambit) return 0;
   if (gambit) return 7;
+  // Dying no longer carries requirementGambit (MEDICAL.md §3a), but it's
+  // still the worst wound on a sheet — pinned at rung 7 by slug, mirroring
+  // severityRungOf's own exemption in db/lib/healGambit.js.
+  if (tag.slug === DYING_SLUG) return 7;
   const r = resources ?? 0;
   if (r >= 8) return 6;
   if (r >= 6) return 5;

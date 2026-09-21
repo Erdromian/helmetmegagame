@@ -15,7 +15,7 @@ set -eu
 : "${AWS_SECRET_ACCESS_KEY:?AWS_SECRET_ACCESS_KEY is not set}"
 export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-auto}"
 
-KEEP="${KEEP_DUMPS:-30}"
+KEEP="${KEEP_DUMPS:-5}"
 PREFIX="${S3_PREFIX:-dumps}"
 stamp=$(date -u +%Y-%m-%dT%H%M%SZ)
 name="bascinet-${stamp}.dump"

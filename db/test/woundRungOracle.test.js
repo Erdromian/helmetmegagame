@@ -94,6 +94,7 @@ function loadCurrentWoundRungs() {
       healable: entry.healable ?? false,
     });
     const shape = {
+      slug: entry.slug,
       groupSlug: entry.group,
       cureRung: entry.cureRung ?? null,
       requirementResources: entry.requirement?.resourceCost ?? null,

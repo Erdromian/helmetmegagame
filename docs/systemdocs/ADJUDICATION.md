@@ -264,15 +264,17 @@ tray as "unattached" for the GM to keep or drop.
   say what it actually did. Nothing else shows a player their own roll: not
   the confirm DM, not `/character`. Every confirmed Gambit gets the DM
   regardless of what else the push sent them.
-- **Some Gambits never reach a GM at all.** A heal Gambit (`TAGS.md` §5c)
-  sits OPEN on this desk because a GM has to read the roll and decide what it
-  did. A Lesson doesn't: it is resolved entirely by its own turn pass, which
-  rolls, grants and DMs a learner before this desk ever sees the row
-  (`TURN-ENGINE.md` §2) — so by the time it shows up here it is already
-  `SOLVED`, `resultMessage` filled in, and the DM already sent. The row still surfaces between file and close like any other Move; a
-  GM overwriting `resultMessage` on it is a real edit, not a no-op, and the
-  written line stands — the same guard a Lesson's own GM-authored result
-  gets.
+- **Some Gambits never reach a GM at all.** A Lesson doesn't: it is resolved
+  entirely by its own turn pass, which rolls, grants and DMs a learner before
+  this desk ever sees the row (`TURN-ENGINE.md` §2). A heal Gambit
+  (`MEDICAL.md` §3a, `TAGS.md` §5c) is the same shape now:
+  `db/lib/healGambitPass.js` reads its die against a threshold set by the skill
+  gap and either cures the affliction or adds a scaled complication, DMing the
+  medic and the patient a line each. So by the time either shows up here it is
+  already `SOLVED`, `resultMessage` filled in, and the DM already sent. The row
+  still surfaces between file and close like any other Move; a GM overwriting
+  `resultMessage` on it is a real edit, not a no-op, and the written line
+  stands — the same guard a Lesson's own GM-authored result gets.
 - **One auto-filed craft Routine can hold several crafts.** Still one Action
   per character per turn — that does not move — but a craft may cost a
   *fraction* of it, so the row reads "Crafting this turn: 2× Alcohol, 1× Cat.

@@ -40,6 +40,7 @@ function buildSideEffectPayload(fields) {
     note: fields.note ?? null,
     lessonDms: fields.lessonDms ?? [],
     confessionDms: fields.confessionDms ?? [],
+    healGambitDms: fields.healGambitDms ?? [],
     trinketDms: fields.trinketDms ?? [],
     tagExpiryDms: fields.tagExpiryDms ?? [],
     turretBursts: fields.turretBursts ?? [],

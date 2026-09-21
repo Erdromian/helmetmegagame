@@ -53,6 +53,7 @@ const { runStagedPushPass } = require("./lib/stagedPush");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
 const { runConfessionPass } = require("./lib/confessionPass");
+const { runHealGambitPass } = require("./lib/healGambitPass");
 const { expireQuestsPass: runQuestExpiryPass } = require("./lib/quests");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
 // are three same-named sendDm exports with three signatures.
@@ -224,6 +225,12 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
 const TURN_PASSES = [
   "lessons",
   "confessions",
+  // Medical Gambits (db/lib/healGambitPass.js): same reasoning as Research
+  // and Confession, and after Confessions rather than sharing their slot —
+  // it reads its own request_heal_character audit rows rather than an
+  // Offer, so it has no ordering dependency on the offer-expiry pass either
+  // of the other two shares.
+  "healGambit",
   "stagedPush",
   "tagExpiry",
   // Counts Damaged Vision stacks and turns 5 of them into Blind. After
@@ -430,6 +437,30 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Confessions audit log failed:", err));
+  }
+
+  // Medical Gambits (db/lib/healGambitPass.js): same slot and the same
+  // reason as Research and Confession — the die was decided at file time,
+  // this is where it's read and turned into a cure or a complication.
+  let healGambit = null;
+  if (!done.has("healGambit")) {
+    healGambit = await runHealGambitPass(prisma, turn).catch(async (err) => {
+      await passFailed("Heal Gambits", err);
+      return null;
+    });
+    if (healGambit) await markDone("healGambit");
+  }
+  const { dms: healGambitDms = [], ...healGambitSummary } = healGambit ?? {};
+  if (healGambit && (healGambit.resolved || healGambit.failed)) {
+    await prisma.auditLog
+      .create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "heal_gambits_resolved",
+          details: healGambitSummary,
+        },
+      })
+      .catch((err) => console.error("Heal Gambits audit log failed:", err));
   }
 
   // The staged-arbitration push (db/lib/stagedPush.js). Slot is
@@ -1297,6 +1328,7 @@ async function resolveNeeds(turn, config) {
     hungerNotices,
     lessonDms,
     confessionDms,
+    healGambitDms,
     tagExpiryDms,
     catatonicDms,
     catatonicRoleUpdates,
@@ -1466,6 +1498,7 @@ async function advanceTurn() {
   let hungerNotices = [];
   let lessonDms = [];
   let confessionDms = [];
+  let healGambitDms = [];
   let tagExpiryDms = [];
   let depotLines = [];
   let turretDms = [];
@@ -1524,6 +1557,7 @@ async function advanceTurn() {
       hungerNotices,
         lessonDms,
       confessionDms,
+      healGambitDms,
       tagExpiryDms,
       catatonicDms,
       catatonicRoleUpdates,
@@ -1619,6 +1653,7 @@ async function advanceTurn() {
         hungerNotices,
             lessonDms,
         confessionDms,
+        healGambitDms,
         tagExpiryDms,
         catatonicDms,
         catatonicRoleUpdates,
@@ -1731,6 +1766,7 @@ async function advanceTurn() {
     note,
     lessonDms,
     confessionDms,
+    healGambitDms,
     tagExpiryDms,
     turretBursts,
     depotLocationId,

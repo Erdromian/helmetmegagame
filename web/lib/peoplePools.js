@@ -17,6 +17,7 @@ import { craftMoveCost } from "@/lib/craftBudget";
 import { MEDICAL_SIMPLE_PER_TURN } from "@/lib/requests";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { SURGICAL_EQUIPMENT_SLUG, PORTABLE_SURGICAL_PACK_SLUG } from "@lifeweb/db/lib/constants";
+import { medicTierOf, healThreshold } from "@lifeweb/db/lib/healGambit";
 import {
   HEALABLE_CATEGORY,
   HEAL_SKILL_SLUG,
@@ -248,6 +249,10 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   );
   const healSkillId = tierRows.find((t) => t.slug === HEAL_SKILL_SLUG)?.id;
   const canHeal = Boolean(healSkillId && satisfied.has(healSkillId));
+  // healThreshold() reads Medical tier off slugs, not ids — same reason
+  // web/app/(app)/character/actions/medical.js builds this same set.
+  const satisfiedSlugs = new Set(tierRows.filter((t) => satisfied.has(t.id)).map((t) => t.slug));
+  const medicTier = medicTierOf(satisfiedSlugs);
 
   // Surgery needs a site (M3, TAGS.md §5c; reworked M6b): resolved once,
   // server-side, so a tier-6/7 row can quote it the same way CraftDialog
@@ -342,6 +347,12 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
             cost: healCost(tag),
             requirementLabel: formatTagRequirement(tag),
             gambit,
+            // What the roll has to clear (db/lib/healGambit.js#healThreshold),
+            // so the dialog can say the real odds before the medic commits —
+            // a Basic reaching for a tier-6 wound needs to see "you need a 7"
+            // rather than discover it's unwinnable after paying for it.
+            // Undefined off a routine cure, which never rolls.
+            threshold: gambit ? healThreshold(tag, medicTier) : null,
             // Tier 6/7 only (M3) — the dialog greys out nothing on this, since
             // a Gambit is always offered rather than refused; it just warns.
             needsSite: needsSurgicalSite(tag),

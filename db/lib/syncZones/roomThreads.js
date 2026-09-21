@@ -174,7 +174,23 @@ async function roomComponents(prisma, room, locationId) {
 // on the watchtower's starter post instead (roomComponents above), so nobody
 // drops a portcullis from the open road.
 async function syncLocationAnchor(prisma, location, rooms) {
+  // Read the anchor columns back before deciding anything. `location` here is
+  // usually a row out of a mirror pass's opening snapshot (discordMirror/
+  // index.js#loadRows), and that pass then walks fifty-odd Locations one at a
+  // time — so by the time this one's turn comes round, the snapshot can be
+  // minutes old. Any second pass that started in that window (the bot's ready
+  // doctor, the turn wrapup, somebody's db:mirror) is carrying the same stale
+  // "no anchor yet" and posts a second copy of the starting message into a
+  // freshly made channel. That is the duplicate. The freshest row costs one
+  // query and is the only thing either pass should be deciding on.
   if (!location.discordChannelId) return "skipped";
+  const fresh = await prisma.location
+    .findUnique({ where: { id: location.id }, select: { anchorMessageId: true, anchorHash: true } })
+    .catch(() => null);
+  if (fresh) {
+    location.anchorMessageId = fresh.anchorMessageId;
+    location.anchorHash = fresh.anchorHash;
+  }
 
   const body = buildAnchorBody(location, rooms);
   // Whole set of rows, not just the id: Noticeboard is conditional on

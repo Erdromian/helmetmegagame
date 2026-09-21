@@ -73,6 +73,7 @@ async function confirmMove(prisma, action, actorDiscordUserId) {
     roll: {
       gambit: action.moveKind === "GAMBIT",
       resourceValue: rollResult ? rollResult.value : null,
+      locationName,
       // `-#` is Discord subtext; a plain-text surface strips the prefix.
       bonusNote: bonusNote ? bonusNote.replace(/^-#\s*/, "") : null,
       applied: appliedLine || null,
