@@ -3,7 +3,7 @@
 # GM and superadmin controls. For trying the UI and saying what to fix.
 #
 # Run it (paste into Terminal):
-#   curl -fsSL https://raw.githubusercontent.com/peace-lock/helmetmegagamev3/master/scripts/playground.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/BascinetMegagame/helmetmegagame/master/scripts/playground.sh | bash
 #
 # Run it again any time: it pulls the newest version, keeps your world, and
 # opens the browser. Ctrl+C in the Terminal window stops it.
@@ -20,7 +20,7 @@ set -euo pipefail
 DIR="${BASCINET_DIR:-$HOME/Bascinet}"
 PORT="${BASCINET_PORT:-3000}"
 DB="${BASCINET_DB:-bascinet_playground}"
-REPO="https://github.com/peace-lock/helmetmegagamev3.git"
+REPO="https://github.com/BascinetMegagame/helmetmegagame.git"
 
 # Whatever the shell exports must never beat the playground's own database.
 unset DATABASE_URL
