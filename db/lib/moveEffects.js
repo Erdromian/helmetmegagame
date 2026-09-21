@@ -21,10 +21,10 @@ async function addResources(tx, characterId, amount, ctx) {
 
 const { characterParty, recordDelta, record, BURN } = require("./economyLedger");
 const { addCharacterResources } = require("./resourceStack");
-const { TIRED_SLUG, EXHAUSTED_SLUG, ARELITZ_SLUG } = require("./constants");
+const { TIRED_SLUG, ARELITZ_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { expiryFrom } = require("./turnFormat");
-const { applyFatigueStep, revertFatigueStep, grantExhaustedOutright } = require("./fatigue");
+const { applyFatigueStep, revertFatigueStep } = require("./fatigue");
 const { drawProspectingLoot } = require("./cavingLoot");
 const { PROSPECTING_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
@@ -202,10 +202,11 @@ const MOVE_EFFECTS = {
         });
       }
 
-      // Never `tired` directly (Context §2 of the plan): a day at the plough grants Exhausted
-      // OUTRIGHT, replacing a held Tired rather than escalating through it.
+      // The same ladder a day's mining and a Factory shift climb (db/lib/fatigue.js): Tired on the
+      // first day, Exhausted on the second. Farming used to grant Exhausted OUTRIGHT, which made it
+      // the one day-verb you could never work twice running; it is one ladder for every verb now.
       const turn = await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } });
-      const fatigue = turn ? await grantExhaustedOutright(tx, action.characterId, turn.number) : null;
+      const fatigue = turn ? await applyFatigueStep(tx, action.characterId, turn.number) : null;
 
       return { rows, fatigue };
     },
@@ -215,26 +216,9 @@ const MOVE_EFFECTS = {
       for (const row of snapshot.rows ?? []) {
         if (row.reaped > 0) await dropCharacterTag(tx, action.characterId, row.tagId, row.reaped);
       }
-      const fatigue = snapshot.fatigue;
-      if (!fatigue) return;
-      const exhaustedTag = await tx.tag.findUnique({ where: { slug: EXHAUSTED_SLUG }, select: { id: true } });
-      if (exhaustedTag) {
-        await tx.characterTag.deleteMany({ where: { characterId: action.characterId, tagId: exhaustedTag.id } });
-      }
-      if (fatigue.replacedTired) {
-        const tiredTag = await tx.tag.findUnique({ where: { slug: TIRED_SLUG }, select: { id: true } });
-        if (tiredTag) {
-          await tx.characterTag.createMany({
-            data: [{
-              characterId: action.characterId,
-              tagId: tiredTag.id,
-              source: "EVENT",
-              expiresTurn: fatigue.replacedTired.expiresTurn,
-            }],
-            skipDuplicates: true,
-          });
-        }
-      }
+      // Same snapshot shape as `refined` now that both climb the one ladder, so the one
+      // revert serves both.
+      if (snapshot.fatigue) await revertFatigueStep(tx, action.characterId, snapshot.fatigue);
     },
   },
 
@@ -369,4 +353,4 @@ function describeMoveEffects(applied) {
 
 // The Move d6 lives in db/lib/rollDie.js so advantage.js can reach it without requiring this file back; still re-exported below.
 // addResources is exported for db/lib/stagedPush.js, which pushes GM-staged resource adjustments through the same clamp-and-report statement.
-module.exports = { addResources, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie };
+module.exports = { addResources, applyMoveEffects, revertMoveEffects, describeMoveEffects, rollDie, MOVE_EFFECTS };

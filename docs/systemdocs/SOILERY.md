@@ -214,13 +214,12 @@ rides along on the `Action` row for that later resolution.
 
 - `read(action)` — `1` if `action.farmPlan?.rows?.length`, else `0`.
 - `apply(tx, action)` — per row, `reap(row.planted)`, `addToStack`s the
-  survivors onto the character, then calls `grantExhaustedOutright` (§5a) —
-  **never `tired` directly**, since Exhausted → `expiresInto: [tired]` →
-  gone **is** the doc's two-turn lockout. Returns `{ rows, fatigue }` as the
-  snapshot stamped on `appliedEffects`.
-- `revert(tx, action, snapshot)` — drops each reaped stack back off, deletes
-  the granted `exhausted`, and restores a snapshotted prior `tired` at its
-  original `expiresTurn` if the grant had replaced one.
+  survivors onto the character, then calls `applyFatigueStep` (§5a) — one rung
+  of the shared ladder, `tired` from fresh and `exhausted` from Tired, exactly
+  as a Factory shift does. Returns `{ rows, fatigue }` as the snapshot stamped
+  on `appliedEffects`.
+- `revert(tx, action, snapshot)` — drops each reaped stack back off, then hands
+  the fatigue snapshot to `revertFatigueStep`, the same helper `refined` uses.
 
 `describeMoveEffects` renders a `farmed` value via `harvestLine(value.rows)`.
 
@@ -232,33 +231,33 @@ carve-out reads `action.farmPlan && applied.farmed` and sends `farmDm` instead
 of skipping, rather than loosening the generic `"auto:"` skip for every other
 auto-filed Routine.
 
-## 5a. The exhausted/tired lockout
+## 5a. The tired/exhausted ladder
 
-`db/lib/fatigue.js#grantExhaustedOutright(tx, characterId, turnNumber)` —
-a small helper beside `nextFatigueSlug`, the function that already owns
-the ordinary Tired → Exhausted ladder a day's mining climbs one rung at a
-time (`MINING.md` §5).
+`db/lib/fatigue.js#applyFatigueStep(tx, characterId, turnNumber)` — the same
+function a day's mining and a Factory shift climb (`MINING.md` §5,
+`FACTORY.md` §4). **Farming is on the one ladder now**, and there is no
+farming-specific fatigue rule left.
 
-Farming's lockout does **not** climb that ladder. A day at the plough grants
-`exhausted` **outright**, with no lesser rung to pass through first. If the
-character already holds `tired` (say, from a bad night's sleep), it is deleted
-and replaced rather than left to stack
-alongside `exhausted` — its `expiresTurn` is snapshotted first, so Undo can
-restore it exactly.
+A day at the plough steps one rung: `tired` if you were fresh, `exhausted` if
+you were already Tired. `farmRefusalFor` refuses on `exhausted` **only** — the
+same gate `refineFatigueRefusal` and `computeMiningAccess` use. So:
 
-This produces the doc's "one every three turns" cadence using tags that
-**already existed** for ordinary fatigue, not a new one:
+- Fresh, you farm. `tired` lands at the close.
+- Tired, you may farm **again** — pushing a day is allowed. `exhausted` lands.
+- Exhausted, you are refused. At the close it decays into `tired`
+  (`expiresInto`, `docs/tags.yaml`), and the close after that `tired` expires
+  on its own clock.
 
-- Turn the farm resolves: `exhausted` lands. Farm refused (`exhausted` held).
-- Next close: `exhausted` decays into `tired` (`expiresInto`,
-  `docs/tags.yaml`). Farm still refused — `farmRefusalFor` checks **both**
-  tags.
-- The close after that: `tired` expires on its own clock. Farm available
-  again.
+**So you can work a day and rest a day indefinitely without ever wearing out,
+or push two days running and take a forced one off.** That choice is the
+point: the game no longer makes it for you.
 
-Three closes, two of them refused — "every third turn" — for free, off the
-ordinary `expiresInto` chain plus the two existing gates `farmRefusalFor`
-already checks.
+Until 2026-09-21 farming called `grantExhaustedOutright`, which handed out
+`exhausted` with no lesser rung, and `farmRefusalFor` refused on `tired` too —
+so a single day locked out the next two and farming was the one day-verb you
+could never work twice running. Nothing else in the game worked that way.
+`grantExhaustedOutright` is now unused by farming; `revertFatigueStep` handles
+the Undo for both verbs, since the snapshot shape is the same one.
 
 ## 6. The tag catalog additions
 
@@ -383,18 +382,23 @@ same triple every other crop has (§3): `tobacco`, `tobacco-seed-bag`
 | `cropsPerPlant` | **2** | half a food crop's yield |
 | `witherIn` | **3** | a 2-in-6 failure, double the food crops' |
 | `weight` | 0.25 | leaves, and half a plant's output means half the unit |
-| `sellablePrice` | **2 ¢** | the tuning dial — see below |
+| `sellablePrice` | **1 ¢** | the tuning dial — see below |
 | `cooked:` block | **none** | not food; cannot be eaten, cannot fill an ingredient slot |
 
-**The arithmetic.** 50 sown → ~33 survive → **~67 leaves**, which at 2 ¢ is
-**~133 ¢ a harvest**, about 67 ¢ a turn for a farmer working every other turn.
-Farming used to pay ~42 ¢ a turn from selling crops, so tobacco is a real
-raise — and a tobacco field feeds nobody. With three farmers sitting at
-exactly the town's capacity (§1), one of them switching to tobacco starves a
-third of Ravenheart. **That decision is the whole reason the crop exists.**
+**The arithmetic.** 50 sown → ~33 survive → **~67 leaves**, which at 1 ¢ is
+**~67 ¢ a harvest**, about 33 ¢ a turn for a farmer working every other turn.
+A tobacco field feeds nobody, so that is a wage paid for entirely by somebody
+else's dinner. With three farmers sitting at exactly the town's capacity (§1),
+one of them switching to tobacco starves a third of Ravenheart. **That
+decision is the whole reason the crop exists.**
 
-`sellablePrice: 2` is the dial. At 1 it is not worth the Move; at 3 it is
-2.4× the old farm income and probably too tempting to refuse.
+`sellablePrice: 1` is the dial, and it sits at the floor on purpose: prices are
+whole numbers, so there is no lower setting that still pays anything. It was 2 ¢
+until 2026-09-21, which made tobacco the best wage available to a farmer and
+made the choice to grow it nearly automatic. At 1 ¢ the leaf still pays, but a
+player has to want the coin enough to take the field out of food — which is the
+trade the crop is for. The other seven crops are not sellable at all (§6), so
+this is the only crop price in the game.
 
 **Fertilizer is worth more here than anywhere else.** It cancels the wither
 roll outright (§8), and tobacco's is twice as steep as a food crop's — so the
@@ -461,9 +465,8 @@ separate function: same per-unit loop shape, opposite outcome table, and the
 two are mutually exclusive per unit. "Double" means the plant's **whole**
 yield doubles, so 6 crops rather than 3 on a food crop and 4 rather than 2 on
 tobacco — never a single extra unit bolted onto the side. `farmRequestImpl` reads whether the
-character holds `fertilized-fields` (unconsumed — the buff's existing 2-turn
-duration already covers exactly one farm, since the Exhausted-outright
-lockout is 3 turns) and stamps it onto `farmPlan` (`v: 2` now,
+character holds `fertilized-fields` (unconsumed) and stamps it onto `farmPlan`
+(`v: 2` now,
 `{ fertilized: boolean }` added), read at push by `moveEffects.js`'s `farmed`
 entry the same way every other farmPlan field is.
 
@@ -477,7 +480,7 @@ entry the same way every other farmPlan field is.
 | The Farm server action | `web/app/(app)/character/actions/soilery.js` (`farmRequestImpl`) |
 | The thin request wrapper | `web/app/(app)/character/requestActions.js` (`farmRequest`) |
 | Turn-push resolution: the wither roll, the harvest, the fatigue grant | `db/lib/moveEffects.js` (`farmed`) |
-| The Exhausted-outright lockout helper | `db/lib/fatigue.js` (`grantExhaustedOutright`) |
+| The shared tired/exhausted ladder | `db/lib/fatigue.js` (`applyFatigueStep`, `revertFatigueStep`) |
 | Deferred-effects filing (`deferEffects`, `farmPlan`) | `web/lib/moveSpend.js` (`fileAutoRoutine`) |
 | The `"auto:farm"` Move marker and desk label | `web/lib/moves.js` |
 | The harvest DM carve-out past the `"auto:"` suppression | `db/lib/stagedPush.js` |

@@ -10921,7 +10921,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     sellable: true
-    sellablePrice: 2
+    sellablePrice: 1
 
   # Soilery non-growable foodstuffs (docs/systemdocs/SOILERY.md) — same base
   # shape as the farm crops above, but obtained some other way, not sown.

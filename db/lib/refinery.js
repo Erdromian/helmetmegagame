@@ -10,10 +10,32 @@ const { accessibleRooms } = require("./roomAccess");
 const { addToStack, dropCharacterTag, dropRoomTag, addToRoomStack } = require("./tagWrites");
 const { hasAttribute, REFINERY_ATTRIBUTE } = require("./locationAttributes");
 const { GODFLESH_SLUG } = require("./godflesh");
+const { EXHAUSTED_SLUG, AUTO_REFINE_NOTE } = require("./constants");
 
 const REFINERY_OUTPUT_SLUG = "squeeze";
 // The economy is balanced on this number (docs/systemdocs/FACTORY.md).
 const REFINERY_YIELD = 8;
+
+// Squeeze is the game's only real surplus, so the floor is small: this many
+// people may press Refine in one turn. The sixth is told so at the button.
+const REFINERY_MAX_WORKERS = 5;
+const REFINERY_FULL_MESSAGE = "Too many people are producing Squeeze at the factory this turn.";
+
+// Refining is a day's work, so it climbs the same Tired and Exhausted ladder
+// Mine does (db/lib/fatigue.js): only Exhausted refuses the next shift.
+// Mirrors db/lib/mining.js#computeMiningAccess. `tagSlugs` is anything iterable
+// of the slugs the character holds; null means the shift may go ahead.
+const REFINERY_EXHAUSTED_MESSAGE = "You're **Exhausted**. Rest before you can work again.";
+function refineFatigueRefusal(tagSlugs) {
+  const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
+  return held.has(EXHAUSTED_SLUG) ? REFINERY_EXHAUSTED_MESSAGE : null;
+}
+
+// How many shifts are already filed this turn. The server action re-counts it
+// under a lock, so two people pressing at once cannot both take the last seat.
+function refinersThisTurn(prisma, turnId) {
+  return prisma.action.count({ where: { turnId, gmNotes: AUTO_REFINE_NOTE } });
+}
 
 function isRefinery(location) {
   return hasAttribute(location, REFINERY_ATTRIBUTE);
@@ -175,6 +197,11 @@ async function revertRefinery(tx, characterId, snapshot) {
 
 module.exports = {
   REFINERY_YIELD,
+  REFINERY_MAX_WORKERS,
+  REFINERY_FULL_MESSAGE,
+  REFINERY_EXHAUSTED_MESSAGE,
+  refineFatigueRefusal,
+  refinersThisTurn,
   REFINERY_OUTPUT_SLUG,
   isRefinery,
   loadRefineryStashes,

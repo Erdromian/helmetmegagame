@@ -8,8 +8,15 @@ import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
-import { isRefinery, refineryInput } from "@lifeweb/db/lib/refinery";
-import { AUTO_REFINE_NOTE, EXHAUSTED_SLUG } from "@lifeweb/db/lib/constants";
+import {
+  isRefinery,
+  refineryInput,
+  refineFatigueRefusal,
+  refinersThisTurn,
+  REFINERY_MAX_WORKERS,
+  REFINERY_FULL_MESSAGE,
+} from "@lifeweb/db/lib/refinery";
+import { AUTO_REFINE_NOTE } from "@lifeweb/db/lib/constants";
 import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { logAudit } from "@/lib/requests";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -34,13 +41,6 @@ export async function refineRequestImpl() {
     throw new UserError(`You're in no state to work — you're ${blocker.name}.`);
   }
 
-  // A day on the floor climbs the same Tired -> Exhausted ladder Mining does
-  // (db/lib/moveEffects.js's `refined` entry, db/lib/fatigue.js). Only Exhausted refuses,
-  // matching db/lib/mining.js#computeMiningAccess — Tired doesn't block the next shift.
-  if (character.tags?.some((ct) => ct?.tag?.slug === EXHAUSTED_SLUG)) {
-    throw new UserError("You're **Exhausted**. Rest before you can work again.");
-  }
-
   // Godflesh in the worker's own hands OR in any Room stash here they can enter. Checked before
   // the Move is spent so a bare floor costs nobody their day; applyRefinery re-checks under the
   // transaction at the push, and says so in the close DM when somebody else's shift took the
@@ -53,8 +53,28 @@ export async function refineRequestImpl() {
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
 
+  // A day on the floor climbs the same Tired -> Exhausted ladder Mining does (the `refined` entry in
+  // db/lib/moveEffects.js, db/lib/fatigue.js). Only Exhausted refuses, matching
+  // db/lib/mining.js#computeMiningAccess. The sheet's tooltip asks the same function.
+  const fatigue = refineFatigueRefusal((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  if (fatigue) throw new UserError(fatigue);
+
+  // Only so many people fit on the floor in a turn. Checked here for a fast refusal, and
+  // again under a lock below, which is the check that actually holds.
+  if ((await refinersThisTurn(prisma, openTurn.id)) >= REFINERY_MAX_WORKERS) {
+    throw new UserError(REFINERY_FULL_MESSAGE);
+  }
+
   await prisma.$transaction(async (tx) => {
     await lockCharacter(tx, character.id);
+
+    // One lock per turn, taken AFTER the character's, so two people pressing at once queue up
+    // and the count below is the true one. An advisory lock rather than a row lock on Turn:
+    // nothing else takes it, so it can never deadlock against the turn advance.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`refinery:${openTurn.id}`}))`;
+    if ((await refinersThisTurn(tx, openTurn.id)) >= REFINERY_MAX_WORKERS) {
+      throw new UserError(REFINERY_FULL_MESSAGE);
+    }
 
     // Commits the Move now — the day is spent — but defers the cubes to the turn push
     // (db/lib/moveEffects.js's `refined` entry), exactly like Farm. The marker is what that

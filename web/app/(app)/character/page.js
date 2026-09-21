@@ -57,7 +57,14 @@ import {
 import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { farmRefusalFor } from "@lifeweb/db/lib/soilery";
 import { breakInRefusalFor } from "@lifeweb/db/lib/arelitz";
-import { isRefinery, refineryInput } from "@lifeweb/db/lib/refinery";
+import {
+  isRefinery,
+  refineryInput,
+  refineFatigueRefusal,
+  refinersThisTurn,
+  REFINERY_MAX_WORKERS,
+  REFINERY_FULL_MESSAGE,
+} from "@lifeweb/db/lib/refinery";
 import { resolveMiningRate } from "@lifeweb/db/lib/mining";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
@@ -650,13 +657,24 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const refineInput = canSeeRefine
     ? await refineryInput(prisma, { id: character.id, locationId: character.locationId })
     : null;
+  // Same sentences, same order, as refineRequestImpl: no Godflesh, a Move already spent,
+  // Exhausted, and a full floor. The count is only asked where the button exists.
+  const refineFloorFull =
+    canSeeRefine && openTurn ? (await refinersThisTurn(prisma, openTurn.id)) >= REFINERY_MAX_WORKERS : false;
+  const refineTired = canSeeRefine
+    ? refineFatigueRefusal((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean))
+    : null;
   const refineBlocked = !canSeeRefine
     ? null
     : !refineInput
       ? "There's no Godflesh here to refine."
       : currentAction
         ? "You already have an action this turn."
-        : null;
+        : refineTired
+          ? refineTired
+          : refineFloorFull
+            ? REFINERY_FULL_MESSAGE
+            : null;
   const canRefine = canSeeRefine && !refineBlocked;
   // Mine (MINING.md). The button shows to EVERYONE, always: anybody can shift
   // rock, and Prospecting decides how much it is worth rather than whether you

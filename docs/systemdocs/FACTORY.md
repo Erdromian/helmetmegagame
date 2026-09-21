@@ -16,7 +16,7 @@ new types).
 The town's work feeds Ravenheart and produces no surplus. Before this, nothing
 in the game did. The Keep's warchest, the Merchant's business and every obol in
 circulation now trace back to one wooden warehouse standing in a shallow lake
-in the Marshes, staffed by people nobody counts.
+in the Black Hills, staffed by people nobody counts.
 
 That is the design as much as the economics: the money comes from the one place
 on the map with no political weight at all.
@@ -24,17 +24,19 @@ on the map with no political weight at all.
 ## 2. The chain
 
 ```
-marsh tile  --Harvest Godflesh-->  Godflesh  --Refine-->  8 Squeeze
+Refuse Pit  --Harvest Godflesh-->  Godflesh  --Refine-->  8 Squeeze
                                              --Package-->  a crate at half weight
                                              --cart-->  the Depot  -->  obols
 ```
 
 Every step after the first is somebody's whole turn. **Harvest Godflesh is
 not** — it costs no Move and runs on its own once-a-turn cooldown (§3), so
-cutting and working your day are two separate things. A refugee still
-alternates cutting and refining in practice, because a lump has to exist before
-there is anything to refine, which is where the "2.5 producing turns in 5" in
-§6 comes from.
+cutting and working your day are two separate things. A bare-handed cut averages
+7/6 of a lump and a shift needs one, and the Pit and the Factory floor are both
+in the Black Hills, so the walk between them is a free same-zone hop
+(`MAP.md` §3). What paces a refugee is not the lump but the ladder: a shift
+tires you the way a day's mining does (§4), so a refugee refines every other
+turn. §6 has the numbers.
 
 A cutting day is otherwise an empty day now. Nothing files itself at the close
 any more (`TURN-ENGINE.md` §6), so a refugee who cuts and presses nothing else
@@ -46,9 +48,11 @@ has the Godflesh and nothing on top of it.
 The server action is `extractGodfleshRequest` in
 `web/app/(app)/character/requestActions.js`.
 
-- **Where.** Any Location carrying the `godflesh: true` attribute: the five
-  open Marshes and the marsh Village. The attribute is the match, so no tile is named by
-  slug anywhere in code (`db/lib/locationAttributes.js`).
+- **Where.** Any Location carrying the `godflesh: true` attribute. That is one
+  Location now: the Refuse Pit, at the bottom of the Baron's lift. The five open
+  Marshes and the marsh Village carried it until the Marshes zone was deleted
+  (`docs/zones.yaml` says so beside the Pit). The attribute is the match, so no
+  tile is named by slug anywhere in code (`db/lib/locationAttributes.js`).
 - **What it costs.** Nothing. No Move, no Action row, and the move lock is not
   consulted — cut before the deadline or after it. It used to spend the turn's
   Routine through `fileAutoRoutine`, which is where "once per turn" came from
@@ -87,9 +91,9 @@ It also refuses while Bound, Dying, Paralyzed or Catatonic — or mid
 Seizure, which is the one it exists for. That gate matters more now, not less:
 the day claim cares about the calendar and nothing else, and there is no Move
 check left behind it, so without `blockerFor(..., ACT)` a man on the floor could
-wade into the marsh with an axe.
+wade into the Pit with an axe.
 
-The button **hides** off a marsh tile rather than greying — the same posture
+The button **hides** away from the Pit rather than greying — the same posture
 all four day-verbs take. That is not a breach of the metagaming rule in
 `web/app/components/actionRegistry.js`: that rule forbids leaking who is
 standing near you, and where *you* are standing is already yours. A
@@ -119,13 +123,22 @@ commits at the press, and the cubes come off the line at the turn push
   than granting Exhausted outright — a shift here is the same order of effort
   as a day in the seam, not Farming's uniquely brutal single day. Exhausted
   refuses the next shift; the refusal check lives in the Refine button itself
-  (`web/app/(app)/character/actions/refine.js`), the payout in
-  `db/lib/moveEffects.js`'s `refined` entry, same as Mining's.
+  (`web/app/(app)/character/actions/refine.js`) and the sheet's tooltip asks the
+  same function (`refineFatigueRefusal`), the payout in `db/lib/moveEffects.js`'s
+  `refined` entry, same as Mining's. Somebody refining flat out works every other
+  turn.
 - **No skill needed.** The floor wanted one until 2026-09-10, on the grounds
   that it is work rather than a vending machine. The trouble was that the
   Laboring ladder priced ⬢ and a shift here pays none, so the gate bought
   nothing and stood the Factory's own people off its floor. Anybody who can get
   in can work it, and Prospecting has nothing to say about a refinery.
+- **Five at a time.** At most 5 people may refine in one turn
+  (`REFINERY_MAX_WORKERS` in `db/lib/refinery.js`). The sixth is told "Too many
+  people are producing Squeeze at the factory this turn." and keeps their Move,
+  and the button greys with the same sentence. The count is the shifts already
+  filed this turn, checked once for a fast refusal and again under an advisory
+  lock taken per turn, so two people pressing at once cannot both take the
+  fifth seat. It is a constant, not a `/gm/dev` knob.
 - **No `miningBonus` applies.** A refinery is not a coefficient, and a pick is
   not a tool for it.
 - **No loot roll.** Refining pays in Squeeze, not in stone (`MINING.md` §3b).
@@ -149,7 +162,7 @@ stamped `refined: 1`.
 filing time, and only falls back to the live location for rows filed before that
 column existed. `Action.zoneId` was not enough: a free zone move costs no Action
 (`CARRY.md` §2a) and the cubes land at the turn close, so a character could file
-on the Factory floor and walk out — or file in the marsh and walk in — and
+on the Factory floor and walk out — or file at the Pit and walk in — and
 collect the wrong thing either way.
 
 ## 5. Package
@@ -251,18 +264,32 @@ back to 5 on 2026-09-20.) Note the glyph: a cube is priced off `sellablePrice`,
 so the number is **¢** and always was — this paragraph said ⬢ until the
 2026-09-20 pass, which is the quiet kind of error `DEPOT.md` §0 exists to stop.
 
-A refining day is **40 ¢** for 8 cubes, and a full 60-cube wagon is **300 ¢**.
-Farming at coefficient 1.0 with `productionCoefficient` 0.9 pays 11–15 ⬢,
-midpoint 13, so the Factory is about **3×** a good farming day.
+A refining day is **40 ¢** for 8 cubes at `squeeze`'s 5 ¢, and a full 60-cube
+wagon is **300 ¢**.
 
-**That 40 ¢ is the SUPPLIED figure, and it is the one this doc kept quoting as
-though it were the whole job.** Refine spends a whole Move
-(`web/app/(app)/character/actions/refine.js` calls `requireFreeMove`), and so
-does the Extract that produced the Godflesh. Worked solo the real rate is
-**20 ¢ a turn** bare-handed (one Extract, one Refine) or **26.7 ¢** with a
-chainsaw, whose two Godflesh feed two refining days. 40 ¢ is what a refiner
-makes when somebody else is losing fingers upstream, which is a division of
-labour rather than a wage.
+**A shift pays 40 ¢, and what limits you is the ladder, not the lump.** Refine
+spends a whole Move (`web/app/(app)/character/actions/refine.js` calls
+`requireFreeMove`), but **Extract does not** — it claims `extractTurnKey` and
+nothing else (`extractGodfleshRequestImpl` in
+`web/app/(app)/character/actions/misc.js`, §3 above), so cutting is free and
+this doc's old "one Extract, one Refine" pair of days was wrong. A bare-handed
+cut averages 7/6 of a lump and a shift needs one, so the lump never binds a
+refiner. What binds them is §4's ladder: Tired after one shift, Exhausted after
+two, refused on the third. So the ceiling is **two shifts in three turns, about
+27 ¢ a turn**, and a refugee who works every other turn instead never wears out
+and makes **20 ¢ a turn**. What the wage really costs is the die: one cut in six
+is a 1, a wound with gloves on and a lost hand or arm without (§3), and the
+Factory roles all start with gloves.
+
+**Set against the other day-verbs.** Farming pays no ⬢ and, since 2026-09-20,
+its food crops do not sell at all (`SOILERY.md` §6) — a Farm action sows up to
+50 plants, 3 crops each, about 5 in 6 surviving, so it harvests about 125 crops
+that are food rather than cash. **Tobacco is the only crop that pays coin**, at
+1 ¢ a leaf and about 67 leaves an action (`SOILERY.md` §6a): about 67 ¢ an
+action, and since farming climbs the same ladder the Factory does, about
+**45 ¢ a turn** pushed flat out. That is more than a refiner makes, and a
+tobacco field feeds nobody — which is the trade §1 of `SOILERY.md` exists to
+pose. A wagon still dwarfs both: 300 ¢ is the point of the place.
 
 The 7 ¢ price made a supplied refining day 56 ¢ — three times the best
 smithing rung and the highest wage in the game by a wide margin, off an
@@ -276,7 +303,7 @@ Squeeze has no `depotPrice`. The station sells nobody a cube.
 Both Godflesh and Squeeze are `consumable`, because somebody was always going
 to try.
 
-- **Godflesh** → Vomiting. It is dead meat from a marsh.
+- **Godflesh** → Vomiting. It is dead meat from the Pit.
 - **Squeeze** → **Seizure** (1 turn), which `expiresInto` **Stupid**.
 
 `seizure` is in `INCAPACITATING_SLUGS` (`db/lib/incapacitation.js`), which in
@@ -304,12 +331,13 @@ check at all before this, only the global `tupperAutocorrectEnabled` flag.
 
 ## 8. Moonshine, and going blind
 
-`brewing-basic`, **0 ⬢**, and `requirement.items: [godflesh]` — the marsh gives
+`brewing-basic`, **0 ⬢**, and `requirement.items: [godflesh]` — the Pit gives
 you the ingredient. **One Godflesh per bottle, and it is used up**, like every
 other spent ingredient (`BREWING.md` §4). It used to be a hold-check, which
 made the still a strictly better use of a haul than the Factory; spending it
 puts the two in honest competition. The rest of the throttle stands: Moonshine
-sells for 3 ⬢ against farming's 11–15, so it is not an income tap.
+sells for 3 ¢, against the 40 ¢ the same Godflesh makes as cubes, so it is not
+an income tap.
 
 **It brews at 0.25 turns now, the same as Alcohol** — it is the same kind of
 work, and the Godflesh is what makes it cost anything.

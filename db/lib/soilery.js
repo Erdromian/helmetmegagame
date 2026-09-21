@@ -4,7 +4,7 @@
 // only a stand-in until then. Pure and Prisma-free, modelled on
 // db/lib/godflesh.js. See docs/systemdocs/SOILERY.md.
 
-const { SOILERY_SLUG, EXHAUSTED_SLUG, TIRED_SLUG } = require("./constants");
+const { SOILERY_SLUG, EXHAUSTED_SLUG } = require("./constants");
 
 const FARM_MAX_CROPS = 50;
 // 1-in-6 fails, independently PER UNIT sown — not a rounded average. See reap() below for why.
@@ -145,7 +145,11 @@ function farmRefusalFor(characterTags, hasOpenAction) {
   if (!holds(characterTags, SOILERY_SLUG)) {
     return "You don't know how to farm.";
   }
-  if (holds(characterTags, EXHAUSTED_SLUG) || holds(characterTags, TIRED_SLUG)) {
+  // Only Exhausted refuses, the same gate the Factory floor and the seam use
+  // (db/lib/refinery.js#refineFatigueRefusal, db/lib/mining.js#computeMiningAccess).
+  // One day at the plough makes you Tired and a second wears you out, so pushing
+  // a day is the player's call rather than the game's.
+  if (holds(characterTags, EXHAUSTED_SLUG)) {
     return "You're too worn out to farm right now.";
   }
   if (hasOpenAction) {
