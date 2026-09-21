@@ -59,13 +59,15 @@ const VISION_DM = [
 ].join(" ");
 const ACCEPTED_DM =
   "This reality is cursed! You are now loyal to the Thanati and must follow the cult's orders. Read your Documents for more information.";
-const REFUSED_DM = "You turn away from the vision, and it fades. The world is as it always was.";
+const REFUSED_DM = "You cannot bring yourself to assent to such a reality!";
 const DISMISSED_DM =
   "You see a strange vision: reality is doomed. You quickly dismiss it, knowing it as nothing but a hallucination.";
-const REFUSED_LINE = "The vision passes. They have denied the ritual.";
+const REFUSED_LINE = "The target rises, resolute in their convictions. The rite has failed.";
 // What the cultist who called them hears, which is the whole of what a refusal
-// now does. Silence reaches this too, so it must not claim they said anything.
-const ASK_REFUSED_DM = "The one you called has not joined you. Nothing is lost — the circle may call again.";
+// now does. Silence reaches this too, so it covers both a pressed Decline and
+// somebody who never answered.
+const ASK_REFUSED_DM =
+  "They have renounced Tzchernobog, either through defiance against his will, or inability to accept his reality.";
 
 function log(what) {
   return (err) => console.error(`Conversion rite: ${what} failed:`, err?.message ?? err);
@@ -96,7 +98,7 @@ function roomFromOffer(offer) {
 const CONVERSION_PICK_PREFIX = "rite:convert:";
 const PICK_OPTION_LIMIT = 25;
 
-const PICK_DM = "The circle is open and the truth is yours to give. Who do you call?";
+const PICK_DM = "Tzchernobog awaits a new minion, who shall see his truth?";
 
 // Plain component JSON rather than discord.js: the web sends these too and only
 // the bot has the library, so the shape lives where both can reach it.
@@ -230,7 +232,7 @@ async function answerConversionPick(prisma, { attemptId, discordUserId, targetId
     .update({ where: { id: attempt.id }, data: { result: { ...(attempt.result ?? {}), ...result } } })
     .catch(log("recording the pick"));
 
-  return { ok: true, line: "The circle calls them.", result };
+  return { ok: true, line: "Lord Tzchernobog reaches out to them.", result };
 }
 
 // ---- The three roads out ---------------------------------------------------

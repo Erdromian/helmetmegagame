@@ -113,6 +113,18 @@ whole mechanism:
    tops up: `rollRiteWords(rng, RITES, existing)` keeps every phrase already
    rolled, counts it among the taken, and rolls only the missing keys.
 
+   **It also re-rolls a phrase the rules have outgrown**, which is a different
+   question from a missing one. A roll is written once and outlives the rules
+   that made it: the dictionary, the blocklist, the word cap and the catalog
+   can all move in a deploy, and nothing else ever looks at the stored value
+   again. `rites.js#staleRiteWords` is what looks — it names the keys whose
+   phrase now breaks a rule (a word retired from the dictionary, a phrase that
+   has become a reserved battle cry, one over the cap, or two that nest), and
+   `ensureRiteWords` drops exactly those and keeps the rest. Without it a game
+   goes on printing a forbidden phrase in the Grimoire and firing on it.
+   A key with no phrase at all is **missing**, not stale, and belongs to the
+   top-up above.
+
    **Three rules reject a candidate phrase**, and they are not the same rule:
 
    - **The word cap.** At most three words, counted on the phrase AS WRITTEN
@@ -234,7 +246,7 @@ all — a rule about the payload, not about the string.
 | Answer | Target hears | Room hears |
 |---|---|---|
 | Accept | "This reality is cursed! …" plus any Belief conflict | "…'s eyes widen as they begin to understand…" |
-| Refuse, or three hours' silence | "You turn away from the vision, and it fades…" | "The vision passes. They have denied the ritual." |
+| Refuse, or three hours' silence | "You cannot bring yourself to assent to such a reality!" | "The target rises, resolute in their convictions. The rite has failed." |
 | Pious | "You see a strange vision… nothing but a hallucination." | "… refuses the ritual, a look of determination in their eyes!" |
 
 The cultist who called them hears `ASK_REFUSED_DM` on either of the last two,

@@ -255,7 +255,7 @@ test("refusing closes the row, tells them, and tells the room", async () => {
   assert.equal(offer.status, "DECLINED");
   assert.ok(offer.respondedAt instanceof Date);
   assert.ok(offer.resolvedAt instanceof Date);
-  assert.match(REFUSED_LINE, /denied the ritual/);
+  assert.match(REFUSED_LINE, /The rite has failed/);
 });
 
 test("two roads to no cannot answer the same question twice", async () => {
@@ -343,9 +343,10 @@ test("every line is Bascinet's, and the two refusals read differently", () => {
 });
 
 test("the cultist is told, in words that also fit three hours of silence", () => {
-  // Both roads reach this one line, so it must not claim they said anything.
-  assert.ok(!/refus|declin|denied/i.test(ASK_REFUSED_DM), ASK_REFUSED_DM);
-  assert.match(ASK_REFUSED_DM, /not joined you/);
+  // Both roads reach this one line — a pressed Decline and somebody who never
+  // opened Discord — so it names both: defiance, or an inability to accept.
+  assert.match(ASK_REFUSED_DM, /renounced Tzchernobog/);
+  assert.match(ASK_REFUSED_DM, /inability to accept/);
 });
 
 // ---- who the rite reaches for -----------------------------------------------

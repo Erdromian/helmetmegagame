@@ -62,7 +62,7 @@ const RITES = [
     minChanters: 1,
     ingredients: [{ kind: "convert-candidate" }],
     ingredientsText: "1 person in the same location who is able to act, not {tag:bound} and not already Thanati. They must have room access to wherever you are chanting at",
-    description: "Reveal the wicked truth of this reality, so they might join in its destruction! After fulfilling, you will be asked which of them to call. They must be added to whatever room or conversation you chant at — the truth is an invitation, and an invitation cannot be put to somebody in no position to refuse it. They may refuse, and nothing is lost to either of you if they do.",
+    description: "Reveal the wicked truth of this reality, so they might join in its destruction! After fulfilling, you will be asked which of them to call. They must be added to whatever room or conversation you chant at. They may refuse your offer, causing no malus to you or themselves.",
   },
   {
     key: "sacrifice",
@@ -211,6 +211,11 @@ function containsPhrase(normalizedText, normalizedPhrase) {
 // The battle cries, in the form the roll compares against. Built once: the list is frozen and normalizeChant is pure.
 const PROHIBITED_NORMALIZED = new Set(PROHIBITED_CIRCLE_PHRASES.map(normalizeChant));
 
+// Every word the dictionary can put into a phrase, normalized. An ENTRY may be two words (`pestis cruento`) or normalize into two
+// (`rud'minuox`), so a phrase is checked word by word rather than entry by entry — which is also why this cannot tell a recombination
+// ("pestis paashaeximus") from a real roll. Nothing writes GameState.riteWords by hand, so that is a shape only an editor could produce.
+const DICTIONARY_WORDS = new Set(THANATI_DICTIONARY.flatMap((entry) => normalizeChant(entry).split(" ")));
+
 // Words in a phrase as a player reads it. A dictionary entry may be two (`pestis cruento`), so picking three entries is not the same as
 // picking three words.
 function phraseWordCount(text) {
@@ -261,6 +266,35 @@ function rollRiteWords(rng = Math.random, rites = RITES, existing = null) {
   return out;
 }
 
+// Which of an ALREADY ROLLED set of words no longer satisfies the rules a fresh roll applies, as a list of rite keys to roll again.
+//
+// This exists because a roll outlives the rules that made it. The dictionary, the blocklist, the word cap and the catalog can all move in a
+// deploy, and GameState.riteWords is written once and then only ever topped up — so without this a game goes on printing a retired word or a
+// reserved battle cry in the Grimoire, and firing on it, because nothing looks again. A key with NO phrase is missing rather than stale and is
+// left to rollRiteWords' own top-up.
+//
+// Pure, so db/lib/riteWords.js can act on it and db/test/rites.test.js can pin it.
+function staleRiteWords(words, rites = RITES) {
+  const stale = [];
+  const kept = [];
+  for (const rite of rites) {
+    const phrase = words?.[rite.key];
+    if (typeof phrase !== "string" || !phrase.trim()) continue;
+    const norm = normalizeChant(phrase);
+    const broken =
+      !norm ||
+      phraseWordCount(phrase) > MAX_PHRASE_WORDS ||
+      PROHIBITED_NORMALIZED.has(norm) ||
+      norm.split(" ").some((word) => !DICTIONARY_WORDS.has(word)) ||
+      // Against the phrases kept so far, not the whole stored set: two that nest can only both go if the catalog changed under them, and
+      // re-rolling both would be twice the churn for one collision.
+      kept.some((t) => containsPhrase(norm, t) || containsPhrase(t, norm));
+    if (broken) stale.push(rite.key);
+    else kept.push(norm);
+  }
+  return stale;
+}
+
 // The rite keys a line of speech chanted, given this game's words.
 function matchRites(content, words) {
   if (!words) return [];
@@ -289,6 +323,7 @@ module.exports = {
   normalizeChant,
   containsPhrase,
   phraseWordCount,
+  staleRiteWords,
   rollRiteWords,
   matchRites,
   floorIngredients,
