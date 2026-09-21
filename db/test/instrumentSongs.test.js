@@ -94,8 +94,8 @@ test("songsFor flattens one or several instruments, and ignores an unknown slug"
   assert.deepEqual(songsFor(["not-an-instrument"]), []);
 });
 
-test("the boombox catalog reuses song_game.ogg rather than a private copy", () => {
-  const songGame = INSTRUMENT_SONGS.boombox.find((s) => s.key === "song_game");
+test("the lute catalog reuses song_game.ogg rather than a private copy", () => {
+  const songGame = INSTRUMENT_SONGS.lute.find((s) => s.key === "song_game");
   assert.ok(songGame);
   assert.equal(songGame.src, "/assets/music/song_game.ogg");
 });
