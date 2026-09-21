@@ -15514,7 +15514,9 @@ tags:
     sprite: autoinjector0
     description: "It has a clear substance inside."
     manifest: black-market
-    depotPrice: 8
+    depotPrice: 15
+    sellable: true
+    sellablePrice: 10
     pointCost: 0
     weight: 2
     stackable: true
