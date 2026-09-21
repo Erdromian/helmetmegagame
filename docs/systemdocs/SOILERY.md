@@ -255,9 +255,12 @@ same gate `refineFatigueRefusal` and `computeMiningAccess` use. So:
   (`expiresInto`, `docs/tags.yaml`), and the close after that `tired` expires
   on its own clock.
 
-**So you can work a day and rest a day indefinitely without ever wearing out,
-or push two days running and take a forced one off.** That choice is the
-point: the game no longer makes it for you.
+**In the steady state that is one day in two.** Exhausted decays back into
+`tired`, not into nothing, so after the opening pair you are Tired at the start
+of every working day and each day's work takes you straight to Exhausted: two
+farms in a row at the very start, then strictly alternating. `npm run
+economy:report` plays the ladder out turn by turn against the live gate rather
+than asserting it, and prints the pattern (`██·█·█·█·`).
 
 Until 2026-09-21 farming called `grantExhaustedOutright`, which handed out
 `exhausted` with no lesser rung, and `farmRefusalFor` refused on `tired` too —

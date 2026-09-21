@@ -1283,7 +1283,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: `${shift} ¢ a turn`,
       model: cooking.tobacco ? `${round1(cooking.tobacco.perTurnFert)} ¢ a turn with Fertilizer (${round1(cooking.tobacco.perTurn)} without)` : "no tobacco",
       ok: !cooking.tobacco || cooking.tobacco.perTurnFert <= shift,
-      note: "Fertilizer removes the 1-in-3 wither die that is tobacco's price for being the cash crop, so it lifts tobacco far more than it lifts food.",
+      note: "Fertilizer removes the 1-in-3 wither die that is tobacco's price for being the cash crop, so it lifts tobacco far more than it lifts food. Its 2-turn duration now spans a full work/rest cycle, so one application may cover more than one harvest.",
     },
     {
       doc: "SOILERY.md §6",
@@ -1434,7 +1434,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "SOILERY.md §5a",
-      claim: "A farmer works every other turn",
+      claim: "A farmer works one turn in two, the same ladder Mine and Refine climb",
       docValue: "1 in 2",
       model: `1 in ${round1(1 / fatigue.byId.farm.steady)}`,
       ok: Math.abs(fatigue.byId.farm.steady - 1 / 2) < 0.01,
