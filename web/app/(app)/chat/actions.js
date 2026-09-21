@@ -2425,7 +2425,14 @@ export async function playHere(placeKey) {
     id: true,
     locationId: true,
     discordUserId: true,
-    tags: { select: { tag: { select: { slug: true } }, quantity: true } },
+    tags: {
+      select: {
+        tag: { select: { slug: true, instrument: true } },
+        quantity: true,
+        equipped: true,
+        equippedQuantity: true,
+      },
+    },
   }, { speech: true });
   if (me.error) return { ok: false, error: me.error };
 

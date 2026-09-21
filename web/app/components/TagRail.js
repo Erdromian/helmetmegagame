@@ -13,6 +13,7 @@ import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import ChipText from "./ChipText";
 import FormError from "./FormError";
 import IdentityDialog from "./IdentityDialog";
+import ConsumeChoiceDialog from "./actions/ConsumeChoiceDialog";
 import ItemsTable from "./ItemsTable";
 import BloodPanel from "./BloodPanel";
 import Modal from "./Modal";
@@ -67,6 +68,8 @@ export default function TagRail({
   const [storeOpen, setStoreOpen] = useState(false);
   const [bloodOpen, setBloodOpen] = useState(false);
   const [identityOpen, setIdentityOpen] = useState(false);
+  // A consumeChoice item (the Instrument Kit) asks which before it is spent.
+  const [choiceTag, setChoiceTag] = useState(null);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const notice = useNotice();
@@ -139,7 +142,14 @@ export default function TagRail({
         pending={pending}
         onUse={
           v.consumable && (!isPoison || open)
-            ? () => (isPoison ? open("poison", ct.tag.id) : isPotion ? setIdentityOpen(true) : consume(ct.tag.id))
+            ? () =>
+                isPoison
+                  ? open("poison", ct.tag.id)
+                  : isPotion
+                    ? setIdentityOpen(true)
+                    : ct.tag.consumeChoice?.length
+                      ? setChoiceTag(ct.tag)
+                      : consume(ct.tag.id)
             : null
         }
         onEquip={v.equippable && ct.id ? () => equip(ct) : null}
@@ -347,6 +357,16 @@ export default function TagRail({
         <Modal open={bloodOpen} onClose={() => setBloodOpen(false)} title="Blood" width="widest">
           <BloodPanel vampireBlood={vampireBlood} onDone={() => setBloodOpen(false)} />
         </Modal>
+      )}
+      {isSelf && choiceTag && (
+        <ConsumeChoiceDialog
+          tag={choiceTag}
+          onClose={() => setChoiceTag(null)}
+          onDone={(line) => {
+            setChoiceTag(null);
+            if (line) notice(line);
+          }}
+        />
       )}
       {isSelf && identity && identityOpen && (
         <IdentityDialog identity={identity} open onClose={() => setIdentityOpen(false)} />

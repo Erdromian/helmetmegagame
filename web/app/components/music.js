@@ -19,7 +19,7 @@ import { soundSetting } from "./soundStore";
 //   music     the game's music — a track, then minutes of nothing, then another
 //   event     a siren, an alarm, a thing arriving. Loud and brief
 //   room      a jukebox, a gramophone: something switched on in the room
-//   player    somebody playing a piano or a guitar
+//   player    somebody playing an instrument, one voice each
 //
 // Player beats room because a person playing an instrument in front of you is nearer than
 // furniture in the corner, and because it is something somebody is DOING.
@@ -34,9 +34,9 @@ import { soundSetting } from "./soundStore";
 //   to a floor and its lowpass sweeps down, which is the sound of both facts being true
 //   at once: a siren heard through a wall. Every other pairing is still winner-takes-all.
 //
-// Only `ambient` and `music` have callers today (musicProgram.js, MusicDirector.js).
-// `room`, `player` and `event` are reachable by playOn("room", …) and wired into the
-// rules above; the jukebox and the /play command are the next pass.
+// `ambient` and `music` are driven by musicProgram.js and MusicDirector.js, and `player` by
+// InstrumentListener.js, one voice per performance (see VOICES below). `room` and `event`
+// are wired in and still waiting for a caller.
 //
 // MUTING IS A DUCK, NOT A STOP. The music switch pulls the master gain to silence and
 // leaves every layer exactly as it was — same track, same place, same tape — so unmuting
@@ -78,6 +78,18 @@ const LAYER_MODE = {
 // says what they do instead — `under` is which winners the rule applies against, `duck`
 // is the fraction of its own gain it keeps, `hz` is how dark it goes.
 const PERFORMANCE = new Set(["room", "player"]);
+
+// VOICES. A layer key may carry a voice after a colon — "player:<performanceId>" — so two
+// people playing in one Location are both heard (SOUND.md, "Performances"). Every rule
+// here reads the BASE layer, so voices of one layer never duck or stop each other; they
+// only ever lose to, or beat, other layers together.
+function baseOf(key) {
+  const at = key.indexOf(":");
+  return at < 0 ? key : key.slice(0, at);
+}
+function rankOf(key) {
+  return LAYERS.indexOf(baseOf(key));
+}
 const COEXIST = { event: { under: PERFORMANCE, duck: 0.35, hz: 700 } };
 
 // Where a lowpass is inaudible. A filter parked here is a filter that is not there.
@@ -221,7 +233,7 @@ function state(layer) {
     // graph. element.volume still multiplies, so it is pinned at 1 and never touched again.
     el.volume = 1;
     audio.createMediaElementSource(el).connect(entry.gainNode);
-    if (COEXIST[layer]) {
+    if (COEXIST[baseOf(layer)]) {
       entry.filter = audio.createBiquadFilter();
       entry.filter.type = "lowpass";
       entry.filter.frequency.value = OPEN_HZ;
@@ -288,8 +300,8 @@ function muffle(entry, hz, ms) {
 
 function topLayerIndex() {
   let top = -1;
-  for (let i = 0; i < LAYERS.length; i += 1) {
-    if (layers.get(LAYERS[i])?.wanted) top = i;
+  for (const [key, entry] of layers) {
+    if (entry.wanted) top = Math.max(top, rankOf(key));
   }
   return top;
 }
@@ -306,8 +318,8 @@ function audibleNow(layer) {
   if (!entry?.wanted) return false;
   const top = topLayerIndex();
   if (top < 0) return false;
-  if (LAYERS[top] === layer) return true;
-  const rule = COEXIST[layer];
+  if (rankOf(layer) === top) return true;
+  const rule = COEXIST[baseOf(layer)];
   return Boolean(rule && rule.under.has(LAYERS[top]));
 }
 
@@ -316,15 +328,16 @@ function audibleNow(layer) {
 function applyPriority() {
   const top = topLayerIndex();
   const winner = top >= 0 ? LAYERS[top] : null;
-  LAYERS.forEach((layer, i) => {
-    const entry = layers.get(layer);
-    if (!entry?.wanted) return;
+  for (const [layer, entry] of layers) {
+    if (!entry?.wanted) continue;
+    const i = rankOf(layer);
+    const mode = LAYER_MODE[baseOf(layer)];
 
-    const rule = COEXIST[layer];
+    const rule = COEXIST[baseOf(layer)];
     const under = i !== top && Boolean(rule && winner && rule.under.has(winner));
 
     if (i === top || under) {
-      if (entry.seeking) return;
+      if (entry.seeking) continue;
       // A coexisting layer is held down and darkened rather than silenced. Both moves
       // take MUFFLE_MS together, because a gain drop without the filter following it
       // sounds like somebody turning a siren down, not like a wall going up.
@@ -336,25 +349,25 @@ function applyPriority() {
       muffle(entry, under ? rule.hz : OPEN_HZ, MUFFLE_MS);
       // Muted, a song waits paused where it is (a 4 MB file should not stream to nobody);
       // the bed keeps rolling silently, which is what keeps it in time.
-      if (muted && LAYER_MODE[layer] === "pause") {
+      if (muted && mode === "pause") {
         if (!entry.el.paused) entry.el.pause();
-        return;
+        continue;
       }
       if (entry.el.paused) resume(entry);
-      return;
+      continue;
     }
 
     // Ducked out entirely. Equal-power would matter if two beds crossed; between a bed
     // and a song over it, what matters is that the lower one does not stop.
     ramp(entry, 0, CROSSFADE_MS);
     muffle(entry, OPEN_HZ, 0);
-    if (LAYER_MODE[layer] === "pause") {
+    if (mode === "pause") {
       window.setTimeout(() => {
         if (!entry.wanted || entry.el.paused) return;
         if (!audibleNow(layer)) entry.el.pause();
       }, CROSSFADE_MS);
     }
-  });
+  }
 }
 
 // Where this track ought to be, in seconds, right now. `undefined` for a local track —
@@ -428,9 +441,12 @@ export function playOn(
   // One jukebox or one lute. Winner-takes-all would have hidden the quieter of the two
   // rather than resolved it, and "the gramophone is still going under the piano, you
   // just cannot hear it" is a bug you find by turning the piano off.
-  if (PERFORMANCE.has(layer)) {
-    for (const other of PERFORMANCE) {
-      if (other !== layer) stopLayer(other, { fadeMs: CROSSFADE_MS });
+  // A voice ("player:<id>") stops the OTHER performance layer's voices, never its own.
+  if (PERFORMANCE.has(baseOf(layer))) {
+    for (const key of [...layers.keys()]) {
+      if (PERFORMANCE.has(baseOf(key)) && baseOf(key) !== baseOf(layer)) {
+        stopLayer(key, { fadeMs: CROSSFADE_MS });
+      }
     }
   }
 
@@ -479,8 +495,22 @@ export function stopLayer(layer, { fadeMs = STOP_FADE_MS } = {}) {
     entry.src = null;
     // Put the filter back, or the next thing this layer plays starts dark.
     muffle(entry, OPEN_HZ, 0);
+    // A voice is one performance and never comes back, so its element is let go.
+    if (layer !== baseOf(layer) && layers.get(layer) === entry) {
+      entry.gainNode?.disconnect();
+      layers.delete(layer);
+    }
   }, fade);
   applyPriority();
+}
+
+/** Every voice key on a layer that is still wanted — "player:<id>" for each performance. */
+export function voicesOn(layer) {
+  const out = [];
+  for (const [key, entry] of layers) {
+    if (entry.wanted && baseOf(key) === layer && key !== layer) out.push(key);
+  }
+  return out;
 }
 
 /**
@@ -577,11 +607,10 @@ export function setMasterVolume() {
     const top = topLayerIndex();
     return top >= 0 ? LAYERS[top] : null;
   })();
-  for (const layer of LAYERS) {
+  for (const [layer, entry] of layers) {
     if (!audibleNow(layer)) continue;
-    const entry = layers.get(layer);
-    const rule = COEXIST[layer];
-    const under = layer !== winner && Boolean(rule && winner && rule.under.has(winner));
+    const rule = COEXIST[baseOf(layer)];
+    const under = baseOf(layer) !== winner && Boolean(rule && winner && rule.under.has(winner));
     const want = (entry.wanted?.gain ?? 1) * (under ? rule.duck : 1);
     entry.el.volume = Math.min(1, Math.max(0, want * level));
   }
@@ -603,7 +632,7 @@ export function setMusicMuted(next) {
     window.setTimeout(() => {
       if (!muted) return;
       for (const [layer, entry] of layers) {
-        if (entry.wanted && LAYER_MODE[layer] === "pause" && !entry.el.paused) entry.el.pause();
+        if (entry.wanted && LAYER_MODE[baseOf(layer)] === "pause" && !entry.el.paused) entry.el.pause();
       }
     }, MUTE_FADE_MS);
     return;
@@ -626,5 +655,5 @@ export function warm(src) {
  * desk. Never for the mute switch: that is setMusicMuted(), which keeps the place.
  */
 export function stopAllMusic({ fadeMs = 800 } = {}) {
-  for (const layer of LAYERS) stopLayer(layer, { fadeMs });
+  for (const layer of [...layers.keys()]) stopLayer(layer, { fadeMs });
 }

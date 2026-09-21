@@ -8,7 +8,8 @@ import IconButton from "@/app/components/IconButton";
 import ActionButton from "@/app/components/ActionButton";
 import FormError from "@/app/components/FormError";
 import LookReadout from "@/app/components/LookReadout";
-import { EyeIcon } from "@/app/components/icons";
+import { EyeIcon, SpeakerIcon, SpeakerOffIcon } from "@/app/components/icons";
+import { toggleMutedPerformer, useMutedPerformers } from "@/app/components/performanceStore";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { ACTION_HELP, actionFor, reasonFor } from "@/app/components/actionRegistry";
 import { lookAtRow } from "@/app/(app)/chat/actions";
@@ -292,6 +293,9 @@ export default function HereList({
   };
 
   const total = named.length + concealed.length;
+  // Whose playing this browser has silenced (SOUND.md, "Performances"). Only rows for
+  // somebody who has ever played carry a performerKey, so only they get the button.
+  const muted = useMutedPerformers();
 
   return (
     <div className="chat-here" ref={wrapRef}>
@@ -325,6 +329,16 @@ export default function HereList({
                 {person.online ? <span className="text-muted"> · online</span> : null}
               </span>
             </button>
+            {person.performerKey && (
+              <span className="chat-person-eye">
+                <IconButton
+                  icon={muted.has(person.performerKey) ? SpeakerOffIcon : SpeakerIcon}
+                  label="[PLACEHOLDER: mute this performer]"
+                  aria-pressed={muted.has(person.performerKey)}
+                  onClick={() => toggleMutedPerformer(person.performerKey)}
+                />
+              </span>
+            )}
             {/* No eye until you have heard them. Absent rather than greyed — one rule instead of two.
                 Your own row always has one: with no line of yours to look at, it opens your sheet. */}
             {lookFor(person) && (

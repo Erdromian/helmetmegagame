@@ -10,6 +10,7 @@ import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow, GM_DM_SELECT, gmDmRow } 
 import { dmActionOf } from "@lifeweb/db/lib/dmActions";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
+import { livePerformancesAt, MUSIC_OP } from "@lifeweb/db/lib/performance";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream —
 // Railway runs `next start` as one long-lived Node server with one replica,
@@ -19,7 +20,7 @@ import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 const HUB_KEY = "__bascinetFeedHub";
 // Bumped whenever createHub() gains a field, so a hot reload backfills an
 // older hub instead of throwing on the missing one. See hub().
-const HUB_SHAPE = 5;
+const HUB_SHAPE = 6;
 const BACKOFF_MIN_MS = 1000;
 const BACKOFF_MAX_MS = 60_000;
 
@@ -46,6 +47,10 @@ function createHub() {
     // THE HUB READS NOTHING ON THIS CHANNEL — a burst re-reads via ONE
     // deskPatchFor() call per frame instead of per row.
     deskSubscribers: new Set(),
+    // locationId -> Set<(frame) => void>. What is playing where (SOUND.md, "Performances").
+    // A notify carries only the place; the hub reads the live list ONCE per notify and
+    // every stream standing there gets the same frame.
+    musicSubscribers: new Map(),
     // characterId -> { name, at }. Resolving forced name + concealment is
     // two queries; nobody's mask comes off often enough to pay that per keystroke.
     nameMemo: new Map(),
@@ -354,6 +359,10 @@ async function handleNotification(msg) {
   } catch {
     return;
   }
+  if (parsed?.op === MUSIC_OP) {
+    await handleMusic(parsed.placeKey);
+    return;
+  }
   if (!parsed?.seq || !parsed?.placeKey) return;
   const op = parsed.op ?? "new";
 
@@ -487,6 +496,55 @@ async function connect() {
     console.error("Feed hub could not start listening:", err);
     drop(null);
   }
+}
+
+// A performance started, stopped or changed volume at a Location.
+async function handleMusic(placeKey) {
+  const locationId = typeof placeKey === "string" && placeKey.startsWith("loc:") ? placeKey.slice(4) : null;
+  if (!locationId) return;
+  const set = hub().musicSubscribers.get(locationId);
+  if (!set || set.size === 0) return;
+  const performances = await livePerformancesAt(prisma, locationId).catch((err) => {
+    console.error("Music read failed:", err);
+    return null;
+  });
+  if (!performances) return;
+  const frame = { locationId, performances };
+  for (const send of [...set]) {
+    try {
+      send(frame);
+    } catch (err) {
+      console.error("Music subscriber failed:", err);
+    }
+  }
+}
+
+// What is playing at a Location, for a stream that has just arrived there — the late
+// joiner's first frame, sent before any notify.
+export async function musicFrameFor(locationId) {
+  if (!locationId) return { locationId: null, performances: [] };
+  return { locationId, performances: await livePerformancesAt(prisma, locationId) };
+}
+
+// One Location at a time per stream: the route moves it when the character walks.
+export function subscribeToMusic(locationId, send) {
+  if (!locationId) return () => {};
+  const h = hub();
+  let set = h.musicSubscribers.get(locationId);
+  if (!set) {
+    set = new Set();
+    h.musicSubscribers.set(locationId, set);
+  }
+  set.add(send);
+
+  connect().catch((err) => console.error("Feed hub connect failed:", err));
+
+  return () => {
+    const current = h.musicSubscribers.get(locationId);
+    if (!current) return;
+    current.delete(send);
+    if (current.size === 0) h.musicSubscribers.delete(locationId);
+  };
 }
 
 // Returns an unsubscribe. The SSE route calls it from the request's abort

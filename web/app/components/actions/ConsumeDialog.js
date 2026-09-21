@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ChipPicker from "../ChipPicker";
 import ActionDialog from "./ActionDialog";
+import ConsumeChoiceDialog from "./ConsumeChoiceDialog";
 import useRoster from "./useRoster";
 import useSubmit from "./useSubmit";
 import { noticeLine } from "./noticeLines";
@@ -30,6 +31,12 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
   const consumeTargets = pools.consumeTargets ?? [];
   const craftBudget = pools.craftBudget ?? null;
   const hasMoved = Boolean(pools.hasMoved);
+
+  // The Instrument Kit asks its own question (consumeChoice), so picking it hands over
+  // to that dialog rather than spending it blind.
+  if (chosen?.consumeChoice?.length) {
+    return <ConsumeChoiceDialog tag={chosen} mode={mode} onDone={onDone} onClose={onClose} />;
+  }
 
   return (
     <ActionDialog

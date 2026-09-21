@@ -22,6 +22,7 @@ import DocumentsProvider from "./components/DocumentsProvider";
 import MoveWindowProvider from "./components/MoveWindowProvider";
 import PhaseProvider from "./components/PhaseProvider";
 import MusicDirector from "./components/MusicDirector";
+import InstrumentListener from "./components/InstrumentListener";
 import ConfirmProvider from "./components/ConfirmProvider";
 import NoticeProvider from "./components/NoticeProvider";
 import { RefreshProvider } from "./components/useRefresh";
@@ -104,6 +105,7 @@ export default async function RootLayout({ children }) {
                     <MoveWindowProvider moveWindowPromise={moveWindowPromise}>
                       <PhaseProvider phasePromise={phasePromise}>
                         <MusicDirector />
+                        <InstrumentListener />
                         {children}
                       </PhaseProvider>
                     </MoveWindowProvider>

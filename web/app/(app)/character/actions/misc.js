@@ -635,12 +635,52 @@ async function boxOfJunkRequestImpl({ session, character, held }) {
   };
 }
 
-export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
+// consumeChoice (the Instrument Kit): the PLAYER picks what it becomes, where a
+// consumesInto oneOf would roll it. The pick is checked against the catalog row here,
+// never trusted — a server action is a public endpoint. Self only.
+async function consumeChoiceRequestImpl({ session, character, held, choice }) {
+  const options = held.tag.consumeChoice ?? [];
+  if (typeof choice !== "string" || !options.includes(choice)) {
+    throw new UserError("[PLACEHOLDER: pick one of the kit's options]");
+  }
+  const openTurn = await getOpenTurn();
+  const restore = { tagId: held.tagId, source: held.source, expiresTurn: held.expiresTurn, quantity: 1 };
+  let granted = [];
+  await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You don't have that any more.");
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    granted = await grantTagSlugs(tx, character.id, [choice], openTurn?.number ?? null);
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_consume_tag",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: { tagId: held.tagId, tagName: held.tag.name, restore, chosen: choice, granted: granted.map((g) => g.tagName) },
+    });
+  });
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { ok: true };
+}
+
+export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }) {
   const { session, character } = await requireCharacter();
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
   if (!held.tag.consumable) throw new UserError("That tag can't be consumed.");
+
+  if (held.tag.consumeChoice?.length) {
+    if (targetCharacterId && targetCharacterId !== character.id) {
+      throw new UserError("[PLACEHOLDER: the kit can only be opened yourself]");
+    }
+    return consumeChoiceRequestImpl({ session, character, held, choice });
+  }
 
   // Breaking a seal takes its own road out of here. The ordinary consume path
   // below reads `consumesInto`, which names CATALOG SLUGS — and the letter

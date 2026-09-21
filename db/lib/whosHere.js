@@ -10,7 +10,8 @@ const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdenti
 const { aliasRow } = require("./concealedIdentity");
 const { lastSightings } = require("./sightings");
 const { UNBURIED_BODY_WHERE } = require("./presence");
-const { hoodToken } = require("./hoodToken"); // its own leaf to avoid a require cycle; re-exported below.
+const { hoodToken, performerKey } = require("./hoodToken");
+const { hasEverPerformed } = require("./performance"); // leaf requires only; no cycle. // its own leaf to avoid a require cycle; re-exported below.
 const { roleGroupHue } = require("./roleGroups");
 
 const PRESENT_SELECT = {
@@ -126,7 +127,10 @@ async function whosHere(prisma, viewer, { withHoodIds = false, withAcross = fals
     options.sightings ?? (options.withSightings ? await lastSightings(prisma, viewer) : null);
   const rows = await presentRows(prisma, viewer, { ...options, sightings });
 
-  const named = namedRows(rows, viewer);
+  // Who here has ever played an instrument, for the mute button (SOUND.md, "Performances").
+  // Named rows only: a key on a hood would match the same person's key unhooded.
+  const performed = await hasEverPerformed(prisma, rows.filter((c) => !c.hidden || c.forced).map((c) => c.id));
+  const named = namedRows(rows, viewer, performed);
   const concealed = concealedRows(rows, { withTokens: true });
 
   // Across a modular gate: listed, but rows nothing can act on — no token on a
@@ -166,7 +170,7 @@ async function gateNeighbours(prisma, locationId) {
   return links.map((link) => (link.aId === locationId ? link.b : link.a)).filter(Boolean);
 }
 
-function namedRows(rows, viewer) {
+function namedRows(rows, viewer, performed = null) {
   return rows
     .filter((c) => !c.hidden || c.forced)
     .map((c) => {
@@ -188,6 +192,8 @@ function namedRows(rows, viewer) {
         // a forced-name line (db/lib/archive.js#feedRowShape), and the two
         // lists have to agree.
         roleGroup: c.forced ? null : roleGroupHue(c.role?.groupSlug),
+        // The mute handle — present only for somebody who has ever played, never for you.
+        performerKey: performed?.has(c.id) && !c.self ? performerKey(c.id) : null,
       };
     });
 }

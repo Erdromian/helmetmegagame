@@ -75,7 +75,7 @@ const LOOT_TABLE = {
     "broadsword",
     "war-hammer",
     "convoy-directions",
-    "instrument",
+    "instrument-kit",
     "mining-helmet",
     // The Baron's lift. It came off the Hand's starting tags, so this and the
     // black market shelf are how anybody else gets down to the Refuse Pit

@@ -83,7 +83,7 @@ ambient   what the PLACE sounds like — wind outside, a drone in the Depths, th
 music     the game's music, now and then once you have settled in (§4a)
 event     a siren, an alarm, a thing arriving. Loud and brief
 room      a jukebox, a gramophone: something switched on in the room
-player    somebody playing a piano or a guitar
+player    somebody playing an instrument — one voice per performance (§6b)
 ```
 
 Player beats room because a person playing an instrument in front of you is
@@ -486,6 +486,88 @@ To add a file: drop it in, run `measure.sh`, paste its line into `musicGain.js`.
 A file missing from the table plays at its step gain alone — the fallback is 1
 rather than something cleverer precisely so an unmeasured file is obviously
 wrong instead of quietly almost-right.
+
+## 6b. Performances
+
+A player with an instrument in hand plays a real song, and everybody standing
+in the same Location hears it in their browser.
+
+**The instruments.** Lute, Accordion and Boombox (`docs/tags.yaml`). Each is
+`instrument: true`, and the code reads that flag, never a list of slugs. They
+go in the WEAPON slot and take one hand. The Instrument Kit is what a Minstrel
+starts with, and anyone can buy one at creation for 1 point: Consume it and
+the player picks one of its `consumeChoice` list
+(`web/app/components/actions/ConsumeChoiceDialog.js`). That is the one
+difference from `consumesInto`'s `oneOf`, which rolls.
+
+**The songs.** `db/lib/instrumentSongs.js` holds each instrument's list as
+`{ key, name, src, seconds }`. It has no requires, so the Play Instrument
+panel and the listener both read it in the browser. Each file is levelled at
+the −26 LUFS music tier (§6) through `musicGain.js`, like any other track.
+
+**The row.** One `Performance` per song (`db/lib/performance.js`):
+character, Location, instrument, song, the performer's volume, `startedAt`,
+`endsAt`, and `stoppedAt`. A row is live while `stoppedAt` is null and
+`endsAt` is still ahead, so a song that runs out needs no write. A character
+holds at most one unstopped row. The partial unique index
+`Performance_live_unique` backs that up, and a hand-written "fix drift"
+migration must not drop it (CLAUDE.md).
+
+**Starting.** The **Play Instrument** button on the sheet shows for anyone
+carrying an instrument or holding Musician, and is greyed until one is
+equipped. The panel lists the songs, with an instrument picker only when two
+or more are in hand. Clicking a song calls `startPerformance`, which checks
+the performer is alive, able to act, holding the instrument and asking for one
+of its songs, stops any older song, and writes the row. It also runs `/play`'s
+own `playInstrument` from the Location's key. Off the five-minute cooldown
+that posts the line and soothes the room, and on cooldown the song still plays
+and nothing is posted. From a Location key the line is scenery: one post, as
+subtext.
+
+**Stopping.** Stop in the panel, and each of these, all through
+`stopPerformances`:
+
+| What | Where |
+|---|---|
+| The instrument leaves the rack (unequip, give, destroy, a GM's tag op) | `web/lib/afterInventoryChange.js`, `db/lib/tagOps.js` (`stopIfInstrumentGone`) |
+| An attack, both sides | `db/lib/attack.js#fileAttack` |
+| An intercept hold, whoever is held | `db/lib/intercept.js#fireWatches` |
+| Being bound | `db/lib/bind.js#applyBind` |
+| Leaving the Location, however it happens | `db/lib/locationMove.js`, beside the phone hang-up |
+| Death, or leaving play | `db/lib/characterDeath.js#releaseEntanglements` |
+| Going Catatonic | `db/lib/catatonicPass.js`, `db/lib/playerDeparture.js` |
+
+`livePerformancesAt` also leaves out anybody no longer standing there, alive
+and able to act, so a hook that forgets costs nothing a listener can hear.
+
+**The wire.** Each start, stop and volume change raises one `pg_notify` on
+`bascinet_feed` with `op: "music"` and the Location's place key.
+`web/lib/feedHub.js` reads the live list once per notify and sends every
+stream standing in that Location an `event: music` frame with the whole list.
+`/api/feed` sends the same frame when a stream opens or its character walks
+somewhere, which is how somebody arriving halfway through a song lands halfway
+through it. Only the character's own Location: a GM or a ghost hears nothing.
+
+**The browser.** `useFeedStream.js` hands each frame to
+`web/app/components/performanceStore.js`, and `InstrumentListener.js` (mounted
+beside `MusicDirector`) turns it into sound. Each performance is its own voice
+on the `player` layer, keyed `player:<id>`, so two people playing at once are
+both heard (§3: every rule reads the base layer, so voices of one layer never
+duck each other). A voice is anchored to its `startedAt`. Its gain is the
+file's measured trim times the performer's slider. The performer's own start
+is noted straight into the store too, so somebody playing from the sheet,
+where no stream is open, still hears themselves.
+
+**Muting.** A row in HERE for somebody who has ever played carries a
+`performerKey` (`db/lib/hoodToken.js`), an HMAC in its own namespace so it
+never matches a hood token. The speaker button left of the eye toggles that
+key in `localStorage` (`bascinet:muted-performers`), and the listener skips
+any performance carrying it. Named rows only: a key on a hooded row would be
+the same key as that person's unhooded one.
+
+**Known limits.** The music frame only arrives while `/chat` is open, because
+that is the only page with a stream. On the sheet you hear your own song and
+nobody else's.
 
 ---
 

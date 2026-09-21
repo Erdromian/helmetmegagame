@@ -1581,6 +1581,10 @@ might need to reach a real environment:
   list would wake every open desk for every write in a turn-end push.
   `Delivery_notify` is the sixth, and the odd one: it announces its PARENT
   `StagedMessage`, because no desk row is a `Delivery` (`ADJUDICATION.md` §1a).
+  `Performance_live_unique` is the PhoneCall shape again (`WHERE "stoppedAt" IS
+  NULL`): `migrate diff` does not mention it, but a hand-written "fix drift"
+  migration must not drop it — it is what keeps one character to one song
+  (`SOUND.md` §6b).
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

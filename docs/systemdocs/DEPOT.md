@@ -890,9 +890,11 @@ buying one mid-game is still a real decision.
 | `black-market-autoinjector` | 8 | — | Black Market. The military autoinjector's whole cures list, and a stack of `damaged-vision` with it |
 | `gelabine` | 8 | — | Black Market. Also a Skilled brew (0.5t, one `cave-fungus`). Takes every addiction off and leaves you Aching |
 | `sake` | 9 | — | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
-| `boombox` | 10 | 7 | |
 | `whip` | 10 | 7 | Equippable |
 | `machete` | 11 | — | Black Market. Equippable, 0.3 tiers as a `sword` |
+| `boombox` | 12 | 8 | An instrument (`SOUND.md`, "Performances"): one hand, WEAPON slot. The Makeshift Stage still wants one on the floor |
+| `lute` | 12 | 8 | An instrument, as the boombox |
+| `accordion` | 12 | 8 | An instrument, as the boombox |
 | `iron` | 13 | 8 | Craftable (`smithing`, spends `hematite` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. It took `steel`'s numbers and its slot when steel and coal left the game on 2026-09-18. |
 | `silver` | 19 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
 | `jewelry` | 14 | 8 | Also a 2-pt creation pick |

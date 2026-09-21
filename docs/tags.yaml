@@ -7507,22 +7507,62 @@ tags:
     consumable: true
     consumesInto: [fertilized-fields]
 
-  # A lute, a fiddle, a set of pipes — the player decides which. Off the point
-  # scale at 1 (TAGS.md §4a): the tag buys no mechanical advantage, only the
-  # instrument half of /play (anyone can sing without one), and the Minstrel
-  # gets it free with the role. Anyone may buy one at creation, and a holder
-  # without Musician plays badly, which is the point.
-  instrument:
+  # The Minstrel's box, and anyone's at creation for 1 point: Consume it and the
+  # player PICKS one of consumeChoice (web/app/components/actions/
+  # ConsumeChoiceDialog.js), where a consumesInto oneOf would roll one.
+  instrument-kit:
     catalog: all
-    name: Instrument
+    name: Instrument Kit
     category: items
     group: items-gear
-    sprite: harmonica
-    description: "An instrument of one's choice — type {cmd:play} to play it."
+    sprite: case
+    description: "Consume this to select an instrument of your choice."
     pointCost: 1
-    weight: 4
+    weight: 1
     visible: true
     purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumeChoice: [lute, accordion, boombox]
+
+  # The instruments (SOUND.md, "Performances"). `instrument: true` is what the
+  # code reads; equipped in one hand, they open the Play Instrument panel.
+  lute:
+    catalog: gm
+    name: Lute
+    category: items
+    group: items-gear
+    sprite: guitar
+    description: "A fine string instrument."
+    pointCost: 0
+    depotPrice: 12
+    sellable: true
+    sellablePrice: 8
+    weight: 4
+    equippable: true
+    equipSlot: WEAPON
+    instrument: true
+    visible: worn
+    purchasable: false
+    purchasableAfterStart: false
+
+  accordion:
+    catalog: gm
+    name: Accordion
+    category: items
+    group: items-gear
+    sprite: bayan
+    description: "Also called a bayan, it is a classic in all the underground courts."
+    pointCost: 0
+    depotPrice: 12
+    sellable: true
+    sellablePrice: 8
+    weight: 6
+    equippable: true
+    equipSlot: WEAPON
+    instrument: true
+    visible: worn
+    purchasable: false
     purchasableAfterStart: false
 
   # Renamed in the Caves Update; the old slug's row is left for db:prune-tags.
@@ -14825,10 +14865,13 @@ tags:
     sprite: boombox0
     description: "A black box that can serve as a portable speaker."
     pointCost: 0
-    depotPrice: 10
+    depotPrice: 12
     sellable: true
-    sellablePrice: 7
+    sellablePrice: 8
     weight: 6
+    equippable: true
+    equipSlot: WEAPON
+    instrument: true
     visible: true
     purchasable: false
     purchasableAfterStart: false

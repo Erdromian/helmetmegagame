@@ -16,6 +16,7 @@ const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
+const { stopPerformances } = require("./performance");
 
 const BIND_SELECT = {
   id: true,
@@ -90,6 +91,8 @@ async function applyBind(prisma, { actor, target, turn, offerId = null }) {
       },
     });
   });
+  // Bound hands play nothing (SOUND.md, "Performances").
+  await stopPerformances(prisma, [target.id], "bind");
   return effect;
 }
 

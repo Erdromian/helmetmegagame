@@ -8,6 +8,7 @@ import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { reconcileCorpses } from "@lifeweb/db/lib/corpseFollow";
 import { refreshCorpseWeight } from "@lifeweb/db/lib/corpseWeight";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
+import { stopIfInstrumentGone } from "@lifeweb/db/lib/performance";
 
 export async function afterInventoryChange(characters) {
   const ids = [...new Set([].concat(characters).filter(Boolean).map((c) => (typeof c === "string" ? c : c.id)))];
@@ -17,6 +18,8 @@ export async function afterInventoryChange(characters) {
       return null;
     });
     await refreshCorpseWeight(prisma, id).catch(() => {});
+    // An unequipped, given-away or destroyed instrument ends its song (SOUND.md, "Performances").
+    await stopIfInstrumentGone(prisma, id).catch((err) => console.error(`performance stop failed for ${id}:`, err));
     const row = await prisma.character
       .findUnique({ where: { id }, select: { id: true, discordUserId: true, locationId: true, status: true } })
       .catch(() => null);

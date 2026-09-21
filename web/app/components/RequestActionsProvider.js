@@ -12,6 +12,7 @@ import { noticeLine } from "./actions/noticeLines";
 // Prisma-free on purpose (it takes `db` as a parameter), so importing it here
 // does not drag the @lifeweb/db barrel into the browser bundle.
 import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
+import { MUSICIAN_SLUG } from "@lifeweb/db/lib/constants";
 import { playSfx } from "@/app/components/sfx";
 
 // Every player action on the character sheet: the mode that is open, what
@@ -328,6 +329,22 @@ export default function RequestActionsProvider({
     [heldSlugs],
   );
 
+  // Play Instrument (SOUND.md, "Performances"): shown to anyone carrying an instrument or
+  // holding Musician, live once one is in hand. Tag.instrument, never a list of slugs.
+  const playFacts = useMemo(() => {
+    const carried = characterTags.filter((ct) => ct.tag?.instrument && (ct.quantity ?? 1) > 0);
+    const inHand = [];
+    for (const ct of carried) {
+      if (!((ct.equippedQuantity ?? 0) > 0 || ct.equipped)) continue;
+      if (!inHand.some((i) => i.slug === ct.tag.slug)) inHand.push({ slug: ct.tag.slug, name: ct.tag.name });
+    }
+    return {
+      canSeePlay: carried.length > 0 || heldSlugs.has(MUSICIAN_SLUG),
+      canPlay: inHand.length > 0,
+      instruments: inHand,
+    };
+  }, [characterTags, heldSlugs]);
+
   // Everything the dialogs read (components/actions/poolsContext.js): the
   // page's rosters as seeds, and the own-sheet facts. A plain object, so a
   // dialog always sees this render's props.
@@ -335,6 +352,7 @@ export default function RequestActionsProvider({
     selfId,
     selfName,
     characterTags,
+    playInstruments: playFacts.instruments,
     // Letters AND eyes, resolved once in web/lib/selfPools.js. Package reads
     // it to decide whether to offer a line for the side of the crate.
     canRead,
@@ -563,8 +581,11 @@ export default function RequestActionsProvider({
       atHideout,
       canRecover: recoverMissing.length > 0,
       recoverMissing,
+      canSeePlay: playFacts.canSeePlay,
+      canPlay: playFacts.canPlay,
     }),
     [
+      playFacts,
       recoverMissing,
       craftable,
       craftProjects,
