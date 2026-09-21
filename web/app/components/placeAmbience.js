@@ -171,7 +171,7 @@ const BY_ZONE = {
 // answer. Keys are from db/lib/locationAttributes.js.
 const BY_ATTRIBUTE = [["offMap", BY_ZONE.space]];
 
-const INDOORS = bed("indoors", ["ambigen11.ogg", "ambigen12.ogg", "outpost.ogg", "track3.ogg", "track13.ogg"]);
+const INDOORS = bed("indoors", ["outpost.ogg", "track3.ogg", "track13.ogg"]);
 
 // The wind, which is also what the closed door plays. Short files, so they loop.
 const OUTDOORS = bed(
