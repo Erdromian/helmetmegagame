@@ -326,9 +326,9 @@ day running escalates it to Exhausted, which refuses the next day until it
 decays. Left alone, Exhausted degrades to Tired and Tired clears, so the
 practical shape is that somebody mining flat out works every other turn.
 
-A shift at the Factory steps the same ladder (`FACTORY.md` §4), so mining and
-refining tire each other: a day of one leaves you Tired for the other. Farm takes
-Exhausted outright instead (`SOILERY.md` §5a).
+A shift at the Factory and a day of Farm step the same ladder (`FACTORY.md` §4,
+`SOILERY.md` §5a), so mining, refining and farming tire each other: a day of one
+leaves you Tired for the others.
 
 That module is **not** a mining file, despite living beside one for a long
 time. A day on the Factory floor climbs the same ladder the same way
