@@ -13367,7 +13367,7 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
+    equipLayer: 1
     visible: worn
     weight: 5
     purchasable: false
@@ -17603,7 +17603,7 @@ tags:
     pointCost: 4
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
+    equipLayer: 1
     melee: 0.31
     ballistic: 0.09
     visible: true
