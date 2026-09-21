@@ -9,7 +9,16 @@ const { markPlayerDeparted } = require("@lifeweb/db/lib/playerDeparture");
 const { LEAVE_ANNOUNCE_CHANNEL_ID } = require("@lifeweb/db/lib/constants");
 
 async function reconcileDepartures(client, guild) {
-  const members = await guild.members.fetch(); // gateway fetch, not REST — costs nothing against the request budget
+  // syncDiscordAccountsForGuild ran a full guild.members.fetch() moments ago
+  // (ready.js), so the cache is already warm. Fetching a second time costs
+  // nothing against the REST budget but DOES spend the gateway's own opcode-8
+  // allowance, and in production it was the one that lost: "Leave reconcile
+  // failed: GatewayRateLimitError: Request with opcode 8 was rate limited."
+  // That took the safety net down. Reuse what the first fetch left behind and
+  // only go to the gateway if nothing did. The mass-flag rail below still
+  // catches a cache that came back thin, so a bad read can never read as an
+  // exodus.
+  const members = guild.members.cache.size > 0 ? guild.members.cache : await guild.members.fetch();
 
   const alive = await prisma.character.findMany({
     where: { status: "ALIVE", leftGuildAt: null },

@@ -26,7 +26,17 @@ const client = new Client({
     GatewayIntentBits.GuildMessageTyping, // feeds Chat's "X is typing…" (CHAT.md §3)
     GatewayIntentBits.DirectMessages,
   ],
-  partials: [Partials.Channel, Partials.Message, Partials.Reaction],
+  // Partials.GuildMember is LOAD-BEARING, not tidying. discord.js's
+  // GUILD_MEMBER_REMOVE handler emits nothing at all unless it can resolve the
+  // departing member — and without this partial it only ever looks in the
+  // member cache (Action#getPayload). Discord does not send a full member list
+  // on connect for a guild this size, and the one pass that would fill the
+  // cache, reconcileDepartures' guild.members.fetch(), gets rate limited on
+  // opcode 8. So an uncached player left and the whole departure path never
+  // ran: no #leave alert, no member_left audit row, no Catatonic flag, no
+  // death countdown. With the partial the payload's own `user` is enough, and
+  // Discord always sends that on a remove. Do not drop it.
+  partials: [Partials.Channel, Partials.Message, Partials.Reaction, Partials.GuildMember],
 });
 
 // One guard for every handler: names the failing event rather than rejecting silently up to the catch-all above.

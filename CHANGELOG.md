@@ -6,6 +6,12 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · Leaving the server is noticed again
+
+✎ A player who left was going completely unrecorded: no note in the leave channel, no Catatonic mark, no death countdown started. The bot was being handed the departure and throwing it away  
+✚ The startup catch-up that is supposed to find anyone who left while the bot was down works again; it had been failing on every boot  
+✎ Losing or gaining the Gamemaster role now reliably reseats zone access, which was dropped the same way
+
 ## 2026-09-21 · Manic scrambles less of the catalog
 
 ✎ Manic now locks about 40% of your Desires each turn instead of 70% -- for 10 points the tag was reading as a punishment rather than a trade, since a Manic character could barely find anything to claim  
