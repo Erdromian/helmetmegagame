@@ -965,7 +965,7 @@ groups:
         - Bore Pistol
         - Machete
         - Suit and Tie
-        - Balaclava
+        - Hood
         - Bomb Collar
         - Remote Detonator
         - Collar Key
@@ -1175,6 +1175,7 @@ groups:
         - Cave Fungus
         - Obol x10
         - Appraisal
+        - Hood
       doc_elements:
         - alcoholdrugs
     innkeeper:
@@ -1299,6 +1300,7 @@ groups:
         - Dagger
         - Padded Armor
         - Padded Cap
+        - Hood
 
   # Outsiders
   outsiders:
