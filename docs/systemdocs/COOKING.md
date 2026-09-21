@@ -37,7 +37,7 @@ What carries over from the old system, unchanged in mechanism:
 - Every dish has a **taste**, and eating one says so — now the recipe's own
   base taste (`mealTaste`/`mealTasteForm`) reads FIRST, then each additional
   ingredient's.
-- Naming a dish costs 1 ⬢ a dish, the standard surcharge (`CRAFTING.md` §4a), and takes a name and no description. A dish nobody named costs no ⬢ at all.
+- Naming a dish costs 1 ⬢ once for the whole batch you cook, however many dishes are in it (`CRAFTING.md` §4a), and takes a name and no description. A dish nobody named costs no ⬢ at all.
 
 ### 1a. A meal is now the only way to be fed
 

@@ -380,14 +380,19 @@ left blank.
 
 **What the words cost is the recipe's own business now** —
 `surchargeFor(tag)`, reading `Tag.customCost`, is the one verdict both the
-dialog and the server price with. The cooking recipes set `custom: { cost: 1 }`,
-which is the standard surcharge written out, so a cook naming their own dish pays
-1 ⬢ a dish. That is per unit, so a batch of twenty named dishes is 20 ⬢, and it
-is the only ⬢ cooking ever asks for: a dish nobody named costs none. (They set it
-to 0 for a while, on the argument that charging made every meal in the game
-anonymous; naming is optional again at a price.) `custom: { describable: false }`
-is the other half — a meal takes a name and no description, so the dialog hides
-the textarea and the server drops a posted one rather than refusing it.
+dialog and the server price with. The surcharge is normally **per unit**: a named
+dagger is +1 ⬢. A recipe can charge it **per batch** instead with
+`custom: { perBatch: true }` (`Tag.customPerBatch`): once for the whole craft action,
+however many units come out of it. The cooking recipes set `custom: { cost: 1,
+perBatch: true }`, so a cook naming a batch of twenty dishes pays 1 ⬢, not 20, and
+that is the only ⬢ cooking ever asks for: a dish nobody named costs none. (They were
+free for a while, on the argument that charging made every meal in the game
+anonymous; naming is optional again at a small price.) `craftResourceCost`
+(`db/lib/customCost.js`) is the one function that turns the recipe's own ⬢, the
+surcharge, the batch flag and the quantity into a price, read by the dialog and by
+`craftRequestImpl` alike. `custom: { describable: false }` is the other half — a meal
+takes a name and no description, so the dialog hides the textarea and the server drops
+a posted one rather than refusing it.
 
 A **cooked dish always mints**, words or not: what went into it is what it
 does, so it needs a row of its own even from a cook who named nothing. Its

@@ -5,6 +5,9 @@
 // Run with `npm test --workspace=db`. Nothing here touches Prisma.
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const yaml = require("js-yaml");
 const {
   COOKED_TASTE_MAX,
   INGREDIENT_SLOTS_MAX,
@@ -203,21 +206,43 @@ test("slots are refused on a multi-turn project", () => {
 
 // --- custom ---------------------------------------------------------------
 
-test("an absent custom block means the standard surcharge and a description box", () => {
+test("an absent custom block means the standard surcharge, per unit, and a description box", () => {
   assert.deepEqual(normalizeCustom(null, { slug: "painting", customizable: true }), {
     customCost: null,
     customDescribable: true,
+    customPerBatch: false,
   });
+});
+
+test("a recipe may charge its naming surcharge once per batch, and only true or false says so", () => {
+  assert.deepEqual(
+    normalizeCustom({ cost: 1, perBatch: true, describable: false }, { slug: "bread", customizable: true }),
+    { customCost: 1, customDescribable: false, customPerBatch: true },
+  );
+  assert.equal(normalizeCustom({ cost: 1 }, { slug: "dagger", customizable: true }).customPerBatch, false);
+  assert.throws(
+    () => normalizeCustom({ perBatch: "yes" }, { slug: "bread", customizable: true }),
+    /perBatch must be true or false/,
+  );
+});
+
+test("every cooking recipe in the catalog names its dish for 1 ⬢ once a batch, with no description", () => {
+  const catalog = yaml.load(fs.readFileSync(path.join(__dirname, "../../docs/tags.yaml"), "utf8")).tags;
+  const cooks = Object.entries(catalog).filter(([, t]) => (t.requirement?.skills ?? []).some((s) => /^cooking-/.test(s)));
+  assert.ok(cooks.length >= 30, "found the cooking recipes");
+  for (const [slug, t] of cooks) {
+    assert.deepEqual(t.custom, { cost: 1, perBatch: true, describable: false }, `${slug} names its dish the same way as every other`);
+  }
 });
 
 test("a recipe can make its words free, and can take a name without a description", () => {
   assert.deepEqual(
     normalizeCustom({ cost: 0, describable: false }, { slug: "fine-meal", customizable: true }),
-    { customCost: 0, customDescribable: false },
+    { customCost: 0, customDescribable: false, customPerBatch: false },
   );
   assert.deepEqual(
     normalizeCustom({ cost: 0, describable: true }, { slug: "lavish-meal", customizable: true }),
-    { customCost: 0, customDescribable: true },
+    { customCost: 0, customDescribable: true, customPerBatch: false },
   );
 });
 

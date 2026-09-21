@@ -3331,11 +3331,15 @@ model Tag {
   // docs/tags.yaml and only legal beside `customizable: true`.
   //
   // NULL cost means CUSTOM_SURCHARGE (web/lib/customCraft.js) — the painting,
-  // the sketch, the badge, the hat. `0` means free, which is what the two
-  // meals are: a cook naming their own dish is the whole point of the cooking
-  // rework, not an upsell. surchargeFor() is the one verdict both the dialog
-  // and the server action read, so the ⬢ shown is always the ⬢ billed.
+  // the sketch, the badge, the hat. `0` means free. The cooking recipes charge
+  // 1 ⬢ once per batch (customPerBatch below). surchargeFor() and craftResourceCost()
+  // are the one verdict both the dialog and the server action read, so the ⬢ shown
+  // is always the ⬢ billed.
   customCost   Int?
+
+  // True charges customCost ONCE per craft action however many units come out of it, instead of once per unit
+  // (db/lib/customCost.js). The cooking recipes: a cook naming a batch of twenty dishes pays 1 ⬢, not 20.
+  customPerBatch Boolean @default(false)
 
   // False hides the description box and refuses a posted description. The
   // Fine Meal takes a name and nothing else; the Lavish Meal takes both.

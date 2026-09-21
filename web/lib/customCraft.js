@@ -3,6 +3,7 @@
 // dialog and the server action so the two can never drift. Pure — no prisma, no React.
 
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
+import { craftResourceCost } from "@lifeweb/db/lib/customCost";
 
 export const CUSTOM_SURCHARGE = 1; // ⬢ per unit, on top of the recipe's own
 
@@ -17,8 +18,11 @@ export function customCraftFor(tag, fields) {
         customDescription: tag.customDescribable === false ? "" : fields?.customDescription,
       })
     : { name: "", description: "", active: false };
-  return { custom, surcharge: custom.active ? surchargeFor(tag) : 0 };
+  return { custom, surcharge: custom.active ? surchargeFor(tag) : 0, perBatch: tag?.customPerBatch === true };
 }
+
+// The ⬢ a craft costs, the recipe's own plus the naming surcharge, per unit or per batch as the recipe says (db/lib/customCost.js).
+export { craftResourceCost };
 export const CUSTOM_NAME_MAX = 30;
 export const CUSTOM_DESCRIPTION_MAX = 300;
 export const INSCRIPTION_MAX = 200;
