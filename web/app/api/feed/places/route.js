@@ -12,10 +12,10 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request) {
   const viewer = await loadFeedViewer();
+  // Signed in is the whole gate, the same as the stream's: somebody waiting on
+  // a seat gets the Game channel and nothing else, rather than a 403 their
+  // Chat reads as a dead session.
   if (!viewer.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
-  if (!viewer.character && !viewer.gm && !viewer.ghost) {
-    return Response.json({ error: "You have no living character." }, { status: 403 });
-  }
   // `?probe=1` is Chat asking only whether the session is still good after
   // its stream has dropped twice (Chat.js): the gates above are the whole
   // answer, and a hundred tabs recovering from one redeploy should not each

@@ -25,7 +25,12 @@ const PING_MS = 25_000;
 export async function GET(request) {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) return new Response("Not signed in.", { status: 401 });
-  if (!viewer.character && !viewer.gm && !viewer.ghost) return new Response("No living character.", { status: 403 });
+  // Signed in is the whole gate. Somebody waiting on a seat — the lobby, or a
+  // re-roll — has no character, and refusing them here was read by their
+  // EventSource as a connection that kept failing, so /chat sat on
+  // "Reconnecting…" before the game had even started. They get what
+  // placesFor() gives a null character, which is the Game channel and nothing
+  // else: the turn opening is what #turns tells the whole guild.
 
   const { searchParams } = new URL(request.url);
   // ONE place, for a reader who only wants one. The GM desk's Scene tab is
@@ -281,11 +286,12 @@ export async function GET(request) {
       // thread belongs to the ACCOUNT rather than the body — the same rule
       // Chat.js draws the Messages row by — so taking the watcher's chair must
       // not cost them their own mail.
-      const unsubscribeDm = viewer.character || viewer.playing || viewer.options?.ghost
-        ? subscribeToDm(viewer.discordUserId, (row) => {
-            write(`event: dm\ndata: ${JSON.stringify(row)}\n\n`);
-          })
-        : () => {};
+      // Everyone signed in, for the same reason: somebody with no character at
+      // all has the DM thread and the Game channel and nothing else, and a
+      // seat offer arriving there is the one thing they are waiting for.
+      const unsubscribeDm = subscribeToDm(viewer.discordUserId, (row) => {
+        write(`event: dm\ndata: ${JSON.stringify(row)}\n\n`);
+      });
 
       // Railway's proxy closes an idle connection, and so do some corporate
       // ones. A comment line keeps it warm and costs nothing to parse.
@@ -302,8 +308,23 @@ export async function GET(request) {
       // Burial and engraving are NOT on that list any more — they lift the
       // curse and leave the seat alone (db/lib/ghost.js), so this fires less
       // often than it used to, not more.
+      //
+      // A viewer who opened with no character at all asks the mirror of that
+      // on the same beat: have they been given one since? The presence channel
+      // needs a character to hang off, so nothing else would tell this stream,
+      // and somebody who rolls up mid-session would sit on a Game-channel-only
+      // feed until they reloaded.
+      const waitingForASeat = !viewer.character && !viewer.gm && !viewer.options?.ghost;
       const ping = setInterval(() => {
         write(": ping\n\n");
+        if (waitingForASeat) {
+          loadFeedCharacter(viewer.discordUserId)
+            .then((character) => {
+              if (character) finish();
+            })
+            .catch(() => {});
+          return;
+        }
         if (!viewer.options?.ghost) return;
         isPlayerGhost(prisma, viewer.discordUserId)
           .then((still) => {
