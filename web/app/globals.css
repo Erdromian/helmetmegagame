@@ -348,8 +348,8 @@
      job when the alpha-mask trick went away with the raster plate. */
   --map-void: #0c1013;
   --map-stone: #424645;
-  --map-filler: #727371;
-  --map-lit: #c0c2c1;
+  --map-filler: #616260;
+  --map-lit: #9a9c9b;
   --map-heat: #814537;
   /* The one-pixel drop behind a crosshair. Load-bearing, not decoration: a
      faint reticle's corner ticks land exactly where a building's own white
@@ -3427,6 +3427,23 @@ input[type="radio"]:disabled {
   height: var(--tap);
 }
 
+/* Touch, DESIGN-SYSTEM §9. The floor used to live only in chat.css's
+   `.chat-shell` block, so every icon button on the sheet, the desk, the map,
+   /documents and /notes stayed 28px square on a phone — half the 44px floor,
+   and the one button family that missed it. `width`/`height` rather than the
+   `min-height` the text buttons take: .icon-btn pins both axes, so a lone
+   min-height would have grown a 28x44 sliver instead of a thumb.
+
+   This is also what makes IconButton.js's header true everywhere rather than
+   only inside /chat: `size` decides what a FINE pointer sees, and a coarse one
+   gets --tap either way, so sm and lg are the same target on a touch screen. */
+@media (pointer: coarse) {
+  .icon-btn {
+    width: var(--tap);
+    height: var(--tap);
+  }
+}
+
 .icon-btn:hover {
   color: var(--text);
 }
@@ -3491,6 +3508,21 @@ input[type="radio"]:disabled {
    leftmost option loses the lit edge that says it is sunk. */
 .segmented button:first-child[aria-pressed="true"] {
   border-left: 2px solid var(--border-lo);
+}
+
+/* Touch, DESIGN-SYSTEM §9. A segmented group had no floor at any width, so it
+   came out ~31px on a phone — and it is the picker on /archive, /documents and
+   /notes, all of which a player reads there. min-height alone is enough: these
+   are already blocks in a flex row, unlike .icon-btn above.
+
+   The pressed member trades 2px of padding for 2px of border to hold its
+   geometry (see above), so both faces land on the same floor and the row still
+   does not move as you click along it. */
+@media (pointer: coarse) {
+  .segmented button {
+    box-sizing: border-box;
+    min-height: var(--tap);
+  }
 }
 
 /* App shell: the universal top bar, then the page. A column now that the
@@ -6657,12 +6689,21 @@ label.chip {
 .map-cross {
   fill: var(--on-accent);
   fill-opacity: 0.55;
+  /* A dark rim all the way round, the way .map-node-label is haloed: the drop
+     below only covers two sides, and a near-white mark on a lit tile lost the
+     other two. One path of pixel rects, so the fill covers the inner seams and
+     only the outside edge shows. */
+  stroke: var(--map-halo);
+  stroke-width: 0.75;
+  stroke-linejoin: miter;
+  stroke-opacity: 0.55;
+  paint-order: stroke;
   pointer-events: none;
 }
 
 .map-cross-halo {
   fill: var(--map-halo);
-  fill-opacity: 0.55;
+  fill-opacity: 0.8;
   pointer-events: none;
 }
 
@@ -6678,6 +6719,19 @@ label.chip {
 .map-node[data-state="seen"] .map-cross,
 .map-node[data-state="seen"] .map-cross-halo {
   fill-opacity: 0.3;
+  stroke-opacity: 0.3;
+}
+
+/* Where you can walk next. Louder than the rest of the board, quieter than
+   where you stand or what you picked. After the seen rule on purpose: a place
+   next door is worth seeing even if you have never been in. */
+.map-node[data-reach] .map-cross {
+  fill-opacity: 0.9;
+  stroke-opacity: 0.9;
+}
+
+.map-node[data-reach] .map-cross-halo {
+  fill-opacity: 0.9;
 }
 
 .map-node[data-state="seen"] .map-node-label {
@@ -6723,6 +6777,7 @@ label.chip {
 .map-node[data-reach]:hover .map-cross,
 .map-node[data-reach]:hover .map-cross-halo {
   fill-opacity: 1;
+  stroke-opacity: 1;
 }
 
 .map-node-label {

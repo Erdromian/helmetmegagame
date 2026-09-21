@@ -10,6 +10,7 @@ import {
   isDynastyHead,
   isDynastyMember,
   canOpenCrate,
+  isBlackMarketSeal,
 } from "@lifeweb/db";
 import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import {
@@ -411,12 +412,16 @@ async function openCrateRequestImpl({ session, character, held }) {
   const contents = Array.isArray(crate.crateContents) ? crate.crateContents : null;
   if (!contents) throw new UserError("That isn't a crate.");
 
-  if (!canOpenCrate(crate, heldSlugsOf(character.tags))) {
-    throw new UserError("It's sealed, and the lock wants a Depot Keycard.");
+  const inner = await prisma.tag.findMany({ where: { id: { in: contents.map((c) => c.tagId).filter(Boolean) } } });
+  if (!canOpenCrate(crate, heldSlugsOf(character.tags), inner)) {
+    throw new UserError(
+      isBlackMarketSeal(inner)
+        ? "It's sealed, and the lock wants a Silver Chip or a Depot Keycard."
+        : "It's sealed, and the lock wants a Depot Keycard.",
+    );
   }
 
   const openTurn = await getOpenTurn();
-  const inner = await prisma.tag.findMany({ where: { id: { in: contents.map((c) => c.tagId) } } });
   const byId = new Map(inner.map((t) => [t.id, t]));
 
   // ⬢ ride the crate in the field the ordinary consume path already grants,
@@ -630,12 +635,52 @@ async function boxOfJunkRequestImpl({ session, character, held }) {
   };
 }
 
-export async function consumeTagRequestImpl({ tagId, targetCharacterId }) {
+// consumeChoice (the Instrument Kit): the PLAYER picks what it becomes, where a
+// consumesInto oneOf would roll it. The pick is checked against the catalog row here,
+// never trusted — a server action is a public endpoint. Self only.
+async function consumeChoiceRequestImpl({ session, character, held, choice }) {
+  const options = held.tag.consumeChoice ?? [];
+  if (typeof choice !== "string" || !options.includes(choice)) {
+    throw new UserError("[PLACEHOLDER: pick one of the kit's options]");
+  }
+  const openTurn = await getOpenTurn();
+  const restore = { tagId: held.tagId, source: held.source, expiresTurn: held.expiresTurn, quantity: 1 };
+  let granted = [];
+  await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    const stillHeld = await tx.characterTag.findFirst({
+      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
+      select: { id: true },
+    });
+    if (!stillHeld) throw new UserError("You don't have that any more.");
+    await dropCharacterTag(tx, character.id, held.tagId, 1);
+    granted = await grantTagSlugs(tx, character.id, [choice], openTurn?.number ?? null);
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_consume_tag",
+      targetCharacterId: character.id,
+      turnId: openTurn?.id ?? null,
+      details: { tagId: held.tagId, tagName: held.tag.name, restore, chosen: choice, granted: granted.map((g) => g.tagName) },
+    });
+  });
+  await afterInventoryChange([character.id]);
+  revalidateAll();
+  return { ok: true };
+}
+
+export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }) {
   const { session, character } = await requireCharacter();
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
   if (!held.tag.consumable) throw new UserError("That tag can't be consumed.");
+
+  if (held.tag.consumeChoice?.length) {
+    if (targetCharacterId && targetCharacterId !== character.id) {
+      throw new UserError("[PLACEHOLDER: the kit can only be opened yourself]");
+    }
+    return consumeChoiceRequestImpl({ session, character, held, choice });
+  }
 
   // Breaking a seal takes its own road out of here. The ordinary consume path
   // below reads `consumesInto`, which names CATALOG SLUGS — and the letter

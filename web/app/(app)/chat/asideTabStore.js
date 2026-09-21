@@ -11,13 +11,17 @@ const listeners = new Set();
 
 // The snapshot must be stable between changes or useSyncExternalStore spins.
 let cached = null;
+// Latched the first time a write is refused. Storage is not available, so `cached` is the
+// only copy of the choice there is and nothing may drop it and re-read an empty store: the
+// snapshot would come back unchanged, useSyncExternalStore would skip the render, and the
+// tab would never move. Same rule, same reason, as ./next/foldStore.js.
+let memoryOnly = false;
 
 function invalidate() {
-  cached = null;
+  if (!memoryOnly) cached = null;
 }
 
-function emit() {
-  invalidate();
+function notify() {
   for (const cb of listeners) cb();
 }
 
@@ -54,12 +58,16 @@ function readServer() {
 }
 
 function setAsideTab(id) {
+  const next = String(id);
+  // The snapshot IS the choice, so it is set before the store is tried rather than read
+  // back out of it afterwards. Unwritable storage then costs only the remembering.
+  cached = next;
   try {
-    window.localStorage.setItem(KEY, String(id));
+    window.localStorage.setItem(KEY, next);
   } catch {
-    // Nothing to do: the column still works, it just forgets.
+    memoryOnly = true;
   }
-  emit();
+  notify();
 }
 
 // The remembered tab, or `fallback` when there is nothing stored, or when what IS stored

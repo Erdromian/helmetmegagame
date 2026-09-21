@@ -4,7 +4,14 @@ import { feedWipeFloors, floorForPlace, lowestFloor, placeSeqWhere } from "@life
 import { makeSeenSeqs } from "@lifeweb/db/lib/seenSeqs";
 import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
 import { loadFeedViewer, loadFeedCharacter, placesFor } from "@/lib/feedAccess";
-import { subscribeToPlace, subscribeToPresence, subscribeToTyping, subscribeToDm } from "@/lib/feedHub";
+import {
+  subscribeToPlace,
+  subscribeToPresence,
+  subscribeToTyping,
+  subscribeToDm,
+  subscribeToMusic,
+  musicFrameFor,
+} from "@/lib/feedHub";
 
 // GET /api/feed?since=<seq> — ONE server-sent event stream per open tab,
 // carrying every place the viewer may read.
@@ -220,8 +227,9 @@ export async function GET(request) {
       // list from it would list the street they left.
       const refreshPlaces = async ({ announce = true, catchUpNew = false, reason = "open" } = {}) => {
         let places = [];
+        let character = null;
         try {
-          const character = viewer.character
+          character = viewer.character
             ? ((await loadFeedCharacter(viewer.discordUserId)) ?? viewer.character)
             : null;
           places = await placesFor(prisma, character, viewer.options);
@@ -230,6 +238,7 @@ export async function GET(request) {
           return;
         }
         if (closed) return;
+        await followMusic(character?.locationId ?? null);
         if (onlyPlace) places = places.filter((entry) => entry.placeKey === onlyPlace);
 
         const wanted = new Set(places.map((entry) => entry.placeKey));
@@ -251,6 +260,26 @@ export async function GET(request) {
 
         if (announce) write(`event: places\ndata: ${JSON.stringify({ places, reason })}\n\n`);
         if (catchUpNew && added.length > 0) await catchUp(added, lastSeq);
+      };
+
+      // The sixth event: what is being played where the character stands (SOUND.md,
+      // "Performances"). Only their OWN Location — a performance is heard by the people in
+      // the room, not by everyone who may read it — so a GM or a ghost hears nothing. The
+      // frame is the whole live list every time, and it is sent on arrival too, which is
+      // how somebody walking in halfway through a song lands at the right place in it.
+      let musicLocationId = null;
+      let unsubscribeMusic = () => {};
+      const sendMusic = (frame) => write(`event: music\ndata: ${JSON.stringify(frame)}\n\n`);
+      const followMusic = async (locationId) => {
+        if (locationId === musicLocationId) return;
+        unsubscribeMusic();
+        musicLocationId = locationId;
+        unsubscribeMusic = subscribeToMusic(locationId, sendMusic);
+        try {
+          sendMusic(await musicFrameFor(locationId));
+        } catch (err) {
+          console.error("Feed music frame failed:", err);
+        }
       };
 
       // The list first, so a client that reconnects knows what it is looking
@@ -340,6 +369,7 @@ export async function GET(request) {
         clearInterval(ping);
         unsubscribePresence();
         unsubscribeDm();
+        unsubscribeMusic();
         for (const entry of subscriptions.values()) {
           entry.rows();
           entry.typing();

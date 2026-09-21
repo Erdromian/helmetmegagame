@@ -187,8 +187,6 @@ const BREWING_DISTILLING_SLUG = "brewing-distilling";
 // what its 3-point price is now set against (BREWING.md, TAGS.md §4a).
 const DISTILLING_DOUBLES_SLUGS = new Set(["alcohol", "moonshine"]);
 const MUSICIAN_PYTHAGOREAN_SLUG = "musician-pythagorean";
-// The instrument, and the skill that plays it well — shared so web /play (Chat) and the bot's /play read the same slugs.
-const INSTRUMENT_SLUG = "instrument";
 const MUSICIAN_SLUG = "musician";
 // The phobias, Brave, Pale, Rough Camper and friends are read by slug inside db/lib/mood.js's multiplier table.
 
@@ -353,7 +351,6 @@ module.exports = {
   BREWING_DISTILLING_SLUG,
   DISTILLING_DOUBLES_SLUGS,
   MUSICIAN_PYTHAGOREAN_SLUG,
-  INSTRUMENT_SLUG,
   MUSICIAN_SLUG,
   TAG_CATEGORY,
 };

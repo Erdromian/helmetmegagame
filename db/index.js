@@ -15,7 +15,6 @@ const { PrismaClient, Prisma } = require("@prisma/client");
 // By path, off the barrel — the scripts that need it most are ad-hoc ones.
 const { assertRawSqlAllowed } = require("./lib/localDatabase");
 const { buildTurnAnnouncement } = require("./turnCalendar");
-const { nextTurnBanner } = require("./lib/turnBanner");
 // The turn's Discord half, and the ledger that lets a killed one be finished.
 const {
   runTurnSideEffects,
@@ -1687,9 +1686,6 @@ async function advanceTurn() {
 
   const lastTurn =
     openTurn ?? (await prisma.turn.findFirst({ orderBy: { number: "desc" } }));
-  // Picked once, here, and remembered on the Turn row — a repost of the
-  // announcement must show the same picture, not roll a new one.
-  const banner = await nextTurnBanner(prisma);
   const lifewebFlavor =
     lifewebBlood <= LIFEWEB_SPUTTER_THRESHOLD
       ? "The Lifeweb sputters, failing."
@@ -1708,7 +1704,6 @@ async function advanceTurn() {
       dayNumber: nextDayNumber(lastTurn, startedAt),
       turnLengthHours,
       endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours)),
-      banner,
       startedAt,
       status: "OPEN",
     },

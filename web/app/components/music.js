@@ -10,21 +10,33 @@ import { soundSetting } from "./soundStore";
 // next ordinary cue and capped by `maxMs`. Every one of those rules is right for a rite
 // and fatal for a soundtrack.
 //
-// FOUR LAYERS, lowest priority first. The highest layer holding a track is the one you
+// FIVE LAYERS, lowest priority first. The highest layer holding a track is the one you
 // hear; every layer under it ducks to SILENCE rather than stopping, so when the thing
 // above ends, the thing below is still where you left it.
 //
-//   ambient   the default bed — wind, room tone
-//   music     event and situation music — the lobby, a special room, a sting
+//   ambient   the bed the PLACE has — wind outside, a drone in the Depths, the
+//             Cathedral's organ room every few minutes (placeAmbience.js)
+//   music     the game's music — a track, then minutes of nothing, then another
+//   event     a siren, an alarm, a thing arriving. Loud and brief
 //   room      a jukebox, a gramophone: something switched on in the room
-//   player    somebody playing a piano or a guitar
+//   player    somebody playing an instrument, one voice each
 //
 // Player beats room because a person playing an instrument in front of you is nearer than
 // furniture in the corner, and because it is something somebody is DOING.
 //
-// Only `ambient` and `music` have callers today (musicProgram.js). `room` and `player`
-// are reachable by playOn("room", …) and wired into the priority rule; that is the whole
-// of the scaffolding and it costs three strings.
+// TWO RULES ON TOP OF THAT, and they are both about what a person is doing:
+//
+//   `room` and `player` are MUTUALLY EXCLUSIVE. Starting one stops the other. One
+//   jukebox or one lute, never a fight between them.
+//
+//   `event` COEXISTS with them rather than losing to them. A siren does not stop being
+//   a siren because somebody is at the piano — so instead of ducking to nothing it drops
+//   to a floor and its lowpass sweeps down, which is the sound of both facts being true
+//   at once: a siren heard through a wall. Every other pairing is still winner-takes-all.
+//
+// `ambient` and `music` are driven by musicProgram.js and MusicDirector.js, and `player` by
+// InstrumentListener.js, one voice per performance (see VOICES below). `room` and `event`
+// are wired in and still waiting for a caller.
 //
 // MUTING IS A DUCK, NOT A STOP. The music switch pulls the master gain to silence and
 // leaves every layer exactly as it was — same track, same place, same tape — so unmuting
@@ -44,15 +56,56 @@ import { soundSetting } from "./soundStore";
 // through decodeAudioData, and the element hands over `duration`, `currentTime` (this is
 // how the 0:18 resume works) and `ended` for nothing.
 
-export const LAYERS = ["ambient", "music", "room", "player"];
+export const LAYERS = ["ambient", "music", "event", "room", "player"];
 
 // What a layer does while something above it is playing. The bed keeps rolling, because a
 // wind loop restarted at 0:00 under a jukebox is audible; everything else pauses, because
-// a 4 MB song should not stream through ten silent minutes of somebody's data plan.
-const LAYER_MODE = { ambient: "continue", music: "pause", room: "pause", player: "pause" };
+// a 4 MB song should not stream through ten silent minutes of somebody's data plan. An
+// event keeps rolling for a different reason: it is short, it is usually still audible
+// under whatever beat it, and a siren that pauses and resumes is a siren twice.
+const LAYER_MODE = {
+  ambient: "continue",
+  music: "pause",
+  event: "continue",
+  room: "pause",
+  player: "pause",
+};
+
+// The two extra rules, as data rather than as branches — a sixth bus is a line here.
+//
+// PERFORMANCE is the set that is mutually exclusive: somebody's music, however it is
+// being made. COEXIST names the layers that are NOT silenced by what beats them, and
+// says what they do instead — `under` is which winners the rule applies against, `duck`
+// is the fraction of its own gain it keeps, `hz` is how dark it goes.
+const PERFORMANCE = new Set(["room", "player"]);
+
+// VOICES. A layer key may carry a voice after a colon — "player:<performanceId>" — so two
+// people playing in one Location are both heard (SOUND.md, "Performances"). Every rule
+// here reads the BASE layer, so voices of one layer never duck or stop each other; they
+// only ever lose to, or beat, other layers together.
+function baseOf(key) {
+  const at = key.indexOf(":");
+  return at < 0 ? key : key.slice(0, at);
+}
+function rankOf(key) {
+  return LAYERS.indexOf(baseOf(key));
+}
+const COEXIST = { event: { under: PERFORMANCE, duck: 0.35, hz: 700 } };
+
+// Where a lowpass is inaudible. A filter parked here is a filter that is not there.
+const OPEN_HZ = 20_000;
+const MUFFLE_MS = 600;
 
 const CROSSFADE_MS = 1200;
 const MUTE_FADE_MS = 400;
+
+// Nothing starts or stops instantly. Applied in playOn() and stopLayer() and NOWHERE
+// else — ramp() has deliberate zero-length sets in it (a gain reset before a fade-in, a
+// filter put back to open) and a floor down there would leak the top of every track.
+const FADE_FLOOR_MS = 250;
+// What stopLayer() does when a caller does not say. It used to be 0, which meant every
+// caller that forgot cut the sound dead.
+const STOP_FADE_MS = 600;
 // How far an element may sit from where it ought to be before resuming it seeks. Wider
 // than a seek's own landing error, or resume() would seek, land 50ms off, and seek again.
 const DRIFT_S = 1;
@@ -155,6 +208,11 @@ function state(layer) {
   entry = {
     el,
     gainNode: null,
+    // The muffle, for a COEXIST layer only. Built here or never: a
+    // MediaElementAudioSourceNode is made once per element, and re-patching a live graph
+    // mid-fade is the one thing worth avoiding. Parked at OPEN_HZ, so its presence is
+    // inaudible until something sweeps it.
+    filter: null,
     src: null,
     wanted: null,
     // "local", or { startedAt } in epoch ms. See the header and positionFor().
@@ -175,7 +233,15 @@ function state(layer) {
     // graph. element.volume still multiplies, so it is pinned at 1 and never touched again.
     el.volume = 1;
     audio.createMediaElementSource(el).connect(entry.gainNode);
-    entry.gainNode.connect(masterGain);
+    if (COEXIST[baseOf(layer)]) {
+      entry.filter = audio.createBiquadFilter();
+      entry.filter.type = "lowpass";
+      entry.filter.frequency.value = OPEN_HZ;
+      entry.gainNode.connect(entry.filter);
+      entry.filter.connect(masterGain);
+    } else {
+      entry.gainNode.connect(masterGain);
+    }
   } else {
     el.volume = 0;
   }
@@ -213,43 +279,95 @@ function ramp(entry, to, ms) {
   step();
 }
 
+// Sweep a layer's lowpass. EXPONENTIAL, because pitch is logarithmic: a linear ramp down
+// from 20 kHz spends its whole first half in frequencies nobody was listening to anyway,
+// so the muffle would arrive all at once at the end. A layer with no filter — or a
+// browser with no Web Audio — is a no-op, and the gain drop alone still reads as
+// "further away", which is the fallback's whole job.
+function muffle(entry, hz, ms) {
+  const audio = ctx || null;
+  if (!entry.filter || !audio) return;
+  const f = entry.filter.frequency;
+  const now = audio.currentTime;
+  // exponentialRampToValueAtTime throws on a target of zero and does nothing useful from
+  // one, so both ends are floored well below hearing.
+  const to = Math.max(20, hz);
+  f.cancelScheduledValues(now);
+  f.setValueAtTime(Math.max(20, f.value), now);
+  if (ms <= 0) f.setValueAtTime(to, now);
+  else f.exponentialRampToValueAtTime(to, now + ms / 1000);
+}
+
 function topLayerIndex() {
   let top = -1;
-  for (let i = 0; i < LAYERS.length; i += 1) {
-    if (layers.get(LAYERS[i])?.wanted) top = i;
+  for (const [key, entry] of layers) {
+    if (entry.wanted) top = Math.max(top, rankOf(key));
   }
   return top;
 }
 
+// Is this layer making a noise RIGHT NOW? Two ways to be: you won, or you are a
+// coexisting layer sitting under a winner you are allowed to sit under.
+//
+// It exists because two things fire LATER — the deferred pause below, and
+// fadeOutAtEnd's timer — and both used to re-derive this as `topLayerIndex() === my
+// index`. That was true while there was only ever one audible layer. It is not true now,
+// and left alone it would pause a siren that is legitimately playing.
+function audibleNow(layer) {
+  const entry = layers.get(layer);
+  if (!entry?.wanted) return false;
+  const top = topLayerIndex();
+  if (top < 0) return false;
+  if (rankOf(layer) === top) return true;
+  const rule = COEXIST[baseOf(layer)];
+  return Boolean(rule && rule.under.has(LAYERS[top]));
+}
+
 // Which layer is audible, and what every other one does about it. This is the whole
-// priority rule: a bus mixer's "snapshot", in twenty lines.
+// priority rule: a bus mixer's "snapshot", in thirty lines.
 function applyPriority() {
   const top = topLayerIndex();
-  LAYERS.forEach((layer, i) => {
-    const entry = layers.get(layer);
-    if (!entry?.wanted) return;
-    if (i === top) {
-      if (entry.seeking) return;
-      ramp(entry, entry.wanted.gain, entry.wanted.fadeInMs ?? CROSSFADE_MS);
+  const winner = top >= 0 ? LAYERS[top] : null;
+  for (const [layer, entry] of layers) {
+    if (!entry?.wanted) continue;
+    const i = rankOf(layer);
+    const mode = LAYER_MODE[baseOf(layer)];
+
+    const rule = COEXIST[baseOf(layer)];
+    const under = i !== top && Boolean(rule && winner && rule.under.has(winner));
+
+    if (i === top || under) {
+      if (entry.seeking) continue;
+      // A coexisting layer is held down and darkened rather than silenced. Both moves
+      // take MUFFLE_MS together, because a gain drop without the filter following it
+      // sounds like somebody turning a siren down, not like a wall going up.
+      ramp(
+        entry,
+        under ? entry.wanted.gain * rule.duck : entry.wanted.gain,
+        under ? MUFFLE_MS : entry.wanted.fadeInMs ?? CROSSFADE_MS,
+      );
+      muffle(entry, under ? rule.hz : OPEN_HZ, MUFFLE_MS);
       // Muted, a song waits paused where it is (a 4 MB file should not stream to nobody);
       // the bed keeps rolling silently, which is what keeps it in time.
-      if (muted && LAYER_MODE[layer] === "pause") {
+      if (muted && mode === "pause") {
         if (!entry.el.paused) entry.el.pause();
-        return;
+        continue;
       }
       if (entry.el.paused) resume(entry);
-      return;
+      continue;
     }
-    // Ducked. Equal-power would matter if two beds crossed; between a bed and a song
-    // over it, what matters is that the lower one does not stop.
+
+    // Ducked out entirely. Equal-power would matter if two beds crossed; between a bed
+    // and a song over it, what matters is that the lower one does not stop.
     ramp(entry, 0, CROSSFADE_MS);
-    if (LAYER_MODE[layer] === "pause") {
+    muffle(entry, OPEN_HZ, 0);
+    if (mode === "pause") {
       window.setTimeout(() => {
         if (!entry.wanted || entry.el.paused) return;
-        if (LAYERS.indexOf(layer) !== topLayerIndex()) entry.el.pause();
+        if (!audibleNow(layer)) entry.el.pause();
       }, CROSSFADE_MS);
     }
-  });
+  }
 }
 
 // Where this track ought to be, in seconds, right now. `undefined` for a local track —
@@ -319,10 +437,24 @@ export function playOn(
   { src, startAt = 0, loop = false, gain = 1, fadeInMs = 0, anchor = "local" } = {},
 ) {
   if (typeof window === "undefined" || !src) return;
+
+  // One jukebox or one lute. Winner-takes-all would have hidden the quieter of the two
+  // rather than resolved it, and "the gramophone is still going under the piano, you
+  // just cannot hear it" is a bug you find by turning the piano off.
+  // A voice ("player:<id>") stops the OTHER performance layer's voices, never its own.
+  if (PERFORMANCE.has(baseOf(layer))) {
+    for (const key of [...layers.keys()]) {
+      if (PERFORMANCE.has(baseOf(key)) && baseOf(key) !== baseOf(layer)) {
+        stopLayer(key, { fadeMs: CROSSFADE_MS });
+      }
+    }
+  }
+
   const entry = state(layer);
   const url = src.startsWith("/") ? src : `${BASE}${src}`;
+  const fadeIn = Math.max(fadeInMs, FADE_FLOOR_MS);
 
-  entry.wanted = { src: url, gain, fadeInMs };
+  entry.wanted = { src: url, gain, fadeInMs: fadeIn };
   entry.anchor = anchor && typeof anchor.startedAt === "number" ? { startedAt: anchor.startedAt } : "local";
   entry.startAt = startAt;
   if (entry.src !== url) {
@@ -349,19 +481,36 @@ export function playOn(
 }
 
 /** Take a layer off. Ramps its gain down over `fadeMs`, then pauses and releases it. */
-export function stopLayer(layer, { fadeMs = 0 } = {}) {
+export function stopLayer(layer, { fadeMs = STOP_FADE_MS } = {}) {
   const entry = layers.get(layer);
   if (!entry?.wanted) return;
+  const fade = Math.max(fadeMs, FADE_FLOOR_MS);
   entry.wanted = null;
-  ramp(entry, 0, fadeMs);
+  ramp(entry, 0, fade);
   window.setTimeout(() => {
     if (entry.wanted) return;
     entry.el.pause();
     entry.el.removeAttribute("src");
     entry.el.load();
     entry.src = null;
-  }, fadeMs);
+    // Put the filter back, or the next thing this layer plays starts dark.
+    muffle(entry, OPEN_HZ, 0);
+    // A voice is one performance and never comes back, so its element is let go.
+    if (layer !== baseOf(layer) && layers.get(layer) === entry) {
+      entry.gainNode?.disconnect();
+      layers.delete(layer);
+    }
+  }, fade);
   applyPriority();
+}
+
+/** Every voice key on a layer that is still wanted — "player:<id>" for each performance. */
+export function voicesOn(layer) {
+  const out = [];
+  for (const [key, entry] of layers) {
+    if (entry.wanted && baseOf(key) === layer && key !== layer) out.push(key);
+  }
+  return out;
 }
 
 /**
@@ -379,7 +528,7 @@ export function fadeOutAtEnd(layer, fadeMs) {
     const left = (total - entry.el.currentTime) * 1000 - fadeMs;
     timer = window.setTimeout(
       () => {
-        if (entry.wanted && topLayerIndex() === LAYERS.indexOf(layer)) ramp(entry, 0, fadeMs);
+        if (audibleNow(layer)) ramp(entry, 0, fadeMs);
       },
       Math.max(0, left),
     );
@@ -450,11 +599,21 @@ export function onEnded(layer, cb) {
 export function setMasterVolume() {
   ensureContext();
   if (rampMaster(masterLevel(), 80)) return;
-  // No Web Audio: the master is folded into each element by ramp(); nudge the audible one.
-  const top = topLayerIndex();
-  if (top < 0) return;
-  const entry = layers.get(LAYERS[top]);
-  if (entry) entry.el.volume = Math.min(1, Math.max(0, (entry.wanted?.gain ?? 1) * masterLevel()));
+  // No Web Audio: the master is folded into each element by ramp(), so nudge every
+  // audible one — there can be two now, and the ducked one would otherwise sit at the
+  // old master level until its next ramp.
+  const level = masterLevel();
+  const winner = (() => {
+    const top = topLayerIndex();
+    return top >= 0 ? LAYERS[top] : null;
+  })();
+  for (const [layer, entry] of layers) {
+    if (!audibleNow(layer)) continue;
+    const rule = COEXIST[baseOf(layer)];
+    const under = baseOf(layer) !== winner && Boolean(rule && winner && rule.under.has(winner));
+    const want = (entry.wanted?.gain ?? 1) * (under ? rule.duck : 1);
+    entry.el.volume = Math.min(1, Math.max(0, want * level));
+  }
 }
 
 /**
@@ -473,7 +632,7 @@ export function setMusicMuted(next) {
     window.setTimeout(() => {
       if (!muted) return;
       for (const [layer, entry] of layers) {
-        if (entry.wanted && LAYER_MODE[layer] === "pause" && !entry.el.paused) entry.el.pause();
+        if (entry.wanted && LAYER_MODE[baseOf(layer)] === "pause" && !entry.el.paused) entry.el.pause();
       }
     }, MUTE_FADE_MS);
     return;
@@ -495,6 +654,6 @@ export function warm(src) {
  * Everything off, now. For when there is nothing that SHOULD be playing — no phase, a GM
  * desk. Never for the mute switch: that is setMusicMuted(), which keeps the place.
  */
-export function stopAllMusic({ fadeMs = 400 } = {}) {
-  for (const layer of LAYERS) stopLayer(layer, { fadeMs });
+export function stopAllMusic({ fadeMs = 800 } = {}) {
+  for (const layer of [...layers.keys()]) stopLayer(layer, { fadeMs });
 }

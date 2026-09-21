@@ -49,6 +49,7 @@ import { addMember, setChatViewAs } from "../actions";
 import PlacesColumn from "./PlacesColumn";
 import Feed from "./Feed";
 import Composer from "./Composer";
+import { useChatTextSize } from "@/app/components/chatTextStore";
 import ChatAside from "./ChatAside";
 import GmAside from "./GmAside";
 import DmPane from "./DmPane";
@@ -171,6 +172,7 @@ export default function ChatNext(props) {
   const selectedRef = useRef(null);
   const streamSpokeRef = useRef(false);
   const [refresh] = useRefresh();
+  const chatTextSize = useChatTextSize();
   // The seq the page was rendered at, captured ONCE: the stream opens from it
   // and keeps its own cursor after that, so a later refresh handing down a
   // newer one is deliberately ignored.
@@ -677,7 +679,7 @@ export default function ChatNext(props) {
   ) : null;
 
   return (
-    <div className="chat-shell" data-chat-next>
+    <div className="chat-shell" data-chat-next data-chat-text={chatTextSize}>
       <div className="chat-body">
         {!narrow && placesColumn}
 

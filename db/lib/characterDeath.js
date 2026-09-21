@@ -11,6 +11,7 @@ const { applyMood } = require("./mood");
 const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require("./constants");
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
+const { stopPerformances } = require("./performance");
 const { teardownPartyThread } = require("./partyChat");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom } = require("./presentedIdentity");
 
@@ -109,6 +110,10 @@ async function releaseEntanglements(prisma, characterId) {
   // (ATTACK.md §2): both attacker and target release, or settleHold would keep pinning the survivor.
   await closeFightsFor(prisma, characterId).catch((err) =>
     console.error(`Failed to close fights leaving play for ${characterId}:`, err),
+  );
+  // Nobody out of the game is still playing (SOUND.md, "Performances").
+  await stopPerformances(prisma, [characterId], "status").catch((err) =>
+    console.error(`Failed to stop the song leaving play for ${characterId}:`, err),
   );
   // Guarded away from a fight (like releaseHeldBy): heldById names one opponent but a brawl has several.
   await prisma.character

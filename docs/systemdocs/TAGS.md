@@ -543,10 +543,10 @@ catalog and the deliberate top of this band — it bends every die a character
 rolls. Do not read the mastery prices as a new general scale; an ordinary tag
 is still priced off the table above. **Pilgrim is the first deliberate
 exception, priced at 1** — off the scale entirely, Gunboat's call.
-**Instrument is the second, also at 1** — Bascinet's call: it buys no
-advantage whatsoever, only the instrument half of `/play` (anyone can sing
-without one), and the Minstrel gets it free with the role, so pricing it at a
-full band would have made an object nobody but a Minstrel would ever own. **Pack
+**Instrument Kit is the second, also at 1** — Bascinet's call: it buys no
+advantage, only a Lute, Accordion or Boombox of the player's choosing
+(`consumeChoice`, `SOUND.md` "Performances"), and the Minstrel gets it free with
+the role. **Pack
 Mule is the other, at 4** — between the 2 and 5 bands, Bascinet's call when
 the carry caps landed (`CARRY.md`). **Teaching (Drill Instructor) is a third,
 at 3** — between the 2 and 5 bands, the same kind of deliberate outlier as
@@ -2227,7 +2227,7 @@ because a slot holds one physical thing however large the stack behind it is.
 | `equipSlot` | limit | holds |
 |---|---|---|
 | `HEAD` | **one thing**, no layers | a mask, a helm, a coif, a hat, a hood, a bag — any one of them, never two |
-| `BODY` | layers 1–2, one thing per layer | 1 mail (clothes, robes, garb, mail shirt, brigandine), 2 over (breastplate, plate, cloak, longcoat) |
+| `BODY` | layers 1–2, one thing per layer | 1 mail (clothes, suits, robes, garb, longcoat, mail shirt, brigandine), 2 over (breastplate, plate, cloak) |
 | `WEAPON` | **four hands**, fewer if maimed (below); a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
 | `ACCESSORY` | **four** | badges, pins, jewelry, spectacles, lenses, gloves, hand tools |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |

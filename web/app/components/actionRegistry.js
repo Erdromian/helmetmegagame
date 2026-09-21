@@ -66,12 +66,14 @@ import {
   BreakRestraintsIcon,
   FarmIcon,
   AnkhIcon,
+  MusicIcon,
 } from "./icons";
 
 export const ACTION_HELP = {
   examine:
     "Look at someone.",
   craft: "Smith, craft, brew, or cook.",
+  play: "Play music with your instrument.",
   destroy: "Destroy an item.",
   transfer: "Exchange resources or tags.",
   // Bascinet's words, verbatim.
@@ -190,6 +192,16 @@ export const ACTION_SECTIONS = [
       // exist. Reachable either way by clicking the poison chip itself on
       // your own sheet.
       { mode: "poison", icon: SkullIcon, label: "Poison", show: "canPoison" },
+      // Instruments (SOUND.md, "Performances"). Shown to anyone carrying one or holding
+      // Musician — your own sheet — and greyed until one is actually in your hand.
+      {
+        mode: "play",
+        icon: MusicIcon,
+        label: "Play Instrument",
+        show: "canSeePlay",
+        gate: "canPlay",
+        gateReason: "Equip an instrument first.",
+      },
       // No gate: you can always move ⬢ or put something down.
       { mode: "transfer", icon: HandOffIcon, label: "Transfer" },
       // NO gate and NO show. Whether there is a stash here worth anything is a

@@ -10,6 +10,7 @@ import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel } from "@/lib/travelCost";
 import { loadTravel, travelTo } from "./actions";
+import { nudgePhase } from "../../components/PhaseProvider";
 import useNarrow from "./useNarrow";
 
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
@@ -115,6 +116,9 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
     }
     run(travelTo, { locationId: option.id, exert }, {
       onOk: (res) => {
+        // The place changed, so the ambience should change with it rather than at the
+        // next poll up to a minute from now (PhaseProvider.js#nudgePhase).
+        nudgePhase();
         setTarget(null);
         onDone?.(res);
         reload();

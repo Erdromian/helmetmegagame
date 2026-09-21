@@ -15,7 +15,6 @@ import {
   WHOLE_MOVE,
   craftMoveCost,
   fitsInRemaining,
-  formatMoveAmount,
   unitsAffordable,
 } from "@/lib/craftBudget";
 import { heldSlugsOf } from "@/lib/consumeGrants";
@@ -34,13 +33,6 @@ import {
 // budget maths and the confirm wording are ~400 lines of interlocking state
 // that the server re-checks under a lock, and none of it was changed on the
 // way. CraftDialog.js is still the form; this owns the state around it.
-
-// Maps a "kind:id" party key back to a name for the confirm prompt.
-function payerLabel(parties, key) {
-  const [kind, id] = (key ?? "").split(":");
-  const pool = kind === "room" ? parties?.rooms : parties?.characters;
-  return pool?.find((p) => p.id === id)?.name ?? "They";
-}
 
 export default function CraftAction({ presets, onDone, onClose }) {
   const {
@@ -354,67 +346,9 @@ export default function CraftAction({ presets, onDone, onClose }) {
     setInscription("");
   }
 
-  // Any Craft that spends ⬢ or a Move asks twice. Confirm is awaited OUTSIDE
+  // Giving up paid work asks first. Confirm is awaited OUTSIDE
   // the transition, or the dialog never renders.
   async function onSubmit() {
-    if (!projectId && !siteId && chosen) {
-      const turns = chosen.requirementTurns ?? 1;
-      const qty = craftQty;
-      // The same price craftRequestImpl charges, so the confirm can never
-      // quote less than the bill (web/lib/customCraft.js).
-      const cost = craftResourceCost;
-      const what = qty > 1 ? `${qty}× ${chosen.name}` : chosen.name;
-      // What this costs of the Move, in the player's words. Three shapes: it
-      // opens the turn's Routine, it spends from a Routine already started,
-      // or — the new one — it spills past a free allowance into the Move.
-      // Declining crafts nothing.
-      const move = craftCost;
-      const share =
-        move && move.num < move.den
-          ? `${formatMoveAmount(move.num, move.den)} of your Move`
-          : "your whole Move for the turn";
-      let moveLine = null;
-      if (move && move.kind !== "free" && move.kind !== "capped") {
-        if (move.kind === "whole" && !craftBudget) {
-          moveLine = "This is your Move for the turn.";
-        } else {
-          const takes =
-            move.freeQty > 0
-              ? `The first ${move.freeQty} ${move.freeQty === 1 ? "is" : "are"} free; the rest take ${share}`
-              : `That takes ${share}`;
-          // A spill is the one Move spend a player may not have planned as
-          // their day's work, so it alone says what a filed Action always
-          // costs: the day's pay (CRAFTING.md §2a).
-          const labor =
-            move.freeQty > 0 && !craftBudget
-              ? " That counts as your day's work."
-              : "";
-          moveLine = craftBudget
-            ? `${takes}, on top of what you've already done this turn.`
-            : `${takes}. That starts your Move — you can keep working until it's spent.${labor}`;
-        }
-      }
-      if (moveLine || cost > 0) {
-        const ok = await confirm({
-          title: turns > 1 ? "Start the work?" : "Make it?",
-          message: [
-            turns > 1
-              ? `${what} takes ${turns} turns of work.`
-              : `Make ${what}?`,
-            cost > 0
-              ? `${cost} ⬢ ${cost === 1 ? "is" : "are"} paid now by ${payerLabel(healParties, payerKey)}, and not refunded if you stop.`
-              : null,
-            moveLine,
-            // The one-line Move note is signed-off copy; the budget wording is not.
-            moveLine && moveLine !== "This is your Move for the turn." ? "" : "",
-          ]
-            .filter(Boolean)
-            .join(" "),
-          confirmLabel: turns > 1 ? "Start" : "Make it",
-        });
-        if (!ok) return;
-      }
-    }
     if (projectId && projectChoice === "cancel") {
       const name =
         craftProjects.find((p) => p.id === projectId)?.tagName ?? "the work";

@@ -26,6 +26,7 @@ test("a turn post round-trips its stamp and its note", () => {
     // The Discord timestamp tag survives: it is what makes a stored clock read
     // in the reader's own timezone (web/app/components/remarkDiscord.js).
     clock: "This turn ends at <t:1758999600:t>.",
+    plate: "",
     note: "Snow on the road.\n\nAnd more of it coming.",
   });
 });
@@ -44,6 +45,7 @@ test("plain prose comes back as a body with no fields", () => {
     day: "",
     date: "",
     clock: "",
+    plate: "",
     note: "just some words",
   });
 });

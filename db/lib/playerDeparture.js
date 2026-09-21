@@ -9,6 +9,7 @@
 // update itself. Takes `prisma` as the first parameter and is deliberately
 // NOT on the barrel; require it by path.
 const { CATATONIC_SLUG } = require("./constants");
+const { stopPerformances } = require("./performance");
 const { formatBareName } = require("./characterName");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 
@@ -82,6 +83,11 @@ async function markPlayerDeparted(prisma, { discordUserId, username, viaReconcil
       data: { catatonicSinceTurn: turn?.number ?? 0 },
     }),
   ]);
+
+  // Catatonic hands play nothing (SOUND.md, "Performances").
+  await stopPerformances(prisma, [character.id], "status").catch((err) =>
+    console.error(`Departure: stopping the song failed for ${character.id}:`, err),
+  );
 
   const roleLabel = character.roleTitle ?? character.role?.name ?? "Unaffiliated";
   const bare = formatBareName(character);

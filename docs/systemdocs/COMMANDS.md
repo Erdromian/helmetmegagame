@@ -42,7 +42,7 @@ Each command declares its contexts:
 | `/travel` | — | Living character | Guild, DM | `handleTravelOpen` — the same picker, under the name people reach for |
 | `/conceal` | — | Living character | Guild, DM | `handleConcealCommand` |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
-| `/play` | — | Living character (an Instrument plays; without one, sings) | Guild | `handlePlayCommand` |
+| `/play` | — | Living character with an equipped instrument (plays), or with Musician (sings); neither is refused | Guild | `handlePlayCommand` — the Play Instrument panel runs the same `playInstrument` when a song starts (`SOUND.md` §6b) |
 | `/shout` | `message` | Living character | Guild | `handleShoutCommand` — carries across the Location graph (§2d) |
 | `/ooc` | `message` | Living character | Guild | `handleOocCommand` — out of character, one place only (§2f) |
 | `/roll` | — | Anyone | Guild | `handleRollCommand` |

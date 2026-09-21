@@ -51,15 +51,15 @@ export default function RoomsList({ locationId, rows, canSuper }) {
                 {canSuper && (
                   <>
                     {r.retiredAt ? (
-                      <button className="btn-quiet" disabled={pending} onClick={() => call(unretireRoom, r.id)}>
+                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => call(unretireRoom, r.id)}>
                         Unretire
                       </button>
                     ) : (
-                      <button className="btn-quiet" disabled={pending} onClick={() => onRetire(r)}>
+                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRetire(r)}>
                         Retire
                       </button>
                     )}
-                    <button className="btn-quiet" disabled={pending} onClick={() => onDelete(r)}>
+                    <button type="button" className="btn-quiet" disabled={pending} onClick={() => onDelete(r)}>
                       Delete
                     </button>
                   </>

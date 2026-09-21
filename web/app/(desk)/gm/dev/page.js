@@ -1073,10 +1073,6 @@ export default async function DevPanelPage({ searchParams }) {
                     <span className="field-label">Day</span>
                     <input type="number" name="day" min="1" defaultValue={currentDay} className="max-w-24" />
                   </label>
-                  <label className="field">
-                    <span className="field-label">Re-roll banner</span>
-                    <Switch name="rerollBanner" defaultChecked={false} />
-                  </label>
                   <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
                 </form>
 

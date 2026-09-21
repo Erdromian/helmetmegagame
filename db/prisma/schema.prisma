@@ -1254,9 +1254,10 @@ model LocationMining {
 }
 
 model Location {
-  id   String @id @default(cuid())
-  slug String @unique
-  name String
+  id           String        @id @default(cuid())
+  performances Performance[]
+  slug         String        @unique
+  name         String
 
   // The -# subtext under the name on the channel's anchor message, and the
   // channel topic.
@@ -1922,7 +1923,9 @@ model SystemReport {
 }
 
 model Character {
-  id            String @id @default(cuid())
+  id            String        @id @default(cuid())
+  // A live song on an instrument (db/lib/performance.js).
+  performances  Performance[]
   discordUserId String
 
   // A displayed name is four parts, joined by
@@ -3114,6 +3117,14 @@ model Tag {
   // else?" is `cures` non-empty OR this flag; see consumeTagRequestImpl.
   administerable Boolean @default(false)
 
+  // The player's pick on Consume, where consumesIntoOneOf rolls at random.
+  // Empty for everything but the Instrument Kit (SOUND.md, "Performances").
+  consumeChoice String[] @default([])
+
+  // A playable instrument: equip it and the Play Instrument panel opens
+  // (db/lib/performance.js). Code reads this flag, never a list of slugs.
+  instrument Boolean @default(false)
+
   // The skill required to APPLY this item to anyone — the actor's own self
   // included (fitting a prosthetic needs medical-expert even on your own
   // leg). A catalog slug, the same single-slug convention `escalatesInto`
@@ -3969,10 +3980,9 @@ model Turn {
   // on rows written before the column existed; turnClock.js derives those.
   endsAt DateTime?
 
-  // Which banner #turns posted for this turn — a filename in docs/assets/turn/,
-  // chosen once when the turn opens so a repost shows the same picture rather
-  // than a fresh roll. Null on rows that predate the column; the resolver
-  // picks one on the spot for those (db/lib/turnBanner.js).
+  // ORPHAN since 2026-09-21: the everyday turn plates were retired, and the
+  // only pictures left come off the Game row's stamps (db/lib/turnBanner.js).
+  // Nothing writes or reads this.
   banner     String?
   status     TurnStatus @default(OPEN)
   startedAt  DateTime   @default(now())
@@ -6300,7 +6310,7 @@ model PhoneCall {
   // person may hold a phone, which is what these two columns mean and what the
   // partial unique indexes below enforce.
   callerId String
-  caller   Character @relation("PhoneCallCaller", fields: [callerId], references: [id], onDelete: Cascade)
+  caller   Character  @relation("PhoneCallCaller", fields: [callerId], references: [id], onDelete: Cascade)
   calleeId String?
   callee   Character? @relation("PhoneCallCallee", fields: [calleeId], references: [id], onDelete: SetNull)
 
@@ -6379,4 +6389,32 @@ model SyncStamp {
   key      String   @id
   hash     String
   syncedAt DateTime @default(now())
+}
+
+// One song on one instrument, heard by everyone at the Location
+// (docs/systemdocs/SOUND.md, "Performances"). Live means stoppedAt is null
+// and endsAt is still ahead. A character holds at most one live row: the
+// partial unique index "Performance_live_unique" (WHERE "stoppedAt" IS NULL)
+// lives only in the migration SQL, because Prisma's schema language cannot
+// express it — decline the drop `migrate diff` proposes (CLAUDE.md).
+model Performance {
+  id             String    @id @default(cuid())
+  characterId    String
+  character      Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  locationId     String
+  location       Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  instrumentSlug String
+  // db/lib/instrumentSongs.js key, not a file path.
+  songKey        String
+  // 0-1, the performer's own slider.
+  volume         Float     @default(1)
+  startedAt      DateTime  @default(now())
+  endsAt         DateTime
+  stoppedAt      DateTime?
+  // "stopped" | "replaced" | "unequipped" | "attack" | "intercept" | "bind" |
+  // "moved" | "status". Read by nothing; there for a GM reading a row.
+  stoppedReason  String?
+
+  @@index([locationId, stoppedAt])
+  @@index([characterId])
 }

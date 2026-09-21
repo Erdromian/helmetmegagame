@@ -197,7 +197,7 @@ function LinkRow({ link, canSuper, pending, onSave, onDelete }) {
           Save
         </button>
       </td>
-      <td>{canSuper && <button className="btn-quiet" disabled={pending} onClick={onDelete}>Delete</button>}</td>
+      <td>{canSuper && <button type="button" className="btn-quiet" disabled={pending} onClick={onDelete}>Delete</button>}</td>
     </tr>
   );
 }

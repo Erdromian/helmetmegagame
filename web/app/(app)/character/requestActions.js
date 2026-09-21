@@ -18,6 +18,7 @@ import {
   searchRequestImpl,
 } from "./actions/offers.js";
 import { transferRequestImpl } from "./actions/transfer.js";
+import { startPerformanceImpl, setPerformanceVolumeImpl, stopPerformanceImpl } from "./actions/perform.js";
 import { stealRequestImpl } from "./actions/steal.js";
 import { pickpocketRequestImpl, pickpocketTakeImpl } from "./actions/pickpocket.js";
 import {
@@ -135,6 +136,21 @@ export async function pickpocketRequest(input) {
 
 export async function pickpocketTakeRequest(input) {
   return acting(() => pickpocketTakeImpl(input));
+}
+
+// The Play Instrument panel (docs/systemdocs/SOUND.md, "Performances"). Starting is a
+// verb; the slider and Stop only ever touch your own song, and Stop must work between
+// sittings too, so those two go through guarded() rather than acting().
+export async function startPerformanceRequest(input) {
+  return acting(() => startPerformanceImpl(input));
+}
+
+export async function setPerformanceVolumeRequest(input) {
+  return guarded(() => setPerformanceVolumeImpl(input));
+}
+
+export async function stopPerformanceRequest() {
+  return guarded(() => stopPerformanceImpl());
 }
 
 export async function consumeTagRequest(input) {

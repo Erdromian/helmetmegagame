@@ -27,6 +27,7 @@ const {
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { dropCallsForCharacter } = require("./phone");
+const { stopPerformances } = require("./performance");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { cancelSearchOffersOnMove } = require("./search");
 const { closeFightsFor } = require("./attack");
@@ -260,6 +261,10 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
   if (fromLocationId) {
     await dropCallsForCharacter(prisma, characterId).catch((err) =>
       console.error(`Move: hanging up the phone failed for ${characterId}:`, err.message ?? err),
+    );
+    // A song stays in the Location it was played in (SOUND.md, "Performances").
+    await stopPerformances(prisma, [characterId], "moved").catch((err) =>
+      console.error(`Move: stopping the song failed for ${characterId}:`, err.message ?? err),
     );
   }
 
