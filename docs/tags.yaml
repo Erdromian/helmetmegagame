@@ -6972,6 +6972,7 @@ tags:
     name: Citrine
     category: items
     group: items-mining
+    sprite: rough-citrine
     description: "A yellow gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7146,6 +7147,7 @@ tags:
     name: Topaz
     category: items
     group: items-mining
+    sprite: rough-topaz
     description: "A golden gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7162,6 +7164,7 @@ tags:
     name: Amethyst
     category: items
     group: items-mining
+    sprite: rough-amethyst
     description: "A purple gemstone. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7842,6 +7845,7 @@ tags:
     name: Old Coin
     category: items
     group: items-mining
+    sprite: old-coin
     description: "A weathered coin. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 0
