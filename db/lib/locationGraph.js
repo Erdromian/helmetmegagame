@@ -244,6 +244,14 @@ const WALK_HOPS = 8;
 // would announce the way is there.
 const NO_WALK = "You don't know a way there.";
 
+// Asking to walk to the ground you are already standing on. Its OWN sentence,
+// never NO_WALK: a picker that has gone stale — you moved on the bot, or an
+// escort carried you, or another tab already took the hop — sends the id of the
+// place you are now in, and answering that with the fog line reads as the game
+// having forgotten the road you can see. It leaks nothing; a place you are
+// standing in is not a place you could be told about.
+const ALREADY_THERE = "You're already there.";
+
 // Every place this character could WALK to inside their own zone: the shortest
 // known, passable route to each, origin excluded from the path and destination
 // last. The second multi-hop question in this file, and allowed here for the
@@ -399,8 +407,9 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS 
 // than a second traversal, so what a picker showed and what the walk takes can
 // never be different roads.
 async function pathWithinZone(prisma, character, targetLocationId, { known } = {}) {
-  if (!targetLocationId || targetLocationId === character?.locationId) {
-    return { ok: false, reason: NO_WALK };
+  if (!targetLocationId) return { ok: false, reason: NO_WALK };
+  if (targetLocationId === character?.locationId) {
+    return { ok: false, reason: ALREADY_THERE, alreadyThere: true };
   }
   const routes = await routesWithinZone(prisma, character, { known });
   const hit = routes.find((row) => row.location.id === targetLocationId);
@@ -416,6 +425,7 @@ module.exports = {
   KEYED_OPEN_MS,
   WALK_HOPS,
   NO_WALK,
+  ALREADY_THERE,
   routesWithinZone,
   pathWithinZone,
   soundRange,

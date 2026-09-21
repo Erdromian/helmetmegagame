@@ -103,7 +103,9 @@ Beyond its name and description, a Location carries a sparse map of
 **attributes** — `Location.attributes`, a JSON object authored as an
 `attributes:` block in `docs/zones.yaml` — and, optionally, a `structures:`
 list of the built things that were always standing there (the Square's cross),
-seeded as `COMPLETE` `Structure` rows by the zone sync (`SYNC.md` §2):
+seeded as `COMPLETE` `Structure` rows by `db/lib/worldSeed.js` — which
+`db:import-zones` calls when it stands a Location up, and which the Restart Game
+wipe calls again afterwards, so a restart no longer takes them away for good:
 
 ```yaml
 depot:
@@ -976,11 +978,42 @@ sighting the post-commit hook dropped heals itself the next time they look.
 their life would have taught them — the home cluster, plus the road their trade
 actually walks. A Sheriff opens the board already seeing the bridge he has
 walked for years; a Banneret sees every step of the run up to town. The table is
-`db/lib/startingMemories.js`, keyed by role slug. It has a second half keyed by
-a starting tag, `KIT_MEMORIES`, which is **empty**: the three Commoner kit
-crates were its only entries and went with the role, and the mechanism is kept
-because it is the shape any future starting kit would use. `createCharacter` calls `seedMemories()` once, after the transaction
-commits — after, because `travelOptions` reads the tags it just granted.
+`db/lib/startingMemories.js`, keyed by role slug. `createCharacter` calls
+`seedMemories()` once, after the transaction commits — after, because
+`travelOptions` reads the tags it just granted.
+
+**The town is not something the fog is for.** Every seat that lives in
+Ravenheart — the court, the Cerberon, the clergy, the trades, the Undertown —
+starts knowing all ten of the town's places and the gate up to the fortress,
+the `RAVENHEART` constant in that file. There is no version of a life here that
+does not teach you the Square and the Cathedral, and a Courtier opening the
+board on a fogged town read as a bug rather than as a secret. The seats the
+town stays dark for are the **outsiders**, and only those: the Migrant walking
+in through the caves, the Mercenary at the mouth, the Tribunal and the
+Bastard's party marching into the Black Hills. Under that floor each seat adds
+what its own work walks — the Exactor his Den and the Lake his back door comes
+out at, a Factory seat the road up and the two counters the Squeeze sells
+through, the Mortus the way down to the Tower.
+
+`KIT_MEMORIES`, the second half keyed by a starting tag, is no longer empty: it
+carries one entry, `ravenhearter` to the ten town places. That is a **floor, not
+the mechanism** — the role table above is what actually decides each seat, and
+six Undertown and Factory seats who plainly live here carry no such tag. What
+the entry buys is that a role added to `docs/roles.yaml` which nobody remembers
+to add to the role table degrades to "knows the town" instead of to a blank map.
+That is not hypothetical: the Soiler shipped unable to see the Soilery they
+farm.
+
+**`db/test/startingMemories.test.js` is what keeps the table honest**, and it is
+worth knowing what it asserts before editing either master. Every slug in the
+table resolves to a Location in `docs/zones.yaml`; every role in
+`docs/roles.yaml` has an entry, so adding a seat fails the run until somebody
+decides what it knows; `fortress-6` appears under exactly the Baron, the
+Baroness and the Hand; and no table names a place whose every edge is hidden.
+That last one is derived from the connection list rather than listed, so a
+secret added later is covered without anybody remembering the test — with a
+hand-written blocklist beside it for the Undertown, which was authored live at
+`/gm/dev/zones` and whose edges `docs/zones.yaml` therefore does not know.
 
 **Leaving a slug out of that table is not a guarantee it stays dark**, and it is
 worth being clear about why. `recordArrival` paints every *listed* neighbour of
@@ -1275,11 +1308,13 @@ yet, is reported as a **note** rather than a problem — that is the Undertown's
 twelve skeletons waiting for their own pass.
 
 **Stashes seed themselves now.** A `stash:` block rides onto the Room as
-`Room.stashSeed` when `db:import-zones` creates it, and Start Game turns the
-whole lot into real `RoomTag` rows in one pass (`db/lib/roomStashSeed.js`),
-guarded by `Room.seededStashSlugs` so nothing is ever poured twice. Standing a
-game up used to mean a superadmin pressing "Seed these items now" once per
-room, by hand, across eighty-odd rooms.
+`Room.stashSeed` when `db:import-zones` creates it, and the Restart Game wipe
+and Start Game each turn the whole lot into real `RoomTag` rows in one pass
+(`db/lib/roomStashSeed.js`, through `db/lib/worldSeed.js`), guarded by
+`Room.seededStashSlugs` so nothing is ever poured twice. A Location's
+`structures:` ride along in the same pass. Standing a game up used to mean a
+superadmin pressing "Seed these items now" once per room, by hand, across
+eighty-odd rooms.
 
 **A place is marked by a crosshair, not a number.** Two glyphs out of the
 charset's own reticle row (474-479), named in `nodes.yaml` under `uiGlyphs`

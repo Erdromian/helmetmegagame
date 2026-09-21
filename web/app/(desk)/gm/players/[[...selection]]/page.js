@@ -94,7 +94,7 @@ async function FreshPlayerRoster({ userId }) {
   const resourcesByCharacter = new Map(
     heldTags.filter((ct) => ct.tagId === resourcesTagId).map((ct) => [ct.characterId, ct.quantity ?? 0]),
   );
-  const cursed = cursedUserIds(characters); // a database question now (db/lib/curse.js), not a Discord role
+  const cursed = cursedUserIds(characters, openTurn?.number ?? null); // a database question now (db/lib/curse.js), not a Discord role
   const memberById = new Map(members.map((m) => [m.id, m])); // same map PlayerRail builds, so the table finds a Discord handle without a second query
 
   return (

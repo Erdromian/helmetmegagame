@@ -75,6 +75,7 @@ The order, and why:
 | 4 | **Message wipe** (`wipeGameMessages`) | Clears `#turns`, every `#archive`-named channel, every zone's `#summary` and every Location channel. A zone Room's thread is **kept** — its messages clear, and its starter id/hash are nulled so the mirror reposts into it. A quest Room's thread, and any thread that matches no Room at all (a Conversation), is deleted outright — neither needs to survive, and the mirror already knows how to rebuild a quest Room's thread from scratch. Anchors are nulled unconditionally, since every channel they sit in just emptied |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
 | 6 | **Tag sync** → 7. **Role sync** → 8. **Desire sync** → 9. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags and roles |
+| 10 | **World seed** (`seedAuthoredWorld`) | Puts the authored board back: every Location's `structures:` and every Room's `stash:`. After the tag sync, because a structure resolves its type by Tag slug; before the mirror, so the anchors it reposts hash a Location that already has its furniture. Both halves are guarded, so the Start Game that follows re-runs it as a harmless top-up (`db/lib/worldSeed.js`) |
 | 11 | **Discord mirror** (`runDiscordMirror`, full scope, apply) | The structural backstop: reconciles every category, channel, role, radio net, Deadchat channel, Location anchor and Room thread against the database, and reposts anything step 4 just cleared. Replaces the old zone sync, special-channels sync and channel doctor steps — one repair path instead of three |
 
 ## 3. The runbook
@@ -144,6 +145,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
 | `Zone`, `Location`, `Room`, `Tag`, `Role`, `Document` | Kept as rows throughout — nothing here re-syncs them from YAML any more. |
+| A structure a player BUILT | Only in the sense that it does not come back: the wipe deletes every `Structure` row, and step 10 raises only what `docs/zones.yaml` authored. A forge somebody built in the Undercroft is play state and goes. |
 
 A quest Room's thread and any Conversation thread do not survive — see §2
 step 4 for why neither needs to.

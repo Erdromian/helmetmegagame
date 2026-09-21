@@ -1463,24 +1463,24 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "COOKING.md §2a",
-      claim: "31 named cooking recipes",
-      docValue: 31,
+      claim: "36 named cooking recipes",
+      docValue: 36,
       model: cookingRecipeCount,
-      ok: cookingRecipeCount === 31,
+      ok: cookingRecipeCount === 36,
     },
     {
       doc: "COOKING.md §3",
-      claim: "58 tags carry a cooked block",
-      docValue: 58,
+      claim: "66 tags carry a cooked block",
+      docValue: 66,
       model: list.filter((t) => t.cooked).length,
-      ok: list.filter((t) => t.cooked).length === 58,
+      ok: list.filter((t) => t.cooked).length === 66,
     },
     {
       doc: "DEPOT.md §0d",
-      claim: "Sealed shipping is eight named wares",
-      docValue: 8,
+      claim: "Sealed shipping is 15 named wares",
+      docValue: 15,
       model: list.filter((t) => t.sealedShipping).length,
-      ok: list.filter((t) => t.sealedShipping).length === 8,
+      ok: list.filter((t) => t.sealedShipping).length === 15,
     },
   ];
 

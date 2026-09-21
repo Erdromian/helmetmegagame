@@ -33,6 +33,17 @@ Arbiter sit in the same rooms and see nothing.
 
 Add a slug to `FORTRESS_ESCAPE` and that seat knows. Leave it off and they
 cannot find the ship at all.
+`db/test/startingMemories.test.js` asserts the three seats, so the arrangement
+is no longer a comment somebody could quietly widen.
+
+**One thing used to walk straight past all of that**, and is worth knowing
+about in case a second way in gets written. `revealSurface`
+(`db/lib/locationVisits.js`) is the map item that unfolds Ravenheart, and it
+swept every Location in every `SURFACE` zone — which the Fortress is, so the
+item handed the ship to whoever spent one. It skips a Location with no
+`LocationLink` at either end now. That is the honest test rather than a slug
+check: you cannot walk to the Charon, so a picture of the roads has nothing to
+draw, and the orbit above it is the same shape.
 
 ## 3. Getting aboard
 

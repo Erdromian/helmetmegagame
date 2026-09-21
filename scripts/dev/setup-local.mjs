@@ -1,7 +1,8 @@
 // Bootstraps a fully local dev stack: a local Postgres database, migrated
-// and seeded from the YAML masters, with LOCAL_MODE on so nothing needs a
-// real Discord bot token, guild, or GM role (LOCAL-DEV.md). Safe to re-run:
-// every step is idempotent and it never touches the live database.
+// and seeded from the YAML masters, and -- only when there are no real Discord
+// credentials to begin with -- LOCAL_MODE on so nothing needs a real bot
+// token, guild, or GM role (LOCAL-DEV.md). Safe to re-run: every step is
+// idempotent and it never touches the live database.
 //
 //   npm run dev:setup
 
@@ -34,13 +35,19 @@ function ensureEnv() { // never overwrites a value already there
   const additions = {};
 
   if (!existing.DATABASE_URL) additions.DATABASE_URL = DEFAULT_DATABASE_URL;
-  if (!existing.LOCAL_MODE) additions.LOCAL_MODE = "true";
   if (!existing.DISCORD_TOKEN) additions.DISCORD_TOKEN = "local";
   if (!existing.DISCORD_GUILD_ID) additions.DISCORD_GUILD_ID = "local";
+  // LOCAL_MODE rides ALONG WITH the placeholder token, never on its own. It
+  // makes every Discord call return a stub, so switching it on in a checkout
+  // that already holds a real DISCORD_TOKEN turns the live guild invisible --
+  // channel lists come back empty and a sync reports "no #info found" in a
+  // guild that plainly has one. Only stub Discord when we are the ones who
+  // stubbed the credentials.
+  if (!existing.LOCAL_MODE && additions.DISCORD_TOKEN) additions.LOCAL_MODE = "true";
   if (!existing.AUTH_SECRET) additions.AUTH_SECRET = randomBytes(32).toString("base64");
 
   if (Object.keys(additions).length === 0) {
-    log(".env already has DATABASE_URL, LOCAL_MODE, DISCORD_TOKEN/GUILD_ID and AUTH_SECRET — leaving it alone");
+    log(".env already has DATABASE_URL, DISCORD_TOKEN/GUILD_ID and AUTH_SECRET — leaving it alone");
   } else {
     log(`Writing ${existsSync(ENV_PATH) ? "additions to" : "a new"} .env`);
     const lines = Object.entries(additions).map(([k, v]) => `${k}="${v}"`);

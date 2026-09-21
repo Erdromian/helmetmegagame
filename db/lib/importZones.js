@@ -19,7 +19,7 @@ const yaml = require("js-yaml");
 const { docsPath } = require("./repoPaths");
 const { parseZonesYaml } = require("./syncZones/parse");
 const { orderEndpoints } = require("./locationGraph");
-const { PRESENT_STATUSES } = require("./structures");
+const { seedLocationStructures } = require("./worldSeed");
 const { enqueueMirror } = require("./discordMirror/queue");
 
 function requireDocsPath(...segments) {
@@ -142,34 +142,21 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
     }
 
     // Structures: seeded once, the same "nothing PRESENT of this type yet"
-    // floor the old sync used — never a stash the importer restocks.
-    for (const slug of entry.structures ?? []) {
+    // floor the old sync used — never a stash the importer restocks. The rule
+    // itself lives in db/lib/worldSeed.js now, because the Restart Game wipe
+    // needs it too and two copies would drift.
+    const authored = entry.structures ?? [];
+    if (authored.length > 0) {
       if (apply) {
-        const tag = await prisma.tag.findUnique({ where: { slug }, select: { name: true } });
-        if (!tag) {
+        const out = await seedLocationStructures(prisma, location, authored);
+        for (const slug of out.created) report.created.structures.push(`${entry.slug}/${slug}`);
+        for (const slug of out.skipped) report.skipped.push(`skipped structure "${entry.slug}/${slug}" (exists)`);
+        for (const slug of out.unknown) {
           report.warnings.push(`location "${entry.slug}" structures names unknown tag "${slug}" — run db:sync-tags first`);
-          continue;
         }
-        const standing = await prisma.structure.count({
-          where: { locationId: location.id, typeSlug: slug, status: { in: PRESENT_STATUSES } },
-        });
-        if (standing > 0) {
-          report.skipped.push(`skipped structure "${entry.slug}/${slug}" (exists)`);
-          continue;
-        }
-        await prisma.structure.create({
-          data: {
-            locationId: location.id,
-            typeSlug: slug,
-            typeName: tag.name,
-            status: "COMPLETE",
-            turnsNeeded: 1,
-            turnsDone: 1,
-            resourcesCost: 0,
-          },
-        });
+      } else {
+        for (const slug of authored) report.created.structures.push(`${entry.slug}/${slug}`);
       }
-      report.created.structures.push(`${entry.slug}/${slug}`);
     }
   }
 

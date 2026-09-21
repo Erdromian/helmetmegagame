@@ -1,6 +1,6 @@
 # Cooking
 
-31 named recipes across three skill tiers (Basic, Skilled, Skilled Lavish),
+36 named recipes across three skill tiers (Basic, Skilled, Skilled Lavish),
 the ingredients that go in them, and what eating one does. Read this before
 touching `Tag.cooked`, `Tag.cookedFrom`, `Tag.mealTaste`/`mealTasteForm`,
 `Tag.requirementYield`, `requirement.ingredientSlots`, `web/lib/cooking.js`,
@@ -187,7 +187,7 @@ is the newer, doc-specified thing and the candy is an incidental curio.
 
 **The presence of this block is the only thing that makes a tag cookable.**
 There is no `ingredient: true`, and no recipe names a legal ingredient
-anywhere. **58 tags carry one** — the thirteen new ones plus every brew, drug,
+anywhere. **66 tags carry one** — the thirteen new ones plus every brew, drug,
 body part and relic worth putting in a pot — and adding the fifty-ninth is one
 YAML entry and a `db:sync-tags`.
 

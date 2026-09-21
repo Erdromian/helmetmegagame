@@ -120,6 +120,19 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
         reload();
         refresh();
       },
+      // A REFUSAL re-reads the road too. This list is a snapshot of where the
+      // character stood when the panel mounted, and it is not the only thing
+      // that moves them — the bot's Travel picker, an escort, an ambush and a
+      // second tab all move them behind its back. Without this the panel that
+      // has gone stale stays stale, so every further click refuses again for a
+      // reason the player cannot see: they are shown Slums, they press
+      // Merchant, and they are standing in Merchant already. Re-reading also
+      // costs nothing a player would notice — it is the same load the panel
+      // does when it opens, and only on a no.
+      onFail: () => {
+        setTarget(null);
+        reload();
+      },
     });
   };
 

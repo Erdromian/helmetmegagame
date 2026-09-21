@@ -161,6 +161,16 @@ async function applyDeathToRow(
   // the row, so there is nothing left for a face to be derived from.
   const deathMaskTagId = gib ? null : await maskWornNow(prisma, character.id);
 
+  // The turn this body fell on, for db/lib/curse.js's lapse and nothing else. Most callers already
+  // hold the turn; the ones that don't are looked up here rather than left to guess. No open turn
+  // (between turns, or before the game starts) stamps null, which that rule reads as "no clock".
+  const deathTurn =
+    turn?.number ??
+    (await prisma.turn
+      .findFirst({ where: { status: "OPEN" }, select: { number: true } })
+      .catch(() => null))?.number ??
+    null;
+
   const claimed = await prisma.character.updateMany({
     where: { id: character.id, status: expectStatus },
     data: {
@@ -168,6 +178,7 @@ async function applyDeathToRow(
       discordRoleId: null,
       catatonicSinceTurn: null,
       deathMaskTagId,
+      deathTurn,
     },
   });
   if (claimed.count === 0) return { claimed: false };

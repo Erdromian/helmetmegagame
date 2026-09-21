@@ -62,10 +62,22 @@ async function knownLocations(prisma, characterId) {
 
 // Deliberately NOT recordArrival/seedMemories reused — those also paint
 // NEIGHBOURS, leaking a cave-adjacent Location as a "sighting". `stood: false` throughout; `skipDuplicates` keeps a stood-in Location from ever downgrading.
+//
+// A place with NO LocationLink at either end is not part of the surface a map
+// can show, and is skipped. That is not tidiness: the Charon sits in the
+// Fortress zone, which is SURFACE, and the whole arrangement in
+// db/lib/startingMemories.js is that its table is the only way anybody ever
+// learns the ship exists — so a map item sweeping every SURFACE Location was
+// handing it to whoever spent one. The Charon's orbit is the same shape. An
+// edgeless Location is the honest test rather than a slug check: you cannot
+// walk to it, so a picture of the roads has nothing to draw.
 async function revealSurface(prisma, characterId) {
   if (!characterId) return;
   const locations = await prisma.location.findMany({
-    where: { zone: { kind: "SURFACE" } },
+    where: {
+      zone: { kind: "SURFACE" },
+      OR: [{ linksA: { some: {} } }, { linksB: { some: {} } }],
+    },
     select: { id: true },
   });
   if (locations.length === 0) return;

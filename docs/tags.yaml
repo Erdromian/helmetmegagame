@@ -8592,6 +8592,27 @@ tags:
         - tag: sewer-key
           keep: true
 
+  poorhouse-key:
+    catalog: gm
+    name: Poorhouse Key
+    category: items
+    group: items-keys
+    sprite: key
+    description: "A small metal key."
+    pointCost: 0
+    stackable: true
+    weight: 0
+    purchasable: false
+    craftable: true
+    requirement:
+      skills: [smithing-skilled]
+      turnsCost: 0.25
+      resourceCost: 2
+      gambit: false
+      items:
+        - tag: poorhouse-key
+          keep: true
+
   # The Baron's lift, and the only way down it. He starts with his; nobody
   # else does any more — it was two courtiers' free run of the Refuse Pit,
   # which is too much for a starting tag. It is a rare Caving Die find now

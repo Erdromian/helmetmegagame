@@ -9,7 +9,7 @@ const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
 const { pickTurnBanner } = require("./turnBanner");
 const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
-const { seedAuthoredStashes } = require("./roomStashSeed");
+const { seedAuthoredWorld } = require("./worldSeed");
 
 // Button customId prefix for the assignment DM's Decline (web builds it, bot routes the click).
 const LOBBY_DECLINE_PREFIX = "lobby-decline:";
@@ -199,22 +199,22 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
     return { assigned, returned, expiresAt, turn };
   });
 
-  // Fill the rooms. Every `stash:` block in docs/zones.yaml is sitting on its
-  // Room as `stashSeed`, authored but not poured; this is the one moment it
-  // becomes real items. Guarded by Room.seededStashSlugs, so a second Start
-  // Game — or a later import, or the editor's own button — writes nothing.
+  // Furnish the world. Every `stash:` block in docs/zones.yaml is sitting on
+  // its Room as `stashSeed`, authored but not poured, and every `structures:`
+  // list names something that should simply be standing there; this is the
+  // moment both become real. Guarded per room and per structure type, so a
+  // second Start Game — or a later import, or the editor's own button — writes
+  // nothing. The Restart Game wipe runs the same pass, so after a wipe this is
+  // a top-up that usually finds everything already done; on a lobby that was
+  // never wiped it is what fills the board.
   //
   // OUTSIDE the transaction above on purpose: seeding opens transactions of
   // its own per room and they cannot nest. That means a failure here leaves
   // the game started and the rooms empty, which is recoverable from
   // /gm/dev/zones; the reverse, a rollback that un-starts a game players have
   // already been DM'd about, is not.
-  try {
-    const seeded = await seedAuthoredStashes(db);
-    result.stashSeeded = seeded;
-  } catch (err) {
-    result.stashSeeded = { rooms: 0, items: 0, unknown: [], error: String(err?.message ?? err) };
-  }
+  const seeded = await seedAuthoredWorld(db);
+  result.worldSeeded = seeded;
 
   return result;
 }

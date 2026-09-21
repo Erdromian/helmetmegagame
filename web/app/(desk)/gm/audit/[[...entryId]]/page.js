@@ -114,10 +114,12 @@ async function FreshAudit({ params, searchParams, userId }) {
 
   // A permalink may name a row that is not on this page — a different filter,
   // or forty pages back. Fetch it alongside rather than making the reader hunt.
+  // findFirst rather than findUnique so the game floor applies here too: an old
+  // bookmark would otherwise walk a previous game's row straight past the WHERE.
   const pinned =
     selectedId && !rows.some((r) => r.id === selectedId)
-      ? await prisma.auditLog.findUnique({
-          where: { id: selectedId },
+      ? await prisma.auditLog.findFirst({
+          where: { id: selectedId, ...(ctx.gameFloor ? { createdAt: { gte: ctx.gameFloor } } : {}) },
           include: {
             targetCharacter: { select: { id: true, name: true } },
             location: { select: { id: true, name: true } },

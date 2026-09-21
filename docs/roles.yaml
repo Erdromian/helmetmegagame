@@ -1061,6 +1061,45 @@ groups:
         - Ration Box x2
         - Pickaxe
         - Appraisal
+    # Added 2026-09-20. Starts inside the Soilery (town-3) rather than the
+    # town square, because the Farm button only exists on `soilery` ground —
+    # a Soiler who starts anywhere else spends their first Move walking.
+    # The Soiler's Key is not decoration: the Silo (town-3-2) where the seed
+    # is kept and the Stable (town-3-3) are both locked behind it.
+    soiler:
+      name: Soiler
+      intro: >-
+        Grow food for Ravenheart and tame the arelitz.
+      description:
+        - >-
+          You can farm, but you must be in the Soilery, a set of plots and sheds in the town's east. The Farm button there spends a seed bag and sows a field; the crop comes in when the turn is pushed, minus whatever withers.
+        - >-
+          You can sell Tobacco to the Depot, but for crops it is better if you cut a deal with the Inn or other organizations. Food fetches nothing at the counter and everything from a hungry town.
+        - >-
+          Your key opens the Silo, where the seed and the harvest are kept, and the Stable beside it.
+        - >-
+          The arelitz in the Stable eat what is on the floor and lay eggs, and the eggs hatch and grow on their own clock. A grown one is unruly, and nobody rides it until somebody breaks it in.
+        - >-
+          An arelitz is also meat, and so is anything you cannot feed.
+      difficulty: easy
+      bank_account: treasury
+      starting_account: 3
+      multiple: true
+      weight: 3
+      starting_zone: town
+      starting_location: town-3
+      starting_tags:
+        - Ravenhearter
+        - Soilery
+        - Soiler's Key
+        - Work Knife
+        - Resources x2
+        - Wheat
+        - Tobacco
+        - Wheat Seed Bag
+        - Plebeian Hood
+      doc_elements:
+        - farming
     mortus:
       name: Mortus
       intro: >-
