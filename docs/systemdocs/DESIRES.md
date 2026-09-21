@@ -795,6 +795,25 @@ own cooldown (§ the per-template table) is untouched — a Manic character may
 refill a slot the instant it empties, but still cannot re-claim the same Desire
 early.
 
+**The trade is that the catalog itself is scrambled.** Roughly **40%** of the
+templates lock at random each turn, re-rolled every turn —
+`MANIC_LOCK_FRACTION` in `db/lib/desireGates.js`, and the player-facing half of
+it is the tag's own line: "your available desires are randomized every turn."
+It was 70% until 9/2026, which left so little on offer that a tag costing 10
+points read as a punishment rather than a bargain.
+
+The roll is **deterministic, not random**: a hash of
+`characterId:openTurnNumber:templateId`, so reloading the picker mid-turn can
+never show a different catalog, while the locked set still changes every turn
+because the turn number is in the seed. No RNG, no DB write, no
+`TURN_PASSES` registration — `evaluateDesireCatalog` stays a pure evaluator.
+It is skipped entirely when there is no `characterId` to seed with, so a
+catalog previewed outside a character's context is never scrambled.
+
+It is the **last** gate to apply, after hidden, locked, spent and cooldown, so
+it can never override a reason that was already true — a Desire on cooldown
+still says so rather than blaming Manic.
+
 It is a real bypass (`noLock` on `slotStates`), **not `lockTurns: 0`**, and the
 difference matters. A `Desire` row is born ended — `setTurnNumber` and
 `endedTurnNumber` are both stamped at claim — so at 0 the test still reads

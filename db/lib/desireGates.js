@@ -4,7 +4,7 @@
 // openTurnNumber is part of the seed. No DB write, no TURN_PASSES
 // registration, no migration: evaluateDesireCatalog stays a pure evaluator,
 // same contract as the rest of this file (see the header comment below).
-const MANIC_LOCK_FRACTION = 0.7;
+const MANIC_LOCK_FRACTION = 0.4;
 
 function manicScramblesTemplate(characterId, openTurnNumber, templateId) {
   const seed = `${characterId}:${openTurnNumber}:${templateId}`;
@@ -43,7 +43,7 @@ function evaluateDesireCatalog({
   const globalClauses = allClauses.filter(({ clause }) => clause.slot == null);
   const scopedClauses = allClauses.filter(({ clause }) => clause.slot != null);
   const hist = history || [];
-  // Manic (TAGS.md 4a): ~70% of the catalog locks at random each turn, re-rolled
+  // Manic (TAGS.md 4a): ~40% of the catalog locks at random each turn, re-rolled
   // every turn — a trade for never waiting out a slot's own cooldown (below).
   const manic = (heldTags || []).some((t) => t.slug === MANIC_SLUG);
 

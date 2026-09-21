@@ -5,7 +5,13 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { resolveDelta, multiplierFor, MULTIPLIER_SLUGS, EVENTS } = require("../lib/mood");
 const { fightingSkillFor } = require("../lib/fightingSkill");
-const { slotStates, desireSlotsNeverLock, evaluateDesireCatalog, manicScramblesTemplate } = require("../lib/desireGates");
+const {
+  slotStates,
+  desireSlotsNeverLock,
+  evaluateDesireCatalog,
+  manicScramblesTemplate,
+  MANIC_LOCK_FRACTION,
+} = require("../lib/desireGates");
 
 const AMOR = ["amor-fati"];
 
@@ -178,8 +184,10 @@ test("Manic still leaves the last claim readable in the slot", () => {
 });
 
 // --- Manic's random Desire lock (TAGS.md 4a) -------------------------------
-// The trade for never waiting out a slot's own cooldown, above: ~70% of the
-// catalog locks at random each turn, re-rolled every turn.
+// The trade for never waiting out a slot's own cooldown, above: ~40% of the
+// catalog locks at random each turn, re-rolled every turn. It was 70%, which
+// left a Manic character with so little on offer that the tag read as a
+// punishment rather than a trade.
 
 const MANIC_TAG = { id: "manic-tag-id", slug: "manic", name: "Manic" };
 
@@ -214,11 +222,20 @@ test("Manic's locked set changes from turn to turn", () => {
   assert.notDeepEqual(turn5, turn6);
 });
 
-test("Manic locks roughly 70% of the catalog, not all or none of it", () => {
+test("Manic locks roughly 40% of the catalog, not all or none of it", () => {
   const templateIds = Array.from({ length: 2000 }, (_, i) => `template-${i}`);
   const lockedCount = templateIds.filter((id) => manicScramblesTemplate("char-1", 9, id)).length;
   const fraction = lockedCount / templateIds.length;
-  assert.ok(fraction > 0.55 && fraction < 0.85, `expected roughly 70% locked, got ${fraction}`);
+  // Wide, because this is a hash and not an RNG: the point is that it is neither
+  // "all of it" nor "none of it", not that it hits the constant exactly. It
+  // measures 38-40% across turns at a real catalog's size.
+  assert.ok(fraction > 0.3 && fraction < 0.5, `expected roughly 40% locked, got ${fraction}`);
+});
+
+test("the locked fraction the roll uses is the one the constant names", () => {
+  // Cheap, and it is what stops the constant being edited without the test above
+  // being looked at — they are two statements of one number.
+  assert.equal(MANIC_LOCK_FRACTION, 0.4);
 });
 
 test("a non-Manic character is never touched by the random lock", () => {

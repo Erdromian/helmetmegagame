@@ -6,6 +6,11 @@ Every push, newest first, in plain language for the GM team. Written by
 
 Entries below predate this format and list files instead.
 
+## 2026-09-21 · Manic scrambles less of the catalog
+
+✎ Manic now locks about 40% of your Desires each turn instead of 70% -- for 10 points the tag was reading as a punishment rather than a trade, since a Manic character could barely find anything to claim  
+✎ Wrote down how the scramble actually works in DESIRES.md, which had only ever documented the slot half of the tag
+
 ## 2026-09-21 · Two passes can no longer pin two copies of the same Location card
 
 ✎ The card a Location channel pins is now CLAIMED rather than just written, so when two provisioning passes race, one wins and the other deletes the card it posted instead of leaving it pinned where nothing can find it -- that is what put a double in all 56 channels
