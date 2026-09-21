@@ -83,6 +83,49 @@ export const MUSIC_GAIN = {
   "surfacing.ogg": 0.403,             //  -18.1 LUFS, 2:45
   "the_collective.ogg": 0.617,        //  -21.8 LUFS, 4:50
   "white_waking.ogg": 0.359,          //  -17.1 LUFS, 6:41
+
+  // -26 LUFS — instruments (the `player`/`room` layers, SOUND.md §3). See
+  // db/lib/instrumentSongs.js for what these are named to a player.
+  // accordion
+  "b1.ogg": 0.525,                    //  -20.4 LUFS, 1:37
+  "b2.ogg": 0.380,                    //  -17.6 LUFS, 0:50
+  "b3.ogg": 0.537,                    //  -20.6 LUFS, 2:13
+  "b4.ogg": 0.269,                    //  -14.6 LUFS, 2:22
+  "b5.ogg": 0.556,                    //  -20.9 LUFS, 1:53
+  "b6.ogg": 0.214,                    //  -12.6 LUFS, 0:17
+  "b7.ogg": 0.207,                    //  -12.3 LUFS, 1:33
+  "b8.ogg": 0.513,                    //  -20.2 LUFS, 0:42
+  // lute
+  "balalaika1.ogg": 0.741,            //  -23.4 LUFS, 1:30
+  "bard1.ogg": 0.468,                 //  -19.4 LUFS, 0:38
+  "bard2.ogg": 0.407,                 //  -18.2 LUFS, 0:40
+  "bard3.ogg": 0.437,                 //  -18.8 LUFS, 0:36
+  "bard4.ogg": 0.432,                 //  -18.7 LUFS, 0:25
+  "bard5.ogg": 0.759,                 //  -23.6 LUFS, 1:45
+  // boombox
+  "ainda-e-cedo.ogg": 0.417,          //  -18.4 LUFS, 3:57
+  "boate-azul.ogg": 0.299,            //  -15.5 LUFS, 3:20
+  "boombox10.ogg": 0.507,             //  -20.1 LUFS, 3:13
+  "boombox3.ogg": 0.447,              //  -19.0 LUFS, 2:07
+  "boombox4.ogg": 0.468,              //  -19.4 LUFS, 3:22
+  "boombox8.ogg": 0.305,              //  -15.7 LUFS, 3:20
+  "clouds.ogg": 0.653,                //  -22.3 LUFS, 2:56
+  "clown.ogg": 0.473,                 //  -19.5 LUFS, 1:47
+  "como-eu-quero.ogg": 0.313,         //  -15.9 LUFS, 4:12
+  "cowboy-fora-da-lei.ogg": 0.367,    //  -17.3 LUFS, 3:34
+  "csrio.ogg": 0.359,                 //  -17.1 LUFS, 2:46
+  "fixacao.ogg": 0.359,               //  -17.1 LUFS, 6:21
+  "fuckup.ogg": 0.204,                //  -12.2 LUFS, 5:35
+  "indihome.ogg": 0.216,              //  -12.7 LUFS, 0:30
+  "metamorfose-ambulante.ogg": 0.501, //  -20.0 LUFS, 3:47
+  "newbar3.ogg": 0.302,               //  -15.6 LUFS, 2:45
+  "newbar46.ogg": 0.292,              //  -15.3 LUFS, 3:07
+  "newbar59.ogg": 0.462,              //  -19.3 LUFS, 3:00
+  "newbar9.ogg": 0.288,               //  -15.2 LUFS, 4:02
+  "solidao-de-volta.ogg": 0.263,      //  -14.4 LUFS, 2:42
+  "space_asshole.ogg": 0.403,         //  -18.1 LUFS, 4:16
+  "space_oddity.ogg": 0.403,          //  -18.1 LUFS, 5:18
+  "title1.ogg": 0.417,                //  -18.4 LUFS, 2:30
 };
 
 /** The measured trim for a file, by URL or bare name. 1 for anything unmeasured. */

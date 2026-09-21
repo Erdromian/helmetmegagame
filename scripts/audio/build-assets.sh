@@ -36,6 +36,52 @@ music/morning.ogg
 music/newlobby31.ogg
 "
 
+# A lute, an accordion, a boombox — the `player`/`room` layers (SOUND.md §3).
+# db/lib/instrumentSongs.js is what names these to a player; keep the two lists
+# in step. clouds.ogg is the one master that isn't a straight rip: the source
+# ships it as a tracker module (clouds.s3m), rendered once to Ogg with
+# openmpt123 before this script ever sees it — see assets/osw-sounds/instruments/
+# boombox/ for the .s3m master kept alongside.
+INSTRUMENTS="
+instruments/accordion/b1.ogg
+instruments/accordion/b2.ogg
+instruments/accordion/b3.ogg
+instruments/accordion/b4.ogg
+instruments/accordion/b5.ogg
+instruments/accordion/b6.ogg
+instruments/accordion/b7.ogg
+instruments/accordion/b8.ogg
+instruments/lute/balalaika1.ogg
+instruments/lute/bard1.ogg
+instruments/lute/bard2.ogg
+instruments/lute/bard3.ogg
+instruments/lute/bard4.ogg
+instruments/lute/bard5.ogg
+instruments/boombox/newbar3.ogg
+instruments/boombox/newbar46.ogg
+instruments/boombox/newbar59.ogg
+instruments/boombox/newbar9.ogg
+instruments/boombox/ainda-e-cedo.ogg
+instruments/boombox/boate-azul.ogg
+instruments/boombox/como-eu-quero.ogg
+instruments/boombox/cowboy-fora-da-lei.ogg
+instruments/boombox/fixacao.ogg
+instruments/boombox/metamorfose-ambulante.ogg
+instruments/boombox/solidao-de-volta.ogg
+instruments/boombox/boombox10.ogg
+instruments/boombox/boombox3.ogg
+instruments/boombox/boombox4.ogg
+instruments/boombox/boombox8.ogg
+instruments/boombox/space_asshole.ogg
+instruments/boombox/space_oddity.ogg
+instruments/boombox/title1.ogg
+instruments/boombox/csrio.ogg
+instruments/boombox/clown.ogg
+instruments/boombox/fuckup.ogg
+instruments/boombox/indihome.ogg
+instruments/boombox/clouds.ogg
+"
+
 # Beds and spots. Anything a PLACE sounds like rather than anything the game is
 # feeling — see web/app/components/placeAmbience.js for which goes where.
 AMBIENCE="
@@ -80,17 +126,21 @@ encode() {
   fi
   local filter=()
   [ -n "$boost" ] && filter=(-af "volume=$boost")
-  ffmpeg -v error -y -i "$SRC/$rel" "${filter[@]}" -ac 1 -ar 32000 -c:a libvorbis -q:a 0 \
+  ffmpeg -v error -y -i "$SRC/$rel" "${filter[@]+"${filter[@]}"}" -ac 1 -ar 32000 -c:a libvorbis -q:a 0 \
     "$dest/$name"
-  printf '  %-34s %6s KB\n' "$name" "$(( $(stat -c%s "$dest/$name") / 1024 ))"
+  printf '  %-34s %6s KB\n' "$name" "$(( $(wc -c < "$dest/$name") / 1024 ))"
 }
 
-mkdir -p "$OUT/music" "$OUT/ambience"
+mkdir -p "$OUT/music" "$OUT/ambience" \
+  "$OUT/instruments/accordion" "$OUT/instruments/lute" "$OUT/instruments/boombox"
 echo "music/"
 for f in $MUSIC; do encode "$f" "$OUT/music"; done
+echo "instruments/"
+for f in $INSTRUMENTS; do encode "$f" "$OUT/$(dirname "$f")"; done
 echo "ambience/"
 for f in $AMBIENCE; do encode "$f" "$OUT/ambience"; done
 
 echo
-echo "music/    $(du -sh "$OUT/music" | cut -f1)"
-echo "ambience/ $(du -sh "$OUT/ambience" | cut -f1)"
+echo "music/       $(du -sh "$OUT/music" | cut -f1)"
+echo "instruments/ $(du -sh "$OUT/instruments" | cut -f1)"
+echo "ambience/    $(du -sh "$OUT/ambience" | cut -f1)"
