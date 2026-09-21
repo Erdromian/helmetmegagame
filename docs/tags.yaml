@@ -6776,7 +6776,7 @@ tags:
     name: Hematite
     category: items
     group: items-mining
-    sprite: ore
+    sprite: ore-red
     description: "A red metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6793,7 +6793,7 @@ tags:
     name: Malachite
     category: items
     group: items-mining
-    sprite: green-lump
+    sprite: ore-cyan
     description: "A green metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6810,7 +6810,7 @@ tags:
     name: Garnierite
     category: items
     group: items-mining
-    sprite: green-lump
+    sprite: ore-bluish
     description: "A pale green metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -6841,7 +6841,7 @@ tags:
     name: Iron
     category: items
     group: items-mining
-    sprite: ore
+    sprite: ore-darkbrown
     description: "A workable iron ingot. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6871,7 +6871,7 @@ tags:
     name: Copper
     category: items
     group: items-mining
-    sprite: brace-copper
+    sprite: ore-copper
     description: "A piece of red metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6897,7 +6897,7 @@ tags:
     name: Nickel
     category: items
     group: items-mining
-    sprite: silver-ore
+    sprite: ore-dullgrey
     description: "A piece of pale metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6929,7 +6929,7 @@ tags:
     name: Silver
     category: items
     group: items-mining
-    sprite: silver-ore
+    sprite: ore-silvery
     description: "Raw silver, ready for the forge. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -6951,7 +6951,7 @@ tags:
     name: Platinum
     category: items
     group: items-mining
-    sprite: sheet-silver
+    sprite: ore-silvery
     description: "A piece of white metal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 2
@@ -7040,7 +7040,7 @@ tags:
     name: Pyrite
     category: items
     group: items-mining
-    sprite: gold-ore
+    sprite: ore-gold
     description: "A brassy gold cube. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7094,7 +7094,7 @@ tags:
     name: Sphalerite
     category: items
     group: items-mining
-    sprite: glass-ore
+    sprite: ore-magenta
     description: "A glittering brown crystal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
@@ -7111,7 +7111,7 @@ tags:
     name: Tetrahedrite
     category: items
     group: items-mining
-    sprite: sheet-adamantine
+    sprite: ore-silvery
     description: "A grey metallic crystal. It can be smithed into trinkets in order to increase their value."
     pointCost: 0
     weight: 1
