@@ -136,7 +136,7 @@ async function prepareSpeech(
   if (web && !skipSlowmode) {
     const wait = await slowmodeWaitSeconds(prisma, { characterId: character.id, placeKey });
     if (wait > 0) {
-      return { ok: false, refusal: `Wait ${wait}s before speaking again.`, retryAfter: wait };
+      return { ok: false, refusal: `You spoke too recently. Wait ${wait} s.`, retryAfter: wait };
     }
   }
 

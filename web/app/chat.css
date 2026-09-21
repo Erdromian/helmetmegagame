@@ -3309,15 +3309,10 @@
     min-height: 0;
   }
 
-  /* The desktop hover bar never shows on a tap; a row's one action is the
-     ⋯ sheet instead. */
+  /* The desktop hover bar never shows on a tap; holding a row opens the
+     sheet instead. */
   .chat-shell .tline-actions {
     display: none;
-  }
-  /* Room for that one ⋯, floated at the row's corner rather than pushing
-     the sentence over on every line. */
-  .chat-shell .tline[data-density="feed"] .tline-body {
-    padding-right: calc(var(--tap) + var(--sp-2));
   }
   /* Clear of the typing line, which sits over the last row here. */
   .chat-shell .chat-pill {
@@ -3345,8 +3340,17 @@
   z-index: 1;
 }
 
+/* Under a touch pointer a row's actions open by holding it (the Row's long
+   press in chat/next/Feed.js), the way Discord does — a ⋯ on every line was a
+   column of buttons down the feed. Text selection would fight the hold. */
 @media (pointer: coarse) {
-  .chat-shell .tline-more {
+  .chat-shell .tline {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  /* The old feed (?old) still draws a ⋯ per row. */
+  .chat-shell:not([data-chat-next]) .tline-more {
     display: inline-flex;
   }
 }
@@ -3362,3 +3366,18 @@
   border-color: var(--border);
 }
 
+
+/* Chat text size, from the sound menu (components/chatTextStore.js). */
+.chat-shell[data-chat-text="small"] .tline-body {
+  font-size: 0.875em;
+}
+
+.chat-shell[data-chat-text="large"] .tline-body {
+  font-size: 1.15em;
+}
+
+.chat-text-size {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
