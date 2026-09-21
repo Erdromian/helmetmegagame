@@ -9621,6 +9621,7 @@ tags:
     name: Shovel
     category: items
     group: items-gear
+    sprite: shovel
     description: "A long-handled digging spade. While equipped, you can bury two corpses per turn."
     pointCost: 2
     equippable: true

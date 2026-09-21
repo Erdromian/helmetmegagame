@@ -57,3 +57,12 @@ Their provenance is not recorded, so **they are not covered by the CC BY-SA
 grant this file describes**. If either turns out to be someone else's, that is
 the file to pull, and the tag falls back to its group glyph the moment
 `sprite:` comes off it.
+
+## One file from RMC-14
+
+`shovel.png` is the `icon` frame of `Objects/Tools/shovel.rsi` from RMC-14
+(https://github.com/RMC-14/RMC-14), licensed CC BY-SA 3.0. Its `meta.json`
+credits it as "Taken from tgstation and modified by Swept at commit
+https://github.com/tgstation/tgstation/commit/c6e3401f2e7e1e55c57060cdf956a98ef1fefc24".
+It was cropped and padded to a square the same way as the files above, and
+carries the same CC BY-SA 3.0 terms.
