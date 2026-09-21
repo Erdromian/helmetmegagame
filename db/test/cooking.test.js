@@ -210,7 +210,7 @@ test("an absent custom block means the standard surcharge and a description box"
   });
 });
 
-test("the meals buy their words for nothing, and the Fine Meal takes no description", () => {
+test("a recipe can make its words free, and can take a name without a description", () => {
   assert.deepEqual(
     normalizeCustom({ cost: 0, describable: false }, { slug: "fine-meal", customizable: true }),
     { customCost: 0, customDescribable: false },

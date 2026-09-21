@@ -634,7 +634,7 @@ export async function craftRequestImpl({
     tag.slug === DEATH_MASK_SLUG
       ? resolveDeathMaskSource(character, ingredientChoice)
       : null;
-  // The shared verdict the dialog prices with (web/lib/customCraft.js): what the words amount to after cleaning, and what this recipe charges (usually CUSTOM_SURCHARGE, zero on the two meals — COOKING.md). Fields posted against a non-customizable recipe are dropped, not refused — same posture as quantity on a non-stackable. `mayCustomize` reads the rung the recipe names (Tag.customizableSkillSlug) so an apprentice can't sign a cudgel; failing it drops the words AND the surcharge — nobody pays for a name they didn't get.
+  // The shared verdict the dialog prices with (web/lib/customCraft.js): what the words amount to after cleaning, and what this recipe charges (usually CUSTOM_SURCHARGE, and 1 ⬢ on the cooking recipes too — COOKING.md). Fields posted against a non-customizable recipe are dropped, not refused — same posture as quantity on a non-stackable. `mayCustomize` reads the rung the recipe names (Tag.customizableSkillSlug) so an apprentice can't sign a cudgel; failing it drops the words AND the surcharge — nobody pays for a name they didn't get.
   const { custom: customWanted, surcharge: customSurcharge } = customCraftFor(tag, {
     customName,
     customDescription,

@@ -341,6 +341,14 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players, refs
     farmOptions,
     switchTable,
     refs: refsOut,
+    // Naming a dish: the standard surcharge, per dish, in ⬢ (a recipe's `custom.cost`, docs/systemdocs/CRAFTING.md §4a), and what that ⬢
+    // costs a cook who has to buy it at the Depot. A named dish sells for the same 2 ¢ as an unnamed one, so this is for its own sake.
+    naming: (() => {
+      const bread = get("bread");
+      const surcharge = bread?.custom?.cost ?? 1;
+      const dishSell = bread?.sellablePrice ?? null;
+      return { surcharge, coinBought: surcharge * rv.buy, coinMined: surcharge * (params.rvMined ?? rv.sell), dishSell, describable: bread?.custom?.describable !== false };
+    })(),
     townFarmers,
     ratGap,
     unreachableDishes,
