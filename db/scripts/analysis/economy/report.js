@@ -636,6 +636,32 @@ function sectionCooking() {
 ${table({ cols: stratCols, rows: C.strategies, id: "cookstrat" })}
 ${C.boxStrategy ? `<p class="lede">${esc(C.boxStrategy.note)} A Ration Box eater needs no farmer, so the Depot is the third way to be fed.</p>` : ""}
 <p class="lede">Per Move, farming still wins: one Farm action is ${fmt(A.farmPersonTurnsPerMove, 1)} person-turns of food for a Move, and the cooking on that harvest adds ${fmt(A.gainPersonTurns, 1)} person-turns for ${fmt(A.movesPerAction, 2)} Moves, ${fmt(A.cookPersonTurnsPerMove, 1)} a Move. But Moves are not what limits a farmer (the lockout is), and the raw diet costs −10 mood a bite: ${fmt(raw.bitesPerPersonTurn, 1)} bites a person-turn is <b>${fmt(raw.moodPerPersonTurn, 0)} mood</b>, against ${fmt(cooked.moodPerPersonTurn, 0)} for one cooked bite.</p>
+${C.tobacco ? `<h3>Tobacco, the cash crop</h3>
+<p class="lede">Tobacco is the one crop that pays cash: <b>${fmt(C.tobacco.price, 0)} ¢ a leaf</b> to the Depot, ${fmt(C.tobacco.leavesPerPlant, 0)} leaves a plant, and a plant fails 1 time in ${C.tobacco.witherIn}, so a field of ${C.tobacco.plants} gives about ${fmt(C.tobacco.leaves, 0)} leaves, <b>${fmt(C.tobacco.revenue, 0)} ¢ a harvest</b> and ${fmt(C.tobacco.netAction, 0)} after the seed bag. On the 3-turn lockout that is <b>${fmt(C.tobacco.perTurn, 1)} ¢ a turn</b>, against ${fmt(C.refs.factoryShift, 0)} for a Factory shift, ${fmt(C.refs.prospector, 1)} for a Prospector and ${fmt(C.refs.miner, 1)} for a miner with a pick. <b>Fertilizer is the bigger lever on tobacco</b> than on food: it stops the wither die that kills 1 plant in ${C.tobacco.witherIn}, so a field gives about ${fmt(C.tobacco.leavesFert, 0)} leaves and the ${fmt(C.tobacco.fertCost, 0)} ¢ sack adds ${fmt(C.tobacco.fertGainPerAction, 0)} ¢ a harvest, ${fmt(C.tobacco.perTurnFert, 1)} ¢ a turn with it, <b>${fmt(C.tobacco.perTurnFert / C.refs.factoryShift, 1)} times the Factory</b>. The Depot buys any number of leaves, so every tobacco farmer is a coin faucet of that size. The seed bag costs ${fmt(C.tobacco.seed, 0)} ¢ and sells back for ${C.tobacco.seedResale ?? "—"}.</p>
+${table({
+    cols: [
+      { h: "A farmer grows", get: (r) => r.label },
+      { h: "People fed (steady)", num: true, get: (r) => (r.peopleFed ? fmt(r.peopleFed, 1) : "—"), sort: (r) => r.peopleFed },
+      { h: "Worth as food ¢ a turn, at the box's price", num: true, get: (r) => (r.worth == null ? "—" : fmt(r.worth, 1)), sort: (r) => r.worth ?? -1 },
+      { h: "Cash from the Depot ¢ a turn", num: true, get: (r) => (r.cash ? fmt(r.cash, 1) : "—"), sort: (r) => r.cash },
+      { h: "Cook Moves a turn", num: true, get: (r) => (r.cookMoves ? fmt(r.cookMoves, 2) : "—"), sort: (r) => r.cookMoves },
+      { h: "Note", get: (r) => r.note },
+    ],
+    rows: C.farmOptions,
+    id: "farmoptions",
+  })}
+<p class="lede">Food is worth more than tobacco only at the box's price, which is the ceiling on what a buyer pays and needs somebody to cook it and somebody to pay; tobacco is paid by the Depot for certain. That is the choice: a cooked-food farmer feeds ${fmt(C.farmOptions.find((r) => r.id === "food-cooked")?.peopleFed, 0)} people, and a tobacco farmer feeds nobody and earns cash. ${C.switchTable.length ? `A town with ${C.switchTable[0].farmers} farmers, just enough, goes hungry as farmers switch:` : ""}</p>
+${C.switchTable.length ? table({
+    cols: [
+      { h: "Farmers on tobacco", num: true, get: (r) => `${r.tobacco} of ${r.farmers}`, sort: (r) => r.tobacco },
+      { h: `People fed of ${players}`, num: true, get: (r) => fmt(r.fed, 0), sort: (r) => r.fed },
+      { h: "Hungry", num: true, get: (r) => fmt(r.hungry, 0), sort: (r) => r.hungry },
+      { h: "Coin made ¢ a turn", num: true, get: (r) => fmt(r.coin, 0), sort: (r) => r.coin },
+      { h: "With Fertilizer ¢ a turn", num: true, get: (r) => fmt(r.coinFert, 0), sort: (r) => r.coinFert },
+    ],
+    rows: C.switchTable,
+    id: "farmswitch",
+  }) : ""}` : ""}
 <h3>How much food an input makes</h3>
 <p class="lede">Hunger per input unit, best first (a * marks a Skilled dish). Green is made from crops alone, red needs something the game gives no way to get, blue needs something farmed or dug up. The ${cropOnly.length} crop-only Basic dishes all make 35 from two crops and differ only in mood (${Math.min(...cropOnly.map((d) => d.mood))} to ${Math.max(...cropOnly.map((d) => d.mood))}); the Skilled dishes buy mood, not food.</p>
 ${barChart({ rows: bars, unit: " hunger", fmtVal: (v) => fmt(v, 1), labelW: 170 })}

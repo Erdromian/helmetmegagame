@@ -11,10 +11,11 @@
 const hungerLib = require("../../../lib/hunger");
 const soilery = require("../../../lib/soilery");
 
+const fmtN = (n) => `${Math.round(n)}`;
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 const CROPS = new Set(["wheat", "potato", "tomato", "carrot", "onion", "plump-helmet"]);
 
-function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
+function buildCooking({ get, list, rv, params, sources, foodFloor, players, refs = {} }) {
   const srcItem = new Map(sources.items.map((i) => [i.slug, i]));
   const rankOf = (slug) => (CROPS.has(slug) ? 2 : srcItem.get(slug)?.rank ?? 5);
   const sourceOf = (slug) => (CROPS.has(slug) ? "Farm (Soilery)" : srcItem.get(slug)?.best ?? "no route found");
@@ -152,6 +153,84 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
       }
     : null;
 
+  // ---- tobacco, the cash crop ----------------------------------------------------------------------------
+  // A crop with its own numbers (db/lib/soilery.js): fewer leaves a plant, a steeper wither die, and it sells.
+  // Set beside growing food and cooking it, per farmer per turn (one Farm action every `cycle` turns).
+  const tobEntry = soilery.CROPS.find((c) => c.crop === "tobacco");
+  const tobTag = get("tobacco");
+  let tobacco = null;
+  if (tobEntry && tobTag) {
+    const seedBag = get("tobacco-seed-bag");
+    const fert = get("fertilizer");
+    const plants = params.farmMaxCrops;
+    const cpp = tobEntry.cropsPerPlant ?? soilery.CROPS_PER_PLANT ?? 1;
+    const wither = tobEntry.witherIn ?? soilery.WITHER_IN;
+    const price = tobTag.sellablePrice ?? 0;
+    const seed = seedBag?.depotPrice ?? 0;
+    const fertCost = fert?.depotPrice ?? 0;
+    const leaves = plants * (1 - 1 / wither) * cpp;
+    const leavesFert = plants * (1 + 1 / soilery.BOUNTY_IN) * cpp;
+    const netAction = leaves * price - seed;
+    const netActionFert = leavesFert * price - seed - fertCost;
+    tobacco = {
+      plants,
+      leavesPerPlant: cpp,
+      witherIn: wither,
+      price,
+      seed,
+      fertCost,
+      leaves,
+      leavesFert,
+      revenue: leaves * price,
+      netAction,
+      netActionFert,
+      perTurn: netAction / cycle,
+      perTurnFert: netActionFert / cycle,
+      fertGainPerAction: netActionFert - netAction,
+      seedResale: seedBag?.sellablePrice ?? null,
+    };
+  }
+  // A farmer's turn, by what they grow. "Worth" for food is the Ration Box's price per hunger, the most a buyer
+  // with coin would pay; tobacco is cash from the Depot. People fed is a steady state (a Farm action every `cycle` turns).
+  const potatoTag = get("potato");
+  const foodRow = (id, label, cropsPerAction, hungerPerCrop, cookMovesPerCrop, note) => {
+    const hungerPerTurn = (cropsPerAction * hungerPerCrop) / cycle;
+    return {
+      id,
+      label,
+      peopleFed: hungerPerTurn / params.hungerDecay,
+      worth: boxPerHunger == null ? null : hungerPerTurn * boxPerHunger,
+      cash: 0,
+      cookMoves: (cropsPerAction * cookMovesPerCrop) / cycle,
+      note,
+    };
+  };
+  const cookPerCrop = (cropDish?.moves ?? 0) / (cropDish?.units || 1);
+  const farmOptions = [
+    foodRow("food-raw", "Grow food, eat it raw", harvest, potatoTag.cooked.hunger, 0, "The mood cost of raw eating is not counted."),
+    foodRow("food-cooked", `Grow food, cook it (${cropDish?.name ?? "a crop dish"})`, harvest, cropDish?.hungerPerUnit ?? 0, cookPerCrop, "Needs the cooking, about one Move a turn a farmer."),
+    foodRow("food-cooked-fert", "The same with Fertilizer", fertHarvest, cropDish?.hungerPerUnit ?? 0, cookPerCrop, "Fertilizer is 4 ¢ a Farm action."),
+  ];
+  if (tobacco) {
+    farmOptions.push({ id: "tobacco", label: "Grow tobacco", peopleFed: 0, worth: null, cash: tobacco.perTurn, cookMoves: 0, note: `${fmtN(tobacco.leaves)} leaves at ${tobacco.price} ¢ an action, after a ${tobacco.seed} ¢ seed bag.` });
+    farmOptions.push({ id: "tobacco-fert", label: "Grow tobacco with Fertilizer", peopleFed: 0, worth: null, cash: tobacco.perTurnFert, cookMoves: 0, note: `Fertilizer stops the wither die (1 plant in ${tobacco.witherIn} fails) and doubles a plant one time in ${soilery.BOUNTY_IN}: ${fmtN(tobacco.leavesFert)} leaves.` });
+  }
+  const townFarmers = cooked_farmers_placeholder();
+  function cooked_farmers_placeholder() {
+    return need / (((cropDish?.hungerPerUnit ?? 1) * harvest) / cycle);
+  }
+  // What one farmer switching from food to tobacco does to a town that has just enough farmers.
+  const cookedRow = farmOptions.find((r) => r.id === "food-cooked");
+  const switchTable = [];
+  if (tobacco && cookedRow) {
+    const F = Math.ceil(townFarmers);
+    for (let k = 0; k <= Math.min(F, 4); k++) {
+      const fed = Math.min(players, (F - k) * cookedRow.peopleFed);
+      switchTable.push({ farmers: F, tobacco: k, fed, hungry: players - fed, coin: k * tobacco.perTurn, coinFert: k * tobacco.perTurnFert });
+    }
+  }
+  const refsOut = { factoryShift: refs.factoryShift ?? null, prospector: refs.prospector ?? null, miner: refs.miner ?? null };
+
   // ---- what a cook adds to a farm action's harvest -------------------------------------------------------------
   const cropsPerAction = harvest;
   const rawHungerPerAction = cropsPerAction * potato.cooked.hunger;
@@ -258,6 +337,11 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players }) {
     cookAdds,
     inedible,
     addIns,
+    tobacco,
+    farmOptions,
+    switchTable,
+    refs: refsOut,
+    townFarmers,
     ratGap,
     unreachableDishes,
     cropOnly,

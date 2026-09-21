@@ -16,7 +16,7 @@ const { cutOn } = require("./cut");
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
-function buildInvestments({ caving, trinkets, lucky: luckyUses, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
+function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAnalysis, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
   const rows = [];
   const byId = (id) => activities.find((a) => a.id === id);
   const shelfPrice = (t) => t?.depotPrice ?? null;
@@ -202,6 +202,26 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, get, list, rv, r
         oneOff: true,
       });
     }
+  }
+
+  // Fertilizer on the one crop that pays cash.
+  if (cookAnalysis?.tobacco && get("fertilizer")) {
+    const tb = cookAnalysis.tobacco;
+    const fert = get("fertilizer");
+    add({
+      id: "fertilizer-tobacco",
+      group: "Farming",
+      name: "Fertilizer, on tobacco",
+      kind: "consumable",
+      does: `Stops the wither die (1 plant in ${tb.witherIn} fails) and doubles a plant 1 time in ${soilery.BOUNTY_IN}, for one Farm action of tobacco.`,
+      coin: shelfPrice(fert),
+      coinHow: `${shelfPrice(fert)} ¢ a sack, used up each time`,
+      points: fert.pointCost ?? 0,
+      gain: tb.fertGainPerAction / (params.farmCycle ?? 3),
+      gainHow: `+${round1(tb.leavesFert - tb.leaves)} leaves at ${tb.price} ¢, less the sack: +${round1(tb.fertGainPerAction)} ¢ a Farm action, on top of ${round1(tb.perTurn)} ¢ a turn without it`,
+      note: "Measured per turn across the 3-turn lockout. It repays itself many times over the first time.",
+      oneOff: true,
+    });
   }
 
   // ---- loot rolls ----------------------------------------------------------------------------------

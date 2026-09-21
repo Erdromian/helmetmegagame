@@ -1046,7 +1046,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
-  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players });
+  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, refs: { factoryShift: shift, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
   const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue: moveValueUsed });
   const lucky = buildLucky({ get, rv, caving, trinkets, moveValue: moveValueUsed, gameTurns });
   const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);
@@ -1181,6 +1181,14 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       model: `${round1(byId("farm:tobacco")?.netPerTurn)} ¢ a turn (${round1(byId("farm:tobacco")?.perAction)} ¢ a Farm action, then a 3-turn lockout)`,
       ok: byId("farm:tobacco") != null && byId("farm:tobacco").netPerTurn <= shift,
       note: "Tobacco is 2 ¢ a leaf, about 67 leaves an action after its 1-in-3 wither. That is three times a Prospector at the Caves.",
+    },
+    {
+      doc: "SOILERY.md §1",
+      claim: "Fertilized tobacco earns no more a turn than a Factory shift",
+      docValue: `${shift} ¢ a turn`,
+      model: cooking.tobacco ? `${round1(cooking.tobacco.perTurnFert)} ¢ a turn with Fertilizer (${round1(cooking.tobacco.perTurn)} without)` : "no tobacco",
+      ok: !cooking.tobacco || cooking.tobacco.perTurnFert <= shift,
+      note: "Fertilizer removes the 1-in-3 wither die that is tobacco's price for being the cash crop, so it lifts tobacco far more than it lifts food.",
     },
     {
       doc: "SOILERY.md §6",
@@ -1381,6 +1389,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const investments = buildInvestments({
     caving,
     trinkets,
+    cooking,
     lucky,
     get,
     list,
