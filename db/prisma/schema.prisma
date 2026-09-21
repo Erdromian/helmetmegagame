@@ -3969,10 +3969,9 @@ model Turn {
   // on rows written before the column existed; turnClock.js derives those.
   endsAt DateTime?
 
-  // Which banner #turns posted for this turn — a filename in docs/assets/turn/,
-  // chosen once when the turn opens so a repost shows the same picture rather
-  // than a fresh roll. Null on rows that predate the column; the resolver
-  // picks one on the spot for those (db/lib/turnBanner.js).
+  // ORPHAN since 2026-09-21: the everyday turn plates were retired, and the
+  // only pictures left come off the Game row's stamps (db/lib/turnBanner.js).
+  // Nothing writes or reads this.
   banner     String?
   status     TurnStatus @default(OPEN)
   startedAt  DateTime   @default(now())

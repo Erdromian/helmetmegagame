@@ -561,35 +561,26 @@ players a per-character row would drown every human-authored line in
 
 ## 4. Turn banners
 
-Each turn announcement carries a photograph. There are eight, in
-`docs/assets/turn/{dawn,dusk}-{1..4}.jpg`, all cropped to the same 2446×1122
-frame as the `#info` banner so both channels read as one system. They are built
-by `docs/assets/make-turn-banners.js`, which holds the per-plate crop window and
-colour grade — run it again and you get the same eight files.
+**An ordinary turn carries no picture.** There used to be eight photographs of
+Ravenheart, one picked per turn; they were retired on 2026-09-21, with the
+script that built them. Two plates are left, and each one is earned:
+
+- `Game.nukeDetonatedTurn` set → `nuke.jpg`, for the rest of the game.
+- `Game.ascensionFiredTurn` set → `hellfire.jpg`, the same way. The nuke wins
+  if both have somehow happened.
+
+`db/lib/turnBanner.js#turnPlate` makes that call, and both faces ask it. The
+files live in `web/public/assets/turn/`, so the web serves them at
+`/assets/turn/<name>.jpg` and the Discord post uploads the same file off disk.
+On the web, `postTurnToGame` writes the plate into the turn post as a `Plate:`
+header (`db/lib/turnPostText.js`), and the turn block in `/chat` draws it above
+the note (`web/app/(app)/chat/blockRows.js`).
+
+`Turn.banner` is an orphan now: nothing writes it and nothing reads it.
 
 **There is no weather system.** `Turn.weather`, `GameState.nextWeather` and
 the `Weather` enum are orphaned columns from a removed feature — nothing
 reads or writes them, and no GM control exists for a next-weather override.
-
-**Which plate.** `db/lib/turnBanner.js` picks one when the turn opens and writes
-it to `Turn.banner`, avoiding whatever the previous turn used. All eight are one
-pool now; they were four Dawn and four Dusk, picked by the turn's phase, and the
-filenames still say so because they are only pictures and renaming them would
-cost a rebuild of `docs/assets/make-turn-banners.js` for nothing. On a 6-hour
-game a plate comes round about twice as often as it used to, which is inherent
-to there being four times as many turns.
-
-**Why it is stored rather than rolled at post time.** The announcement gets
-reposted: the bot rebuilds a missing console on cold start
-(`bot/src/lib/turnsConsole.js`) and `finishGameWipe` reposts it after a wipe. A
-fresh roll in either path would swap the picture out from under players
-mid-turn. A null `banner` — a row from before the column existed, or a creation
-path that forgot — is not "no picture": the resolver picks one on the spot, so a
-Turn 1 never posts bare.
-
-**After the bomb there is no morning, only the sky.** `Game.nukeDetonatedTurn`
-pins `nuke.jpg` for the rest of the game, ahead of the ordinary plate, and
-`Game.ascensionFiredTurn` pins `hellfire.jpg` the same way.
 
 **Both stamps live on the `Game` row, and that is load-bearing.** They used to
 sit on `GameState` — but they are turn NUMBERS, and turn numbers restart at 1
@@ -618,7 +609,7 @@ components, which is exactly the order wanted:
 
 ```
 -# Day 4, Turn 7 | April 24th, 1098     <- content
-[ turn banner ]                        <- attachment
+[ nuke / hellfire plate, if any ]      <- attachment
 Travel   Move   Speak                  <- components, always last
 ```
 

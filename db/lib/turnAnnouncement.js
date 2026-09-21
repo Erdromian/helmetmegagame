@@ -12,7 +12,7 @@ const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
 const { clearMessagesExcept } = require("./discordRest");
 const { isTurnsChannel } = require("./turnsChannelAccess");
-const { TURN_BANNER_DIR, turnBannerPath } = require("./turnBanner");
+const { turnBannerPath } = require("./turnBanner");
 const { pushToUser, vapidPublicKey } = require("./webPush");
 const { GAME_PLACE_KEY } = require("./placeKey");
 
@@ -100,14 +100,9 @@ async function postTurnsConsole(prisma, channelId, text, turn, config, state = n
     await deleteMessage(channelId, config.turnsConsoleMessageId).catch(() => {});
   }
 
-  // A missing asset must cost the guild its banner, never its announcement —
-  // but not SILENTLY: absent from disk vs. a rejected upload are logged apart.
+  // Only the nuke and the hellfire carry a picture now; every other turn posts
+  // bare. turnBannerPath logs a plate that should be there and is not.
   const bannerFile = turnBannerPath(turn, state);
-  if (turn && !bannerFile) {
-    console.error(
-      `Turn announcement: no banner for ${turn.banner ?? "(unset)"} in ${TURN_BANNER_DIR}`,
-    );
-  }
 
   let sent = null;
   if (bannerFile) {

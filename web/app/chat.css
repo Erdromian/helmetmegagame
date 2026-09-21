@@ -1294,6 +1294,14 @@
    local time in each reader's own zone (web/app/components/remarkDiscord.js),
    which is the one thing this block does that the Discord post it copies
    cannot. `p` inside it, because ChatMarkdown wraps its own paragraph. */
+.tline--block[data-kind="turn"] .turn-plate {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 0 0 var(--sp-3);
+  border: 1px solid var(--border);
+}
+
 .tline--block[data-kind="turn"] .turn-clock {
   margin: var(--sp-3) 0 0;
   padding-top: var(--sp-2);

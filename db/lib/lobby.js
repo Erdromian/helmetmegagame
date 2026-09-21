@@ -7,7 +7,6 @@ const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
 const { heldSeatsByRole } = require("./seatCount");
 const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
-const { pickTurnBanner } = require("./turnBanner");
 const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
 const { seedAuthoredWorld } = require("./worldSeed");
 
@@ -175,7 +174,6 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
           dayNumber: 1,
           turnLengthHours,
           endsAt,
-          banner: pickTurnBanner(),
           status: "OPEN",
           startedAt: now,
         },

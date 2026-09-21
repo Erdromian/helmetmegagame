@@ -44,7 +44,7 @@ async function ensureTurnsConsole(guild) {
   if (phase !== "RUNNING") return;
 
   // Nothing tracked, or the tracked message is gone: repost against the open
-  // turn with its own banner (Turn.banner, not a fresh pick — db/lib/turnBanner.js).
+  // turn with its own plate, if it has earned one (db/lib/turnBanner.js).
   const [openTurn, clock, state] = await Promise.all([
     prisma.turn.findFirst({ where: { status: "OPEN" }, orderBy: { number: "desc" } }),
     clockStatus(prisma),
