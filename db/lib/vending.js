@@ -26,6 +26,7 @@ const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
 const { loadPresentedIdentity } = require("./presentedIdentity");
 const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
+const { placeKeyForRoom } = require("./placeKey");
 const { isTradeable } = require("./tradeable");
 const { carryAdmits } = require("./carry");
 const { rowWeight } = require("./tagWeight");
@@ -196,6 +197,12 @@ async function machineView(prisma, discordUserId, roomId) {
     mode: !mine ? (holder ? "busy" : "closed") : unlocked ? "merchant" : "customer",
     holderName,
     secondsLeft: mine ? secondsLeftOn(machine) : 0,
+    // BOTH halves, or the client's clock reads zero. Chat counts down by
+    // calling heldBy/secondsLeftOn on this very object, and heldBy needs a
+    // holder AND a timestamp — sending only the timestamp had a freshly taken
+    // machine announce "0 seconds left." and re-read itself every tick.
+    // Only ever the viewer's own id, and only while the hold is theirs.
+    holderId: mine ? character.id : null,
     holderSince: mine ? machine.holderSince : null,
     floatObols: machine.floatObols,
     // The till is the merchant's business and nobody else's. A customer is not
@@ -221,9 +228,29 @@ async function machineView(prisma, discordUserId, roomId) {
 // (REQUESTS.md §1a), and returns { ok, line, text, sfx } or { ok: false, error }.
 // `line` is what the presser is told; `text` is what the room reads.
 
-/** Announce into the room. Best-effort on both faces, never inside a transaction. */
+/**
+ * Announce into the room. Best-effort on both faces, never inside a transaction.
+ *
+ * REFUSES TO REPEAT ITSELF. A merchant stocking three wares called
+ * stockMachine three times and the Storefront read "moves things around inside
+ * the machine." three times in a row — which is the same noise the silence on
+ * Insert and Withdraw exists to avoid, arriving by a different door. So a line
+ * identical to the room's most recent one is dropped rather than posted twice.
+ * Cheap enough: these are scenery posts that already swallow their own errors.
+ */
 async function sayInRoom(prisma, room, text, sfx = null) {
   if (!text) return;
+  try {
+    const placeKey = placeKeyForRoom(room.id);
+    const last = await prisma.archiveEntry.findFirst({
+      where: { placeKey },
+      orderBy: { seq: "desc" },
+      select: { content: true },
+    });
+    if (last?.content === text) return;
+  } catch {
+    // Never let the de-duplication stop the line going out.
+  }
   await sceneLineAt(prisma, { roomId: room.id, text, sfx }).catch(() => {});
   if (room.discordThreadId) {
     await postMessage(room.discordThreadId, text, undefined, { parse: [] }).catch(() => {});
