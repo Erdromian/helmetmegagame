@@ -27,7 +27,14 @@ const execFileAsync = promisify(execFile);
 // SIGTERM and an error page.
 const TIMEOUT_MS = 120_000;
 
-let cached = null; // the finished HTML, kept for the life of the process
+// report.js now writes one file per section (SECTIONS in report.js) rather than one ~800 KB page, plus
+// the shared report.css/report-client.js the old inline <style>/<script> moved into. Only these three
+// extensions are ever served — the CSVs, report.md and model.json are for a human or a script reading
+// the checkout directly, not for the site.
+const SERVABLE = new Set([".html", ".css", ".js"]);
+const CONTENT_TYPE = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8" };
+
+let cached = null; // Map<filename, { content, contentType }>, kept for the life of the process
 let pending = null; // the run in flight, shared by everyone who asks while it is going
 
 async function build() {
@@ -40,7 +47,15 @@ async function build() {
   try {
     // No --players/--turns/etc: the same defaults `npm run economy:report` runs with, plain.
     await execFileAsync(process.execPath, [script, "--out", outDir], { timeout: TIMEOUT_MS });
-    return await fs.readFile(path.join(outDir, "index.html"), "utf8");
+    const names = await fs.readdir(outDir);
+    const files = new Map();
+    for (const name of names) {
+      const ext = path.extname(name);
+      if (!SERVABLE.has(ext)) continue;
+      const content = await fs.readFile(path.join(outDir, name), "utf8");
+      files.set(name, { content, contentType: CONTENT_TYPE[ext] });
+    }
+    return files.has("index.html") ? files : null;
   } catch (err) {
     console.error("Economy report generation failed:", err);
     return null;
@@ -49,7 +64,8 @@ async function build() {
   }
 }
 
-export async function getEconomyReportHtml() {
+// Map<filename, {content, contentType}> | null, or null while nothing has built successfully yet.
+export async function getEconomyReportFiles() {
   if (cached) return cached;
   // Share the promise, not just the result. The cache is only written when a run FINISHES, so
   // checking it alone left the door open for the whole ~18s: two GMs opening the page together, or
@@ -58,7 +74,15 @@ export async function getEconomyReportHtml() {
   pending ??= build().finally(() => {
     pending = null;
   });
-  const html = await pending;
-  if (html) cached = html;
-  return html;
+  const files = await pending;
+  if (files) cached = files;
+  return files;
+}
+
+// One named file from the built set, or null if generation failed or the name does not exist —
+// web/app/api/gm/economy/[[...path]]/route.js is the one caller, and it turns either kind of null
+// into a 404/503 of its own.
+export async function getEconomyReportFile(name) {
+  const files = await getEconomyReportFiles();
+  return files?.get(name) ?? null;
 }

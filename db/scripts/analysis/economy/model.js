@@ -33,6 +33,7 @@ const { buildCooking } = require("./cooking");
 const { buildDesires } = require("./desires");
 const { buildStarting } = require("./starting");
 const { buildField } = require("./field");
+const { buildPower } = require("./power");
 const { buildLucky } = require("./lucky");
 const { MERCHANT_CUT, cutOn, afterCut } = require("./cut");
 const { turretTable } = require("../../../lib/depotTurret");
@@ -1517,6 +1518,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   });
   const fieldModel = buildField({ params, cooking, schemaDefault, players });
   const starting = buildStarting({ list, get, foods, params, foodFloor, sources, players, cooking });
+  const power = buildPower({ starting, rv });
   const auditSrc = fs.readFileSync(path.join(REPO, "db/scripts/ops/audit-vault-backing.js"), "utf8");
   const reserveFloor = Number((/const RESERVE_FLOOR = ([0-9.]+);/.exec(auditSrc) ?? [])[1]);
   if (!Number.isFinite(reserveFloor)) throw new Error("economy model: could not read RESERVE_FLOOR out of db/scripts/ops/audit-vault-backing.js; the file has changed shape.");
@@ -1596,6 +1598,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     merchantCut: MERCHANT_CUT,
     desires,
     starting,
+    power,
     field: fieldModel,
     prospectorValue,
     combos,
