@@ -125,7 +125,7 @@ const DESTROYABLE_CATEGORIES = new Set(["items", "assets"]);
 // and therefore also weightless) nobody found out for days.
 //
 // ASSETS ARE NOT IN THIS SET, and won't be. They are genuinely split: an arelitz,
-// a cart, a plow and a dog change hands; a forge, a palisade, a gallows and a
+// a cart and a dog change hands; a forge, a palisade, a gallows and a
 // trebuchet do not. There is no category boundary under that — "is it nailed
 // down" is a fact about the thing — so an Asset still says which it is, and
 // validateTags still throws if it stays quiet.

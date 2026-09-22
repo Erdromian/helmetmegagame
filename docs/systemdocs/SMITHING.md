@@ -108,7 +108,7 @@ club lists `skills: [crafting]` and stays something you whittle; the five metal
 Dead Simple recipes (work knife, hatchet, cudgel, pitchfork, armored gloves)
 list `skills: [smithing]` and went behind a forge for the first time as a side
 effect of the split. What is gated, then, is every Simple rung and up, those
-five, plus the Cart and the Plow.
+five, plus the Cart.
 
 The rule is read off the recipe's own skills rather than a per-tag flag, so a
 new sword is gated the moment it names a smithing skill and nobody has to
@@ -291,16 +291,6 @@ Off the ladder — no recipe, no smithing gate:
 | Cracked Bone Club | 0 | Found only. |
 | Neoclassic Duelista | 0 | Found only. |
 | Disabler | 0 | Cerberon-issued. |
-
-### The Plow
-
-Not a weapon, but it is smith work: `plow`, 5 points, `turnsCost: 1`,
-`resourceCost: 9`, `skills: [smithing]`. It is an **Asset**, not an Item, so
-it never weighs on your back — it lives in your shed and the horse does the
-hauling. It carried the largest tool bonus in the game, +4 ⬢ to a Farming
-Labor, gated on also holding a `horse`. Laboring is gone, farming pays in crops
-rather than ⬢ (`SOILERY.md`), and only two tags carry a `miningBonus` now
-(`MINING.md` §4) — the Plow is not one of them.
 
 ## 4. Armor
 

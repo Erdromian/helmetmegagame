@@ -181,7 +181,7 @@ function farmRefusalFor(characterTags, hasOpenAction) {
   }
   // Only Exhausted refuses, the same gate the Factory floor and the seam use
   // (db/lib/refinery.js#refineFatigueRefusal, db/lib/mining.js#computeMiningAccess).
-  // One day at the plough makes you Tired and a second wears you out, so pushing
+  // One day in the fields makes you Tired and a second wears you out, so pushing
   // a day is the player's call rather than the game's.
   if (holds(characterTags, EXHAUSTED_SLUG)) {
     return "You're too worn out to farm right now.";

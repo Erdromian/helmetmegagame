@@ -487,9 +487,7 @@ House and Shack are
 mid-game a horse or a house comes from a GM grant, another player, or the
 Depot, not a menu. To keep the "another player" half real, the property
 tags (Manor, House, Shack) are `tradeable: true`; the companions and Cart
-already were. The Plow joined them when it moved out of Items, so it stopped
-weighing on a farmer's back (SMITHING.md §3); the Workshop asset was retired
-outright in favour of the Workshop Equipment **item** you have to haul
+already were. The Workshop asset was retired outright in favour of the Workshop Equipment **item** you have to haul
 (SMITHING.md §2a).
 
 **Assets weigh nothing**, which is the mechanical point of the category:
@@ -911,8 +909,8 @@ has since been deleted outright along with the channel it opened.
   round, exactly as it does for `removable`. Write neither `true` nor `false` on
   an item.
 
-  **Assets still write it, and must.** They are the genuinely split category: a
-  horse, a cart, a plow and a dog change hands; a forge, a brewery, a palisade,
+  **Assets still write it, and must.** They are the genuinely split category: an
+  arelitz, a cart and a dog change hands; a forge, a brewery, a palisade,
   a gallows and a trebuchet do not. There is no category boundary under that —
   "is it nailed down" is a fact about the thing, not a class of thing — so an
   Asset says which it is and the sync throws if it stays quiet.

@@ -102,8 +102,8 @@
 #                     item is a thing, and a thing can change hands, so the
 #                     sync derives it the way it derives `removable` and THROWS
 #                     on the line either way round. Assets DO write it, and
-#                     must: they are genuinely split, since an arelitz, a cart, a
-#                     plow and a dog change hands while a forge, a palisade and
+#                     must: they are genuinely split, since an arelitz, a cart and
+#                     a dog change hands while a forge, a palisade and
 #                     a gallows do not. Everything else is untradeable and says
 #                     nothing. A runtime mint is not bound by this — a Disguise
 #                     is an Items row that is deliberately not cargo — but that

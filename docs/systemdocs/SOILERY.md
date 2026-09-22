@@ -249,7 +249,7 @@ function a day's mining and a Factory shift climb (`MINING.md` §5,
 `FACTORY.md` §4). **Farming is on the one ladder now**, and there is no
 farming-specific fatigue rule left.
 
-A day at the plough steps one rung: `tired` if you were fresh, `exhausted` if
+A day in the fields steps one rung: `tired` if you were fresh, `exhausted` if
 you were already Tired. `farmRefusalFor` refuses on `exhausted` **only** — the
 same gate `refineFatigueRefusal` and `computeMiningAccess` use. So:
 
