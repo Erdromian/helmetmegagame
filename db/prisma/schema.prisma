@@ -879,6 +879,16 @@ model GameState {
   // cancels, which is the safe direction.
   ascensionLeaderCharacterId String?
 
+  // The turn the Grimoire started carrying the Rite of Ascension at all
+  // (db/lib/ascensionReveal.js, THANATI.md §5a). Null means the cult has not
+  // finished the Dark Lord's work, and the rite's block — its ingredients, its
+  // chanter count and its Word of the Circle — is left out of the document the
+  // browser is sent. Set once and never cleared: the reveal is knowledge the
+  // cult has already been DMed, so a GM un-pinning an objective afterwards must
+  // not take back a page they have read. Claimed with a guarded write, which is
+  // what stops a resumed advance sending the DM twice.
+  ascensionRevealedTurn Int?
+
   // The Rite of Fulfillment pays out once per game. Claimed with a guarded
   // write on this column, so two circles chanting at the same minute cannot
   // both collect (db/lib/riteEffects.js).

@@ -171,6 +171,11 @@ const RITES = [
   {
     key: "ascension",
     name: "Rite of Ascension",
+    // Kept out of the Grimoire until the cult has finished every objective a GM
+    // set it (db/lib/ascensionReveal.js, THANATI.md §5a). The flag lives on the
+    // catalog rather than in the document builder so there is one list of what
+    // a reader may not see yet, and web/lib/grimoire.js reads it.
+    revealedByObjectives: true,
     minChanters: 8,
     ingredients: [
       { tag: "barons-scepter", count: 1 },
