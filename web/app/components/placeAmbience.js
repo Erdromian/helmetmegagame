@@ -93,8 +93,8 @@ const BY_LOCATION = {
 
   // "Ambience within the cathedral". The Order Chambers are the same stone and the same
   // silence, so they get the same pool.
-  "town-4": place("cathedral", [once(`${M}sacred_dagger.ogg`)], CHAPEL_SPOTS),
-  "undertown-b": place("order", [once(`${M}sacred_dagger.ogg`)], CHAPEL_SPOTS),
+  "town-4": place("cathedral", [once("sacred_dagger.ogg")], CHAPEL_SPOTS),
+  "undertown-b": place("order", [once("sacred_dagger.ogg")], CHAPEL_SPOTS),
 
   // "Ambience" — the one music-folder file the document leaves unqualified, and the
   // Sanctuary is where it has always played.
@@ -133,7 +133,7 @@ const BY_ZONE = {
 
   // The two cave levels are their own Zone rows (kind CAVE_LEVEL) under `underground`.
   // "Ambience in the caves" and "Ambience in treacherous locations".
-  caves: place("caves", [once(`${M}to_hell.ogg`), loop("spookymaint1.ogg"), once("spookyspace1.ogg")]),
+  caves: place("caves", [once("to_hell.ogg"), loop("spookymaint1.ogg"), once("spookyspace1.ogg")]),
   depths: place("depths", [once("spookyspace2.ogg"), loop("spookymaint1.ogg")], [once("ambigen11.ogg")]),
 
   // Nothing is keeping you company down there. The Hills have no bed of their own in the
