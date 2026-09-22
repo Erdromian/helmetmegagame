@@ -255,7 +255,14 @@ const GAIN = {
 
   // Heard every time somebody speaks, so it lives down with the boots. `pop` is the
   // quietest file in the library and still only just clears the floor at this target.
-  message: 1,
+  //
+  // A DELIBERATE OVERRIDE, and the only one in this table: the derived value is 1
+  // (pop measures under the -26 tier, so the formula clamps), and this is that
+  // judged BY EAR to be too loud for a cue that fires every time anybody speaks.
+  // A third as loud, which is 10*log2(1/3) = -15.85 dB and so 10^(-15.85/20).
+  // Do NOT "fix" this back to the measured value: re-running scripts/audio/measure.sh
+  // will say 1 and be right about the measurement and wrong about the room.
+  message: 0.161,
 
   // Made to be heard. The intercom belongs here and not with the world: a PA is a
   // loudspeaker, which is the same argument db/lib/intercom.js makes for its full-size text.
