@@ -66,6 +66,7 @@ import {
   Sparkles,
   Grab,
   VenetianMask,
+  Coins,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -96,6 +97,9 @@ export const HelpIcon = lucide(CircleHelp, "HelpIcon");
 export const NotesIcon = lucide(Star, "NotesIcon");
 // The Store is where Tag Points get spent, so it reads as commerce rather than another list.
 export const StoreIcon = lucide(ShoppingBag, "StoreIcon");
+// The economy report: coin, because the report is what every wage and price is worth against each
+// other. Not the Scale — that is Adjudicate, and the two sit four rows apart on the same bar.
+export const EconomyIcon = lucide(Coins, "EconomyIcon");
 // A lidded box of records, not another sheet of paper — needs to read differently from Documents on the rail.
 export const ArchiveIcon = lucide(Archive, "ArchiveIcon");
 export const MapIcon = lucide(MapGlyph, "MapIcon");
@@ -345,6 +349,7 @@ export const ICONS = {
   notes: NotesIcon,
   documents: DocumentsIcon,
   oracle: EyeIcon,
+  economy: EconomyIcon,
   archive: ArchiveIcon,
   lifeweb: LifewebIcon,
   help: HelpIcon,
