@@ -8,6 +8,7 @@
 //   npm run economy:report -- --resource-value sell   # value ⬢ at the 1 ¢ sell-back (default: the Depot's buy price)
 //   npm run economy:report -- --mined-value buy      # value a Prospector's ⬢ at the 3 ¢ import price (default: the midpoint of the Depot's two prices)
 //   npm run economy:report -- --obols off     # preview the game with obol payment for smithing removed (default: read the source)
+//   npm run economy:report -- --mood-weight 1 # weigh a point of mood the same as hunger, not double (default: 2)
 //   npm run economy:report -- --out /tmp/x    # somewhere else
 //
 // Read-only: touches no database and posts nothing. The output directory is
@@ -33,8 +34,9 @@ const resourceValue = flag("resource-value", "buy");
 const minedValue = flag("mined-value", "mid");
 const obolPath = flag("obols", "auto");
 const moveValueFlag = flag("move-value", null) == null ? null : Number(flag("move-value", null));
+const moodWeight = Number(flag("mood-weight", 2));
 
-const model = buildModel({ players, gameTurns, freeMoves, resourceValue, minedValue, obolPath, moveValue: moveValueFlag });
+const model = buildModel({ players, gameTurns, freeMoves, resourceValue, minedValue, obolPath, moveValue: moveValueFlag, moodWeight });
 const { params } = model;
 
 let commit = "unknown";
@@ -109,7 +111,7 @@ function barChart({ rows, unit = "", width = 720, max = null, labelW = 200, fmtV
       const y = top + i * rowH;
       const w = Math.max(1, (Math.max(r.value, 0) / hi) * plotW);
       return `<text x="${labelW - 8}" y="${y + 17}" text-anchor="end" class="lbl">${esc(r.label)}</text>
-<rect x="${labelW}" y="${y + 3}" width="${w}" height="${rowH - 8}" rx="2" style="fill:${r.color ?? "var(--c0)"}"><title>${esc(r.label)}: ${fmtVal(r.value)}${unit}</title></rect>
+<rect x="${labelW}" y="${y + 3}" width="${w}" height="${rowH - 8}" rx="2" style="fill:${r.color ?? "var(--c0)"}" tabindex="0" data-tip="${esc(r.label)}: ${fmtVal(r.value)}${unit}"></rect>
 <text x="${labelW + w + 6}" y="${y + 17}" class="val">${fmtVal(r.value)}${unit}</text>`;
     })
     .join("");
@@ -134,7 +136,7 @@ function stripPlot({ groups, width = 760, unit = "¢/turn" }) {
       const dots = g.points
         .map(
           (p) =>
-            `<circle cx="${x(p.value)}" cy="${y + rowH / 2 - 4}" r="4.5" style="fill:${famColor(g.family)}" fill-opacity=".55" stroke="${famColor(g.family)}"><title>${esc(p.label)}: ${fmt(p.value)} ${unit}</title></circle>`,
+            `<circle cx="${x(p.value)}" cy="${y + rowH / 2 - 4}" r="4.5" style="fill:${famColor(g.family)}" fill-opacity=".55" stroke="${famColor(g.family)}" tabindex="0" data-tip="${esc(p.label)}: ${fmt(p.value)} ${unit}"></circle>`,
         )
         .join("");
       return `<text x="${labelW - 8}" y="${y + rowH / 2}" text-anchor="end" class="lbl">${esc(g.family)} <tspan class="tick">(${g.points.length})</tspan></text>${dots}`;
@@ -166,12 +168,41 @@ function scatter({ points, width = 760, height = 360 }) {
   const dots = points
     .map(
       (p) =>
-        `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.big ? 7 : 4}" style="fill:${famColor(p.family)}" fill-opacity="${p.big ? 0.9 : 0.5}" stroke="${famColor(p.family)}"><title>${esc(p.label)} — ${p.x} pt, ${fmt(p.y)} ¢/turn</title></circle>${
+        `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.big ? 7 : 4}" style="fill:${famColor(p.family)}" fill-opacity="${p.big ? 0.9 : 0.5}" stroke="${famColor(p.family)}" tabindex="0" data-tip="${esc(p.label)} — ${p.x} pt, ${fmt(p.y)} ¢/turn"></circle>${
           labelled.has(p) ? `<text x="${X(p.x) + 10}" y="${Y(p.y) + 4}" class="lbl">${esc(p.short)}</text>` : ""
         }`,
     )
     .join("");
   return `<svg viewBox="0 0 ${width} ${height}" role="img" class="chart">${gy}${gx}<text x="${(width + m.l) / 2}" y="${height - 4}" text-anchor="middle" class="tick">cumulative skill points</text><text transform="translate(12 ${height / 2}) rotate(-90)" text-anchor="middle" class="tick">¢ per turn</text>${dots}</svg>`;
+}
+
+// One dot a dish: ingredients cost along the bottom, hunger + mood worth (at the Ration Box's own
+// combined rate — see cooking.js#boxPerPoint) up the side. The dashed line is parity with the box
+// itself, since that rate is derived FROM the box — a dish sitting on the line costs exactly what a
+// Ration Box would for the same hunger and mood. Above it beats Rations, below it loses to just
+// buying one. Colour carries the same verdict the numbers do, so the shape of the story reads before
+// the hover text does.
+function dishValueChart({ dishes, width = 720, height = 380 }) {
+  const m = { l: 54, r: 16, t: 14, b: 40 };
+  const pts = dishes.filter((d) => d.cost != null && d.value != null);
+  const hi = Math.max(...pts.flatMap((d) => [d.cost, d.value]), 1) * 1.08;
+  const X = (v) => m.l + (v / hi) * (width - m.l - m.r);
+  const Y = (v) => height - m.b - (v / hi) * (height - m.t - m.b);
+  const gy = niceTicks(0, hi, 6)
+    .map((v) => `<line x1="${m.l}" x2="${width - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end" class="tick">${fmt(v, 0)}</text>`)
+    .join("");
+  const gx = niceTicks(0, hi, 6)
+    .map((v) => `<line x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${height - m.b}" class="grid"/><text x="${X(v)}" y="${height - m.b + 16}" text-anchor="middle" class="tick">${fmt(v, 0)}</text>`)
+    .join("");
+  const parity = `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(hi)}" y2="${Y(hi)}" stroke="var(--mute)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${X(hi) - 4}" y="${Y(hi) - 6}" text-anchor="end" class="tick">as good as a Ration Box</text>`;
+  const dots = pts
+    .map((d) => {
+      const good = d.margin >= 0;
+      const c = good ? "var(--good)" : "var(--bad)";
+      return `<circle cx="${X(d.cost)}" cy="${Y(d.value)}" r="5" style="fill:${c}" fill-opacity="${good ? 0.7 : 0.55}" stroke="${c}" tabindex="0" data-tip="${esc(d.name)}: ${fmt(d.cost, 1)} ¢ of ingredients, ${fmt(d.value, 1)} ¢ worth (${good ? "+" : ""}${fmt(d.margin, 1)} ¢)"></circle>`;
+    })
+    .join("");
+  return `<svg viewBox="0 0 ${width} ${height}" role="img" class="chart">${gy}${gx}${parity}<text x="${(width + m.l) / 2}" y="${height - 4}" text-anchor="middle" class="tick">ingredients, ¢</text><text transform="translate(16 ${height / 2}) rotate(-90)" text-anchor="middle" class="tick">worth (hunger + mood), ¢</text>${dots}</svg>`;
 }
 
 const legend = () =>
@@ -213,6 +244,7 @@ const failing = model.claims.filter((c) => !c.ok);
 
 const FLD = model.field;
 const ST = model.starting;
+const PWR = model.power;
 const startingHeadline = `the ${ST.town.seats} named seats (${ST.unlimited.length} more roles have no cap) begin with about <b>${fmt(ST.town.funds, 0)} ¢</b> (${fmt(ST.town.bank, 0)} in banks, ${fmt(ST.town.coinHand, 0)} in hand) and <b>${fmt(ST.town.resources, 0)} ⬢</b>, and ${ST.roles.filter((r) => r.food > 0 && r.seats > 0).reduce((n, r) => n + r.seats, 0)} carry any food, ${ST.town.cookSeats} of them cooks with a turn's supplies each. A character is Hungry after turn ${ST.noFoodHungry}, <b>Starving after turn ${ST.noFoodStarve}</b> and Dying after turn ${ST.noFoodDying} on nothing, but every role starts with about a meal, so the first seats (${fmt(ST.starveRows[0].seats, 0)} of ${ST.town.seats}) are Starving at the close of turn ${ST.starveRows[0].turn} and Dying at turn ${ST.starveRows[0].dying} unless they eat again. The cooks start with ${fmt(ST.town.dishes, 0)} dishes' worth of crops between them, ${fmt(ST.town.cropTurns, 0)} person-turns of food once cooked. All the coin in the town buys ${fmt(ST.town.funds / ST.costPerPersonTurn, 0)} person-turns of ration, which is ${fmt(ST.town.funds / ST.costPerPersonTurn / ST.town.seats, 1)} turns for each named seat.`;
 const headlines = [
   `Money a turn is worth: a miner with just a pickaxe earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer growing food <b>${fmt(farmW)} ¢</b> (valued at the Ration Box's price, since food crops do not sell), a farmer growing <b>tobacco ${fmt(tobW)} ¢, or ${fmt(tobFertW)} ¢ with Fertilizer</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. Best to worst: ${wageOrder}. A fertilized tobacco farmer earns ${fmt(tobFertW / factW, 1)} times a Factory worker and ${fmt(tobFertW / proW, 1)} times a Prospector.`,
@@ -600,6 +632,7 @@ ${table({ cols: proCols, rows: proRows, filters: [{ label: "Mining", get: (r) =>
 
 function sectionCooking() {
   const C = model.cooking;
+  const moodPhrase = C.moodWeight === 1 ? "hunger and mood, a point of either counted the same" : `hunger and mood, a point of mood counted as ${fmt(C.moodWeight, 2)} of hunger`;
   const cropOnly = C.cropOnly.filter((d) => d.tier === "Basic");
   const raw = C.strategies.find((x) => x.id === "raw-potato");
   const rawWheat = C.strategies.find((x) => x.id === "raw-wheat");
@@ -649,7 +682,7 @@ function sectionCooking() {
     { h: "Slot it in", get: (a) => a.name },
     { h: "Adds hunger", num: true, get: (a) => a.hunger, sort: (a) => a.hunger },
     { h: "Adds mood", num: true, get: (a) => a.mood, sort: (a) => a.mood },
-    { h: "Costs ¢", num: true, get: (a) => a.cost ?? "—", sort: (a) => a.cost ?? -1 },
+    { h: "Costs ¢", num: true, get: (a) => (a.cost == null ? "—" : `${a.costEstimated ? "≈" : ""}${fmt(a.cost, 1)}`), sort: (a) => a.cost ?? -1 },
     { h: "Where it comes from", get: (a) => a.source },
   ];
   return `<section><h2>Cooks against farmers</h2>
@@ -686,15 +719,18 @@ ${C.switchTable.length ? table({
 <h3>How much food an input makes</h3>
 <p class="lede">Hunger per input unit, best first (a * marks a Skilled dish). Green is made from crops alone, red needs something the game gives no way to get, blue needs something farmed or dug up. The ${cropOnly.length} crop-only Basic dishes all make 35 from two crops and differ only in mood (${Math.min(...cropOnly.map((d) => d.mood))} to ${Math.max(...cropOnly.map((d) => d.mood))}); the Skilled dishes buy mood, not food.</p>
 ${barChart({ rows: bars, unit: " hunger", fmtVal: (v) => fmt(v, 1), labelW: 170 })}
+<h3>Every dish, cost against worth</h3>
+<p class="lede">One dot a dish: what its ingredients cost against what its hunger and mood are worth, both at the Ration Box's own rate (${fmt(C.boxPerPoint, 3)} ¢ a point — ${moodPhrase}). The dashed line is parity with the box itself — a dish on it costs exactly what a Ration Box would for the same hunger and mood. Green sits at or above the line (better than Rations); red sits under it. Hover a dot for the name and numbers.</p>
+${dishValueChart({ dishes: C.dishes })}
 <h3>Every dish</h3>
-<p class="lede">"Worth at the box's price" is what the same hunger costs from a Ration Box, the price a buyer with coin will not pay more than, so the margin is what a cook could ask above the inputs. The Depot pays only its floor for a dish (the "Sells" column), so a cook's pay above that is whatever another player agrees to.</p>
+<p class="lede">"Worth at the box's price" is what the same hunger AND mood together cost from a Ration Box (${fmt(C.boxPerPoint, 3)} ¢ a point — ${moodPhrase}; ${fmt(C.boxPerHunger, 3)} ¢ a point of hunger alone, for comparison), so a Skilled dish's mood counts for something here and not just its food — the whole reason anyone pays for one. The margin is what a cook could ask above the inputs. The Depot pays only its floor for a dish (the "Sells" column), so a cook's pay above that is whatever another player agrees to.</p>
 ${table({ cols: dishCols, rows: C.dishes, filters: [{ label: "Tier", get: (d) => d.tier }, { label: "Made from", get: (d) => (d.farmOnly ? "crops only" : d.unreachable.length ? "needs something with no source" : "other inputs") }] })}
 <h3>Turning what nobody eats into food</h3>
 <p class="lede">Yes, for a few. Wheat makes you sick raw and is Bread. Purring Maggot, an ultracommon cave find that poisons you, brews into Maggot Milk and that is Pancakes and Fondue. Deep Morel is a Merchant's shelf item that makes you sick and is the Soaked Truffles (48 hunger, +38 mood). Rock Salt, another ultracommon find, cannot be eaten and seasons Salo and Caviar. Cave Fungus, Saltpeter and Rock go in no recipe, though a Cave Fungus can be slotted into any dish for nothing.</p>
 ${table({ cols: inCols, rows: C.inedible, id: "cookinedible" })}
 <p class="lede">${C.ratGap.fixed ? `<b>The cave rat cooks.</b> The rat the caves drop is <code>${esc(C.ratGap.caveRatSlug)}</code>, and ${C.ratGap.dishes.map(esc).join(", ")} take that same tag, so a common cave find (about one find in six in the Caves) is a Ratato, a Fried Rat or a Poached Rat.` : `<b>The rat is a broken link.</b> The cave loot table drops <code>${esc(C.ratGap.caveRatSlug)}</code>, but ${C.ratGap.dishes.map(esc).join(", ")} take <code>${esc(C.ratGap.recipeRatSlug)}</code>, which nothing in the game produces (${esc(C.ratGap.recipeRatSource)}).`} ${C.unreachableDishes.length} of ${C.dishes.length} dishes need an input with no way into the game (${[...new Set(C.unreachableDishes.flatMap((d) => d.unreachable))].map(esc).join(", ")}).</p>
 <h3>What a cook can slot in</h3>
-<p class="lede">Any dish takes up to four extra ingredients, each adding its own hunger and, if positive, its mood. A slot never beats the base for food (12 hunger a crop is what eating it raw gives) but it is where a cook buys mood, and the raw −10 does not apply. The meter tops out at ${params.hungerMax}, so a Bread with four slots is at most 83.</p>
+<p class="lede">Any dish takes up to four extra ingredients, each adding its own hunger and, if positive, its mood. A slot never beats the base for food (12 hunger a crop is what eating it raw gives) but it is where a cook buys mood, and the raw −10 does not apply. The meter tops out at ${params.hungerMax}, so a Bread with four slots is at most 83. A ${"≈"}-marked cost is not a real price: the ingredient has none of its own (usually a farm crop), so it is priced the way the dishes above are, at ${fmt(C.boxPerPoint, 3)} ¢ a point (${moodPhrase}), off the Ration Box.</p>
 ${table({ cols: slotCols, rows: C.addIns.slice(0, 14) })}
 </section>`;
 }
@@ -871,6 +907,50 @@ ${table({ cols: roleCols, rows: S.roles, filters: [{ label: "Group", get: (r) =>
 <h3>Rooms with something in them</h3>
 <p class="lede">Everything the game puts in a room when it starts, biggest first. <b>Open</b> rooms hold ${fmt(S.commons.resources, 0)} ⬢, ${fmt(S.commons.coin, 0)} ¢ and ${fmt(S.commons.food, 0)} hunger of food between them, for anybody. A locked room is opened by a key or tag its starting roles hold; roles may also open it with skills bought with points (the Caving skill opens the caves' stashes).</p>
 ${table({ cols: roomCols, rows: rooms, filters: [{ label: "Locked?", get: (r) => (r.open ? "open" : "locked") }] })}
+</section>`;
+}
+
+function sectionPower() {
+  const P = PWR;
+  const w = P.weights;
+  const roleCols = [
+    { h: "Role", get: (r) => r.name },
+    { h: "Group", get: (r) => r.group },
+    { h: "Seats", num: true, get: (r) => r.seats, sort: (r) => (r.seats === "no cap" ? 999 : r.seats) },
+    { h: "Tag value, pt", num: true, get: (r) => r.tagValue, sort: (r) => r.tagValue },
+    { h: "Wealth ¢", num: true, get: (r) => fmt(r.wealthCoin, 0), sort: (r) => r.wealthCoin },
+    { h: "Reach ¢ (keyed rooms)", num: true, get: (r) => fmt(r.reachCoin, 0), sort: (r) => r.reachCoin },
+    { h: "Soft power", num: true, get: (r) => r.softPower, sort: (r) => r.softPower },
+    { h: "Composite", num: true, get: (r) => r.composite, sort: (r) => r.composite ?? -1 },
+    { h: "Why (soft power)", get: (r) => Object.entries(r.softParts).filter(([, v]) => v > 0).map(([k, v]) => `${k} +${fmt(v, 0)}`).join(", ") || "nothing" },
+  ];
+  const groupCols = [
+    { h: "Group", get: (g) => g.group },
+    { h: "Roles", num: true, get: (g) => g.roles },
+    { h: "Top role", get: (g) => g.topRole },
+    { h: "Average composite", num: true, get: (g) => fmt(g.avgComposite, 1), sort: (g) => g.avgComposite },
+  ];
+  const weightRows = [
+    { knob: "A unique named seat (Baron, Bishop, Sheriff…)", value: `+${w.uniqueSeat}` },
+    { knob: "Whitelisted (vetted players only)", value: `+${w.whitelisted}` },
+    { knob: "Bank account: treasury / offshore / none", value: `+${w.bankAccount.treasury} / +${w.bankAccount.offshore} / +0` },
+    { knob: "Each key or licence held", value: `+${w.perKeyOrLicence}, up to +${w.perKeyOrLicence * w.maxKeys}` },
+    { knob: "Each locked room those open (with something in it)", value: `+${w.perLockedRoom}, up to +${w.perLockedRoom * w.maxRooms}` },
+    { knob: "Each doc_elements entry (lore known from creation)", value: `+${w.perDocElement}, up to +${w.perDocElement * w.maxDocElements}` },
+    { knob: "Each bonus point at creation (extra_starting_points)", value: `+${w.perExtraPoint}, up to +${w.perExtraPoint * w.maxExtraPoints}` },
+    { knob: `Scarcity (an ordinary seat with fewer than ${w.scarcitySeatFloor} at this town size)`, value: `up to +${w.scarcity}, a straight line to 0 at ${w.scarcitySeatFloor}+` },
+  ];
+  const weightCols = [{ h: "Soft power adds…", get: (r) => r.knob }, { h: "Worth", get: (r) => r.value }];
+  return `<section><h2>Starting power, by role</h2>
+<p class="lede">Three separate measures, not one number pretending to be precise, plus a fourth column that only exists to sort by. <b>Tag value</b> is what the free starting kit would have cost at character creation, point for point — a role's own starting tags priced the same way the Store prices everyone else's purchases (<code>Tag.pointCost</code>; Obols and Resources carry none, so a fat purse does not inflate this). <b>Wealth</b> is what a role could turn into spendable ¢ on its own on day one: bank plus coin in hand plus the ⬢ on its person, the ⬢ valued at the Depot's sell-back (${fmt(P.rvSell, 0)} ¢, the guaranteed floor — nobody can be paid less for it, so this is a liquidation value, never a replacement cost). <b>Reach</b> is the same, for what its own keys open beyond its own pocket — the ⬢ and ¢ sitting in the locked rooms its starting tags admit it to (<code>db/scripts/analysis/economy/starting.js</code>'s own keyed-room figures); several roles can share one key, so this is what a role <em>could</em> reach, the same honest limit that section states. Neither Wealth nor Reach folds ⬢ into ¢ silently — the rate is named right here, the way it is everywhere else in this report.</p>
+<h3>Soft power, the vague one</h3>
+<p class="lede">This is a house-rules score, not a catalog figure, and it says so on purpose. It answers "how much of a big deal is this seat", which is a real question a GM asks even though nothing prices it. It is built entirely from signals already in the data rather than from reading a role's own prose for the word "leader": whether it is a unique named seat (<code>multiple: false</code> — one to a game, and <code>docs/roles.yaml</code>'s own header points at this as the leadership tell), whether it is whitelisted, how autonomous its bank account is, how many keys and locked rooms it starts able to reach, how much lore it already knows (<code>doc_elements</code>), its own bonus points at creation, and how rare the seat itself is. Every weight below is a small, round, shown number, so the "why" column on each row adds up by hand to the total next to it — retune the numbers on a re-read; nothing else here depends on their exact values.</p>
+${table({ cols: weightCols, rows: weightRows, id: "powerweights" })}
+<h3>Composite: one sortable column, built the only defensible way</h3>
+<p class="lede">Tag value is in points, Wealth and Reach are in ¢, Soft power is a house-rules score — summing numbers in three different units would be nonsense, so Composite is each role's <b>percentile rank</b> on Tag value, Wealth and Soft power (0 to 100, among every seated role, Reach left out since it is really a restatement of the same keys the soft-power score already counts), averaged. It is a ranking aid, not a fourth measure — the three above are what actually says something. Top by Tag value: <b>${esc(P.topTagValue.name)}</b> (${P.topTagValue.tagValue} pt). Top by Wealth: <b>${esc(P.topWealth.name)}</b> (${fmt(P.topWealth.wealthCoin, 0)} ¢). Top by Soft power: <b>${esc(P.topSoft.name)}</b> (${P.topSoft.softPower}). Top Composite: <b>${esc(P.topComposite.name)}</b>.</p>
+${table({ cols: roleCols, rows: P.rows, filters: [{ label: "Group", get: (r) => r.group }] })}
+<h3>By group</h3>
+${table({ cols: groupCols, rows: P.groups, id: "powergroups" })}
 </section>`;
 }
 
@@ -1317,12 +1397,24 @@ function sectionChecks() {
     { h: "Craftable", get: (r) => (r.craftable ? "yes (wage floor?)" : "no") },
     { h: "Buy ≤ sell?", get: (r) => (r.arbitrage ? "ARBITRAGE" : "") , style: () => "color:var(--bad);font-weight:600" },
   ];
+  const cols3 = [
+    { h: "Dish", get: (d) => d.name },
+    { h: "Made from", get: (d) => d.inputs.join(" + ") },
+    { h: "Hunger", num: true, get: (d) => d.hunger, sort: (d) => d.hunger },
+    { h: "Mood", num: true, get: (d) => d.mood, sort: (d) => d.mood },
+    { h: "Inputs cost ¢", num: true, get: (d) => fmt(d.cost, 1), sort: (d) => d.cost },
+    { h: "Worth (hunger + mood) ¢", num: true, get: (d) => fmt(d.value, 1), sort: (d) => d.value },
+    { h: "Margin a Move ¢", num: true, get: (d) => fmt(d.marginPerMove, 0), sort: (d) => d.marginPerMove, style: () => "color:var(--bad);font-weight:600" },
+  ];
   return `<section><h2>Docs against the model</h2>
 <p class="lede">Each row is a number a system doc states, checked against what the catalog and code produce now. A “differs” is either a stale doc or a real bug, and only a person can say which.</p>
 ${table({ cols, rows: model.claims, sortable: false, filters: [{ label: "Doc", get: (c) => c.doc.split(" §")[0] }, { label: "Status", get: (c) => (c.ok ? "matches" : "differs") }] })}
 <h3>Wares off the 60% sell-back rule</h3>
 <p class="lede">Most are the wage-floor recipes <code>DEPOT.md</code> §3 names. Anything else, and any row marked ARBITRAGE (sells back for at least the buy price), is worth a look.</p>
-${table({ cols: cols2, rows: off })}</section>`;
+${table({ cols: cols2, rows: off })}
+<h3>Cooking: dishes losing far more than a bad wage</h3>
+<p class="lede">Every wage this report finds elsewhere runs about 1 to 27 ¢ a turn. A dish here loses more than 50 ¢ a Move against its own ingredients' market cost, priced against what the same hunger and mood would cost from a Ration Box (see “Cooks against farmers”, run with <code>--mood-weight ${fmt(model.cooking.moodWeight, 2)}</code>) — spending a Move on nothing but it would leave you deep in the red against even the worst legitimate wage in the game. ${model.cooking.flagged.length ? "Either the ingredients really are that dear for what the dish gives back, or the pricing above missed something — worth a GM's eye." : "None at the moment: nothing here loses that badly."}</p>
+${model.cooking.flagged.length ? table({ cols: cols3, rows: model.cooking.flagged, sortable: false }) : ""}</section>`;
 }
 
 function sectionAssumptions() {
@@ -1350,6 +1442,11 @@ const css = `
 main{max-width:1000px;margin:0 auto;padding:24px 16px 80px}
 h1{font-size:26px;margin:0 0 4px}h2{font-size:20px;margin:0 0 6px}h3{font-size:16px;margin:22px 0 6px}
 .sub{color:var(--mute);margin:0 0 20px}
+.report-nav{display:flex;flex-wrap:wrap;gap:2px 16px;align-items:center;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:1}
+.report-nav a{color:var(--mute);text-decoration:none;font-size:13px;white-space:nowrap;padding:4px 0}
+.report-nav a:hover{color:var(--fg)}
+.report-nav a[aria-current="page"]{color:var(--fg);font-weight:600;border-bottom:2px solid var(--accent)}
+.report-brand{color:var(--fg)!important;font-weight:700;font-size:14px;margin-right:4px}
 section{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px 18px 12px;margin:0 0 18px}
 .lede{color:var(--mute);margin:0 0 12px}
 .head li{margin:6px 0}
@@ -1372,6 +1469,8 @@ code{font-size:12px}
 .via{color:var(--mute);font-size:11px}
 .hid{display:none}
 .ranks{list-style:none;padding:0;margin:0 0 8px;font-size:13px}.ranks li{margin:3px 0}
+[data-tip]{cursor:default}
+.rtip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);font-size:12px;line-height:1.3;padding:5px 9px;border-radius:5px;max-width:280px;z-index:50;transform:translate(-50%,-100%);margin-top:-10px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 `;
 const js = `
 document.querySelectorAll('.filterbar').forEach(bar=>{
@@ -1392,15 +1491,101 @@ document.querySelectorAll('table.sortable').forEach(t=>{
       const r=(!isNaN(nx)&&!isNaN(ny))?nx-ny:String(x).localeCompare(String(y));return asc?r:-r});
     rows.forEach(r=>t.tBodies[0].appendChild(r));
   }));
-});`;
+});
+(function(){
+  // A shared tooltip for every chart shape carrying data-tip (bars, dots) — not the browser's native
+  // title tooltip, which is slow to appear and did not fire reliably at all inside an iframe in some
+  // hosts. One floating div, moved and re-labelled on hover, works the same everywhere.
+  let tip=null;
+  const place=(e)=>{if(tip){tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px';}};
+  document.addEventListener('mouseover',(e)=>{
+    const el=e.target.closest('[data-tip]');
+    if(!el)return;
+    if(!tip){tip=document.createElement('div');tip.className='rtip';tip.hidden=true;document.body.appendChild(tip);}
+    tip.textContent=el.dataset.tip;
+    tip.hidden=false;
+    place(e);
+  });
+  document.addEventListener('mousemove',(e)=>{if(tip&&!tip.hidden&&e.target.closest('[data-tip]'))place(e);});
+  document.addEventListener('mouseout',(e)=>{
+    const el=e.target.closest('[data-tip]');
+    if(el&&tip&&!el.contains(e.relatedTarget))tip.hidden=true;
+  });
+  document.addEventListener('focusin',(e)=>{
+    const el=e.target.closest('[data-tip]');
+    if(!el)return;
+    if(!tip){tip=document.createElement('div');tip.className='rtip';tip.hidden=true;document.body.appendChild(tip);}
+    tip.textContent=el.dataset.tip;
+    const r=el.getBoundingClientRect();
+    tip.style.left=(r.left+r.width/2)+'px';
+    tip.style.top=r.top+'px';
+    tip.hidden=false;
+  });
+  document.addEventListener('focusout',(e)=>{if(e.target.closest('[data-tip]')&&tip)tip.hidden=true;});
+})();`;
 
-const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Bascinet economy</title><style>${css}</style></head><body><main>
-<h1>Bascinet economy</h1>
+// ---------------------------------------------------------------------------
+// one file per section, not one 800 KB page
+// ---------------------------------------------------------------------------
+// Every section used to land in one `html` string, which made the report exactly as unreadable as its
+// subject: 20-odd topics with no way to jump to one of them, and a single file too big to open twice
+// while comparing. Each section keeps building its own `<section>…</section>` fragment exactly as it
+// always did — nothing about what a section computes or shows has changed — only how the fragments
+// become files did. `css`/`js` move to their own files instead of an inline `<style>`/`<script>` on
+// every page, so the ~5 KB of both is fetched once and reused, not repeated 20-odd times over.
+const SECTIONS = [
+  { id: "wages", label: "What a turn is worth", build: sectionWages },
+  { id: "baselines", label: "Baselines: the easy crafts", build: sectionBaselines },
+  { id: "investments", label: "What each investment pays back", build: sectionInvestments },
+  { id: "combos", label: "Combining activities", build: sectionCombos },
+  { id: "spread", label: "Every activity, by family", build: sectionSpread },
+  { id: "fatigue", label: "Which work tires you", build: sectionFatigue },
+  { id: "drops", label: "What a producer's action also drops", build: sectionDrops },
+  { id: "caving", label: "The Caving Die", build: sectionCaving },
+  { id: "lucky", label: "Lucky, use by use", build: sectionLucky },
+  { id: "trinkets", label: "Trinket forging", build: sectionTrinkets },
+  { id: "cooking", label: "Cooks against farmers", build: sectionCooking },
+  { id: "field", label: "The field's productivity", build: sectionField },
+  { id: "desires", label: "Desires as an income", build: sectionDesires },
+  { id: "starting", label: "The starting economy", build: sectionStarting },
+  { id: "power", label: "Starting power, by role", build: sectionPower },
+  { id: "balance", label: "The ⬢ market", build: sectionBalance },
+  { id: "activities", label: "The full table", build: sectionActivities },
+  { id: "special", label: "What each recipe needs", build: sectionSpecial },
+  { id: "ladder", label: "How long to afford it", build: sectionLadder },
+  { id: "food", label: "Food", build: sectionFood },
+  { id: "checks", label: "Docs against the model", build: sectionChecks },
+  { id: "assumptions", label: "What this leans on", build: sectionAssumptions },
+];
+
+// One shared nav on every page — a plain list of links, so it works with no JS and works whether the
+// file is opened straight off disk or served through /api/economy/report/[[...path]] (web/lib/economyReport.js).
+// The brand link doubles as "home"; each section's own <h2> (inside its build()) is the page's real
+// heading, so a section page carries no second, redundant title above it.
+function navHtml(activeId) {
+  const item = (id, label) =>
+    `<a href="${id === "index" ? "index.html" : `${id}.html`}"${id === activeId ? ' aria-current="page"' : ""}>${esc(label)}</a>`;
+  return `<nav class="report-nav"><a href="index.html" class="report-brand">Bascinet economy</a>${item("index", "The short version")}${SECTIONS.map((s) => item(s.id, s.label)).join("")}</nav>`;
+}
+
+function page({ title, activeId, body }) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(title)} — Bascinet economy</title><link rel="stylesheet" href="report.css"></head><body>
+<div class="report-shell">
+${navHtml(activeId)}
+<main>
 <p class="sub">Generated from commit ${esc(commit)} · ${players} players · ${model.counts.tags} tags, ${model.counts.craftable} craftable · <code>npm run economy:report</code></p>
-<section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>
-${sectionWages()}${sectionBaselines()}${sectionInvestments()}${sectionCombos()}${sectionSpread()}${sectionFatigue()}${sectionDrops()}${sectionCaving()}${sectionLucky()}${sectionTrinkets()}${sectionCooking()}${sectionField()}${sectionDesires()}${sectionStarting()}${sectionBalance()}${sectionActivities()}${sectionSpecial()}${sectionLadder()}${sectionFood()}${sectionChecks()}${sectionAssumptions()}
-</main><script>${js}</script></body></html>`;
+${body}
+</main>
+</div>
+<script src="report-client.js"></script></body></html>`;
+}
+
+const shortVersion = `<h1>Bascinet economy</h1><section><h2>The short version</h2><ul class="head">${headlines.map((h) => `<li>${h}</li>`).join("")}</ul></section>`;
+const sectionFiles = [
+  { name: "index.html", content: page({ title: "The short version", activeId: "index", body: shortVersion }) },
+  ...SECTIONS.map((s) => ({ name: `${s.id}.html`, content: page({ title: s.label, activeId: s.id, body: s.build() }) })),
+];
 
 // ---------------------------------------------------------------------------
 // markdown + csv + json
@@ -1519,14 +1704,27 @@ const startingCsv = [
 ].join("\n");
 fs.writeFileSync(path.join(outDir, "starting.csv"), startingCsv);
 
+const powerCsv = [
+  ["role", "group", "seats", "tagValuePoints", "wealthCoin", "reachCoin", "softPower", "composite", "keys", "docElements"].join(","),
+  ...model.power.rows.map((r) =>
+    [r.name, r.group, r.seats, r.tagValue, r.wealthCoin, r.reachCoin, r.softPower, r.composite, r.keys.join("; "), r.docElements.join("; ")].map(csvCell).join(","),
+  ),
+].join("\n");
+fs.writeFileSync(path.join(outDir, "power.csv"), powerCsv);
+
 fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
 fs.writeFileSync(path.join(outDir, "item-sources.csv"), itemsCsv);
-fs.writeFileSync(path.join(outDir, "index.html"), html);
+// One file per section (SECTIONS above), plus the shared report.css/report-client.js the old inline
+// <style>/<script> moved into — index.html is the short-version landing page, not the whole report.
+fs.writeFileSync(path.join(outDir, "report.css"), css);
+fs.writeFileSync(path.join(outDir, "report-client.js"), js);
+for (const f of sectionFiles) fs.writeFileSync(path.join(outDir, f.name), f.content);
 fs.writeFileSync(path.join(outDir, "report.md"), md);
 fs.writeFileSync(path.join(outDir, "activities.csv"), csv);
 fs.writeFileSync(path.join(outDir, "model.json"), JSON.stringify(model, null, 2));
 console.log(`economy report -> ${path.join(outDir, "index.html")}`);
+console.log(`  ${sectionFiles.length} pages (index + ${SECTIONS.length} sections), navigable from any one of them`);
 console.log(`  ${model.activities.length} activities, ${model.priceLadder.length} priced wares, ${model.foods.length} foods`);
 console.log(`  ${failing.length} of ${model.claims.length} doc figures differ from the model`);
 console.log(`  ${S.summary.special} of ${S.summary.recipes} recipes need a special item; ${S.items.length} distinct items sourced`);

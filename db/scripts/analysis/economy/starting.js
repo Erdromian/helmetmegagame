@@ -151,6 +151,12 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
       const foodCooked = food - cropRawHunger + crops * cookedPerCrop;
       const kit = held.filter((h) => recipeSlugs.has(h.tag.slug) && !isKey(h.tag.slug) && h.tag.slug !== OBOL && h.tag.slug !== RESOURCES).map((h) => `${h.tag.name}${h.quantity > 1 ? ` ×${h.quantity}` : ""}`);
       const keys = held.filter((h) => isKey(h.tag.slug) || h.tag.slug === "merchants-license").map((h) => h.tag.name);
+      // What the free kit would have cost at character creation, point for point — a role's own
+      // starting_tags against the same pointCost the point-buy store charges everyone else
+      // (db/scripts/analysis/economy/power.js §"tag value"). Obols and Resources carry no pointCost,
+      // so a purse does not inflate this; it is a skills-and-gear number.
+      const tagPointValue = held.reduce((n, h) => n + (h.tag.pointCost ?? 0) * h.quantity, 0);
+      const docElements = r.doc_elements ?? [];
 
       const bank = r.bank_account ? r.starting_account ?? 0 : 0;
       const decay = slugs.has(HUNGERLESS_SLUG) ? 0 : slugs.has(FAST_METABOLISM_SLUG) ? hunger.HUNGER_DECAY_FAST_METABOLISM : decayBase;
@@ -193,6 +199,8 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
         tagSlugs: [...slugs],
         decay,
         extraPoints: r.extra_starting_points ?? 0,
+        tagPointValue,
+        docElements,
       });
     }
   }

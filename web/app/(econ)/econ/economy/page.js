@@ -4,12 +4,12 @@
 // (web/app/(desk)/gm/economy/page.js) — this is a separate page rather than
 // a shared one because the (desk) and (econ) route groups can't share a
 // layout chain (see (econ)/layout.js's header comment). The frame's source
-// is a route handler shared by both pages — web/app/api/economy/report/route.js
-// — and layouts do NOT run for those, so that one carries the real check
+// is a route handler shared by both pages —
+// web/app/api/economy/report/[[...path]]/route.js — and layouts do NOT run for those, so that one carries the real check
 // itself. See web/lib/economyReport.js for how the report itself is built.
 
 import { Suspense } from "react";
-import { getEconomyReportHtml } from "@/lib/economyReport";
+import { getEconomyReportFiles } from "@/lib/economyReport";
 
 export const metadata = {
   title: "Economy",
@@ -22,11 +22,11 @@ export const metadata = {
 // only the frame waits, the same split AppBar.js uses for the nav promise it will not block on.
 //
 // The await is for the WAIT and the failure, not for the HTML: the frame fetches the document itself
-// from /api/economy/report, so ~790 KB never rides in this page's payload. By the time the browser
-// asks, the run below has finished and the handler answers from the same process-wide cache
-// getEconomyReportHtml() already shares with /gm/economy.
+// from /api/economy/report, so none of the report's own bytes ever ride in this page's payload. By
+// the time the browser asks, the run below has finished and the handler answers from the same
+// process-wide cache getEconomyReportFiles() already shares with /gm/economy.
 async function EconomyFrame() {
-  const built = await getEconomyReportHtml();
+  const built = await getEconomyReportFiles();
   if (!built) {
     return (
       <div className="desk-empty">
@@ -36,11 +36,13 @@ async function EconomyFrame() {
   }
   return (
     <div className="economy-frame">
-      {/* Its own full document — own CSS, own table-sort script — sandboxed from the app's theme by an
-          iframe rather than pasted inline, the same reasoning report.js has always meant it to be
-          opened as a standalone page for. Not `sandbox`-restricted: this is our own generated content,
-          never third-party input, and the sort script needs to run. */}
-      <iframe title="Economy report" src="/api/economy/report" />
+      {/* Its own multi-page document — own CSS, own table-sort script, its own <nav> between sections
+          (db/scripts/analysis/economy/report.js) — sandboxed from the app's theme by an iframe rather
+          than pasted inline, the same reasoning report.js has always meant it to be opened as a
+          standalone page for. Clicking a section link navigates this frame alone, ordinary browser
+          navigation against /api/economy/report/<section>.html. Not `sandbox`-restricted: this is our
+          own generated content, never third-party input, and the sort script needs to run. */}
+      <iframe title="Economy report" src="/api/economy/report/index.html" />
     </div>
   );
 }

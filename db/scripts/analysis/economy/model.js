@@ -33,6 +33,7 @@ const { buildCooking } = require("./cooking");
 const { buildDesires } = require("./desires");
 const { buildStarting } = require("./starting");
 const { buildField } = require("./field");
+const { buildPower } = require("./power");
 const { buildLucky } = require("./lucky");
 const { MERCHANT_CUT, cutOn, afterCut } = require("./cut");
 const { turretTable } = require("../../../lib/depotTurret");
@@ -148,7 +149,7 @@ function craftFamilyOf(skills) {
 // One obol is one ⬢ (ECONOMY.md §1), so paying a cost in obols values a ⬢ at exactly 1 obol.
 const OBOL_PAR = 1;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 2 } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
@@ -199,6 +200,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     obolFamilies,
     obolPath,
     resourceValue,
+    moodWeight,
     productionCoefficient,
     farmMaxCrops,
     stableCapacity,
@@ -1144,7 +1146,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
-  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, refs: { factoryShift: shift, factoryPerTurn, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
+  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, moodWeight, refs: { factoryShift: shift, factoryPerTurn, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
   trinkets.shelfLoop.topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
   trinkets.moveValue = moveValueUsed;
   const lucky = buildLucky({ get, rv, caving, trinkets, moveValue: moveValueUsed, gameTurns });
@@ -1517,6 +1519,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   });
   const fieldModel = buildField({ params, cooking, schemaDefault, players });
   const starting = buildStarting({ list, get, foods, params, foodFloor, sources, players, cooking });
+  const power = buildPower({ starting, rv });
   const auditSrc = fs.readFileSync(path.join(REPO, "db/scripts/ops/audit-vault-backing.js"), "utf8");
   const reserveFloor = Number((/const RESERVE_FLOOR = ([0-9.]+);/.exec(auditSrc) ?? [])[1]);
   if (!Number.isFinite(reserveFloor)) throw new Error("economy model: could not read RESERVE_FLOOR out of db/scripts/ops/audit-vault-backing.js; the file has changed shape.");
@@ -1596,6 +1599,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     merchantCut: MERCHANT_CUT,
     desires,
     starting,
+    power,
     field: fieldModel,
     prospectorValue,
     combos,

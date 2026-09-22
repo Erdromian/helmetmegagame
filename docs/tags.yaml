@@ -12026,8 +12026,10 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    mealMood: 5
-    mealHunger: 40
+    # Was 40 hunger / 5 mood, which the Arelitz Egg alone (10 ¢ sellable) undercut. Boiling a rat
+    # and poaching an egg together is more than a crop-toss, so it also takes a touch longer now.
+    mealMood: 20
+    mealHunger: 65
     sellable: true
     sellablePrice: 2
     mealTaste: "salty"
@@ -12035,7 +12037,7 @@ tags:
     consumable: true
     consumesInto: [ate-meal, dined]
     requirement:
-      turnsCost: 0.05
+      turnsCost: 0.1
       skills: [cooking-basic]
       gambit: false
       items: [skinned-cave-rat, arelitz-egg]
@@ -12116,8 +12118,13 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    mealMood: 8
-    mealHunger: 38
+    # Was 2 eggs for 38 hunger / 8 mood, which priced out well under what a single Arelitz Egg (10 ¢
+    # sellable) is worth as food — an Arelitz Egg omelette lost money against just eating the eggs raw.
+    # Down to the one egg the flavor text already described, with the hunger and mood a cooked egg
+    # dish should actually carry. Hunger stays inside the Basic band (TURN-ENGINE.md §5); the rest of
+    # the buff is mood, which the band doesn't count.
+    mealMood: 30
+    mealHunger: 40
     sellable: true
     sellablePrice: 2
     mealTaste: "creamy"
@@ -12128,7 +12135,7 @@ tags:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items: [{ tag: arelitz-egg, count: 2 }]
+      items: [arelitz-egg]
       ingredientSlots: { min: 0, max: 4 }
   sausage:
     catalog: all
