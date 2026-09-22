@@ -75,7 +75,11 @@ test("songByKey finds a song regardless of which instrument it belongs to", () =
   const found = songByKey("bard1");
   assert.ok(found);
   assert.equal(found.instrument, "lute");
-  assert.equal(found.name, "Bard 1");
+  assert.equal(found.key, "bard1");
+  // Not the name itself: a song's name is Bascinet's, out of the design document, and
+  // pinning the words here would make editing that document fail the suite.
+  assert.equal(typeof found.name, "string");
+  assert.ok(found.name.length > 0);
 
   assert.equal(songByKey("no-such-key"), null);
 });
@@ -94,8 +98,18 @@ test("songsFor flattens one or several instruments, and ignores an unknown slug"
   assert.deepEqual(songsFor(["not-an-instrument"]), []);
 });
 
-test("the lute catalog reuses song_game.ogg rather than a private copy", () => {
-  const songGame = INSTRUMENT_SONGS.lute.find((s) => s.key === "song_game");
-  assert.ok(songGame);
-  assert.equal(songGame.src, "/assets/music/song_game.ogg");
+// This used to assert the opposite — that the lute borrowed song_game.ogg out of
+// web/public/assets/music/ rather than keeping a private copy. The design document gives
+// that file to the inn ("Ambience within the inn") and its lute table names six files, so
+// every instrument song now lives under its own instrument.
+test("every instrument song is served from its own instrument folder", () => {
+  for (const [instrument, songs] of Object.entries(INSTRUMENT_SONGS)) {
+    for (const song of songs) {
+      assert.equal(
+        song.src.startsWith(`/assets/instruments/${instrument}/`),
+        true,
+        `${instrument} song ${song.key} is served from ${song.src}`,
+      );
+    }
+  }
 });

@@ -34,6 +34,12 @@ export function useStanding() {
 // on a soundtrack is imperceptible. Do not poll faster; nothing here is worth it.
 const POLL_MS = 60_000;
 
+// THIS HAS TO COVER EVERY FIELD IN THE PAYLOAD. It preserves identity so that an unchanged
+// answer does not re-run every effect downstream, which means a field it forgets to compare
+// is a field that can never change: the first value pins forever, and the ambience goes on
+// playing the bed of a state the character left an hour ago. It once compared `phase` and
+// `hasCharacter` alone, and adding `standing` without extending it would have done exactly
+// that to the place somebody was standing in.
 function sameAnswer(a, b) {
   if (a.phase !== b.phase || a.hasCharacter !== b.hasCharacter) return false;
   const x = a.standing;
@@ -45,6 +51,8 @@ function sameAnswer(a, b) {
     x.zoneKind === y.zoneKind &&
     x.indoors === y.indoors &&
     x.trainFresh === y.trainFresh &&
+    x.moodTone === y.moodTone &&
+    x.impaired === y.impaired &&
     x.attributes.join() === y.attributes.join()
   );
 }

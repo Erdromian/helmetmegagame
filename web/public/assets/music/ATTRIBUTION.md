@@ -24,21 +24,34 @@ transcode of a transcode.
 **These are not byte-for-byte copies**, which is the one way this file claims
 less than `../sfx/ATTRIBUTION.md` does. Each is re-encoded by
 `scripts/audio/build-assets.sh` to mono Ogg Vorbis at 32 kHz — see its header
-for why. The masters are in `assets/osw-sounds/`, untouched.
+for why. `outpost.ogg` additionally carries a **+4.8 dB** lift, baked in because
+its master measures −30.8 LUFS — quieter than the −26 LUFS tier it plays at, and
+turning a file up in the browser amplifies its own noise floor with it. The same
+reasoning as `../ambience/pathologic.ogg`. The masters in `assets/osw-sounds/` are
+untouched.
+
+What each one is comes from `docs/sounds.yaml` — Bascinet's own use case for that
+file. **There is no general music rotation any more**: in-game, music is the
+ambience of a particular place (`../ambience/`, and the three long tracks below),
+and the only place a track simply plays is the lobby.
 
 | File | Length | Source path | What it is |
 |---|---|---|---|
-| `a-thousand-empty-rooms.ogg` | 6:20 | `sound/lfwbambimusic/a-thousand-empty-rooms.ogg` | rotation |
-| `haruspex.ogg` | 7:22 | `sound/music/haruspex.ogg` | rotation |
-| `surfacing.ogg` | 2:45 | `sound/lfwbambimusic/surfacing.ogg` | rotation |
-| `graceperiod.ogg` | 5:38 | `sound/holywar/graceperiod.ogg` | rotation |
-| `holywarlobby.ogg` | 4:16 | `sound/holywar/holywarlobby.ogg` | rotation |
-| `the_collective.ogg` | 4:50 | `sound/music/the_collective.ogg` | rotation |
-| `morning.ogg` | 3:36 | `sound/music/morning.ogg` | rotation |
-| `newlobby31.ogg` | 3:17 | `sound/music/newlobby31.ogg` | rotation |
-| `song_game.ogg` | 3:50 | `sound/ambience/song_game.ogg` | the lobby, and the rotation |
-| `white_waking.ogg` | 6:41 | `sound/music/white_waking_1.ogg` | the once-an-hour wake-up under the closed door |
-| `b12_combined_start.ogg` | 1:38 | `sound/music/b12_combined_start.ogg` | character creation |
+| `a-thousand-empty-rooms.ogg` | 6:20 | `sound/lfwbambimusic/a-thousand-empty-rooms.ogg` | the lobby's hourly rotation |
+| `newlobby31.ogg` | 3:17 | `sound/music/newlobby31.ogg` | (same) |
+| `outpost.ogg` | 6:34 | `sound/music/outpost.ogg` | (same) — carries a +4.8 dB lift, see below |
+| `track3.ogg` | 7:44 | `sound/music/track3.ogg` | (same) |
+| `track13.ogg` | 7:20 | `sound/music/track13.ogg` | (same) |
+| `beyondretrieval.ogg` | 8:33 | `sound/music/beyondretrieval.ogg` | (same) |
+| `white_waking.ogg` | 6:41 | `sound/music/white_waking_1.ogg` | the lobby's rare slot, and the wake-up under the closed door |
+| `haruspex.ogg` | 7:22 | `sound/music/haruspex.ogg` | lobby music "when there is a lateparty" — not wired |
+| `holywarlobby.ogg` | 4:16 | `sound/holywar/holywarlobby.ogg` | "special round lobby music" — not wired |
+| `song_game.ogg` | 3:50 | `sound/ambience/song_game.ogg` | the Inn's ambience |
+| `surfacing.ogg` | 2:45 | `sound/lfwbambimusic/surfacing.ogg` | the surface's ambience |
+| `the_collective.ogg` | 4:50 | `sound/music/the_collective.ogg` | THEY's ambience — not wired |
+| `graceperiod.ogg` | 5:38 | `sound/holywar/graceperiod.ogg` | **Unused.** Not rebuilt; nothing plays it |
+| `morning.ogg` | 3:36 | `sound/music/morning.ogg` | **Unused.** (same) |
+| `b12_combined_start.ogg` | 1:38 | `sound/music/b12_combined_start.ogg` | **Unused.** (same) |
 | `wind_2_1.ogg` | 0:05 | `sound/effects/wind/wind_2_1.ogg` | the closed door, and outdoors |
 | `wind_2_2.ogg` | 0:05 | `sound/effects/wind/wind_2_2.ogg` | (same) |
 | `wind_3_1.ogg` | 0:05 | `sound/effects/wind/wind_3_1.ogg` | (same) |

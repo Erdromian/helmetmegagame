@@ -75,12 +75,14 @@ clicking the speaker has to stay a one-click mute.
 
 ## 3. The music bus
 
-Five layers. The **highest one holding a track is the one you hear**.
+Six layers. The **highest one holding a track is the one you hear**.
 
 ```
 ambient   what the PLACE sounds like — wind outside, a drone in the Depths, the
           Cathedral's organ room (§4b)
-music     the game's music, now and then once you have settled in (§4a)
+spot      a short sound laid OVER that bed: a gull, a gust, a chapel tone (§4b)
+music     the LOBBY's track, and nothing else — the one place a track simply
+          plays, always, the same one for everybody (§4)
 event     a siren, an alarm, a thing arriving. Loud and brief
 room      a jukebox, a gramophone: something switched on in the room
 player    somebody playing an instrument — one voice per performance (§6b)
@@ -99,7 +101,7 @@ crossfade; the ambient bed takes 10 seconds to give way.
 siren that pauses and resumes is a siren twice), everything else is `"pause"` (a
 4 MB song should not stream through ten silent minutes of somebody's data plan).
 
-### The two rules on top, and they are both about what a person is doing
+### The three rules on top
 
 **`room` and `player` are mutually exclusive.** Starting one stops the other.
 One jukebox or one lute, never a fight between them — winner-takes-all would
@@ -113,12 +115,26 @@ it drops to 0.35 of its own gain and its lowpass sweeps down to 700 Hz — a sir
 heard through a wall, which is the sound of both facts being true at once. Every
 other pairing is still winner-takes-all.
 
-Both live in one table rather than in branches, so a sixth bus is a line:
+**`ambient` coexists under `spot`, and does not duck at all.** This is the one
+pairing where the lower layer is meant to go on being *fully* heard: these are
+the sounds the design document calls "played atop ambience", and a gull that
+silenced the shore it was flying over would be telling the wrong story. What
+makes a spot audible instead is its **level** — `musicGain.js`'s −30 LUFS tier,
+four decibels over the bed, which is what that tier was always for. If a spot
+gets lost in a bed, that number is the one to change, not this rule.
+
+All three live in one table rather than in branches, so a seventh bus is a line:
 
 ```js
 const PERFORMANCE = new Set(["room", "player"]);
-const COEXIST = { event: { under: PERFORMANCE, duck: 0.35, hz: 700 } };
+const COEXIST = {
+  event: { under: PERFORMANCE, duck: 0.35, hz: 700 },
+  ambient: { under: new Set(["spot"]), duck: 1, hz: OPEN_HZ },
+};
 ```
+
+`OPEN_HZ` is declared **above** `COEXIST` for that second line: a `const` read
+while the object is being built has to already exist.
 
 The filter is a `BiquadFilterNode` built **in `state()` or never** — a
 `MediaElementAudioSourceNode` is made once per element, and re-patching a live
@@ -141,9 +157,9 @@ is applied in those two entry points and **nowhere else**: `ramp()` has
 deliberate zero-length sets in it (a gain reset before a fade-in, a filter put
 back to open) and a floor down there would leak the top of every track.
 
-**Only `ambient` and `music` have callers today.** `room`, `player` and `event`
-are reachable by `playOn("room", …)` and wired into the rules above, waiting for
-the jukeboxes, the instruments and the sirens.
+**`ambient`, `spot`, `music` and `player` have callers.** `room` and `event` are
+reachable by `playOn("room", …)` and wired into the rules above, waiting for the
+jukeboxes and the sirens.
 
 ### Muting, and where a track comes back
 
@@ -211,11 +227,41 @@ program from the phase and runs it.
 |---|---|---|
 | any `/gm/` path | either | silence |
 | `CLOSED` | either | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
-| `LOBBY` | no | `song_game`, a 5-second tail, 15 seconds of nothing, again |
-| `RUNNING`/`ENDED` | no | `b12_combined_start` from 0:00, then 10 s, then repeatedly from **0:18** fading in over a second — the intro is odd, so only the first pass hears it |
+| anything but `CLOSED` | no | the **lobby**: one track, looping, the same one for everybody, changing on the hour |
 | anything but `CLOSED` | **yes** | no phase tape — the conductor takes over (§4a) |
 
 Read it top to bottom; that is the order the code asks in.
+
+### The lobby, and why it is one row rather than two
+
+**There is no creation tape.** Rolling a character happens in the lobby, so it
+hears the lobby. That used to be a second row and a tape of its own on
+`b12_combined_start.ogg` — a file the design document marks `Unused`.
+
+**Every player in the lobby hears the same track**, which is the one rule the
+document states about more than one listener. So which track is not a choice a
+browser gets to make: the hour number off the wall clock picks it, and the same
+hour number is the `anchor`, so somebody arriving forty minutes in is sought
+forty minutes into the loop rather than starting it again. Two browsers agree
+because neither of them decided anything, and it costs no server state, no new
+route and no schema column.
+
+`shared: true` on a step is what asks for this. The step takes its track, its
+position **and** its length from the clock — one `Date.now()` for all three,
+because reading it twice can straddle the changeover and pair one hour's track
+with the next hour's anchor.
+
+| Track | Role |
+|---|---|
+| `a-thousand-empty-rooms` `beyondretrieval` `newlobby31` `outpost` `track3` `track13` | the hourly rotation |
+| `white_waking` | *"Rare Lobby Music"* — one slot in twelve (`RARE_ONE_IN`) |
+| `haruspex` | *"Lobby Music when there is a lateparty"* — **not wired**, see §7 |
+| `holywarlobby` | *"Special round lobby music"* — **not wired**, see §7 |
+
+The rare slot is decided by the slot number too, never by a roll: a rare track
+only some of the lobby could hear would not be rare, it would be broken. Rare
+slots are **skipped** rather than overwritten, so the ordinary rotation is not
+quietly short of a track every twelfth hour.
 
 The GM clause is worth knowing: a GM has no character of their own during a
 running game, so without it the character-creation loop would start under the
@@ -239,7 +285,8 @@ layer there — the layer the place tape would want.
 | key | meaning |
 |---|---|
 | `src` / `pick` | one file, or an array chosen from per entry, never the same one twice running |
-| `startAt` | seeds `currentTime`. This is the 0:18 |
+| `startAt` | seeds `currentTime` |
+| `shared` | the track, its position and its length all come off the wall clock, so every listener is on the same one. The lobby, and nothing else (§4) |
 | `loop` | the element loops; only `holdMs` ends it |
 | `holdMs` | advance after N ms whatever the track is doing |
 | `fadeInMs` / `fadeOutMs` | gain ramps. The out ramp is read off `duration` when metadata lands, never guessed |
@@ -303,34 +350,44 @@ later, and leaks exactly the few milliseconds of intro the offset exists to skip
 [piece] → [silence] → [piece] → [silence] → …
 ```
 
-A piece is an ambient file for where you are standing (§4b) or one of the game's
-music tracks (`MUSIC_TRACKS`). Ambient is the default; music is what comes once
-you have settled in.
+A piece is whatever the place you are standing in sounds like (§4b). **There is
+only one kind of piece.**
 
-- **Nothing on the timeline cuts anything off.** Ambient and music never overlap,
-  so neither ever ducks or replaces the other. A piece plays to its end. The
-  only interruption is a performance — a jukebox or somebody playing — and §3's
-  rules handle that: music pauses under it and resumes after.
-- **About 75% of in-game time is silence.** After a piece that lasted *d*, the
-  gap is *d* × 3, ±30%, never under 2 minutes (`SILENCE_SHARE`, `MIN_GAP_MS`).
-  Scaling the gap to the piece is what keeps the ratio whatever came up.
-- **Music is the flow.** Never in the first 8 minutes on the page
-  (`FLOW_AFTER_MS`), then a 35% chance per piece (`MUSIC_CHANCE`), never two in a
-  row, and never in a `music: false` place.
-- **Ambient plays at 85%** of its measured level (`AMBIENT_GAIN`), so a song
-  stands out when it arrives.
+This used to alternate an ambient bed with a track off a general music rotation,
+on a 35% roll once you had settled in for eight minutes. **The design document has
+no such rotation**, and that is not an omission: every one of the nine tracks that
+was in it is either lobby music, the ambience of a particular place, or marked
+`Unused`. So `MUSIC_TRACKS`, `nextKind`, `MUSIC_CHANCE`, `FLOW_AFTER_MS`,
+`AMBIENT_GAIN` and `music: false` all went with the idea. A long track is still a
+long track; it just belongs somewhere now.
+
+- **Nothing on the timeline cuts anything off**, because only one thing is ever on
+  it. A piece plays to its end. The only interruption is a performance — a
+  jukebox or somebody playing — and §3's rules handle that.
+- **About 75% of in-game time is silence**, which is the document's first rule for
+  an ambience track. After a piece that lasted *d*, the gap is *d* × 3, ±30%,
+  never under 2 minutes (`SILENCE_SHARE`, `MIN_GAP_MS`). Scaling the gap to the
+  piece is what keeps the ratio whatever came up.
+- **A bed plays at its measured level and nothing else.** There used to be a
+  further ×0.85 to leave room for a song to stand out; with no rotation there is
+  no song to make room for, and the tier in `musicGain.js` is the level it was
+  meant to be playing at all along.
+- **Spots run on a second, independent timeline.** The document says they are
+  played atop ambience *or silence*, so a spot does not wait for a bed: pick one,
+  play it on the `spot` layer, wait 45–180 s, again. §3's third rule is what keeps
+  the two from fighting. That range is **ours**, not the document's — it says what
+  a spot is for and never how often.
 - **Walking somewhere new queues rather than cuts.** It changes what "here"
-  means, and the next piece is picked from the new place. The one exception is
-  music playing as you walk into a `music: false` place: it fades out over 10
-  seconds.
+  means, and the next piece is picked from the new place. No exceptions now: the
+  one that existed was for a song following you into a quiet place.
 - **It lives at module scope**, so a soft navigation never restarts it.
   `MusicDirector.js` calls `start()` / `stop()` when in-game play begins and
   ends, and `setPlace()` when where you are standing changes.
 - A piece that never reports its end — a file that failed to load — is let go
   after 30 minutes, far past the longest file.
 
-`node scripts/audio/sim-schedule.mjs` runs the rules against a fake clock for six
-hours and fails if the silence share drifts or music breaks the flow rule. Set
+`npm run sounds:schedule` runs the rules against a fake clock for six hours and
+fails if the silence share drifts or a piece repeats back to back. Set
 `localStorage["bascinet:musicdebug"] = 1` to watch the timeline in the console.
 
 ---
@@ -352,6 +409,19 @@ end.**
 
 A pool never plays the same piece twice running when it has a choice.
 
+**Every placement in this file comes out of `docs/sounds.yaml` (§7), and each one
+carries its use case as a comment beside it** — the sentence is the reason the
+file is there and the filename is not. `ambimine.ogg` sounds like it belongs in a
+mine and the document puts it in space, which is exactly the sort of thing this
+file used to get wrong.
+
+**A place has two pools, which is the document's own split.** `pieces` are the
+beds (class `ambience`), one at a time on the `ambient` layer. `spots` are class
+`atop` — "short sounds which add to the atmosphere", laid *over* the bed on the
+`spot` layer rather than in place of it. The winds are spots over the surface and
+the chapel tones are spots over the Cathedral; both were beds until the document
+said otherwise.
+
 ### Resolution, and the one thing it cannot ask
 
 Most specific wins: **Location slug → attribute → Zone slug → `indoors`**. The
@@ -367,12 +437,29 @@ belongs with the jukebox pass.
 Every entry in the table is built once at module load, so two neighbouring
 caves resolve to the very same object.
 
-### Some places get no music, on purpose
+### What the LISTENER is, which outranks where they are
 
-`music: false` says the game's music does not play here at all — the
-**Caves**, the **Depths**, the **Lifeweb** and **Space**. Their whole feel is
-that nothing is keeping you company down there, and a tune arriving every few
-minutes says the opposite. Each is one boolean to reverse.
+Two placements are conditions on the person rather than on the room, and both are
+read before any of the above:
+
+| Use case | Reading |
+|---|---|
+| `ambi2.ogg` — "Ambience while in pain shock or sedated" | `impaired`, anywhere |
+| `loop_airy4.ogg` — "Ambience in town when character mood is low" | zone `town` and `moodTone: "bad"` |
+
+`impaired` and `moodTone` ride the phase payload (§5). **"Sedated" has no
+counterpart in the tag catalog** — `pain-shock` is real and `unconscious` is the
+nearest thing to it, so `IMPAIRED_TAGS` in `gamePhase.js` is a reading rather than
+a translation. Say so before relying on it.
+
+### There is no `music: false` any more
+
+It used to keep the general music rotation out of the **Caves**, the **Depths**,
+the **Lifeweb** and **Space**. There is no rotation to keep out (§4a), and each of
+those four now has a bed of its own from the document — `to_hell.ogg` in the
+caves, `spookyspace2.ogg` in the Depths, `lifeweb2b.ogg` in the Tower,
+`ambispace.ogg` and `ambimine.ogg` in space. Nothing is keeping you company down
+there either way; it is just named now.
 
 The **Depot** is the one place whose bed is conditional: `train_loop` plays only
 while the train is actually standing at the platform, which is
@@ -406,6 +493,19 @@ anyway. The character select widens by one join and no extra round trip, and
 what crosses to the client is slugs and booleans: never the `Location` row,
 which carries descriptions and stash contents the soundtrack has no business
 shipping to a browser. `useStanding()` is the hook.
+
+**`standing` also carries what the LISTENER is**, because two of the document's
+use cases are about the person rather than the room (§4b):
+
+- `moodTone` — the *tone* of the mood band (`bad` / `warn` / `muted` / `good`)
+  from `db/lib/mood.js#bandOf`, never the dial itself. The number is one no player
+  is ever shown (`MOOD.md`), and it has no business crossing to a browser just so
+  the soundtrack can compare it against a threshold of its own.
+- `impaired` — whether they hold any of `IMPAIRED_TAGS`. Filtered in the query
+  with `take: 1` rather than fetching the tag list and scanning it.
+
+Mood is free: it is a scalar on the `Character` row already being read. The tags
+are the one extra join.
 
 Two things that are easy to get wrong here:
 
@@ -482,10 +582,11 @@ of them. Those four are gone. A step's `gain` now reads as "and this one a
 little under *that*" rather than as an absolute somebody has to re-derive every
 time a file is re-encoded, and most steps carry none at all.
 
-To add a file: drop it in, run `measure.sh`, paste its line into `musicGain.js`.
-A file missing from the table plays at its step gain alone — the fallback is 1
-rather than something cleverer precisely so an unmeasured file is obviously
-wrong instead of quietly almost-right.
+To add a file: look it up in `docs/sounds.yaml` first (§7 — it says what the file
+is *for*), then drop it in, run `measure.sh`, and paste its line into
+`musicGain.js`. A file missing from the table plays at its step gain alone — the
+fallback is 1 rather than something cleverer precisely so an unmeasured file is
+obviously wrong instead of quietly almost-right.
 
 ### The one override
 
@@ -584,7 +685,65 @@ nobody else's.
 
 ---
 
-## 7. Known, and left alone
+## 7. What each sound is FOR
+
+**Before you wire a sound, read its use case.** All 743 files in
+`assets/osw-sounds/` have one, and they are Bascinet's own sentences —
+`E:\Bascinet\V3\Music and Sounds.docx`, hand-written, one row per file.
+
+That document is the source of truth. `docs/sounds.yaml` is it projected into the
+repo so that tooling can read it:
+
+```
+npm run sounds:import            # dry run: what it would write, and what it cannot place
+npm run sounds:import -- --apply # write docs/sounds.yaml
+npm run sounds:report            # what is wired where, and where that disagrees
+npm run sounds:report -- --find "cave"
+```
+
+**The registry is generated.** `use`, `class`, `doc` and `served` are rewritten on
+every import, so a correction belongs in the .docx and never in the YAML. `needs`
+is the one field the repo owns and is carried across. Nothing syncs it to
+Postgres — like `docs/assets/maps/nodes.yaml` it is a file that tooling reads,
+not a table.
+
+### The six classes, which are the document's own words
+
+| Class | What it means |
+|---|---|
+| `ambience` | a longer track, seamlessly looped, **with silence still most of the background** |
+| `atop` | a short sound played *over* ambience or silence, for a very specific circumstance |
+| `cue` | a short, non-looping bite for when something happens |
+| `lobby` | **a track is always playing, every player in the lobby hears the same one**, rotating roughly hourly |
+| `instrument` | gated behind the instrument it belongs to |
+| `unused` | not to be selected |
+
+`atop` is the class that needed a new voice to exist at all. The top layer holding
+a track is normally the one you hear, so "over" was not something the bus could
+say — it is the `spot` layer plus §3's third rule now, and 13 of the 42 are wired.
+
+### Two names the document uses that the code does not have
+
+`haruspex.ogg` is *"Lobby Music when there is a lateparty"* and
+`holywarlobby.ogg` is *"Special round lobby music"*. Neither **lateparty** nor
+**special round** exists anywhere in this repo, so both files sit in the registry
+described and unwired. The same goes for *"sedated"* in `ambi2.ogg`'s use case:
+the catalog has `pain-shock` and `unconscious` and nothing else that fits.
+
+### The checks
+
+`db/test/sounds.test.js` holds the facts: every entry names a real file, every
+`served` path resolves, every filename the app plays is described, and **nothing
+the app plays is marked `unused`**. A served file with no master of its name in
+the library is out of scope on purpose — `sfx/cathedral-bell.ogg` is from
+BigSoundBank, not the library, and its `ATTRIBUTION.md` says so.
+
+`npm run sounds:report` holds the judgement: whether a file is wired at the
+surface its use case asks for. That one never fails a build.
+
+---
+
+## 8. Known, and left alone
 
 - **Two tabs play two unsynchronised copies.** Muting propagates (the `storage`
   event), the audio does not. The fix is a `BroadcastChannel` leader election —
@@ -595,10 +754,10 @@ nobody else's.
   registered until a gesture lands, so the next click works.
 - **Ogg Vorbis is what the app serves**, which Safari does not play. That is true
   of all 90-odd existing cues too, not something the music introduced.
-- **A hard reload can play the creation tape for up to a minute.** The root
-  layout's streamed answer sometimes comes back with no session where the route
-  handler's `auth()` sees one, so the client briefly believes the viewer has no
-  character. The poll corrects it. This predates the place ambience — it was
-  simply invisible while a living character heard nothing either way.
+- **A hard reload can play the lobby to somebody with a character for up to a
+  minute.** The root layout's streamed answer sometimes comes back with no session
+  where the route handler's `auth()` sees one, so the client briefly believes the
+  viewer has no character. The poll corrects it. This predates the place ambience —
+  it was simply invisible while a living character heard nothing either way.
 - **`prefers-reduced-motion` is not consulted.** It is about motion. The mute
   switch is the accessibility answer and it is one click from every page.
