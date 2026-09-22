@@ -1,0 +1,2489 @@
+# What every sound in the library is FOR.
+#
+# Bascinet's "Music and Sounds" document, projected into the repo. That document is the
+# source of truth and it is hand-written: every use case below is Bascinet's own sentence
+# about that file, carried across verbatim and deliberately not re-punctuated. A registry
+# that has quietly improved its source cannot be checked against it.
+#
+# THIS FILE IS GENERATED. Run:
+#
+#     node scripts/audio/import-sound-doc.mjs --apply
+#
+# Everything but `needs` is rewritten on every run, so `needs` is the only field worth
+# hand-editing here. A correction to a use case belongs in the .docx, not in this file.
+#
+# It is read by db/test/sounds.test.js and scripts/audio/sound-report.mjs. NOTHING syncs
+# it to Postgres: like docs/assets/maps/nodes.yaml, it is a registry that tooling reads,
+# not a table. See docs/systemdocs/SOUND.md §7.
+#
+#   use     — Bascinet's sentence, verbatim.
+#   class   — one of the six classes in `rules` below, derived from that sentence.
+#   doc     — present only where the document spells the filename differently from the
+#             file itself. The key is always the real file; this records what was read,
+#             so every correction the importer made is visible and can be argued with.
+#   served  — path under web/public/assets/ where this file has been promoted, read out
+#             of scripts/audio/build-assets.sh. Absent means it is in the library but not
+#             yet in the app.
+#   needs   — a fact the selector has to be taught before this use case can be honoured.
+#             Absent means the use case is answerable with what the engine knows today.
+#
+# Loudness lives in web/app/components/musicGain.js and sfx.js, and a song's length in
+# db/lib/instrumentSongs.js. Neither is duplicated here.
+
+
+# The document's own rules for each class of track, verbatim.
+rules:
+  ambience: >-
+    Ambience tracks are longer tracks which can be seamlessly looped, though silence
+    should remain most of the background track.
+  atop: >-
+    Tracks which can be played atop ambience/silence are short sounds which add to the
+    atmosphere, often suited for very specific circumstances
+  cue: >-
+    Sounds with defined descriptions/use cases are short, generally non-looping sound
+    bites which can be used when certain events occur in game.
+  lobby: >-
+    Lobby music is music which is played for people in the lobby who have not yet made a
+    character. A track is always playing, and all players in the lobby hear the same
+    track looping. Tracks loop for roughly an hour before another track starts looping.
+  instrument: >-
+    Instrument tracks are specifically gated behind use of their associated instrument.
+  unused: >-
+    Unused tracks are not to be selected.
+
+# A rule that applies to a whole folder rather than to one file.
+groups:
+  instruments/accordion:
+    note: Instrument sounds only used for their associated instrument.
+  instruments/boombox:
+    note: Instrument sounds only used for their associated instrument. Boombox sound files should not be used unless EXPLICITELY requested.
+  instruments/lute:
+    note: Instrument sounds only used for their associated instrument.
+
+# 737 files.
+sounds:
+
+  # ---- ambience
+  ambience/alarm4.ogg:
+    use: Opening an airlock
+    class: cue
+  ambience/altar.ogg:
+    use: Metallic structure collapse, train derailment
+    class: cue
+  ambience/ambi2.ogg:
+    use: Ambience while in pain shock or sedated
+    class: ambience
+    served: ambience/ambi2.ogg
+  ambience/ambiatm1.ogg:
+    use: Ambience while bees are distant, but within earshot
+    class: ambience
+  ambience/ambicha1.ogg:
+    use: Played atop ambience for miraculous events
+    class: atop
+    served: ambience/ambicha1.ogg
+  ambience/ambicha2.ogg:
+    use: Played atop ambience in hallowed places
+    class: atop
+    served: ambience/ambicha2.ogg
+  ambience/ambicha3.ogg:
+    use: Same as above, different pitch
+    class: atop
+    served: ambience/ambicha3.ogg
+  ambience/ambicha4.ogg:
+    use: Alternative played atop ambience in hallowed places
+    class: atop
+    served: ambience/ambicha4.ogg
+  ambience/ambieng1.ogg:
+    use: Ambience of a running steam engine
+    class: ambience
+    served: ambience/ambieng1.ogg
+  ambience/ambigen1.ogg:
+    use: Played atop ambience in futuristic space stations
+    class: atop
+  ambience/ambigen10.ogg:
+    use: Played atop ambience underground
+    class: atop
+  ambience/ambigen11.ogg:
+    use: Played atop silence in space stations
+    class: atop
+    served: ambience/ambigen11.ogg
+  ambience/ambigen12.ogg:
+    use: Played atop silence in space
+    class: atop
+    served: ambience/ambigen12.ogg
+  ambience/ambigen13.ogg:
+    use: Played atop ambience in train stations
+    class: atop
+  ambience/ambigen14.ogg:
+    use: Played atop ambience in space stations
+    class: atop
+  ambience/ambigen2.ogg:
+    use: Same as above
+    class: atop
+  ambience/ambigen3.ogg:
+    use: Ambience for tense or uncertain situations
+    class: ambience
+  ambience/ambigen4.ogg:
+    use: Played atop silence in large open spaces
+    class: atop
+  ambience/ambigen5.ogg:
+    use: Played atop ambience in cramped futuristic locations
+    class: atop
+  ambience/ambigen6.ogg:
+    use: Ambience while walking around town/underfort
+    class: ambience
+    served: ambience/ambigen6.ogg
+  ambience/ambigen7.ogg:
+    use: Played atop ambience in space
+    class: atop
+  ambience/ambigen8.ogg:
+    use: Played atop ambience in space stations
+    class: atop
+  ambience/ambigen9.ogg:
+    use: Played atop ambience, neutral
+    class: atop
+  ambience/ambimalf.ogg:
+    use: Played for a robotic character who has suddenly had dramatic objective change
+    class: cue
+  ambience/ambimine.ogg:
+    use: Ambience in space
+    class: ambience
+    served: ambience/ambimine.ogg
+  ambience/ambimo1.ogg:
+    use: Played atop silence in space during alien encounters
+    class: atop
+  ambience/ambimo2.ogg:
+    use: Played atop ambience in outdoors locations
+    class: atop
+  ambience/ambisin1.ogg:
+    use: Ambience in proximity to high power electrics, single tone
+    class: ambience
+  ambience/ambisin2.ogg:
+    use: Alternating tone of ambisin3
+    class: cue
+  ambience/ambisin3.ogg:
+    use: Ambience in proximity to high power electrics, high pitch single tone
+    class: ambience
+  ambience/ambisin4.ogg:
+    use: Alternating tone of ambisin1
+    class: cue
+  ambience/ambispace.ogg:
+    use: Ambience in space
+    class: ambience
+    served: ambience/ambispace.ogg
+  ambience/charon_loop.ogg:
+    use: Ambience in proximity to charon
+    class: ambience
+    served: ambience/charon_loop.ogg
+  ambience/clank_loop.ogg:
+    use: Distant sound produced by smiths striking an anvil, or other sources of metal on metal collisions
+    class: ambience
+  ambience/fire.ogg:
+    use: Short sound of fire burning
+    class: cue
+  ambience/harbor.ogg:
+    use: Ambience of a peer on water
+    class: ambience
+  ambience/hiss.ogg:
+    use: Sound of something deflating or releasing gas
+    class: cue
+  ambience/interference.ogg:
+    use: Sound of AI computation aboard space station
+    class: cue
+  ambience/lifeweb2b.ogg:
+    use: Ambience when in proximity to lifeweb while it is feeding
+    class: ambience
+    served: ambience/lifeweb2b.ogg
+  ambience/loop_airy1.ogg:
+    use: Ambience in the fortress
+    class: ambience
+    served: ambience/loop_airy1.ogg
+  ambience/loop_airy2.ogg:
+    use: Sound of two small implements rubbing together
+    class: cue
+  ambience/loop_airy4.ogg:
+    use: Ambience in town when character mood is low
+    class: ambience
+    doc: "Loop_air4.ogg"
+    served: ambience/loop_airy4.ogg
+  ambience/loop_airy5.ogg:
+    use: Played atop ambience in the fortress
+    class: atop
+  ambience/loop_altar.ogg:
+    use: Ambience in the underfort
+    class: ambience
+    served: ambience/loop_altar.ogg
+  ambience/loop_machineroom.ogg:
+    use: Ambience in proximity to running machinery
+    class: ambience
+  ambience/loop_machineroom2.ogg:
+    use: Ambience in proximity to passive machinery
+    class: ambience
+  ambience/loop_machineroom3.ogg:
+    use: Ambience in proximity to large, slow machinery
+    class: ambience
+  ambience/loop_machineroom4.ogg:
+    use: Ambience in proximity to large, turning machinery
+    class: ambience
+  ambience/loop_vent.ogg:
+    use: Ambience in proximity to vent and vent fans
+    class: ambience
+  ambience/newfireloop.ogg:
+    use: Ambience in proximity to fire
+    class: ambience
+    served: ambience/newfireloop.ogg
+  ambience/seag1.ogg:
+    use: Played atop ambience in proximity to open ocean
+    class: atop
+  ambience/seag2.ogg:
+    use: Played atop ambience in proximity to open ocean
+    class: atop
+  ambience/seag3.ogg:
+    use: Short Sound of bird crying
+    class: cue
+  ambience/shipambience.ogg:
+    use: Ambience aboard a vessel of any sort
+    class: ambience
+  ambience/shore.ogg:
+    use: Ambience in proximity to shore and body of water
+    class: ambience
+    served: ambience/shore.ogg
+  ambience/signal.ogg:
+    use: Ambience of heart monitor beeping, in proximity to characters in critical condition in sanctuary
+    class: ambience
+  ambience/spookymaint1.ogg:
+    use: Ambience in treacherous locations
+    class: ambience
+    served: ambience/spookymaint1.ogg
+  ambience/spookymaint2.ogg:
+    use: More intense ambience of spookymaint1, continuous with it
+    class: ambience
+  ambience/spookyspace1.ogg:
+    use: Quiet ambience in space
+    class: ambience
+    served: ambience/spookyspace1.ogg
+  ambience/spookyspace2.ogg:
+    use: More quiet ambience in space
+    class: ambience
+    served: ambience/spookyspace2.ogg
+  ambience/TestLoop1.ogg:
+    use: Techno music
+    class: cue
+  ambience/torch_big.ogg:
+    use: Ambience in proximity to bonfire or large fire
+    class: ambience
+  ambience/torch_small.ogg:
+    use: Ambience in proximity to campfire or smaller fire
+    class: ambience
+  ambience/train_loop.ogg:
+    use: Looping sound of moving train
+    class: ambience
+    served: ambience/train_loop.ogg
+  ambience/tstation.ogg:
+    use: Ambience of an insidious nature
+    class: ambience
+  ambience/vent.ogg:
+    use: Sound of brittle rusted metal being struck and crumbling
+    class: cue
+  ambience/wind_2_1.ogg:
+    use: Played atop ambience, quiet wind
+    class: atop
+    served: music/wind_2_1.ogg
+  ambience/wind_2_2.ogg:
+    use: Played atop ambience, VERY quiet wind
+    class: atop
+    served: music/wind_2_2.ogg
+  ambience/wind_3_1.ogg:
+    use: Played atop ambience, wind rising in intensity
+    class: atop
+    served: music/wind_3_1.ogg
+  ambience/wind_4_1.ogg:
+    use: Played atop ambience, moderately loud wind
+    class: atop
+    served: music/wind_4_1.ogg
+  ambience/wind_4_2.ogg:
+    use: Played atop ambience, alternating between moderate and quiet wind
+    class: atop
+    served: music/wind_4_2.ogg
+  ambience/wind_5_1.ogg:
+    use: Played atop ambience, moderately loud but high pitch wind.
+    class: atop
+    served: music/wind_5_1.ogg
+
+  # ---- body
+  body/badmood1.ogg:
+    use: Played atop ambience, signals bad mood
+    class: atop
+  body/badmood2.ogg:
+    use: Played atop ambience, signal dejection and bitterness
+    class: atop
+  body/badmood3.ogg:
+    use: More intense version of Badmood2.ogg
+    class: atop
+  body/badmood4.ogg:
+    use: More intense version of badmood2.ogg
+    class: atop
+  body/blood1.ogg:
+    use: Sound of blood drop falling onto hard surface
+    class: cue
+  body/blood2.ogg:
+    use: Sound of blood drop falling onto hard surface
+    class: cue
+  body/blood3.ogg:
+    use: Sound of blood drop falling onto hard surface
+    class: cue
+  body/bodyfall1.ogg:
+    use: Sound of character collapsing
+    class: cue
+  body/bodyfall2.ogg:
+    use: Sound of character collapsing
+    class: cue
+  body/bones.ogg:
+    use: Sound of pile of bones being clattered
+    class: cue
+  body/cough_01.ogg:
+    use: Male cough
+    class: cue
+  body/cough_female.ogg:
+    use: Female cough
+    class: cue
+  body/cough_oldman.ogg:
+    use: Wheezing cough
+    class: cue
+  body/crunchychewing.ogg:
+    use: Sound of chewing something firm and crunchy
+    class: cue
+  body/drink.ogg:
+    use: Sound of drinking
+    class: cue
+  body/drown_female.ogg:
+    use: Sound of drowning
+    class: cue
+  body/drown.ogg:
+    use: Sound of drowning
+    class: cue
+  body/eatfood.ogg:
+    use: Sound of biting into something crunchy
+    class: cue
+    served: sfx/eatfood.ogg
+  body/fear_scream1.ogg:
+    use: Male scream
+    class: cue
+  body/fear_scream2.ogg:
+    use: Male scream
+    class: cue
+  body/fear_woman1.ogg:
+    use: Female scream
+    class: cue
+  body/fear_woman2.ogg:
+    use: Sharp female scream
+    class: cue
+  body/flesh_drop.ogg:
+    use: Sound of something squishy being squelched
+    class: cue
+  body/glass_drink1.ogg:
+    use: Subtle sound of drinking from a glass
+    class: cue
+    served: sfx/glass_drink1.ogg
+  body/glass_drink2.ogg:
+    use: Subtle sound of drinking from a glass
+    class: cue
+  body/gurgle1.ogg:
+    use: Sound of liquid flowing freely
+    class: cue
+  body/gurgle2.ogg:
+    use: Sound of liquid flowing freely
+    class: cue
+  "body/Heart Beat.ogg":
+    use: Looping sound of heart beating
+    class: ambience
+  body/heartbeat_scared.ogg:
+    use: Looping sound of heart racing
+    class: ambience
+    doc: "Beartbeat_scared.ogg"
+  body/heartbeatfailure.ogg:
+    use: Sound of electric heart monitor losing a pulse
+    class: cue
+  body/hungry1.ogg:
+    use: Stomach rumbling
+    class: cue
+  body/hungry2.ogg:
+    use: Stomach rumbling
+    class: cue
+  body/hungry3.ogg:
+    use: Stomach rumbling
+    class: cue
+  body/hungry4.ogg:
+    use: Stomach rumbling
+    class: cue
+  body/man_pain1.ogg:
+    use: Sound of a man giving in to pain
+    class: cue
+  body/man_pain2.ogg:
+    use: Sound of significant pain being inflicted to a man
+    class: cue
+  body/man_pain3.ogg:
+    use: Sound of man in significant pain
+    class: cue
+  body/newheart.ogg:
+    use: Sound of something being corrupted
+    class: cue
+  body/reg_eat1.ogg:
+    use: Sound of THEY consuming someone
+    class: cue
+  body/reg_eat2.ogg:
+    use: Sound of fleshy matter falling to the floor
+    class: cue
+  body/shlep.ogg:
+    use: Sound of a whip cracking
+    class: cue
+  body/sigh_female.ogg:
+    use: Female sigh
+    class: cue
+  body/sigh_male.ogg:
+    use: Male sigh
+    class: cue
+  body/snore1.ogg:
+    use: Snore sound
+    class: cue
+  body/snore2.ogg:
+    use: Snore sound
+    class: cue
+  body/splat.ogg:
+    use: Sound of gibbing
+    class: cue
+  body/squelch1.ogg:
+    use: Sound of fleshy matter being pulled apart
+    class: cue
+  body/squishy.ogg:
+    use: Sound of liquid being squeezed out of matter
+    class: cue
+    served: sfx/squishy.ogg
+  body/throat.ogg:
+    use: Choking
+    class: cue
+  body/tourniquet.ogg:
+    use: Sound of rope tightening
+    class: cue
+  body/whimper_female.ogg:
+    use: Female whimper
+    class: cue
+  body/whimper_male.ogg:
+    use: Male whimper
+    class: cue
+  body/woman_pain2.ogg:
+    use: Woman in pain
+    class: cue
+  body/woman_pain3.ogg:
+    use: Sound of significant pain being inflicted on a woman
+    class: cue
+  body/woman_pain4.ogg:
+    use: Sound of woman giving in to pain
+    class: cue
+
+  # ---- creatures
+  creatures/arl_step.ogg:
+    use: Sound of giant snail moving
+    class: cue
+  creatures/bark.ogg:
+    use: Sound of Cerberus warcry
+    class: cue
+  creatures/bee_attack1.ogg:
+    use: Sound of bee sting
+    class: cue
+  creatures/ghost.ogg:
+    use: Sound of ghost attack
+    class: cue
+  creatures/ghost2.ogg:
+    use: Sound of ghost dissipating
+    class: cue
+    doc: Ghost.ogg
+  creatures/graga_attack6.ogg:
+    use: Sound of graga swinging fist
+    class: cue
+  creatures/graga_life1.ogg:
+    use: Graga Crying out
+    class: cue
+  creatures/graga_life2.ogg:
+    use: Graga Crying out
+    class: cue
+  creatures/graga_step1.ogg:
+    use: Graga taking a step
+    class: cue
+  creatures/graga_step2.ogg:
+    use: Graga taking a step
+    class: cue
+  creatures/kthanid_attack.ogg:
+    use: Kthanid attacking
+    class: cue
+  creatures/kthanid_life.ogg:
+    use: Kthanid call
+    class: cue
+  creatures/kthanid_move.ogg:
+    use: Kthanid moving
+    class: cue
+  creatures/kthanid_pain.ogg:
+    use: Kthanid being struck
+    class: cue
+  creatures/kthanid_spot.ogg:
+    use: Kthanid calling out
+    class: cue
+  creatures/lump_active.ogg:
+    use: Lump being activated
+    class: cue
+  creatures/lump_spawn.ogg:
+    use: THEY excreting a lump
+    class: cue
+  creatures/maggot1.ogg:
+    use: Sound of parasite
+    class: cue
+  creatures/maggot2.ogg:
+    use: Sound of parasite
+    class: cue
+  creatures/maggotd.ogg:
+    use: Maggot being squished
+    class: cue
+  creatures/mousesqueek.ogg:
+    use: Mouse squeaking
+    class: cue
+  creatures/rat_attack.ogg:
+    use: Giant rat attacking
+    class: cue
+  creatures/rat_death.ogg:
+    use: Rat being killed
+    class: cue
+  creatures/rat_life.ogg:
+    use: Rat cry
+    class: cue
+  creatures/rat_pack.ogg:
+    use: Sound of summoning
+    class: cue
+  creatures/screech.ogg:
+    use: Extremely high pitched tone
+    class: cue
+  creatures/strygh_attack_01.ogg:
+    use: Insectoid attacking
+    class: cue
+  creatures/strygh_attack_02.ogg:
+    use: Insectoid attacking
+    class: cue
+  creatures/strygh_death_01.ogg:
+    use: Insectoid being crushed
+    class: cue
+  creatures/strygh_life1.ogg:
+    use: Insect chattering
+    class: cue
+  creatures/strygh_life2.ogg:
+    use: Insect chattering
+    class: cue
+  creatures/strygh_spot.ogg:
+    use: Insect becoming alert
+    class: cue
+  creatures/tzanz_walk2.ogg:
+    use: Creature moving
+    class: cue
+  creatures/tzanzlife1.ogg:
+    use: Fluttery insect chattering
+    class: cue
+  creatures/tzanzlife2.ogg:
+    use: Fluttery insect chattering
+    class: cue
+  creatures/tzanzlife3.ogg:
+    use: Fluttery insect chattering
+    class: cue
+
+  # ---- instruments/accordion
+  instruments/accordion/b1.ogg:
+    use: Salar song, Korobeiniki
+    class: instrument
+    served: instruments/accordion/b1.ogg
+  instruments/accordion/b2.ogg:
+    use: Mortal Kombat theme
+    class: instrument
+    served: instruments/accordion/b2.ogg
+  instruments/accordion/b3.ogg:
+    use: Wistful tune
+    class: instrument
+    served: instruments/accordion/b3.ogg
+  instruments/accordion/b4.ogg:
+    use: Carnival Waltz
+    class: instrument
+    served: instruments/accordion/b4.ogg
+  instruments/accordion/b5.ogg:
+    use: Caver Shanty
+    class: instrument
+    served: instruments/accordion/b5.ogg
+  instruments/accordion/b6.ogg:
+    use: Sounds like shit
+    class: instrument
+    served: instruments/accordion/b6.ogg
+  instruments/accordion/b7.ogg:
+    use: Song of heroism
+    class: instrument
+    served: instruments/accordion/b7.ogg
+  instruments/accordion/b8.ogg:
+    use: Merry Dance
+    class: instrument
+    served: instruments/accordion/b8.ogg
+
+  # ---- instruments/boombox
+  instruments/boombox/ainda-e-cedo.ogg:
+    use: Blackstone pop
+    class: instrument
+    served: instruments/boombox/ainda-e-cedo.ogg
+  instruments/boombox/boate-azul.ogg:
+    use: Blackstone romantic song
+    class: instrument
+    served: instruments/boombox/boate-azul.ogg
+  instruments/boombox/boombox10.ogg:
+    use: A country deluge
+    class: instrument
+    served: instruments/boombox/boombox10.ogg
+  instruments/boombox/boombox3.ogg:
+    use: A decrepit tape
+    class: instrument
+    served: instruments/boombox/boombox3.ogg
+  instruments/boombox/boombox4.ogg:
+    use: Lord of the Game
+    class: instrument
+    served: instruments/boombox/boombox4.ogg
+  instruments/boombox/boombox8.ogg:
+    use: Gahan Techno
+    class: instrument
+    served: instruments/boombox/boombox8.ogg
+  instruments/boombox/clouds.ogg:
+    use: Heretical New wave
+    class: instrument
+    served: instruments/boombox/clouds.ogg
+  instruments/boombox/clown.ogg:
+    use: Honk
+    class: instrument
+    served: instruments/boombox/clown.ogg
+  instruments/boombox/como-eu-quero.ogg:
+    use: Blackstone soft rock
+    class: instrument
+    served: instruments/boombox/como-eu-quero.ogg
+  instruments/boombox/cowboy-fora-da-lei.ogg:
+    use: Blackstone Country
+    class: instrument
+    doc: Cowboy-for a-da-lei.ogg
+    served: instruments/boombox/cowboy-fora-da-lei.ogg
+  instruments/boombox/csrio.ogg:
+    use: Blackstone Hooliganry
+    class: instrument
+    served: instruments/boombox/csrio.ogg
+  instruments/boombox/fixacao.ogg:
+    use: Blackstone mainstream slop
+    class: instrument
+    served: instruments/boombox/fixacao.ogg
+  instruments/boombox/fuckup.ogg:
+    use: Experimental Ginkese music
+    class: instrument
+    served: instruments/boombox/fuckup.ogg
+  instruments/boombox/indihome.ogg:
+    use: Rahalian brainrot
+    class: instrument
+    served: instruments/boombox/indihome.ogg
+  instruments/boombox/metamorfose-ambulante.ogg:
+    use: Blackstone strumming
+    class: instrument
+    doc: Metamorphose-ambulante.ogg
+    served: instruments/boombox/metamorfose-ambulante.ogg
+  instruments/boombox/newbar3.ogg:
+    use: Dance hall groove
+    class: instrument
+    served: instruments/boombox/newbar3.ogg
+  instruments/boombox/newbar46.ogg:
+    use: Den song
+    class: instrument
+    served: instruments/boombox/newbar46.ogg
+  instruments/boombox/newbar59.ogg:
+    use: All Pigs Must Die, Den song
+    class: instrument
+    served: instruments/boombox/newbar59.ogg
+  instruments/boombox/newbar9.ogg:
+    use: Den song
+    class: instrument
+    served: instruments/boombox/newbar9.ogg
+  instruments/boombox/solidao-de-volta.ogg:
+    use: Blackstone Overdose
+    class: instrument
+    served: instruments/boombox/solidao-de-volta.ogg
+  instruments/boombox/space_asshole.ogg:
+    use: A long forgotten song, amongst the stars
+    class: instrument
+    served: instruments/boombox/space_asshole.ogg
+  instruments/boombox/space_oddity.ogg:
+    use: A tape floating in space
+    class: instrument
+    served: instruments/boombox/space_oddity.ogg
+  instruments/boombox/title1.ogg:
+    use: Another day on the station
+    class: instrument
+    served: instruments/boombox/title1.ogg
+
+  # ---- instruments/lute
+  instruments/lute/balalaika1.ogg:
+    use: A rising salar tune for dance
+    class: instrument
+    doc: Balalaki1.ogg
+    served: instruments/lute/balalaika1.ogg
+  instruments/lute/bard1.ogg:
+    use: A soothing melody
+    class: instrument
+    served: instruments/lute/bard1.ogg
+  instruments/lute/bard2.ogg:
+    use: Every strum cuts deep
+    class: instrument
+    served: instruments/lute/bard2.ogg
+  instruments/lute/bard3.ogg:
+    use: Peaceful sleep takes all
+    class: instrument
+    served: instruments/lute/bard3.ogg
+  instruments/lute/bard4.ogg:
+    use: A lively serenade
+    class: instrument
+    served: instruments/lute/bard4.ogg
+  instruments/lute/bard5.ogg:
+    use: Compelling schemes and revelations
+    class: instrument
+    served: instruments/lute/bard5.ogg
+
+  # ---- labour
+  labour/breaksound.ogg:
+    use: A flimsy structure collapse
+    class: cue
+  labour/carve1.ogg:
+    use: A great stone moving
+    class: cue
+  labour/carve2.ogg:
+    use: A great stone moving
+    class: cue
+  labour/cavein.ogg:
+    use: The cave ceiling collapsing
+    class: cue
+    served: sfx/cavein.ogg
+  labour/Crowbar.ogg:
+    use: A thin piece of metal being snipped
+    class: cue
+    served: sfx/Crowbar.ogg
+  labour/cut_fail.ogg:
+    use: A blade cutting into flesh
+    class: cue
+  labour/Deconstruct.ogg:
+    use: A great object being slotted into or out of place
+    class: cue
+  labour/dig_shovel.ogg:
+    use: A shovel digging into earth
+    class: cue
+    served: sfx/dig_shovel.ogg
+  labour/empty_shovel.ogg:
+    use: A shovel emptying earth onto the ground
+    class: cue
+  labour/fabric_production.ogg:
+    use: A great industrial machine spinning up
+    class: cue
+  labour/forge.ogg:
+    use: The sound of an anvil being struck
+    class: cue
+    served: sfx/forge.ogg
+  labour/gemdrop.ogg:
+    use: A clear ringing sound, from a bell or crystal
+    class: cue
+    served: sfx/gemdrop.ogg
+  labour/gemdrop1.ogg:
+    use: A piece of crystal or thin metal striking the ground
+    class: cue
+  labour/gemdrop2.ogg:
+    use: A piece of crystal or thin metal striking the ground
+    class: cue
+  labour/haircut.ogg:
+    use: An electric razor running
+    class: cue
+  labour/melee_wood_destroy_01.ogg:
+    use: Wood being struck and splintering
+    class: cue
+  labour/melee_wood_destroy_02.ogg:
+    use: Wood being struck and splintering
+    class: cue
+  labour/metal_block_04.ogg:
+    use: A sheet of metal being struck
+    class: cue
+  labour/npc_human_pickaxe_01.ogg:
+    use: A pickaxe striking stone
+    class: cue
+  labour/npc_human_pickaxe_02.ogg:
+    use: A pickaxe striking stone
+    class: cue
+  labour/npc_human_pickaxe_03.ogg:
+    use: A pickaxe striking stone
+    class: cue
+  labour/npc_human_pickaxe_05.ogg:
+    use: A pickaxe striking stone
+    class: cue
+  labour/npc_human_wood_drop_01.ogg:
+    use: Wood falling to the ground
+    class: cue
+  labour/npc_human_wood_drop_02.ogg:
+    use: Wood falling to the ground
+    class: cue
+  labour/polaroid1.ogg:
+    use: A camera taking a photo
+    class: cue
+    served: sfx/polaroid1.ogg
+  labour/polaroid2.ogg:
+    use: A camera taking a photo
+    class: cue
+  labour/poster_being_created.ogg:
+    use: A machine extruding something
+    class: cue
+  labour/poster_ripped.ogg:
+    use: Paper being torn apart
+    class: cue
+    served: sfx/poster_ripped.ogg
+  labour/quench_barrel1.ogg:
+    use: Something hot being quenched in a barrel
+    class: cue
+  labour/quench_barrel2.ogg:
+    use: Something hot being quenched in a barrel
+    class: cue
+  labour/scissors.ogg:
+    use: Scissors cutting
+    class: cue
+  labour/Screwdriver2.ogg:
+    use: A tiny change in a metal mechanical system
+    class: cue
+  labour/seedsplanted.ogg:
+    use: Earth being rustled
+    class: cue
+    served: sfx/seedsplanted.ogg
+  labour/sewing.ogg:
+    use: The drilling sound of a machine whirring to life
+    class: cue
+  labour/sharpen_long1.ogg:
+    use: A blade being sharpened
+    class: cue
+  labour/sharpen_long2.ogg:
+    use: A blade being sharpened
+    class: cue
+  labour/sharpen_short1.ogg:
+    use: A blade being sharpened
+    class: cue
+  labour/sharpen_short2.ogg:
+    use: A blade being sharpened
+    class: cue
+  labour/shovel_drop.ogg:
+    use: A curved piece of metal hitting the ground
+    class: cue
+  labour/smelter_fin.ogg:
+    use: A rush of hot air
+    class: cue
+  labour/smelter_sound.ogg:
+    use: The sound of fire being stoked by billows
+    class: cue
+  labour/stonestone.ogg:
+    use: The sound of stone being struck by something heavy
+    class: cue
+  labour/suture.ogg:
+    use: A wet, squelching sound
+    class: cue
+  labour/Welder.ogg:
+    use: Metal being welded together with an electric welder
+    class: cue
+  labour/Welder2.ogg:
+    use: Metal being welded together with an electric welder
+    class: cue
+  labour/wood_chop_01.ogg:
+    use: A wooden object being cut
+    class: cue
+  labour/wood_chop_02.ogg:
+    use: A wooden object being cut
+    class: cue
+  labour/wood_chop_03.ogg:
+    use: A wooden object being cut
+    class: cue
+  labour/wood_chop_04.ogg:
+    use: A wooden object being cut
+    class: cue
+
+  # ---- lifeweb
+  lifeweb/bishop_banish.ogg:
+    use: A divine force banishing evil
+    class: cue
+    served: sfx/bishop_banish.ogg
+  lifeweb/grate1.ogg:
+    use: Walking on a metal grate
+    class: cue
+  lifeweb/grate2.ogg:
+    use: Walking on a metal grate
+    class: cue
+  lifeweb/grate3.ogg:
+    use: Walking on a metal grate
+    class: cue
+  lifeweb/grate4.ogg:
+    use: Walking on a metal grate
+    class: cue
+  lifeweb/grate5.ogg:
+    use: Walking on a metal grate
+    class: cue
+  lifeweb/grate6.ogg:
+    use: Walking on a metal grate
+    class: cue
+  lifeweb/grue_kill.ogg:
+    use: A dark force attacking someone through the veil
+    class: cue
+  lifeweb/grue1.ogg:
+    use: An ominous echoing grumble
+    class: cue
+  lifeweb/keyhit_01.ogg:
+    use: A button being pressed
+    class: cue
+    served: sfx/keyhit_01.ogg
+  lifeweb/keyhit_02.ogg:
+    use: A button being pressed
+    class: cue
+  lifeweb/keyhit_03.ogg:
+    use: A button being pressed
+    class: cue
+  lifeweb/keyhit_04.ogg:
+    use: A button being pressed
+    class: cue
+  lifeweb/keyhit_05.ogg:
+    use: A button being pressed
+    class: cue
+  lifeweb/keyhit_06.ogg:
+    use: A button being pressed
+    class: cue
+  lifeweb/lifeweb2b.ogg:
+    use: Ambience in proximity to the lifeweb as it feeds
+    class: ambience
+    served: ambience/lifeweb2b.ogg
+  lifeweb/LW_CLOSE2.ogg:
+    use: A valve being closed
+    class: cue
+  lifeweb/lw_free.ogg:
+    use: Mechanical restraints binding/releasing someone
+    class: cue
+    served: sfx/lw_free.ogg
+  lifeweb/LW_OPEN2.ogg:
+    use: A metal grate opening
+    class: cue
+  lifeweb/lw_sacrificed1.ogg:
+    use: Flesh being constrained by metal implements
+    class: cue
+    doc: "Lw_sacrified1.ogg"
+  lifeweb/lw_sacrificed2.ogg:
+    use: Flesh being constrained by metal implements
+    class: cue
+    doc: "Lw_sacrified2.ogg"
+  lifeweb/lw_sacrificed3.ogg:
+    use: Flesh being constrained by metal implements
+    class: cue
+    doc: "Lw_sacrified3.ogg"
+  lifeweb/lw_sacrificed4.ogg:
+    use: Flesh being constrained by metal implements
+    class: cue
+    doc: "Lw_sacrified4.ogg"
+  lifeweb/lwButton.ogg:
+    use: A lever being switched
+    class: cue
+  lifeweb/LWS_handle.ogg:
+    use: A valve turning, pressure being released
+    class: cue
+  lifeweb/lwshock.ogg:
+    use: An echoing haunting call in the distance
+    class: cue
+  lifeweb/oldways_convert.ogg:
+    use: The sound of lifeforce being sapped
+    class: cue
+    served: sfx/oldways_convert.ogg
+  lifeweb/rebirth.ogg:
+    use: An intense ambience of organs for a significant unnatural event
+    class: ambience
+    served: sfx/rebirth.ogg
+  lifeweb/seen_wonder.ogg:
+    use: A hollow ringing of a sudden terrifying revelation
+    class: cue
+  lifeweb/squirm1.ogg:
+    use: The sound of a machine pumping fluid
+    class: cue
+  lifeweb/squirm2.ogg:
+    use: The sound of a machine pumping fluid
+    class: cue
+  lifeweb/squirm3.ogg:
+    use: The sound of a machine pumping fluid
+    class: cue
+  lifeweb/squirm4.ogg:
+    use: The sound of a machine pumping fluid
+    class: cue
+  lifeweb/squirm5.ogg:
+    use: The sound of a machine pumping fluid
+    class: cue
+  lifeweb/thanati_key.ogg:
+    use: A sharp screech
+    class: cue
+  lifeweb/they_absorb.ogg:
+    use: The sound of THEY assimilating
+    class: cue
+  lifeweb/they_contact1.ogg:
+    use: Played over ambience, an unnatural sound
+    class: atop
+    served: sfx/they_contact1.ogg
+  lifeweb/they_learn.ogg:
+    use: An eery wallowing cry
+    class: cue
+  lifeweb/wonder_secret_known.ogg:
+    use: The sound of something phantasmal being captured.
+    class: cue
+    served: sfx/wonder_secret_known.ogg
+  lifeweb/wonder.ogg:
+    use: The sound of an unusual discovery
+    class: cue
+    served: sfx/wonder.ogg
+  lifeweb/wondermaker.ogg:
+    use: A great foghorn bellowing
+    class: cue
+
+  # ---- music
+  music/a-thousand-empty-rooms.ogg:
+    use: Lobby Music
+    class: lobby
+    served: music/a-thousand-empty-rooms.ogg
+  music/b12_combined_start.ogg:
+    use: Unused
+    class: unused
+    served: music/b12_combined_start.ogg
+  music/beyondretrieval.ogg:
+    use: Lobby Music
+    class: lobby
+    served: music/beyondretrieval.ogg
+  music/caught.ogg:
+    use: A sudden ambush or surprise attack
+    class: cue
+  music/caught2.ogg:
+    use: A sudden ambush or surprise attack
+    class: cue
+  music/graceperiod.ogg:
+    use: Unused
+    class: unused
+    served: music/graceperiod.ogg
+  music/haruspex-combat.ogg:
+    use: Combat music for soulbreakers
+    class: cue
+  music/haruspex.ogg:
+    use: Lobby Music when there is a lateparty
+    class: lobby
+    served: music/haruspex.ogg
+  music/hiding.ogg:
+    use: Ambience
+    class: ambience
+  music/holywarlobby.ogg:
+    use: Special round lobby music
+    class: lobby
+    served: music/holywarlobby.ogg
+  music/morning.ogg:
+    use: Unused
+    class: unused
+    served: music/morning.ogg
+  music/newlobby31.ogg:
+    use: Lobby Music
+    class: lobby
+    served: music/newlobby31.ogg
+  music/outpost.ogg:
+    use: Lobby Music
+    class: lobby
+    served: music/outpost.ogg
+  music/pathologic.ogg:
+    use: Ambience
+    class: ambience
+    served: ambience/pathologic.ogg
+  music/ravenheart_combat1.ogg:
+    use: Ambience when the alarm is declared
+    class: ambience
+  music/sacred_dagger.ogg:
+    use: Ambience within the cathedral
+    class: ambience
+    served: ambience/sacred_dagger.ogg
+  music/song_game.ogg:
+    use: Ambience within the inn
+    class: ambience
+    served: music/song_game.ogg
+  music/surfacing.ogg:
+    use: Ambience on the surface
+    class: ambience
+    served: music/surfacing.ogg
+  music/suspense_thanati.ogg:
+    use: Dark whispers
+    class: cue
+  music/suspense_xom.ogg:
+    use: Loop of Maddening wailing and noise
+    class: cue
+  music/suspense1.ogg:
+    use: Loop ambience
+    class: ambience
+  music/suspense2.ogg:
+    use: Loop ambience
+    class: ambience
+  music/suspense3.ogg:
+    use: Loop ambience
+    class: ambience
+  music/suspense4.ogg:
+    use: Loop ambience
+    class: ambience
+  music/suspense5.ogg:
+    use: Loop ambience
+    class: ambience
+  music/suspense6.ogg:
+    use: Loop ambience
+    class: ambience
+  music/suspense7.ogg:
+    use: Loop ambience
+    class: ambience
+  music/suspense8.ogg:
+    use: Loop ambience
+    class: ambience
+  music/tension.ogg:
+    use: Played atop ambience
+    class: atop
+  music/tension2.ogg:
+    use: Played atop ambience
+    class: atop
+  music/tension3.ogg:
+    use: Played atop ambience
+    class: atop
+  music/tension4.ogg:
+    use: Played atop ambience
+    class: atop
+  music/tension5.ogg:
+    use: Played atop ambience
+    class: atop
+  music/tension6.ogg:
+    use: Played atop ambience
+    class: atop
+  music/tension7.ogg:
+    use: Played atop ambience
+    class: atop
+  music/tension8.ogg:
+    use: Played atop ambience
+    class: atop
+  music/ThanatiLP_1.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_10.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_11.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_12.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_13.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_14.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_2.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_3.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_4.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_5.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_6.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_7.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_8.ogg:
+    use: Unused
+    class: unused
+  music/ThanatiLP_9.ogg:
+    use: Unused
+    class: unused
+  music/the_collective.ogg:
+    use: Ambience for THEY
+    class: ambience
+    served: music/the_collective.ogg
+  music/to_hell.ogg:
+    use: Ambience in the caves
+    class: ambience
+    served: ambience/to_hell.ogg
+  music/track13.ogg:
+    use: Lobby Music
+    class: lobby
+    served: music/track13.ogg
+  music/track3.ogg:
+    use: Lobby Music
+    class: lobby
+    served: music/track3.ogg
+  music/white_waking_1.ogg:
+    use: Rare Lobby Music
+    class: lobby
+    served: music/white_waking.ogg
+
+  # ---- notify
+  notify/adminhelp.ogg:
+    use: Unused
+    class: unused
+  notify/airlock_deny2.ogg:
+    use: A machine refusing someone access
+    class: cue
+  notify/Alarm.ogg:
+    use: The sound of a nuclear warhead about to detonate
+    class: cue
+    served: sfx/Alarm.ogg
+  notify/alert.ogg:
+    use: An electronic system alarm sound
+    class: cue
+  notify/arrival.ogg:
+    use: Three gentle tones indicating a train has reached the station
+    class: cue
+  notify/confession_print.ogg:
+    use: The clackety sound of a printer
+    class: cue
+  notify/countdown.ogg:
+    use: A beeping quickly increasing in speed
+    class: cue
+  notify/crisis.ogg:
+    use: The sound of a great war horn
+    class: cue
+    served: sfx/crisis.ogg
+  notify/crisis2.ogg:
+    use: A rush of sound causing panic
+    class: cue
+  notify/danger_alarm.ogg:
+    use: A klaxon alarm sounding out
+    class: cue
+  notify/death_alarm.ogg:
+    use: Played atop ambience when somebody in the fortress dies
+    class: atop
+  notify/dialtone.ogg:
+    use: The tone from someone hanging up a phone
+    class: cue
+  notify/door_locked.ogg:
+    use: Rattling of a locked door knob
+    class: cue
+  notify/ear_ring.ogg:
+    use: Looped ambience of sharp ringing caused by pierced ear drums from explosions and other traumatic events
+    class: ambience
+  notify/klaxon_alarm.ogg:
+    use: Looped ambience of a klaxon alarm when there is an ongoing emergency
+    class: ambience
+  notify/knockknock1.ogg:
+    use: Knocking on a door
+    class: cue
+  notify/knockknock2.ogg:
+    use: Banging on a door
+    class: cue
+  notify/knockknock3.ogg:
+    use: Knocking on a door
+    class: cue
+  notify/knockknock4.ogg:
+    use: Knocking on a door
+    class: cue
+  notify/knockknock5.ogg:
+    use: Knocking on a door at an irregular tempo
+    class: cue
+  notify/knockknock6.ogg:
+    use: Knocking on a door
+    class: cue
+  notify/mail_generic.ogg:
+    use: A chipper notification sound
+    class: cue
+  notify/mail_old.ogg:
+    use: The thud of something distant falling
+    class: cue
+  notify/mail_rare.ogg:
+    use: Unused
+    class: unused
+  notify/mail1.ogg:
+    use: A strange whirring notification sound
+    class: cue
+  notify/mail2.ogg:
+    use: A short warbled electronic tone
+    class: cue
+  notify/mail3.ogg:
+    use: A deep bassy notification tone
+    class: cue
+  notify/mail4.ogg:
+    use: A notification tone of low rumbling sound
+    class: cue
+  notify/minor_ear_ring.ogg:
+    use: A brief ringing of the ears that fades away
+    class: cue
+  notify/mob_ringing.ogg:
+    use: The sound of a mobile phone ringing
+    class: cue
+  notify/mob_ringing2.ogg:
+    use: Mobile phone ringtone
+    class: cue
+    doc: "Mob_ringing.ogg"
+  notify/nuke_activator.ogg:
+    use: The sound of something mechanical unsealing
+    class: cue
+    served: sfx/nuke_activator.ogg
+  notify/nuke_activator2.ogg:
+    use: A mechanical clunk of a button or lever being activated
+    class: cue
+  notify/phone_busy.ogg:
+    use: A tone that is looped when calling a busy phone line
+    class: cue
+    served: sfx/phone_busy.ogg
+  notify/phone_calling.ogg:
+    use: A singular long tone that is looped
+    class: cue
+    served: sfx/phone_calling.ogg
+  notify/phone_pickup.ogg:
+    use: The sound of a phone being taken out of the holder
+    class: cue
+    served: sfx/phone_pickup.ogg
+  notify/phone_ring.ogg:
+    use: An old timey ringing of a landline phone
+    class: cue
+    served: sfx/phone_ring.ogg
+  notify/radio_chatter.ogg:
+    use: The sound of something over the radio
+    class: cue
+    served: sfx/radio_chatter.ogg
+  notify/radio.ogg:
+    use: The sound of a radio tuning
+    class: cue
+    served: sfx/radio.ogg
+  notify/radio1.ogg:
+    use: A haunting whisper interrupted by a loud singular tone.
+    class: cue
+  notify/radio2.ogg:
+    use: The sound of radio static
+    class: cue
+  notify/radio3.ogg:
+    use: Warbled radio interference
+    class: cue
+    served: sfx/radio3.ogg
+  notify/short_ear_ring.ogg:
+    use: "A gradually decreasing ear ringing, that can be used after ear_ring.ogg to gradually fade it out."
+    class: cue
+  notify/siren.ogg:
+    use: A distant air raid siren
+    class: cue
+
+  # ---- ui
+  ui/beep5.ogg:
+    use: A brief set of digital tones registering some interaction with a futuristic piece of technology
+    class: cue
+  ui/buzz-sigh.ogg:
+    use: An electronic buzz indicating some failure
+    class: cue
+  ui/buzz-two.ogg:
+    use: Two electronic buzzes indicating some failure
+    class: cue
+    served: sfx/buzz-two.ogg
+  ui/chime.ogg:
+    use: An electronic chime notifying of something
+    class: cue
+    served: sfx/chime.ogg
+  ui/click.ogg:
+    use: A brief click of something opening/closing
+    class: cue
+    served: sfx/click.ogg
+  ui/coin_m.ogg:
+    use: The sound of coins falling
+    class: cue
+    served: sfx/coin_m.ogg
+  ui/coininsert.ogg:
+    use: The sound of a coin being inserted into a slot
+    class: cue
+    served: sfx/coininsert.ogg
+  ui/confirm1.ogg:
+    use: A soft digital beep
+    class: cue
+    served: sfx/confirm1.ogg
+  ui/console_error.ogg:
+    use: A warbled error sound
+    class: cue
+    served: sfx/console_error.ogg
+  ui/console_success.ogg:
+    use: A set of soft tones indicating success
+    class: cue
+    served: sfx/console_success.ogg
+  ui/copier.ogg:
+    use: The sound of a machine turning on, producing something and then turning off
+    class: cue
+  ui/ding.ogg:
+    use: "A soft click followed by a Ding! Signalling completion."
+    class: cue
+  ui/drawer_sound.ogg:
+    use: The sound of a wooden drawer being opened
+    class: cue
+    served: sfx/drawer_sound.ogg
+  ui/lever.ogg:
+    use: A mechanical lever being pulled
+    class: cue
+  ui/lightswitch_1.ogg:
+    use: The flick of a switch
+    class: cue
+  ui/lightswitch_2.ogg:
+    use: The flick of a switch
+    class: cue
+  ui/lightswitch_3.ogg:
+    use: The flick of a switch
+    class: cue
+  ui/lightswitch_4.ogg:
+    use: The flick of a switch
+    class: cue
+  ui/lightswitch.ogg:
+    use: The flick of a switch
+    class: cue
+  ui/Load_Character_Preset.ogg:
+    use: A dull echoing thud
+    class: cue
+  ui/lockenable.ogg:
+    use: A series of four rattling clicks
+    class: cue
+  ui/lockreset.ogg:
+    use: A series of four rattling clicks
+    class: cue
+  ui/lwButton.ogg:
+    use: The sound of a mechanical switch
+    class: cue
+  ui/moeda.ogg:
+    use: A coin being inserted into something
+    class: cue
+  ui/newBuzzer.ogg:
+    use: A sharp notification sound
+    class: cue
+    served: sfx/newBuzzer.ogg
+  ui/pageturn1.ogg:
+    use: The fwip of a page turning
+    class: cue
+    served: sfx/pageturn1.ogg
+  ui/pageturn2.ogg:
+    use: The fwip of a page turning
+    class: cue
+  ui/pageturn3.ogg:
+    use: The fwip of a page turning
+    class: cue
+  ui/paistartup.ogg:
+    use: A chipper ding of an electronic starting up
+    class: cue
+  ui/ping.ogg:
+    use: Two rapid tones signalling a notification
+    class: cue
+  ui/pop.ogg:
+    use: The quiet sound of something popping into place
+    class: cue
+    served: sfx/pop.ogg
+  ui/Ratchet.ogg:
+    use: The mechanical ratchet of something being adjusted
+    class: cue
+  ui/rustle1.ogg:
+    use: The rustling of cloth
+    class: cue
+    served: sfx/rustle1.ogg
+  ui/rustle2.ogg:
+    use: The rustling of cloth
+    class: cue
+  ui/rustle3.ogg:
+    use: The rustling of cloth
+    class: cue
+  ui/scan_beep.ogg:
+    use: A loud beep of a machine scanning someone
+    class: cue
+  ui/Screwdriver.ogg:
+    use: The rhythmic sound of a screwdriver being turned, adjusting a screw
+    class: cue
+  ui/sign_this.ogg:
+    use: The sound of something being written on paper
+    class: cue
+    served: sfx/sign_this.ogg
+  ui/signal.ogg:
+    use: Played over ambience in sanctuary, an alternating beeping of a heart monitor
+    class: atop
+  ui/snap.ogg:
+    use: A sharp slap, snap or smack sound
+    class: cue
+  ui/special_toggle.ogg:
+    use: A fairly notable sound of something mysterious being activated
+    class: cue
+  ui/twobeep.ogg:
+    use: Two series of rapid beeps
+    class: cue
+  ui/ui_lockpicking_pickmovement_01.ogg:
+    use: The rattling of a lockpick
+    class: cue
+  ui/ui_lockpicking_pickmovement_02.ogg:
+    use: The rattling of a lockpick
+    class: cue
+  ui/ui_lockpicking_pickmovement_03.ogg:
+    use: The rattling of a lockpick
+    class: cue
+  ui/ui_lockpicking_pickmovement_04.ogg:
+    use: The rattling of a lockpick
+    class: cue
+  ui/use_card.ogg:
+    use: The sound of a keycard sliding through a scanner
+    class: cue
+  ui/warning-buzzer.ogg:
+    use: A buzzer warning of something changing for a machine
+    class: cue
+    served: sfx/warning-buzzer.ogg
+  ui/Wirecutter.ogg:
+    use: The sound of a wire being cut
+    class: cue
+  ui/xylophone1.ogg:
+    use: Unused
+    class: unused
+  ui/xylophone2.ogg:
+    use: Unused
+    class: unused
+  ui/xylophone3.ogg:
+    use: Unused
+    class: unused
+  ui/zip.ogg:
+    use: The sound of a zipper being zipped open/closed
+    class: cue
+    served: sfx/zip.ogg
+
+  # ---- weapons
+  weapons/2hswing.ogg:
+    use: A hefty weapon being swung
+    class: cue
+  weapons/axe_drop.ogg:
+    use: The sound of a shafted metal weapon being dropped
+    class: cue
+  weapons/axe_sheath.ogg:
+    use: The sound of a short blade being sheathed
+    class: cue
+    served: sfx/axe_sheath.ogg
+  weapons/axe_unsheath.ogg:
+    use: The sound of an axe being unsheathed
+    class: cue
+  weapons/bardiche1.ogg:
+    use: The meaty sound of a polearm striking flesh
+    class: cue
+  weapons/bardiche2.ogg:
+    use: The sound of a polearm striking mail
+    class: cue
+  weapons/bardiche4.ogg:
+    use: The sound of a weapon striking unarmoured flesh, followed by the dripping of blood.
+    class: cue
+  weapons/bars_hit.ogg:
+    use: Metal bars being struck and rung
+    class: cue
+  weapons/bash1.ogg:
+    use: The sound of blunt metal striking something
+    class: cue
+  weapons/bash2.ogg:
+    use: The sound of blunt metal striking something
+    class: cue
+  weapons/blade_parry1.ogg:
+    use: The sound of two blades meeting
+    class: cue
+  weapons/blade_parry2.ogg:
+    use: The sound of two blades meeting
+    class: cue
+  weapons/blade_parry3.ogg:
+    use: The sound of two blades meeting
+    class: cue
+  weapons/blade1.ogg:
+    use: The sound of an energy melee weapon striking something
+    class: cue
+  weapons/bladeparry1.ogg:
+    use: The sound of a hefty blade striking metal armour
+    class: cue
+  weapons/bladeparry2.ogg:
+    use: The sound of a hefty blade striking metal armour
+    class: cue
+  weapons/bladeparry3.ogg:
+    use: The sound of a hefty blade striking another blade
+    class: cue
+  weapons/bladeparry4.ogg:
+    use: The sound of a hefty blade striking another blade
+    class: cue
+  weapons/bladeslice.ogg:
+    use: The sound of a blade slashing flesh
+    class: cue
+  weapons/blt_flesh1.ogg:
+    use: The sound of a projectile embedding itself in flesh
+    class: cue
+  weapons/blt_flesh2.ogg:
+    use: The sound of a projectile embedding itself in flesh
+    class: cue
+  weapons/blt_flesh3.ogg:
+    use: The sound of a bolt/arrow embedding itself in flesh
+    class: cue
+  weapons/blunt_heavy.ogg:
+    use: The sound of a blunt weapon striking armour
+    class: cue
+  weapons/blunt_heavy2.ogg:
+    use: The sound of a blunt weapon striking armour
+    class: cue
+  weapons/blunt_heavy3.ogg:
+    use: The sound of a blunt weapon striking armour
+    class: cue
+  weapons/blunt_light.ogg:
+    use: The sound of a blunt weapon striking flesh
+    class: cue
+  weapons/blunt_light2.ogg:
+    use: The sound of a light blunt weapon striking armour
+    class: cue
+  weapons/blunt_light3.ogg:
+    use: The sound of a blunt weapon striking flesh
+    class: cue
+  weapons/bone_crack.ogg:
+    use: The sound of bone breaking
+    class: cue
+  weapons/bow_draw.ogg:
+    use: The sound of an arrow being notched
+    class: cue
+  weapons/bow_string.ogg:
+    use: The sound of a bow being drawn abck
+    class: cue
+  weapons/boyarin2.ogg:
+    use: The bang of a rifle
+    class: cue
+  weapons/boyarin3.ogg:
+    use: The bang of a rifle
+    class: cue
+  weapons/bullet_heavy.ogg:
+    use: The sound of a bullet ricocheting
+    class: cue
+  weapons/bullet_light.ogg:
+    use: A projectile embedding itself in flesh
+    class: cue
+  weapons/bullethit1.ogg:
+    use: A bullet embedding itself in flesh
+    class: cue
+  weapons/bullethit2.ogg:
+    use: A bullet embedding itself in flesh
+    class: cue
+  weapons/bullethit3.ogg:
+    use: A bullet embedding itself in flesh
+    class: cue
+  weapons/bullethit4.ogg:
+    use: A bullet embedding itself in flesh
+    class: cue
+  weapons/cablecuff.ogg:
+    use: Zipties tightening
+    class: cue
+    served: sfx/cablecuff.ogg
+  weapons/club.ogg:
+    use: A blunt weapon striking flesh
+    class: cue
+  weapons/CombatFail_Fem1.ogg:
+    use: A female exasperated gasp
+    class: cue
+  weapons/CombatFail_Fem2.ogg:
+    use: A female exasperated gasp
+    class: cue
+  weapons/CombatFail_Fem3.ogg:
+    use: A female exasperated gasp
+    class: cue
+  weapons/CombatFail_Fem4.ogg:
+    use: A female exasperated gasp
+    class: cue
+  weapons/CombatFail_Fem5.ogg:
+    use: A female exasperated gasp
+    class: cue
+  weapons/CombatFail_Fem6.ogg:
+    use: A female exasperated gasp
+    class: cue
+    doc: "CombatFail_Fem1.ogg"
+  weapons/CombatFail_Kid1.ogg:
+    use: A child exasperated gasp
+    class: cue
+  weapons/CombatFail_Kid2.ogg:
+    use: A child exasperated gasp
+    class: cue
+  weapons/CombatFail_Kid3.ogg:
+    use: A child exasperated gasp
+    class: cue
+  weapons/CombatFail_Male1.ogg:
+    use: A Male exasperated gasp
+    class: cue
+  weapons/CombatFail_Male2.ogg:
+    use: A Male exasperated gasp
+    class: cue
+  weapons/CombatFail_Male3.ogg:
+    use: A Male exasperated gasp
+    class: cue
+  weapons/CombatFail_Male4.ogg:
+    use: A Male exasperated gasp
+    class: cue
+  weapons/CombatFail_Male5.ogg:
+    use: A Male exasperated gasp
+    class: cue
+  weapons/crossbow_fire.ogg:
+    use: The twang of a bow loosing an arrow
+    class: cue
+  weapons/crossbow_sheath.ogg:
+    use: A bladeless weapon being sheathed
+    class: cue
+  weapons/crossbow_unsheath.ogg:
+    use: A bladeless weapon being unsheathed
+    class: cue
+  weapons/dagger_draw.ogg:
+    use: A short blade being drawn
+    class: cue
+  weapons/dagger_sheath.ogg:
+    use: A blade being sheathed
+    class: cue
+  weapons/drop_sword.ogg:
+    use: A handheld metal item being dropped
+    class: cue
+  weapons/Explosion1.ogg:
+    use: An explosion
+    class: cue
+  weapons/explosionfar.ogg:
+    use: Distant rumble of an explosion
+    class: cue
+  weapons/explosionfar2.ogg:
+    use: Distant rumble of an explosion
+    class: cue
+  weapons/explosionfar3.ogg:
+    use: Distant shockwave of an explosion
+    class: cue
+    served: sfx/explosionfar3.ogg
+  weapons/flail_swing.ogg:
+    use: An object being swung through the air
+    class: cue
+  weapons/flailhit.ogg:
+    use: A blunt weapon striking flesh
+    class: cue
+  weapons/gavel.ogg:
+    use: A hammer striking wood
+    class: cue
+    served: sfx/gavel.ogg
+  weapons/Genhit.ogg:
+    use: An implement striking something soft
+    class: cue
+  weapons/genhit2.ogg:
+    use: Something being bashed
+    class: cue
+  weapons/genhit3.ogg:
+    use: Something being bashed
+    class: cue
+  weapons/get_stuck3.ogg:
+    use: Something metallic getting jammed in armour
+    class: cue
+  weapons/getstuck_dagger.ogg:
+    use: A blade being jammed into flesh
+    class: cue
+  weapons/handcuffs.ogg:
+    use: The click of handcuffs
+    class: cue
+  weapons/hard_fist.ogg:
+    use: An armoured fist striking a target
+    class: cue
+  weapons/hard_fist2.ogg:
+    use: An armoured fist striking a target
+    class: cue
+  weapons/hard_fist3.ogg:
+    use: An armoured fist striking a target
+    class: cue
+  weapons/head_explodie_01.ogg:
+    use: Something fleshy being crushed with a sickening crack
+    class: cue
+  weapons/head_explodie_02.ogg:
+    use: Something fleshy being crushed with a sickening crack
+    class: cue
+  weapons/head_explodie_03.ogg:
+    use: Something fleshy being crushed with a sickening crack
+    class: cue
+  weapons/head_explodie_04.ogg:
+    use: Something fleshy being crushed with a sickening crack
+    class: cue
+  weapons/headbutt.ogg:
+    use: A dull thud of something whamming into something else
+    class: cue
+  weapons/klevec.ogg:
+    use: A blade swinging into flesh
+    class: cue
+  weapons/klevec2.ogg:
+    use: A blade swinging into flesh
+    class: cue
+  weapons/klevec3.ogg:
+    use: A blade swinging into flesh
+    class: cue
+  weapons/knife_drop.ogg:
+    use: A small blade being dropped
+    class: cue
+  weapons/knife_equip.ogg:
+    use: A small blade being equipped
+    class: cue
+    served: sfx/knife_equip.ogg
+  weapons/mace_draw.ogg:
+    use: A weapon with a handle being equipped
+    class: cue
+  weapons/metalwall.ogg:
+    use: Something striking metal ineffectively
+    class: cue
+  weapons/net_captured.ogg:
+    use: A net or rope flying through the air
+    class: cue
+    served: sfx/net_captured.ogg
+  weapons/net_equip.ogg:
+    use: Cloth or rope being handled
+    class: cue
+  weapons/npc_kill_chop_01.ogg:
+    use: A heavy blade cutting into flesh
+    class: cue
+  weapons/npc_kill_chop_02.ogg:
+    use: A heavy blade cutting into flesh
+    class: cue
+  weapons/npc_kill_chop_03.ogg:
+    use: A heavy blade cutting into flesh
+    class: cue
+  weapons/npc_kill_slash_01.ogg:
+    use: A blade slicing flesh
+    class: cue
+  weapons/npc_kill_slash_02.ogg:
+    use: A blade slicing flesh
+    class: cue
+  weapons/npc_kill_slash_03.ogg:
+    use: A blade slicing flesh
+    class: cue
+  weapons/npc_kill_smash_01.ogg:
+    use: A blunt weapon bashing flesh
+    class: cue
+  weapons/npc_kill_smash_02.ogg:
+    use: A blunt weapon bashing flesh
+    class: cue
+  weapons/npc_kill_smash_03.ogg:
+    use: A blunt weapon bashing flesh
+    class: cue
+  weapons/parry.ogg:
+    use: Two metal objects colliding
+    class: cue
+  weapons/pierce.ogg:
+    use: Something being embedded into flesh
+    class: cue
+  weapons/punch1.ogg:
+    use: Something soft being bashed
+    class: cue
+  weapons/punch2.ogg:
+    use: Something soft being bashed
+    class: cue
+  weapons/punch3.ogg:
+    use: Something soft being bashed
+    class: cue
+  weapons/punch4.ogg:
+    use: Something soft being bashed
+    class: cue
+  weapons/punchmiss.ogg:
+    use: A swing going through the air, missing
+    class: cue
+  weapons/rapier.ogg:
+    use: A rapier being drawn
+    class: cue
+  weapons/revolver_close.ogg:
+    use: A chamber closing
+    class: cue
+    served: sfx/revolver_close.ogg
+  weapons/revolver_load1.ogg:
+    use: A bullet being loaded
+    class: cue
+  weapons/revolver_load2.ogg:
+    use: A bullet being loaded
+    class: cue
+  weapons/revolver_open.ogg:
+    use: A chamber opening
+    class: cue
+  weapons/revolver_spin.ogg:
+    use: A revolver being spun
+    class: cue
+  weapons/ric1.ogg:
+    use: A bullet ricocheting
+    class: cue
+  weapons/ric2.ogg:
+    use: A bullet ricocheting
+    class: cue
+  weapons/ric3.ogg:
+    use: A bullet ricocheting
+    class: cue
+  weapons/ric4.ogg:
+    use: A bullet ricocheting
+    class: cue
+  weapons/rifle_cock.ogg:
+    use: A bolt being drawn back and snapping shut
+    class: cue
+  weapons/rifle_loadmag.ogg:
+    use: A magazine being inserted into a gun
+    class: cue
+  weapons/rifle_unload.ogg:
+    use: A magazine being ejected
+    class: cue
+  weapons/rifle1.ogg:
+    use: A rifle firing
+    class: cue
+  weapons/rifle2.ogg:
+    use: A rifle firing
+    class: cue
+  weapons/rifleclip.ogg:
+    use: A rifle clicking, empty
+    class: cue
+  weapons/rock1.ogg:
+    use: A bullet striking stone
+    class: cue
+  weapons/rock2.ogg:
+    use: A bullet striking stone
+    class: cue
+  weapons/rock3.ogg:
+    use: A bullet striking stone
+    class: cue
+  weapons/rock4.ogg:
+    use: A bullet striking stone
+    class: cue
+  weapons/rock5.ogg:
+    use: A bullet striking stone
+    class: cue
+  weapons/sabre_draw.ogg:
+    use: A long blade being drawn
+    class: cue
+  weapons/shield2.ogg:
+    use: An energy field being activated
+    class: cue
+    served: sfx/shield2.ogg
+  weapons/shieldbash.ogg:
+    use: Striking ones weapon against their shield in the off hand for intimidation.
+    class: cue
+  weapons/slash_heavy.ogg:
+    use: A long blade striking metal armour
+    class: cue
+  weapons/slash_heavy2.ogg:
+    use: A long blade striking metal armour
+    class: cue
+  weapons/slash_heavy3.ogg:
+    use: A long blade striking metal armour
+    class: cue
+  weapons/slash_heavy4.ogg:
+    use: A long blade striking metal armour
+    class: cue
+  weapons/slash_light.ogg:
+    use: A blade striking light armour
+    class: cue
+  weapons/slash_light2.ogg:
+    use: A blade striking light armour
+    class: cue
+  weapons/slash_light3.ogg:
+    use: A blade striking light armour
+    class: cue
+  weapons/slash_light4.ogg:
+    use: A blade striking light armour
+    class: cue
+  weapons/slash.ogg:
+    use: A dull slash of a rusty blade
+    class: cue
+    served: sfx/slash.ogg
+  weapons/slash1.ogg:
+    use: Flesh being slashed
+    class: cue
+  weapons/slash2.ogg:
+    use: Flesh being slashed
+    class: cue
+  weapons/slash3.ogg:
+    use: Flesh being slashed
+    class: cue
+  weapons/slash4.ogg:
+    use: Flesh being slashed
+    class: cue
+  weapons/slash5.ogg:
+    use: Flesh being slashed
+    class: cue
+  weapons/slashmiss.ogg:
+    use: Unused
+    class: unused
+  weapons/slice.ogg:
+    use: A blade being embedded in flesh
+    class: cue
+  weapons/smallstab_heavy.ogg:
+    use: A light stab deflected by metal armour
+    class: cue
+  weapons/smallstab_light.ogg:
+    use: A light stab hitting light armour
+    class: cue
+  weapons/smallstab.ogg:
+    use: A light stab
+    class: cue
+    served: sfx/smallstab.ogg
+  weapons/smallstab2.ogg:
+    use: A light stab
+    class: cue
+  weapons/smash.ogg:
+    use: Metal smashing into something
+    class: cue
+  weapons/smg_fire_new.ogg:
+    use: A low calibre gunshot
+    class: cue
+    served: sfx/smg_fire_new.ogg
+  weapons/smg_fire_new2.ogg:
+    use: A low calibre gunshot
+    class: cue
+  weapons/soft_fist1.ogg:
+    use: A weak bash
+    class: cue
+  weapons/soft_fist2.ogg:
+    use: A weak bash
+    class: cue
+  weapons/soft_fist3.ogg:
+    use: A weak bash
+    class: cue
+  weapons/spearthroughmail.ogg:
+    use: A polearm embedding into flesh
+    class: cue
+  weapons/spearthroughmail2.ogg:
+    use: A polearm embedding into flesh through armour
+    class: cue
+  weapons/spearthroughmail3.ogg:
+    use: A polearm embedding into flesh through armour
+    class: cue
+  weapons/spearthroughmail4.ogg:
+    use: A polearm embedding into flesh through armour
+    class: cue
+  weapons/stab_heavy1.ogg:
+    use: A stab deflected by metal
+    class: cue
+  weapons/stab_heavy2.ogg:
+    use: A stab deflected by metal
+    class: cue
+  weapons/stab_heavy3.ogg:
+    use: A stab deflected by metal
+    class: cue
+  weapons/stab_light2.ogg:
+    use: A stab deflected by light armour
+    class: cue
+  weapons/stab_light3.ogg:
+    use: A stab deflected by light armour
+    class: cue
+  weapons/staff_equip.ogg:
+    use: A two handed polearm being equipped
+    class: cue
+  weapons/struggle_1.ogg:
+    use: Wrestling
+    class: cue
+  weapons/struggle_2.ogg:
+    use: Wrestling
+    class: cue
+  weapons/struggle_3.ogg:
+    use: Wrestling
+    class: cue
+  weapons/struggle_4.ogg:
+    use: Wrestling
+    class: cue
+  weapons/swing_01.ogg:
+    use: Something being swung through the air
+    class: cue
+  weapons/swing_02.ogg:
+    use: Something being swung through the air
+    class: cue
+  weapons/swing_03.ogg:
+    use: Something being swung through the air
+    class: cue
+  weapons/sword_hit1.ogg:
+    use: A blade striking flesh
+    class: cue
+  weapons/sword_hit2.ogg:
+    use: A blade striking flesh
+    class: cue
+  weapons/sword_sheath_01.ogg:
+    use: A blade being sheathed
+    class: cue
+  weapons/sword_sheath_02.ogg:
+    use: A blade being sheathed
+    class: cue
+  weapons/sword_unsheath_01.ogg:
+    use: A blade being drawn
+    class: cue
+    served: sfx/sword_unsheath_01.ogg
+  weapons/sword_unsheath_02.ogg:
+    use: A blade being drawn
+    class: cue
+  weapons/sword_unsheath_03.ogg:
+    use: A blade being drawn
+    class: cue
+  weapons/tablehit1.ogg:
+    use: A sharp crack of two pieces of wood colliding
+    class: cue
+  weapons/throwtap.ogg:
+    use: Something softly landing
+    class: cue
+  weapons/thudswoosh.ogg:
+    use: A character attempting to disarm another
+    class: cue
+  weapons/unholster.ogg:
+    use: A gun being drawn and cocked
+    class: cue
+    served: sfx/unholster.ogg
+  weapons/wallhit.ogg:
+    use: A stone wall being hit with tremendous force
+    class: cue
+  weapons/wallhit2.ogg:
+    use: A stone wall being hit with tremendous force
+    class: cue
+  weapons/wallhit3.ogg:
+    use: A stone wall being hit with tremendous force
+    class: cue
+  weapons/woodhit.ogg:
+    use: The whip and crack of a wooden instrument striking something
+    class: cue
+  weapons/wpn_swing_axe_01.ogg:
+    use: An axe being swung through the air
+    class: cue
+  weapons/wpn_swing_axe_02.ogg:
+    use: An axe being swung through the air
+    class: cue
+
+  # ---- world
+  world/airlock_open_force.ogg:
+    use: A whirring mechanical opening of shutters
+    class: cue
+    served: sfx/airlock_open_force.ogg
+  world/airlock_open.ogg:
+    use: A mechanical airlock opening
+    class: cue
+    served: sfx/airlock_open.ogg
+  world/body-hauberk-1.ogg:
+    use: Mail armour clinking together
+    class: cue
+    served: sfx/body-hauberk-1.ogg
+  world/body-hauberk-2.ogg:
+    use: Mail armour clinking together
+    class: cue
+  world/body-hauberk-3.ogg:
+    use: Mail armour clinking together
+    class: cue
+  world/body-hauberk-4.ogg:
+    use: Mail armour clinking together
+    class: cue
+  world/body-hauberk-5.ogg:
+    use: Mail armour clinking together
+    class: cue
+  world/carpet_step1.ogg:
+    use: A character walking on carpet
+    class: cue
+    served: sfx/carpet_step1.ogg
+  world/carpet_step2.ogg:
+    use: A character walking on carpet
+    class: cue
+    served: sfx/carpet_step2.ogg
+  world/carpet_step3.ogg:
+    use: A character walking on carpet
+    class: cue
+    served: sfx/carpet_step3.ogg
+  world/carpet_step4.ogg:
+    use: A character walking on carpet
+    class: cue
+    served: sfx/carpet_step4.ogg
+  world/carpet_step5.ogg:
+    use: A character walking on carpet
+    class: cue
+    served: sfx/carpet_step5.ogg
+  world/carpet_step6.ogg:
+    use: A character walking on carpet
+    class: cue
+    served: sfx/carpet_step6.ogg
+  world/carpet_step7.ogg:
+    use: A character walking on carpet
+    class: cue
+    served: sfx/carpet_step7.ogg
+  world/carpet_step8.ogg:
+    use: A character walking on carpet
+    class: cue
+    served: sfx/carpet_step8.ogg
+  world/chairfall.ogg:
+    use: A soft thud of something firm hitting the ground
+    class: cue
+  world/climb.ogg:
+    use: The sound of someone climbing up something
+    class: cue
+  world/closet_close.ogg:
+    use: A wardrobe being closed
+    class: cue
+  world/closet_open.ogg:
+    use: The sharp sound of something opening
+    class: cue
+  world/cloth_rip.ogg:
+    use: Cloth being torn
+    class: cue
+    served: sfx/cloth_rip.ogg
+  world/dirt1.wav:
+    use: A character walking on dirt
+    class: cue
+    served: sfx/dirt1.wav
+  world/dirt2.wav:
+    use: A character walking on dirt
+    class: cue
+    served: sfx/dirt2.wav
+  world/dirt3.wav:
+    use: A character walking on dirt
+    class: cue
+    served: sfx/dirt3.wav
+  world/dirt4.wav:
+    use: A character walking on dirt
+    class: cue
+    served: sfx/dirt4.wav
+  world/door_close2.ogg:
+    use: A metal door being closed by motors
+    class: cue
+  world/door_open2.ogg:
+    use: A metal door being opened by motors
+    class: cue
+  world/doorcreaky.ogg:
+    use: A creaky wooden door opening
+    class: cue
+  world/double_close.ogg:
+    use: Something closing with a loud sound then a click
+    class: cue
+  world/double_open1.ogg:
+    use: Something opening with click and the sound of it swinging open
+    class: cue
+    doc: "Double_open.ogg"
+  world/drsc_treasure_close_01.ogg:
+    use: A container closing
+    class: cue
+  world/drsc_treasure_open_01.ogg:
+    use: A container opening
+    class: cue
+  world/drsc_wardrobe_close_01.ogg:
+    use: A container closing
+    class: cue
+  world/drsc_wardrobe_open_02.ogg:
+    use: A container opening
+    class: cue
+  world/fallsmash.ogg:
+    use: Something hitting the ground with a loud crunch
+    class: cue
+  world/gateclose.ogg:
+    use: A gate closing
+    class: cue
+  world/gateopen.ogg:
+    use: A gate opening
+    class: cue
+  world/glass_step.ogg:
+    use: The sound of broken glass
+    class: cue
+  world/Glassbr1.ogg:
+    use: The sound of glass breaking
+    class: cue
+  world/Glassbr2.ogg:
+    use: The sound of glass breaking
+    class: cue
+  world/Glasshit.ogg:
+    use: The sound of something hitting a pane of glass
+    class: cue
+  world/glassknock.ogg:
+    use: Someone knocking on a glass pane
+    class: cue
+  world/grass1.wav:
+    use: Walking on grass
+    class: cue
+    served: sfx/grass1.wav
+  world/grass2.wav:
+    use: Walking on grass
+    class: cue
+    served: sfx/grass2.wav
+  world/grass3.wav:
+    use: Walking on grass
+    class: cue
+    served: sfx/grass3.wav
+  world/grass4.wav:
+    use: Walking on grass
+    class: cue
+    served: sfx/grass4.wav
+  world/iron_crate_close.ogg:
+    use: Closing a metal container
+    class: cue
+  world/iron_crate_open.ogg:
+    use: Opening a metal container
+    class: cue
+  world/ladder.ogg:
+    use: Climbing a ladder
+    class: cue
+  world/lava_close.ogg:
+    use: The sound of the lava pit closing
+    class: cue
+  world/lava_open.ogg:
+    use: The lava pit opening
+    class: cue
+  world/lightbreak.ogg:
+    use: A light shattering and zapping
+    class: cue
+  world/lockpick_break.ogg:
+    use: A small piece of metal snapping
+    class: cue
+  world/maint_close.ogg:
+    use: A maintenance hatch closing
+    class: cue
+  world/ontable.ogg:
+    use: Walking on a table
+    class: cue
+  world/rollermove.ogg:
+    use: A trolley moving
+    class: cue
+  world/slip.ogg:
+    use: A character slipping on something
+    class: cue
+  world/slosh.ogg:
+    use: Something being dunked in water
+    class: cue
+  world/slosh1.wav:
+    use: Something sloshing in water
+    class: cue
+  world/slosh2.wav:
+    use: Something sloshing in water
+    class: cue
+  world/slosh3.wav:
+    use: Something sloshing in water
+    class: cue
+  world/slosh4.wav:
+    use: Something sloshing in water
+    class: cue
+  world/smallfall.ogg:
+    use: Something falling to the ground
+    class: cue
+  world/snowstep1.ogg:
+    use: Walking in snow
+    class: cue
+  world/snowstep2.ogg:
+    use: Walking in snow
+    class: cue
+  world/snowstep3.ogg:
+    use: Walking in snow
+    class: cue
+  world/snowstep4.ogg:
+    use: Walking in snow
+    class: cue
+  world/step_water1.ogg:
+    use: Walking through a puddle
+    class: cue
+  world/step_water2.ogg:
+    use: Walking through a puddle
+    class: cue
+  world/step_water3.ogg:
+    use: Walking through a puddle
+    class: cue
+  world/step_water4.ogg:
+    use: Walking through a puddle
+    class: cue
+  world/stonedoor_openclose.ogg:
+    use: A stone being shifted to the side
+    class: cue
+  world/teleport.ogg:
+    use: A mechanical whirr
+    class: cue
+    served: sfx/teleport.ogg
+  world/torch_fixture0.ogg:
+    use: A torch being taken from a wall mounting
+    class: cue
+  world/torch_fixture1.ogg:
+    use: A torch being placed on a wall mounting
+    class: cue
+    doc: "Torch_fixture0.ogg"
+  world/torch_light.ogg:
+    use: A torch catching fire
+    class: cue
+  world/torch_pickup.ogg:
+    use: A torch being jostled around while alight
+    class: cue
+    served: sfx/torch_pickup.ogg
+  world/torch_snuff.ogg:
+    use: Fire being extinguished
+    class: cue
+  world/train_arrive.ogg:
+    use: The sound of the mechanical system the hearer is on starting up
+    class: cue
+    served: sfx/train_arrive.ogg
+  world/trap_arm.ogg:
+    use: A snare being set, ready to activate
+    class: cue
+  world/trap.ogg:
+    use: A spring being wound up
+    class: cue
+  world/water_max1.ogg:
+    use: Water sloshing
+    class: cue
+  world/water_max2.ogg:
+    use: Water sloshing
+    class: cue
+  world/witch_teleport.ogg:
+    use: The sound of something vanishing/appearing from thin air
+    class: cue
+  world/wlocked1.ogg:
+    use: A locked door having the knob rattled
+    class: cue
+    served: sfx/wlocked1.ogg
+  world/wlocked2.ogg:
+    use: A locked door having the knob rattled
+    class: cue
+  world/wood_close.ogg:
+    use: A wooden door closing
+    class: cue
+  world/wood_open.ogg:
+    use: A wooden door opening
+    class: cue
+    served: sfx/wood_open.ogg
+  world/wood_step1_old.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step1.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step2_old.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step2.ogg:
+    use: Taking a step on wood
+    class: cue
+    served: sfx/wood_step2.ogg
+  world/wood_step3_old.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step3.ogg:
+    use: Taking a step on wood
+    class: cue
+    served: sfx/wood_step3.ogg
+  world/wood_step4_old.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step4.ogg:
+    use: Taking a step on wood
+    class: cue
+    served: sfx/wood_step4.ogg
+  world/wood_step5_old.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step5.ogg:
+    use: Taking a step on wood
+    class: cue
+    served: sfx/wood_step5.ogg
+  world/wood_step6_old.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step6.ogg:
+    use: Taking a step on wood
+    class: cue
+    served: sfx/wood_step6.ogg
+  world/wood_step7_old.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step7.ogg:
+    use: Taking a step on wood
+    class: cue
+    served: sfx/wood_step7.ogg
+  world/wood_step8_old.ogg:
+    use: Taking a step on wood
+    class: cue
+  world/wood_step8.ogg:
+    use: Taking a step on wood
+    class: cue
+    served: sfx/wood_step8.ogg
+  world/wooden_move.ogg:
+    use: Wooden furniture being shifted
+    class: cue

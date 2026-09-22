@@ -15,56 +15,128 @@
 // hand-typed number, but a picker UI showing "3:57" before the element has loaded needs
 // this.
 
+// EVERY `name` BELOW IS BASCINET'S OWN, out of the design document by way of
+// docs/sounds.yaml, and carried across verbatim rather than title-cased. They used to be
+// derived from the filename — "B1", "Bard 3", "Newbar 46" — which told a player nothing
+// about what they were about to play. `key` is untouched: a Performance row names a song by
+// key, so renaming one would orphan a live performance.
 const INSTRUMENT_SONGS = {
   accordion: [
-    { key: "b1", name: "B1", src: "/assets/instruments/accordion/b1.ogg", seconds: 97.4 },
-    { key: "b2", name: "B2", src: "/assets/instruments/accordion/b2.ogg", seconds: 50.8 },
-    { key: "b3", name: "B3", src: "/assets/instruments/accordion/b3.ogg", seconds: 133.0 },
-    { key: "b4", name: "B4", src: "/assets/instruments/accordion/b4.ogg", seconds: 142.6 },
-    { key: "b5", name: "B5", src: "/assets/instruments/accordion/b5.ogg", seconds: 113.0 },
-    { key: "b6", name: "B6", src: "/assets/instruments/accordion/b6.ogg", seconds: 17.4 },
-    { key: "b7", name: "B7", src: "/assets/instruments/accordion/b7.ogg", seconds: 93.5 },
-    { key: "b8", name: "B8", src: "/assets/instruments/accordion/b8.ogg", seconds: 42.8 },
+    { key: "b1", name: "Salar song, Korobeiniki", src: "/assets/instruments/accordion/b1.ogg", seconds: 97.4 },
+    { key: "b2", name: "Mortal Kombat theme", src: "/assets/instruments/accordion/b2.ogg", seconds: 50.8 },
+    { key: "b3", name: "Wistful tune", src: "/assets/instruments/accordion/b3.ogg", seconds: 133.0 },
+    { key: "b4", name: "Carnival Waltz", src: "/assets/instruments/accordion/b4.ogg", seconds: 142.6 },
+    { key: "b5", name: "Caver Shanty", src: "/assets/instruments/accordion/b5.ogg", seconds: 113.0 },
+    { key: "b6", name: "Sounds like shit", src: "/assets/instruments/accordion/b6.ogg", seconds: 17.4 },
+    { key: "b7", name: "Song of heroism", src: "/assets/instruments/accordion/b7.ogg", seconds: 93.5 },
+    { key: "b8", name: "Merry Dance", src: "/assets/instruments/accordion/b8.ogg", seconds: 42.8 },
   ],
 
+  // Six files, which is exactly what the document's lute table lists. `song_game` used to
+  // be a seventh, borrowed out of web/public/assets/music/; the document gives that file to
+  // the inn instead ("Ambience within the inn"), so it is the inn's now and not the lute's.
   lute: [
-    { key: "balalaika1", name: "Balalaika", src: "/assets/instruments/lute/balalaika1.ogg", seconds: 90.2 },
-    { key: "bard1", name: "Bard 1", src: "/assets/instruments/lute/bard1.ogg", seconds: 38.2 },
-    { key: "bard2", name: "Bard 2", src: "/assets/instruments/lute/bard2.ogg", seconds: 40.5 },
-    { key: "bard3", name: "Bard 3", src: "/assets/instruments/lute/bard3.ogg", seconds: 36.5 },
-    { key: "bard4", name: "Bard 4", src: "/assets/instruments/lute/bard4.ogg", seconds: 25.6 },
-    { key: "bard5", name: "Bard 5", src: "/assets/instruments/lute/bard5.ogg", seconds: 105.2 },
-    { key: "song_game", name: "Song Game", src: "/assets/music/song_game.ogg", seconds: 231.0 },
+    {
+      key: "balalaika1",
+      name: "A rising salar tune for dance",
+      src: "/assets/instruments/lute/balalaika1.ogg",
+      seconds: 90.2,
+    },
+    { key: "bard1", name: "A soothing melody", src: "/assets/instruments/lute/bard1.ogg", seconds: 38.2 },
+    { key: "bard2", name: "Every strum cuts deep", src: "/assets/instruments/lute/bard2.ogg", seconds: 40.5 },
+    { key: "bard3", name: "Peaceful sleep takes all", src: "/assets/instruments/lute/bard3.ogg", seconds: 36.5 },
+    { key: "bard4", name: "A lively serenade", src: "/assets/instruments/lute/bard4.ogg", seconds: 25.6 },
+    {
+      key: "bard5",
+      name: "Compelling schemes and revelations",
+      src: "/assets/instruments/lute/bard5.ogg",
+      seconds: 105.2,
+    },
   ],
 
   // A boombox is the one instrument playing somebody ELSE's recording rather than a
-  // performance of its own, so its catalog is songs rather than instrument samples.
-  // `song_game` sits on the lute instead, reusing web/public/assets/music/song_game.ogg rather
-  // than a second copy.
+  // performance of its own, so its catalog is songs rather than instrument samples — and
+  // the document names them from inside the setting, which is why a real-world title like
+  // Space Oddity reads here as "A tape floating in space".
   boombox: [
-    { key: "newbar3", name: "Newbar 3", src: "/assets/instruments/boombox/newbar3.ogg", seconds: 165.1 },
-    { key: "newbar46", name: "Newbar 46", src: "/assets/instruments/boombox/newbar46.ogg", seconds: 187.5 },
-    { key: "newbar59", name: "Newbar 59", src: "/assets/instruments/boombox/newbar59.ogg", seconds: 180.0 },
-    { key: "newbar9", name: "Newbar 9", src: "/assets/instruments/boombox/newbar9.ogg", seconds: 242.6 },
-    { key: "ainda-e-cedo", name: "Ainda e Cedo", src: "/assets/instruments/boombox/ainda-e-cedo.ogg", seconds: 237.8 },
-    { key: "boate-azul", name: "Boate Azul", src: "/assets/instruments/boombox/boate-azul.ogg", seconds: 200.2 },
-    { key: "como-eu-quero", name: "Como eu Quero", src: "/assets/instruments/boombox/como-eu-quero.ogg", seconds: 252.3 },
-    { key: "cowboy-fora-da-lei", name: "Cowboy Fora da Lei", src: "/assets/instruments/boombox/cowboy-fora-da-lei.ogg", seconds: 214.9 },
-    { key: "fixacao", name: "Fixacao", src: "/assets/instruments/boombox/fixacao.ogg", seconds: 381.5 },
-    { key: "metamorfose-ambulante", name: "Metamorfose Ambulante", src: "/assets/instruments/boombox/metamorfose-ambulante.ogg", seconds: 227.6 },
-    { key: "solidao-de-volta", name: "Solidao de Volta", src: "/assets/instruments/boombox/solidao-de-volta.ogg", seconds: 162.1 },
-    { key: "boombox10", name: "Boombox 10", src: "/assets/instruments/boombox/boombox10.ogg", seconds: 193.6 },
-    { key: "boombox3", name: "Boombox 3", src: "/assets/instruments/boombox/boombox3.ogg", seconds: 127.8 },
-    { key: "boombox4", name: "Boombox 4", src: "/assets/instruments/boombox/boombox4.ogg", seconds: 202.1 },
-    { key: "boombox8", name: "Boombox 8", src: "/assets/instruments/boombox/boombox8.ogg", seconds: 200.9 },
-    { key: "space_asshole", name: "Space Asshole", src: "/assets/instruments/boombox/space_asshole.ogg", seconds: 256.2 },
-    { key: "space_oddity", name: "Space Oddity", src: "/assets/instruments/boombox/space_oddity.ogg", seconds: 318.0 },
-    { key: "title1", name: "Title 1", src: "/assets/instruments/boombox/title1.ogg", seconds: 150.6 },
-    { key: "csrio", name: "Curio", src: "/assets/instruments/boombox/csrio.ogg", seconds: 166.0 },
-    { key: "clown", name: "Clown", src: "/assets/instruments/boombox/clown.ogg", seconds: 107.3 },
-    { key: "clouds", name: "Clouds", src: "/assets/instruments/boombox/clouds.ogg", seconds: 176.3 },
-    { key: "fuckup", name: "Fuckup", src: "/assets/instruments/boombox/fuckup.ogg", seconds: 335.7 },
-    { key: "indihome", name: "Indihome", src: "/assets/instruments/boombox/indihome.ogg", seconds: 30.7 },
+    { key: "newbar3", name: "Dance hall groove", src: "/assets/instruments/boombox/newbar3.ogg", seconds: 165.1 },
+    { key: "newbar46", name: "Den song", src: "/assets/instruments/boombox/newbar46.ogg", seconds: 187.5 },
+    {
+      key: "newbar59",
+      name: "All Pigs Must Die, Den song",
+      src: "/assets/instruments/boombox/newbar59.ogg",
+      seconds: 180.0,
+    },
+    { key: "newbar9", name: "Den song", src: "/assets/instruments/boombox/newbar9.ogg", seconds: 242.6 },
+    { key: "ainda-e-cedo", name: "Blackstone pop", src: "/assets/instruments/boombox/ainda-e-cedo.ogg", seconds: 237.8 },
+    {
+      key: "boate-azul",
+      name: "Blackstone romantic song",
+      src: "/assets/instruments/boombox/boate-azul.ogg",
+      seconds: 200.2,
+    },
+    {
+      key: "como-eu-quero",
+      name: "Blackstone soft rock",
+      src: "/assets/instruments/boombox/como-eu-quero.ogg",
+      seconds: 252.3,
+    },
+    {
+      key: "cowboy-fora-da-lei",
+      name: "Blackstone Country",
+      src: "/assets/instruments/boombox/cowboy-fora-da-lei.ogg",
+      seconds: 214.9,
+    },
+    {
+      key: "fixacao",
+      name: "Blackstone mainstream slop",
+      src: "/assets/instruments/boombox/fixacao.ogg",
+      seconds: 381.5,
+    },
+    {
+      key: "metamorfose-ambulante",
+      name: "Blackstone strumming",
+      src: "/assets/instruments/boombox/metamorfose-ambulante.ogg",
+      seconds: 227.6,
+    },
+    {
+      key: "solidao-de-volta",
+      name: "Blackstone Overdose",
+      src: "/assets/instruments/boombox/solidao-de-volta.ogg",
+      seconds: 162.1,
+    },
+    { key: "boombox10", name: "A country deluge", src: "/assets/instruments/boombox/boombox10.ogg", seconds: 193.6 },
+    { key: "boombox3", name: "A decrepit tape", src: "/assets/instruments/boombox/boombox3.ogg", seconds: 127.8 },
+    { key: "boombox4", name: "Lord of the Game", src: "/assets/instruments/boombox/boombox4.ogg", seconds: 202.1 },
+    { key: "boombox8", name: "Gahan Techno", src: "/assets/instruments/boombox/boombox8.ogg", seconds: 200.9 },
+    {
+      key: "space_asshole",
+      name: "A long forgotten song, amongst the stars",
+      src: "/assets/instruments/boombox/space_asshole.ogg",
+      seconds: 256.2,
+    },
+    {
+      key: "space_oddity",
+      name: "A tape floating in space",
+      src: "/assets/instruments/boombox/space_oddity.ogg",
+      seconds: 318.0,
+    },
+    {
+      key: "title1",
+      name: "Another day on the station",
+      src: "/assets/instruments/boombox/title1.ogg",
+      seconds: 150.6,
+    },
+    { key: "csrio", name: "Blackstone Hooliganry", src: "/assets/instruments/boombox/csrio.ogg", seconds: 166.0 },
+    { key: "clown", name: "Honk", src: "/assets/instruments/boombox/clown.ogg", seconds: 107.3 },
+    { key: "clouds", name: "Heretical New wave", src: "/assets/instruments/boombox/clouds.ogg", seconds: 176.3 },
+    {
+      key: "fuckup",
+      name: "Experimental Ginkese music",
+      src: "/assets/instruments/boombox/fuckup.ogg",
+      seconds: 335.7,
+    },
+    { key: "indihome", name: "Rahalian brainrot", src: "/assets/instruments/boombox/indihome.ogg", seconds: 30.7 },
   ],
 };
 

@@ -31,7 +31,16 @@ for dir in "$@"; do
     out="$(ffmpeg -nostats -i "$f" -af ebur128=peak=true -f null - 2>&1 | tail -20)"
     lufs="$(printf '%s' "$out" | grep -o 'I: *-\?[0-9.]*' | tail -1 | tr -d 'I: ')"
     peak="$(printf '%s' "$out" | grep -o 'Peak: *-\?[0-9.]*' | tail -1 | sed 's/Peak: *//')"
-    secs="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" | cut -d. -f1)"
+    # ffprobe ships with ffmpeg, but not on every machine that has ffmpeg — a bare
+    # ffmpeg.exe dropped on PATH is common on Windows. ffmpeg prints the duration itself
+    # while decoding, so fall back to reading it out of the run we already did.
+    if command -v ffprobe >/dev/null; then
+      secs="$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$f" | cut -d. -f1)"
+    else
+      secs="$(ffmpeg -nostats -i "$f" -f null - 2>&1 |
+        sed -n 's/.*Duration: \([0-9]*\):\([0-9]*\):\([0-9]*\).*/\1 \2 \3/p' | head -1 |
+        awk '{ print $1 * 3600 + $2 * 60 + $3 }')"
+    fi
     [ -n "$lufs" ] || continue
     awk -v n="$(basename "$f")" -v l="$lufs" -v p="${peak:-0}" -v s="${secs:-0}" 'BEGIN{
       printf "%-32s %8.1f %8.1f %8d  ", n, l, p, s

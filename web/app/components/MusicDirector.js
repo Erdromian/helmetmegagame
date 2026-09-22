@@ -19,8 +19,8 @@ import { musicIsAudible, useSound } from "./soundStore";
 //   a person is standing.
 //
 //   The conductor — an ordinary living character in a running game. One timeline of
-//   ambient for the place, now and then a music track, and mostly silence between
-//   (musicConductor.js).
+//   whatever the place sounds like, spots over the top of it, and mostly silence
+//   between (musicConductor.js).
 //
 //   Nothing, on a GM desk.
 //

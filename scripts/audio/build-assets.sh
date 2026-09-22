@@ -18,22 +18,31 @@ OUT="$ROOT/web/public/assets"
 
 command -v ffmpeg >/dev/null || { echo "no ffmpeg — apt-get install ffmpeg" >&2; exit 1; }
 
-# The general music rotation: the ambient bus's big brother, one track at a time with
-# minutes of nothing between them.
-# white_waking_1 is served as white_waking.ogg and song_game/b12 keep their names —
-# musicProgram.js's three phase tapes name those files.
+# Served into music/. Mostly THE LOBBY: six tracks in an hourly rotation plus white_waking
+# in the rare slot (musicProgram.js), which is what the design document's nine `Lobby Music`
+# rows come to. white_waking_1 is served as white_waking.ogg because the phase tape names it
+# that.
+#
+# song_game, surfacing and the_collective are here rather than in AMBIENCE because they are
+# long tracks the document gives to a PLACE — the inn, the surface, THEY — and
+# placeAmbience.js names them at /assets/music/ the way it already does the winds.
+#
+# GONE FROM THIS LIST: b12_combined_start, graceperiod and morning, all three marked Unused
+# in docs/sounds.yaml. Their files are still in web/public/assets/music/; nothing plays them
+# and a re-run no longer reproduces them.
 MUSIC="
 music/white_waking_1.ogg:white_waking.ogg
-music/song_game.ogg
-music/b12_combined_start.ogg
 music/a-thousand-empty-rooms.ogg
-music/haruspex.ogg
-music/surfacing.ogg
-music/graceperiod.ogg
-music/holywarlobby.ogg
-music/the_collective.ogg
-music/morning.ogg
 music/newlobby31.ogg
+music/outpost.ogg:outpost.ogg:+4.8dB
+music/track3.ogg
+music/track13.ogg
+music/beyondretrieval.ogg
+music/haruspex.ogg
+music/holywarlobby.ogg
+music/song_game.ogg
+music/surfacing.ogg
+music/the_collective.ogg
 "
 
 # A lute, an accordion, a boombox — the `player`/`room` layers (SOUND.md §3).
@@ -84,12 +93,19 @@ instruments/boombox/clouds.ogg
 
 # Beds and spots. Anything a PLACE sounds like rather than anything the game is
 # feeling — see web/app/components/placeAmbience.js for which goes where.
+#
+# track3, track13, outpost and beyondretrieval have moved to MUSIC above: the document calls
+# all four Lobby Music, and they were the INDOORS bed only because a filename is all anybody
+# had to go on before it arrived.
 AMBIENCE="
-music/track3.ogg
-music/track13.ogg
-music/outpost.ogg
-music/beyondretrieval.ogg
 music/pathologic.ogg:pathologic.ogg:+8.7dB
+music/sacred_dagger.ogg
+music/to_hell.ogg
+ambience/ambigen6.ogg
+ambience/loop_airy1.ogg
+ambience/loop_airy4.ogg
+ambience/loop_altar.ogg
+ambience/charon_loop.ogg
 ambience/ambigen11.ogg
 ambience/ambigen12.ogg
 ambience/ambimine.ogg

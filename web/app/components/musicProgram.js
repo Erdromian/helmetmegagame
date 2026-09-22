@@ -20,10 +20,13 @@ import { musicIsAudible } from "./soundStore";
 // advances off the element's own `ended` event, so a stalled buffer on a phone delays the
 // tape rather than desyncing it.
 //
-// The tapes below are the ones the GAME PHASE picks — the closed door, the lobby, rolling
-// a character. Under a running game with a character, musicConductor.js takes over
-// instead: what a PLACE sounds like lives in placeAmbience.js, and the game's music in the
-// conductor's own track list.
+// The tapes below are the ones the GAME PHASE picks: the closed door, and the lobby. Under
+// a running game with a character, musicConductor.js takes over instead, and what a PLACE
+// sounds like lives in placeAmbience.js.
+//
+// THERE IS NO CREATION TAPE. Rolling a character happens in the lobby, so it hears the
+// lobby, which is also the whole of what the design document says about it — see
+// docs/sounds.yaml, where the file that used to play here is one of the 23 marked Unused.
 //
 // NO STEP CARRIES A LEVEL any more unless it means something. Each file's loudness is
 // measured into musicGain.js and applied under the step, so a `gain` here now reads as
@@ -40,6 +43,52 @@ const WINDS = [
   "wind_3_1.ogg",
   "wind_2_1.ogg",
 ];
+
+// THE LOBBY. "A track is always playing, and all players in the lobby hear the same track
+// looping. Tracks loop for roughly an hour before another track starts looping." — the
+// design document, and the one rule here that is about more than one listener.
+//
+// Which track is therefore NOT a choice this browser gets to make. It comes off the wall
+// clock: the hour number picks the track, and the same hour number is the anchor, so a
+// player arriving forty minutes in is sought forty minutes into the loop rather than
+// starting it again (music.js#positionFor wraps for a looping track). Two browsers agree
+// because neither of them decided anything.
+//
+// A shared rotation is the reason there is no `pick` here and no Math.random anywhere near
+// it: `pick` rolls per browser, which is exactly the thing that would break.
+const LOBBY_SLOT_MS = 60 * 60 * 1000;
+
+const LOBBY_TRACKS = [
+  "a-thousand-empty-rooms.ogg",
+  "beyondretrieval.ogg",
+  "newlobby31.ogg",
+  "outpost.ogg",
+  "track3.ogg",
+  "track13.ogg",
+];
+
+// "Rare Lobby Music", so it takes one slot in twelve rather than a turn in the rotation.
+// The slot number decides, not a roll, for the same reason as above — a rare track that
+// only some of the lobby could hear would not be rare, it would be broken.
+const RARE_TRACK = "white_waking.ogg";
+const RARE_ONE_IN = 12;
+
+export function lobbySlot(now = Date.now()) {
+  return Math.floor(now / LOBBY_SLOT_MS);
+}
+
+export function lobbyTrackFor(slot) {
+  if (slot % RARE_ONE_IN === 0) return RARE_TRACK;
+  // The rare slots are skipped rather than overwritten, so the ordinary rotation is not
+  // quietly short of one track every twelfth hour.
+  const ordinary = slot - Math.floor(slot / RARE_ONE_IN) - 1;
+  return LOBBY_TRACKS[((ordinary % LOBBY_TRACKS.length) + LOBBY_TRACKS.length) % LOBBY_TRACKS.length];
+}
+
+/** Milliseconds until the track changes over. The tape's `hold`, so it advances on the hour. */
+export function lobbySlotRemaining(now = Date.now()) {
+  return LOBBY_SLOT_MS - (now % LOBBY_SLOT_MS);
+}
 
 export const PROGRAMS = {
   // The door is shut. Wind for about a minute, then — once, and only once per page load —
@@ -71,28 +120,13 @@ export const PROGRAMS = {
     ],
   },
 
-  // The lobby. One song, a five-second tail, fifteen seconds of nothing, again.
+  // The lobby, and rolling a character, which happens in it. One track, looping, the same
+  // one for everybody, changing on the hour. `shared` is what makes it the same one —
+  // see lobbyTrackFor() above. No silence between: the document says a track is ALWAYS
+  // playing here, which is the opposite of the ambient bus's mostly-silence rule.
   lobby: {
     layer: "music",
-    steps: [
-      { id: "song", src: "song_game.ogg", fadeOutMs: 5000 },
-      { silenceMs: 15_000 },
-      { goto: 0 },
-    ],
-  },
-
-  // Rolling a character. Its own track, not the lobby's, but the same shape: the intro is
-  // odd, so only the FIRST pass hears it; every pass after that starts at 0:18 and fades in
-  // over a second.
-  creation: {
-    layer: "music",
-    steps: [
-      { id: "first", src: "b12_combined_start.ogg", startAt: 0 },
-      { silenceMs: 10_000 },
-      { id: "again", src: "b12_combined_start.ogg", startAt: 18, fadeInMs: 1000 },
-      { silenceMs: 10_000 },
-      { goto: 2 },
-    ],
+    steps: [{ id: "hour", shared: true, loop: true, fadeInMs: 2000, fadeOutMs: 4000 }, { goto: 0 }],
   },
 };
 
@@ -176,9 +210,13 @@ export function resolveProgram(phase, pathname = "") {
   // only stamps a LobbyEntry. So LOBBY *with* a living character is reachable only by a
   // GM who used the Skip button — somebody testing — and they were the one person being
   // handed the wrong soundtrack for the place they were standing in.
+  //
+  // With no living character it is the lobby, whatever the phase says. Creation is not a
+  // phase of its own — it is what /character renders for somebody with no character once
+  // the game is past LOBBY (LOBBY.md §1) — and it happens in the lobby, so it hears the
+  // lobby. This used to be two rows, the second of them a tape of its own.
   if (phase.hasCharacter) return null;
-  if (phase.phase === "LOBBY") return PROGRAMS.lobby;
-  return PROGRAMS.creation;
+  return PROGRAMS.lobby;
 }
 
 // A step's number may be a RANGE — `silenceMs: [90_000, 260_000]` is "somewhere between
@@ -292,9 +330,17 @@ export function runProgram(program, { onStep } = {}) {
 
     onStep?.(step);
 
+    // A SHARED step takes its track, its position and its length off the wall clock rather
+     // than from its own fields, so that every listener is on the same one. One `now` for
+    // all three: reading the clock twice can straddle the changeover and pair one hour's
+    // track with the next hour's anchor.
+    const now = Date.now();
+    const slot = step.shared ? lobbySlot(now) : null;
+    const shared = slot === null ? null : { src: lobbyTrackFor(slot), startedAt: slot * LOBBY_SLOT_MS };
+
     // Every ranged field, rolled once, here. Nothing below reads step.<field> again.
     const silence = roll(step.silenceMs);
-    const hold = roll(step.holdMs);
+    const hold = shared ? lobbySlotRemaining(now) : roll(step.holdMs);
     const fadeOut = roll(step.fadeOutMs);
     const fadeIn = roll(step.fadeInMs);
     const gain = roll(step.gain);
@@ -317,7 +363,7 @@ export function runProgram(program, { onStep } = {}) {
       remember(step);
     }
 
-    const src = pickSrc(step);
+    const src = shared ? shared.src : pickSrc(step);
     if (!src) {
       advance();
       return;
@@ -327,6 +373,9 @@ export function runProgram(program, { onStep } = {}) {
       src,
       startAt: step.startAt ?? 0,
       loop: Boolean(step.loop),
+      // An anchored track is sought to where the hour has got to, so somebody opening the
+      // lobby forty minutes in joins the loop forty minutes in rather than restarting it.
+      ...(shared ? { anchor: { startedAt: shared.startedAt } } : {}),
       // The measured level of the file, times the step's own trim. Splitting it this way
       // is what lets a step gain stay a small readable number ("this one a touch under")
       // instead of being an absolute level somebody has to re-derive — see musicGain.js.

@@ -42,46 +42,62 @@ export const MUSIC_GAIN = {
   // -34 LUFS — a bed.
   "ambi2.ogg": 0.309,                 //  -23.8 LUFS, 0:30
   "ambieng1.ogg": 0.164,              //  -18.3 LUFS, 0:38
-  "ambigen11.ogg": 0.133,             //  -16.5 LUFS, 0:42
-  "ambigen12.ogg": 0.146,             //  -17.3 LUFS, 0:43
+  "ambigen6.ogg": 0.269,              //  -22.6 LUFS, 0:33
   "ambimine.ogg": 0.462,              //  -27.3 LUFS, 1:16
   "ambispace.ogg": 0.432,             //  -26.7 LUFS, 3:15
-  "beyondretrieval.ogg": 0.112,       //  -15.0 LUFS, 8:33
+  "charon_loop.ogg": 0.146,           //  -17.3 LUFS, 0:05
+  "loop_airy1.ogg": 0.136,            //  -16.7 LUFS, 0:06
+  "loop_airy4.ogg": 0.114,            //  -15.1 LUFS, 0:19
+  "loop_altar.ogg": 0.299,            //  -23.5 LUFS, 0:13
   "newfireloop.ogg": 0.582,           //  -29.3 LUFS, 0:03
-  "outpost.ogg": 0.692,               //  -30.8 LUFS, 6:34
   "pathologic.ogg": 1.000,            //  -34.0 LUFS, 2:45
+  "sacred_dagger.ogg": 0.372,         //  -25.4 LUFS, 4:35
   "shore.ogg": 0.299,                 //  -23.5 LUFS, 0:30
+  "song_game.ogg": 0.372,             //  -25.4 LUFS, 3:50
   "spookymaint1.ogg": 0.750,          //  -31.5 LUFS, 0:41
   "spookyspace1.ogg": 1.000,          //  -34.9 LUFS, 1:40
   "spookyspace2.ogg": 1.000,          //  -34.8 LUFS, 1:41
-  "track13.ogg": 0.184,               //  -19.3 LUFS, 7:20
-  "track3.ogg": 0.110,                //  -14.8 LUFS, 7:44
+  "surfacing.ogg": 0.160,             //  -18.1 LUFS, 2:45
+  "to_hell.ogg": 0.108,               //  -14.7 LUFS, 4:18
   "train_loop.ogg": 0.119,            //  -15.5 LUFS, 0:21
-  "wind_2_1.ogg": 0.603,              //  -29.6 LUFS, 0:05
-  "wind_2_2.ogg": 1.000,              //  -37.3 LUFS, 0:05
-  "wind_3_1.ogg": 0.881,              //  -32.9 LUFS, 0:05
-  "wind_4_1.ogg": 0.351,              //  -24.9 LUFS, 0:07
-  "wind_4_2.ogg": 0.462,              //  -27.3 LUFS, 0:06
-  "wind_5_1.ogg": 0.320,              //  -24.1 LUFS, 0:10
 
-  // -30 LUFS — a spot.
+  // -30 LUFS — a spot, laid OVER a bed on the `spot` layer. Four decibels up on the bed is
+  // the whole of what makes one audible without ducking the bed under it (music.js's third
+  // rule), which is why the winds and ambigen11/12 moved up here from the tier above: they
+  // were the bed, and the design document calls every one of them "played atop".
   "ambicha1.ogg": 0.351,              //  -20.9 LUFS, 0:22
   "ambicha2.ogg": 0.282,              //  -19.0 LUFS, 0:10
   "ambicha3.ogg": 0.335,              //  -20.5 LUFS, 0:11
   "ambicha4.ogg": 0.785,              //  -27.9 LUFS, 0:17
+  "ambigen11.ogg": 0.211,             //  -16.5 LUFS, 0:42
+  "ambigen12.ogg": 0.232,             //  -17.3 LUFS, 0:43
   "lifeweb2b.ogg": 0.394,             //  -21.9 LUFS, 0:05
+  "wind_2_1.ogg": 0.955,              //  -29.6 LUFS, 0:05
+  // These two measure BELOW the spot tier, so the formula clamps them and they play at
+  // their own level. The usual answer is an encode-time lift (see pathologic above), and it
+  // is the wrong answer here: the document calls wind_2_2 "VERY quiet wind" and wind_3_1
+  // "wind rising in intensity". Being quiet is what they are for. Leave them clamped.
+  "wind_2_2.ogg": 1.000,              //  -37.3 LUFS, 0:05
+  "wind_3_1.ogg": 1.000,              //  -32.9 LUFS, 0:05
+  "wind_4_1.ogg": 0.556,              //  -24.9 LUFS, 0:07
+  "wind_4_2.ogg": 0.855,              //  -27.3 LUFS, 0:06
+  "wind_5_1.ogg": 0.507,              //  -24.1 LUFS, 0:10
 
-  // -26 LUFS — music.
+  // -26 LUFS — music, which in-game means nothing at all now: the only track that simply
+  // plays is the lobby's. See musicSchedule.js for where the general rotation went.
+  //
+  // outpost carries a +4.8 dB lift baked in by build-assets.sh, for pathologic's reason: it
+  // mastered at -30.8 LUFS, quieter than this tier, and amplifying a quiet file in the
+  // browser amplifies its noise floor with it.
   "a-thousand-empty-rooms.ogg": 0.700,//  -22.9 LUFS, 6:20
-  "b12_combined_start.ogg": 1.000,    //  -26.3 LUFS, 1:38
-  "graceperiod.ogg": 1.000,           //  -29.6 LUFS, 5:38
+  "beyondretrieval.ogg": 0.282,       //  -15.0 LUFS, 8:33
   "haruspex.ogg": 1.000,              //  -28.9 LUFS, 7:22
   "holywarlobby.ogg": 0.750,          //  -23.5 LUFS, 4:16
-  "morning.ogg": 0.394,               //  -17.9 LUFS, 3:36
   "newlobby31.ogg": 0.462,            //  -19.3 LUFS, 3:17
-  "song_game.ogg": 0.933,             //  -25.4 LUFS, 3:50
-  "surfacing.ogg": 0.403,             //  -18.1 LUFS, 2:45
+  "outpost.ogg": 1.000,               //  -26.0 LUFS, 6:34 (+4.8 dB baked in)
   "the_collective.ogg": 0.617,        //  -21.8 LUFS, 4:50
+  "track13.ogg": 0.462,               //  -19.3 LUFS, 7:20
+  "track3.ogg": 0.275,                //  -14.8 LUFS, 7:44
   "white_waking.ogg": 0.359,          //  -17.1 LUFS, 6:41
 
   // -26 LUFS — instruments (the `player`/`room` layers, SOUND.md §3). See

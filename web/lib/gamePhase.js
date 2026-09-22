@@ -2,6 +2,12 @@ import { cache } from "react";
 import { prisma } from "@lifeweb/db";
 // By path, not through the barrel: db/lib is CommonJS and this is the server half.
 import { trainHere } from "@lifeweb/db/lib/train";
+import { bandOf } from "@lifeweb/db/lib/mood";
+
+// What "in pain shock or sedated" resolves to. `pain-shock` is the document's own words and
+// a real tag; SEDATED IS NOT IN THE CATALOG AT ALL, and `unconscious` is the nearest thing
+// to it, so this list is a reading rather than a translation. See SOUND.md §7.
+const IMPAIRED_TAGS = ["pain-shock", "unconscious"];
 
 // The facts the soundtrack needs, and nothing else (docs/systemdocs/SOUND.md §3, §5).
 //
@@ -33,6 +39,16 @@ export const getMusicPhase = cache(async (discordUserId) => {
           where: { discordUserId, status: "ALIVE" },
           select: {
             id: true,
+            // Some ambience is about the LISTENER rather than the room — "Ambience in town
+            // when character mood is low", "Ambience while in pain shock or sedated". Mood
+            // is a scalar on the row already being read, so it is free; the tags cost one
+            // narrow join, filtered in the query rather than fetched and scanned.
+            mood: true,
+            tags: {
+              where: { tag: { slug: { in: IMPAIRED_TAGS } } },
+              select: { tagId: true },
+              take: 1,
+            },
             location: {
               select: {
                 slug: true,
@@ -75,6 +91,12 @@ function standingFor(character, turn) {
     // (db/lib/locationAttributes.js), and a bare list is what the ambience table matches
     // against.
     attributes: location.attributes ? Object.keys(location.attributes) : [],
+    // The BAND's tone, not the number. db/lib/mood.js already sorts the ten bands into
+    // bad / warn / muted / good, which is the axis "mood is low" is asking about, and the
+    // raw dial is a number no player is ever shown (MOOD.md) — it has no business crossing
+    // to a browser just so the soundtrack can compare it against a threshold of its own.
+    moodTone: bandOf(character.mood)?.tone ?? null,
+    impaired: character.tags.length > 0,
     trainFresh:
       trainHere(turn?.number ?? 0) &&
       started !== null &&
