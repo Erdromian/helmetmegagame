@@ -827,9 +827,9 @@ function validateMealTasteForm({ mealTaste, mealTasteForm }, { selfSlug, label =
   }
 }
 
-// What a customizable recipe charges for the player's words, whether it takes a description at all, and whether the charge is per unit or once for the whole batch: `{ cost: 1, perBatch: true, describable: false }`, legal only beside `customizable: true`. Absent `cost` means the standard surcharge (web/lib/customCraft.js); `0` is free; `perBatch` charges it once per craft however many units come out (db/lib/customCost.js), which is the meals.
+// What a customizable recipe charges for the player's words, and whether it takes a description at all: `{ cost: 0, describable: false }`, legal only beside `customizable: true`. Absent `cost` means the standard surcharge (web/lib/customCraft.js); `0` is the meals.
 function normalizeCustom(custom, { slug, customizable, label = "docs/tags.yaml" }) {
-  if (custom == null) return { customCost: null, customDescribable: true, customPerBatch: false };
+  if (custom == null) return { customCost: null, customDescribable: true };
   if (!customizable) {
     throw new Error(`${label}: tag "${slug}" declares a custom block but is not customizable`);
   }
@@ -840,10 +840,7 @@ function normalizeCustom(custom, { slug, customizable, label = "docs/tags.yaml" 
   if (cost != null && (!Number.isInteger(cost) || cost < 0)) {
     throw new Error(`${label}: tag "${slug}" custom.cost must be 0 or a positive whole number of ⬢`);
   }
-  if (custom.perBatch != null && typeof custom.perBatch !== "boolean") {
-    throw new Error(`${label}: tag "${slug}" custom.perBatch must be true or false`);
-  }
-  return { customCost: cost, customDescribable: custom.describable !== false, customPerBatch: custom.perBatch === true };
+  return { customCost: cost, customDescribable: custom.describable !== false };
 }
 
 // Catches a placement block on a tag nothing would ever build, and one on a tag that could leave a Location (tradeable/stackable/equippable/carryBonus all mean "on somebody's person", which a Structure never is). `tag` is the raw YAML entry.

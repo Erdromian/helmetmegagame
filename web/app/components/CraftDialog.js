@@ -9,7 +9,6 @@ import {
   CUSTOM_DESCRIPTION_MAX,
   INSCRIPTION_MAX,
   customCraftFor,
-  craftResourceCost,
   customCraftName,
 } from "@/lib/customCraft";
 import IngredientSlots from "./IngredientSlots";
@@ -110,13 +109,9 @@ export default function CraftDialog({
   // The one shared verdict the server bills by (web/lib/customCraft.js), so
   // the ⬢ shown here can never be less than the ⬢ charged.
   const describable = chosen?.customDescribable !== false;
-  const { custom, surcharge, perBatch } = customCraftFor(chosen, { customName, customDescription });
-  const cost = craftResourceCost({
-    resources: chosen?.requirementResources ?? 0,
-    surcharge,
-    perBatch,
-    quantity: chosen?.stackable ? qty : 1,
-  });
+  const { custom, surcharge } = customCraftFor(chosen, { customName, customDescription });
+  const cost =
+    ((chosen?.requirementResources ?? 0) + surcharge) * (chosen?.stackable ? qty : 1);
   // Smith's work needs a forge in reach (SMITHING.md). Said here so a player
   // sees it before committing; craftRequest re-checks it regardless — and
   // grants the same fieldwork exemption the server does, or the hint would
@@ -373,7 +368,7 @@ export default function CraftDialog({
                       that is the one thing worth showing before the click. */}
                   {custom.active && (
                     <p className="text-xs text-muted">
-                      {surcharge > 0 ? `Your words on your work, +${surcharge} ⬢ ${perBatch ? "for the batch" : "each"}. ` : ""}
+                      {surcharge > 0 ? `Your words on your work, +${surcharge} ⬢ each. ` : ""}
                       It will read as &quot;{customCraftName(chosen.name, custom.name)}&quot;.
                     </p>
                   )}

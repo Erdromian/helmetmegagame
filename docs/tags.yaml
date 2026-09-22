@@ -11632,7 +11632,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 3
     mealHunger: 35
     sellable: true
@@ -11661,7 +11661,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 5
     mealHunger: 35
     sellable: true
@@ -11691,7 +11691,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 7
     mealHunger: 35
     sellable: true
@@ -11721,7 +11721,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 3
     mealHunger: 35
     sellable: true
@@ -11750,7 +11750,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 5
     mealHunger: 35
     sellable: true
@@ -11780,7 +11780,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 5
     mealHunger: 35
     sellable: true
@@ -11818,7 +11818,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 7
     mealHunger: 35
     sellable: true
@@ -11848,7 +11848,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 4
     mealHunger: 35
     sellable: true
@@ -11878,7 +11878,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 3
     mealHunger: 35
     sellable: true
@@ -11908,7 +11908,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 8
     mealHunger: 42
     sellable: true
@@ -11940,7 +11940,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 6
     mealHunger: 35
     sellable: true
@@ -11970,7 +11970,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 2
     mealHunger: 30
     sellable: true
@@ -12000,7 +12000,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 2
     mealHunger: 30
     sellable: true
@@ -12030,7 +12030,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 5
     mealHunger: 40
     sellable: true
@@ -12060,7 +12060,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 8
     mealHunger: 42
     sellable: true
@@ -12092,7 +12092,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 6
     mealHunger: 35
     sellable: true
@@ -12126,7 +12126,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 8
     mealHunger: 38
     sellable: true
@@ -12156,7 +12156,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 8
     mealHunger: 35
     sellable: true
@@ -12186,7 +12186,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 10
     mealHunger: 30
     sellable: true
@@ -12223,7 +12223,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 10
     mealHunger: 15
     sellable: true
@@ -12255,7 +12255,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 15
     mealHunger: 15
     sellable: true
@@ -12286,7 +12286,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 18
     mealHunger: 30
     sellable: true
@@ -12317,7 +12317,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 15
     mealHunger: 64
     sellable: true
@@ -12354,7 +12354,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 20
     mealHunger: 18
     sellable: true
@@ -12386,7 +12386,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 15
     mealHunger: 15
     sellable: true
@@ -12419,7 +12419,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 30
     mealHunger: 70
     sellable: true
@@ -12452,7 +12452,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 35
     mealHunger: 68
     sellable: true
@@ -12482,7 +12482,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 28
     mealHunger: 72
     sellable: true
@@ -12511,7 +12511,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 40
     mealHunger: 64
     sellable: true
@@ -12541,7 +12541,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 35
     mealHunger: 76
     sellable: true
@@ -12570,7 +12570,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 30
     mealHunger: 75
     sellable: true
@@ -12599,7 +12599,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 38
     mealHunger: 68
     sellable: true
@@ -12631,7 +12631,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 32
     mealHunger: 68
     sellable: true
@@ -12663,7 +12663,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 35
     mealHunger: 70
     sellable: true
@@ -12692,7 +12692,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 50
     mealHunger: 72
     sellable: true
@@ -12731,7 +12731,7 @@ tags:
     purchasableAfterStart: false
     craftable: true
     customizable: true
-    custom: { cost: 1, perBatch: true, describable: false }
+    custom: { cost: 0, describable: false }
     mealMood: 18
     mealHunger: 12
     sellable: true

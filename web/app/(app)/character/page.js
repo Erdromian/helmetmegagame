@@ -436,7 +436,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         requirementIngredientSlots: true, // cooking's slot count (COOKING.md)
         customCost: true,
         customDescribable: true,
-        customPerBatch: true,
         meleeArmor: true,
         ballisticArmor: true,
         conflictsWith: { select: { id: true } },
