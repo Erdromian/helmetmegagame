@@ -30,6 +30,7 @@ export default function RoomForm({ room }) {
       destroysContents: form.get("destroysContents") === "on",
       phone: form.get("phone"),
       payphone: form.get("payphone") === "on",
+      vendingMachine: form.get("vendingMachine") === "on",
       accessTagSlugs: form.get("accessTagSlugs"),
     });
   }
@@ -80,6 +81,10 @@ export default function RoomForm({ room }) {
         <label className="check-row">
           <input type="checkbox" name="payphone" defaultChecked={room.payphone} />
           <span>Payphone (takes an obol, never appears on a dial list)</span>
+        </label>
+        <label className="check-row">
+          <input type="checkbox" name="vendingMachine" defaultChecked={room.vendingMachine} />
+          <span>Vending machine (the Merchant stocks it and sets the prices)</span>
         </label>
         <button type="submit" className="btn" disabled={pending}>
           Save

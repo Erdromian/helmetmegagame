@@ -1238,6 +1238,14 @@ it, and the trip down to the Caves is still a trip. The Docker seat is if
 anything sharper for it: a keycard sells into his books rather than its own,
 which is a job you can hire somebody for.
 
+**The one exception is the vending machine on his Storefront**
+(`docs/systemdocs/VENDING.md`). It is the Merchant selling to a player with
+neither of them present: he stocks it and sets the prices, a customer feeds it
+coins and takes what they can pay for, and the money waits in a locked till for
+him to collect. That is the whole point of it — one turn is one real day, so he
+cannot stand behind a counter for all of it. Everything else about retail is
+still the Transfer verb and still needs both parties in the room.
+
 ## 7. Where a player reads this
 
 The **Merchant** document (`docs/documents.yaml`, key `merchant`) carries the

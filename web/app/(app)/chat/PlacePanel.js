@@ -12,6 +12,9 @@ import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/
 import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
 import { PHONE_TEXT } from "@lifeweb/db/lib/phoneText";
+// The machine's words AND its clock — the countdown is derived here the same
+// way the server derives it, off one implementation (docs/systemdocs/VENDING.md).
+import { VENDING_TEXT, VENDING_MAX_PRICE, secondsLeftOn, timeLeftLine } from "@lifeweb/db/lib/vendingText";
 import {
   loadAffordances,
   flipGate,
@@ -33,6 +36,19 @@ import {
   answerPhone,
   hangUpPhone,
   interactWithQuest,
+  openMachine,
+  readMachine,
+  leaveMachine,
+  vendInsert,
+  vendWithdraw,
+  vendBuy,
+  vendUnlock,
+  vendLock,
+  vendCollect,
+  vendStockIn,
+  vendStockOut,
+  vendSetPrice,
+  vendStockables,
   enterTheCharon,
   leaveTheCharon,
   launchTheCharon,
@@ -201,6 +217,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "bell" && <BellDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "pray" && <PrayDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "slots" && <SlotDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "vending" && <VendingDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
       {dialog?.kind === "dropbox" && <DropBoxDialog onClose={close} onDone={say} />}
@@ -546,6 +563,361 @@ function SlotDialog({ entry, onClose, onDone }) {
           }
         >
           Enter coins
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// The Merchant's vending machine (docs/systemdocs/VENDING.md).
+//
+// Opening it TAKES the machine — the view is what is exclusive, so a second
+// person cannot so much as read what is in the slot. Closing this dialog does
+// not give it back: you are still standing at it, and you have your five
+// minutes. "Step away" is the deliberate exit, and it is the one that puts your
+// change back in your pocket.
+//
+// The countdown is derived from `holderSince` with the same function the server
+// uses (@lifeweb/db/lib/vendingText), so the seconds on screen and the refusal
+// behind them can never disagree.
+function VendingDialog({ entry, onClose, onDone }) {
+  const [state, setState] = useState(null);
+  const [amount, setAmount] = useState(1);
+  const [now, setNow] = useState(() => Date.now());
+  // The merchant's side: what is in his pockets that could go on the shelf, and
+  // the per-row price boxes. Both empty for a customer, who never sees them.
+  const [stock, setStock] = useState(null);
+  const [putTagId, setPutTagId] = useState("");
+  const [putQty, setPutQty] = useState(1);
+  const [putPrice, setPutPrice] = useState(0);
+  const [prices, setPrices] = useState({});
+  const { run, pending, error } = useActionRunner();
+  const roomId = entry.roomId;
+
+  const refresh = useCallback(
+    (res) => {
+      if (res?.ok) setState(res);
+      return res;
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    openMachine({ roomId })
+      .then((res) => {
+        if (!cancelled) setState(res);
+      })
+      .catch(() => {
+        if (!cancelled) setState({ ok: false, error: VENDING_TEXT.noMachine });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId]);
+
+  // What the merchant could put on the shelf, loaded only once the front is
+  // open — it is a question about HIS pockets, and a customer never asks it.
+  useEffect(() => {
+    if (state?.mode !== "merchant") return undefined;
+    let cancelled = false;
+    vendStockables({ roomId })
+      .then((res) => {
+        if (!cancelled) setStock(res?.ok ? res : { rows: [] });
+      })
+      .catch(() => {
+        if (!cancelled) setStock({ rows: [] });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state?.mode, state?.slots, roomId]);
+
+  // One ticker for the clock. It re-reads the machine when the hold runs out,
+  // so the dialog turns itself back into the closed view rather than sitting
+  // there offering buttons the server will refuse.
+  useEffect(() => {
+    if (!state?.ok || !state.holderSince) return undefined;
+    const id = setInterval(() => {
+      const at = Date.now();
+      setNow(at);
+      if (secondsLeftOn(state, at) === 0) {
+        readMachine({ roomId })
+          .then((res) => setState(res?.ok ? res : { ok: false, error: VENDING_TEXT.holdLost }))
+          .catch(() => {});
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [state, roomId]);
+
+  if (!state) {
+    return (
+      <Modal open title={VENDING_TEXT.title} onClose={onClose}>
+        <p className="text-sm text-muted">Looking through the glass…</p>
+      </Modal>
+    );
+  }
+  if (!state.ok) {
+    return (
+      <Modal open title={VENDING_TEXT.title} onClose={onClose}>
+        <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+
+  // Somebody else has it. They are named as the room would see them, never as
+  // the row — a hooded customer reads as "A young man" here too.
+  if (state.mode === "busy") {
+    return (
+      <Modal open title={VENDING_TEXT.title} onClose={onClose}>
+        <p className="text-sm text-muted">{VENDING_TEXT.holderIs(state.holderName ?? "Somebody")}</p>
+        <p className="text-sm text-muted">{VENDING_TEXT.closed}</p>
+      </Modal>
+    );
+  }
+  if (state.mode === "closed") {
+    return (
+      <Modal open title={VENDING_TEXT.title} onClose={onClose}>
+        <p className="text-sm text-muted">{VENDING_TEXT.closed}</p>
+        <FormError>{error}</FormError>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={pending}
+            onClick={() => run(openMachine, { roomId }, { onOk: refresh })}
+          >
+            {VENDING_TEXT.btnOpen}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  const merchant = state.mode === "merchant";
+  const held = state.floatObols ?? 0;
+  const rows = state.slots ?? [];
+  const puttable = stock?.rows ?? [];
+  // Every verb re-reads the machine rather than patching state locally: several
+  // things move at once behind a purchase, and the shelf is the server's answer.
+  const act = (fn, args = {}) =>
+    run(fn, { roomId, ...args }, {
+      onOk: (res) => {
+        onDone(res);
+        readMachine({ roomId })
+          .then((next) => setState(next?.ok ? next : { ok: false, error: VENDING_TEXT.holdLost }))
+          .catch(() => {});
+      },
+    });
+
+  return (
+    <Modal open title={VENDING_TEXT.title} onClose={onClose}>
+      <p className="text-sm text-muted">{merchant ? VENDING_TEXT.promptMerchant : VENDING_TEXT.prompt}</p>
+      <p className="text-sm text-muted">
+        <span className="mono">{held > 0 ? VENDING_TEXT.floatLine(held) : VENDING_TEXT.floatNone}</span>{" "}
+        {timeLeftLine(state, now)}
+      </p>
+      {merchant && (
+        <p className="text-sm text-muted mono">
+          {state.tillObols > 0 ? VENDING_TEXT.tillLine(state.tillObols) : VENDING_TEXT.tillNone}
+        </p>
+      )}
+
+      {rows.length === 0 && <EmptyState>{merchant ? VENDING_TEXT.emptyMerchant : VENDING_TEXT.empty}</EmptyState>}
+      {rows.map((row) => (
+        // flex-wrap because .chat-notice-row does not wrap on its own, and the
+        // merchant's version of a row carries six controls — without it they
+        // run off the side of the panel on a phone.
+        <div key={row.tagId} className="chat-notice-row flex-wrap">
+          <span className="chat-person-name">{row.name}</span>
+          <span className="mono text-sm text-muted">
+            {row.priceObols > 0 ? `${row.priceObols} ¢` : "free"} · {row.quantity}
+          </span>
+          <button
+            type="button"
+            className="menu-item"
+            disabled={pending || row.priceObols > held}
+            onClick={() => act(vendBuy, { tagId: row.tagId })}
+          >
+            {VENDING_TEXT.btnBuy}
+          </button>
+          {merchant && (
+            // basis-full puts the merchant's controls on a line of their own,
+            // so the line above stays exactly the customer's: name, price, Buy.
+            // Sharing one line cost the NAME — .chat-person-name is the
+            // flex:1 ellipsis element, so with six siblings it truncated to
+            // "T." on a phone, losing the one thing the row is about.
+            <div className="basis-full flex items-center gap-3">
+              <button
+                type="button"
+                className="menu-item"
+                disabled={pending}
+                onClick={() => act(vendStockOut, { tagId: row.tagId, quantity: 1 })}
+              >
+                {VENDING_TEXT.btnStockOut}
+              </button>
+              {/* `control` because this input lives OUTSIDE a .field — without
+                  it the box, border and background never apply and the price
+                  renders as bare text nobody would guess is editable. */}
+              <input
+                type="number"
+                className="control w-16"
+                min={0}
+                max={VENDING_MAX_PRICE}
+                aria-label={`${VENDING_TEXT.modalPriceField} — ${row.name}`}
+                value={prices[row.tagId] ?? row.priceObols}
+                onChange={(e) => setPrices((p) => ({ ...p, [row.tagId]: e.target.value }))}
+              />
+              <button
+                type="button"
+                className="menu-item"
+                disabled={pending}
+                onClick={() => act(vendSetPrice, { tagId: row.tagId, priceObols: prices[row.tagId] ?? row.priceObols })}
+              >
+                {VENDING_TEXT.btnSetPrice}
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+
+      {merchant && (
+        <>
+          <div className="field">
+            <label className="field-label" htmlFor="chat-vending-put">
+              {VENDING_TEXT.selectStock}
+            </label>
+            <Select
+              id="chat-vending-put"
+              value={putTagId}
+              onChange={(e) => setPutTagId(e.target.value)}
+            >
+              <option value="">…</option>
+              {puttable.map((row) => (
+                <option key={row.tagId} value={row.tagId}>
+                  {row.name} ({row.held})
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="chat-vending-put-qty">
+              {VENDING_TEXT.modalStockQtyField}
+            </label>
+            <input
+              id="chat-vending-put-qty"
+              type="number"
+              min={1}
+              value={putQty}
+              onChange={(e) => setPutQty(e.target.value)}
+            />
+          </div>
+          <div className="field">
+            <label className="field-label" htmlFor="chat-vending-put-price">
+              {VENDING_TEXT.modalStockPriceField}
+            </label>
+            <input
+              id="chat-vending-put-price"
+              type="number"
+              min={0}
+              max={VENDING_MAX_PRICE}
+              value={putPrice}
+              onChange={(e) => setPutPrice(e.target.value)}
+            />
+          </div>
+          {/* A plain row, NOT .modal-actions — that class is sticky-to-the-
+              bottom chrome, and a second one inside the body detaches this
+              button and fights the real footer for the same edge. */}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={pending || !putTagId}
+              onClick={() =>
+                act(vendStockIn, {
+                  tagId: putTagId,
+                  quantity: Math.max(1, Number(putQty) || 0),
+                  priceObols: putPrice,
+                })
+              }
+            >
+              {VENDING_TEXT.btnStockIn}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* mt-4: the shelf rows above are 3px-padded flex rows, so without it the
+          label sits straight on the last ware's name. */}
+      <div className="field mt-4">
+        <label className="field-label" htmlFor="chat-vending-amount">
+          {VENDING_TEXT.modalInsertField}
+        </label>
+        <input
+          id="chat-vending-amount"
+          type="number"
+          min={1}
+          max={VENDING_MAX_PRICE}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+        />
+      </div>
+
+      <FormError>{error}</FormError>
+      {/* flex-wrap: .modal-actions is a single unwrapping flex row, and the
+          merchant's side puts five buttons in it — which overflowed the panel
+          and clipped the first one off its left edge. */}
+      <div className="modal-actions flex-wrap">
+        <button
+          type="button"
+          className="btn"
+          disabled={pending}
+          onClick={() => act(vendInsert, { amount: Math.max(1, Number(amount) || 0) })}
+        >
+          {VENDING_TEXT.btnInsert}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={pending || held <= 0}
+          onClick={() => act(vendWithdraw)}
+        >
+          {VENDING_TEXT.btnWithdraw}
+        </button>
+        {state.licensed && !merchant && (
+          <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(vendUnlock)}>
+            {VENDING_TEXT.btnUnlock}
+          </button>
+        )}
+        {merchant && (
+          <>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={pending || !(state.tillObols > 0)}
+              onClick={() => act(vendCollect)}
+            >
+              {VENDING_TEXT.btnCollect}
+            </button>
+            <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(vendLock)}>
+              {VENDING_TEXT.btnLock}
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          className="btn-quiet"
+          disabled={pending}
+          onClick={() =>
+            run(leaveMachine, { roomId }, {
+              onOk: (res) => {
+                onDone(res);
+                onClose();
+              },
+            })
+          }
+        >
+          {VENDING_TEXT.btnLeave}
         </button>
       </div>
     </Modal>

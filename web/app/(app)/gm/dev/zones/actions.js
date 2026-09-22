@@ -360,6 +360,11 @@ export async function updateRoom(roomId, updatedAt, input) {
       // is cleared with it rather than left as a switch on nothing.
       phone: trimmed(input.phone) || null,
       payphone: Boolean(trimmed(input.phone)) && Boolean(input.payphone),
+      // The vending machine on the wall (docs/systemdocs/VENDING.md). Unticking
+      // it hides the button and nothing else — the machine row, its shelf and
+      // whatever coin is in it all survive, so a GM who unticks by accident has
+      // not emptied somebody's till. Tick it again and the shop is back.
+      vendingMachine: Boolean(input.vendingMachine),
       accessTagSlugs: kind === "PRIVATE" ? String(input.accessTagSlugs ?? "").split(",").map((s) => s.trim()).filter(Boolean) : [],
     });
     await audit(session, "gm_room_updated", { roomId, name, renamed, from: before.name });

@@ -8,6 +8,25 @@ import { phoneView, placeCall, answerCall, hangUp } from "@lifeweb/db/lib/phone"
 import { PHONE_TEXT } from "@lifeweb/db/lib/phoneText";
 import { questInteract } from "@lifeweb/db/lib/quests";
 import { playSlots as playSlotsInDb, CASINO_ROOM_SLUG } from "@lifeweb/db/lib/slotMachine";
+import {
+  machineView,
+  takeMachine,
+  releaseMachine,
+  insertCoins,
+  withdrawCoins,
+  buySlot,
+  unlockMachine,
+  lockMachine,
+  collectTill,
+  stockMachine,
+  unstockMachine,
+  setSlotPrice,
+} from "@lifeweb/db/lib/vending";
+import { VENDING_TEXT } from "@lifeweb/db/lib/vendingText";
+import { isTradeable } from "@lifeweb/db/lib/tradeable";
+import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
+import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { parksMounts, hasAttribute } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
@@ -1305,6 +1324,9 @@ export async function gmPlaceView(placeKey) {
         // all (docs/systemdocs/PHONES.md) — without it the GM aside draws
         // every fixture in the room except the phone.
         phone: true,
+        // And this one for the vending machine, for the same reason
+        // (docs/systemdocs/VENDING.md).
+        vendingMachine: true,
         tags: {
           where: { quantity: { gt: 0 } },
           orderBy: { tag: { name: "asc" } },
@@ -1670,6 +1692,121 @@ export async function playSlots({ roomId } = {}) {
   const result = await playSlotsInDb(prisma, me.discordUserId, { turn });
   if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
   return { ok: true, line: result.line, sfx: result.sfx };
+}
+
+// --------------------------------------------------- the Merchant's machine
+//
+// Eleven actions for one button, the telephone's shape and for its reason: what
+// the Machine button does depends on what the machine is doing right now and on
+// who is pressing it, and that is decided server-side on every open
+// (docs/systemdocs/VENDING.md).
+//
+// Everything that decides anything lives in db/lib/vending.js, so this face and
+// Discord's buttons cannot drift. Each action here finds the acting session and
+// the open turn, re-checks the room, and hands over. A server action is a public
+// endpoint: the dialog's own state is a hint, never a lock.
+
+// Every verb here ends the same way, so the shape is written once.
+async function vendingVerb(roomId, fn, args = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, null, VENDING_TEXT.noMachine);
+  if (found.error) return { ok: false, error: found.error };
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const result = await fn(prisma, me.discordUserId, { roomId, turn, ...args });
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
+  // Anything that moved a tag has to settle the carry (docs/systemdocs/CARRY.md)
+  // — the same bargain every other inventory writer strikes.
+  if (result.moved !== false) await afterInventoryChange([me.character.id]).catch(() => {});
+  return { ok: true, line: result.line, sfx: result.sfx };
+}
+
+// The read. Takes the hold as a side effect, which is the design: the VIEW is
+// what is exclusive, so a second person cannot so much as read the float.
+export async function openMachine({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, null, VENDING_TEXT.noMachine);
+  if (found.error) return { ok: false, error: found.error };
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const took = await takeMachine(prisma, me.discordUserId, { roomId, turn });
+  // A refusal is not fatal here: somebody else holding it is a state the dialog
+  // draws rather than an error it shows, so the view is read either way.
+  const view = await machineView(prisma, me.discordUserId, roomId);
+  if (!view.ok) return { ok: false, error: view.error, sfx: SFX.REFUSE };
+  return { ...view, justTook: took.ok, sfx: took.ok ? took.sfx : null };
+}
+
+// A plain re-read, for the poll behind the countdown. Takes nothing.
+export async function readMachine({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  return machineView(prisma, me.discordUserId, roomId);
+}
+
+export async function leaveMachine({ roomId } = {}) {
+  return vendingVerb(roomId, releaseMachine);
+}
+
+export async function vendInsert({ roomId, amount } = {}) {
+  return vendingVerb(roomId, insertCoins, { amount });
+}
+
+export async function vendWithdraw({ roomId } = {}) {
+  return vendingVerb(roomId, withdrawCoins);
+}
+
+export async function vendBuy({ roomId, tagId } = {}) {
+  return vendingVerb(roomId, buySlot, { tagId });
+}
+
+export async function vendUnlock({ roomId } = {}) {
+  return vendingVerb(roomId, unlockMachine);
+}
+
+export async function vendLock({ roomId } = {}) {
+  return vendingVerb(roomId, lockMachine);
+}
+
+export async function vendCollect({ roomId } = {}) {
+  return vendingVerb(roomId, collectTill);
+}
+
+export async function vendStockIn({ roomId, tagId, quantity, priceObols } = {}) {
+  return vendingVerb(roomId, stockMachine, { tagId, quantity, priceObols });
+}
+
+export async function vendStockOut({ roomId, tagId, quantity } = {}) {
+  return vendingVerb(roomId, unstockMachine, { tagId, quantity });
+}
+
+export async function vendSetPrice({ roomId, tagId, priceObols } = {}) {
+  return vendingVerb(roomId, setSlotPrice, { tagId, priceObols });
+}
+
+// What the merchant may put in: whatever they are carrying that is cargo and
+// isn't money. Read here rather than in the engine because it is a question
+// about the PRESSER's pockets, not about the machine.
+export async function vendStockables({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const view = await machineView(prisma, me.discordUserId, roomId);
+  if (!view.ok) return view;
+  if (!view.unlocked) return { ok: false, error: VENDING_TEXT.lockedFirst };
+
+  const held = await prisma.characterTag.findMany({
+    where: { characterId: me.character.id, quantity: { gt: 0 } },
+    select: { quantity: true, tag: { select: { id: true, name: true, slug: true, tradeable: true } } },
+    orderBy: { tag: { name: "asc" } },
+  });
+  return {
+    ok: true,
+    rows: held
+      .filter((ct) => isTradeable(ct.tag) && ct.tag.slug !== OBOL_SLUG && ct.tag.slug !== RESOURCES_SLUG)
+      .map((ct) => ({ tagId: ct.tag.id, name: ct.tag.name, held: ct.quantity })),
+  };
 }
 
 

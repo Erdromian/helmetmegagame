@@ -172,6 +172,10 @@ documents:
 
       Prices hold to bands: a brew sells for close to what it cost to make plus a margin, smithed gear pays better the more skill and turns went into it, cave loot and bulk goods hold their price, and body parts stay cheap on purpose. The full table lives on the price list at the counter.
 
+      There's a vendor on your Storefront, and it sells while you're asleep. Your License is what opens it: unlock the front, put things on the shelf, set a price on each, and lock it again. After that anybody who walks in can feed it coins and take what they can pay for, and what they spend waits inside for you to withdraw.
+
+      Three things to know before you stock it. Only one customer can be at the vendor at a time, and they get five minutes — that's what stops somebody standing there pocketing the coins the last person fed in. Coins left in the slot when that time runs out stay in the slot: they don't come to you, and the next customer can spend them or walk off with them, so tell your regulars to take their change. And the room sees what comes out of it, so anybody standing in the Storefront knows what your customers are buying.
+
   charon:
     name: Charon
     public: false

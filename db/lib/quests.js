@@ -55,6 +55,9 @@ const ROOM_SELECT = {
   // questId above -- see docs/systemdocs/PHONES.md.
   phone: true,
   payphone: true,
+  // The vending machine on the wall, read the same way (VENDING.md). Without it
+  // the starter post draws every fixture in the room except the machine.
+  vendingMachine: true,
   locationId: true,
   discordThreadId: true,
   starterMessageId: true,

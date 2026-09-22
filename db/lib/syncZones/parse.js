@@ -407,6 +407,10 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         // calls out and never rings.
         phone: typeof room.phone === "string" && room.phone.trim() ? room.phone.trim() : null,
         payphone: room.payphone === true,
+        // The Merchant's vending machine (VENDING.md). A plain flag, resolved
+        // generically off the column the way `stable` above is, so moving the
+        // shop is a YAML edit rather than a code change.
+        vendingMachine: room.vending === true,
         live: collectLive(room.live, `room "${room.id}"`, problems),
         stash: parseStash(room.stash, room.id, problems),
         locationSlug: location.id,
