@@ -401,15 +401,23 @@ INGREDIENTS rather than on words — see COOKING.md §2, which is the one place
 this mechanism does something the rest of the customizable recipes do not.
 That is why the mint is guarded by `custom.active || cookedFrom.length` and
 not by `customizable` alone: taking naming away from cooks leaves the
-ingredient half untouched. It does change what a minted dish is CALLED, since
-`mintCustomCraft` composes a name two ways and cooking can now only reach one
-of them: the `customCraftName` branch needs a name or a description, so every
-minted dish is `baseTag.name` plus its taste suffix — `Bread (rich spices)`,
-or plain `Bread` when nothing in it tastes of anything. On a customizable
+ingredient half untouched.
+
+**A mint with no words keeps the base recipe's name**, so a dish is plain
+`Bread` however it was made. It used to be `baseTag.name` plus its
+ingredients' tastes — `Bread (rich spices)` — which is gone: a name is printed
+by every stash panel, Search readout and pickpocket picker there is, so
+baking the taste into it published the one thing eating is meant to reveal.
+COOKING.md §2 has the reasoning and what it costs a cook. On a customizable
 recipe the displayed name still carries the base identity the other way
 (`Dockers' Mark (Badge)`, or `Badge (custom)` for a description-only custom),
 so every surface says what the thing IS and a custom name cannot impersonate
 another item.
+
+Two dishes of the same recipe with different ingredients now share a name, and
+that is safe: reuse keys on name + description + **`cookedFrom`**, so they stay
+separate rows. `Tag.name` is not unique — only `slug` is — so any number of
+`Bread` rows coexist.
 
 Mechanically it is the **fifth runtime authoring door** onto the tag catalog
 (db/lib/paperMint.js lists the other four): `mintCustomCraft` in

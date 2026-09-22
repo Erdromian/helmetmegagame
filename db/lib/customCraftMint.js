@@ -1,7 +1,9 @@
 // The custom-craft mint (CRAFTING.md, COOKING.md, TRINKETS.md): clones the
 // base catalog row into a fresh custom + ephemeral tag for a `customizable`
 // recipe crafted with player words (or a Trinket, whose "words" are the die's
-// tier); the craft grants THAT row instead of the base one. Lives in db/lib
+// tier, or a DISH, which carries no words at all — no cooking recipe is
+// customizable, so a dish mints on its INGREDIENTS and keeps its recipe's
+// name); the craft grants THAT row instead of the base one. Lives in db/lib
 // because BOTH faces need it: the web Craft dialog and the Trinket turn-end
 // pass (db/lib/trinketPass.js), which runs from resolveNeeds() and can never
 // require anything under web/. Throws a plain Error on the rare "no free
@@ -15,13 +17,6 @@ function customCraftName(baseName, name) {
   return name ? `${name} (${baseName})` : `${baseName} (custom)`;
 }
 
-// "(rich spices)" for an unnamed dish, or "" when nothing tastes of anything.
-// `cookedTastes` is the caller's already-loaded lookup — this must not query.
-function cookedTasteSuffix(cookedFrom, cookedTastes) {
-  const tastes = (cookedFrom ?? []).map((slug) => cookedTastes?.get(slug) ?? "").filter(Boolean);
-  return tastes.length ? ` (${tastes.join(", ")})` : "";
-}
-
 // Runs OUTSIDE the craft transaction, deliberately. `sellablePriceOverride`
 // and `gambitBonusOverride` are Trinket's own two doors onto this: both are
 // computed by db/lib/trinketPass.js from the die and the INGREDIENTS, so
@@ -31,14 +26,17 @@ function cookedTasteSuffix(cookedFrom, cookedTastes) {
 async function mintCustomCraft(
   db,
   baseTag,
-  { name, description, literal = false, cookedFrom = [], cookedTastes = null, sellablePriceOverride, gambitBonusOverride },
+  { name, description, literal = false, cookedFrom = [], sellablePriceOverride, gambitBonusOverride },
 ) {
-  const tasteSuffix = literal ? "" : cookedTasteSuffix(cookedFrom, cookedTastes);
+  // A mint with no words keeps the recipe's own name, so a dish reads as plain
+  // "Bread" however it was made. It used to carry its ingredients' tastes —
+  // "Bread (organs)" — which put the one thing eating is supposed to reveal
+  // into a name every stash, Search and pickpocket picker prints. COOKING.md §2.
   const composedName = literal
     ? name
     : name || description
       ? customCraftName(baseTag.name, name)
-      : `${baseTag.name}${tasteSuffix}`;
+      : baseTag.name;
   const composedDescription = description || baseTag.description;
   const key = [...cookedFrom].sort();
   const existing = await db.tag.findFirst({

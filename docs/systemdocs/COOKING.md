@@ -109,14 +109,25 @@ Steak — one adding saffron, one adding feces — get two rows. Nothing on any
 surface tells them apart, which is the point. Miss this and one of them is
 serving the other's dinner.
 
-**A dish nobody named is named after its taste** — "Steak (rich)". That rule
-is for the cook's own pantry rather than for anyone else's secrecy: a recipe
-that mints (because it took an additional ingredient) needs some way to tell
-the saffron batch from the feces batch before biting, if the cook named
-neither. A taste is coarser than an ingredient ("meat" covers a boar loin and
-a human foot), and the two undetectable poisons have no taste at all, so it
-gives away less than it looks. A cook who wants to hide something types a
-name.
+**A minted dish is named after its recipe and nothing else** — a loaf is
+"Bread" whether it holds saffron or feces. **Taste reaches a player only when
+their character eats** (`tasteLine`, §A6), which is the whole rule this doc
+turns on, and a name is not eating.
+
+It used to read "Steak (rich)": the mint appended its ingredients' tastes, for
+the cook's own pantry rather than for anyone else's secrecy — a cook needed
+some way to tell the saffron batch from the feces batch before biting, and a
+cook who wanted to hide something typed a name instead. **Both halves of that
+are gone.** Naming went first (no cooking recipe is `customizable` any more,
+`CRAFTING.md` §4a), which left the suffix as the only thing standing between
+a dish and the one secret eating is supposed to keep — and a name is not a
+private label. It is printed by every room stash panel, Search readout,
+pickpocket picker and transfer dialog in the game, so "for the cook's pantry"
+was never what it actually did.
+
+**The cost is real and was accepted:** a cook now has no way to tell their own
+batches apart, and has to keep track out of character. That is the price of
+a poisoner being able to hand somebody a loaf that reads exactly like a loaf.
 
 Sorted rather than kept in slot order because Postgres array equality is
 order-sensitive; the cost is that the taste sentence reads alphabetically.

@@ -619,8 +619,6 @@ export async function craftRequestImpl({
         })
       : [];
   const cookableBySlug = new Map(cookableRows.map((t) => [t.slug, t]));
-  // Just the tastes, for naming a dish nobody named (mintCustomCraft) — read here since the mint runs outside the craft transaction and must not open a query of its own.
-  const cookedTastes = new Map(cookableRows.map((t) => [t.slug, t.cooked?.taste ?? ""]));
   const slotPlan = await resolveIngredientSlots(character, tag, quantity, posted, cookableBySlug);
   // One plan from here on, MERGED BY TAG not concatenated: two entries naming the same stack (no recipe does today, but nothing stops one) would have consumeRecipeItems draw against it twice off two independent re-reads — a nonsensical refusal count and two `details.consumed` rows for one spend.
   for (const line of slotPlan.spend) {
@@ -681,10 +679,10 @@ export async function craftRequestImpl({
     acknowledgeBill(moveCost);
     if (moveCost.kind === "spill")
       await resolveCraftMove(character, openTurn, moveCost);
-    // Minted before the transaction (mintCustomCraft says why), unwound after it only if the transaction fails and the row was fresh. A DISH ALWAYS MINTS, words or no words — what went in is what it does, so it needs its own row even from a cook who named nothing; a meal with no ingredient and no words stays the plain catalog row, Depot-listable and out of the Restart Game ephemeral sweep.
+    // Minted before the transaction (mintCustomCraft says why), unwound after it only if the transaction fails and the row was fresh. A DISH WITH ANYTHING EXTRA IN IT ALWAYS MINTS — what went in is what it does, so it needs its own row even though no cook can put words on one; a meal with no additional ingredient stays the plain catalog row, Depot-listable and out of the Restart Game ephemeral sweep. The minted row is NAMED after the recipe like the base one, so nothing but eating it says what is in it.
     const grant =
       custom.active || cookedFrom.length
-        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom, cookedTastes })
+        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
         : null;
     try {
     await prisma.$transaction(async (tx) => {
@@ -780,7 +778,7 @@ export async function craftRequestImpl({
           literal: true,
         })
       : custom.active || cookedFrom.length
-        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom, cookedTastes })
+        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
         : null
     : null;
   try {
