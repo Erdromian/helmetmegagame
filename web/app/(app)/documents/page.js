@@ -84,14 +84,24 @@ async function FreshDocuments() {
     }),
   ]);
 
-  const riteWordsCache = rawDocuments.some((d) => d.key === GRIMOIRE_DOCUMENT_KEY)
-    ? await ensureRiteWords(prisma)
-    : null;
+  const hasGrimoire = rawDocuments.some((d) => d.key === GRIMOIRE_DOCUMENT_KEY);
+  // The Rite of Ascension is not in the Grimoire until the cult has finished
+  // every objective a GM set it (db/lib/ascensionReveal.js stamps the turn).
+  // Read here, beside the words, because the body is composed on the server and
+  // only the finished string is sent — a rite left out of it never reaches the
+  // browser at all, which is the point. Same posture as gmDocs below.
+  const [riteWordsCache, riteState] = hasGrimoire
+    ? await Promise.all([
+      ensureRiteWords(prisma),
+      prisma.gameState.findUnique({ where: { id: 1 }, select: { ascensionRevealedTurn: true } }),
+    ])
+    : [null, null];
+  const ascensionRevealed = riteState?.ascensionRevealedTurn != null;
   // The Grimoire is the one document whose text is generated: this game's
   // Words of the Circle, rolled on first read (web/lib/grimoire.js). Only
   // composed when the row exists, so a database without it rolls nothing.
-  const documents = rawDocuments.some((d) => d.key === GRIMOIRE_DOCUMENT_KEY)
-    ? rawDocuments.map((d) => expandGrimoire(d, riteWordsCache ?? {}))
+  const documents = hasGrimoire
+    ? rawDocuments.map((d) => expandGrimoire(d, riteWordsCache ?? {}, { revealed: ascensionRevealed }))
     : rawDocuments;
 
   const character = readerFromCharacter(characterRow);

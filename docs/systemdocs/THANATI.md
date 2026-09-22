@@ -3,10 +3,10 @@
 <!--
 PARTLY PLACEHOLDER. Written by Claude for its own orientation while building
 the cult, so the next session has a map. Bascinet's own design doc has since
-arrived for two parts of it — the Words of the Circle (§4, §4b, §4c) and the
-Rite of Conversion (§4a) — and those sections now follow it. The rest is
-still Claude's map and should be replaced as more of that doc lands. Nothing
-here is game text.
+arrived for three parts of it — the Words of the Circle (§4, §4b, §4c), the
+Rite of Conversion (§4a) and the Ascension reveal (§5a) — and those sections
+now follow it. The rest is still Claude's map and should be replaced as more
+of that doc lands. Nothing here is game text.
 -->
 
 The death cult as gameplay: who is one, what they carry, the four buttons in
@@ -338,12 +338,61 @@ They were rollable words before, and they are battle cries and nothing else.
 
 `docs/documents.yaml` `grimoire`, gated on the **Grimoire** tag name, body
 `{grimoire}`. `web/app/(app)/documents/page.js` swaps the marker for
-`web/lib/grimoire.js#grimoireBody(words)`: one block per rite —
+`web/lib/grimoire.js#grimoireBody(words, { revealed })`: one block per rite —
 `**Name** | Minimum cultists: N | Ingredients: …`, the description, and
 `_Word of the Circle:_ {word:phrase}`. `{word:…}` is a token whose payload is
 the text; `DocumentMarkdown`, `RichText` and `ChipText` render it as a
 `.chip.word-chip`. Documents have no literacy gate, which is why every seat
 kit grants Literacy.
+
+**Not every rite is in it.** A rite flagged `revealedByObjectives` in the
+catalog — the Rite of Ascension, and only that one today — is left out of the
+string until §5a says otherwise.
+
+### 5a. The Ascension reveal (`db/lib/ascensionReveal.js`)
+
+**The Grimoire does not list the Rite of Ascension by default.** It appears
+only once **every** objective a GM set the cult has been completed, and the
+reveal is automatic: `runAscensionRevealPass` runs at each turn close, and on
+the first close where the work is done it stamps
+`GameState.ascensionRevealedTurn` and DMs every living cultist *"You have
+satisfied Tzchernobog's will. A new goal is available."* Nothing else changes
+— the rite's own block is the authored text it always was, it simply starts
+being printed.
+
+**Absent, not hidden.** The body is composed on the server and only the
+finished `description` is sent, so an unrevealed rite's ingredients, chanter
+count and **Word of the Circle** were never in a payload a browser received.
+This is the whole mechanism, and it is why the filter belongs in
+`grimoireBody` rather than in a component: a client-side `revealed &&` would
+ship the phrase to everyone holding a Grimoire and merely decline to draw it.
+`grimoireBody`'s `revealed` defaults to **false** for the same reason — a
+caller that forgets the option hides the rite instead of leaking it.
+
+**No objectives is not "all done".** `[].every()` is true, so the empty case
+is refused on purpose: a cult whose GM has not set its objectives yet would
+otherwise be handed the end of the world on the first close of the game.
+Bascinet's doc is explicit that none of this happens until the objectives have
+been selected by GMs and properly completed.
+
+**Set once and never cleared**, the `ascensionFiredTurn` posture. The reveal
+is knowledge the cult has already been DMed and already read, so a GM
+un-pinning an objective afterwards does not take the page back. The stamp is
+claimed with a guarded `updateMany` on the null — the `ensureRiteWords` shape
+— which is what stops a resumed advance DMing the cult twice.
+
+**It does not gate the chant.** Nothing stops a circle firing a rite the
+Grimoire has not printed; the words are re-rolled every game
+(§4), so a phrase cannot be carried in from a game already played, and not
+printing it is what keeps it unknown. The reveal is about the document, not
+about `riteChant.js`.
+
+The pass sits in `TURN_PASSES` immediately before `ascension`: it reads the
+cult's objectives, so it wants the same settled-deaths slot the rite itself
+does, and it runs before the doomsday it reveals so the cult is told while it
+is still alive to read it. A death from a later pass (catatonic, hunger) that
+finishes the last objective is picked up on the following close. Audit row
+`ascension_revealed`.
 
 ## 6. GM surface
 
@@ -356,7 +405,9 @@ status, chanters, opened, fires-at.
 `RiteAttempt` (rite, room snapshot, status OPEN/READY/FIRED/EXPIRED/CANCELLED,
 opened/ready/fires/fired, participants, result) and `RiteChant` (attempt,
 character snapshot, archive seq). `wipeGameData` deletes the attempts; chants
-cascade. `GameState.riteWords` and `thanatiHideoutRoomId` go with the row.
+cascade. `GameState.riteWords`, `thanatiHideoutRoomId` and
+`ascensionRevealedTurn` go with the row — so a new game's Grimoire starts
+without the Rite of Ascension again, whatever the last cult managed.
 
 ## 8. Where the code lives
 
@@ -368,10 +419,13 @@ cascade. `GameState.riteWords` and `thanatiHideoutRoomId` go with the row.
 | `db/lib/riteChant.js` | The chant hook and `evaluateAttempt` |
 | `db/lib/riteSweep.js` | Expire / fire / rearm |
 | `db/lib/ascensionPass.js` | The end of the world, at a turn close |
+| `db/lib/ascensionReveal.js` | The turn pass that puts the rite in the Grimoire (§5a) |
 | `db/lib/conversionRite.js` | The Conversion handshake: the circle's picker, the vision, the three answers, the three-hour clock |
 | `bot/src/lib/conversionPick.js` | Discord's half of that picker; the web's is `DmThread.js#ConversionPick` |
 | `db/test/rites.test.js` | The pure half |
 | `db/test/conversionRite.test.js` | The handshake, the picker and the blocklist's reach |
+| `db/test/ascensionReveal.test.js` | The reveal pass: the empty-objectives refusal and the guarded claim |
+| `web/lib/__tests__/grimoire.test.mjs` | That an unrevealed rite's Word is not in the body at all |
 | `web/lib/moveSpend.js` | `requireFreeMove`, `fileAutoRoutine` |
 | `web/lib/grimoire.js` | The Grimoire body |
 | `web/app/(app)/character/thanatiActions.js` | The four actions |
@@ -401,7 +455,7 @@ words where a room or a player hears anything:
 | Judgement | 1 heart, 2 eye, a photograph, 40 ⬢; target not Pious, not on hallowed ground | target **gibbed** wherever they stand, their Location hears "… explodes into mist!", remains dropped in a random public Room there — there is no body to drop them beside |
 | Madness | 1 mindbreaker-toxin, a photograph, 15 ⬢; same target rule as Judgement | target gets `madness` for two turns; the print is spent |
 | Fulfillment | nothing on the floor — but the **leader must be among the chanters**, and it fires once per game | 100 ⬢ per completed cult objective, on the room's floor; room hears "Bounty! What success!" |
-| Ascension | 1 barons-scepter, 1 bishops-mitre, 250 ⬢, eight chanters | arms the end of the world for two turns' time and tells every zone where it is being planned |
+| Ascension | 1 barons-scepter, 1 bishops-mitre, 250 ⬢, eight chanters | arms the end of the world for two turns' time and tells every zone where it is being planned. **Not in the Grimoire until every cult objective is done** — §5a |
 
 **Ascension is the second way a game ends** and is built like the bomb, on
 purpose. The rite stamps `GameState.ascensionArmedTurn = openTurn + 2` and

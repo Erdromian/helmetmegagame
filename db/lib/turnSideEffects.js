@@ -57,6 +57,7 @@ function buildSideEffectPayload(fields) {
     dyingDeaths: fields.dyingDeaths ?? [],
     nukeDeaths: fields.nukeDeaths ?? [],
     ascensionDeaths: fields.ascensionDeaths ?? [],
+    ascensionRevealDms: fields.ascensionRevealDms ?? [],
     turretDeaths: fields.turretDeaths ?? [],
     stagedDeaths: fields.stagedDeaths ?? [],
     hungerNotices: fields.hungerNotices ?? [],

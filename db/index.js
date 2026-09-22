@@ -45,6 +45,7 @@ const { runVisionDecayPass } = require("./lib/visionDecayPass");
 const { runDyingDeathPass } = require("./lib/dyingDeathPass");
 const { runNukeExplosionPass } = require("./lib/nukeExplosionPass");
 const { runAscensionPass } = require("./lib/ascensionPass");
+const { runAscensionRevealPass } = require("./lib/ascensionReveal");
 const { endGameInDb } = require("./lib/gameEnd");
 const { runBirdPass } = require("./lib/birdPass");
 const { runMiningYieldPass } = require("./lib/miningYield");
@@ -244,6 +245,16 @@ const TURN_PASSES = [
   // Ascension still sits after the staged push and dyingDeath, so a leader
   // killed by another character this turn does stop it; only the blast, which
   // is simultaneous rather than earlier, no longer does.
+  //
+  // The Grimoire's reveal reads the cult's objectives, so it shares the staged-
+  // push/dyingDeath slot for the same reason: a "kill X" objective settled by a
+  // killing adjudicated this turn is counted on this close rather than the next.
+  // It sits before the rite it reveals so the cult is told while it is still
+  // alive to read it. A death from a LATER pass (catatonic, hunger) that
+  // finishes the last objective is picked up on the following close — a turn's
+  // lag on an edge case, which beats moving a doomsday. See
+  // db/lib/ascensionReveal.js.
+  "ascensionReveal",
   "ascension",
   "nukeExplosion",
   // Corpses turn before the sweep, and the order is load-bearing: the sweep
@@ -603,6 +614,33 @@ async function resolveNeeds(turn, config) {
         },
       })
       .catch((err) => console.error("Dying death audit log failed:", err));
+  }
+
+  // The Grimoire learns the Rite of Ascension, once the cult has finished every
+  // objective a GM set it. Writes a stamp and hands back the DMs; it cannot end
+  // anything, so its only ordering requirement is the objectives being settled.
+  // See db/lib/ascensionReveal.js.
+  let ascensionRevealDms = [];
+  if (!done.has("ascensionReveal")) {
+    const reveal = await runAscensionRevealPass(prisma, turn).catch(async (err) => {
+      await passFailed("Ascension reveal", err);
+      return null;
+    });
+    if (reveal) {
+      ascensionRevealDms = reveal.dms ?? [];
+      await markDone("ascensionReveal");
+      if (reveal.revealed) {
+        await prisma.auditLog
+          .create({
+            data: {
+              actorDiscordUserId: "system",
+              actionType: "ascension_revealed",
+              details: { turnNumber: reveal.turnNumber, objectives: reveal.objectives, told: reveal.told },
+            },
+          })
+          .catch((err) => console.error("Ascension reveal audit log failed:", err));
+      }
+    }
   }
 
   // The Rite of Ascension. After the staged push and dyingDeath, so a leader
@@ -1367,6 +1405,7 @@ async function resolveNeeds(turn, config) {
     nukeBroadcast,
     ascensionDeaths,
     ascensionBroadcast,
+    ascensionRevealDms,
     gameEndedPost,
     birdNotices,
     carryDrops,
@@ -1541,6 +1580,7 @@ async function advanceTurn() {
   let nukeBroadcast = null;
   let ascensionDeaths = [];
   let ascensionBroadcast = null;
+  let ascensionRevealDms = [];
   let gameEndedPost = null;
   let dyingDeathWarnings = [];
   let birdNotices = [];
@@ -1596,6 +1636,7 @@ async function advanceTurn() {
       nukeBroadcast,
       ascensionDeaths,
       ascensionBroadcast,
+      ascensionRevealDms,
       gameEndedPost,
       birdNotices,
       carryDrops,
@@ -1692,6 +1733,7 @@ async function advanceTurn() {
         nukeBroadcast,
         ascensionDeaths,
         ascensionBroadcast,
+        ascensionRevealDms,
         gameEndedPost,
         birdNotices,
         carryDrops,
@@ -1805,6 +1847,7 @@ async function advanceTurn() {
     dyingDeaths,
     nukeDeaths,
     ascensionDeaths,
+    ascensionRevealDms,
     turretDeaths,
     stagedDeaths,
     hungerNotices,
