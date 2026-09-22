@@ -130,6 +130,11 @@ const COPY_CONSTANTS = new Set([
   // hovers (SHEET.md §2). The largest single block of player copy that no
   // call-site matcher sees, since it is a bare slug -> sentence map.
   "ACTION_HELP",
+  // The vending machine's whole vocabulary (db/lib/vendingText.js) — a bare
+  // key -> string/arrow map, so no call-site matcher sees it, and the loose
+  // pass would skip every short label ("Insert coins", "Buy") for being under
+  // LOOSE_MIN_WORDS. Both faces read these, so a rewrite here moves two.
+  "VENDING_TEXT",
   "BIND_VERBS",
   "CHARACTER_STATUS",
   "DESIRE_STATUS",
@@ -168,6 +173,9 @@ const DUAL_SURFACE_FILES = new Set([
   "db/lib/formatTagRequirement.js",
   "db/lib/moveEffects.js",
   "db/lib/mood.js",
+  // Chat's dialog and the Discord panel render the same strings, by design —
+  // that is the whole reason this file is zero-require (VENDING.md).
+  "db/lib/vendingText.js",
 ]);
 
 // The `»` rule is per-call-site, and NO transport strips or doubles one:

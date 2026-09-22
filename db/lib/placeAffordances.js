@@ -78,6 +78,7 @@ const ROOM_DROPBOX_PREFIX = "room:dropbox:";
 const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 const ROOM_SLOTS_PREFIX = "room:slots:";
 const ROOM_PHONE_PREFIX = "room:phone:";
+const ROOM_VENDING_PREFIX = "room:vending:";
 // The Charon (docs/systemdocs/CHARON.md). Three room buttons and one on the
 // Location: the Panic Room's way in, the Cockpit's terminal, the Habitation's
 // last one, and Leave on the ship itself.
@@ -90,6 +91,10 @@ const CHARON_LEAVE_PREFIX = "loc:charonleave:";
 // so the two client components that show them can import it); re-exported
 // here so server callers keep their one import.
 const { DROPBOX_HELP, DROPBOX_EMPTY } = require("./dropboxText");
+// Same bargain: the vending machine's button label is authored once, in the
+// zero-require file, so the web panel and the Discord starter post cannot drift.
+const { VENDING_TEXT } = require("./vendingText");
+const VENDING_LABEL = VENDING_TEXT.btnOpen;
 
 // `tone` is what the affordance MEANS, never a colour — each face maps it to its own look.
 const GO = "go";
@@ -211,6 +216,23 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_SLOTS_PREFIX,
     when: (room) => room?.slug === CASINO_ROOM_SLUG,
   },
+  // The Merchant's vending machine (docs/systemdocs/VENDING.md). Resolved off a
+  // COLUMN rather than a slug, the way the phone above is: there is one today,
+  // on the Storefront, and a second is a YAML edit plus a tick on
+  // /gm/dev/zones rather than a line in this file.
+  //
+  // One button, four meanings — open it, wait for whoever has it, work the
+  // shelf, or open the merchant's side — all decided by
+  // db/lib/vending.js#machineView when it is pressed, never here. An anchor is
+  // one message for everybody in the room (see the header), so it can only
+  // carry what is true of the PLACE: that there is a machine on this wall.
+  {
+    id: "vending",
+    label: VENDING_LABEL,
+    tone: PLAIN,
+    prefix: ROOM_VENDING_PREFIX,
+    when: (room) => Boolean(room?.vendingMachine),
+  },
   // The phone on the wall (docs/systemdocs/PHONES.md). The only affordance
   // resolved off a COLUMN rather than a slug: there are thirteen of them and a
   // fourteenth is a YAML edit, which is the whole reason Room.phone holds the
@@ -326,7 +348,16 @@ async function affordancesFor(prisma, character) {
     prisma.room.findMany({
       where: { locationId: character.locationId },
       orderBy: { sortOrder: "asc" },
-      select: { id: true, name: true, slug: true, kind: true, accessTagSlugs: true, questId: true, phone: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        kind: true,
+        accessTagSlugs: true,
+        questId: true,
+        phone: true,
+        vendingMachine: true,
+      },
     }),
     roomAccessKeys(prisma, character.id),
     linksFor(prisma, character.locationId),
@@ -404,6 +435,7 @@ module.exports = {
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
+  ROOM_VENDING_PREFIX,
   ROOM_CHARON_ENTER_PREFIX,
   ROOM_CHARON_LAUNCH_PREFIX,
   ROOM_CHARON_SLEEP_PREFIX,

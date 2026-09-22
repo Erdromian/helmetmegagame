@@ -16,6 +16,7 @@ const { runLobbySweep } = require("@lifeweb/db/lib/lobbySweep");
 const { runRiteSweep } = require("@lifeweb/db/lib/riteSweep");
 const { runCorpseSenseSweep } = require("@lifeweb/db/lib/corpseSense");
 const { tickPhones } = require("@lifeweb/db/lib/phone");
+const { tickVending } = require("@lifeweb/db/lib/vending");
 const { PHONE_RING_INTERVAL_MS } = require("@lifeweb/db/lib/phoneText");
 const { runCharonSweep } = require("@lifeweb/db/lib/charonSweep");
 const { runOracleAtCutoff } = require("@lifeweb/db/lib/oracleCutoff");
@@ -279,6 +280,30 @@ module.exports = {
           phoneSweepRunning = false;
         });
     }, PHONE_RING_INTERVAL_MS);
+
+    // The Merchant's vending machine (docs/systemdocs/VENDING.md). Frees a
+    // machine whose holder's five minutes ran out, who died, or who walked off.
+    //
+    // COSMETIC ONLY, and worth knowing: the hold is derived from `holderSince`
+    // on every read, so the next customer is already in by the time this runs.
+    // What this adds is the room line, the DM and the audit row — so the bot
+    // being down costs a line of scenery rather than the feature. It moves NO
+    // money: coin left in the slot stays in the slot.
+    //
+    // A minute is plenty for a five-minute window, unlike the phone's rings.
+    let vendingSweepRunning = false;
+    cron.schedule("* * * * *", () => {
+      if (vendingSweepRunning) return;
+      vendingSweepRunning = true;
+      tickVending(prisma)
+        .then(({ freed }) => {
+          if (freed) console.log(`Vending sweep: ${freed} machine(s) freed.`);
+        })
+        .catch((err) => console.error("Vending sweep failed:", err))
+        .finally(() => {
+          vendingSweepRunning = false;
+        });
+    });
 
     // Thanati rites fire two minutes after their last requirement lands, expire twelve hours after
     // their first chant (db/lib/riteSweep.js). Every minute so "two minutes" stays close to true.

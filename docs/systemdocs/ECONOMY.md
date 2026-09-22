@@ -12,7 +12,7 @@ in, and forms are what `EconomyEntry.form` names:
 | Form | Where it lives | What is special about it |
 |---|---|---|
 | `BALANCE` | `resources` tag stacks, on a character or a Room | Raw material. A pound a unit, so a fortune is freight. The common case |
-| `COIN` | physical `obol` tags | Weightless, can be looted. Also what is actually in the Keep's Vault |
+| `COIN` | physical `obol` tags, **and a vending machine's two pools** (`VendingMachine.floatObols` / `tillObols`) | Weightless, can be looted. Also what is actually in the Keep's Vault |
 | `ACCOUNT` | `BankAccount.balanceObols` | A claim. Most are claims on the Vault's coin; the Merchant's is offshore |
 | `DEBT` | `Depot.debtObols` | Negative money, capped at `creditCapObols` (75) |
 | `MANIFEST` | undelivered `DepotOrder` + unsettled `DepotSale` | Paid for or sold, still on the rails. Real money, in transit |
@@ -63,6 +63,11 @@ Every entry has two ends, and each is one of:
   counterparty: no live balance, exempt from reconcile, exactly like mint and
   burn. It exists so that a movement whose coin leg is already booked by the tag
   hook can book its claim leg without double-counting the same money
+- `machine:<id>` — a vending machine's coin box (`VENDING.md`). **One party for
+  both of its pools**, because the loose float in the slot and the locked till
+  are two trays in one box: a purchase moving coin between them has not changed
+  hands, so it books nothing. Its live balance is `floatObols + tillObols`, and
+  anybody who ever writes a `COIN` reconcile must read both
 - `depot:debt`; `depot:account` is retired but still named by old rows
 - `offworld:company` — the shuttle. The only door off-world
 - `world:mint` and `world:burn`
@@ -80,7 +85,14 @@ bug in the ledger** — it means something moved money without saying so, and th
 size of the drift is the size of the hole.
 
 It covers three kinds now: characters and rooms over form `BALANCE`, and
-**bank accounts over form `ACCOUNT`**. The bank half holds because every balance
+**bank accounts over form `ACCOUNT`**. **`COIN` has never been reconciled at
+all** — the only code that compares legs against live balances is
+`db/scripts/ops/backfill-economy.js#writePlugs`, filtered
+`form = 'BALANCE' AND kind IN ('character','room')`. So `machine:<id>` above is
+not a new exception to a live rule; it is the second citizen of a form nothing
+checks. A machine sitting on 8 ¢ cannot read as drift today, and the honest way
+to close that gap is a `COIN` audit of its own rather than widening the `IN`
+list to a party whose live balance that query cannot read. The bank half holds because every balance
 move is one conditional `UPDATE` paired with exactly one `ACCOUNT` row inside
 the same transaction (`db/lib/bankAccounts.js#bumpBankAccount`); `bank:clearing`
 is skipped as a book account.

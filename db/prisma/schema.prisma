@@ -1636,6 +1636,15 @@ model Room {
   // because there is nobody standing next to it whose job is to answer.
   payphone Boolean @default(false)
 
+  // A vending machine bolted to this wall. Set from `vending: true` in
+  // docs/zones.yaml, the way `stable` and `payphone` above are.
+  // db/lib/vending.js resolves the machine off this column, never a hardcoded
+  // Room slug, for the reason `stable` gives: moving the shop is then a YAML
+  // edit and a tick on /gm/dev/zones rather than a code change.
+  // See docs/systemdocs/VENDING.md.
+  vendingMachine Boolean         @default(false)
+  vending        VendingMachine?
+
   // A key from the registry in db/lib/roomLive.js, set from `live:` in
   // docs/zones.yaml. The room's starter message carries one extra line read
   // off live state, re-rendered whenever that state moves — the Landing Pad
@@ -2508,6 +2517,11 @@ model Character {
   // Both ends of a telephone call. See PhoneCall.
   phoneCallsPlaced PhoneCall[] @relation("PhoneCallCaller")
   phoneCallsTaken  PhoneCall[] @relation("PhoneCallCallee")
+
+  // The vending machine this character is standing at, if any. At most one —
+  // see VendingMachine.holderId for why that is a unique index rather than a
+  // rule in code.
+  vendingHold VendingMachine? @relation("VendingHolder")
 
   // Searches asked of them, and searches they asked for
   // (docs/systemdocs/SEARCH.md §4). Same two-ended shape as the catches above.
@@ -3578,6 +3592,7 @@ model Tag {
 
   characters    CharacterTag[]
   roomTags      RoomTag[]
+  vendingSlots  VendingSlot[]
   noticePost    NoticePost?
   gatedGroups   TagGroup[]     @relation("TagGroupGate")
   cavingRolls   CavingRoll[]
@@ -6463,4 +6478,89 @@ model Performance {
 
   @@index([locationId, stoppedAt])
   @@index([characterId])
+}
+
+// The Merchant's vending machine (docs/systemdocs/VENDING.md). The shop that
+// sells while he is asleep — one turn is one real day, and nobody can stand
+// behind a counter for all of it.
+//
+// One machine per Room, which is what makes `roomId` the key rather than a slug
+// constant: moving the shop is then a YAML edit or a tick on /gm/dev/zones, the
+// same bargain Room.stable and Room.phone already strike.
+//
+// THE TWO COIN POOLS ARE NOT ONE POOL, and the difference is the whole feature.
+// `floatObols` is loose in the slot and belongs to whoever is standing at the
+// machine; `tillObols` is behind the lock and belongs to the licence holder.
+// Neither is a BankAccount and neither may ever be summed with one — a claim and
+// coin are two pots (docs/systemdocs/ECONOMY.md §1).
+model VendingMachine {
+  id     String @id @default(cuid())
+  roomId String @unique
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  /// Loose coin in the slot. The customer holding the machine may spend it or
+  /// take it back; if their five minutes run out it STAYS HERE, and the next
+  /// customer may spend it or take it. It never sweeps to the till and is never
+  /// posted back to anybody. Forgetting your change is meant to cost you.
+  floatObols Int @default(0)
+
+  /// The locked box. Only somebody holding the merchant's licence gets it out,
+  /// and a purchase is the only thing that puts anything in.
+  tillObols Int @default(0)
+
+  /// Who is at the machine. NULL is free. UNIQUE because a person has one pair
+  /// of hands: Postgres counts NULLs as distinct in a unique index, so this says
+  /// "at most one machine per holder" and costs no raw SQL — unlike PhoneCall's
+  /// four, which are partial only because its `status` is non-null.
+  holderId String?    @unique
+  holder   Character? @relation("VendingHolder", fields: [holderId], references: [id], onDelete: SetNull)
+
+  /// When they took it. THE CLOCK IS DERIVED FROM THIS, never stored as a
+  /// deadline and never held in a timer (db/lib/phone.js#ringsDueBy says why):
+  /// the bot being down for six minutes must not hand somebody an extra six.
+  holderSince DateTime?
+
+  /// Whether the holder opened the merchant's side. Only ever read through
+  /// db/lib/vending.js#unlockedNow, which ANDs it with a live hold — so a
+  /// crashed process can never leave the shop standing open.
+  unlocked Boolean @default(false)
+
+  slots VendingSlot[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// One shelf line: what is in the machine, how many, and what it costs.
+model VendingSlot {
+  id        String         @id @default(cuid())
+  machineId String
+  machine   VendingMachine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag            @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  quantity Int @default(1)
+
+  /// In obols. 0 is legal and means free — a merchant giving something away is
+  /// not a case worth refusing. Capped at VENDING_MAX_PRICE
+  /// (db/lib/vendingText.js) so a typo cannot overflow int4 on the ledger.
+  priceObols Int @default(0)
+
+  /// Poison rides with the goods, exactly as it does on RoomTag. WITHOUT THESE
+  /// THE MACHINE LAUNDERS POISON: a tainted pie in and a clean one out. The draw
+  /// on the way out and the "poisons don't mix, they dilute" merge on the way in
+  /// are db/lib/tagWrites.js's, reused rather than reinvented.
+  poisonedCount Int     @default(0)
+  poisonPayload String?
+
+  /// A timed tag keeps its clock across a stocking round trip. Nothing sweeps it
+  /// here — db/lib/tagExpiryPass.js walks CharacterTag only, and RoomTag has
+  /// carried the same unswept column since it was added. Parity, on purpose.
+  expiresTurn Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([machineId, tagId])
+  @@index([machineId])
 }

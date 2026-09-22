@@ -1224,8 +1224,9 @@ zones:
         rooms:
           undertown-6-1:
             name: Storefront
+            vending: true
             description: >-
-              An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
+              An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A vending machine stands against one wall, its front glassed over. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
             stash: [tea, sugar-candy]
           undertown-6-2:
             name: Merchant's Office

@@ -42,6 +42,7 @@ const {
   CHARON_LEAVE_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
+  ROOM_VENDING_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -152,6 +153,38 @@ const {
   handleTurretSubmit,
   handleIntercomSubmit,
 } = require("./interactions/rooms");
+const {
+  VENDING_BUY_PREFIX,
+  VENDING_INSERT_PREFIX,
+  VENDING_INSERT_MODAL,
+  VENDING_WITHDRAW_PREFIX,
+  VENDING_LEAVE_PREFIX,
+  VENDING_UNLOCK_PREFIX,
+  VENDING_LOCK_PREFIX,
+  VENDING_COLLECT_PREFIX,
+  VENDING_OUT_PREFIX,
+  VENDING_IN_PREFIX,
+  VENDING_IN_MODAL,
+  VENDING_PRICE_PREFIX,
+  VENDING_PRICE_MODAL,
+  handleVendingOpen,
+  handleVendingLeave,
+  handleVendingInsert,
+  handleVendingInsertSubmit,
+  handleVendingWithdraw,
+  handleVendingBuy,
+  handleVendingUnlock,
+  handleVendingLock,
+  handleVendingCollect,
+  handleVendingStockIn,
+  handleVendingStockInPicked,
+  handleVendingStockInSubmit,
+  handleVendingStockOut,
+  handleVendingStockOutPicked,
+  handleVendingPrice,
+  handleVendingPricePicked,
+  handleVendingPriceSubmit,
+} = require("./interactions/vending");
 const {
   ATM_OUT_PREFIX,
   ATM_IN_PREFIX,
@@ -403,6 +436,45 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_SLOTS_PREFIX)) {
           return void (await handleSlotsOpen(interaction, interaction.customId.slice(ROOM_SLOTS_PREFIX.length)));
         }
+        // The Merchant's vending machine. EVERY sub-prefix goes before the open
+        // prefix, for the reason Pray's and Slots' pairs give above:
+        // "room:vending:insert:<id>" also starts with "room:vending:".
+        if (interaction.customId.startsWith(VENDING_INSERT_PREFIX)) {
+          return void (await handleVendingInsert(interaction, interaction.customId.slice(VENDING_INSERT_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(VENDING_WITHDRAW_PREFIX)) {
+          return void (await handleVendingWithdraw(
+            interaction,
+            interaction.customId.slice(VENDING_WITHDRAW_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(VENDING_LEAVE_PREFIX)) {
+          return void (await handleVendingLeave(interaction, interaction.customId.slice(VENDING_LEAVE_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(VENDING_UNLOCK_PREFIX)) {
+          return void (await handleVendingUnlock(interaction, interaction.customId.slice(VENDING_UNLOCK_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(VENDING_LOCK_PREFIX)) {
+          return void (await handleVendingLock(interaction, interaction.customId.slice(VENDING_LOCK_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(VENDING_COLLECT_PREFIX)) {
+          return void (await handleVendingCollect(
+            interaction,
+            interaction.customId.slice(VENDING_COLLECT_PREFIX.length),
+          ));
+        }
+        if (interaction.customId.startsWith(VENDING_IN_PREFIX)) {
+          return void (await handleVendingStockIn(interaction, interaction.customId.slice(VENDING_IN_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(VENDING_OUT_PREFIX)) {
+          return void (await handleVendingStockOut(interaction, interaction.customId.slice(VENDING_OUT_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(VENDING_PRICE_PREFIX)) {
+          return void (await handleVendingPrice(interaction, interaction.customId.slice(VENDING_PRICE_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(ROOM_VENDING_PREFIX)) {
+          return void (await handleVendingOpen(interaction, interaction.customId.slice(ROOM_VENDING_PREFIX.length)));
+        }
         if (interaction.customId.startsWith(ROOM_BELL_PREFIX)) {
           return void (await handleBellOpen(interaction, interaction.customId.slice(ROOM_BELL_PREFIX.length)));
         }
@@ -510,6 +582,31 @@ module.exports = {
         if (interaction.customId.startsWith(PHONE_DIAL_PREFIX)) {
           return void (await handlePhoneDial(interaction, interaction.customId.slice(PHONE_DIAL_PREFIX.length)));
         }
+        // The vending machine's three selects. The two "pick:" ones are checked
+        // first because they share their parent's prefix, and the two that open
+        // a modal must NOT be acked first.
+        if (interaction.customId.startsWith(`${VENDING_OUT_PREFIX}pick:`)) {
+          return void (await handleVendingStockOutPicked(
+            interaction,
+            interaction.customId.slice(`${VENDING_OUT_PREFIX}pick:`.length),
+          ));
+        }
+        if (interaction.customId.startsWith(`${VENDING_PRICE_PREFIX}pick:`)) {
+          return void (await handleVendingPricePicked(
+            interaction,
+            interaction.customId.slice(`${VENDING_PRICE_PREFIX}pick:`.length),
+          ));
+        }
+        if (interaction.customId.startsWith(VENDING_BUY_PREFIX)) {
+          return void (await handleVendingBuy(interaction, interaction.customId.slice(VENDING_BUY_PREFIX.length)));
+        }
+        // Opens a modal, so it must NOT be acked first.
+        if (interaction.customId.startsWith(VENDING_IN_MODAL)) {
+          return void (await handleVendingStockInPicked(
+            interaction,
+            interaction.customId.slice(VENDING_IN_MODAL.length),
+          ));
+        }
         if (interaction.customId.startsWith("heal:pick:")) {
           return void (await handleHealPick(interaction, interaction.customId.slice("heal:pick:".length)));
         }
@@ -570,6 +667,27 @@ module.exports = {
           return void (await handleTurretSubmit(
             interaction,
             interaction.customId.slice(TURRET_MODAL_PREFIX.length),
+          ));
+        }
+        // The vending machine's three modals. The put-in and price ones carry
+        // "<roomId>:<tagId>" rather than a bare room id, since the select that
+        // opened them is gone by the time the modal comes back.
+        if (interaction.customId.startsWith(VENDING_INSERT_MODAL)) {
+          return void (await handleVendingInsertSubmit(
+            interaction,
+            interaction.customId.slice(VENDING_INSERT_MODAL.length),
+          ));
+        }
+        if (interaction.customId.startsWith(VENDING_IN_MODAL)) {
+          return void (await handleVendingStockInSubmit(
+            interaction,
+            interaction.customId.slice(VENDING_IN_MODAL.length),
+          ));
+        }
+        if (interaction.customId.startsWith(VENDING_PRICE_MODAL)) {
+          return void (await handleVendingPriceSubmit(
+            interaction,
+            interaction.customId.slice(VENDING_PRICE_MODAL.length),
           ));
         }
         if (interaction.customId.startsWith(ATM_MODAL_PREFIX)) {

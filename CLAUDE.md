@@ -257,6 +257,7 @@ you pick the right doc — they are never enough to change code with.
 | [`MEDICAL.md`](docs/systemdocs/MEDICAL.md) | You're touching curing an ailment by item instead of by medic (`cures`/`curesInto`/`administerSkill`), the medical Move economy, poisoning and resistance, or the prosthetics |
 | [`BREWING.md`](docs/systemdocs/BREWING.md) | You're pricing a brew, changing a recipe, or touching the Brewing skill family |
 | [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching `/depot` or the Merchant's credit line, or setting a tag's `depotPrice` / `sellablePrice` |
+| [`VENDING.md`](docs/systemdocs/VENDING.md) | You're touching the Merchant's vending machine — `Room.vendingMachine`, the shelf and its prices, the two coin pools (the loose float in the slot against the locked till), the five-minute exclusive hold, or **anything that asks whether somebody is at the machine right now** (`db/lib/vending.js#heldBy`) |
 | [`ECONOMY.md`](docs/systemdocs/ECONOMY.md) | You're touching the ⬢ ledger (`db/lib/economyLedger.js`), a money hook, or **anything that asks where the money went** — the reconciliation invariant, the reason vocabulary, or the backfill |
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet — and **always** before adding one a per-turn ration counts |

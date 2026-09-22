@@ -27,6 +27,7 @@ const {
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { dropCallsForCharacter } = require("./phone");
+const { releaseHoldsForCharacter } = require("./vending");
 const { stopPerformances } = require("./performance");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { cancelSearchOffersOnMove } = require("./search");
@@ -265,6 +266,14 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     // A song stays in the Location it was played in (SOUND.md, "Performances").
     await stopPerformances(prisma, [characterId], "moved").catch((err) =>
       console.error(`Move: stopping the song failed for ${characterId}:`, err.message ?? err),
+    );
+    // And you let go of the vending machine when you walk away from it
+    // (VENDING.md). Here for the reason the phone is: every relocation runs
+    // this writer. THE FLOAT IS NOT TOUCHED — walking out is not pressing Step
+    // away, so coin left in the slot stays there for the next customer. The
+    // minute sweep is the backstop, because the hook list is never finished.
+    await releaseHoldsForCharacter(prisma, characterId, "moved").catch((err) =>
+      console.error(`Move: releasing the vending machine failed for ${characterId}:`, err.message ?? err),
     );
   }
 

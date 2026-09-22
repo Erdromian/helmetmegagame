@@ -51,6 +51,21 @@ function roomParty(r) {
   return { kind: "room", id: r.id, name: r.name ?? null, zoneId: r.zoneId ?? r.location?.zoneId ?? null };
 }
 
+// A vending machine's coin (docs/systemdocs/VENDING.md). ONE party for BOTH
+// pools: the float in the slot and the till behind the lock are two trays in one
+// box, and a purchase moving coin between them has not changed hands — so it
+// books nothing. Its live balance is `floatObols + tillObols`, and whoever ever
+// writes a COIN reconcile must read BOTH or it will report a drift the size of
+// every unemptied till in the game.
+//
+// Nothing reconciles this today: reconcile covers BALANCE and ACCOUNT, and COIN
+// has never been checked (docs/systemdocs/ECONOMY.md §3). The machine is the
+// second citizen of an unchecked form, not a new exception to a live rule.
+function machineParty(m) {
+  if (!m?.id) return null;
+  return { kind: "machine", id: m.id, name: m.name ?? "The vending machine", zoneId: m.zoneId ?? null };
+}
+
 // One lookup per TRANSACTION, not per row. Pass `ctx.gameId` to skip it. WeakMap-keyed on `tx` so the entry dies with the transaction, not outliving a wipe.
 const gameIdByTx = new WeakMap();
 
@@ -146,6 +161,7 @@ module.exports = {
   bankParty,
   characterParty,
   roomParty,
+  machineParty,
   record,
   recordDelta,
   turnStamp,

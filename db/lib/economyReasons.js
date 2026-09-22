@@ -73,6 +73,20 @@ const REASONS = {
   // obol goes into the Keep's Vault rather than out of the game, so the coin
   // is still there and somebody could in principle come and take it.
   PAYPHONE: { flow: FLOW.TRANSFER, label: "Payphone" },
+  // The Merchant's vending machine (db/lib/vending.js). All TRANSFER, the SLOTS
+  // and PAYPHONE posture: the coin goes on existing inside the machine, so
+  // nothing is minted and nothing is burned. Five reasons rather than one
+  // because five different things happen to the same box, and a GM reading
+  // "money went into a machine" should be able to tell a customer feeding the
+  // slot from a merchant emptying the till.
+  VENDING_INSERT: { flow: FLOW.TRANSFER, label: "Coins inserted" },
+  VENDING_WITHDRAW: { flow: FLOW.TRANSFER, label: "Coins taken back" },
+  // The GOODS leg of a purchase. There is no coin leg, on purpose: the money was
+  // already in the machine, and moving it from the slot to the till is one
+  // account's two trays rather than a movement — db/lib/economyLedger.js#machineParty.
+  VENDING_SALE: { flow: FLOW.TRANSFER, label: "Vending machine" },
+  VENDING_STOCK: { flow: FLOW.TRANSFER, label: "Machine restocked" },
+  VENDING_TILL: { flow: FLOW.TRANSFER, label: "Till emptied" },
   // Kept, unwritten: the generator is gone, but a reason is a plain string and
   // deleting one blanks the old rows that name it.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },

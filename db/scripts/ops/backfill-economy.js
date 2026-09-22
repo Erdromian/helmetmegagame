@@ -115,6 +115,14 @@ async function main() {
 }
 
 // One row per account whose reconstructed sum does not match its live balance.
+//
+// The two filters below are load-bearing and narrower than they look. `form =
+// 'BALANCE'` and `kind IN ('character','room')` are the only ends this can read
+// a LIVE balance for, off the `resources` stacks below. Do not widen the IN list
+// helpfully: `machine:<id>` (a vending machine's coin box,
+// docs/systemdocs/VENDING.md) and `bank:<id>` both have live balances this query
+// cannot see, so adding them writes PLUG rows the size of the whole account.
+// A COIN reconcile is a separate script that does not exist yet — ECONOMY.md §3.
 async function writePlugs(gameId) {
   const legs = await prisma.$queryRaw`
     SELECT kind, id, SUM(delta)::int AS delta FROM (

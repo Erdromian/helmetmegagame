@@ -456,6 +456,10 @@ Goods don't arrive the moment you pay for them. A cargo train runs every other t
 
 What you're allowed to buy depends on your tags: everyone can buy Resources and a Ration Box, some things need you holding the right chit, and the good stuff is the Merchant's own shelf. Selling works the other way — drop what you're selling in the dropbox at the Depot, and you're paid out when the train next leaves, minus a cut the Meister takes off the top. Whatever goes in the box is gone the moment you drop it.
 
+The Merchant's Storefront also has a vending machine, and that one works whether or not he's awake. Press Machine, feed obols into the slot, and click whatever you can afford. Only one person can be at it at a time and you get five minutes, so nobody can stand behind you and pocket what you put in.
+
+**Take your change.** Press Take your coins, or Step away, before your time runs out. Coins left in the slot stay in the machine, and the next person to open it can spend them or keep them.
+
 **Header:** Your name, title (if present), role, and portrait.
 
 **Status** (top-left):
