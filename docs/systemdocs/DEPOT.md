@@ -967,10 +967,9 @@ never faced this question — it is simply stocked.
 
 `fishing-rod` at 12 and `trapping-gear` at 26 are Merchant stock rather than
 smith work. Both are craftable too, so the depot price is the impatience
-premium, not a monopoly. The Plow is deliberately **not** stocked — it is smith
-work, and the horse it needs is the real cost.
+premium, not a monopoly.
 
-All three used to carry a Laboring bonus, which is where this section came
+Both used to carry a Laboring bonus, which is where this section came
 from. Laboring is gone and only three tags pay into a day's work now
 (`MINING.md` §4) — one of which, the Mining Helmet, the Merchant does stock.
 

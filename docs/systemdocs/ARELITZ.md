@@ -199,8 +199,7 @@ for).
 `horse`, `arelitz-breeding`, `arelitz-warbeast`, `arelitz-ovum`,
 `arelitz-thoroughbred` are deleted from the catalog outright (pre-launch, no
 compat shim needed — CLAUDE.md). Every dependent tag repointed at arelitz:
-`plow`'s `laborBonus.requiresTag` (a HOLD check, so an unruly arelitz can
-still pull a plough even though nobody can ride it), `horseshoes` renamed to
+`horseshoes` renamed to
 `arelitz-tack`, the Courier role's `consumesInto` grant, Motion Sickness's
 copy, Fishing Boat's conflict text. `db/lib/mounts.js` collapsed from
 per-variant branches to one `arelitz` branch throughout.
