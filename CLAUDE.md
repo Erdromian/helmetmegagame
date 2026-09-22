@@ -501,7 +501,10 @@ npm run economy:report               # read-only: every wage, price and food fig
                                      #   one navigable page a topic (open index.html and
                                      #   follow its nav), plus a table of where the
                                      #   system docs disagree with the catalog and
-                                     #   code. `-- --players N` sizes the town.
+                                     #   code. `-- --players N` sizes the town, and
+                                     #   `-- --mood-weight N` reprices every dish's worth
+                                     #   with a point of mood counted as N points of
+                                     #   hunger against the Ration Box (default 2).
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
 npm test --workspace=web             # node --test over web/lib/__tests__/.

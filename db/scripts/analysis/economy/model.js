@@ -149,7 +149,7 @@ function craftFamilyOf(skills) {
 // One obol is one ⬢ (ECONOMY.md §1), so paying a cost in obols values a ⬢ at exactly 1 obol.
 const OBOL_PAR = 1;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 2 } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
@@ -200,6 +200,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     obolFamilies,
     obolPath,
     resourceValue,
+    moodWeight,
     productionCoefficient,
     farmMaxCrops,
     stableCapacity,
@@ -1145,7 +1146,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   const workedRows = activities.filter((a) => inScope(a) && hasItemInput(a) && !HELD_BACK.has(a.slug) && !BARS.has(a.slug)).map(workedInput);
   const offWorked = workedRows.filter((r) => Math.abs(r.got - r.expected) > 1);
-  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, refs: { factoryShift: shift, factoryPerTurn, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
+  const cooking = buildCooking({ get, list, rv, params, sources, foodFloor, players, moodWeight, refs: { factoryShift: shift, factoryPerTurn, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null } });
   trinkets.shelfLoop.topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
   trinkets.moveValue = moveValueUsed;
   const lucky = buildLucky({ get, rv, caving, trinkets, moveValue: moveValueUsed, gameTurns });

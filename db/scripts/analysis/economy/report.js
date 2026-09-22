@@ -8,6 +8,7 @@
 //   npm run economy:report -- --resource-value sell   # value ⬢ at the 1 ¢ sell-back (default: the Depot's buy price)
 //   npm run economy:report -- --mined-value buy      # value a Prospector's ⬢ at the 3 ¢ import price (default: the midpoint of the Depot's two prices)
 //   npm run economy:report -- --obols off     # preview the game with obol payment for smithing removed (default: read the source)
+//   npm run economy:report -- --mood-weight 1 # weigh a point of mood the same as hunger, not double (default: 2)
 //   npm run economy:report -- --out /tmp/x    # somewhere else
 //
 // Read-only: touches no database and posts nothing. The output directory is
@@ -33,8 +34,9 @@ const resourceValue = flag("resource-value", "buy");
 const minedValue = flag("mined-value", "mid");
 const obolPath = flag("obols", "auto");
 const moveValueFlag = flag("move-value", null) == null ? null : Number(flag("move-value", null));
+const moodWeight = Number(flag("mood-weight", 2));
 
-const model = buildModel({ players, gameTurns, freeMoves, resourceValue, minedValue, obolPath, moveValue: moveValueFlag });
+const model = buildModel({ players, gameTurns, freeMoves, resourceValue, minedValue, obolPath, moveValue: moveValueFlag, moodWeight });
 const { params } = model;
 
 let commit = "unknown";
@@ -109,7 +111,7 @@ function barChart({ rows, unit = "", width = 720, max = null, labelW = 200, fmtV
       const y = top + i * rowH;
       const w = Math.max(1, (Math.max(r.value, 0) / hi) * plotW);
       return `<text x="${labelW - 8}" y="${y + 17}" text-anchor="end" class="lbl">${esc(r.label)}</text>
-<rect x="${labelW}" y="${y + 3}" width="${w}" height="${rowH - 8}" rx="2" style="fill:${r.color ?? "var(--c0)"}"><title>${esc(r.label)}: ${fmtVal(r.value)}${unit}</title></rect>
+<rect x="${labelW}" y="${y + 3}" width="${w}" height="${rowH - 8}" rx="2" style="fill:${r.color ?? "var(--c0)"}" tabindex="0" data-tip="${esc(r.label)}: ${fmtVal(r.value)}${unit}"></rect>
 <text x="${labelW + w + 6}" y="${y + 17}" class="val">${fmtVal(r.value)}${unit}</text>`;
     })
     .join("");
@@ -134,7 +136,7 @@ function stripPlot({ groups, width = 760, unit = "¢/turn" }) {
       const dots = g.points
         .map(
           (p) =>
-            `<circle cx="${x(p.value)}" cy="${y + rowH / 2 - 4}" r="4.5" style="fill:${famColor(g.family)}" fill-opacity=".55" stroke="${famColor(g.family)}"><title>${esc(p.label)}: ${fmt(p.value)} ${unit}</title></circle>`,
+            `<circle cx="${x(p.value)}" cy="${y + rowH / 2 - 4}" r="4.5" style="fill:${famColor(g.family)}" fill-opacity=".55" stroke="${famColor(g.family)}" tabindex="0" data-tip="${esc(p.label)}: ${fmt(p.value)} ${unit}"></circle>`,
         )
         .join("");
       return `<text x="${labelW - 8}" y="${y + rowH / 2}" text-anchor="end" class="lbl">${esc(g.family)} <tspan class="tick">(${g.points.length})</tspan></text>${dots}`;
@@ -166,12 +168,41 @@ function scatter({ points, width = 760, height = 360 }) {
   const dots = points
     .map(
       (p) =>
-        `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.big ? 7 : 4}" style="fill:${famColor(p.family)}" fill-opacity="${p.big ? 0.9 : 0.5}" stroke="${famColor(p.family)}"><title>${esc(p.label)} — ${p.x} pt, ${fmt(p.y)} ¢/turn</title></circle>${
+        `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="${p.big ? 7 : 4}" style="fill:${famColor(p.family)}" fill-opacity="${p.big ? 0.9 : 0.5}" stroke="${famColor(p.family)}" tabindex="0" data-tip="${esc(p.label)} — ${p.x} pt, ${fmt(p.y)} ¢/turn"></circle>${
           labelled.has(p) ? `<text x="${X(p.x) + 10}" y="${Y(p.y) + 4}" class="lbl">${esc(p.short)}</text>` : ""
         }`,
     )
     .join("");
   return `<svg viewBox="0 0 ${width} ${height}" role="img" class="chart">${gy}${gx}<text x="${(width + m.l) / 2}" y="${height - 4}" text-anchor="middle" class="tick">cumulative skill points</text><text transform="translate(12 ${height / 2}) rotate(-90)" text-anchor="middle" class="tick">¢ per turn</text>${dots}</svg>`;
+}
+
+// One dot a dish: ingredients cost along the bottom, hunger + mood worth (at the Ration Box's own
+// combined rate — see cooking.js#boxPerPoint) up the side. The dashed line is parity with the box
+// itself, since that rate is derived FROM the box — a dish sitting on the line costs exactly what a
+// Ration Box would for the same hunger and mood. Above it beats Rations, below it loses to just
+// buying one. Colour carries the same verdict the numbers do, so the shape of the story reads before
+// the hover text does.
+function dishValueChart({ dishes, width = 720, height = 380 }) {
+  const m = { l: 54, r: 16, t: 14, b: 40 };
+  const pts = dishes.filter((d) => d.cost != null && d.value != null);
+  const hi = Math.max(...pts.flatMap((d) => [d.cost, d.value]), 1) * 1.08;
+  const X = (v) => m.l + (v / hi) * (width - m.l - m.r);
+  const Y = (v) => height - m.b - (v / hi) * (height - m.t - m.b);
+  const gy = niceTicks(0, hi, 6)
+    .map((v) => `<line x1="${m.l}" x2="${width - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end" class="tick">${fmt(v, 0)}</text>`)
+    .join("");
+  const gx = niceTicks(0, hi, 6)
+    .map((v) => `<line x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${height - m.b}" class="grid"/><text x="${X(v)}" y="${height - m.b + 16}" text-anchor="middle" class="tick">${fmt(v, 0)}</text>`)
+    .join("");
+  const parity = `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(hi)}" y2="${Y(hi)}" stroke="var(--mute)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${X(hi) - 4}" y="${Y(hi) - 6}" text-anchor="end" class="tick">as good as a Ration Box</text>`;
+  const dots = pts
+    .map((d) => {
+      const good = d.margin >= 0;
+      const c = good ? "var(--good)" : "var(--bad)";
+      return `<circle cx="${X(d.cost)}" cy="${Y(d.value)}" r="5" style="fill:${c}" fill-opacity="${good ? 0.7 : 0.55}" stroke="${c}" tabindex="0" data-tip="${esc(d.name)}: ${fmt(d.cost, 1)} ¢ of ingredients, ${fmt(d.value, 1)} ¢ worth (${good ? "+" : ""}${fmt(d.margin, 1)} ¢)"></circle>`;
+    })
+    .join("");
+  return `<svg viewBox="0 0 ${width} ${height}" role="img" class="chart">${gy}${gx}${parity}<text x="${(width + m.l) / 2}" y="${height - 4}" text-anchor="middle" class="tick">ingredients, ¢</text><text transform="translate(16 ${height / 2}) rotate(-90)" text-anchor="middle" class="tick">worth (hunger + mood), ¢</text>${dots}</svg>`;
 }
 
 const legend = () =>
@@ -601,6 +632,7 @@ ${table({ cols: proCols, rows: proRows, filters: [{ label: "Mining", get: (r) =>
 
 function sectionCooking() {
   const C = model.cooking;
+  const moodPhrase = C.moodWeight === 1 ? "hunger and mood, a point of either counted the same" : `hunger and mood, a point of mood counted as ${fmt(C.moodWeight, 2)} of hunger`;
   const cropOnly = C.cropOnly.filter((d) => d.tier === "Basic");
   const raw = C.strategies.find((x) => x.id === "raw-potato");
   const rawWheat = C.strategies.find((x) => x.id === "raw-wheat");
@@ -650,7 +682,7 @@ function sectionCooking() {
     { h: "Slot it in", get: (a) => a.name },
     { h: "Adds hunger", num: true, get: (a) => a.hunger, sort: (a) => a.hunger },
     { h: "Adds mood", num: true, get: (a) => a.mood, sort: (a) => a.mood },
-    { h: "Costs ¢", num: true, get: (a) => a.cost ?? "—", sort: (a) => a.cost ?? -1 },
+    { h: "Costs ¢", num: true, get: (a) => (a.cost == null ? "—" : `${a.costEstimated ? "≈" : ""}${fmt(a.cost, 1)}`), sort: (a) => a.cost ?? -1 },
     { h: "Where it comes from", get: (a) => a.source },
   ];
   return `<section><h2>Cooks against farmers</h2>
@@ -687,15 +719,18 @@ ${C.switchTable.length ? table({
 <h3>How much food an input makes</h3>
 <p class="lede">Hunger per input unit, best first (a * marks a Skilled dish). Green is made from crops alone, red needs something the game gives no way to get, blue needs something farmed or dug up. The ${cropOnly.length} crop-only Basic dishes all make 35 from two crops and differ only in mood (${Math.min(...cropOnly.map((d) => d.mood))} to ${Math.max(...cropOnly.map((d) => d.mood))}); the Skilled dishes buy mood, not food.</p>
 ${barChart({ rows: bars, unit: " hunger", fmtVal: (v) => fmt(v, 1), labelW: 170 })}
+<h3>Every dish, cost against worth</h3>
+<p class="lede">One dot a dish: what its ingredients cost against what its hunger and mood are worth, both at the Ration Box's own rate (${fmt(C.boxPerPoint, 3)} ¢ a point — ${moodPhrase}). The dashed line is parity with the box itself — a dish on it costs exactly what a Ration Box would for the same hunger and mood. Green sits at or above the line (better than Rations); red sits under it. Hover a dot for the name and numbers.</p>
+${dishValueChart({ dishes: C.dishes })}
 <h3>Every dish</h3>
-<p class="lede">"Worth at the box's price" is what the same hunger costs from a Ration Box, the price a buyer with coin will not pay more than, so the margin is what a cook could ask above the inputs. The Depot pays only its floor for a dish (the "Sells" column), so a cook's pay above that is whatever another player agrees to.</p>
+<p class="lede">"Worth at the box's price" is what the same hunger AND mood together cost from a Ration Box (${fmt(C.boxPerPoint, 3)} ¢ a point — ${moodPhrase}; ${fmt(C.boxPerHunger, 3)} ¢ a point of hunger alone, for comparison), so a Skilled dish's mood counts for something here and not just its food — the whole reason anyone pays for one. The margin is what a cook could ask above the inputs. The Depot pays only its floor for a dish (the "Sells" column), so a cook's pay above that is whatever another player agrees to.</p>
 ${table({ cols: dishCols, rows: C.dishes, filters: [{ label: "Tier", get: (d) => d.tier }, { label: "Made from", get: (d) => (d.farmOnly ? "crops only" : d.unreachable.length ? "needs something with no source" : "other inputs") }] })}
 <h3>Turning what nobody eats into food</h3>
 <p class="lede">Yes, for a few. Wheat makes you sick raw and is Bread. Purring Maggot, an ultracommon cave find that poisons you, brews into Maggot Milk and that is Pancakes and Fondue. Deep Morel is a Merchant's shelf item that makes you sick and is the Soaked Truffles (48 hunger, +38 mood). Rock Salt, another ultracommon find, cannot be eaten and seasons Salo and Caviar. Cave Fungus, Saltpeter and Rock go in no recipe, though a Cave Fungus can be slotted into any dish for nothing.</p>
 ${table({ cols: inCols, rows: C.inedible, id: "cookinedible" })}
 <p class="lede">${C.ratGap.fixed ? `<b>The cave rat cooks.</b> The rat the caves drop is <code>${esc(C.ratGap.caveRatSlug)}</code>, and ${C.ratGap.dishes.map(esc).join(", ")} take that same tag, so a common cave find (about one find in six in the Caves) is a Ratato, a Fried Rat or a Poached Rat.` : `<b>The rat is a broken link.</b> The cave loot table drops <code>${esc(C.ratGap.caveRatSlug)}</code>, but ${C.ratGap.dishes.map(esc).join(", ")} take <code>${esc(C.ratGap.recipeRatSlug)}</code>, which nothing in the game produces (${esc(C.ratGap.recipeRatSource)}).`} ${C.unreachableDishes.length} of ${C.dishes.length} dishes need an input with no way into the game (${[...new Set(C.unreachableDishes.flatMap((d) => d.unreachable))].map(esc).join(", ")}).</p>
 <h3>What a cook can slot in</h3>
-<p class="lede">Any dish takes up to four extra ingredients, each adding its own hunger and, if positive, its mood. A slot never beats the base for food (12 hunger a crop is what eating it raw gives) but it is where a cook buys mood, and the raw −10 does not apply. The meter tops out at ${params.hungerMax}, so a Bread with four slots is at most 83.</p>
+<p class="lede">Any dish takes up to four extra ingredients, each adding its own hunger and, if positive, its mood. A slot never beats the base for food (12 hunger a crop is what eating it raw gives) but it is where a cook buys mood, and the raw −10 does not apply. The meter tops out at ${params.hungerMax}, so a Bread with four slots is at most 83. A ${"≈"}-marked cost is not a real price: the ingredient has none of its own (usually a farm crop), so it is priced the way the dishes above are, at ${fmt(C.boxPerPoint, 3)} ¢ a point (${moodPhrase}), off the Ration Box.</p>
 ${table({ cols: slotCols, rows: C.addIns.slice(0, 14) })}
 </section>`;
 }
@@ -1362,12 +1397,24 @@ function sectionChecks() {
     { h: "Craftable", get: (r) => (r.craftable ? "yes (wage floor?)" : "no") },
     { h: "Buy ≤ sell?", get: (r) => (r.arbitrage ? "ARBITRAGE" : "") , style: () => "color:var(--bad);font-weight:600" },
   ];
+  const cols3 = [
+    { h: "Dish", get: (d) => d.name },
+    { h: "Made from", get: (d) => d.inputs.join(" + ") },
+    { h: "Hunger", num: true, get: (d) => d.hunger, sort: (d) => d.hunger },
+    { h: "Mood", num: true, get: (d) => d.mood, sort: (d) => d.mood },
+    { h: "Inputs cost ¢", num: true, get: (d) => fmt(d.cost, 1), sort: (d) => d.cost },
+    { h: "Worth (hunger + mood) ¢", num: true, get: (d) => fmt(d.value, 1), sort: (d) => d.value },
+    { h: "Margin a Move ¢", num: true, get: (d) => fmt(d.marginPerMove, 0), sort: (d) => d.marginPerMove, style: () => "color:var(--bad);font-weight:600" },
+  ];
   return `<section><h2>Docs against the model</h2>
 <p class="lede">Each row is a number a system doc states, checked against what the catalog and code produce now. A “differs” is either a stale doc or a real bug, and only a person can say which.</p>
 ${table({ cols, rows: model.claims, sortable: false, filters: [{ label: "Doc", get: (c) => c.doc.split(" §")[0] }, { label: "Status", get: (c) => (c.ok ? "matches" : "differs") }] })}
 <h3>Wares off the 60% sell-back rule</h3>
 <p class="lede">Most are the wage-floor recipes <code>DEPOT.md</code> §3 names. Anything else, and any row marked ARBITRAGE (sells back for at least the buy price), is worth a look.</p>
-${table({ cols: cols2, rows: off })}</section>`;
+${table({ cols: cols2, rows: off })}
+<h3>Cooking: dishes losing far more than a bad wage</h3>
+<p class="lede">Every wage this report finds elsewhere runs about 1 to 27 ¢ a turn. A dish here loses more than 50 ¢ a Move against its own ingredients' market cost, priced against what the same hunger and mood would cost from a Ration Box (see “Cooks against farmers”, run with <code>--mood-weight ${fmt(model.cooking.moodWeight, 2)}</code>) — spending a Move on nothing but it would leave you deep in the red against even the worst legitimate wage in the game. ${model.cooking.flagged.length ? "Either the ingredients really are that dear for what the dish gives back, or the pricing above missed something — worth a GM's eye." : "None at the moment: nothing here loses that badly."}</p>
+${model.cooking.flagged.length ? table({ cols: cols3, rows: model.cooking.flagged, sortable: false }) : ""}</section>`;
 }
 
 function sectionAssumptions() {
@@ -1422,6 +1469,8 @@ code{font-size:12px}
 .via{color:var(--mute);font-size:11px}
 .hid{display:none}
 .ranks{list-style:none;padding:0;margin:0 0 8px;font-size:13px}.ranks li{margin:3px 0}
+[data-tip]{cursor:default}
+.rtip{position:fixed;pointer-events:none;background:var(--fg);color:var(--bg);font-size:12px;line-height:1.3;padding:5px 9px;border-radius:5px;max-width:280px;z-index:50;transform:translate(-50%,-100%);margin-top:-10px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 `;
 const js = `
 document.querySelectorAll('.filterbar').forEach(bar=>{
@@ -1442,7 +1491,38 @@ document.querySelectorAll('table.sortable').forEach(t=>{
       const r=(!isNaN(nx)&&!isNaN(ny))?nx-ny:String(x).localeCompare(String(y));return asc?r:-r});
     rows.forEach(r=>t.tBodies[0].appendChild(r));
   }));
-});`;
+});
+(function(){
+  // A shared tooltip for every chart shape carrying data-tip (bars, dots) — not the browser's native
+  // title tooltip, which is slow to appear and did not fire reliably at all inside an iframe in some
+  // hosts. One floating div, moved and re-labelled on hover, works the same everywhere.
+  let tip=null;
+  const place=(e)=>{if(tip){tip.style.left=e.clientX+'px';tip.style.top=e.clientY+'px';}};
+  document.addEventListener('mouseover',(e)=>{
+    const el=e.target.closest('[data-tip]');
+    if(!el)return;
+    if(!tip){tip=document.createElement('div');tip.className='rtip';tip.hidden=true;document.body.appendChild(tip);}
+    tip.textContent=el.dataset.tip;
+    tip.hidden=false;
+    place(e);
+  });
+  document.addEventListener('mousemove',(e)=>{if(tip&&!tip.hidden&&e.target.closest('[data-tip]'))place(e);});
+  document.addEventListener('mouseout',(e)=>{
+    const el=e.target.closest('[data-tip]');
+    if(el&&tip&&!el.contains(e.relatedTarget))tip.hidden=true;
+  });
+  document.addEventListener('focusin',(e)=>{
+    const el=e.target.closest('[data-tip]');
+    if(!el)return;
+    if(!tip){tip=document.createElement('div');tip.className='rtip';tip.hidden=true;document.body.appendChild(tip);}
+    tip.textContent=el.dataset.tip;
+    const r=el.getBoundingClientRect();
+    tip.style.left=(r.left+r.width/2)+'px';
+    tip.style.top=r.top+'px';
+    tip.hidden=false;
+  });
+  document.addEventListener('focusout',(e)=>{if(e.target.closest('[data-tip]')&&tip)tip.hidden=true;});
+})();`;
 
 // ---------------------------------------------------------------------------
 // one file per section, not one 800 KB page

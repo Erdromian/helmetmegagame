@@ -15,13 +15,27 @@ const fmtN = (n) => `${Math.round(n)}`;
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 const CROPS = new Set(["wheat", "potato", "tomato", "carrot", "onion", "plump-helmet"]);
 
-function buildCooking({ get, list, rv, params, sources, foodFloor, players, refs = {} }) {
+function buildCooking({ get, list, rv, params, sources, foodFloor, players, refs = {}, moodWeight = 2 }) {
   const srcItem = new Map(sources.items.map((i) => [i.slug, i]));
   const rankOf = (slug) => (CROPS.has(slug) ? 2 : srcItem.get(slug)?.rank ?? 5);
   const sourceOf = (slug) => (CROPS.has(slug) ? "Farm (Soilery)" : srcItem.get(slug)?.best ?? "no route found");
   const rawHunger = (slug) => hungerLib.foodHungerFor(get(slug));
   const rawMoodPerBite = (slug) => hungerLib.RAW_FOOD_MOOD + (get(slug)?.cooked?.mood ?? 0);
   const boxPerHunger = foodFloor.anyone ? foodFloor.anyone.buy / foodFloor.anyone.hunger : null;
+  // The same ¢, but over hunger AND mood together, one rate for a "point" of either — the currency
+  // anything without a sellable price of its own (a crop, a foraged ingredient, a slot-in) is priced
+  // in, the same way a dish itself is priced below. `moodWeight` is how many hunger-points one point of
+  // mood counts as; nothing in the game states an exchange rate, so this is a modeling choice, not a
+  // fact pulled from the catalog. The Ration Box is the one reference anywhere prices hunger AND mood
+  // at once (3 ¢ for 25.5 hunger and -5 mood, its one downside), so it stays the anchor whatever the
+  // weight — but the box's own mood is negative, so a higher weight makes the box's ¢-per-point rate
+  // go UP (it "earns" fewer net points for its 3 ¢: 20.5 at weight 1, only 15.5 at weight 2), and every
+  // dish is priced against that same, now-higher rate. A dish with ordinary positive mood benefits from
+  // that more than the box did, which is why raising the weight makes cooked food look better against
+  // Rations, not worse — the box's one flaw is exactly what a higher weight is charging it for.
+  const boxPoints = foodFloor.anyone ? foodFloor.anyone.hunger + moodWeight * foodFloor.anyone.mood : null;
+  const boxPerPoint = foodFloor.anyone && boxPoints > 0 ? foodFloor.anyone.buy / boxPoints : boxPerHunger;
+  const points = (hunger, mood) => hunger + moodWeight * mood;
 
   // A recipe's base inputs, expanded down to things that are not themselves dishes.
   const expand = (slug, seen = []) => {
@@ -60,11 +74,25 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players, refs
       const units = [...per.values()].reduce((a, b) => a + b, 0);
       const raw = [...per].reduce((s, [slug, c]) => s + c * rawHunger(slug), 0);
       const rawMood = [...per].reduce((s, [slug, c]) => s + c * rawMoodPerBite(slug), 0);
-      // A crop that does not sell is priced as food, at the Ration Box's price per hunger.
-      const unitCost = (slug) => get(slug)?.sellablePrice ?? get(slug)?.depotPrice ?? (CROPS.has(slug) && boxPerHunger ? rawHunger(slug) * boxPerHunger : 0);
+      // Anything with no sellable or buy price of its own is priced as food instead, at the Ration
+      // Box's combined rate — hunger and mood both, not hunger alone. This used to apply only to the
+      // whitelisted farm crops and only to their hunger, so an ingredient like a foraged herb (real
+      // hunger and mood, no market price) silently cost nothing and inflated every dish it went into.
+      const unitCost = (slug) => {
+        const it = get(slug);
+        if (it?.sellablePrice != null) return it.sellablePrice;
+        if (it?.depotPrice != null) return it.depotPrice;
+        if (boxPerPoint == null) return 0;
+        return Math.max(0, points(rawHunger(slug), it?.cooked?.mood ?? 0)) * boxPerPoint;
+      };
       const cost = [...per].reduce((s, [slug, c]) => s + c * unitCost(slug), 0);
       const movesPer = moves / y;
-      const value = boxPerHunger == null ? null : t.mealHunger * boxPerHunger;
+      // A dish's own worth to a buyer with coin: what the same hunger AND mood would cost from a
+      // Ration Box. This used to price hunger alone, so a mood-heavy Skilled dish (the whole point of
+      // which is the mood, per the report's own text) always looked like a loss no matter how cheap its
+      // ingredients were — Northern Delight's 50 mood was worth nothing here even though buying that
+      // much mood any other way costs real ¢.
+      const value = boxPerPoint == null ? null : points(t.mealHunger, t.mealMood ?? 0) * boxPerPoint;
       const hardest = Math.max(...[...per.keys()].map(rankOf));
       const unreachable = [...per.keys()].filter((s) => rankOf(s) >= 5);
       return {
@@ -315,24 +343,46 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players, refs
   // mood to the dish's; a negative mood is disgust that no dish base can cancel.
   const addIns = list
     .filter((t) => t.cooked && !(t.group === "items-drink") && t.slug !== "human-flesh" && t.slug !== "flesh-of-tzchernobog")
-    .map((t) => ({
-      slug: t.slug,
-      name: t.name,
-      hunger: hungerLib.foodHungerFor(t),
-      mood: t.cooked.mood ?? 0,
-      cost: t.sellablePrice ?? t.depotPrice ?? null,
-      source: sourceOf(t.slug),
-      rank: rankOf(t.slug),
-    }))
+    .map((t) => {
+      const hunger = hungerLib.foodHungerFor(t);
+      const mood = t.cooked.mood ?? 0;
+      const direct = t.sellablePrice ?? t.depotPrice ?? null;
+      return {
+        slug: t.slug,
+        name: t.name,
+        hunger,
+        mood,
+        // No sellable or buy price of its own (a farmed crop, most often): the same combined hunger +
+        // mood estimate the dishes above use, off the Ration Box, rather than a bare "—" that told a
+        // reader nothing about whether slotting it in was worth a cook's trouble.
+        cost: direct ?? (boxPerPoint != null ? round1(Math.max(0, points(hunger, mood)) * boxPerPoint) : null),
+        costEstimated: direct == null,
+        source: sourceOf(t.slug),
+        rank: rankOf(t.slug),
+      };
+    })
     .filter((a) => a.mood > 0 || a.hunger > 0)
     .sort((a, b) => b.mood - a.mood || b.hunger - a.hunger);
 
   const unreachableDishes = dishes.filter((d) => d.unreachable.length);
   const cropOnly = dishes.filter((d) => d.farmOnly);
 
+  // ---- sanity check: a dish that loses far more than a bad wage ---------------------------------------
+  // Every wage this report finds elsewhere sits between about 1 and 27 ¢ a turn (a Crafter's Longbow to a
+  // Ration-Box-valued farmer). A dish whose margin per Move is a large negative multiple of that — spending
+  // a Move on nothing but it would leave you deep in the red against the worst legitimate wage in the game
+  // — is either a genuinely overpriced recipe (rare, pricey ingredients bought for little hunger or mood)
+  // or a sign the pricing above missed something. Either way it is worth a GM's eye, not silence.
+  const LARGE_LOSS_PER_MOVE = -50;
+  const flagged = dishes
+    .filter((d) => d.marginPerMove != null && d.marginPerMove < LARGE_LOSS_PER_MOVE)
+    .sort((a, b) => a.marginPerMove - b.marginPerMove)
+    .map((d) => ({ name: d.name, inputs: d.inputs, hunger: d.hunger, mood: d.mood, cost: d.cost, value: d.value, margin: d.margin, marginPerMove: d.marginPerMove }));
+
   return {
     dishes,
     strategies,
+    flagged,
     boxStrategy,
     cookAdds,
     inedible,
@@ -350,6 +400,8 @@ function buildCooking({ get, list, rv, params, sources, foodFloor, players, refs
     harvest,
     fertHarvest,
     boxPerHunger,
+    boxPerPoint,
+    moodWeight,
     cookingPoints: { basic: get("cooking-basic")?.pointCost ?? 0, skilled: get("cooking-skilled")?.pointCost ?? 0 },
   };
 }
