@@ -185,17 +185,21 @@ The file is registered in `scripts/copy/sources.js` under `COPY_CONSTANTS` and
 `DUAL_SURFACE_FILES`, so `npm run copy:extract` catches the short labels the
 loose pass would skip, and says on every entry that a rewrite moves two faces.
 
-Two deliberate quiets:
+Three rulings on how loud the machine is, all Bascinet's, all pinned by a test
+in `db/test/vending.test.js` so a later tidy-up cannot quietly reverse one:
 
-- **Insert and Withdraw post no room line.** Coin-by-coin scenery is noise at
-  100+ players, and `roomOpened` already told the room somebody is at the
-  machine.
-- **The expiry line names nobody.** Being timed out in public is a humiliation
-  nobody designed.
-
-`roomBought` does not name the ware. `roomBoughtNamed` exists beside it for if
-that is ever wanted — naming it makes the shop public, and the Depot's counter
-is not.
+- **The room is told what was bought.** `roomBoughtNamed` is what `buySlot`
+  posts. That makes the shelf worth watching and the buyer worth following,
+  which is the trade — the draft named nothing, on the Depot counter's
+  precedent, and was overruled. `roomBought` is kept beside it, still
+  anonymous, for if that is ever reversed.
+- **The expiry line names whose time ran out.** The draft signed nobody, on the
+  argument that being timed out in public is a humiliation; overruled. It fires
+  on a real expiry and nothing else — "their time is up" is a lie about a holder
+  who died or walked off, so those two free the machine silently.
+- **Insert and Withdraw post no room line.** Kept. Coin-by-coin scenery is noise
+  at 100+ players, and `roomOpened` already told the room somebody is at the
+  machine. There is no string for either, and that absence is the decision.
 
 ## 8. Adding a second machine
 

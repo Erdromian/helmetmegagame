@@ -147,9 +147,9 @@ test("every price and pool is written in coin, never in Resources", () => {
     VENDING_TEXT.youInserted(5, 13),
     VENDING_TEXT.youWithdrew(8),
     VENDING_TEXT.youBought("Bone Saw", 40, 3),
+    VENDING_TEXT.youBoughtFree("Tea", 8),
     VENDING_TEXT.youCollected(12),
     VENDING_TEXT.youStockedIn(2, "Tea", 6),
-    VENDING_TEXT.kicked(8),
   ];
   for (const line of moneyLines) {
     assert.ok(line.includes("¢"), `"${line}" should price in ¢`);
@@ -164,15 +164,48 @@ test("a free line says free rather than 0 ¢", () => {
   assert.ok(VENDING_TEXT.youPricedFree("Tea").includes("free"));
 });
 
-// The expiry line is the one nobody signs. Being timed out in public is a
-// humiliation nobody designed, so the room is told the lights went out and not
-// whose they were.
-test("the expiry line names nobody", () => {
-  assert.equal(typeof VENDING_TEXT.roomExpired, "string");
-  assert.equal(VENDING_TEXT.roomExpired.includes("${"), false);
+// Bascinet's two calls on how loud the machine is, pinned here so a later
+// "tidy-up" cannot quietly reverse either one.
+
+// The expiry line NAMES the holder. The draft signed nobody, on the argument
+// that being timed out in public is a humiliation; Bascinet overruled it, so
+// the room hears whose time ran out.
+test("the expiry line names who ran out of time", () => {
+  assert.equal(typeof VENDING_TEXT.roomExpired, "function");
+  assert.ok(VENDING_TEXT.roomExpired("Ada Vance").includes("Ada Vance"));
 });
 
-test("the room is not told what was bought by default", () => {
-  assert.equal(VENDING_TEXT.roomBought("Ada").includes("Bone Saw"), false);
+// It only ever fires on a real expiry — "their time is up" is a lie about a
+// holder who died or walked off, so db/lib/vending.js#clearStaleHolds posts it
+// for the clock and nothing else.
+test("the expiry line is about the clock, so it says so", () => {
+  assert.ok(/time is up/i.test(VENDING_TEXT.roomExpired("Ada Vance")));
+});
+
+test("the room IS told what was bought", () => {
   assert.ok(VENDING_TEXT.roomBoughtNamed("Ada", "Bone Saw").includes("Bone Saw"));
+  // The anonymous line is kept for if that is ever reversed, and must stay
+  // anonymous while it sits there unused.
+  assert.equal(VENDING_TEXT.roomBought("Ada").includes("Bone Saw"), false);
+});
+
+// Insert and Withdraw stay silent in the room — the other call. There is no
+// string for either, and that absence is the decision.
+test("feeding coins in posts nothing to the room", () => {
+  const keys = Object.keys(VENDING_TEXT).filter((k) => k.startsWith("room"));
+  assert.deepEqual(
+    keys.sort(),
+    [
+      "roomBought",
+      "roomBoughtNamed",
+      "roomExpired",
+      "roomLeft",
+      "roomLocked",
+      "roomOpened",
+      "roomRestocked",
+      "roomTill",
+      "roomUnlocked",
+    ],
+    "a new room line means somebody reversed the silence on Insert/Withdraw",
+  );
 });

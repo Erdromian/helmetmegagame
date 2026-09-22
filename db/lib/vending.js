@@ -322,7 +322,7 @@ async function releaseMachine(prisma, discordUserId, { roomId, turn = null } = {
   await sayInRoom(prisma, room, text);
   return {
     ok: true,
-    line: taken > 0 ? T.youLeft(taken) : T.youLeftEmpty,
+    line: taken > 0 ? T.youLeft : T.youLeftEmpty,
     text,
     sfx: taken > 0 ? SFX.COIN : null,
   };
@@ -567,9 +567,11 @@ async function buySlot(prisma, discordUserId, { roomId, tagId, turn = null } = {
   }
 
   const who = await presentedName(prisma, character.id);
-  // The default does not name the ware — the Depot's counter is not public and
-  // neither is this. T.roomBoughtNamed is the alternative.
-  const text = T.roomBought(who);
+  // The room is told WHAT was bought — Bascinet's call, over a default that
+  // named nobody's purchase. It makes the shelf worth watching and the buyer
+  // worth following, which is the trade. T.roomBought is the anonymous
+  // alternative, kept for if that is ever reversed.
+  const text = T.roomBoughtNamed(who, tag?.name ?? "thing");
   await sayInRoom(prisma, room, text);
 
   return {
@@ -986,12 +988,21 @@ async function clearStaleHolds(prisma) {
       })
       .catch(() => {});
 
-    if (m.room) await sayInRoom(prisma, m.room, T.roomExpired);
+    // ONLY on a real expiry, and it NAMES the holder — Bascinet's call, over a
+    // default that said the lights went out and signed nobody. The line says
+    // "their time is up", which is true of the clock running out and of nothing
+    // else: a holder who died or walked off gets no line at all rather than one
+    // that lies about why the machine is free.
+    if (expired && m.room) {
+      const who = m.holder?.id ? await presentedName(prisma, m.holder.id) : "Somebody";
+      await sayInRoom(prisma, m.room, T.roomExpired(who));
+    }
 
     // Only when there was something to lose. Being told you walked away from
-    // nothing is worse than silence.
+    // nothing is worse than silence — the line no longer names the amount, so
+    // this gate is the whole of what makes it worth sending.
     if (expired && m.floatObols > 0 && m.holder?.discordUserId) {
-      await sendDm(prisma, m.holder.discordUserId, T.kicked(m.floatObols)).catch(() => {});
+      await sendDm(prisma, m.holder.discordUserId, T.kicked).catch(() => {});
     }
   }
   return { freed };

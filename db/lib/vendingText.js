@@ -33,34 +33,34 @@ const VENDING_SHELF_CAP = 25;
 
 const VENDING_TEXT = {
   // --- the panel ----------------------------------------------------------
-  title: "The vending machine",
-  prompt: "Feed coins into the slot, then take what you can pay for.",
-  promptMerchant: "The front is open.",
-  closed: "A glass front with goods behind it, and a slot for coin.",
-  empty: "There's nothing behind the glass.",
-  emptyMerchant: "Nothing on the shelves.",
+  title: "Vendor",
+  prompt: "Great deals! Don't miss out!",
+  promptMerchant: "The maintenance panel hangs open.",
+  closed: "A dirty glass terminal reads all manner of goods available to be bought.",
+  empty: "The terminal appears blank.",
+  emptyMerchant: "The vendor is empty of goods.",
 
-  floatLine: (n) => `${n} ¢ in the slot.`,
-  floatNone: "Nothing in the slot.",
-  tillLine: (n) => `${n} ¢ in the till.`,
-  tillNone: "The till is empty.",
+  floatLine: (n) => `${n} ¢ inserted.`,
+  floatNone: "No obols inserted.",
+  tillLine: (n) => `${n} ¢ earned awaiting withdrawal.`,
+  tillNone: "The vendor storage is empty.",
 
   slotRow: (name, price, held) => `${name} — ${price} ¢ · ${held} left`,
   slotRowFree: (name, held) => `${name} — free · ${held} left`,
 
   timeLeft: (seconds) => `${seconds} seconds left.`,
   timeLeftLong: (minutes) => `${minutes} minutes left.`,
-  holderIs: (who) => `${who} is at the machine.`,
+  holderIs: (who) => `${who} is using the vendor.`,
 
   // --- buttons ------------------------------------------------------------
-  btnOpen: "Machine",
+  btnOpen: "Vendor",
   btnInsert: "Insert coins",
-  btnWithdraw: "Take your coins",
+  btnWithdraw: "Take your change",
   btnBuy: "Buy",
   btnLeave: "Step away",
   btnUnlock: "Unlock",
   btnLock: "Lock",
-  btnCollect: "Empty the till",
+  btnCollect: "Withdraw earnings",
   btnStockIn: "Put something in",
   btnStockOut: "Take something out",
   btnSetPrice: "Set a price",
@@ -71,9 +71,9 @@ const VENDING_TEXT = {
   noCharacter: "You don't have a living character.",
   noDoor: "You can't get in there.",
   cantAct: (what) => `You can't act — you're ${what}.`,
-  busy: "Somebody else is at the machine.",
+  busy: "Somebody else is at the vendor, be patient.",
   notHolding: "You aren't at the machine.",
-  holdLost: "Your time at the machine ran out.",
+  holdLost: "Your time at the vendor ran out.",
   noCoins: "You aren't carrying any coin.",
   insertAmount: (held) => `You're carrying ${held} ¢.`,
   nothingToWithdraw: "There's nothing in the slot.",
@@ -85,7 +85,7 @@ const VENDING_TEXT = {
   alreadyHave: (name) => `You're already carrying a ${name}, and you can only hold one.`,
 
   // --- refusals, the merchant's side --------------------------------------
-  notYours: "It's locked, and you don't have the key.",
+  notYours: "The screen flashes red, refusing you access to unlock it.",
   lockedFirst: "The front is locked.",
   tillEmpty: "The till is empty.",
   untradeable: (name) => `A ${name} isn't something you can put in a machine.`,
@@ -104,30 +104,30 @@ const VENDING_TEXT = {
   // at 100+ players, and what the room is owed is that somebody is at the
   // machine, which roomOpened already said.
   roomOpened: (who) => `${who} steps up to the vending machine.`,
-  roomLeft: (who) => `${who} steps away from the machine.`,
+  roomLeft: (who) => `${who} steps away from the vendor.`,
   // Unsigned, and it never names who was kicked — being timed out in public is
   // a humiliation nobody designed.
-  roomExpired: "The machine clicks and its lights go out.",
+  roomExpired: (who) => `The vendor makes a whirring noise, informing ${who} that their time is up.`,
   // The default does NOT name the ware: the Depot's counter is not public and
   // neither is this. roomBoughtNamed is the alternative, for Bascinet to pick.
-  roomBought: (who) => `${who} takes something out of the machine.`,
-  roomBoughtNamed: (who, what) => `${who} takes a ${what} out of the machine.`,
-  roomUnlocked: (who) => `${who} unlocks the front of the machine.`,
-  roomLocked: (who) => `${who} locks the machine up.`,
+  roomBought: (who) => `${who} buys something from the vendor.`,
+  roomBoughtNamed: (who, what) => `${who} takes a ${what} out of the vendor.`,
+  roomUnlocked: (who) => `${who} unlocks the front of the vending machine.`,
+  roomLocked: (who) => `${who} locks the vendor.`,
   roomRestocked: (who) => `${who} moves things around inside the machine.`,
-  roomTill: (who) => `${who} empties the machine's till.`,
+  roomTill: (who) => `${who} withdraws the machine's earnings.`,
 
   // --- what the presser alone reads ---------------------------------------
   youHold: (seconds) => `The machine is yours for ${seconds} seconds.`,
   youInserted: (n, total) => `You feed ${n} ¢ in. ${total} ¢ in the slot.`,
-  youWithdrew: (n) => `You take ${n} ¢ back.`,
-  youBought: (what, price, left) => `A ${what}, for ${price} ¢. ${left} ¢ left in the slot.`,
-  youBoughtFree: (what, left) => `A ${what}, free. ${left} ¢ left in the slot.`,
-  youLeft: (n) => `You step away with ${n} ¢.`,
+  youWithdrew: (n) => `You withdraw ${n} ¢.`,
+  youBought: (what, price, left) => `A ${what}, for ${price} ¢. ${left} ¢ left.`,
+  youBoughtFree: (what, left) => `A ${what}, free. ${left} ¢ left.`,
+  youLeft: "You step away.",
   youLeftEmpty: "You step away.",
-  youUnlocked: "The front swings open.",
-  youLocked: "It locks.",
-  youCollected: (n) => `You empty the till — ${n} ¢.`,
+  youUnlocked: "The vendor's maintenance panel swings open.",
+  youLocked: "The vending machine locks closed.",
+  youCollected: (n) => `You empty the vendor — ${n} ¢.`,
   youStockedIn: (n, what, price) => `${n} × ${what} on the shelf, at ${price} ¢ each.`,
   youStockedInFree: (n, what) => `${n} × ${what} on the shelf, free.`,
   youStockedOut: (n, what) => `${n} × ${what} back in your hands.`,
@@ -135,7 +135,7 @@ const VENDING_TEXT = {
   youPricedFree: (what) => `${what} — free.`,
   // A DM, and only when there was something to lose. Being told you walked
   // away from nothing is worse than silence.
-  kicked: (n) => `Your time at the machine ran out. You left ${n} ¢ in the slot.`,
+  kicked: "Your time at the machine ran out.",
 
   // --- Discord modal and select labels ------------------------------------
   // Discord caps a modal title at 45 characters, a select option label at 100
@@ -143,13 +143,13 @@ const VENDING_TEXT = {
   modalInsertTitle: "Insert coins",
   modalInsertField: "How many obols",
   modalStockTitle: "Put something in",
-  modalStockQtyField: "How many",
+  modalStockQtyField: "Quantity",
   modalStockPriceField: "Price in obols, each",
   modalOutTitle: "Take something out",
-  modalOutQtyField: "How many",
+  modalOutQtyField: "Quantity",
   modalPriceTitle: "Set a price",
   modalPriceField: "Price in obols",
-  selectBuy: "What are you buying?",
+  selectBuy: "What would you like to buy?",
   selectStock: "What goes in?",
   selectOut: "What comes out?",
   selectPrice: "Which line?",
