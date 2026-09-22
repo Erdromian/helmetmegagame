@@ -7,6 +7,7 @@
 // access is NOT faked, isGm() still asks Discord for real roles.
 //
 //   node scripts/dev/session.mjs --gm
+//   node scripts/dev/session.mjs --economist
 //   node scripts/dev/session.mjs --character "Jorren"
 //   node scripts/dev/session.mjs 262426987979735040
 
@@ -106,6 +107,16 @@ export async function resolveTarget(argv, env = loadEnv()) {
     }
     const id = wanted || ids[0];
     return { discordUserId: id, label: `superadmin ${id}` };
+  }
+
+  // A fixed, fake id that only LOCAL_MODE's localMember() (db/lib/localMode.js)
+  // recognizes — it grants Economist + Player there, nothing more. Against a
+  // real guild this is just an unrecognized id with no roles at all, so this
+  // flag is only meaningful for local testing.
+  if (argv.includes("--economist")) {
+    const require = createRequire(import.meta.url);
+    const { LOCAL_ECONOMIST_DISCORD_ID } = require(resolve(REPO_ROOT, "db/lib/localMode.js"));
+    return { discordUserId: LOCAL_ECONOMIST_DISCORD_ID, label: "local economist (LOCAL_MODE only)" };
   }
 
   const charIndex = argv.indexOf("--character");

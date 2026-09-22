@@ -246,6 +246,31 @@ it unredacted.
   resolve, so the panel speaks the language the rest of the app speaks.
 - Lifeweb Blood is **not** on this page. It stays a Mortus surface.
 
+**The Economist role** (`ECONOMIST_ROLE_ID`, `db/lib/roleIds.js`) reads a
+narrower slice of this than a GM does, from its own route group,
+`web/app/(econ)/`, rather than an extra branch inside `(desk)`'s GM gate —
+Next.js layouts have no per-path awareness, so a shared gate would have to
+admit Turns/Audit/Oracle/Dev too. What it gets:
+
+- **`/econ/economy`** — the same catalog/pricing report as `/gm/economy`
+  (`db/scripts/analysis/economy/report.js`, shared via
+  `/api/economy/report`). This is model output, not live per-character data,
+  so nothing about who-holds-what leaks through it.
+- **`/econ/players`** — a read-only lookup, not a desk (no GM notes, no
+  messaging): obols on hand, resources on hand, the bank claim, hunger, and
+  whatever `web/lib/economicTags.js#isEconomicTag` lets through — Items,
+  Assets, and the Crafting/Brewing/Medical/Work skill groups. Health, Status,
+  General, Meta, Demoness, and anything `catalogVisibility: SECRET` are never
+  selected off the database for this page at all.
+
+**Any future economy page or tab should gate through `isEconomist`
+(`web/lib/discordGuild.js`) and live in `(econ)`**, so this stays the one
+extension point rather than something to rediscover later. The live,
+zone-scoped/redacted ledger reader described earlier in this section does not
+exist in the web app yet — nothing under `web/` reads `EconomyEntry` today —
+so there is nothing to widen for the Economist there until it's built; when
+it is, give it the same treatment.
+
 ## 8. Per-turn numbers are grouped, not cached
 
 `flowsByTurn()` groups the ledger directly. There was an `EconomyTurnRollup`

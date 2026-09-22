@@ -1,7 +1,7 @@
 import { prisma, MORTUS_SLUG } from "@lifeweb/db";
 import { canReadDepot, canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { readGameState } from "@lifeweb/db/lib/gameState";
-import { getGmSession, getGuildMember, isPlaytester } from "@/lib/discordGuild";
+import { getGmSession, getGuildMember, isPlaytester, isEconomist } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { railKindSql } from "@/lib/dmThread";
 
@@ -30,6 +30,22 @@ export const GM_NAV = [
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
   // TEMPORARILY OFF — see PLAYER_NAV above.
   // { href: "/handbook", label: "Handbook", icon: "help", section: "player" },
+];
+
+// The Economist's own rail — a limited admin subset of GM_NAV, gated on the
+// Economist Discord role rather than isGm (web/app/(econ)/layout.js,
+// db/lib/roleIds.js). No Turns/Audit/Oracle/Dev/messaging desk: just the
+// economy report and the funds-only player lookup, at their own /econ/*
+// paths since (econ) can't share a layout chain with (desk) — see that
+// layout's header comment.
+export const ECONOMIST_NAV = [
+  { href: "/econ/economy", label: "Economy", icon: "economy", section: "gm" },
+  { href: "/econ/players", label: "Players", icon: "messages", section: "gm" },
+  { href: "/character", label: "Character", icon: "character", section: "player" },
+  { href: "/chat", label: "Chat", icon: "play", section: "player" },
+  { href: "/map", label: "Map", icon: "map", section: "player" },
+  { href: "/notes", label: "Notes", icon: "notes", section: "player" },
+  { href: "/documents", label: "Documents", icon: "documents", section: "player" },
 ];
 
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
@@ -105,11 +121,12 @@ export async function loadNavItems(discordUserId) {
   const oracleHidden = (gameConfig?.oraclePlaytest ?? false) && !superadmin;
   // Who keeps the full rail while the game is shut. NOT onRoster(): that counts an
   // ordinary approved player, who is exactly the person the narrow rail is for. The
-  // build crew is the GMs, the superadmins and the playtesters (db/lib/roleIds.js),
-  // because a closed game is when they are working on it.
-  const crew = gm || superadmin || isPlaytester(member);
+  // build crew is the GMs, the superadmins, the playtesters and the Economists
+  // (db/lib/roleIds.js), because a closed game is when they are working on it.
+  const econOnly = !gm && isEconomist(member);
+  const crew = gm || superadmin || isPlaytester(member) || econOnly;
   const narrowed = state?.phase === "CLOSED" && !crew;
-  const baseNav = (gm ? GM_NAV : PLAYER_NAV)
+  const baseNav = (gm ? GM_NAV : econOnly ? ECONOMIST_NAV : PLAYER_NAV)
     .filter((item) => playEnabled || item.href !== "/chat")
     .filter((item) => !oracleHidden || item.href !== "/gm/oracle")
     .filter((item) => !narrowed || CLOSED_NAV_HREFS.has(item.href))

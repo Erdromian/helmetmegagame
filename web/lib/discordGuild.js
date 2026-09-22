@@ -12,6 +12,7 @@ import {
   hasGmRole,
   hasPlaytestRole,
   hasContributorRole,
+  hasEconomistRole,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathWithVampireOverride, announceVampireAsh } from "@lifeweb/db/lib/vampireDeath";
@@ -304,6 +305,13 @@ function isContributor(member) {
   return hasContributorRole(member.roles);
 }
 
+// The Economist seat (db/lib/roleIds.js) — a limited admin subset gating the
+// (econ) route group only, never /gm/*.
+export function isEconomist(member) {
+  if (!member) return false;
+  return hasEconomistRole(member.roles);
+}
+
 // Role ID hardcoded rather than env-configured: this gate fails CLOSED, so a
 // missing env var would silently lock every player out.
 export function isApprovedPlayer(member) {
@@ -342,6 +350,15 @@ export const getGmSession = cache(async () => {
   if (!session?.discordUserId) return { session: null, isGm: false, inGuild: false };
   const member = await getGuildMember(session.discordUserId);
   return { session, isGm: isGm(member), inGuild: member !== null };
+});
+
+// Same shape as getGmSession, for the (econ) route group's layout gate —
+// also carries isEconomist, since that group admits either seat.
+export const getEconSession = cache(async () => {
+  const session = await auth();
+  if (!session?.discordUserId) return { session: null, isGm: false, isEconomist: false, inGuild: false };
+  const member = await getGuildMember(session.discordUserId);
+  return { session, isGm: isGm(member), isEconomist: isEconomist(member), inGuild: member !== null };
 });
 
 export async function deleteMessage(channelId, messageId) {
