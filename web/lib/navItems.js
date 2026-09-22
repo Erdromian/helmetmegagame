@@ -22,6 +22,7 @@ export const GM_NAV = [
   { href: "/gm/turns", label: "Adjudicate", icon: "turns", section: "gm" },
   { href: "/gm/audit", label: "Audit", icon: "audit", section: "gm" },
   { href: "/gm/oracle", label: "Oracle", icon: "oracle", section: "gm" },
+  { href: "/gm/economy", label: "Economy", icon: "economy", section: "gm" },
   { href: "/character", label: "Character", icon: "character", section: "player" },
   { href: "/chat", label: "Chat", icon: "play", section: "player" },
   { href: "/map", label: "Map", icon: "map", section: "player" },
