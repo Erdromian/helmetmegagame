@@ -14,7 +14,7 @@ A character carries one load against one cap, live on `/gm/dev`:
 
 | Load | Counts | Base cap |
 |---|---|---|
-| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Two things weigh nothing: **Assets** (a horse carries itself, a house does not move), and everything that was never cargo — skills, injuries, statuses, beliefs. Every item weighs something, since every item is tradeable (`TAGS.md` §5). The one exception is a runtime mint that is not cargo — a Disguise you are wearing. | `GameConfig.carryWeightLbs`, default 71 |
+| Weight | `Tag.weightLbs` × quantity, over every `tradeable` tag. Two things weigh nothing: **Assets** (an arelitz carries itself, a house does not move), and everything that was never cargo — skills, injuries, statuses, beliefs. Every item weighs something, since every item is tradeable (`TAGS.md` §5). The one exception is a runtime mint that is not cargo — a Disguise you are wearing. | `GameConfig.carryWeightLbs`, default 71 |
 
 **⬢ are on that row, because ⬢ are an item.** One pound each, stacked in an
 ordinary `CharacterTag` row like a sword or a loaf (`docs/tags.yaml`
@@ -114,7 +114,7 @@ scale gets in [`TAGS.md`](TAGS.md) §4a. `db/lib/syncTags.js` throws if an
 | Negligible | 0 | key, letter, badge, coin, spectacles, cigarette |
 | Trivial | 0.5–1 | vial, tonic, dagger, sling, Graga sac |
 | Light | 2–3 | meal, flask, sword, bow, cudgel, a book |
-| Medium | 4–6 | spear, mace, helm, halberd, fishing rod |
+| Medium | 4–6 | spear, mace, helm, halberd |
 | Heavy | 8–12 | crossbow, rifle, shield, bear trap, padded armor |
 | Very Heavy | 20–30 | mail shirt, breastplate, pavise, Godflesh |
 | Massive | 40–75 | plate armor, flamethrower, a corpse (a person's or a creature's) |
@@ -194,12 +194,12 @@ Crossing a zone used to always spend your Move, with a mount buying one extra
 crossing per *day*. Now:
 
 - Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
-- An **equipped** mount adds one, and it refreshes every turn — a horse carries
-  you once per turn, which on a short turn length is several times a day. It
-  is **spent first**: the mount's crossing
-  goes before the base one and stays charged to the mount, so parking the horse
-  at an indoors door later in the turn cannot take back a crossing you never
-  spent. **Only while your escort party fits its
+- An **equipped** mount adds one, and it refreshes every turn — an arelitz
+  carries you once per turn, which on a short turn length is several times a
+  day. It is **spent first**: the mount's crossing
+  goes before the base one and stays charged to the mount, so parking the
+  arelitz at an indoors door later in the turn cannot take back a crossing you
+  never spent. **Only while your escort party fits its
   seats**: go over `fastTravelCapacity` and the mount buys nothing this
   crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
   walking any number of people is free.
@@ -207,27 +207,28 @@ crossing per *day*. Now:
 - A **lamed** character's allowance is also 0 — a leg too hurt to carry you
   (`crippled-leg`, `cripple`, `missing-leg`, `sprained-ankle`) or too dazed to
   find your way (`pain-shock`). `LAMED_SLUGS` in `db/lib/locationTravel.js`.
-  A mount cancels it outright — the horse does the walking — and it's the
-  free crossing that's gone, not the ability to cross: pay the Move, or have
-  someone Escort you.
+  A mount cancels it outright — the arelitz or the bike does the walking —
+  and it's the free crossing that's gone, not the ability to cross: pay the
+  Move, or have someone Escort you.
 - Past the allowance, a crossing files the `MOVE` Action as it always did.
   Once you have acted, you cannot cross.
 - Or **push on**, once the Move is spent too: one more crossing a turn on foot
   on a d6 — 1 Sprained Ankle, 2–3 Exhausted, 4–5 Tired, 6 Winded
-  (`MAP.md` §3). Once a turn, never while riding, boated on the water, lamed,
-  bleeding out, Exhausted or Overburdened. Already Tired, 2–5 is Exhausted.
+  (`MAP.md` §3). Once a turn, never while riding, lamed, bleeding out,
+  Exhausted or Overburdened. Already Tired, 2–5 is Exhausted.
   Quick-Footed and Caffeinated (and Lucky) keep the better of
   two dice; Fat and Old keep the worse.
 - A **free** crossing lands at once. A **paid** one is a day's walk and only
   lands next turn (`MAP.md` §3) — the Move goes now, the traveller stands still
   until the turn turns.
 
-So a peasant walks Town → Forest for nothing, spends their Move to reach the
-Fortress, and the way back waits for the next turn. That is the whole model.
+So a peasant walks Town → Black Hills for nothing, spends their Move to reach
+the Fortress, and the way back waits for the next turn. That is the whole
+model.
 
 `Character.zoneMovesTurnId` + `zoneMovesUsed` track it, and
-`zoneMovesBonusUsed` counts how many of those crossings went on a mount's or a
-boat's extra rather than the base allowance. All three are claimed by a
+`zoneMovesBonusUsed` counts how many of those crossings went on a mount's extra
+rather than the base allowance. All three are claimed by a
 conditional `updateMany` whose WHERE is the check, so two tabs cannot both
 spend the last one. A differing turn id resets the counter in the same
 statement, so nothing ever sweeps the field. `freeZoneMoves()` and
@@ -235,52 +236,57 @@ statement, so nothing ever sweeps the field. `freeZoneMoves()` and
 number and Discord's Travel confirm says what the hop will cost before you take
 it.
 
-`freeMovesLeft()` takes an optional `crossing` (the same
-`{ fromZoneSlug, toZoneSlug }` shape `freeZoneMoves()` does), and it matters:
-the boat's bonus is earned per crossing, never banked, so it can only ever
-show up once a destination is actually known. The sheet's ambient count
-(before anyone has picked one) passes nothing and reads the honest
-pre-commitment number. Every surface that DOES know the destination — the
-Travel panel's per-node cost, `/map`'s per-node cost, and Discord's Travel
-picker — has to pass the real crossing per node/option rather than reusing
-one shared number for the whole list, or a boated character crossing
-Forest↔Hills or Hills↔Marshes reads as costing the day when it would
-actually be free.
+The count does **not** depend on where you are going. It did once: the boat's
+bonus was earned per crossing and only on the water, so `freeMovesLeft()` and
+`freeZoneMoves()` both took a `{ fromZoneSlug, toZoneSlug }` crossing and every
+surface had to pass the real one per node. The boat is gone and the argument
+went with it — a mount's extra is bought once a turn and spends the same
+wherever you point it, so one number is now honest for the whole list of
+destinations.
+
+What the number *does* still turn on is **who is coming with you**, which is
+why the last argument is `partySize`: over the seats and `fitsMount()` zeroes
+the bonus for that crossing (§3 below). So the surfaces that know the party —
+the Travel panel, `/map`, and Discord's Travel picker — pass `party.length`,
+and the character sheet, which is asking nothing about a particular journey,
+passes nothing and reads the ambient count.
 
 ## 3. Mounts, carts, and indoors
 
-`horse`, `motorcycle` and `cart` are **equippable**, and
+`arelitz`, `motorcycle` and `cart` are **equippable**, and
 give nothing while stowed — no carry multiplier, no extra zone move, no
-passenger seats. They sit in the `MOUNT` slot (`TAGS.md`, "equipSlot"): a
-horse, a motorcycle or a boat is *ridden* (layer 1) and a cart is *towed*
-(layer 2), so a horse and a cart go together and a horse and a boat do not.
+passenger seats. They sit in the `MOUNT` slot (`TAGS.md`, "equipSlot"): an
+arelitz or a motorcycle is *ridden* (layer 1) and a cart is *towed*
+(layer 2), so an arelitz and a cart go together and an arelitz and a
+motorcycle do not — one thing per layer.
 
-`horseshoes` is a plain `ACCESSORY`, not a third `MOUNT` layer, and does
+`arelitz-tack` (renamed from `horseshoes` — an arachnid does not wear shoes)
+is a plain `ACCESSORY`, not a third `MOUNT` layer, and does
 nothing on its own — `fastTravelBonus()` (`db/lib/mounts.js`) only counts it
-while a plain **Horse** is equipped alongside it, turning that horse's one
-extra crossing into two. It does nothing for the Thoroughbred or Warbeast
-(already bred/built for speed) or the Motorcycle (no hooves).
+while an **Arelitz** is equipped alongside it, turning that arelitz's one
+extra crossing into two. It does nothing for the Motorcycle (no hooves), which
+is worth its flat 1 with or without tack.
 
-**Seats, from `fastTravelCapacity()`:** a Horse alone is 2, and a Cart upgrades
-that pair to 6 — the biggest ride there is. They count the **rider**, so a
-horse seats you and one other. Overfilling them is not refused; it costs the
-mount's extra crossing and nothing else (`MAP.md` §3a). This function had no
+**Seats, from `fastTravelCapacity()`:** an Arelitz alone is 2, and a Cart
+upgrades that pair to 6 — the biggest ride there is. They count the **rider**,
+so an arelitz seats you and one other. Overfilling them is not refused; it
+costs the mount's extra crossing and nothing else (`MAP.md` §3a). This function had no
 live caller at all until escorting gave it one. The **Motorcycle is 2 and cannot be
-upgraded** — it is tested before the horse for exactly that reason, so the
+upgraded** — it is tested before the arelitz for exactly that reason, so the
 Cart's clause can never reach it. A hand-cart towed behind a motorcycle is not a thing, and letting it fall
 through would have quietly turned one seat into six.
 
 The motorcycle was inert loot until 2026-09-06 — 100 lb of flavour with no
 `equippable` at all. Making it a mount was one slug added to
-`FAST_TRAVEL_SLUGS`: the indoors parking, the boat conflict and the Motion
-Sickness refusal below all read that set rather than naming their slugs, so
-every one of them picked it up for free.
+`FAST_TRAVEL_SLUGS`: the indoors parking and the Motion
+Sickness refusal below both read that set (or `STOWABLE_SLUGS`, which is built
+from it) rather than naming their slugs, so both picked it up for free.
 
 **Motion Sickness** refuses equipping any of them outright
 (`web/app/(app)/character/equipActions.js`) — a Motion Sick character never
-rides. A Motion Sick character *dragged along* by someone else's mounted or
-boated crossing doesn't get a say: `db/lib/locationTravel.js#vomitOnTheRide`
-grants them Vomiting (and DMs them) the moment a mounted or boated mover
+rides. A Motion Sick character *dragged along* by someone else's mounted
+crossing doesn't get a say: `db/lib/locationTravel.js#vomitOnTheRide`
+grants them Vomiting (and DMs them) the moment a mounted mover
 crosses a zone with them in tow.
 
 A **connection** can keep a mount out too — `on_foot: true`, which dismounts a
@@ -293,9 +299,10 @@ threshold (`MAP.md` §2c).
 
 A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
 Sanctuary, the Inn, the Keep, the Undercroft — is a place you walk into. **On
-the surface that roof no longer costs you the reins**: a horse and a cart ride
-into a chapel same as the square outside it. **Underground it still does** —
-every Location in the Caves and the Depths is authored `indoors: true`, since
+the surface that roof no longer costs you the reins**: an arelitz and a cart
+ride into a chapel same as the square outside it. **Underground it still
+does** — every Location in the Caves and the Depths is authored
+`indoors: true`, since
 there is no open sky down there, and that roof is the one that still parks a
 mount at the door. On arrival somewhere that counts,
 `db/lib/indoors.js#parkMountsIndoors` unequips them and DMs the character;
