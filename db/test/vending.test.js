@@ -117,6 +117,27 @@ test("the machine's custom id carries the room, so one handler serves every mach
   assert.equal(entry.customId, "room:vending:room123");
 });
 
+// --- the ledger ----------------------------------------------------------
+
+// Caught against a real database: insertCoins, withdrawCoins and collectTill
+// each called record() BESIDE a tagWrites primitive, and the primitive's hook
+// already books the whole from -> to row off the `econ` option. The machine's
+// ledger read exactly double its live balance. A full end-to-end check needs
+// Postgres, so what is pinned here is the shape that caused it.
+test("the engine books money through the tag hook alone, never a second record()", () => {
+  const src = require("node:fs").readFileSync(require.resolve("../lib/vending"), "utf8");
+  // The one line that would have to change for the bug to come back: the
+  // destructure off economyLedger. `record` not being in scope is what makes a
+  // stray call impossible rather than merely absent.
+  const importLine = src.split(/\r?\n/).find((l) => l.includes('require("./economyLedger")'));
+  assert.ok(importLine, "vending.js should still import from economyLedger");
+  assert.equal(
+    /\brecord\b/.test(importLine),
+    false,
+    `record must not be imported into vending.js — calling it beside a tagWrites primitive books the same money twice. Line was: ${importLine}`,
+  );
+});
+
 // --- the words -----------------------------------------------------------
 
 // The copy has to be importable from a client component, which is the whole

@@ -34,7 +34,10 @@ const { OBOL_SLUG } = require("./depotState");
 const { RESOURCES_SLUG } = require("./resourceStack");
 const { addToStack, dropCharacterTag, lockRoom } = require("./tagWrites");
 const { drawPoisonedUnits } = require("./poison");
-const { record, characterParty, machineParty, turnStamp } = require("./economyLedger");
+// No `record` here on purpose: every coin and goods movement in this file is
+// booked by the tagWrites hook off the `econ` option, and calling record()
+// beside one books it twice (see insertCoins).
+const { characterParty, machineParty, turnStamp } = require("./economyLedger");
 // Takes `prisma` as a parameter, so it is safe at the top here — the three
 // sendDm twins and why they differ are in CLAUDE.md.
 const { sendDm } = require("./dm");
@@ -365,10 +368,13 @@ async function insertCoins(prisma, discordUserId, { roomId, amount, turn = null 
       // Room lock first, always (db/lib/tagWrites.js) — the machine hangs off a
       // Room, and taking the character lock first deadlocks against the stash.
       await lockRoom(tx, room.id);
+      // ONE call books the WHOLE movement. dropCharacterTag's hook calls
+      // recordTagMoney, which writes a single from -> to COIN row off the
+      // `econ` below — it is not booking only the character's end. A second
+      // hand-written record() here booked the same coins twice and left the
+      // machine's ledger reading double its live balance, which is the exact
+      // double-count economyLedger.js#bankParty exists to warn about.
       await dropCharacterTag(tx, character.id, coin.id, n, { econ: { from: me, to: box, ...econ } });
-      // The machine's end is a column rather than a stack row, so its leg is
-      // hand-written. That is the one tax the column shape imposes.
-      await record(tx, { from: me, to: box, form: "COIN", amount: n }, econ);
       const updated = await tx.vendingMachine.update({
         where: { id: machine.id },
         data: { floatObols: { increment: n } },
@@ -428,7 +434,8 @@ async function withdrawCoins(prisma, discordUserId, { roomId, turn = null } = {}
         throw err;
       }
       taken = machine.floatObols;
-      await record(tx, { from: box, to: me, form: "COIN", amount: taken }, econ);
+      // addToStack's hook books the whole machine -> character COIN row; see
+      // insertCoins for why there is no second record() call beside it.
       await addToStack(tx, character.id, coin.id, taken, {
         source: "EVENT",
         stackable: true,
@@ -671,7 +678,7 @@ async function collectTill(prisma, discordUserId, { roomId, turn = null } = {}) 
         throw err;
       }
       taken = machine.tillObols;
-      await record(tx, { from: box, to: me, form: "COIN", amount: taken }, econ);
+      // One booking, not two — see insertCoins.
       await addToStack(tx, character.id, coin.id, taken, {
         source: "EVENT",
         stackable: true,
