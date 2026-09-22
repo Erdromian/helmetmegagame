@@ -274,7 +274,7 @@ async function takeMachine(prisma, discordUserId, { roomId, turn = null } = {}) 
   const { character, room, machine } = actor;
 
   if (heldBy(machine) === character.id) {
-    return { ok: true, line: T.youHold(secondsLeftOn(machine)), sfx: SFX.COIN_INSERT };
+    return { ok: true, line: T.youHold(secondsLeftOn(machine)), sfx: SFX.OK_QUIET };
   }
 
   const cutoff = new Date(Date.now() - VENDING_HOLD_MS);
@@ -316,7 +316,10 @@ async function takeMachine(prisma, discordUserId, { roomId, turn = null } = {}) 
   const who = await presentedName(prisma, character.id);
   const text = T.roomOpened(who);
   await sayInRoom(prisma, room, text);
-  return { ok: true, line: T.youHold(Math.round(VENDING_HOLD_MS / 1000)), text, sfx: SFX.COIN_INSERT };
+  // OK_QUIET, not a coin drop. Stepping up to the machine moves no money, and
+  // COIN_INSERT is the payphone's "your obol went in" — playing it here had the
+  // vendor chime like a purchase before anything had been paid for.
+  return { ok: true, line: T.youHold(Math.round(VENDING_HOLD_MS / 1000)), text, sfx: SFX.OK_QUIET };
 }
 
 /**
@@ -823,7 +826,8 @@ async function stockMachine(
     ok: true,
     line: price > 0 ? T.youStockedIn(n, tag.name, price) : T.youStockedInFree(n, tag.name),
     text,
-    sfx: SFX.COIN_INSERT,
+    // Goods onto a shelf, not coin into a slot.
+    sfx: SFX.OK_QUIET,
   };
 }
 
@@ -909,7 +913,8 @@ async function unstockMachine(prisma, discordUserId, { roomId, tagId, quantity, 
   const who = await presentedName(prisma, character.id);
   const text = T.roomRestocked(who);
   await sayInRoom(prisma, room, text);
-  return { ok: true, line: T.youStockedOut(take, tag?.name ?? "thing"), text, sfx: SFX.COIN };
+  // Goods off a shelf. SFX.COIN here said a sale had happened when none had.
+  return { ok: true, line: T.youStockedOut(take, tag?.name ?? "thing"), text, sfx: SFX.OK_QUIET };
 }
 
 /** Re-price a line that is already on the shelf. */
@@ -941,7 +946,8 @@ async function setSlotPrice(prisma, discordUserId, { roomId, tagId, priceObols, 
   return {
     ok: true,
     line: price > 0 ? T.youPriced(name, price) : T.youPricedFree(name),
-    sfx: SFX.COIN_INSERT,
+    // Writing a number on a label. Nothing moved at all.
+    sfx: SFX.OK_QUIET,
   };
 }
 
