@@ -41,6 +41,7 @@ const {
   VENDING_TEXT,
   VENDING_MAX_PRICE,
   VENDING_SHELF_CAP,
+  timeLeftFromSeconds,
 } = require("@lifeweb/db/lib/vendingText");
 const { isTradeable } = require("@lifeweb/db/lib/tradeable");
 const { OBOL_SLUG } = require("@lifeweb/db/lib/depotState");
@@ -74,6 +75,17 @@ function button(id, label, style = ButtonStyle.Secondary, disabled = false) {
   return new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style).setDisabled(disabled);
 }
 
+/**
+ * The grey line under a dropdown option. Free is spelled out rather than priced
+ * at 0, matching the shelf line directly above it — the dropdown used to read
+ * "0 ¢ each" under a line reading "free".
+ */
+function shelfDesc(s) {
+  return s.priceObols > 0
+    ? VENDING_TEXT.selectDesc(s.priceObols, s.quantity)
+    : VENDING_TEXT.selectDescFree(s.quantity);
+}
+
 /** Discord allows five buttons a row and five rows; the panel never needs more than three. */
 function rows(...buttons) {
   const out = [];
@@ -105,7 +117,10 @@ async function panel(discordUserId, roomId) {
     merchant ? VENDING_TEXT.promptMerchant : VENDING_TEXT.prompt,
     held > 0 ? VENDING_TEXT.floatLine(held) : VENDING_TEXT.floatNone,
     merchant ? (view.tillObols > 0 ? VENDING_TEXT.tillLine(view.tillObols) : VENDING_TEXT.tillNone) : null,
-    VENDING_TEXT.timeLeft(view.secondsLeft),
+    // Through the shared helper, never VENDING_TEXT.timeLeft directly — reaching
+    // for it here is what had Discord saying "274 seconds left." beside Chat's
+    // "5 minutes left." off the same machine.
+    timeLeftFromSeconds(view.secondsLeft),
   ].filter(Boolean);
 
   const slots = view.slots ?? [];
@@ -134,7 +149,7 @@ async function panel(discordUserId, roomId) {
             slots.slice(0, VENDING_SHELF_CAP).map((s) => ({
               label: s.name.slice(0, 100),
               value: s.tagId,
-              description: VENDING_TEXT.selectDesc(s.priceObols, s.quantity).slice(0, 100),
+              description: shelfDesc(s).slice(0, 100),
             })),
           ),
       ),
@@ -344,7 +359,7 @@ async function handleVendingStockOut(interaction, roomId) {
             slots.slice(0, VENDING_SHELF_CAP).map((s) => ({
               label: s.name.slice(0, 100),
               value: s.tagId,
-              description: VENDING_TEXT.selectDesc(s.priceObols, s.quantity).slice(0, 100),
+              description: shelfDesc(s).slice(0, 100),
             })),
           ),
       ),
@@ -381,7 +396,7 @@ async function handleVendingPrice(interaction, roomId) {
             slots.slice(0, VENDING_SHELF_CAP).map((s) => ({
               label: s.name.slice(0, 100),
               value: s.tagId,
-              description: VENDING_TEXT.selectDesc(s.priceObols, s.quantity).slice(0, 100),
+              description: shelfDesc(s).slice(0, 100),
             })),
           ),
       ),

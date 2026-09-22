@@ -725,7 +725,10 @@ function VendingDialog({ entry, onClose, onDone }) {
 
       {rows.length === 0 && <EmptyState>{merchant ? VENDING_TEXT.emptyMerchant : VENDING_TEXT.empty}</EmptyState>}
       {rows.map((row) => (
-        <div key={row.tagId} className="chat-notice-row">
+        // flex-wrap because .chat-notice-row does not wrap on its own, and the
+        // merchant's version of a row carries six controls — without it they
+        // run off the side of the panel on a phone.
+        <div key={row.tagId} className="chat-notice-row flex-wrap">
           <span className="chat-person-name">{row.name}</span>
           <span className="mono text-sm text-muted">
             {row.priceObols > 0 ? `${row.priceObols} ¢` : "free"} · {row.quantity}
@@ -739,7 +742,12 @@ function VendingDialog({ entry, onClose, onDone }) {
             {VENDING_TEXT.btnBuy}
           </button>
           {merchant && (
-            <>
+            // basis-full puts the merchant's controls on a line of their own,
+            // so the line above stays exactly the customer's: name, price, Buy.
+            // Sharing one line cost the NAME — .chat-person-name is the
+            // flex:1 ellipsis element, so with six siblings it truncated to
+            // "T." on a phone, losing the one thing the row is about.
+            <div className="basis-full flex items-center gap-3">
               <button
                 type="button"
                 className="menu-item"
@@ -748,9 +756,12 @@ function VendingDialog({ entry, onClose, onDone }) {
               >
                 {VENDING_TEXT.btnStockOut}
               </button>
+              {/* `control` because this input lives OUTSIDE a .field — without
+                  it the box, border and background never apply and the price
+                  renders as bare text nobody would guess is editable. */}
               <input
                 type="number"
-                className="w-16"
+                className="control w-16"
                 min={0}
                 max={VENDING_MAX_PRICE}
                 aria-label={`${VENDING_TEXT.modalPriceField} — ${row.name}`}
@@ -765,7 +776,7 @@ function VendingDialog({ entry, onClose, onDone }) {
               >
                 {VENDING_TEXT.btnSetPrice}
               </button>
-            </>
+            </div>
           )}
         </div>
       ))}
@@ -814,7 +825,10 @@ function VendingDialog({ entry, onClose, onDone }) {
               onChange={(e) => setPutPrice(e.target.value)}
             />
           </div>
-          <div className="modal-actions">
+          {/* A plain row, NOT .modal-actions — that class is sticky-to-the-
+              bottom chrome, and a second one inside the body detaches this
+              button and fights the real footer for the same edge. */}
+          <div className="flex justify-end">
             <button
               type="button"
               className="btn-secondary"
@@ -833,7 +847,9 @@ function VendingDialog({ entry, onClose, onDone }) {
         </>
       )}
 
-      <div className="field">
+      {/* mt-4: the shelf rows above are 3px-padded flex rows, so without it the
+          label sits straight on the last ware's name. */}
+      <div className="field mt-4">
         <label className="field-label" htmlFor="chat-vending-amount">
           {VENDING_TEXT.modalInsertField}
         </label>
@@ -848,7 +864,10 @@ function VendingDialog({ entry, onClose, onDone }) {
       </div>
 
       <FormError>{error}</FormError>
-      <div className="modal-actions">
+      {/* flex-wrap: .modal-actions is a single unwrapping flex row, and the
+          merchant's side puts five buttons in it — which overflowed the panel
+          and clipped the first one off its left edge. */}
+      <div className="modal-actions flex-wrap">
         <button
           type="button"
           className="btn"

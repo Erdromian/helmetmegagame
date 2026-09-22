@@ -154,6 +154,9 @@ const VENDING_TEXT = {
   selectOut: "What comes out?",
   selectPrice: "Which line?",
   selectDesc: (price, held) => `${price} ¢ each · ${held} left`,
+  // A line priced at 0, in the same words slotRowFree uses — without this the
+  // dropdown said "0 ¢ each" directly under a shelf line reading "free".
+  selectDescFree: (held) => `free · ${held} left`,
 };
 
 // --- the clock ------------------------------------------------------------
@@ -185,11 +188,21 @@ function unlockedNow(machine, now = Date.now()) {
   return Boolean(machine?.unlocked) && Boolean(heldBy(machine, now));
 }
 
-/** The countdown sentence: seconds under a minute, minutes over it. */
-function timeLeftLine(machine, now = Date.now()) {
-  const seconds = secondsLeftOn(machine, now);
+/**
+ * The countdown sentence: seconds under a minute, minutes over it.
+ *
+ * Both faces call this rather than reaching for `timeLeft` themselves. Discord
+ * did reach for it, and so read "274 seconds left." beside Chat's "5 minutes
+ * left." off the same machine — timeLeftLong was dead on that face entirely.
+ */
+function timeLeftFromSeconds(seconds) {
   if (seconds > 60) return VENDING_TEXT.timeLeftLong(Math.ceil(seconds / 60));
   return VENDING_TEXT.timeLeft(seconds);
+}
+
+/** The same sentence, for a caller holding the machine row rather than a count. */
+function timeLeftLine(machine, now = Date.now()) {
+  return timeLeftFromSeconds(secondsLeftOn(machine, now));
 }
 
 module.exports = {
@@ -200,5 +213,6 @@ module.exports = {
   heldBy,
   secondsLeftOn,
   unlockedNow,
+  timeLeftFromSeconds,
   timeLeftLine,
 };
