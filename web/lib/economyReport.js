@@ -9,7 +9,7 @@ import { repoPath } from "@lifeweb/db/lib/repoPaths";
 const execFileAsync = promisify(execFile);
 
 // The economy report (db/scripts/analysis/economy/report.js, "Docs against the model" et al.), hosted
-// GM-only at /gm/economy. Built and cached once per server process rather than per request — the
+// at /gm/economy and, for the Economist role, /econ/economy. Built and cached once per server process rather than per request — the
 // catalog it reads (docs/tags.yaml, docs/zones.yaml, schema.prisma, the db/lib constants) only moves on
 // the next deploy, which restarts this process anyway.
 //
@@ -80,7 +80,7 @@ export async function getEconomyReportFiles() {
 }
 
 // One named file from the built set, or null if generation failed or the name does not exist —
-// web/app/api/gm/economy/[[...path]]/route.js is the one caller, and it turns either kind of null
+// web/app/api/economy/report/[[...path]]/route.js is the one caller, and it turns either kind of null
 // into a 404/503 of its own.
 export async function getEconomyReportFile(name) {
   const files = await getEconomyReportFiles();

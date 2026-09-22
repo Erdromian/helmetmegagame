@@ -1559,7 +1559,7 @@ const SECTIONS = [
 ];
 
 // One shared nav on every page — a plain list of links, so it works with no JS and works whether the
-// file is opened straight off disk or served through /api/gm/economy/[[...path]] (web/lib/economyReport.js).
+// file is opened straight off disk or served through /api/economy/report/[[...path]] (web/lib/economyReport.js).
 // The brand link doubles as "home"; each section's own <h2> (inside its build()) is the page's real
 // heading, so a section page carries no second, redundant title above it.
 function navHtml(activeId) {

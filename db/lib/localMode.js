@@ -2,8 +2,10 @@
 // real guild. Hooks into `db/lib/discordRest.js#discordRequest` (the ONE
 // place every REST call goes through, ARCHITECTURE.md §5): a recognized
 // superadmin id (db/lib/roleIds.js#SUPERADMIN_DISCORD_IDS) fakes the full
-// GM/Playtest/Leader-Whitelist bundle, any other id gets only Player (so
-// /gm/* still bounces), and writes are appended to LOCAL_OUTBOX_PATH with a
+// GM/Playtest/Leader-Whitelist bundle, the fixed LOCAL_ECONOMIST_DISCORD_ID
+// below fakes the Economist role alone (no GM role, so /gm/* still bounces
+// it), any other id gets only Player (so /gm/* and /econ/* both bounce it),
+// and writes are appended to LOCAL_OUTBOX_PATH with a
 // stand-in so `.id` reads don't throw. Nothing else should grow its own
 // `if (isLocalMode())` Discord branch — extend localDiscordRequest/localMember
 // here instead (web/lib/superadmin.js already just checks the same allowlist).
@@ -19,6 +21,7 @@ const {
   LEADER_WHITELIST_ROLE_ID,
   PLAYTEST_ROLE_ID,
   TRIAL_GM_ROLE_ID,
+  ECONOMIST_ROLE_ID,
   SUPERADMIN_DISCORD_IDS,
 } = require("./roleIds");
 
@@ -31,10 +34,21 @@ function isLocalMode() {
 // are deliberately absent — those are personas, not access.
 const LOCAL_ROLES = [TRIAL_GM_ROLE_ID, PLAYTEST_ROLE_ID, CONTRIBUTOR_ROLE_ID, PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID];
 
-// Only a recognized superadmin id fakes the full bundle; anything else gets
-// just Player, so it's bounced from /gm/* like a real non-GM account.
+// A fixed, obviously-fake id (never a real Discord snowflake — those are
+// time-derived off Discord's own epoch) for exercising the Economist-but-not-
+// GM path locally: `npm run dev:session -- --economist` mints a cookie for
+// it. Nothing else should ever answer to this id.
+const LOCAL_ECONOMIST_DISCORD_ID = "1000000000000000001";
+
+// Only a recognized superadmin id fakes the full GM bundle; the local
+// Economist test id gets Economist + Player (no GM role, so /gm/* still
+// bounces it); anything else gets just Player.
 function localMember(userId) {
-  const roles = SUPERADMIN_DISCORD_IDS.includes(userId) ? [...LOCAL_ROLES] : [PLAYER_ROLE_ID];
+  const roles = SUPERADMIN_DISCORD_IDS.includes(userId)
+    ? [...LOCAL_ROLES]
+    : userId === LOCAL_ECONOMIST_DISCORD_ID
+      ? [ECONOMIST_ROLE_ID, PLAYER_ROLE_ID]
+      : [PLAYER_ROLE_ID];
   return {
     user: { id: userId, username: "local-dev", global_name: "Local Tester", avatar: null },
     roles,
@@ -102,4 +116,5 @@ function localDiscordRequest(discordPath, { method = "GET", body } = {}) {
 module.exports = {
   isLocalMode,
   localDiscordRequest,
+  LOCAL_ECONOMIST_DISCORD_ID,
 };

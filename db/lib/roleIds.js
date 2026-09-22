@@ -29,6 +29,12 @@ const PLAYTEST_ROLE_ID = "1546259369539280936";
 // Reads as "Contributor" in the guild.
 const CONTRIBUTOR_ROLE_ID = "1544753625526440027";
 
+// The Economist seat: a limited admin subset, not a GM. Opens the (econ)
+// route group only — the economy report and a funds/inventory-only player
+// lookup (ECONOMY.md §7) — and grants nothing under /gm/*. Reads as
+// "Economist" in the guild.
+const ECONOMIST_ROLE_ID = "1552050821942878360";
+
 // There is no Ghost role. It was deleted, not retired: Discord prints a member's roles on their
 // profile card, so holding one named "Ghost" told anyone who clicked that a player was dead — an
 // out-of-character leak that pinning the colour to 0 never touched. A dead player's seat is now
@@ -67,6 +73,10 @@ function hasContributorRole(roleIds) {
   return (roleIds ?? []).includes(CONTRIBUTOR_ROLE_ID);
 }
 
+function hasEconomistRole(roleIds) {
+  return (roleIds ?? []).includes(ECONOMIST_ROLE_ID);
+}
+
 module.exports = {
   PLAYER_ROLE_ID,
   SPECTATOR_ROLE_ID,
@@ -74,9 +84,11 @@ module.exports = {
   TRIAL_GM_ROLE_ID,
   PLAYTEST_ROLE_ID,
   CONTRIBUTOR_ROLE_ID,
+  ECONOMIST_ROLE_ID,
   SUPERADMIN_DISCORD_IDS,
   gmRoleIds,
   hasGmRole,
   hasPlaytestRole,
   hasContributorRole,
+  hasEconomistRole,
 };

@@ -10,13 +10,14 @@ import { soundSetting } from "./soundStore";
 // next ordinary cue and capped by `maxMs`. Every one of those rules is right for a rite
 // and fatal for a soundtrack.
 //
-// FIVE LAYERS, lowest priority first. The highest layer holding a track is the one you
+// SIX LAYERS, lowest priority first. The highest layer holding a track is the one you
 // hear; every layer under it ducks to SILENCE rather than stopping, so when the thing
 // above ends, the thing below is still where you left it.
 //
 //   ambient   the bed the PLACE has — wind outside, a drone in the Depths, the
 //             Cathedral's organ room every few minutes (placeAmbience.js)
-//   music     the game's music — a track, then minutes of nothing, then another
+//   spot      a short sound laid OVER that bed: a gull, a gust, a chapel tone
+//   music     the lobby's track — the one place a track simply plays, always
 //   event     a siren, an alarm, a thing arriving. Loud and brief
 //   room      a jukebox, a gramophone: something switched on in the room
 //   player    somebody playing an instrument, one voice each
@@ -24,7 +25,7 @@ import { soundSetting } from "./soundStore";
 // Player beats room because a person playing an instrument in front of you is nearer than
 // furniture in the corner, and because it is something somebody is DOING.
 //
-// TWO RULES ON TOP OF THAT, and they are both about what a person is doing:
+// THREE RULES ON TOP OF THAT:
 //
 //   `room` and `player` are MUTUALLY EXCLUSIVE. Starting one stops the other. One
 //   jukebox or one lute, never a fight between them.
@@ -34,9 +35,18 @@ import { soundSetting } from "./soundStore";
 //   to a floor and its lowpass sweeps down, which is the sound of both facts being true
 //   at once: a siren heard through a wall. Every other pairing is still winner-takes-all.
 //
-// `ambient` and `music` are driven by musicProgram.js and MusicDirector.js, and `player` by
-// InstrumentListener.js, one voice per performance (see VOICES below). `room` and `event`
-// are wired in and still waiting for a caller.
+//   `ambient` COEXISTS UNDER `spot`, AND DOES NOT DUCK AT ALL. This is the one pairing
+//   where the layer underneath is meant to go on being fully heard: the design document
+//   calls these sounds "played atop ambience", and a gull that silenced the shore it was
+//   flying over would be telling the wrong story. What makes a spot audible instead is
+//   its LEVEL — musicGain.js's -30 LUFS tier, four decibels over the bed, which is what
+//   that tier was always for. If a spot gets lost in a bed, that number is the one to
+//   change, not this rule.
+//
+// `ambient` and `spot` are driven by musicConductor.js, `music` by musicProgram.js, both
+// through MusicDirector.js, and `player` by InstrumentListener.js, one voice per
+// performance (see VOICES below). `room` and `event` are wired in and still waiting for a
+// caller.
 //
 // MUTING IS A DUCK, NOT A STOP. The music switch pulls the master gain to silence and
 // leaves every layer exactly as it was — same track, same place, same tape — so unmuting
@@ -56,7 +66,7 @@ import { soundSetting } from "./soundStore";
 // through decodeAudioData, and the element hands over `duration`, `currentTime` (this is
 // how the 0:18 resume works) and `ended` for nothing.
 
-export const LAYERS = ["ambient", "music", "event", "room", "player"];
+export const LAYERS = ["ambient", "spot", "music", "event", "room", "player"];
 
 // What a layer does while something above it is playing. The bed keeps rolling, because a
 // wind loop restarted at 0:00 under a jukebox is audible; everything else pauses, because
@@ -65,6 +75,9 @@ export const LAYERS = ["ambient", "music", "event", "room", "player"];
 // under whatever beat it, and a siren that pauses and resumes is a siren twice.
 const LAYER_MODE = {
   ambient: "continue",
+  // A spot is a handful of seconds. Pausing it under a jukebox and resuming it a minute
+  // later would land the second half of a gull cry on nothing that explains it.
+  spot: "pause",
   music: "pause",
   event: "continue",
   room: "pause",
@@ -90,10 +103,16 @@ function baseOf(key) {
 function rankOf(key) {
   return LAYERS.indexOf(baseOf(key));
 }
-const COEXIST = { event: { under: PERFORMANCE, duck: 0.35, hz: 700 } };
-
 // Where a lowpass is inaudible. A filter parked here is a filter that is not there.
+// Declared above COEXIST because COEXIST reads it as it is built.
 const OPEN_HZ = 20_000;
+
+const COEXIST = {
+  event: { under: PERFORMANCE, duck: 0.35, hz: 700 },
+  // A bed under a spot is not ducked and not muffled — `duck: 1` and the filter left where
+  // it is parked. See the third rule in the header: the spot's own level is what carries it.
+  ambient: { under: new Set(["spot"]), duck: 1, hz: OPEN_HZ },
+};
 const MUFFLE_MS = 600;
 
 const CROSSFADE_MS = 1200;
