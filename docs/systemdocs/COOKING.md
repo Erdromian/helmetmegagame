@@ -37,7 +37,11 @@ What carries over from the old system, unchanged in mechanism:
 - Every dish has a **taste**, and eating one says so — now the recipe's own
   base taste (`mealTaste`/`mealTasteForm`) reads FIRST, then each additional
   ingredient's.
-- Naming your work is free.
+- **A cook does not name their work.** No cooking recipe is `customizable`,
+  so the Craft dialog offers a cook no name or description box at all, and a
+  name posted against one is dropped rather than refused (`CRAFTING.md` §4a).
+  What a dish is called is its recipe plus its ingredients, nothing else.
+  (Naming was free for a while, then briefly cost 1 ⬢ a batch; both are gone.)
 
 ### 1a. A meal is now the only way to be fed
 
@@ -76,9 +80,12 @@ to accept them.
 
 ## 2. A dish is a minted row
 
-Every meal with words or ingredients on it is a **minted `Tag`** — the fifth
+Every meal with additional ingredients on it is a **minted `Tag`** — the fifth
 runtime authoring door, the one `CRAFTING.md` §4a already described, now
-carrying more than a name. `mintCustomCraft` clones the recipe row
+carrying ingredients rather than a name. (`mintCustomCraft` still mints on
+words too — that is what the customizable recipes on the Smithing ladder use
+it for — but no cooking recipe can carry any, so ingredients are the only
+thing that ever trips it here.) `mintCustomCraft` clones the recipe row
 (`custom: true`, `ephemeral: true`, `craftable: false`) and writes two things
 on the clone:
 
@@ -89,12 +96,12 @@ on the clone:
 | `mealHunger` | copied off the recipe |
 | `mealTaste` / `mealTasteForm` | copied off the recipe (§2a) |
 
-A meal with **no words and no additional ingredients** does not mint. It has
+A meal with **no additional ingredients** does not mint. It has
 nothing to carry, and an ephemeral clone of the base row would only make it
 un-Depot-listable and Restart-Game-deletable for no gain. A recipe with a
 `requirement.items` entry that names a real ingredient (nearly all of them —
 see §2a) still consumes that fixed base without minting, unless the cook also
-adds something extra or a name.
+adds something extra.
 
 **The ingredients are part of the mint's identity.** Reuse keys on name +
 description + `cookedFrom`, so two cooks who both type "Steak Dinner" over
