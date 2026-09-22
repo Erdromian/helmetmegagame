@@ -487,6 +487,19 @@ A file missing from the table plays at its step gain alone — the fallback is 1
 rather than something cleverer precisely so an unmeasured file is obviously
 wrong instead of quietly almost-right.
 
+### The one override
+
+`message` in `sfx.js`'s `GAIN` is set **by ear**, not by `measure.sh`, and it is
+the only entry that is. `pop` measures under the −26 tier, so the formula clamps
+its gain to 1 and the cue plays at the file's own level — which is correct
+arithmetic and too loud for the one sound that fires every single time anybody
+speaks. It sits at 0.161, a third as loud (−15.85 dB).
+
+So re-running `measure.sh` will disagree with that line, and `measure.sh` will be
+right about the file and wrong about the room. Leave it, or change it by
+listening rather than by measuring. It is commented at the call site too, because
+this is exactly the kind of number a later pass tidies back to "correct".
+
 ## 6b. Performances
 
 A player with an instrument in hand plays a real song, and everybody standing
