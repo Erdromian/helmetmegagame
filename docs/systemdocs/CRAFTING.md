@@ -370,31 +370,54 @@ Reject of the auto-filed Action remains the full reset for the turn's Move
 
 ## 4a. Custom items (`customizable`)
 
-A recipe flagged `customizable:` in docs/tags.yaml (the fine and lavish
-meals, the painting, the badge, the hat, and — since
+A recipe flagged `customizable:` in docs/tags.yaml (the painting, the badge,
+the hat, and — since
 2026-09-09 — the plain arms and all the armor on the Smithing ladder,
 `SMITHING.md` §3-§4) can be crafted as the maker's OWN: for
 **+1 ⬢ a unit** (`CUSTOM_SURCHARGE`, web/lib/customCraft.js) the player sets
 a name and/or a description, and either falls back to the base recipe's when
 left blank.
 
-**What the words cost is the recipe's own business now** —
-`surchargeFor(tag)`, reading `Tag.customCost`, is the one verdict both the
-dialog and the server price with. The two meals set `custom: { cost: 0 }` and
-buy them out entirely: a cook naming their own dish is the point of cooking
-(COOKING.md), not an upsell, and charging for it made every meal in the game
-anonymous. `custom: { describable: false }` is the other half — the Fine Meal
-takes a name and no description, so the dialog hides the textarea and the
-server drops a posted one rather than refusing it.
+**No cooking recipe is on that list.** A cook names nothing: the dialog offers
+them no name or description box (`chosen.customizable` gates the whole block),
+and `customCraftFor` returns an inactive custom for a recipe that isn't
+customizable, so a posted name is dropped rather than refused — the same
+posture as a quantity on a non-stackable. The meals were on the list twice
+before: free at `custom: { cost: 0 }` on the argument that charging made every
+meal in the game anonymous, then briefly at 1 ⬢ a batch. Neither is the rule
+now. What a dish is called is its recipe plus its ingredients.
 
-A **cooked dish always mints**, words or not: what went into it is what it
-does, so it needs a row of its own even from a cook who named nothing. Its
-mint also keys on the INGREDIENTS as well as the words — see COOKING.md §2,
-which is the one place this mechanism does something the rest of the
-customizable recipes do not. The displayed name always carries the base identity —
-`Steak Dinner (Lavish Meal)`, or `Lavish Meal (custom)` for a
-description-only custom — so every surface says what the thing IS and a
-custom name cannot impersonate another item.
+**What the words cost is the recipe's own business** —
+`surchargeFor(tag)`, reading `Tag.customCost`, is the one verdict both the
+dialog and the server price with, and `custom: { describable: false }` is the
+other half: a recipe may take a name and no description, so the dialog hides
+the textarea and the server drops a posted one rather than refusing it. No
+recipe in the catalog uses either at the moment — all 31 customizable recipes
+sit on the default 1 ⬢ and take both — but both stay, since the cost is a
+column and not a constant.
+
+A **cooked dish still mints**, name or no name, because its mint keys on the
+INGREDIENTS rather than on words — see COOKING.md §2, which is the one place
+this mechanism does something the rest of the customizable recipes do not.
+That is why the mint is guarded by `custom.active || cookedFrom.length` and
+not by `customizable` alone: taking naming away from cooks leaves the
+ingredient half untouched.
+
+**A mint with no words keeps the base recipe's name**, so a dish is plain
+`Bread` however it was made. It used to be `baseTag.name` plus its
+ingredients' tastes — `Bread (rich spices)` — which is gone: a name is printed
+by every stash panel, Search readout and pickpocket picker there is, so
+baking the taste into it published the one thing eating is meant to reveal.
+COOKING.md §2 has the reasoning and what it costs a cook. On a customizable
+recipe the displayed name still carries the base identity the other way
+(`Dockers' Mark (Badge)`, or `Badge (custom)` for a description-only custom),
+so every surface says what the thing IS and a custom name cannot impersonate
+another item.
+
+Two dishes of the same recipe with different ingredients now share a name, and
+that is safe: reuse keys on name + description + **`cookedFrom`**, so they stay
+separate rows. `Tag.name` is not unique — only `slug` is — so any number of
+`Bread` rows coexist.
 
 Mechanically it is the **fifth runtime authoring door** onto the tag catalog
 (db/lib/paperMint.js lists the other four): `mintCustomCraft` in

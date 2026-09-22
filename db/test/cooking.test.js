@@ -5,6 +5,9 @@
 // Run with `npm test --workspace=db`. Nothing here touches Prisma.
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const yaml = require("js-yaml");
 const {
   COOKED_TASTE_MAX,
   INGREDIENT_SLOTS_MAX,
@@ -210,7 +213,7 @@ test("an absent custom block means the standard surcharge and a description box"
   });
 });
 
-test("the meals buy their words for nothing, and the Fine Meal takes no description", () => {
+test("a recipe can make its words free, and can take a name without a description", () => {
   assert.deepEqual(
     normalizeCustom({ cost: 0, describable: false }, { slug: "fine-meal", customizable: true }),
     { customCost: 0, customDescribable: false },
@@ -219,6 +222,21 @@ test("the meals buy their words for nothing, and the Fine Meal takes no descript
     normalizeCustom({ cost: 0, describable: true }, { slug: "lavish-meal", customizable: true }),
     { customCost: 0, customDescribable: true },
   );
+});
+
+// A cook names nothing (COOKING.md §1, CRAFTING.md §4a). The dialog hides the box on
+// `customizable`, so this is the one assertion standing between that and a recipe
+// quietly getting the flag back.
+test("no cooking recipe is customizable", () => {
+  const catalog = yaml.load(fs.readFileSync(path.join(__dirname, "../../docs/tags.yaml"), "utf8")).tags;
+  const cooks = Object.entries(catalog).filter(([, t]) =>
+    (t.requirement?.skills ?? []).some((s) => /^cooking-/.test(s)),
+  );
+  assert.ok(cooks.length >= 30, "found the cooking recipes");
+  for (const [slug, t] of cooks) {
+    assert.notEqual(t.customizable, true, `${slug} must not be customizable`);
+    assert.equal(t.custom, undefined, `${slug} must carry no custom block`);
+  }
 });
 
 test("a custom block on a tag nothing can customise is refused", () => {

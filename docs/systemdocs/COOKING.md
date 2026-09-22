@@ -37,7 +37,11 @@ What carries over from the old system, unchanged in mechanism:
 - Every dish has a **taste**, and eating one says so — now the recipe's own
   base taste (`mealTaste`/`mealTasteForm`) reads FIRST, then each additional
   ingredient's.
-- Naming your work is free.
+- **A cook does not name their work.** No cooking recipe is `customizable`,
+  so the Craft dialog offers a cook no name or description box at all, and a
+  name posted against one is dropped rather than refused (`CRAFTING.md` §4a).
+  What a dish is called is its recipe plus its ingredients, nothing else.
+  (Naming was free for a while, then briefly cost 1 ⬢ a batch; both are gone.)
 
 ### 1a. A meal is now the only way to be fed
 
@@ -76,9 +80,12 @@ to accept them.
 
 ## 2. A dish is a minted row
 
-Every meal with words or ingredients on it is a **minted `Tag`** — the fifth
+Every meal with additional ingredients on it is a **minted `Tag`** — the fifth
 runtime authoring door, the one `CRAFTING.md` §4a already described, now
-carrying more than a name. `mintCustomCraft` clones the recipe row
+carrying ingredients rather than a name. (`mintCustomCraft` still mints on
+words too — that is what the customizable recipes on the Smithing ladder use
+it for — but no cooking recipe can carry any, so ingredients are the only
+thing that ever trips it here.) `mintCustomCraft` clones the recipe row
 (`custom: true`, `ephemeral: true`, `craftable: false`) and writes two things
 on the clone:
 
@@ -89,12 +96,12 @@ on the clone:
 | `mealHunger` | copied off the recipe |
 | `mealTaste` / `mealTasteForm` | copied off the recipe (§2a) |
 
-A meal with **no words and no additional ingredients** does not mint. It has
+A meal with **no additional ingredients** does not mint. It has
 nothing to carry, and an ephemeral clone of the base row would only make it
 un-Depot-listable and Restart-Game-deletable for no gain. A recipe with a
 `requirement.items` entry that names a real ingredient (nearly all of them —
 see §2a) still consumes that fixed base without minting, unless the cook also
-adds something extra or a name.
+adds something extra.
 
 **The ingredients are part of the mint's identity.** Reuse keys on name +
 description + `cookedFrom`, so two cooks who both type "Steak Dinner" over
@@ -102,14 +109,25 @@ Steak — one adding saffron, one adding feces — get two rows. Nothing on any
 surface tells them apart, which is the point. Miss this and one of them is
 serving the other's dinner.
 
-**A dish nobody named is named after its taste** — "Steak (rich)". That rule
-is for the cook's own pantry rather than for anyone else's secrecy: a recipe
-that mints (because it took an additional ingredient) needs some way to tell
-the saffron batch from the feces batch before biting, if the cook named
-neither. A taste is coarser than an ingredient ("meat" covers a boar loin and
-a human foot), and the two undetectable poisons have no taste at all, so it
-gives away less than it looks. A cook who wants to hide something types a
-name.
+**A minted dish is named after its recipe and nothing else** — a loaf is
+"Bread" whether it holds saffron or feces. **Taste reaches a player only when
+their character eats** (`tasteLine`, §A6), which is the whole rule this doc
+turns on, and a name is not eating.
+
+It used to read "Steak (rich)": the mint appended its ingredients' tastes, for
+the cook's own pantry rather than for anyone else's secrecy — a cook needed
+some way to tell the saffron batch from the feces batch before biting, and a
+cook who wanted to hide something typed a name instead. **Both halves of that
+are gone.** Naming went first (no cooking recipe is `customizable` any more,
+`CRAFTING.md` §4a), which left the suffix as the only thing standing between
+a dish and the one secret eating is supposed to keep — and a name is not a
+private label. It is printed by every room stash panel, Search readout,
+pickpocket picker and transfer dialog in the game, so "for the cook's pantry"
+was never what it actually did.
+
+**The cost is real and was accepted:** a cook now has no way to tell their own
+batches apart, and has to keep track out of character. That is the price of
+a poisoner being able to hand somebody a loaf that reads exactly like a loaf.
 
 Sorted rather than kept in slot order because Postgres array equality is
 order-sensitive; the cost is that the taste sentence reads alphabetically.
