@@ -131,12 +131,28 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
 
     const assigned = [];
     const returned = [];
+    // Unready does not take the GameState lock, so a player can still leave
+    // between the check above and these writes when Start is pressed on an open
+    // lobby. Each write names the READY row it expects; a row that has gone is
+    // the same "the lobby changed" answer as validateDraft's, not a 500.
+    const settleRow = async (discordUserId, data) => {
+      try {
+        return await tx.lobbyEntry.update({ where: { discordUserId, status: "READY" }, data });
+      } catch (err) {
+        if (err?.code !== "P2025") throw err;
+        const stale = new Error("DRAFT_STALE");
+        stale.problems = ["Somebody in the preview is no longer ready."];
+        throw stale;
+      }
+    };
     for (const row of draft.rows) {
       const role = row.roleSlug ? bySlug.get(row.roleSlug) : null;
       if (role) {
-        const entry = await tx.lobbyEntry.update({
-          where: { discordUserId: row.discordUserId },
-          data: { status: "ASSIGNED", assignedRoleId: role.id, assignedAt: now, expiresAt },
+        const entry = await settleRow(row.discordUserId, {
+          status: "ASSIGNED",
+          assignedRoleId: role.id,
+          assignedAt: now,
+          expiresAt,
         });
         assigned.push({
           entryId: entry.id,
@@ -146,10 +162,7 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
           expiresAt,
         });
       } else {
-        await tx.lobbyEntry.update({
-          where: { discordUserId: row.discordUserId },
-          data: { status: "UNASSIGNED" },
-        });
+        await settleRow(row.discordUserId, { status: "UNASSIGNED" });
         returned.push({ discordUserId: row.discordUserId });
       }
     }
@@ -263,9 +276,22 @@ function declineComponents(entryId) {
   ];
 }
 
-// Stamps the assignment DM as delivered, so the sweep knows not to resend it.
-async function markNotified(db, entryId) {
-  await db.lobbyEntry.update({ where: { id: entryId }, data: { notifiedAt: new Date() } }).catch(() => {});
+// Claims the right to send an entry's assignment DM by stamping it first. Start
+// Game's loop and the sweep's resend both claim before they send, so whichever
+// gets there first is the only one to send it. Stamping only after a send let
+// a long loop still be working through a big lobby when the sweep's five
+// minutes ran out, and the players near the end got the DM twice.
+async function claimNotification(db, entryId) {
+  const { count } = await db.lobbyEntry.updateMany({
+    where: { id: entryId, status: "ASSIGNED", notifiedAt: null },
+    data: { notifiedAt: new Date() },
+  });
+  return count > 0;
+}
+
+// Hands a claim back after a failed send, so the sweep tries once more.
+async function releaseNotification(db, entryId) {
+  await db.lobbyEntry.updateMany({ where: { id: entryId }, data: { notifiedAt: null } }).catch(() => {});
 }
 
 // A character arrived by ANY route (wizard, threat spawn), so an assigned
@@ -286,9 +312,20 @@ async function declineAssignment(db, entryId, discordUserId) {
   const entry = await db.lobbyEntry.findUnique({ where: { id: entryId }, include: { assignedRole: { select: { name: true } } } });
   if (!entry) return { ok: false, reason: "That seat's gone." };
   if (entry.discordUserId !== discordUserId) return { ok: false, reason: "That's not yours to answer." };
-  if (entry.status === "CREATED") return { ok: false, reason: "You already built the character." };
-  if (entry.status !== "ASSIGNED") return { ok: false, reason: "That seat was already released." };
-  await db.lobbyEntry.update({ where: { id: entry.id }, data: { status: "DECLINED" } });
+  const built = { ok: false, reason: "You already built the character." };
+  const released = { ok: false, reason: "That seat was already released." };
+  if (entry.status === "CREATED") return built;
+  if (entry.status !== "ASSIGNED") return released;
+  // Conditional: a character finished between the read above and here has
+  // already settled this row to CREATED, and a Decline must not overwrite that.
+  const { count } = await db.lobbyEntry.updateMany({
+    where: { id: entry.id, status: "ASSIGNED" },
+    data: { status: "DECLINED" },
+  });
+  if (count === 0) {
+    const now = await db.lobbyEntry.findUnique({ where: { id: entry.id }, select: { status: true } });
+    return now?.status === "CREATED" ? built : released;
+  }
   await db.auditLog
     .create({
       data: {
@@ -313,6 +350,7 @@ module.exports = {
   startedLine,
   declineComponents,
   declineAssignment,
-  markNotified,
+  claimNotification,
+  releaseNotification,
   settleLobbyEntry,
 };

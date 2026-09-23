@@ -157,21 +157,38 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   }
 
   // Optimistic: the pill and the count move on the click, and a refusal puts
-  // them back. Both actions are idempotent, so a fast double-tap is harmless.
+  // them back. One toggle at a time: a tap while the last one is still out is
+  // ignored. Without that, a double-tap read the same stale `readyAt` twice,
+  // sent two Readies, and the loser's undo painted "Not ready" over a player
+  // the server had readied — who then got rolled a seat they thought they'd
+  // turned down.
+  const toggling = useRef(false);
   function toggleReady() {
+    if (toggling.current) return;
+    toggling.current = true;
+    const settle = () => {
+      toggling.current = false;
+    };
     const was = readyAt;
     const undo = () => {
+      settle();
       setReadyAt(was);
       setCountShift((n) => n + (was ? 1 : -1));
     };
     if (was) {
       setReadyAt(null);
       setCountShift((n) => n - 1);
-      run(setUnready, undefined, { onFail: undo });
+      run(setUnready, undefined, { onOk: settle, onFail: undo });
     } else {
       setReadyAt(new Date().toISOString());
       setCountShift((n) => n + 1);
-      run(setReady, undefined, { onOk: (res) => setReadyAt(res.readyAt), onFail: undo });
+      run(setReady, undefined, {
+        onOk: (res) => {
+          settle();
+          setReadyAt(res.readyAt);
+        },
+        onFail: undo,
+      });
     }
   }
 

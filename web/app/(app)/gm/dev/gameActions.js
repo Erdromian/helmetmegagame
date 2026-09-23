@@ -12,7 +12,8 @@ import {
   returnedMessage,
   startedLine,
   declineComponents,
-  markNotified,
+  claimNotification,
+  releaseNotification,
   ROLL_PHASES,
 } from "@lifeweb/db/lib/lobby";
 import { isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
@@ -158,16 +159,19 @@ export async function startGame() {
   after(async () => {
     // Sequential on purpose: eighty DMs at once is a rate-limit incident.
     for (const a of outcome.assigned) {
-      // Stamped only on success: the sweep resends anything still unstamped
-      // five minutes on (db/lib/lobbySweep.js).
+      // Claimed before the send, so the sweep's resend (db/lib/lobbySweep.js)
+      // cannot send the same DM while this loop is still on its way down a big
+      // lobby. A failed send hands the claim back and the sweep retries it.
+      if (!(await claimNotification(prisma, a.entryId).catch(() => false))) continue;
       await sendDm(a.discordUserId, assignmentMessage(a, CANONICAL_ORIGIN), {
         authorDiscordUserId: session.discordUserId,
         source: "lobby_assignment",
         components: declineComponents(a.entryId),
         meta: dmAction(DM_ACTION.LOBBY_SEAT, a.entryId),
-      })
-        .then(() => markNotified(prisma, a.entryId))
-        .catch((err) => console.error(`Assignment DM failed for ${a.discordUserId}:`, err));
+      }).catch(async (err) => {
+        console.error(`Assignment DM failed for ${a.discordUserId}:`, err);
+        await releaseNotification(prisma, a.entryId);
+      });
     }
     for (const r of outcome.returned) {
       await sendDm(r.discordUserId, returnedMessage(CANONICAL_ORIGIN), {

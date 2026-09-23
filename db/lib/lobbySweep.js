@@ -12,7 +12,7 @@
 
 const { sendDm } = require("./dm");
 const { DM_ACTION, dmAction } = require("./dmActions");
-const { assignmentMessage, reminderMessage, expiredMessage, declineComponents } = require("./lobby");
+const { assignmentMessage, reminderMessage, expiredMessage, declineComponents, claimNotification } = require("./lobby");
 
 const REMINDER_BEFORE_MS = 6 * 60 * 60 * 1000;
 const RESEND_AFTER_MS = 5 * 60 * 1000;
@@ -27,7 +27,8 @@ async function runLobbySweep(prisma, { origin = "https://ravenheart.quest", now 
     include: { assignedRole: { include: { startingLocation: { include: { zone: { select: { name: true } } } } } } },
   });
   for (const entry of unnotified) {
-    await prisma.lobbyEntry.update({ where: { id: entry.id }, data: { notifiedAt: now } });
+    // Start Game's own loop may have claimed it since the read above.
+    if (!(await claimNotification(prisma, entry.id))) continue;
     const seat = {
       roleName: entry.assignedRole?.name ?? "your role",
       zoneName: entry.assignedRole?.startingLocation?.zone?.name ?? null,
@@ -50,8 +51,14 @@ async function runLobbySweep(prisma, { origin = "https://ravenheart.quest", now 
     include: { assignedRole: { select: { name: true } } },
   });
   for (const entry of dueReminder) {
-    // Stamp first: a DM that fails is not worth a second reminder later.
-    await prisma.lobbyEntry.update({ where: { id: entry.id }, data: { reminderSentAt: now } });
+    // Stamp first: a DM that fails is not worth a second reminder later. Only
+    // while the seat is still out — a character built since the read above
+    // needs no nudge.
+    const { count } = await prisma.lobbyEntry.updateMany({
+      where: { id: entry.id, status: "ASSIGNED", reminderSentAt: null },
+      data: { reminderSentAt: now },
+    });
+    if (count === 0) continue;
     await sendDm(prisma, entry.discordUserId, reminderMessage({ roleName: entry.assignedRole?.name ?? "your role", expiresAt: entry.expiresAt }, origin), {
       source: "lobby_reminder",
     }).catch((err) => console.error(`Lobby reminder DM failed for ${entry.discordUserId}:`, err));
@@ -63,7 +70,14 @@ async function runLobbySweep(prisma, { origin = "https://ravenheart.quest", now 
     include: { assignedRole: { select: { name: true } } },
   });
   for (const entry of overdue) {
-    await prisma.lobbyEntry.update({ where: { id: entry.id }, data: { status: "EXPIRED" } });
+    // Conditional: a player who finished their character (or declined) between
+    // the read above and here has already moved the row on. Overwriting CREATED
+    // with EXPIRED told them their seat was gone a moment after they took it.
+    const { count } = await prisma.lobbyEntry.updateMany({
+      where: { id: entry.id, status: "ASSIGNED" },
+      data: { status: "EXPIRED" },
+    });
+    if (count === 0) continue;
     await prisma.auditLog
       .create({
         data: {

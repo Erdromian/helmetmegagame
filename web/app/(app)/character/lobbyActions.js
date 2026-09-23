@@ -91,9 +91,19 @@ export async function setReady() {
   if (existing && existing.status !== "READY") {
     return { ok: false, error: "Your seat for this game was already decided." };
   }
+  // An upsert, not a create: two Readies from one player (a second tab, a
+  // double-tap) both find nothing above, and a plain create threw on the
+  // loser's unique key — a refusal for a player who WAS readied.
   const entry =
     existing ??
-    (await prisma.lobbyEntry.create({ data: { discordUserId, status: "READY" } }));
+    (await prisma.lobbyEntry.upsert({
+      where: { discordUserId },
+      create: { discordUserId, status: "READY" },
+      update: {},
+    }));
+  if (entry.status !== "READY") {
+    return { ok: false, error: "Your seat for this game was already decided." };
+  }
   if (!existing) {
     // Every preference row exists once somebody is readied, so Start never has
     // to special-case a player who touched nothing.
@@ -113,7 +123,12 @@ export async function setReady() {
 export async function setUnready() {
   const gate = await lobbyGate();
   if (gate.error) return { ok: false, error: gate.error };
-  await prisma.lobbyEntry.deleteMany({ where: { discordUserId: gate.discordUserId, status: "READY" } });
+  const { count } = await prisma.lobbyEntry.deleteMany({ where: { discordUserId: gate.discordUserId, status: "READY" } });
+  // Nothing READY to delete but a row still there: Start Game got to it first,
+  // and the player has a seat whatever the button says.
+  if (count === 0 && (await prisma.lobbyEntry.findUnique({ where: { discordUserId: gate.discordUserId } }))) {
+    return { ok: false, error: "Your seat for this game was already decided." };
+  }
   revalidatePath("/gm/dev");
   return { ok: true };
 }
