@@ -6,6 +6,7 @@ import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import HoverCard from "@/app/components/HoverCard";
 import ChipLabel from "@/app/components/ChipLabel";
 import TagDetails from "@/app/components/TagDetails";
+import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { readStash } from "./actions";
 import { TONE_CLASS } from "./PlacePanel";
 
@@ -30,16 +31,43 @@ function roomIdOf(selected) {
 // in-tree tooltip. pinnable={false} and `as="button"`: the chip is already a
 // button, so a pin would fight the click, and a span inside it would nest
 // one .chip box inside another.
+//
+// On a touch screen there is no hover, so the details could never be read at
+// all. There the tap pins the details instead, and Take moves to the foot of
+// the panel — ActionButton.js's touch shape.
 function StashChip({ item, onTake }) {
+  const touch = useIsCoarsePointer();
+  const details = <TagDetails tag={item.tag} quantity={item.quantity} />;
   return (
-    <HoverCard pinnable={false} panel={<TagDetails tag={item.tag} quantity={item.quantity} />}>
+    <HoverCard
+      pinnable={touch}
+      panel={
+        touch
+          ? (close) => (
+              <>
+                {details}
+                <button
+                  type="button"
+                  className="btn tag-tooltip-do"
+                  onClick={() => {
+                    close();
+                    onTake(item);
+                  }}
+                >
+                  Take
+                </button>
+              </>
+            )
+          : details
+      }
+    >
       <ChipLabel
         as="button"
         type="button"
         tag={item.tag}
         quantity={item.quantity}
-        title={`Take ${item.tag.name}`}
-        onClick={() => onTake(item)}
+        title={touch ? undefined : `Take ${item.tag.name}`}
+        onClick={touch ? undefined : () => onTake(item)}
       />
     </HoverCard>
   );

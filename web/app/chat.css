@@ -1934,6 +1934,18 @@
   border-top: 1px solid var(--border);
 }
 
+/* What an item is, at the top of its menu on a touch screen (ThingsDrawer.js),
+   where the hover panel can never open. Set in .tag-tooltip's type and width
+   so it reads as the same panel, with a rule under it before the verbs. */
+.chat-menu-details {
+  max-width: 280px;
+  padding: 0 var(--sp-1) var(--sp-2);
+  margin-bottom: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-table);
+}
+
 /* ThingsDrawer.js's menu, escaped to document.body (portalPlacement.js):
    overrides the relative-to-its-chip positioning above with the fixed,
    JS-computed coordinates a portaled panel needs, and matches .tag-tooltip /
