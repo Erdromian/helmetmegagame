@@ -10,8 +10,9 @@
 //   dotted    = hidden and NOT on_foot
 //   bold      = modular (a gate with a winch)
 //   gray      = hidden
+//   red       = tight_squeeze — a hole no Giant fits through, unconditional
 //   blue      = crosses a zone otherwise, so the hop costs the Move
-//   label     = whatever locked/hidden/announce/keyed the edge
+//   label     = whatever locked/hidden/announce/keyed/tight_squeeze the edge
 //
 // Each node's label also carries its `mining:` coefficient (MINING.md §2);
 // a Location with no row at all carries nothing, because it cannot be dug.
@@ -67,6 +68,7 @@ function collectEdges(doc) { // one normalized shape, bare pair or a mapping wit
       locked: isBare ? null : (entry.locked ?? null),
       hidden: isBare ? null : (entry.hidden ?? null),
       announce: isBare ? null : (entry.announce ?? null),
+      tightSqueeze: !isBare && Boolean(entry.tight_squeeze),
     };
   });
 }
@@ -90,10 +92,11 @@ function edgeAttrs(edge) {
   if (edge.hidden) label.push(`hidden: ${edge.hidden}`);
   if (edge.announce) label.push(`announce: ${edge.announce}`);
   if (edge.keyed) label.push("keyed");
+  if (edge.tightSqueeze) label.push("tight squeeze");
 
   const attrs = [];
   if (style.length) attrs.push(`style="${style.join(",")}"`);
-  const color = edge.hidden ? "gray45" : crossesZone ? "steelblue" : "black";
+  const color = edge.hidden ? "gray45" : edge.tightSqueeze ? "red3" : crossesZone ? "steelblue" : "black";
   attrs.push(`color="${color}"`);
   if (crossesZone) attrs.push("penwidth=1.6");
   if (label.length) attrs.push(`label=${JSON.stringify(label.join("\n"))}`); // real newline; JSON.stringify escapes it to DOT's \n
@@ -130,6 +133,7 @@ function legendLines() {
     row("──────", "black", "Ordinary crossing"),
     row("──────", "steelblue", "Crosses a zone — costs the Move"),
     row("──────", "gray45", "Hidden — always this color, dashed or not"),
+    row("──────", "red3", "Tight squeeze — no Giant fits, unconditional"),
     '<TR><TD COLSPAN="2"> </TD></TR>',
     '<TR><TD COLSPAN="2"><B>Location border</B></TD></TR>',
     // Real nested box-in-a-box, matching the peripheries=2 double border.

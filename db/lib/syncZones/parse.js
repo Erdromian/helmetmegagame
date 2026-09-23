@@ -129,6 +129,7 @@ function parseZonesYaml(doc) {
 //     keyed: true
 //     on_foot: true
 //     railroad: true
+//     tight_squeeze: true
 //
 // `locked`/`hidden` are the same requirement with different visibility, one
 // column, `hidden` sets the flag too. Tag/Role slugs are NOT validated here —
@@ -149,6 +150,7 @@ const CONNECTION_KEYS = new Set([
   "keyed",
   "on_foot",
   "railroad",
+  "tight_squeeze",
 ]);
 
 function parseConnection(raw, locationByRef, problems) {
@@ -193,6 +195,7 @@ function parseConnection(raw, locationByRef, problems) {
     keyed: false,
     onFoot: false,
     railroad: false,
+    tightSqueeze: false,
   };
 
   if (spec.announce != null) {
@@ -234,6 +237,15 @@ function parseConnection(raw, locationByRef, problems) {
       problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean railroad: ${JSON.stringify(spec.railroad)}`);
     } else {
       entry.railroad = spec.railroad;
+    }
+  }
+
+  // A hole no Giant fits through, full stop — unconditional, not a skill check. Fixed to that one tag — see LocationLink.tightSqueeze in schema.prisma.
+  if (spec.tight_squeeze != null) {
+    if (typeof spec.tight_squeeze !== "boolean") {
+      problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean tight_squeeze: ${JSON.stringify(spec.tight_squeeze)}`);
+    } else {
+      entry.tightSqueeze = spec.tight_squeeze;
     }
   }
 

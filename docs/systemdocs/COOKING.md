@@ -469,19 +469,40 @@ adjudicating should see everything.
 
 ## 11. Where the ingredients come from
 
+This table was written for an older roster — Hunting and Fishing were never
+real verbs in code, and Goose Fat, River Eel, Lamprey and Blind Fish are all
+retired (`SOILERY.md` §6). What's actually live:
+
 | Source | What |
 |---|---|
-| Gathering in the Black Hills (`MINING.md` §3c) | The Gather button's table: Cave Fungus, Onion and Carrot most days; Crayfish, Meat and a Skinned Cave Rat on a good one; Deep Morel and Honey; and Boar Loin and Deer Liver at the rare rungs — the only source those two have, since the Hunting labour tier went |
-| Fishing | No verb produces these today. River Eel, Lamprey and Blind Fish are catalog tags with no source; Crayfish come off the gathering table and a room stash |
-| Farming | Onion (the commonest and cheapest of the thirteen, on purpose) |
+| Gathering in the Black Hills (`MINING.md` §3c) | The Gather button's table: Cave Fungus, Onion and Carrot most days; Crayfish, Meat and a Skinned Cave Rat on a good one; Deep Morel and Honey; Boar Loin and Deer Liver at the rare rungs — the only source those two have; and, once in a long while, a wild Arelitz Egg |
+| Farming (Soilery) | Wheat, Potato, Tomato, Carrot, Onion, Plump Helmet — `SOILERY.md` §3/§6 |
+| The Stable | Arelitz Egg, laid by a fed adult; Meat and Rendered Fat off a butchered arelitz or brood animal — `ARELITZ.md` §4/§5 |
+| Butchering | Human Flesh and organs off any corpse; Nekker Pheromones, Graga Sac and Skinless Brain off their own monster corpses — `CORPSES.md` §6 |
 | A cook's starting kit | Servant, Geschef, Innkeeper and Inn Staff each start with 8 Wheat, 12 Potato, 6 Carrot, 8 Tomato and 6 Onion (`docs/roles.yaml`): 40 crops, which is 20 basic dishes for one whole Move and feeds 20 person-turns |
-| Caving | Rock Salt, `ultracommon` in `db/lib/cavingLoot.js` |
-| Room stashes | 3 Deep Morels scattered across the Caves and Depths, 4 more in the Godshroom; 5 Hard Cheeses across the cellars |
-| The Depot | Saffron (15 ⬢, three cigarettes), Tinned Butter (10 ⬢) |
+| Caving | Cave Fungus, Purring Maggot and Rock Salt, `ultracommon` in `db/lib/cavingLoot.js` |
+| Room stashes | A handful of Deep Morels across the Caves and Depths; Cheese, Crayfish, Dustfish and Fish Roe stashed a few units at a time in the cellars and the caves |
+| The Depot | Saffron, Tinned Butter, Deep Morel, Rock Salt, Honey, Sugar Candy — and, having no other source at all, Sugar and Cheese (`DEPOT.md`'s "Cooking ingredients with no other source" table) |
 
 Room stashes are a **seed, never a top-up** — the "Seed these items now"
 action at `/gm/dev/zones` (`seedRoomStash`, `web/app/(app)/gm/dev/zones/actions.js`):
-once the five cheeses are eaten there are no more.
+once a stash is eaten there is no more, which is why the Depot rather than a
+stash is what makes Cheese actually reliable.
+
+Eel, Dustfish, Haggar, Tunnel Trout and Fish Roe carry the same gap — no
+farming, no butchering, no caving loot, nothing past a one-time room-stash
+seed or starting-kit grant — and are left unfixed here rather than priced onto
+the Depot shelf. Fish Stew, Fried Fish, Northern Delight and Caviar all still
+depend on whichever of these a table happens to have on hand. Boar Loin, Deer
+Liver and Crayfish had the same gap until the gathering table gave them a
+repeatable source, which put Foie Gras and Honeyed Crayfish back in reach.
+
+Three more ingredients have the same gap and are documented in `BREWING.md`
+§4 rather than fixed here: `aberrant-heart`, `ravens-eye` and `trout-heart`
+carry a `cooked:` block (so a cook *can* slot one) but nothing currently
+drops any of them — that doc names the prospecting loot table as the
+intended fix, not an import, so they are deliberately not on the Depot
+shelf.
 
 **The fragmentation grenade lands at 0.067% — about 1 in 1,500 draws.**
 Getting there is what made the old mining drop die adopt caving's rarity
