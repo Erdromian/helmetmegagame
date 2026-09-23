@@ -52,9 +52,11 @@ run 2 / 5 / 7 / 9 / 14, which bought about 3 ¢ of steel a point at the bottom
 of the ladder and 7 at the top. A piece worked from an ingot (Rapier, Katana,
 Brigandine, 52 ¢) is 7 pt, off the rung's 9 for the same reason its ⬢ column
 is. A piece then sits one point either side of its rung for what it does —
-the Halberd, Longbow, Battle Axe, Pavise, Brigandine, Breastplate, Bastard
-Sword, Lucerne, Zweihander, Bore Pistol, Shortbow and both Spears a point up,
-the Sabre a point down — by the rule in `TAGS.md` §4a, which lists them. The
+the Halberd, Longbow, Battle Axe, Brigandine, Breastplate, Bastard Sword,
+Lucerne, Zweihander, Bore Pistol, Shortbow and both Spears a point up, the
+Sabre a point down — by the rule in `TAGS.md` §4a, which lists them. The
+Pavise is the one piece off its rung by more than that: a Simple recipe at the
+Moderate rung's 30 ¢ and 5 pt since 2026-09-23 (§4a says why). The
 "Buyable gear, point for point" page of `npm run economy:report` is the check.
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
@@ -333,7 +335,7 @@ pair still counts at the Spillway (`CRAFTING.md` §4a).
 | Simple Helm | Simple | |
 | Mail Coif | Simple | |
 | Shield | Simple | `crafting` |
-| Pavise | Simple | `crafting` |
+| Pavise | Simple | `crafting`. Sells at the Moderate rung's 30 ¢ and costs 5 pt since 2026-09-23, off its rung on purpose; 9 ⬢ so a crafter clears the `crafting` rung's 2 ¢ a Move, not a skilled smith's (`DEPOT.md` §4) — see §4a. |
 | Mail Shirt | Moderate | |
 | Gladiator Helmet | Moderate | Also on the Merchant's shelf at 45 ⬢ (`DEPOT.md`). Optional conceal. |
 | Knight's Helmet | High Quality | Force conceal — a closed helm is not a face (`PROXYING.md` §5). |
@@ -352,3 +354,78 @@ Off the ladder:
 Off the ladder in the other direction: **Trinket**, `smithing`-gated and a
 whole Move like everything above, but priced by a die roll rather than a
 row in either table — see [`TRINKETS.md`](TRINKETS.md).
+
+### 4a. The armour numbers
+
+Every piece above carries two fractions, `melee:` and `ballistic:`, and the
+rule since the 2026-09-23 rebalance is that **every piece a player can pick,
+buy or make has a use case** — it is the cheapest or lightest in its slot, it
+carries a perk (concealment, a mining bonus, hiding under a coat), or it is
+the best in its slot on one axis or on the average of both. The check is the
+"Armour, piece against piece" table on the equipment page of
+`npm run economy:report`: it flags a piece that is an exact twin of another,
+one that is dominated inside its slot, one outpriced by a piece at half the
+points, and one that is heavy for the step it buys. `db/test/economyArmor.test.js`
+fails when a piece a player can come by is a twin or dominated, so a catalog
+edit cannot quietly put one back.
+
+What each piece is for, as the numbers now stand (melee / ballistic, lb):
+
+| Slot | Piece | pt | Numbers | Why you would take it |
+|---|---|---|---|---|
+| Head | Padded Cap | 1 | 0.22 / 0.04, 1 lb | Lightest and cheapest; no forge |
+| Head | Mail Coif | 2 | 0.30 / 0.06, 2 lb | The light 2-pt helm; hood conceals |
+| Head | Simple Helm | 2 | 0.33 / 0.09, 4 lb | The 2-pt helm that leans melee; conceals |
+| Head | Infantry Helmet | 2 | 0.28 / 0.15, 5 lb | The 2-pt helm that leans ballistic; conceals |
+| Head | Mining Helmet | 3 | 0.31 / 0.09, 4 lb | +1 ⬢ a Prospecting press |
+| Head | Gladiator Helmet | 7 | 0.35 / 0.25, 6 lb | Ballistic without a forced hood; on the shelf |
+| Head | Knight's Helmet | 9 | 0.48 / 0.20, 6 lb | The lighter closed helm, better against a bullet |
+| Head | Bascinet | 9 | 0.54 / 0.16, 8 lb | The best forged helm against a blade |
+| Head | Censor's Helmet | 9 | 0.44 / 0.31, 7 lb | The best forged helm against a bullet |
+| Body, mail | Padded Armor | 1 | 0.26 / 0.04, 8 lb | Lightest and cheapest; under a coat |
+| Body, mail | Mail Shirt | 5 | 0.42 / 0.09, 20 lb | The mid rung, 5 lb lighter than Brigandine |
+| Body, mail | Brigandine | 8 | 0.50 / 0.18, 25 lb | Best in the layer, and it hides under a coat |
+| Body, over | Salvage Plate | 2 | 0.31 / 0.09, 16 lb | No skill at all |
+| Body, over | Graga-Hide Cloak | 3 | 0.24 / 0.12, 8 lb | Lightest in the layer; reads as a garment |
+| Body, over | Breastplate | 10 | 0.55 / 0.18, 20 lb | The best protection a pound |
+| Body, over | Plate Armor | 11 | 0.68 / 0.26, 42 lb | The best forged piece outright; still Massive |
+| Held | Buckler | 1 | 0.22 / 0.04, 3 lb | Lightest and cheapest |
+| Held | Shield | 2 | 0.35 / 0.13, 10 lb | The shield wall bonus |
+| Held | Pavise | 5 | 0.44 / 0.24, 25 lb | Best held piece a crafter can make; cover |
+| Accessory | Armored Gloves | 2 | 0.13 / 0.04, 2 lb | The Godflesh gloves; the armour is a bonus |
+
+What moved, and why:
+
+- **Plate Armor** was 0.62 / 0.22 at 55 lb: one point over the Breastplate
+  and 35 lb heavier for a step of 0.07, and a Breastplate over a Mail Shirt
+  beat it on both axes at 45 lb. It is 0.68 / 0.26 at 42 lb now — the best
+  single forged piece by a clear margin, still in `CARRY.md`'s Massive band,
+  and Plate over a Brigandine is 67 lb, which is most of a 71 lb carry cap
+  before a weapon.
+- **Mail Coif** was an exact copy of the Padded Cap's numbers at twice the
+  points and four times the weight, and the Simple Helm's price with less
+  protection. It is the light helm now: 2 lb.
+- **Knight's Helmet** at 9 pt bought 0.13 more melee than a 2-pt Simple Helm
+  and a forced hood. It is 0.48 / 0.20 now, and the **Bascinet**, which
+  matched it exactly, is the heavy one at 0.54 / 0.16 and 8 lb.
+- **Infantry Helmet** matched the Simple Helm exactly. It leans ballistic
+  now (0.28 / 0.15, 5 lb) where the Simple Helm leans melee (0.33 / 0.09).
+- **Pavise** at 3 pt turned aside as much as a 9-pt helm. It keeps its
+  protection (0.44 / 0.24) and costs Moderate money instead: 5 pt and a 30 ¢
+  sale. The recipe takes 9 ⬢ rather than Moderate's 7, so a crafter still
+  clears the `crafting` rung's 2 ¢ a Move (`DEPOT.md` §4's wage discipline)
+  instead of a skilled smith's 8.
+- **Mail Shirt** weighed the same 25 lb as the Brigandine it sits under. It
+  is 20 lb and 0.42 melee now; the Brigandine picked up 0.02 ballistic.
+- **Salvage Plate** is 16 lb, from 20, for numbers a 4 lb helm matched.
+- **Graga-Hide Cloak** claimed to take a blow "better than any coat has a
+  right to" at 0.18, under a 1-pt Padded Cap. It is 0.24 / 0.12 now.
+- **Heavy Infantry Armor** was 0.55 / 0.70 against Light's 0.38 / 0.66: twice
+  the price and 18 lb more for two points of turret survival. It is 0.58 /
+  0.76 now, 58% left neither dying nor dead against Light's 52%
+  (`DEPOT.md` §0i).
+
+Role kit and loot (the Cataphract, the Soulbreaker Helm, the Tribunal and
+Cerberus helmets, the Spacesuit, the Thanati Mask, the Bastard's Helmet) are
+outside the rule: nobody chooses them against the ladder, and the Tribunal
+Helmet and its Ordinator variant are meant to match.

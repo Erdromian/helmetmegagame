@@ -574,16 +574,21 @@ number could fix.
 | kit | protection | graze | minor | deep | grievous | dying | dead |
 |---|---|---|---|---|---|---|---|
 | nothing | 0.00 | 10% | 4% | 9% | 16% | 20% | 41% |
+| a Knight's Helmet | 0.20 | 10% | 4% | 10% | 17% | 20% | 40% |
 | a Censor's Helmet | 0.31 | 10% | 5% | 10% | 17% | 19% | 38% |
-| plate and a helm | 0.32 | 10% | 5% | 10% | 17% | 19% | 38% |
+| plate and a Knight's Helmet | 0.41 | 10% | 6% | 11% | 17% | 19% | 37% |
 | Light Infantry Armour | 0.66 | 10% | 10% | 14% | 18% | 18% | 31% |
-| Heavy Infantry Armor | 0.70 | 10% | 12% | 14% | 18% | 17% | 29% |
+| Heavy Infantry Armor | 0.76 | 10% | 15% | 15% | 18% | 16% | 26% |
 | Cataphract Armor | 0.86 | 10% | 25% | 16% | 16% | 13% | 19% |
-| cataphract, Soulbreaker Helm and a Pavise | 0.94 | 10% | 46% | 14% | 11% | 8% | 11% |
+| cataphract, Soulbreaker Helm and a Pavise | 0.94 | 10% | 47% | 14% | 11% | 8% | 11% |
 
-A helmet alone barely moves the needle; the curve only opens up past the
-infantry armours. Cataphract Armor still leaves a third of its wearers dying or
-dead, and the best kit in the game about one in five.
+A helmet alone barely moves the needle, and the whole forged ladder together
+only gets a wearer from 39% to 44% left neither dying nor dead; the curve only
+opens up past the infantry armours. Cataphract Armor still leaves a third of
+its wearers dying or dead, and the best kit in the game about one in five.
+(Rows recomputed 2026-09-23 with the armour rebalance, `SMITHING.md` §4a; the
+"Armour, piece against piece" table of `npm run economy:report` carries the
+same column for every piece.)
 
 Armour is read off `Tag.ballisticArmor` directly, so it can never fall behind
 the catalog. See `TAGS.md` for the two columns and the word scale players

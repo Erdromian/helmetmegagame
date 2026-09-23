@@ -349,6 +349,12 @@ const headlines = [
       return `a median ${cash == null ? "—" : `${fmt(cash, 0)} ¢`} over the game where it pays through production, and ${other == null ? "—" : `${fmt(other, 0)} ¢`} where it pays through caving (Lucky, the fighting tags, Spelunker and the like), taking one caving expedition a turn, which rests on the band → mix assumption and carries the Caving Die's risk`;
     })()} (see "Buyable gear, point for point").`;
   })(),
+  (() => {
+    const A = model.armor;
+    const bad = A.rows.filter((r) => r.verdict === "no use case").map((r) => r.name);
+    const look = A.rows.filter((r) => r.verdict === "worth a look").map((r) => r.name);
+    return `Armour, piece against piece: ${A.counts.inPlay} of the ${A.counts.pieces} wearable pieces can be picked, bought or made. ${bad.length ? `<b>${bad.length}</b> ${bad.length === 1 ? "has" : "have"} no use case — a twin of, or dominated by, another piece in the same slot: ${bad.map(esc).join(", ")}.` : "<b>Every one of them has a use case</b>: none is a twin of, or dominated by, another piece in its slot."} ${look.length ? `Worth a look — outpriced by a piece at half the points, or heavy for the protection it adds: ${look.map(esc).join(", ")}.` : "None is outpriced by a piece at half the points, and none is heavy for the protection it adds."} (See "Buyable gear, point for point".)`;
+  })(),
   `Smithing's Trinkets, at a ${params.sellTaxRate}% sell tax: a Smithing II smith forging with shelf stones clears <b>${fmt(trinketW)} ¢ a turn</b>, and a miner who forges the stones they dig up earns <b>${fmt(minerForgeW)} ¢</b> instead of ${fmt(floorW)}. A Trinket is a whole Move and 4 ⬢, and the cash is set by a d6 and by the stones (see “Trinket forging”). Crafts are shown at the run's sell tax (<code>--sell-tax N</code>).`,
   `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns next to nothing from the counter, which pays ${dishSell.min === dishSell.max ? `${dishSell.min} ¢` : `${dishSell.min}–${dishSell.max} ¢`} for a dish, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
   `Mining and gathering are the only ways to make ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves); anyone with coin can buy them at the Depot's ${params.rv.buy} ¢ import price, up to ${params.depotMaxQuantity} an order, which is the ceiling on what a Prospector's ⬢ fetch. A median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
@@ -733,10 +739,48 @@ ${table({ cols: groupCols, rows: E.byGroup, id: "eqgroups" })}
 <h3>Every pick</h3>
 <p class="lede">Weapons carry the tiers they add to the fighting band (COMBAT.md's scale) and the most that combat alone could justify charging for them, at about ${E.pointsPerTier} points a tier — a ceiling, that doc says, not a formula, since a tag's price pays for everything it does. Armour shows the two fractions it turns aside in the game's own words.${E.armorNote.turretReadsBallistic || E.armorNote.attackDocReadsArmour ? ` Both matter, with different readers: ballistic is rolled against by code${E.armorNote.turretReadsBallistic ? " (the turrets, <code>db/lib/depotTurret.js</code>)" : ""}; melee has no mechanical reader${E.armorNote.meleeUnread ? " (the schema says so)" : ""}, but a GM reads its word off the sheet when adjudicating a Gambit or an Attack${E.armorNote.attackDocReadsArmour ? " (<code>ATTACK.md</code>)" : ""}.` : ""} The few pieces that raise somebody's output carry what the investments page says they clear.</p>
 ${table({ cols, rows: E.rows, filters: [{ label: "Group", get: (r) => r.group }, { label: "How hard", get: (r) => r.rankLabel }, { label: "Verdict", get: (r) => r.verdict ?? "unpriced" }, { label: "Band", get: (r) => r.band }] })}
+${armorHtml()}
 <h3>No ¢ figure to price them by</h3>
 <p class="lede">Nothing stocks these, nobody makes them and the counter does not buy them, so what they are worth is what they do — a Bird carries letters, a Dog smells, a radio reaches every paired bracelet — and that is a judgement this page cannot make for you.</p>
 <ul class="head">${unpriced}</ul>
 </section>`;
+}
+
+// Armour against armour, on the equipment page. The ¢-a-point lens above cannot see that a 3-pt
+// shield stops as much as a 9-pt helmet; this table can (db/scripts/analysis/economy/armor.js).
+function armorHtml() {
+  const A = model.armor;
+  const pct = (v) => `${fmt(v * 100, 0)}%`;
+  const flagsOf = (r) =>
+    [
+      ...r.twins.map((x) => `twin of ${x}`),
+      ...r.dominatedBy.map((x) => `dominated by ${x}`),
+      ...r.outpricedBy.map((x) => `outpriced by ${x}`),
+      ...r.heavyFor.map((x) => `heavy for the step over ${x}`),
+    ].join("; ");
+  const verdictStyle = (r) => (r.verdict === "no use case" ? "color:var(--bad);font-weight:600" : r.verdict === "worth a look" ? "color:var(--c3);font-weight:600" : "");
+  const cols = [
+    { h: "Piece", get: (r) => r.name },
+    { h: "Class", get: (r) => r.cls },
+    { h: "Points", num: true, get: (r) => (r.points ? r.points : "—"), sort: (r) => r.points },
+    { h: "lb", num: true, get: (r) => r.weight },
+    { h: "Melee", num: true, get: (r) => `${fmt(r.melee, 2)} ${r.meleeWord}`, sort: (r) => r.melee },
+    { h: "Ballistic", num: true, get: (r) => `${fmt(r.ballistic, 2)} ${r.ballisticWord}`, sort: (r) => r.ballistic },
+    { h: "Average", num: true, get: (r) => fmt(r.average, 2), sort: (r) => r.average },
+    { h: "Turret: not dying or dead", num: true, get: (r) => pct(r.turret), sort: (r) => r.turret },
+    { h: "Make", get: (r) => (r.craft ? `${r.craft.resources} ⬢, ${r.craft.moves} Move${r.craft.moves === 1 ? "" : "s"}, ${r.craft.skills.join(" + ") || "no skill"}${r.craft.items.length ? `, ${r.craft.items.join(" + ")}` : ""}` : r.depot != null ? `Depot ${r.depot} ¢` : "—") },
+    { h: "How hard", get: (r) => r.rankLabel, sort: (r) => r.rank },
+    { h: "Perks", get: (r) => r.perks.join(", ") },
+    { h: "Best in class", get: (r) => r.badges.join(", ") },
+    { h: "Flags", get: (r) => flagsOf(r) },
+    { h: "Verdict", get: (r) => r.verdict, style: verdictStyle },
+  ];
+  const bad = A.rows.filter((r) => r.verdict === "no use case");
+  const look = A.rows.filter((r) => r.verdict === "worth a look");
+  const named = (rs) => rs.map((r) => `<b>${esc(r.name)}</b> (${esc(flagsOf(r))})`).join(", ");
+  return `<h3>Armour, piece against piece</h3>
+<p class="lede">The ¢-a-point lens above prices a Pavise and a Knight's Helmet the same, because they cost about the same to make per point — and says nothing about the Pavise stopping as much as the helmet for a third of the points. Armour is for turning blows aside, so this table puts every wearable piece on that footing: the two fractions it stops (in the catalog's own words), what one burst from the Depot turret leaves of a wearer in that piece alone (DEPOT.md §0i — the one place ballistic armour is rolled by code), and what it costs in points, pounds, ⬢ and access. Pieces are compared inside their <b>class</b> — the slot, and the layer for the body, since two things worn together are not alternatives — except for <b>outpriced</b>, which looks across the whole catalog for a piece at half the points that stops as much. <b>Twin</b> is a cosmetic variant; <b>dominated</b> means another piece in the class is at least as good on every count, perks included, and better on one; <b>heavy for the step</b> means a rival at half the weight, and ${A.heavyGap} lb or more lighter, stops within ${fmt(A.step, 1)} of it on the average — half a word. Role kit and loot are listed for reference and take no part. ${A.counts.noUseCase ? `Today <b>${A.counts.noUseCase}</b> ${A.counts.noUseCase === 1 ? "piece has" : "pieces have"} no use case: ${named(bad)}.` : "Today every piece a player can come by has a use case."} ${look.length ? `Worth a look: ${named(look)}.` : ""}</p>
+${table({ cols, rows: A.rows, id: "armour", filters: [{ label: "Class", get: (r) => r.cls }, { label: "Verdict", get: (r) => r.verdict }, { label: "How hard", get: (r) => r.rankLabel }] })}`;
 }
 
 function sectionCaving() {
@@ -2742,6 +2786,14 @@ const equipmentCsv = [
   ),
 ].join("\n");
 fs.writeFileSync(path.join(outDir, "equipment.csv"), equipmentCsv);
+
+const armorCsv = [
+  ["slug", "name", "class", "catalog", "reach", "points", "weightLbs", "melee", "meleeWord", "ballistic", "ballisticWord", "average", "turretNotDyingOrDead", "howHard", "route", "depot", "sell", "makeResources", "makeMoves", "makeSkill", "makeItems", "perks", "bestInClass", "twins", "dominatedBy", "outpricedBy", "heavyForTheStepOver", "verdict"].join(","),
+  ...model.armor.rows.map((r) =>
+    [r.slug, r.name, r.cls, r.catalog, r.reach, r.points, r.weight, r.melee, r.meleeWord, r.ballistic, r.ballisticWord, r.average, r.turret, r.rankLabel, r.route, r.depot ?? "", r.sell ?? "", r.craft?.resources ?? "", r.craft?.moves ?? "", r.craft?.skills.join(" + ") ?? "", r.craft?.items.join(" + ") ?? "", r.perks.join("; "), r.badges.join("; "), r.twins.join("; "), r.dominatedBy.join("; "), r.outpricedBy.join("; "), r.heavyFor.join("; "), r.verdict].map(csvCell).join(","),
+  ),
+].join("\n");
+fs.writeFileSync(path.join(outDir, "armor.csv"), armorCsv);
 
 fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);

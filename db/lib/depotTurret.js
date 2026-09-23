@@ -32,8 +32,8 @@ const DEFAULT_TURRET_TABLE = {
 // Armour bends the curve as an exponent (1 + ARMOR_GAIN * odds), not a subtraction, so it never closes
 // the top of the distribution — "a jacket that makes a machinegun safe" is a worse rule than any
 // number could fix. Uses ODDS (armorOdds() below), not raw protection, so armour tiers separate instead
-// of bunching near ARMOR_CAP. At 0.25, the share left neither dying nor dead: nothing 39%, a helmet 42%,
-// light infantry 52%, heavy 54%, cataphract 67%, cataphract + Soulbreaker Helm + Pavise 81% (DEPOT.md §0i).
+// of bunching near ARMOR_CAP. At 0.25, the share left neither dying nor dead: nothing 39%, a helmet 41-42%,
+// light infantry 52%, heavy 58%, cataphract 67%, cataphract + Soulbreaker Helm + Pavise 81% (DEPOT.md §0i).
 const ARMOR_GAIN = 0.25;
 
 // Protection as odds. Guarded at 1 so a bare 1.0 gives a large number rather than a division by zero.
@@ -90,4 +90,7 @@ module.exports = {
   turretTable,
   rollTurret,
   turretSpares,
+  // Read by the economy report's armour page, so its survival column is this curve and not a copy.
+  ARMOR_GAIN,
+  armorOdds,
 };
