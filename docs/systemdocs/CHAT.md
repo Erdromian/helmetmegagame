@@ -1056,9 +1056,11 @@ a 48px head and a one-line composer:
   `docs/zones.yaml`, so the web column and the Discord category list read in
   the same order rather than one of them alphabetically.
 
-  A zone group and a section inside it can both fold shut (above) —
-  session-only, a plain `useState` Set in `PlacesColumn.js`, not persisted
-  across visits. An empty section still draws nothing at all, fold or not.
+  A zone group and a section inside it can both fold shut (above), and the
+  browser remembers which (`next/foldStore.js`). A shut fold still shows any
+  unread row and the row being read, like a collapsed Discord category; a shut
+  zone lists them flat under its divider. Once read and left, a row goes back
+  into its fold. An empty section still draws nothing at all, fold or not.
 - **The foot of the column** carries the sound cluster — the speaker, the music
   switch and a 0–100 volume slider on its own line (`SoundControls.js` with
   `layout="stack"`) — then the notification bell and Mark all read. The same

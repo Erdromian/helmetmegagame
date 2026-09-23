@@ -353,9 +353,11 @@ Differences from `asideTabStore`: the value is a set of fold keys rather than on
 string, keyed per zone+section. Prune keys for places that no longer exist so the
 entry cannot grow forever.
 
-One consequence worth accepting knowingly: a folded section stays folded across
-reloads, so a new place appearing inside it is not seen until it is opened.
-Discord behaves the same way.
+A folded section stays folded across reloads, but it does not hide what is new.
+Like a collapsed Discord category, a shut section or zone still shows any row
+that is unread, plus the row you are reading now. Once that row is read and you
+open somewhere else, it goes back into the fold. The fold itself never changes,
+so the other rows in it stay hidden the whole time.
 
 ## Feature checklist
 
