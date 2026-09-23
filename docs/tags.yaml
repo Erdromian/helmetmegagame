@@ -9618,6 +9618,7 @@ tags:
     sprite: knife
     description: "Two of them, wrapped. Unpack them whenever you like."
     pointCost: 1
+    requiredTag: melee-basic
     weight: 2
     visible: false
     purchasable: true
