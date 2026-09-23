@@ -37,12 +37,25 @@ and every gate are untouched.
 
 | Tier | pt | ⬢ | Turns | Skill gate | Combat gate | Purchasable at start |
 |---|---|---|---|---|---|---|
-| Dead Simple | 2 | 2 | 0.25 | `crafting` OR `smithing` | none | yes |
-| Simple | 5 | 4 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
-| Moderate | 7 | 7 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Dead Simple | 1 | 2 | 0.25 | `crafting` OR `smithing` | none | yes |
+| Simple | 2 | 4 | 1 | `smithing` | `melee-basic` / `ranged-basic` | yes |
+| Moderate | 5 | 7 | 1 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
 | High Quality | 9 | 15 | 2 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Exceptional | 14 | 32 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
-| Gunpowder | 14 | 15 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
+| Exceptional | 11 | 32 | 3 | `smithing-skilled` | `melee-basic` / `ranged-basic` | yes |
+| Gunpowder | 9 (Musketoon), 7 (Bore Pistol) | 15 | 2 | `smithing-gunpowder` | `ranged-basic` | no (mastery gate) |
+
+**The `pt` column follows the sell price now** (2026-09-22): a rung's point
+price is its counter price at 7 ¢ a point, the rule `TAGS.md` §4a sets for every
+Item and Asset — Dead Simple sells for 6 ¢ so it is 1 pt, Simple 16 ¢ so 2,
+Moderate 30 ¢ so 5, High Quality 62 ¢ so 9, Plate Armor 76 ¢ so 11. It used to
+run 2 / 5 / 7 / 9 / 14, which bought about 3 ¢ of steel a point at the bottom
+of the ladder and 7 at the top. A piece worked from an ingot (Rapier, Katana,
+Brigandine, 52 ¢) is 7 pt, off the rung's 9 for the same reason its ⬢ column
+is. A piece then sits one point either side of its rung for what it does —
+the Halberd, Longbow, Battle Axe, Pavise, Brigandine, Breastplate, Bastard
+Sword, Lucerne, Zweihander, Bore Pistol, Shortbow and both Spears a point up,
+the Sabre a point down — by the rule in `TAGS.md` §4a, which lists them. The
+"Buyable gear, point for point" page of `npm run economy:report` is the check.
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
 not — its steel prod and lock are `smithing-skilled` work.
@@ -217,7 +230,7 @@ slug, which a mint never matches (`CRAFTING.md` §4a on `customOfSlug`).
 | Longbow | Simple | `crafting` |
 | Mace | Simple | |
 | Battle Axe | Simple | |
-| Knuckle Duster | Moderate | `visible: worn` — pocketable. Priced at 5 pt, not the tier's 7 — a pre-existing outlier, not introduced by the Combat Update. |
+| Knuckle Duster | Moderate | `visible: worn` — pocketable. The creation pick is a pair at 1 pt (`knuckle-dusters-pair`), since the Merchant stocks one at 3 ¢ and a single is under the floor. That shelf price sits under a 7 ⬢ recipe, which is its own open question. |
 | Halberd | Moderate | Renamed from Bardiche in the Combat Update; the slug moved with it. |
 | Broadsword | Moderate | |
 | War Hammer | Moderate | |
@@ -287,8 +300,8 @@ Off the ladder — no recipe, no smithing gate:
 
 | Weapon | pt | Notes |
 |---|---|---|
-| Sword Cane | 7 | Sold complete. `visible: worn` — it reads as a cane until it's drawn. |
-| Neoclassic R&W10 | 14 | Bought at creation only — not craftable. Requires `ranged-basic`. |
+| Sword Cane | 4 | Sold complete at 24 ¢, which says 3; a point up for being a sword nobody sees. `visible: worn` — it reads as a cane until it's drawn. |
+| Neoclassic R&W10 | 14 | Bought at creation only — not craftable. Requires `ranged-basic`. 150 ¢ at the Depot would price it at 21 by the 7 ¢ rule; it is held at the scale's 14-point ceiling instead (`TAGS.md` §4a). |
 | Cracked Bone Club | 0 | Found only. |
 | Neoclassic Duelista | 0 | Found only. |
 | Disabler | 0 | Cerberon-issued. |

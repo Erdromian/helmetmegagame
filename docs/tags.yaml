@@ -6201,7 +6201,7 @@ tags:
     category: assets
     group: assets-companions
     description: "A trained rat. It's not good for much. But it does tiny tricks!"
-    pointCost: 2
+    pointCost: 1
     visible: true
     tradeable: true
     purchasable: true
@@ -6213,7 +6213,7 @@ tags:
     category: assets
     group: assets-property
     description: "A standard hand-cart to better move items. Upgrades personal carrying capacity while equipped and improves the {tag:arelitz}, letting it carry up to 6 people total. {carry:cart}."
-    pointCost: 5
+    pointCost: 9
     visible: true
     tradeable: true
     equippable: true
@@ -6226,7 +6226,7 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 25
+      resourceCost: 20
       skills: [builder-skilled]
       gambit: false
 
@@ -6611,7 +6611,7 @@ tags:
     category: assets
     group: assets-companions
     description: "A highly-trained dog with a good sense of smell."
-    pointCost: 5
+    pointCost: 4
     visible: true
     tradeable: true
     purchasable: true
@@ -7509,15 +7509,31 @@ tags:
     group: items-gear
     sprite: bottle1
     description: "A sack filled with clumps reeking of sulfur. Consuming it will make any crops planted this turn have significantly greater yields."
-    pointCost: 2
+    pointCost: 1
     depotPrice: 4
     weight: 3
     stackable: true
     visible: false
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     consumable: true
     consumesInto: [fertilized-fields]
+
+  # The creation pick is the bundle below; a single fertilizer is under the 1-point floor at 7 ¢ a point (TAGS.md §4a).
+  fertilizer-2-sacks:
+    catalog: all
+    name: Fertilizer (2 sacks)
+    category: items
+    group: items-gear
+    sprite: bottle1
+    description: "Two sacks of it, for two Farm actions. Unpack them whenever you like."
+    pointCost: 1
+    weight: 6
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [fertilizer, fertilizer]
 
   # The Minstrel's box, and anyone's at creation for 1 point: Consume it and the
   # player PICKS one of consumeChoice (web/app/components/actions/
@@ -7669,7 +7685,7 @@ tags:
     group: items-gear
     sprite: rope
     description: "A long coil of braided rope, stiff with grime."
-    pointCost: 2
+    pointCost: 1
     weight: 3
     stackable: true
     visible: false
@@ -7691,7 +7707,7 @@ tags:
     group: items-gear
     sprite: beartrap0
     description: "Strong spring jaws with a pressure plate."
-    pointCost: 2
+    pointCost: 3
     weight: 10
     stackable: true
     visible: true
@@ -7713,7 +7729,7 @@ tags:
     group: items-gear
     sprite: net
     description: "A cruel but effective tool used to bind someone."
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: ACCESSORY
     weight: 4
@@ -7737,7 +7753,7 @@ tags:
     group: items-gear
     sprite: jester
     description: "A bright, bold jester outfit. Pure aura."
-    pointCost: 3
+    pointCost: 4
     equippable: true
     equipSlot: BODY
     equipLayer: 1
@@ -7760,7 +7776,7 @@ tags:
     group: items-gear
     sprite: fake-moustache
     description: "Makeup, a change of clothes, an array of false mustaches… Can be used to temporarily change one's name and appearance for 3 turns. Reusable."
-    pointCost: 2
+    pointCost: 4
     weight: 3
     stackable: true
     visible: false
@@ -8590,7 +8606,7 @@ tags:
     group: items-gear
     sprite: glasses
     description: "Allows the wearer to see clearly, removing the downside of {tag:nearsighted}."
-    pointCost: 2
+    pointCost: 1
     weight: 0
     stackable: true
     visible: worn
@@ -9534,14 +9550,16 @@ tags:
     purchasableAfterStart: false
 
   # ─── The Combat Update ────────────────────────────────────────────────────
-  # Weapons are priced on the six-tier ladder from SMITHING.md:
+  # Weapons are priced on the six-tier ladder from SMITHING.md. The pt column is
+  # the rung's sell price at 7 ¢ a point, and a piece may sit one point either
+  # side of it for what it does (TAGS.md §4a, 2026-09-22):
   #
-  #   Dead Simple    2 pt / 3 ⬢  / 0 turns / crafting OR smithing / no weapon skill
-  #   Simple         5 pt / 6 ⬢  / 1 turn  / smithing             / melee-/ranged-basic
-  #   Moderate       7 pt / 14 ⬢ / 1 turn  / smithing-skilled     / melee-/ranged-basic
-  #   High Quality   9 pt / 26 ⬢ / 2 turns / smithing-skilled     / melee-/ranged-basic
-  #   Exceptional   14 pt / 34 ⬢ / 3 turns / smithing-skilled     / melee-/ranged-basic
-  #   Gunpowder     14 pt / 29 ⬢ / 2 turns / smithing-gunpowder   / ranged-basic
+  #   Dead Simple    1 pt / 2 ⬢  / 0.25 turns / crafting OR smithing / no weapon skill
+  #   Simple         2 pt / 4 ⬢  / 1 turn     / smithing             / melee-/ranged-basic
+  #   Moderate       5 pt / 7 ⬢  / 1 turn     / smithing-skilled     / melee-/ranged-basic
+  #   High Quality   9 pt / 15 ⬢ / 2 turns    / smithing-skilled     / melee-/ranged-basic
+  #   Exceptional   11 pt / 32 ⬢ / 3 turns    / smithing-skilled     / melee-/ranged-basic
+  #   Gunpowder      9 pt / 15 ⬢ / 2 turns    / smithing-gunpowder   / ranged-basic (Bore Pistol 7 pt, 9 ⬢)
   #
   # Bows / crossbows keep `crafting` in place of `smithing` at every tier —
   # wood-and-sinew is still wood-and-sinew even at High Quality.
@@ -9570,14 +9588,14 @@ tags:
     fighting: { tiers: 0.3, weaponClass: knife }
     manifest: black-market
     depotPrice: 6
-    pointCost: 5
+    pointCost: 1
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
     weight: 1
     stackable: true
     visible: worn
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     craftable: true
     requirement:
@@ -9590,6 +9608,23 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 4
+
+  # The creation pick is the bundle below; a single trench knives is under the 1-point floor at 7 ¢ a point (TAGS.md §4a).
+  trench-knives-pair:
+    catalog: all
+    name: Trench Knives (pair)
+    category: items
+    group: items-weapons
+    sprite: knife
+    description: "Two of them, wrapped. Unpack them whenever you like."
+    pointCost: 1
+    requiredTag: melee-basic
+    weight: 2
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [trench-knife, trench-knife]
   # A `customizableSkill: smithing-skilled` below is the +1 ⬢ door onto a
   # smith's own name and words (CRAFTING.md §4a), and the rung it names is
   # who may open it — the top of the Smithing ladder, whatever tier the piece
@@ -9605,7 +9640,7 @@ tags:
     sprite: knife
     description: "A good knife, hard to handle in battle."
     fighting: { tiers: 0.1, weaponClass: knife }
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: WEAPON
     weight: 0.5
@@ -9632,7 +9667,7 @@ tags:
     sprite: axe
     description: "A short single-bladed axe meant for cutting wood."
     fighting: { tiers: 0.3, weaponClass: axe }
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: WEAPON
     weight: 2
@@ -9692,7 +9727,7 @@ tags:
     group: items-gear
     sprite: shovel
     description: "A long-handled digging spade. While equipped, you can bury two corpses per turn."
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: ACCESSORY
     weight: 4
@@ -9716,7 +9751,7 @@ tags:
     group: items-weapons
     description: "A small weapon made of rope and leather meant to injure people and animals."
     fighting: { tiers: 0.3, weaponClass: thrown }
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: WEAPON
     weight: 0.5
@@ -9741,7 +9776,7 @@ tags:
     sprite: woodenstaff
     description: "A wooden staff meant to be wielded as a weapon."
     fighting: { tiers: 0.3, weaponClass: club }
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: WEAPON
     twoHanded: true
@@ -9769,7 +9804,7 @@ tags:
     fighting: { tiers: 0.3, weaponClass: club }
     manifest: black-market
     depotPrice: 10
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: WEAPON
     weight: 2
@@ -9843,7 +9878,7 @@ tags:
     sprite: spear
     description: "A wooden staff with a sharp tip at the end that gives a longer reach."
     fighting: { tiers: 0.4, weaponClass: polearm }
-    pointCost: 5
+    pointCost: 2
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -9872,7 +9907,7 @@ tags:
     sprite: dagger
     description: "A short blade made for stabbing."
     fighting: { tiers: 0.3, weaponClass: knife }
-    pointCost: 3
+    pointCost: 1
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -9900,7 +9935,7 @@ tags:
     sprite: silverdagger
     description: "A short blade made of silver. For the superstitious."
     fighting: { tiers: 0.3, weaponClass: knife }
-    pointCost: 5
+    pointCost: 3
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -9929,7 +9964,7 @@ tags:
     sprite: gladius
     description: "A short, broad stabbing sword."
     fighting: { tiers: 0.4, weaponClass: sword }
-    pointCost: 5
+    pointCost: 2
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -9957,7 +9992,7 @@ tags:
     sprite: tribal-spear
     description: "A spear with a barbed end to cause more damage when pulled out."
     fighting: { tiers: 0.4, weaponClass: polearm }
-    pointCost: 5
+    pointCost: 2
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -9984,7 +10019,7 @@ tags:
     sprite: throwing
     description: "A light spear designed to be thrown into one's enemies."
     fighting: { tiers: 0.4, weaponClass: thrown }
-    pointCost: 5
+    pointCost: 2
     requiredTag: ranged-basic
     equippable: true
     equipSlot: WEAPON
@@ -10010,7 +10045,7 @@ tags:
     sprite: warbow
     description: "A large bow that requires strength to wield, but can pack a major punch."
     fighting: { tiers: 0.5, weaponClass: bow }
-    pointCost: 5
+    pointCost: 3
     requiredTag: ranged-basic
     equippable: true
     equipSlot: WEAPON
@@ -10037,7 +10072,7 @@ tags:
     sprite: steelmace
     description: "A flanged iron head on a stout haft."
     fighting: { tiers: 0.4, weaponClass: club }
-    pointCost: 5
+    pointCost: 2
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10065,7 +10100,7 @@ tags:
     sprite: combataxe
     description: "A haft with a sleek metal wedge and a spearhead on top."
     fighting: { tiers: 0.5, weaponClass: axe }
-    pointCost: 5
+    pointCost: 3
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10097,13 +10132,13 @@ tags:
     fighting: { tiers: 0.2, weaponClass: unarmed }
     manifest: black-market
     depotPrice: 3
-    pointCost: 3
+    pointCost: 1
     equippable: true
     equipSlot: WEAPON
     weight: 0.5
     stackable: true
     visible: worn
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     craftable: true
     requirement:
@@ -10115,6 +10150,22 @@ tags:
       gambit: false
     sellable: true
     sellablePrice: 2
+
+  # The creation pick is the bundle below; a single knuckle dusters is under the 1-point floor at 7 ¢ a point (TAGS.md §4a).
+  knuckle-dusters-pair:
+    catalog: all
+    name: Knuckle Dusters (pair)
+    category: items
+    group: items-weapons
+    sprite: knuckleduster
+    description: "One for each hand. Unpack them whenever you like."
+    pointCost: 1
+    weight: 1
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [knuckle-duster, knuckle-duster]
 
   # Not a weapon, so no `fighting`/`requiredTag` — just the Moderate rung's
   # ⬢/turn/skill columns, the way Workshop Equipment borrows High Quality's.
@@ -10129,7 +10180,7 @@ tags:
     category: items
     group: items-gear
     description: "A custom tailored saddle, granting you significantly more control of where your beast lumbers. +1 to your arelitz free move bonus."
-    pointCost: 7
+    pointCost: 2
     equippable: true
     equipSlot: ACCESSORY
     weight: 2
@@ -10155,7 +10206,7 @@ tags:
     sprite: bardiche
     description: "A polearm with a heavy blade and a spike. Cuts through armor and flesh alike."
     fighting: { tiers: 0.6, weaponClass: polearm }
-    pointCost: 7
+    pointCost: 6
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10184,7 +10235,7 @@ tags:
     sprite: broadsword
     description: "A standard slashing sword."
     fighting: { tiers: 0.4, weaponClass: sword }
-    pointCost: 7
+    pointCost: 5
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10212,7 +10263,7 @@ tags:
     sprite: klevec
     description: "A small head. It concentrates force better than a mace."
     fighting: { tiers: 0.4, weaponClass: club }
-    pointCost: 7
+    pointCost: 5
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10242,7 +10293,7 @@ tags:
     sprite: bastard
     description: "A large sword that requires 2 hands to use effectively."
     fighting: { tiers: 0.6, weaponClass: sword }
-    pointCost: 9
+    pointCost: 10
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10271,7 +10322,7 @@ tags:
     sprite: rapier
     description: "An elegant steel rapier."
     fighting: { tiers: 0.4, weaponClass: sword }
-    pointCost: 9
+    pointCost: 7
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10301,7 +10352,7 @@ tags:
     sprite: sabre
     description: "A refined slashing weapon."
     fighting: { tiers: 0.4, weaponClass: sword }
-    pointCost: 9
+    pointCost: 8
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10327,7 +10378,7 @@ tags:
     sprite: sabre
     description: "A curved blade folded from steel."
     fighting: { tiers: 0.4, weaponClass: sword }
-    pointCost: 9
+    pointCost: 7
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10387,7 +10438,7 @@ tags:
     sprite: klevec
     description: "A long and mean polearm combining the traits of a spear, pick, and hammer."
     fighting: { tiers: 0.6, weaponClass: polearm }
-    pointCost: 9
+    pointCost: 10
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10414,7 +10465,7 @@ tags:
     sprite: bigsword
     description: "A monstrously large double bladed sword."
     fighting: { tiers: 0.6, weaponClass: sword }
-    pointCost: 9
+    pointCost: 10
     requiredTag: melee-basic
     equippable: true
     equipSlot: WEAPON
@@ -10499,7 +10550,7 @@ tags:
     sprite: dshotgun-sawn
     description: "A short gun with a wide bore. It fires one powerful shot before needing to be reloaded."
     fighting: { tiers: 0.6, weaponClass: firearm }
-    pointCost: 18
+    pointCost: 9
     requiredTag: ranged-basic
     equippable: true
     equipSlot: WEAPON
@@ -10526,7 +10577,7 @@ tags:
     sprite: duelista
     description: "A powerful single-shot pistol."
     fighting: { tiers: 0.6, weaponClass: firearm }
-    pointCost: 14
+    pointCost: 8
     requiredTag: ranged-basic
     equippable: true
     equipSlot: WEAPON
@@ -10583,7 +10634,7 @@ tags:
     sprite: bonecane
     description: "A gentleman's cane, filled with three feet of steel."
     fighting: { tiers: 0.4, weaponClass: sword }
-    pointCost: 7
+    pointCost: 4
     depotPrice: 24
     equippable: true
     equipSlot: WEAPON
@@ -12813,7 +12864,7 @@ tags:
     category: items
     sprite: open-medkit
     description: "A set of advanced medical equipment. It allows you to perform complex surgeries without penalty."
-    pointCost: 9
+    pointCost: 6
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -12960,7 +13011,7 @@ tags:
     category: items
     group: items-special
     description: "Choose a non-combat heirloom. Can be sold to the Merchant if worst comes to worst."
-    pointCost: 5
+    pointCost: 1
     requiredTag: courtier
     weight: 0
     visible: false
@@ -13655,7 +13706,7 @@ tags:
     weight: 2
     stackable: true
     visible: false
-    purchasable: true
+    purchasable: false
     purchasableAfterStart: false
     consumable: true
     consumesInto:
@@ -13679,6 +13730,22 @@ tags:
       - paper
       - paper
       - paper
+
+  # The creation pick is the bundle below; a single paper is under the 1-point floor at 7 ¢ a point (TAGS.md §4a).
+  paper-3-stacks:
+    catalog: all
+    name: Paper (3 stacks)
+    category: items
+    group: items-paper
+    sprite: paper-bin
+    description: "Three stacks of it, sixty sheets. Unpack them whenever you like."
+    pointCost: 1
+    weight: 6
+    visible: false
+    purchasable: true
+    purchasableAfterStart: false
+    consumable: true
+    consumesInto: [stack-of-paper, stack-of-paper, stack-of-paper]
 
   paper:
     catalog: all
@@ -14931,7 +14998,7 @@ tags:
     category: items
     group: items-gear
     description: "You can immediately tell when a meal is poisoned. This item is reusable."
-    pointCost: 9
+    pointCost: 2
     depotPrice: 22
     sellable: true
     sellablePrice: 13
@@ -16040,7 +16107,7 @@ tags:
     group: items-drink
     sprite: bottle12
     description: "A milky but tasteless potion. Can be consumed to transfigure into a new name and appearance."
-    pointCost: 2
+    pointCost: 1
     weight: 0.5
     stackable: true
     visible: false
@@ -16546,7 +16613,7 @@ tags:
 
   # --- Armor -------------------------------------------------------------
 
-  # ─── Dead Simple (1 pt / 3 ⬢ / 0 turns) ───
+  # ─── Dead Simple (1 pt / 2 ⬢ / 0.25 turns) ───
   # --- Headgear ----------------------------------------------------------
   # Split out of Armor because these decide what a character's FACE is, not
   # just what stops a blade. Anything with `concealsIdentity` replaces the
@@ -17079,7 +17146,7 @@ tags:
     group: items-headgear
     sprite: armingcap
     description: "A cushioned cap. It turns away blows."
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: HEAD
     melee: 0.22
@@ -17106,7 +17173,7 @@ tags:
     group: items-headgear
     sprite: hauberkhood
     description: "A mail hood covering the head and neck."
-    pointCost: 5
+    pointCost: 2
     equippable: true
     equipSlot: HEAD
     melee: 0.22
@@ -17154,7 +17221,7 @@ tags:
     group: items-headgear
     sprite: ahelm
     description: "An open helmet."
-    pointCost: 5
+    pointCost: 2
     equippable: true
     equipSlot: HEAD
     melee: 0.31
@@ -17185,7 +17252,7 @@ tags:
     group: items-headgear
     sprite: hardhat0-yellow
     description: "A cushioned helmet with a small light, useful in the caves. While equipped, Prospecting produces an additional 1 ⬢."
-    pointCost: 5
+    pointCost: 3
     depotPrice: 15
     equippable: true
     equipSlot: HEAD
@@ -17273,7 +17340,7 @@ tags:
     group: items-headgear
     sprite: openskulliron
     description: "A practical helmet used by fighting forces and mercenaries."
-    pointCost: 5
+    pointCost: 2
     equippable: true
     equipSlot: HEAD
     melee: 0.31
@@ -17340,7 +17407,7 @@ tags:
     group: items-armor
     sprite: leatherjack
     description: "Quilted linen. Absorbs impact and blunts a cut. Can be worn under clothing."
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: BODY
     equipLayer: 1
@@ -17368,7 +17435,7 @@ tags:
     group: items-armor
     sprite: buckler
     description: "A small shield held in the fist."
-    pointCost: 2
+    pointCost: 1
     equippable: true
     equipSlot: WEAPON
     melee: 0.22
@@ -17388,7 +17455,7 @@ tags:
     sellable: true
     sellablePrice: 6
 
-  # ─── Simple (2 pt / 6 ⬢ / 1 turn) ───
+  # ─── Simple (2 pt / 4 ⬢ / 1 turn) ───
   shield:
     catalog: all
     name: Shield
@@ -17397,7 +17464,7 @@ tags:
     sprite: paladin-shield
     description: "A shield carried on the arm. It becomes more effective when fighting alongside others with shields."
     fighting: { situational: true }
-    pointCost: 5
+    pointCost: 2
     equippable: true
     equipSlot: WEAPON
     melee: 0.35
@@ -17424,7 +17491,7 @@ tags:
     group: items-armor
     sprite: largeshield-u
     description: "A shield tall enough to stand behind. It can be set on the ground as cover."
-    pointCost: 4
+    pointCost: 3
     equippable: true
     equipSlot: WEAPON
     melee: 0.44
@@ -17444,7 +17511,7 @@ tags:
     sellable: true
     sellablePrice: 17
 
-  # ─── Moderate (3 pt / 14 ⬢ / 1 turn, skilled smithing) ───
+  # ─── Moderate (5 pt / 7 ⬢ / 1 turn, skilled smithing) ───
   # HIDDEN recipe (non-public ingredient, Chris 2026-09-07): the tailor's
   # secret. Competes with Padded Armor for the layer-1 slot — worse against a
   # blade (0.2 vs 0.3), better against a bullet (0.1 vs 0.05), 8 lb against
@@ -17485,7 +17552,7 @@ tags:
     group: items-armor
     sprite: hauberk
     description: "A shirt made out of interlocking rings."
-    pointCost: 7
+    pointCost: 5
     equippable: true
     equipSlot: BODY
     equipLayer: 1
@@ -17506,7 +17573,7 @@ tags:
     sellable: true
     sellablePrice: 30
 
-  # ─── High Quality (4 pt / 26 ⬢ / 2 turns, skilled smithing) ───
+  # ─── High Quality (9 pt / 15 ⬢ / 2 turns, skilled smithing) ───
   brigandine:
     catalog: all
     name: Brigandine
@@ -17514,7 +17581,7 @@ tags:
     group: items-armor
     sprite: leatherjack
     description: "Small steel plates riveted inside a fabric coat. It isn't visible."
-    pointCost: 9
+    pointCost: 8
     equippable: true
     equipSlot: BODY
     equipLayer: 1
@@ -17546,7 +17613,7 @@ tags:
     group: items-armor
     sprite: ironbplate
     description: "A plate over the chest. Offers some protection of full plate while permitting mobility, and it's easy to don."
-    pointCost: 9
+    pointCost: 10
     equippable: true
     equipSlot: BODY
     equipLayer: 2
@@ -17567,7 +17634,7 @@ tags:
     sellable: true
     sellablePrice: 62
 
-  # ─── Exceptional (6 pt / 34 ⬢ / 3 turns, skilled smithing) ───
+  # ─── Exceptional (11 pt / 32 ⬢ / 3 turns, skilled smithing) ───
   spacesuit:
     catalog: gm
     name: Spacesuit
@@ -17593,7 +17660,7 @@ tags:
     group: items-armor
     sprite: ironplate
     description: "Steel over the whole body. Requires a second person and time to don."
-    pointCost: 14
+    pointCost: 11
     equippable: true
     equipSlot: BODY
     equipLayer: 2
@@ -17869,7 +17936,7 @@ tags:
     group: items-gear
     sprite: camera
     description: "An instant camera. You can 📸 react a person's message to take a picture of them."
-    pointCost: 2
+    pointCost: 3
     weight: 2
     stackable: true
     visible: false

@@ -608,9 +608,9 @@ deliberate call rather than a new scale:**
 | Dense | −3 | alongside Tremor, same magnitude of nuisance |
 | Motion Sickness, Insomniac, Lazy, Hemophobia, Agoraphobia | −4 | between −2 and −5 |
 | Pyrophobia, Teratophobia | −2 | on-scale |
-| Dagger, Death Wish, Knuckle Duster, Pickpocketing (Basic), Nine Lives | 3 | between 2 and 5 |
+| Death Wish, Pickpocketing (Basic), Nine Lives | 3 | between 2 and 5 |
 | Pickpocketing (Skilled) | 2 | on-scale, and a second rung rather than a first: `requiredTag: pickpocket`, so a master pays 5 in total (`THEFT.md` §2) |
-| Escape Artist, Esoteric, Pavise | 4 | between 2 and 5 |
+| Escape Artist, Esoteric | 4 | between 2 and 5 |
 | Brave | 5 | on-scale (repriced for its ×0.5 on every mood harm, `MOOD.md`) |
 | Ranged (Throwing Weapons) | 4 | vs. a nominal sidegrade price of 10 |
 | Ranged (Sniper) | 7 | on the Melee (Flamboyant) precedent — "at long range" is a real condition of its own |
@@ -753,9 +753,46 @@ has since been deleted outright along with the channel it opened.
   trees: Grappler (5, standalone — bare hands are not a rung of either tree,
   so it gates on nothing), and Guerrilla (10, standalone and deliberately
   ungated, since a single `requiredTag` can't say "either tree").
+- **An Item or Asset is priced off what it costs in play: 6–8 ¢ of kit a
+  point, 7 as the target** (Bascinet, 2026-09-22). "What it costs in play" is
+  the cheapest way to hold one once the game is running — the Depot's shelf
+  price, what the counter pays a maker for one, or making it yourself with ⬢ at
+  the Depot's import price and the Move at a mining wage; a crate is what it
+  opens into. Divide by 7, round to a whole point, floor at 1, and land on a
+  band from the table above when one sits inside the range. It is off-band
+  where the bands miss (a 24 ¢ Sword Cane is 3), and that is fine: for gear the
+  ¢ rule is the stricter of the two. Before this the catalog bought a median
+  4 ¢ a point and the cheap end of the ladder about 3, which made a sword the
+  worst thing a point could buy next to a skill. The "Buyable gear, point for
+  point" page of `npm run economy:report` recomputes every pick against the
+  rule.
+
+  **Then a piece may sit one point either side of that for what it does**, and
+  never more than one. Up a point where it is plainly the best thing at its
+  price: the Pickaxe (it gates the game's main income), the Mining Helmet
+  (+1 ⬢ a press), the Shortbow, Spear and Phrygian Spear (0.4 tiers at the
+  bottom rung), the Longbow and Battle Axe (0.5 at Simple), the Pavise (the
+  best shield), the Halberd (0.6 at Moderate), the Brigandine (0.5 under a
+  coat), the Breastplate, Bastard Sword, Lucerne and Zweihander (the top of
+  High Quality), the Bore Pistol (a pocket firearm), the Sword Cane (a hidden
+  sword) and Surgical Equipment. Down a point where the value is hard to put a
+  figure on, or the piece is weak for its rung: the Sabre (0.4 at 62 ¢), the
+  Disguise Kit, Jester Outfit, Bear Trap, Instant Camera, Poison Snooper and
+  Arelitz Tack (all GM-adjudicated or niche), the Dog, the Rat and the
+  Heirloom. The report still scores these by ¢ alone, so they show a point off
+  the line there; that is the judgement, not an error.
+
+  **Four things sold for less than 7 ¢ are a bundle at 1 pt** rather than a
+  single under the floor: Fertilizer (2 sacks), Trench Knives (pair), Knuckle
+  Dusters (pair) and Paper (3 stacks) are crates that open into the singles,
+  the Starting Wares shape, and the singles themselves are `purchasable:
+  false` so the shelf shows one price for the thing. Two more are held off the
+  rule on purpose: the Neoclassic R&W10 stays at the 14-point ceiling though
+  150 ¢ says 21, and the six Wax Seals and the Instrument Kit stay at 1, since
+  they are a signature and a choice rather than kit.
 - **Combat items ride a fixed six-tier ladder.** Weapons and armor are priced
-  from the tier they sit in, not by feel. See
-  [`SMITHING.md`](SMITHING.md) for the table.
+  from the tier they sit in, not by feel, and the tier's `pt` is its sell
+  price at 7 ¢ a point. See [`SMITHING.md`](SMITHING.md) for the table.
 - **Every negative tag is `purchasableAfterStart: false`.** Restated from §4
   because it is the one invariant the scale can be used to violate: a drawback
   bought mid-game pays out Tag Points, which is a faucet Desires are supposed

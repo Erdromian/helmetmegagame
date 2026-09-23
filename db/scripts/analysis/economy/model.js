@@ -27,6 +27,7 @@ const depotRules = require("../../../lib/depot");
 const { fatigueModel } = require("./fatigue");
 const { buildCombos } = require("./combos");
 const { buildInvestments } = require("./investments");
+const { buildEquipment } = require("./equipment");
 const { buildCaving } = require("./caving");
 const { buildTrinkets } = require("./trinkets");
 const { buildCooking } = require("./cooking");
@@ -149,7 +150,7 @@ function craftFamilyOf(skills) {
 // One obol is one ⬢ (ECONOMY.md §1), so paying a cost in obols values a ⬢ at exactly 1 obol.
 const OBOL_PAR = 1;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 2 } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 2, pointValue = null } = {}) {
   const { list, bySlug } = loadCatalog();
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
@@ -1514,6 +1515,19 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     moveValue: moveValueUsed,
     gameTurns,
   });
+  // Every Item and Asset a player can pick at creation, against what it costs or earns in play.
+  const equipment = buildEquipment({
+    list,
+    get,
+    sources,
+    investments,
+    rv,
+    moveValue: moveValueUsed,
+    gameTurns,
+    pointsOf: (slug) => skillChain(slug).points,
+    params,
+    pointValue,
+  });
   const desires = buildDesires({
     get,
     list,
@@ -1602,6 +1616,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     profitRows,
     workedRows,
     investments,
+    equipment,
     caving,
     trinkets,
     cooking,
