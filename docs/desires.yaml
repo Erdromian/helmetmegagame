@@ -487,7 +487,10 @@ desires:
       anyRoles: [slave]
 
   # Gambling ladder (2026-09-02): a bet, then stakes that climb, then the
-  # once-ever big win. win-3-gambling was retired by this pass.
+  # once-ever big win. win-3-gambling was retired by this pass. The four
+  # coin wins carry verify: "slots" because the Den's machine can pay every
+  # one of them (a triple pays 50 ¢) — a head start, not the only way: a bet
+  # between players leaves no row.
   win-a-bet:
     name: Win a bet
     tier: 1
@@ -495,21 +498,25 @@ desires:
 
   win-5-gambling:
     name: Win 5 ¢ gambling
+    verify: "slots"
     tier: 1
     families: [gambling]
 
   win-10-gambling:
     name: Win 10 ¢ gambling
+    verify: "slots"
     tier: 1
     families: [gambling]
 
   win-25-gambling-one-game:
     name: Win 25 ¢ gambling in one game
+    verify: "slots"
     tier: 2
     families: [gambling]
 
   win-50-gambling-one-game:
     name: Win 50 ¢ gambling in one game
+    verify: "slots"
     tier: 3
     families: [gambling]
 
@@ -2491,25 +2498,6 @@ desires:
     tier: 1
     families: [gambling]
 
-  # Two or more slot_machine rows with outcome "nothing" in one turn — a spin
-  # stakes 5 ¢. The sheet's "and leave with none of the obols you brought"
-  # was dropped: what somebody brought is not written down anywhere.
-  lose-10-at-the-slots:
-    name: Lose 10 ¢ at the slots in one turn
-    verify: "slots"
-    tier: 1
-    families: [gambling]
-
-  # A request_mine row whose `zone` is the Depths. Distinct from
-  # enter-the-depths above, which is the walk in; this is the dig.
-  mine-in-the-depths:
-    name: Mine in the Depths
-    verify: "Depths"
-    tier: 2
-    families: [adventure, wealth]
-    requires:
-      anyRoles: [prospector]
-
   # Three request_transfer_resources rows with the same `from` name on three
   # different turns. "Paid" is coin changing hands, nothing about why; the
   # desk shows the sender on each row.
@@ -2520,44 +2508,12 @@ desires:
     requires:
       anyRoles: [courtesan]
 
-  # A request_depot_drop whose tag also appears in an earlier steal or
-  # pickpocket_took row of the claimant's. Steal and Pickpocket are the two
-  # buttons; lifting something out of an unattended stash with Transfer is
-  # neither, and does not count. sell-stolen-jewelry above is the Servant's
-  # narrower version of this.
-  sell-stolen-goods:
-    name: Sell something you stole or pickpocketed to the Depot
-    tier: 1
-    families: [theft, wealth]
-    requires:
-      anyTags: [kleptomaniac]
-
-  # A request_mine, request_farm or request_extract_godflesh row in each of
-  # three consecutive turns, and no health tag granted across them (TAGS.md
-  # §5c is what counts as an injury). Other work does not count, on purpose:
-  # the sheet meant the Marshes and the Factory.
-  work-three-turns-uninjured:
-    name: Mine, farm or extract Godflesh three turns running without an injury
-    tier: 2
-    families: [duty, bravery]
-    requires:
-      anyRoles: [refugee]
-
-  # Three request_heal_character rows by the claimant in one turn, three
-  # different targets, none of them selfHeal. Those rows target the PATIENT,
-  # which is why the desk now also lists what the claimant's own account
-  # wrote (DESIRES.md §6a).
-  treat-three-in-one-turn:
-    name: Treat three other people in one turn
-    tier: 2
-    families: [medical, duty]
-    requires:
-      anyRoles: [esculap, serpent, bastard-healer]
-
   # Three request_transfer_tag rows of a drink to three different `to` names
   # in one turn. Sake, moonshine and Ravenheart Red count, the way the
   # "Sample one of every alcohol" entry says they do; the verify string only
-  # finds the plain bottle, so look for the other three by name.
+  # finds the plain bottle, so look for the other three by name. Those rows
+  # target the RECIPIENT, which is why the desk now also lists what the
+  # claimant's own account wrote (DESIRES.md §6a).
   give-alcohol-to-three:
     name: Give alcohol to three different people in one turn
     verify: "Alcohol"
@@ -2565,16 +2521,6 @@ desires:
     families: [alcohol, social]
     requires:
       anyTags: [alcoholic, charitable]
-
-  # Four request_transfer_tag rows of one of COOKING.md's meals to four
-  # different `to` names in one turn. A raw ingredient or a ration is not a
-  # dish.
-  hand-a-dish-to-four:
-    name: Hand a cooked dish to four different people in one turn
-    tier: 2
-    families: [food, social, charity]
-    requires:
-      anyTags: [glutton, charitable]
 
   # --- The Vampire's own Desires (VAMPIRE.md §9 — design doc pages 6-8).
   # "Desires relating to food and drink are unavailable to them, instead

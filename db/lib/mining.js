@@ -66,7 +66,7 @@ async function buildMiningContext(prisma, characterId) {
           // files this same zone id, so the loot table the press draws on
           // (db/lib/moveEffects.js#miningDrop) is the one the button named.
           zoneId: true,
-          zone: { select: { slug: true, name: true } },
+          zone: { select: { slug: true } },
         },
       },
     },
@@ -85,7 +85,6 @@ async function buildMiningContext(prisma, characterId) {
 
   return {
     locationName: character?.location?.name ?? null,
-    zoneName: character?.location?.zone?.name ?? null,
     coefficient: character?.location?.mining?.current ?? null,
     zoneId: character?.location?.zoneId ?? null,
     zoneSlug: character?.location?.zone?.slug ?? null,
@@ -244,11 +243,6 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
     halvedBy,
     lifewebFailing,
     locationCoefficient: ctx.coefficient,
-    // Where the dig happened, for the audit row the Mine button writes. A Desire
-    // like "Mine in the Depths" is checked by searching that row for the zone's
-    // name (DESIRES.md §10), which the row could not say before this.
-    locationName: ctx.locationName ?? null,
-    zoneName: ctx.zoneName ?? null,
     // MACHINE format, parsed back by db/lib/resourceDelta.js#rollResourceRange (`/^(\d+)-(\d+)$/`) when paid. Anything appended ("(+3 Pick)") fails that regex and pays nothing — say the bonus in the note instead, never here.
     expression: `${min}-${max}`,
   };

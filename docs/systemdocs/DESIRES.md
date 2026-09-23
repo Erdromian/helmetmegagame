@@ -529,8 +529,11 @@ rows from **both sides** of an act — the ones that target the claimant and
 the ones the claimant's own account wrote (`getCharacterAuditSliceImpl`).
 That second branch matters more than it sounds: Heal, Transfer, Pickpocket
 and the Bird all write their row against the *other* person, so before it
-was added (2026-09-22) a medic claiming "Treat three other people in one
-turn" had nothing under their own name. For
+was added (2026-09-22) a claim like "Give alcohol to three different people
+in one turn" had nothing under the giver's own name. It is bounded to rows
+written since the character's own first row (its `character_created`): an
+account outlives its characters, and a dead predecessor's gifts are not this
+character's. For
 those, the Inspector's Archive tab beside the desk — what the character
 actually said — is the real answer, and a GM reading the `reason` field
 (required at claim time — see the rewritten §8 below) is still the whole
@@ -689,17 +692,19 @@ that prefills the review desk's audit-log filter (§6a) when a GM opens that
 claim. It's optional, and most entries correctly carry none — write one only
 where fulfilling the Desire leaves a mechanical trace worth searching for (a
 named tag or item eaten, drunk, bought), spelled the way `docs/tags.yaml`
-spells the thing, not the desire's own prose. About 30 entries carry one as
+spells the thing, not the desire's own prose. About 33 entries carry one as
 of this writing. The one gambling mechanic is the Den's slot machine
 (`db/lib/slotMachine.js`), whose row carries a fixed `game: "slots"` so a
-`verify: "slots"` finds it; the rest of the gambling family (a bet, a game
-of chance, a fortune won) has no mechanic behind it, so a claim like it is
+`verify: "slots"` finds it — on Play the slots and on the four coin wins
+(Win 5 / 10 / 25 / 50 ¢), which the machine can pay. The rest of the
+gambling family (a bet, a game of chance, a fortune won) has no mechanic
+behind it, so a claim like it is
 pure GM adjudication and there is nothing in the audit log a `verify:` string
 could ever find — writing one there would be decoration, not a head start.
 The same rule sizes the 2026-09-22 additions (the yaml's §6): an entry went
-in only where its name *is* the row — "Mine in the Depths", "Treat three
-other people in one turn" — and never where a motive is left over for a
-player to argue about.
+in only where its name *is* the row — "Play the slots at the Casino", "Give
+alcohol to three different people in one turn" — and never where a motive is
+left over for a player to argue about.
 It's validated in pass 0 (must be a non-empty string when present) and
 written in pass 1 alongside the other scalars.
 

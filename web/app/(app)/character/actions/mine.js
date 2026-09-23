@@ -107,10 +107,6 @@ export async function mineRequestImpl() {
         coefficient: rate.locationCoefficient,
         // What the audit line says the day was (web/lib/auditNarrative.js).
         verb: verb.key,
-        // Named so the Desire desk's audit filter can find a dig by where it
-        // happened ("Depths") — DESIRES.md §10.
-        location: rate.locationName,
-        zone: rate.zoneName,
       },
     });
   });

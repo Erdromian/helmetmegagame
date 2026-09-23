@@ -1826,9 +1826,16 @@ async function rejectDesireClaimImpl({ desireId }) {
 //
 // Rows are matched on EITHER side of the act: the ones that target the
 // claimant, and the ones their own account wrote. Heal, Transfer, Pickpocket
-// and the Bird all write their row against the OTHER person, so a medic
-// claiming "Treat three other people in one turn" had nothing under their
-// own name until the actor branch was added (2026-09-22).
+// and the Bird all write their row against the OTHER person, so a claim like
+// "Give alcohol to three different people in one turn" had nothing under the
+// giver's own name until the actor branch was added (2026-09-22).
+//
+// The actor branch is an ACCOUNT, not a character: Character.discordUserId is
+// not unique, and a player who dies rolls a new character on the same
+// account. So it only reaches back to this character's first row (its
+// character_created, for anyone made since that row existed) — without that
+// bound, a dead predecessor's heals and gifts would turn up under the new
+// character's claim. There is no Character.createdAt to bound it by instead.
 const CHARACTER_AUDIT_SLICE_LIMIT = 40;
 
 async function getCharacterAuditSliceImpl({ characterId, query }) {
@@ -1839,16 +1846,25 @@ async function getCharacterAuditSliceImpl({ characterId, query }) {
 
   const claimant = await prisma.character.findUnique({ where: { id }, select: { discordUserId: true } });
   if (!claimant) throw new UserError("No such character.");
-  const actorId = claimant.discordUserId ?? null;
+  const firstRow = await prisma.auditLog.findFirst({
+    where: { targetCharacterId: id },
+    orderBy: { createdAt: "asc" },
+    select: { createdAt: true },
+  });
+  // No row has ever named this character, so there is nothing to bound the
+  // account's rows by — list only the target side rather than guess.
+  const actorId = firstRow ? (claimant.discordUserId ?? null) : null;
+  const since = firstRow?.createdAt ?? null;
   const sideOf = actorId
-    ? { OR: [{ targetCharacterId: id }, { actorDiscordUserId: actorId }] }
+    ? { OR: [{ targetCharacterId: id }, { actorDiscordUserId: actorId, createdAt: { gte: since } }] }
     : { targetCharacterId: id };
 
   let idFilter = null;
   if (q) {
     const matched = await prisma.$queryRaw`
       SELECT "id" FROM "AuditLog"
-      WHERE ("targetCharacterId" = ${id} OR "actorDiscordUserId" = ${actorId ?? ""})
+      WHERE ("targetCharacterId" = ${id}
+             OR ("actorDiscordUserId" = ${actorId ?? ""} AND "createdAt" >= ${since ?? new Date(0)}))
         AND "details"::text ILIKE ${`%${q}%`}
       ORDER BY "createdAt" DESC
       LIMIT ${CHARACTER_AUDIT_SLICE_LIMIT}
