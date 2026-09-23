@@ -197,7 +197,14 @@ Five things can put a document in front of you:
 | `gamemaster` — the Discord GM role, resolved at request time | `flags:` |
 
 Those are **denormalized onto `Document` as string arrays**, not join
-tables: ~30 rows, rebuilt wholesale each sync, read in one query per page view.
+tables: ~65 rows, rebuilt wholesale each sync, read in one query per page view.
+
+**A role's own fate paper goes through `roles:`, not `doc_elements`.** The
+`fate-<roleSlug>` documents (Bascinet's Fate Documents, one per role) name
+their role on the document itself. `doc_elements` also counts toward a role's
+power score (`db/scripts/analysis/economy/power.js`), so routing flavour text
+through it would shift balance. Keep `doc_elements` for papers that carry
+knowledge the seat starts with.
 
 ## 4. One deliberate softness
 
