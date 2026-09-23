@@ -26,6 +26,7 @@ const { rollDie } = require("./rollDie");
 const { expiryFrom } = require("./turnFormat");
 const { applyFatigueStep, revertFatigueStep } = require("./fatigue");
 const { drawProspectingLoot } = require("./cavingLoot");
+const { isGatheringZone } = require("./gathering");
 const { PROSPECTING_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
 const { reapDetailFor, harvestLine } = require("./soilery");
@@ -101,27 +102,31 @@ const MOVE_EFFECTS = {
   //
   // In a gathering zone (db/lib/gathering.js — the Black Hills) the same press draws on the gathering table instead, and what comes up is food
   // in a small stack rather than one stone; cavingLoot.js decides that by zone, so nothing here tells the two apart beyond the `quantity`.
-  // A zone with no column on either table draws nothing, and that is ordinary — Town has a Mine button that never appears, not a bug.
+  // A zone with no column on either table draws nothing, and that is ordinary. Town never gets this far: its Locations carry no mining
+  // coefficient, so the Mine button there is always refused (db/lib/mining.js).
   //
   // The key, the AUTO_MINE_NOTE trigger and the { kind: "TAG", tagId, ... } snapshot shape are all unchanged on purpose, so Action rows written
   // under the old die still revert through the arm below.
   miningDrop: {
     read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
-      // NOT a gate any anymore — the skill picks which column gets drawn, and an unskilled digger
-      // still turns up stones, just poorer ones (db/lib/cavingLoot.js). The gate on pressing Mine
-      // at all is the Pickaxe, and it is enforced upstream in db/lib/mining.js.
-      const prospecting = !!(await tx.characterTag.findFirst({
-        where: { characterId: action.characterId, tag: { slug: PROSPECTING_SLUG } },
-        select: { id: true },
-      }));
-
       // The table is keyed by zone SLUG; the Action carries the id it was filed at, which is the right one to read — a character who walked out of
-      // the caves after pressing Mine still dug where they dug.
+      // the caves after pressing Mine still dug where they dug. mine.js files the Location's own zone, the same one the verb was read off.
       const zone = action.zoneId
         ? await tx.zone.findUnique({ where: { id: action.zoneId }, select: { slug: true } })
         : null;
-      const drawn = zone ? drawProspectingLoot(zone.slug, { prospecting }) : null;
+      if (!zone) return 0;
+
+      // NOT a gate any more — underground the skill picks which column gets drawn, and an unskilled digger still turns up stones, just poorer
+      // ones (db/lib/cavingLoot.js). The gathering table ignores it, so a gathering zone skips the lookup. Whether the press was allowed at all
+      // (the pickaxe underground, nothing in the hills) is decided upstream in db/lib/mining.js.
+      const prospecting = isGatheringZone(zone.slug)
+        ? false
+        : !!(await tx.characterTag.findFirst({
+            where: { characterId: action.characterId, tag: { slug: PROSPECTING_SLUG } },
+            select: { id: true },
+          }));
+      const drawn = drawProspectingLoot(zone.slug, { prospecting });
       if (!drawn) return 0;
 
       const tag = await tx.tag.findUnique({
@@ -347,7 +352,7 @@ function describeMoveEffects(applied) {
     else if (key === "miningDrop") {
       parts.push(
         value.kind === "TAG"
-          ? `found ${value.tagName}`
+          ? `found ${value.tagName}${value.quantity > 1 ? ` ×${value.quantity}` : ""}`
           : `${value.amount > 0 ? "+" : ""}${value.amount} ⬢ (find)`,
       );
     }

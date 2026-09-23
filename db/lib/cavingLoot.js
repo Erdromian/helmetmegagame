@@ -25,6 +25,10 @@
 // out of every one of them — the absence IS the rule, not an oversight. The Black Hills used to be the
 // example here, minable for ⬢ and never for loot; since 2026-09-22 they draw on the gathering table.
 
+// Which zones gather is decided in one place, db/lib/gathering.js; the draw below asks it rather than
+// reading the keys of GATHERING_WEIGHTS_BY_ZONE, so the button's word and the table can't disagree.
+const { GATHERING_ZONE_SLUGS, isGatheringZone } = require("./gathering");
+
 const TIERS = ["ultracommon", "common", "uncommon", "rare", "extremely-rare", "nearly-impossible"];
 
 // Each column sums to 1 (checked by validateCavingLoot). Depths carries the old Aberrant Pits column
@@ -247,6 +251,11 @@ async function validateCavingLoot(prisma) {
       }
     }
   }
+  // A gathering zone with no column would say Gather and hand back nothing, so it fails the boot instead.
+  const unweighted = GATHERING_ZONE_SLUGS.filter((slug) => !GATHERING_WEIGHTS_BY_ZONE[slug]);
+  if (unweighted.length) {
+    throw new Error(`db/lib/cavingLoot.js: gathering zone(s) with no GATHERING_WEIGHTS_BY_ZONE column: ${unweighted.join(", ")}`);
+  }
 }
 
 // The shared draw: land on a tier by cumulative weight, then pick uniformly inside it.
@@ -284,8 +293,10 @@ function drawLoot(zoneSlug) {
 // A gathering zone draws on the GATHERING TABLE instead, skilled or not: what the Black Hills give
 // up is food, and Prospecting reads ore.
 function drawProspectingLoot(zoneSlug, { prospecting = false } = {}) {
-  const gathering = GATHERING_WEIGHTS_BY_ZONE[zoneSlug];
-  if (gathering) return drawFrom(gathering, GATHERING_TABLE);
+  if (isGatheringZone(zoneSlug)) {
+    const gathering = GATHERING_WEIGHTS_BY_ZONE[zoneSlug];
+    return gathering ? drawFrom(gathering, GATHERING_TABLE) : null;
+  }
   const map = prospecting ? PROSPECTING_SKILLED_WEIGHTS_BY_ZONE : PROSPECTING_WEIGHTS_BY_ZONE;
   const weights = map[zoneSlug];
   if (!weights) return null;

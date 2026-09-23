@@ -2,6 +2,9 @@
 // An unregistered actionType MUST still render via the fallback, never blank, never a throw.
 // No Prisma, no server imports: AuditFeed is a client component.
 
+// Zero requires on purpose (its own header says why), so it is safe in a client bundle.
+import { workVerbByKey } from "@lifeweb/db/lib/gathering";
+
 const t = (v) => ({ k: "t", v });
 const em = (v) => ({ k: "em", v });
 // `id` is the tag's row id when the writer stored one beside the name snapshot.
@@ -145,10 +148,10 @@ const R = {
   ],
   // Mining (web/app/(app)/character/actions/mine.js): paid at the press, so unlike Farm and
   // Refine below this row already knows what the day was worth.
-  // `verb` is "gather" in the Black Hills (db/lib/gathering.js); rows written before it
-  // existed carry none and were all seams.
+  // `verb` is "gather" in the Black Hills (db/lib/gathering.js, which owns the wording);
+  // rows written before it existed carry none and were all seams, which is its default.
   request_mine: (d) => [
-    actor(), t(d.verb === "gather" ? "gathered in the hills" : "worked a seam"),
+    actor(), t(workVerbByKey(d.verb).audit),
     ...(d.value != null ? [t("for"), em(`${d.value} ⬢`)] : []),
     ...(d.expression ? [t("out of"), em(d.expression)] : []),
   ],

@@ -9,7 +9,7 @@ import TagDetails from "@/app/components/TagDetails";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import ActionButton from "@/app/components/ActionButton";
-import { ACTION_HELP, actionFor, labelFor, reasonFor } from "@/app/components/actionRegistry";
+import { actionFor, helpFor, labelFor, reasonFor } from "@/app/components/actionRegistry";
 import useSoundItem, { soundLabel } from "@/app/components/useSoundItem";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
@@ -89,7 +89,7 @@ function ItemVerbs({ row, pools, onPick, onSound, soundPending }) {
         key={mode}
         variant="menu"
         label={labelFor(action, pools)}
-        help={ACTION_HELP[mode] ?? null}
+        help={helpFor(action, pools)}
         disabled={action.gate ? !pools?.[action.gate] : false}
         reason={reasonFor(action, pools)}
         onClick={() => onPick(mode)}

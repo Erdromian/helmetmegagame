@@ -4,10 +4,11 @@
 // up there is breaking a seam: a day in the hills is spent turning over stones,
 // checking the river and the snares, and what it turns up beside the ⬢ is
 // something to eat rather than ore (db/lib/cavingLoot.js's GATHERING_TABLE,
-// docs/systemdocs/MINING.md §3c). Same button, same pickaxe gate, same rate —
-// only the verb and the loot table change, and this module is the one place
-// the verb is decided, so the sheet's label, its confirm dialog, the refusal a
-// bypassed request hits, the Action row and the audit line all agree.
+// docs/systemdocs/MINING.md §3c). Same button, same rate — only the verb, the
+// pickaxe gate (gathering has none) and the loot table change, and this module
+// is the one place the verb is decided, so the sheet's label, its confirm
+// dialog, the refusal a bypassed request hits, the Action row, the audit line
+// and the loot draw all agree.
 //
 // Zero requires, ever, like db/lib/dmKinds.js: the sheet's action registry is a
 // client component and reads this for the button's label, and one require of

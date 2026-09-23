@@ -76,7 +76,10 @@ export async function mineRequestImpl() {
           resourceDelta: value,
           resourceRollExpression: expression,
           resourceRollValue: value,
-          zoneId: character.zoneId ?? null,
+          // The Location's own zone, the one the verb and the pickaxe gate were read off —
+          // not Character.zoneId, which is a copy that can drift. The loot table is picked
+          // by this at payout, so Gather always draws on the gathering table.
+          zoneId: rate.zoneId ?? character.zoneId ?? null,
           locationId: character.locationId ?? null,
           gmNotes: AUTO_MINE_NOTE,
         },

@@ -100,7 +100,7 @@ export function paidLabel(applied) {
     else if (key === "miningDrop") {
       parts.push(
         value.kind === "TAG"
-          ? `found ${value.tagName}`
+          ? `found ${value.tagName}${value.quantity > 1 ? ` ×${value.quantity}` : ""}`
           : `${value.amount > 0 ? "+" : ""}${value.amount} ⬢ (find)`,
       );
     }

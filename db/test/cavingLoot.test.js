@@ -11,8 +11,10 @@ const {
   GATHERING_TABLE,
   GATHERING_WEIGHTS_BY_ZONE,
   drawProspectingLoot,
+  validateCavingLoot,
 } = require("../lib/cavingLoot");
 const { GATHERING_ZONE_SLUGS } = require("../lib/gathering");
+const { describeMoveEffects } = require("../lib/moveEffects");
 
 const TIERS = ["ultracommon", "common", "uncommon", "rare", "extremely-rare", "nearly-impossible"];
 
@@ -117,4 +119,31 @@ test("an unskilled draw defaults to the plain column", () => {
   // optional, since moveEffects.js is not the only caller shape this has had.
   const drawn = drawProspectingLoot("caves");
   assert.ok(TIERS.includes(drawn.tier));
+});
+
+// gathering.js is what says a zone gathers; the draw asks it rather than reading
+// the weight map's keys. A gathering zone somebody forgot to weight draws
+// nothing (never a stone), and the boot check refuses it outright.
+test("a gathering zone with no column draws nothing and fails the boot check", async () => {
+  GATHERING_ZONE_SLUGS.push("marsh");
+  try {
+    for (const prospecting of [false, true]) assert.equal(drawProspectingLoot("marsh", { prospecting }), null);
+    const allSlugs = (table) => Object.values(table).flat().map((e) => (typeof e === "string" ? e : e.slug));
+    const prisma = {
+      tag: {
+        findMany: async () =>
+          [...allSlugs(PROSPECTING_TABLE), ...allSlugs(GATHERING_TABLE), ...allSlugs(require("../lib/cavingLoot").LOOT_TABLE)].map((slug) => ({ slug })),
+      },
+    };
+    await assert.rejects(validateCavingLoot(prisma), /marsh/);
+  } finally {
+    GATHERING_ZONE_SLUGS.pop();
+  }
+});
+
+// The desk and the sheet print the stack a gathering press actually granted.
+test("a gathered stack prints its size on the desk; a single find does not", () => {
+  assert.equal(describeMoveEffects({ miningDrop: { kind: "TAG", tagName: "Onion", quantity: 2 } }), "found Onion ×2");
+  assert.equal(describeMoveEffects({ miningDrop: { kind: "TAG", tagName: "Honey", quantity: 1 } }), "found Honey");
+  assert.equal(describeMoveEffects({ miningDrop: { kind: "TAG", tagName: "Opal" } }), "found Opal");
 });

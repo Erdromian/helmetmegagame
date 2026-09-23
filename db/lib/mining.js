@@ -62,7 +62,10 @@ async function buildMiningContext(prisma, characterId) {
           attributes: true,
           mining: { select: { current: true } },
           // The zone decides the VERB (db/lib/gathering.js): the Black Hills
-          // gather where the caves mine. Same gate and rate either way.
+          // gather where the caves mine, with no pickaxe gate. The Mine action
+          // files this same zone id, so the loot table the press draws on
+          // (db/lib/moveEffects.js#miningDrop) is the one the button named.
+          zoneId: true,
           zone: { select: { slug: true } },
         },
       },
@@ -83,6 +86,7 @@ async function buildMiningContext(prisma, characterId) {
   return {
     locationName: character?.location?.name ?? null,
     coefficient: character?.location?.mining?.current ?? null,
+    zoneId: character?.location?.zoneId ?? null,
     zoneSlug: character?.location?.zone?.slug ?? null,
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
     tools: [...toolsFrom(tags), ...structureTools(structures)],
@@ -138,8 +142,8 @@ function computeMiningAccess(ctx) {
   if (blocked) {
     return { ok: false, reason: "You can't work" };
   }
-  // The tool IS the gate now (Prospecting used to be, and is a multiplier
-  // instead — docs/systemdocs/MINING.md §1). HELD, not equipped: the pick's own
+  // Underground the tool is the gate (Prospecting used to be, and is a
+  // multiplier instead — docs/systemdocs/MINING.md §1). HELD, not equipped: the pick's own
   // `miningBonus` still wants to be worn for its +1, so carrying one in the
   // pack lets you dig at base, which is the right shape for a borrowed pick.
   // Only where the verb wants one: Gather in the Black Hills has no tool gate
@@ -229,6 +233,9 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
     // than re-deriving it from the zone.
     verb: verb.key,
     gathering: verb.key === "gather",
+    // The zone the verb was read off. The Mine action files it on the Action
+    // row, and that row's zone is what picks the loot table at payout.
+    zoneId: ctx.zoneId ?? null,
     min,
     max,
     bonus,
