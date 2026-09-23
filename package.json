@@ -37,6 +37,8 @@
     "db:mirror": "node db/scripts/ops/mirror.js",
     "db:backfill-economy": "node db/scripts/ops/backfill-economy.js",
     "economy:report": "node db/scripts/analysis/economy/report.js",
+    "economy:diff": "node db/scripts/analysis/economy/report.js --diff",
+    "catalog": "node db/scripts/analysis/catalog.js",
     "db:open-bank-accounts": "node db/scripts/ops/open-bank-accounts.js",
     "db:audit-vault-backing": "node db/scripts/ops/audit-vault-backing.js",
     "db:backfill-party-members": "node db/scripts/ops/backfill-party-members.js",

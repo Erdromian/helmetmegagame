@@ -504,11 +504,22 @@ npm run economy:report               # read-only: every wage, price and food fig
                                      #   code. `-- --players N` sizes the town, and
                                      #   `-- --mood-weight N` reprices every dish's worth
                                      #   with a point of mood counted as N points of
-                                     #   hunger against the Ration Box (default 2).
+                                     #   hunger against the Ration Box (default 1.5).
                                      #   `-- --point-value N` tries another ¢-a-point
                                      #   scale for gear on the "Buyable gear" page
                                      #   (default 7: TAGS.md §4a prices an Item or
                                      #   Asset at 6–8 ¢ of kit a point).
+                                     #   `-- --sell-tax N` applies the Meister's sell
+                                     #   tax (a whole percent, on the gross of every
+                                     #   counter sale) to every net figure; default is
+                                     #   Depot.sellTaxRate's schema default (0).
+                                     #   `-- --diff` regenerates and prints what moved
+                                     #   against the current economy-report/ (report.md
+                                     #   lines, model.json figures), then replaces it;
+                                     #   `-- --diff-only` leaves it (npm run economy:diff).
+npm run catalog -- tags pickaxe      # read-only: one line per YAML entry (tags, roles,
+                                     #   zones, locations, rooms, desires), by slug or
+                                     #   name, `--grep`, `--fields a,b`, `--json`.
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
 npm test --workspace=web             # node --test over web/lib/__tests__/.

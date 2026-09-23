@@ -28,7 +28,8 @@ function settle(demand, { rate, cap, s, turns = 200 }) {
   return { mult, produced: demand * mult, firstDrop, firstWarning, pool };
 }
 
-function buildField({ params, cooking, schemaDefault, players }) {
+// `tobacco` is the model's own tobacco figures (model.js reads them off its farm rows).
+function buildField({ params, tobacco = null, schemaDefault, players }) {
   const s = {
     enabled: true,
     margin: schemaDefault("farmSustainMargin"),
@@ -44,18 +45,16 @@ function buildField({ params, cooking, schemaDefault, players }) {
   const cycle = params.farmCycle;
   const plants = params.farmMaxCrops;
 
-  // What one Farm action draws, and what it gives, by crop. A wheat plant stands for the food crops.
-  const food = soilery.CROPS.find((c) => c.crop === "wheat");
-  const cpp = food?.cropsPerPlant ?? soilery.CROPS_PER_PLANT;
-  const wither = food?.witherIn ?? soilery.WITHER_IN;
-  const foodAction = plants * (1 - 1 / wither) * cpp;
-  const fertAction = plants * (1 + 1 / soilery.BOUNTY_IN) * cpp;
-  const tob = soilery.CROPS.find((c) => c.crop === "tobacco");
-  const tobLeaves = plants * (1 - 1 / (tob?.witherIn ?? wither)) * (tob?.cropsPerPlant ?? cpp);
-  const tobDraw = tobLeaves * (soilery.CROPS_PER_PLANT / (tob?.cropsPerPlant ?? cpp));
-  const tobPrice = cooking?.tobacco?.price ?? null;
+  // What one Farm action draws, and what it gives, by crop: the model's own harvest figures.
+  const foodAction = params.harvestPerFarm;
+  const fertAction = params.harvestPerFarmFert;
+  const tobLeaves = tobacco?.leaves ?? 0;
+  // A tobacco plant draws what a food plant does, so a leaf draws a food plant's crops over tobacco's own.
+  const tobDraw = tobacco ? tobLeaves * (soilery.CROPS_PER_PLANT / tobacco.leavesPerPlant) : 0;
+  const tobPrice = tobacco?.price ?? null;
 
-  const perTurn = { food: foodAction / cycle, fert: fertAction / cycle, tobacco: tobDraw / cycle };
+  const duty = params.farmDuty;
+  const perTurn = { food: foodAction * duty, fert: fertAction * duty, tobacco: tobDraw * duty };
   const farmersToEat = eaten / perTurn.food;
   const farmersToFill = rate / perTurn.food;
 
@@ -65,7 +64,7 @@ function buildField({ params, cooking, schemaDefault, players }) {
     const r = settle(demand, { rate, cap, s });
     const foodShare = ((mix.food ?? 0) * perTurn.food + (mix.fert ?? 0) * perTurn.fert) / (demand || 1);
     const foodCrops = r.produced * (demand ? foodShare : 0);
-    const tobaccoLeaves = mix.tobacco ? (mix.tobacco * (tobLeaves / cycle)) * r.mult : 0;
+    const tobaccoLeaves = mix.tobacco ? mix.tobacco * tobLeaves * duty * r.mult : 0;
     scenarios.push({
       group,
       label,

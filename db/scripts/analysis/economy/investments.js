@@ -12,11 +12,13 @@
 // "¢ a turn per point" so the two can be compared without pretending they are the same thing.
 
 const soilery = require("../../../lib/soilery");
-const { cutOn } = require("./cut");
+const hungerLib = require("../../../lib/hunger");
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
-function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAnalysis, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, cavingArrivalsPerTurn = 1 }) {
+// `food` is the model's one food valuation and `unitValue` its ITEM_VALUE rule for a spent ingredient; a crop,
+// a feed or a recipe input is priced through them and nowhere else.
+function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAnalysis, get, list, rv, rvMined, params, activities, producerDrops, profitTiers, pointsOf, moveValue, gameTurns, food, unitValue, tax = () => 0, miningRisk = null, combat = null, distilling = [], cavingArrivalsPerTurn = 1 }) {
   const rows = [];
   const byId = (id) => activities.find((a) => a.id === id);
   const shelfPrice = (t) => t?.depotPrice ?? null;
@@ -26,14 +28,39 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     let items = 0;
     for (const raw of r.items ?? []) {
       const slug = typeof raw === "string" ? raw : raw.tag ?? raw.anyOf?.[0];
-      items += (typeof raw === "object" && raw.count ? raw.count : 1) * (get(slug)?.depotPrice ?? get(slug)?.sellablePrice ?? 0);
+      items += (typeof raw === "object" && raw.count ? raw.count : 1) * unitValue(slug);
     }
     return { coin: (r.resourceCost ?? 0) * rv.buy + items, moves: r.turnsCost ?? 0, resources: r.resourceCost ?? 0 };
+  };
+  // How long the thing lasts, read off the catalog: CONSUMED if the tag is `consumable` or opens into something
+  // (`consumesInto`), so it is bought again for every use; DURABLE otherwise (equipment, a tool, a building, a skill,
+  // an animal, a trait). A row with no tag behind it (a skill rung, a method) is durable.
+  const lastsOf = (t) => {
+    if (!t) return { kind: "durable", text: "durable" };
+    const into = (t.consumesInto ?? []).length;
+    return t.consumable || into ? { kind: "consumed", text: "one use" } : { kind: "durable", text: "durable" };
+  };
+  // What a row's gain rests on. Caving: the gain is a caver's ¢ an expedition under the trouble budget and the typed
+  // band → mix table (combat.js, caving.js), or mood saved where the Caving Die rolls, and it carries that die's
+  // risk. Production: mining, farming, refining, crafting, the Factory, a building, livestock — no risk beyond
+  // fatigue. Trade: the gain is points or a shelf opened, not output. Mixed: more than one.
+  const PAYS = {
+    production: "production: no risk beyond fatigue",
+    caving: "caving: rests on the trouble budget and the assumed band → mix table, and carries the Caving Die's risk",
+    trade: "trade: the gain is points or a shelf, not output",
+    mixed: "mixed",
   };
   const add = (r) => {
     const moves = r.moves ?? 0;
     const allIn = (r.coin ?? 0) + moves * moveValue;
     const gain = r.gain ?? null;
+    const lasts = lastsOf(r.slug ? get(r.slug) : null);
+    const pays = r.paysThrough ?? (r.valuedBy === "expedition" ? "caving" : "production");
+    const consumed = lasts.kind === "consumed";
+    // A consumed thing is bought every time it is used, so there is no one purchase to pay back and no "over the
+    // game" total that subtracts one price: its gain a turn is already net of every use's price, and its return is
+    // shown per use, ¢ back for each ¢ spent.
+    const perUse = consumed && r.perUse ? { ...r.perUse, net: r.perUse.gross - r.perUse.price, backPerCoin: r.perUse.price > 0 ? r.perUse.gross / r.perUse.price : null } : null;
     rows.push({
       coin: 0,
       points: 0,
@@ -41,9 +68,14 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       ...r,
       allIn,
       gain,
-      paybackTurns: gain != null && gain > 0 && allIn > 0 ? allIn / gain : gain != null && gain > 0 ? 0 : null,
-      netOverGame: gain != null ? gain * gameTurns - allIn : null,
-      perPoint: gain != null && r.points > 0 ? gain / r.points : null,
+      lasts: lasts.kind,
+      lastsText: lasts.text,
+      paysThrough: pays,
+      paysText: r.paysText ?? PAYS[pays],
+      perUse,
+      paybackTurns: consumed ? null : gain != null && gain > 0 && allIn > 0 ? allIn / gain : gain != null && gain > 0 ? 0 : null,
+      netOverGame: consumed ? null : gain != null ? gain * gameTurns - allIn : null,
+      perPoint: consumed ? null : gain != null && r.points > 0 ? gain / r.points : null,
     });
   };
 
@@ -52,13 +84,14 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
   const cavesSkilled = byId("mine:Caves:skilled");
   const depths = byId("mine:Depths:unskilled");
   const depthsSkilled = byId("mine:Depths:skilled");
-  const duty = caves?.duty ?? 0.5;
+  const duty = params.mineDuty;
 
   const pick = get("pickaxe");
   if (pick && caves) {
     const c = craftCoin(pick);
     add({
       id: "pickaxe",
+      slug: "pickaxe",
       group: "Mining",
       name: pick.name,
       kind: "tool",
@@ -76,6 +109,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     const bonus = helmet.miningBonus?.amount ?? 1;
     add({
       id: "mining-helmet",
+      slug: "mining-helmet",
       group: "Mining",
       name: helmet.name,
       kind: "tool",
@@ -92,6 +126,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
   if (prospecting && caves && cavesSkilled) {
     add({
       id: "prospecting",
+      slug: "prospecting",
       group: "Mining",
       name: prospecting.name,
       kind: "skill",
@@ -102,6 +137,31 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       gain: cavesSkilled.netPerTurn - caves.netPerTurn,
       gainHow: `Caves ${round1(cavesSkilled.netPerTurn)} against ${round1(caves.netPerTurn)}; Depths +${round1(depthsSkilled.netPerTurn - depths.netPerTurn)}`,
       note: "The gain is bigger on richer ground, and this figure is the Caves'.",
+    });
+  }
+
+  // ---- Distilling ------------------------------------------------------------------------------------
+  // 3 points on top of Brewing II; doubles the stack of Alcohol and Moonshine from the same mash (the game's
+  // DISTILLING_DOUBLES_SLUGS). The gain counted here is at the counter, where only Moonshine sells; Alcohol's
+  // is a ceiling at the Black Market's shelf price and goes in the note, not the figure.
+  const distillTag = get("brewing-distilling");
+  if (distillTag && distilling.length) {
+    const counter = distilling.filter((d) => !d.ceiling);
+    const ceiling = distilling.filter((d) => d.ceiling);
+    const best = counter.sort((a, b) => (b.gain ?? 0) - (a.gain ?? 0))[0];
+    add({
+      id: "distilling",
+      slug: "brewing-distilling",
+      group: "Skill rungs",
+      name: distillTag.name,
+      kind: "skill",
+      does: `Twice the stack of ${distilling.map((d) => d.name).join(" and ")} from the same mash, Move and ⬢.`,
+      coin: 0,
+      coinHow: "no coin",
+      points: distillTag.pointCost ?? 0,
+      gain: best ? best.gain : 0,
+      gainHow: best ? `${best.name}: ${round1(best.net)} ¢ a Move against ${round1(best.plainNet)} without it, at the counter` : "nothing it doubles sells at the counter",
+      note: ceiling.length ? `${ceiling.map((d) => `${d.name} never reaches the counter; at the Black Market's shelf price a distilled brewer would clear ${round1(d.net)} ¢ a Move against ${round1(d.plainNet)}`).join("; ")} — a ceiling, since nothing in the game sells a drink for you.` : "",
     });
   }
 
@@ -122,9 +182,11 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       const cir = target?.consumesIntoResources ?? 0;
       if (!ingot && !cir) continue;
       // Sold to the counter or cracked for ⬢, whichever is better.
-      const value = Math.max(target?.sellablePrice ?? 0, cir * rvMined);
-      if (!(value > d.unit)) continue;
-      extra += d.p * (value - d.unit);
+      // A counter sale pays the run's sell tax; cracking for ⬢ is not a sale.
+      const value = Math.max((target?.sellablePrice ?? 0) - tax(target?.sellablePrice ?? 0), cir * rvMined);
+      const oreNet = d.unit - tax(d.unit); // the raw ore sold instead pays the tax too
+      if (!(value > oreNet)) continue;
+      extra += d.p * (value - oreNet);
       lines.push(`${d.name} → ${target.name} ${round1(value)} ¢`);
     }
     const c = craftCoin(wsTag);
@@ -164,31 +226,34 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
 
   // ---- farming ------------------------------------------------------------------------------------
   const soil = get("soilery");
-  const farm = byId("farm:potato");
+  const farm = byId(`farm:${params.stapleCrop}`);
   if (soil && farm) {
     add({
       id: "soilery",
+      slug: "soilery",
       group: "Farming",
       name: soil.name,
       kind: "skill",
       does: `Lets you plant up to ${params.farmMaxCrops} plants on a field, one Farm action every ${params.farmCycle} turns.`,
       coin: 0,
-      coinHow: "no coin; seed bags are 4 ¢ an action and are in the gain",
+      coinHow: `no coin; seed bags are ${farm.inputs} ¢ an action and are in the gain`,
       points: soil.pointCost ?? 0,
       gain: farm.netPerTurn,
-      gainHow: `${round1(farm.perAction)} ¢ a Farm action (${params.cropsSell ? "crops at the counter's price" : "crops valued as food, at the Ration Box's price per hunger"}, less seed), a third of the turns`,
+      gainHow: `${round1(farm.perAction)} ¢ a Farm action (${params.cropsSell ? "crops at the counter's price" : "crops valued as food, at the Ration Box's rate for hunger and mood"}, less seed), one turn in ${params.farmCycle}`,
       note: "Farming is for eating, not selling, so at the counter it is worth far less than the same crops are to a hungry buyer.",
     });
     const fert = get("fertilizer");
     if (fert) {
-      const per = params.farmMaxCrops * (params.cropsPerPlant ?? 1);
-      const plain = (soilery.WITHER_IN - 1) / soilery.WITHER_IN;
-      const fed = 1 + 1 / soilery.BOUNTY_IN;
-      const cropValue = params.cropValue ?? get("potato")?.sellablePrice ?? 1;
-      const extraCrops = per * (fed - plain);
-      const perAction = extraCrops * cropValue - (shelfPrice(fert) ?? 0);
+      // The share of a full field that comes in, without and with it.
+      const full = params.farmMaxCrops * params.cropsPerPlant;
+      const plain = params.harvestPerFarm / full;
+      const fed = params.harvestPerFarmFert / full;
+      const extraCrops = params.harvestPerFarmFert - params.harvestPerFarm;
+      const perAction = extraCrops * params.cropValue - (shelfPrice(fert) ?? 0);
       add({
         id: "fertilizer",
+        slug: "fertilizer",
+        perUse: { gross: extraCrops * params.cropValue, price: shelfPrice(fert) ?? 0, usesPerTurn: farm.duty, unit: "Farm action" },
         group: "Farming",
         name: fert.name,
         kind: "consumable",
@@ -198,8 +263,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
         points: fert.pointCost ?? 0,
         gain: perAction * farm.duty,
         gainHow: `+${round1(extraCrops)} crops a Farm action (${round1(plain * 100)}% → ${round1(fed * 100)}% of a full harvest), less the sack`,
-        note: "A running cost, so it is measured per Farm action: it repays itself the first time.",
-        oneOff: true,
+        note: "Used up by every Farm action, so a sack is bought each time: the ¢ a turn is already net of every sack, and the return is per use. It used to be paid back against one sack over the game, which counted the sack once too many.",
       });
     }
   }
@@ -210,6 +274,8 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     const fert = get("fertilizer");
     add({
       id: "fertilizer-tobacco",
+      slug: "fertilizer",
+      perUse: { gross: tb.fertGainPerAction + (shelfPrice(fert) ?? 0), price: shelfPrice(fert) ?? 0, usesPerTurn: params.farmDuty, unit: "Farm action" },
       group: "Farming",
       name: "Fertilizer, on tobacco",
       kind: "consumable",
@@ -217,10 +283,9 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       coin: shelfPrice(fert),
       coinHow: `${shelfPrice(fert)} ¢ a sack, used up each time`,
       points: fert.pointCost ?? 0,
-      gain: tb.fertGainPerAction / (params.farmCycle ?? 3),
+      gain: tb.fertGainPerAction * params.farmDuty,
       gainHow: `+${round1(tb.leavesFert - tb.leaves)} leaves at ${tb.price} ¢, less the sack: +${round1(tb.fertGainPerAction)} ¢ a Farm action, on top of ${round1(tb.perTurn)} ¢ a turn without it`,
-      note: "Measured per turn across the every-other-turn cycle. It repays itself many times over the first time.",
-      oneOff: true,
+      note: `Used up by every Farm action, a Farm action one turn in ${params.farmCycle}: the ¢ a turn is net of every sack, and the return is per use rather than over the game.`,
     });
   }
 
@@ -229,21 +294,69 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
   if (lucky && caving) {
     // The headline is a Depths caver making four arrivals a turn, the one use whose gain is money and whose
     // frequency a player controls. The full ranking is in the Lucky section of the report.
-    const dive = luckyUses?.uses.find((u) => u.id === "caving-depths-4");
+    const dive = luckyUses?.uses.find((u) => u.id === "caving-depths-3");
     const forge = luckyUses?.uses.find((u) => u.id === "trinket-skilled-25");
+    // Per expedition at a 3-trouble budget, and ASSUMED one expedition a turn (arrivals are rationed only by the walk
+    // cooldown, and a 1 holds you in the zone but not still).
     const gain = dive?.gain ?? caving.perZone.caves.luckyGain * cavingArrivalsPerTurn;
     add({
       id: "lucky",
+      slug: "lucky",
       group: "Loot rolls",
+      valuedBy: "expedition",
       name: lucky.name,
       kind: "perk",
-      does: "Rolls twice and keeps the better on twelve dice: the Caving Die (a find 1 in 6 → 11 in 36, trouble 1 in 6 → 1 in 36), every Gambit, forging a Trinket, pushing on, lessons, Search, Steal and more.",
+      does: "Rolls twice and keeps the better on twelve dice: the Caving Die (fewer 1s and more finds), every Gambit, forging a Trinket, pushing on, lessons, Search, Steal and more.",
       coin: 0,
       coinHow: "no coin",
       points: lucky.pointCost ?? 0,
       gain,
-      gainHow: `${round1(gain)} ¢ a turn for a Depths caver at four arrivals a turn (${round1(luckyUses?.uses.find((u) => u.id === "caving-caves-4")?.gain)} at the Caves). Forging pays ${round1(forge?.gain)}–${round1(luckyUses?.uses.find((u) => u.id === "trinket-apprentice-25")?.gain)} ¢ a Trinket with shelf stones. The one-arrival figure this table used before was ${round1(luckyUses?.uses.find((u) => u.id === "caving-caves-1")?.gain)} ¢`,
+      gainHow: `${round1(gain)} ¢ an expedition for a Depths caver who stops at 3 troubles (${round1(luckyUses?.uses.find((u) => u.id === "caving-caves-3")?.gain)} at the Caves), taken as one expedition a turn. Forging pays ${round1(forge?.gain)}–${round1(luckyUses?.uses.find((u) => u.id === "trinket-apprentice-25")?.gain)} ¢ a Trinket with shelf stones`,
       note: "Most of it is avoiding a 1, so it depends on what a GM makes of trouble. The largest thing Lucky does is add about +1 to every Gambit, which has no ¢.",
+    });
+  }
+
+  // ---- mood perks for somebody who works underground or in the wild ------------------------------------
+  // What each saves a turn in mood, priced at the food valuation's ¢ a point (miningRisk.js, caving.js).
+  if (miningRisk) {
+    const cave = miningRisk.rows.find((r) => r.id === "mine:Caves:skilled");
+    const troublesTurn = cave ? cave.arrivalsRolling * (cave.trouble ?? 0) * miningRisk.tripsPerTurn : 0;
+    const perk = (slug, gain, gainHow, note, underground = true) => {
+      const t = get(slug);
+      if (!t || gain == null) return;
+      // Underground, where the Caving Die rolls on arrival, the mood saved is a caving gain; in the wild it is not.
+      const pays = underground ? "caving" : "production";
+      const paysText = `${pays}: mood saved ${underground ? "underground, where the Caving Die rolls" : "gathering in the wild, with no Caving Die"}, priced at ${round1(params.moodPointPrice)} ¢ a mood point`;
+      add({ id: slug, slug, group: "Mood", valuedBy: "mood", paysThrough: pays, paysText, name: t.name, kind: "perk", does: t.description ?? "", coin: 0, coinHow: "no coin", points: pointsOf(slug), gain, gainHow, note });
+    };
+    if (cave) {
+      perk("spelunker", cave.moodTurn - cave.moodTurnImmune, `${round1(cave.moodTurn)} ¢ of cave mood a turn for a Prospector at the Caves, sleeping underground, to ${round1(cave.moodTurnImmune)}`, "The points include what it requires. It cancels the ambient cave hit, not the Caving Die's trouble.");
+      const troubleSave = troublesTurn * (caving.troubleMood.plain - caving.troubleMood.brave);
+      perk("brave", cave.moodTurn - cave.moodTurnBrave + troubleSave, `${round1(cave.moodTurn - cave.moodTurnBrave)} ¢ of cave mood and ${round1(troubleSave)} ¢ of trouble mood a turn for the same Prospector; it halves every other fright too, unpriced here`, "Measured on a miner; anybody who is often frightened gets more.");
+    }
+    const g = miningRisk.rows.find((r) => r.placeClass === "WILDERNESS");
+    if (g) perk("outsider", g.moodTurn - g.moodTurnImmune, `${round1(g.moodTurn)} ¢ of wilderness mood a turn for a gatherer in the ${g.name.replace(/^Gather — /, "").replace(/, no tool$/, "")}, to ${round1(g.moodTurnImmune)}`, "Only the wilderness hit; it does nothing underground.", false);
+  }
+
+  // ---- fighting tags and weapons, priced for a caver --------------------------------------------------------
+  // Only the ones that move the band on their own; the ¢ is what that step is worth to a Depths caver who stops at
+  // the combat tab's trouble budget, under the caving tab's band → trouble mix, which is an ASSUMPTION.
+  for (const r of (combat?.tags ?? []).filter((x) => x.steps > 0)) {
+    add({
+      id: `fight-${r.slug}`,
+      slug: r.slug,
+      group: "Fighting",
+      valuedBy: "expedition",
+      name: r.name,
+      kind: r.kind,
+      does: `${combat.base[r.tree]} → ${r.alone} on the ${r.tree} tree (the sheet's band words).`,
+      coin: r.coin ?? 0,
+      coinHow: r.coin != null ? `${r.coin} ¢ at the ${r.coinHow}` : "no coin",
+      // A rung's gain is its own step over the rung below, so it costs its own points.
+      points: r.isRung ? r.ownPoints : r.points,
+      gain: r.caverGain,
+      gainHow: `${round1(r.caverGain)} ¢ an expedition for a Depths caver at a ${combat.budget}-trouble budget, ${r.isRung ? "the step from the rung below" : `averaged over three starting positions (${[r.gainFromUntrained, r.gainFromI, r.gainFromII].map((g) => (g == null ? "—" : round1(g))).join(" / ")} from untrained, I and II)`}, on the better of the two trees, taken as one a turn, under Bascinet's assumed band → trouble mix`,
+      note: "The mix that turns a band into fewer bad wounds is an assumption pending a real mechanic (caving.js MIX_BY_BAND).",
     });
   }
 
@@ -252,10 +365,12 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
   const egg = get("arelitz-egg");
   if (arelitz && egg) {
     const feedUnits = 2;
-    const cheapestFood = Math.min(...["potato", "wheat", "carrot"].map((s) => get(s)?.sellablePrice ?? 1));
-    const eggValue = Math.max(egg.sellablePrice ?? 0, (egg.consumesIntoResources ?? 0) * rvMined);
+    // The stable eats whatever food is on the floor (db/lib/stablePass.js), so the cheapest is the cheapest food crop.
+    const cheapestFood = Math.min(...soilery.CROPS.map((c) => get(c.crop)).filter((t) => hungerLib.foodHungerFor(t) > 0).map((t) => food.of(t)));
+    const eggValue = Math.max((egg.sellablePrice ?? 0) - tax(egg.sellablePrice ?? 0), (egg.consumesIntoResources ?? 0) * rvMined);
     add({
       id: "arelitz",
+      slug: "arelitz",
       group: "Livestock",
       name: arelitz.name,
       kind: "animal",
@@ -264,8 +379,8 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       coinHow: `${shelfPrice(arelitz)} ¢ each`,
       points: 0,
       gain: eggValue - feedUnits * cheapestFood,
-      gainHow: `${eggValue} ¢ an egg less ${feedUnits} × ${cheapestFood} ¢ of feed, with no Move spent`,
-      note: `A Stable holds ${params.stableCapacity ?? 10} in all, adults and young, so one Stable is worth about ${round1((eggValue - feedUnits * cheapestFood) * (params.stableCapacity ?? 10))} ¢ a turn at most, and it is shared. 1 egg in 30 hatches each turn it sits on the floor, and someone has to walk the eggs to the Depot.`,
+      gainHow: `${eggValue} ¢ an egg less ${feedUnits} × ${round1(cheapestFood)} ¢ of feed, with no Move spent`,
+      note: `A Stable is meant to hold ${params.stableCapacity} in all, adults and young, though the pass only evicts past that when an overflow room is configured (db/lib/stablePass.js), so the cap is soft. At the cap one Stable is worth about ${round1((eggValue - feedUnits * cheapestFood) * params.stableCapacity)} ¢ a turn at most, and it is shared. 1 egg in 30 hatches each turn it sits on the floor, and someone has to walk the eggs to the Depot.`,
     });
   }
 
@@ -283,6 +398,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     const value = shelfPrice(alcohol) ?? 0;
     add({
       id: "brewery",
+      slug: "brewery",
       group: "Buildings",
       name: brewery.name,
       kind: "building",
@@ -293,7 +409,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       points: builderPts,
       gain: value * (y.quantity ?? 1),
       gainHow: `${value} ¢ a turn, what the Depot's Black Market charges for the same drink`,
-      note: `Only at the Old Cock Inn, and it needs a brewer on hand. The cask is worth about ${round1(value - (get("wheat")?.sellablePrice ?? 1) * 2)} ¢ over the two crops it would cost to brew it yourself.`,
+      note: `Only at the Old Cock Inn, and it needs a brewer on hand. The cask is worth about ${round1(value - (alcohol ? craftCoin(alcohol).coin : 0))} ¢ over the ingredients it would cost to brew it yourself.`,
     });
   }
   const forge = get("forge");
@@ -302,6 +418,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     const wsCoin = shelfPrice(wsTag) ?? craftCoin(wsTag).coin;
     add({
       id: "forge",
+      slug: "forge",
       group: "Buildings",
       name: forge.name,
       kind: "building",
@@ -318,11 +435,13 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     });
   }
   if (wsTag) {
+    // At the run's sell tax, as the model measured it recipe by recipe (the rung's median).
     const floor = profitTiers.find((t) => t.points === 5);
     const skilled = profitTiers.find((t) => t.points === 10);
     const wsCoin = shelfPrice(wsTag) ?? craftCoin(wsTag).coin;
     add({
       id: "workshop-equipment",
+      slug: "workshop-equipment",
       group: "Buildings",
       name: `${wsTag.name} (your own)`,
       kind: "tool",
@@ -330,16 +449,16 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       coin: wsCoin,
       coinHow: `${wsCoin} ¢ at the Depot, or ${wsTag.requirement?.resourceCost} ⬢ and ${wsTag.requirement?.turnsCost} Moves to smith`,
       points: smithing?.pointCost ?? 0,
-      gain: skilled ? skilled.rate - cutOn(skilled.rate) : null,
-      gainHow: `the Merchant's floor for a 10-point smith after his cut, ${round1(skilled ? skilled.rate - cutOn(skilled.rate) : null)} ¢ a Move (${round1(floor ? floor.rate - cutOn(floor.rate) : null)} at 5 points); the real money is above the floor`,
+      gain: skilled ? skilled.netMedian : null,
+      gainHow: `the median 10-point recipe at a ${params.sellTaxRate}% sell tax, ${round1(skilled?.netMedian)} ¢ a Move (${round1(floor?.netMedian)} at 5 points); the real money is above the floor`,
       note: "At the floor this is a slow payback. It is the price of being able to smith at all.",
     });
   }
 
   // ---- skill rungs ----------------------------------------------------------------------------------
   const tiers = profitTiers.filter((t) => t.rate != null);
-  // A rung's rate is what a one-Move craft clears before the Merchant's cut; this is what is left of it.
-  const real = (r) => r - cutOn(r);
+  // What a rung's recipes clear at the run's sell tax, measured recipe by recipe in the model (the median recipe).
+  const real = (t) => t.netMedian;
   let prev = null;
   for (const t of tiers) {
     const label = { 2: "Crafting", 5: "Smithing / basic brewing", 10: "Skilled smithing / brewing", 15: "Expert brewing", 19: "Gunpowder" }[t.points] ?? `${t.points}-point rung`;
@@ -348,12 +467,12 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       group: "Skill rungs",
       name: label,
       kind: "skill",
-      does: `Unlocks recipes that clear ${t.rate} ¢ a Move before the Merchant's cut and ${round1(real(t.rate))} after it.`,
+      does: `Unlocks recipes priced to clear ${t.rate} ¢ a Move before tax; the median one clears ${round1(real(t))} at a ${params.sellTaxRate}% sell tax.`,
       coin: 0,
       coinHow: "no coin",
       points: t.points - (prev?.points ?? 0),
-      gain: real(t.rate) - (prev ? real(prev.rate) : 0),
-      gainHow: prev ? `+${round1(real(t.rate) - real(prev.rate))} ¢ a Move over the ${prev.points}-point rung after the cut, for the ${t.points - prev.points} extra points` : `${round1(real(t.rate))} ¢ a Move after the cut`,
+      gain: real(t) - (prev ? real(prev) : 0),
+      gainHow: prev ? `+${round1(real(t) - real(prev))} ¢ a Move over the ${prev.points}-point rung at a ${params.sellTaxRate}% sell tax, for the ${t.points - prev.points} extra points` : `${round1(real(t))} ¢ a Move at a ${params.sellTaxRate}% sell tax`,
       note: "The floor only. Selling above it is where a crafter actually earns.",
     });
     prev = t;
@@ -365,10 +484,11 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
   if (lazy && caves) {
     add({
       id: "lazy",
+      slug: "lazy",
       group: "Trade-offs",
       name: lazy.name,
       kind: "perk",
-      does: "Cuts the ⬢ that land by a quarter, rounded down.",
+      does: "Takes a quarter off the ⬢ that land, rounded down.",
       coin: 0,
       coinHow: "gives back points",
       points: lazy.pointCost ?? 0,
@@ -380,6 +500,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
   if (soft && caves) {
     add({
       id: "soft-hands",
+      slug: "soft-hands",
       group: "Trade-offs",
       name: soft.name,
       kind: "perk",
@@ -401,6 +522,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     const worst = [...bodies].sort((a, b) => a.revenue - b.revenue)[0];
     add({
       id: "butcher",
+      slug: "butcher",
       group: "Loot rolls",
       name: butcher.name,
       kind: "skill",

@@ -5,10 +5,12 @@
 //   - the MOVE: one per turn. Mine, Farm and Refine each take all of it
 //     (web/lib/moveSpend.js refuses a second Action), and crafts share it in
 //     fractions, so a turn is one day-verb OR a craft mix, never both;
-//   - FATIGUE: Mine and Farm climb the Tired/Exhausted ladder and Refine does
-//     not (fatigue.js), so Refine can fill the turns Farm or Mine lock you out of;
-//   - SKILL POINTS: Farm needs Soilery (7) and Mine needs Prospecting (7), so a
-//     starting character cannot hold both. Refine and cutting Godflesh need none;
+//   - FATIGUE: Mine, Farm and Refine all climb the same Tired/Exhausted ladder
+//     (fatigue.js), so none can fill another's locked turns; crafts, which never
+//     tire, can;
+//   - SKILL POINTS AND TOOLS: Farm needs Soilery and Mine needs a held pickaxe
+//     (Prospecting is optional, and multiplies the yield). Refine and cutting
+//     Godflesh need nothing;
 //   - PLACE: each verb has a home zone. Hops inside a zone are free, and every
 //     turn allows a few free zone crossings (GameConfig.freeZoneMovesPerTurn).
 //     One crossing past that costs the Move.
@@ -62,7 +64,7 @@ function loadMap() {
     adj,
     zones: [...adj.keys()].sort(),
     zoneOfLocation: (slug) => zoneOf.get(slug),
-    sites: { farm: zoneWith("soilery"), refine: zoneWith("refinery"), cut: zoneWith("godflesh") },
+    sites: { farm: zoneWith("soilery"), refine: zoneWith("refinery"), cut: zoneWith("godflesh"), depot: zoneWith("depot") },
   };
 }
 
@@ -172,6 +174,9 @@ function summarise(planFor, gameTurns, patternTurns = 15) {
     start: mid.start,
     pattern: shown.map((r) => r.verb).join(" "),
     zones: shown.map((r) => zoneLetter(r.zone)).join(" "),
+    // The same turns as zone slugs and verb letters, for the selling-trip budget (travel.js).
+    zoneSlugs: shown.map((r) => r.zone),
+    letters: shown.map((r) => r.verb),
   };
 }
 
@@ -208,10 +213,12 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       value: a.perAction,
       fatigue: "mine",
       needs: a.skillPoints > 0 ? ["prospecting"] : [],
-      pick: true, // the gate is a held pickaxe: 2 points at creation, or a smith makes their own
+      pick: true, // the gate is a held pickaxe: a creation pick (its pointCost), or a smith makes their own
     }));
-  // The best farm on plain ground, and the same with Fertilizer (a 2-point item, so it has to be picked).
-  const farmActs = activities.filter((a) => a.kind === "farm" && !a.fert).sort((x, y) => y.perAction - x.perAction);
+  // The best farm on plain ground, and the same with Fertilizer (a pick with its own pointCost, so it has to be bought).
+  // Cash crops only: a food crop is valued at Ration Box parity with no cap on how much the town eats, a ceiling,
+  // so like a dish it does not compete for a Move here.
+  const farmActs = activities.filter((a) => a.kind === "farm" && !a.fert && !a.foodValued).sort((x, y) => y.perAction - x.perAction);
   const farmZone = map.sites.farm[0];
   const farmVerb = { id: farmActs[0].id, letter: "F", label: farmActs[0].name, zone: farmZone, value: farmActs[0].perAction, fatigue: "farm", needs: ["soilery"] };
   const fertAct = activities.find((a) => a.fert && a.id === `${farmActs[0].id}-fert`);
@@ -228,7 +235,10 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   // lets a family pay in obols (smithing, today), one obol a ⬢. Ask the model, which reads the source.
   const craftValue = (a) => Math.max(a.netPerTurnBuy ?? -Infinity, a.parPayable ? a.netPerTurnObols ?? -Infinity : -Infinity);
   // A Trinket bought at the shelf needs a Merchant's licence, which is not "easy", but it is a craft anybody with the coin can make.
-  const craftPool = activities.filter((a) => a.kind === "craft" && (a.easy || a.trinket) && !a.copy && !oreLimited(a) && a.totalMoves > 0 && craftValue(a) > 0);
+  // A dish is left out: its worth is Ration Box parity with no cap on how much the town eats, a ceiling, so it does not
+  // compete for a Move.
+  // A ceiling-priced drink (Alcohol: sold to players at the shelf price, never to the counter) is left out for the same reason.
+  const craftPool = activities.filter((a) => a.kind === "craft" && a.family !== "cooking" && !a.ceiling && (a.easy || a.trinket) && !a.copy && !oreLimited(a) && a.totalMoves > 0 && craftValue(a) > 0);
   const craftFor = (skillSet) =>
     craftPool
       .filter((a) => a.skill.split(", ").every((s) => skillSet.has(s)))
@@ -263,7 +273,9 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   // ---- loadouts ----
   const tiers = {
     smithing: [[], ["smithing"], ["smithing-skilled"]],
-    brewing: [[], ["brewing-basic"], ["brewing-skilled"]],
+    // Distilling (3 points on top of Brewing II) doubles Alcohol and Moonshine; the rung is here so the
+    // planner can say whether it ever pays, given what the drinks actually fetch at the counter.
+    brewing: [[], ["brewing-basic"], ["brewing-skilled"], ["brewing-skilled", "brewing-distilling"]],
   };
   const loadouts = [];
   const verbsOf = new Map();
@@ -273,7 +285,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
      for (const fert of soilery && farmVerbFert ? [0, 1] : [0])
       for (const crafting of [0, 1])
         for (const smith of [0, 1, 2])
-          for (const brew of [0, 1, 2]) {
+          for (const brew of [0, 1, 2, 3]) {
             const picked = [
               ...(pickaxe ? ["pickaxe"] : []),
               ...(prospecting ? ["prospecting"] : []),
@@ -316,6 +328,8 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
               skills: picked.length ? picked.map((s) => bySlug.get(s)?.name ?? s) : ["no skills"],
               picked,
               points,
+              // Every tag the loadout holds, prerequisites included, at its own catalog pointCost.
+              tagCosts: [...skillSet].map((s) => ({ slug: s, name: bySlug.get(s)?.name ?? s, points: bySlug.get(s)?.pointCost ?? 0 })).filter((t) => t.points),
               craft: craft ? { name: craft.name, value: craftValue(craft), skill: craft.skill } : null,
               forgesStones: forged,
               withFactory: run(verbList, true, key),
@@ -361,7 +375,9 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
     seats,
     zones: map.zones,
     adjacency: Object.fromEntries([...map.adj].map(([k, v]) => [k, [...v].sort()])),
-    sites: { farm: farmZone, refine: refineZone, cut: map.sites.cut[0], caves: "caves", depths: "depths" },
+    sites: { farm: farmZone, refine: refineZone, cut: map.sites.cut[0], depot: map.sites.depot[0] ?? null, caves: "caves", depths: "depths" },
+    // Zone-to-zone crossings on the map, the planner's own breadth-first distances.
+    hops: Object.fromEntries([...dist].map(([a, m]) => [a, Object.fromEntries(m)])),
     crossings: {
       "Farm to Factory": between(farmZone, refineZone),
       "Factory to the Caves": between(refineZone, "caves"),
@@ -371,7 +387,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       "Farm to the Depot": between(farmZone, "undertown"),
       "Factory to the Depot": between(refineZone, "undertown"),
     },
-    verbs: [farmVerb, ...(farmVerbFert ? [farmVerbFert] : []), refineVerb, ...mineVerbs].map((v) => ({ label: v.label, zone: v.zone, value: v.value, fatigue: v.fatigue, needs: v.needs })),
+    verbs: [farmVerb, ...(farmVerbFert ? [farmVerbFert] : []), refineVerb, ...mineVerbs].map((v) => ({ id: v.id, label: v.label, zone: v.zone, value: v.value, fatigue: v.fatigue, needs: v.needs })),
     alone,
     loadouts,
     staircase,

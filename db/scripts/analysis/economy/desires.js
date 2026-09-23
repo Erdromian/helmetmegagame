@@ -12,24 +12,54 @@ const fs = require("fs");
 const path = require("path");
 const yaml = require("js-yaml");
 
+const { SLOT_COST, SLOT_PAYOUTS } = require("../../../lib/slotText");
+
 const REPO = path.resolve(__dirname, "../../../..");
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
-// The slot machine's table (db/lib/slotMachine.js, DEPOT.md §0m): a stake of 5 ¢, three dice.
-const SLOT = { stake: 5, table: [{ ways: 6, pays: 50 }, { ways: 12, pays: 15 }, { ways: 90, pays: 6 }, { ways: 108, pays: 0 }] };
+// The slot machine (DEPOT.md §0m): the stake and payouts are db/lib/slotText.js's. The ways are how three dice
+// fall (6 triples, 12 runs, 90 pairs, 108 nothing, of 216), which db/test/slotMachine.test.js pins.
+const SLOT = {
+  stake: SLOT_COST,
+  table: [
+    { ways: 6, pays: SLOT_PAYOUTS.triple },
+    { ways: 12, pays: SLOT_PAYOUTS.run },
+    { ways: 90, pays: SLOT_PAYOUTS.pair },
+    { ways: 108, pays: 0 },
+  ],
+};
 
-function describeRequires(req) {
+// A Desire's `requires` block in words, following DESIRES.md §3: OR within an `any` list, every tag of `allTags`,
+// AND across the lists, except that `combine: or` joins the role and tag lists with OR. The not-clauses are never
+// part of that OR. Names come from the catalog and docs/roles.yaml, falling back to the slug.
+function describeRequires(req, { roleName, tagName }) {
   if (!req) return "anyone";
+  const any = [];
+  if (req.anyRoles?.length) any.push(`role: ${req.anyRoles.map(roleName).join(" / ")}`);
+  if (req.anyTags?.length) any.push(`tag: ${req.anyTags.map(tagName).join(" / ")}`);
   const parts = [];
-  if (req.anyRoles?.length) parts.push(`role: ${req.anyRoles.join(" / ")}`);
-  if (req.anyTags?.length) parts.push(`tag: ${req.anyTags.slice(0, 3).join(" / ")}${req.anyTags.length > 3 ? " …" : ""}`);
-  if (req.allTags?.length) parts.push(`all: ${req.allTags.join(" + ")}`);
-  return parts.join(req.combine === "or" ? " or " : " and ") || "anyone";
+  if (any.length) parts.push(req.combine === "or" && any.length > 1 ? `(${any.join(" or ")})` : any.join(" and "));
+  if (req.allTags?.length) parts.push(`all of: ${req.allTags.map(tagName).join(" + ")}`);
+  const not = [...(req.notRoles ?? []).map(roleName), ...(req.notTags ?? []).map(tagName)];
+  if (not.length) parts.push(`not: ${not.join(", ")}`);
+  return parts.join(" and ") || "anyone";
 }
+// What a `requires` block locks a Desire to: a role, a tag, or both.
+const lockKinds = (req) => ({
+  role: Boolean(req?.anyRoles?.length || req?.notRoles?.length),
+  tag: Boolean(req?.anyTags?.length || req?.allTags?.length || req?.notTags?.length),
+});
 
-function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, lockTurns, cookingDishes, investments, startingPoints }) {
+// `inputCost(slug)` is the model's one price for a recipe input (foodValue.js#inputCost).
+function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, lockTurns, cookingDishes, investments, startingPoints, foodFloor, inputCost }) {
   const doc = yaml.load(fs.readFileSync(path.join(REPO, "docs/desires.yaml"), "utf8"));
   const tpl = doc.desires;
+  // Role names from docs/roles.yaml (grouped), tag names from the catalog.
+  const roleNames = new Map();
+  for (const group of Object.values(yaml.load(fs.readFileSync(path.join(REPO, "docs/roles.yaml"), "utf8")).groups ?? {})) {
+    for (const [slug, r] of Object.entries(group ?? {})) if (r?.name) roleNames.set(slug, r.name);
+  }
+  const names = { roleName: (slug) => roleNames.get(slug) ?? slug, tagName: (slug) => get(slug)?.name ?? slug };
 
   // What one of a thing costs to get: the shelf price if the Depot stocks it, otherwise what it costs to
   // make (its ⬢ at the import price and its inputs), otherwise what it would sell for.
@@ -75,7 +105,11 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
       cooldownFromLadder: d.cooldownTurns != null,
       spacing,
       once: !!d.oncePerLife,
-      who: describeRequires(d.requires),
+      who: describeRequires(d.requires, names),
+      lock: lockKinds(d.requires),
+      // How a GM checks the claim: the template's `verify:` string searched against the audit log, else judgement.
+      verify: d.verify ?? null,
+      checkedBy: d.verify ? `audit-log search for "${d.verify}"` : "GM judgement",
       open: !d.requires,
       doThis,
       coin: cost.coin,
@@ -95,7 +129,14 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
 
   // ---- consumables: every drink, smoke, drug and sweet is a real spend, on a flat 3-turn cooldown ------------
   const a = unit("alcohol");
-  add("drink-alcohol", "Drink an Alcohol", { coin: a.coin, how: a.how }, { consumable: true, note: "Or two crops and a quarter Move, about 2 ¢, if you brew it yourself." });
+  // Brewing one instead: its inputs at the model's input price (the cheapest option where the recipe offers a choice).
+  const brew = get("alcohol")?.requirement;
+  const slugOf = (x) => (typeof x === "string" ? x : x.tag);
+  const brewCost = brew
+    ? (brew.items ?? []).reduce((n, it) => n + (typeof it === "object" && it.count ? it.count : 1) * (it.anyOf ? Math.min(...it.anyOf.map((o) => inputCost(slugOf(o)))) : inputCost(slugOf(it))), 0) + (brew.resourceCost ?? 0) * rv.buy
+    : null;
+  const brewUnits = (brew?.items ?? []).reduce((n, it) => n + (typeof it === "object" && it.count ? it.count : 1), 0);
+  add("drink-alcohol", "Drink an Alcohol", { coin: a.coin, how: a.how }, { consumable: true, note: brew ? `Or brew it yourself: ${brewUnits} ingredients and ${brew.turnsCost ?? 0} of a Move, about ${round1(brewCost)} ¢.` : "" });
   const rr = unit("ravenheart-red");
   add("drink-ravenheart-red", "Drink a Ravenheart Red", { coin: rr.coin, moves: rr.moves, how: rr.how }, { consumable: true });
   const sake = unit("sake");
@@ -119,7 +160,7 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   add("get-jewelry", "Buy Jewelry, and sell it back", { coin: jew.coin, how: jew.how, resale: jew.resale }, { note: "It has no cooldown of its own, so only the slots throttle it, and the Depot buys it back." });
   const box = unit("boombox");
   add("listen-to-boombox", "Own a Boombox, and play it", { coin: 0, capital: box.coin, how: `${box.coin} ¢ once, then free` }, { note: "One purchase, then a free claim every five turns." });
-  add("hold-100", "Carry 100 ¢", { coin: 0, capital: 100, how: "no spend, but 100 ¢ tied up" }, { note: "A gate is not a throttle: it costs nothing to keep 100 ¢ in the pocket, so it takes the free-tap ladder, a 4-turn cooldown rather than the tier's 2." });
+  add("hold-100", "Carry 100 ¢", { coin: 0, capital: 100, how: "no spend, but 100 ¢ tied up" }, { note: `A gate is not a throttle: it costs nothing to keep 100 ¢ in the pocket, so it takes the free-tap ladder, a ${tpl["hold-100"]?.cooldownTurns ?? tpl["hold-100"]?.tier}-turn cooldown rather than the tier's ${tpl["hold-100"]?.tier}.` });
   // gambling, on the Den's slot machine
   for (const [slug, n, label] of [["win-5-gambling", 5, "a 5 ¢ payout"], ["win-10-gambling", 10, "a 10 ¢ payout"], ["win-25-gambling-one-game", 25, "a 25 ¢ payout in one spin"], ["win-50-gambling-one-game", 50, "a 50 ¢ payout in one spin"]]) {
     const c = slotCost(n);
@@ -140,7 +181,8 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   if (sh) add("build-wayside-shrine", "Build a Wayside Shrine", { coin: unit("wayside-shrine").coin, moves: sh.requirement?.turnsCost ?? 0, how: unit("wayside-shrine").how });
   const sq = get("squeeze");
   if (sq) add("sell-squeeze-to-the-merchant", "Sell a cube of Squeeze", { coin: -(sq.sellablePrice ?? 0), how: `it pays ${sq.sellablePrice} ¢` });
-  add("feed-the-poor", "Give away a Ration Box", { coin: 3, how: "3 ¢, a Ration Box" });
+  const ration = foodFloor?.anyone;
+  if (ration) add("feed-the-poor", `Give away a ${ration.name}`, { coin: ration.buy, how: `${ration.buy} ¢, a ${ration.name}` });
   add("sample-every-alcohol", "Drink each of Alcohol, Sake, Moonshine and Ravenheart Red", { coin: a.coin + sake.coin + 0 + rr.coin, how: "one of each, once" });
 
   // ---- the ceiling ------------------------------------------------------------------------------------------------------
@@ -186,7 +228,8 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   // ---- what a point buys ------------------------------------------------------------------------------------------------------
   // The skills and kit a point can be spent on mid-game, from the investment table, per point of cost.
   const buys = investments.rows
-    .filter((r) => r.points > 0 && r.gain > 0 && ["skill", "skill + kit", "tool", "consumable", "building"].includes(r.kind))
+    // A consumed thing buys one use, not a point's worth of turns, so it is not a use of a point.
+    .filter((r) => r.points > 0 && r.gain > 0 && r.lasts === "durable" && ["skill", "skill + kit", "tool", "consumable", "building"].includes(r.kind))
     .map((r) => ({ name: r.name, points: r.points, gain: r.gain, perPoint: r.gain / r.points, overGame: r.gain * gameTurns / r.points, coin: r.allIn }))
     .sort((x, y) => y.perPoint - x.perPoint);
   // A point's worth in coin over the game: what the best skill it buys returns per point, over the turns left.
@@ -204,7 +247,16 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
     pointValue,
     cheapestOpen: cheapOpen[0] ?? null,
     slot: { stake: SLOT.stake, ev: slotEv, edge: slotLoss / SLOT.stake },
-    count: { total: Object.keys(tpl).length, satisfiable: S.length, open: S.filter((s) => s.open).length },
+    count: {
+      total: Object.keys(tpl).length,
+      satisfiable: S.length,
+      open: S.filter((s) => s.open).length,
+      // Of the satisfiable ones: locked to a role only, to a tag only, and to both.
+      roleOnly: S.filter((s) => s.lock.role && !s.lock.tag).length,
+      tagOnly: S.filter((s) => s.lock.tag && !s.lock.role).length,
+      both: S.filter((s) => s.lock.role && s.lock.tag).length,
+      verified: S.filter((s) => s.verify).length,
+    },
   };
 }
 

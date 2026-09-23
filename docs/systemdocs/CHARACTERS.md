@@ -591,9 +591,11 @@ Picking a role decides almost everything:
   behind it). Absent for the Black Hills — the Tribunal
   arrives with no account at all, and open one later at the counter's
   **Create an account** button, the same as any spawned antagonist. The
-  account itself opens EMPTY; a starting purse is physical `Obol xN` tags
-  from `starting_tags` instead, because a seeded balance on day one would be
-  a claim with nothing behind it. See `DEPOT.md` §0g.
+  account opens with the role's `starting_account:` obols already in it
+  (`web/app/(app)/character/createActions.js` bumps the new account by
+  `Role.startingAccountObols`), on top of any physical `Obol xN` tags in
+  `starting_tags`. Those balances are claims on the Vault, which is stocked
+  deliberately short of them — see `DEPOT.md` §0g.
 
 **Everyone starts with about one meal**, in `starting_tags`, flavoured to the
 seat: moldy bread or a Ration Box for the poor, the Dockers and the soldiers of
@@ -634,7 +636,9 @@ out by two other seats, so nothing lost a route into the Sanctuary.
 
 ```
 budget = GameConfig.startingTagPoints      (default 8, live on /gm/dev)
-       + role.extra_starting_points        (Outsider +4; no other role sets it)
+       + role.extra_starting_points        (Baron, Heir and Hand +5, Courtier +7,
+                                            Migrant +3, the Bastard +2, Bum −3;
+                                            docs/roles.yaml is the list)
 ```
 
 There is no Cursed discount any more. It used to take 6 off and cancel the

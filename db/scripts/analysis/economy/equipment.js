@@ -21,8 +21,10 @@
 // HOW HARD is the sourcing model's rank of the item's easiest in-game route, with the creation pick
 // itself left out (that is the thing being priced), plus which starting kits hand it out for free.
 //
-// `pointValue` is the ¢ one point is meant to buy: POINT_VALUE below, Bascinet's call on 2026-09-22
-// (TAGS.md §4a) — an Item or Asset is priced at 6–8 ¢ of kit a point, and 7 is the middle of that.
+// `pointValue` is the ¢ one point is meant to buy: POINT_VALUE below, Bascinet's call on 2026-09-22 — the
+// paragraph under TAGS.md §4a's point table (its "priced off what it costs in play" rule; the table itself is in
+// points): an Item or Asset is priced at 6–8 ¢ of kit a point, and 7 is the target. It is a rule for SETTING a
+// pointCost, not a rate anything in the game trades at: no code turns points into coin.
 // The catalog's own median is reported beside it. `--point-value N` tries another scale, and the last
 // columns say what each tag would cost on it and how far off it is.
 
@@ -31,6 +33,8 @@ const path = require("path");
 const yaml = require("js-yaml");
 const { rankLabel, RULES } = require("./sources");
 const { armorWord } = require("../../../lib/armorValue");
+const { median } = require("./stats");
+const { MANIFESTS, manifestOf } = require("../../../lib/depotManifests");
 
 const REPO = path.resolve(__dirname, "../../../..");
 
@@ -45,12 +49,6 @@ const POINT_VALUE = 7;
 const POINT_VALUE_RANGE = [6, 8];
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
-const median = (xs) => {
-  const s = xs.filter((x) => Number.isFinite(x)).sort((a, b) => a - b);
-  if (!s.length) return null;
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-};
 
 function groupNames() {
   try {
@@ -168,7 +166,7 @@ function buildEquipment({ list, get, sources, investments, rv, moveValue, gameTu
     }
     // A container is worth what it opens into — but only when everything inside has a price. One
     // unpriced content (a status, a sheet of paper) would make the whole crate read as free and
-    // undercut the shelf price that is actually there.
+    // come in under the shelf price that is actually there.
     const contents = [];
     let unpriced = 0;
     for (const entry of t.consumesInto ?? []) {
@@ -313,11 +311,31 @@ function buildEquipment({ list, get, sources, investments, rv, moveValue, gameTu
   // point, played out over the game. The same budget, the other thing it can buy.
   const skillPoints = (investments?.rows ?? [])
     .filter((r) => r.perPoint != null && r.points > 0 && r.perPoint > 0 && r.coin === 0)
-    .map((r) => ({ name: r.name, group: r.group, points: r.points, perTurnPerPoint: round1(r.perPoint), overGamePerPoint: round1(r.perPoint * gameTurns) }))
+    .map((r) => ({ name: r.name, group: r.group, valuedBy: r.valuedBy ?? "cash", paysThrough: r.paysThrough, points: r.points, perTurnPerPoint: round1(r.perPoint), overGamePerPoint: round1(r.perPoint * gameTurns) }))
     .sort((a, b) => b.overGamePerPoint - a.overGamePerPoint);
 
   const unpriced = rows.filter((r) => r.replace == null);
+  // The one real route from coin to tag points: a ware that is spent into points (`consumesIntoTagPoints`), bought
+  // at the shelf that stocks it, behind whatever tag opens that shelf.
+  const pointRoutes = list
+    .filter((t) => t.consumesIntoTagPoints > 0 && t.depotPrice != null)
+    .map((t) => {
+      const shelf = MANIFESTS.find((m) => m.id === manifestOf(t));
+      return { name: t.name, price: t.depotPrice, points: t.consumesIntoTagPoints, perPoint: t.depotPrice / t.consumesIntoTagPoints, shelf: shelf?.name ?? manifestOf(t), gate: shelf?.requiredTagSlug ? get(shelf.requiredTagSlug)?.name ?? shelf.requiredTagSlug : null };
+    });
+  // The schema's own word on the two armour columns.
+  const schemaSrc = fs.readFileSync(path.join(REPO, "db/prisma/schema.prisma"), "utf8");
+  const meleeUnread = /meleeArmor is authored and displayed but nothing reads it mechanically yet/.test(schemaSrc);
+  const ballisticLive = /ballisticArmor is live: it is what the\s*\/\/\s*turrets roll against/.test(schemaSrc);
+  // Who reads each field: the turret code rolls against ballistic; a GM reads the melee word off the sheet in an
+  // Attack (ATTACK.md). Both are checked in their sources so the sentence cannot outlive them.
+  const turretReadsBallistic = /ballisticArmor|combineArmor/.test(fs.readFileSync(path.join(REPO, "db/lib/depotTurret.js"), "utf8"));
+  const attackDocReadsArmour = /armou?r/i.test(fs.readFileSync(path.join(REPO, "docs/systemdocs/ATTACK.md"), "utf8"));
   return {
+    // The cheapest way to hold one in play, in ¢ (the REPLACE lens above), for any other tab to price by.
+    replaceOf: (slug) => replaceOf(get(slug)),
+    pointRoutes,
+    armorNote: { meleeUnread, ballisticLive, turretReadsBallistic, attackDocReadsArmour },
     rows,
     byGroup,
     byPoints,
